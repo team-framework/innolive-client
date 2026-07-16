@@ -45,8 +45,8 @@ change or broadening the requested platform scope.
 - Keep secrets, stream keys, access tokens, and production endpoints out of
   repository files and logs.
 - Prefer additive protocol changes while multiple app versions may coexist.
-- Do not migrate `../innolive-mac` into this repository unless the task
-  explicitly authorizes the migration.
+- `apps/mac` is the canonical home for future macOS client changes. The legacy
+  `../innolive-mac` repository is preserved as a historical reference only.
 
 ## Completion criteria
 

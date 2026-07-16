@@ -27,7 +27,7 @@ macOS, iOS, Android, Windows, and Web.
 
 | App | Stack | Status |
 | --- | --- | --- |
-| `apps/mac` | Swift, SwiftUI, AppKit/AVFoundation | Existing app migration target |
+| `apps/mac` | Swift, SwiftUI, AppKit/AVFoundation | Migrated baseline |
 | `apps/ios` | Swift, SwiftUI, AVFoundation | Scaffold |
 | `apps/android` | Kotlin, Jetpack Compose, CameraX/WebRTC | Scaffold |
 | `apps/windows` | C#, WinUI 3, Windows media APIs/WebRTC | Scaffold |
@@ -56,5 +56,6 @@ scripts/          Contract verification scripts
 
 ## Migration note
 
-The existing macOS project remains in `../innolive-mac` until a separate,
-verified migration task moves it to `apps/mac`. Do not copy it opportunistically.
+The macOS client was migrated into `apps/mac` from the committed baseline of
+`../innolive-mac`. The original repository remains preserved; make future macOS
+changes in this monorepo.

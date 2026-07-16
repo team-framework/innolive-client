@@ -7,6 +7,7 @@ xcuserdata/
 # Android / Gradle
 .gradle/
 **/build/
+**/.build/
 local.properties
 
 # Node / Web
@@ -19,4 +20,4 @@ coverage/
 .env
 .env.*
 !.env.example
-
+apps/*/InnoLive/Config/Server.env

@@ -34,7 +34,8 @@ apps/mac | apps/ios | apps/android | apps/windows | apps/web
 
 ## Current reference
 
-`../innolive-mac` is the current macOS behavioral reference. In particular,
-its broadcast lifecycle, WebSocket signaling, WebRTC offer/answer/ICE flow,
-camera switching, and studio state should be documented before equivalent
-features are implemented in a new client.
+`apps/mac` is the current macOS behavioral reference, migrated from the
+committed baseline of `../innolive-mac`. Its broadcast lifecycle, WebSocket
+signaling, WebRTC offer/answer/ICE flow, camera switching, and studio state
+should be documented before equivalent features are implemented in a new
+client.
