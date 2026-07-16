@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://innolive.app/contracts/signaling/v1.schema.json",
+  "title": "InnoLive WebRTC signaling message",
+  "type": "object",
+  "required": ["session_id", "type"],
+  "properties": {
+    "session_id": { "type": "string", "minLength": 1 },
+    "type": {
+      "type": "string",
+      "enum": ["offer", "answer", "ice_candidate", "status", "error"]
+    },
+    "sdp": { "type": "string" },
+    "candidate": { "type": "string" },
+    "sdpMid": { "type": ["string", "null"] },
+    "sdpMLineIndex": { "type": ["integer", "null"], "minimum": 0 },
+    "connection_state": { "type": "string" },
+    "message": { "type": "string" },
+    "error_code": { "type": "string" }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "offer" } } },
+      "then": { "required": ["sdp"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "answer" } } },
+      "then": { "required": ["sdp"] }
+    },
+    {
+      "if": { "properties": { "type": { "const": "ice_candidate" } } },
+      "then": { "required": ["candidate"] }
+    }
+  ]
+}
