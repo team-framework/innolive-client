@@ -1,0 +1,22 @@
+# macOS / Xcode
+.DS_Store
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+
+# Node / Web
+node_modules/
+.next/
+dist/
+coverage/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
