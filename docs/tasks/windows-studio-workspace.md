@@ -3,6 +3,7 @@
 ## Request
 
 Implement the selected InnoLive Figma desktop studio in the Windows client.
+Track local studio editing parity in GitHub issue #2.
 
 ## Scope
 
@@ -17,9 +18,10 @@ Implement the selected InnoLive Figma desktop studio in the Windows client.
 
 ## Acceptance criteria
 
-- [ ] WinUI app builds for x64.
-- [ ] UI presents dual previews, scene/source controls, audio controls, and broadcast/record controls.
-- [ ] No shared signaling or API contract is changed.
+- [x] WinUI app builds for x64.
+- [x] UI presents dual previews, scene/source controls, audio controls, and broadcast/record controls.
+- [x] Scene add/select/duplicate/remove and source add/select/show/lock/reorder/remove work locally.
+- [x] No shared signaling or API contract is changed.
 
 ## Contract impact
 
@@ -30,5 +32,5 @@ Implement the selected InnoLive Figma desktop studio in the Windows client.
 ## Verification
 
 - Automated command: `dotnet build -c Debug -p:Platform=x64`
-- Manual test path: launch the Windows app and toggle recording, broadcasting, and add a source.
-- Failure paths: WebRTC/media adapters remain intentionally unimplemented.
+- Manual test path: launch the Windows app and operate scene/source controls, audio toggles, recording, and broadcasting.
+- Failure paths: WebRTC/media adapters and Windows Media Capture remain intentionally unimplemented.
