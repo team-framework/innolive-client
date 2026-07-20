@@ -7,7 +7,7 @@ export function PreRegistrationSection() {
           alt="Get early access"
           className="mx-auto w-[60vw] sm:w-[30vw]"
         />
-        <p className="mt-[clamp(24px,1.67vw,32px)] text-base leading-none md:text-[clamp(18px,1.25vw,24px)] md:leading-none">
+        <p className="mt-[clamp(24px,1.67vw,32px)] text-base leading-tight md:text-[clamp(18px,1.25vw,24px)]">
           InnoLive의 소식을 가장 빨리 접하고<br />
           정식 출시 시 다양한 혜택을 받아가세요.
         </p>
