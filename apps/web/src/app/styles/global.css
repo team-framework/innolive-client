@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Wanted Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+}
