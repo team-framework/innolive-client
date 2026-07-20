@@ -7,13 +7,15 @@ namespace InnoLive_Windows.Models;
 
 public sealed class StudioViewModel : INotifyPropertyChanged
 {
-    private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private DateTimeOffset? _liveStartedAt;
     private DateTimeOffset? _recordingStartedAt;
     private BroadcastState _broadcastState = BroadcastState.Idle;
     private bool _isRecording;
     private bool _isAnonymizationEnabled;
+    private SourceItem? _selectedSource;
     private string _statusMessage = "방송을 시작할 준비가 되었습니다.";
+    private int _meterTick;
 
     public StudioViewModel()
     {
@@ -22,16 +24,17 @@ public sealed class StudioViewModel : INotifyPropertyChanged
             new("장면 1", "ms-appx:///Assets/Figma/scene-mail.png", true),
             new("장면 2", "ms-appx:///Assets/Figma/scene-security.png")
         };
-        Sources = new ObservableCollection<SourceItem> { new("카메라") };
+        Sources = new ObservableCollection<SourceItem> { new("카메라 1", SourceKind.Camera) };
+        SelectedSource = Sources[0];
         AudioChannels = new ObservableCollection<AudioChannelItem>
         {
-            new("Scarlett Solo 4th Generation", .62),
+            new("기본 마이크", .82),
             new("시스템 스피커", .62),
-            new("기본 마이크", .48)
+            new("Scarlett Solo 4th Generation", .48)
         };
         CameraDevices = new ObservableCollection<string> { "기본 카메라", "통합 카메라" };
-        ScreenDevices = new ObservableCollection<string> { "Scarlett Solo 4th Generation", "시스템 스피커" };
-        _clock.Tick += (_, _) => RefreshDuration();
+        ScreenDevices = new ObservableCollection<string> { "주 모니터", "보조 모니터" };
+        _clock.Tick += (_, _) => RefreshStudioState();
         _clock.Start();
     }
 
@@ -41,12 +44,32 @@ public sealed class StudioViewModel : INotifyPropertyChanged
     public ObservableCollection<string> CameraDevices { get; }
     public ObservableCollection<string> ScreenDevices { get; }
 
+    public SourceItem? SelectedSource
+    {
+        get => _selectedSource;
+        set
+        {
+            if (ReferenceEquals(_selectedSource, value)) return;
+            _selectedSource = value;
+            OnChanged();
+            OnChanged(nameof(SelectedSourceText));
+            OnChanged(nameof(SelectedSourceColor));
+            OnChanged(nameof(PreviewOverlayText));
+            OnChanged(nameof(PreviewOverlayVisibility));
+        }
+    }
+
     public string StatusMessage { get => _statusMessage; private set => Set(ref _statusMessage, value); }
     public string LiveDuration => DurationFor(_liveStartedAt);
     public string RecordingDuration => DurationFor(_recordingStartedAt);
     public string BroadcastStatusText => _broadcastState == BroadcastState.Live ? "ONAIR" : "READY";
     public string RecordingButtonText => _isRecording ? "녹화 중지" : "녹화 시작";
     public string BroadcastButtonText => _broadcastState == BroadcastState.Live ? "방송 종료" : "방송 시작";
+    public string SelectedSourceText => SelectedSource?.Text ?? string.Empty;
+    public string SelectedSourceColor => SelectedSource?.ColorHex ?? "#3478F6";
+    public string PreviewOverlayText => SelectedSource is { IsVisible: true, Kind: SourceKind.Text } ? SelectedSource.Text : string.Empty;
+    public Visibility PreviewOverlayVisibility => string.IsNullOrWhiteSpace(PreviewOverlayText) ? Visibility.Collapsed : Visibility.Visible;
+
     public bool IsAnonymizationEnabled
     {
         get => _isAnonymizationEnabled;
@@ -55,7 +78,7 @@ public sealed class StudioViewModel : INotifyPropertyChanged
             if (_isAnonymizationEnabled == value) return;
             _isAnonymizationEnabled = value;
             OnChanged();
-            StatusMessage = value ? "비식별화 처리가 켜졌습니다." : "비식별화 처리가 꺼졌습니다.";
+            StatusMessage = value ? "비식별화 처리를 켰습니다." : "비식별화 처리를 껐습니다.";
         }
     }
 
@@ -67,17 +90,120 @@ public sealed class StudioViewModel : INotifyPropertyChanged
         StatusMessage = $"{scene.Name}을 추가했습니다.";
     }
 
-    public void SelectScene(StudioSceneItem scene)
+    public void DuplicateSelectedScene()
     {
-        foreach (var item in Scenes) item.IsSelected = item == scene;
-        StatusMessage = $"{scene.Name}을(를) 미리보기로 선택했습니다.";
+        var selected = Scenes.FirstOrDefault(scene => scene.IsSelected);
+        if (selected is null) return;
+        var copy = new StudioSceneItem($"{selected.Name} 복사", selected.IconPath);
+        Scenes.Add(copy);
+        SelectScene(copy);
+        StatusMessage = $"{selected.Name}을 복제했습니다.";
     }
 
-    public void AddSource(string kind)
+    public void RemoveSelectedScene()
     {
-        var name = kind switch { "camera" => "카메라", "screen" => "화면 캡처", _ => "텍스트" };
-        Sources.Add(new SourceItem(name));
-        StatusMessage = $"{name} 소스를 추가했습니다.";
+        if (Scenes.Count == 1)
+        {
+            StatusMessage = "최소 한 개의 장면이 필요합니다.";
+            return;
+        }
+
+        var selected = Scenes.FirstOrDefault(scene => scene.IsSelected);
+        if (selected is null) return;
+        var index = Scenes.IndexOf(selected);
+        Scenes.Remove(selected);
+        SelectScene(Scenes[Math.Min(index, Scenes.Count - 1)]);
+        StatusMessage = $"{selected.Name}을 삭제했습니다.";
+    }
+
+    public void SelectScene(StudioSceneItem scene)
+    {
+        foreach (var item in Scenes) item.IsSelected = ReferenceEquals(item, scene);
+        StatusMessage = $"{scene.Name}을 미리보기로 선택했습니다.";
+    }
+
+    public void AddSource(SourceKind kind)
+    {
+        var source = new SourceItem(DefaultSourceName(kind), kind)
+        {
+            Text = kind == SourceKind.Text ? "라이브 텍스트" : string.Empty,
+            ColorHex = kind == SourceKind.Color ? "#3478F6" : "#FFFFFF"
+        };
+        Sources.Add(source);
+        SelectedSource = source;
+        StatusMessage = $"{source.Name} 소스를 추가했습니다.";
+    }
+
+    public void SelectSource(SourceItem? source)
+    {
+        SelectedSource = source;
+        if (source is not null) StatusMessage = $"{source.Name} 소스를 선택했습니다.";
+    }
+
+    public void RemoveSelectedSource()
+    {
+        if (SelectedSource is null) return;
+        if (SelectedSource.IsLocked)
+        {
+            StatusMessage = "잠긴 소스는 삭제할 수 없습니다.";
+            return;
+        }
+
+        var index = Sources.IndexOf(SelectedSource);
+        var removed = SelectedSource;
+        Sources.Remove(removed);
+        SelectedSource = Sources.Count == 0 ? null : Sources[Math.Min(index, Sources.Count - 1)];
+        StatusMessage = $"{removed.Name} 소스를 삭제했습니다.";
+    }
+
+    public void ToggleSelectedSourceLock()
+    {
+        if (SelectedSource is null) return;
+        SelectedSource.IsLocked = !SelectedSource.IsLocked;
+        StatusMessage = SelectedSource.IsLocked ? $"{SelectedSource.Name} 소스를 잠갔습니다." : $"{SelectedSource.Name} 소스 잠금을 해제했습니다.";
+    }
+
+    public void ToggleSourceVisibility(SourceItem source)
+    {
+        source.IsVisible = !source.IsVisible;
+        OnChanged(nameof(PreviewOverlayText));
+        OnChanged(nameof(PreviewOverlayVisibility));
+        StatusMessage = source.IsVisible ? $"{source.Name} 소스를 표시합니다." : $"{source.Name} 소스를 숨겼습니다.";
+    }
+
+    public void MoveSelectedSource(int direction)
+    {
+        if (SelectedSource is null) return;
+        var index = Sources.IndexOf(SelectedSource);
+        var target = Math.Clamp(index + direction, 0, Sources.Count - 1);
+        if (index == target) return;
+        Sources.Move(index, target);
+        StatusMessage = direction > 0 ? $"{SelectedSource.Name} 소스를 앞으로 이동했습니다." : $"{SelectedSource.Name} 소스를 뒤로 이동했습니다.";
+    }
+
+    public void UpdateSelectedSourceText(string text)
+    {
+        if (SelectedSource is not { Kind: SourceKind.Text } source) return;
+        source.Text = text;
+        source.Name = string.IsNullOrWhiteSpace(text) ? "텍스트" : text;
+        OnChanged(nameof(SelectedSourceText));
+        OnChanged(nameof(PreviewOverlayText));
+        OnChanged(nameof(PreviewOverlayVisibility));
+    }
+
+    public void UpdateSelectedSourceColor(string color)
+    {
+        if (SelectedSource is null) return;
+        SelectedSource.ColorHex = color;
+        OnChanged(nameof(SelectedSourceColor));
+        StatusMessage = $"{SelectedSource.Name} 색상을 변경했습니다.";
+    }
+
+    public void SetAudioEnabled(AudioChannelItem channel, bool isEnabled)
+    {
+        channel.IsEnabled = isEnabled;
+        if (!isEnabled) channel.Level = 0;
+        StatusMessage = isEnabled ? $"{channel.Name} 오디오를 켰습니다." : $"{channel.Name} 오디오를 껐습니다.";
     }
 
     public void ToggleRecording()
@@ -99,11 +225,25 @@ public sealed class StudioViewModel : INotifyPropertyChanged
         OnChanged(nameof(LiveDuration));
     }
 
-    private void RefreshDuration()
+    private void RefreshStudioState()
     {
+        _meterTick++;
+        foreach (var channel in AudioChannels)
+        {
+            channel.Level = channel.IsEnabled ? Math.Round((Math.Sin(_meterTick * .55 + channel.Volume * 4) + 1) * .3 * channel.Volume, 2) : 0;
+        }
         OnChanged(nameof(LiveDuration));
         OnChanged(nameof(RecordingDuration));
     }
+
+    private string DefaultSourceName(SourceKind kind) => kind switch
+    {
+        SourceKind.Camera => $"카메라 {Sources.Count(source => source.Kind == kind) + 1}",
+        SourceKind.Screen => $"화면 캡처 {Sources.Count(source => source.Kind == kind) + 1}",
+        SourceKind.Text => "라이브 텍스트",
+        SourceKind.Image => $"이미지 {Sources.Count(source => source.Kind == kind) + 1}",
+        _ => $"색상 소스 {Sources.Count(source => source.Kind == kind) + 1}"
+    };
 
     private static string DurationFor(DateTimeOffset? start) => start is null ? "00:00:00" : (DateTimeOffset.Now - start.Value).ToString(@"hh\:mm\:ss");
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -112,6 +252,7 @@ public sealed class StudioViewModel : INotifyPropertyChanged
 }
 
 public enum BroadcastState { Idle, Connecting, Live, Stopping, Failed }
+public enum SourceKind { Camera, Screen, Text, Image, Color }
 
 public sealed class StudioSceneItem : INotifyPropertyChanged
 {
@@ -123,13 +264,34 @@ public sealed class StudioSceneItem : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 }
 
-public sealed record SourceItem(string Name);
+public sealed class SourceItem : INotifyPropertyChanged
+{
+    private string _name;
+    private bool _isVisible = true;
+    private bool _isLocked;
+    private string _text = string.Empty;
+    private string _colorHex = "#FFFFFF";
+    public SourceItem(string name, SourceKind kind) { _name = name; Kind = kind; }
+    public SourceKind Kind { get; }
+    public string Name { get => _name; set => Set(ref _name, value); }
+    public bool IsVisible { get => _isVisible; set => Set(ref _isVisible, value); }
+    public bool IsLocked { get => _isLocked; set => Set(ref _isLocked, value); }
+    public string Text { get => _text; set => Set(ref _text, value); }
+    public string ColorHex { get => _colorHex; set => Set(ref _colorHex, value); }
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null) { if (EqualityComparer<T>.Default.Equals(field, value)) return; field = value; PropertyChanged?.Invoke(this, new(name)); }
+}
 
 public sealed class AudioChannelItem : INotifyPropertyChanged
 {
     private double _volume;
+    private bool _isEnabled = true;
+    private double _level;
     public AudioChannelItem(string name, double volume) { Name = name; _volume = volume; }
     public string Name { get; }
-    public double Volume { get => _volume; set { _volume = value; PropertyChanged?.Invoke(this, new(nameof(Volume))); } }
+    public double Volume { get => _volume; set => Set(ref _volume, value); }
+    public bool IsEnabled { get => _isEnabled; set => Set(ref _isEnabled, value); }
+    public double Level { get => _level; set => Set(ref _level, value); }
     public event PropertyChangedEventHandler? PropertyChanged;
+    private void Set<T>(ref T field, T value, [CallerMemberName] string? name = null) { if (EqualityComparer<T>.Default.Equals(field, value)) return; field = value; PropertyChanged?.Invoke(this, new(name)); }
 }
