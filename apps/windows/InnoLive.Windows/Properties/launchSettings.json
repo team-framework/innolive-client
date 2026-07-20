@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "InnoLive.Windows (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "InnoLive.Windows (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
