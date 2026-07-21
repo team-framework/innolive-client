@@ -109,6 +109,10 @@ async function registerReferenceFace(registrationURL: string, image: Blob) {
   }
 
   if (!response.ok) {
+    if (response.status === 400) {
+      throw new FaceRegistrationError('server', '얼굴 감지 실패')
+    }
+
     throw new FaceRegistrationError('server', `얼굴 등록 서버 요청에 실패했습니다. (${response.status})`)
   }
 
