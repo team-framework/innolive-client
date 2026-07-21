@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { useActionState } from 'react'
 
-import { initialState, submitPreRegistration } from '../app/actions/pre-registration'
+import { submitPreRegistration } from '../app/actions/pre-registration'
+import { initialPreRegistrationState } from '../lib/pre-registration-state'
 
 export function PreRegistrationForm() {
-  const [state, formAction, pending] = useActionState(submitPreRegistration, initialState)
+  const [state, formAction, pending] = useActionState(submitPreRegistration, initialPreRegistrationState)
 
   return (
     <form action={formAction} className="w-full text-left sm:w-[60vw] lg:w-[36.67vw]">
