@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { FaceRegistrationModal } from './FaceRegistrationModal'
+
 type ExperienceState = 'idle' | 'connecting' | 'connected' | 'failed'
 
 type SignalingMessage = {
@@ -50,6 +52,7 @@ function getServerEndpoints(): ServerEndpoints {
 export function WebRTCExperience() {
   const [state, setState] = useState<ExperienceState>('idle')
   const [statusText, setStatusText] = useState('시작하기를 누르면 체험을 시작합니다.')
+  const [isFaceRegistrationOpen, setIsFaceRegistrationOpen] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
@@ -339,8 +342,9 @@ export function WebRTCExperience() {
       <p className="min-h-6 text-center text-sm text-[#c7c7c7]" role="status" aria-live="polite">{statusText}</p>
       <div className="flex gap-[clamp(6px,0.42vw,8px)]">
         <button type="button" className={buttonClassName} disabled={isConnecting} onClick={isConnected ? endExperience : startExperience}>{primaryButtonText}</button>
-        <button type="button" className={buttonClassName} disabled aria-label="얼굴 등록하기 기능은 준비 중입니다.">얼굴 등록하기</button>
+        <button type="button" className={buttonClassName} onClick={() => setIsFaceRegistrationOpen(true)}>얼굴 등록하기</button>
       </div>
+      <FaceRegistrationModal isOpen={isFaceRegistrationOpen} onClose={() => setIsFaceRegistrationOpen(false)} />
     </div>
   )
 }
