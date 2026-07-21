@@ -45,7 +45,7 @@
                 </Border>
                 <Border Grid.Column="1" Background="#0F1720" CornerRadius="4" MinHeight="160">
                     <Grid>
-                        <Image Source="ms-appx:///Assets/Figma/preview-mountain.png" Stretch="UniformToFill" />
+                        <WebView2 x:Name="WebRtcView" />
                         <Border Background="#99000000" Padding="12,6" CornerRadius="4" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12" Visibility="{x:Bind ViewModel.PreviewOverlayVisibility, Mode=OneWay}">
                             <TextBlock Text="{x:Bind ViewModel.PreviewOverlayText, Mode=OneWay}" Foreground="White" FontSize="18" />
                         </Border>
