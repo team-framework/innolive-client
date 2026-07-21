@@ -3,9 +3,7 @@
 import { headers } from 'next/headers'
 
 import { registerPreRegistration } from '../../lib/pre-registration'
-
-export type PreRegistrationState = { status: 'idle' | 'success' | 'error'; message?: string }
-export const initialState: PreRegistrationState = { status: 'idle' }
+import type { PreRegistrationState } from '../../lib/pre-registration-state'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const requests = new Map<string, { count: number; resetAt: number }>()
