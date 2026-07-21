@@ -110,8 +110,8 @@ export function FaceRegistrationModal({ isOpen, onClose }: FaceRegistrationModal
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 px-6 py-8 backdrop-blur-sm" role="presentation" onMouseDown={onClose}>
       <section className="max-h-[calc(100dvh-4rem)] w-full max-w-[496px] overflow-y-auto rounded-[18px] bg-black px-6 pb-[clamp(42px,11vh,96px)] pt-[clamp(52px,14vh,122px)] text-center shadow-[0_20px_42px_rgba(0,0,0,0.55)]" role="dialog" aria-modal="true" aria-labelledby="face-registration-title" aria-describedby="face-registration-guide" onMouseDown={(event) => event.stopPropagation()}>
         <button type="button" className="sr-only" onClick={onClose}>얼굴 등록 팝업 닫기</button>
-        <h2 id="face-registration-title" className="text-[clamp(42px,8vw,54px)] font-bold leading-[0.9] tracking-[-0.1em]">얼굴 등록</h2>
-        <p id="face-registration-guide" className="mt-4 text-[clamp(19px,3.5vw,24px)] leading-none tracking-[-0.06em]">얼굴을 원 가운데에 위치시켜 주세요.</p>
+        <h2 id="face-registration-title" className="font-neurimbo text-[3.75rem] font-normal leading-[0.9] tracking-[-0.1em]">얼굴 등록</h2>
+        <p id="face-registration-guide" className="mt-4 text-[1.5rem] font-normal leading-none tracking-[-0.06em]">얼굴을 원 가운데에 위치시켜 주세요.</p>
 
         <div className="relative mx-auto mt-8 aspect-square w-[min(100%,400px,calc(100dvh-365px))] overflow-hidden rounded-full border border-[#656565] bg-[#171717]">
           <video ref={videoRef} autoPlay muted playsInline className="size-full scale-x-[-1] object-cover" aria-label="얼굴 등록 카메라 미리보기" />
