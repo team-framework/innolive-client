@@ -1,0 +1,37 @@
+name: Deploy InnoLive web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/deploy-web.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: innolive-web-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure deploy key
+        env:
+          DEPLOY_KEY: ${{ secrets.INNOLIVE_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.INNOLIVE_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy current main revision
+        env:
+          DEPLOY_HOST: ${{ secrets.INNOLIVE_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.INNOLIVE_DEPLOY_USER }}
+        run: ssh -o BatchMode=yes "${DEPLOY_USER}@${DEPLOY_HOST}" deploy

@@ -24,6 +24,7 @@ services:
 
   caddy:
     image: caddy:2.10-alpine
+    profiles: ["standalone-proxy"]
     env_file: .env
     restart: unless-stopped
     depends_on: [web]

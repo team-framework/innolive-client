@@ -42,14 +42,16 @@ npm run build
 
 ## Home server deployment
 
-홈서버에서 도메인의 A/AAAA 레코드를 서버 IP로 연결하고, `.env`의 `DOMAIN`을
-실제 도메인으로 바꾼 뒤 실행합니다. Caddy가 자동 HTTPS 인증서를 발급해 Next
-컨테이너의 `web:3000`으로 전달합니다.
+독립 서버에서는 자체 Caddy를 포함해 실행할 수 있습니다.
 
 ```bash
 cp .env.example .env
-docker compose up -d --build
+docker compose --profile standalone-proxy up -d --build
 ```
+
+`chaeyn` 홈서버는 이미 실행 중인 공용 Caddy를 사용합니다. GitHub Actions는
+`main`의 웹 변경을 감지해 서버에서 `docker-compose.server.yml`을 적용하고,
+`innolive.221.164.162.113.sslip.io`를 `127.0.0.1:3010`에 연결합니다.
 
 배포 전 개인정보처리방침의 문의 이메일(`NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL`)과
 실제 운영 주체 정보를 검토·확정해야 합니다.
