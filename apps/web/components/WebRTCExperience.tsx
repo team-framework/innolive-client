@@ -53,6 +53,7 @@ export function WebRTCExperience() {
   const [state, setState] = useState<ExperienceState>('idle')
   const [statusText, setStatusText] = useState('시작하기를 누르면 체험을 시작합니다.')
   const [isFaceRegistrationOpen, setIsFaceRegistrationOpen] = useState(false)
+  const [faceRegistrationURL, setFaceRegistrationURL] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
@@ -330,6 +331,16 @@ export function WebRTCExperience() {
   const isConnected = state === 'connected'
   const primaryButtonText = isConnecting ? '연결 중...' : isConnected ? '체험 종료' : '시작하기'
 
+  const openFaceRegistration = useCallback(() => {
+    try {
+      const { sessionsURL } = getServerEndpoints()
+      setFaceRegistrationURL(new URL('/reference-face', sessionsURL).toString())
+      setIsFaceRegistrationOpen(true)
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : '얼굴 등록 서버 주소를 확인하지 못했습니다.')
+    }
+  }, [])
+
   return (
     <div className="flex w-full flex-col items-center gap-5">
       <div className="w-full max-w-[850px] border border-[#5c5c5c] p-px">
@@ -342,9 +353,9 @@ export function WebRTCExperience() {
       <p className="min-h-6 text-center text-sm text-[#c7c7c7]" role="status" aria-live="polite">{statusText}</p>
       <div className="flex gap-[clamp(6px,0.42vw,8px)]">
         <button type="button" className={buttonClassName} disabled={isConnecting} onClick={isConnected ? endExperience : startExperience}>{primaryButtonText}</button>
-        <button type="button" className={buttonClassName} onClick={() => setIsFaceRegistrationOpen(true)}>얼굴 등록하기</button>
+        <button type="button" className={buttonClassName} onClick={openFaceRegistration}>얼굴 등록하기</button>
       </div>
-      <FaceRegistrationModal isOpen={isFaceRegistrationOpen} onClose={() => setIsFaceRegistrationOpen(false)} />
+      {faceRegistrationURL && <FaceRegistrationModal isOpen={isFaceRegistrationOpen} registrationURL={faceRegistrationURL} onClose={() => setIsFaceRegistrationOpen(false)} />}
     </div>
   )
 }
