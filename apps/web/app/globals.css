@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Wanted Sans";
+  src: url("/fonts/wanted-sans/woff2/WantedSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "neurimbo-gothic";
+  src: url("/fonts/neurimbo-gothic/neurimboGothicRegular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root { background-color: #050505; font-family: "Wanted Sans", ui-sans-serif, system-ui, sans-serif; }
+body { min-height: 100vh; margin: 0; }
+.font-neurimbo { font-family: "neurimbo-gothic", ui-sans-serif, system-ui, sans-serif; }
+
+.lenticular-title {
+  color: #fff;
+  font-family: "neurimbo-gothic", ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(72px, 10vw, 192px);
+  font-weight: 400;
+  letter-spacing: -0.07em;
+  line-height: 0.79;
+  text-align: center;
+}
+
+.lenticular-title span {
+  display: block;
+  /* Sharp text remains as the base; the 1px transparent bands recreate the lenticular cuts without rasterization or blur. */
+  -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 6px, transparent 6px 8px);
+  mask-image: repeating-linear-gradient(to bottom, #000 0 6px, transparent 6px 8px);
+  text-shadow: 1px 0 0 rgb(160 205 255 / 45%), -1px 0 0 rgb(255 185 145 / 30%);
+}
+
+.lenticular-title span + span {
+  margin-top: -0.2em;
+}
