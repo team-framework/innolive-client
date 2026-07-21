@@ -21,7 +21,13 @@ export default function HomePage() {
       </section>
 
       <section id="pre-registration" className="flex min-h-screen scroll-mt-4 flex-col items-center justify-center gap-16 px-6 py-20 text-center">
-        <div><img src="/figma/GetEalryAccess.png" alt="Get early access" className="mx-auto w-[60vw] sm:w-[30vw]" /><p className="mt-[clamp(24px,1.67vw,32px)] text-base leading-tight md:text-[clamp(18px,1.25vw,24px)]">InnoLive의 소식을 가장 빨리 접하고<br />정식 출시 시 다양한 혜택을 받아가세요.</p></div>
+        <div>
+          <h2 className="lenticular-title" aria-label="Get early access">
+            <span>Get early</span>
+            <span>access</span>
+          </h2>
+          <p className="mt-[clamp(24px,1.67vw,32px)] text-base leading-tight md:text-[clamp(18px,1.25vw,24px)]">InnoLive의 소식을 가장 빨리 접하고<br />정식 출시 시 다양한 혜택을 받아가세요.</p>
+        </div>
         <PreRegistrationForm />
       </section>
 
