@@ -15,6 +15,17 @@ const cropSideLength = 500
 const detectionInterval = 350
 const visionWasmURL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm'
 
+type FaceRegistrationErrorKind = 'camera' | 'detector' | 'image' | 'network' | 'server'
+
+class FaceRegistrationError extends Error {
+  constructor(
+    readonly kind: FaceRegistrationErrorKind,
+    message: string,
+  ) {
+    super(message)
+  }
+}
+
 function cameraErrorMessage(error: unknown): string {
   if (error instanceof DOMException) {
     if (error.name === 'NotAllowedError') {
@@ -26,7 +37,19 @@ function cameraErrorMessage(error: unknown): string {
     }
   }
 
-  return error instanceof Error ? error.message : '카메라를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+  return '카메라를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+}
+
+function registrationErrorMessage(error: unknown): string {
+  if (error instanceof FaceRegistrationError) {
+    return error.message
+  }
+
+  if (error instanceof DOMException) {
+    return cameraErrorMessage(error)
+  }
+
+  return '얼굴 등록 처리 중 알 수 없는 오류가 발생했습니다. 다시 시도해 주세요.'
 }
 
 function drawVisibleCrop(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
@@ -35,12 +58,12 @@ function drawVisibleCrop(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
   const sourceSide = Math.min(sourceWidth, sourceHeight)
 
   if (sourceSide < cropSideLength) {
-    throw new Error('얼굴 등록에는 최소 500 x 500 크기의 카메라 프레임이 필요합니다.')
+    throw new FaceRegistrationError('image', '카메라 해상도가 낮습니다. 최소 500 x 500 해상도가 필요합니다.')
   }
 
   const context = canvas.getContext('2d')
   if (!context) {
-    throw new Error('얼굴 등록용 이미지를 생성하지 못했습니다.')
+    throw new FaceRegistrationError('image', '얼굴 등록용 이미지를 생성하지 못했습니다.')
   }
 
   canvas.width = cropSideLength
@@ -66,7 +89,7 @@ function jpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
         return
       }
 
-      reject(new Error('캡처한 얼굴 이미지를 JPEG로 변환하지 못했습니다.'))
+      reject(new FaceRegistrationError('image', '캡처한 얼굴 이미지를 JPEG로 변환하지 못했습니다.'))
     }, 'image/jpeg', 0.9)
   })
 }
@@ -75,30 +98,45 @@ async function registerReferenceFace(registrationURL: string, image: Blob) {
   const formData = new FormData()
   formData.append('image', image, 'reference-face.jpg')
 
-  const response = await fetch(registrationURL, {
-    method: 'POST',
-    body: formData,
-  })
-
-  if (!response.ok) {
-    throw new Error(`얼굴 등록 서버 요청에 실패했습니다. (${response.status})`)
+  let response: Response
+  try {
+    response = await fetch(registrationURL, {
+      method: 'POST',
+      body: formData,
+    })
+  } catch {
+    throw new FaceRegistrationError('network', '얼굴 등록 서버에 연결하지 못했습니다. 네트워크 상태를 확인해 주세요.')
   }
 
-  const payload: unknown = await response.json()
+  if (!response.ok) {
+    throw new FaceRegistrationError('server', `얼굴 등록 서버 요청에 실패했습니다. (${response.status})`)
+  }
+
+  let payload: unknown
+  try {
+    payload = await response.json()
+  } catch {
+    throw new FaceRegistrationError('server', '얼굴 등록 서버 응답을 해석하지 못했습니다.')
+  }
+
   if (!payload || typeof payload !== 'object' || (payload as { registered?: unknown }).registered !== true) {
-    throw new Error('얼굴 등록 서버가 완료 상태를 반환하지 않았습니다.')
+    throw new FaceRegistrationError('server', '얼굴 등록 서버가 완료 상태를 반환하지 않았습니다.')
   }
 }
 
 async function createFaceDetector(): Promise<FaceDetector> {
-  const { FaceDetector, FilesetResolver } = await import('@mediapipe/tasks-vision')
-  const vision = await FilesetResolver.forVisionTasks(visionWasmURL)
+  try {
+    const { FaceDetector, FilesetResolver } = await import('@mediapipe/tasks-vision')
+    const vision = await FilesetResolver.forVisionTasks(visionWasmURL)
 
-  return FaceDetector.createFromOptions(vision, {
-    baseOptions: { modelAssetPath: '/models/blaze-face-short-range.tflite' },
-    runningMode: 'VIDEO',
-    minDetectionConfidence: 0.6,
-  })
+    return FaceDetector.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: '/models/blaze-face-short-range.tflite' },
+      runningMode: 'VIDEO',
+      minDetectionConfidence: 0.6,
+    })
+  } catch {
+    throw new FaceRegistrationError('detector', '얼굴 감지기를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+  }
 }
 
 export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: FaceRegistrationModalProps) {
@@ -153,7 +191,12 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
         }
 
         drawVisibleCrop(video, canvas)
-        const result = detector.detectForVideo(canvas, performance.now())
+        let result: ReturnType<FaceDetector['detectForVideo']>
+        try {
+          result = detector.detectForVideo(canvas, performance.now())
+        } catch {
+          throw new FaceRegistrationError('detector', '얼굴 감지 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.')
+        }
         if (result.detections.length === 0) {
           scheduleDetection(detectFace)
           return
@@ -176,7 +219,7 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
           isRegisteringRef.current = false
           stopCamera()
           setCameraState('failed')
-          setCameraMessage(cameraErrorMessage(error))
+          setCameraMessage(registrationErrorMessage(error))
         }
       }
     }
@@ -188,7 +231,7 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
 
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
-          throw new Error('getUserMedia is unavailable')
+          throw new FaceRegistrationError('camera', '이 브라우저에서는 카메라를 사용할 수 없습니다.')
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -207,7 +250,7 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
 
         streamRef.current = stream
         if (!videoRef.current) {
-          throw new Error('카메라 미리보기를 시작하지 못했습니다.')
+          throw new FaceRegistrationError('camera', '카메라 미리보기를 시작하지 못했습니다.')
         }
 
         videoRef.current.srcObject = stream
@@ -227,7 +270,7 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
         if (isActive) {
           stopCamera()
           setCameraState('failed')
-          setCameraMessage(cameraErrorMessage(error))
+          setCameraMessage(registrationErrorMessage(error))
         }
       }
     }
@@ -274,7 +317,7 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
 
         <div className="relative mx-auto mt-8 aspect-square w-[min(100%,400px,calc(100dvh-365px))] overflow-hidden rounded-full border border-[#656565] bg-[#171717]">
           <video ref={videoRef} autoPlay muted playsInline className="size-full scale-x-[-1] object-cover" aria-label="얼굴 등록 카메라 미리보기" />
-          {cameraState !== 'ready' && <div className="absolute inset-0 grid place-items-center bg-black/55 px-8 text-sm text-white/80">{cameraState === 'loading' ? '카메라 준비 중' : cameraState === 'registering' ? '얼굴 등록 중' : '카메라를 표시할 수 없습니다.'}</div>}
+          {cameraState !== 'ready' && <div className="absolute inset-0 grid place-items-center bg-black/55 px-8 text-center text-sm leading-5 text-white/80">{cameraState === 'loading' ? '카메라 준비 중' : cameraState === 'registering' ? '얼굴 등록 중' : cameraMessage}</div>}
         </div>
         <canvas ref={cropCanvasRef} className="sr-only" aria-hidden="true" />
 
