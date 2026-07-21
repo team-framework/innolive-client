@@ -13,8 +13,13 @@ Server Action으로 처리하므로 DB 연결 정보가 브라우저에 노출�
 
 ```bash
 npm install
+cp .env.local.example .env
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d db
 npm run dev
 ```
+
+로컬 개발용 override는 PostgreSQL을 `127.0.0.1:5433`에만 노출합니다. 운영용
+Compose에는 DB 포트를 공개하지 않습니다.
 
 ## Verification
 
