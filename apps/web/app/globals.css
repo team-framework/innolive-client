@@ -37,3 +37,7 @@ body { min-height: 100vh; margin: 0; }
   mask-image: repeating-linear-gradient(to bottom, #000 0 6px, transparent 6px 8px);
   text-shadow: 1px 0 0 rgb(160 205 255 / 45%), -1px 0 0 rgb(255 185 145 / 30%);
 }
+
+.lenticular-title span + span {
+  margin-top: -0.2em;
+}
