@@ -1,12 +1,13 @@
 # Web client
 
-`Vite`, `React`, `Tailwind CSS`, `Axios`, `TanStack Query` 기반의 단일 페이지 웹
-클라이언트입니다.
+Next.js App Router와 PostgreSQL 기반의 InnoLive 웹 랜딩 페이지입니다. 사전신청은
+Server Action으로 처리하므로 DB 연결 정보가 브라우저에 노출되지 않습니다.
 
 ## Requirements
 
-- Node.js 20.19 이상
-- npm 10 이상
+- Node.js 24 이상
+- npm 11 이상
+- Docker Compose (홈서버 배포 시)
 
 ## Local development
 
@@ -18,17 +19,32 @@ npm run dev
 ## Verification
 
 ```bash
+npm run typecheck
 npm run build
 ```
 
 ## Structure
 
-- `src/app`: 애플리케이션 초기화, 전역 Provider, 전역 스타일
-- `src/pages`: 화면 단위 UI
-- `src/shared/api`: 공통 Axios 인스턴스와 TanStack Query 설정
+- `app`: 페이지, Server Action, 개인정보처리방침
+- `components`: 클라이언트 상호작용 컴포넌트
+- `lib`: PostgreSQL 접근과 사전신청 저장 로직
+- `db/init`: PostgreSQL 초기 스키마
 
-## API base URL
+## Environment
 
-`VITE_API_BASE_URL`을 설정하면 Axios 요청의 base URL로 사용합니다. 설정하지
-않으면 상대 경로로 요청합니다. `VITE_*` 값은 브라우저에 노출되므로 비밀 값이나
-토큰을 저장하면 안 됩니다.
+`.env.example`을 `.env`로 복사한 뒤 실제 DB 비밀번호와 개인정보 문의 이메일을
+설정합니다. `.env`는 커밋하지 않습니다.
+
+## Home server deployment
+
+홈서버에서 도메인의 A/AAAA 레코드를 서버 IP로 연결하고, `.env`의 `DOMAIN`을
+실제 도메인으로 바꾼 뒤 실행합니다. Caddy가 자동 HTTPS 인증서를 발급해 Next
+컨테이너의 `web:3000`으로 전달합니다.
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+배포 전 개인정보처리방침의 문의 이메일(`NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL`)과
+실제 운영 주체 정보를 검토·확정해야 합니다.
