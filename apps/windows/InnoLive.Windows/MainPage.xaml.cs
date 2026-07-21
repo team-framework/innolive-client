@@ -42,4 +42,5 @@ public sealed partial class MainPage : Page
     }
     private void Record_Click(object sender, RoutedEventArgs e) => ViewModel.ToggleRecording();
     private void Broadcast_Click(object sender, RoutedEventArgs e) => ViewModel.ToggleBroadcast();
+    private async void ServerTest_Click(object sender, RoutedEventArgs e) => await ViewModel.VerifyServerConnectionAsync();
 }
