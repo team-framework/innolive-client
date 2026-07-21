@@ -20,4 +20,5 @@ coverage/
 .env
 .env.*
 !.env.example
+!apps/web/.env.local.example
 apps/*/InnoLive/Config/Server.env
