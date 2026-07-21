@@ -11,7 +11,7 @@ export default function HomePage() {
         <img src="/figma/Logo_WT.svg" alt="InnoLive" className="absolute left-6 top-6 z-10 h-auto w-[120px] md:left-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)] md:w-[clamp(124px,8.59vw,165px)]" />
         <div className="relative z-10 flex w-full flex-col items-start justify-between gap-8 md:flex-row md:items-end">
           <h1 className="font-neurimbo text-[clamp(56px,6.67vw,128px)] leading-[0.78] tracking-[-0.06em] text-shadow-[0_0_50px_rgba(0,0,0,0.35)]">당신의<br />라이브 방송을<br />안전하게</h1>
-          <div className="flex shrink-0 gap-[clamp(6px,0.42vw,8px)]"><a href="#pre-registration" className="rounded-lg bg-white px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-black">사전등록</a><a href="#experience" className="rounded-lg bg-black px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-white">체험하기</a></div>
+          <div className="flex shrink-0 gap-[clamp(6px,0.42vw,8px)]"><a href="#pre-registration" className="cursor-pointer rounded-lg bg-white px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-black transition duration-200 hover:-translate-y-0.5 hover:bg-[#d9d9d9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">사전등록</a><a href="#experience" className="cursor-pointer rounded-lg bg-black px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-white transition duration-200 hover:-translate-y-0.5 hover:bg-[#2d2d2d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">체험하기</a></div>
         </div>
       </section>
 
@@ -25,7 +25,7 @@ export default function HomePage() {
         <PreRegistrationForm />
       </section>
 
-      <footer className="px-6 py-8 text-center text-sm text-[#a3a3a3]"><Link href="/privacy" className="underline underline-offset-4">개인정보처리방침</Link></footer>
+      <footer className="px-6 py-8 text-center text-sm text-[#a3a3a3]"><Link href="/privacy" className="cursor-pointer underline underline-offset-4 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">개인정보처리방침</Link></footer>
     </main>
   )
 }

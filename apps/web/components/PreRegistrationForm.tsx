@@ -16,11 +16,11 @@ export function PreRegistrationForm() {
           <span className="sr-only">이메일</span>
           <input required name="email" type="email" autoComplete="email" placeholder="이메일을 입력하세요." className="w-full bg-transparent text-base text-black outline-none placeholder:text-[#656565] md:text-[clamp(15px,1.04vw,20px)]" />
         </label>
-        <button disabled={pending} type="submit" className="shrink-0 rounded-[48px] bg-white px-4 py-3 text-base text-black disabled:cursor-wait disabled:opacity-60 md:px-[clamp(18px,1.25vw,24px)] md:py-[clamp(9px,0.63vw,12px)] md:text-[clamp(15px,1.04vw,20px)]">{pending ? '등록 중' : '등록하기'}</button>
+        <button disabled={pending} type="submit" className="shrink-0 cursor-pointer rounded-[48px] bg-white px-4 py-3 text-base text-black transition duration-200 hover:-translate-y-0.5 hover:bg-[#d9d9d9] disabled:cursor-wait disabled:opacity-60 md:px-[clamp(18px,1.25vw,24px)] md:py-[clamp(9px,0.63vw,12px)] md:text-[clamp(15px,1.04vw,20px)]">{pending ? '등록 중' : '등록하기'}</button>
       </div>
       <label className="mt-[clamp(9px,0.63vw,12px)] flex cursor-pointer items-center gap-1 px-3 text-sm text-[#b0b0b0] md:px-[clamp(9px,0.63vw,12px)] md:text-[clamp(12px,0.83vw,16px)]">
-        <input required name="privacyConsent" type="checkbox" className="size-3.5 accent-white" />
-        <span>개인정보 수집·이용에 동의합니다.</span><Link href="/privacy" className="underline">자세히 보기</Link>
+        <input required name="privacyConsent" type="checkbox" className="size-3.5 cursor-pointer accent-white" />
+        <span>개인정보 수집·이용에 동의합니다.</span><Link href="/privacy" className="cursor-pointer underline transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">자세히 보기</Link>
       </label>
       <input name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" className="hidden" />
       {state.status !== 'idle' && <p aria-live="polite" className={`mt-3 px-3 text-sm ${state.status === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>{state.message}</p>}
