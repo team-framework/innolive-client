@@ -14,7 +14,7 @@ POSTGRES_DB=innolive
 POSTGRES_USER=innolive
 POSTGRES_PASSWORD=$db_password
 DATABASE_URL=postgresql://innolive:$db_password@db:5432/innolive
-NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL=chaulfe@gmail.com
+NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL=chaeyn@dgsw.hs.kr
 ENV_FILE
 fi
 
