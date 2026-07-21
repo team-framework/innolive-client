@@ -54,25 +54,35 @@ export function WebRTCExperience() {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
+  const remoteStreamRef = useRef<MediaStream | null>(null)
   const sessionIDRef = useRef<string | null>(null)
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([])
   const connectionAttemptRef = useRef(0)
+  const connectionTimeoutRef = useRef<number | null>(null)
 
   const releaseResources = useCallback((deleteSession: boolean) => {
     const sessionID = sessionIDRef.current
     const socket = socketRef.current
     const peerConnection = peerConnectionRef.current
     const localStream = localStreamRef.current
+    const remoteStream = remoteStreamRef.current
 
     socketRef.current = null
     peerConnectionRef.current = null
     localStreamRef.current = null
+    remoteStreamRef.current = null
     sessionIDRef.current = null
     pendingCandidatesRef.current = []
+
+    if (connectionTimeoutRef.current !== null) {
+      window.clearTimeout(connectionTimeoutRef.current)
+      connectionTimeoutRef.current = null
+    }
 
     socket?.close()
     peerConnection?.close()
     localStream?.getTracks().forEach((track) => track.stop())
+    remoteStream?.getTracks().forEach((track) => track.stop())
 
     if (videoRef.current) {
       videoRef.current.srcObject = null
@@ -160,6 +170,11 @@ export function WebRTCExperience() {
       })
       peerConnectionRef.current = peerConnection
       localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream))
+      connectionTimeoutRef.current = window.setTimeout(() => {
+        if (connectionAttemptRef.current === attempt) {
+          failExperience('WebRTC 연결 시간이 초과되었습니다.')
+        }
+      }, 30_000)
 
       peerConnection.onicecandidate = (event) => {
         if (!event.candidate || connectionAttemptRef.current !== attempt || socketRef.current?.readyState !== WebSocket.OPEN) {
@@ -180,18 +195,32 @@ export function WebRTCExperience() {
           return
         }
 
+        if (peerConnection.connectionState === 'connected') {
+          if (connectionTimeoutRef.current !== null) {
+            window.clearTimeout(connectionTimeoutRef.current)
+            connectionTimeoutRef.current = null
+          }
+          setState('connected')
+          setStatusText('체험 서버에 연결되었습니다.')
+          return
+        }
+
         if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
           failExperience('WebRTC 연결이 끊겼습니다.')
         }
       }
 
       peerConnection.ontrack = (event) => {
-        if (connectionAttemptRef.current !== attempt || !videoRef.current) {
+        if (connectionAttemptRef.current !== attempt) {
           return
         }
 
-        videoRef.current.srcObject = event.streams[0] ?? new MediaStream([event.track])
-        void videoRef.current.play().catch(() => undefined)
+        const remoteStream = event.streams[0] ?? new MediaStream([event.track])
+        remoteStreamRef.current = remoteStream
+        if (videoRef.current) {
+          videoRef.current.srcObject = remoteStream
+          void videoRef.current.play().catch(() => undefined)
+        }
       }
 
       const socket = new WebSocket(signalingURL)
@@ -237,8 +266,7 @@ export function WebRTCExperience() {
               await peerConnection.addIceCandidate(candidate)
             }
             pendingCandidatesRef.current = []
-            setState('connected')
-            setStatusText('체험 서버에 연결되었습니다.')
+            setStatusText('WebRTC 연결을 완료하는 중입니다.')
             return
           }
 
@@ -261,13 +289,14 @@ export function WebRTCExperience() {
 
       socket.onerror = () => {
         if (connectionAttemptRef.current === attempt) {
-          failExperience('체험 서버와 WebSocket 연결에 실패했습니다.')
+          setStatusText('WebSocket 오류를 확인하는 중입니다.')
         }
       }
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
         if (connectionAttemptRef.current === attempt && peerConnection.connectionState !== 'connected') {
-          failExperience('체험 서버 연결이 종료되었습니다.')
+          const reason = event.reason ? `: ${event.reason}` : ''
+          failExperience(`체험 서버 WebSocket 연결이 종료되었습니다. (code ${event.code}${reason})`)
         }
       }
     } catch (error) {
@@ -282,6 +311,17 @@ export function WebRTCExperience() {
     connectionAttemptRef.current += 1
     releaseResources(true)
   }, [releaseResources])
+
+  useEffect(() => {
+    const video = videoRef.current
+    const remoteStream = remoteStreamRef.current
+    if (state !== 'connected' || !video || !remoteStream) {
+      return
+    }
+
+    video.srcObject = remoteStream
+    void video.play().catch(() => undefined)
+  }, [state])
 
   const isConnecting = state === 'connecting'
   const isConnected = state === 'connected'
