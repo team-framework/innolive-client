@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 const effectiveDate = '2026년 7월 21일'
-const contactEmail = process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL ?? 'privacy@example.com'
+const contactEmail = process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL ?? 'chaeyn@dgsw.hs.kr'
 
 export default function PrivacyPage() {
   return (
