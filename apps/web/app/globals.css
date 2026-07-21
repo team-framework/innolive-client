@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Wanted Sans";
+  src: url("/fonts/wanted-sans/woff2/WantedSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "neurimbo-gothic";
+  src: url("/fonts/neurimbo-gothic/neurimboGothicRegular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root { background-color: #050505; font-family: "Wanted Sans", ui-sans-serif, system-ui, sans-serif; }
+body { min-height: 100vh; margin: 0; }
+.font-neurimbo { font-family: "neurimbo-gothic", ui-sans-serif, system-ui, sans-serif; }
