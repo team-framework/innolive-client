@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
+using InnoLive_Windows.Services;
 
 namespace InnoLive_Windows.Models;
 
@@ -16,6 +17,10 @@ public sealed class StudioViewModel : INotifyPropertyChanged
     private SourceItem? _selectedSource;
     private string _statusMessage = "방송을 시작할 준비가 되었습니다.";
     private int _meterTick;
+    private readonly ServerDiagnosticsClient _serverDiagnosticsClient = new();
+    private bool _isServerTestInProgress;
+    private string _serverStatusText = "서버 진단을 실행할 수 있습니다.";
+    private string _lastServerSessionId = "-";
 
     public StudioViewModel()
     {
@@ -69,6 +74,11 @@ public sealed class StudioViewModel : INotifyPropertyChanged
     public string SelectedSourceColor => SelectedSource?.ColorHex ?? "#3478F6";
     public string PreviewOverlayText => SelectedSource is { IsVisible: true, Kind: SourceKind.Text } ? SelectedSource.Text : string.Empty;
     public Visibility PreviewOverlayVisibility => string.IsNullOrWhiteSpace(PreviewOverlayText) ? Visibility.Collapsed : Visibility.Visible;
+    public string ServerEndpointText => ServerEnvironment.HttpBaseUri.AbsoluteUri.TrimEnd('/');
+    public string SignalingEndpointText => ServerEnvironment.SignalingUri.AbsoluteUri;
+    public string ServerStatusText { get => _serverStatusText; private set => Set(ref _serverStatusText, value); }
+    public string LastServerSessionId { get => _lastServerSessionId; private set => Set(ref _lastServerSessionId, value); }
+    public bool IsServerTestInProgress { get => _isServerTestInProgress; private set => Set(ref _isServerTestInProgress, value); }
 
     public bool IsAnonymizationEnabled
     {
@@ -223,6 +233,29 @@ public sealed class StudioViewModel : INotifyPropertyChanged
         OnChanged(nameof(BroadcastButtonText));
         OnChanged(nameof(BroadcastStatusText));
         OnChanged(nameof(LiveDuration));
+    }
+
+    public async Task VerifyServerConnectionAsync()
+    {
+        if (IsServerTestInProgress) return;
+        IsServerTestInProgress = true;
+        ServerStatusText = "서버 연결 및 세션 정리를 확인하는 중입니다.";
+        try
+        {
+            var result = await _serverDiagnosticsClient.VerifyAsync();
+            LastServerSessionId = result.SessionId;
+            ServerStatusText = $"연결 성공: health {(int)result.HealthStatus}, 세션 정리 {(int)result.DeleteStatus}";
+            StatusMessage = $"{ServerEndpointText} 서버 연결을 확인했습니다.";
+        }
+        catch (Exception exception)
+        {
+            ServerStatusText = $"연결 실패: {exception.Message}";
+            StatusMessage = "서버 연결에 실패했습니다. 주소와 네트워크를 확인하세요.";
+        }
+        finally
+        {
+            IsServerTestInProgress = false;
+        }
     }
 
     private void RefreshStudioState()

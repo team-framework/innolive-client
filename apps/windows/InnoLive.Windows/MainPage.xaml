@@ -107,7 +107,7 @@
                     <Grid RowSpacing="8"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <TextBlock Text="오디오" FontSize="14" />
                         <ItemsControl Grid.Row="1" ItemsSource="{x:Bind ViewModel.AudioChannels}" ItemTemplate="{StaticResource AudioTemplate}" />
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10"><ToggleSwitch Header="비식별화" IsOn="{x:Bind ViewModel.IsAnonymizationEnabled, Mode=TwoWay}" /><Button Content="{x:Bind ViewModel.RecordingButtonText, Mode=OneWay}" Click="Record_Click" /><Button Content="{x:Bind ViewModel.BroadcastButtonText, Mode=OneWay}" Click="Broadcast_Click" Style="{StaticResource AccentButtonStyle}" /></StackPanel>
+                        <StackPanel Grid.Row="2" Spacing="5"><TextBlock Text="{x:Bind ViewModel.ServerStatusText, Mode=OneWay}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind ViewModel.SignalingEndpointText, Mode=OneWay}" /><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10"><ToggleSwitch Header="비식별화" IsOn="{x:Bind ViewModel.IsAnonymizationEnabled, Mode=TwoWay}" /><Button Content="서버 테스트" Click="ServerTest_Click" /><Button Content="{x:Bind ViewModel.RecordingButtonText, Mode=OneWay}" Click="Record_Click" /><Button Content="{x:Bind ViewModel.BroadcastButtonText, Mode=OneWay}" Click="Broadcast_Click" Style="{StaticResource AccentButtonStyle}" /></StackPanel></StackPanel>
                     </Grid>
                 </Border>
             </Grid>
