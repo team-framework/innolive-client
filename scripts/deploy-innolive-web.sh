@@ -18,6 +18,11 @@ NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL=chaeyn@dgsw.hs.kr
 ENV_FILE
 fi
 
+if ! grep -q '^NEXT_PUBLIC_INNOLIVE_SIGNALING_URL=wss://' "$web_dir/.env"; then
+  echo "NEXT_PUBLIC_INNOLIVE_SIGNALING_URL must be set to the public signaling wss:// URL in $web_dir/.env" >&2
+  exit 1
+fi
+
 cd "$web_dir"
 docker compose -f docker-compose.yml -f docker-compose.server.yml up -d --build --remove-orphans
 

@@ -38,7 +38,9 @@ npm run build
 ## Environment
 
 `.env.example`을 `.env`로 복사한 뒤 실제 DB 비밀번호와 개인정보 문의 이메일을
-설정합니다. `.env`는 커밋하지 않습니다.
+설정합니다. `NEXT_PUBLIC_INNOLIVE_SIGNALING_URL`은 WebRTC signaling 서버의 공개
+`wss://` 주소이며, Next.js 빌드 시점에 이미지에 포함됩니다. `.env`는 커밋하지
+않습니다. 홈서버 배포에서는 서버의 `apps/web/.env`에서 이 값을 관리합니다.
 
 ## Home server deployment
 
