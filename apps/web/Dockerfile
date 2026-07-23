@@ -6,6 +6,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM base AS builder
+ARG NEXT_PUBLIC_INNOLIVE_SIGNALING_URL
+ENV NEXT_PUBLIC_INNOLIVE_SIGNALING_URL=$NEXT_PUBLIC_INNOLIVE_SIGNALING_URL
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
