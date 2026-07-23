@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { PreRegistrationForm } from '../components/PreRegistrationForm'
+import { WebRTCExperience } from '../components/WebRTCExperience'
 
 export default function HomePage() {
   return (
@@ -17,7 +18,7 @@ export default function HomePage() {
 
       <section id="experience" className="flex min-h-screen scroll-mt-4 flex-col items-center justify-center gap-10 py-8">
         <div className="text-center"><h2 className="font-neurimbo text-5xl leading-none tracking-[-0.05em] md:text-[50px]">체험하기</h2><p className="mt-[clamp(12px,0.83vw,16px)] text-base md:text-[clamp(18px,1.25vw,24px)]">체험을 시작하시려면 ‘시작하기’ 버튼을 눌러주세요.</p></div>
-        <div className="w-full max-w-[850px] border border-[#5c5c5c] p-px"><img src="/figma/live-pending.svg" alt="InnoLive 라이브 대기 화면" className="block w-full border border-[#5c5c5c]" /></div>
+        <WebRTCExperience />
       </section>
 
       <section id="pre-registration" className="flex min-h-screen scroll-mt-4 flex-col items-center justify-center gap-16 px-6 py-20 text-center">
