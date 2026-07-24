@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml;
+using InnoLive_Windows.Services;
 
 namespace InnoLive_Windows.Models;
 
@@ -16,6 +17,10 @@ public sealed class StudioViewModel : INotifyPropertyChanged
     private SourceItem? _selectedSource;
     private string _statusMessage = "방송을 시작할 준비가 되었습니다.";
     private int _meterTick;
+    private readonly ServerDiagnosticsClient _serverDiagnosticsClient = new();
+    private bool _isServerTestInProgress;
+    private string _serverStatusText = "서버 진단을 실행할 수 있습니다.";
+    private string _lastServerSessionId = "-";
 
     public StudioViewModel()
     {
@@ -62,13 +67,31 @@ public sealed class StudioViewModel : INotifyPropertyChanged
     public string StatusMessage { get => _statusMessage; private set => Set(ref _statusMessage, value); }
     public string LiveDuration => DurationFor(_liveStartedAt);
     public string RecordingDuration => DurationFor(_recordingStartedAt);
-    public string BroadcastStatusText => _broadcastState == BroadcastState.Live ? "ONAIR" : "READY";
+    public string BroadcastStatusText => _broadcastState switch
+    {
+        BroadcastState.Connecting => "CONNECTING",
+        BroadcastState.Live => "ONAIR",
+        BroadcastState.Failed => "FAILED",
+        _ => "READY"
+    };
     public string RecordingButtonText => _isRecording ? "녹화 중지" : "녹화 시작";
-    public string BroadcastButtonText => _broadcastState == BroadcastState.Live ? "방송 종료" : "방송 시작";
+    public string BroadcastButtonText => _broadcastState switch
+    {
+        BroadcastState.Connecting => "연결 취소",
+        BroadcastState.Live => "방송 종료",
+        _ => "방송 시작"
+    };
+    public bool IsBroadcastLive => _broadcastState == BroadcastState.Live;
+    public bool IsBroadcastActive => _broadcastState is BroadcastState.Connecting or BroadcastState.Live or BroadcastState.Stopping;
     public string SelectedSourceText => SelectedSource?.Text ?? string.Empty;
     public string SelectedSourceColor => SelectedSource?.ColorHex ?? "#3478F6";
     public string PreviewOverlayText => SelectedSource is { IsVisible: true, Kind: SourceKind.Text } ? SelectedSource.Text : string.Empty;
     public Visibility PreviewOverlayVisibility => string.IsNullOrWhiteSpace(PreviewOverlayText) ? Visibility.Collapsed : Visibility.Visible;
+    public string ServerEndpointText => ServerEnvironment.HttpBaseUri.AbsoluteUri.TrimEnd('/');
+    public string SignalingEndpointText => ServerEnvironment.SignalingUri.AbsoluteUri;
+    public string ServerStatusText { get => _serverStatusText; private set => Set(ref _serverStatusText, value); }
+    public string LastServerSessionId { get => _lastServerSessionId; private set => Set(ref _lastServerSessionId, value); }
+    public bool IsServerTestInProgress { get => _isServerTestInProgress; private set => Set(ref _isServerTestInProgress, value); }
 
     public bool IsAnonymizationEnabled
     {
@@ -221,8 +244,81 @@ public sealed class StudioViewModel : INotifyPropertyChanged
         _liveStartedAt = _broadcastState == BroadcastState.Live ? DateTimeOffset.Now : null;
         StatusMessage = _broadcastState == BroadcastState.Live ? "방송을 시작했습니다." : "방송을 종료했습니다.";
         OnChanged(nameof(BroadcastButtonText));
+        OnChanged(nameof(IsBroadcastLive));
         OnChanged(nameof(BroadcastStatusText));
         OnChanged(nameof(LiveDuration));
+    }
+
+    public void BeginBroadcastConnection()
+    {
+        _broadcastState = BroadcastState.Connecting;
+        _liveStartedAt = null;
+        StatusMessage = "카메라와 WebRTC 연결을 준비하고 있습니다.";
+        NotifyBroadcastState();
+    }
+
+    public void MarkBroadcastLive()
+    {
+        if (_broadcastState == BroadcastState.Live) return;
+        _broadcastState = BroadcastState.Live;
+        _liveStartedAt = DateTimeOffset.Now;
+        StatusMessage = "WebRTC 영상 송수신이 연결되었습니다.";
+        NotifyBroadcastState();
+    }
+
+    public void FailBroadcast(string message)
+    {
+        _broadcastState = BroadcastState.Failed;
+        _liveStartedAt = null;
+        ServerStatusText = message;
+        StatusMessage = message;
+        NotifyBroadcastState();
+    }
+
+    public void MarkBroadcastStopped()
+    {
+        _broadcastState = BroadcastState.Idle;
+        _liveStartedAt = null;
+        StatusMessage = "방송을 종료하고 서버 세션을 정리했습니다.";
+        NotifyBroadcastState();
+    }
+
+    private void NotifyBroadcastState()
+    {
+        OnChanged(nameof(BroadcastButtonText));
+        OnChanged(nameof(IsBroadcastLive));
+        OnChanged(nameof(IsBroadcastActive));
+        OnChanged(nameof(BroadcastStatusText));
+        OnChanged(nameof(LiveDuration));
+    }
+
+    public async Task VerifyServerConnectionAsync()
+    {
+        if (IsServerTestInProgress) return;
+        IsServerTestInProgress = true;
+        ServerStatusText = "서버 연결 및 세션 정리를 확인하는 중입니다.";
+        try
+        {
+            var result = await _serverDiagnosticsClient.VerifyAsync();
+            LastServerSessionId = result.SessionId;
+            ServerStatusText = $"연결 성공: health {(int)result.HealthStatus}, 세션 정리 {(int)result.DeleteStatus}";
+            StatusMessage = $"{ServerEndpointText} 서버 연결을 확인했습니다.";
+        }
+        catch (Exception exception)
+        {
+            ServerStatusText = $"연결 실패: {exception.Message}";
+            StatusMessage = "서버 연결에 실패했습니다. 주소와 네트워크를 확인하세요.";
+        }
+        finally
+        {
+            IsServerTestInProgress = false;
+        }
+    }
+
+    public void ReportWebRtcStatus(string message)
+    {
+        ServerStatusText = message;
+        StatusMessage = message;
     }
 
     private void RefreshStudioState()
