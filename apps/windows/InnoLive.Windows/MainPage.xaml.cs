@@ -53,12 +53,21 @@ public sealed partial class MainPage : Page
             args.State = CoreWebView2PermissionState.Allow;
     }
 
-    private void WebRtcView_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
+    private async void WebRtcView_NavigationCompleted(WebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
     {
         if (args.IsSuccess)
         {
-            _webViewReady.TrySetResult();
-            ViewModel.ReportWebRtcStatus($"WebRTC 준비됨: {ServerEnvironment.SignalingUri}");
+            try
+            {
+                await WebRtcView.CoreWebView2.ExecuteScriptAsync(IdlePreviewScript);
+                _webViewReady.TrySetResult();
+                ViewModel.ReportWebRtcStatus($"WebRTC 준비됨: {ServerEnvironment.SignalingUri}");
+            }
+            catch (Exception exception)
+            {
+                _webViewReady.TrySetException(exception);
+                ViewModel.FailBroadcast($"미리보기 초기화 실패: {exception.Message}");
+            }
         }
         else
         {
@@ -123,7 +132,11 @@ public sealed partial class MainPage : Page
     {
         if (WebRtcView.CoreWebView2 is not null)
         {
-            try { await WebRtcView.CoreWebView2.ExecuteScriptAsync("window.__innoliveStop && window.__innoliveStop();"); }
+            try
+            {
+                await WebRtcView.CoreWebView2.ExecuteScriptAsync("window.__innoliveStop && window.__innoliveStop();");
+                await WebRtcView.CoreWebView2.ExecuteScriptAsync(IdlePreviewScript);
+            }
             catch { }
         }
         ViewModel.MarkBroadcastStopped();
@@ -151,6 +164,14 @@ public sealed partial class MainPage : Page
     private void SourceText_TextChanged(object sender, TextChangedEventArgs e) => ViewModel.UpdateSelectedSourceText((sender as TextBox)?.Text ?? string.Empty);
     private void SourceColor_SelectionChanged(object sender, SelectionChangedEventArgs e) { if ((sender as ComboBox)?.SelectedItem is ComboBoxItem { Tag: string color }) ViewModel.UpdateSelectedSourceColor(color); }
     private void AudioEnabled_Toggled(object sender, RoutedEventArgs e) { if (sender is ToggleSwitch { Tag: AudioChannelItem channel } toggle) ViewModel.SetAudioEnabled(channel, toggle.IsOn); }
+
+    private const string IdlePreviewScript = """
+    (() => {
+      document.documentElement.style.cssText = 'width:100%;height:100%;background:#000';
+      document.body.style.cssText = 'margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Segoe UI,sans-serif';
+      document.body.innerHTML = '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;width:100%;height:100%;box-sizing:border-box"><section style="position:relative;overflow:hidden;border-radius:4px;background:#0f1720"><span style="position:absolute;z-index:1;left:12px;top:10px;padding:4px 8px;border-radius:4px;background:#99000000;color:white;font-size:12px">내 화면</span></section><section style="position:relative;overflow:hidden;border-radius:4px;background:#000"><span style="position:absolute;z-index:1;left:12px;top:10px;padding:4px 8px;border-radius:4px;background:#99000000;color:white;font-size:12px">서버 수신</span></section></div>';
+    })();
+    """;
 
     private const string WebRtcBootstrapScript = """
     (async () => {
@@ -221,8 +242,8 @@ public sealed partial class MainPage : Page
         if (!sessionId) throw new Error('session_id가 없습니다.');
 
         document.documentElement.style.cssText = 'width:100%;height:100%;background:#000';
-        document.body.style.cssText = 'margin:0;width:100%;height:100%;overflow:hidden;background:#000';
-        document.body.innerHTML = '<video id="remote" autoplay muted playsinline style="width:100%;height:100%;object-fit:contain;background:#000"></video><video id="local" autoplay muted playsinline style="position:absolute;right:12px;bottom:12px;width:24%;max-width:220px;border:1px solid #ffffff88;border-radius:6px;background:#111"></video>';
+        document.body.style.cssText = 'margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Segoe UI,sans-serif';
+        document.body.innerHTML = '<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;width:100%;height:100%;box-sizing:border-box"><section style="position:relative;overflow:hidden;border-radius:4px;background:#0f1720"><video id="local" autoplay muted playsinline style="display:block;width:100%;height:100%;object-fit:contain;background:#0f1720"></video><span style="position:absolute;z-index:1;left:12px;top:10px;padding:4px 8px;border-radius:4px;background:#99000000;color:white;font-size:12px">내 화면</span></section><section style="position:relative;overflow:hidden;border-radius:4px;background:#000"><video id="remote" autoplay muted playsinline style="display:block;width:100%;height:100%;object-fit:contain;background:#000"></video><span style="position:absolute;z-index:1;left:12px;top:10px;padding:4px 8px;border-radius:4px;background:#99000000;color:white;font-size:12px">서버 수신</span></section></div>';
         const remoteVideo = document.getElementById('remote');
         const localVideo = document.getElementById('local');
 
