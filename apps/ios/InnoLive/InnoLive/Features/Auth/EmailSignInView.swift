@@ -43,6 +43,17 @@ struct EmailSignInView: View {
                     .padding(.horizontal, 16)
                     .frame(height: 52)
                     .glassEffect(.regular, in: .rect(cornerRadius: 12))
+
+                HStack {
+                    Text("비밀번호를 잊어버리셨나요?")
+                    NavigationLink {
+                        PasswordResetRequestView(isSignedIn: $isSignedIn)
+                    } label: {
+                        Text("여기를 클릭")
+                    }
+                    Spacer()
+                }
+                .font(.caption)
             }
 
             Button {

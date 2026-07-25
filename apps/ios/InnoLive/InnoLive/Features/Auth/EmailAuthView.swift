@@ -66,9 +66,9 @@ struct EmailAuthView: View {
                 }
 
                 HStack {
-                    Text("이메일 또는 비밀번호를 잊으셨나요?")
-                    Button {
-
+                    Text("비밀번호를 잊어버리셨나요?")
+                    NavigationLink {
+                        PasswordResetRequestView(isSignedIn: $isSignedIn)
                     } label: {
                         Text("여기를 클릭")
                     }
