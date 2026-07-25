@@ -1,5 +1,5 @@
 //
-//  LoginView.swift
+//  SignInView.swift
 //  InnoLive
 //
 //  Created by chaeyn on 7/25/26.
@@ -8,9 +8,9 @@
 import SwiftUI
 import AuthenticationServices
 
-struct LoginView: View {
+struct SignInView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Binding var isLoggedIn: Bool
+    @Binding var isSignedIn: Bool
 
     var body: some View {
         VStack (alignment: .leading, spacing: 24) {
@@ -36,7 +36,7 @@ struct LoginView: View {
 
                         print(userID, email ?? "", fullName?.description ?? "")
                         
-                        isLoggedIn = true
+                        isSignedIn = true
 
                     case .failure(let error):
                         print("Apple 로그인 실패: \(error.localizedDescription)")
@@ -52,10 +52,21 @@ struct LoginView: View {
                 )
                 .frame(height: 44)
 
-                EmailLoginView()
+                NavigationLink {
+                    EmailAuthView(isSignedIn: $isSignedIn)
+                } label: {
+                    Label("이메일로 로그인", systemImage: "envelope.fill")
+                        .font(.callout.weight(.semibold))
+                        .imageScale(.small)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Rectangle()) // 버튼 전체를 인식하도록 지정
+                }
+                .buttonStyle(.glass)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 24)
-        .padding(.top, 32)
     }
 }

@@ -8,23 +8,23 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var isLoggedIn = false
+    @State private var isSignedIn = false
 
     var body: some View {
-        if isLoggedIn {
+        if isSignedIn {
             HomeView()
         } else {
-            LoginView(isLoggedIn: $isLoggedIn)
+            NavigationStack {
+                SignInView(isSignedIn: $isSignedIn)
+            }
         }
     }
 }
-
 
 #Preview("Dark") {
     ContentView()
         .preferredColorScheme(.dark)
 }
-
 
 #Preview("Light") {
     ContentView()
