@@ -8,8 +8,20 @@
 import SwiftUI
 
 struct HomeView: View {
+    @State private var isBroadcasting = false
+
     var body: some View {
-        Text("home")
-            .navigationTitle("InnoLive")
+        ZStack(alignment: .bottomTrailing) {
+            Color.clear
+
+            BroadcastControllsView(isBroadcasting: $isBroadcasting)
+                .padding(.horizontal, 24)
+                .padding(.trailing, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+#Preview {
+    HomeView()
 }
