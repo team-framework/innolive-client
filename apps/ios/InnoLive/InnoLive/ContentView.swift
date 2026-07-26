@@ -12,7 +12,9 @@ struct ContentView: View {
 
     var body: some View {
         if isSignedIn {
-            HomeView()
+            NavigationStack {
+                HomeView()
+            }
         } else {
             NavigationStack {
                 SignInView(isSignedIn: $isSignedIn)
