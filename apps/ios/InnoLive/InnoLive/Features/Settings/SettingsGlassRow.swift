@@ -5,7 +5,6 @@
 
 import SwiftUI
 
-// 설정 메인 항목과 내부 선택 항목에 같은 크기·모서리·Glass 효과를 적용하는 공용 행
 struct SettingsGlassRow<Content: View>: View {
     private let content: Content
 

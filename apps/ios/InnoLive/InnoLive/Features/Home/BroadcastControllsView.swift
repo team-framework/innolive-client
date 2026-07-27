@@ -23,11 +23,9 @@ struct BroadcastControllsView: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.glass)
-                // VoiceOver가 아이콘 대신 "설정"이라고 읽도록 지정
                 .accessibilityLabel("설정")
 
                 Button {
-                    // true와 false를 서로 바꿔 방송 시작/종료 상태를 전환
                     isBroadcasting.toggle()
                 } label: {
                     Label(

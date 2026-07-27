@@ -13,7 +13,7 @@ struct PasswordVerificationView: View {
     @FocusState private var isVerificationCodeFocused: Bool
 
     private var isVerificationCodeValid: Bool {
-        verificationCode.count == 6 && verificationCode.allSatisfy(\.isNumber)
+        verificationCode.count == 6 && verificationCode.allSatisfy(\.isNumber) // 코드가 6글자이고, 모든 코드가 숫자임을 검사
     }
 
     var body: some View {

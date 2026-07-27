@@ -44,7 +44,7 @@ struct SettingsView: View {
         }
     }
 
-    // 공용 Glass 행 안에 들어갈 설정 항목의 아이콘·문구·화살표 부분
+    // 공용 Glass 행 안에 들어갈 설정 항목의 우측
     private func settingsRowContent(title: String, systemImage: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)

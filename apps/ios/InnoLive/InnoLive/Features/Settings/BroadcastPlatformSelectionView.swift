@@ -30,7 +30,7 @@ struct BroadcastPlatformSelectionView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    @ViewBuilder
+    @ViewBuilder // 조건에 따라 서로 다른 UI를 표시
     private func platformRow(_ platform: BroadcastPlatform) -> some View {
         if connectedPlatforms.contains(platform) {
             Button {
