@@ -44,6 +44,7 @@ struct PasswordResetRequestView: View {
                 .padding(.horizontal, 16)
                 .frame(height: 52)
                 .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                // .background는 요소 뒤, .overlay는 요소 앞
                 .overlay {
                     if showsEmailError {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)

@@ -24,12 +24,14 @@ struct EmailAuthView: View {
 
     private var normalizedEmail: String {
         email
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: .whitespacesAndNewlines) // 공백 제거
             .lowercased()
     }
 
     private var isEmailValid: Bool {
         let pattern = #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#
+        // .range(of:) 문자열 안에서 조건에 맞는 부분을 찾음
+        // options: .regularExpression: 정규식 규칙으로 찾음
         return normalizedEmail.range(of: pattern, options: .regularExpression) != nil
     }
 
@@ -43,8 +45,8 @@ struct EmailAuthView: View {
                     .font(.body)
                     .focused($isEmailFocused)
                     .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never) // 입력 시작 글자를 자동으로 대문자로 만들지 않음
+                    .autocorrectionDisabled() // 자동완성, 오타 교정 해제
                     .onChange(of: email) {
                         showsEmailError = false
                     }
@@ -53,7 +55,7 @@ struct EmailAuthView: View {
                     .glassEffect(.regular, in: .rect(cornerRadius: 12))
                     .overlay {
                         if showsEmailError {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            RoundedRectangle(cornerRadius: 12, style: .continuous) // .continuous: 모서리의 둥근 정도
                                 .stroke(.red, lineWidth: 1)
                         }
                     }
@@ -86,6 +88,7 @@ struct EmailAuthView: View {
 
                     email = normalizedEmail
 
+                    // 이메일에 따라 로그인/회원가입 분기
                     if existingEmails.contains(normalizedEmail) {
                         destination = .signIn
                     } else {
@@ -109,6 +112,7 @@ struct EmailAuthView: View {
         .onAppear {
             isEmailFocused = true
         }
+        // 분기한 인증 타입에 따라 페이지가 달라짐
         .navigationDestination(item: $destination) { destination in
             switch destination {
             case .signIn:
