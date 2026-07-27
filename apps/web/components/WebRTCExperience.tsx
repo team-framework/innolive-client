@@ -350,7 +350,12 @@ export function WebRTCExperience() {
           <img src="/figma/live-pending.svg" alt="InnoLive 라이브 대기 화면" className="block w-full border border-[#5c5c5c]" />
         )}
       </div>
-      <p className="min-h-6 text-center text-sm text-[#c7c7c7]" role="status" aria-live="polite">{statusText}</p>
+      <div className="flex flex-col items-center">
+        <p className="min-h-6 text-center text-sm text-[#c7c7c7]" role="status" aria-live="polite">{statusText}</p>
+        <p className="min-h-6 text-center text-sm text-[#c7c7c7]">
+          ※ 영상은 저장되지 서버에 저장되지 않습니다. ※
+        </p>
+      </div>
       <div className="flex gap-[clamp(6px,0.42vw,8px)]">
         <button type="button" className={buttonClassName} disabled={isConnecting} onClick={isConnected ? endExperience : startExperience}>{primaryButtonText}</button>
         <button type="button" className={buttonClassName} onClick={openFaceRegistration}>얼굴 등록하기</button>
