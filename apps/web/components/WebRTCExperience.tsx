@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { FaceRegistrationModal } from './FaceRegistrationModal'
+import PrivacyPolicyModal from "./PrivacyPolicyModal";
 
 type ExperienceState = 'idle' | 'connecting' | 'connected' | 'failed'
 
@@ -63,6 +64,7 @@ export function WebRTCExperience() {
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([])
   const connectionAttemptRef = useRef(0)
   const connectionTimeoutRef = useRef<number | null>(null)
+  const [isPrivacyPolicyOpen, setIsPrivacyPolicyOpen] = useState(false)
 
   const releaseResources = useCallback((deleteSession: boolean) => {
     const sessionID = sessionIDRef.current
@@ -331,13 +333,27 @@ export function WebRTCExperience() {
   const isConnected = state === 'connected'
   const primaryButtonText = isConnecting ? '연결 중...' : isConnected ? '체험 종료' : '시작하기'
 
+  const openPrivacyPolicy = () => {
+    const isAgreed = localStorage.getItem('facePrivacyPolicy')
+
+    if (isAgreed === "true") {
+      openFaceRegistration()
+    } else {
+      setIsPrivacyPolicyOpen(true)
+    }
+  }
+
   const openFaceRegistration = useCallback(() => {
-    try {
-      const { sessionsURL } = getServerEndpoints()
-      setFaceRegistrationURL(new URL('/reference-face', sessionsURL).toString())
-      setIsFaceRegistrationOpen(true)
-    } catch (error) {
-      setStatusText(error instanceof Error ? error.message : '얼굴 등록 서버 주소를 확인하지 못했습니다.')
+    const isAgreed = localStorage.getItem('facePrivacyPolicy')
+
+    if (isAgreed === "true") {
+      try {
+        const { sessionsURL } = getServerEndpoints()
+        setFaceRegistrationURL(new URL('/reference-face', sessionsURL).toString())
+        setIsFaceRegistrationOpen(true)
+      } catch (error) {
+        setStatusText(error instanceof Error ? error.message : '얼굴 등록 서버 주소를 확인하지 못했습니다.')
+      }
     }
   }, [])
 
@@ -350,11 +366,17 @@ export function WebRTCExperience() {
           <img src="/figma/live-pending.svg" alt="InnoLive 라이브 대기 화면" className="block w-full border border-[#5c5c5c]" />
         )}
       </div>
-      <p className="min-h-6 text-center text-sm text-[#c7c7c7]" role="status" aria-live="polite">{statusText}</p>
+      <div className="flex flex-col items-center">
+        <p className="min-h-6 text-center text-sm text-[#c7c7c7]" role="status" aria-live="polite">{statusText}</p>
+        <p className="min-h-6 text-center text-sm text-[#c7c7c7]">
+          ※ 영상은 저장되지 서버에 저장되지 않습니다. ※
+        </p>
+      </div>
       <div className="flex gap-[clamp(6px,0.42vw,8px)]">
         <button type="button" className={buttonClassName} disabled={isConnecting} onClick={isConnected ? endExperience : startExperience}>{primaryButtonText}</button>
-        <button type="button" className={buttonClassName} onClick={openFaceRegistration}>얼굴 등록하기</button>
+        <button type="button" className={buttonClassName} onClick={openPrivacyPolicy}>얼굴 등록하기</button>
       </div>
+      <PrivacyPolicyModal isOpen={isPrivacyPolicyOpen} onClose={() => {setIsPrivacyPolicyOpen(false); openFaceRegistration()}} />
       {faceRegistrationURL && <FaceRegistrationModal isOpen={isFaceRegistrationOpen} registrationURL={faceRegistrationURL} onClose={() => setIsFaceRegistrationOpen(false)} />}
     </div>
   )
