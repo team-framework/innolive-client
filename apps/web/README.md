@@ -51,9 +51,10 @@ cp .env.example .env
 docker compose --profile standalone-proxy up -d --build
 ```
 
-`chaeyn` 홈서버는 이미 실행 중인 공용 Caddy를 사용합니다. GitHub Actions는
-`main`의 웹 변경을 감지해 서버에서 `docker-compose.server.yml`을 적용하고,
-`innolive.chaeyn.com`를 `127.0.0.1:3010`에 연결합니다.
+운영 환경은 이미 실행 중인 공용 Caddy를 사용합니다. GitHub Actions는 `main`의
+웹 변경을 감지해 서버에서 `docker-compose.server.yml`을 적용하고,
+`innolive.chaeyn.com`으로 서비스를 제공합니다. 서버 경로와 배포 인프라 설정은
+서버 전용 환경 파일에서 관리하며 저장소에 커밋하지 않습니다.
 
 배포 전 개인정보처리방침의 문의 이메일(`NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL`)과
 실제 운영 주체 정보를 검토·확정해야 합니다.

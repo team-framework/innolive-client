@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_dir=/srv/innolive-client
+if [[ -n "${INNOLIVE_WEB_DEPLOY_ENV_FILE:-}" ]]; then
+  # This file is managed on the deployment host and must not be committed.
+  # shellcheck source=/dev/null
+  source "$INNOLIVE_WEB_DEPLOY_ENV_FILE"
+fi
+
+: "${INNOLIVE_PROJECT_DIR:?INNOLIVE_PROJECT_DIR must be set on the deployment host}"
+: "${INNOLIVE_CADDY_FILE:?INNOLIVE_CADDY_FILE must be set on the deployment host}"
+: "${INNOLIVE_CADDY_CONTAINER:?INNOLIVE_CADDY_CONTAINER must be set on the deployment host}"
+
+project_dir="$INNOLIVE_PROJECT_DIR"
 web_dir="$project_dir/apps/web"
-caddy_file=/etc/caddy/Caddyfile
-site_host=innolive.chaeyn.com
+caddy_file="$INNOLIVE_CADDY_FILE"
+site_host="${INNOLIVE_SITE_HOST:-innolive.chaeyn.com}"
 
 if [[ ! -s "$web_dir/.env" ]]; then
   db_password=$(openssl rand -hex 32)
@@ -35,7 +45,7 @@ $site_host {
 CADDY_BLOCK
 fi
 
-docker exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+docker exec "$INNOLIVE_CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 
 for _ in {1..30}; do
   if curl --fail --silent --show-error http://127.0.0.1:3010/ >/dev/null; then
