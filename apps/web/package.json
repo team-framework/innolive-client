@@ -11,15 +11,15 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.35",
-    "next": "^16.2.10",
+    "next": "^16.2.12",
     "pg": "^8.22.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/pg": "^8.20.0",
     "@types/node": "^22.15.3",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "tailwindcss": "^4.3.3",

@@ -10,7 +10,7 @@
 
 @font-face {
   font-family: "neurimbo-gothic";
-  src: url("/fonts/neurimbo-gothic/neurimboGothicRegular.otf") format("opentype");
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2304-01@1.0/neurimboGothicRegular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
