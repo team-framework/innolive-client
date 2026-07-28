@@ -10,7 +10,6 @@ but must turn them into bounded, verifiable changes.
 
 - `docs/architecture.md`: ownership and shared-contract boundaries
 - `docs/platform-matrix.md`: platform technology and UX differences
-- `docs/tasks/TEMPLATE.md`: required task format for substantial work
 
 ## Natural-language task protocol
 
@@ -51,5 +50,4 @@ change or broadening the requested platform scope.
 ## Completion criteria
 
 Report changed files, target platform, contract impact, and verification.
-Run the affected platform's focused build/test when tooling is available. Run
-`./scripts/verify-contracts.sh` for every contract change.
+Run the affected platform's focused build/test when tooling is available.

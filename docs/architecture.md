@@ -23,7 +23,7 @@ apps/mac | apps/ios | apps/android | apps/windows | apps/web
 - signaling messages: offer, answer, ICE candidate, connection state, errors;
 - broadcast state vocabulary: `idle`, `connecting`, `live`, `stopping`,
   `failed`;
-- fixtures and compatibility tests;
+- fixtures and compatibility rules;
 - product behavior specifications.
 
 ## What is not shared

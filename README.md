@@ -52,7 +52,7 @@ flowchart LR
 | Windows | C#, WinUI 3, Windows App SDK |
 | iOS | Swift, SwiftUI, AVFoundation |
 | Android (예정) | Kotlin, Jetpack Compose |
-| 공통 계약 | JSON Schema, fixture, compatibility 검증 스크립트 |
+| 공통 계약 | JSON Schema, fixture, compatibility 규칙 |
 
 ## 빠른 실행
 
@@ -106,8 +106,7 @@ apps/
 └── android/    # Android 클라이언트
 
 contracts/       # HTTP · WebRTC signaling schema, fixture, 오류 vocabulary
-docs/            # 아키텍처, 플랫폼 매트릭스, 작업 명세
-scripts/         # 공통 계약 검증
+docs/            # 아키텍처, 플랫폼 매트릭스
 ```
 
 ## 라이선스
