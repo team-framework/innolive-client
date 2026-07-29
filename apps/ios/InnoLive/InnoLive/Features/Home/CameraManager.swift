@@ -16,6 +16,9 @@ final class CameraManager {
     private var videoInput: AVCaptureDeviceInput?
     private(set) var currentCameraID: String?
 
+    // AVCaptureSession을 만지는 작업은 이 큐에서만 실행
+    private let sessionQueue = DispatchQueue(label: "com.innolive.camera.session")
+
     func requestCameraAccess() {
         switch authorizationStatus {
         case .authorized:
@@ -37,11 +40,18 @@ final class CameraManager {
     }
 
     // 설정 화면에서 선택한 id의 카메라를 찾음
-    func cameraDevice(for cameraID: String) -> AVCaptureDevice? {
+    private func cameraDevice(for cameraID: String) -> AVCaptureDevice? {
         AVCaptureDevice(uniqueID: cameraID)
     }
 
     func addCameraInput(for cameraID: String) {
+        sessionQueue.async { [weak self] in
+            self?.addCameraInputOnSessionQueue(for: cameraID)
+        }
+    }
+
+    // sessionQueue에서 실행
+    private func addCameraInputOnSessionQueue(for cameraID: String) {
         guard videoInput == nil else {
             return
         }
@@ -60,7 +70,7 @@ final class CameraManager {
 
             session.addInput(input)
             videoInput = input
-            currentCameraID = cameraID
+            updateCurrentCameraID(cameraID)
         } catch {
             print("카메라를 연결하지 못했습니다: \(error.localizedDescription)")
         }
@@ -68,6 +78,13 @@ final class CameraManager {
 
     // 연결된 카메라로 실시간 영상 시작
     func startSession() {
+        sessionQueue.async { [weak self] in
+            self?.startSessionOnSessionQueue()
+        }
+    }
+
+    // sessionQueue에서 실행
+    private func startSessionOnSessionQueue() {
         guard !session.isRunning else {
             return
         }
@@ -76,6 +93,13 @@ final class CameraManager {
     }
 
     func switchCamera(to cameraID: String) {
+        sessionQueue.async { [weak self] in
+            self?.switchCameraOnSessionQueue(to: cameraID)
+        }
+    }
+
+    // sessionQueue에서 실행
+    private func switchCameraOnSessionQueue(to cameraID: String) {
         // 이미 같은 카메라를 쓰고 있으면 다시 연결하지 않음
         guard videoInput?.device.uniqueID != cameraID,
               let device = cameraDevice(for: cameraID)
@@ -105,7 +129,7 @@ final class CameraManager {
 
             session.addInput(newInput)
             videoInput = newInput
-            currentCameraID = cameraID
+            updateCurrentCameraID(cameraID)
         } catch {
             print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
         }
@@ -113,15 +137,26 @@ final class CameraManager {
 
     // 앱을 처음 열었을 때 전면 카메라를 연결하고 시작
     func startDefaultCamera() {
-        guard let frontCamera = AVCaptureDevice.default(
-            .builtInWideAngleCamera,
-            for: .video,
-            position: .front
-        ) else {
-            return
-        }
+        sessionQueue.async { [weak self] in
+            guard let self,
+                  let frontCamera = AVCaptureDevice.default(
+                    .builtInWideAngleCamera,
+                    for: .video,
+                    position: .front
+                  )
+            else {
+                return
+            }
 
-        addCameraInput(for: frontCamera.uniqueID)
-        startSession()
+            self.addCameraInputOnSessionQueue(for: frontCamera.uniqueID)
+            self.startSessionOnSessionQueue()
+        }
+    }
+
+    // sessionQueue에서 처리한 실제 카메라 상태를 메인 스레드에 반영
+    private func updateCurrentCameraID(_ cameraID: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.currentCameraID = cameraID
+        }
     }
 }
