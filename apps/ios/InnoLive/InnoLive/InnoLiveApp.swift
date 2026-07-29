@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct InnoLiveApp: App {
+    @State private var cameraManager = CameraManager()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(cameraManager)
         }
     }
 }

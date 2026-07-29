@@ -14,14 +14,19 @@ private enum CameraResolution: String, CaseIterable { // CaseIterable: 전체 ca
     case hd24 = "720p - 24fps"
 }
 
+struct CameraOption: Identifiable, Hashable {
+    let id: String
+    let name: String
+}
+
 struct CameraAudioSettingsView: View {
+    @Environment(CameraManager.self) private var cameraManager
     @State private var selectedResolution: CameraResolution = .fullHD30
-    @State private var selectedCamera = ""
+    @State private var selectedCameraID = ""
+    @State private var cameraOptions: [CameraOption] = []
     @State private var selectedAudio = ""
-    @State private var cameraNames: [String] = []
     @State private var audioNames: [String] = []
 
-    private var cameraOptions: [String] { cameraNames }
 
     private var audioOptions: [String] { audioNames }
 
@@ -41,12 +46,7 @@ struct CameraAudioSettingsView: View {
                         options: CameraResolution.allCases.map(\.rawValue)
                     )
 
-                    selectionRow(
-                        title: "카메라 기기",
-                        systemImage: "camera.fill",
-                        selection: $selectedCamera,
-                        options: cameraOptions
-                    )
+                    cameraSelectionRow()
 
                     selectionRow(
                         title: "오디오 기기",
@@ -62,12 +62,16 @@ struct CameraAudioSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadAvailableDevices()
-            if selectedCamera.isEmpty {
-                selectedCamera = cameraOptions.first ?? ""
+            if selectedCameraID.isEmpty {
+                // 현재 프리뷰에서 사용하는 카메라를 표시
+                selectedCameraID = cameraManager.currentCameraID ?? cameraOptions.first?.id ?? "카메라 정보 없음"
             }
             if selectedAudio.isEmpty {
                 selectedAudio = audioOptions.first ?? ""
             }
+        }
+        .onChange(of: selectedCameraID) { _, cameraID in
+            cameraManager.switchCamera(to: cameraID)
         }
     }
 
@@ -107,18 +111,56 @@ struct CameraAudioSettingsView: View {
         }
     }
 
+    private var selectedCameraName: String {
+        cameraOptions.first { $0.id == selectedCameraID }?.name ?? ""
+    }
+
+    private func cameraSelectionRow() -> some View {
+        SettingsGlassRow {
+            HStack(spacing: 12) {
+                Image(systemName: "camera.fill")
+                    .frame(width: 24)
+
+                Text("카메라 기기")
+                    .font(.body.weight(.semibold))
+
+                Spacer()
+
+                Menu {
+                    Picker("카메라 기기", selection: $selectedCameraID) {
+                        ForEach(cameraOptions) { option in
+                            Text(option.name).tag(option.id)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(selectedCameraName)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption2.weight(.semibold))
+                    }
+                    .foregroundStyle(.primary)
+                }
+            }
+        }
+    }
+
     private func loadAvailableDevices() {
         // AVFoundation이 현재 인식한 영상 촬영 장치 이름을 읽어옴
         let cameras = AVCaptureDevice.DiscoverySession(
             deviceTypes: [
-                .builtInWideAngleCamera,
                 .builtInTelephotoCamera,
+                .builtInWideAngleCamera,
                 .external
             ],
             mediaType: .video,
             position: .unspecified
         ).devices
-        cameraNames = cameras.map(\.localizedName)
+
+        cameraOptions = cameras.map {
+            CameraOption(id: $0.uniqueID, name: $0.localizedName)
+        }
+
         audioNames = (AVAudioSession.sharedInstance().availableInputs ?? []).map(\.portName)
     }
 }
@@ -127,4 +169,5 @@ struct CameraAudioSettingsView: View {
     NavigationStack {
         CameraAudioSettingsView()
     }
+    .environment(CameraManager())
 }

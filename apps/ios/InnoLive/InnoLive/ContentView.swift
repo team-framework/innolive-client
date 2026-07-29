@@ -25,10 +25,12 @@ struct ContentView: View {
 
 #Preview("Dark") {
     ContentView()
+        .environment(CameraManager())
         .preferredColorScheme(.dark)
 }
 
 #Preview("Light") {
     ContentView()
+        .environment(CameraManager())
         .preferredColorScheme(.light)
 }

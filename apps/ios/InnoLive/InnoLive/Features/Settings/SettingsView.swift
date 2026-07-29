@@ -67,4 +67,5 @@ struct SettingsView: View {
     NavigationStack {
         SettingsView()
     }
+    .environment(CameraManager())
 }
