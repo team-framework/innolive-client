@@ -5,17 +5,19 @@
 //  Created by chaeyn on 7/25/26.
 //
 
+import AVFoundation
 import SwiftUI
 
 struct HomeView: View {
     @State private var isBroadcasting = false
+    @State private var cameraManager = CameraManager()
 
     var body: some View {
         ZStack {
             RemoteStreamView()
                 .ignoresSafeArea()
 
-            LocalPreviewView()
+            LocalPreviewView(session: cameraManager.session)
                 .frame(width: 132, height: 176)
                 .padding(24)
                 .frame(
@@ -35,6 +37,19 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
+        .onAppear {
+            if cameraManager.authorizationStatus == .authorized {
+                cameraManager.startDefaultCamera()
+            } else {
+                cameraManager.requestCameraAccess()
+            }
+        }
+        .onChange(of: cameraManager.authorizationStatus) { _, status in
+            // 권한 팝업에서 허용을 누른 직후 첫 번째 카메라를 시작함
+            if status == .authorized {
+                cameraManager.startDefaultCamera()
+            }
+        }
     }
 }
 

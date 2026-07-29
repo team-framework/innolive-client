@@ -3,21 +3,18 @@
 //  InnoLive
 //
 
+import AVFoundation
 import SwiftUI
 
 struct LocalPreviewView: View {
+    let session: AVCaptureSession
+
     var body: some View {
         ZStack {
-            Color.black
-            
-            VStack(spacing: 8) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 22))
-                
-                Text("내 화면")
-                    .font(.body)
-            }                 .foregroundStyle(.white.opacity(0.8))
+            CameraPreview(session: session)
         }
+        // 영상도 테두리와 같은 둥근 모양으로 잘라냄
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(.gray.opacity(0.6), lineWidth: 1)
@@ -26,6 +23,6 @@ struct LocalPreviewView: View {
 }
 
 #Preview {
-    LocalPreviewView()
+    LocalPreviewView(session: AVCaptureSession())
         .frame(width: 132, height: 176)
 }
