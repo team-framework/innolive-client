@@ -11,14 +11,11 @@ import Observation
 @Observable
 final class CameraManager {
     let session = AVCaptureSession()
-
     // private(set): 읽기는 어디서나 가능, 갑 변경은 이 class 내부에서만 가능
     private(set) var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
-
-    // 현재 session에 연결된 영상 카메라 입력을 기억함
     private var videoInput: AVCaptureDeviceInput?
+    private(set) var currentCameraID: String?
 
-    // 아직 권한을 요청하지 않았다면 iOS 시스템 권한 팝업을 띄움
     func requestCameraAccess() {
         switch authorizationStatus {
         case .authorized:
@@ -63,6 +60,7 @@ final class CameraManager {
 
             session.addInput(input)
             videoInput = input
+            currentCameraID = cameraID
         } catch {
             print("카메라를 연결하지 못했습니다: \(error.localizedDescription)")
         }
@@ -75,6 +73,42 @@ final class CameraManager {
         }
 
         session.startRunning()
+    }
+
+    func switchCamera(to cameraID: String) {
+        // 이미 같은 카메라를 쓰고 있으면 다시 연결하지 않음
+        guard videoInput?.device.uniqueID != cameraID,
+              let device = cameraDevice(for: cameraID)
+        else {
+            return
+        }
+
+        do {
+            let newInput = try AVCaptureDeviceInput(device: device)
+            let previousInput = videoInput
+
+            // 입력을 교체하는 동안 session의 중간 상태가 화면에 보이지 않게 함
+            session.beginConfiguration()
+            defer { session.commitConfiguration() }
+
+            if let previousInput {
+                session.removeInput(previousInput)
+            }
+
+            guard session.canAddInput(newInput) else {
+                // 새 카메라를 추가할 수 없으면 이전 카메라를 다시 연결함
+                if let previousInput, session.canAddInput(previousInput) {
+                    session.addInput(previousInput)
+                }
+                return
+            }
+
+            session.addInput(newInput)
+            videoInput = newInput
+            currentCameraID = cameraID
+        } catch {
+            print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
+        }
     }
 
     // 앱을 처음 열었을 때 전면 카메라를 연결하고 시작

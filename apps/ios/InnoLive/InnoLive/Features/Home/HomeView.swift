@@ -10,7 +10,7 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var isBroadcasting = false
-    @State private var cameraManager = CameraManager()
+    @Environment(CameraManager.self) private var cameraManager
 
     var body: some View {
         ZStack {

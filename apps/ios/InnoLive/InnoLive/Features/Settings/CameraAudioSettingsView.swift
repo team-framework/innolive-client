@@ -20,6 +20,7 @@ struct CameraOption: Identifiable, Hashable {
 }
 
 struct CameraAudioSettingsView: View {
+    @Environment(CameraManager.self) private var cameraManager
     @State private var selectedResolution: CameraResolution = .fullHD30
     @State private var selectedCameraID = ""
     @State private var cameraOptions: [CameraOption] = []
@@ -62,11 +63,15 @@ struct CameraAudioSettingsView: View {
         .onAppear {
             loadAvailableDevices()
             if selectedCameraID.isEmpty {
-                selectedCameraID = cameraOptions.first?.id ?? ""
+                // 현재 프리뷰에서 사용하는 카메라를 표시
+                selectedCameraID = cameraManager.currentCameraID ?? cameraOptions.first?.id ?? "카메라 정보 없음"
             }
             if selectedAudio.isEmpty {
                 selectedAudio = audioOptions.first ?? ""
             }
+        }
+        .onChange(of: selectedCameraID) { _, cameraID in
+            cameraManager.switchCamera(to: cameraID)
         }
     }
 
@@ -144,8 +149,8 @@ struct CameraAudioSettingsView: View {
         // AVFoundation이 현재 인식한 영상 촬영 장치 이름을 읽어옴
         let cameras = AVCaptureDevice.DiscoverySession(
             deviceTypes: [
-                .builtInWideAngleCamera,
                 .builtInTelephotoCamera,
+                .builtInWideAngleCamera,
                 .external
             ],
             mediaType: .video,
@@ -164,4 +169,5 @@ struct CameraAudioSettingsView: View {
     NavigationStack {
         CameraAudioSettingsView()
     }
+    .environment(CameraManager())
 }
