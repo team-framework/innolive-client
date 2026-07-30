@@ -60,13 +60,14 @@ final class CameraManager {
     }
 
     // sessionQueue에서 실행
-    private func addCameraInputOnSessionQueue(for cameraID: String) {
+    @discardableResult
+    private func addCameraInputOnSessionQueue(for cameraID: String) -> Bool {
         guard videoInput == nil else {
-            return
+            return true
         }
 
         guard let device = cameraDevice(for: cameraID) else {
-            return
+            return false
         }
 
         do {
@@ -74,14 +75,16 @@ final class CameraManager {
             let input = try AVCaptureDeviceInput(device: device)
 
             guard session.canAddInput(input) else {
-                return
+                return false
             }
 
             session.addInput(input)
             videoInput = input
             updateCurrentCameraID(cameraID)
+            return true
         } catch {
             print("카메라를 연결하지 못했습니다: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -166,7 +169,17 @@ final class CameraManager {
                 return
             }
 
-            self.addCameraInputOnSessionQueue(for: camera.uniqueID)
+            guard self.addCameraInputOnSessionQueue(for: camera.uniqueID) else {
+                guard let frontCamera,
+                      frontCamera.uniqueID != camera.uniqueID,
+                      self.addCameraInputOnSessionQueue(for: frontCamera.uniqueID)
+                else {
+                    return
+                }
+
+                self.startSessionOnSessionQueue()
+                return
+            }
             self.startSessionOnSessionQueue()
         }
     }
