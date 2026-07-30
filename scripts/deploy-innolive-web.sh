@@ -15,6 +15,7 @@ project_dir="$INNOLIVE_PROJECT_DIR"
 web_dir="$project_dir/apps/web"
 caddy_file="$INNOLIVE_CADDY_FILE"
 site_host="${INNOLIVE_SITE_HOST:-innolive.chaeyn.com}"
+compose_project_name="${INNOLIVE_COMPOSE_PROJECT_NAME:-innolive-web}"
 
 if [[ ! -s "$web_dir/.env" ]]; then
   db_password=$(openssl rand -hex 32)
@@ -34,7 +35,7 @@ if ! grep -q '^NEXT_PUBLIC_INNOLIVE_SIGNALING_URL=wss://' "$web_dir/.env"; then
 fi
 
 cd "$web_dir"
-docker compose -f docker-compose.yml -f docker-compose.server.yml up -d --build --remove-orphans
+docker compose --project-name "$compose_project_name" -f docker-compose.yml -f docker-compose.server.yml up -d --build --remove-orphans
 
 if ! grep -Fq "$site_host" "$caddy_file"; then
   cat >> "$caddy_file" <<CADDY_BLOCK
