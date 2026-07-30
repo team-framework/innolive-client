@@ -39,6 +39,11 @@ final class CameraManager {
         }
     }
 
+    // 설정 앱에서 돌아온 뒤 시스템의 최신 권한 상태를 다시 반영함
+    func refreshAuthorizationStatus() {
+        authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
+    }
+
     // 설정 화면에서 선택한 id의 카메라를 찾음
     private func cameraDevice(for cameraID: String) -> AVCaptureDevice? {
         AVCaptureDevice(uniqueID: cameraID)
