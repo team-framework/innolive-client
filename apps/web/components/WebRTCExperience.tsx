@@ -22,7 +22,7 @@ type ServerEndpoints = {
   sessionsURL: URL
 }
 
-const buttonClassName = 'cursor-pointer rounded-lg bg-white px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-black transition duration-200 hover:-translate-y-0.5 hover:bg-[#d9d9d9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:transform-none disabled:bg-[#8f8f8f]'
+const buttonClassName = 'cursor-pointer rounded-lg bg-white px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-black transition-colors duration-200 hover:bg-[#d9d9d9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:bg-[#8f8f8f]'
 
 function getServerEndpoints(): ServerEndpoints {
   const configuredURL = process.env.NEXT_PUBLIC_INNOLIVE_SIGNALING_URL?.trim()
