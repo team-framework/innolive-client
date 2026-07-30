@@ -8,6 +8,10 @@
 import AVFoundation
 import Observation
 
+private enum CameraSettingKey {
+    static let selectedCameraID = "selectedCameraID"
+}
+
 @Observable
 final class CameraManager {
     let session = AVCaptureSession()
@@ -56,13 +60,14 @@ final class CameraManager {
     }
 
     // sessionQueue에서 실행
-    private func addCameraInputOnSessionQueue(for cameraID: String) {
+    @discardableResult // 반환값이 없어도 됨
+    private func addCameraInputOnSessionQueue(for cameraID: String) -> Bool {
         guard videoInput == nil else {
-            return
+            return true
         }
 
         guard let device = cameraDevice(for: cameraID) else {
-            return
+            return false
         }
 
         do {
@@ -70,14 +75,16 @@ final class CameraManager {
             let input = try AVCaptureDeviceInput(device: device)
 
             guard session.canAddInput(input) else {
-                return
+                return false
             }
 
             session.addInput(input)
             videoInput = input
             updateCurrentCameraID(cameraID)
+            return true
         } catch {
             print("카메라를 연결하지 못했습니다: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -135,6 +142,7 @@ final class CameraManager {
             session.addInput(newInput)
             videoInput = newInput
             updateCurrentCameraID(cameraID)
+            UserDefaults.standard.set(cameraID, forKey: CameraSettingKey.selectedCameraID)
         } catch {
             print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
         }
@@ -143,17 +151,36 @@ final class CameraManager {
     // 앱을 처음 열었을 때 전면 카메라를 연결하고 시작
     func startDefaultCamera() {
         sessionQueue.async { [weak self] in
-            guard let self,
-                  let frontCamera = AVCaptureDevice.default(
-                    .builtInWideAngleCamera,
-                    for: .video,
-                    position: .front
-                  )
+            guard let self else {
+                return
+            }
+
+            let savedCamera = UserDefaults.standard
+                .string(forKey: CameraSettingKey.selectedCameraID)
+                .flatMap(self.cameraDevice(for:))
+            let frontCamera = AVCaptureDevice.default(
+                .builtInWideAngleCamera,
+                for: .video,
+                position: .front
+            )
+
+            guard let camera = savedCamera ?? frontCamera
             else {
                 return
             }
 
-            self.addCameraInputOnSessionQueue(for: frontCamera.uniqueID)
+            // 카메라 정보가 없으면 전면 카메라를 기본으로 사용
+            guard self.addCameraInputOnSessionQueue(for: camera.uniqueID) else {
+                guard let frontCamera,
+                      frontCamera.uniqueID != camera.uniqueID,
+                      self.addCameraInputOnSessionQueue(for: frontCamera.uniqueID)
+                else {
+                    return
+                }
+
+                self.startSessionOnSessionQueue()
+                return
+            }
             self.startSessionOnSessionQueue()
         }
     }

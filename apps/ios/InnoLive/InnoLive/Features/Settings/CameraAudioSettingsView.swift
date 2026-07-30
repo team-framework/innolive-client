@@ -21,10 +21,10 @@ struct CameraOption: Identifiable, Hashable {
 
 struct CameraAudioSettingsView: View {
     @Environment(CameraManager.self) private var cameraManager
-    @State private var selectedResolution: CameraResolution = .fullHD30
-    @State private var selectedCameraID = ""
+    @AppStorage("selectedResolution") private var selectedResolutionRaw = CameraResolution.fullHD30.rawValue
+    @AppStorage("selectedCameraID") private var selectedCameraID = ""
     @State private var cameraOptions: [CameraOption] = []
-    @State private var selectedAudio = ""
+    @AppStorage("selectedAudio") private var selectedAudio = ""
     @State private var audioNames: [String] = []
 
 
@@ -39,8 +39,11 @@ struct CameraAudioSettingsView: View {
                         systemImage: "video.fill",
                         // 해상도 값을 선택 행에서 쓸 문자열 Binding으로 변환
                         selection: Binding(
-                            get: { selectedResolution.rawValue },
-                            set: { selectedResolution = CameraResolution(rawValue: $0) ?? .fullHD30 }
+                            get: {
+                                CameraResolution(rawValue: selectedResolutionRaw)?.rawValue
+                                    ?? CameraResolution.fullHD30.rawValue
+                            },
+                            set: { selectedResolutionRaw = $0 }
                         ),
                         // 모든 enum case를 문자열 목록으로 바꿈
                         options: CameraResolution.allCases.map(\.rawValue)
@@ -62,12 +65,15 @@ struct CameraAudioSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadAvailableDevices()
-            if selectedCameraID.isEmpty {
+            if !cameraOptions.contains(where: { $0.id == selectedCameraID }) {
                 // 현재 프리뷰에서 사용하는 카메라를 표시
-                selectedCameraID = cameraManager.currentCameraID ?? cameraOptions.first?.id ?? "카메라 정보 없음"
+                selectedCameraID = cameraManager.currentCameraID ?? cameraOptions.first?.id ?? ""
             }
-            if selectedAudio.isEmpty {
+            if !audioOptions.contains(selectedAudio) {
                 selectedAudio = audioOptions.first ?? ""
+            }
+            if CameraResolution(rawValue: selectedResolutionRaw) == nil {
+                selectedResolutionRaw = CameraResolution.fullHD30.rawValue
             }
         }
         .onChange(of: selectedCameraID) { _, cameraID in
