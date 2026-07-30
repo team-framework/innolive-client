@@ -8,10 +8,11 @@ import SwiftUI
 
 struct LocalPreviewView: View {
     let session: AVCaptureSession
+    let cameraID: String?
 
     var body: some View {
         ZStack {
-            CameraPreview(session: session)
+            CameraPreview(session: session, cameraID: cameraID)
         }
         // 영상도 테두리와 같은 둥근 모양으로 잘라냄
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -23,6 +24,6 @@ struct LocalPreviewView: View {
 }
 
 #Preview {
-    LocalPreviewView(session: AVCaptureSession())
+    LocalPreviewView(session: AVCaptureSession(), cameraID: nil)
         .frame(width: 132, height: 176)
 }
