@@ -8,6 +8,10 @@
 import AVFoundation
 import Observation
 
+private enum CameraSettingKey {
+    static let selectedCameraID = "selectedCameraID"
+}
+
 @Observable
 final class CameraManager {
     let session = AVCaptureSession()
@@ -135,6 +139,7 @@ final class CameraManager {
             session.addInput(newInput)
             videoInput = newInput
             updateCurrentCameraID(cameraID)
+            UserDefaults.standard.set(cameraID, forKey: CameraSettingKey.selectedCameraID)
         } catch {
             print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
         }
@@ -143,17 +148,25 @@ final class CameraManager {
     // 앱을 처음 열었을 때 전면 카메라를 연결하고 시작
     func startDefaultCamera() {
         sessionQueue.async { [weak self] in
-            guard let self,
-                  let frontCamera = AVCaptureDevice.default(
-                    .builtInWideAngleCamera,
-                    for: .video,
-                    position: .front
-                  )
+            guard let self else {
+                return
+            }
+
+            let savedCamera = UserDefaults.standard
+                .string(forKey: CameraSettingKey.selectedCameraID)
+                .flatMap(self.cameraDevice(for:))
+            let frontCamera = AVCaptureDevice.default(
+                .builtInWideAngleCamera,
+                for: .video,
+                position: .front
+            )
+
+            guard let camera = savedCamera ?? frontCamera
             else {
                 return
             }
 
-            self.addCameraInputOnSessionQueue(for: frontCamera.uniqueID)
+            self.addCameraInputOnSessionQueue(for: camera.uniqueID)
             self.startSessionOnSessionQueue()
         }
     }
