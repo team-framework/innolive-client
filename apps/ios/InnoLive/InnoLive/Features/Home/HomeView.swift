@@ -25,7 +25,11 @@ struct HomeView: View {
             RemoteStreamView()
                 .ignoresSafeArea()
 
-            LocalPreviewView(session: cameraManager.session)
+            LocalPreviewView(
+                session: cameraManager.session,
+                // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
+                cameraID: cameraManager.currentCameraID
+            )
                 .frame(width: 132, height: 176)
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
