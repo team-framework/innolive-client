@@ -60,7 +60,7 @@ final class CameraManager {
     }
 
     // sessionQueue에서 실행
-    @discardableResult
+    @discardableResult // 반환값이 없어도 됨
     private func addCameraInputOnSessionQueue(for cameraID: String) -> Bool {
         guard videoInput == nil else {
             return true
@@ -169,6 +169,7 @@ final class CameraManager {
                 return
             }
 
+            // 카메라 정보가 없으면 전면 카메라를 기본으로 사용
             guard self.addCameraInputOnSessionQueue(for: camera.uniqueID) else {
                 guard let frontCamera,
                       frontCamera.uniqueID != camera.uniqueID,
