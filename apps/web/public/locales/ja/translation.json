@@ -1,0 +1,148 @@
+{
+  "metadata": {
+    "description": "リアルタイム 非識別化 配信 システム, InnoLive"
+  },
+  "home": {
+    "hero": {
+      "line1": "あなたの",
+      "line2": "配信を",
+      "line3": "大事に"
+    },
+    "navigation": {
+      "preRegistration": "事前登録",
+      "experience": "体験"
+    },
+    "experience": {
+      "title": "体験",
+      "description": "体験を始めるには、「始まる」ボタンを押してください。"
+    },
+    "earlyAccess": {
+      "descriptionLine1": "InnoLiveの最新情報をいち早く受け取り、",
+      "descriptionLine2": "正式リリース時にはさまざまな特典をお楽しみください。"
+    },
+    "privacyPolicy": "プライバシーポリシー"
+  },
+  "preRegistration": {
+    "emailLabel": "メールアドレス",
+    "emailPlaceholder": "メールアドレスを入力してください。",
+    "submitting": "登録しています",
+    "submit": "登録する",
+    "emailError": "メールアドレスを入力してください。",
+    "consentLabel": "個人情報の収集および利用に同意します。",
+    "details": "詳しく見る",
+    "consentError": "個人情報の収集および利用に同意してください。",
+    "messages": {
+      "success": "事前登録が完了しました。正式リリースのお知らせをお待ちください。",
+      "invalidEmail": "正しいメールアドレスを入力してください。",
+      "consentRequired": "個人情報の収集および利用に同意してください。",
+      "failure": "登録中に問題が発生しました。しばらくしてからもう一度お試しください。"
+    }
+  },
+  "experience": {
+    "status": {
+      "idle": "「始まる」を押すと、体験を開始できます。",
+      "ended": "体験が終了しました。もう一度開始できます。",
+      "preparing": "カメラと体験用サーバーを準備しています。",
+      "checkingCamera": "カメラへのアクセス許可を確認しています。",
+      "connected": "体験用サーバーに接続しました。",
+      "creatingOffer": "WebRTC オファーを作成しています。",
+      "waitingForServer": "サーバーからの応答を待っています。",
+      "completingConnection": "WebRTC 接続を確立しています。",
+      "checkingWebSocketError": "WebSocket エラーを確認しています。",
+      "faceServerMissing": "顔登録サーバーのアドレスを確認できませんでした。"
+    },
+    "errors": {
+      "serverUrlMissing": "体験用サーバーのアドレスが設定されていません。",
+      "serverUrlProtocol": "体験用サーバーのアドレスは、ws または wss URL である必要があります。",
+      "sessionCreationFailed": "体験セッションを作成できませんでした。({{status}})",
+      "missingSessionId": "体験セッションの応答に session_id がありません。",
+      "connectionTimeout": "WebRTC 接続がタイムアウトしました。",
+      "connectionLost": "WebRTC 接続が切断されました。",
+      "offerCreationFailed": "WebRTC オファーを作成できませんでした。",
+      "serverRejected": "体験用サーバーに接続を拒否されました。",
+      "missingAnswerSdp": "体験用サーバーの応答に SDP が含まれていません。",
+      "signalingFailed": "体験用サーバーのシグナリングを処理できませんでした。",
+      "webSocketClosed": "体験用サーバーとの WebSocket 接続が終了しました。（コード {{code}}{{reason}}）",
+      "startFailed": "体験を開始できませんでした。"
+    },
+    "buttons": {
+      "connecting": "接続中...",
+      "end": "体験終了",
+      "start": "始まる",
+      "registerFace": "顔登録"
+    },
+    "video": {
+      "processedLabel": "InnoLive サーバーで処理された映像",
+      "pendingAlt": "InnoLive ライブ配信の待機画面",
+      "notStored": "※ 映像はサーバーに保存されません。※"
+    }
+  },
+  "faceRegistration": {
+    "errors": {
+      "cameraPermission": "カメラへのアクセスを許可してください。",
+      "cameraNotFound": "利用可能なカメラが見つかりませんでした。",
+      "cameraStartFailed": "カメラを開始できませんでした。しばらくしてからもう一度お試しください。",
+      "unknown": "顔登録中に不明なエラーが発生しました。もう一度お試しください。",
+      "lowResolution": "カメラの解像度が低すぎます。500 × 500 以上の解像度が必要です。",
+      "imageCreate": "顔登録用の画像を作成できませんでした。",
+      "jpegConversion": "撮影した顔画像を JPEG に変換できませんでした。",
+      "serverConnection": "顔登録サーバーに接続できませんでした。ネットワーク接続をご確認ください。",
+      "faceNotDetected": "顔を検出できませんでした。",
+      "serverRequest": "顔登録サーバーへのリクエストに失敗しました。({{status}})",
+      "serverResponseParse": "顔登録サーバーからの応答を解析できませんでした。",
+      "serverIncomplete": "顔登録サーバーから完了ステータスが返されませんでした。",
+      "detectorStart": "顔検出を開始できませんでした。しばらくしてからもう一度お試しください。",
+      "detectorRun": "顔の検出中にエラーが発生しました。しばらくしてからもう一度お試しください。",
+      "mediaUnavailable": "このブラウザではカメラを利用できません。",
+      "previewStart": "カメラのプレビューを開始できませんでした。"
+    },
+    "status": {
+      "preparing": "カメラを準備しています。",
+      "registeringDetected": "検出した顔画像をサーバーに登録しています。",
+      "finding": "顔を探しています。",
+      "loading": "カメラを準備中",
+      "registering": "顔を登録中"
+    },
+    "close": "顔登録ダイアログを閉じる",
+    "title": "顔登録",
+    "guide": "顔を円の中央に合わせてください。",
+    "previewLabel": "顔登録用カメラプレビュー"
+  },
+  "privacy": {
+    "back": "InnoLiveに戻る",
+    "pageTitle": "プライバシーポリシー",
+    "effectiveDateLabel": "施行日：",
+    "effectiveDateValue": "2026年7月27日",
+    "collection": {
+      "title": "1. 取得する個人情報",
+      "preRegistrationTitle": "事前登録時",
+      "preRegistrationBody": "InnoLiveは事前登録の受付のため、メールアドレスを取得します。",
+      "experienceTitle": "サービス体験時",
+      "experienceBody": "InnoLiveはサービス体験の提供のため、登録いただいた顔画像の原本を一時的に取得します。"
+    },
+    "purpose": {
+      "title": "2. 利用目的",
+      "preRegistrationBody": "取得したメールアドレスは、InnoLiveの正式リリースのお知らせおよび事前登録特典のご案内のためにのみ利用します。",
+      "experienceBody": "顔画像の原本は、サービス体験の提供のためにのみ利用します。"
+    },
+    "retention": {
+      "title": "3. 保有および利用期間",
+      "preRegistrationBody": "個人情報は、同意を撤回されたとき、または収集目的を達成したときまで保有します。目的達成後は速やかに削除します。ただし、法令により保存義務がある場合は、その期間保有することがあります。",
+      "experienceStorage": "顔画像の原本は、ファイルやデータベースに保存せず、閲覧できない一時メモリ内にのみ保持します。",
+      "experienceDeletion": "顔画像の原本は、毎日00:00（KST）に削除します。"
+    },
+    "refusal": {
+      "title": "4. 同意を拒否する権利",
+      "preRegistrationBody": "個人情報の収集および利用への同意を拒否することができます。ただし、同意しない場合は事前登録を行えません。",
+      "experienceBody": "顔画像の原本の収集および利用に同意しない場合は、顔登録の体験をご利用いただけません。"
+    },
+    "contact": {
+      "title": "5. お問い合わせおよび同意の撤回",
+      "beforeEmail": "個人情報に関するお問い合わせ、または同意の撤回をご希望の場合は、",
+      "afterEmail": "までご連絡ください。"
+    },
+    "consentModalTitle": "個人情報の収集に関する同意",
+    "agree": "同意する",
+    "disagree": "同意しない"
+  }
+}
