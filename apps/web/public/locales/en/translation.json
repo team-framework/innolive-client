@@ -1,0 +1,148 @@
+{
+  "metadata": {
+    "description": "InnoLive, a real-time de-identification broadcasting system"
+  },
+  "home": {
+    "hero": {
+      "line1": "Make",
+      "line2": "your live streams",
+      "line3": "safer"
+    },
+    "navigation": {
+      "preRegistration": "Pre-register",
+      "experience": "Try out"
+    },
+    "experience": {
+      "title": "Try out",
+      "description": "Click ‘Start’ to begin the demo."
+    },
+    "earlyAccess": {
+      "descriptionLine1": "Be the first to hear the latest from InnoLive",
+      "descriptionLine2": "and enjoy exclusive benefits when we officially launch."
+    },
+    "privacyPolicy": "Privacy Policy"
+  },
+  "preRegistration": {
+    "emailLabel": "Email",
+    "emailPlaceholder": "Enter your email address.",
+    "submitting": "Submitting...",
+    "submit": "Submit",
+    "emailError": "Please enter your email address.",
+    "consentLabel": "I agree to the collection and use of my personal data.",
+    "details": "View details",
+    "consentError": "You must agree to the collection and use of your personal data.",
+    "messages": {
+      "success": "Your pre-registration is complete. We’ll be in touch with launch updates.",
+      "invalidEmail": "Please enter a valid email address.",
+      "consentRequired": "Please agree to the collection and use of your personal data.",
+      "failure": "Something went wrong while submitting your registration. Please try again shortly."
+    }
+  },
+  "experience": {
+    "status": {
+      "idle": "Click ‘Start’ to begin the demo.",
+      "ended": "The demo has ended. You can start it again.",
+      "preparing": "Preparing the camera and demo server.",
+      "checkingCamera": "Checking camera permission.",
+      "connected": "Connected to the demo server.",
+      "creatingOffer": "Creating a WebRTC offer.",
+      "waitingForServer": "Waiting for the server to respond.",
+      "completingConnection": "Completing the WebRTC connection.",
+      "checkingWebSocketError": "Checking the WebSocket error.",
+      "faceServerMissing": "Could not determine the face registration server address."
+    },
+    "errors": {
+      "serverUrlMissing": "The demo server address is not configured.",
+      "serverUrlProtocol": "The demo server address must use a ws or wss URL.",
+      "sessionCreationFailed": "Failed to create a demo session. ({{status}})",
+      "missingSessionId": "The demo session response does not contain a session_id.",
+      "connectionTimeout": "The WebRTC connection timed out.",
+      "connectionLost": "The WebRTC connection was lost.",
+      "offerCreationFailed": "Failed to create a WebRTC offer.",
+      "serverRejected": "The demo server rejected the connection.",
+      "missingAnswerSdp": "The demo server answer does not contain an SDP.",
+      "signalingFailed": "Failed to process signaling from the demo server.",
+      "webSocketClosed": "The WebSocket connection to the demo server was closed. (code {{code}}{{reason}})",
+      "startFailed": "Failed to start the demo."
+    },
+    "buttons": {
+      "connecting": "Connecting...",
+      "end": "End demo",
+      "start": "Start",
+      "registerFace": "Register face"
+    },
+    "video": {
+      "processedLabel": "Video processed by the InnoLive server",
+      "pendingAlt": "InnoLive live-stream standby screen",
+      "notStored": "※ Video is not stored on the server. ※"
+    }
+  },
+  "faceRegistration": {
+    "errors": {
+      "cameraPermission": "Please allow camera access.",
+      "cameraNotFound": "No available camera was found.",
+      "cameraStartFailed": "Could not start the camera. Please try again shortly.",
+      "unknown": "An unknown error occurred while registering your face. Please try again.",
+      "lowResolution": "The camera resolution is too low. A minimum resolution of 500 × 500 is required.",
+      "imageCreate": "Could not create an image for face registration.",
+      "jpegConversion": "Could not convert the captured face image to JPEG.",
+      "serverConnection": "Could not connect to the face registration server. Check your network connection.",
+      "faceNotDetected": "No face was detected.",
+      "serverRequest": "The face registration server request failed. ({{status}})",
+      "serverResponseParse": "Could not parse the response from the face registration server.",
+      "serverIncomplete": "The face registration server did not return a completed status.",
+      "detectorStart": "Could not start the face detector. Please try again shortly.",
+      "detectorRun": "An error occurred while detecting a face. Please try again shortly.",
+      "mediaUnavailable": "Camera access is not available in this browser.",
+      "previewStart": "Could not start the camera preview."
+    },
+    "status": {
+      "preparing": "Preparing the camera.",
+      "registeringDetected": "Registering the detected face image with the server.",
+      "finding": "Looking for a face.",
+      "loading": "Preparing camera",
+      "registering": "Registering face"
+    },
+    "close": "Close the face registration dialog",
+    "title": "Face Registration",
+    "guide": "Position your face in the center of the circle.",
+    "previewLabel": "Face registration camera preview"
+  },
+  "privacy": {
+    "back": "Back to InnoLive",
+    "pageTitle": "Privacy Policy",
+    "effectiveDateLabel": "Effective date:",
+    "effectiveDateValue": "July 27, 2026",
+    "collection": {
+      "title": "1. Personal Data We Collect",
+      "preRegistrationTitle": "When you pre-register",
+      "preRegistrationBody": "InnoLive collects your email address to process your pre-registration.",
+      "experienceTitle": "When you use the demo",
+      "experienceBody": "InnoLive temporarily collects the original facial image you register to provide the demo."
+    },
+    "purpose": {
+      "title": "2. Purpose of Use",
+      "preRegistrationBody": "We use your email address only to send InnoLive launch notifications and information about pre-registration benefits.",
+      "experienceBody": "We use the original facial image only to provide the demo."
+    },
+    "retention": {
+      "title": "3. Retention and Use Period",
+      "preRegistrationBody": "We retain personal data until you withdraw your consent or the purpose of collection has been fulfilled. We delete it without delay once that purpose has been fulfilled, unless applicable law requires us to retain it for a specified period.",
+      "experienceStorage": "We do not save the original facial image to a file or database. It is held only in temporary memory and cannot be viewed.",
+      "experienceDeletion": "Original facial images are deleted every day at 00:00 KST."
+    },
+    "refusal": {
+      "title": "4. Right to Withhold Consent",
+      "preRegistrationBody": "You may decline to consent to the collection and use of your personal data. However, you cannot pre-register without providing consent.",
+      "experienceBody": "You cannot use the face registration demo if you do not consent to the collection and use of the original facial image."
+    },
+    "contact": {
+      "title": "5. Inquiries and Withdrawal of Consent",
+      "beforeEmail": "For privacy inquiries or to withdraw your consent, contact",
+      "afterEmail": "."
+    },
+    "consentModalTitle": "Consent to Personal Data Collection",
+    "agree": "I Agree",
+    "disagree": "I Do Not Agree"
+  }
+}

@@ -1,6 +1,8 @@
 'use client'
 
+import type { TFunction } from 'i18next'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import { FaceRegistrationModal } from './FaceRegistrationModal'
 import PrivacyPolicyModal from "./PrivacyPolicyModal";
@@ -24,10 +26,10 @@ type ServerEndpoints = {
 
 const buttonClassName = 'cursor-pointer rounded-lg bg-white px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-black transition-colors duration-200 hover:bg-[#d9d9d9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:bg-[#8f8f8f]'
 
-function getServerEndpoints(): ServerEndpoints {
+function getServerEndpoints(t: TFunction): ServerEndpoints {
   const configuredURL = process.env.NEXT_PUBLIC_INNOLIVE_SIGNALING_URL?.trim()
   if (!configuredURL) {
-    throw new Error('체험 서버 주소가 설정되지 않았습니다.')
+    throw new Error(t('experience.errors.serverUrlMissing'))
   }
 
   const signalingURL = new URL(configuredURL)
@@ -38,7 +40,7 @@ function getServerEndpoints(): ServerEndpoints {
   }
 
   if (signalingURL.protocol !== 'ws:' && signalingURL.protocol !== 'wss:') {
-    throw new Error('체험 서버 주소는 ws 또는 wss URL이어야 합니다.')
+    throw new Error(t('experience.errors.serverUrlProtocol'))
   }
 
   const sessionsURL = new URL(signalingURL)
@@ -51,8 +53,9 @@ function getServerEndpoints(): ServerEndpoints {
 }
 
 export function WebRTCExperience() {
+  const { t } = useTranslation()
   const [state, setState] = useState<ExperienceState>('idle')
-  const [statusText, setStatusText] = useState('시작하기를 누르면 체험을 시작합니다.')
+  const [statusText, setStatusText] = useState(() => t('experience.status.idle'))
   const [isFaceRegistrationOpen, setIsFaceRegistrationOpen] = useState(false)
   const [faceRegistrationURL, setFaceRegistrationURL] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -96,14 +99,14 @@ export function WebRTCExperience() {
 
     if (deleteSession && sessionID) {
       try {
-        const { sessionsURL } = getServerEndpoints()
+        const { sessionsURL } = getServerEndpoints(t)
         const sessionURL = new URL(`/sessions/${encodeURIComponent(sessionID)}`, sessionsURL)
         void fetch(sessionURL, { method: 'DELETE' })
       } catch {
         // 환경 변수 설정 오류는 이미 화면 상태로 안내하므로 종료 과정에서 다시 표시하지 않는다.
       }
     }
-  }, [])
+  }, [t])
 
   const failExperience = useCallback((message: string) => {
     connectionAttemptRef.current += 1
@@ -116,17 +119,17 @@ export function WebRTCExperience() {
     connectionAttemptRef.current += 1
     releaseResources(true)
     setState('idle')
-    setStatusText('체험이 종료되었습니다. 다시 시작할 수 있습니다.')
-  }, [releaseResources])
+    setStatusText(t('experience.status.ended'))
+  }, [releaseResources, t])
 
   const startExperience = useCallback(async () => {
     const attempt = connectionAttemptRef.current + 1
     connectionAttemptRef.current = attempt
     setState('connecting')
-    setStatusText('카메라와 체험 서버를 준비하는 중입니다.')
+    setStatusText(t('experience.status.preparing'))
 
     try {
-      const { signalingURL, sessionsURL } = getServerEndpoints()
+      const { signalingURL, sessionsURL } = getServerEndpoints(t)
       const sessionResponse = await fetch(sessionsURL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,12 +143,12 @@ export function WebRTCExperience() {
       })
 
       if (!sessionResponse.ok) {
-        throw new Error(`체험 세션 생성에 실패했습니다. (${sessionResponse.status})`)
+        throw new Error(t('experience.errors.sessionCreationFailed', { status: sessionResponse.status }))
       }
 
       const sessionPayload: unknown = await sessionResponse.json()
       if (!sessionPayload || typeof sessionPayload !== 'object' || typeof (sessionPayload as { session_id?: unknown }).session_id !== 'string') {
-        throw new Error('체험 세션 응답에 session_id가 없습니다.')
+        throw new Error(t('experience.errors.missingSessionId'))
       }
 
       if (connectionAttemptRef.current !== attempt) {
@@ -154,7 +157,7 @@ export function WebRTCExperience() {
 
       const sessionID = (sessionPayload as { session_id: string }).session_id
       sessionIDRef.current = sessionID
-      setStatusText('카메라 권한을 확인하는 중입니다.')
+      setStatusText(t('experience.status.checkingCamera'))
 
       const localStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -178,7 +181,7 @@ export function WebRTCExperience() {
       localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream))
       connectionTimeoutRef.current = window.setTimeout(() => {
         if (connectionAttemptRef.current === attempt) {
-          failExperience('WebRTC 연결 시간이 초과되었습니다.')
+          failExperience(t('experience.errors.connectionTimeout'))
         }
       }, 30_000)
 
@@ -207,12 +210,12 @@ export function WebRTCExperience() {
             connectionTimeoutRef.current = null
           }
           setState('connected')
-          setStatusText('체험 서버에 연결되었습니다.')
+          setStatusText(t('experience.status.connected'))
           return
         }
 
         if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-          failExperience('WebRTC 연결이 끊겼습니다.')
+          failExperience(t('experience.errors.connectionLost'))
         }
       }
 
@@ -237,7 +240,7 @@ export function WebRTCExperience() {
             return
           }
 
-          setStatusText('WebRTC offer를 생성하는 중입니다.')
+          setStatusText(t('experience.status.creatingOffer'))
           const offer = await peerConnection.createOffer()
           await peerConnection.setLocalDescription(offer)
           socket.send(JSON.stringify({
@@ -245,9 +248,9 @@ export function WebRTCExperience() {
             type: 'offer',
             sdp: offer.sdp,
           }))
-          setStatusText('서버 응답을 기다리는 중입니다.')
+          setStatusText(t('experience.status.waitingForServer'))
         } catch (error) {
-          failExperience(error instanceof Error ? error.message : 'WebRTC offer 생성에 실패했습니다.')
+          failExperience(error instanceof Error ? error.message : t('experience.errors.offerCreationFailed'))
         }
       }
 
@@ -259,12 +262,12 @@ export function WebRTCExperience() {
 
           const message: SignalingMessage = JSON.parse(String(event.data))
           if (message.type === 'error') {
-            throw new Error(message.error?.message ?? message.message ?? '체험 서버가 연결을 거절했습니다.')
+            throw new Error(t('experience.errors.serverRejected'))
           }
 
           if (message.type === 'answer') {
             if (!message.sdp) {
-              throw new Error('체험 서버 answer에 SDP가 없습니다.')
+              throw new Error(t('experience.errors.missingAnswerSdp'))
             }
 
             await peerConnection.setRemoteDescription({ type: 'answer', sdp: message.sdp })
@@ -272,7 +275,7 @@ export function WebRTCExperience() {
               await peerConnection.addIceCandidate(candidate)
             }
             pendingCandidatesRef.current = []
-            setStatusText('WebRTC 연결을 완료하는 중입니다.')
+            setStatusText(t('experience.status.completingConnection'))
             return
           }
 
@@ -289,29 +292,29 @@ export function WebRTCExperience() {
             }
           }
         } catch (error) {
-          failExperience(error instanceof Error ? error.message : '체험 서버 신호 처리에 실패했습니다.')
+          failExperience(error instanceof Error ? error.message : t('experience.errors.signalingFailed'))
         }
       }
 
       socket.onerror = () => {
         if (connectionAttemptRef.current === attempt) {
-          setStatusText('WebSocket 오류를 확인하는 중입니다.')
+          setStatusText(t('experience.status.checkingWebSocketError'))
         }
       }
 
       socket.onclose = (event) => {
         if (connectionAttemptRef.current === attempt && peerConnection.connectionState !== 'connected') {
           const reason = event.reason ? `: ${event.reason}` : ''
-          failExperience(`체험 서버 WebSocket 연결이 종료되었습니다. (code ${event.code}${reason})`)
+          failExperience(t('experience.errors.webSocketClosed', { code: event.code, reason }))
         }
       }
     } catch (error) {
       if (connectionAttemptRef.current === attempt) {
-        const message = error instanceof Error ? error.message : '체험을 시작하지 못했습니다.'
+        const message = error instanceof Error ? error.message : t('experience.errors.startFailed')
         failExperience(message)
       }
     }
-  }, [failExperience])
+  }, [failExperience, t])
 
   useEffect(() => () => {
     connectionAttemptRef.current += 1
@@ -331,7 +334,7 @@ export function WebRTCExperience() {
 
   const isConnecting = state === 'connecting'
   const isConnected = state === 'connected'
-  const primaryButtonText = isConnecting ? '연결 중...' : isConnected ? '체험 종료' : '시작하기'
+  const primaryButtonText = isConnecting ? t('experience.buttons.connecting') : isConnected ? t('experience.buttons.end') : t('experience.buttons.start')
 
   const openPrivacyPolicy = () => {
     const isAgreed = localStorage.getItem('facePrivacyPolicy')
@@ -348,33 +351,33 @@ export function WebRTCExperience() {
 
     if (isAgreed === "true") {
       try {
-        const { sessionsURL } = getServerEndpoints()
+        const { sessionsURL } = getServerEndpoints(t)
         setFaceRegistrationURL(new URL('/reference-face', sessionsURL).toString())
         setIsFaceRegistrationOpen(true)
       } catch (error) {
-        setStatusText(error instanceof Error ? error.message : '얼굴 등록 서버 주소를 확인하지 못했습니다.')
+        setStatusText(error instanceof Error ? error.message : t('experience.status.faceServerMissing'))
       }
     }
-  }, [])
+  }, [t])
 
   return (
     <div className="flex w-full flex-col items-center gap-5">
       <div className="w-full max-w-[850px] border border-[#5c5c5c] p-px">
         {isConnected ? (
-          <video ref={videoRef} autoPlay muted playsInline className="block aspect-video w-full border border-[#5c5c5c] bg-black object-contain" aria-label="InnoLive 서버 처리 영상" />
+          <video ref={videoRef} autoPlay muted playsInline className="block aspect-video w-full border border-[#5c5c5c] bg-black object-contain" aria-label={t('experience.video.processedLabel')} />
         ) : (
-          <img src="/figma/live-pending.svg" alt="InnoLive 라이브 대기 화면" className="block w-full border border-[#5c5c5c]" />
+          <img src="/figma/live-pending.svg" alt={t('experience.video.pendingAlt')} className="block w-full border border-[#5c5c5c]" />
         )}
       </div>
       <div className="flex flex-col items-center">
         <p className="min-h-6 text-center text-sm text-[#c7c7c7]" role="status" aria-live="polite">{statusText}</p>
         <p className="min-h-6 text-center text-sm text-[#c7c7c7]">
-          ※ 영상은 서버에 저장되지 않습니다. ※
+          {t('experience.video.notStored')}
         </p>
       </div>
       <div className="flex gap-[clamp(6px,0.42vw,8px)]">
         <button type="button" className={buttonClassName} disabled={isConnecting} onClick={isConnected ? endExperience : startExperience}>{primaryButtonText}</button>
-        <button type="button" className={buttonClassName} onClick={openPrivacyPolicy}>얼굴 등록하기</button>
+        <button type="button" className={buttonClassName} onClick={openPrivacyPolicy}>{t('experience.buttons.registerFace')}</button>
       </div>
       <PrivacyPolicyModal isOpen={isPrivacyPolicyOpen} onClose={() => {setIsPrivacyPolicyOpen(false); openFaceRegistration()}} />
       {faceRegistrationURL && <FaceRegistrationModal isOpen={isFaceRegistrationOpen} registrationURL={faceRegistrationURL} onClose={() => setIsFaceRegistrationOpen(false)} />}

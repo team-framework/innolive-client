@@ -1,6 +1,6 @@
 export type PreRegistrationState = {
   status: 'idle' | 'success' | 'error'
-  message?: string
+  messageKey?: 'success' | 'invalidEmail' | 'consentRequired' | 'failure'
 }
 
 export const initialPreRegistrationState: PreRegistrationState = { status: 'idle' }
