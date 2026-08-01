@@ -26,14 +26,14 @@ export async function submitPreRegistration(_: PreRegistrationState, formData: F
   const requestHeaders = await headers()
   const ip = requestHeaders.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
 
-  if (honeypot || isRateLimited(ip)) return { status: 'success', message: '사전등록이 완료되었습니다. 출시 소식으로 다시 만날게요.' }
-  if (!emailPattern.test(email)) return { status: 'error', message: '올바른 이메일 주소를 입력해주세요.' }
-  if (!consent) return { status: 'error', message: '개인정보 수집·이용에 동의해주세요.' }
+  if (honeypot || isRateLimited(ip)) return { status: 'success', messageKey: 'success' }
+  if (!emailPattern.test(email)) return { status: 'error', messageKey: 'invalidEmail' }
+  if (!consent) return { status: 'error', messageKey: 'consentRequired' }
 
   try {
     await registerPreRegistration(email)
-    return { status: 'success', message: '사전등록이 완료되었습니다. 출시 소식으로 다시 만날게요.' }
+    return { status: 'success', messageKey: 'success' }
   } catch {
-    return { status: 'error', message: '등록 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요.' }
+    return { status: 'error', messageKey: 'failure' }
   }
 }
