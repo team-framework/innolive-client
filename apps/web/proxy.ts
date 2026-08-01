@@ -21,7 +21,12 @@ export function proxy(request: NextRequest) {
   }
 
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value
-  const locale = cookieLocale && locales.includes(cookieLocale) ? cookieLocale : 'ko'
+  const browserLocale = request.headers
+    .get('accept-language')
+    ?.split(',')
+    .map((language) => language.trim().split(';')[0].split('-')[0])
+    .find((language) => locales.includes(language))
+  const locale = cookieLocale && locales.includes(cookieLocale) ? cookieLocale : browserLocale ?? 'ko'
   const url = request.nextUrl.clone()
   url.pathname = `/${locale}${pathname}`
 
