@@ -5,15 +5,31 @@ import { useTranslation } from 'react-i18next'
 
 import { PreRegistrationForm } from '../../components/PreRegistrationForm'
 import { WebRTCExperience } from '../../components/WebRTCExperience'
+import { useState } from "react";
+import {locales} from "../../proxy";
 
 export default function HomePage() {
   const { t, i18n } = useTranslation()
   const locale = i18n.resolvedLanguage ?? 'ko'
+  const [ isSelectLanguage, setIsSelectLanguage ] = useState(false)
 
   return (
     <main className="overflow-hidden bg-[#050505] text-white">
       <section className="relative flex min-h-screen items-end overflow-hidden px-6 pb-16 pt-6 md:px-12 md:pb-20">
         <img src="/images/background.png" alt="" className="absolute inset-0 size-full object-cover object-center" />
+        <div className="flex flex-col items-center absolute right-6 top-6 z-10 md:right-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)]">
+          <button onClick={() => setIsSelectLanguage((prev) => !prev)} className="cursor-pointer flex items-center gap-2 px-2 py-1 rounded-[100rem] hover:bg-[#FFFFFF33] h-auto">
+            <img src="/figma/language.svg" alt="select language" className="w-4" />
+            <span className="text-sm">{locales.find((element) => element.code === locale)?.label}</span>
+          </button>
+          {isSelectLanguage ? (
+            <ul className="relative top-1 text-sm">
+              {locales.map((locale) => (
+                <Link href={`/${locale.code}`} key={locale.code} className="cursor-pointer flex p-1 hover:bg-[#FFFFFF33] rounded-md">{locale.label}</Link>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
         <img src="/figma/Logo_WT.svg" alt="InnoLive" className="absolute left-6 top-6 z-10 h-auto w-[120px] md:left-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)] md:w-[clamp(124px,8.59vw,165px)]" />
         <div className="relative z-10 flex w-full flex-col items-start justify-between gap-8 md:flex-row md:items-end">
