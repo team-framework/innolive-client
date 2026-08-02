@@ -13,7 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -32,8 +32,9 @@ import com.example.innolive.feature.settings.camera.CameraSetting
 import com.example.innolive.feature.settings.camera.CameraSettingProps
 import com.example.innolive.feature.settings.selection.OptionSelectionScreen
 import com.example.innolive.ui.theme.MyApplicationTheme
+import java.io.Serializable
 
-sealed interface AppRoute
+sealed interface AppRoute : Serializable
 data object LoginRoute : AppRoute
 
 data object LiveRoute : AppRoute
@@ -110,9 +111,12 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     modifier: Modifier = Modifier
 ) {
-    val backStack = remember {
-        mutableStateListOf<AppRoute>(LoginRoute)
-    }
+    val backStack = rememberSaveable(
+        saver = listSaver(
+            save = { it.toList() },
+            restore = { it.toCollection(mutableStateListOf()) },
+        ),
+    ) { mutableStateListOf<AppRoute>(LoginRoute) }
     var selectedResolution by rememberSaveable {
         mutableStateOf(cameraResolutionOptions.first())
     }
