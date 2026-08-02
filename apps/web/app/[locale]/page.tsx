@@ -20,7 +20,7 @@ export default function HomePage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
         <header>
           <img src="/figma/Logo_WT.svg" alt="InnoLive" className="absolute left-6 top-6 z-10 h-auto w-[120px] md:left-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)] md:w-[clamp(124px,8.59vw,165px)]" />
-          <div className="flex flex-col items-center absolute right-6 top-6 z-10 md:right-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)]">
+          <div className="flex flex-col items-center absolute right-6 top-6 z-10 md:right-[clamp(36px,2.5vw,48px)] md:top-12">
             <button onClick={() => setIsSelectLanguage((prev) => !prev)} className="cursor-pointer flex items-center gap-2 px-2 py-1 rounded-[100rem] hover:bg-[#FFFFFF33] h-auto">
               <img src="/figma/language.svg" alt="select language" className="w-4" />
               <span className="text-sm">{locales.find((element) => element.code === locale)?.label}</span>
