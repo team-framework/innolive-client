@@ -1,6 +1,8 @@
 package com.example.innolive.feature.live
 
 import android.util.Rational
+import android.util.Range
+import android.util.Size
 import android.view.Surface
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -11,6 +13,7 @@ import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.Box
@@ -32,6 +35,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun CameraPreview(
     cameraLensFacing: CameraLensFacing,
+    cameraResolution: CameraResolution,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -57,14 +61,23 @@ fun CameraPreview(
     }
     var hasCameraError by remember { mutableStateOf(false) }
 
-    DisposableEffect(context, lifecycleOwner, previewView, cameraLensFacing) {
+    DisposableEffect(context, lifecycleOwner, previewView, cameraLensFacing, cameraResolution) {
         hasCameraError = false
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val preview = Preview.Builder()
+            .setTargetFrameRate(
+                Range(cameraResolution.frameRate, cameraResolution.frameRate),
+            )
             .setResolutionSelector(
                 ResolutionSelector.Builder()
                     .setAspectRatioStrategy(
                         AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY,
+                    )
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            Size(cameraResolution.width, cameraResolution.height),
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                        ),
                     )
                     .build(),
             )

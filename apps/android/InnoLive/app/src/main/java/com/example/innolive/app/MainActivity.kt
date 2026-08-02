@@ -28,6 +28,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.example.innolive.feature.live.AudioInputDevice
 import com.example.innolive.feature.live.CameraLensFacing
+import com.example.innolive.feature.live.CameraResolution
 import com.example.innolive.feature.live.LiveScreen
 import com.example.innolive.feature.live.LiveScreenProps
 import com.example.innolive.feature.login.LoginScreen
@@ -68,13 +69,6 @@ private data class OptionSelectionConfig(
     val title: String,
     val options: List<String>,
     val onOptionSelected: (String) -> Unit,
-)
-
-private val cameraResolutionOptions = listOf(
-    "1080p - 30fps",
-    "1080p - 24fps",
-    "720p - 30fps",
-    "720p - 24fps",
 )
 
 private val broadcastPlatformOptions = listOf(
@@ -135,7 +129,7 @@ fun AppNavigation(
         ),
     ) { mutableStateListOf<AppRoute>(LoginRoute) }
     var selectedResolution by rememberSaveable {
-        mutableStateOf(cameraResolutionOptions.first())
+        mutableStateOf(CameraResolution.FULL_HD_30)
     }
     var selectedCameraLensFacing by rememberSaveable {
         mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
@@ -178,6 +172,7 @@ fun AppNavigation(
                         LiveScreen(
                             props = LiveScreenProps(
                                 cameraLensFacing = selectedCameraLensFacing,
+                                cameraResolution = selectedResolution,
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
                                 },
@@ -207,7 +202,7 @@ fun AppNavigation(
                         CameraSetting(
                             props = CameraSettingProps(
                                 onBack = onBack,
-                                selectedResolution = selectedResolution,
+                                selectedResolution = selectedResolution.displayName,
                                 selectedCameraDevice = selectedCameraLensFacing.displayName,
                                 selectedAudioDevice = selectedAudioDevice?.displayName.orEmpty(),
                                 onOpenResolutionOptions = {
@@ -250,8 +245,12 @@ fun AppNavigation(
                     val config = when (route.type) {
                         SettingOptionType.CAMERA_RESOLUTION -> OptionSelectionConfig(
                             title = "카메라 해상도",
-                            options = cameraResolutionOptions,
-                            onOptionSelected = { selectedResolution = it },
+                            options = CameraResolution.entries.map(CameraResolution::displayName),
+                            onOptionSelected = { selectedOption ->
+                                selectedResolution = CameraResolution.entries.first { resolution ->
+                                    resolution.displayName == selectedOption
+                                }
+                            },
                         )
 
                         SettingOptionType.CAMERA_DEVICE -> OptionSelectionConfig(
