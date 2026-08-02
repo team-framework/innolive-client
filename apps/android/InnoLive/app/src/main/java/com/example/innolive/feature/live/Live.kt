@@ -5,10 +5,11 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,14 +46,17 @@ fun LiveScreen(props: LiveScreenProps) {
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier.fillMaxSize()
     ) {
+        val previewWidth = minOf(maxWidth, maxHeight * 16f / 9f)
+        val previewHeight = previewWidth * 9f / 16f
+
         if (hasCameraPermission) {
             CameraPreview(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .fillMaxSize(),
+                    .size(previewWidth, previewHeight),
             )
         } else {
             Column(
