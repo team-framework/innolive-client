@@ -1,6 +1,8 @@
 package com.example.innolive.app
 
 import android.content.pm.PackageManager
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.CredentialManager
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.example.innolive.feature.live.AudioInputDevice
 import com.example.innolive.feature.live.CameraLensFacing
 import com.example.innolive.feature.live.LiveScreen
 import com.example.innolive.feature.live.LiveScreenProps
@@ -73,11 +77,6 @@ private val cameraResolutionOptions = listOf(
     "720p - 24fps",
 )
 
-private val audioDeviceOptions = listOf(
-    "기본 마이크",
-    "DJI Mic Mini 2",
-)
-
 private val broadcastPlatformOptions = listOf(
     "Youtube",
     "Chzzk",
@@ -110,12 +109,24 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     modifier: Modifier = Modifier
 ) {
-    val packageManager = LocalContext.current.packageManager
+    val context = LocalContext.current
+    val packageManager = context.packageManager
     val cameraDeviceOptions = remember(packageManager) {
         CameraLensFacing.supported(
             hasBackCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA),
             hasFrontCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FRONT),
         )
+    }
+    val audioDeviceOptions = remember(context) {
+        context.getSystemService(AudioManager::class.java)
+            .getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .map { device ->
+                AudioInputDevice(
+                    id = device.id,
+                    name = device.productName.toString(),
+                    isDefault = device.type == AudioDeviceInfo.TYPE_BUILTIN_MIC,
+                )
+            }
     }
     val backStack = rememberSaveable(
         saver = listSaver(
@@ -129,8 +140,8 @@ fun AppNavigation(
     var selectedCameraLensFacing by rememberSaveable {
         mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
     }
-    var selectedAudioDevice by rememberSaveable {
-        mutableStateOf(audioDeviceOptions.first())
+    var selectedAudioDeviceId by rememberSaveable {
+        mutableIntStateOf(audioDeviceOptions.firstOrNull()?.id ?: -1)
     }
     var selectedBroadcastPlatform by rememberSaveable {
         mutableStateOf(broadcastPlatformOptions.first())
@@ -139,6 +150,9 @@ fun AppNavigation(
     val onBack: () -> Unit = {
         backStack.removeLastOrNull()
     }
+    val selectedAudioDevice = audioDeviceOptions.firstOrNull { device ->
+        device.id == selectedAudioDeviceId
+    } ?: audioDeviceOptions.firstOrNull()
 
     NavDisplay(
         modifier = modifier.fillMaxSize(),
@@ -195,7 +209,7 @@ fun AppNavigation(
                                 onBack = onBack,
                                 selectedResolution = selectedResolution,
                                 selectedCameraDevice = selectedCameraLensFacing.displayName,
-                                selectedAudioDevice = selectedAudioDevice,
+                                selectedAudioDevice = selectedAudioDevice?.displayName.orEmpty(),
                                 onOpenResolutionOptions = {
                                     backStack.add(
                                         SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION)
@@ -252,8 +266,12 @@ fun AppNavigation(
 
                         SettingOptionType.AUDIO_DEVICE -> OptionSelectionConfig(
                             title = "오디오 기기",
-                            options = audioDeviceOptions,
-                            onOptionSelected = { selectedAudioDevice = it },
+                            options = audioDeviceOptions.map(AudioInputDevice::displayName),
+                            onOptionSelected = { selectedOption ->
+                                selectedAudioDeviceId = audioDeviceOptions.first { device ->
+                                    device.displayName == selectedOption
+                                }.id
+                            },
                         )
 
                         SettingOptionType.BROADCAST_PLATFORM -> OptionSelectionConfig(
