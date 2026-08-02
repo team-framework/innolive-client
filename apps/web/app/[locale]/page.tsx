@@ -5,17 +5,35 @@ import { useTranslation } from 'react-i18next'
 
 import { PreRegistrationForm } from '../../components/PreRegistrationForm'
 import { WebRTCExperience } from '../../components/WebRTCExperience'
+import { useState } from "react";
+import {locales} from "../../proxy";
 
 export default function HomePage() {
   const { t, i18n } = useTranslation()
   const locale = i18n.resolvedLanguage ?? 'ko'
+  const [ isSelectLanguage, setIsSelectLanguage ] = useState(false)
 
   return (
     <main className="overflow-hidden bg-[#050505] text-white">
       <section className="relative flex min-h-screen items-end overflow-hidden px-6 pb-16 pt-6 md:px-12 md:pb-20">
         <img src="/images/background.png" alt="" className="absolute inset-0 size-full object-cover object-center" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
-        <img src="/figma/Logo_WT.svg" alt="InnoLive" className="absolute left-6 top-6 z-10 h-auto w-[120px] md:left-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)] md:w-[clamp(124px,8.59vw,165px)]" />
+        <header>
+          <img src="/figma/Logo_WT.svg" alt="InnoLive" className="absolute left-6 top-6 z-10 h-auto w-[120px] md:left-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)] md:w-[clamp(124px,8.59vw,165px)]" />
+          <div className="flex flex-col items-center absolute right-6 top-6 z-10 md:right-[clamp(36px,2.5vw,48px)] md:top-12">
+            <button onClick={() => setIsSelectLanguage((prev) => !prev)} className="cursor-pointer flex items-center gap-2 px-2 py-1 rounded-[100rem] hover:bg-[#FFFFFF33] h-auto">
+              <img src="/figma/language.svg" alt="select language" className="w-4" />
+              <span className="text-sm">{locales.find((element) => element.code === locale)?.label}</span>
+            </button>
+            {isSelectLanguage ? (
+              <ul className="relative top-1 text-sm">
+                {locales.map((locale) => (
+                  <Link href={`/${locale.code}`} key={locale.code} className="cursor-pointer flex p-1 hover:bg-[#FFFFFF33] rounded-md">{locale.label}</Link>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </header>
         <div className="relative z-10 flex w-full flex-col items-start justify-between gap-8 md:flex-row md:items-end">
           <h1 className="font-neurimbo text-[clamp(56px,6.67vw,128px)] leading-[0.78] tracking-[-0.06em] text-shadow-[0_0_50px_rgba(0,0,0,0.35)]">{t('home.hero.line1')}<br />{t('home.hero.line2')}<br />{t('home.hero.line3')}</h1>
           <div className="flex shrink-0 gap-[clamp(6px,0.42vw,8px)]"><a href="#pre-registration" className="cursor-pointer rounded-lg bg-white px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-black transition duration-200 hover:-translate-y-0.5 hover:bg-[#d9d9d9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{t('home.navigation.preRegistration')}</a><a href="#experience" className="cursor-pointer rounded-lg bg-black px-[clamp(15px,1.04vw,20px)] py-[clamp(6px,0.42vw,8px)] text-[clamp(15px,1.04vw,20px)] text-white transition duration-200 hover:-translate-y-0.5 hover:bg-[#2d2d2d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{t('home.navigation.experience')}</a></div>

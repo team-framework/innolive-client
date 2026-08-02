@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
-const locales = ['ko', 'en', 'ja']
+export const locales = [
+  { code: 'ko', label: '한국어' },
+  { code: 'en', label: 'English' },
+  { code: 'ja', label: '日本語' },
+] as const
 const publicFile = /\.[^/]+$/
 
 export function proxy(request: NextRequest) {
@@ -11,12 +15,12 @@ export function proxy(request: NextRequest) {
   }
 
   const pathnameLocale = locales.find(
-    (locale) => pathname === `/${locale}` || pathname.startsWith(`/${locale}/`),
+    (locale) => pathname === `/${locale.code}` || pathname.startsWith(`/${locale.code}/`),
   )
 
   if (pathnameLocale) {
     const response = NextResponse.next()
-    response.cookies.set('NEXT_LOCALE', pathnameLocale, { path: '/', sameSite: 'lax' })
+    response.cookies.set('NEXT_LOCALE', pathnameLocale.code, { path: '/', sameSite: 'lax' })
     return response
   }
 
@@ -25,8 +29,8 @@ export function proxy(request: NextRequest) {
     .get('accept-language')
     ?.split(',')
     .map((language) => language.trim().split(';')[0].split('-')[0])
-    .find((language) => locales.includes(language))
-  const locale = cookieLocale && locales.includes(cookieLocale) ? cookieLocale : browserLocale ?? 'ko'
+    .find((language) => locales.some((locale) => locale.code === language))
+  const locale = cookieLocale && locales.some((locale) => locale.code === cookieLocale) ? cookieLocale : browserLocale ?? 'ko'
   const url = request.nextUrl.clone()
   url.pathname = `/${locale}${pathname}`
 
