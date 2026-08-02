@@ -4,8 +4,10 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -24,8 +26,14 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 fun CameraPreview(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val previewView = remember(context) { PreviewView(context) }
+    val previewView = remember(context) {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FIT_CENTER
+        }
+    }
     var hasCameraError by remember { mutableStateOf(false) }
+    var previewAspectRatio by remember { mutableStateOf<Float?>(null) }
 
     DisposableEffect(context, lifecycleOwner, previewView) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -57,6 +65,15 @@ fun CameraPreview(modifier: Modifier = Modifier) {
                             cameraSelector,
                             preview,
                         )
+
+                        preview.resolutionInfo?.let { resolutionInfo ->
+                            val resolution = resolutionInfo.resolution
+                            previewAspectRatio = if (resolutionInfo.rotationDegrees % 180 == 0) {
+                                resolution.width.toFloat() / resolution.height
+                            } else {
+                                resolution.height.toFloat() / resolution.width
+                            }
+                        }
                     } catch (_: Exception) {
                         hasCameraError = true
                     }
@@ -71,10 +88,22 @@ fun CameraPreview(modifier: Modifier = Modifier) {
         }
     }
 
-    Box(modifier = modifier) {
+    BoxWithConstraints(modifier = modifier) {
+        val aspectRatio = previewAspectRatio
+        val previewModifier = if (aspectRatio == null) {
+            Modifier.fillMaxSize()
+        } else {
+            val previewWidth = minOf(maxWidth, maxHeight * aspectRatio)
+
+            Modifier
+                .align(Alignment.Center)
+                .width(previewWidth)
+                .aspectRatio(aspectRatio)
+        }
+
         AndroidView(
             factory = { previewView },
-            modifier = Modifier.fillMaxSize(),
+            modifier = previewModifier,
         )
 
         if (hasCameraError) {
