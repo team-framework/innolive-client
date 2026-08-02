@@ -2,6 +2,8 @@ package com.example.innolive.feature.live
 
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -37,9 +39,18 @@ fun CameraPreview(modifier: Modifier = Modifier) {
 
     DisposableEffect(context, lifecycleOwner, previewView) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        val preview = Preview.Builder().build().apply {
-            surfaceProvider = previewView.surfaceProvider
-        }
+        val preview = Preview.Builder()
+            .setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(
+                        AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY,
+                    )
+                    .build(),
+            )
+            .build()
+            .apply {
+                surfaceProvider = previewView.surfaceProvider
+            }
         var cameraProvider: ProcessCameraProvider? = null
         var isDisposed = false
 
