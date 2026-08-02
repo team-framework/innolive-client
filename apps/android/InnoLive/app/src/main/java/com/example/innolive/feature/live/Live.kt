@@ -7,7 +7,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
@@ -49,7 +51,12 @@ fun LiveScreen(props: LiveScreenProps) {
         modifier = Modifier.fillMaxSize()
     ) {
         if (hasCameraPermission) {
-            CameraPreview(modifier = Modifier.fillMaxSize())
+            CameraPreview(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f),
+            )
         } else {
             Column(
                 modifier = Modifier
