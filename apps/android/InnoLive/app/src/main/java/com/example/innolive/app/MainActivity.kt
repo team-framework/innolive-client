@@ -1,5 +1,6 @@
 package com.example.innolive.app
 
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,13 +14,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.CredentialManager
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.example.innolive.feature.live.CameraLensFacing
 import com.example.innolive.feature.live.LiveScreen
 import com.example.innolive.feature.live.LiveScreenProps
 import com.example.innolive.feature.login.LoginScreen
@@ -69,11 +73,6 @@ private val cameraResolutionOptions = listOf(
     "720p - 24fps",
 )
 
-private val cameraDeviceOptions = listOf(
-    "후면 카메라",
-    "전면 카메라",
-)
-
 private val audioDeviceOptions = listOf(
     "기본 마이크",
     "DJI Mic Mini 2",
@@ -111,6 +110,13 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     modifier: Modifier = Modifier
 ) {
+    val packageManager = LocalContext.current.packageManager
+    val cameraDeviceOptions = remember(packageManager) {
+        CameraLensFacing.supported(
+            hasBackCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA),
+            hasFrontCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FRONT),
+        )
+    }
     val backStack = rememberSaveable(
         saver = listSaver(
             save = { it.toList() },
@@ -120,8 +126,8 @@ fun AppNavigation(
     var selectedResolution by rememberSaveable {
         mutableStateOf(cameraResolutionOptions.first())
     }
-    var selectedCameraDevice by rememberSaveable {
-        mutableStateOf(cameraDeviceOptions.first())
+    var selectedCameraLensFacing by rememberSaveable {
+        mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
     }
     var selectedAudioDevice by rememberSaveable {
         mutableStateOf(audioDeviceOptions.first())
@@ -187,7 +193,7 @@ fun AppNavigation(
                             props = CameraSettingProps(
                                 onBack = onBack,
                                 selectedResolution = selectedResolution,
-                                selectedCameraDevice = selectedCameraDevice,
+                                selectedCameraDevice = selectedCameraLensFacing.displayName,
                                 selectedAudioDevice = selectedAudioDevice,
                                 onOpenResolutionOptions = {
                                     backStack.add(
@@ -235,8 +241,12 @@ fun AppNavigation(
 
                         SettingOptionType.CAMERA_DEVICE -> OptionSelectionConfig(
                             title = "카메라 기기",
-                            options = cameraDeviceOptions,
-                            onOptionSelected = { selectedCameraDevice = it },
+                            options = cameraDeviceOptions.map(CameraLensFacing::displayName),
+                            onOptionSelected = { selectedOption ->
+                                selectedCameraLensFacing = cameraDeviceOptions.first { facing ->
+                                    facing.displayName == selectedOption
+                                }
+                            },
                         )
 
                         SettingOptionType.AUDIO_DEVICE -> OptionSelectionConfig(
