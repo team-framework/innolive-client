@@ -15,7 +15,7 @@ class CameraLensFacingTest {
             listOf(CameraLensFacing.BACK, CameraLensFacing.FRONT),
             CameraLensFacing.supported(hasBackCamera = true, hasFrontCamera = true),
         )
-        assertEquals("후면 카메라 (기본 기기)", CameraLensFacing.BACK.displayName)
-        assertEquals("전면 카메라 (기본 기기)", CameraLensFacing.FRONT.displayName)
+        assertEquals("후면 카메라", CameraLensFacing.BACK.displayName)
+        assertEquals("전면 카메라", CameraLensFacing.FRONT.displayName)
     }
 }

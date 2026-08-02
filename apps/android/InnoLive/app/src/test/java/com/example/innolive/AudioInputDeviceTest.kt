@@ -8,7 +8,7 @@ class AudioInputDeviceTest {
     @Test
     fun displayNameMarksOnlyDefaultDevice() {
         assertEquals(
-            "내장 마이크 (기본 기기)",
+            "내장 마이크",
             AudioInputDevice(id = 1, name = "내장 마이크", isDefault = true).displayName,
         )
         assertEquals(
