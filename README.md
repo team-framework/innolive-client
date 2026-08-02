@@ -60,8 +60,8 @@ flowchart LR
 
 ```bash
 cd apps/web
-npm ci
-npm run dev
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
 사전등록 데이터베이스까지 로컬에서 확인하려면 환경 파일을 만들고 DB 컨테이너를 실행해야 합니다.
