@@ -40,10 +40,7 @@ fun OptionSelectionScreen(
         )
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(
-                items = options,
-                key = { option -> option },
-            ) { option ->
+            items(options) { option ->
                 ListItem(
                     headlineContent = { Text(text = option) },
                     modifier = Modifier

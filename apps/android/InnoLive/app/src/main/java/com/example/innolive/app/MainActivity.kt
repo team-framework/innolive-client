@@ -121,6 +121,7 @@ fun AppNavigation(
                     isDefault = device.type == AudioDeviceInfo.TYPE_BUILTIN_MIC,
                 )
             }
+            .distinctBy(AudioInputDevice::displayName)
     }
     val backStack = rememberSaveable(
         saver = listSaver(
