@@ -6,5 +6,5 @@ data class AudioInputDevice(
     val isDefault: Boolean,
 ) {
     val displayName: String
-        get() = if (isDefault) "$name (기본 기기)" else name
+        get() = if (isDefault) "내장 마이크" else name
 }
