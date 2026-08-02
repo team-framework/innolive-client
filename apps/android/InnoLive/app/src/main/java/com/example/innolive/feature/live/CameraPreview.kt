@@ -30,7 +30,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
-fun CameraPreview(modifier: Modifier = Modifier) {
+fun CameraPreview(
+    cameraLensFacing: CameraLensFacing,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val previewView = remember(context) {
@@ -54,7 +57,8 @@ fun CameraPreview(modifier: Modifier = Modifier) {
     }
     var hasCameraError by remember { mutableStateOf(false) }
 
-    DisposableEffect(context, lifecycleOwner, previewView) {
+    DisposableEffect(context, lifecycleOwner, previewView, cameraLensFacing) {
+        hasCameraError = false
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val preview = Preview.Builder()
             .setResolutionSelector(
@@ -76,18 +80,14 @@ fun CameraPreview(modifier: Modifier = Modifier) {
                 if (!isDisposed) {
                     try {
                         cameraProvider = cameraProviderFuture.get()
-                        val cameraSelector = when {
-                            cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA) -> {
-                                CameraSelector.DEFAULT_FRONT_CAMERA
-                            }
-
-                            cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA) -> {
-                                CameraSelector.DEFAULT_BACK_CAMERA
-                            }
-
-                            else -> error("사용 가능한 카메라가 없습니다.")
+                        val cameraSelector = when (cameraLensFacing) {
+                            CameraLensFacing.BACK -> CameraSelector.DEFAULT_BACK_CAMERA
+                            CameraLensFacing.FRONT -> CameraSelector.DEFAULT_FRONT_CAMERA
                         }
 
+                        check(cameraProvider.hasCamera(cameraSelector)) {
+                            "선택한 카메라를 사용할 수 없습니다."
+                        }
                         cameraProvider.bindToLifecycle(
                             lifecycleOwner,
                             cameraSelector,

@@ -163,6 +163,7 @@ fun AppNavigation(
                     NavEntry(route) {
                         LiveScreen(
                             props = LiveScreenProps(
+                                cameraLensFacing = selectedCameraLensFacing,
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
                                 },

@@ -4,5 +4,6 @@ import androidx.compose.runtime.Immutable
 
 @Immutable
 data class LiveScreenProps(
+    val cameraLensFacing: CameraLensFacing,
     val onOpenSettings: () -> Unit,
 )

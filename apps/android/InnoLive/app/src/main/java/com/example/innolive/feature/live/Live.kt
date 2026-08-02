@@ -54,6 +54,7 @@ fun LiveScreen(props: LiveScreenProps) {
 
         if (hasCameraPermission) {
             CameraPreview(
+                cameraLensFacing = props.cameraLensFacing,
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(previewWidth, previewHeight),
