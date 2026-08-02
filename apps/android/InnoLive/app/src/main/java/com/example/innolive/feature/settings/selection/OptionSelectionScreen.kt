@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun OptionSelectionScreen(
     title: String,
-    options: List<String>,
+    options: List<SettingOption>,
     onOptionSelected: (String) -> Unit,
     onBack: () -> Unit,
 ) {
@@ -40,13 +40,16 @@ fun OptionSelectionScreen(
         )
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(options) { option ->
+            items(
+                items = options,
+                key = SettingOption::key,
+            ) { option ->
                 ListItem(
-                    headlineContent = { Text(text = option) },
+                    headlineContent = { Text(text = option.label) },
                     modifier = Modifier
                         .heightIn(min = 52.dp)
                         .clickable {
-                            onOptionSelected(option)
+                            onOptionSelected(option.key)
                             onBack()
                         },
                 )

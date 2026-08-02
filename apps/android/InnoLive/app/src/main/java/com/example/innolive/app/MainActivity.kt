@@ -40,6 +40,7 @@ import com.example.innolive.feature.settings.broadcast.BroadcastSettingProps
 import com.example.innolive.feature.settings.camera.CameraSetting
 import com.example.innolive.feature.settings.camera.CameraSettingProps
 import com.example.innolive.feature.settings.selection.OptionSelectionScreen
+import com.example.innolive.feature.settings.selection.SettingOption
 import com.example.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 
@@ -67,7 +68,7 @@ data class SettingOptionRoute(
 
 private data class OptionSelectionConfig(
     val title: String,
-    val options: List<String>,
+    val options: List<SettingOption>,
     val onOptionSelected: (String) -> Unit,
 )
 
@@ -246,37 +247,46 @@ fun AppNavigation(
                     val config = when (route.type) {
                         SettingOptionType.CAMERA_RESOLUTION -> OptionSelectionConfig(
                             title = "카메라 해상도",
-                            options = CameraResolution.entries.map(CameraResolution::displayName),
-                            onOptionSelected = { selectedOption ->
-                                selectedResolution = CameraResolution.entries.first { resolution ->
-                                    resolution.displayName == selectedOption
-                                }
+                            options = CameraResolution.entries.map { resolution ->
+                                SettingOption(
+                                    key = resolution.name,
+                                    label = resolution.displayName,
+                                )
+                            },
+                            onOptionSelected = { key ->
+                                selectedResolution = CameraResolution.valueOf(key)
                             },
                         )
 
                         SettingOptionType.CAMERA_DEVICE -> OptionSelectionConfig(
                             title = "카메라 기기",
-                            options = cameraDeviceOptions.map(CameraLensFacing::displayName),
-                            onOptionSelected = { selectedOption ->
-                                selectedCameraLensFacing = cameraDeviceOptions.first { facing ->
-                                    facing.displayName == selectedOption
-                                }
+                            options = cameraDeviceOptions.map { facing ->
+                                SettingOption(
+                                    key = facing.name,
+                                    label = facing.displayName,
+                                )
+                            },
+                            onOptionSelected = { key ->
+                                selectedCameraLensFacing = CameraLensFacing.valueOf(key)
                             },
                         )
 
                         SettingOptionType.AUDIO_DEVICE -> OptionSelectionConfig(
                             title = "오디오 기기",
-                            options = audioDeviceOptions.map(AudioInputDevice::displayName),
-                            onOptionSelected = { selectedOption ->
-                                selectedAudioDeviceId = audioDeviceOptions.first { device ->
-                                    device.displayName == selectedOption
-                                }.id
+                            options = audioDeviceOptions.map { device ->
+                                SettingOption(
+                                    key = device.id.toString(),
+                                    label = device.displayName,
+                                )
                             },
+                            onOptionSelected = { key -> selectedAudioDeviceId = key.toInt() },
                         )
 
                         SettingOptionType.BROADCAST_PLATFORM -> OptionSelectionConfig(
                             title = "방송 플랫폼",
-                            options = broadcastPlatformOptions,
+                            options = broadcastPlatformOptions.map { platform ->
+                                SettingOption(key = platform, label = platform)
+                            },
                             onOptionSelected = { selectedBroadcastPlatform = it },
                         )
                     }

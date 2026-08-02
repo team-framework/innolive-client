@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import com.example.innolive.feature.settings.selection.OptionSelectionScreen
+import com.example.innolive.feature.settings.selection.SettingOption
 import org.junit.Rule
 import org.junit.Test
 
@@ -16,7 +17,10 @@ class OptionSelectionScreenTest {
         composeRule.setContent {
             OptionSelectionScreen(
                 title = "오디오 기기",
-                options = listOf("동일 기기", "동일 기기"),
+                options = listOf(
+                    SettingOption(key = "1", label = "동일 기기"),
+                    SettingOption(key = "2", label = "동일 기기"),
+                ),
                 onOptionSelected = {},
                 onBack = {},
             )
