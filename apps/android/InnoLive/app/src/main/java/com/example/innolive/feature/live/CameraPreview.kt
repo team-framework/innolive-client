@@ -1,7 +1,6 @@
 package com.example.innolive.feature.live
 
 import android.util.Rational
-import android.util.Range
 import android.util.Size
 import android.view.Surface
 import android.view.ViewGroup
@@ -11,7 +10,6 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -35,7 +33,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun CameraPreview(
     cameraLensFacing: CameraLensFacing,
-    cameraResolution: CameraResolution,
+    cameraResolution: CameraResolution?,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -65,22 +63,20 @@ fun CameraPreview(
         hasCameraError = false
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val preview = Preview.Builder()
-            .setTargetFrameRate(
-                Range(cameraResolution.frameRate, cameraResolution.frameRate),
-            )
-            .setResolutionSelector(
-                ResolutionSelector.Builder()
-                    .setAspectRatioStrategy(
-                        AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY,
+            .apply {
+                if (cameraResolution != null) {
+                    setResolutionSelector(
+                        ResolutionSelector.Builder()
+                            .setResolutionStrategy(
+                                ResolutionStrategy(
+                                    Size(cameraResolution.width, cameraResolution.height),
+                                    ResolutionStrategy.FALLBACK_RULE_NONE,
+                                ),
+                            )
+                            .build(),
                     )
-                    .setResolutionStrategy(
-                        ResolutionStrategy(
-                            Size(cameraResolution.width, cameraResolution.height),
-                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
-                        ),
-                    )
-                    .build(),
-            )
+                }
+            }
             .build()
             .apply {
                 surfaceProvider = previewView.surfaceProvider

@@ -6,25 +6,23 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.CameraInfo
 
-enum class CameraResolution(
+data class CameraResolution(
     val width: Int,
     val height: Int,
-    val frameRate: Int,
-    val displayName: String,
 ) {
-    FULL_HD_30(1920, 1080, 30, "1080p - 30fps"),
-    FULL_HD_24(1920, 1080, 24, "1080p - 24fps"),
-    HD_30(1280, 720, 30, "720p - 30fps"),
-    HD_24(1280, 720, 24, "720p - 24fps"),
+    val key: String
+        get() = "${width}x$height"
 
-    ;
+    val displayName: String
+        get() = "$width × $height"
 
     companion object {
-        internal fun supportedBy(
-            outputSizes: Set<Pair<Int, Int>>,
-        ): List<CameraResolution> = entries.filter { resolution ->
-            resolution.width to resolution.height in outputSizes
-        }
+        internal fun fromOutputSizes(
+            outputSizes: Iterable<Pair<Int, Int>>,
+        ): List<CameraResolution> = outputSizes
+            .distinct()
+            .sortedByDescending { (width, height) -> width.toLong() * height }
+            .map { (width, height) -> CameraResolution(width, height) }
     }
 }
 
@@ -33,9 +31,9 @@ internal fun CameraInfo.supportedCameraResolutions(): List<CameraResolution> = r
     val outputSizes = Camera2CameraInfo.from(this)
         .getCameraCharacteristic(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         ?.getOutputSizes(SurfaceTexture::class.java)
-        ?: return@runCatching CameraResolution.entries
+        ?: return@runCatching emptyList()
 
-    CameraResolution.supportedBy(
-        outputSizes.mapTo(mutableSetOf()) { size -> size.width to size.height },
+    CameraResolution.fromOutputSizes(
+        outputSizes.map { size -> size.width to size.height },
     )
-}.getOrDefault(CameraResolution.entries)
+}.getOrDefault(emptyList())

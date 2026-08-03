@@ -141,14 +141,14 @@ fun AppNavigation(
             restore = { it.toCollection(mutableStateListOf()) },
         ),
     ) { mutableStateListOf<AppRoute>(LoginRoute) }
-    var selectedResolution by rememberSaveable {
-        mutableStateOf(CameraResolution.FULL_HD_30)
+    var selectedResolutionKey by rememberSaveable {
+        mutableStateOf<String?>(null)
     }
     var selectedCameraLensFacing by rememberSaveable {
         mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
     }
     var supportedCameraResolutions by remember {
-        mutableStateOf<List<CameraResolution>>(CameraResolution.entries)
+        mutableStateOf(emptyList<CameraResolution>())
     }
     var selectedAudioDeviceId by rememberSaveable {
         mutableIntStateOf(audioDeviceOptions.firstOrNull()?.id ?: -1)
@@ -160,7 +160,8 @@ fun AppNavigation(
     DisposableEffect(context, selectedCameraLensFacing) {
         var isDisposed = false
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        supportedCameraResolutions = CameraResolution.entries
+        supportedCameraResolutions = emptyList()
+        selectedResolutionKey = null
         cameraProviderFuture.addListener(
             {
                 if (!isDisposed) {
@@ -173,8 +174,8 @@ fun AppNavigation(
                             .filter(cameraProviderFuture.get().availableCameraInfos)
                             .firstOrNull()
                             ?.supportedCameraResolutions()
-                            ?: CameraResolution.entries
-                    }.getOrDefault(CameraResolution.entries)
+                            .orEmpty()
+                    }.getOrDefault(emptyList())
                 }
             },
             ContextCompat.getMainExecutor(context),
@@ -183,13 +184,17 @@ fun AppNavigation(
         onDispose { isDisposed = true }
     }
 
-    LaunchedEffect(supportedCameraResolutions, selectedResolution) {
-        if (
-            supportedCameraResolutions.isNotEmpty() &&
-            selectedResolution !in supportedCameraResolutions
+    LaunchedEffect(supportedCameraResolutions, selectedResolutionKey) {
+        if (supportedCameraResolutions.none { resolution ->
+                resolution.key == selectedResolutionKey
+            }
         ) {
-            selectedResolution = supportedCameraResolutions.first()
+            selectedResolutionKey = supportedCameraResolutions.firstOrNull()?.key
         }
+    }
+
+    val selectedResolution = supportedCameraResolutions.firstOrNull { resolution ->
+        resolution.key == selectedResolutionKey
     }
 
     val onBack: () -> Unit = {
@@ -253,7 +258,7 @@ fun AppNavigation(
                         CameraSetting(
                             props = CameraSettingProps(
                                 onBack = onBack,
-                                selectedResolution = selectedResolution.displayName,
+                                selectedResolution = selectedResolution?.displayName.orEmpty(),
                                 selectedCameraDevice = selectedCameraLensFacing.displayName,
                                 selectedAudioDevice = selectedAudioDevice?.displayName.orEmpty(),
                                 onOpenResolutionOptions = {
@@ -298,14 +303,12 @@ fun AppNavigation(
                             title = "카메라 해상도",
                             options = supportedCameraResolutions.map { resolution ->
                                 SettingOption(
-                                    key = resolution.name,
+                                    key = resolution.key,
                                     label = resolution.displayName,
                                 )
                             },
-                            selectedKey = selectedResolution.name,
-                            onOptionSelected = { key ->
-                                selectedResolution = CameraResolution.valueOf(key)
-                            },
+                            selectedKey = selectedResolutionKey.orEmpty(),
+                            onOptionSelected = { key -> selectedResolutionKey = key },
                         )
 
                         SettingOptionType.CAMERA_DEVICE -> OptionSelectionConfig(
