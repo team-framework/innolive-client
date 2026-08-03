@@ -31,6 +31,7 @@ import com.example.innolive.feature.live.CameraLensFacing
 import com.example.innolive.feature.live.CameraResolution
 import com.example.innolive.feature.live.LiveScreen
 import com.example.innolive.feature.live.LiveScreenProps
+import com.example.innolive.feature.live.isSelectableAudioInputType
 import com.example.innolive.feature.login.LoginScreen
 import com.example.innolive.feature.login.LoginScreenProps
 import com.example.innolive.feature.settings.SettingsScreen
@@ -115,6 +116,10 @@ fun AppNavigation(
     val audioDeviceOptions = remember(context) {
         context.getSystemService(AudioManager::class.java)
             .getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .filter { device -> isSelectableAudioInputType(device.type) }
+            .distinctBy { device ->
+                if (device.type == AudioDeviceInfo.TYPE_BUILTIN_MIC) null else device.id
+            }
             .map { device ->
                 AudioInputDevice(
                     id = device.id,
