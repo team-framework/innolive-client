@@ -3,6 +3,7 @@ package com.example.innolive
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import com.example.innolive.feature.settings.selection.OptionSelectionScreen
 import com.example.innolive.feature.settings.selection.SettingOption
@@ -14,7 +15,7 @@ class OptionSelectionScreenTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun duplicateOptionNamesRenderWithoutKeyCollision() {
+    fun duplicateOptionNamesRenderWithSingleSelection() {
         composeRule.setContent {
             OptionSelectionScreen(
                 title = "오디오 기기",
@@ -22,11 +23,13 @@ class OptionSelectionScreenTest {
                     SettingOption(key = "1", label = "동일 기기"),
                     SettingOption(key = "2", label = "동일 기기"),
                 ),
+                selectedKey = "2",
                 onOptionSelected = {},
                 onBack = {},
             )
         }
 
         composeRule.onAllNodesWithText("동일 기기").assertCountEquals(2)
+        composeRule.onAllNodesWithContentDescription("선택됨").assertCountEquals(1)
     }
 }

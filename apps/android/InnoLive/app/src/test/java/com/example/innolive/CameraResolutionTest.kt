@@ -12,4 +12,12 @@ class CameraResolutionTest {
         assertEquals(30, CameraResolution.FULL_HD_30.frameRate)
         assertEquals("1080p - 30fps", CameraResolution.FULL_HD_30.displayName)
     }
+
+    @Test
+    fun supportedByKeepsOnlyMatchingOutputSizes() {
+        assertEquals(
+            listOf(CameraResolution.FULL_HD_30, CameraResolution.FULL_HD_24),
+            CameraResolution.supportedBy(setOf(1920 to 1080)),
+        )
+    }
 }
