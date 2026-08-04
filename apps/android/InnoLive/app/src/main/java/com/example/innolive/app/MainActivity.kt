@@ -1,27 +1,43 @@
 package com.example.innolive.app
 
+import android.content.pm.PackageManager
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.camera.core.CameraSelector
+import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.credentials.CredentialManager
+import androidx.core.content.ContextCompat
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.example.innolive.feature.live.AudioInputDevice
+import com.example.innolive.feature.live.CameraLensFacing
+import com.example.innolive.feature.live.CameraResolution
 import com.example.innolive.feature.live.LiveScreen
 import com.example.innolive.feature.live.LiveScreenProps
+import com.example.innolive.feature.live.isSelectableAudioInputType
+import com.example.innolive.feature.live.supportedCameraResolutions
 import com.example.innolive.feature.login.LoginScreen
 import com.example.innolive.feature.login.LoginScreenProps
 import com.example.innolive.feature.settings.SettingsScreen
@@ -31,9 +47,11 @@ import com.example.innolive.feature.settings.broadcast.BroadcastSettingProps
 import com.example.innolive.feature.settings.camera.CameraSetting
 import com.example.innolive.feature.settings.camera.CameraSettingProps
 import com.example.innolive.feature.settings.selection.OptionSelectionScreen
+import com.example.innolive.feature.settings.selection.SettingOption
 import com.example.innolive.ui.theme.MyApplicationTheme
+import java.io.Serializable
 
-sealed interface AppRoute
+sealed interface AppRoute : Serializable
 data object LoginRoute : AppRoute
 
 data object LiveRoute : AppRoute
@@ -57,25 +75,9 @@ data class SettingOptionRoute(
 
 private data class OptionSelectionConfig(
     val title: String,
-    val options: List<String>,
+    val options: List<SettingOption>,
+    val selectedKey: String,
     val onOptionSelected: (String) -> Unit,
-)
-
-private val cameraResolutionOptions = listOf(
-    "1080p - 30fps",
-    "1080p - 24fps",
-    "720p - 30fps",
-    "720p - 24fps",
-)
-
-private val cameraDeviceOptions = listOf(
-    "후면 카메라",
-    "전면 카메라",
-)
-
-private val audioDeviceOptions = listOf(
-    "기본 마이크",
-    "DJI Mic Mini 2",
 )
 
 private val broadcastPlatformOptions = listOf(
@@ -110,25 +112,97 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     modifier: Modifier = Modifier
 ) {
-    val backStack = remember {
-        mutableStateListOf<AppRoute>(LoginRoute)
+    val context = LocalContext.current
+    val packageManager = context.packageManager
+    val cameraDeviceOptions = remember(packageManager) {
+        CameraLensFacing.supported(
+            hasBackCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA),
+            hasFrontCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FRONT),
+        )
     }
-    var selectedResolution by rememberSaveable {
-        mutableStateOf(cameraResolutionOptions.first())
+    val audioDeviceOptions = remember(context) {
+        context.getSystemService(AudioManager::class.java)
+            .getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .filter { device -> isSelectableAudioInputType(device.type) }
+            .distinctBy { device ->
+                if (device.type == AudioDeviceInfo.TYPE_BUILTIN_MIC) null else device.id
+            }
+            .map { device ->
+                AudioInputDevice(
+                    id = device.id,
+                    name = device.productName.toString(),
+                    isDefault = device.type == AudioDeviceInfo.TYPE_BUILTIN_MIC,
+                )
+            }
     }
-    var selectedCameraDevice by rememberSaveable {
-        mutableStateOf(cameraDeviceOptions.first())
+    val backStack = rememberSaveable(
+        saver = listSaver(
+            save = { it.toList() },
+            restore = { it.toCollection(mutableStateListOf()) },
+        ),
+    ) { mutableStateListOf<AppRoute>(LoginRoute) }
+    var selectedResolutionKey by rememberSaveable {
+        mutableStateOf<String?>(null)
     }
-    var selectedAudioDevice by rememberSaveable {
-        mutableStateOf(audioDeviceOptions.first())
+    var selectedCameraLensFacing by rememberSaveable {
+        mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
+    }
+    var supportedCameraResolutions by remember {
+        mutableStateOf(emptyList<CameraResolution>())
+    }
+    var selectedAudioDeviceId by rememberSaveable {
+        mutableIntStateOf(audioDeviceOptions.firstOrNull()?.id ?: -1)
     }
     var selectedBroadcastPlatform by rememberSaveable {
         mutableStateOf(broadcastPlatformOptions.first())
     }
 
+    DisposableEffect(context, selectedCameraLensFacing) {
+        var isDisposed = false
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        supportedCameraResolutions = emptyList()
+        selectedResolutionKey = null
+        cameraProviderFuture.addListener(
+            {
+                if (!isDisposed) {
+                    supportedCameraResolutions = runCatching {
+                        val cameraSelector = when (selectedCameraLensFacing) {
+                            CameraLensFacing.BACK -> CameraSelector.DEFAULT_BACK_CAMERA
+                            CameraLensFacing.FRONT -> CameraSelector.DEFAULT_FRONT_CAMERA
+                        }
+                        cameraSelector
+                            .filter(cameraProviderFuture.get().availableCameraInfos)
+                            .firstOrNull()
+                            ?.supportedCameraResolutions()
+                            .orEmpty()
+                    }.getOrDefault(emptyList())
+                }
+            },
+            ContextCompat.getMainExecutor(context),
+        )
+
+        onDispose { isDisposed = true }
+    }
+
+    LaunchedEffect(supportedCameraResolutions, selectedResolutionKey) {
+        if (supportedCameraResolutions.none { resolution ->
+                resolution.key == selectedResolutionKey
+            }
+        ) {
+            selectedResolutionKey = supportedCameraResolutions.firstOrNull()?.key
+        }
+    }
+
+    val selectedResolution = supportedCameraResolutions.firstOrNull { resolution ->
+        resolution.key == selectedResolutionKey
+    }
+
     val onBack: () -> Unit = {
         backStack.removeLastOrNull()
     }
+    val selectedAudioDevice = audioDeviceOptions.firstOrNull { device ->
+        device.id == selectedAudioDeviceId
+    } ?: audioDeviceOptions.firstOrNull()
 
     NavDisplay(
         modifier = modifier.fillMaxSize(),
@@ -153,6 +227,8 @@ fun AppNavigation(
                     NavEntry(route) {
                         LiveScreen(
                             props = LiveScreenProps(
+                                cameraLensFacing = selectedCameraLensFacing,
+                                cameraResolution = selectedResolution,
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
                                 },
@@ -182,9 +258,9 @@ fun AppNavigation(
                         CameraSetting(
                             props = CameraSettingProps(
                                 onBack = onBack,
-                                selectedResolution = selectedResolution,
-                                selectedCameraDevice = selectedCameraDevice,
-                                selectedAudioDevice = selectedAudioDevice,
+                                selectedResolution = selectedResolution?.displayName.orEmpty(),
+                                selectedCameraDevice = selectedCameraLensFacing.displayName,
+                                selectedAudioDevice = selectedAudioDevice?.displayName.orEmpty(),
                                 onOpenResolutionOptions = {
                                     backStack.add(
                                         SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION)
@@ -225,25 +301,48 @@ fun AppNavigation(
                     val config = when (route.type) {
                         SettingOptionType.CAMERA_RESOLUTION -> OptionSelectionConfig(
                             title = "카메라 해상도",
-                            options = cameraResolutionOptions,
-                            onOptionSelected = { selectedResolution = it },
+                            options = supportedCameraResolutions.map { resolution ->
+                                SettingOption(
+                                    key = resolution.key,
+                                    label = resolution.displayName,
+                                )
+                            },
+                            selectedKey = selectedResolutionKey.orEmpty(),
+                            onOptionSelected = { key -> selectedResolutionKey = key },
                         )
 
                         SettingOptionType.CAMERA_DEVICE -> OptionSelectionConfig(
                             title = "카메라 기기",
-                            options = cameraDeviceOptions,
-                            onOptionSelected = { selectedCameraDevice = it },
+                            options = cameraDeviceOptions.map { facing ->
+                                SettingOption(
+                                    key = facing.name,
+                                    label = facing.displayName,
+                                )
+                            },
+                            selectedKey = selectedCameraLensFacing.name,
+                            onOptionSelected = { key ->
+                                selectedCameraLensFacing = CameraLensFacing.valueOf(key)
+                            },
                         )
 
                         SettingOptionType.AUDIO_DEVICE -> OptionSelectionConfig(
                             title = "오디오 기기",
-                            options = audioDeviceOptions,
-                            onOptionSelected = { selectedAudioDevice = it },
+                            options = audioDeviceOptions.map { device ->
+                                SettingOption(
+                                    key = device.id.toString(),
+                                    label = device.displayName,
+                                )
+                            },
+                            selectedKey = selectedAudioDeviceId.toString(),
+                            onOptionSelected = { key -> selectedAudioDeviceId = key.toInt() },
                         )
 
                         SettingOptionType.BROADCAST_PLATFORM -> OptionSelectionConfig(
                             title = "방송 플랫폼",
-                            options = broadcastPlatformOptions,
+                            options = broadcastPlatformOptions.map { platform ->
+                                SettingOption(key = platform, label = platform)
+                            },
+                            selectedKey = selectedBroadcastPlatform,
                             onOptionSelected = { selectedBroadcastPlatform = it },
                         )
                     }
@@ -252,6 +351,7 @@ fun AppNavigation(
                         OptionSelectionScreen(
                             title = config.title,
                             options = config.options,
+                            selectedKey = config.selectedKey,
                             onOptionSelected = config.onOptionSelected,
                             onBack = onBack,
                         )
