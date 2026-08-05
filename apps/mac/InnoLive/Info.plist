@@ -2,6 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+			<string>com.googleusercontent.apps.683016419596-ofaq580fpv1qqglcgsd9t7tm4a6nrf4d</string>
+			</array>
+		</dict>
+	</array>
+	<key>GIDClientID</key>
+	<string>683016419596-ofaq580fpv1qqglcgsd9t7tm4a6nrf4d.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>683016419596-apoo76nnicno0s0ql7lv82ooi0h7svs0.apps.googleusercontent.com</string>
+	<key>InnoLiveServerURL</key>
+	<string>https://innolive2.duckdns.org</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
