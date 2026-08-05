@@ -17,13 +17,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.credentials.CredentialManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.example.innolive.feature.live.LiveScreen
 import com.example.innolive.feature.live.LiveScreenProps
 import com.example.innolive.feature.login.LoginScreen
 import com.example.innolive.feature.login.LoginScreenProps
+import com.example.innolive.feature.login.oauth.google.continueWithGoogle
 import com.example.innolive.feature.settings.SettingsScreen
 import com.example.innolive.feature.settings.SettingsScreenProps
 import com.example.innolive.feature.settings.broadcast.BroadcastSetting
@@ -85,8 +86,6 @@ private val broadcastPlatformOptions = listOf(
 )
 
 class MainActivity : ComponentActivity() {
-    private lateinit var credentialManager: CredentialManager
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -101,15 +100,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-
-
-       credentialManager = CredentialManager.create(this)
     }
 }
 @Composable
 fun AppNavigation(
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val backStack = remember {
         mutableStateListOf<AppRoute>(LoginRoute)
     }
@@ -144,6 +141,7 @@ fun AppNavigation(
                                     backStack.removeLastOrNull()
                                     backStack.add(LiveRoute)
                                 },
+                                onGoogleLogin = { continueWithGoogle(context) },
                             ),
                         )
                     }
