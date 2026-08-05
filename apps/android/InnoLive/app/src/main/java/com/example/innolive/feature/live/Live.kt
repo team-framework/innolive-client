@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,7 +33,7 @@ fun LiveScreen(props: LiveScreenProps) {
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.CAMERA,
-            ) == PackageManager.PERMISSION_GRANTED
+            ) == PackageManager.PERMISSION_GRANTED,
         )
     }
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
@@ -47,7 +48,7 @@ fun LiveScreen(props: LiveScreenProps) {
     }
 
     BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
         val previewWidth = minOf(maxWidth, maxHeight * 16f / 9f)
         val previewHeight = previewWidth * 9f / 16f
@@ -79,13 +80,26 @@ fun LiveScreen(props: LiveScreenProps) {
             }
         }
 
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ProfileDisplay(
+                name = props.profileName,
+                email = props.profileEmail,
+            )
+            OutlinedButton(onClick = props.onLogout) {
+                Text(text = "로그아웃")
+            }
+        }
+
         Button(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(12.dp),
-            onClick = {
-                props.onOpenSettings()
-            },
+            onClick = props.onOpenSettings,
         ) {
             Text(text = "설정으로 이동")
         }

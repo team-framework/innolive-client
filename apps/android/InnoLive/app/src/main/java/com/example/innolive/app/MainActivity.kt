@@ -1,5 +1,6 @@
 package com.example.innolive.app
 
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -16,8 +17,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -27,7 +28,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.credentials.CredentialManager
 import androidx.core.content.ContextCompat
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
@@ -40,6 +40,8 @@ import com.example.innolive.feature.live.isSelectableAudioInputType
 import com.example.innolive.feature.live.supportedCameraResolutions
 import com.example.innolive.feature.login.LoginScreen
 import com.example.innolive.feature.login.LoginScreenProps
+import com.example.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.example.innolive.feature.login.oauth.google.continueWithGoogle
 import com.example.innolive.feature.settings.SettingsScreen
 import com.example.innolive.feature.settings.SettingsScreenProps
 import com.example.innolive.feature.settings.broadcast.BroadcastSetting
@@ -87,8 +89,6 @@ private val broadcastPlatformOptions = listOf(
 )
 
 class MainActivity : ComponentActivity() {
-    private lateinit var credentialManager: CredentialManager
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -98,21 +98,21 @@ class MainActivity : ComponentActivity() {
                     AppNavigation(
                         modifier = Modifier
                             .padding(innerPadding)
-                            .background(color = MaterialTheme.colorScheme.background)
+                            .background(color = MaterialTheme.colorScheme.background),
                     )
                 }
             }
         }
-
-
-       credentialManager = CredentialManager.create(this)
     }
 }
+
 @Composable
 fun AppNavigation(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val sessionStore = remember(context) { GoogleSessionStore(context) }
+    var session by remember { mutableStateOf(sessionStore.load()) }
     val packageManager = context.packageManager
     val cameraDeviceOptions = remember(packageManager) {
         CameraLensFacing.supported(
@@ -140,7 +140,15 @@ fun AppNavigation(
             save = { it.toList() },
             restore = { it.toCollection(mutableStateListOf()) },
         ),
-    ) { mutableStateListOf<AppRoute>(LoginRoute) }
+    ) {
+        mutableStateListOf<AppRoute>(if (session == null) LoginRoute else LiveRoute)
+    }
+    LaunchedEffect(session) {
+        if (session != null && backStack.lastOrNull() == LoginRoute) {
+            backStack.clear()
+            backStack.add(LiveRoute)
+        }
+    }
     var selectedResolutionKey by rememberSaveable {
         mutableStateOf<String?>(null)
     }
@@ -196,13 +204,16 @@ fun AppNavigation(
     val selectedResolution = supportedCameraResolutions.firstOrNull { resolution ->
         resolution.key == selectedResolutionKey
     }
-
-    val onBack: () -> Unit = {
-        backStack.removeLastOrNull()
-    }
     val selectedAudioDevice = audioDeviceOptions.firstOrNull { device ->
         device.id == selectedAudioDeviceId
     } ?: audioDeviceOptions.firstOrNull()
+    val onBack: () -> Unit = {
+        if (backStack.size > 1) {
+            backStack.removeLastOrNull()
+        } else {
+            (context as? Activity)?.finish()
+        }
+    }
 
     NavDisplay(
         modifier = modifier.fillMaxSize(),
@@ -215,29 +226,41 @@ fun AppNavigation(
                         LoginScreen(
                             props = LoginScreenProps(
                                 onLogin = {
-                                    backStack.removeLastOrNull()
-                                    backStack.add(LiveRoute)
+                                    session = sessionStore.load()
+                                    if (session != null) {
+                                        backStack.clear()
+                                        backStack.add(LiveRoute)
+                                    }
                                 },
+                                onGoogleLogin = { continueWithGoogle(context) },
                             ),
                         )
                     }
                 }
 
-                is LiveRoute -> {
+                LiveRoute -> {
                     NavEntry(route) {
                         LiveScreen(
                             props = LiveScreenProps(
+                                profileName = session?.profileName.orEmpty(),
+                                profileEmail = session?.profileEmail.orEmpty(),
                                 cameraLensFacing = selectedCameraLensFacing,
                                 cameraResolution = selectedResolution,
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
                                 },
+                                onLogout = {
+                                    sessionStore.clear()
+                                    session = null
+                                    backStack.clear()
+                                    backStack.add(LoginRoute)
+                                },
                             ),
                         )
                     }
                 }
 
-                is SettingsRoute -> {
+                SettingsRoute -> {
                     NavEntry(route) {
                         SettingsScreen(
                             props = SettingsScreenProps(
@@ -253,7 +276,7 @@ fun AppNavigation(
                     }
                 }
 
-                is CameraSettingRoute -> {
+                CameraSettingRoute -> {
                     NavEntry(route) {
                         CameraSetting(
                             props = CameraSettingProps(
@@ -263,25 +286,25 @@ fun AppNavigation(
                                 selectedAudioDevice = selectedAudioDevice?.displayName.orEmpty(),
                                 onOpenResolutionOptions = {
                                     backStack.add(
-                                        SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION)
+                                        SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION),
                                     )
                                 },
                                 onOpenCameraDeviceOptions = {
                                     backStack.add(
-                                        SettingOptionRoute(SettingOptionType.CAMERA_DEVICE)
+                                        SettingOptionRoute(SettingOptionType.CAMERA_DEVICE),
                                     )
                                 },
                                 onOpenAudioDeviceOptions = {
                                     backStack.add(
-                                        SettingOptionRoute(SettingOptionType.AUDIO_DEVICE)
+                                        SettingOptionRoute(SettingOptionType.AUDIO_DEVICE),
                                     )
                                 },
-                            )
+                            ),
                         )
                     }
                 }
 
-                is BroadcastSettingRoute -> {
+                BroadcastSettingRoute -> {
                     NavEntry(route) {
                         BroadcastSetting(
                             props = BroadcastSettingProps(
@@ -289,7 +312,7 @@ fun AppNavigation(
                                 selectedPlatform = selectedBroadcastPlatform,
                                 onOpenPlatformOptions = {
                                     backStack.add(
-                                        SettingOptionRoute(SettingOptionType.BROADCAST_PLATFORM)
+                                        SettingOptionRoute(SettingOptionType.BROADCAST_PLATFORM),
                                     )
                                 },
                             ),
@@ -358,6 +381,6 @@ fun AppNavigation(
                     }
                 }
             }
-        }
+        },
     )
 }
