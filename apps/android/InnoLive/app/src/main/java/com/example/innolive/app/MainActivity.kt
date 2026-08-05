@@ -1,5 +1,6 @@
 package com.example.innolive.app
 
+import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -24,6 +25,7 @@ import com.example.innolive.feature.live.LiveScreen
 import com.example.innolive.feature.live.LiveScreenProps
 import com.example.innolive.feature.login.LoginScreen
 import com.example.innolive.feature.login.LoginScreenProps
+import com.example.innolive.feature.login.oauth.google.GoogleSessionStore
 import com.example.innolive.feature.login.oauth.google.continueWithGoogle
 import com.example.innolive.feature.settings.SettingsScreen
 import com.example.innolive.feature.settings.SettingsScreenProps
@@ -107,8 +109,10 @@ fun AppNavigation(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val sessionStore = remember(context) { GoogleSessionStore(context) }
+    var session by remember { mutableStateOf(sessionStore.load()) }
     val backStack = remember {
-        mutableStateListOf<AppRoute>(LoginRoute)
+        mutableStateListOf<AppRoute>(if (session == null) LoginRoute else LiveRoute)
     }
     var selectedResolution by rememberSaveable {
         mutableStateOf(cameraResolutionOptions.first())
@@ -124,7 +128,11 @@ fun AppNavigation(
     }
 
     val onBack: () -> Unit = {
-        backStack.removeLastOrNull()
+        if (backStack.size > 1) {
+            backStack.removeLastOrNull()
+        } else {
+            (context as? Activity)?.finish()
+        }
     }
 
     NavDisplay(
@@ -138,8 +146,11 @@ fun AppNavigation(
                         LoginScreen(
                             props = LoginScreenProps(
                                 onLogin = {
-                                    backStack.removeLastOrNull()
-                                    backStack.add(LiveRoute)
+                                    session = sessionStore.load()
+                                    if (session != null) {
+                                        backStack.clear()
+                                        backStack.add(LiveRoute)
+                                    }
                                 },
                                 onGoogleLogin = { continueWithGoogle(context) },
                             ),
@@ -151,8 +162,16 @@ fun AppNavigation(
                     NavEntry(route) {
                         LiveScreen(
                             props = LiveScreenProps(
+                                profileName = session?.profileName.orEmpty(),
+                                profileEmail = session?.profileEmail.orEmpty(),
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
+                                },
+                                onLogout = {
+                                    sessionStore.clear()
+                                    session = null
+                                    backStack.clear()
+                                    backStack.add(LoginRoute)
                                 },
                             ),
                         )
