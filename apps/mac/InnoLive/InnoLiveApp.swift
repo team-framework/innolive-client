@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import GoogleSignIn
 
 @main
 struct InnoLiveApp: App {
@@ -19,6 +20,9 @@ struct InnoLiveApp: App {
                 .environmentObject(cameraManager)
                 .environmentObject(broadcastManager)
                 .environmentObject(studio)
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }

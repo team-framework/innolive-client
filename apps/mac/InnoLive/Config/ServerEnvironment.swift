@@ -15,6 +15,7 @@ struct ServerEnvironment {
         static let serverURL = "INNOLIVE_SERVER_URL"
         static let signalingURL = "INNOLIVE_SIGNALING_URL"
         static let processedVideoURL = "INNOLIVE_PROCESSED_VIDEO_URL"
+        static let googleServerClientID = "INNOLIVE_GOOGLE_SERVER_CLIENT_ID"
     }
 
     private static let fallbackServerURLString = "http://127.0.0.1:8000"
@@ -22,6 +23,7 @@ struct ServerEnvironment {
     let httpBaseURL: URL
     let signalingURL: URL
     let processedVideoURL: URL
+    let googleServerClientID: String?
     let isConfiguredExternally: Bool
 
     var httpBaseURLString: String {
@@ -43,6 +45,7 @@ struct ServerEnvironment {
 
         httpBaseURL = ServerEnvironment.makeHTTPBaseURL(
             from: values[EnvKey.serverURL]
+                ?? Bundle.main.object(forInfoDictionaryKey: "InnoLiveServerURL") as? String
         )
         signalingURL = ServerEnvironment.makeSignalingURL(
             override: values[EnvKey.signalingURL],
@@ -52,6 +55,10 @@ struct ServerEnvironment {
             from: values[EnvKey.processedVideoURL],
             fallback: httpBaseURL
         )
+        googleServerClientID = ServerEnvironment.nonEmptyValue(values[EnvKey.googleServerClientID])
+            ?? ServerEnvironment.nonEmptyValue(
+                Bundle.main.object(forInfoDictionaryKey: "GIDServerClientID") as? String
+            )
     }
 
     func serverURL(path: String) -> URL? {
@@ -134,6 +141,14 @@ struct ServerEnvironment {
             return URL(string: trimmed)
         }
         return URL(string: "http://\(trimmed)")
+    }
+
+    private static func nonEmptyValue(_ value: String?) -> String? {
+        guard let value else {
+            return nil
+        }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func loadValues() -> [String: String] {
