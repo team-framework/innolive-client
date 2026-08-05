@@ -1,5 +1,6 @@
 package com.example.innolive.app
 
+import android.Manifest
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -18,12 +19,16 @@ class AuthenticatedNavigationTest {
 
     @Test
     fun savedSessionOpensLiveUntilLogout() {
-        val store = GoogleSessionStore(
-            InstrumentationRegistry.getInstrumentation().targetContext,
-        )
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val store = GoogleSessionStore(context)
         val existingSession = store.load()
 
         try {
+            instrumentation.uiAutomation.grantRuntimePermission(
+                context.packageName,
+                Manifest.permission.CAMERA,
+            )
             store.save(
                 GoogleSessionStore.Session(
                     accessToken = "access-token",
