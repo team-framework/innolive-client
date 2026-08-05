@@ -87,7 +87,7 @@ private fun exchangeGoogleIdToken(endpoint: URL, googleIdToken: String): GoogleS
     }
 }
 
-private fun parseGoogleSession(responseBody: String): GoogleSessionStore.Session {
+internal fun parseGoogleSession(responseBody: String): GoogleSessionStore.Session {
     val response = try {
         JSONObject(responseBody)
     } catch (exception: Exception) {
