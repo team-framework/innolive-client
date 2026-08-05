@@ -34,12 +34,16 @@ suspend fun continueWithGoogle(context: Context) {
     check(googleCredential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
         "Unexpected credential type returned for Google sign-in."
     }
-    val googleIdToken = GoogleIdTokenCredential.createFrom(googleCredential.data).idToken
+    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(googleCredential.data)
+    val googleIdToken = googleIdTokenCredential.idToken
 
     require(googleIdToken.isNotBlank()) { "Google ID token must not be blank." }
 
     withContext(Dispatchers.IO) {
-        val session = exchangeGoogleIdToken(googleAuthEndpoint(), googleIdToken)
+        val session = exchangeGoogleIdToken(googleAuthEndpoint(), googleIdToken).copy(
+            profileName = googleIdTokenCredential.displayName?.trim().orEmpty(),
+            profileEmail = googleIdTokenCredential.id.trim(),
+        )
         GoogleSessionStore(context).save(session)
     }
 }

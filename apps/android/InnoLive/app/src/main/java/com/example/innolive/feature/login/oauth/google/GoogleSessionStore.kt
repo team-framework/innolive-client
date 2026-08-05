@@ -9,6 +9,7 @@ import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
 private const val KEY_ALIAS = "innolive_google_session"
@@ -23,6 +24,8 @@ class GoogleSessionStore(context: Context) {
         val tokenType: String,
         val expiresIn: Long,
         val refreshExpiresIn: Long,
+        val profileName: String = "",
+        val profileEmail: String = "",
     )
 
     private val preferences = context.applicationContext.getSharedPreferences(
@@ -47,6 +50,31 @@ class GoogleSessionStore(context: Context) {
                 )
                 .commit(),
         ) { "Unable to persist the Google authentication session." }
+    }
+
+    fun load(): Session? {
+        val encryptedSession = preferences.getString(ENCRYPTED_SESSION_KEY, null) ?: return null
+        val initializationVector = preferences.getString(INITIALIZATION_VECTOR_KEY, null) ?: return null
+
+        return runCatching {
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                secretKey(),
+                GCMParameterSpec(128, Base64.decode(initializationVector, Base64.NO_WRAP)),
+            )
+            val sessionJson = cipher.doFinal(
+                Base64.decode(encryptedSession, Base64.NO_WRAP),
+            ).toString(Charsets.UTF_8)
+
+            JSONObject(sessionJson).toSession()
+        }.getOrNull()
+    }
+
+    fun clear() {
+        check(preferences.edit().clear().commit()) {
+            "Unable to clear the Google authentication session."
+        }
     }
 
     private fun secretKey(): SecretKey {
@@ -75,5 +103,17 @@ class GoogleSessionStore(context: Context) {
         .put("token_type", tokenType)
         .put("expires_in", expiresIn)
         .put("refresh_expires_in", refreshExpiresIn)
+        .put("profile_name", profileName)
+        .put("profile_email", profileEmail)
         .toString()
+
+    private fun JSONObject.toSession(): Session = Session(
+        accessToken = getString("access_token"),
+        refreshToken = getString("refresh_token"),
+        tokenType = getString("token_type"),
+        expiresIn = getLong("expires_in"),
+        refreshExpiresIn = getLong("refresh_expires_in"),
+        profileName = optString("profile_name"),
+        profileEmail = optString("profile_email"),
+    )
 }
