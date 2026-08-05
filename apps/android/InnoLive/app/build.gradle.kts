@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.innolive"
+        applicationId = "com.framework.innolive"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
