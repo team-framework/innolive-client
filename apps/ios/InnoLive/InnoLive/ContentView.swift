@@ -8,18 +8,26 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var isSignedIn = false
+    @StateObject private var authentication = AuthSession()
 
     var body: some View {
-        if isSignedIn {
-            NavigationStack {
-                HomeView()
-            }
-        } else {
-            NavigationStack {
-                SignInView(isSignedIn: $isSignedIn)
+        Group {
+            if authentication.isAuthenticated {
+                NavigationStack {
+                    HomeView()
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("로그아웃", systemImage: "rectangle.portrait.and.arrow.right") { authentication.signOut() }
+                            }
+                        }
+                }
+            } else {
+                NavigationStack {
+                    SignInView(authentication: authentication)
+                }
             }
         }
+        .task { authentication.restore() }
     }
 }
 

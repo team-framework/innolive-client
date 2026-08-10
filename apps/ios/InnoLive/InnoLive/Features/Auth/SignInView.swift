@@ -1,72 +1,74 @@
-//
-//  SignInView.swift
-//  InnoLive
-//
-//  Created by chaeyn on 7/25/26.
-//
-
-import SwiftUI
 import AuthenticationServices
+import GoogleSignIn
+import SwiftUI
+import UIKit
 
 struct SignInView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Binding var isSignedIn: Bool
+    @ObservedObject var authentication: AuthSession
+    @State private var appleNonce = ""
 
     var body: some View {
-        VStack (alignment: .leading, spacing: 24) {
-            VStack (alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("라이브 방송을 안전하게")
                 Text("만드는 쉬운 방법")
             }
             .font(.system(size: 30, weight: .semibold))
 
-            VStack (spacing: 8) {
-                SignInWithAppleButton(.signIn) { request in
-                    request.requestedScopes = [.fullName, .email]
-                } onCompletion: { result in
-                    switch result {
-                    case .success(let authorization):
-                        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-                            return
-                        }
-
-                        let userID = credential.user
-                        let email = credential.email
-                        let fullName = credential.fullName
-
-                        print(userID, email ?? "", fullName?.description ?? "")
-                        
-                        isSignedIn = true
-
-                    case .failure(let error):
-                        print("Apple 로그인 실패: \(error.localizedDescription)")
-                    }
+            VStack(spacing: 8) {
+                googleButton
+                appleButton
+                NavigationLink { EmailAuthView(authentication: authentication) } label: {
+                    Label("이메일로 계속하기", systemImage: "envelope.fill")
+                        .font(.callout.weight(.semibold)).frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .signInWithAppleButtonStyle(
-                    colorScheme == .dark ? .white : .black
-                )
-                .id(colorScheme)
-                .frame(
-                    maxWidth: .infinity,
-                    alignment: .center
-                )
-                .frame(height: 44)
+                .buttonStyle(.glass).frame(maxWidth: .infinity, minHeight: 44).disabled(authentication.isLoading)
+            }
+            if let errorMessage = authentication.errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity).padding(.horizontal, 24)
+    }
 
-                NavigationLink {
-                    EmailAuthView(isSignedIn: $isSignedIn)
-                } label: {
-                    Label("이메일로 로그인", systemImage: "envelope.fill")
-                        .font(.callout.weight(.semibold))
-                        .imageScale(.small)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle()) // 버튼 전체를 인식하도록 지정
+    private var googleButton: some View {
+        Button {
+            guard let presentingViewController else { return }
+            Task {
+                do {
+                    let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController)
+                    await authentication.signInWithGoogle(idToken: result.user.idToken?.tokenString ?? "")
+                } catch {
+                    authentication.showError("Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요.")
                 }
-                .buttonStyle(.glass)
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
+            }
+        } label: {
+            Label("Google로 계속하기", systemImage: "g.circle.fill")
+                .font(.callout.weight(.semibold)).frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .buttonStyle(.glass).frame(maxWidth: .infinity, minHeight: 44).disabled(authentication.isLoading)
+    }
+
+    private var appleButton: some View {
+        SignInWithAppleButton(.signIn) { request in
+            appleNonce = authentication.makeNonce()
+            request.nonce = appleNonce
+            request.requestedScopes = [.fullName, .email]
+        } onCompletion: { result in
+            switch result {
+            case .success(let authorization):
+                guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
+                Task { await authentication.signInWithApple(credential: credential, nonce: appleNonce) }
+            case .failure(let error) where (error as? ASAuthorizationError)?.code == .canceled:
+                break
+            case .failure:
+                authentication.showError("Apple 로그인을 완료하지 못했습니다. 다시 시도해 주세요.")
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 24)
+        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+        .frame(maxWidth: .infinity, minHeight: 44).disabled(authentication.isLoading)
+    }
+
+    private var presentingViewController: UIViewController? {
+        UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController
     }
 }

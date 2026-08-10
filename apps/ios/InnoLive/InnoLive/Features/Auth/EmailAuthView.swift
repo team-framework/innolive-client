@@ -1,131 +1,144 @@
-//
-//  EmailAuthView.swift
-//  InnoLive
-//
-//  Created by chaeyn on 7/25/26.
-//
-
 import SwiftUI
+import UIKit
 
-private enum EmailAuthDestination: Hashable {
-    case signIn
-    case signUp
-}
+private enum EmailAuthenticationStep { case email, signIn, signUp, verification }
 
 struct EmailAuthView: View {
-    @Binding var isSignedIn: Bool
+    @ObservedObject var authentication: AuthSession
+    @State private var step: EmailAuthenticationStep = .email
     @State private var email = ""
-    @State private var destination: EmailAuthDestination?
-    @State private var showsEmailError = false
-    @FocusState private var isEmailFocused: Bool
+    @State private var password = ""
+    @State private var passwordConfirmation = ""
+    @State private var verificationCode = ""
+    @FocusState private var focusedField: Field?
 
-    // 서버 연동 전 화면 분기를 확인하기 위한 임시 계정
-    private let existingEmails = ["chaeyn@dgsw.hs.kr"]
-
-    private var normalizedEmail: String {
-        email
-            .trimmingCharacters(in: .whitespacesAndNewlines) // 공백 제거
-            .lowercased()
-    }
-
-    private var isEmailValid: Bool {
-        let pattern = #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#
-        // .range(of:) 문자열 안에서 조건에 맞는 부분을 찾음
-        // options: .regularExpression: 정규식 규칙으로 찾음
-        return normalizedEmail.range(of: pattern, options: .regularExpression) != nil
-    }
+    private enum Field: Hashable { case email, password, passwordConfirmation, verificationCode }
+    private var normalizedEmail: String { AuthSession.normalizedEmail(email) }
+    private var canContinue: Bool { AuthSession.isValidEmail(normalizedEmail) }
+    private var canSignIn: Bool { canContinue && !password.isEmpty }
+    private var canSignUp: Bool { canContinue && AuthSession.isValidSignupPassword(password) && password == passwordConfirmation }
+    private var canVerify: Bool { verificationCode.count == 6 && verificationCode.allSatisfy(\.isNumber) }
 
     var body: some View {
-        VStack (spacing: 24) {
-            Text("로그인 또는 회원가입")
-                .font(.title.bold())
-
-            VStack (spacing: 12) {
-                TextField("이메일을 입력하세요.", text: $email)
-                    .font(.body)
-                    .focused($isEmailFocused)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never) // 입력 시작 글자를 자동으로 대문자로 만들지 않음
-                    .autocorrectionDisabled() // 자동완성, 오타 교정 해제
-                    .onChange(of: email) {
-                        showsEmailError = false
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(height: 52)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 12))
-                    .overlay {
-                        if showsEmailError {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous) // .continuous: 모서리의 둥근 정도
-                                .stroke(.red, lineWidth: 1)
-                        }
-                    }
-
-                if showsEmailError {
-                    Text("올바른 이메일 주소를 입력하세요.")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                HStack {
-                    Text("비밀번호를 잊어버리셨나요?")
-                    NavigationLink {
-                        PasswordResetRequestView(isSignedIn: $isSignedIn)
-                    } label: {
-                        Text("여기를 클릭")
-                    }
-                    Spacer()
-                }
-                .font(.caption)
-
-
-                Button {
-                    // 이메일 형식이 올바르지 않으면 오류를 표시하고 화면 이동을 중단
-                    guard isEmailValid else {
-                        showsEmailError = true
-                        return
-                    }
-
-                    email = normalizedEmail
-
-                    // 이메일에 따라 로그인/회원가입 분기
-                    if existingEmails.contains(normalizedEmail) {
-                        destination = .signIn
-                    } else {
-                        destination = .signUp
-                    }
-                } label: {
-                    Text("계속하기")
-                        .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.glassProminent)
-                .tint(.blue)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .disabled(email.isEmpty)
+        VStack(alignment: .leading, spacing: 24) {
+            if step != .email {
+                Button(action: goBack) { Label("뒤로", systemImage: "chevron.left") }
+                    .buttonStyle(.borderless)
             }
+            switch step {
+            case .email: emailStep
+            case .signIn: signInStep
+            case .signUp: signUpStep
+            case .verification: verificationStep
+            }
+            if let errorMessage = authentication.errorMessage {
+                Text(errorMessage).font(.caption).foregroundStyle(.red)
+            }
+            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding(.horizontal, 24)
-        .onAppear {
-            isEmailFocused = true
-        }
-        // 분기한 인증 타입에 따라 페이지가 달라짐
-        .navigationDestination(item: $destination) { destination in
-            switch destination {
-            case .signIn:
-                EmailSignInView(email: $email, isSignedIn: $isSignedIn)
-            case .signUp:
-                EmailSignUpView(email: $email, isSignedIn: $isSignedIn)
+        .padding(24)
+        .onAppear { focusedField = .email }
+        .onChange(of: step) { _, _ in
+            authentication.clearError()
+            switch step {
+            case .email: focusedField = .email
+            case .signIn, .signUp: focusedField = .password
+            case .verification: focusedField = .verificationCode
             }
         }
     }
-}
 
+    private var emailStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("이메일로 계속하기").font(.title.bold())
+            Text("로그인하거나 새 계정을 만들 수 있어요.").foregroundStyle(.secondary)
+            emailField
+            Button("로그인") { step = .signIn }
+                .buttonStyle(.glassProminent).tint(.blue)
+                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canContinue)
+            Button("회원가입") { step = .signUp }
+                .buttonStyle(.glass)
+                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canContinue)
+        }
+    }
 
-#Preview("Dark") {
-    EmailAuthView(isSignedIn: .constant(false))
-        .preferredColorScheme(.dark)
+    private var signInStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("로그인").font(.title.bold())
+            emailField.disabled(true).foregroundStyle(.secondary)
+            passwordField("비밀번호", text: $password, field: .password, contentType: .password)
+            Button { Task { await authentication.signIn(email: normalizedEmail, password: password) } } label: { actionLabel("로그인") }
+                .buttonStyle(.glassProminent).tint(.blue)
+                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canSignIn || authentication.isLoading)
+            Button("회원가입") { password = ""; step = .signUp }.frame(maxWidth: .infinity)
+        }
+    }
+
+    private var signUpStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("회원가입").font(.title.bold())
+            emailField.disabled(true).foregroundStyle(.secondary)
+            passwordField("비밀번호", text: $password, field: .password, contentType: .newPassword)
+            passwordField("비밀번호 확인", text: $passwordConfirmation, field: .passwordConfirmation, contentType: .newPassword)
+            if !passwordConfirmation.isEmpty && password != passwordConfirmation {
+                Text("비밀번호가 일치하지 않습니다.").font(.caption).foregroundStyle(.red)
+            }
+            Button {
+                Task {
+                    if await authentication.startSignup(email: normalizedEmail, password: password) {
+                        verificationCode = ""
+                        step = .verification
+                    }
+                }
+            } label: { actionLabel("인증 메일 보내기") }
+                .buttonStyle(.glassProminent).tint(.blue)
+                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canSignUp || authentication.isLoading)
+        }
+    }
+
+    private var verificationStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("이메일 인증").font(.title.bold())
+            Text("받은 6자리 인증 코드를 입력하세요.").foregroundStyle(.secondary)
+            TextField("000000", text: $verificationCode)
+                .keyboardType(.numberPad).textContentType(.oneTimeCode)
+                .multilineTextAlignment(.center).font(.title2.monospacedDigit())
+                .focused($focusedField, equals: .verificationCode)
+                .onChange(of: verificationCode) { _, value in verificationCode = String(value.filter(\.isNumber).prefix(6)) }
+                .padding(.horizontal, 16).frame(height: 52)
+                .glassEffect(.regular, in: .rect(cornerRadius: 12))
+            Button { Task { await authentication.verifySignup(code: verificationCode) } } label: { actionLabel("인증하고 로그인") }
+                .buttonStyle(.glassProminent).tint(.blue)
+                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canVerify || authentication.isLoading)
+            Button("코드 재전송") { Task { _ = await authentication.resendSignup() } }
+                .frame(maxWidth: .infinity).disabled(authentication.isLoading)
+        }
+    }
+
+    private var emailField: some View {
+        TextField("이메일", text: $email)
+            .textContentType(.emailAddress).keyboardType(.emailAddress)
+            .textInputAutocapitalization(.never).autocorrectionDisabled()
+            .focused($focusedField, equals: .email)
+            .padding(.horizontal, 16).frame(height: 52)
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+    }
+
+    private func passwordField(_ title: String, text: Binding<String>, field: Field, contentType: UITextContentType) -> some View {
+        SecureField(title, text: text).textContentType(contentType).focused($focusedField, equals: field)
+            .padding(.horizontal, 16).frame(height: 52)
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+    }
+
+    @ViewBuilder private func actionLabel(_ title: String) -> some View {
+        if authentication.isLoading { ProgressView().tint(.white) } else { Text(title) }
+    }
+
+    private func goBack() {
+        switch step {
+        case .email: break
+        case .verification: authentication.cancelSignup(); step = .signUp
+        case .signIn, .signUp: password = ""; passwordConfirmation = ""; step = .email
+        }
+    }
 }
