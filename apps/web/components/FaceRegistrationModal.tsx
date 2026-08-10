@@ -155,6 +155,7 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
   const isRegisteringRef = useRef(false)
   const [cameraState, setCameraState] = useState<CameraPreviewState>('loading')
   const [cameraMessage, setCameraMessage] = useState(() => t('faceRegistration.status.preparing'))
+  const [registrationDotCount, setRegistrationDotCount] = useState(1)
 
   useEffect(() => {
     if (!isOpen) {
@@ -297,6 +298,19 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
   }, [isOpen, onClose, registrationURL, t])
 
   useEffect(() => {
+    if (cameraState !== 'registering') {
+      setRegistrationDotCount(1)
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      setRegistrationDotCount((currentCount) => currentCount === 3 ? 1 : currentCount + 1)
+    }, 500)
+
+    return () => window.clearInterval(interval)
+  }, [cameraState])
+
+  useEffect(() => {
     if (!isOpen) {
       return
     }
@@ -324,7 +338,20 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
 
         <div className="relative mx-auto mt-8 aspect-square w-[min(100%,400px,calc(100dvh-365px))] overflow-hidden rounded-full border border-[#656565] bg-[#171717]">
           <video ref={videoRef} autoPlay muted playsInline className="size-full scale-x-[-1] object-cover" aria-label={t('faceRegistration.previewLabel')} />
-          {cameraState !== 'ready' && <div className="absolute inset-0 grid place-items-center bg-black/55 px-8 text-center text-sm leading-5 text-white/80">{cameraState === 'loading' ? t('faceRegistration.status.loading') : cameraState === 'registering' ? t('faceRegistration.status.registering') : cameraMessage}</div>}
+          {cameraState !== 'ready' && (
+            <div className="absolute inset-0 grid place-items-center bg-black/55 px-8 text-center text-sm leading-5 text-white/80">
+              {cameraState === 'registering' ? (
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex items-end gap-2" aria-hidden="true">
+                    {[0, 160, 320].map((delay) => (
+                      <span key={delay} className="size-2.5 animate-bounce rounded-full bg-white" style={{ animationDelay: `${delay}ms` }} />
+                    ))}
+                  </div>
+                  <p className="font-semibold text-white">{t('faceRegistration.status.registering')}{'.'.repeat(registrationDotCount)}</p>
+                </div>
+              ) : cameraState === 'loading' ? t('faceRegistration.status.loading') : cameraMessage}
+            </div>
+          )}
         </div>
         <canvas ref={cropCanvasRef} className="sr-only" aria-hidden="true" />
 
