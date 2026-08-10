@@ -43,6 +43,7 @@
       "idle": "시작하기를 누르면 체험을 시작합니다.",
       "ended": "체험이 종료되었습니다. 다시 시작할 수 있습니다.",
       "preparing": "카메라와 체험 서버를 준비하는 중입니다.",
+      "connectingTitle": "연결 중{{dots}}",
       "checkingCamera": "카메라 권한을 확인하는 중입니다.",
       "connected": "체험 서버에 연결되었습니다.",
       "creatingOffer": "WebRTC offer를 생성하는 중입니다.",
@@ -56,7 +57,7 @@
       "serverUrlProtocol": "체험 서버 주소는 ws 또는 wss URL이어야 합니다.",
       "sessionCreationFailed": "체험 세션 생성에 실패했습니다. ({{status}})",
       "missingSessionId": "체험 세션 응답에 session_id가 없습니다.",
-      "connectionTimeout": "WebRTC 연결 시간이 초과되었습니다.",
+      "connectionTimeout": "30초 안에 연결되지 않았습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.",
       "connectionLost": "WebRTC 연결이 끊겼습니다.",
       "offerCreationFailed": "WebRTC offer 생성에 실패했습니다.",
       "serverRejected": "체험 서버가 연결을 거절했습니다.",
@@ -67,6 +68,7 @@
     },
     "buttons": {
       "connecting": "연결 중...",
+      "cancel": "취소",
       "end": "체험 종료",
       "start": "시작하기",
       "registerFace": "얼굴 등록하기"

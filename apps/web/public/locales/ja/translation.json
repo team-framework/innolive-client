@@ -43,6 +43,7 @@
       "idle": "「始まる」を押すと、体験を開始できます。",
       "ended": "体験が終了しました。もう一度開始できます。",
       "preparing": "カメラと体験用サーバーを準備しています。",
+      "connectingTitle": "接続中{{dots}}",
       "checkingCamera": "カメラへのアクセス許可を確認しています。",
       "connected": "体験用サーバーに接続しました。",
       "creatingOffer": "WebRTC オファーを作成しています。",
@@ -56,7 +57,7 @@
       "serverUrlProtocol": "体験用サーバーのアドレスは、ws または wss URL である必要があります。",
       "sessionCreationFailed": "体験セッションを作成できませんでした。({{status}})",
       "missingSessionId": "体験セッションの応答に session_id がありません。",
-      "connectionTimeout": "WebRTC 接続がタイムアウトしました。",
+      "connectionTimeout": "30秒以内に接続できませんでした。ネットワークを確認して、もう一度お試しください。",
       "connectionLost": "WebRTC 接続が切断されました。",
       "offerCreationFailed": "WebRTC オファーを作成できませんでした。",
       "serverRejected": "体験用サーバーに接続を拒否されました。",
@@ -67,6 +68,7 @@
     },
     "buttons": {
       "connecting": "接続中...",
+      "cancel": "キャンセル",
       "end": "体験終了",
       "start": "始まる",
       "registerFace": "顔登録"

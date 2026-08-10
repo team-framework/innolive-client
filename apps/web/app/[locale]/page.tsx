@@ -2,10 +2,9 @@
 
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
-import { useState, type KeyboardEvent, type PointerEvent } from 'react'
-
+import { useState, type PointerEvent } from 'react'
 import { PreRegistrationForm } from '../../components/PreRegistrationForm'
-import { WebRTCExperience } from '../../components/WebRTCExperience'
+import { ExperienceDemo } from '../../components/ExperienceDemo'
 import { locales } from '../../proxy'
 
 export default function HomePage() {
@@ -92,7 +91,7 @@ export default function HomePage() {
 
       <section id="experience" className="flex min-h-screen scroll-mt-4 flex-col items-center justify-center gap-10 py-8">
         <div className="text-center"><h2 className="font-neurimbo text-5xl leading-none tracking-[-0.05em] md:text-[50px]">{t('home.experience.title')}</h2><p className="mt-[clamp(12px,0.83vw,16px)] text-base md:text-[clamp(18px,1.25vw,24px)]">{t('home.experience.description')}</p></div>
-        <WebRTCExperience />
+        <ExperienceDemo />
       </section>
 
       <section id="pre-registration" className="flex min-h-screen scroll-mt-4 flex-col items-center justify-center gap-16 px-6 py-20 text-center">

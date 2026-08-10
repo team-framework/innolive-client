@@ -43,6 +43,7 @@
       "idle": "Click ‘Start’ to begin the demo.",
       "ended": "The demo has ended. You can start it again.",
       "preparing": "Preparing the camera and demo server.",
+      "connectingTitle": "Connecting{{dots}}",
       "checkingCamera": "Checking camera permission.",
       "connected": "Connected to the demo server.",
       "creatingOffer": "Creating a WebRTC offer.",
@@ -56,7 +57,7 @@
       "serverUrlProtocol": "The demo server address must use a ws or wss URL.",
       "sessionCreationFailed": "Failed to create a demo session. ({{status}})",
       "missingSessionId": "The demo session response does not contain a session_id.",
-      "connectionTimeout": "The WebRTC connection timed out.",
+      "connectionTimeout": "Could not connect within 30 seconds. Check your network and try again.",
       "connectionLost": "The WebRTC connection was lost.",
       "offerCreationFailed": "Failed to create a WebRTC offer.",
       "serverRejected": "The demo server rejected the connection.",
@@ -67,6 +68,7 @@
     },
     "buttons": {
       "connecting": "Connecting...",
+      "cancel": "Cancel",
       "end": "End demo",
       "start": "Start",
       "registerFace": "Register face"
