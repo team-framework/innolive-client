@@ -1,6 +1,5 @@
 import AuthenticationServices
 import GoogleSignIn
-import GoogleSignInSwift
 import SwiftUI
 import UIKit
 
@@ -35,15 +34,35 @@ struct SignInView: View {
     }
 
     private var googleButton: some View {
-        GoogleSignInButton(
-            scheme: colorScheme == .dark ? .dark : .light,
-            style: .wide,
-            state: authentication.isLoading ? .disabled : .normal
-        ) {
-            signInWithGoogle()
+        Button(action: signInWithGoogle) {
+            HStack(spacing: 12) {
+                if let googleIcon = Self.googleIcon {
+                    Image(uiImage: googleIcon)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 18, height: 18)
+                }
+                Text("Google 계정으로 로그인")
+                    .font(.callout.weight(.semibold))
+            }
+            .foregroundStyle(Color(red: 31.0 / 255.0, green: 31.0 / 255.0, blue: 31.0 / 255.0))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.white, in: RoundedRectangle(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(red: 116.0 / 255.0, green: 119.0 / 255.0, blue: 119.0 / 255.0), lineWidth: 1)
+            }
         }
-        .frame(maxWidth: .infinity)
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity).frame(height: 48)
+        .disabled(authentication.isLoading)
     }
+
+    private static let googleIcon: UIImage? = {
+        let resourceBundleURL = Bundle.main.bundleURL.appendingPathComponent("GoogleSignIn_GoogleSignIn.bundle")
+        guard let resourceBundle = Bundle(url: resourceBundleURL) else { return nil }
+        return UIImage(named: "google", in: resourceBundle, compatibleWith: nil)
+    }()
 
     private func signInWithGoogle() {
         guard let presentingViewController else { return }
