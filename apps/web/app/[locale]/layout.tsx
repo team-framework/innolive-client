@@ -13,7 +13,14 @@ type LocaleLayoutProps = Readonly<{
 export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
   const { locale } = await params
   const t = await getTranslation(locale)
-  return { title: 'InnoLive', description: t('metadata.description') }
+  return {
+    title: 'InnoLive',
+    description: t('metadata.description'),
+    icons: {
+      icon: '/images/favicon.ico',
+      shortcut: '/images/favicon.ico',
+    },
+  }
 }
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
