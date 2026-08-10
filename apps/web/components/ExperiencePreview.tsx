@@ -37,7 +37,7 @@ export function ExperiencePreview({ state, statusText, videoRef }: ExperiencePre
           <video ref={videoRef} autoPlay muted playsInline className="block aspect-video w-full border border-[#5c5c5c] bg-black object-contain" aria-label={t('experience.video.processedLabel')} />
         ) : (
           <div className="relative overflow-hidden border border-[#5c5c5c]">
-            <img src="/figma/live-pending.svg" alt={t('experience.video.pendingAlt')} className="block w-full" />
+            <img src="/images/live-pending.svg" alt={t('experience.video.pendingAlt')} className="block w-full" />
             {isConnecting && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/55 px-6 text-center backdrop-blur-[2px]">
                 <div className="flex items-end gap-2" aria-hidden="true">
