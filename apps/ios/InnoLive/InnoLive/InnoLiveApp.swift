@@ -5,6 +5,7 @@
 //  Created by chaeyn on 7/25/26.
 //
 
+import GoogleSignIn
 import SwiftUI
 
 @main
@@ -15,6 +16,7 @@ struct InnoLiveApp: App {
         WindowGroup {
             ContentView()
                 .environment(cameraManager)
+                .onOpenURL { url in _ = GIDSignIn.sharedInstance.handle(url) }
         }
     }
 }

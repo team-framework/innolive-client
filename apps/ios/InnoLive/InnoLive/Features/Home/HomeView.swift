@@ -11,6 +11,7 @@ import SwiftUI
 struct HomeView: View {
     @State private var isBroadcasting = false
     @State private var isShowingCameraPermissionAlert = false
+    let onSignOut: () -> Void
     @Environment(CameraManager.self) private var cameraManager
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
@@ -39,24 +40,34 @@ struct HomeView: View {
                     alignment: .topLeading
                 )
 
-            if isCameraAccessDenied {
-                Button {
-                    isShowingCameraPermissionAlert = true
-                } label: {
-                    Label("카메라 권한 필요", systemImage: "camera.fill")
+            VStack(alignment: .trailing, spacing: 12) {
+                Button(action: onSignOut) {
+                    Label("로그아웃", systemImage: "rectangle.portrait.and.arrow.right")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(.regularMaterial, in: Capsule())
                 }
-                .padding(.top, 8)
-                .padding(.horizontal, 24)
-                .frame(
-                    maxWidth: .infinity,
-                    maxHeight: .infinity,
-                    alignment: .topTrailing
-                )
+
+                if isCameraAccessDenied {
+                    Button {
+                        isShowingCameraPermissionAlert = true
+                    } label: {
+                        Label("카메라 권한 필요", systemImage: "camera.fill")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.regularMaterial, in: Capsule())
+                    }
+                }
             }
+            .padding(.top, 8)
+            .padding(.horizontal, 24)
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: .infinity,
+                alignment: .topTrailing
+            )
 
             BroadcastControllsView(isBroadcasting: $isBroadcasting)
                 .padding(.horizontal, 24)
@@ -124,7 +135,7 @@ struct HomeView: View {
 
 #Preview {
     NavigationStack {
-        HomeView()
+        HomeView(onSignOut: { })
     }
     .environment(CameraManager())
 }
