@@ -24,7 +24,9 @@ struct SignInView: View {
                         Label("이메일로 계속하기", systemImage: "envelope.fill")
                             .font(.callout.weight(.semibold)).frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glass).frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
                 }
                 if let errorMessage = authentication.errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
             }
@@ -46,7 +48,9 @@ struct SignInView: View {
             Label("Google로 계속하기", systemImage: "g.circle.fill")
                 .font(.callout.weight(.semibold)).frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass).frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
+        .buttonStyle(.glass)
+        .controlSize(.large)
+        .frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
     }
 
     private var appleButton: some View {
@@ -66,7 +70,7 @@ struct SignInView: View {
             }
         }
         .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-        .frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
+        .frame(maxWidth: .infinity).frame(height: 48).disabled(authentication.isLoading)
     }
 
     private var presentingViewController: UIViewController? {
