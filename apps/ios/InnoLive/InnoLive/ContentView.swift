@@ -14,12 +14,7 @@ struct ContentView: View {
         Group {
             if authentication.isAuthenticated {
                 NavigationStack {
-                    HomeView()
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button("로그아웃", systemImage: "rectangle.portrait.and.arrow.right") { authentication.signOut() }
-                            }
-                        }
+                    HomeView(onSignOut: authentication.signOut)
                 }
             } else {
                 NavigationStack {
