@@ -15,6 +15,8 @@ final class AuthSession: ObservableObject {
 
     func restore() { isAuthenticated = tokenStore.load() != nil }
 
+    func currentAccessToken() -> String? { tokenStore.load()?.accessToken }
+
     func clearError() { errorMessage = nil }
 
     func showError(_ message: String) { errorMessage = message }
@@ -266,7 +268,7 @@ private struct AuthenticationAPI {
     }
 }
 
-private enum AuthenticationConfiguration {
+enum AuthenticationConfiguration {
     static func serverURL(path: String) -> URL? {
         guard let value = configuredServerURL,
               var components = URLComponents(string: value),
