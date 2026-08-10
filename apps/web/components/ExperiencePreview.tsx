@@ -42,7 +42,7 @@ export function ExperiencePreview({ state, statusText, processedVideoRef, localV
           </section>
           <section className="border border-[#5c5c5c] p-px">
             <p className="border border-[#5c5c5c] px-3 py-2 text-sm font-semibold text-white">{t('experience.video.after')}</p>
-            <video ref={processedVideoRef} autoPlay muted playsInline className="block aspect-video w-full bg-black object-contain" aria-label={t('experience.video.processedLabel')} />
+            <video ref={processedVideoRef} autoPlay muted playsInline className="block aspect-video w-full scale-x-[-1] bg-black object-contain" aria-label={t('experience.video.processedLabel')} />
           </section>
         </div>
       ) : (
