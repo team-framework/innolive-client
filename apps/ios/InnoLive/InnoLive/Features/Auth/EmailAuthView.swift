@@ -20,23 +20,23 @@ struct EmailAuthView: View {
     private var canVerify: Bool { verificationCode.count == 6 && verificationCode.allSatisfy(\.isNumber) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            if step != .email {
-                Button(action: goBack) { Label("뒤로", systemImage: "chevron.left") }
-                    .buttonStyle(.borderless)
+        AuthenticationLayout {
+            VStack(alignment: .leading, spacing: 24) {
+                if step != .email {
+                    Button(action: goBack) { Label("뒤로", systemImage: "chevron.left") }
+                        .buttonStyle(.borderless)
+                }
+                switch step {
+                case .email: emailStep
+                case .signIn: signInStep
+                case .signUp: signUpStep
+                case .verification: verificationStep
+                }
+                if let errorMessage = authentication.errorMessage {
+                    Text(errorMessage).font(.caption).foregroundStyle(.red)
+                }
             }
-            switch step {
-            case .email: emailStep
-            case .signIn: signInStep
-            case .signUp: signUpStep
-            case .verification: verificationStep
-            }
-            if let errorMessage = authentication.errorMessage {
-                Text(errorMessage).font(.caption).foregroundStyle(.red)
-            }
-            Spacer()
         }
-        .padding(24)
         .onAppear { focusedField = .email }
         .onChange(of: step) { _, _ in
             authentication.clearError()
@@ -55,10 +55,10 @@ struct EmailAuthView: View {
             emailField
             Button("로그인") { step = .signIn }
                 .buttonStyle(.glassProminent).tint(.blue)
-                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canContinue)
+                .frame(maxWidth: .infinity).frame(height: 52).disabled(!canContinue)
             Button("회원가입") { step = .signUp }
                 .buttonStyle(.glass)
-                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canContinue)
+                .frame(maxWidth: .infinity).frame(height: 52).disabled(!canContinue)
         }
     }
 
@@ -69,7 +69,7 @@ struct EmailAuthView: View {
             passwordField("비밀번호", text: $password, field: .password, contentType: .password)
             Button { Task { await authentication.signIn(email: normalizedEmail, password: password) } } label: { actionLabel("로그인") }
                 .buttonStyle(.glassProminent).tint(.blue)
-                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canSignIn || authentication.isLoading)
+                .frame(maxWidth: .infinity).frame(height: 52).disabled(!canSignIn || authentication.isLoading)
             Button("회원가입") { password = ""; step = .signUp }.frame(maxWidth: .infinity)
         }
     }
@@ -92,7 +92,7 @@ struct EmailAuthView: View {
                 }
             } label: { actionLabel("인증 메일 보내기") }
                 .buttonStyle(.glassProminent).tint(.blue)
-                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canSignUp || authentication.isLoading)
+                .frame(maxWidth: .infinity).frame(height: 52).disabled(!canSignUp || authentication.isLoading)
         }
     }
 
@@ -109,7 +109,7 @@ struct EmailAuthView: View {
                 .glassEffect(.regular, in: .rect(cornerRadius: 12))
             Button { Task { await authentication.verifySignup(code: verificationCode) } } label: { actionLabel("인증하고 로그인") }
                 .buttonStyle(.glassProminent).tint(.blue)
-                .frame(maxWidth: .infinity, minHeight: 52).disabled(!canVerify || authentication.isLoading)
+                .frame(maxWidth: .infinity).frame(height: 52).disabled(!canVerify || authentication.isLoading)
             Button("코드 재전송") { Task { _ = await authentication.resendSignup() } }
                 .frame(maxWidth: .infinity).disabled(authentication.isLoading)
         }

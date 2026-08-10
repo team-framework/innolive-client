@@ -9,25 +9,26 @@ struct SignInView: View {
     @State private var appleNonce = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("라이브 방송을 안전하게")
-                Text("만드는 쉬운 방법")
-            }
-            .font(.system(size: 30, weight: .semibold))
-
-            VStack(spacing: 8) {
-                googleButton
-                appleButton
-                NavigationLink { EmailAuthView(authentication: authentication) } label: {
-                    Label("이메일로 계속하기", systemImage: "envelope.fill")
-                        .font(.callout.weight(.semibold)).frame(maxWidth: .infinity, maxHeight: .infinity)
+        AuthenticationLayout {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("라이브 방송을 안전하게")
+                    Text("만드는 쉬운 방법")
                 }
-                .buttonStyle(.glass).frame(maxWidth: .infinity, minHeight: 44).disabled(authentication.isLoading)
+                .font(.system(size: 30, weight: .semibold))
+
+                VStack(spacing: 8) {
+                    googleButton
+                    appleButton
+                    NavigationLink { EmailAuthView(authentication: authentication) } label: {
+                        Label("이메일로 계속하기", systemImage: "envelope.fill")
+                            .font(.callout.weight(.semibold)).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.glass).frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
+                }
+                if let errorMessage = authentication.errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
             }
-            if let errorMessage = authentication.errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity).padding(.horizontal, 24)
     }
 
     private var googleButton: some View {
@@ -43,9 +44,9 @@ struct SignInView: View {
             }
         } label: {
             Label("Google로 계속하기", systemImage: "g.circle.fill")
-                .font(.callout.weight(.semibold)).frame(maxWidth: .infinity, maxHeight: .infinity)
+                .font(.callout.weight(.semibold)).frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass).frame(maxWidth: .infinity, minHeight: 44).disabled(authentication.isLoading)
+        .buttonStyle(.glass).frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
     }
 
     private var appleButton: some View {
@@ -65,7 +66,7 @@ struct SignInView: View {
             }
         }
         .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-        .frame(maxWidth: .infinity, minHeight: 44).disabled(authentication.isLoading)
+        .frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
     }
 
     private var presentingViewController: UIViewController? {
