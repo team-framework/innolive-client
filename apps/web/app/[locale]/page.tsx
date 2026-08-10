@@ -2,21 +2,71 @@
 
 import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
+import { useState, type KeyboardEvent, type PointerEvent } from 'react'
 
 import { PreRegistrationForm } from '../../components/PreRegistrationForm'
 import { WebRTCExperience } from '../../components/WebRTCExperience'
-import { useState } from "react";
-import {locales} from "../../proxy";
+import { locales } from '../../proxy'
 
 export default function HomePage() {
   const { t, i18n } = useTranslation()
   const locale = i18n.resolvedLanguage ?? 'ko'
   const [ isSelectLanguage, setIsSelectLanguage ] = useState(false)
+  // 두 이미지가 나뉘는 비교선 위치를 0부터 100까지의 비율로 관리
+  const [originalImagePosition, setOriginalImagePosition] = useState(36)
+
+  const updateOriginalImagePosition = (clientX: number, container: HTMLElement) => {
+    const bounds = container.getBoundingClientRect()
+    // 포인터의 가로 좌표를 이미지 전체 폭 기준의 비율로 바꾸고 화면 범위를 넘지 않게 제한
+    const position = ((clientX - bounds.left) / bounds.width) * 100
+    setOriginalImagePosition(Math.round(Math.min(100, Math.max(0, position))))
+  }
+
+  const handleComparisonPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    // 드래그가 영역 밖으로 나가도 계속 추적할 수 있도록 포인터를 현재 영역에 고정
+    event.currentTarget.setPointerCapture(event.pointerId)
+    updateOriginalImagePosition(event.clientX, event.currentTarget)
+  }
+
+  const handleComparisonPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    // 비교 슬라이더가 포인터를 잡은 경우에만 비교선 위치를 갱신
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      updateOriginalImagePosition(event.clientX, event.currentTarget)
+    }
+  }
 
   return (
     <main className="overflow-hidden bg-[#050505] text-white">
       <section className="relative flex min-h-screen items-end overflow-hidden px-6 pb-16 pt-6 md:px-12 md:pb-20">
+        {/* 전체 배경 위에 두 번째 이미지를 비교선 왼쪽에만 덮어 Before/After 효과를 만듦. */}
         <img src="/images/background.png" alt="" className="absolute inset-0 size-full object-cover object-center" />
+        <img
+          src="/images/de-identified-background.png"
+          alt=""
+          className="absolute inset-0 size-full object-cover object-center"
+          style={{ clipPath: `inset(0 ${100 - originalImagePosition}% 0 0)` }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 z-[1] w-px bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.75)]"
+          style={{ left: `${originalImagePosition}%` }}
+        >
+          <span className="absolute left-1/2 top-1/2 grid size-11 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-white/70 bg-black/35 backdrop-blur-sm">
+            <span className="h-4 w-5 border-x border-white/90" />
+          </span>
+        </div>
+        <div
+          aria-label="원본과 비식별화 이미지 비교 위치"
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={Math.round(originalImagePosition)}
+          aria-valuetext={`원본 이미지 ${originalImagePosition}%, 비식별화 이미지 ${100 - originalImagePosition}%`}
+          className="absolute inset-0 z-[2] cursor-ew-resize touch-none focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white"
+          onPointerDown={handleComparisonPointerDown}
+          onPointerMove={handleComparisonPointerMove}
+          role="slider"
+          tabIndex={0}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
         <header>
           <img src="/figma/Logo_WT.svg" alt="InnoLive" className="absolute left-6 top-6 z-10 h-auto w-[120px] md:left-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)] md:w-[clamp(124px,8.59vw,165px)]" />
