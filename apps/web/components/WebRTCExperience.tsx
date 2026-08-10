@@ -366,7 +366,7 @@ export function WebRTCExperience() {
         {isConnected ? (
           <video ref={videoRef} autoPlay muted playsInline className="block aspect-video w-full border border-[#5c5c5c] bg-black object-contain" aria-label={t('experience.video.processedLabel')} />
         ) : (
-          <img src="/figma/live-pending.svg" alt={t('experience.video.pendingAlt')} className="block w-full border border-[#5c5c5c]" />
+          <img src="/images/live-pending.svg" alt={t('experience.video.pendingAlt')} className="block w-full border border-[#5c5c5c]" />
         )}
       </div>
       <div className="flex flex-col items-center">
