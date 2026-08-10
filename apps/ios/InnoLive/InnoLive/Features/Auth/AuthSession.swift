@@ -20,6 +20,7 @@ final class AuthSession: ObservableObject {
     func showError(_ message: String) { errorMessage = message }
 
     func signIn(email: String, password: String) async {
+        clearError()
         let normalizedEmail = Self.normalizedEmail(email)
         guard Self.isValidEmail(normalizedEmail), !password.isEmpty else {
             errorMessage = "이메일 주소와 비밀번호를 입력해 주세요."
@@ -29,6 +30,7 @@ final class AuthSession: ObservableObject {
     }
 
     func startSignup(email: String, password: String) async -> Bool {
+        clearError()
         let normalizedEmail = Self.normalizedEmail(email)
         guard Self.isValidEmail(normalizedEmail) else {
             errorMessage = "올바른 이메일 주소를 입력해 주세요."
@@ -52,6 +54,7 @@ final class AuthSession: ObservableObject {
     }
 
     func verifySignup(code: String) async {
+        clearError()
         guard let pendingSignup else {
             errorMessage = "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요."
             return
@@ -88,6 +91,7 @@ final class AuthSession: ObservableObject {
     }
 
     func signInWithGoogle(idToken: String) async {
+        clearError()
         guard !idToken.isEmpty else {
             errorMessage = "Google 로그인 정보를 받지 못했습니다."
             return
@@ -96,6 +100,7 @@ final class AuthSession: ObservableObject {
     }
 
     func signInWithApple(credential: ASAuthorizationAppleIDCredential, nonce: String) async {
+        clearError()
         guard let authorizationCode = credential.authorizationCode,
               let code = String(data: authorizationCode, encoding: .utf8),
               !code.isEmpty else {

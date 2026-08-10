@@ -65,6 +65,7 @@ struct SignInView: View {
     }()
 
     private func signInWithGoogle() {
+        authentication.clearError()
         guard let presentingViewController else { return }
         Task {
             do {
@@ -78,6 +79,7 @@ struct SignInView: View {
 
     private var appleButton: some View {
         SignInWithAppleButton(.signIn) { request in
+            authentication.clearError()
             appleNonce = authentication.makeNonce()
             request.nonce = appleNonce
             request.requestedScopes = [.fullName, .email]

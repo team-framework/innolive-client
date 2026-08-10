@@ -37,7 +37,11 @@ struct EmailAuthView: View {
                 }
             }
         }
-        .onAppear { focusedField = .email }
+        .onAppear {
+            authentication.clearError()
+            focusedField = .email
+        }
+        .onDisappear { authentication.clearError() }
         .onChange(of: step) { _, _ in
             authentication.clearError()
             switch step {
@@ -104,7 +108,10 @@ struct EmailAuthView: View {
                 .keyboardType(.numberPad).textContentType(.oneTimeCode)
                 .multilineTextAlignment(.center).font(.title2.monospacedDigit())
                 .focused($focusedField, equals: .verificationCode)
-                .onChange(of: verificationCode) { _, value in verificationCode = String(value.filter(\.isNumber).prefix(6)) }
+                .onChange(of: verificationCode) { _, value in
+                    authentication.clearError()
+                    verificationCode = String(value.filter(\.isNumber).prefix(6))
+                }
                 .padding(.horizontal, 16).frame(height: 52)
                 .glassEffect(.regular, in: .rect(cornerRadius: 12))
             Button { Task { await authentication.verifySignup(code: verificationCode) } } label: { actionLabel("인증하고 로그인") }
@@ -120,12 +127,14 @@ struct EmailAuthView: View {
             .textContentType(.emailAddress).keyboardType(.emailAddress)
             .textInputAutocapitalization(.never).autocorrectionDisabled()
             .focused($focusedField, equals: .email)
+            .onChange(of: email) { _, _ in authentication.clearError() }
             .padding(.horizontal, 16).frame(height: 52)
             .glassEffect(.regular, in: .rect(cornerRadius: 12))
     }
 
     private func passwordField(_ title: String, text: Binding<String>, field: Field, contentType: UITextContentType) -> some View {
         SecureField(title, text: text).textContentType(contentType).focused($focusedField, equals: field)
+            .onChange(of: text.wrappedValue) { _, _ in authentication.clearError() }
             .padding(.horizontal, 16).frame(height: 52)
             .glassEffect(.regular, in: .rect(cornerRadius: 12))
     }
