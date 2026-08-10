@@ -35,7 +35,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="overflow-hidden bg-[#050505] text-white">
+    <main className="select-none overflow-hidden bg-[#050505] text-white">
       <section className="relative flex min-h-screen items-end overflow-hidden px-6 pb-16 pt-6 md:px-12 md:pb-20">
         {/* 전체 배경 위에 두 번째 이미지를 비교선 왼쪽에만 덮어 Before/After 효과를 만듦. */}
         <img src="/images/background.png" alt="" className="absolute inset-0 size-full object-cover object-center" />
