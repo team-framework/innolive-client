@@ -9,10 +9,16 @@ import { createExperienceSignalingSocket } from '../lib/experience-signaling'
 
 export type ExperienceState = 'idle' | 'connecting' | 'connected' | 'failed'
 
+function attachStreamToVideo(video: HTMLVideoElement, stream: MediaStream) {
+  video.srcObject = stream
+  void video.play().catch(() => undefined)
+}
+
 export function useExperienceConnection(t: TFunction) {
   const [state, setState] = useState<ExperienceState>('idle')
   const [statusText, setStatusText] = useState(() => t('experience.status.idle'))
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const processedVideoElementRef = useRef<HTMLVideoElement | null>(null)
+  const localVideoElementRef = useRef<HTMLVideoElement | null>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
   const socketRef = useRef<WebSocket | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -21,6 +27,22 @@ export function useExperienceConnection(t: TFunction) {
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([])
   const connectionAttemptRef = useRef(0)
   const connectionTimeoutRef = useRef<number | null>(null)
+
+  const processedVideoRef = useCallback((video: HTMLVideoElement | null) => {
+    processedVideoElementRef.current = video
+    const remoteStream = remoteStreamRef.current
+    if (video && remoteStream) {
+      attachStreamToVideo(video, remoteStream)
+    }
+  }, [])
+
+  const localVideoRef = useCallback((video: HTMLVideoElement | null) => {
+    localVideoElementRef.current = video
+    const localStream = localStreamRef.current
+    if (video && localStream) {
+      attachStreamToVideo(video, localStream)
+    }
+  }, [])
 
   const releaseResources = useCallback((deleteSession: boolean) => {
     const sessionID = sessionIDRef.current
@@ -46,8 +68,11 @@ export function useExperienceConnection(t: TFunction) {
     localStream?.getTracks().forEach((track) => track.stop())
     remoteStream?.getTracks().forEach((track) => track.stop())
 
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
+    if (processedVideoElementRef.current) {
+      processedVideoElementRef.current.srcObject = null
+    }
+    if (localVideoElementRef.current) {
+      localVideoElementRef.current.srcObject = null
     }
 
     if (deleteSession && sessionID) {
@@ -93,6 +118,9 @@ export function useExperienceConnection(t: TFunction) {
       }
 
       localStreamRef.current = localStream
+      if (localVideoElementRef.current) {
+        attachStreamToVideo(localVideoElementRef.current, localStream)
+      }
       const peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
       })
@@ -145,9 +173,8 @@ export function useExperienceConnection(t: TFunction) {
 
         const remoteStream = event.streams[0] ?? new MediaStream([event.track])
         remoteStreamRef.current = remoteStream
-        if (videoRef.current) {
-          videoRef.current.srcObject = remoteStream
-          void videoRef.current.play().catch(() => undefined)
+        if (processedVideoElementRef.current) {
+          attachStreamToVideo(processedVideoElementRef.current, remoteStream)
         }
       }
 
@@ -176,15 +203,14 @@ export function useExperienceConnection(t: TFunction) {
   }, [releaseResources])
 
   useEffect(() => {
-    const video = videoRef.current
+    const video = processedVideoElementRef.current
     const remoteStream = remoteStreamRef.current
     if (state !== 'connected' || !video || !remoteStream) {
       return
     }
 
-    video.srcObject = remoteStream
-    void video.play().catch(() => undefined)
+    attachStreamToVideo(video, remoteStream)
   }, [state])
 
-  return { state, statusText, videoRef, startExperience, endExperience, showStatusMessage: setStatusText }
+  return { state, statusText, processedVideoRef, localVideoRef, startExperience, endExperience, showStatusMessage: setStatusText }
 }

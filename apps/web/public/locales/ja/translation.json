@@ -71,10 +71,15 @@
       "cancel": "キャンセル",
       "end": "体験終了",
       "start": "始まる",
+      "showBeforeAfter": "Before / After を表示",
+      "hideBeforeAfter": "Before / After を隠す",
       "registerFace": "顔登録"
     },
     "video": {
       "processedLabel": "InnoLive サーバーで処理された映像",
+      "localLabel": "自分のプレビュー映像",
+      "before": "Before",
+      "after": "After",
       "pendingAlt": "InnoLive ライブ配信の待機画面",
       "notStored": "※ 映像はサーバーに保存されません。※"
     }

@@ -71,10 +71,15 @@
       "cancel": "취소",
       "end": "체험 종료",
       "start": "시작하기",
+      "showBeforeAfter": "Before / After 보기",
+      "hideBeforeAfter": "Before / After 숨기기",
       "registerFace": "얼굴 등록하기"
     },
     "video": {
       "processedLabel": "InnoLive 서버 처리 영상",
+      "localLabel": "내 미리보기 영상",
+      "before": "Before",
+      "after": "After",
       "pendingAlt": "InnoLive 라이브 대기 화면",
       "notStored": "※ 영상은 서버에 저장되지 않습니다. ※"
     }

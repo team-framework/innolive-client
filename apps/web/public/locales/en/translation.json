@@ -71,10 +71,15 @@
       "cancel": "Cancel",
       "end": "End demo",
       "start": "Start",
+      "showBeforeAfter": "View Before / After",
+      "hideBeforeAfter": "Hide Before / After",
       "registerFace": "Register face"
     },
     "video": {
       "processedLabel": "Video processed by the InnoLive server",
+      "localLabel": "My preview video",
+      "before": "Before",
+      "after": "After",
       "pendingAlt": "InnoLive live-stream standby screen",
       "notStored": "※ Video is not stored on the server. ※"
     }
