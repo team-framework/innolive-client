@@ -1,5 +1,6 @@
 import AuthenticationServices
 import GoogleSignIn
+import GoogleSignInSwift
 import SwiftUI
 import UIKit
 
@@ -34,23 +35,26 @@ struct SignInView: View {
     }
 
     private var googleButton: some View {
-        Button {
-            guard let presentingViewController else { return }
-            Task {
-                do {
-                    let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController)
-                    await authentication.signInWithGoogle(idToken: result.user.idToken?.tokenString ?? "")
-                } catch {
-                    authentication.showError("Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요.")
-                }
-            }
-        } label: {
-            Label("Google로 계속하기", systemImage: "g.circle.fill")
-                .font(.callout.weight(.semibold)).frame(maxWidth: .infinity)
+        GoogleSignInButton(
+            scheme: colorScheme == .dark ? .dark : .light,
+            style: .wide,
+            state: authentication.isLoading ? .disabled : .normal
+        ) {
+            signInWithGoogle()
         }
-        .buttonStyle(.glass)
-        .controlSize(.large)
-        .frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func signInWithGoogle() {
+        guard let presentingViewController else { return }
+        Task {
+            do {
+                let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController)
+                await authentication.signInWithGoogle(idToken: result.user.idToken?.tokenString ?? "")
+            } catch {
+                authentication.showError("Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요.")
+            }
+        }
     }
 
     private var appleButton: some View {

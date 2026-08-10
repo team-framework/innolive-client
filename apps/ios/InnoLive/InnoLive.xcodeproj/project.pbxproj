@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A1B2C3D40101010101010101 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D50101010101010101 /* GoogleSignIn */; };
+		A1B2C3D60101010101010101 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D70101010101010101 /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D40101010101010101 /* GoogleSignIn in Frameworks */,
+				A1B2C3D60101010101010101 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = InnoLive;
 			packageProductDependencies = (
 				A1B2C3D50101010101010101 /* GoogleSignIn */,
+				A1B2C3D70101010101010101 /* GoogleSignInSwift */,
 			);
 			productName = InnoLive;
 			productReference = 7B64AA013013CA7300BA69CE /* InnoLive.app */;
@@ -365,6 +368,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D30101010101010101 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignIn;
+		};
+		A1B2C3D70101010101010101 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D30101010101010101 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
