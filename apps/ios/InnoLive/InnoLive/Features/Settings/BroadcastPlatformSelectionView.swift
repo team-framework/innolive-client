@@ -85,11 +85,11 @@ struct BroadcastPlatformSelectionView: View {
                         if youtube.isConnecting {
                             ProgressView()
                         } else {
-                            Text("YouTube 계정 연결")
+                            Text("계정 연결")
                         }
                     }
                     .buttonStyle(.glassProminent)
-                    .tint(.red)
+                    .tint(.blue)
                     .disabled(youtube.isConnecting)
                 }
             }
