@@ -25,5 +25,8 @@ struct LocalPreviewView: View {
 
 #Preview {
     LocalPreviewView(session: AVCaptureSession(), cameraID: nil)
-        .frame(width: 132, height: 176)
+        .frame(
+            width: BroadcastVideoLayout.previewWidth,
+            height: BroadcastVideoLayout.previewHeight
+        )
 }
