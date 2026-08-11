@@ -10,6 +10,7 @@ type CameraPreviewState = 'loading' | 'ready' | 'registering' | 'failed'
 type FaceRegistrationModalProps = {
   isOpen: boolean
   registrationURL?: string
+  sessionID: string | null
   onClose: () => void
 }
 
@@ -96,8 +97,9 @@ function jpegBlob(canvas: HTMLCanvasElement, t: TFunction): Promise<Blob> {
   })
 }
 
-async function registerReferenceFace(registrationURL: string, image: Blob, t: TFunction) {
+async function registerReferenceFace(registrationURL: string, sessionID: string, image: Blob, t: TFunction) {
   const formData = new FormData()
+  formData.append('session_id', sessionID)
   formData.append('image', image, 'reference-face.jpg')
 
   let response: Response
@@ -145,7 +147,7 @@ async function createFaceDetector(t: TFunction): Promise<FaceDetector> {
   }
 }
 
-export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: FaceRegistrationModalProps) {
+export function FaceRegistrationModal({ isOpen, registrationURL, sessionID, onClose }: FaceRegistrationModalProps) {
   const { t } = useTranslation()
   const videoRef = useRef<HTMLVideoElement>(null)
   const cropCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -162,9 +164,9 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
       return
     }
 
-    if (!registrationURL) {
+    if (!registrationURL || !sessionID) {
       setCameraState('failed')
-      setCameraMessage(t('experience.status.faceServerMissing'))
+      setCameraMessage(t(!sessionID ? 'faceRegistration.errors.sessionRequired' : 'experience.status.faceServerMissing'))
       return
     }
 
@@ -214,7 +216,7 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
         setCameraState('registering')
         setCameraMessage(t('faceRegistration.status.registeringDetected'))
         const image = await jpegBlob(canvas, t)
-        await registerReferenceFace(registrationURL, image, t)
+        await registerReferenceFace(registrationURL, sessionID, image, t)
 
         if (!isActive) {
           return
@@ -295,7 +297,7 @@ export function FaceRegistrationModal({ isOpen, registrationURL, onClose }: Face
       detectorRef.current = null
       stopCamera()
     }
-  }, [isOpen, onClose, registrationURL, t])
+  }, [isOpen, onClose, registrationURL, sessionID, t])
 
   useEffect(() => {
     if (cameraState !== 'registering') {

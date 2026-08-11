@@ -94,6 +94,7 @@
       "imageCreate": "얼굴 등록용 이미지를 생성하지 못했습니다.",
       "jpegConversion": "캡처한 얼굴 이미지를 JPEG로 변환하지 못했습니다.",
       "serverConnection": "얼굴 등록 서버에 연결하지 못했습니다. 네트워크 상태를 확인해 주세요.",
+      "sessionRequired": "체험을 시작한 뒤 얼굴을 등록해 주세요.",
       "faceNotDetected": "얼굴 감지 실패",
       "serverRequest": "얼굴 등록 서버 요청에 실패했습니다. ({{status}})",
       "serverResponseParse": "얼굴 등록 서버 응답을 해석하지 못했습니다.",

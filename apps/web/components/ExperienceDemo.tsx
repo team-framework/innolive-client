@@ -11,7 +11,7 @@ const actionButtonClassName = 'cursor-pointer rounded-lg bg-white px-[clamp(15px
 
 export function ExperienceDemo() {
   const { t } = useTranslation()
-  const { state, statusText, processedVideoRef, localVideoRef, startExperience, endExperience, showStatusMessage } = useExperienceConnection(t)
+  const { state, statusText, sessionID, processedVideoRef, localVideoRef, startExperience, endExperience, showStatusMessage } = useExperienceConnection(t)
   const isConnecting = state === 'connecting'
   const isConnected = state === 'connected'
   const [isBeforeAfterVisible, setIsBeforeAfterVisible] = useState(false)
@@ -29,7 +29,7 @@ export function ExperienceDemo() {
       <div className="flex gap-[clamp(6px,0.42vw,8px)]">
         <button type="button" className={actionButtonClassName} onClick={isConnecting || isConnected ? endExperience : startExperience}>{primaryButtonText}</button>
         {isConnected && <button type="button" aria-pressed={isBeforeAfterVisible} className={actionButtonClassName} onClick={() => setIsBeforeAfterVisible((currentValue) => !currentValue)}>{isBeforeAfterVisible ? t('experience.buttons.hideBeforeAfter') : t('experience.buttons.showBeforeAfter')}</button>}
-        <FaceRegistrationControl buttonClassName={actionButtonClassName} onStatusMessage={showStatusMessage} />
+        <FaceRegistrationControl buttonClassName={actionButtonClassName} sessionID={sessionID} onStatusMessage={showStatusMessage} />
       </div>
     </div>
   )

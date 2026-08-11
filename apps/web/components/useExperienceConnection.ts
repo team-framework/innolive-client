@@ -17,6 +17,7 @@ function attachStreamToVideo(video: HTMLVideoElement, stream: MediaStream) {
 export function useExperienceConnection(t: TFunction) {
   const [state, setState] = useState<ExperienceState>('idle')
   const [statusText, setStatusText] = useState(() => t('experience.status.idle'))
+  const [sessionID, setSessionID] = useState<string | null>(null)
   const processedVideoElementRef = useRef<HTMLVideoElement | null>(null)
   const localVideoElementRef = useRef<HTMLVideoElement | null>(null)
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null)
@@ -56,6 +57,7 @@ export function useExperienceConnection(t: TFunction) {
     localStreamRef.current = null
     remoteStreamRef.current = null
     sessionIDRef.current = null
+    setSessionID(null)
     pendingCandidatesRef.current = []
 
     if (connectionTimeoutRef.current !== null) {
@@ -108,6 +110,7 @@ export function useExperienceConnection(t: TFunction) {
       }
 
       sessionIDRef.current = sessionID
+      setSessionID(sessionID)
       setStatusText(t('experience.status.checkingCamera'))
 
       const localStream = await getBestAvailableCameraStream()
@@ -212,5 +215,5 @@ export function useExperienceConnection(t: TFunction) {
     attachStreamToVideo(video, remoteStream)
   }, [state])
 
-  return { state, statusText, processedVideoRef, localVideoRef, startExperience, endExperience, showStatusMessage: setStatusText }
+  return { state, statusText, sessionID, processedVideoRef, localVideoRef, startExperience, endExperience, showStatusMessage: setStatusText }
 }
