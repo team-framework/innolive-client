@@ -18,16 +18,17 @@ struct RemoteStreamView: View {
 
     var body: some View {
         ZStack {
+            Color.black
+
             if uplink.isCapturingCamera {
                 WebRTCRemoteVideoView(uplink: uplink)
-                    .ignoresSafeArea()
-            } else {
-                Color.black
+            }
 
+            if !uplink.hasRemoteVideo {
                 ContentUnavailableView(
-                    "방송 송출 화면을 기다리는 중",
+                    uplink.isCapturingCamera ? "비식별화 영상을 준비하는 중" : "방송 송출 화면을 기다리는 중",
                     systemImage: "dot.radiowaves.left.and.right",
-                    description: Text("방송 시작 후 서버 처리 영상이 이 영역에 표시됩니다.")
+                    description: Text("서버 처리 영상이 준비되면 이 영역에 표시됩니다.")
                 )
                 .foregroundStyle(.white.opacity(0.8))
             }
@@ -96,23 +97,18 @@ private final class NativeWebRTCVideoView: UIView {
         super.layoutSubviews()
         remoteVideoView.frame = bounds
 
-        if hasRemoteVideo {
-            localVideoView.frame = CGRect(
-                x: 24,
-                y: 32,
-                width: BroadcastVideoLayout.previewWidth,
-                height: BroadcastVideoLayout.previewHeight
-            )
-            localVideoView.layer.cornerRadius = 18
-            localVideoView.layer.borderWidth = 1
-            localVideoView.layer.borderColor = UIColor.white.withAlphaComponent(0.65).cgColor
-            localVideoView.clipsToBounds = true
-        } else {
-            localVideoView.frame = bounds
-            localVideoView.layer.cornerRadius = 0
-            localVideoView.layer.borderWidth = 0
-            localVideoView.clipsToBounds = true
-        }
+        // 수신 영상이 오기 전에도 로컬 카메라는 작은 프리뷰로만 표시한다.
+        // 처리되지 않은 로컬 영상을 수신 화면 전체에 대신 표시하지 않는다.
+        localVideoView.frame = CGRect(
+            x: 24,
+            y: 32,
+            width: BroadcastVideoLayout.previewWidth,
+            height: BroadcastVideoLayout.previewHeight
+        )
+        localVideoView.layer.cornerRadius = 18
+        localVideoView.layer.borderWidth = 1
+        localVideoView.layer.borderColor = UIColor.white.withAlphaComponent(0.65).cgColor
+        localVideoView.clipsToBounds = true
 
         localVideoView.transform = mirrorsLocalVideo
             ? CGAffineTransform(scaleX: -1, y: 1)

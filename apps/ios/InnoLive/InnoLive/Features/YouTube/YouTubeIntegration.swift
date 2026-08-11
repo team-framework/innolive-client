@@ -276,7 +276,10 @@ final class YouTubeIntegration: ObservableObject {
         isChangingStreamState = true
         defer { isChangingStreamState = false }
         do {
-            stream = try await api.stopStream(session: session, accessToken: accessToken)
+            let stoppedStream = try await api.stopStream(session: session, accessToken: accessToken)
+            // YouTube 종료 반영에는 시간이 걸릴 수 있다. API 요청이 성공한 순간부터
+            // 앱에서는 송출을 종료로 처리해 타이머와 비식별화 제어 상태를 즉시 복구한다.
+            stream = stoppedStream.markedStoppedByUser()
             streamStartFallback = nil
             pollingTask?.cancel()
             pollingTask = nil

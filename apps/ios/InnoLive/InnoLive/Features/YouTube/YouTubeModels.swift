@@ -44,6 +44,16 @@ struct YouTubeStreamState: Decodable, Equatable {
         return fractionalFormatter.date(from: startedAt)
             ?? ISO8601DateFormatter().date(from: startedAt)
     }
+
+    func markedStoppedByUser() -> Self {
+        Self(
+            status: "stopped",
+            startedAt: nil,
+            publisherActive: publisherActive,
+            reconnectAttempts: reconnectAttempts,
+            stopReason: stopReason ?? "user_requested"
+        )
+    }
 }
 
 struct YouTubeVideoTrackState: Decodable, Equatable {
