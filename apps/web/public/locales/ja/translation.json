@@ -94,6 +94,7 @@
       "imageCreate": "顔登録用の画像を作成できませんでした。",
       "jpegConversion": "撮影した顔画像を JPEG に変換できませんでした。",
       "serverConnection": "顔登録サーバーに接続できませんでした。ネットワーク接続をご確認ください。",
+      "sessionRequired": "体験を開始してから顔を登録してください。",
       "faceNotDetected": "顔を検出できませんでした。",
       "serverRequest": "顔登録サーバーへのリクエストに失敗しました。({{status}})",
       "serverResponseParse": "顔登録サーバーからの応答を解析できませんでした。",

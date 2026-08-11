@@ -9,10 +9,11 @@ import { getExperienceServerEndpoints } from '../lib/experience-server'
 
 type FaceRegistrationControlProps = {
   buttonClassName: string
+  sessionID: string | null
   onStatusMessage: (message: string) => void
 }
 
-export function FaceRegistrationControl({ buttonClassName, onStatusMessage }: FaceRegistrationControlProps) {
+export function FaceRegistrationControl({ buttonClassName, sessionID, onStatusMessage }: FaceRegistrationControlProps) {
   const { t } = useTranslation()
   const [isPrivacyPolicyOpen, setIsPrivacyPolicyOpen] = useState(false)
   const [isFaceRegistrationOpen, setIsFaceRegistrationOpen] = useState(false)
@@ -23,6 +24,11 @@ export function FaceRegistrationControl({ buttonClassName, onStatusMessage }: Fa
       return
     }
 
+    if (!sessionID) {
+      onStatusMessage(t('faceRegistration.errors.sessionRequired'))
+      return
+    }
+
     try {
       const { sessionsURL } = getExperienceServerEndpoints(t)
       setFaceRegistrationURL(new URL('/reference-face', sessionsURL).toString())
@@ -30,7 +36,7 @@ export function FaceRegistrationControl({ buttonClassName, onStatusMessage }: Fa
     } catch (error) {
       onStatusMessage(error instanceof Error ? error.message : t('experience.status.faceServerMissing'))
     }
-  }, [onStatusMessage, t])
+  }, [onStatusMessage, sessionID, t])
 
   const openPrivacyPolicy = () => {
     if (localStorage.getItem('facePrivacyPolicy') === 'true') {
@@ -45,7 +51,7 @@ export function FaceRegistrationControl({ buttonClassName, onStatusMessage }: Fa
     <>
       <button type="button" className={buttonClassName} onClick={openPrivacyPolicy}>{t('experience.buttons.registerFace')}</button>
       <PrivacyPolicyModal isOpen={isPrivacyPolicyOpen} onClose={() => { setIsPrivacyPolicyOpen(false); openFaceRegistration() }} />
-      {faceRegistrationURL && <FaceRegistrationModal isOpen={isFaceRegistrationOpen} registrationURL={faceRegistrationURL} onClose={() => setIsFaceRegistrationOpen(false)} />}
+      {faceRegistrationURL && <FaceRegistrationModal isOpen={isFaceRegistrationOpen} registrationURL={faceRegistrationURL} sessionID={sessionID} onClose={() => setIsFaceRegistrationOpen(false)} />}
     </>
   )
 }

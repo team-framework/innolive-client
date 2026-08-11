@@ -94,6 +94,7 @@
       "imageCreate": "Could not create an image for face registration.",
       "jpegConversion": "Could not convert the captured face image to JPEG.",
       "serverConnection": "Could not connect to the face registration server. Check your network connection.",
+      "sessionRequired": "Start the experience before registering your face.",
       "faceNotDetected": "No face was detected.",
       "serverRequest": "The face registration server request failed. ({{status}})",
       "serverResponseParse": "Could not parse the response from the face registration server.",
