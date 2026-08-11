@@ -10,7 +10,7 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var isBroadcasting = false
-    @State private var isPreviewTransitioning = false
+    @State private var previewTransition: BroadcastPreviewTransition = .none
     @State private var isShowingCameraPermissionAlert = false
     @State private var isSwitchingCamera = false
     @State private var cameraSwitchErrorMessage: String?
@@ -29,11 +29,13 @@ struct HomeView: View {
         ZStack {
             RemoteStreamView(
                 uplink: youtube.videoUplink,
-                isPreviewTransitioning: isPreviewTransitioning
+                previewTransition: previewTransition,
+                isPreparingSession: youtube.isPreparingSession,
+                isConnectingVideo: youtube.isConnectingVideo
             )
                 .ignoresSafeArea()
 
-            if !youtube.videoUplink.isCapturingCamera && !isPreviewTransitioning {
+            if !youtube.videoUplink.isCapturingCamera && previewTransition == .none {
                 LocalPreviewView(
                     session: cameraManager.session,
                     // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
@@ -97,7 +99,7 @@ struct HomeView: View {
 
             BroadcastControllsView(
                 isBroadcasting: $isBroadcasting,
-                isPreviewTransitioning: $isPreviewTransitioning,
+                previewTransition: $previewTransition,
                 authentication: authentication,
                 youtube: youtube
             )
