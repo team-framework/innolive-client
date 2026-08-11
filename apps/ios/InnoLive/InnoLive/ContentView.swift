@@ -9,12 +9,16 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var authentication = AuthSession()
+    @StateObject private var youtube = YouTubeIntegration()
 
     var body: some View {
         Group {
             if authentication.isAuthenticated {
                 NavigationStack {
-                    HomeView(onSignOut: authentication.signOut)
+                    HomeView(
+                        authentication: authentication,
+                        youtube: youtube
+                    )
                 }
             } else {
                 NavigationStack {
@@ -22,7 +26,9 @@ struct ContentView: View {
                 }
             }
         }
-        .task { authentication.restore() }
+        .task {
+            authentication.restore()
+        }
     }
 }
 

@@ -6,13 +6,15 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @ObservedObject var authentication: AuthSession
+    @ObservedObject var youtube: YouTubeIntegration
     var body: some View {
         ScrollView {
             // Liquid Glass 효과를 자연스럽게 묶음
             GlassEffectContainer {
                 VStack(spacing: 12) {
                     NavigationLink {
-                        CameraAudioSettingsView()
+                        CameraAudioSettingsView(youtube: youtube)
                     } label: {
                         SettingsGlassRow {
                             settingsRowContent(
@@ -24,12 +26,24 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                     
                     NavigationLink {
-                        BroadcastSettingsView()
+                        BroadcastSettingsView(authentication: authentication, youtube: youtube)
                     } label: {
                         SettingsGlassRow {
                             settingsRowContent(
                                 title: "방송 설정",
                                 systemImage: "dot.radiowaves.left.and.right"
+                            )
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    NavigationLink {
+                        AccountSettingsView(authentication: authentication, youtube: youtube)
+                    } label: {
+                        SettingsGlassRow {
+                            settingsRowContent(
+                                title: "계정 설정",
+                                systemImage: "person.crop.circle.fill"
                             )
                         }
                     }
@@ -65,7 +79,7 @@ struct SettingsView: View {
 
 #Preview {
     NavigationStack {
-        SettingsView()
+        SettingsView(authentication: AuthSession(), youtube: YouTubeIntegration())
     }
     .environment(CameraManager())
 }
