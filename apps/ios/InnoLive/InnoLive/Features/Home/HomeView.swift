@@ -36,26 +36,23 @@ struct HomeView: View {
                 .ignoresSafeArea()
 
             if !youtube.videoUplink.isCapturingCamera && previewTransition == .none {
-                GeometryReader { proxy in
-                    LocalPreviewView(
-                        session: cameraManager.session,
-                        // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
-                        cameraID: cameraManager.currentCameraID
+                LocalPreviewView(
+                    session: cameraManager.session,
+                    // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
+                    cameraID: cameraManager.currentCameraID
+                )
+                    .frame(
+                        width: BroadcastVideoLayout.previewWidth,
+                        height: BroadcastVideoLayout.previewHeight
                     )
-                        .frame(
-                            width: BroadcastVideoLayout.previewWidth,
-                            height: BroadcastVideoLayout.previewHeight
-                        )
-                        .padding(.leading, 24)
-                        // 방송 중 PiP와 같은 높이로 맞추되 Dynamic Island는 피한다.
-                        .padding(.top, max(proxy.safeAreaInsets.top - 12, 54))
-                        .frame(
-                            maxWidth: .infinity,
-                            maxHeight: .infinity,
-                            alignment: .topLeading
-                        )
-                }
-                .allowsHitTesting(false)
+                    .padding(.leading, 24)
+                    // 이 ZStack은 이미 safe area 아래에서 시작하므로 추가 보정을 하지 않는다.
+                    .frame(
+                        maxWidth: .infinity,
+                        maxHeight: .infinity,
+                        alignment: .topLeading
+                    )
+                    .allowsHitTesting(false)
             }
 
             VStack(alignment: .trailing, spacing: 12) {
