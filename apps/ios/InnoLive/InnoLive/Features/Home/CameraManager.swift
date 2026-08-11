@@ -19,6 +19,7 @@ final class CameraManager {
     private(set) var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     private var videoInput: AVCaptureDeviceInput?
     private(set) var currentCameraID: String?
+    private(set) var currentCameraName: String?
 
     // AVCaptureSession을 만지는 작업은 이 큐에서만 실행
     private let sessionQueue = DispatchQueue(label: "com.innolive.camera.session")
@@ -80,7 +81,7 @@ final class CameraManager {
 
             session.addInput(input)
             videoInput = input
-            updateCurrentCameraID(cameraID)
+            updateCurrentCamera(device)
             return true
         } catch {
             print("카메라를 연결하지 못했습니다: \(error.localizedDescription)")
@@ -95,6 +96,29 @@ final class CameraManager {
         }
     }
 
+    // 네이티브 WebRTC capturer가 같은 카메라를 열기 전에 프리뷰 session의
+    // 장치 점유를 완전히 해제한다. 선택 상태는 유지하고 입력 객체만 제거한다.
+    func stopSession() async {
+        await withCheckedContinuation { continuation in
+            sessionQueue.async { [weak self] in
+                guard let self else {
+                    continuation.resume()
+                    return
+                }
+                if self.session.isRunning {
+                    self.session.stopRunning()
+                }
+                if let videoInput = self.videoInput {
+                    self.session.beginConfiguration()
+                    self.session.removeInput(videoInput)
+                    self.session.commitConfiguration()
+                    self.videoInput = nil
+                }
+                continuation.resume()
+            }
+        }
+    }
+
     // sessionQueue에서 실행
     private func startSessionOnSessionQueue() {
         guard !session.isRunning else {
@@ -104,20 +128,42 @@ final class CameraManager {
         session.startRunning()
     }
 
-    func switchCamera(to cameraID: String) {
-        sessionQueue.async { [weak self] in
-            self?.switchCameraOnSessionQueue(to: cameraID)
+    @discardableResult
+    @MainActor
+    func switchCamera(to cameraID: String) async -> Bool {
+        let switchedDevice: AVCaptureDevice? = await withCheckedContinuation { continuation in
+            sessionQueue.async { [weak self] in
+                guard let self,
+                      self.switchCameraOnSessionQueue(to: cameraID),
+                      let device = self.cameraDevice(for: cameraID) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: device)
+            }
         }
+        guard let switchedDevice else { return false }
+        currentCameraID = switchedDevice.uniqueID
+        currentCameraName = switchedDevice.localizedName
+        UserDefaults.standard.set(switchedDevice.uniqueID, forKey: CameraSettingKey.selectedCameraID)
+        return true
     }
 
     // sessionQueue에서 실행
-    private func switchCameraOnSessionQueue(to cameraID: String) {
-        // 이미 같은 카메라를 쓰고 있으면 다시 연결하지 않음
-        guard videoInput?.device.uniqueID != cameraID,
-              let device = cameraDevice(for: cameraID)
-        else {
-            return
+    private func switchCameraOnSessionQueue(to cameraID: String) -> Bool {
+        guard let device = cameraDevice(for: cameraID) else {
+            return false
         }
+
+        // 방송 중에는 네이티브 WebRTC capturer가 카메라를 점유
+        // 이때 설정에서 선택을 바꿔도 별도의 AVCaptureDeviceInput을 열지 않고
+        // 다음 방송에 쓸 선택값만 갱신해 현재 WebRTC 영상이 멈추는 것을 막음
+        guard videoInput != nil || session.isRunning else {
+            return true
+        }
+
+        // 이미 같은 카메라를 쓰고 있으면 다시 연결하지 않음
+        guard videoInput?.device.uniqueID != cameraID else { return true }
 
         do {
             let newInput = try AVCaptureDeviceInput(device: device)
@@ -136,15 +182,15 @@ final class CameraManager {
                 if let previousInput, session.canAddInput(previousInput) {
                     session.addInput(previousInput)
                 }
-                return
+                return false
             }
 
             session.addInput(newInput)
             videoInput = newInput
-            updateCurrentCameraID(cameraID)
-            UserDefaults.standard.set(cameraID, forKey: CameraSettingKey.selectedCameraID)
+            return true
         } catch {
             print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -186,9 +232,10 @@ final class CameraManager {
     }
 
     // sessionQueue에서 처리한 실제 카메라 상태를 메인 스레드에 반영
-    private func updateCurrentCameraID(_ cameraID: String) {
+    private func updateCurrentCamera(_ device: AVCaptureDevice) {
         DispatchQueue.main.async { [weak self] in
-            self?.currentCameraID = cameraID
+            self?.currentCameraID = device.uniqueID
+            self?.currentCameraName = device.localizedName
         }
     }
 }
