@@ -34,6 +34,13 @@ struct ContentView: View {
             youtube.reset()
             authentication.expireSession()
         }
+        .onChange(of: authentication.isAuthenticated) { _, isAuthenticated in
+            // 만료 요청의 비동기 실패 처리가 재로그인 뒤 도착해도 홈 화면에
+            // 이전 만료 오류 배너가 남지 않도록 한다.
+            if isAuthenticated {
+                youtube.dismissError()
+            }
+        }
     }
 }
 
