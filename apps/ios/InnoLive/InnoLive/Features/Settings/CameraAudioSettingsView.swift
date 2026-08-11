@@ -6,57 +6,58 @@
 import AVFoundation
 import SwiftUI
 
-// 선택 가능한 해상도 값 목록
-private enum CameraResolution: String, CaseIterable { // CaseIterable: 전체 case를 불러올 수 있게 함
-    case fullHD30 = "1080p - 30fps"
-    case fullHD24 = "1080p - 24fps"
-    case hd30 = "720p - 30fps"
-    case hd24 = "720p - 24fps"
+struct CameraOption: Identifiable, Hashable {
+    let id: String
+    let name: String
 }
 
-struct CameraOption: Identifiable, Hashable {
+struct AudioOption: Identifiable, Hashable {
     let id: String
     let name: String
 }
 
 struct CameraAudioSettingsView: View {
     @Environment(CameraManager.self) private var cameraManager
-    @AppStorage("selectedResolution") private var selectedResolutionRaw = CameraResolution.fullHD30.rawValue
-    @AppStorage("selectedCameraID") private var selectedCameraID = ""
+    @ObservedObject var youtube: YouTubeIntegration
+    @AppStorage("selectedResolution") private var selectedQualityRaw = CameraQualityPreset.defaultValue.rawValue
+    @State private var selectedCameraID = ""
     @State private var cameraOptions: [CameraOption] = []
-    @AppStorage("selectedAudio") private var selectedAudio = ""
-    @State private var audioNames: [String] = []
-
-
-    private var audioOptions: [String] { audioNames }
+    @State private var isChangingCamera = false
+    @State private var isChangingQuality = false
+    @State private var selectedAudioID = ""
+    @State private var audioOptions: [AudioOption] = []
+    @State private var isChangingAudio = false
+    @State private var deviceErrorMessage: String?
 
     var body: some View {
         ScrollView {
             GlassEffectContainer {
                 VStack(spacing: 12) {
-                    selectionRow(
-                        title: "카메라 해상도",
-                        systemImage: "video.fill",
-                        // 해상도 값을 선택 행에서 쓸 문자열 Binding으로 변환
-                        selection: Binding(
-                            get: {
-                                CameraResolution(rawValue: selectedResolutionRaw)?.rawValue
-                                    ?? CameraResolution.fullHD30.rawValue
-                            },
-                            set: { selectedResolutionRaw = $0 }
-                        ),
-                        // 모든 enum case를 문자열 목록으로 바꿈
-                        options: CameraResolution.allCases.map(\.rawValue)
+                    CameraQualitySelectionRow(
+                        selectedQualityRaw: $selectedQualityRaw,
+                        isChanging: isChangingQuality,
+                        isDisabled: isChangingCamera
                     )
 
-                    cameraSelectionRow()
-
-                    selectionRow(
-                        title: "오디오 기기",
-                        systemImage: "mic.fill",
-                        selection: $selectedAudio,
-                        options: audioOptions
+                    CameraDeviceSelectionRow(
+                        selectedCameraID: $selectedCameraID,
+                        options: cameraOptions,
+                        isChanging: isChangingCamera
                     )
+
+                    AudioDeviceSelectionRow(
+                        selectedAudioID: $selectedAudioID,
+                        options: audioOptions,
+                        isChanging: isChangingAudio
+                    )
+
+                    if let deviceErrorMessage {
+                        Label(deviceErrorMessage, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
                 }
             }
             .padding(24)
@@ -65,115 +66,189 @@ struct CameraAudioSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadAvailableDevices()
-            if !cameraOptions.contains(where: { $0.id == selectedCameraID }) {
-                // 현재 프리뷰에서 사용하는 카메라를 표시
-                selectedCameraID = cameraManager.currentCameraID ?? cameraOptions.first?.id ?? ""
-            }
-            if !audioOptions.contains(selectedAudio) {
-                selectedAudio = audioOptions.first ?? ""
-            }
-            if CameraResolution(rawValue: selectedResolutionRaw) == nil {
-                selectedResolutionRaw = CameraResolution.fullHD30.rawValue
+            let savedCameraID = UserDefaults.standard.string(forKey: "selectedCameraID")
+            selectedCameraID = youtube.videoUplink.currentCameraID
+                .flatMap(validCameraID)
+                ?? cameraManager.currentCameraID.flatMap(validCameraID)
+                ?? savedCameraID.flatMap { savedID in
+                    validCameraID(savedID)
+                }
+                ?? cameraOptions.first?.id
+                ?? ""
+            restoreAudioSelection()
+            if let activeQuality = youtube.videoUplink.currentVideoQuality {
+                selectedQualityRaw = activeQuality.rawValue
+            } else if CameraQualityPreset(rawValue: selectedQualityRaw) == nil {
+                selectedQualityRaw = CameraQualityPreset.defaultValue.rawValue
             }
         }
-        .onChange(of: selectedCameraID) { _, cameraID in
-            cameraManager.switchCamera(to: cameraID)
+        .onChange(of: selectedQualityRaw) { previousQuality, quality in
+            applyQualitySelection(quality, fallbackQuality: previousQuality)
+        }
+        .onChange(of: selectedCameraID) { previousCameraID, cameraID in
+            applyCameraSelection(cameraID, fallbackCameraID: previousCameraID)
+        }
+        .onChange(of: selectedAudioID) { previousAudioID, audioID in
+            applyAudioSelection(audioID, fallbackAudioID: previousAudioID)
         }
     }
 
-    private func selectionRow(
-        title: String,
-        systemImage: String,
-        selection: Binding<String>,
-        options: [String]
-    ) -> some View {
-        SettingsGlassRow {
-            HStack(spacing: 12) {
-                Image(systemName: systemImage)
-                    .frame(width: 24)
+    private func applyCameraSelection(_ cameraID: String, fallbackCameraID: String) {
+        let actualCameraID = youtube.videoUplink.currentCameraID ?? cameraManager.currentCameraID
+        guard !cameraID.isEmpty,
+              cameraID != actualCameraID,
+              !isChangingCamera else { return }
 
-                Text(title)
-                    .font(.body.weight(.semibold))
+        isChangingCamera = true
+        deviceErrorMessage = nil
+        Task { @MainActor in
+            defer { isChangingCamera = false }
 
-                Spacer()
-
-                // 누르면 선택 목록을 열고, 현재 선택값은 오른쪽에 표시하는 메뉴
-                Menu {
-                    Picker(title, selection: selection) {
-                        ForEach(options, id: \.self) { option in
-                            Text(option).tag(option)
-                        }
+            let previousCameraID = actualCameraID ?? fallbackCameraID
+            let didSwitch: Bool
+            if youtube.videoUplink.isCapturingCamera {
+                do {
+                    try await youtube.videoUplink.switchCamera(to: cameraID)
+                    let didStoreSelection = await cameraManager.switchCamera(to: cameraID)
+                    if !didStoreSelection, !previousCameraID.isEmpty {
+                        try? await youtube.videoUplink.switchCamera(to: previousCameraID)
                     }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(selection.wrappedValue)
-                            .lineLimit(1)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2.weight(.semibold))
+                    if didStoreSelection {
+                        didSwitch = true
+                    } else if youtube.videoUplink.currentCameraID == previousCameraID
+                                || youtube.videoUplink.currentCameraID == nil {
+                        didSwitch = false
+                        deviceErrorMessage = "카메라 선택을 저장하지 못해 기존 카메라를 계속 사용합니다."
+                    } else {
+                        // rollback도 실패했다면 실제 송출 중인 카메라를 UI에 유지한다.
+                        didSwitch = true
+                        selectedCameraID = youtube.videoUplink.currentCameraID ?? cameraID
+                        deviceErrorMessage = "기존 카메라로 복구하지 못했습니다. 현재 카메라를 계속 사용합니다."
                     }
-                    .foregroundStyle(.primary)
+                } catch {
+                    didSwitch = false
+                    deviceErrorMessage = (error as? LocalizedError)?.errorDescription
+                        ?? "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다."
+                }
+            } else {
+                didSwitch = await cameraManager.switchCamera(to: cameraID)
+                if !didSwitch {
+                    deviceErrorMessage = "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다."
                 }
             }
-        }
-    }
 
-    private var selectedCameraName: String {
-        cameraOptions.first { $0.id == selectedCameraID }?.name ?? ""
-    }
-
-    private func cameraSelectionRow() -> some View {
-        SettingsGlassRow {
-            HStack(spacing: 12) {
-                Image(systemName: "camera.fill")
-                    .frame(width: 24)
-
-                Text("카메라 기기")
-                    .font(.body.weight(.semibold))
-
-                Spacer()
-
-                Menu {
-                    Picker("카메라 기기", selection: $selectedCameraID) {
-                        ForEach(cameraOptions) { option in
-                            Text(option.name).tag(option.id)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(selectedCameraName)
-                            .lineLimit(1)
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.caption2.weight(.semibold))
-                    }
-                    .foregroundStyle(.primary)
-                }
+            if !didSwitch {
+                selectedCameraID = previousCameraID
             }
         }
+    }
+
+    private func applyQualitySelection(_ qualityRaw: String, fallbackQuality: String) {
+        guard let quality = CameraQualityPreset(rawValue: qualityRaw) else {
+            selectedQualityRaw = CameraQualityPreset.defaultValue.rawValue
+            return
+        }
+        guard !isChangingQuality,
+              quality != youtube.videoUplink.currentVideoQuality else { return }
+
+        // 방송 전에는 AppStorage에 보관하고, 방송 중에는 같은 video track을
+        // 유지한 채 실제 카메라 캡처 포맷을 즉시 바꾼다.
+        guard youtube.videoUplink.isCapturingCamera else { return }
+
+        isChangingQuality = true
+        deviceErrorMessage = nil
+        Task { @MainActor in
+            defer { isChangingQuality = false }
+            guard await youtube.switchVideoQuality(to: quality) else {
+                deviceErrorMessage = youtube.errorMessage
+                    ?? "화질을 변경하지 못해 기존 화질을 계속 사용합니다."
+                youtube.dismissError()
+                selectedQualityRaw = youtube.videoUplink.currentVideoQuality?.rawValue
+                    ?? fallbackQuality
+                return
+            }
+        }
+    }
+
+    private func applyAudioSelection(_ audioID: String, fallbackAudioID: String) {
+        guard !audioID.isEmpty,
+              !isChangingAudio,
+              audioID != youtube.videoUplink.currentAudioInputID else { return }
+
+        isChangingAudio = true
+        deviceErrorMessage = nil
+        defer { isChangingAudio = false }
+
+        if youtube.videoUplink.isCapturingCamera,
+           !youtube.switchAudioInput(to: audioID) {
+            deviceErrorMessage = youtube.errorMessage
+                ?? "오디오 기기를 전환하지 못해 기존 기기를 계속 사용합니다."
+            youtube.dismissError()
+            selectedAudioID = youtube.videoUplink.currentAudioInputID ?? fallbackAudioID
+            return
+        }
+
+        UserDefaults.standard.set(audioID, forKey: "selectedAudioID")
+    }
+
+    private func validCameraID(_ cameraID: String) -> String? {
+        cameraOptions.contains(where: { $0.id == cameraID }) ? cameraID : nil
+    }
+
+    private func restoreAudioSelection() {
+        let defaults = UserDefaults.standard
+        let savedAudioID = defaults.string(forKey: "selectedAudioID")
+        let legacyAudioName = defaults.string(forKey: "selectedAudio")
+        selectedAudioID = youtube.videoUplink.currentAudioInputID
+            .flatMap(validAudioID)
+            ?? savedAudioID.flatMap(validAudioID)
+            ?? legacyAudioName.flatMap { legacyName in
+                audioOptions.first(where: { $0.name == legacyName })?.id
+            }
+            ?? audioOptions.first?.id
+            ?? ""
+        if !selectedAudioID.isEmpty {
+            defaults.set(selectedAudioID, forKey: "selectedAudioID")
+        }
+    }
+
+    private func validAudioID(_ audioID: String) -> String? {
+        audioOptions.contains(where: { $0.id == audioID }) ? audioID : nil
     }
 
     private func loadAvailableDevices() {
         // AVFoundation이 현재 인식한 영상 촬영 장치 이름을 읽어옴
-        let cameras = AVCaptureDevice.DiscoverySession(
-            deviceTypes: [
-                .builtInTelephotoCamera,
-                .builtInWideAngleCamera,
-                .external
-            ],
-            mediaType: .video,
-            position: .unspecified
-        ).devices
+        let cameras = CameraDeviceCatalog.devices
 
         cameraOptions = cameras.map {
             CameraOption(id: $0.uniqueID, name: $0.localizedName)
         }
 
-        audioNames = (AVAudioSession.sharedInstance().availableInputs ?? []).map(\.portName)
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            // 방송 중에는 LKRTCAudioSession이 audio unit과 route를 소유하므로
+            // 여기서 category를 다시 설정하지 않고 현재 입력 목록만 읽는다.
+            if !youtube.videoUplink.isActive,
+               !youtube.videoUplink.isCapturingCamera {
+                try audioSession.setCategory(
+                    .playAndRecord,
+                    mode: .videoChat,
+                    options: [.allowBluetoothHFP, .defaultToSpeaker]
+                )
+            }
+            audioOptions = (audioSession.availableInputs ?? []).map {
+                AudioOption(id: $0.uid, name: $0.portName)
+            }
+        } catch {
+            audioOptions = []
+            deviceErrorMessage = "오디오 기기 목록을 불러오지 못했습니다."
+        }
     }
 }
 
 #Preview {
     NavigationStack {
-        CameraAudioSettingsView()
+        CameraAudioSettingsView(youtube: YouTubeIntegration())
     }
     .environment(CameraManager())
 }

@@ -41,7 +41,8 @@ final class PreviewView: UIView {
 
     func configure(session: AVCaptureSession, cameraID: String?) {
         previewLayer.session = session
-        previewLayer.videoGravity = .resizeAspectFill
+        // 비식별화 전후에 같은 전체 프레임 비율을 보여 주도록 잘라내지 않음
+        previewLayer.videoGravity = .resizeAspect
 
         // 같은 카메라는 중복 등록을 막음
         guard observedCameraID != cameraID else {

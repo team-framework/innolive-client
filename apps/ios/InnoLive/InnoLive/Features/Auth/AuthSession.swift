@@ -15,6 +15,8 @@ final class AuthSession: ObservableObject {
 
     func restore() { isAuthenticated = tokenStore.load() != nil }
 
+    func currentAccessToken() -> String? { tokenStore.load()?.accessToken }
+
     func clearError() { errorMessage = nil }
 
     func showError(_ message: String) { errorMessage = message }
@@ -124,6 +126,13 @@ final class AuthSession: ObservableObject {
         isAuthenticated = false
     }
 
+    func expireSession() {
+        tokenStore.remove()
+        pendingSignup = nil
+        errorMessage = "로그인이 만료되었습니다. 다시 로그인해 주세요."
+        isAuthenticated = false
+    }
+
     func makeNonce() -> String {
         let characters = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         var nonce = ""
@@ -181,6 +190,14 @@ final class AuthSession: ObservableObject {
 }
 
 private struct PendingSignup { let email: String; let password: String; let token: String }
+
+enum AuthenticationSessionExpiration {
+    static let notification = Notification.Name("com.framework.innolive.authentication.expired")
+
+    static func notify() {
+        NotificationCenter.default.post(name: notification, object: nil)
+    }
+}
 
 private struct AuthenticationTokenPair: Codable {
     let accessToken: String
@@ -266,7 +283,7 @@ private struct AuthenticationAPI {
     }
 }
 
-private enum AuthenticationConfiguration {
+enum AuthenticationConfiguration {
     static func serverURL(path: String) -> URL? {
         guard let value = configuredServerURL,
               var components = URLComponents(string: value),

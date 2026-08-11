@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A1B2C3D40101010101010101 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D50101010101010101 /* GoogleSignIn */; };
+		B2C3D4E50101010101010101 /* LiveKitWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = B2C3D4E60101010101010101 /* LiveKitWebRTC */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D40101010101010101 /* GoogleSignIn in Frameworks */,
+				B2C3D4E50101010101010101 /* LiveKitWebRTC in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +73,7 @@
 			name = InnoLive;
 			packageProductDependencies = (
 				A1B2C3D50101010101010101 /* GoogleSignIn */,
+				B2C3D4E60101010101010101 /* LiveKitWebRTC */,
 			);
 			productName = InnoLive;
 			productReference = 7B64AA013013CA7300BA69CE /* InnoLive.app */;
@@ -103,6 +106,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A1B2C3D30101010101010101 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				B2C3D4E40101010101010101 /* XCRemoteSwiftPackageReference "webrtc-xcframework" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7B64AA023013CA7300BA69CE /* Products */;
@@ -358,6 +362,14 @@
 				minimumVersion = 9.0.0;
 			};
 		};
+		B2C3D4E40101010101010101 /* XCRemoteSwiftPackageReference "webrtc-xcframework" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/livekit/webrtc-xcframework";
+			requirement = {
+				kind = exactVersion;
+				version = 144.7559.11;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -365,6 +377,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D30101010101010101 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignIn;
+		};
+		B2C3D4E60101010101010101 /* LiveKitWebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B2C3D4E40101010101010101 /* XCRemoteSwiftPackageReference "webrtc-xcframework" */;
+			productName = LiveKitWebRTC;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

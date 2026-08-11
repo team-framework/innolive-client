@@ -67,6 +67,15 @@ struct SignInView: View {
     private func signInWithGoogle() {
         authentication.clearError()
         guard let presentingViewController else { return }
+        guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
+              let serverClientID = Bundle.main.object(forInfoDictionaryKey: "GIDServerClientID") as? String else {
+            authentication.showError("Google 로그인 설정이 필요합니다.")
+            return
+        }
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(
+            clientID: clientID,
+            serverClientID: serverClientID
+        )
         Task {
             do {
                 let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController)

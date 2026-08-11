@@ -6,12 +6,14 @@
 import SwiftUI
 
 struct BroadcastSettingsView: View {
+    @ObservedObject var authentication: AuthSession
+    @ObservedObject var youtube: YouTubeIntegration
     var body: some View {
         ScrollView {
             GlassEffectContainer {
                 VStack(spacing: 12) {
                     NavigationLink {
-                        BroadcastPlatformSelectionView()
+                        BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
                     } label: {
                         SettingsGlassRow {
                             settingsRow(title: "방송할 플랫폼")
@@ -40,6 +42,6 @@ struct BroadcastSettingsView: View {
 
 #Preview {
     NavigationStack {
-        BroadcastSettingsView()
+        BroadcastSettingsView(authentication: AuthSession(), youtube: YouTubeIntegration())
     }
 }
