@@ -180,7 +180,7 @@ private final class NativeWebRTCVideoView: UIView {
         // 처리되지 않은 로컬 영상을 수신 화면 전체에 대신 표시하지 않는다.
         localVideoView.frame = CGRect(
             x: 24,
-            y: 32,
+            y: max(safeAreaInsets.top, 54),
             width: BroadcastVideoLayout.previewWidth,
             height: BroadcastVideoLayout.previewHeight
         )

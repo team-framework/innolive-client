@@ -47,8 +47,8 @@ struct HomeView: View {
                             height: BroadcastVideoLayout.previewHeight
                         )
                         .padding(.leading, 24)
-                        // Dynamic Island가 있는 기기에서는 safe area 아래에 여백을 더 둔다.
-                        .padding(.top, max(proxy.safeAreaInsets.top, 54) + 12)
+                        // Dynamic Island 아래 safe area부터 배치해 겹침을 피한다.
+                        .padding(.top, max(proxy.safeAreaInsets.top, 54))
                         .frame(
                             maxWidth: .infinity,
                             maxHeight: .infinity,
