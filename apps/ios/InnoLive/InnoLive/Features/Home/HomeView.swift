@@ -36,22 +36,26 @@ struct HomeView: View {
                 .ignoresSafeArea()
 
             if !youtube.videoUplink.isCapturingCamera && previewTransition == .none {
-                LocalPreviewView(
-                    session: cameraManager.session,
-                    // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
-                    cameraID: cameraManager.currentCameraID
-                )
-                    .frame(
-                        width: BroadcastVideoLayout.previewWidth,
-                        height: BroadcastVideoLayout.previewHeight
+                GeometryReader { proxy in
+                    LocalPreviewView(
+                        session: cameraManager.session,
+                        // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
+                        cameraID: cameraManager.currentCameraID
                     )
-                    .padding(.horizontal, 24)
-                    .padding(.top, 8)
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: .infinity,
-                        alignment: .topLeading
-                    )
+                        .frame(
+                            width: BroadcastVideoLayout.previewWidth,
+                            height: BroadcastVideoLayout.previewHeight
+                        )
+                        .padding(.leading, 24)
+                        // Dynamic Island가 있는 기기에서는 safe area 아래에 여백을 더 둔다.
+                        .padding(.top, max(proxy.safeAreaInsets.top, 54) + 12)
+                        .frame(
+                            maxWidth: .infinity,
+                            maxHeight: .infinity,
+                            alignment: .topLeading
+                        )
+                }
+                .allowsHitTesting(false)
             }
 
             VStack(alignment: .trailing, spacing: 12) {
