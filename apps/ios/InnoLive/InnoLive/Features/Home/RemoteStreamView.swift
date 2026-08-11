@@ -15,12 +15,15 @@ enum BroadcastVideoLayout {
 
 struct RemoteStreamView: View {
     @ObservedObject var uplink: WebRTCVideoUplink
+    let isPreviewTransitioning: Bool
 
     var body: some View {
         ZStack {
             Color.black
 
-            if uplink.isCapturingCamera {
+            if uplink.isCapturingCamera,
+               !uplink.isReleasingCamera,
+               !isPreviewTransitioning {
                 WebRTCRemoteVideoView(uplink: uplink)
             }
 
@@ -117,5 +120,5 @@ private final class NativeWebRTCVideoView: UIView {
 }
 
 #Preview {
-    RemoteStreamView(uplink: WebRTCVideoUplink())
+    RemoteStreamView(uplink: WebRTCVideoUplink(), isPreviewTransitioning: false)
 }

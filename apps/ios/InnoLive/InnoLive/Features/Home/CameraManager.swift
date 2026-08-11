@@ -194,40 +194,44 @@ final class CameraManager {
         }
     }
 
-    // 앱을 처음 열었을 때 전면 카메라를 연결하고 시작
-    func startDefaultCamera() {
-        sessionQueue.async { [weak self] in
-            guard let self else {
-                return
-            }
+    // 앱을 처음 열었을 때 전면 카메라를 연결하고 시작한다.
+    // 반환 시점에는 입력 연결과 session 실행이 끝나 있어 프리뷰를 안전하게 표시할 수 있다.
+    func startDefaultCamera() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            sessionQueue.async { [weak self] in
+                defer { continuation.resume() }
+                guard let self else {
+                    return
+                }
 
-            let savedCamera = UserDefaults.standard
-                .string(forKey: CameraSettingKey.selectedCameraID)
-                .flatMap(self.cameraDevice(for:))
-            let frontCamera = AVCaptureDevice.default(
-                .builtInWideAngleCamera,
-                for: .video,
-                position: .front
-            )
+                let savedCamera = UserDefaults.standard
+                    .string(forKey: CameraSettingKey.selectedCameraID)
+                    .flatMap(self.cameraDevice(for:))
+                let frontCamera = AVCaptureDevice.default(
+                    .builtInWideAngleCamera,
+                    for: .video,
+                    position: .front
+                )
 
-            guard let camera = savedCamera ?? frontCamera
-            else {
-                return
-            }
-
-            // 카메라 정보가 없으면 전면 카메라를 기본으로 사용
-            guard self.addCameraInputOnSessionQueue(for: camera.uniqueID) else {
-                guard let frontCamera,
-                      frontCamera.uniqueID != camera.uniqueID,
-                      self.addCameraInputOnSessionQueue(for: frontCamera.uniqueID)
+                guard let camera = savedCamera ?? frontCamera
                 else {
                     return
                 }
 
+                // 카메라 정보가 없으면 전면 카메라를 기본으로 사용
+                guard self.addCameraInputOnSessionQueue(for: camera.uniqueID) else {
+                    guard let frontCamera,
+                          frontCamera.uniqueID != camera.uniqueID,
+                          self.addCameraInputOnSessionQueue(for: frontCamera.uniqueID)
+                    else {
+                        return
+                    }
+
+                    self.startSessionOnSessionQueue()
+                    return
+                }
                 self.startSessionOnSessionQueue()
-                return
             }
-            self.startSessionOnSessionQueue()
         }
     }
 

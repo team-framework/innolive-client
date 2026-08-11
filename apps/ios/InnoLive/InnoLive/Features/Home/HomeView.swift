@@ -10,6 +10,7 @@ import SwiftUI
 
 struct HomeView: View {
     @State private var isBroadcasting = false
+    @State private var isPreviewTransitioning = false
     @State private var isShowingCameraPermissionAlert = false
     @State private var isSwitchingCamera = false
     @State private var cameraSwitchErrorMessage: String?
@@ -26,10 +27,13 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            RemoteStreamView(uplink: youtube.videoUplink)
+            RemoteStreamView(
+                uplink: youtube.videoUplink,
+                isPreviewTransitioning: isPreviewTransitioning
+            )
                 .ignoresSafeArea()
 
-            if !youtube.videoUplink.isCapturingCamera {
+            if !youtube.videoUplink.isCapturingCamera && !isPreviewTransitioning {
                 LocalPreviewView(
                     session: cameraManager.session,
                     // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
@@ -93,6 +97,7 @@ struct HomeView: View {
 
             BroadcastControllsView(
                 isBroadcasting: $isBroadcasting,
+                isPreviewTransitioning: $isPreviewTransitioning,
                 authentication: authentication,
                 youtube: youtube
             )
@@ -110,7 +115,9 @@ struct HomeView: View {
             guard !youtube.videoUplink.isCapturingCamera else { return }
             switch cameraManager.authorizationStatus {
             case .authorized:
-                cameraManager.startDefaultCamera()
+                Task {
+                    await cameraManager.startDefaultCamera()
+                }
 
             case .notDetermined:
                 cameraManager.requestCameraAccess()
@@ -126,7 +133,9 @@ struct HomeView: View {
         .onChange(of: cameraManager.authorizationStatus) { _, status in
             if status == .authorized, !youtube.videoUplink.isCapturingCamera {
                 // 권한 팝업에서 허용을 누른 직후 첫 번째 카메라를 시작함
-                cameraManager.startDefaultCamera()
+                Task {
+                    await cameraManager.startDefaultCamera()
+                }
             } else if status == .denied || status == .restricted {
                 isShowingCameraPermissionAlert = true
             }
@@ -139,7 +148,7 @@ struct HomeView: View {
                     accessToken: authentication.currentAccessToken()
                 )
                 if cameraManager.authorizationStatus == .authorized {
-                    cameraManager.startDefaultCamera()
+                    await cameraManager.startDefaultCamera()
                 }
             }
         }

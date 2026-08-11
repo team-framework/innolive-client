@@ -9,6 +9,7 @@ import SwiftUI
 
 struct BroadcastControllsView: View {
     @Binding var isBroadcasting: Bool
+    @Binding var isPreviewTransitioning: Bool
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @Environment(CameraManager.self) private var cameraManager
@@ -70,7 +71,8 @@ struct BroadcastControllsView: View {
     }
 
     private var isPreparingAnonymization: Bool {
-        youtube.isPreparingSession
+        isPreviewTransitioning
+            || youtube.isPreparingSession
             || youtube.isConnectingVideo
             || youtube.isRecoveringVideoFailure
             || youtube.videoUplink.isConnecting
@@ -106,14 +108,18 @@ struct BroadcastControllsView: View {
                 return
             }
             Task {
+                isPreviewTransitioning = true
+                defer { isPreviewTransitioning = false }
                 await youtube.endBroadcast(accessToken: authentication.currentAccessToken())
-                cameraManager.startDefaultCamera()
+                await cameraManager.startDefaultCamera()
                 isBroadcasting = false
             }
             return
         }
         Task {
             if await youtube.prepareSession(accessToken: authentication.currentAccessToken()) {
+                isPreviewTransitioning = true
+                defer { isPreviewTransitioning = false }
                 await cameraManager.stopSession()
                 if await youtube.connectVideo(
                     accessToken: authentication.currentAccessToken(),
@@ -128,7 +134,7 @@ struct BroadcastControllsView: View {
                     }
                     isBroadcasting = true
                 } else {
-                    cameraManager.startDefaultCamera()
+                    await cameraManager.startDefaultCamera()
                 }
             }
         }
