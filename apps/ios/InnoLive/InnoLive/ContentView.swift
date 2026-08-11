@@ -29,6 +29,11 @@ struct ContentView: View {
         .task {
             authentication.restore()
         }
+        .onReceive(NotificationCenter.default.publisher(for: AuthenticationSessionExpiration.notification)) { _ in
+            guard authentication.isAuthenticated else { return }
+            youtube.reset()
+            authentication.expireSession()
+        }
     }
 }
 

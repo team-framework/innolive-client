@@ -145,6 +145,9 @@ final class YouTubeAPI {
 
     private func validate(_ response: HTTPURLResponse, data: Data) throws {
         guard !(200..<300).contains(response.statusCode) else { return }
+        if response.statusCode == 401 {
+            AuthenticationSessionExpiration.notify()
+        }
         let envelope = try? JSONDecoder().decode(YouTubeAPIErrorEnvelope.self, from: data)
         throw YouTubeAPIError.api(
             code: envelope?.error.code,
