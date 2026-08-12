@@ -5,15 +5,15 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.innolive.BuildConfig
+import org.webrtc.VideoTrack
 
 @Composable
 fun LiveScreen(props: LiveScreenProps) {
@@ -40,6 +42,10 @@ fun LiveScreen(props: LiveScreenProps) {
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted -> hasCameraPermission = isGranted },
     )
+    var connectionState by remember { mutableStateOf(WebRtcConnectionState.IDLE) }
+    var connectionStatus by remember { mutableStateOf("WebRTC 연결 대기") }
+    var remoteVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
+    var webRtcConnection by remember { mutableStateOf<WebRtcConnection?>(null) }
 
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
@@ -47,19 +53,28 @@ fun LiveScreen(props: LiveScreenProps) {
         }
     }
 
-    BoxWithConstraints(
+    DisposableEffect(webRtcConnection) {
+        onDispose { webRtcConnection?.close() }
+    }
+
+    Box(
         modifier = Modifier.fillMaxSize(),
     ) {
-        val previewWidth = minOf(maxWidth, maxHeight * 16f / 9f)
-        val previewHeight = previewWidth * 9f / 16f
-
         if (hasCameraPermission) {
-            CameraPreview(
+            LiveVideoPanels(
                 cameraLensFacing = props.cameraLensFacing,
                 cameraResolution = props.cameraResolution,
+                frameAnalyzer = webRtcConnection?.frameAnalyzer,
+                remoteVideoTrack = remoteVideoTrack,
+                eglContext = webRtcConnection?.eglContext,
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(previewWidth, previewHeight),
+                    .fillMaxSize()
+                    .padding(
+                        start = 12.dp,
+                        top = 112.dp,
+                        end = 12.dp,
+                        bottom = 88.dp,
+                    ),
             )
         } else {
             Column(
@@ -102,6 +117,43 @@ fun LiveScreen(props: LiveScreenProps) {
             onClick = props.onOpenSettings,
         ) {
             Text(text = "설정으로 이동")
+        }
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(text = connectionStatus)
+            Button(
+                enabled = hasCameraPermission && connectionState == WebRtcConnectionState.IDLE,
+                onClick = {
+                    runCatching {
+                        WebRtcConnection(
+                            context = context,
+                            serverUrl = BuildConfig.INNOLIVE_SERVER_URL,
+                            accessToken = props.accessToken,
+                            onStateChanged = { state, message ->
+                                connectionState = state
+                                connectionStatus = message
+                            },
+                            onRemoteTrackChanged = { track ->
+                                remoteVideoTrack = track
+                            },
+                        ).also { connection ->
+                            webRtcConnection = connection
+                            connection.start()
+                        }
+                    }.onFailure { exception ->
+                        connectionState = WebRtcConnectionState.FAILED
+                        connectionStatus = exception.message ?: "WebRTC 연결을 시작하지 못했습니다."
+                    }
+                },
+            ) {
+                Text(text = "WebRTC 연결 시작")
+            }
         }
     }
 }

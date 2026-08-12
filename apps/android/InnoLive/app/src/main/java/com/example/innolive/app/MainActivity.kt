@@ -244,6 +244,7 @@ fun AppNavigation(
                             props = LiveScreenProps(
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
+                                accessToken = session?.accessToken.orEmpty(),
                                 cameraLensFacing = selectedCameraLensFacing,
                                 cameraResolution = selectedResolution,
                                 onOpenSettings = {
