@@ -53,7 +53,7 @@ fun LiveScreen(props: LiveScreenProps) {
         }
     }
 
-    DisposableEffect(webRtcConnection) {
+    DisposableEffect(Unit) {
         onDispose { webRtcConnection?.close() }
     }
 
