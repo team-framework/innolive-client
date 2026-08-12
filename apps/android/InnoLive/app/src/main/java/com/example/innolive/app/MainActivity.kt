@@ -42,6 +42,7 @@ import com.example.innolive.feature.login.LoginScreen
 import com.example.innolive.feature.login.LoginScreenProps
 import com.example.innolive.feature.login.oauth.google.GoogleSessionStore
 import com.example.innolive.feature.login.oauth.google.continueWithGoogle
+import com.example.innolive.feature.login.oauth.google.refreshGoogleSession
 import com.example.innolive.feature.settings.SettingsScreen
 import com.example.innolive.feature.settings.SettingsScreenProps
 import com.example.innolive.feature.settings.broadcast.BroadcastSetting
@@ -244,9 +245,16 @@ fun AppNavigation(
                             props = LiveScreenProps(
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
-                                accessToken = session?.accessToken.orEmpty(),
                                 cameraLensFacing = selectedCameraLensFacing,
                                 cameraResolution = selectedResolution,
+                                onRefreshAccessToken = {
+                                    val currentSession = checkNotNull(session) {
+                                        "Authentication session is missing."
+                                    }
+                                    refreshGoogleSession(context, currentSession)
+                                        .also { refreshedSession -> session = refreshedSession }
+                                        .accessToken
+                                },
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
                                 },

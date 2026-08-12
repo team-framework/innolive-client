@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,11 +26,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.innolive.BuildConfig
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import org.webrtc.VideoTrack
 
 @Composable
 fun LiveScreen(props: LiveScreenProps) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -130,25 +134,33 @@ fun LiveScreen(props: LiveScreenProps) {
             Button(
                 enabled = hasCameraPermission && connectionState == WebRtcConnectionState.IDLE,
                 onClick = {
-                    runCatching {
-                        WebRtcConnection(
-                            context = context,
-                            serverUrl = BuildConfig.INNOLIVE_SERVER_URL,
-                            accessToken = props.accessToken,
-                            onStateChanged = { state, message ->
-                                connectionState = state
-                                connectionStatus = message
-                            },
-                            onRemoteTrackChanged = { track ->
-                                remoteVideoTrack = track
-                            },
-                        ).also { connection ->
-                            webRtcConnection = connection
-                            connection.start()
+                    connectionState = WebRtcConnectionState.CONNECTING
+                    connectionStatus = "인증 토큰 갱신 중"
+                    coroutineScope.launch {
+                        try {
+                            val accessToken = props.onRefreshAccessToken()
+                            WebRtcConnection(
+                                context = context,
+                                serverUrl = BuildConfig.INNOLIVE_SERVER_URL,
+                                accessToken = accessToken,
+                                onStateChanged = { state, message ->
+                                    connectionState = state
+                                    connectionStatus = message
+                                },
+                                onRemoteTrackChanged = { track ->
+                                    remoteVideoTrack = track
+                                },
+                            ).also { connection ->
+                                webRtcConnection = connection
+                                connection.start()
+                            }
+                        } catch (exception: CancellationException) {
+                            throw exception
+                        } catch (exception: Exception) {
+                            connectionState = WebRtcConnectionState.FAILED
+                            connectionStatus = exception.message
+                                ?: "인증 토큰을 갱신하지 못했습니다."
                         }
-                    }.onFailure { exception ->
-                        connectionState = WebRtcConnectionState.FAILED
-                        connectionStatus = exception.message ?: "WebRTC 연결을 시작하지 못했습니다."
                     }
                 },
             ) {
