@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.example.innolive.feature.live.AudioInputDevice
@@ -36,6 +37,7 @@ import com.example.innolive.feature.live.CameraLensFacing
 import com.example.innolive.feature.live.CameraResolution
 import com.example.innolive.feature.live.LiveScreen
 import com.example.innolive.feature.live.LiveScreenProps
+import com.example.innolive.feature.live.WebRtcSessionViewModel
 import com.example.innolive.feature.live.isSelectableAudioInputType
 import com.example.innolive.feature.live.supportedCameraResolutions
 import com.example.innolive.feature.login.LoginScreen
@@ -93,10 +95,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val webRtcSession = ViewModelProvider(this)[WebRtcSessionViewModel::class.java]
         setContent {
             MyApplicationTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     AppNavigation(
+                        webRtcSession = webRtcSession,
                         modifier = Modifier
                             .padding(innerPadding)
                             .background(color = MaterialTheme.colorScheme.background),
@@ -109,6 +113,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppNavigation(
+    webRtcSession: WebRtcSessionViewModel,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -242,6 +247,7 @@ fun AppNavigation(
                 LiveRoute -> {
                     NavEntry(route) {
                         LiveScreen(
+                            webRtcSession = webRtcSession,
                             props = LiveScreenProps(
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
@@ -259,6 +265,7 @@ fun AppNavigation(
                                     backStack.add(SettingsRoute)
                                 },
                                 onLogout = {
+                                    webRtcSession.close()
                                     sessionStore.clear()
                                     session = null
                                     backStack.clear()

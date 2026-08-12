@@ -13,27 +13,23 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.example.innolive.BuildConfig
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-import org.webrtc.VideoTrack
 
 @Composable
-fun LiveScreen(props: LiveScreenProps) {
+fun LiveScreen(
+    props: LiveScreenProps,
+    webRtcSession: WebRtcSessionViewModel,
+) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -46,19 +42,10 @@ fun LiveScreen(props: LiveScreenProps) {
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted -> hasCameraPermission = isGranted },
     )
-    var connectionState by remember { mutableStateOf(WebRtcConnectionState.IDLE) }
-    var connectionStatus by remember { mutableStateOf("WebRTC 연결 대기") }
-    var remoteVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
-    var webRtcConnection by remember { mutableStateOf<WebRtcConnection?>(null) }
-
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose { webRtcConnection?.close() }
     }
 
     Box(
@@ -68,9 +55,9 @@ fun LiveScreen(props: LiveScreenProps) {
             LiveVideoPanels(
                 cameraLensFacing = props.cameraLensFacing,
                 cameraResolution = props.cameraResolution,
-                frameAnalyzer = webRtcConnection?.frameAnalyzer,
-                remoteVideoTrack = remoteVideoTrack,
-                eglContext = webRtcConnection?.eglContext,
+                frameAnalyzer = webRtcSession.connection?.frameAnalyzer,
+                remoteVideoTrack = webRtcSession.remoteVideoTrack,
+                eglContext = webRtcSession.connection?.eglContext,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(
@@ -130,38 +117,12 @@ fun LiveScreen(props: LiveScreenProps) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(text = connectionStatus)
+            Text(text = webRtcSession.connectionStatus)
             Button(
-                enabled = hasCameraPermission && connectionState == WebRtcConnectionState.IDLE,
+                enabled = hasCameraPermission &&
+                    webRtcSession.connectionState == WebRtcConnectionState.IDLE,
                 onClick = {
-                    connectionState = WebRtcConnectionState.CONNECTING
-                    connectionStatus = "인증 토큰 갱신 중"
-                    coroutineScope.launch {
-                        try {
-                            val accessToken = props.onRefreshAccessToken()
-                            WebRtcConnection(
-                                context = context,
-                                serverUrl = BuildConfig.INNOLIVE_SERVER_URL,
-                                accessToken = accessToken,
-                                onStateChanged = { state, message ->
-                                    connectionState = state
-                                    connectionStatus = message
-                                },
-                                onRemoteTrackChanged = { track ->
-                                    remoteVideoTrack = track
-                                },
-                            ).also { connection ->
-                                webRtcConnection = connection
-                                connection.start()
-                            }
-                        } catch (exception: CancellationException) {
-                            throw exception
-                        } catch (exception: Exception) {
-                            connectionState = WebRtcConnectionState.FAILED
-                            connectionStatus = exception.message
-                                ?: "인증 토큰을 갱신하지 못했습니다."
-                        }
-                    }
+                    webRtcSession.start(context, props.onRefreshAccessToken)
                 },
             ) {
                 Text(text = "WebRTC 연결 시작")
