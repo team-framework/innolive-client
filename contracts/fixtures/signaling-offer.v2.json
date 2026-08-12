@@ -1,0 +1,7 @@
+{
+  "type": "offer",
+  "session_id": "session-example",
+  "owner_token": "owner-token-example",
+  "access_token": "access-token-example",
+  "sdp": "v=0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n"
+}
