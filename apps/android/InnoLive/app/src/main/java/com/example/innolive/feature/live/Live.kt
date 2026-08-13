@@ -120,12 +120,23 @@ fun LiveScreen(
             Text(text = webRtcSession.connectionStatus)
             Button(
                 enabled = hasCameraPermission &&
-                    webRtcSession.connectionState == WebRtcConnectionState.IDLE,
+                    (webRtcSession.connectionState == WebRtcConnectionState.IDLE ||
+                        webRtcSession.connectionState == WebRtcConnectionState.CONNECTED),
                 onClick = {
-                    webRtcSession.start(context, props.onRefreshAccessToken)
+                    if (webRtcSession.connectionState == WebRtcConnectionState.CONNECTED) {
+                        webRtcSession.close()
+                    } else {
+                        webRtcSession.start(context, props.onRefreshAccessToken)
+                    }
                 },
             ) {
-                Text(text = "WebRTC 연결 시작")
+                Text(
+                    text = if (webRtcSession.connectionState == WebRtcConnectionState.CONNECTED) {
+                        "WebRTC 연결 종료"
+                    } else {
+                        "WebRTC 연결 시작"
+                    },
+                )
             }
         }
     }
