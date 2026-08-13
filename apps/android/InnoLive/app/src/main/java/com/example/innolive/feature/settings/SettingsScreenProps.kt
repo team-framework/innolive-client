@@ -7,4 +7,7 @@ data class SettingsScreenProps(
     val onBack: () -> Unit,
     val onOpenCameraSettings: () -> Unit,
     val onOpenBroadcastSettings: () -> Unit,
+    val profileName: String,
+    val profileEmail: String,
+    val onLogout: () -> Unit,
 )

@@ -249,8 +249,6 @@ fun AppNavigation(
                         LiveScreen(
                             webRtcSession = webRtcSession,
                             props = LiveScreenProps(
-                                profileName = session?.profileName.orEmpty(),
-                                profileEmail = session?.profileEmail.orEmpty(),
                                 cameraLensFacing = selectedCameraLensFacing,
                                 cameraResolution = selectedResolution,
                                 onRefreshAccessToken = {
@@ -263,13 +261,6 @@ fun AppNavigation(
                                 },
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
-                                },
-                                onLogout = {
-                                    webRtcSession.close()
-                                    sessionStore.clear()
-                                    session = null
-                                    backStack.clear()
-                                    backStack.add(LoginRoute)
                                 },
                             ),
                         )
@@ -286,6 +277,15 @@ fun AppNavigation(
                                 },
                                 onOpenBroadcastSettings = {
                                     backStack.add(BroadcastSettingRoute)
+                                },
+                                profileName = session?.profileName.orEmpty(),
+                                profileEmail = session?.profileEmail.orEmpty(),
+                                onLogout = {
+                                    webRtcSession.close()
+                                    sessionStore.clear()
+                                    session = null
+                                    backStack.clear()
+                                    backStack.add(LoginRoute)
                                 },
                             ),
                         )

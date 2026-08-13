@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.example.innolive.feature.live.ProfileDisplay
 
 data class SettingsMenuItem(
     val icon: ImageVector,
@@ -59,6 +61,20 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 }
             },
         )
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            ProfileDisplay(
+                name = props.profileName,
+                email = props.profileEmail,
+            )
+            OutlinedButton(onClick = props.onLogout) {
+                Text(text = "로그아웃")
+            }
+        }
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 0.dp),
         ) {

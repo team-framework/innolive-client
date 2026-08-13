@@ -86,21 +86,6 @@ fun LiveScreen(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            ProfileDisplay(
-                name = props.profileName,
-                email = props.profileEmail,
-            )
-            OutlinedButton(onClick = props.onLogout) {
-                Text(text = "로그아웃")
-            }
-        }
-
         Button(
             modifier = Modifier
                 .align(Alignment.TopEnd)
