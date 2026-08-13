@@ -68,11 +68,11 @@ export default function HomePage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
         <header>
-          <img src="/images/logo-white.svg" alt="InnoLive" className="absolute left-6 top-6 z-10 h-auto w-[120px] md:left-[clamp(36px,2.5vw,48px)] md:top-[clamp(46px,3.18vw,61px)] md:w-[clamp(124px,8.59vw,165px)]" />
-          <div className="flex flex-col items-center absolute right-6 top-6 z-10 md:right-[clamp(36px,2.5vw,48px)] md:top-12">
-            <button onClick={() => setIsSelectLanguage((prev) => !prev)} className="cursor-pointer flex items-center gap-2 px-2 py-1 rounded-[100rem] hover:bg-[#FFFFFF33] h-auto">
-              <img src="/images/language.svg" alt="select language" className="w-4" />
-              <span className="text-sm">{locales.find((element) => element.code === locale)?.label}</span>
+          <img src="/images/logo-white.svg" alt="InnoLive" className="absolute left-6 top-6 z-10 h-auto w-[120px] md:left-[clamp(36px,2.5vw,48px)] md:top-11 md:w-[clamp(124px,8.59vw,165px)]" />
+          <div className="flex flex-col items-center absolute right-6 top-6 z-10 md:right-[clamp(36px,2.5vw,48px)] md:top-9">
+            <button onClick={() => setIsSelectLanguage((prev) => !prev)} className="cursor-pointer flex items-center gap-2 px-3 py-2 rounded-[100rem] bg-[#00000035] hover:bg-[#FFFFFF33] h-auto">
+              <img src="/images/language.svg" alt="select language" className="w-6" />
+              <span className="text-lg">{locales.find((element) => element.code === locale)?.label}</span>
             </button>
             {isSelectLanguage ? (
               <ul className="relative top-1 text-sm">
