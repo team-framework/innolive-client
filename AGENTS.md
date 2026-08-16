@@ -55,7 +55,7 @@ Run the affected platform's focused build/test when tooling is available.
 <!-- framework-collaboration-harness:start -->
 # Framework 협업 규칙
 
-작업을 시작하기 전에 작업 종류에 맞는 `.codex/skills/{issue,branch,commit,pull-request}/SKILL.md`를 읽는다.
+작업을 시작하기 전에 작업 종류와 사용하는 에이전트에 맞는 `.codex`, `.claude`, `.agent`의 `skills/{issue,branch,commit,pull-request}/SKILL.md`를 읽는다.
 
 - 이슈는 작업 유형과 한국어 작업 내용을 분명히 작성한다.
 - 브랜치는 연결된 이슈를 만든 뒤 `<type>/<english-slug>/#<issue-number>` 형식으로 만든다.
