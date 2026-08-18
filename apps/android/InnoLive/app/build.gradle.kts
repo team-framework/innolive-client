@@ -13,7 +13,7 @@ if (localPropertiesFile.isFile) {
 }
 
 android {
-    namespace = "com.example.innolive"
+    namespace = "com.framework.innolive"
     compileSdk {
         version = release(37) {
             minorApiLevel = 1
