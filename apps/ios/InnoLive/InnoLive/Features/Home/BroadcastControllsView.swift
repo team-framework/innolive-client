@@ -58,6 +58,26 @@ struct BroadcastControllsView: View {
                             ? "YouTube 송출을 시작하거나 중지합니다."
                             : "설정에서 YouTube 계정을 먼저 연결해 주세요."
                     )
+
+                    if isYouTubeStreaming {
+                        Button(action: toggleYouTubePause) {
+                            YouTubePauseControlLabel(
+                                youtube: youtube,
+                                isLoading: youtube.isChangingStreamState
+                            )
+                        }
+                        .buttonStyle(.glass)
+                        .tint(youtube.isYouTubeBroadcastPaused ? .orange : .yellow)
+                        .disabled(
+                            youtube.isChangingStreamState
+                                || !youtube.canChangeYouTubePauseState
+                        )
+                        .accessibilityHint(
+                            youtube.isYouTubeBroadcastPaused
+                                ? "YouTube 송출을 재개합니다. 카메라 비식별화 연결은 유지됩니다."
+                                : "YouTube 송출을 일시 중지합니다. 카메라 비식별화 연결은 유지됩니다."
+                        )
+                    }
                 }
 
                 if let feedback {
@@ -147,6 +167,17 @@ struct BroadcastControllsView: View {
                 await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken())
             } else {
                 await youtube.startYouTubeStream(accessToken: authentication.currentAccessToken())
+            }
+        }
+    }
+
+    private func toggleYouTubePause() {
+        localFeedbackMessage = nil
+        Task {
+            if youtube.isYouTubeBroadcastPaused {
+                await youtube.resumeYouTubeStream(accessToken: authentication.currentAccessToken())
+            } else {
+                await youtube.pauseYouTubeStream(accessToken: authentication.currentAccessToken())
             }
         }
     }

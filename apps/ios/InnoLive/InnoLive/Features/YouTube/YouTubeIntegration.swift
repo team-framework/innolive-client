@@ -41,10 +41,39 @@ final class YouTubeIntegration: ObservableObject {
         streamStartedAt != nil && stream?.status != "stopped"
     }
 
+    var isYouTubeBroadcastPaused: Bool {
+        switch stream?.status {
+        case "paused", "paused_reconfiguring", "paused_reconnecting":
+            return true
+        default:
+            return false
+        }
+    }
+
+    var canPauseYouTubeBroadcast: Bool {
+        switch stream?.status {
+        case "streaming", "reconfiguring":
+            return true
+        default:
+            return false
+        }
+    }
+
+    var canResumeYouTubeBroadcast: Bool {
+        stream?.status == "paused"
+    }
+
+    var canChangeYouTubePauseState: Bool {
+        canPauseYouTubeBroadcast || canResumeYouTubeBroadcast
+    }
+
     var streamStatusText: String {
         switch stream?.status {
         case "streaming": return "YouTube 송출 중"
         case "reconnecting": return "YouTube 재연결 중…"
+        case "paused": return pausedStatusText(prefix: "YouTube 송출 일시 중지됨")
+        case "paused_reconfiguring": return pausedStatusText(prefix: "YouTube 일시 중지 준비 중…")
+        case "paused_reconnecting": return pausedStatusText(prefix: "YouTube 일시 중지 화면 재연결 중…")
         case "idle": return "YouTube 준비 중…"
         case "stopped": return "YouTube 송출 중지됨"
         default: return "YouTube 송출 대기"
@@ -237,6 +266,7 @@ final class YouTubeIntegration: ObservableObject {
 
     func startYouTubeStream(accessToken: String?) async {
         clearError()
+        guard !isChangingStreamState else { return }
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
             return
@@ -268,6 +298,7 @@ final class YouTubeIntegration: ObservableObject {
 
     func stopYouTubeStream(accessToken: String?) async {
         clearError()
+        guard !isChangingStreamState else { return }
         guard let accessToken, !accessToken.isEmpty,
               let session else {
             return
@@ -286,6 +317,14 @@ final class YouTubeIntegration: ObservableObject {
         } catch {
             handle(error)
         }
+    }
+
+    func pauseYouTubeStream(accessToken: String?) async {
+        await changePausedState(accessToken: accessToken, shouldPause: true)
+    }
+
+    func resumeYouTubeStream(accessToken: String?) async {
+        await changePausedState(accessToken: accessToken, shouldPause: false)
     }
 
     func reset() {
@@ -358,6 +397,39 @@ final class YouTubeIntegration: ObservableObject {
         errorMessage = nil
         helpURL = nil
         videoUplink.dismissError()
+    }
+
+    private func changePausedState(accessToken: String?, shouldPause: Bool) async {
+        clearError()
+        guard !isChangingStreamState else { return }
+        guard let accessToken, !accessToken.isEmpty else {
+            showError(.unauthorized)
+            return
+        }
+        guard let session, isYouTubeBroadcastActive else {
+            showError(.api(code: "stream_not_active", fallback: "YouTube 송출 중이 아닙니다.", helpURL: nil))
+            return
+        }
+        guard shouldPause ? canPauseYouTubeBroadcast : canResumeYouTubeBroadcast else {
+            return
+        }
+
+        isChangingStreamState = true
+        defer { isChangingStreamState = false }
+        do {
+            stream = try await (shouldPause
+                ? api.pauseStream(session: session, accessToken: accessToken)
+                : api.resumeStream(session: session, accessToken: accessToken))
+            // 일시 중지와 재개는 RTMP egress만 전환한다. WebRTC 업링크와 세션은 유지한다.
+            beginPolling(accessToken: accessToken)
+        } catch {
+            handle(error)
+        }
+    }
+
+    private func pausedStatusText(prefix: String) -> String {
+        guard let pausedAt = stream?.pausedAtDate else { return prefix }
+        return "\(prefix) (\(pausedAt.formatted(date: .omitted, time: .shortened)))"
     }
 
     private func handle(_ error: Error) {

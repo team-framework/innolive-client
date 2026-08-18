@@ -58,6 +58,8 @@ enum YouTubeAPIError: Error, Equatable {
             case "conflict": return "카메라 영상을 연결한 뒤 YouTube 송출을 다시 시작해 주세요."
             case "stream_already_active": return "YouTube 송출이 이미 진행 중입니다."
             case "stream_not_active": return "YouTube 송출 중이 아닙니다."
+            case "stream_already_paused": return "YouTube 송출이 이미 일시 중지되어 있습니다."
+            case "stream_not_paused": return "일시 중지된 YouTube 송출이 아닙니다."
             case "not_supported": return "이 서버에는 YouTube 송출 기능이 아직 구성되지 않았습니다."
             case "streaming_prepare_failed": return "YouTube 송출을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요."
             default: return fallback

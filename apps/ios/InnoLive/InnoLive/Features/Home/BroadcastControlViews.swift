@@ -52,6 +52,12 @@ struct YouTubeBroadcastControlLabel: View {
     private func buttonTitle(at date: Date) -> String {
         guard youtube.isYouTubeBroadcastActive else { return "YouTube 시작" }
         let duration = formattedDuration(since: youtube.streamStartedAt, now: date)
+        if youtube.isYouTubeBroadcastPaused {
+            if let pausedAt = youtube.stream?.pausedAtDate {
+                return "일시 중지 (\(formattedDuration(since: pausedAt, now: date)))"
+            }
+            return "일시 중지됨 (\(duration))"
+        }
         if youtube.stream?.status == "reconnecting" {
             return "재연결 중 (\(duration))"
         }
@@ -67,6 +73,28 @@ struct YouTubeBroadcastControlLabel: View {
             return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
         }
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
+struct YouTubePauseControlLabel: View {
+    @ObservedObject var youtube: YouTubeIntegration
+    let isLoading: Bool
+
+    var body: some View {
+        BroadcastControlLabel(
+            title: buttonTitle,
+            systemImage: youtube.isYouTubeBroadcastPaused ? "play.fill" : "pause.fill",
+            isLoading: isLoading
+        )
+    }
+
+    private var buttonTitle: String {
+        switch youtube.stream?.status {
+        case "paused_reconfiguring": return "중지 준비 중"
+        case "paused_reconnecting": return "중지 재연결 중"
+        case "paused": return "방송 재개"
+        default: return "일시 중지"
+        }
     }
 }
 
