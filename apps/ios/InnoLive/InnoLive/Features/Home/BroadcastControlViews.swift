@@ -3,22 +3,31 @@ import UIKit
 
 struct BroadcastControlLabel: View {
     let title: String
-    let systemImage: String
-    var isLoading = false
+    let systemImage: String?
+    var isLoading: Bool
+
+    init(title: String, systemImage: String? = nil, isLoading: Bool = false) {
+        self.title = title
+        self.systemImage = systemImage
+        self.isLoading = isLoading
+    }
 
     var body: some View {
         VStack(spacing: 4) {
             if isLoading {
                 ProgressView()
                     .controlSize(.small)
-            } else {
+            } else
+            if let systemImage {
                 Image(systemName: systemImage)
                     .font(.body.weight(.semibold))
             }
-            Text(title)
-                .font(.caption2.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+            if !isLoading {
+                Text(title)
+                    .font(systemImage == nil ? .caption.weight(.semibold) : .caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 52)
@@ -50,8 +59,14 @@ struct YouTubeBroadcastControlLabel: View {
     }
 
     private func buttonTitle(at date: Date) -> String {
-        guard youtube.isYouTubeBroadcastActive else { return "YouTube 시작" }
+        if youtube.isWaitingForYouTubeBroadcastStart {
+            return "방송 취소"
+        }
+        guard youtube.isYouTubeBroadcastActive else { return "방송 시작" }
         let duration = formattedDuration(since: youtube.streamStartedAt, now: date)
+        if youtube.isYouTubeBroadcastPaused {
+            return "방송 종료"
+        }
         if youtube.stream?.status == "reconnecting" {
             return "재연결 중 (\(duration))"
         }
@@ -67,6 +82,28 @@ struct YouTubeBroadcastControlLabel: View {
             return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
         }
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
+struct YouTubePauseControlLabel: View {
+    @ObservedObject var youtube: YouTubeIntegration
+    let isLoading: Bool
+
+    var body: some View {
+        BroadcastControlLabel(
+            title: buttonTitle,
+            systemImage: youtube.isYouTubeBroadcastPaused ? "play.fill" : "pause.fill",
+            isLoading: isLoading
+        )
+    }
+
+    private var buttonTitle: String {
+        switch youtube.stream?.status {
+        case "paused_reconfiguring": return "중지 준비 중"
+        case "paused_reconnecting": return "중지 재연결 중"
+        case "paused": return "방송 재개"
+        default: return "일시 중지"
+        }
     }
 }
 

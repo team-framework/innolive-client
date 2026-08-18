@@ -28,6 +28,7 @@ struct YouTubeStreamState: Decodable, Equatable {
     let publisherActive: Bool
     let reconnectAttempts: Int
     let stopReason: String?
+    let pausedAt: String?
 
     enum CodingKeys: String, CodingKey {
         case status
@@ -35,14 +36,23 @@ struct YouTubeStreamState: Decodable, Equatable {
         case publisherActive = "publisher_active"
         case reconnectAttempts = "reconnect_attempts"
         case stopReason = "stop_reason"
+        case pausedAt = "paused_at"
     }
 
     var startedAtDate: Date? {
-        guard let startedAt else { return nil }
+        date(from: startedAt)
+    }
+
+    var pausedAtDate: Date? {
+        date(from: pausedAt)
+    }
+
+    private func date(from value: String?) -> Date? {
+        guard let value else { return nil }
         let fractionalFormatter = ISO8601DateFormatter()
         fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return fractionalFormatter.date(from: startedAt)
-            ?? ISO8601DateFormatter().date(from: startedAt)
+        return fractionalFormatter.date(from: value)
+            ?? ISO8601DateFormatter().date(from: value)
     }
 
     func markedStoppedByUser() -> Self {
@@ -51,7 +61,8 @@ struct YouTubeStreamState: Decodable, Equatable {
             startedAt: nil,
             publisherActive: publisherActive,
             reconnectAttempts: reconnectAttempts,
-            stopReason: stopReason ?? "user_requested"
+            stopReason: stopReason ?? "user_requested",
+            pausedAt: pausedAt
         )
     }
 }

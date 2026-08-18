@@ -100,6 +100,26 @@ final class YouTubeAPI {
         )
     }
 
+    func pauseStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
+        try await request(
+            path: "/sessions/\(session.sessionID)/stream/pause",
+            method: "POST",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: Optional<YouTubeEmptyRequest>.none
+        )
+    }
+
+    func resumeStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
+        try await request(
+            path: "/sessions/\(session.sessionID)/stream/resume",
+            method: "POST",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: Optional<YouTubeEmptyRequest>.none
+        )
+    }
+
     func sessionStatus(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeSessionResponse {
         try await request(
             path: "/sessions/\(session.sessionID)",
