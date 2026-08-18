@@ -59,6 +59,9 @@ struct YouTubeBroadcastControlLabel: View {
     }
 
     private func buttonTitle(at date: Date) -> String {
+        if youtube.isWaitingForYouTubeBroadcastStart {
+            return "방송 취소"
+        }
         guard youtube.isYouTubeBroadcastActive else { return "방송 시작" }
         let duration = formattedDuration(since: youtube.streamStartedAt, now: date)
         if youtube.isYouTubeBroadcastPaused {

@@ -41,20 +41,22 @@ struct BroadcastControllsView: View {
                     Button(action: toggleYouTubeStream) {
                         YouTubeBroadcastControlLabel(
                             youtube: youtube,
-                            isLoading: youtube.isChangingStreamState || youtube.isWaitingForYouTubeBroadcastStart
+                            isLoading: youtube.isChangingStreamState
                         )
                     }
                     .buttonStyle(.glass)
-                    .tint(isYouTubeStreaming ? .red : nil)
+                    .tint(isYouTubeStreaming || youtube.isWaitingForYouTubeBroadcastStart ? .red : nil)
                     .disabled(
                         youtube.isChangingStreamState
-                            || youtube.isWaitingForYouTubeBroadcastStart
+                            || previewTransition == .stopping
                             || !isBroadcasting
                             || !youtube.isFeatureAvailable
                             || !youtube.isConnected
                     )
                     .accessibilityHint(
-                        youtube.isConnected
+                        youtube.isWaitingForYouTubeBroadcastStart
+                            ? "서버가 YouTube 송출을 준비 중입니다. 취소하면 비식별화 연결도 종료됩니다."
+                            : youtube.isConnected
                             ? "YouTube 송출을 시작하거나 중지합니다."
                             : "설정에서 YouTube 계정을 먼저 연결해 주세요."
                     )
@@ -163,8 +165,12 @@ struct BroadcastControllsView: View {
     private func toggleYouTubeStream() {
         localFeedbackMessage = nil
         Task {
-            if isYouTubeStreaming {
-                await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken())
+            if isYouTubeStreaming || youtube.isWaitingForYouTubeBroadcastStart {
+                previewTransition = .stopping
+                defer { previewTransition = .none }
+                await youtube.endBroadcast(accessToken: authentication.currentAccessToken())
+                await cameraManager.startDefaultCamera()
+                isBroadcasting = false
             } else {
                 await youtube.startYouTubeStream(accessToken: authentication.currentAccessToken())
             }

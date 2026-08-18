@@ -22,6 +22,7 @@ final class YouTubeIntegration: ObservableObject {
     private let api = YouTubeAPI()
     private let authorization = YouTubeAuthorization()
     private var pollingTask: Task<Void, Never>?
+    private var pollingGeneration = 0
     private var streamStartFallback: Date?
 
     init() {
@@ -238,8 +239,7 @@ final class YouTubeIntegration: ObservableObject {
             await stopYouTubeStream(accessToken: accessToken)
         }
         await videoUplink.stopAndWait()
-        pollingTask?.cancel()
-        pollingTask = nil
+        stopPolling()
         session = nil
         stream = nil
         streamStartFallback = nil
@@ -257,8 +257,7 @@ final class YouTubeIntegration: ObservableObject {
         let shouldStopYouTube = isYouTubeBroadcastActive
 
         await videoUplink.stopAndWait()
-        pollingTask?.cancel()
-        pollingTask = nil
+        stopPolling()
         session = nil
         stream = nil
         streamStartFallback = nil
@@ -324,8 +323,7 @@ final class YouTubeIntegration: ObservableObject {
             // 앱에서는 송출을 종료로 처리해 타이머와 비식별화 제어 상태를 즉시 복구한다.
             stream = stoppedStream.markedStoppedByUser()
             streamStartFallback = nil
-            pollingTask?.cancel()
-            pollingTask = nil
+            stopPolling()
         } catch {
             handle(error)
         }
@@ -340,8 +338,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
-        pollingTask?.cancel()
-        pollingTask = nil
+        stopPolling()
         videoUplink.stop()
         connection = nil
         session = nil
@@ -358,27 +355,48 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func beginPolling(accessToken: String) {
-        pollingTask?.cancel()
+        stopPolling()
+        let generation = pollingGeneration
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(3))
+                do {
+                    try await Task.sleep(for: .seconds(3))
+                } catch {
+                    break
+                }
                 guard let self,
                       let session = self.session,
-                      self.isYouTubeBroadcastActive else {
+                      self.isYouTubeBroadcastActive,
+                      !Task.isCancelled,
+                      self.pollingGeneration == generation else {
                     break
                 }
                 do {
                     let snapshot = try await self.api.sessionStatus(session: session, accessToken: accessToken)
+                    guard !Task.isCancelled,
+                          self.pollingGeneration == generation,
+                          self.session?.sessionID == session.sessionID else {
+                        break
+                    }
                     self.stream = snapshot.stream
                     self.videoTrack = snapshot.media.rawVideoTrack
                     if snapshot.stream.status == "stopped" {
                         self.streamStartFallback = nil
                     }
                 } catch {
+                    guard !Task.isCancelled, self.pollingGeneration == generation else {
+                        break
+                    }
                     // 폴링 실패는 이미 시작된 송출 상태를 지우지 않는다. 다음 주기에 재시도한다.
                 }
             }
         }
+    }
+
+    private func stopPolling() {
+        pollingGeneration &+= 1
+        pollingTask?.cancel()
+        pollingTask = nil
     }
 
     private func waitForVideoTrack(session: YouTubeBroadcastSession, accessToken: String) async throws -> Bool {
