@@ -29,8 +29,7 @@ struct BroadcastControllsView: View {
 
                     Button(action: toggleInnoLiveBroadcast) {
                         BroadcastControlLabel(
-                            title: isBroadcasting ? "비식별화 On" : "비식별화 Off",
-                            systemImage: isBroadcasting ? "checkmark.circle.fill" : "circle",
+                            title: isBroadcasting ? "비식별화 OFF" : "비식별화 ON",
                             isLoading: isPreparingAnonymization
                         )
                     }
@@ -42,13 +41,14 @@ struct BroadcastControllsView: View {
                     Button(action: toggleYouTubeStream) {
                         YouTubeBroadcastControlLabel(
                             youtube: youtube,
-                            isLoading: youtube.isChangingStreamState
+                            isLoading: youtube.isChangingStreamState || youtube.isWaitingForYouTubeBroadcastStart
                         )
                     }
                     .buttonStyle(.glass)
                     .tint(isYouTubeStreaming ? .red : nil)
                     .disabled(
                         youtube.isChangingStreamState
+                            || youtube.isWaitingForYouTubeBroadcastStart
                             || !isBroadcasting
                             || !youtube.isFeatureAvailable
                             || !youtube.isConnected
@@ -99,7 +99,7 @@ struct BroadcastControllsView: View {
     }
 
     private var isYouTubeStreaming: Bool {
-        youtube.isYouTubeBroadcastActive
+        youtube.hasStartedYouTubeBroadcast
     }
 
     private var feedback: BroadcastFeedback? {

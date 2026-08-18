@@ -3,22 +3,31 @@ import UIKit
 
 struct BroadcastControlLabel: View {
     let title: String
-    let systemImage: String
-    var isLoading = false
+    let systemImage: String?
+    var isLoading: Bool
+
+    init(title: String, systemImage: String? = nil, isLoading: Bool = false) {
+        self.title = title
+        self.systemImage = systemImage
+        self.isLoading = isLoading
+    }
 
     var body: some View {
         VStack(spacing: 4) {
             if isLoading {
                 ProgressView()
                     .controlSize(.small)
-            } else {
+            } else
+            if let systemImage {
                 Image(systemName: systemImage)
                     .font(.body.weight(.semibold))
             }
-            Text(title)
-                .font(.caption2.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
+            if !isLoading {
+                Text(title)
+                    .font(systemImage == nil ? .caption.weight(.semibold) : .caption2.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 52)
@@ -50,13 +59,10 @@ struct YouTubeBroadcastControlLabel: View {
     }
 
     private func buttonTitle(at date: Date) -> String {
-        guard youtube.isYouTubeBroadcastActive else { return "YouTube 시작" }
+        guard youtube.isYouTubeBroadcastActive else { return "방송 시작" }
         let duration = formattedDuration(since: youtube.streamStartedAt, now: date)
         if youtube.isYouTubeBroadcastPaused {
-            if let pausedAt = youtube.stream?.pausedAtDate {
-                return "일시 중지 (\(formattedDuration(since: pausedAt, now: date)))"
-            }
-            return "일시 중지됨 (\(duration))"
+            return "방송 종료"
         }
         if youtube.stream?.status == "reconnecting" {
             return "재연결 중 (\(duration))"
