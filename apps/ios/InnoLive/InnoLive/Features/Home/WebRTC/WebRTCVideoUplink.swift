@@ -258,12 +258,12 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         startContinuation.resume()
     }
 
-    func fail(_ message: String) {
+    func fail(_ message: String, continuationError: WebRTCVideoUplinkError? = nil) {
         guard !isStopping else { return }
         errorMessage = message
         let capturer = beginTeardown(
             resetState: false,
-            continuationError: .failed(message)
+            continuationError: continuationError ?? .failed(message)
         )
         scheduleCameraStop(capturer)
         updateState(.failed, message)
