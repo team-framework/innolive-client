@@ -32,7 +32,9 @@ class BluetoothCommunicationDeviceTest {
         try {
             val selectedDevice = checkNotNull(communicationDevice)
             assertTrue(audioManager.setCommunicationDevice(selectedDevice))
-            assertEquals(selectedDevice.id, audioManager.communicationDevice?.id)
+            val actualDevice = checkNotNull(audioManager.communicationDevice)
+            assertEquals(selectedDevice.type, actualDevice.type)
+            assertEquals(selectedDevice.address, actualDevice.address)
         } finally {
             audioManager.clearCommunicationDevice()
         }
