@@ -216,24 +216,18 @@ class WebRtcConnection(
         }
 
         val bluetoothInput = checkNotNull(audioInput)
-        val communicationDevices = audioManager.availableCommunicationDevices
-            .filter { device -> device.type == bluetoothInput.type }
-        val communicationDevice = communicationDevices
-            .firstOrNull { device -> device.address == bluetoothInput.address }
-            ?: communicationDevices.singleOrNull()
+        val communicationDevice = findBluetoothCommunicationDevice(
+            bluetoothInput,
+            audioManager.availableCommunicationDevices,
+        )
             ?: throw IllegalStateException("선택한 Bluetooth 오디오 기기의 통신용 출력을 찾지 못했습니다.")
         check(audioManager.setCommunicationDevice(communicationDevice)) {
             "선택한 Bluetooth 오디오 기기를 통신 장치로 설정하지 못했습니다."
         }
     }
 
-    private fun isBluetoothAudioInput(audioInput: AudioDeviceInfo?): Boolean = when (audioInput?.type) {
-        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-        AudioDeviceInfo.TYPE_BLE_HEADSET,
-        -> true
-
-        else -> false
-    }
+    private fun isBluetoothAudioInput(audioInput: AudioDeviceInfo?): Boolean =
+        audioInput?.let { input -> isBluetoothAudioInputType(input.type) } == true
 
     private fun clearBluetoothCommunicationRoute() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -714,6 +708,26 @@ internal fun parseServerMessage(payload: String): ServerMessage {
         "ice_candidate_added" -> ServerMessage.IceCandidateAdded
         else -> throw IllegalArgumentException("지원하지 않는 signaling 응답입니다: $type")
     }
+}
+
+internal fun isBluetoothAudioInputType(type: Int): Boolean = when (type) {
+    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+    AudioDeviceInfo.TYPE_BLE_HEADSET,
+    -> true
+
+    else -> false
+}
+
+internal fun findBluetoothCommunicationDevice(
+    bluetoothInput: AudioDeviceInfo,
+    communicationDevices: List<AudioDeviceInfo>,
+): AudioDeviceInfo? {
+    val sameTypeDevices = communicationDevices.filter { device ->
+        device.type == bluetoothInput.type
+    }
+    return sameTypeDevices.firstOrNull { device ->
+        device.address == bluetoothInput.address
+    } ?: sameTypeDevices.singleOrNull()
 }
 
 private fun parseIceServers(payload: String): List<PeerConnection.IceServer> {

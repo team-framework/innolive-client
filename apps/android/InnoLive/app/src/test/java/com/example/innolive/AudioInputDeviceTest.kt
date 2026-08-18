@@ -2,6 +2,7 @@ package com.example.innolive
 
 import android.media.AudioDeviceInfo
 import com.example.innolive.feature.live.AudioInputDevice
+import com.example.innolive.feature.live.isBluetoothAudioInputType
 import com.example.innolive.feature.live.isSelectableAudioInputType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -27,5 +28,13 @@ class AudioInputDeviceTest {
         assertTrue(isSelectableAudioInputType(AudioDeviceInfo.TYPE_USB_HEADSET))
         assertFalse(isSelectableAudioInputType(AudioDeviceInfo.TYPE_TELEPHONY))
         assertFalse(isSelectableAudioInputType(AudioDeviceInfo.TYPE_REMOTE_SUBMIX))
+    }
+
+    @Test
+    fun bluetoothCommunicationInputTypesAreDetected() {
+        assertTrue(isBluetoothAudioInputType(AudioDeviceInfo.TYPE_BLUETOOTH_SCO))
+        assertTrue(isBluetoothAudioInputType(AudioDeviceInfo.TYPE_BLE_HEADSET))
+        assertFalse(isBluetoothAudioInputType(AudioDeviceInfo.TYPE_BUILTIN_MIC))
+        assertFalse(isBluetoothAudioInputType(AudioDeviceInfo.TYPE_WIRED_HEADSET))
     }
 }
