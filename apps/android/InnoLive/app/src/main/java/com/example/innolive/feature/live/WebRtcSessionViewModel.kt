@@ -1,6 +1,7 @@
 package com.example.innolive.feature.live
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -14,6 +15,7 @@ import org.webrtc.VideoTrack
 
 class WebRtcSessionViewModel : ViewModel() {
     private var startJob: Job? = null
+    private var selectedAudioInput: AudioDeviceInfo? = null
 
     var connectionState by mutableStateOf(WebRtcConnectionState.IDLE)
         private set
@@ -24,6 +26,11 @@ class WebRtcSessionViewModel : ViewModel() {
 
     var connection: WebRtcConnection? by mutableStateOf(null)
         private set
+
+    fun selectAudioInput(audioInput: AudioDeviceInfo?) {
+        selectedAudioInput = audioInput
+        connection?.setPreferredAudioInput(audioInput)
+    }
 
     fun start(
         context: Context,
@@ -40,6 +47,7 @@ class WebRtcSessionViewModel : ViewModel() {
                     context = context,
                     serverUrl = BuildConfig.INNOLIVE_SERVER_URL,
                     accessToken = accessToken,
+                    preferredAudioInput = selectedAudioInput,
                     onStateChanged = { state, message ->
                         connectionState = state
                         connectionStatus = message

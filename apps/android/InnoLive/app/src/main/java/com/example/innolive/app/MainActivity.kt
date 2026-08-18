@@ -126,13 +126,16 @@ fun AppNavigation(
             hasFrontCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FRONT),
         )
     }
-    val audioDeviceOptions = remember(context) {
+    val audioInputDevices = remember(context) {
         context.getSystemService(AudioManager::class.java)
             .getDevices(AudioManager.GET_DEVICES_INPUTS)
             .filter { device -> isSelectableAudioInputType(device.type) }
             .distinctBy { device ->
                 if (device.type == AudioDeviceInfo.TYPE_BUILTIN_MIC) null else device.id
             }
+    }
+    val audioDeviceOptions = remember(audioInputDevices) {
+        audioInputDevices
             .map { device ->
                 AudioInputDevice(
                     id = device.id,
@@ -210,9 +213,15 @@ fun AppNavigation(
     val selectedResolution = supportedCameraResolutions.firstOrNull { resolution ->
         resolution.key == selectedResolutionKey
     }
+    val selectedAudioInput = audioInputDevices.firstOrNull { device ->
+        device.id == selectedAudioDeviceId
+    } ?: audioInputDevices.firstOrNull()
     val selectedAudioDevice = audioDeviceOptions.firstOrNull { device ->
         device.id == selectedAudioDeviceId
     } ?: audioDeviceOptions.firstOrNull()
+    LaunchedEffect(selectedAudioInput?.id) {
+        webRtcSession.selectAudioInput(selectedAudioInput)
+    }
     val onBack: () -> Unit = {
         if (backStack.size > 1) {
             backStack.removeLastOrNull()
