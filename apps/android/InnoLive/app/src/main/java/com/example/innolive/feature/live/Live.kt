@@ -38,14 +38,38 @@ fun LiveScreen(
             ) == PackageManager.PERMISSION_GRANTED,
         )
     }
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted -> hasCameraPermission = isGranted },
+    var hasMicrophonePermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO,
+            ) == PackageManager.PERMISSION_GRANTED,
+        )
+    }
+    val mediaPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = {
+            hasCameraPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA,
+            ) == PackageManager.PERMISSION_GRANTED
+            hasMicrophonePermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO,
+            ) == PackageManager.PERMISSION_GRANTED
+        },
     )
-    LaunchedEffect(Unit) {
-        if (!hasCameraPermission) {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+    val requestMissingMediaPermissions = {
+        val missingPermissions = buildList {
+            if (!hasCameraPermission) add(Manifest.permission.CAMERA)
+            if (!hasMicrophonePermission) add(Manifest.permission.RECORD_AUDIO)
         }
+        if (missingPermissions.isNotEmpty()) {
+            mediaPermissionLauncher.launch(missingPermissions.toTypedArray())
+        }
+    }
+    LaunchedEffect(Unit) {
+        requestMissingMediaPermissions()
     }
 
     Box(
@@ -75,13 +99,11 @@ fun LiveScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(text = "카메라 미리보기를 위해 권한이 필요합니다.")
+                Text(text = "카메라와 마이크 권한이 필요합니다.")
                 Button(
-                    onClick = {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    },
+                    onClick = requestMissingMediaPermissions,
                 ) {
-                    Text(text = "카메라 권한 허용")
+                    Text(text = "권한 허용")
                 }
             }
         }
@@ -104,22 +126,29 @@ fun LiveScreen(
         ) {
             Text(text = webRtcSession.connectionStatus)
             Button(
-                enabled = hasCameraPermission &&
-                    (webRtcSession.connectionState == WebRtcConnectionState.IDLE ||
-                        webRtcSession.connectionState == WebRtcConnectionState.CONNECTED),
+                enabled = webRtcSession.connectionState == WebRtcConnectionState.IDLE ||
+                    webRtcSession.connectionState == WebRtcConnectionState.CONNECTED,
                 onClick = {
                     if (webRtcSession.connectionState == WebRtcConnectionState.CONNECTED) {
                         webRtcSession.close()
+                    } else if (!hasCameraPermission || !hasMicrophonePermission) {
+                        requestMissingMediaPermissions()
                     } else {
                         webRtcSession.start(context, props.onRefreshAccessToken)
                     }
                 },
             ) {
                 Text(
-                    text = if (webRtcSession.connectionState == WebRtcConnectionState.CONNECTED) {
-                        "WebRTC 연결 종료"
-                    } else {
-                        "WebRTC 연결 시작"
+                    text = when {
+                        webRtcSession.connectionState == WebRtcConnectionState.CONNECTED -> {
+                            "WebRTC 연결 종료"
+                        }
+
+                        !hasCameraPermission || !hasMicrophonePermission -> {
+                            "카메라 및 마이크 권한 허용"
+                        }
+
+                        else -> "WebRTC 연결 시작"
                     },
                 )
             }
