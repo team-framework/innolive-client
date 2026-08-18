@@ -59,7 +59,11 @@ extension WebRTCVideoUplink {
             addRemoteCandidate(signal)
         case "error":
             if signal.error?.code == "unauthorized" {
-                AuthenticationSessionExpiration.notify()
+                fail(
+                    signal.error?.message ?? "영상 연결 인증이 만료되었습니다.",
+                    continuationError: .unauthorized
+                )
+                return
             }
             fail(signal.error?.message ?? "영상 서버가 WebRTC 연결을 거부했습니다.")
         default:

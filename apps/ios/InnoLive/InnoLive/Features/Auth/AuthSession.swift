@@ -12,6 +12,7 @@ final class AuthSession: ObservableObject {
     private let api = AuthenticationAPI()
     private let tokenStore = AuthenticationTokenStore()
     private var pendingSignup: PendingSignup?
+    private var tokenRefreshTask: Task<AuthenticationRefreshResult, Never>?
 
     func restore() { isAuthenticated = tokenStore.load() != nil }
 
@@ -133,6 +134,29 @@ final class AuthSession: ObservableObject {
         isAuthenticated = false
     }
 
+    func refreshSession() async -> AuthenticationRefreshResult {
+        if let tokenRefreshTask {
+            return await tokenRefreshTask.value
+        }
+        guard let currentTokens = tokenStore.load() else { return .invalid }
+
+        let task: Task<AuthenticationRefreshResult, Never> = Task { @MainActor [api, tokenStore] in
+            do {
+                try tokenStore.save(try await api.refresh(refreshToken: currentTokens.refreshToken))
+                return .refreshed
+            } catch let AuthenticationError.api(code, _) where code == "invalid_refresh_token" {
+                return .invalid
+            } catch {
+                // 네트워크 오류나 서버 오류로 갱신하지 못해도 기존 refresh token은 보존한다.
+                return .unavailable
+            }
+        }
+        tokenRefreshTask = task
+        let result = await task.value
+        tokenRefreshTask = nil
+        return result
+    }
+
     func makeNonce() -> String {
         let characters = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
         var nonce = ""
@@ -190,6 +214,12 @@ final class AuthSession: ObservableObject {
 }
 
 private struct PendingSignup { let email: String; let password: String; let token: String }
+
+enum AuthenticationRefreshResult {
+    case refreshed
+    case invalid
+    case unavailable
+}
 
 enum AuthenticationSessionExpiration {
     static let notification = Notification.Name("com.framework.innolive.authentication.expired")
@@ -260,6 +290,9 @@ private struct AuthenticationAPI {
     }
     func appleSignIn(authorizationCode: String, nonce: String, givenName: String?, familyName: String?) async throws -> AuthenticationTokenPair {
         try await request("/auth/apple", body: AppleLoginRequest(authorizationCode: authorizationCode, nonce: nonce, givenName: givenName, familyName: familyName))
+    }
+    func refresh(refreshToken: String) async throws -> AuthenticationTokenPair {
+        try await request("/auth/refresh", body: RefreshTokenRequest(refreshToken: refreshToken))
     }
 
     private func request<Body: Encodable, Response: Decodable>(_ path: String, body: Body) async throws -> Response {
@@ -338,6 +371,7 @@ private struct EmailCredentials: Encodable { let email: String; let password: St
 private struct EmailVerificationRequest: Encodable { let signupToken: String; let verificationCode: String; enum CodingKeys: String, CodingKey { case signupToken = "signup_token"; case verificationCode = "verification_code" } }
 private struct GoogleLoginRequest: Encodable { let idToken: String; enum CodingKeys: String, CodingKey { case idToken = "id_token" } }
 private struct AppleLoginRequest: Encodable { let authorizationCode: String; let nonce: String; let givenName: String?; let familyName: String?; enum CodingKeys: String, CodingKey { case authorizationCode = "authorization_code"; case nonce; case givenName = "given_name"; case familyName = "family_name" } }
+private struct RefreshTokenRequest: Encodable { let refreshToken: String; enum CodingKeys: String, CodingKey { case refreshToken = "refresh_token" } }
 private struct SignupResponse: Decodable { let signupToken: String; enum CodingKeys: String, CodingKey { case signupToken = "signup_token" } }
 private struct StatusResponse: Decodable { let status: String }
 private struct APIErrorResponse: Decodable { struct Details: Decodable { let code: String?; let message: String? }; let error: Details }

@@ -29,6 +29,22 @@ final class YouTubeIntegration: ObservableObject {
         connection = Self.loadConnection()
     }
 
+    func configureAuthentication(_ authentication: AuthSession) {
+        api.configureAuthentication(
+            accessTokenProvider: { [weak authentication] in
+                authentication?.currentAccessToken()
+            },
+            refreshSession: { [weak authentication] in
+                guard let authentication else { return .invalid }
+                return await authentication.refreshSession()
+            },
+            onInvalidRefresh: { [weak self, weak authentication] in
+                self?.reset()
+                authentication?.expireSession()
+            }
+        )
+    }
+
     var isConnected: Bool { connection != nil }
     // 송출을 시작하기 전에는 서버의 stream.publisher_active가 항상 false다.
     // 카메라 업링크 준비 여부는 세션 media.raw_video_track으로 판단한다.
@@ -169,33 +185,52 @@ final class YouTubeIntegration: ObservableObject {
 
         isConnectingVideo = true
         defer { isConnectingVideo = false }
-        do {
-            let iceServers = try await api.webrtcConfiguration(accessToken: accessToken)
-            try await videoUplink.start(
-                session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken),
-                accessToken: accessToken,
-                serverURL: serverURL,
-                iceServers: iceServers,
-                preferredCameraID: preferredCameraID,
-                preferredAudioID: preferredAudioID,
-                preferredVideoQuality: preferredVideoQuality
-            )
-            let isReady = try await waitForVideoTrack(session: session, accessToken: accessToken)
-            guard isReady, videoUplink.state == .connected else {
-                throw WebRTCVideoUplinkError.failed(
-                    videoUplink.errorMessage ?? "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요."
+        var currentAccessToken = accessToken
+        var shouldRetryAfterRefresh = true
+        var terminalError: Error?
+
+        while true {
+            do {
+                let iceServers = try await api.webrtcConfiguration(accessToken: currentAccessToken)
+                let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
+                try await videoUplink.start(
+                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken),
+                    accessToken: refreshedAccessToken,
+                    serverURL: serverURL,
+                    iceServers: iceServers,
+                    preferredCameraID: preferredCameraID,
+                    preferredAudioID: preferredAudioID,
+                    preferredVideoQuality: preferredVideoQuality
                 )
+                let isReady = try await waitForVideoTrack(session: session, accessToken: refreshedAccessToken)
+                guard isReady, videoUplink.state == .connected else {
+                    throw WebRTCVideoUplinkError.failed(
+                        videoUplink.errorMessage ?? "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요."
+                    )
+                }
+                return true
+            } catch WebRTCVideoUplinkError.unauthorized where shouldRetryAfterRefresh {
+                shouldRetryAfterRefresh = false
+                await videoUplink.stopAndWait()
+
+                guard await api.refreshAuthentication() == .refreshed else {
+                    terminalError = WebRTCVideoUplinkError.unauthorized
+                    break
+                }
+                currentAccessToken = api.currentAccessToken(fallback: currentAccessToken)
+            } catch {
+                terminalError = error
+                break
             }
-            return true
-        } catch {
-            await videoUplink.stopAndWait()
-            self.session = nil
-            self.stream = nil
-            self.streamStartFallback = nil
-            self.videoTrack = nil
-            handle(error)
-            return false
         }
+
+        await videoUplink.stopAndWait()
+        self.session = nil
+        self.stream = nil
+        self.streamStartFallback = nil
+        self.videoTrack = nil
+        handle(terminalError ?? WebRTCVideoUplinkError.failed("카메라 영상 연결을 완료하지 못했습니다."))
+        return false
     }
 
     func switchCamera(to cameraID: String) async -> Bool {

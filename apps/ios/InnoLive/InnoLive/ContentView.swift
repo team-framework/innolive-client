@@ -27,12 +27,22 @@ struct ContentView: View {
             }
         }
         .task {
+            youtube.configureAuthentication(authentication)
             authentication.restore()
         }
         .onReceive(NotificationCenter.default.publisher(for: AuthenticationSessionExpiration.notification)) { _ in
             guard authentication.isAuthenticated else { return }
-            youtube.reset()
-            authentication.expireSession()
+            Task {
+                switch await authentication.refreshSession() {
+                case .refreshed:
+                    break
+                case .invalid:
+                    youtube.reset()
+                    authentication.expireSession()
+                case .unavailable:
+                    authentication.showError("로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+                }
+            }
         }
         .onChange(of: authentication.isAuthenticated) { _, isAuthenticated in
             // 만료 요청의 비동기 실패 처리가 재로그인 뒤 도착해도 홈 화면에
