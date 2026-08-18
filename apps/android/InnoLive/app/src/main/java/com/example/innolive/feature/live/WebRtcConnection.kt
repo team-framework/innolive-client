@@ -2,7 +2,9 @@ package com.example.innolive.feature.live
 
 import android.content.Context
 import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.MediaRecorder
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import okhttp3.MediaType.Companion.toMediaType
@@ -54,6 +56,7 @@ class WebRtcConnection(
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
         require(url.isHttps) { "INNOLIVE_SERVER_URL must use HTTPS." }
     }
+    private val audioManager = applicationContext.getSystemService(AudioManager::class.java)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val ioExecutor = Executors.newSingleThreadExecutor()
     private val httpClient = OkHttpClient.Builder()
@@ -111,6 +114,12 @@ class WebRtcConnection(
     fun start() {
         if (!started.compareAndSet(false, true) || closed.get()) return
 
+        try {
+            updateBluetoothCommunicationRoute(preferredAudioInput)
+        } catch (exception: Exception) {
+            fail(exception.message ?: "Bluetooth 오디오 기기를 준비하지 못했습니다.")
+            return
+        }
         audioRouteMonitor.start()
         updateState(WebRtcConnectionState.CONNECTING, "WebRTC 연결 준비 중")
         mainHandler.postDelayed(connectionTimeout, CONNECTION_TIMEOUT_MILLIS)
@@ -186,9 +195,49 @@ class WebRtcConnection(
         mainHandler.post {
             if (closed.get() || terminal.get()) return@post
 
+            try {
+                updateBluetoothCommunicationRoute(audioInput)
+            } catch (exception: Exception) {
+                fail(exception.message ?: "Bluetooth 오디오 기기를 준비하지 못했습니다.")
+                return@post
+            }
             preferredAudioInput = audioInput
             audioInput?.let(audioDeviceModule::setPreferredInputDevice)
             resetAudioRouteVerification()
+        }
+    }
+
+    private fun updateBluetoothCommunicationRoute(audioInput: AudioDeviceInfo?) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+
+        if (!isBluetoothAudioInput(audioInput)) {
+            audioManager.clearCommunicationDevice()
+            return
+        }
+
+        val bluetoothInput = checkNotNull(audioInput)
+        val communicationDevices = audioManager.availableCommunicationDevices
+            .filter { device -> device.type == bluetoothInput.type }
+        val communicationDevice = communicationDevices
+            .firstOrNull { device -> device.address == bluetoothInput.address }
+            ?: communicationDevices.singleOrNull()
+            ?: throw IllegalStateException("선택한 Bluetooth 오디오 기기의 통신용 출력을 찾지 못했습니다.")
+        check(audioManager.setCommunicationDevice(communicationDevice)) {
+            "선택한 Bluetooth 오디오 기기를 통신 장치로 설정하지 못했습니다."
+        }
+    }
+
+    private fun isBluetoothAudioInput(audioInput: AudioDeviceInfo?): Boolean = when (audioInput?.type) {
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        AudioDeviceInfo.TYPE_BLE_HEADSET,
+        -> true
+
+        else -> false
+    }
+
+    private fun clearBluetoothCommunicationRoute() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            audioManager.clearCommunicationDevice()
         }
     }
 
@@ -516,6 +565,7 @@ class WebRtcConnection(
     }
 
     private fun releasePeerConnection() {
+        runCatching { clearBluetoothCommunicationRoute() }
         frameAnalyzer.stop()
         audioRouteMonitor.close()
         mainHandler.removeCallbacks(audioRouteVerification)
