@@ -82,14 +82,8 @@ fun LiveScreen(
                 frameAnalyzer = webRtcSession.connection?.frameAnalyzer,
                 remoteVideoTrack = webRtcSession.remoteVideoTrack,
                 eglContext = webRtcSession.connection?.eglContext,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(
-                        start = 12.dp,
-                        top = 112.dp,
-                        end = 12.dp,
-                        bottom = 88.dp,
-                    ),
+                isConnected = webRtcSession.connectionState == WebRtcConnectionState.CONNECTED,
+                modifier = Modifier.fillMaxSize(),
             )
         } else {
             Column(
