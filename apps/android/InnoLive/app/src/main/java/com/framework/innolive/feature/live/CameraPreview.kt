@@ -1,6 +1,5 @@
 package com.framework.innolive.feature.live
 
-import android.graphics.Bitmap
 import android.util.Rational
 import android.util.Size
 import android.view.Surface
@@ -21,11 +20,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,8 +30,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import java.util.concurrent.Executors
 
 @Composable
@@ -42,7 +37,6 @@ fun CameraPreview(
     cameraLensFacing: CameraLensFacing,
     cameraResolution: CameraResolution?,
     frameAnalyzer: CameraFrameAnalyzer? = null,
-    onPreviewBitmap: ((Bitmap) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -67,28 +61,6 @@ fun CameraPreview(
         }
     }
     var hasCameraError by remember { mutableStateOf(false) }
-    val currentOnPreviewBitmap by rememberUpdatedState(onPreviewBitmap)
-
-    LaunchedEffect(previewView, onPreviewBitmap != null) {
-        while (isActive && onPreviewBitmap != null) {
-            previewView.bitmap?.let { bitmap ->
-                val maxDimension = maxOf(bitmap.width, bitmap.height)
-                val backgroundBitmap = if (maxDimension <= 360) {
-                    bitmap
-                } else {
-                    val scale = 360f / maxDimension
-                    Bitmap.createScaledBitmap(
-                        bitmap,
-                        (bitmap.width * scale).toInt(),
-                        (bitmap.height * scale).toInt(),
-                        true,
-                    ).also { bitmap.recycle() }
-                }
-                currentOnPreviewBitmap?.invoke(backgroundBitmap)
-            }
-            delay(250)
-        }
-    }
 
     DisposableEffect(
         context,
