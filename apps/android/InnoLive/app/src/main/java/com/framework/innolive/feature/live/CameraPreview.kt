@@ -44,7 +44,7 @@ fun CameraPreview(
     val previewView = remember(context) {
         PreviewView(context).apply {
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-            scaleType = PreviewView.ScaleType.FILL_CENTER
+            scaleType = PreviewView.ScaleType.FIT_CENTER
         }
     }
     val previewContainer = remember(context, previewView) {
@@ -126,7 +126,7 @@ fun CameraPreview(
                             }
                             .setViewPort(
                                 ViewPort.Builder(
-                                    Rational(16, 9),
+                                    Rational(9, 16),
                                     previewView.display?.rotation ?: Surface.ROTATION_0,
                                 )
                                     .setScaleType(ViewPort.FILL_CENTER)
