@@ -21,8 +21,8 @@ fun LiveVideoPanels(
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
-        val aspectRatio = 16f / 9f
-        val mainWidth = minOf(maxWidth, maxHeight * aspectRatio)
+        val aspectRatio = 9f / 16f
+        val mainWidth = maxWidth
         val mainHeight = mainWidth / aspectRatio
         val pipWidth = maxWidth * 0.3f
         val pipHeight = pipWidth / aspectRatio
