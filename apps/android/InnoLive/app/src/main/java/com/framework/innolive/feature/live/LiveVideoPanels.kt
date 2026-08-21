@@ -1,13 +1,15 @@
 package com.framework.innolive.feature.live
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
@@ -19,50 +21,48 @@ fun LiveVideoPanels(
     frameAnalyzer: CameraFrameAnalyzer?,
     remoteVideoTrack: VideoTrack?,
     eglContext: EglBase.Context?,
+    isConnected: Boolean,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
-        val spacing = 12.dp
-        val isPortrait = maxHeight >= maxWidth
+        val aspectRatio = 9f / 16f
+        val mainWidth = maxWidth
+        val mainHeight = mainWidth / aspectRatio
+        val pipWidth = maxWidth * 0.3f
+        val pipHeight = pipWidth / aspectRatio
+        val mainModifier = Modifier
+            .align(Alignment.Center)
+            .size(mainWidth, mainHeight)
+        val pipModifier = Modifier
+            .align(Alignment.TopStart)
+            .padding(12.dp)
+            .size(pipWidth, pipHeight)
+            .clip(shape = RoundedCornerShape(8.dp))
 
-        if (isPortrait) {
-            val panelWidth = minOf(maxWidth, (maxHeight - spacing) / 2 * 16f / 9f)
-            val panelHeight = panelWidth * 9f / 16f
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                verticalArrangement = Arrangement.spacedBy(spacing),
-            ) {
-                CameraPreview(
-                    cameraLensFacing = cameraLensFacing,
-                    cameraResolution = cameraResolution,
-                    frameAnalyzer = frameAnalyzer,
-                    modifier = Modifier.size(panelWidth, panelHeight),
-                )
-                WebRtcRemotePreview(
-                    remoteVideoTrack = remoteVideoTrack,
-                    eglContext = eglContext,
-                    modifier = Modifier.size(panelWidth, panelHeight),
-                )
-            }
+        if (isConnected) {
+            WebRtcRemotePreview(
+                remoteVideoTrack = remoteVideoTrack,
+                eglContext = eglContext,
+                modifier = mainModifier,
+            )
+            CameraPreview(
+                cameraLensFacing = cameraLensFacing,
+                cameraResolution = cameraResolution,
+                frameAnalyzer = frameAnalyzer,
+                modifier = pipModifier,
+            )
         } else {
-            val panelWidth = minOf((maxWidth - spacing) / 2, maxHeight * 16f / 9f)
-            val panelHeight = panelWidth * 9f / 16f
-            Row(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalArrangement = Arrangement.spacedBy(spacing),
-            ) {
-                CameraPreview(
-                    cameraLensFacing = cameraLensFacing,
-                    cameraResolution = cameraResolution,
-                    frameAnalyzer = frameAnalyzer,
-                    modifier = Modifier.size(panelWidth, panelHeight),
-                )
-                WebRtcRemotePreview(
-                    remoteVideoTrack = remoteVideoTrack,
-                    eglContext = eglContext,
-                    modifier = Modifier.size(panelWidth, panelHeight),
-                )
-            }
+            CameraPreview(
+                cameraLensFacing = cameraLensFacing,
+                cameraResolution = cameraResolution,
+                frameAnalyzer = frameAnalyzer,
+                modifier = mainModifier,
+            )
+            WebRtcRemotePreview(
+                remoteVideoTrack = null,
+                eglContext = eglContext,
+                modifier = pipModifier,
+            )
         }
     }
 }

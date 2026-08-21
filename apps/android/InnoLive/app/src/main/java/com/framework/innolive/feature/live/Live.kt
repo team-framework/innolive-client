@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -73,7 +75,8 @@ fun LiveScreen(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize()
+            .background(color = Color.Black),
     ) {
         if (hasCameraPermission) {
             LiveVideoPanels(
@@ -82,14 +85,8 @@ fun LiveScreen(
                 frameAnalyzer = webRtcSession.connection?.frameAnalyzer,
                 remoteVideoTrack = webRtcSession.remoteVideoTrack,
                 eglContext = webRtcSession.connection?.eglContext,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(
-                        start = 12.dp,
-                        top = 112.dp,
-                        end = 12.dp,
-                        bottom = 88.dp,
-                    ),
+                isConnected = webRtcSession.connectionState == WebRtcConnectionState.CONNECTED,
+                modifier = Modifier.fillMaxSize(),
             )
         } else {
             Column(
