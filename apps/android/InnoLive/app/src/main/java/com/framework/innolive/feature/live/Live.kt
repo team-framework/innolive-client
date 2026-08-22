@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.framework.innolive.R
@@ -126,6 +127,7 @@ fun LiveScreen(
         ) {
             IconButton(
                 onClick = props.onOpenSettings,
+                enabled = !isConnecting
             ) {
                 Icon(
                     painter = painterResource(R.drawable.settings),
