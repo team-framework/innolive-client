@@ -34,7 +34,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.framework.innolive.feature.live.components.VerticalHeroButton
 
+private val TAG = "Live Screen"
 @Composable
 fun LiveScreen(
     props: LiveScreenProps,
@@ -149,15 +151,30 @@ fun LiveScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(24.dp),
+                .padding(24.dp, 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                IconButton(onClick = { TODO() }) {
+                    Icon(
+                        modifier = Modifier
+                            .padding(1.dp)
+                            .width(32.dp)
+                            .height(32.dp),
+                        painter = painterResource(R.drawable.change_camera),
+                        contentDescription = "Change camera facing",
+                        tint = Color.White
+                    )
+                }
+                VerticalHeroButton(
+                    text = "방송 시작",
+                    onClick = { Log.d(TAG, "방송 시작 클릭함") },
+                )
                 IconButton(onClick = {
                     if (isConnected) {
                         webRtcSession.close()
@@ -168,14 +185,20 @@ fun LiveScreen(
                     }
                 }) {
                     Icon(
+                        modifier = Modifier
+                            .padding(1.dp)
+                            .width(32.dp)
+                            .height(32.dp),
                         painter = painterResource(if (isConnected) R.drawable.blur_enabled else R.drawable.blur_disabled),
-                        contentDescription = "toggle face blur"
+                        contentDescription = "Toggle face blur",
+                        tint = Color.White
                     )
                 }
             }
             Text(
-                text = webRtcSession.connectionStatus,
-                style = MaterialTheme.typography.labelMedium
+                text = if (webRtcSession.connectionState === WebRtcConnectionState.FAILED) "비식별화 연결에 실패하였습니다." else "",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.Red
             )
         }
     }
