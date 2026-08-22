@@ -143,8 +143,7 @@ fun LiveScreen(
             }
             Text(text = "00:00:00", style = TextStyle(
                 fontSize = 20.sp,
-//                fontFamily = FontFamily(Font(R.font.suit_variable)),
-//                TODO: 폰트 추가
+                fontFamily = FontFamily(Font(R.font.suit_variable)),
                 fontWeight = FontWeight(500),
                 color = Color(0xFFFFFFFF),
             )
