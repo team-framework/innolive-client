@@ -178,7 +178,10 @@ fun LiveScreen(
                     text = "방송 시작",
                     onClick = { Log.d(TAG, "방송 시작 클릭함") },
                 )
-                IconButton(onClick = {
+                IconButton(
+                    enabled = !isConnecting,
+                    onClick = {
+                        Log.d(TAG, "blur clicked")
                     if (isConnected) {
                         webRtcSession.close()
                     } else if (!hasCameraPermission || !hasMicrophonePermission) {
