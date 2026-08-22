@@ -37,14 +37,17 @@ import androidx.core.content.ContextCompat
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 
 private val TAG = "Live Screen"
+
 @Composable
 fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
 ) {
     val context = LocalContext.current
-    val isConnected by remember { mutableStateOf(webRtcSession.connectionState == WebRtcConnectionState.CONNECTED) }
-    val isConnecting by remember { mutableStateOf(webRtcSession.connectionState != WebRtcConnectionState.CONNECTING) }
+    val isConnected =
+        webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
+    val isConnecting =
+        webRtcSession.connectionState == WebRtcConnectionState.CONNECTING
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
