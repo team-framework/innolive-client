@@ -2,6 +2,7 @@ package com.framework.innolive.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -10,7 +11,30 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import com.framework.innolive.utils.getFonts
+private val suitFont = getFonts()
+private val defaultTypography = Typography()
 
+private fun TextStyle.withSuitFont() = copy(fontFamily = suitFont)
+
+val InnoLiveTypography = Typography(
+    displayLarge = defaultTypography.displayLarge.withSuitFont(),
+    displayMedium = defaultTypography.displayMedium.withSuitFont(),
+    displaySmall = defaultTypography.displaySmall.withSuitFont(),
+    headlineLarge = defaultTypography.headlineLarge.withSuitFont(),
+    headlineMedium = defaultTypography.headlineMedium.withSuitFont(),
+    headlineSmall = defaultTypography.headlineSmall.withSuitFont(),
+    titleLarge = defaultTypography.titleLarge.withSuitFont(),
+    titleMedium = defaultTypography.titleMedium.withSuitFont(),
+    titleSmall = defaultTypography.titleSmall.withSuitFont(),
+    bodyLarge = defaultTypography.bodyLarge.withSuitFont(),
+    bodyMedium = defaultTypography.bodyMedium.withSuitFont(),
+    bodySmall = defaultTypography.bodySmall.withSuitFont(),
+    labelLarge = defaultTypography.labelLarge.withSuitFont(),
+    labelMedium = defaultTypography.labelMedium.withSuitFont(),
+    labelSmall = defaultTypography.labelSmall.withSuitFont(),
+)
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFFFFFFFF),
     secondary = Color(0x656565FF),
@@ -52,7 +76,7 @@ fun MyApplicationTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = InnoLiveTypography,
         content = content
     )
 }
