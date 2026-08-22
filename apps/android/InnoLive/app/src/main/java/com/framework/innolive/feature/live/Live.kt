@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -141,13 +142,7 @@ fun LiveScreen(
                     tint = Color.White
                 )
             }
-            Text(text = "00:00:00", style = TextStyle(
-                fontSize = 20.sp,
-                fontFamily = FontFamily(Font(R.font.suit_variable)),
-                fontWeight = FontWeight(500),
-                color = Color(0xFFFFFFFF),
-            )
-            )
+            Text(text = "00:00:00", style = MaterialTheme.typography.headlineSmall, color = Color.White)
         }
 
         Column(
@@ -157,7 +152,7 @@ fun LiveScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(text = webRtcSession.connectionStatus)
+            Text(text = webRtcSession.connectionStatus, style = MaterialTheme.typography.bodyLarge)
             Button(
                 enabled = webRtcSession.connectionState == WebRtcConnectionState.IDLE ||
                     webRtcSession.connectionState == WebRtcConnectionState.CONNECTED,
@@ -183,6 +178,7 @@ fun LiveScreen(
 
                         else -> "WebRTC 연결 시작"
                     },
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             }
         }
