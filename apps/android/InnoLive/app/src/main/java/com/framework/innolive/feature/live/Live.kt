@@ -5,9 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.framework.innolive.R
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +19,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,12 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 
 @Composable
@@ -48,6 +40,8 @@ fun LiveScreen(
     webRtcSession: WebRtcSessionViewModel,
 ) {
     val context = LocalContext.current
+    val isConnected by remember { mutableStateOf(webRtcSession.connectionState == WebRtcConnectionState.CONNECTED) }
+    val isConnecting by remember { mutableStateOf(webRtcSession.connectionState != WebRtcConnectionState.CONNECTING) }
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -91,7 +85,8 @@ fun LiveScreen(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .background(color = Color.Black),
     ) {
         if (hasCameraPermission) {
@@ -142,45 +137,44 @@ fun LiveScreen(
                     tint = Color.White
                 )
             }
-            Text(text = "00:00:00", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Text(
+                text = "00:00:00",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White
+            )
         }
 
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(12.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(text = webRtcSession.connectionStatus, style = MaterialTheme.typography.bodyLarge)
-            Button(
-                enabled = webRtcSession.connectionState == WebRtcConnectionState.IDLE ||
-                    webRtcSession.connectionState == WebRtcConnectionState.CONNECTED,
-                onClick = {
-                    if (webRtcSession.connectionState == WebRtcConnectionState.CONNECTED) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = {
+                    if (isConnected) {
                         webRtcSession.close()
                     } else if (!hasCameraPermission || !hasMicrophonePermission) {
                         requestMissingMediaPermissions()
                     } else {
                         webRtcSession.start(context, props.onRefreshAccessToken)
                     }
-                },
-            ) {
-                Text(
-                    text = when {
-                        webRtcSession.connectionState == WebRtcConnectionState.CONNECTED -> {
-                            "WebRTC 연결 종료"
-                        }
-
-                        !hasCameraPermission || !hasMicrophonePermission -> {
-                            "카메라 및 마이크 권한 허용"
-                        }
-
-                        else -> "WebRTC 연결 시작"
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                }) {
+                    Icon(
+                        painter = painterResource(if (isConnected) R.drawable.blur_enabled else R.drawable.blur_disabled),
+                        contentDescription = "toggle face blur"
+                    )
+                }
             }
+            Text(
+                text = webRtcSession.connectionStatus,
+                style = MaterialTheme.typography.labelMedium
+            )
         }
     }
 }
