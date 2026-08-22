@@ -4,13 +4,22 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.framework.innolive.R
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,7 +32,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 
 @Composable
@@ -105,13 +120,35 @@ fun LiveScreen(
             }
         }
 
-        Button(
+        Row(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp),
-            onClick = props.onOpenSettings,
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .padding(start = 16.dp, end = 16.dp, top = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "설정으로 이동")
+            IconButton(
+                onClick = props.onOpenSettings,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.settings),
+                    contentDescription = "settings",
+                    modifier = Modifier
+                        .padding(1.dp)
+                        .width(28.dp)
+                        .height(28.dp),
+                    tint = Color.White
+                )
+            }
+            Text(text = "00:00:00", style = TextStyle(
+                fontSize = 20.sp,
+//                fontFamily = FontFamily(Font(R.font.suit_variable)),
+//                TODO: 폰트 추가
+                fontWeight = FontWeight(500),
+                color = Color(0xFFFFFFFF),
+            )
+            )
         }
 
         Column(
