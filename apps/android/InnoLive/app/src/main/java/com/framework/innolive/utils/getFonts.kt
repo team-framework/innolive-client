@@ -1,18 +1,29 @@
 package com.framework.innolive.utils
 
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import com.framework.innolive.R
 
+@OptIn(ExperimentalTextApi::class)
+private fun suitFont(weight: FontWeight) = Font(
+    resId = R.font.suit_variable,
+    weight = weight,
+    variationSettings = FontVariation.Settings(
+        FontVariation.weight(weight.weight),
+    ),
+)
+
 fun getFonts(): FontFamily = FontFamily(
-    Font(R.font.suit_variable, FontWeight(100)),
-    Font(R.font.suit_variable, FontWeight(200)),
-    Font(R.font.suit_variable, FontWeight(300)),
-    Font(R.font.suit_variable, FontWeight(400)),
-    Font(R.font.suit_variable, FontWeight(500)),
-    Font(R.font.suit_variable, FontWeight(600)),
-    Font(R.font.suit_variable, FontWeight(700)),
-    Font(R.font.suit_variable, FontWeight(800)),
-    Font(R.font.suit_variable, FontWeight(900)),
+    suitFont(FontWeight.Thin),
+    suitFont(FontWeight.ExtraLight),
+    suitFont(FontWeight.Light),
+    suitFont(FontWeight.Normal),
+    suitFont(FontWeight.Medium),
+    suitFont(FontWeight.SemiBold),
+    suitFont(FontWeight.Bold),
+    suitFont(FontWeight.ExtraBold),
+    suitFont(FontWeight.Black),
 )
