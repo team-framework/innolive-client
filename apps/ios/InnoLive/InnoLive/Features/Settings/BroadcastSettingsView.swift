@@ -95,7 +95,7 @@ struct BroadcastSettingsView: View {
         .alert("방송 설정 저장 완료", isPresented: $isSaveConfirmationPresented) {
             Button("확인", role: .cancel) {}
         } message: {
-            Text("이 기기에 저장했으며 방송 시작 시 YouTube에 적용됩니다.")
+            Text("방송 시작 시 YouTube에 적용됩니다.")
         }
     }
 
