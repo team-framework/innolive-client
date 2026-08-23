@@ -51,6 +51,7 @@ class WebRtcConnection(
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, String) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
+    private val onBroadcastStateChanged: (BroadcastState, String) -> Unit,
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
@@ -66,6 +67,7 @@ class WebRtcConnection(
     private val started = AtomicBoolean(false)
     private val closed = AtomicBoolean(false)
     private val terminal = AtomicBoolean(false)
+    private val broadcastOperation = AtomicBoolean(false)
     private val audioRouteMonitor = AudioInputRouteMonitor(
         applicationContext,
         ::onAudioRouteChanged,
@@ -106,6 +108,9 @@ class WebRtcConnection(
     private var actualAudioInputId: Int? = null
     private var actualAudioInputSilenced = false
     private var peerConnectionConnected = false
+
+    @Volatile
+    private var broadcastState = BroadcastState.IDLE
 
     init {
         require(accessToken.isNotBlank()) { "Access token must not be blank." }
@@ -205,6 +210,106 @@ class WebRtcConnection(
             audioInput?.let(audioDeviceModule::setPreferredInputDevice)
             resetAudioRouteVerification()
         }
+    }
+
+    fun saveBroadcastSettings(settings: BroadcastSettings) {
+        runBroadcastOperation {
+            require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
+            updateBroadcastState(BroadcastState.SAVING_SETTINGS, "방송 설정 저장 중")
+            putBroadcastSettings(settings)
+            updateBroadcastState(BroadcastState.IDLE, "방송 설정 저장됨")
+        }
+    }
+
+    fun startBroadcast(settings: BroadcastSettings) {
+        if (broadcastState == BroadcastState.LIVE) return
+        runBroadcastOperation {
+            var prepared = false
+            try {
+                require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
+                updateBroadcastState(BroadcastState.SAVING_SETTINGS, "방송 설정 저장 중")
+                putBroadcastSettings(settings)
+                updateBroadcastState(BroadcastState.PREPARING, "YouTube 방송 준비 중")
+                postSessionRequest("stream/prepare", JSONObject().put("provider", "youtube"))
+                prepared = true
+                updateBroadcastState(BroadcastState.GOING_LIVE, "YouTube 라이브 전환 중")
+                goLiveWithRetry()
+                prepared = false
+                updateBroadcastState(BroadcastState.LIVE, "YouTube 방송 중")
+            } catch (exception: Exception) {
+                if (prepared) runCatching { postSessionRequest("stream/stop") }
+                throw exception
+            }
+        }
+    }
+
+    fun stopBroadcast() {
+        if (broadcastState != BroadcastState.LIVE) return
+        runBroadcastOperation {
+            updateBroadcastState(BroadcastState.STOPPING, "YouTube 방송 종료 중")
+            postSessionRequest("stream/stop")
+            updateBroadcastState(BroadcastState.IDLE, "YouTube 방송 종료됨")
+        }
+    }
+
+    private fun runBroadcastOperation(operation: () -> Unit) {
+        if (closed.get() || !broadcastOperation.compareAndSet(false, true)) return
+        ioExecutor.execute {
+            try {
+                check(session != null) { "WebRTC 세션이 없습니다." }
+                operation()
+            } catch (exception: Exception) {
+                updateBroadcastState(
+                    BroadcastState.FAILED,
+                    exception.message ?: "방송 요청을 처리하지 못했습니다.",
+                )
+            } finally {
+                broadcastOperation.set(false)
+            }
+        }
+    }
+
+    private fun putBroadcastSettings(settings: BroadcastSettings) {
+        val body = JSONObject()
+            .put("title", settings.title.trim())
+            .put("description", settings.description)
+            .put("privacy", settings.privacy)
+            .put("made_for_kids", settings.madeForKids)
+            .put("category_id", settings.categoryId.trim())
+        executeSessionRequest("broadcast", "PUT", body)
+    }
+
+    private fun postSessionRequest(path: String, body: JSONObject = JSONObject()) {
+        executeSessionRequest(path, "POST", body)
+    }
+
+    private fun executeSessionRequest(path: String, method: String, body: JSONObject) {
+        val createdSession = checkNotNull(session) { "WebRTC 세션이 없습니다." }
+        val request = authenticatedRequest("/sessions/${createdSession.sessionId}/$path")
+            .header("X-Session-Owner-Token", createdSession.ownerToken)
+            .method(method, body.toString().toRequestBody(JSON_MEDIA_TYPE))
+            .build()
+        httpClient.newCall(request).execute().use { response ->
+            val payload = response.body.string()
+            if (!response.isSuccessful) throw parseServerApiException(response.code, payload)
+        }
+    }
+
+    private fun goLiveWithRetry() {
+        repeat(GO_LIVE_RETRY_COUNT) { attempt ->
+            check(!closed.get()) { "WebRTC 연결이 종료되었습니다." }
+            try {
+                postSessionRequest("stream/golive")
+                return
+            } catch (exception: ServerApiException) {
+                if (exception.code != "broadcast_not_ready") throw exception
+                if (attempt < GO_LIVE_RETRY_COUNT - 1) {
+                    Thread.sleep(GO_LIVE_RETRY_DELAY_MILLIS)
+                }
+            }
+        }
+        runCatching { postSessionRequest("stream/stop") }
+        throw IOException("YouTube 방송 준비 시간이 초과되었습니다. 다시 시도해 주세요.")
     }
 
     private fun updateBluetoothCommunicationRoute(audioInput: AudioDeviceInfo?) {
@@ -604,6 +709,13 @@ class WebRtcConnection(
         }
     }
 
+    private fun updateBroadcastState(state: BroadcastState, message: String) {
+        broadcastState = state
+        mainHandler.post {
+            if (!closed.get()) onBroadcastStateChanged(state, message)
+        }
+    }
+
     private val peerConnectionObserver = object : PeerConnection.Observer {
         override fun onSignalingChange(state: PeerConnection.SignalingState) = Unit
 
@@ -674,8 +786,15 @@ class WebRtcConnection(
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private const val CONNECTION_TIMEOUT_MILLIS = 30_000L
         private const val AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS = 500L
+        private const val GO_LIVE_RETRY_COUNT = 15
+        private const val GO_LIVE_RETRY_DELAY_MILLIS = 1_000L
     }
 }
+
+private class ServerApiException(
+    val code: String?,
+    message: String,
+) : IOException(message)
 
 private data class CreatedSession(
     val sessionId: String,
@@ -772,4 +891,20 @@ private fun requireSuccessful(response: Response, operation: String) {
     if (!response.isSuccessful) {
         throw IOException("$operation 실패: HTTP ${response.code}")
     }
+}
+
+private fun parseServerApiException(statusCode: Int, payload: String): ServerApiException {
+    val error = runCatching { JSONObject(payload).optJSONObject("error") }.getOrNull()
+    val code = error?.optString("code")?.takeIf { it.isNotBlank() }
+    val fallback = error?.optString("message")?.takeIf { it.isNotBlank() }
+        ?: "서버 요청 실패: HTTP $statusCode"
+    val message = when (code) {
+        "streaming_not_connected" -> "YouTube 계정을 먼저 연결해 주세요."
+        "live_streaming_blocked" -> "YouTube 라이브 기능을 먼저 활성화해 주세요."
+        "streaming_reconnect_required" -> "YouTube 계정을 다시 연결해 주세요."
+        "streaming_prepare_failed" -> "YouTube 방송을 준비하지 못했습니다."
+        "broadcast_stopped" -> "라이브 전환 중 방송이 종료되었습니다."
+        else -> fallback
+    }
+    return ServerApiException(code, message)
 }

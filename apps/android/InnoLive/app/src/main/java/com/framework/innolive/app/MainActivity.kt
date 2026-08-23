@@ -33,10 +33,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.framework.innolive.feature.live.AudioInputDevice
+import com.framework.innolive.feature.live.BroadcastSettings
+import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.CameraResolution
 import com.framework.innolive.feature.live.LiveScreen
 import com.framework.innolive.feature.live.LiveScreenProps
+import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.isSelectableAudioInputType
 import com.framework.innolive.feature.live.supportedCameraResolutions
@@ -72,6 +75,8 @@ enum class SettingOptionType {
     CAMERA_DEVICE,
     AUDIO_DEVICE,
     BROADCAST_PLATFORM,
+    BROADCAST_PRIVACY,
+    BROADCAST_AUDIENCE,
 }
 
 data class SettingOptionRoute(
@@ -86,9 +91,19 @@ private data class OptionSelectionConfig(
 )
 
 private val broadcastPlatformOptions = listOf(
-    "Youtube",
-    "Chzzk",
-    "SOOP",
+    "YouTube",
+)
+
+private val broadcastPrivacyOptions = listOf(
+    SettingOption(key = "public", label = "공개"),
+    SettingOption(key = "unlisted", label = "일부 공개"),
+    SettingOption(key = "private", label = "비공개"),
+)
+
+private val broadcastAudienceOptions = listOf(
+    SettingOption(key = "unset", label = "선택 필요"),
+    SettingOption(key = "true", label = "아동용"),
+    SettingOption(key = "false", label = "아동용 아님"),
 )
 
 class MainActivity : ComponentActivity() {
@@ -173,6 +188,11 @@ fun AppNavigation(
     var selectedBroadcastPlatform by rememberSaveable {
         mutableStateOf(broadcastPlatformOptions.first())
     }
+    var broadcastTitle by rememberSaveable { mutableStateOf("") }
+    var broadcastDescription by rememberSaveable { mutableStateOf("") }
+    var broadcastPrivacy by rememberSaveable { mutableStateOf("private") }
+    var broadcastAudience by rememberSaveable { mutableStateOf("unset") }
+    var broadcastCategoryId by rememberSaveable { mutableStateOf("") }
 
     DisposableEffect(context, selectedCameraLensFacing) {
         var isDisposed = false
@@ -219,6 +239,17 @@ fun AppNavigation(
     val selectedAudioDevice = audioDeviceOptions.firstOrNull { device ->
         device.id == selectedAudioDeviceId
     } ?: audioDeviceOptions.firstOrNull()
+    val broadcastSettings = BroadcastSettings(
+        title = broadcastTitle,
+        description = broadcastDescription,
+        privacy = broadcastPrivacy,
+        madeForKids = when (broadcastAudience) {
+            "true" -> true
+            "false" -> false
+            else -> null
+        },
+        categoryId = broadcastCategoryId,
+    )
     LaunchedEffect(selectedAudioInput?.id) {
         webRtcSession.selectAudioInput(selectedAudioInput)
     }
@@ -260,6 +291,7 @@ fun AppNavigation(
                             props = LiveScreenProps(
                                 cameraLensFacing = selectedCameraLensFacing,
                                 cameraResolution = selectedResolution,
+                                broadcastSettings = broadcastSettings,
                                 onRefreshAccessToken = {
                                     val currentSession = checkNotNull(session) {
                                         "Authentication session is missing."
@@ -340,6 +372,52 @@ fun AppNavigation(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_PLATFORM),
                                     )
                                 },
+                                title = broadcastTitle,
+                                onTitleChanged = { value -> broadcastTitle = value.take(100) },
+                                description = broadcastDescription,
+                                onDescriptionChanged = { value ->
+                                    broadcastDescription = value.take(5_000)
+                                },
+                                selectedPrivacy = broadcastPrivacyOptions
+                                    .first { option -> option.key == broadcastPrivacy }
+                                    .label,
+                                onOpenPrivacyOptions = {
+                                    backStack.add(
+                                        SettingOptionRoute(SettingOptionType.BROADCAST_PRIVACY),
+                                    )
+                                },
+                                selectedAudience = broadcastAudienceOptions
+                                    .first { option -> option.key == broadcastAudience }
+                                    .label,
+                                onOpenAudienceOptions = {
+                                    backStack.add(
+                                        SettingOptionRoute(SettingOptionType.BROADCAST_AUDIENCE),
+                                    )
+                                },
+                                categoryId = broadcastCategoryId,
+                                onCategoryIdChanged = { value ->
+                                    broadcastCategoryId = value.filter(Char::isDigit)
+                                },
+                                onSave = {
+                                    webRtcSession.saveBroadcastSettings(broadcastSettings)
+                                },
+                                isSaveEnabled =
+                                    webRtcSession.connectionState == WebRtcConnectionState.CONNECTED &&
+                                        broadcastAudience != "unset" &&
+                                        webRtcSession.broadcastState !in setOf(
+                                            BroadcastState.SAVING_SETTINGS,
+                                            BroadcastState.PREPARING,
+                                            BroadcastState.GOING_LIVE,
+                                            BroadcastState.LIVE,
+                                            BroadcastState.STOPPING,
+                                        ),
+                                statusMessage = if (
+                                    webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
+                                ) {
+                                    webRtcSession.broadcastStatus
+                                } else {
+                                    "비식별화 연결 후 방송 설정을 저장할 수 있습니다."
+                                },
                             ),
                         )
                     }
@@ -392,6 +470,20 @@ fun AppNavigation(
                             },
                             selectedKey = selectedBroadcastPlatform,
                             onOptionSelected = { selectedBroadcastPlatform = it },
+                        )
+
+                        SettingOptionType.BROADCAST_PRIVACY -> OptionSelectionConfig(
+                            title = "공개 범위",
+                            options = broadcastPrivacyOptions,
+                            selectedKey = broadcastPrivacy,
+                            onOptionSelected = { broadcastPrivacy = it },
+                        )
+
+                        SettingOptionType.BROADCAST_AUDIENCE -> OptionSelectionConfig(
+                            title = "아동용 콘텐츠",
+                            options = broadcastAudienceOptions,
+                            selectedKey = broadcastAudience,
+                            onOptionSelected = { broadcastAudience = it },
                         )
                     }
 

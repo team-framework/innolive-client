@@ -30,6 +30,7 @@ fun VerticalHeroButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
@@ -37,6 +38,7 @@ fun VerticalHeroButton(
     val backgroundColor = when {
         isPressed -> Color(0xFFD2D2D2)
         isHovered -> Color(0xFFF2F2F2)
+        !enabled -> Color(0xFF8A8A8A)
         else -> Color.White
     }
 
@@ -47,6 +49,7 @@ fun VerticalHeroButton(
             .background(backgroundColor, RoundedCornerShape(20.dp))
             .hoverable(interactionSource)
             .clickable(
+                enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
                 role = Role.Button,
