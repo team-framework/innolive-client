@@ -24,9 +24,16 @@ final class YouTubeIntegration: ObservableObject {
     private var pollingTask: Task<Void, Never>?
     private var pollingGeneration = 0
     private var streamStartFallback: Date?
+    private var reconnectTask: Task<Void, Never>?
+    private var isReconnectingVideo = false
+    private var videoConnectionConfiguration: VideoConnectionConfiguration?
+    private let maximumVideoReconnectAttempts = 3
 
     init() {
         connection = Self.loadConnection()
+        videoUplink.onConnectionInterrupted = { [weak self] in
+            self?.reconnectVideoUsingExistingSession()
+        }
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
@@ -208,6 +215,11 @@ final class YouTubeIntegration: ObservableObject {
                         videoUplink.errorMessage ?? "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요."
                     )
                 }
+                videoConnectionConfiguration = VideoConnectionConfiguration(
+                    preferredCameraID: preferredCameraID,
+                    preferredAudioID: preferredAudioID,
+                    preferredVideoQuality: preferredVideoQuality
+                )
                 return true
             } catch WebRTCVideoUplinkError.unauthorized where shouldRetryAfterRefresh {
                 shouldRetryAfterRefresh = false
@@ -225,6 +237,7 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         await videoUplink.stopAndWait()
+        videoConnectionConfiguration = nil
         self.session = nil
         self.stream = nil
         self.streamStartFallback = nil
@@ -274,6 +287,9 @@ final class YouTubeIntegration: ObservableObject {
             await stopYouTubeStream(accessToken: accessToken)
         }
         await videoUplink.stopAndWait()
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        videoConnectionConfiguration = nil
         stopPolling()
         session = nil
         stream = nil
@@ -292,6 +308,9 @@ final class YouTubeIntegration: ObservableObject {
         let shouldStopYouTube = isYouTubeBroadcastActive
 
         await videoUplink.stopAndWait()
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        videoConnectionConfiguration = nil
         stopPolling()
         session = nil
         stream = nil
@@ -374,7 +393,10 @@ final class YouTubeIntegration: ObservableObject {
 
     func reset() {
         stopPolling()
+        reconnectTask?.cancel()
+        reconnectTask = nil
         videoUplink.stop()
+        videoConnectionConfiguration = nil
         connection = nil
         session = nil
         stream = nil
@@ -458,6 +480,65 @@ final class YouTubeIntegration: ObservableObject {
         throw YouTubeAPIError.videoTrackUnavailable
     }
 
+    private func reconnectVideoUsingExistingSession() {
+        guard !isReconnectingVideo,
+              reconnectTask == nil,
+              let session,
+              let configuration = videoConnectionConfiguration,
+              let serverURL = AuthenticationConfiguration.serverURL(path: "/") else {
+            return
+        }
+
+        isReconnectingVideo = true
+        reconnectTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.isReconnectingVideo = false
+                self.reconnectTask = nil
+            }
+
+            for attempt in 1...self.maximumVideoReconnectAttempts {
+                guard !Task.isCancelled else { return }
+                if attempt > 1 {
+                    try? await Task.sleep(for: .seconds(2))
+                }
+
+                do {
+                    let accessToken = self.api.currentAccessToken(fallback: self.videoUplink.accessToken ?? "")
+                    guard !accessToken.isEmpty else {
+                        throw WebRTCVideoUplinkError.unauthorized
+                    }
+                    let iceServers = try await self.api.webrtcConfiguration(accessToken: accessToken)
+                    guard !Task.isCancelled else { return }
+                    await self.videoUplink.stopAndWait()
+                    guard !Task.isCancelled else { return }
+                    try await self.videoUplink.start(
+                        session: WebRTCSessionCredentials(
+                            sessionID: session.sessionID,
+                            ownerToken: session.ownerToken
+                        ),
+                        accessToken: self.api.currentAccessToken(fallback: accessToken),
+                        serverURL: serverURL,
+                        iceServers: iceServers,
+                        preferredCameraID: configuration.preferredCameraID,
+                        preferredAudioID: configuration.preferredAudioID,
+                        preferredVideoQuality: configuration.preferredVideoQuality
+                    )
+                    guard !Task.isCancelled else { return }
+                    guard try await self.waitForVideoTrack(session: session, accessToken: accessToken) else {
+                        throw WebRTCVideoUplinkError.failed("카메라 영상 연결을 복구하지 못했습니다.")
+                    }
+                    self.videoUplink.markPublisherReady()
+                    return
+                } catch {
+                    await self.videoUplink.stopAndWait()
+                }
+            }
+
+            self.videoUplink.markReconnectFailed("네트워크 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요.")
+        }
+    }
+
     private func clearError() {
         errorMessage = nil
         helpURL = nil
@@ -527,4 +608,10 @@ final class YouTubeIntegration: ObservableObject {
               let data = try? JSONEncoder().encode(connection) else { return }
         UserDefaults.standard.set(data, forKey: Self.connectionStorageKey)
     }
+}
+
+private struct VideoConnectionConfiguration {
+    let preferredCameraID: String?
+    let preferredAudioID: String?
+    let preferredVideoQuality: CameraQualityPreset
 }
