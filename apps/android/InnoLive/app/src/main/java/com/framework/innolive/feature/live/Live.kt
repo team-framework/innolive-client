@@ -2,16 +2,24 @@ package com.framework.innolive.feature.live
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.framework.innolive.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,8 +31,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.framework.innolive.feature.live.components.VerticalHeroButton
+
+private val TAG = "Live Screen"
 
 @Composable
 fun LiveScreen(
@@ -32,6 +44,10 @@ fun LiveScreen(
     webRtcSession: WebRtcSessionViewModel,
 ) {
     val context = LocalContext.current
+    val isConnected =
+        webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
+    val isConnecting =
+        webRtcSession.connectionState == WebRtcConnectionState.CONNECTING
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -75,7 +91,8 @@ fun LiveScreen(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
             .background(color = Color.Black),
     ) {
         if (hasCameraPermission) {
@@ -105,50 +122,90 @@ fun LiveScreen(
             }
         }
 
-        Button(
+        Row(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp),
-            onClick = props.onOpenSettings,
+                .fillMaxWidth()
+                .align(Alignment.TopStart)
+                .padding(start = 16.dp, end = 16.dp, top = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "설정으로 이동")
+            IconButton(
+                onClick = props.onOpenSettings,
+                enabled = !isConnecting
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.settings),
+                    contentDescription = "settings",
+                    modifier = Modifier
+                        .padding(1.dp)
+                        .width(28.dp)
+                        .height(28.dp),
+                    tint = Color.White
+                )
+            }
+            Text(
+                text = "00:00:00",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White
+            )
         }
 
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(12.dp),
+                .padding(24.dp, 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(text = webRtcSession.connectionStatus)
-            Button(
-                enabled = webRtcSession.connectionState == WebRtcConnectionState.IDLE ||
-                    webRtcSession.connectionState == WebRtcConnectionState.CONNECTED,
-                onClick = {
-                    if (webRtcSession.connectionState == WebRtcConnectionState.CONNECTED) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { TODO() }) {
+                    Icon(
+                        modifier = Modifier
+                            .padding(1.dp)
+                            .width(32.dp)
+                            .height(32.dp),
+                        painter = painterResource(R.drawable.change_camera),
+                        contentDescription = "Change camera facing",
+                        tint = Color.White
+                    )
+                }
+                VerticalHeroButton(
+                    text = "방송 시작",
+                    onClick = { Log.d(TAG, "방송 시작 클릭함") },
+                )
+                IconButton(
+                    enabled = !isConnecting,
+                    onClick = {
+                        Log.d(TAG, "blur clicked")
+                    if (isConnected) {
                         webRtcSession.close()
                     } else if (!hasCameraPermission || !hasMicrophonePermission) {
                         requestMissingMediaPermissions()
                     } else {
                         webRtcSession.start(context, props.onRefreshAccessToken)
                     }
-                },
-            ) {
-                Text(
-                    text = when {
-                        webRtcSession.connectionState == WebRtcConnectionState.CONNECTED -> {
-                            "WebRTC 연결 종료"
-                        }
-
-                        !hasCameraPermission || !hasMicrophonePermission -> {
-                            "카메라 및 마이크 권한 허용"
-                        }
-
-                        else -> "WebRTC 연결 시작"
-                    },
-                )
+                }) {
+                    Icon(
+                        modifier = Modifier
+                            .padding(1.dp)
+                            .width(32.dp)
+                            .height(32.dp),
+                        painter = painterResource(if (isConnected) R.drawable.blur_enabled else R.drawable.blur_disabled),
+                        contentDescription = "Toggle face blur",
+                        tint = Color.White
+                    )
+                }
             }
+            Text(
+                text = if (webRtcSession.connectionState === WebRtcConnectionState.FAILED) "비식별화 연결에 실패하였습니다." else "",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.Red
+            )
         }
     }
 }

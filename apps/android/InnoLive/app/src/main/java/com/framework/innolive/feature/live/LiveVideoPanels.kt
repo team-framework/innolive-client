@@ -3,6 +3,7 @@ package com.framework.innolive.feature.live
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +36,7 @@ fun LiveVideoPanels(
             .size(mainWidth, mainHeight)
         val pipModifier = Modifier
             .align(Alignment.TopStart)
+            .offset(y = 50.dp)
             .padding(12.dp)
             .size(pipWidth, pipHeight)
             .clip(shape = RoundedCornerShape(8.dp))
