@@ -106,13 +106,27 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
                 text = "방송 계정",
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Button(
-                onClick = {},
-                enabled = false,
-            ) {
-                Text(text = "연동")
+            if (!props.youtubeChannelTitle.isNullOrBlank()) {
+                Text(
+                    text = props.youtubeChannelTitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (props.youtubeChannelTitle.isNullOrBlank() || props.isYouTubeReconnectRequired) {
+                Button(
+                    onClick = props.onConnectYouTube,
+                    enabled = props.isYouTubeConnectEnabled && !props.isYouTubeAccountActionInProgress,
+                ) {
+                    Text(text = if (props.isYouTubeReconnectRequired) "재연동" else "연동")
+                }
             }
         }
+
+        Text(
+            text = props.youtubeAccountStatus,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 10.dp),
+        )
 
         Button(
             onClick = props.onSave,

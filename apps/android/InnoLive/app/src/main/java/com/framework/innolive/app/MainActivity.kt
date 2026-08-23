@@ -6,8 +6,11 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
@@ -23,6 +26,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -56,8 +60,12 @@ import com.framework.innolive.feature.settings.camera.CameraSetting
 import com.framework.innolive.feature.settings.camera.CameraSettingProps
 import com.framework.innolive.feature.settings.selection.OptionSelectionScreen
 import com.framework.innolive.feature.settings.selection.SettingOption
+import com.framework.innolive.feature.youtube.StreamingAccount
+import com.framework.innolive.feature.youtube.YouTubeAccountCoordinator
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 sealed interface AppRoute : Serializable
 data object LoginRoute : AppRoute
@@ -132,8 +140,72 @@ fun AppNavigation(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val activity = context as? ComponentActivity
+    val coroutineScope = rememberCoroutineScope()
     val sessionStore = remember(context) { GoogleSessionStore(context) }
     var session by remember { mutableStateOf(sessionStore.load()) }
+    val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
+    var youtubeAccount by remember { mutableStateOf<StreamingAccount?>(null) }
+    var youtubeAccountStatus by remember {
+        mutableStateOf("로그인 후 YouTube 계정을 연동할 수 있습니다.")
+    }
+    var isYouTubeAccountActionInProgress by remember { mutableStateOf(false) }
+
+    DisposableEffect(youtubeCoordinator) {
+        onDispose { youtubeCoordinator.close() }
+    }
+
+    suspend fun refreshCurrentAccessToken(): String {
+        val currentSession = checkNotNull(session) { "Authentication session is missing." }
+        return refreshGoogleSession(context, currentSession)
+            .also { refreshedSession -> session = refreshedSession }
+            .accessToken
+    }
+
+    fun updateYouTubeAccount(account: StreamingAccount?) {
+        youtubeAccount = account
+        youtubeAccountStatus = when {
+            account == null -> "연결된 YouTube 계정이 없습니다."
+            account.reconnectRequired -> "YouTube 재연동이 필요합니다."
+            account.channelTitle.isNotBlank() -> "YouTube 채널: ${account.channelTitle}"
+            else -> "YouTube 계정이 연동되었습니다."
+        }
+    }
+
+    fun showYouTubeAccountFailure() {
+        isYouTubeAccountActionInProgress = false
+        youtubeAccountStatus = "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요."
+    }
+
+    val completeYouTubeConnection: (String) -> Unit = { serverAuthCode ->
+        coroutineScope.launch {
+            try {
+                updateYouTubeAccount(
+                    youtubeCoordinator.connect(serverAuthCode, ::refreshCurrentAccessToken),
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                showYouTubeAccountFailure()
+            } finally {
+                isYouTubeAccountActionInProgress = false
+            }
+        }
+    }
+
+    val authorizationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        val data = result.data
+        if (result.resultCode == Activity.RESULT_OK && data != null) {
+            runCatching { youtubeCoordinator.serverAuthCodeFromIntent(data) }
+                .onSuccess(completeYouTubeConnection)
+                .onFailure { showYouTubeAccountFailure() }
+        } else {
+            isYouTubeAccountActionInProgress = false
+            youtubeAccountStatus = "YouTube 권한 동의를 취소했습니다."
+        }
+    }
     val packageManager = context.packageManager
     val cameraDeviceOptions = remember(packageManager) {
         CameraLensFacing.supported(
@@ -171,6 +243,18 @@ fun AppNavigation(
         if (session != null && backStack.lastOrNull() == LoginRoute) {
             backStack.clear()
             backStack.add(LiveRoute)
+        }
+    }
+    LaunchedEffect(backStack.lastOrNull(), session?.profileEmail) {
+        if (backStack.lastOrNull() == BroadcastSettingRoute && session != null) {
+            youtubeAccountStatus = "YouTube 연결 상태를 확인하는 중입니다."
+            try {
+                updateYouTubeAccount(youtubeCoordinator.loadAccount(::refreshCurrentAccessToken))
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다."
+            }
         }
     }
     var selectedResolutionKey by rememberSaveable {
@@ -292,14 +376,7 @@ fun AppNavigation(
                                 cameraLensFacing = selectedCameraLensFacing,
                                 cameraResolution = selectedResolution,
                                 broadcastSettings = broadcastSettings,
-                                onRefreshAccessToken = {
-                                    val currentSession = checkNotNull(session) {
-                                        "Authentication session is missing."
-                                    }
-                                    refreshGoogleSession(context, currentSession)
-                                        .also { refreshedSession -> session = refreshedSession }
-                                        .accessToken
-                                },
+                                onRefreshAccessToken = ::refreshCurrentAccessToken,
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
                                 },
@@ -397,6 +474,37 @@ fun AppNavigation(
                                 categoryId = broadcastCategoryId,
                                 onCategoryIdChanged = { value ->
                                     broadcastCategoryId = value.filter(Char::isDigit)
+                                },
+                                youtubeChannelTitle = youtubeAccount?.channelTitle,
+                                youtubeAccountStatus = youtubeAccountStatus,
+                                isYouTubeReconnectRequired = youtubeAccount?.reconnectRequired == true,
+                                isYouTubeAccountActionInProgress = isYouTubeAccountActionInProgress,
+                                isYouTubeConnectEnabled = session != null,
+                                onConnectYouTube = connectYouTube@{
+                                    if (isYouTubeAccountActionInProgress || session == null) {
+                                        return@connectYouTube
+                                    }
+
+                                    isYouTubeAccountActionInProgress = true
+                                    youtubeAccountStatus = "YouTube 계정 연동을 시작하는 중입니다."
+                                    coroutineScope.launch {
+                                        try {
+                                            youtubeCoordinator.beginAuthorization(
+                                                accountEmail = session?.profileEmail,
+                                                onAuthorizationRequired = { pendingIntent ->
+                                                    authorizationLauncher.launch(
+                                                        IntentSenderRequest.Builder(pendingIntent).build(),
+                                                    )
+                                                },
+                                                onAuthorized = completeYouTubeConnection,
+                                                onFailure = { showYouTubeAccountFailure() },
+                                            )
+                                        } catch (exception: CancellationException) {
+                                            throw exception
+                                        } catch (_: Exception) {
+                                            showYouTubeAccountFailure()
+                                        }
+                                    }
                                 },
                                 onSave = {
                                     webRtcSession.saveBroadcastSettings(broadcastSettings)
