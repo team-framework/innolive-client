@@ -9,6 +9,7 @@ struct BroadcastSettingsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @State private var draftSettings: YouTubeBroadcastSettings
+    @State private var isSaveConfirmationPresented = false
 
     init(authentication: AuthSession, youtube: YouTubeIntegration) {
         self.authentication = authentication
@@ -91,6 +92,11 @@ struct BroadcastSettingsView: View {
         }
         .navigationTitle("방송 설정")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("방송 설정 저장 완료", isPresented: $isSaveConfirmationPresented) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("이 기기에 저장했으며 방송 시작 시 YouTube에 적용됩니다.")
+        }
     }
 
     private var broadcastTitleSection: some View {
@@ -183,6 +189,7 @@ struct BroadcastSettingsView: View {
     private func saveBroadcastSettings() {
         youtube.broadcastSettings = draftSettings.normalized
         draftSettings = youtube.broadcastSettings
+        isSaveConfirmationPresented = true
     }
 
     private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
