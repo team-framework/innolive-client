@@ -270,13 +270,7 @@ class WebRtcConnection(
     }
 
     private fun putBroadcastSettings(settings: BroadcastSettings) {
-        val body = JSONObject()
-            .put("title", settings.title.trim())
-            .put("description", settings.description)
-            .put("privacy", settings.privacy)
-            .put("made_for_kids", settings.madeForKids)
-            .put("category_id", settings.categoryId.trim())
-        executeSessionRequest("broadcast", "PUT", body)
+        executeSessionRequest("broadcast", "PUT", buildBroadcastSettingsPayload(settings))
     }
 
     private fun postSessionRequest(path: String, body: JSONObject = JSONObject()) {
@@ -908,3 +902,10 @@ private fun parseServerApiException(statusCode: Int, payload: String): ServerApi
     }
     return ServerApiException(code, message)
 }
+
+internal fun buildBroadcastSettingsPayload(settings: BroadcastSettings): JSONObject = JSONObject()
+    .put("title", settings.title.trim())
+    .put("description", settings.description)
+    .put("privacy", settings.privacy)
+    .put("made_for_kids", settings.madeForKids)
+    .put("category_id", settings.categoryId.trim())
