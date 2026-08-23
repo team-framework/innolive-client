@@ -67,11 +67,23 @@ struct YouTubeBroadcastSettings: Codable, Equatable {
 
     static var defaultValue: Self {
         Self(
-            title: "",
+            title: defaultTitle(),
             description: "",
             privacy: .private,
             audience: YouTubeBroadcastAudience(rawValue: YouTubeBroadcastAudience.defaultRawValue)
         )
+    }
+
+    static func defaultTitle(for date: Date = Date()) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        guard let year = components.year,
+              let month = components.month,
+              let day = components.day else {
+            return "InnoLive 방송"
+        }
+        return String(format: "%04d%02d%02d InnoLive 방송", year, month, day)
     }
 
     var normalized: Self {

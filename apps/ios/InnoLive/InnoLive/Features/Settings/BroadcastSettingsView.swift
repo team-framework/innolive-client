@@ -8,6 +8,13 @@ import SwiftUI
 struct BroadcastSettingsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    @State private var draftSettings: YouTubeBroadcastSettings
+
+    init(authentication: AuthSession, youtube: YouTubeIntegration) {
+        self.authentication = authentication
+        self.youtube = youtube
+        _draftSettings = State(initialValue: youtube.broadcastSettings)
+    }
 
     var body: some View {
         ScrollView {
@@ -22,8 +29,8 @@ struct BroadcastSettingsView: View {
                     }
                     .buttonStyle(.plain)
 
-                    broadcastTitleCard
-                    broadcastDescriptionCard
+                    broadcastTitleSection
+                    broadcastDescriptionSection
 
                     SettingsGlassRow {
                         HStack {
@@ -65,6 +72,19 @@ struct BroadcastSettingsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
                     }
+
+                    Button(action: saveBroadcastSettings) {
+                        Text("저장")
+                            .font(.body.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(.blue)
+                    .disabled(
+                        youtube.isBroadcastSettingsLocked
+                            || draftSettings.normalized.title.isEmpty
+                    )
                 }
             }
             .padding(24)
@@ -73,41 +93,45 @@ struct BroadcastSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var broadcastTitleCard: some View {
-        settingsCard {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("YouTube 방송 제목")
-                        .font(.body.weight(.semibold))
-                    Spacer()
-                    Text("\(youtube.broadcastSettings.title.count)/\(YouTubeBroadcastSettings.maxTitleLength)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+    private var broadcastTitleSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text("YouTube 방송 제목")
+                    .font(.body.weight(.semibold))
+                Text("필수")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(draftSettings.title.count)/\(YouTubeBroadcastSettings.maxTitleLength)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 4)
+
+            settingsCard {
                 TextField("방송 제목을 입력해 주세요", text: titleBinding)
                     .textInputAutocapitalization(.sentences)
                     .submitLabel(.done)
                     .disabled(youtube.isBroadcastSettingsLocked)
-                Text("필수")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
     }
 
-    private var broadcastDescriptionCard: some View {
-        settingsCard {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("YouTube 방송 설명")
-                        .font(.body.weight(.semibold))
-                    Spacer()
-                    Text("\(youtube.broadcastSettings.description.count)/\(YouTubeBroadcastSettings.maxDescriptionLength)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+    private var broadcastDescriptionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("YouTube 방송 설명")
+                    .font(.body.weight(.semibold))
+                Spacer()
+                Text("\(draftSettings.description.count)/\(YouTubeBroadcastSettings.maxDescriptionLength)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 4)
+
+            settingsCard {
                 ZStack(alignment: .topLeading) {
-                    if youtube.broadcastSettings.description.isEmpty {
+                    if draftSettings.description.isEmpty {
                         Text("방송 설명을 입력해 주세요")
                             .foregroundStyle(.tertiary)
                             .padding(.horizontal, 5)
@@ -124,18 +148,18 @@ struct BroadcastSettingsView: View {
 
     private var titleBinding: Binding<String> {
         Binding(
-            get: { youtube.broadcastSettings.title },
+            get: { draftSettings.title },
             set: {
-                youtube.broadcastSettings.title = String($0.prefix(YouTubeBroadcastSettings.maxTitleLength))
+                draftSettings.title = String($0.prefix(YouTubeBroadcastSettings.maxTitleLength))
             }
         )
     }
 
     private var descriptionBinding: Binding<String> {
         Binding(
-            get: { youtube.broadcastSettings.description },
+            get: { draftSettings.description },
             set: {
-                youtube.broadcastSettings.description = String(
+                draftSettings.description = String(
                     $0.prefix(YouTubeBroadcastSettings.maxDescriptionLength)
                 )
             }
@@ -144,16 +168,21 @@ struct BroadcastSettingsView: View {
 
     private var privacyBinding: Binding<YouTubeBroadcastPrivacy> {
         Binding(
-            get: { youtube.broadcastSettings.privacy },
-            set: { youtube.broadcastSettings.privacy = $0 }
+            get: { draftSettings.privacy },
+            set: { draftSettings.privacy = $0 }
         )
     }
 
     private var audienceBinding: Binding<YouTubeBroadcastAudience?> {
         Binding(
-            get: { youtube.broadcastSettings.audience },
-            set: { youtube.broadcastSettings.audience = $0 }
+            get: { draftSettings.audience },
+            set: { draftSettings.audience = $0 }
         )
+    }
+
+    private func saveBroadcastSettings() {
+        youtube.broadcastSettings = draftSettings.normalized
+        draftSettings = youtube.broadcastSettings
     }
 
     private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {

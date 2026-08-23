@@ -688,6 +688,9 @@ final class YouTubeIntegration: ObservableObject {
             .flatMap { try? JSONDecoder().decode(YouTubeBroadcastSettings.self, from: $0) }
             ?? .defaultValue
 
+        if settings.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            settings.title = YouTubeBroadcastSettings.defaultTitle()
+        }
         if settings.audience == nil,
            let savedAudience = YouTubeBroadcastAudience.saved {
             settings.audience = savedAudience
