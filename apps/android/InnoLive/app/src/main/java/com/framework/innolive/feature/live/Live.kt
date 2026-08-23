@@ -163,7 +163,7 @@ fun LiveScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { TODO() }) {
+                IconButton(onClick = { Log.d(TAG, "카메라 전환") }) {
                     Icon(
                         modifier = Modifier
                             .padding(1.dp)
