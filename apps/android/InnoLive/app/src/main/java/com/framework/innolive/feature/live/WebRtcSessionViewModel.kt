@@ -23,6 +23,10 @@ class WebRtcSessionViewModel : ViewModel() {
         private set
     var remoteVideoTrack by mutableStateOf<VideoTrack?>(null)
         private set
+    var broadcastState by mutableStateOf(BroadcastState.IDLE)
+        private set
+    var broadcastStatus by mutableStateOf("방송 대기")
+        private set
 
     var connection: WebRtcConnection? by mutableStateOf(null)
         private set
@@ -53,6 +57,10 @@ class WebRtcSessionViewModel : ViewModel() {
                         connectionStatus = message
                     },
                     onRemoteTrackChanged = { track -> remoteVideoTrack = track },
+                    onBroadcastStateChanged = { state, message ->
+                        broadcastState = state
+                        broadcastStatus = message
+                    },
                 ).also { webRtcConnection ->
                     connection = webRtcConnection
                     webRtcConnection.start()
@@ -67,6 +75,26 @@ class WebRtcSessionViewModel : ViewModel() {
         }
     }
 
+    fun saveBroadcastSettings(settings: BroadcastSettings) {
+        connection?.saveBroadcastSettings(settings)
+            ?: run {
+                broadcastState = BroadcastState.FAILED
+                broadcastStatus = "비식별화 연결 후 방송 설정을 저장해 주세요."
+            }
+    }
+
+    fun startBroadcast(settings: BroadcastSettings) {
+        connection?.startBroadcast(settings)
+            ?: run {
+                broadcastState = BroadcastState.FAILED
+                broadcastStatus = "비식별화 연결 후 방송을 시작해 주세요."
+            }
+    }
+
+    fun stopBroadcast() {
+        connection?.stopBroadcast()
+    }
+
     fun close() {
         startJob?.cancel()
         startJob = null
@@ -75,6 +103,8 @@ class WebRtcSessionViewModel : ViewModel() {
         remoteVideoTrack = null
         connectionState = WebRtcConnectionState.IDLE
         connectionStatus = "WebRTC 연결 대기"
+        broadcastState = BroadcastState.IDLE
+        broadcastStatus = "방송 대기"
     }
 
     override fun onCleared() {

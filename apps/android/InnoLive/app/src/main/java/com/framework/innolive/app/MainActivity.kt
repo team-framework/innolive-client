@@ -6,8 +6,11 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
@@ -23,6 +26,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -33,10 +37,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.framework.innolive.feature.live.AudioInputDevice
+import com.framework.innolive.feature.live.BroadcastSettings
+import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.CameraResolution
 import com.framework.innolive.feature.live.LiveScreen
 import com.framework.innolive.feature.live.LiveScreenProps
+import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.isSelectableAudioInputType
 import com.framework.innolive.feature.live.supportedCameraResolutions
@@ -53,8 +60,12 @@ import com.framework.innolive.feature.settings.camera.CameraSetting
 import com.framework.innolive.feature.settings.camera.CameraSettingProps
 import com.framework.innolive.feature.settings.selection.OptionSelectionScreen
 import com.framework.innolive.feature.settings.selection.SettingOption
+import com.framework.innolive.feature.youtube.StreamingAccount
+import com.framework.innolive.feature.youtube.YouTubeAccountCoordinator
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 sealed interface AppRoute : Serializable
 data object LoginRoute : AppRoute
@@ -72,6 +83,8 @@ enum class SettingOptionType {
     CAMERA_DEVICE,
     AUDIO_DEVICE,
     BROADCAST_PLATFORM,
+    BROADCAST_PRIVACY,
+    BROADCAST_AUDIENCE,
 }
 
 data class SettingOptionRoute(
@@ -86,9 +99,19 @@ private data class OptionSelectionConfig(
 )
 
 private val broadcastPlatformOptions = listOf(
-    "Youtube",
-    "Chzzk",
-    "SOOP",
+    "YouTube",
+)
+
+private val broadcastPrivacyOptions = listOf(
+    SettingOption(key = "public", label = "공개"),
+    SettingOption(key = "unlisted", label = "일부 공개"),
+    SettingOption(key = "private", label = "비공개"),
+)
+
+private val broadcastAudienceOptions = listOf(
+    SettingOption(key = "unset", label = "선택 필요"),
+    SettingOption(key = "true", label = "아동용"),
+    SettingOption(key = "false", label = "아동용 아님"),
 )
 
 class MainActivity : ComponentActivity() {
@@ -117,8 +140,72 @@ fun AppNavigation(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val activity = context as? ComponentActivity
+    val coroutineScope = rememberCoroutineScope()
     val sessionStore = remember(context) { GoogleSessionStore(context) }
     var session by remember { mutableStateOf(sessionStore.load()) }
+    val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
+    var youtubeAccount by remember { mutableStateOf<StreamingAccount?>(null) }
+    var youtubeAccountStatus by remember {
+        mutableStateOf("로그인 후 YouTube 계정을 연동할 수 있습니다.")
+    }
+    var isYouTubeAccountActionInProgress by remember { mutableStateOf(false) }
+
+    DisposableEffect(youtubeCoordinator) {
+        onDispose { youtubeCoordinator.close() }
+    }
+
+    suspend fun refreshCurrentAccessToken(): String {
+        val currentSession = checkNotNull(session) { "Authentication session is missing." }
+        return refreshGoogleSession(context, currentSession)
+            .also { refreshedSession -> session = refreshedSession }
+            .accessToken
+    }
+
+    fun updateYouTubeAccount(account: StreamingAccount?) {
+        youtubeAccount = account
+        youtubeAccountStatus = when {
+            account == null -> "연결된 YouTube 계정이 없습니다."
+            account.reconnectRequired -> "YouTube 재연동이 필요합니다."
+            account.channelTitle.isNotBlank() -> "YouTube 채널: ${account.channelTitle}"
+            else -> "YouTube 계정이 연동되었습니다."
+        }
+    }
+
+    fun showYouTubeAccountFailure() {
+        isYouTubeAccountActionInProgress = false
+        youtubeAccountStatus = "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요."
+    }
+
+    val completeYouTubeConnection: (String) -> Unit = { serverAuthCode ->
+        coroutineScope.launch {
+            try {
+                updateYouTubeAccount(
+                    youtubeCoordinator.connect(serverAuthCode, ::refreshCurrentAccessToken),
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                showYouTubeAccountFailure()
+            } finally {
+                isYouTubeAccountActionInProgress = false
+            }
+        }
+    }
+
+    val authorizationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        val data = result.data
+        if (result.resultCode == Activity.RESULT_OK && data != null) {
+            runCatching { youtubeCoordinator.serverAuthCodeFromIntent(data) }
+                .onSuccess(completeYouTubeConnection)
+                .onFailure { showYouTubeAccountFailure() }
+        } else {
+            isYouTubeAccountActionInProgress = false
+            youtubeAccountStatus = "YouTube 권한 동의를 취소했습니다."
+        }
+    }
     val packageManager = context.packageManager
     val cameraDeviceOptions = remember(packageManager) {
         CameraLensFacing.supported(
@@ -158,6 +245,18 @@ fun AppNavigation(
             backStack.add(LiveRoute)
         }
     }
+    LaunchedEffect(backStack.lastOrNull(), session?.profileEmail) {
+        if (backStack.lastOrNull() == BroadcastSettingRoute && session != null) {
+            youtubeAccountStatus = "YouTube 연결 상태를 확인하는 중입니다."
+            try {
+                updateYouTubeAccount(youtubeCoordinator.loadAccount(::refreshCurrentAccessToken))
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다."
+            }
+        }
+    }
     var selectedResolutionKey by rememberSaveable {
         mutableStateOf<String?>(null)
     }
@@ -173,6 +272,11 @@ fun AppNavigation(
     var selectedBroadcastPlatform by rememberSaveable {
         mutableStateOf(broadcastPlatformOptions.first())
     }
+    var broadcastTitle by rememberSaveable { mutableStateOf("") }
+    var broadcastDescription by rememberSaveable { mutableStateOf("") }
+    var broadcastPrivacy by rememberSaveable { mutableStateOf("private") }
+    var broadcastAudience by rememberSaveable { mutableStateOf("unset") }
+    var broadcastCategoryId by rememberSaveable { mutableStateOf("") }
 
     DisposableEffect(context, selectedCameraLensFacing) {
         var isDisposed = false
@@ -219,6 +323,17 @@ fun AppNavigation(
     val selectedAudioDevice = audioDeviceOptions.firstOrNull { device ->
         device.id == selectedAudioDeviceId
     } ?: audioDeviceOptions.firstOrNull()
+    val broadcastSettings = BroadcastSettings(
+        title = broadcastTitle,
+        description = broadcastDescription,
+        privacy = broadcastPrivacy,
+        madeForKids = when (broadcastAudience) {
+            "true" -> true
+            "false" -> false
+            else -> null
+        },
+        categoryId = broadcastCategoryId,
+    )
     LaunchedEffect(selectedAudioInput?.id) {
         webRtcSession.selectAudioInput(selectedAudioInput)
     }
@@ -260,14 +375,8 @@ fun AppNavigation(
                             props = LiveScreenProps(
                                 cameraLensFacing = selectedCameraLensFacing,
                                 cameraResolution = selectedResolution,
-                                onRefreshAccessToken = {
-                                    val currentSession = checkNotNull(session) {
-                                        "Authentication session is missing."
-                                    }
-                                    refreshGoogleSession(context, currentSession)
-                                        .also { refreshedSession -> session = refreshedSession }
-                                        .accessToken
-                                },
+                                broadcastSettings = broadcastSettings,
+                                onRefreshAccessToken = ::refreshCurrentAccessToken,
                                 onOpenSettings = {
                                     backStack.add(SettingsRoute)
                                 },
@@ -340,6 +449,83 @@ fun AppNavigation(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_PLATFORM),
                                     )
                                 },
+                                title = broadcastTitle,
+                                onTitleChanged = { value -> broadcastTitle = value.take(100) },
+                                description = broadcastDescription,
+                                onDescriptionChanged = { value ->
+                                    broadcastDescription = value.take(5_000)
+                                },
+                                selectedPrivacy = broadcastPrivacyOptions
+                                    .first { option -> option.key == broadcastPrivacy }
+                                    .label,
+                                onOpenPrivacyOptions = {
+                                    backStack.add(
+                                        SettingOptionRoute(SettingOptionType.BROADCAST_PRIVACY),
+                                    )
+                                },
+                                selectedAudience = broadcastAudienceOptions
+                                    .first { option -> option.key == broadcastAudience }
+                                    .label,
+                                onOpenAudienceOptions = {
+                                    backStack.add(
+                                        SettingOptionRoute(SettingOptionType.BROADCAST_AUDIENCE),
+                                    )
+                                },
+                                categoryId = broadcastCategoryId,
+                                onCategoryIdChanged = { value ->
+                                    broadcastCategoryId = value.filter(Char::isDigit)
+                                },
+                                youtubeChannelTitle = youtubeAccount?.channelTitle,
+                                youtubeAccountStatus = youtubeAccountStatus,
+                                isYouTubeReconnectRequired = youtubeAccount?.reconnectRequired == true,
+                                isYouTubeAccountActionInProgress = isYouTubeAccountActionInProgress,
+                                isYouTubeConnectEnabled = session != null,
+                                onConnectYouTube = connectYouTube@{
+                                    if (isYouTubeAccountActionInProgress || session == null) {
+                                        return@connectYouTube
+                                    }
+
+                                    isYouTubeAccountActionInProgress = true
+                                    youtubeAccountStatus = "YouTube 계정 연동을 시작하는 중입니다."
+                                    coroutineScope.launch {
+                                        try {
+                                            youtubeCoordinator.beginAuthorization(
+                                                accountEmail = session?.profileEmail,
+                                                onAuthorizationRequired = { pendingIntent ->
+                                                    authorizationLauncher.launch(
+                                                        IntentSenderRequest.Builder(pendingIntent).build(),
+                                                    )
+                                                },
+                                                onAuthorized = completeYouTubeConnection,
+                                                onFailure = { showYouTubeAccountFailure() },
+                                            )
+                                        } catch (exception: CancellationException) {
+                                            throw exception
+                                        } catch (_: Exception) {
+                                            showYouTubeAccountFailure()
+                                        }
+                                    }
+                                },
+                                onSave = {
+                                    webRtcSession.saveBroadcastSettings(broadcastSettings)
+                                },
+                                isSaveEnabled =
+                                    webRtcSession.connectionState == WebRtcConnectionState.CONNECTED &&
+                                        broadcastAudience != "unset" &&
+                                        webRtcSession.broadcastState !in setOf(
+                                            BroadcastState.SAVING_SETTINGS,
+                                            BroadcastState.PREPARING,
+                                            BroadcastState.GOING_LIVE,
+                                            BroadcastState.LIVE,
+                                            BroadcastState.STOPPING,
+                                        ),
+                                statusMessage = if (
+                                    webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
+                                ) {
+                                    webRtcSession.broadcastStatus
+                                } else {
+                                    "비식별화 연결 후 방송 설정을 저장할 수 있습니다."
+                                },
                             ),
                         )
                     }
@@ -392,6 +578,20 @@ fun AppNavigation(
                             },
                             selectedKey = selectedBroadcastPlatform,
                             onOptionSelected = { selectedBroadcastPlatform = it },
+                        )
+
+                        SettingOptionType.BROADCAST_PRIVACY -> OptionSelectionConfig(
+                            title = "공개 범위",
+                            options = broadcastPrivacyOptions,
+                            selectedKey = broadcastPrivacy,
+                            onOptionSelected = { broadcastPrivacy = it },
+                        )
+
+                        SettingOptionType.BROADCAST_AUDIENCE -> OptionSelectionConfig(
+                            title = "아동용 콘텐츠",
+                            options = broadcastAudienceOptions,
+                            selectedKey = broadcastAudience,
+                            onOptionSelected = { broadcastAudience = it },
                         )
                     }
 

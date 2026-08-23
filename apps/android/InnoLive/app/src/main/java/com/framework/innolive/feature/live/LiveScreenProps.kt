@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 data class LiveScreenProps(
     val cameraLensFacing: CameraLensFacing,
     val cameraResolution: CameraResolution?,
+    val broadcastSettings: BroadcastSettings,
     val onRefreshAccessToken: suspend () -> String,
     val onOpenSettings: () -> Unit,
 )

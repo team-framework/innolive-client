@@ -48,6 +48,18 @@ fun LiveScreen(
         webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
     val isConnecting =
         webRtcSession.connectionState == WebRtcConnectionState.CONNECTING
+    val isBroadcastLive = webRtcSession.broadcastState == BroadcastState.LIVE
+    val isBroadcastBusy = webRtcSession.broadcastState in setOf(
+        BroadcastState.SAVING_SETTINGS,
+        BroadcastState.PREPARING,
+        BroadcastState.GOING_LIVE,
+        BroadcastState.STOPPING,
+    )
+    val broadcastButtonText = when {
+        isBroadcastLive -> "방송 종료"
+        isBroadcastBusy -> "방송 준비 중"
+        else -> "방송 시작"
+    }
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -163,7 +175,7 @@ fun LiveScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { TODO() }) {
+                IconButton(onClick = { Log.d(TAG, "카메라 전환") }) {
                     Icon(
                         modifier = Modifier
                             .padding(1.dp)
@@ -175,8 +187,15 @@ fun LiveScreen(
                     )
                 }
                 VerticalHeroButton(
-                    text = "방송 시작",
-                    onClick = { Log.d(TAG, "방송 시작 클릭함") },
+                    text = broadcastButtonText,
+                    enabled = isConnected && !isBroadcastBusy,
+                    onClick = {
+                        if (isBroadcastLive) {
+                            webRtcSession.stopBroadcast()
+                        } else {
+                            webRtcSession.startBroadcast(props.broadcastSettings)
+                        }
+                    },
                 )
                 IconButton(
                     enabled = !isConnecting,
@@ -202,9 +221,22 @@ fun LiveScreen(
                 }
             }
             Text(
-                text = if (webRtcSession.connectionState === WebRtcConnectionState.FAILED) "비식별화 연결에 실패하였습니다." else "",
+                text = when {
+                    webRtcSession.connectionState == WebRtcConnectionState.FAILED ->
+                        "비식별화 연결에 실패하였습니다."
+                    webRtcSession.broadcastState != BroadcastState.IDLE ->
+                        webRtcSession.broadcastStatus
+                    else -> ""
+                },
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.Red
+                color = if (
+                    webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
+                    webRtcSession.broadcastState == BroadcastState.FAILED
+                ) {
+                    Color.Red
+                } else {
+                    Color.White
+                },
             )
         }
     }
