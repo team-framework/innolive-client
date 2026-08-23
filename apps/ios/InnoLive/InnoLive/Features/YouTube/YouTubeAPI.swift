@@ -25,9 +25,30 @@ private struct YouTubeConnectRequest: Encodable {
     }
 }
 
-private struct YouTubeStartStreamRequest: Encodable {
+private struct YouTubeBroadcastSettingsRequest: Encodable {
+    let title: String
+    let description: String
+    let privacy: String
+    let madeForKids: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case description
+        case privacy
+        case madeForKids = "made_for_kids"
+    }
+
+    init(settings: YouTubeBroadcastSettings) {
+        let settings = settings.normalized
+        title = settings.title
+        description = settings.description
+        privacy = settings.privacy.rawValue
+        madeForKids = settings.audience?.madeForKidsValue
+    }
+}
+
+private struct YouTubePrepareStreamRequest: Encodable {
     let provider = "youtube"
-    let privacy = "private"
 }
 
 private struct YouTubeEmptyRequest: Encodable {}
@@ -107,15 +128,44 @@ final class YouTubeAPI {
         return response.iceServers
     }
 
-    func startStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
-        let response: YouTubeSessionResponse = try await request(
-            path: "/sessions/\(session.sessionID)/stream/start",
+    func saveBroadcastSettings(
+        session: YouTubeBroadcastSession,
+        accessToken: String,
+        settings: YouTubeBroadcastSettings
+    ) async throws -> YouTubeSessionResponse {
+        try await request(
+            path: "/sessions/\(session.sessionID)/broadcast",
+            method: "PUT",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: YouTubeBroadcastSettingsRequest(settings: settings)
+        )
+    }
+
+    func prepareStream(
+        session: YouTubeBroadcastSession,
+        accessToken: String
+    ) async throws -> YouTubeSessionResponse {
+        try await request(
+            path: "/sessions/\(session.sessionID)/stream/prepare",
             method: "POST",
             accessToken: accessToken,
             ownerToken: session.ownerToken,
-            body: YouTubeStartStreamRequest()
+            body: YouTubePrepareStreamRequest()
         )
-        return response.stream
+    }
+
+    func goLive(
+        session: YouTubeBroadcastSession,
+        accessToken: String
+    ) async throws -> YouTubeStreamState {
+        try await request(
+            path: "/sessions/\(session.sessionID)/stream/golive",
+            method: "POST",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: Optional<YouTubeEmptyRequest>.none
+        )
     }
 
     func stopStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {

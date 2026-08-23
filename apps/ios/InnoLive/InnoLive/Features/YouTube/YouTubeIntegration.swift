@@ -16,6 +16,9 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var isRecoveringVideoFailure = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var helpURL: URL?
+    @Published var broadcastSettings: YouTubeBroadcastSettings {
+        didSet { persistBroadcastSettings() }
+    }
 
     let videoUplink = WebRTCVideoUplink()
 
@@ -28,8 +31,10 @@ final class YouTubeIntegration: ObservableObject {
     private var isReconnectingVideo = false
     private var videoConnectionConfiguration: VideoConnectionConfiguration?
     private let maximumVideoReconnectAttempts = 3
+    private let maximumGoLiveAttempts = 15
 
     init() {
+        broadcastSettings = Self.loadBroadcastSettings()
         connection = Self.loadConnection()
         videoUplink.onConnectionInterrupted = { [weak self] in
             self?.reconnectVideoUsingExistingSession()
@@ -61,20 +66,29 @@ final class YouTubeIntegration: ObservableObject {
         stream?.startedAtDate ?? streamStartFallback
     }
 
+    var broadcastPhase: String {
+        stream?.broadcastPhase ?? "idle"
+    }
+
+    var isBroadcastSettingsLocked: Bool {
+        isChangingStreamState
+            || (stream?.status != "stopped"
+                && ["preparing", "prepared", "going_live", "live"].contains(broadcastPhase))
+    }
+
     var isYouTubeBroadcastActive: Bool {
-        streamStartedAt != nil && stream?.status != "stopped"
+        ["preparing", "prepared", "going_live", "live"].contains(broadcastPhase)
+            && stream?.status != "stopped"
     }
 
     // 시작 요청 직후에는 서버가 egress 출력 형식을 확정할 때까지 started_at이 비어 있다.
     // 이 구간은 실제 송출 전 준비 상태이므로 버튼의 방송 중 UI와 분리한다.
     var hasStartedYouTubeBroadcast: Bool {
-        stream?.startedAtDate != nil && stream?.status != "stopped"
+        broadcastPhase == "live" && stream?.status != "stopped"
     }
 
     var isWaitingForYouTubeBroadcastStart: Bool {
-        streamStartFallback != nil
-            && stream?.startedAtDate == nil
-            && stream?.status != "stopped"
+        ["preparing", "prepared", "going_live"].contains(broadcastPhase)
     }
 
     var isYouTubeBroadcastPaused: Bool {
@@ -87,6 +101,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var canPauseYouTubeBroadcast: Bool {
+        guard broadcastPhase == "live" else { return false }
         switch stream?.status {
         case "streaming", "reconfiguring":
             return true
@@ -96,7 +111,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var canResumeYouTubeBroadcast: Bool {
-        stream?.status == "paused"
+        broadcastPhase == "live" && stream?.status == "paused"
     }
 
     var canChangeYouTubePauseState: Bool {
@@ -104,6 +119,12 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var streamStatusText: String {
+        switch broadcastPhase {
+        case "preparing": return "YouTube 방송 준비 중…"
+        case "prepared": return "YouTube 라이브 전환 대기 중…"
+        case "going_live": return "YouTube 라이브 전환 중…"
+        default: break
+        }
         switch stream?.status {
         case "streaming": return "YouTube 송출 중"
         case "reconnecting": return "YouTube 재연결 중…"
@@ -348,15 +369,47 @@ final class YouTubeIntegration: ObservableObject {
             showError(.sessionRequired)
             return
         }
+        let settings = broadcastSettings.normalized
+        guard !settings.title.isEmpty else {
+            showError(.broadcastTitleRequired)
+            return
+        }
+        guard settings.audience != nil else {
+            showError(.broadcastAudienceRequired)
+            return
+        }
+        broadcastSettings = settings
 
         isChangingStreamState = true
         defer { isChangingStreamState = false }
+        var prepared = false
         do {
-            let startedStream = try await api.startStream(session: session, accessToken: accessToken)
-            streamStartFallback = startedStream.startedAtDate ?? Date()
-            stream = startedStream
+            let savedSnapshot = try await api.saveBroadcastSettings(
+                session: session,
+                accessToken: accessToken,
+                settings: settings
+            )
+            stream = savedSnapshot.stream
+            videoTrack = savedSnapshot.media.rawVideoTrack
+
+            let preparedSnapshot = try await api.prepareStream(
+                session: session,
+                accessToken: accessToken
+            )
+            prepared = true
+            stream = preparedSnapshot.stream
+            videoTrack = preparedSnapshot.media.rawVideoTrack
+
+            let liveStream = try await goLiveWithRetry(session: session, accessToken: accessToken)
+            streamStartFallback = liveStream.startedAtDate ?? Date()
+            stream = liveStream
             beginPolling(accessToken: accessToken)
         } catch {
+            if prepared,
+               let stoppedStream = try? await api.stopStream(session: session, accessToken: accessToken) {
+                stream = stoppedStream.markedStoppedByUser()
+                streamStartFallback = nil
+            }
             handle(error)
         }
     }
@@ -409,6 +462,25 @@ final class YouTubeIntegration: ObservableObject {
 
     func dismissError() {
         clearError()
+    }
+
+    private func goLiveWithRetry(
+        session: YouTubeBroadcastSession,
+        accessToken: String
+    ) async throws -> YouTubeStreamState {
+        for attempt in 1...maximumGoLiveAttempts {
+            do {
+                return try await api.goLive(session: session, accessToken: accessToken)
+            } catch let error as YouTubeAPIError {
+                guard case let .api(code, _, _) = error,
+                      code == "broadcast_not_ready",
+                      attempt < maximumGoLiveAttempts else {
+                    throw error
+                }
+                try await Task.sleep(for: .seconds(1))
+            }
+        }
+        throw YouTubeAPIError.response
     }
 
     private func beginPolling(accessToken: String) {
@@ -597,6 +669,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private static let connectionStorageKey = "com.framework.innolive.youtube.connection"
+    private static let broadcastSettingsStorageKey = "com.framework.innolive.youtube.broadcast-settings.v1"
 
     private static func loadConnection() -> YouTubeConnection? {
         guard let data = UserDefaults.standard.data(forKey: connectionStorageKey) else { return nil }
@@ -607,6 +680,33 @@ final class YouTubeIntegration: ObservableObject {
         guard let connection,
               let data = try? JSONEncoder().encode(connection) else { return }
         UserDefaults.standard.set(data, forKey: Self.connectionStorageKey)
+    }
+
+    private static func loadBroadcastSettings() -> YouTubeBroadcastSettings {
+        var settings = UserDefaults.standard
+            .data(forKey: broadcastSettingsStorageKey)
+            .flatMap { try? JSONDecoder().decode(YouTubeBroadcastSettings.self, from: $0) }
+            ?? .defaultValue
+
+        if settings.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            settings.title = YouTubeBroadcastSettings.defaultTitle()
+        }
+        if settings.audience == nil,
+           let savedAudience = YouTubeBroadcastAudience.saved {
+            settings.audience = savedAudience
+        }
+        return settings.normalized
+    }
+
+    private func persistBroadcastSettings() {
+        guard let data = try? JSONEncoder().encode(broadcastSettings.normalized) else { return }
+        UserDefaults.standard.set(data, forKey: Self.broadcastSettingsStorageKey)
+
+        if let audience = broadcastSettings.audience {
+            UserDefaults.standard.set(audience.rawValue, forKey: YouTubeBroadcastAudience.storageKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: YouTubeBroadcastAudience.storageKey)
+        }
     }
 }
 
