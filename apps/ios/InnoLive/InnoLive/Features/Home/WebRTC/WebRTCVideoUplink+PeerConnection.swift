@@ -177,8 +177,12 @@ extension WebRTCVideoUplink: LKRTCPeerConnectionDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             switch newState {
-            case .failed, .closed:
-                if !self.isStopping { self.fail("WebRTC 영상 연결이 끊겼습니다.") }
+            case .disconnected, .failed:
+                self.handlePeerConnectionInterruption()
+            case .closed:
+                if !self.isStopping, !self.isReconnectInProgress {
+                    self.fail("WebRTC 영상 연결이 종료되었습니다.")
+                }
             default:
                 break
             }
@@ -222,8 +226,12 @@ extension WebRTCVideoUplink: LKRTCPeerConnectionDelegate {
             case .connected:
                 self.updateState(.connecting, "영상 패킷 전송을 확인하는 중…")
                 self.verifyOutboundVideo()
-            case .failed, .closed:
-                if !self.isStopping { self.fail("WebRTC 영상 연결이 끊겼습니다.") }
+            case .disconnected, .failed:
+                self.handlePeerConnectionInterruption()
+            case .closed:
+                if !self.isStopping, !self.isReconnectInProgress {
+                    self.fail("WebRTC 영상 연결이 종료되었습니다.")
+                }
             default:
                 break
             }

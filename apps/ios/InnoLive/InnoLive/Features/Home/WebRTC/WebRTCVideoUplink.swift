@@ -2,6 +2,7 @@ import AVFoundation
 import Combine
 import Foundation
 @preconcurrency import LiveKitWebRTC
+import Network
 import UIKit
 
 @MainActor
@@ -46,6 +47,13 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var pendingCameraStopTask: Task<Void, Never>?
     var cameraOperationGeneration: UInt = 0
     var isStopping = false
+    var onConnectionInterrupted: (() -> Void)?
+    private let networkMonitor = NWPathMonitor()
+    private let networkMonitorQueue = DispatchQueue(label: "com.framework.innolive.webrtc.network-monitor")
+    private var isNetworkAvailable = false
+    private var shouldReconnectAutomatically = false
+    private var isReconnectPending = false
+    var isReconnectInProgress = false
 
     override init() {
         _ = Self.sslInitialized
@@ -56,6 +64,18 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             decoderFactory: decoderFactory
         )
         super.init()
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isNetworkAvailable = path.status == .satisfied
+                self.resumePendingReconnectIfPossible()
+            }
+        }
+        networkMonitor.start(queue: networkMonitorQueue)
+    }
+
+    deinit {
+        networkMonitor.cancel()
     }
 
     var isActive: Bool {
@@ -93,6 +113,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     ) async throws {
         await stopAndWait()
         isStopping = false
+        shouldReconnectAutomatically = true
+        isReconnectPending = false
+        isReconnectInProgress = false
         cameraOperationGeneration &+= 1
         let operationGeneration = cameraOperationGeneration
         credentials = session
@@ -136,11 +159,17 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     }
 
     func stop() {
+        shouldReconnectAutomatically = false
+        isReconnectPending = false
+        isReconnectInProgress = false
         let capturer = beginTeardown()
         scheduleCameraStop(capturer)
     }
 
     func stopAndWait() async {
+        shouldReconnectAutomatically = false
+        isReconnectPending = false
+        isReconnectInProgress = false
         let pendingStop = pendingCameraStopTask
         let capturer = beginTeardown()
         if let pendingStop {
@@ -267,6 +296,34 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         )
         scheduleCameraStop(capturer)
         updateState(.failed, message)
+    }
+
+    func markReconnectFailed(_ message: String) {
+        isStopping = false
+        isReconnectInProgress = false
+        errorMessage = message
+        updateState(.failed, message)
+    }
+
+    func handlePeerConnectionInterruption() {
+        guard !isStopping else { return }
+        guard !isReconnectPending, !isReconnectInProgress else { return }
+        guard state == .connected else {
+            fail("WebRTC 영상 연결이 끊겼습니다.")
+            return
+        }
+        isReconnectPending = true
+        updateState(.connecting, "네트워크 연결을 복구하는 중…")
+        resumePendingReconnectIfPossible()
+    }
+
+    private func resumePendingReconnectIfPossible() {
+        guard shouldReconnectAutomatically,
+              isReconnectPending,
+              isNetworkAvailable else { return }
+        isReconnectPending = false
+        isReconnectInProgress = true
+        onConnectionInterrupted?()
     }
 
     func updateState(_ state: WebRTCVideoUplinkState, _ status: String) {
