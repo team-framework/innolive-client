@@ -40,10 +40,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.feature.live.BroadcastSettings
+import java.time.format.TextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,11 +139,11 @@ fun YouTubeLiveSettingsDialog(
                         titleError = false
                         onSettingsChanged(settings.copy(title = value.take(100)))
                     },
-                    label = { Text("방송 제목") },
+                    label = { Text("방송 제목", color = Color.Black) },
                     singleLine = true,
                     isError = titleError,
                     supportingText = if (titleError) {
-                        { Text("방송 제목을 입력해 주세요.") }
+                        { Text("방송 제목을 입력해 주세요.", color = Color.Black) }
                     } else {
                         null
                     },
@@ -154,12 +156,12 @@ fun YouTubeLiveSettingsDialog(
                         descriptionError = false
                         onSettingsChanged(settings.copy(description = value.take(5_000)))
                     },
-                    label = { Text("방송 설명") },
+                    label = { Text("방송 설명", color = Color.Black) },
                     minLines = 3,
                     maxLines = 5,
                     isError = descriptionError,
                     supportingText = if (descriptionError) {
-                        { Text("방송 설명을 입력해 주세요.") }
+                        { Text("방송 설명을 입력해 주세요.", color = Color.Black) }
                     } else {
                         null
                     },
@@ -174,7 +176,7 @@ fun YouTubeLiveSettingsDialog(
                         value = privacyLabel,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("공개 범위") },
+                        label = { Text("공개 범위", color = Color.Black) },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(
                                 expanded = isPrivacyMenuExpanded,
@@ -189,21 +191,21 @@ fun YouTubeLiveSettingsDialog(
                         onDismissRequest = { isPrivacyMenuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("공개") },
+                            text = { Text("공개", color = Color.Black) },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "public"))
                                 isPrivacyMenuExpanded = false
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("일부 공개") },
+                            text = { Text("일부 공개", color = Color.Black) },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "unlisted"))
                                 isPrivacyMenuExpanded = false
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("비공개") },
+                            text = { Text("비공개", color = Color.Black) },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "private"))
                                 isPrivacyMenuExpanded = false
@@ -221,9 +223,9 @@ fun YouTubeLiveSettingsDialog(
                         onValueChange = {},
                         readOnly = true,
                         isError = audienceError,
-                        label = { Text("아동용 설정") },
+                        label = { Text("아동용 설정", color = Color.Black) },
                         supportingText = if (audienceError) {
-                            { Text("아동용 설정을 선택해 주세요.") }
+                            { Text("아동용 설정을 선택해 주세요.", color = Color.Black) }
                         } else {
                             null
                         },
@@ -241,7 +243,7 @@ fun YouTubeLiveSettingsDialog(
                         onDismissRequest = { isAudienceMenuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("아동용") },
+                            text = { Text("아동용", color = Color.Black) },
                             onClick = {
                                 onSettingsChanged(settings.copy(madeForKids = true))
                                 audienceError = false
@@ -249,7 +251,7 @@ fun YouTubeLiveSettingsDialog(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("아동용 아님") },
+                            text = { Text("아동용 아님", color = Color.Black) },
                             onClick = {
                                 onSettingsChanged(settings.copy(madeForKids = false))
                                 audienceError = false
@@ -266,6 +268,7 @@ fun YouTubeLiveSettingsDialog(
                     Text(
                         text = "계정 정보",
                         modifier = Modifier.weight(1f),
+                        color = Color.Black
                     )
                     Text(text = accountLabel)
                     if (youtubeChannelTitle.isNullOrBlank() || isYouTubeReconnectRequired) {
@@ -275,6 +278,7 @@ fun YouTubeLiveSettingsDialog(
                         ) {
                             Text(
                                 text = if (isYouTubeReconnectRequired) "재연동" else "연동",
+                                color = Color.Black
                             )
                         }
                     }
@@ -294,7 +298,7 @@ fun YouTubeLiveSettingsDialog(
                         .hoverable(interactionSource),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text="저장 및 닫기", style = MaterialTheme.typography.bodyLarge)
+                    Text(text="저장 및 닫기", style = MaterialTheme.typography.bodyLarge, color = Color.Black)
                 }
             }
         }
