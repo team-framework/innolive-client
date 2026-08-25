@@ -66,6 +66,8 @@ fun LiveScreen(
         isBroadcastBusy -> "방송 준비 중"
         else -> "방송 시작"
     }
+    val isYoutubeValidated by remember { mutableStateOf(false) }
+
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -242,14 +244,14 @@ fun LiveScreen(
                     enabled = !isConnecting,
                     onClick = {
                         Log.d(TAG, "blur clicked")
-                    if (isConnected) {
-                        webRtcSession.close()
-                    } else if (!hasCameraPermission || !hasMicrophonePermission) {
-                        requestMissingMediaPermissions()
-                    } else {
-                        webRtcSession.start(context, props.onRefreshAccessToken)
-                    }
-                }) {
+                        if (isConnected) {
+                            webRtcSession.close()
+                        } else if (!hasCameraPermission || !hasMicrophonePermission) {
+                            requestMissingMediaPermissions()
+                        } else {
+                            webRtcSession.start(context, props.onRefreshAccessToken)
+                        }
+                    }) {
                     Icon(
                         modifier = Modifier
                             .padding(1.dp)
@@ -265,8 +267,10 @@ fun LiveScreen(
                 text = when {
                     webRtcSession.connectionState == WebRtcConnectionState.FAILED ->
                         "비식별화 연결에 실패하였습니다."
+
                     webRtcSession.broadcastState != BroadcastState.IDLE ->
                         webRtcSession.broadcastStatus
+
                     else -> ""
                 },
                 style = MaterialTheme.typography.labelMedium,

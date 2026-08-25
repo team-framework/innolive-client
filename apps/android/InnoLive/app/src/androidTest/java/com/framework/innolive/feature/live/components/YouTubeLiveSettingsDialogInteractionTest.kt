@@ -21,6 +21,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
@@ -145,6 +146,59 @@ class YouTubeLiveSettingsDialogInteractionTest {
             .onNodeWithText("state:ime-bound-input|privacy:unlisted|audience:false")
             .assertIsDisplayed()
         composeRule.onAllNodesWithText("선택 필요").assertCountEquals(0)
+    }
+
+    @Test
+    fun saveShowsAudienceErrorUntilAudienceIsSelected() {
+        val initialSettings = BroadcastSettings(
+            title = "",
+            description = "",
+            privacy = "public",
+            madeForKids = null,
+            categoryId = "22",
+        )
+
+        composeRule.setContent {
+            var settings by remember { mutableStateOf(initialSettings) }
+            var isDialogOpen by remember { mutableStateOf(true) }
+
+            MaterialTheme {
+                if (isDialogOpen) {
+                    YouTubeLiveSettingsDialog(
+                        settings = settings,
+                        youtubeChannelTitle = null,
+                        youtubeAccountStatus = "연결되지 않음",
+                        isYouTubeReconnectRequired = false,
+                        isYouTubeAccountActionInProgress = false,
+                        isYouTubeConnectEnabled = true,
+                        onSettingsChanged = { settings = it },
+                        onConnectYouTube = {},
+                        onDismissRequest = { isDialogOpen = false },
+                    )
+                } else {
+                    Text("dismissed")
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("저장 및 닫기").performClick()
+        composeRule.onNodeWithText("방송 제목을 입력해 주세요.").assertIsDisplayed()
+        composeRule.onNodeWithText("방송 설명을 입력해 주세요.").assertIsDisplayed()
+        composeRule.onNodeWithText("아동용 설정을 선택해 주세요.").assertIsDisplayed()
+
+        composeRule.onAllNodes(hasSetTextAction())[0].performTextInput("방송 제목")
+        composeRule.onAllNodes(hasSetTextAction())[1].performTextInput("방송 설명")
+        composeRule.onAllNodesWithText("방송 제목을 입력해 주세요.").assertCountEquals(0)
+        composeRule.onAllNodesWithText("방송 설명을 입력해 주세요.").assertCountEquals(0)
+
+        composeRule
+            .onNode(hasText("아동용 설정") and hasClickAction())
+            .performClick()
+        composeRule.onNodeWithText("아동용").performClick()
+        composeRule.onAllNodesWithText("아동용 설정을 선택해 주세요.").assertCountEquals(0)
+
+        composeRule.onNodeWithText("저장 및 닫기").performClick()
+        composeRule.onNodeWithText("dismissed").assertIsDisplayed()
     }
 
     @Test
