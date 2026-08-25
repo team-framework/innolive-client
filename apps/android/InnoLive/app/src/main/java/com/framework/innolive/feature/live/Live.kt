@@ -34,7 +34,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
+import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 
 private val TAG = "Live Screen"
 
@@ -43,6 +45,10 @@ fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
 ) {
+    var openPlatformDialog by remember { mutableStateOf(false) }
+    var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
+    var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
+    var selectedPlatform by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val isConnected =
         webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
@@ -100,6 +106,12 @@ fun LiveScreen(
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
+    }
+    LaunchedEffect(openPlatformDialog, pendingYouTubeSettingsDialog) {
+        if (!openPlatformDialog && pendingYouTubeSettingsDialog) {
+            pendingYouTubeSettingsDialog = false
+            openYouTubeSettingsDialog = true
+        }
     }
 
     Box(
@@ -186,17 +198,46 @@ fun LiveScreen(
                         tint = Color.White
                     )
                 }
-                VerticalHeroButton(
-                    text = broadcastButtonText,
-                    enabled = isConnected && !isBroadcastBusy,
-                    onClick = {
-                        if (isBroadcastLive) {
-                            webRtcSession.stopBroadcast()
-                        } else {
-                            webRtcSession.startBroadcast(props.broadcastSettings)
-                        }
-                    },
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    if (openPlatformDialog) {
+                        PlatformDialog(
+                            onDismissRequest = {
+                                openPlatformDialog = false
+                            },
+                            onYouTubeSelected = {
+                                selectedPlatform = "YouTube"
+                                pendingYouTubeSettingsDialog = true
+                                openPlatformDialog = false
+                            },
+                        )
+                    }
+                    if (openYouTubeSettingsDialog) {
+                        YouTubeLiveSettingsDialog(
+                            settings = props.broadcastSettings,
+                            youtubeChannelTitle = props.youtubeChannelTitle,
+                            youtubeAccountStatus = props.youtubeAccountStatus,
+                            isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
+                            isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
+                            isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
+                            onSettingsChanged = props.onBroadcastSettingsChanged,
+                            onConnectYouTube = props.onConnectYouTube,
+                            onDismissRequest = { openYouTubeSettingsDialog = false },
+                        )
+                    }
+                    VerticalHeroButton(
+                        text = broadcastButtonText,
+                        enabled = isConnected && !isBroadcastBusy,
+                        onClick = {
+                            if (isBroadcastLive) {
+                                webRtcSession.stopBroadcast()
+                            } else if (selectedPlatform == "YouTube") {
+                                webRtcSession.startBroadcast(props.broadcastSettings)
+                            } else {
+                                openPlatformDialog = true
+                            }
+                        },
+                    )
+                }
                 IconButton(
                     enabled = !isConnecting,
                     onClick = {

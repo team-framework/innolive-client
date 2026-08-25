@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -246,7 +247,7 @@ fun AppNavigation(
         }
     }
     LaunchedEffect(backStack.lastOrNull(), session?.profileEmail) {
-        if (backStack.lastOrNull() == BroadcastSettingRoute && session != null) {
+        if (backStack.lastOrNull() in setOf(BroadcastSettingRoute, LiveRoute) && session != null) {
             youtubeAccountStatus = "YouTube 연결 상태를 확인하는 중입니다."
             try {
                 updateYouTubeAccount(youtubeCoordinator.loadAccount(::refreshCurrentAccessToken))
@@ -345,6 +346,64 @@ fun AppNavigation(
         }
     }
 
+    val connectYouTube: () -> Unit = connectYouTube@{
+        if (isYouTubeAccountActionInProgress || session == null) {
+            return@connectYouTube
+        }
+
+        isYouTubeAccountActionInProgress = true
+        youtubeAccountStatus = "YouTube 계정 연동을 시작하는 중입니다."
+        coroutineScope.launch {
+            try {
+                youtubeCoordinator.beginAuthorization(
+                    accountEmail = session?.profileEmail,
+                    onAuthorizationRequired = { pendingIntent ->
+                        authorizationLauncher.launch(
+                            IntentSenderRequest.Builder(pendingIntent).build(),
+                        )
+                    },
+                    onAuthorized = completeYouTubeConnection,
+                    onFailure = { showYouTubeAccountFailure() },
+                )
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                showYouTubeAccountFailure()
+            }
+        }
+    }
+
+    // NavDisplay keeps the LiveRoute NavEntry while the back stack is unchanged.
+    // Keep its props up to date independently of NavEntry recreation.
+    val liveScreenProps = rememberUpdatedState(
+        LiveScreenProps(
+            cameraLensFacing = selectedCameraLensFacing,
+            cameraResolution = selectedResolution,
+            broadcastSettings = broadcastSettings,
+            onBroadcastSettingsChanged = { settings ->
+                broadcastTitle = settings.title
+                broadcastDescription = settings.description
+                broadcastPrivacy = settings.privacy
+                broadcastAudience = when (settings.madeForKids) {
+                    true -> "true"
+                    false -> "false"
+                    null -> "unset"
+                }
+                broadcastCategoryId = settings.categoryId
+            },
+            youtubeChannelTitle = youtubeAccount?.channelTitle,
+            youtubeAccountStatus = youtubeAccountStatus,
+            isYouTubeReconnectRequired = youtubeAccount?.reconnectRequired == true,
+            isYouTubeAccountActionInProgress = isYouTubeAccountActionInProgress,
+            isYouTubeConnectEnabled = session != null,
+            onConnectYouTube = connectYouTube,
+            onRefreshAccessToken = ::refreshCurrentAccessToken,
+            onOpenSettings = {
+                backStack.add(SettingsRoute)
+            },
+        ),
+    )
+
     NavDisplay(
         modifier = modifier.fillMaxSize(),
         backStack = backStack,
@@ -372,15 +431,7 @@ fun AppNavigation(
                     NavEntry(route) {
                         LiveScreen(
                             webRtcSession = webRtcSession,
-                            props = LiveScreenProps(
-                                cameraLensFacing = selectedCameraLensFacing,
-                                cameraResolution = selectedResolution,
-                                broadcastSettings = broadcastSettings,
-                                onRefreshAccessToken = ::refreshCurrentAccessToken,
-                                onOpenSettings = {
-                                    backStack.add(SettingsRoute)
-                                },
-                            ),
+                            props = liveScreenProps.value,
                         )
                     }
                 }
@@ -480,32 +531,7 @@ fun AppNavigation(
                                 isYouTubeReconnectRequired = youtubeAccount?.reconnectRequired == true,
                                 isYouTubeAccountActionInProgress = isYouTubeAccountActionInProgress,
                                 isYouTubeConnectEnabled = session != null,
-                                onConnectYouTube = connectYouTube@{
-                                    if (isYouTubeAccountActionInProgress || session == null) {
-                                        return@connectYouTube
-                                    }
-
-                                    isYouTubeAccountActionInProgress = true
-                                    youtubeAccountStatus = "YouTube 계정 연동을 시작하는 중입니다."
-                                    coroutineScope.launch {
-                                        try {
-                                            youtubeCoordinator.beginAuthorization(
-                                                accountEmail = session?.profileEmail,
-                                                onAuthorizationRequired = { pendingIntent ->
-                                                    authorizationLauncher.launch(
-                                                        IntentSenderRequest.Builder(pendingIntent).build(),
-                                                    )
-                                                },
-                                                onAuthorized = completeYouTubeConnection,
-                                                onFailure = { showYouTubeAccountFailure() },
-                                            )
-                                        } catch (exception: CancellationException) {
-                                            throw exception
-                                        } catch (_: Exception) {
-                                            showYouTubeAccountFailure()
-                                        }
-                                    }
-                                },
+                                onConnectYouTube = connectYouTube,
                                 onSave = {
                                     webRtcSession.saveBroadcastSettings(broadcastSettings)
                                 },
