@@ -53,6 +53,10 @@ private struct YouTubePrepareStreamRequest: Encodable {
 
 private struct YouTubeEmptyRequest: Encodable {}
 
+private struct AnonymizationRequest: Encodable {
+    let enabled: Bool
+}
+
 @MainActor
 final class YouTubeAPI {
     private var accessTokenProvider: (() -> String?)?
@@ -195,6 +199,16 @@ final class YouTubeAPI {
             accessToken: accessToken,
             ownerToken: session.ownerToken,
             body: Optional<YouTubeEmptyRequest>.none
+        )
+    }
+
+    func toggleAnonymization(session: YouTubeBroadcastSession, accessToken: String, enabled: Bool) async throws -> YouTubeSessionResponse {
+        try await request(
+            path: "/sessions/\(session.sessionID)/anonymization",
+            method: "PATCH",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: AnonymizationRequest(enabled: enabled)
         )
     }
 

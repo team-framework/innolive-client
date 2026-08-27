@@ -208,9 +208,11 @@ struct YouTubeSessionResponse: Decodable {
 }
 
 struct YouTubeSessionMedia: Decodable {
+    let anonymizationEnabled: Bool?
     let rawVideoTrack: YouTubeVideoTrackState?
 
     enum CodingKeys: String, CodingKey {
+        case anonymizationEnabled = "anonymization_enabled"
         case rawVideoTrack = "raw_video_track"
     }
 }

@@ -14,6 +14,8 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var isConnectingVideo = false
     @Published private(set) var isChangingStreamState = false
     @Published private(set) var isRecoveringVideoFailure = false
+    @Published private(set) var isAnonymizationEnabled = false
+    @Published private(set) var isTogglingAnonymization = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var helpURL: URL?
     @Published var broadcastSettings: YouTubeBroadcastSettings {
@@ -316,6 +318,7 @@ final class YouTubeIntegration: ObservableObject {
         stream = nil
         streamStartFallback = nil
         videoTrack = nil
+        isAnonymizationEnabled = false
     }
 
     func recoverFromVideoUplinkFailure(accessToken: String?) async {
@@ -444,6 +447,34 @@ final class YouTubeIntegration: ObservableObject {
         await changePausedState(accessToken: accessToken, shouldPause: false)
     }
 
+    func toggleAnonymization(accessToken: String?) async {
+        clearError()
+        guard !isTogglingAnonymization else { return }
+        guard let accessToken, !accessToken.isEmpty else {
+            showError(.unauthorized)
+            return
+        }
+        guard let session else {
+            showError(.sessionRequired)
+            return
+        }
+
+        isTogglingAnonymization = true
+        defer { isTogglingAnonymization = false }
+        do {
+            let response = try await api.toggleAnonymization(
+                session: session,
+                accessToken: accessToken,
+                enabled: !isAnonymizationEnabled
+            )
+            isAnonymizationEnabled = response.media.anonymizationEnabled ?? false
+            stream = response.stream
+            videoTrack = response.media.rawVideoTrack
+        } catch {
+            handle(error)
+        }
+    }
+
     func reset() {
         stopPolling()
         reconnectTask?.cancel()
@@ -455,6 +486,7 @@ final class YouTubeIntegration: ObservableObject {
         stream = nil
         streamStartFallback = nil
         videoTrack = nil
+        isAnonymizationEnabled = false
         errorMessage = nil
         helpURL = nil
         UserDefaults.standard.removeObject(forKey: Self.connectionStorageKey)
@@ -509,6 +541,9 @@ final class YouTubeIntegration: ObservableObject {
                     }
                     self.stream = snapshot.stream
                     self.videoTrack = snapshot.media.rawVideoTrack
+                    if let anonymization = snapshot.media.anonymizationEnabled {
+                        self.isAnonymizationEnabled = anonymization
+                    }
                     if snapshot.stream.status == "stopped" {
                         self.streamStartFallback = nil
                     }
@@ -538,6 +573,9 @@ final class YouTubeIntegration: ObservableObject {
             let snapshot = try await api.sessionStatus(session: session, accessToken: accessToken)
             stream = snapshot.stream
             videoTrack = snapshot.media.rawVideoTrack
+            if let anonymization = snapshot.media.anonymizationEnabled {
+                isAnonymizationEnabled = anonymization
+            }
             if snapshot.media.rawVideoTrack?.readyState == "live" {
                 guard videoUplink.state == .connected else {
                     throw WebRTCVideoUplinkError.failed(
