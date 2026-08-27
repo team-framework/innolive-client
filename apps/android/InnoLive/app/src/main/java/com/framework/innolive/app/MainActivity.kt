@@ -541,6 +541,7 @@ fun AppNavigation(
                                         webRtcSession.broadcastState !in setOf(
                                             BroadcastState.SAVING_SETTINGS,
                                             BroadcastState.PREPARING,
+                                            BroadcastState.PREPARED,
                                             BroadcastState.GOING_LIVE,
                                             BroadcastState.LIVE,
                                             BroadcastState.STOPPING,

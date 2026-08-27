@@ -52,17 +52,16 @@ struct YouTubeBroadcastControlLabel: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             BroadcastControlLabel(
                 title: buttonTitle(at: context.date),
-                systemImage: youtube.isYouTubeBroadcastActive ? "stop.fill" : "play.rectangle.fill",
+                systemImage: youtube.hasStartedYouTubeBroadcast ? "stop.fill" : "play.rectangle.fill",
                 isLoading: isLoading
             )
         }
     }
 
     private func buttonTitle(at date: Date) -> String {
-        if youtube.isWaitingForYouTubeBroadcastStart {
-            return "방송 취소"
-        }
-        guard youtube.isYouTubeBroadcastActive else { return "방송 시작" }
+        if youtube.broadcastPhase == "prepared" { return "라이브 시작" }
+        if youtube.isWaitingForYouTubeBroadcastStart { return "처리 중" }
+        guard youtube.isYouTubeBroadcastActive else { return "방송 준비" }
         let duration = formattedDuration(since: youtube.streamStartedAt, now: date)
         if youtube.isYouTubeBroadcastPaused {
             return "방송 종료"

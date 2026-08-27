@@ -353,7 +353,7 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
-    func startYouTubeStream(accessToken: String?) async {
+    func prepareYouTubeStream(accessToken: String?) async {
         clearError()
         guard !isChangingStreamState else { return }
         guard let accessToken, !accessToken.isEmpty else {
@@ -385,7 +385,6 @@ final class YouTubeIntegration: ObservableObject {
 
         isChangingStreamState = true
         defer { isChangingStreamState = false }
-        var prepared = false
         do {
             let savedSnapshot = try await api.saveBroadcastSettings(
                 session: session,
@@ -399,20 +398,41 @@ final class YouTubeIntegration: ObservableObject {
                 session: session,
                 accessToken: accessToken
             )
-            prepared = true
             stream = preparedSnapshot.stream
             videoTrack = preparedSnapshot.media.rawVideoTrack
+        } catch {
+            handle(error)
+        }
+    }
 
+    func goLiveYouTubeStream(accessToken: String?) async {
+        clearError()
+        guard !isChangingStreamState else { return }
+        guard let accessToken, !accessToken.isEmpty else {
+            showError(.unauthorized)
+            return
+        }
+        guard let session else {
+            showError(.sessionRequired)
+            return
+        }
+        guard broadcastPhase == "prepared" else {
+            showError(.api(
+                code: "broadcast_not_prepared",
+                fallback: "YouTube 방송을 먼저 준비해 주세요.",
+                helpURL: nil
+            ))
+            return
+        }
+
+        isChangingStreamState = true
+        defer { isChangingStreamState = false }
+        do {
             let liveStream = try await goLiveWithRetry(session: session, accessToken: accessToken)
             streamStartFallback = liveStream.startedAtDate ?? Date()
             stream = liveStream
             beginPolling(accessToken: accessToken)
         } catch {
-            if prepared,
-               let stoppedStream = try? await api.stopStream(session: session, accessToken: accessToken) {
-                stream = stoppedStream.markedStoppedByUser()
-                streamStartFallback = nil
-            }
             handle(error)
         }
     }
