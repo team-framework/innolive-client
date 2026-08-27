@@ -29,14 +29,14 @@ struct BroadcastControllsView: View {
 
                     Button(action: toggleInnoLiveBroadcast) {
                         BroadcastControlLabel(
-                            title: isBroadcasting ? "비식별화 OFF" : "비식별화 ON",
-                            isLoading: isPreparingAnonymization
+                            title: isBroadcasting ? "연결 종료" : "연결 시작",
+                            isLoading: isPreparingConnection
                         )
                     }
                     .buttonStyle(.glassProminent)
                     .tint(isBroadcasting ? .green : .blue)
-                    .disabled(isPreparingAnonymization || youtube.videoUplink.isSwitchingCamera)
-                    .accessibilityHint("카메라와 마이크를 서버의 비식별화 처리에 연결합니다.")
+                    .disabled(isPreparingConnection || youtube.videoUplink.isSwitchingCamera)
+                    .accessibilityHint("카메라와 마이크를 서버에 연결하거나 연결을 종료합니다.")
 
                     Button(action: toggleYouTubeStream) {
                         YouTubeBroadcastControlLabel(
@@ -55,11 +55,26 @@ struct BroadcastControllsView: View {
                     )
                     .accessibilityHint(
                         youtube.isWaitingForYouTubeBroadcastStart
-                            ? "서버가 YouTube 송출을 준비 중입니다. 취소하면 비식별화 연결도 종료됩니다."
+                            ? "서버가 YouTube 송출을 준비 중입니다. 취소하면 서버 연결도 종료됩니다."
                             : youtube.isConnected
                             ? "YouTube 송출을 시작하거나 중지합니다."
                             : "설정에서 YouTube 계정을 먼저 연결해 주세요."
                     )
+
+                    if isBroadcasting {
+                        Button(action: toggleAnonymization) {
+                            // 아이콘은 다른 제어 버튼과 같이 눌렀을 때 일어날 동작을 나타낸다.
+                            BroadcastControlLabel(
+                                title: youtube.isAnonymizationEnabled ? "비식별화 OFF" : "비식별화 ON",
+                                systemImage: youtube.isAnonymizationEnabled ? "eye.fill" : "eye.slash.fill",
+                                isLoading: youtube.isTogglingAnonymization
+                            )
+                        }
+                        .buttonStyle(.glass)
+                        .tint(youtube.isAnonymizationEnabled ? .purple : nil)
+                        .disabled(youtube.isTogglingAnonymization)
+                        .accessibilityHint("방송을 유지한 채 AI 비식별화 처리를 켜거나 끕니다.")
+                    }
 
                     if isYouTubeStreaming {
                         Button(action: toggleYouTubePause) {
@@ -92,7 +107,7 @@ struct BroadcastControllsView: View {
         }
     }
 
-    private var isPreparingAnonymization: Bool {
+    private var isPreparingConnection: Bool {
         previewTransition != .none
             || youtube.isPreparingSession
             || youtube.isConnectingVideo
@@ -126,7 +141,7 @@ struct BroadcastControllsView: View {
         localFeedbackMessage = nil
         if isBroadcasting {
             guard !youtube.isYouTubeBroadcastActive else {
-                localFeedbackMessage = "YouTube 송출 중에는 비식별화를 끌 수 없습니다. 방송을 유지한 채 전환하려면 서버 지원이 필요합니다."
+                localFeedbackMessage = "YouTube 송출 중에는 연결을 종료할 수 없습니다. 먼저 방송을 종료해 주세요."
                 return
             }
             Task {
@@ -185,6 +200,13 @@ struct BroadcastControllsView: View {
             } else {
                 await youtube.pauseYouTubeStream(accessToken: authentication.currentAccessToken())
             }
+        }
+    }
+
+    private func toggleAnonymization() {
+        localFeedbackMessage = nil
+        Task {
+            await youtube.toggleAnonymization(accessToken: authentication.currentAccessToken())
         }
     }
 }
