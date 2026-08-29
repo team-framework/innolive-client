@@ -28,7 +28,8 @@ final class YouTubeIntegration: ObservableObject {
     private let authorization = YouTubeAuthorization()
     private var pollingTask: Task<Void, Never>?
     private var pollingGeneration = 0
-    private var streamStartFallback: Date?
+    // stream.started_at은 prepare에서 egress가 시작된 시각이므로 공개 방송 타이머에 사용하지 않는다.
+    private var liveStartedAt: Date?
     private var reconnectTask: Task<Void, Never>?
     private var isReconnectingVideo = false
     private var videoConnectionConfiguration: VideoConnectionConfiguration?
@@ -65,7 +66,7 @@ final class YouTubeIntegration: ObservableObject {
     var isVideoConnected: Bool { videoUplink.state == .connected && videoTrack?.readyState == "live" }
 
     var streamStartedAt: Date? {
-        stream?.startedAtDate ?? streamStartFallback
+        liveStartedAt
     }
 
     var broadcastPhase: String {
@@ -263,7 +264,7 @@ final class YouTubeIntegration: ObservableObject {
         videoConnectionConfiguration = nil
         self.session = nil
         self.stream = nil
-        self.streamStartFallback = nil
+        self.liveStartedAt = nil
         self.videoTrack = nil
         handle(terminalError ?? WebRTCVideoUplinkError.failed("카메라 영상 연결을 완료하지 못했습니다."))
         return false
@@ -316,7 +317,7 @@ final class YouTubeIntegration: ObservableObject {
         stopPolling()
         session = nil
         stream = nil
-        streamStartFallback = nil
+        liveStartedAt = nil
         videoTrack = nil
         isAnonymizationEnabled = false
     }
@@ -338,7 +339,7 @@ final class YouTubeIntegration: ObservableObject {
         stopPolling()
         session = nil
         stream = nil
-        streamStartFallback = nil
+        liveStartedAt = nil
         videoTrack = nil
         errorMessage = failureMessage
         helpURL = nil
@@ -353,7 +354,7 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
-    func startYouTubeStream(accessToken: String?) async {
+    func prepareYouTubeStream(accessToken: String?) async {
         clearError()
         guard !isChangingStreamState else { return }
         guard let accessToken, !accessToken.isEmpty else {
@@ -385,7 +386,6 @@ final class YouTubeIntegration: ObservableObject {
 
         isChangingStreamState = true
         defer { isChangingStreamState = false }
-        var prepared = false
         do {
             let savedSnapshot = try await api.saveBroadcastSettings(
                 session: session,
@@ -399,20 +399,41 @@ final class YouTubeIntegration: ObservableObject {
                 session: session,
                 accessToken: accessToken
             )
-            prepared = true
             stream = preparedSnapshot.stream
             videoTrack = preparedSnapshot.media.rawVideoTrack
+        } catch {
+            handle(error)
+        }
+    }
 
+    func goLiveYouTubeStream(accessToken: String?) async {
+        clearError()
+        guard !isChangingStreamState else { return }
+        guard let accessToken, !accessToken.isEmpty else {
+            showError(.unauthorized)
+            return
+        }
+        guard let session else {
+            showError(.sessionRequired)
+            return
+        }
+        guard broadcastPhase == "prepared" else {
+            showError(.api(
+                code: "broadcast_not_prepared",
+                fallback: "YouTube 방송을 먼저 준비해 주세요.",
+                helpURL: nil
+            ))
+            return
+        }
+
+        isChangingStreamState = true
+        defer { isChangingStreamState = false }
+        do {
             let liveStream = try await goLiveWithRetry(session: session, accessToken: accessToken)
-            streamStartFallback = liveStream.startedAtDate ?? Date()
+            liveStartedAt = Date()
             stream = liveStream
             beginPolling(accessToken: accessToken)
         } catch {
-            if prepared,
-               let stoppedStream = try? await api.stopStream(session: session, accessToken: accessToken) {
-                stream = stoppedStream.markedStoppedByUser()
-                streamStartFallback = nil
-            }
             handle(error)
         }
     }
@@ -432,7 +453,7 @@ final class YouTubeIntegration: ObservableObject {
             // YouTube 종료 반영에는 시간이 걸릴 수 있다. API 요청이 성공한 순간부터
             // 앱에서는 송출을 종료로 처리해 타이머와 비식별화 제어 상태를 즉시 복구한다.
             stream = stoppedStream.markedStoppedByUser()
-            streamStartFallback = nil
+            liveStartedAt = nil
             stopPolling()
         } catch {
             handle(error)
@@ -484,7 +505,7 @@ final class YouTubeIntegration: ObservableObject {
         connection = nil
         session = nil
         stream = nil
-        streamStartFallback = nil
+        liveStartedAt = nil
         videoTrack = nil
         isAnonymizationEnabled = false
         errorMessage = nil
@@ -545,7 +566,7 @@ final class YouTubeIntegration: ObservableObject {
                         self.isAnonymizationEnabled = anonymization
                     }
                     if snapshot.stream.status == "stopped" {
-                        self.streamStartFallback = nil
+                        self.liveStartedAt = nil
                     }
                 } catch {
                     guard !Task.isCancelled, self.pollingGeneration == generation else {

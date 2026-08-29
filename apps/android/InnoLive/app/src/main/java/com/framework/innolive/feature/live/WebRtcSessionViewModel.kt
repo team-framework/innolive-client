@@ -83,12 +83,16 @@ class WebRtcSessionViewModel : ViewModel() {
             }
     }
 
-    fun startBroadcast(settings: BroadcastSettings) {
-        connection?.startBroadcast(settings)
+    fun prepareBroadcast(settings: BroadcastSettings) {
+        connection?.prepareBroadcast(settings)
             ?: run {
                 broadcastState = BroadcastState.FAILED
-                broadcastStatus = "비식별화 연결 후 방송을 시작해 주세요."
+                broadcastStatus = "비식별화 연결 후 방송을 준비해 주세요."
             }
+    }
+
+    fun goLive() {
+        connection?.goLive()
     }
 
     fun stopBroadcast() {

@@ -221,30 +221,37 @@ class WebRtcConnection(
         }
     }
 
-    fun startBroadcast(settings: BroadcastSettings) {
-        if (broadcastState == BroadcastState.LIVE) return
+    fun prepareBroadcast(settings: BroadcastSettings) {
+        if (!broadcastState.canPrepare) return
         runBroadcastOperation {
-            var prepared = false
+            require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
+            updateBroadcastState(BroadcastState.SAVING_SETTINGS, "방송 설정 저장 중")
+            putBroadcastSettings(settings)
+            updateBroadcastState(BroadcastState.PREPARING, "YouTube 방송 준비 중")
+            postSessionRequest("stream/prepare", JSONObject().put("provider", "youtube"))
+            updateBroadcastState(BroadcastState.PREPARED, "YouTube 라이브 전환 대기 중")
+        }
+    }
+
+    fun goLive() {
+        if (!broadcastState.canGoLive) return
+        runBroadcastOperation {
+            updateBroadcastState(BroadcastState.GOING_LIVE, "YouTube 라이브 전환 중")
             try {
-                require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
-                updateBroadcastState(BroadcastState.SAVING_SETTINGS, "방송 설정 저장 중")
-                putBroadcastSettings(settings)
-                updateBroadcastState(BroadcastState.PREPARING, "YouTube 방송 준비 중")
-                postSessionRequest("stream/prepare", JSONObject().put("provider", "youtube"))
-                prepared = true
-                updateBroadcastState(BroadcastState.GOING_LIVE, "YouTube 라이브 전환 중")
                 goLiveWithRetry()
-                prepared = false
                 updateBroadcastState(BroadcastState.LIVE, "YouTube 방송 중")
-            } catch (exception: Exception) {
-                if (prepared) runCatching { postSessionRequest("stream/stop") }
+            } catch (exception: ServerApiException) {
+                if (exception.code == "broadcast_not_ready") {
+                    updateBroadcastState(BroadcastState.PREPARED, exception.message.orEmpty())
+                    return@runBroadcastOperation
+                }
                 throw exception
             }
         }
     }
 
     fun stopBroadcast() {
-        if (broadcastState != BroadcastState.LIVE) return
+        if (!broadcastState.canStop) return
         runBroadcastOperation {
             updateBroadcastState(BroadcastState.STOPPING, "YouTube 방송 종료 중")
             postSessionRequest("stream/stop")
@@ -302,8 +309,10 @@ class WebRtcConnection(
                 }
             }
         }
-        runCatching { postSessionRequest("stream/stop") }
-        throw IOException("YouTube 방송 준비 시간이 초과되었습니다. 다시 시도해 주세요.")
+        throw ServerApiException(
+            "broadcast_not_ready",
+            "YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요.",
+        )
     }
 
     private fun updateBluetoothCommunicationRoute(audioInput: AudioDeviceInfo?) {

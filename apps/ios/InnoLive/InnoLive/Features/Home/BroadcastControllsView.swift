@@ -45,7 +45,7 @@ struct BroadcastControllsView: View {
                         )
                     }
                     .buttonStyle(.glass)
-                    .tint(isYouTubeStreaming || youtube.isWaitingForYouTubeBroadcastStart ? .red : nil)
+                    .tint(isYouTubeStreaming ? .red : youtube.broadcastPhase == "prepared" ? .orange : nil)
                     .disabled(
                         youtube.isChangingStreamState
                             || previewTransition == .stopping
@@ -54,12 +54,27 @@ struct BroadcastControllsView: View {
                             || !youtube.isConnected
                     )
                     .accessibilityHint(
-                        youtube.isWaitingForYouTubeBroadcastStart
-                            ? "서버가 YouTube 송출을 준비 중입니다. 취소하면 서버 연결도 종료됩니다."
+                        youtube.broadcastPhase == "prepared"
+                            ? "준비된 YouTube 방송을 시청자에게 공개합니다."
+                            : youtube.isWaitingForYouTubeBroadcastStart
+                            ? "서버가 YouTube 방송 상태를 변경하고 있습니다."
                             : youtube.isConnected
-                            ? "YouTube 송출을 시작하거나 중지합니다."
+                            ? "YouTube 방송을 준비하거나 종료합니다."
                             : "설정에서 YouTube 계정을 먼저 연결해 주세요."
                     )
+
+                    if youtube.broadcastPhase == "prepared" {
+                        Button(action: cancelYouTubePreparation) {
+                            BroadcastControlLabel(
+                                title: "준비 취소",
+                                systemImage: "xmark.circle.fill",
+                                isLoading: youtube.isChangingStreamState
+                            )
+                        }
+                        .buttonStyle(.glass)
+                        .disabled(youtube.isChangingStreamState)
+                        .accessibilityHint("준비한 YouTube 방송을 삭제하고 서버 연결은 유지합니다.")
+                    }
 
                     if isBroadcasting {
                         Button(action: toggleAnonymization) {
@@ -180,14 +195,16 @@ struct BroadcastControllsView: View {
     private func toggleYouTubeStream() {
         localFeedbackMessage = nil
         Task {
-            if isYouTubeStreaming || youtube.isWaitingForYouTubeBroadcastStart {
+            if isYouTubeStreaming {
                 previewTransition = .stopping
                 defer { previewTransition = .none }
                 await youtube.endBroadcast(accessToken: authentication.currentAccessToken())
                 await cameraManager.startDefaultCamera()
                 isBroadcasting = false
+            } else if youtube.broadcastPhase == "prepared" {
+                await youtube.goLiveYouTubeStream(accessToken: authentication.currentAccessToken())
             } else {
-                await youtube.startYouTubeStream(accessToken: authentication.currentAccessToken())
+                await youtube.prepareYouTubeStream(accessToken: authentication.currentAccessToken())
             }
         }
     }
@@ -207,6 +224,13 @@ struct BroadcastControllsView: View {
         localFeedbackMessage = nil
         Task {
             await youtube.toggleAnonymization(accessToken: authentication.currentAccessToken())
+        }
+    }
+
+    private func cancelYouTubePreparation() {
+        localFeedbackMessage = nil
+        Task {
+            await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken())
         }
     }
 }

@@ -55,6 +55,7 @@ fun LiveScreen(
     val isConnecting =
         webRtcSession.connectionState == WebRtcConnectionState.CONNECTING
     val isBroadcastLive = webRtcSession.broadcastState == BroadcastState.LIVE
+    val isBroadcastPrepared = webRtcSession.broadcastState == BroadcastState.PREPARED
     val isBroadcastBusy = webRtcSession.broadcastState in setOf(
         BroadcastState.SAVING_SETTINGS,
         BroadcastState.PREPARING,
@@ -63,8 +64,9 @@ fun LiveScreen(
     )
     val broadcastButtonText = when {
         isBroadcastLive -> "방송 종료"
+        isBroadcastPrepared -> "라이브 시작"
         isBroadcastBusy -> "방송 준비 중"
-        else -> "방송 시작"
+        else -> "방송 준비"
     }
     val isYoutubeValidated by remember { mutableStateOf(false) }
 
@@ -232,8 +234,10 @@ fun LiveScreen(
                         onClick = {
                             if (isBroadcastLive) {
                                 webRtcSession.stopBroadcast()
+                            } else if (isBroadcastPrepared) {
+                                webRtcSession.goLive()
                             } else if (selectedPlatform == "YouTube") {
-                                webRtcSession.startBroadcast(props.broadcastSettings)
+                                webRtcSession.prepareBroadcast(props.broadcastSettings)
                             } else {
                                 openPlatformDialog = true
                             }
@@ -261,6 +265,14 @@ fun LiveScreen(
                         contentDescription = "Toggle face blur",
                         tint = Color.White
                     )
+                }
+            }
+            if (isBroadcastPrepared) {
+                Button(
+                    onClick = webRtcSession::stopBroadcast,
+                    enabled = !isBroadcastBusy,
+                ) {
+                    Text(text = "방송 준비 취소")
                 }
             }
             Text(
