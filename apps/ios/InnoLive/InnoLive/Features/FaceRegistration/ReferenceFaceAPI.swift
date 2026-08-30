@@ -17,7 +17,7 @@ final class ReferenceFaceAPI {
         let boundary = "InnoLive-Reference-Face-\(UUID().uuidString)"
         var body = Data()
         body.appendUTF8("--\(boundary)\r\n")
-        body.appendUTF8("Content-Disposition: form-data; name=\"image\"; filename=\"reference-face.jpg\"\r\n")
+        body.appendUTF8("Content-Disposition: form-data; name=\"images\"; filename=\"reference-face.jpg\"\r\n")
         body.appendUTF8("Content-Type: image/jpeg\r\n\r\n")
         body.append(jpegData)
         body.appendUTF8("\r\n--\(boundary)--\r\n")
