@@ -14,6 +14,7 @@ struct HomeView: View {
     @State private var isShowingCameraPermissionAlert = false
     @State private var isSwitchingCamera = false
     @State private var cameraSwitchErrorMessage: String?
+    @State private var isHomeVisible = false
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @Environment(CameraManager.self) private var cameraManager
@@ -35,7 +36,9 @@ struct HomeView: View {
             )
                 .ignoresSafeArea()
 
-            if !youtube.videoUplink.isCapturingCamera && previewTransition == .none {
+            if isHomeVisible
+                && !youtube.videoUplink.isCapturingCamera
+                && previewTransition == .none {
                 LocalPreviewView(
                     session: cameraManager.session,
                     // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
@@ -115,6 +118,7 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
         .onAppear {
+            isHomeVisible = true
             guard !youtube.videoUplink.isCapturingCamera else { return }
             switch cameraManager.authorizationStatus {
             case .authorized:
@@ -132,6 +136,9 @@ struct HomeView: View {
             @unknown default:
                 break
             }
+        }
+        .onDisappear {
+            isHomeVisible = false
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
             if status == .authorized, !youtube.videoUplink.isCapturingCamera {

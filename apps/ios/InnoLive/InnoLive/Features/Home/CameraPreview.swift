@@ -35,6 +35,10 @@ struct CameraPreview: UIViewRepresentable {
         // UI가 다시 렌더링 될 때도 같은 session을 유지
         uiView.configure(session: session, cameraID: cameraID, videoGravity: videoGravity)
     }
+
+    static func dismantleUIView(_ uiView: PreviewView, coordinator: Void) {
+        uiView.detachSession()
+    }
 }
 
 final class PreviewView: UIView {
@@ -99,7 +103,15 @@ final class PreviewView: UIView {
         }
     }
 
-    deinit {
+    func detachSession() {
         rotationObservation?.invalidate()
+        rotationObservation = nil
+        rotationCoordinator = nil
+        observedCameraID = nil
+        previewLayer.session = nil
+    }
+
+    deinit {
+        detachSession()
     }
 }
