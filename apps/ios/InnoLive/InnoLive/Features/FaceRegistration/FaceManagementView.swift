@@ -48,7 +48,7 @@ struct FaceManagementView: View {
                     Button {
                         isShowingRegistration = true
                     } label: {
-                        Label("얼굴 등록 시작", systemImage: "viewfinder.circle.fill")
+                        Label("얼굴 등록", systemImage: "viewfinder.circle.fill")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
@@ -110,7 +110,7 @@ struct FaceManagementView: View {
             }
             Button("취소", role: .cancel) {}
         } message: {
-            Text("삭제하면 다음 방송부터 해당 얼굴도 비식별화됩니다.")
+            Text("삭제하면 해당 얼굴은 다시 비식별화 대상이 됩니다.")
         }
     }
 
@@ -120,8 +120,13 @@ struct FaceManagementView: View {
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundStyle(.blue)
 
-            Text("등록된 얼굴은 비식별화되지 않아요.")
+            Text("비식별화하지 않을 얼굴을 등록해주세요")
                 .font(.title3.weight(.bold))
+
+            Text("방송인이나 게스트의 얼굴을 등록하면, 방송 중 해당 인물은 비식별화 처리되지 않아 자연스러운 방송을 진행할 수 있습니다.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -358,7 +363,7 @@ private struct FaceRegistrationCaptureView: View {
                 Text("완료")
                     .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity)
-                    .frame(height: 52)
+                    .frame(height: 46)
             }
             .buttonStyle(.glassProminent)
             .tint(.green)

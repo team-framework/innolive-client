@@ -53,7 +53,7 @@ struct EmailAuthView: View {
     }
 
     private var emailStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("이메일로 계속하기").font(.title.bold())
             Text("로그인하거나 새 계정을 만들 수 있어요.").foregroundStyle(.secondary)
             emailField
@@ -67,7 +67,7 @@ struct EmailAuthView: View {
     }
 
     private var signInStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("로그인").font(.title.bold())
             emailField.disabled(true).foregroundStyle(.secondary)
             passwordField("비밀번호", text: $password, field: .password, contentType: .password)

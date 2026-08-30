@@ -69,7 +69,7 @@ final class FaceRegistrationViewModel: ObservableObject {
             phase = .failed("카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요.")
             return
         }
-        phase = .detecting("얼굴을 안내 영역 가운데에 맞춰 주세요.")
+        phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
     }
 
     func stopDetection(using cameraManager: CameraManager) async {
@@ -116,7 +116,7 @@ final class FaceRegistrationViewModel: ObservableObject {
         switch outcome {
         case .noFace:
             stableDetectionCount = 0
-            phase = .detecting("얼굴을 안내 영역 안에 보여 주세요.")
+            phase = .detecting("얼굴을 가운데 영역에 보여 주세요.")
         case .multipleFaces:
             stableDetectionCount = 0
             phase = .detecting("한 명의 얼굴만 화면에 보여 주세요.")
@@ -125,7 +125,7 @@ final class FaceRegistrationViewModel: ObservableObject {
             phase = .detecting("얼굴이 조금 더 크게 보이도록 가까이 와 주세요.")
         case .centerFace:
             stableDetectionCount = 0
-            phase = .detecting("얼굴을 안내 영역 가운데에 맞춰 주세요.")
+            phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
         case let .ready(jpegData):
             stableDetectionCount += 1
             guard stableDetectionCount >= 3 else {
