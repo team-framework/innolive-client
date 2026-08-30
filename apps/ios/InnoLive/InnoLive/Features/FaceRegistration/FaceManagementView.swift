@@ -94,11 +94,14 @@ struct FaceManagementView: View {
         .refreshable {
             await model.loadStatus()
         }
-        .fullScreenCover(isPresented: $isShowingRegistration) {
+        .sheet(isPresented: $isShowingRegistration) {
             NavigationStack {
                 FaceRegistrationCaptureView(model: model)
                     .environment(cameraManager)
             }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .interactiveDismissDisabled(model.phase == .registering)
         }
         .confirmationDialog(
             "등록된 얼굴을 모두 삭제할까요?",
@@ -305,6 +308,11 @@ private struct FaceRegistrationCaptureView: View {
         .task {
             await model.beginDetection(using: cameraManager)
         }
+        .onChange(of: model.phase) { _, phase in
+            if phase == .success {
+                dismiss()
+            }
+        }
         .onDisappear {
             Task { await model.stopDetection(using: cameraManager) }
         }
@@ -356,17 +364,6 @@ private struct FaceRegistrationCaptureView: View {
             }
             .buttonStyle(.glassProminent)
             .tint(.blue)
-        case .success:
-            Button {
-                dismiss()
-            } label: {
-                Text("완료")
-                    .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 46)
-            }
-            .buttonStyle(.glassProminent)
-            .tint(.green)
         default:
             EmptyView()
         }
