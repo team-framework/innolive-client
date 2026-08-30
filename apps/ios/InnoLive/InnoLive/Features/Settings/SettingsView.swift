@@ -24,6 +24,18 @@ struct SettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
+
+                    NavigationLink {
+                        FaceManagementView(authentication: authentication, youtube: youtube)
+                    } label: {
+                        SettingsGlassRow {
+                            settingsRowContent(
+                                title: "얼굴 관리",
+                                systemImage: "faceid"
+                            )
+                        }
+                    }
+                    .buttonStyle(.plain)
                     
                     NavigationLink {
                         BroadcastSettingsView(authentication: authentication, youtube: youtube)

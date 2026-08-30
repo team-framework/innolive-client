@@ -11,3 +11,4 @@ is included in the same task.
 
 - `signaling/v1.schema.json`: legacy signaling payloads without session ownership
 - `signaling/v2.schema.json`: authenticated signaling payloads with access and owner tokens
+- `api/reference-face-v1.md`: authenticated reference-face registration, status, and deletion

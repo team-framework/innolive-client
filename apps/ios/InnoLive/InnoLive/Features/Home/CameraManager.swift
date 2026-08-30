@@ -5,7 +5,7 @@
 //  Created by chaeyn on 7/29/26.
 //
 
-import AVFoundation
+@preconcurrency import AVFoundation
 import Observation
 
 private enum CameraSettingKey {
@@ -18,6 +18,8 @@ final class CameraManager {
     // private(set): 읽기는 어디서나 가능, 갑 변경은 이 class 내부에서만 가능
     private(set) var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     private var videoInput: AVCaptureDeviceInput?
+    private var faceVideoOutput: AVCaptureVideoDataOutput?
+    private let faceFrameRelay = CameraFrameRelay()
     private(set) var currentCameraID: String?
     private(set) var currentCameraName: String?
 
@@ -108,11 +110,81 @@ final class CameraManager {
                 if self.session.isRunning {
                     self.session.stopRunning()
                 }
-                if let videoInput = self.videoInput {
+                if self.videoInput != nil || self.faceVideoOutput != nil {
                     self.session.beginConfiguration()
-                    self.session.removeInput(videoInput)
+                    if let faceVideoOutput = self.faceVideoOutput {
+                        self.session.removeOutput(faceVideoOutput)
+                        self.faceVideoOutput = nil
+                    }
+                    if let videoInput = self.videoInput {
+                        self.session.removeInput(videoInput)
+                    }
                     self.session.commitConfiguration()
                     self.videoInput = nil
+                }
+                self.faceFrameRelay.update(handler: nil, cameraPosition: .unspecified)
+                continuation.resume()
+            }
+        }
+    }
+
+    @discardableResult
+    func startFaceFrameDelivery(
+        handler: @escaping @Sendable (CMSampleBuffer, AVCaptureDevice.Position) -> Void
+    ) async -> Bool {
+        await withCheckedContinuation { continuation in
+            sessionQueue.async { [weak self] in
+                guard let self, let videoInput else {
+                    continuation.resume(returning: false)
+                    return
+                }
+
+                faceFrameRelay.update(
+                    handler: handler,
+                    cameraPosition: videoInput.device.position
+                )
+                if faceVideoOutput != nil {
+                    continuation.resume(returning: true)
+                    return
+                }
+
+                let output = AVCaptureVideoDataOutput()
+                output.alwaysDiscardsLateVideoFrames = true
+                output.videoSettings = [
+                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+                ]
+                output.setSampleBufferDelegate(
+                    faceFrameRelay,
+                    queue: DispatchQueue(label: "com.innolive.camera.face-detection")
+                )
+
+                session.beginConfiguration()
+                defer { session.commitConfiguration() }
+                guard session.canAddOutput(output) else {
+                    faceFrameRelay.update(handler: nil, cameraPosition: .unspecified)
+                    continuation.resume(returning: false)
+                    return
+                }
+                session.addOutput(output)
+                faceVideoOutput = output
+                continuation.resume(returning: true)
+            }
+        }
+    }
+
+    func stopFaceFrameDelivery() async {
+        await withCheckedContinuation { continuation in
+            sessionQueue.async { [weak self] in
+                guard let self else {
+                    continuation.resume()
+                    return
+                }
+                faceFrameRelay.update(handler: nil, cameraPosition: .unspecified)
+                if let faceVideoOutput {
+                    session.beginConfiguration()
+                    session.removeOutput(faceVideoOutput)
+                    session.commitConfiguration()
+                    self.faceVideoOutput = nil
                 }
                 continuation.resume()
             }
@@ -241,5 +313,32 @@ final class CameraManager {
             self?.currentCameraID = device.uniqueID
             self?.currentCameraName = device.localizedName
         }
+    }
+}
+
+nonisolated private final class CameraFrameRelay: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
+    typealias Handler = @Sendable (CMSampleBuffer, AVCaptureDevice.Position) -> Void
+
+    private let lock = NSLock()
+    private var handler: Handler?
+    private var cameraPosition: AVCaptureDevice.Position = .unspecified
+
+    func update(handler: Handler?, cameraPosition: AVCaptureDevice.Position) {
+        lock.lock()
+        self.handler = handler
+        self.cameraPosition = cameraPosition
+        lock.unlock()
+    }
+
+    func captureOutput(
+        _ output: AVCaptureOutput,
+        didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        lock.lock()
+        let handler = handler
+        let cameraPosition = cameraPosition
+        lock.unlock()
+        handler?(sampleBuffer, cameraPosition)
     }
 }

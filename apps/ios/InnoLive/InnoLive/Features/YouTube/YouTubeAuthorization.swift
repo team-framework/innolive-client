@@ -4,7 +4,7 @@ import UIKit
 
 final class YouTubeAuthorization {
     func authorize(configuration: YouTubeConfiguration, presenting viewController: UIViewController) async throws -> String {
-        guard let clientID = Bundle.main.object(forInfoDictionaryKey: "InnoLiveYouTubeClientID") as? String,
+        guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
               !clientID.isEmpty else {
             throw YouTubeAPIError.configuration
         }

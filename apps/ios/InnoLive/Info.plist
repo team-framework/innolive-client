@@ -26,7 +26,6 @@
             <key>CFBundleURLSchemes</key>
             <array>
 				<string>com.googleusercontent.apps.243768920567-l2mhbgrrm3mq0audqfdali4ok7otkjug</string>
-                <string>com.googleusercontent.apps.575928867070-t2boqt6j7fp5eg07uhp3dat9qef737o9</string>
             </array>
         </dict>
     </array>
@@ -34,8 +33,6 @@
 	<string>243768920567-l2mhbgrrm3mq0audqfdali4ok7otkjug.apps.googleusercontent.com</string>
     <key>GIDServerClientID</key>
 	<string>243768920567-klo731slcpu8aslvlrol3s99a6ghfjr6.apps.googleusercontent.com</string>
-    <key>InnoLiveYouTubeClientID</key>
-    <string>575928867070-t2boqt6j7fp5eg07uhp3dat9qef737o9.apps.googleusercontent.com</string>
     <key>InnoLiveServerURL</key>
     <string>$(INNOLIVE_SERVER_URL)</string>
     <key>UILaunchScreen</key>

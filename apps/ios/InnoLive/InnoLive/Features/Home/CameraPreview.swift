@@ -13,16 +13,31 @@ struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
     // 현재 프리뷰에 연결된 카메라를 찾아 회전값을 계산하는 데 사용함
     let cameraID: String?
+    let videoGravity: AVLayerVideoGravity
+
+    init(
+        session: AVCaptureSession,
+        cameraID: String?,
+        videoGravity: AVLayerVideoGravity = .resizeAspect
+    ) {
+        self.session = session
+        self.cameraID = cameraID
+        self.videoGravity = videoGravity
+    }
 
     func makeUIView(context: Context) -> PreviewView {
         let previewView = PreviewView()
-        previewView.configure(session: session, cameraID: cameraID)
+        previewView.configure(session: session, cameraID: cameraID, videoGravity: videoGravity)
         return previewView
     }
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
         // UI가 다시 렌더링 될 때도 같은 session을 유지
-        uiView.configure(session: session, cameraID: cameraID)
+        uiView.configure(session: session, cameraID: cameraID, videoGravity: videoGravity)
+    }
+
+    static func dismantleUIView(_ uiView: PreviewView, coordinator: Void) {
+        uiView.detachSession()
     }
 }
 
@@ -39,10 +54,13 @@ final class PreviewView: UIView {
     private var rotationObservation: NSKeyValueObservation?
     private var observedCameraID: String?
 
-    func configure(session: AVCaptureSession, cameraID: String?) {
+    func configure(
+        session: AVCaptureSession,
+        cameraID: String?,
+        videoGravity: AVLayerVideoGravity
+    ) {
         previewLayer.session = session
-        // 비식별화 전후에 같은 전체 프레임 비율을 보여 주도록 잘라내지 않음
-        previewLayer.videoGravity = .resizeAspect
+        previewLayer.videoGravity = videoGravity
 
         // 같은 카메라는 중복 등록을 막음
         guard observedCameraID != cameraID else {
@@ -85,7 +103,15 @@ final class PreviewView: UIView {
         }
     }
 
-    deinit {
+    func detachSession() {
         rotationObservation?.invalidate()
+        rotationObservation = nil
+        rotationCoordinator = nil
+        observedCameraID = nil
+        previewLayer.session = nil
+    }
+
+    deinit {
+        detachSession()
     }
 }
