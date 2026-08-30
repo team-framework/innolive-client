@@ -19,12 +19,19 @@ struct FaceManagementView: View {
         youtube.videoUplink.isCapturingCamera || youtube.videoUplink.isConnecting
     }
 
+    private var hasRegisteredFaces: Bool {
+        model.status?.faces.isEmpty == false
+    }
+
     var body: some View {
         ScrollView {
             GlassEffectContainer {
                 VStack(spacing: 14) {
                     introductionCard
-                    statusCard
+
+                    if !hasRegisteredFaces {
+                        statusCard
+                    }
 
                     if let status = model.status, !status.faces.isEmpty {
                         registeredFacesSection(status.faces)
@@ -42,9 +49,9 @@ struct FaceManagementView: View {
                         isShowingRegistration = true
                     } label: {
                         Label("얼굴 등록 시작", systemImage: "viewfinder.circle.fill")
-                            .font(.body.weight(.semibold))
+                            .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
-                            .frame(height: 52)
+                            .frame(height: 46)
                     }
                     .buttonStyle(.glassProminent)
                     .tint(.blue)
@@ -115,15 +122,6 @@ struct FaceManagementView: View {
 
             Text("등록된 얼굴은 비식별화되지 않아요.")
                 .font(.title3.weight(.bold))
-
-            Text("카메라에서 얼굴 한 명을 자동으로 찾으면 등록용 이미지를 촬영해 서버로 전송합니다. 등록을 시작하기 전에는 얼굴 이미지를 전송하지 않습니다.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Label("새 얼굴을 등록하면 기존 등록 정보가 교체돼요.", systemImage: "arrow.triangle.2.circlepath")
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.secondary)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -253,7 +251,7 @@ private struct FaceRegistrationCaptureView: View {
                 VStack(spacing: 8) {
                     Text("얼굴 등록")
                         .font(.largeTitle.weight(.bold))
-                    Text("한 명의 얼굴을 안내 영역 가운데에 맞춰 주세요.")
+                    Text("얼굴을 가운데 영역에 맞춰 주세요.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
