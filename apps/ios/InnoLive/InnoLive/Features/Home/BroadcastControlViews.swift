@@ -1,46 +1,34 @@
 import SwiftUI
 import UIKit
 
-struct BroadcastControlLabel: View {
-    let title: String
-    let systemImage: String?
-    var isLoading: Bool
-
-    init(title: String, systemImage: String? = nil, isLoading: Bool = false) {
-        self.title = title
-        self.systemImage = systemImage
-        self.isLoading = isLoading
-    }
-
-    var body: some View {
-        VStack(spacing: 4) {
-            if isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            } else
-            if let systemImage {
-                Image(systemName: systemImage)
-                    .font(.body.weight(.semibold))
-            }
-            if !isLoading {
-                Text(title)
-                    .font(systemImage == nil ? .caption.weight(.semibold) : .caption2.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 52)
-        .contentShape(Rectangle())
-    }
+private enum BroadcastControlLayout {
+    static let height: CGFloat = 52
 }
 
 struct SettingsControlLabel: View {
     var body: some View {
         Image(systemName: "gearshape.fill")
             .font(.body.weight(.semibold))
-            .frame(width: 52, height: 52)
+            .frame(width: BroadcastControlLayout.height, height: BroadcastControlLayout.height)
             .contentShape(Rectangle())
+    }
+}
+
+struct AnonymizationControlLabel: View {
+    let isLoading: Bool
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "faceid")
+                    .font(.body.weight(.semibold))
+            }
+        }
+        .frame(width: BroadcastControlLayout.height, height: BroadcastControlLayout.height)
+        .contentShape(Rectangle())
     }
 }
 
@@ -50,21 +38,35 @@ struct YouTubeBroadcastControlLabel: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            BroadcastControlLabel(
-                title: buttonTitle(at: context.date),
-                systemImage: youtube.hasStartedYouTubeBroadcast ? "stop.fill" : "play.rectangle.fill",
-                isLoading: isLoading
-            )
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if youtube.hasStartedYouTubeBroadcast {
+                    Circle()
+                        .fill(.red)
+                        .frame(width: 9, height: 9)
+                }
+
+                Text(buttonTitle(at: context.date))
+                    .font(.headline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: BroadcastControlLayout.height)
+            .contentShape(Rectangle())
         }
     }
 
     private func buttonTitle(at date: Date) -> String {
-        if youtube.broadcastPhase == "prepared" { return "라이브 시작" }
-        if youtube.isWaitingForYouTubeBroadcastStart { return "처리 중" }
+        if youtube.broadcastPhase == "prepared" { return "방송 시작" }
+        if youtube.broadcastPhase == "preparing" { return "방송 준비 중" }
+        if youtube.broadcastPhase == "going_live" { return "방송 시작 중" }
         guard youtube.isYouTubeBroadcastActive else { return "방송 준비" }
         let duration = formattedDuration(since: youtube.streamStartedAt, now: date)
         if youtube.isYouTubeBroadcastPaused {
-            return "방송 종료"
+            return "방송 일시 중지 (\(duration))"
         }
         if youtube.stream?.status == "reconnecting" {
             return "재연결 중 (\(duration))"
@@ -84,25 +86,24 @@ struct YouTubeBroadcastControlLabel: View {
     }
 }
 
-struct YouTubePauseControlLabel: View {
-    @ObservedObject var youtube: YouTubeIntegration
+struct ServerConnectionControlLabel: View {
     let isLoading: Bool
 
     var body: some View {
-        BroadcastControlLabel(
-            title: buttonTitle,
-            systemImage: youtube.isYouTubeBroadcastPaused ? "play.fill" : "pause.fill",
-            isLoading: isLoading
-        )
-    }
-
-    private var buttonTitle: String {
-        switch youtube.stream?.status {
-        case "paused_reconfiguring": return "중지 준비 중"
-        case "paused_reconnecting": return "중지 재연결 중"
-        case "paused": return "방송 재개"
-        default: return "일시 중지"
+        HStack(spacing: 8) {
+            if isLoading {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Image(systemName: "arrow.clockwise")
+                    .font(.body.weight(.semibold))
+            }
+            Text(isLoading ? "서버 연결 중" : "연결 재시도")
+                .font(.headline.weight(.bold))
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: BroadcastControlLayout.height)
+        .contentShape(Rectangle())
     }
 }
 
@@ -150,6 +151,6 @@ struct BroadcastFeedbackBanner: View {
             }
         }
         .padding(10)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .glassEffect(.regular, in: .rect(cornerRadius: 14))
     }
 }

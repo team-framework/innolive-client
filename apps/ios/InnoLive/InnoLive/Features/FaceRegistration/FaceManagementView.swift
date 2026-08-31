@@ -1,4 +1,5 @@
 import AVFoundation
+@preconcurrency import LiveKitWebRTC
 import SwiftUI
 import UIKit
 
@@ -15,8 +16,11 @@ struct FaceManagementView: View {
         _model = StateObject(wrappedValue: FaceRegistrationViewModel(authentication: authentication))
     }
 
-    private var isCameraInUseByBroadcast: Bool {
-        youtube.videoUplink.isCapturingCamera || youtube.videoUplink.isConnecting
+    private var isCameraTransitioning: Bool {
+        let videoUplink = youtube.videoUplink
+        return videoUplink.isSwitchingCamera
+            || videoUplink.isReleasingCamera
+            || (videoUplink.isActive && !videoUplink.canProvideFaceRegistrationFrames)
     }
 
     private var hasRegisteredFaces: Bool {
@@ -56,13 +60,13 @@ struct FaceManagementView: View {
                     .buttonStyle(.glassProminent)
                     .tint(.blue)
                     .disabled(
-                        isCameraInUseByBroadcast
+                        isCameraTransitioning
                             || model.isDeleting
                             || cameraManager.authorizationStatus != .authorized
                     )
 
-                    if isCameraInUseByBroadcast {
-                        Text("서버에 카메라가 연결된 동안에는 얼굴을 등록할 수 없습니다. 연결을 종료한 뒤 다시 시도해 주세요.")
+                    if isCameraTransitioning {
+                        Text("카메라 연결이 완료된 뒤 얼굴을 등록할 수 있어요.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -96,7 +100,10 @@ struct FaceManagementView: View {
         }
         .sheet(isPresented: $isShowingRegistration) {
             NavigationStack {
-                FaceRegistrationCaptureView(model: model)
+                FaceRegistrationCaptureView(
+                    model: model,
+                    videoUplink: youtube.videoUplink
+                )
                     .environment(cameraManager)
             }
             .presentationDetents([.large])
@@ -248,6 +255,7 @@ private struct FaceRegistrationCaptureView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(CameraManager.self) private var cameraManager
     @ObservedObject var model: FaceRegistrationViewModel
+    @ObservedObject var videoUplink: WebRTCVideoUplink
 
     var body: some View {
         ZStack {
@@ -265,11 +273,17 @@ private struct FaceRegistrationCaptureView: View {
                         .multilineTextAlignment(.center)
                 }
 
-                CameraPreview(
-                    session: cameraManager.session,
-                    cameraID: cameraManager.currentCameraID,
-                    videoGravity: .resizeAspectFill
-                )
+                Group {
+                    if model.isUsingWebRTCFrames {
+                        WebRTCFaceRegistrationPreview(videoUplink: videoUplink)
+                    } else {
+                        CameraPreview(
+                            session: cameraManager.session,
+                            cameraID: cameraManager.currentCameraID,
+                            videoGravity: .resizeAspectFill
+                        )
+                    }
+                }
                 .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
                 .overlay {
@@ -298,7 +312,10 @@ private struct FaceRegistrationCaptureView: View {
             ToolbarItem(placement: .topBarLeading) {
                 Button("취소") {
                     Task {
-                        await model.stopDetection(using: cameraManager)
+                        await model.stopDetection(
+                            using: cameraManager,
+                            videoUplink: videoUplink
+                        )
                         dismiss()
                     }
                 }
@@ -306,15 +323,28 @@ private struct FaceRegistrationCaptureView: View {
             }
         }
         .task {
-            await model.beginDetection(using: cameraManager)
+            await model.beginDetection(
+                using: cameraManager,
+                videoUplink: videoUplink
+            )
         }
         .onChange(of: model.phase) { _, phase in
             if phase == .success {
                 dismiss()
             }
         }
+        .onChange(of: videoUplink.canProvideFaceRegistrationFrames) { _, isAvailable in
+            if model.isUsingWebRTCFrames, !isAvailable {
+                model.handleWebRTCFrameSourceUnavailable(videoUplink: videoUplink)
+            }
+        }
         .onDisappear {
-            Task { await model.stopDetection(using: cameraManager) }
+            Task {
+                await model.stopDetection(
+                    using: cameraManager,
+                    videoUplink: videoUplink
+                )
+            }
         }
     }
 
@@ -355,7 +385,12 @@ private struct FaceRegistrationCaptureView: View {
         switch model.phase {
         case .failed:
             Button {
-                Task { await model.retryDetection(using: cameraManager) }
+                Task {
+                    await model.retryDetection(
+                        using: cameraManager,
+                        videoUplink: videoUplink
+                    )
+                }
             } label: {
                 Text("다시 시도")
                     .font(.body.weight(.semibold))
@@ -397,5 +432,78 @@ private struct FaceRegistrationCaptureView: View {
         case .preparing, .registering, .failed, .success: return true
         case .idle, .detecting: return false
         }
+    }
+}
+
+private struct WebRTCFaceRegistrationPreview: UIViewRepresentable {
+    @ObservedObject var videoUplink: WebRTCVideoUplink
+
+    func makeUIView(context: Context) -> NativeWebRTCFaceRegistrationPreview {
+        let preview = NativeWebRTCFaceRegistrationPreview()
+        preview.attach(to: videoUplink)
+        preview.update(mirrorsVideo: videoUplink.isUsingFrontCamera)
+        return preview
+    }
+
+    func updateUIView(
+        _ uiView: NativeWebRTCFaceRegistrationPreview,
+        context: Context
+    ) {
+        uiView.attach(to: videoUplink)
+        uiView.update(mirrorsVideo: videoUplink.isUsingFrontCamera)
+    }
+
+    static func dismantleUIView(
+        _ uiView: NativeWebRTCFaceRegistrationPreview,
+        coordinator: Void
+    ) {
+        uiView.detach()
+    }
+}
+
+private final class NativeWebRTCFaceRegistrationPreview: UIView {
+    private let videoView = LKRTCMTLVideoView(frame: .zero)
+    private weak var videoUplink: WebRTCVideoUplink?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        backgroundColor = .black
+        clipsToBounds = true
+        videoView.videoContentMode = .scaleAspectFill
+        addSubview(videoView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func attach(to videoUplink: WebRTCVideoUplink) {
+        guard self.videoUplink !== videoUplink else {
+            videoUplink.attachFaceRegistrationRenderer(videoView)
+            return
+        }
+        detach()
+        self.videoUplink = videoUplink
+        videoUplink.attachFaceRegistrationRenderer(videoView)
+    }
+
+    func update(mirrorsVideo: Bool) {
+        videoView.transform = mirrorsVideo
+            ? CGAffineTransform(scaleX: -1, y: 1)
+            : .identity
+    }
+
+    func detach() {
+        videoUplink?.detachFaceRegistrationRenderer(videoView)
+        videoUplink = nil
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        videoView.frame = bounds
+    }
+
+    deinit {
+        detach()
     }
 }

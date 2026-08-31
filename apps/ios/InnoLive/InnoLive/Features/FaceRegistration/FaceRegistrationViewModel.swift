@@ -12,6 +12,11 @@ enum FaceRegistrationPhase: Equatable {
     case failed(String)
 }
 
+private enum FaceRegistrationFrameSource: Equatable {
+    case cameraManager
+    case webRTC
+}
+
 @MainActor
 final class FaceRegistrationViewModel: ObservableObject {
     @Published private(set) var status: ReferenceFaceStatus?
@@ -19,10 +24,13 @@ final class FaceRegistrationViewModel: ObservableObject {
     @Published private(set) var isDeleting = false
     @Published private(set) var statusErrorMessage: String?
     @Published private(set) var phase: FaceRegistrationPhase = .idle
+    @Published private(set) var isUsingWebRTCFrames = false
 
     private let api: ReferenceFaceAPI
     private let detector = FaceDetectionService()
     private var stableDetectionCount = 0
+    private var activeFrameSource: FaceRegistrationFrameSource?
+    private var detectionGeneration: UInt = 0
 
     init(authentication: AuthSession) {
         api = ReferenceFaceAPI(authentication: authentication)
@@ -40,7 +48,12 @@ final class FaceRegistrationViewModel: ObservableObject {
         }
     }
 
-    func beginDetection(using cameraManager: CameraManager) async {
+    func beginDetection(
+        using cameraManager: CameraManager,
+        videoUplink: WebRTCVideoUplink
+    ) async {
+        detectionGeneration &+= 1
+        let generation = detectionGeneration
         stableDetectionCount = 0
         statusErrorMessage = nil
         detector.reset()
@@ -51,9 +64,49 @@ final class FaceRegistrationViewModel: ObservableObject {
             return
         }
 
-        await cameraManager.startDefaultCamera()
         let detector = detector
         let orientation = UIDevice.current.orientation
+
+        if videoUplink.canProvideFaceRegistrationFrames {
+            activeFrameSource = .webRTC
+            isUsingWebRTCFrames = true
+            let started = videoUplink.startFaceFrameDelivery { [weak self, detector] pixelBuffer, cameraPosition in
+                guard let outcome = detector.analyze(
+                    pixelBuffer: pixelBuffer,
+                    cameraPosition: cameraPosition,
+                    deviceOrientation: orientation
+                ) else { return }
+                Task { @MainActor [weak self] in
+                    self?.handle(
+                        outcome,
+                        generation: generation,
+                        cameraManager: cameraManager,
+                        videoUplink: videoUplink
+                    )
+                }
+            }
+            guard started else {
+                activeFrameSource = nil
+                isUsingWebRTCFrames = false
+                phase = .failed("서버에 연결된 카메라 영상을 가져오지 못했습니다. 다시 시도해 주세요.")
+                return
+            }
+            phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
+            return
+        }
+
+        guard !videoUplink.isActive,
+              !videoUplink.isCapturingCamera,
+              !videoUplink.isSwitchingCamera else {
+            activeFrameSource = nil
+            isUsingWebRTCFrames = false
+            phase = .failed("서버 카메라 연결이 완료된 뒤 다시 시도해 주세요.")
+            return
+        }
+
+        isUsingWebRTCFrames = false
+        await cameraManager.startDefaultCamera()
+        activeFrameSource = .cameraManager
         let started = await cameraManager.startFaceFrameDelivery { [weak self, detector] sampleBuffer, cameraPosition in
             guard let outcome = detector.analyze(
                 sampleBuffer: sampleBuffer,
@@ -61,28 +114,51 @@ final class FaceRegistrationViewModel: ObservableObject {
                 deviceOrientation: orientation
             ) else { return }
             Task { @MainActor [weak self] in
-                self?.handle(outcome, cameraManager: cameraManager)
+                self?.handle(
+                    outcome,
+                    generation: generation,
+                    cameraManager: cameraManager,
+                    videoUplink: videoUplink
+                )
             }
         }
 
         guard started else {
+            activeFrameSource = nil
             phase = .failed("카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요.")
             return
         }
         phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
     }
 
-    func stopDetection(using cameraManager: CameraManager) async {
-        await cameraManager.stopFaceFrameDelivery()
+    func stopDetection(
+        using cameraManager: CameraManager,
+        videoUplink: WebRTCVideoUplink
+    ) async {
+        detectionGeneration &+= 1
+        await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
         stableDetectionCount = 0
         if phase != .success {
             phase = .idle
         }
     }
 
-    func retryDetection(using cameraManager: CameraManager) async {
-        await cameraManager.stopFaceFrameDelivery()
-        await beginDetection(using: cameraManager)
+    func retryDetection(
+        using cameraManager: CameraManager,
+        videoUplink: WebRTCVideoUplink
+    ) async {
+        await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
+        await beginDetection(using: cameraManager, videoUplink: videoUplink)
+    }
+
+    func handleWebRTCFrameSourceUnavailable(videoUplink: WebRTCVideoUplink) {
+        guard activeFrameSource == .webRTC else { return }
+        detectionGeneration &+= 1
+        videoUplink.stopFaceFrameDelivery()
+        activeFrameSource = nil
+        isUsingWebRTCFrames = false
+        stableDetectionCount = 0
+        phase = .failed("서버 카메라 연결이 변경되었습니다. 다시 시도해 주세요.")
     }
 
     func delete(faceID: String) async {
@@ -111,8 +187,14 @@ final class FaceRegistrationViewModel: ObservableObject {
         }
     }
 
-    private func handle(_ outcome: FaceDetectionOutcome, cameraManager: CameraManager) {
-        guard case .detecting = phase else { return }
+    private func handle(
+        _ outcome: FaceDetectionOutcome,
+        generation: UInt,
+        cameraManager: CameraManager,
+        videoUplink: WebRTCVideoUplink
+    ) {
+        guard generation == detectionGeneration,
+              case .detecting = phase else { return }
         switch outcome {
         case .noFace:
             stableDetectionCount = 0
@@ -134,7 +216,7 @@ final class FaceRegistrationViewModel: ObservableObject {
             }
             phase = .registering
             Task {
-                await cameraManager.stopFaceFrameDelivery()
+                await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
                 do {
                     status = try await api.register(jpegData: jpegData)
                     phase = .success
@@ -145,8 +227,25 @@ final class FaceRegistrationViewModel: ObservableObject {
         case .failed:
             stableDetectionCount = 0
             phase = .failed("얼굴을 분석하지 못했습니다. 다시 시도해 주세요.")
-            Task { await cameraManager.stopFaceFrameDelivery() }
+            Task {
+                await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
+            }
         }
+    }
+
+    private func stopActiveDetection(
+        using cameraManager: CameraManager,
+        videoUplink: WebRTCVideoUplink
+    ) async {
+        switch activeFrameSource {
+        case .cameraManager:
+            await cameraManager.stopFaceFrameDelivery()
+        case .webRTC:
+            videoUplink.stopFaceFrameDelivery()
+        case nil:
+            break
+        }
+        activeFrameSource = nil
     }
 
     private func message(for error: Error) -> String {

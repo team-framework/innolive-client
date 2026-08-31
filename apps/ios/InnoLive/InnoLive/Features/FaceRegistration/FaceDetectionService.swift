@@ -14,7 +14,7 @@ enum FaceDetectionOutcome: Sendable {
     case failed
 }
 
-final class FaceDetectionService: @unchecked Sendable {
+nonisolated final class FaceDetectionService: @unchecked Sendable {
     private static let outputSize = 500
     private static let detectionInterval: TimeInterval = 0.35
 
@@ -33,20 +33,34 @@ final class FaceDetectionService: @unchecked Sendable {
         cameraPosition: AVCaptureDevice.Position,
         deviceOrientation: UIDeviceOrientation
     ) -> FaceDetectionOutcome? {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return .failed
+        }
+        return analyze(
+            pixelBuffer: pixelBuffer,
+            cameraPosition: cameraPosition,
+            deviceOrientation: deviceOrientation
+        )
+    }
+
+    func analyze(
+        pixelBuffer: CVPixelBuffer,
+        cameraPosition: AVCaptureDevice.Position,
+        deviceOrientation: UIDeviceOrientation
+    ) -> FaceDetectionOutcome? {
         analysisLock.lock()
         defer { analysisLock.unlock() }
         let now = ProcessInfo.processInfo.systemUptime
         guard now - lastDetectionTime >= Self.detectionInterval else { return nil }
         lastDetectionTime = now
 
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
-              let crop = makeCenteredCrop(
-                pixelBuffer: pixelBuffer,
-                orientation: imageOrientation(
-                    deviceOrientation: deviceOrientation,
-                    cameraPosition: cameraPosition
-                )
-              ) else {
+        guard let crop = makeCenteredCrop(
+            pixelBuffer: pixelBuffer,
+            orientation: imageOrientation(
+                deviceOrientation: deviceOrientation,
+                cameraPosition: cameraPosition
+            )
+        ) else {
             return .failed
         }
 

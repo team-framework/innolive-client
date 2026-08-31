@@ -26,6 +26,22 @@ extension WebRTCVideoUplink {
         if remoteRenderer === remote { remoteRenderer = nil }
     }
 
+    func attachFaceRegistrationRenderer(_ renderer: LKRTCMTLVideoView) {
+        guard faceRegistrationRenderer !== renderer else { return }
+        if let faceRegistrationRenderer {
+            localVideoTrack?.remove(faceRegistrationRenderer)
+        }
+        faceRegistrationRenderer = renderer
+        localVideoTrack?.add(renderer)
+    }
+
+    func detachFaceRegistrationRenderer(_ renderer: LKRTCMTLVideoView) {
+        localVideoTrack?.remove(renderer)
+        if faceRegistrationRenderer === renderer {
+            faceRegistrationRenderer = nil
+        }
+    }
+
     func setRemoteVideoTrack(_ track: LKRTCVideoTrack) {
         if let remoteRenderer {
             remoteVideoTrack?.remove(remoteRenderer)
@@ -44,8 +60,12 @@ extension WebRTCVideoUplink {
         if let remoteRenderer {
             remoteVideoTrack?.remove(remoteRenderer)
         }
+        if let faceRegistrationRenderer {
+            localVideoTrack?.remove(faceRegistrationRenderer)
+        }
         localRenderer = nil
         remoteRenderer = nil
+        faceRegistrationRenderer = nil
     }
 
 }

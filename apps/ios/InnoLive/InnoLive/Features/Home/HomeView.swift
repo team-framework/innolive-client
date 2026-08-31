@@ -13,6 +13,7 @@ struct HomeView: View {
     @State private var previewTransition: BroadcastPreviewTransition = .none
     @State private var isShowingCameraPermissionAlert = false
     @State private var isSwitchingCamera = false
+    @State private var isStartingServerConnection = false
     @State private var cameraSwitchErrorMessage: String?
     @State private var isHomeVisible = false
     @ObservedObject var authentication: AuthSession
@@ -69,10 +70,10 @@ struct HomeView: View {
                                 .font(.body.weight(.semibold))
                         }
                     }
-                    .frame(width: 40, height: 40)
-                    .background(.regularMaterial, in: Circle())
+                    .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
                 .disabled(
                     isSwitchingCamera
                         || cameraManager.authorizationStatus != .authorized
@@ -89,8 +90,9 @@ struct HomeView: View {
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(.regularMaterial, in: Capsule())
                     }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
                 }
             }
             .padding(.top, 8)
@@ -105,7 +107,9 @@ struct HomeView: View {
                 isBroadcasting: $isBroadcasting,
                 previewTransition: $previewTransition,
                 authentication: authentication,
-                youtube: youtube
+                youtube: youtube,
+                isStartingServerConnection: isStartingServerConnection,
+                onRetryConnection: retryServerConnection
             )
                 .padding(.horizontal, 24)
                 .padding(.bottom, 12)
@@ -119,11 +123,15 @@ struct HomeView: View {
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
         .onAppear {
             isHomeVisible = true
+            if youtube.isVideoConnected {
+                isBroadcasting = true
+                return
+            }
             guard !youtube.videoUplink.isCapturingCamera else { return }
             switch cameraManager.authorizationStatus {
             case .authorized:
                 Task {
-                    await cameraManager.startDefaultCamera()
+                    await startCameraAndConnect()
                 }
 
             case .notDetermined:
@@ -142,9 +150,8 @@ struct HomeView: View {
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
             if status == .authorized, !youtube.videoUplink.isCapturingCamera {
-                // 권한 팝업에서 허용을 누른 직후 첫 번째 카메라를 시작함
                 Task {
-                    await cameraManager.startDefaultCamera()
+                    await startCameraAndConnect()
                 }
             } else if status == .denied || status == .restricted {
                 isShowingCameraPermissionAlert = true
@@ -199,6 +206,59 @@ struct HomeView: View {
         }
 
         openURL(settingsURL)
+    }
+
+    private func retryServerConnection() {
+        Task {
+            await startCameraAndConnect()
+        }
+    }
+
+    private func startCameraAndConnect() async {
+        guard cameraManager.authorizationStatus == .authorized else {
+            isShowingCameraPermissionAlert = true
+            return
+        }
+        if youtube.isVideoConnected {
+            isBroadcasting = true
+            return
+        }
+        guard !isStartingServerConnection,
+              !youtube.isPreparingSession,
+              !youtube.isConnectingVideo,
+              !youtube.videoUplink.isConnecting else {
+            return
+        }
+
+        isStartingServerConnection = true
+        defer { isStartingServerConnection = false }
+
+        if !youtube.videoUplink.isCapturingCamera {
+            await cameraManager.startDefaultCamera()
+        }
+        guard await youtube.prepareSession(accessToken: authentication.currentAccessToken()) else {
+            return
+        }
+
+        previewTransition = .starting
+        defer { previewTransition = .none }
+        await cameraManager.stopSession()
+
+        if await youtube.connectVideo(
+            accessToken: authentication.currentAccessToken(),
+            preferredCameraID: cameraManager.currentCameraID,
+            preferredAudioID: UserDefaults.standard.string(forKey: "selectedAudioID"),
+            preferredVideoQuality: CameraQualityPreset(
+                rawValue: UserDefaults.standard.string(forKey: "selectedResolution") ?? ""
+            ) ?? .defaultValue
+        ) {
+            if let activeCameraID = youtube.videoUplink.currentCameraID {
+                _ = await cameraManager.switchCamera(to: activeCameraID)
+            }
+            isBroadcasting = true
+        } else {
+            await cameraManager.startDefaultCamera()
+        }
     }
 
     private func switchCamera() {

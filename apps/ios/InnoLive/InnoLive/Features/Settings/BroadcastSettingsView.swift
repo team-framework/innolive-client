@@ -10,10 +10,16 @@ struct BroadcastSettingsView: View {
     @ObservedObject var youtube: YouTubeIntegration
     @State private var draftSettings: YouTubeBroadcastSettings
     @State private var isSaveConfirmationPresented = false
+    private let onPrepare: (() -> Void)?
 
-    init(authentication: AuthSession, youtube: YouTubeIntegration) {
+    init(
+        authentication: AuthSession,
+        youtube: YouTubeIntegration,
+        onPrepare: (() -> Void)? = nil
+    ) {
         self.authentication = authentication
         self.youtube = youtube
+        self.onPrepare = onPrepare
         _draftSettings = State(initialValue: youtube.broadcastSettings)
     }
 
@@ -74,18 +80,43 @@ struct BroadcastSettingsView: View {
                             .padding(.horizontal, 4)
                     }
 
-                    Button(action: saveBroadcastSettings) {
-                        Text("저장")
-                            .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                    if isPreparingBroadcast, !youtube.isConnected {
+                        Label("YouTube 계정을 먼저 연결해 주세요.", systemImage: "exclamationmark.circle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    } else if isPreparingBroadcast, !youtube.isVideoConnected {
+                        Label("서버 영상 연결을 확인해 주세요.", systemImage: "exclamationmark.circle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
+
+                    if let errorMessage = youtube.errorMessage {
+                        BroadcastFeedbackBanner(
+                            feedback: BroadcastFeedback(message: errorMessage, isError: true),
+                            youtube: youtube,
+                            onDismiss: youtube.dismissError
+                        )
+                    }
+
+                    Button(action: performPrimaryAction) {
+                        HStack(spacing: 8) {
+                            if isPreparingBroadcast && youtube.isChangingStreamState {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                            Text(primaryActionTitle)
+                                .font(.body.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 46)
                     }
                     .buttonStyle(.glassProminent)
                     .tint(.blue)
-                    .disabled(
-                        youtube.isBroadcastSettingsLocked
-                            || draftSettings.normalized.title.isEmpty
-                    )
+                    .disabled(isPrimaryActionDisabled)
                 }
             }
             .padding(24)
@@ -186,10 +217,37 @@ struct BroadcastSettingsView: View {
         )
     }
 
+    private var isPreparingBroadcast: Bool {
+        onPrepare != nil
+    }
+
+    private var primaryActionTitle: String {
+        if isPreparingBroadcast && youtube.isChangingStreamState {
+            return "방송 준비 중"
+        }
+        return isPreparingBroadcast ? "방송 준비" : "저장"
+    }
+
+    private var isPrimaryActionDisabled: Bool {
+        youtube.isBroadcastSettingsLocked
+            || draftSettings.normalized.title.isEmpty
+            || (isPreparingBroadcast && draftSettings.audience == nil)
+            || (isPreparingBroadcast && !youtube.isConnected)
+            || (isPreparingBroadcast && !youtube.isVideoConnected)
+    }
+
+    private func performPrimaryAction() {
+        saveBroadcastSettings()
+        guard let onPrepare else {
+            isSaveConfirmationPresented = true
+            return
+        }
+        onPrepare()
+    }
+
     private func saveBroadcastSettings() {
         youtube.broadcastSettings = draftSettings.normalized
         draftSettings = youtube.broadcastSettings
-        isSaveConfirmationPresented = true
     }
 
     private func settingsCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
