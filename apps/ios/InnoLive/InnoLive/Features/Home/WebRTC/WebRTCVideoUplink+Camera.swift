@@ -86,14 +86,22 @@ extension WebRTCVideoUplink {
         setUsingFrontCamera(selectedDevice.position == .front)
         let source = peerConnectionFactory.videoSource()
         adapt(source, to: preferredVideoQuality)
-        let capturer = LKRTCCameraVideoCapturer(delegate: source)
+        let frameRelay = WebRTCCameraFrameRelay(
+            target: source,
+            cameraPosition: selectedDevice.position
+        )
+        let capturer = LKRTCCameraVideoCapturer(delegate: frameRelay)
         let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
         track.isEnabled = true
         videoSource = source
         cameraCapturer = capturer
+        cameraFrameRelay = frameRelay
         localVideoTrack = track
         if let localRenderer {
             track.add(localRenderer)
+        }
+        if let faceRegistrationRenderer {
+            track.add(faceRegistrationRenderer)
         }
 
         try await startCapture(capturer, device: selectedDevice, setting: captureSetting)
@@ -102,6 +110,24 @@ extension WebRTCVideoUplink {
         }
         activeCameraID = selectedDevice.uniqueID
         activeVideoQuality = preferredVideoQuality
+    }
+
+    @discardableResult
+    func startFaceFrameDelivery(
+        handler: @escaping WebRTCCameraFrameRelay.FaceFrameHandler
+    ) -> Bool {
+        guard canProvideFaceRegistrationFrames,
+              let cameraFrameRelay,
+              let activeCameraID,
+              let camera = AVCaptureDevice(uniqueID: activeCameraID) else {
+            return false
+        }
+        cameraFrameRelay.setFaceFrameHandler(handler, cameraPosition: camera.position)
+        return true
+    }
+
+    func stopFaceFrameDelivery() {
+        cameraFrameRelay?.setFaceFrameHandler(nil, cameraPosition: .unspecified)
     }
 
     func switchVideoQuality(to quality: CameraQualityPreset) async throws {
@@ -252,4 +278,73 @@ private struct CameraCaptureSetting {
     let width: Int32
     let height: Int32
     let fps: Int
+}
+
+nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDelegate, @unchecked Sendable {
+    typealias FaceFrameHandler = @Sendable (CVPixelBuffer, AVCaptureDevice.Position) -> Void
+
+    private static let deliveryInterval: TimeInterval = 0.1
+
+    private let target: LKRTCVideoCapturerDelegate
+    private let analysisQueue = DispatchQueue(label: "com.innolive.webrtc.face-detection")
+    private let lock = NSLock()
+    private var faceFrameHandler: FaceFrameHandler?
+    private var cameraPosition: AVCaptureDevice.Position
+    private var isAnalysisPending = false
+    private var lastDeliveryTime: TimeInterval = 0
+
+    init(target: LKRTCVideoCapturerDelegate, cameraPosition: AVCaptureDevice.Position) {
+        self.target = target
+        self.cameraPosition = cameraPosition
+        super.init()
+    }
+
+    func setFaceFrameHandler(
+        _ handler: FaceFrameHandler?,
+        cameraPosition: AVCaptureDevice.Position
+    ) {
+        lock.lock()
+        faceFrameHandler = handler
+        self.cameraPosition = cameraPosition
+        lastDeliveryTime = 0
+        lock.unlock()
+    }
+
+    func updateCameraPosition(_ cameraPosition: AVCaptureDevice.Position) {
+        lock.lock()
+        self.cameraPosition = cameraPosition
+        lock.unlock()
+    }
+
+    func capturer(_ capturer: LKRTCVideoCapturer, didCapture frame: LKRTCVideoFrame) {
+        target.capturer(capturer, didCapture: frame)
+
+        guard let frameBuffer = frame.buffer as? LKRTCCVPixelBuffer else { return }
+
+        lock.lock()
+        let now = ProcessInfo.processInfo.systemUptime
+        guard let handler = faceFrameHandler,
+              !isAnalysisPending,
+              now - lastDeliveryTime >= Self.deliveryInterval else {
+            lock.unlock()
+            return
+        }
+        isAnalysisPending = true
+        lastDeliveryTime = now
+        let currentCameraPosition = cameraPosition
+        lock.unlock()
+
+        let payload = WebRTCFaceFramePayload(pixelBuffer: frameBuffer.pixelBuffer)
+        analysisQueue.async { [weak self] in
+            handler(payload.pixelBuffer, currentCameraPosition)
+            guard let self else { return }
+            self.lock.lock()
+            self.isAnalysisPending = false
+            self.lock.unlock()
+        }
+    }
+}
+
+nonisolated private struct WebRTCFaceFramePayload: @unchecked Sendable {
+    let pixelBuffer: CVPixelBuffer
 }

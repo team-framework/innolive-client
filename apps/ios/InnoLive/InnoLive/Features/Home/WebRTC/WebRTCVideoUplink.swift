@@ -23,6 +23,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     let peerConnectionFactory: LKRTCPeerConnectionFactory
     var peerConnection: LKRTCPeerConnection?
     var cameraCapturer: LKRTCCameraVideoCapturer?
+    var cameraFrameRelay: WebRTCCameraFrameRelay?
     var videoSource: LKRTCVideoSource?
     var localVideoTrack: LKRTCVideoTrack?
     var remoteVideoTrack: LKRTCVideoTrack?
@@ -36,6 +37,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     var isAudioSessionActivated = false
     weak var localRenderer: LKRTCMTLVideoView?
     weak var remoteRenderer: LKRTCMTLVideoView?
+    weak var faceRegistrationRenderer: LKRTCMTLVideoView?
 
     var webSocketTask: URLSessionWebSocketTask?
     var credentials: WebRTCSessionCredentials?
@@ -88,6 +90,16 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     var isCapturingCamera: Bool {
         cameraCapturer != nil || isReleasingCamera
+    }
+
+    var canProvideFaceRegistrationFrames: Bool {
+        cameraCapturer != nil
+            && cameraFrameRelay != nil
+            && localVideoTrack != nil
+            && activeCameraID != nil
+            && !isStopping
+            && !isSwitchingCamera
+            && !isReleasingCamera
     }
 
     var currentCameraID: String? {
@@ -204,6 +216,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         peerConnection = nil
         let capturer = cameraCapturer
         cameraCapturer = nil
+        cameraFrameRelay?.setFaceFrameHandler(nil, cameraPosition: .unspecified)
+        cameraFrameRelay = nil
         if capturer != nil {
             isReleasingCamera = true
         }
@@ -269,6 +283,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     func setUsingFrontCamera(_ isFrontCamera: Bool) {
         isUsingFrontCamera = isFrontCamera
+        cameraFrameRelay?.updateCameraPosition(isFrontCamera ? .front : .back)
     }
 
     func setCameraSwitching(_ isSwitching: Bool) {
