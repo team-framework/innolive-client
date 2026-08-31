@@ -70,10 +70,10 @@ struct HomeView: View {
                                 .font(.body.weight(.semibold))
                         }
                     }
-                    .frame(width: 40, height: 40)
-                    .background(.regularMaterial, in: Circle())
+                    .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
                 .disabled(
                     isSwitchingCamera
                         || cameraManager.authorizationStatus != .authorized
@@ -90,8 +90,9 @@ struct HomeView: View {
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(.regularMaterial, in: Capsule())
                     }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
                 }
             }
             .padding(.top, 8)
