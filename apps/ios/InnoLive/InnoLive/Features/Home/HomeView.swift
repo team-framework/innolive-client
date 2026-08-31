@@ -107,7 +107,9 @@ struct HomeView: View {
                 isBroadcasting: $isBroadcasting,
                 previewTransition: $previewTransition,
                 authentication: authentication,
-                youtube: youtube
+                youtube: youtube,
+                isStartingServerConnection: isStartingServerConnection,
+                onRetryConnection: retryServerConnection
             )
                 .padding(.horizontal, 24)
                 .padding(.bottom, 12)
