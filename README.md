@@ -8,12 +8,11 @@ InnoLive Client는 실시간 비식별화 방송 시스템의 플랫폼별 방�
 세션·시그널링·미디어 송출은 [innolive-server](https://github.com/team-framework/innolive-server)가 담당합니다.<br>
 이 레포지토리는 각 운영체제의 권한, 장치, 미디어에 맞춘 클라이언트 구현을 담당합니다.
 
-**웹에서 체험하기 —** [**innolive.chaeyn.com**](https://innolive.chaeyn.com/)
+**웹에서 체험하기 —** [**innolive.studio**](https://innolive.studio/)
 
 ## 핵심 기능
 
-- **플랫폼 네이티브 스튜디오** — Web, macOS, Windows, iOS, Android 환경에 맞는
-  방송 제어 UI를 제공합니다.
+- **플랫폼 네이티브 스튜디오** — Web, iOS, Android 환경에 맞는 방송 제어 UI를 제공합니다.
 - **미디어 입력 제어** — 카메라·마이크·화면 공유 장치를 선택하고 권한 상태와
   장치 변경을 처리합니다.
 - **실시간 방송 연결** — 서버와 WebRTC 시그널링을 교환하고, 연결 상태와
@@ -48,10 +47,10 @@ flowchart LR
 | 영역 | 구성 |
 | --- | --- |
 | Web | Next.js 16, React 19, TypeScript, Tailwind CSS, MediaPipe Tasks Vision |
-| macOS | Swift, SwiftUI, AppKit, AVFoundation, ScreenCaptureKit, Vision |
-| Windows | C#, WinUI 3, Windows App SDK |
-| iOS | Swift, SwiftUI, AVFoundation |
-| Android (예정) | Kotlin, Jetpack Compose |
+| iOS | Swift, SwiftUI, AVFoundation, Apple Vision |
+| Android | Kotlin, Jetpack Compose |
+| macOS (지원 중단) | Swift, SwiftUI, AppKit, AVFoundation, ScreenCaptureKit, Apple Vision |
+| Windows (지원 중단) | C#, WinUI 3, Windows App SDK |
 | 공통 계약 | JSON Schema, fixture, compatibility 규칙 |
 
 ## 빠른 실행
@@ -72,20 +71,15 @@ cp .env.local.example .env.local
 docker compose -f docker-compose.yml -f docker-compose.local.yml up -d db
 ```
 
-### 2. macOS 앱
-
-Xcode에서 `apps/mac/InnoLive.xcodeproj`를 열고 `InnoLive` scheme을 실행합니다.
-카메라·마이크·화면 공유 권한은 macOS에서 직접 허용해야 합니다.
-
-### 3. Windows 앱
-
-Windows에서 Visual Studio로
-`apps/windows/InnoLive.Windows/InnoLive.Windows.csproj`를 열어 실행합니다.
-
-### 4. iOS 앱
+### 2. iOS 앱
 
 Xcode에서 `apps/ios/InnoLive/InnoLive.xcodeproj`를 열고 `InnoLive` scheme을
 선택한 뒤, iOS Simulator 또는 연결된 기기에서 실행합니다.
+
+### 3. Android 앱
+
+Android Studio에서 `apps/android/InnoLive` 폴더를 열고 `app` configuration과
+Android emulator 또는 연결된 기기를 선택한 뒤 실행합니다.
 
 ## 공통 계약
 
@@ -100,8 +94,6 @@ Xcode에서 `apps/ios/InnoLive/InnoLive.xcodeproj`를 열고 `InnoLive` scheme�
 ```text
 apps/
 ├── web/        # Next.js 웹 체험 및 사전등록
-├── mac/        # macOS SwiftUI 방송 스튜디오
-├── windows/    # Windows WinUI 3 클라이언트
 ├── ios/        # iOS 클라이언트
 └── android/    # Android 클라이언트
 
