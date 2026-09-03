@@ -17,7 +17,7 @@ private const val PREFERENCES_NAME = "innolive_google_session"
 private const val ENCRYPTED_SESSION_KEY = "encrypted_session"
 private const val INITIALIZATION_VECTOR_KEY = "initialization_vector"
 
-class GoogleSessionStore(context: Context) {
+class GoogleSessionStore(context: Context) : AuthenticationSessionStore {
     data class Session(
         val accessToken: String,
         val refreshToken: String,
@@ -33,7 +33,7 @@ class GoogleSessionStore(context: Context) {
         Context.MODE_PRIVATE,
     )
 
-    fun save(session: Session) {
+    override fun save(session: Session) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
         val encryptedSession = cipher.doFinal(session.toJson().toByteArray(Charsets.UTF_8))
@@ -52,9 +52,15 @@ class GoogleSessionStore(context: Context) {
         ) { "Unable to persist the Google authentication session." }
     }
 
-    fun load(): Session? {
-        val encryptedSession = preferences.getString(ENCRYPTED_SESSION_KEY, null) ?: return null
-        val initializationVector = preferences.getString(INITIALIZATION_VECTOR_KEY, null) ?: return null
+    override fun load(): Session? {
+        val encryptedSession = preferences.getString(ENCRYPTED_SESSION_KEY, null)
+        val initializationVector = preferences.getString(INITIALIZATION_VECTOR_KEY, null)
+        if (encryptedSession == null || initializationVector == null) {
+            if (encryptedSession != null || initializationVector != null) {
+                removeCorruptedSession()
+            }
+            return null
+        }
 
         return runCatching {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -66,15 +72,24 @@ class GoogleSessionStore(context: Context) {
             val sessionJson = cipher.doFinal(
                 Base64.decode(encryptedSession, Base64.NO_WRAP),
             ).toString(Charsets.UTF_8)
-
             JSONObject(sessionJson).toSession()
-        }.getOrNull()
+        }.getOrElse {
+            removeCorruptedSession()
+            null
+        }
     }
 
-    fun clear() {
+    override fun clear() {
         check(preferences.edit().clear().commit()) {
             "Unable to clear the Google authentication session."
         }
+    }
+
+    private fun removeCorruptedSession() {
+        preferences.edit()
+            .remove(ENCRYPTED_SESSION_KEY)
+            .remove(INITIALIZATION_VECTOR_KEY)
+            .commit()
     }
 
     private fun secretKey(): SecretKey {
