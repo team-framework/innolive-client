@@ -151,7 +151,10 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             try ensureCurrentCameraOperation(operationGeneration)
 
             try preparePeerConnection(iceServers: iceServers)
-            connectSignaling(to: signalingURL(from: serverURL))
+            guard let signalingURL = signalingURL(from: serverURL) else {
+                throw URLError(.badURL)
+            }
+            connectSignaling(to: signalingURL)
 
             try await withCheckedThrowingContinuation { continuation in
                 startContinuation = continuation

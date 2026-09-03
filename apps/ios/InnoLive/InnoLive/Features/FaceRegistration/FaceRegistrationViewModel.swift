@@ -31,6 +31,8 @@ final class FaceRegistrationViewModel: ObservableObject {
     private var stableDetectionCount = 0
     private var activeFrameSource: FaceRegistrationFrameSource?
     private var detectionGeneration: UInt = 0
+    private var registrationTask: Task<Void, Never>?
+    private var activeLifecycleSessionID: UUID?
 
     init(authentication: AuthSession) {
         api = ReferenceFaceAPI(authentication: authentication)
@@ -49,15 +51,21 @@ final class FaceRegistrationViewModel: ObservableObject {
     }
 
     func beginDetection(
+        lifecycleSessionID: UUID,
         using cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) async {
-        detectionGeneration &+= 1
+        activeLifecycleSessionID = lifecycleSessionID
+        invalidateDetection()
         let generation = detectionGeneration
         stableDetectionCount = 0
         statusErrorMessage = nil
         detector.reset()
         phase = .preparing
+        await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
+
+        guard !Task.isCancelled,
+              isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
 
         guard cameraManager.authorizationStatus == .authorized else {
             phase = .failed("카메라 권한을 허용한 뒤 다시 시도해 주세요.")
@@ -79,6 +87,7 @@ final class FaceRegistrationViewModel: ObservableObject {
                 Task { @MainActor [weak self] in
                     self?.handle(
                         outcome,
+                        lifecycleSessionID: lifecycleSessionID,
                         generation: generation,
                         cameraManager: cameraManager,
                         videoUplink: videoUplink
@@ -86,11 +95,15 @@ final class FaceRegistrationViewModel: ObservableObject {
                 }
             }
             guard started else {
+                guard !Task.isCancelled,
+                      isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
                 activeFrameSource = nil
                 isUsingWebRTCFrames = false
                 phase = .failed("서버에 연결된 카메라 영상을 가져오지 못했습니다. 다시 시도해 주세요.")
                 return
             }
+            guard !Task.isCancelled,
+                  isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
             phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
             return
         }
@@ -106,6 +119,8 @@ final class FaceRegistrationViewModel: ObservableObject {
 
         isUsingWebRTCFrames = false
         await cameraManager.startDefaultCamera()
+        guard !Task.isCancelled,
+              isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
         activeFrameSource = .cameraManager
         let started = await cameraManager.startFaceFrameDelivery { [weak self, detector] sampleBuffer, cameraPosition in
             guard let outcome = detector.analyze(
@@ -116,6 +131,7 @@ final class FaceRegistrationViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.handle(
                     outcome,
+                    lifecycleSessionID: lifecycleSessionID,
                     generation: generation,
                     cameraManager: cameraManager,
                     videoUplink: videoUplink
@@ -124,19 +140,28 @@ final class FaceRegistrationViewModel: ObservableObject {
         }
 
         guard started else {
+            guard !Task.isCancelled,
+                  isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
             activeFrameSource = nil
             phase = .failed("카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요.")
             return
         }
+        guard !Task.isCancelled,
+              isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
         phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
     }
 
     func stopDetection(
+        lifecycleSessionID: UUID,
         using cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) async {
-        detectionGeneration &+= 1
+        guard activeLifecycleSessionID == lifecycleSessionID else { return }
+        invalidateDetection()
+        let generation = detectionGeneration
         await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
+        guard isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
+        activeLifecycleSessionID = nil
         stableDetectionCount = 0
         if phase != .success {
             phase = .idle
@@ -144,19 +169,34 @@ final class FaceRegistrationViewModel: ObservableObject {
     }
 
     func retryDetection(
+        lifecycleSessionID: UUID,
         using cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) async {
+        guard activeLifecycleSessionID == lifecycleSessionID else { return }
+        invalidateDetection()
+        let generation = detectionGeneration
         await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
-        await beginDetection(using: cameraManager, videoUplink: videoUplink)
+        guard !Task.isCancelled,
+              isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
+        await beginDetection(
+            lifecycleSessionID: lifecycleSessionID,
+            using: cameraManager,
+            videoUplink: videoUplink
+        )
     }
 
-    func handleWebRTCFrameSourceUnavailable(videoUplink: WebRTCVideoUplink) {
-        guard activeFrameSource == .webRTC else { return }
-        detectionGeneration &+= 1
-        videoUplink.stopFaceFrameDelivery()
+    func handleWebRTCFrameSourceUnavailable(
+        lifecycleSessionID: UUID,
+        videoUplink: WebRTCVideoUplink
+    ) {
+        guard activeLifecycleSessionID == lifecycleSessionID,
+              activeFrameSource == .webRTC,
+              isUsingWebRTCFrames else { return }
+        invalidateDetection()
         activeFrameSource = nil
         isUsingWebRTCFrames = false
+        videoUplink.stopFaceFrameDelivery()
         stableDetectionCount = 0
         phase = .failed("서버 카메라 연결이 변경되었습니다. 다시 시도해 주세요.")
     }
@@ -189,11 +229,14 @@ final class FaceRegistrationViewModel: ObservableObject {
 
     private func handle(
         _ outcome: FaceDetectionOutcome,
+        lifecycleSessionID: UUID,
         generation: UInt,
         cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) {
-        guard generation == detectionGeneration,
+        guard !Task.isCancelled,
+              isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
+              registrationTask == nil,
               case .detecting = phase else { return }
         switch outcome {
         case .noFace:
@@ -215,29 +258,65 @@ final class FaceRegistrationViewModel: ObservableObject {
                 return
             }
             phase = .registering
-            Task {
-                await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
+            let task = Task { @MainActor [weak self] in
+                guard let self else { return }
+                defer {
+                    if self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) {
+                        self.registrationTask = nil
+                    }
+                }
+
+                guard !Task.isCancelled,
+                      self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
+                      case .registering = self.phase else { return }
+                await self.stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
+
+                guard !Task.isCancelled,
+                      self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
+                      case .registering = self.phase else { return }
+
                 do {
-                    status = try await api.register(jpegData: jpegData)
-                    phase = .success
+                    let registeredStatus = try await self.api.register(jpegData: jpegData)
+                    guard !Task.isCancelled,
+                          self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
+                          case .registering = self.phase else { return }
+                    self.status = registeredStatus
+                    self.phase = .success
                 } catch {
-                    phase = .failed(message(for: error))
+                    guard !Task.isCancelled,
+                          self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
+                          case .registering = self.phase else { return }
+                    self.phase = .failed(self.message(for: error))
                 }
             }
+            registrationTask = task
         case .failed:
             stableDetectionCount = 0
             phase = .failed("얼굴을 분석하지 못했습니다. 다시 시도해 주세요.")
-            Task {
-                await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
+            Task { @MainActor [weak self] in
+                guard let self,
+                      !Task.isCancelled,
+                      self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
+                await self.stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
             }
         }
+    }
+
+    private func invalidateDetection() {
+        detectionGeneration &+= 1
+        registrationTask?.cancel()
+        registrationTask = nil
     }
 
     private func stopActiveDetection(
         using cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) async {
-        switch activeFrameSource {
+        let frameSource = activeFrameSource
+        activeFrameSource = nil
+        isUsingWebRTCFrames = false
+
+        switch frameSource {
         case .cameraManager:
             await cameraManager.stopFaceFrameDelivery()
         case .webRTC:
@@ -245,7 +324,10 @@ final class FaceRegistrationViewModel: ObservableObject {
         case nil:
             break
         }
-        activeFrameSource = nil
+    }
+
+    private func isCurrent(lifecycleSessionID: UUID, generation: UInt) -> Bool {
+        activeLifecycleSessionID == lifecycleSessionID && detectionGeneration == generation
     }
 
     private func message(for error: Error) -> String {
