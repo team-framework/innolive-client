@@ -156,13 +156,15 @@ extension WebRTCVideoUplink {
         }
     }
 
-    func signalingURL(from serverURL: URL) -> URL {
-        var components = URLComponents(url: serverURL, resolvingAgainstBaseURL: false)!
+    func signalingURL(from serverURL: URL) -> URL? {
+        guard var components = URLComponents(url: serverURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
         components.scheme = serverURL.scheme == "https" ? "wss" : "ws"
         components.path = "/signaling"
         components.query = nil
         components.fragment = nil
-        return components.url!
+        return components.url
     }
 }
 

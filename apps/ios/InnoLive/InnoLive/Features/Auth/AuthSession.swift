@@ -9,10 +9,20 @@ final class AuthSession: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
-    private let api = AuthenticationAPI()
-    private let tokenStore = AuthenticationTokenStore()
+    private let api: AuthenticationAPIClient
+    private let tokenStore: AuthenticationTokenStoring
     private var pendingSignup: PendingSignup?
     private var tokenRefreshTask: Task<AuthenticationRefreshResult, Never>?
+    private var tokenRefreshTaskGeneration: UInt?
+    private var sessionGeneration: UInt = 0
+
+    init(
+        api: AuthenticationAPIClient = AuthenticationAPI(),
+        tokenStore: AuthenticationTokenStoring = AuthenticationTokenStore()
+    ) {
+        self.api = api
+        self.tokenStore = tokenStore
+    }
 
     func restore() { isAuthenticated = tokenStore.load() != nil }
 
@@ -73,6 +83,7 @@ final class AuthSession: ObservableObject {
             try await api.verifyEmail(signupToken: pendingSignup.token, code: code)
             let tokens = try await api.emailSignIn(email: pendingSignup.email, password: pendingSignup.password)
             try tokenStore.save(tokens)
+            invalidateSessionGeneration()
             self.pendingSignup = nil
             isAuthenticated = true
         } catch {
@@ -121,6 +132,7 @@ final class AuthSession: ObservableObject {
     }
 
     func signOut() {
+        invalidateSessionGeneration()
         tokenStore.remove()
         pendingSignup = nil
         errorMessage = nil
@@ -128,6 +140,7 @@ final class AuthSession: ObservableObject {
     }
 
     func expireSession() {
+        invalidateSessionGeneration()
         tokenStore.remove()
         pendingSignup = nil
         errorMessage = "로그인이 만료되었습니다. 다시 로그인해 주세요."
@@ -140,11 +153,23 @@ final class AuthSession: ObservableObject {
         }
         guard let currentTokens = tokenStore.load() else { return .invalid }
 
-        let task: Task<AuthenticationRefreshResult, Never> = Task { @MainActor [api, tokenStore] in
+        let generation = sessionGeneration
+        let task: Task<AuthenticationRefreshResult, Never> = Task { @MainActor [weak self, api, tokenStore] in
             do {
-                try tokenStore.save(try await api.refresh(refreshToken: currentTokens.refreshToken))
+                let refreshedTokens = try await api.refresh(refreshToken: currentTokens.refreshToken)
+                guard !Task.isCancelled,
+                      let self,
+                      self.sessionGeneration == generation else {
+                    return .unavailable
+                }
+                try tokenStore.save(refreshedTokens)
                 return .refreshed
             } catch let AuthenticationError.api(code, _) where code == "invalid_refresh_token" {
+                guard !Task.isCancelled,
+                      let self,
+                      self.sessionGeneration == generation else {
+                    return .unavailable
+                }
                 return .invalid
             } catch {
                 // 네트워크 오류나 서버 오류로 갱신하지 못해도 기존 refresh token은 보존한다.
@@ -152,8 +177,12 @@ final class AuthSession: ObservableObject {
             }
         }
         tokenRefreshTask = task
+        tokenRefreshTaskGeneration = generation
         let result = await task.value
-        tokenRefreshTask = nil
+        if sessionGeneration == generation, tokenRefreshTaskGeneration == generation {
+            tokenRefreshTask = nil
+            tokenRefreshTaskGeneration = nil
+        }
         return result
     }
 
@@ -183,11 +212,20 @@ final class AuthSession: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
         do {
-            try tokenStore.save(try await action())
+            let tokens = try await action()
+            try tokenStore.save(tokens)
+            invalidateSessionGeneration()
             isAuthenticated = true
         } catch {
             errorMessage = message(for: error)
         }
+    }
+
+    private func invalidateSessionGeneration() {
+        sessionGeneration &+= 1
+        tokenRefreshTask?.cancel()
+        tokenRefreshTask = nil
+        tokenRefreshTaskGeneration = nil
     }
 
     private func message(for error: Error) -> String {
@@ -228,150 +266,3 @@ enum AuthenticationSessionExpiration {
         NotificationCenter.default.post(name: notification, object: nil)
     }
 }
-
-private struct AuthenticationTokenPair: Codable {
-    let accessToken: String
-    let refreshToken: String
-    enum CodingKeys: String, CodingKey { case accessToken = "access_token"; case refreshToken = "refresh_token" }
-}
-
-private final class AuthenticationTokenStore {
-    private let service = "com.framework.innolive.authentication"
-    private let account = "token-pair"
-
-    func save(_ tokens: AuthenticationTokenPair) throws {
-        remove()
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecValueData as String: try JSONEncoder().encode(tokens),
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        ]
-        guard SecItemAdd(query as CFDictionary, nil) == errSecSuccess else { throw AuthenticationError.storage }
-    }
-
-    func load() -> AuthenticationTokenPair? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: CFTypeRef?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess, let data = result as? Data else { return nil }
-        return try? JSONDecoder().decode(AuthenticationTokenPair.self, from: data)
-    }
-
-    func remove() {
-        SecItemDelete([
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ] as CFDictionary)
-    }
-}
-
-private struct AuthenticationAPI {
-    func emailSignIn(email: String, password: String) async throws -> AuthenticationTokenPair {
-        try await request("/auth/sign-in", body: EmailCredentials(email: email, password: password))
-    }
-    func startEmailSignup(email: String, password: String) async throws -> String {
-        let response: SignupResponse = try await request("/auth/native/sign-up", body: EmailCredentials(email: email, password: password))
-        guard !response.signupToken.isEmpty else { throw AuthenticationError.response }
-        return response.signupToken
-    }
-    func verifyEmail(signupToken: String, code: String) async throws {
-        let _: StatusResponse = try await request("/auth/native/verify-email", body: EmailVerificationRequest(signupToken: signupToken, verificationCode: code))
-    }
-    func googleSignIn(idToken: String) async throws -> AuthenticationTokenPair {
-        try await request("/auth/google", body: GoogleLoginRequest(idToken: idToken))
-    }
-    func appleSignIn(authorizationCode: String, nonce: String, givenName: String?, familyName: String?) async throws -> AuthenticationTokenPair {
-        try await request("/auth/apple", body: AppleLoginRequest(authorizationCode: authorizationCode, nonce: nonce, givenName: givenName, familyName: familyName))
-    }
-    func refresh(refreshToken: String) async throws -> AuthenticationTokenPair {
-        try await request("/auth/refresh", body: RefreshTokenRequest(refreshToken: refreshToken))
-    }
-
-    private func request<Body: Encodable, Response: Decodable>(_ path: String, body: Body) async throws -> Response {
-        guard let url = AuthenticationConfiguration.serverURL(path: path) else { throw AuthenticationError.configuration }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.httpBody = try JSONEncoder().encode(body)
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let response = response as? HTTPURLResponse else { throw AuthenticationError.response }
-            guard (200..<300).contains(response.statusCode) else {
-                let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
-                throw AuthenticationError.api(code: apiError?.error.code, fallback: apiError?.error.message ?? "요청을 처리하지 못했습니다. 다시 시도해 주세요.")
-            }
-            do { return try JSONDecoder().decode(Response.self, from: data) }
-            catch { throw AuthenticationError.response }
-        } catch let error as AuthenticationError { throw error }
-        catch { throw AuthenticationError.response }
-    }
-}
-
-enum AuthenticationConfiguration {
-    static func serverURL(path: String) -> URL? {
-        guard let value = configuredServerURL,
-              var components = URLComponents(string: value),
-              components.scheme == "https" || components.scheme == "http" else { return nil }
-        components.path = path
-        components.query = nil
-        components.fragment = nil
-        return components.url
-    }
-
-    private static var configuredServerURL: String? {
-        nonEmptyValue(ProcessInfo.processInfo.environment["INNOLIVE_SERVER_URL"])
-            ?? serverURLFromBundleEnvironmentFile()
-            ?? nonEmptyValue(Bundle.main.object(forInfoDictionaryKey: "InnoLiveServerURL") as? String)
-                .flatMap { $0.contains("$(") ? nil : $0 }
-    }
-
-    private static func serverURLFromBundleEnvironmentFile() -> String? {
-        guard let url = Bundle.main.url(forResource: "Server", withExtension: "env")
-            ?? Bundle.main.url(forResource: "Server", withExtension: "env", subdirectory: "Config"),
-              let content = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-
-        return content
-            .split(whereSeparator: \.isNewline)
-            .compactMap { line -> String? in
-                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty,
-                      !trimmed.hasPrefix("#"),
-                      let separator = trimmed.firstIndex(of: "="),
-                      trimmed[..<separator].trimmingCharacters(in: .whitespacesAndNewlines) == "INNOLIVE_SERVER_URL" else { return nil }
-                return Self.nonEmptyValue(String(trimmed[trimmed.index(after: separator)...]))
-            }
-            .first
-    }
-
-    private static func nonEmptyValue(_ value: String?) -> String? {
-        guard let value else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        if trimmed.count >= 2,
-           let first = trimmed.first,
-           let last = trimmed.last,
-           (first == "\"" && last == "\"") || (first == "'" && last == "'") {
-            return String(trimmed.dropFirst().dropLast())
-        }
-        return trimmed
-    }
-}
-
-private enum AuthenticationError: Error { case api(code: String?, fallback: String); case configuration; case storage; case response }
-private struct EmailCredentials: Encodable { let email: String; let password: String }
-private struct EmailVerificationRequest: Encodable { let signupToken: String; let verificationCode: String; enum CodingKeys: String, CodingKey { case signupToken = "signup_token"; case verificationCode = "verification_code" } }
-private struct GoogleLoginRequest: Encodable { let idToken: String; enum CodingKeys: String, CodingKey { case idToken = "id_token" } }
-private struct AppleLoginRequest: Encodable { let authorizationCode: String; let nonce: String; let givenName: String?; let familyName: String?; enum CodingKeys: String, CodingKey { case authorizationCode = "authorization_code"; case nonce; case givenName = "given_name"; case familyName = "family_name" } }
-private struct RefreshTokenRequest: Encodable { let refreshToken: String; enum CodingKeys: String, CodingKey { case refreshToken = "refresh_token" } }
-private struct SignupResponse: Decodable { let signupToken: String; enum CodingKeys: String, CodingKey { case signupToken = "signup_token" } }
-private struct StatusResponse: Decodable { let status: String }
-private struct APIErrorResponse: Decodable { struct Details: Decodable { let code: String?; let message: String? }; let error: Details }

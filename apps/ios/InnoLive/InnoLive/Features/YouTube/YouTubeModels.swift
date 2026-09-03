@@ -42,17 +42,107 @@ enum YouTubeBroadcastAudience: String, CaseIterable, Codable, Identifiable {
         ""
 #endif
     }
+}
 
-    static var saved: Self? {
-        if let rawValue = UserDefaults.standard.string(forKey: storageKey),
-           let audience = Self(rawValue: rawValue) {
-            return audience
+enum YouTubeBroadcastPhase: RawRepresentable, Equatable, Hashable {
+    typealias RawValue = String
+
+    case idle
+    case preparing
+    case prepared
+    case goingLive
+    case live
+    case unknown(String)
+
+    init(rawValue: String) {
+        switch rawValue {
+        case "idle": self = .idle
+        case "preparing": self = .preparing
+        case "prepared": self = .prepared
+        case "going_live": self = .goingLive
+        case "live": self = .live
+        default: self = .unknown(rawValue)
         }
-#if DEBUG
-        return .notMadeForKids
-#else
-        return nil
-#endif
+    }
+
+    var rawValue: String {
+        switch self {
+        case .idle: return "idle"
+        case .preparing: return "preparing"
+        case .prepared: return "prepared"
+        case .goingLive: return "going_live"
+        case .live: return "live"
+        case let .unknown(rawValue): return rawValue
+        }
+    }
+}
+
+enum YouTubeStreamStatus: RawRepresentable, Equatable, Hashable {
+    typealias RawValue = String
+
+    case idle
+    case streaming
+    case reconnecting
+    case reconfiguring
+    case paused
+    case pausedReconfiguring
+    case pausedReconnecting
+    case stopped
+    case unknown(String)
+
+    init(rawValue: String) {
+        switch rawValue {
+        case "idle": self = .idle
+        case "streaming": self = .streaming
+        case "reconnecting": self = .reconnecting
+        case "reconfiguring": self = .reconfiguring
+        case "paused": self = .paused
+        case "paused_reconfiguring": self = .pausedReconfiguring
+        case "paused_reconnecting": self = .pausedReconnecting
+        case "stopped": self = .stopped
+        default: self = .unknown(rawValue)
+        }
+    }
+
+    var rawValue: String {
+        switch self {
+        case .idle: return "idle"
+        case .streaming: return "streaming"
+        case .reconnecting: return "reconnecting"
+        case .reconfiguring: return "reconfiguring"
+        case .paused: return "paused"
+        case .pausedReconfiguring: return "paused_reconfiguring"
+        case .pausedReconnecting: return "paused_reconnecting"
+        case .stopped: return "stopped"
+        case let .unknown(rawValue): return rawValue
+        }
+    }
+}
+
+enum YouTubeVideoTrackReadyState: RawRepresentable, Equatable, Hashable {
+    typealias RawValue = String
+
+    case new
+    case live
+    case ended
+    case unknown(String)
+
+    init(rawValue: String) {
+        switch rawValue {
+        case "new": self = .new
+        case "live": self = .live
+        case "ended": self = .ended
+        default: self = .unknown(rawValue)
+        }
+    }
+
+    var rawValue: String {
+        switch self {
+        case .new: return "new"
+        case .live: return "live"
+        case .ended: return "ended"
+        case let .unknown(rawValue): return rawValue
+        }
     }
 }
 
@@ -131,6 +221,14 @@ struct YouTubeStreamState: Decodable, Equatable {
     let pausedAt: String?
     let broadcastPhase: String?
 
+    var statusValue: YouTubeStreamStatus {
+        YouTubeStreamStatus(rawValue: status)
+    }
+
+    var broadcastPhaseValue: YouTubeBroadcastPhase {
+        YouTubeBroadcastPhase(rawValue: broadcastPhase ?? "idle")
+    }
+
     enum CodingKeys: String, CodingKey {
         case status
         case startedAt = "started_at"
@@ -178,6 +276,10 @@ struct YouTubeVideoTrackState: Decodable, Equatable {
     let id: String
     let kind: String
     let readyState: String
+
+    var readyStateValue: YouTubeVideoTrackReadyState {
+        YouTubeVideoTrackReadyState(rawValue: readyState)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id

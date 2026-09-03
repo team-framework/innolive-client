@@ -26,6 +26,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private let api = YouTubeAPI()
     private let authorization = YouTubeAuthorization()
+    private let preferencesStore: YouTubePreferencesStore
     private var pollingTask: Task<Void, Never>?
     private var pollingGeneration = 0
     // stream.started_at은 prepare에서 egress가 시작된 시각이므로 공개 방송 타이머에 사용하지 않는다.
@@ -36,9 +37,14 @@ final class YouTubeIntegration: ObservableObject {
     private let maximumVideoReconnectAttempts = 3
     private let maximumGoLiveAttempts = 15
 
-    init() {
-        broadcastSettings = Self.loadBroadcastSettings()
-        connection = Self.loadConnection()
+    convenience init() {
+        self.init(preferencesStore: YouTubePreferencesStore())
+    }
+
+    init(preferencesStore: YouTubePreferencesStore) {
+        self.preferencesStore = preferencesStore
+        broadcastSettings = preferencesStore.loadBroadcastSettings()
+        connection = preferencesStore.loadConnection()
         videoUplink.onConnectionInterrupted = { [weak self] in
             self?.reconnectVideoUsingExistingSession()
         }
@@ -63,82 +69,42 @@ final class YouTubeIntegration: ObservableObject {
     var isConnected: Bool { connection != nil }
     // 송출을 시작하기 전에는 서버의 stream.publisher_active가 항상 false다.
     // 카메라 업링크 준비 여부는 세션 media.raw_video_track으로 판단한다.
-    var isVideoConnected: Bool { videoUplink.state == .connected && videoTrack?.readyState == "live" }
+    var isVideoConnected: Bool { videoUplink.state == .connected && videoTrack?.readyStateValue == .live }
 
     var streamStartedAt: Date? {
         liveStartedAt
     }
 
+    private var statePolicy: YouTubeBroadcastStatePolicy {
+        YouTubeBroadcastStatePolicy(
+            stream: stream,
+            isChangingStreamState: isChangingStreamState
+        )
+    }
+
     var broadcastPhase: String {
-        stream?.broadcastPhase ?? "idle"
+        statePolicy.broadcastPhase.rawValue
     }
 
-    var isBroadcastSettingsLocked: Bool {
-        isChangingStreamState
-            || (stream?.status != "stopped"
-                && ["preparing", "prepared", "going_live", "live"].contains(broadcastPhase))
-    }
+    var isBroadcastSettingsLocked: Bool { statePolicy.isBroadcastSettingsLocked }
 
-    var isYouTubeBroadcastActive: Bool {
-        ["preparing", "prepared", "going_live", "live"].contains(broadcastPhase)
-            && stream?.status != "stopped"
-    }
+    var isYouTubeBroadcastActive: Bool { statePolicy.isBroadcastActive }
 
     // 시작 요청 직후에는 서버가 egress 출력 형식을 확정할 때까지 started_at이 비어 있다.
     // 이 구간은 실제 송출 전 준비 상태이므로 버튼의 방송 중 UI와 분리한다.
-    var hasStartedYouTubeBroadcast: Bool {
-        broadcastPhase == "live" && stream?.status != "stopped"
-    }
+    var hasStartedYouTubeBroadcast: Bool { statePolicy.hasStartedBroadcast }
 
-    var isWaitingForYouTubeBroadcastStart: Bool {
-        ["preparing", "prepared", "going_live"].contains(broadcastPhase)
-    }
+    var isWaitingForYouTubeBroadcastStart: Bool { statePolicy.isWaitingForBroadcastStart }
 
-    var isYouTubeBroadcastPaused: Bool {
-        switch stream?.status {
-        case "paused", "paused_reconfiguring", "paused_reconnecting":
-            return true
-        default:
-            return false
-        }
-    }
+    var isYouTubeBroadcastPaused: Bool { statePolicy.isBroadcastPaused }
 
-    var canPauseYouTubeBroadcast: Bool {
-        guard broadcastPhase == "live" else { return false }
-        switch stream?.status {
-        case "streaming", "reconfiguring":
-            return true
-        default:
-            return false
-        }
-    }
+    var canPauseYouTubeBroadcast: Bool { statePolicy.canPauseBroadcast }
 
-    var canResumeYouTubeBroadcast: Bool {
-        broadcastPhase == "live" && stream?.status == "paused"
-    }
+    var canResumeYouTubeBroadcast: Bool { statePolicy.canResumeBroadcast }
 
-    var canChangeYouTubePauseState: Bool {
-        canPauseYouTubeBroadcast || canResumeYouTubeBroadcast
-    }
+    var canChangeYouTubePauseState: Bool { statePolicy.canChangePauseState }
 
-    var streamStatusText: String {
-        switch broadcastPhase {
-        case "preparing": return "YouTube 방송 준비 중…"
-        case "prepared": return "YouTube 라이브 전환 대기 중…"
-        case "going_live": return "YouTube 라이브 전환 중…"
-        default: break
-        }
-        switch stream?.status {
-        case "streaming": return "YouTube 송출 중"
-        case "reconnecting": return "YouTube 재연결 중…"
-        case "paused": return pausedStatusText(prefix: "YouTube 송출 일시 중지됨")
-        case "paused_reconfiguring": return pausedStatusText(prefix: "YouTube 일시 중지 준비 중…")
-        case "paused_reconnecting": return pausedStatusText(prefix: "YouTube 일시 중지 화면 재연결 중…")
-        case "idle": return "YouTube 준비 중…"
-        case "stopped": return "YouTube 송출 중지됨"
-        default: return "YouTube 송출 대기"
-        }
-    }
+    var streamStatusText: String { statePolicy.streamStatusText }
 
     func refreshAvailability() async {
         do {
@@ -417,7 +383,7 @@ final class YouTubeIntegration: ObservableObject {
             showError(.sessionRequired)
             return
         }
-        guard broadcastPhase == "prepared" else {
+        guard statePolicy.broadcastPhase == .prepared else {
             showError(.api(
                 code: "broadcast_not_prepared",
                 fallback: "YouTube 방송을 먼저 준비해 주세요.",
@@ -510,7 +476,7 @@ final class YouTubeIntegration: ObservableObject {
         isAnonymizationEnabled = false
         errorMessage = nil
         helpURL = nil
-        UserDefaults.standard.removeObject(forKey: Self.connectionStorageKey)
+        preferencesStore.removeConnection()
     }
 
     func dismissError() {
@@ -565,7 +531,7 @@ final class YouTubeIntegration: ObservableObject {
                     if let anonymization = snapshot.media.anonymizationEnabled {
                         self.isAnonymizationEnabled = anonymization
                     }
-                    if snapshot.stream.status == "stopped" {
+                    if snapshot.stream.statusValue == .stopped {
                         self.liveStartedAt = nil
                     }
                 } catch {
@@ -597,7 +563,7 @@ final class YouTubeIntegration: ObservableObject {
             if let anonymization = snapshot.media.anonymizationEnabled {
                 isAnonymizationEnabled = anonymization
             }
-            if snapshot.media.rawVideoTrack?.readyState == "live" {
+            if snapshot.media.rawVideoTrack?.readyStateValue == .live {
                 guard videoUplink.state == .connected else {
                     throw WebRTCVideoUplinkError.failed(
                         videoUplink.errorMessage ?? "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요."
@@ -628,10 +594,20 @@ final class YouTubeIntegration: ObservableObject {
                 self.reconnectTask = nil
             }
 
-            for attempt in 1...self.maximumVideoReconnectAttempts {
+            var attempt = 1
+            var shouldDelayBeforeAttempt = false
+            var didRefreshAfterSignalingUnauthorized = false
+
+            while attempt <= self.maximumVideoReconnectAttempts {
                 guard !Task.isCancelled else { return }
-                if attempt > 1 {
-                    try? await Task.sleep(for: .seconds(2))
+                if shouldDelayBeforeAttempt {
+                    do {
+                        try await Task.sleep(for: .seconds(2))
+                    } catch {
+                        return
+                    }
+                    guard !Task.isCancelled else { return }
+                    shouldDelayBeforeAttempt = false
                 }
 
                 do {
@@ -661,11 +637,31 @@ final class YouTubeIntegration: ObservableObject {
                     }
                     self.videoUplink.markPublisherReady()
                     return
-                } catch {
+                } catch WebRTCVideoUplinkError.unauthorized where !didRefreshAfterSignalingUnauthorized {
+                    didRefreshAfterSignalingUnauthorized = true
+                    guard !Task.isCancelled else { return }
                     await self.videoUplink.stopAndWait()
+                    guard !Task.isCancelled else { return }
+                    switch await self.api.refreshAuthentication() {
+                    case .refreshed:
+                        continue
+                    case .invalid:
+                        return
+                    case .unavailable:
+                        guard !Task.isCancelled else { return }
+                        self.videoUplink.markReconnectFailed("네트워크 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요.")
+                        return
+                    }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    await self.videoUplink.stopAndWait()
+                    guard !Task.isCancelled else { return }
+                    attempt += 1
+                    shouldDelayBeforeAttempt = attempt <= self.maximumVideoReconnectAttempts
                 }
             }
 
+            guard !Task.isCancelled else { return }
             self.videoUplink.markReconnectFailed("네트워크 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요.")
         }
     }
@@ -704,11 +700,6 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
-    private func pausedStatusText(prefix: String) -> String {
-        guard let pausedAt = stream?.pausedAtDate else { return prefix }
-        return "\(prefix) (\(pausedAt.formatted(date: .omitted, time: .shortened)))"
-    }
-
     private func handle(_ error: Error) {
         if let error = error as? YouTubeAPIError {
             if error == .featureUnavailable { isFeatureAvailable = false }
@@ -727,45 +718,13 @@ final class YouTubeIntegration: ObservableObject {
         helpURL = error.helpURL
     }
 
-    private static let connectionStorageKey = "com.framework.innolive.youtube.connection"
-    private static let broadcastSettingsStorageKey = "com.framework.innolive.youtube.broadcast-settings.v1"
-
-    private static func loadConnection() -> YouTubeConnection? {
-        guard let data = UserDefaults.standard.data(forKey: connectionStorageKey) else { return nil }
-        return try? JSONDecoder().decode(YouTubeConnection.self, from: data)
-    }
-
     private func persistConnection() {
-        guard let connection,
-              let data = try? JSONEncoder().encode(connection) else { return }
-        UserDefaults.standard.set(data, forKey: Self.connectionStorageKey)
-    }
-
-    private static func loadBroadcastSettings() -> YouTubeBroadcastSettings {
-        var settings = UserDefaults.standard
-            .data(forKey: broadcastSettingsStorageKey)
-            .flatMap { try? JSONDecoder().decode(YouTubeBroadcastSettings.self, from: $0) }
-            ?? .defaultValue
-
-        if settings.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            settings.title = YouTubeBroadcastSettings.defaultTitle()
-        }
-        if settings.audience == nil,
-           let savedAudience = YouTubeBroadcastAudience.saved {
-            settings.audience = savedAudience
-        }
-        return settings.normalized
+        guard let connection else { return }
+        preferencesStore.saveConnection(connection)
     }
 
     private func persistBroadcastSettings() {
-        guard let data = try? JSONEncoder().encode(broadcastSettings.normalized) else { return }
-        UserDefaults.standard.set(data, forKey: Self.broadcastSettingsStorageKey)
-
-        if let audience = broadcastSettings.audience {
-            UserDefaults.standard.set(audience.rawValue, forKey: YouTubeBroadcastAudience.storageKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: YouTubeBroadcastAudience.storageKey)
-        }
+        preferencesStore.saveBroadcastSettings(broadcastSettings)
     }
 }
 

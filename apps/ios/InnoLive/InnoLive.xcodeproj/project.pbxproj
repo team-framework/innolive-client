@@ -13,12 +13,18 @@
 
 /* Begin PBXFileReference section */
 		7B64AA013013CA7300BA69CE /* InnoLive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InnoLive.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B64AA043013CA7300BA69CE /* InnoLiveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InnoLiveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7B64AA033013CA7300BA69CE /* InnoLive */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = InnoLive;
+			sourceTree = "<group>";
+		};
+		7B64AA053013CA7300BA69CE /* InnoLiveTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = InnoLiveTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +39,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7B64AA063013CA7300BA69CE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -41,6 +54,7 @@
 			children = (
 				7B64AA023013CA7300BA69CE /* Products */,
 				7B64AA033013CA7300BA69CE /* InnoLive */,
+				7B64AA053013CA7300BA69CE /* InnoLiveTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -48,11 +62,22 @@
 			isa = PBXGroup;
 			children = (
 				7B64AA013013CA7300BA69CE /* InnoLive.app */,
+				7B64AA043013CA7300BA69CE /* InnoLiveTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
+/* Begin PBXContainerItemProxy section */
+		7B64AA103013CA7300BA69CE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7B64A9F93013CA7300BA69CE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7B64AA003013CA7300BA69CE;
+			remoteInfo = InnoLive;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXNativeTarget section */
 		7B64AA003013CA7300BA69CE /* InnoLive */ = {
@@ -79,7 +104,36 @@
 			productReference = 7B64AA013013CA7300BA69CE /* InnoLive.app */;
 			productType = "com.apple.product-type.application";
 		};
+		7B64AA093013CA7300BA69CE /* InnoLiveTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7B64AA113013CA7400BA69CE /* Build configuration list for PBXNativeTarget "InnoLiveTests" */;
+			buildPhases = (
+				7B64AA083013CA7300BA69CE /* Sources */,
+				7B64AA063013CA7300BA69CE /* Frameworks */,
+				7B64AA073013CA7300BA69CE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7B64AA0F3013CA7300BA69CE /* InnoLiveTests depends on InnoLive */,
+			);
+			fileSystemSynchronizedGroups = (
+				7B64AA053013CA7300BA69CE /* InnoLiveTests */,
+			);
+			name = InnoLiveTests;
+			productName = InnoLiveTests;
+			productReference = 7B64AA043013CA7300BA69CE /* InnoLiveTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
+
+/* Begin PBXTargetDependency section */
+		7B64AA0F3013CA7300BA69CE /* InnoLiveTests depends on InnoLive */ = {
+			isa = PBXTargetDependency;
+			target = 7B64AA003013CA7300BA69CE /* InnoLive */;
+			targetProxy = 7B64AA103013CA7300BA69CE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		7B64A9F93013CA7300BA69CE /* Project object */ = {
@@ -91,6 +145,10 @@
 				TargetAttributes = {
 					7B64AA003013CA7300BA69CE = {
 						CreatedOnToolsVersion = 26.6;
+					};
+					7B64AA093013CA7300BA69CE = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = 7B64AA003013CA7300BA69CE;
 					};
 				};
 			};
@@ -114,6 +172,7 @@
 			projectRoot = "";
 			targets = (
 				7B64AA003013CA7300BA69CE /* InnoLive */,
+				7B64AA093013CA7300BA69CE /* InnoLiveTests */,
 			);
 		};
 /* End PBXProject section */
@@ -126,10 +185,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7B64AA073013CA7300BA69CE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		7B64A9FD3013CA7300BA69CE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7B64AA083013CA7300BA69CE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -334,6 +407,58 @@
 			};
 			name = Release;
 		};
+		7B64AA123013CA7400BA69CE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SPT4X66Z4V;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.framework.innolive.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/InnoLive.app/InnoLive";
+			};
+			name = Debug;
+		};
+		7B64AA133013CA7400BA69CE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SPT4X66Z4V;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.framework.innolive.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/InnoLive.app/InnoLive";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -351,6 +476,15 @@
 			buildConfigurations = (
 				7B64AA0D3013CA7400BA69CE /* Debug */,
 				7B64AA0E3013CA7400BA69CE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7B64AA113013CA7400BA69CE /* Build configuration list for PBXNativeTarget "InnoLiveTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7B64AA123013CA7400BA69CE /* Debug */,
+				7B64AA133013CA7400BA69CE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
