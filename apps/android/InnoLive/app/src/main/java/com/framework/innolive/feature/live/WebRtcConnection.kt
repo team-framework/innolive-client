@@ -876,8 +876,8 @@ class WebRtcConnection(
     private fun isActive(): Boolean = !closed.get() && !terminal.get()
 
     private fun executeOnOwner(
-        block: () -> Unit,
         onRejected: (() -> Unit)? = null,
+        block: () -> Unit,
     ) {
         try {
             ownerExecutor.execute(block)
