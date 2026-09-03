@@ -17,7 +17,17 @@ import java.net.URL
 
 private const val NETWORK_TIMEOUT_MILLIS = 10_000
 
-suspend fun continueWithGoogle(context: Context) {
+suspend fun continueWithGoogle(
+    context: Context,
+    sessionRepository: AuthenticationSessionRepository,
+) {
+    continueWithGoogle(context, sessionRepository::save)
+}
+
+private suspend fun continueWithGoogle(
+    context: Context,
+    saveSession: (GoogleSessionStore.Session) -> Unit,
+) {
     val googleWebClientId = BuildConfig.GOOGLE_WEB_CLIENT_ID.trim()
     require(googleWebClientId.isNotEmpty()) { "GOOGLE_WEB_CLIENT_ID must not be blank." }
 
@@ -40,15 +50,16 @@ suspend fun continueWithGoogle(context: Context) {
     require(googleIdToken.isNotBlank()) { "Google ID token must not be blank." }
 
     withContext(Dispatchers.IO) {
-        val session = exchangeGoogleIdToken(googleAuthEndpoint(), googleIdToken).copy(
+        val session = GoogleAuthenticationApi().authenticate(
+            googleIdToken = googleIdToken,
             profileName = googleIdTokenCredential.displayName?.trim().orEmpty(),
             profileEmail = googleIdTokenCredential.id.trim(),
         )
-        GoogleSessionStore(context).save(session)
+        saveSession(session)
     }
 }
 
-private fun googleAuthEndpoint(): URL {
+internal fun googleAuthEndpoint(): URL {
     val baseUrl = BuildConfig.INNOLIVE_SERVER_URL.trim().trimEnd('/')
     require(baseUrl.isNotEmpty()) { "INNOLIVE_SERVER_URL must not be blank." }
 
@@ -65,7 +76,10 @@ private fun googleAuthEndpoint(): URL {
     return URL("$baseUrl/auth/google")
 }
 
-private fun exchangeGoogleIdToken(endpoint: URL, googleIdToken: String): GoogleSessionStore.Session {
+internal fun exchangeGoogleIdToken(
+    endpoint: URL,
+    googleIdToken: String,
+): GoogleSessionStore.Session {
     val connection = endpoint.openConnection() as HttpURLConnection
 
     try {

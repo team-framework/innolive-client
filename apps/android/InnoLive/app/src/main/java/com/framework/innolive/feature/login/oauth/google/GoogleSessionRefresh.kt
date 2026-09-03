@@ -1,6 +1,5 @@
 package com.framework.innolive.feature.login.oauth.google
 
-import android.content.Context
 import com.framework.innolive.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -12,8 +11,24 @@ import java.net.URL
 
 private const val REFRESH_TIMEOUT_MILLIS = 10_000
 
-suspend fun refreshGoogleSession(
-    context: Context,
+class GoogleAuthenticationApi : AuthenticationApi {
+    override suspend fun refresh(
+        currentSession: GoogleSessionStore.Session,
+    ): GoogleSessionStore.Session = performGoogleSessionRefresh(currentSession)
+
+    suspend fun authenticate(
+        googleIdToken: String,
+        profileName: String,
+        profileEmail: String,
+    ): GoogleSessionStore.Session = withContext(Dispatchers.IO) {
+        exchangeGoogleIdToken(googleAuthEndpoint(), googleIdToken).copy(
+            profileName = profileName,
+            profileEmail = profileEmail,
+        )
+    }
+}
+
+internal suspend fun performGoogleSessionRefresh(
     currentSession: GoogleSessionStore.Session,
 ): GoogleSessionStore.Session = withContext(Dispatchers.IO) {
     val connection = refreshEndpoint().openConnection() as HttpURLConnection
@@ -43,9 +58,7 @@ suspend fun refreshGoogleSession(
         val responseBody = connection.inputStream.bufferedReader().use { reader ->
             reader.readText()
         }
-        mergeRefreshedSession(responseBody, currentSession).also { refreshedSession ->
-            GoogleSessionStore(context).save(refreshedSession)
-        }
+        mergeRefreshedSession(responseBody, currentSession)
     } finally {
         connection.disconnect()
     }

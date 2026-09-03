@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.feature.live.BroadcastSettings
-import java.time.format.TextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,9 +66,7 @@ fun YouTubeLiveSettingsDialog(
     val screenWidthDp = configuration.screenWidthDp.dp
     val dialogWidth = screenWidthDp * 0.9f
 
-    var titleError by remember { mutableStateOf(false) }
-    var descriptionError by remember { mutableStateOf(false) }
-    var audienceError by remember { mutableStateOf(false) }
+    var validation by remember { mutableStateOf(YouTubeLiveSettingsValidation()) }
 
     val privacyLabel = when (settings.privacy) {
         "unlisted" -> "일부 공개"
@@ -95,10 +92,8 @@ fun YouTubeLiveSettingsDialog(
     }
 
     fun validateForm() {
-        titleError = settings.title.isBlank()
-        descriptionError = settings.description.isBlank()
-        audienceError = settings.madeForKids == null
-        if (!titleError && !descriptionError && !audienceError) {
+        validation = validateYouTubeLiveSettings(settings)
+        if (validation.isValid) {
             onDismissRequest()
         }
     }
@@ -136,13 +131,13 @@ fun YouTubeLiveSettingsDialog(
                 OutlinedTextField(
                     value = settings.title,
                     onValueChange = { value ->
-                        titleError = false
-                        onSettingsChanged(settings.copy(title = value.take(100)))
+                        validation = validation.copy(titleError = false)
+                        onSettingsChanged(settings.copy(title = value.take(MAX_YOUTUBE_TITLE_LENGTH)))
                     },
                     label = { Text("방송 제목", color = Color.Black) },
                     singleLine = true,
-                    isError = titleError,
-                    supportingText = if (titleError) {
+                    isError = validation.titleError,
+                    supportingText = if (validation.titleError) {
                         { Text("방송 제목을 입력해 주세요.", color = Color.Black) }
                     } else {
                         null
@@ -153,14 +148,16 @@ fun YouTubeLiveSettingsDialog(
                 OutlinedTextField(
                     value = settings.description,
                     onValueChange = { value ->
-                        descriptionError = false
-                        onSettingsChanged(settings.copy(description = value.take(5_000)))
+                        validation = validation.copy(descriptionError = false)
+                        onSettingsChanged(
+                            settings.copy(description = value.take(MAX_YOUTUBE_DESCRIPTION_LENGTH)),
+                        )
                     },
                     label = { Text("방송 설명", color = Color.Black) },
                     minLines = 3,
                     maxLines = 5,
-                    isError = descriptionError,
-                    supportingText = if (descriptionError) {
+                    isError = validation.descriptionError,
+                    supportingText = if (validation.descriptionError) {
                         { Text("방송 설명을 입력해 주세요.", color = Color.Black) }
                     } else {
                         null
@@ -222,9 +219,9 @@ fun YouTubeLiveSettingsDialog(
                         value = audienceLabel,
                         onValueChange = {},
                         readOnly = true,
-                        isError = audienceError,
+                        isError = validation.audienceError,
                         label = { Text("아동용 설정", color = Color.Black) },
-                        supportingText = if (audienceError) {
+                        supportingText = if (validation.audienceError) {
                             { Text("아동용 설정을 선택해 주세요.", color = Color.Black) }
                         } else {
                             null
@@ -246,7 +243,7 @@ fun YouTubeLiveSettingsDialog(
                             text = { Text("아동용", color = Color.Black) },
                             onClick = {
                                 onSettingsChanged(settings.copy(madeForKids = true))
-                                audienceError = false
+                                validation = validation.copy(audienceError = false)
                                 isAudienceMenuExpanded = false
                             },
                         )
@@ -254,7 +251,7 @@ fun YouTubeLiveSettingsDialog(
                             text = { Text("아동용 아님", color = Color.Black) },
                             onClick = {
                                 onSettingsChanged(settings.copy(madeForKids = false))
-                                audienceError = false
+                                validation = validation.copy(audienceError = false)
                                 isAudienceMenuExpanded = false
                             },
                         )

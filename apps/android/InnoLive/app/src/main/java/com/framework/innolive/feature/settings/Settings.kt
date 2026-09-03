@@ -1,6 +1,5 @@
 package com.framework.innolive.feature.settings
 
-import android.graphics.drawable.Icon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Camera
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.VideoCameraBack
 import androidx.compose.material3.Button

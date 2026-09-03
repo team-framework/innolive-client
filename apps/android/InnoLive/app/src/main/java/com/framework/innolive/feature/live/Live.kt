@@ -1,11 +1,7 @@
 package com.framework.innolive.feature.live
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import com.framework.innolive.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,12 +29,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
-
-private val TAG = "Live Screen"
 
 @Composable
 fun LiveScreen(
@@ -50,62 +44,22 @@ fun LiveScreen(
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val isConnected =
-        webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
-    val isConnecting =
-        webRtcSession.connectionState == WebRtcConnectionState.CONNECTING
-    val isBroadcastLive = webRtcSession.broadcastState == BroadcastState.LIVE
-    val isBroadcastPrepared = webRtcSession.broadcastState == BroadcastState.PREPARED
-    val isBroadcastBusy = webRtcSession.broadcastState in setOf(
-        BroadcastState.SAVING_SETTINGS,
-        BroadcastState.PREPARING,
-        BroadcastState.GOING_LIVE,
-        BroadcastState.STOPPING,
+    val presentation = buildLiveScreenPresentation(
+        connectionState = webRtcSession.connectionState,
+        broadcastState = webRtcSession.broadcastState,
+        selectedPlatform = selectedPlatform,
+        broadcastStatus = webRtcSession.broadcastStatus,
     )
-    val broadcastButtonText = when {
-        isBroadcastLive -> "방송 종료"
-        isBroadcastPrepared -> "라이브 시작"
-        isBroadcastBusy -> "방송 준비 중"
-        else -> "방송 준비"
-    }
-    val isYoutubeValidated by remember { mutableStateOf(false) }
-
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA,
-            ) == PackageManager.PERMISSION_GRANTED,
-        )
-    }
-    var hasMicrophonePermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.RECORD_AUDIO,
-            ) == PackageManager.PERMISSION_GRANTED,
-        )
-    }
+    val mediaPermissions = rememberMediaPermissionController(context)
+    val mediaPermissionState = mediaPermissions.state
+    val missingMediaPermissions = mediaPermissionState.missingPermissions
     val mediaPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
-        onResult = {
-            hasCameraPermission = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA,
-            ) == PackageManager.PERMISSION_GRANTED
-            hasMicrophonePermission = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.RECORD_AUDIO,
-            ) == PackageManager.PERMISSION_GRANTED
-        },
+        onResult = { mediaPermissions.refresh() },
     )
     val requestMissingMediaPermissions = {
-        val missingPermissions = buildList {
-            if (!hasCameraPermission) add(Manifest.permission.CAMERA)
-            if (!hasMicrophonePermission) add(Manifest.permission.RECORD_AUDIO)
-        }
-        if (missingPermissions.isNotEmpty()) {
-            mediaPermissionLauncher.launch(missingPermissions.toTypedArray())
+        if (missingMediaPermissions.isNotEmpty()) {
+            mediaPermissionLauncher.launch(missingMediaPermissions.toTypedArray())
         }
     }
     LaunchedEffect(Unit) {
@@ -123,14 +77,14 @@ fun LiveScreen(
             .fillMaxSize()
             .background(color = Color.Black),
     ) {
-        if (hasCameraPermission) {
+        if (mediaPermissionState.hasCameraPermission) {
             LiveVideoPanels(
                 cameraLensFacing = props.cameraLensFacing,
                 cameraResolution = props.cameraResolution,
-                frameAnalyzer = webRtcSession.connection?.frameAnalyzer,
+                frameAnalyzer = webRtcSession.frameAnalyzer,
                 remoteVideoTrack = webRtcSession.remoteVideoTrack,
-                eglContext = webRtcSession.connection?.eglContext,
-                isConnected = webRtcSession.connectionState == WebRtcConnectionState.CONNECTED,
+                eglContext = webRtcSession.eglContext,
+                isConnected = presentation.isConnected,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
@@ -160,7 +114,7 @@ fun LiveScreen(
         ) {
             IconButton(
                 onClick = props.onOpenSettings,
-                enabled = !isConnecting
+                enabled = !presentation.isConnecting,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.settings),
@@ -191,7 +145,7 @@ fun LiveScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = { Log.d(TAG, "카메라 전환") }) {
+                IconButton(onClick = {}) {
                     Icon(
                         modifier = Modifier
                             .padding(1.dp)
@@ -229,28 +183,26 @@ fun LiveScreen(
                         )
                     }
                     VerticalHeroButton(
-                        text = broadcastButtonText,
-                        enabled = isConnected && !isBroadcastBusy,
+                        text = presentation.broadcastButtonText,
+                        enabled = presentation.isBroadcastButtonEnabled,
                         onClick = {
-                            if (isBroadcastLive) {
-                                webRtcSession.stopBroadcast()
-                            } else if (isBroadcastPrepared) {
-                                webRtcSession.goLive()
-                            } else if (selectedPlatform == "YouTube") {
-                                webRtcSession.prepareBroadcast(props.broadcastSettings)
-                            } else {
-                                openPlatformDialog = true
+                            when (presentation.broadcastAction) {
+                                LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
+                                LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
+                                LiveBroadcastAction.PREPARE_BROADCAST ->
+                                    webRtcSession.prepareBroadcast(props.broadcastSettings)
+
+                                LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
                             }
                         },
                     )
                 }
                 IconButton(
-                    enabled = !isConnecting,
+                    enabled = !presentation.isConnecting,
                     onClick = {
-                        Log.d(TAG, "blur clicked")
-                        if (isConnected) {
+                        if (presentation.isConnected) {
                             webRtcSession.close()
-                        } else if (!hasCameraPermission || !hasMicrophonePermission) {
+                        } else if (missingMediaPermissions.isNotEmpty()) {
                             requestMissingMediaPermissions()
                         } else {
                             webRtcSession.start(context, props.onRefreshAccessToken)
@@ -261,35 +213,26 @@ fun LiveScreen(
                             .padding(1.dp)
                             .width(32.dp)
                             .height(32.dp),
-                        painter = painterResource(if (isConnected) R.drawable.blur_enabled else R.drawable.blur_disabled),
+                        painter = painterResource(
+                            if (presentation.isConnected) R.drawable.blur_enabled else R.drawable.blur_disabled,
+                        ),
                         contentDescription = "Toggle face blur",
                         tint = Color.White
                     )
                 }
             }
-            if (isBroadcastPrepared) {
+            if (presentation.isBroadcastPrepared) {
                 Button(
                     onClick = webRtcSession::stopBroadcast,
-                    enabled = !isBroadcastBusy,
+                    enabled = !presentation.isBroadcastBusy,
                 ) {
                     Text(text = "방송 준비 취소")
                 }
             }
             Text(
-                text = when {
-                    webRtcSession.connectionState == WebRtcConnectionState.FAILED ->
-                        "비식별화 연결에 실패하였습니다."
-
-                    webRtcSession.broadcastState != BroadcastState.IDLE ->
-                        webRtcSession.broadcastStatus
-
-                    else -> ""
-                },
+                text = presentation.broadcastStatusText,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (
-                    webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
-                    webRtcSession.broadcastState == BroadcastState.FAILED
-                ) {
+                color = if (presentation.isBroadcastStatusError) {
                     Color.Red
                 } else {
                     Color.White

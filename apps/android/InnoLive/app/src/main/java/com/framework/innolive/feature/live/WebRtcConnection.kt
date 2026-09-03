@@ -7,6 +7,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -33,7 +34,12 @@ import org.webrtc.SessionDescription
 import org.webrtc.VideoTrack
 import org.webrtc.audio.JavaAudioDeviceModule
 import java.io.IOException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -51,6 +57,8 @@ class WebRtcConnection(
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, String) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
+    private val onLocalMediaReady: (CameraFrameAnalyzer, EglBase.Context) -> Unit,
+    private val onLocalMediaCleared: () -> Unit,
     private val onBroadcastStateChanged: (BroadcastState, String) -> Unit,
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
@@ -59,36 +67,58 @@ class WebRtcConnection(
     }
     private val audioManager = applicationContext.getSystemService(AudioManager::class.java)
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val ioExecutor = Executors.newSingleThreadExecutor()
+    /**
+     * The owner for all WebRTC, signaling, audio-route, and teardown work.
+     * Callback threads only enqueue work here; they never touch native state.
+     */
+    private val ownerExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val timerExecutor: ScheduledExecutorService =
+        Executors.newSingleThreadScheduledExecutor()
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
-    private val eglBase = EglBase.create()
     private val started = AtomicBoolean(false)
     private val closed = AtomicBoolean(false)
     private val terminal = AtomicBoolean(false)
     private val broadcastOperation = AtomicBoolean(false)
+    private val closeSignal = CloseSignal()
+    private val shutdownLock = Any()
+    private val shutdownInitiated = AtomicBoolean(false)
+    private val closeCallbacks = mutableListOf<() -> Unit>()
+    private var shutdownFinished = false
+    private val activeHttpCalls = ConcurrentHashMap.newKeySet<Call>()
     private val audioRouteMonitor = AudioInputRouteMonitor(
         applicationContext,
         ::onAudioRouteChanged,
     )
-    private val audioDeviceModule = createAudioDeviceModule()
-    private val peerConnectionFactory = createPeerConnectionFactory()
-    private val audioSource = peerConnectionFactory.createAudioSource(MediaConstraints())
-    private val localAudioTrack = peerConnectionFactory.createAudioTrack("microphone-audio", audioSource)
-    private val videoSource = peerConnectionFactory.createVideoSource(false)
-    private val localVideoTrack = peerConnectionFactory.createVideoTrack("camera-video", videoSource)
     private val signalLock = Any()
     private val pendingSignals = mutableListOf<String>()
-    private val connectionTimeout = Runnable {
-        fail("WebRTC 연결 시간이 초과되었습니다.")
-    }
-    private val audioRouteVerification = Runnable {
-        verifyAudioRoute()
-    }
+    private var connectionTimeoutTask: ScheduledFuture<*>? = null
+    private var audioRouteVerificationTask: ScheduledFuture<*>? = null
 
-    val frameAnalyzer = CameraFrameAnalyzer(videoSource.capturerObserver)
-    val eglContext: EglBase.Context = eglBase.eglBaseContext
+    @Volatile
+    private var eglBase: EglBase? = null
+
+    @Volatile
+    private var audioDeviceModule: JavaAudioDeviceModule? = null
+
+    @Volatile
+    private var peerConnectionFactory: PeerConnectionFactory? = null
+
+    @Volatile
+    private var audioSource: org.webrtc.AudioSource? = null
+
+    @Volatile
+    private var localAudioTrack: org.webrtc.AudioTrack? = null
+
+    @Volatile
+    private var videoSource: org.webrtc.VideoSource? = null
+
+    @Volatile
+    private var localVideoTrack: org.webrtc.VideoTrack? = null
+
+    @Volatile
+    private var frameAnalyzer: CameraFrameAnalyzer? = null
 
     @Volatile
     private var peerConnection: PeerConnection? = null
@@ -108,6 +138,7 @@ class WebRtcConnection(
     private var actualAudioInputId: Int? = null
     private var actualAudioInputSilenced = false
     private var peerConnectionConnected = false
+    private val resourcesReleased = AtomicBoolean(false)
 
     @Volatile
     private var broadcastState = BroadcastState.IDLE
@@ -117,39 +148,46 @@ class WebRtcConnection(
     }
 
     fun start() {
-        if (!started.compareAndSet(false, true) || closed.get()) return
-
-        try {
-            updateBluetoothCommunicationRoute(preferredAudioInput)
-        } catch (exception: Exception) {
-            fail(exception.message ?: "Bluetooth 오디오 기기를 준비하지 못했습니다.")
+        if (
+            !started.compareAndSet(false, true) ||
+            closed.get() ||
+            terminal.get()
+        ) {
             return
         }
-        audioRouteMonitor.start()
-        updateState(WebRtcConnectionState.CONNECTING, "WebRTC 연결 준비 중")
-        mainHandler.postDelayed(connectionTimeout, CONNECTION_TIMEOUT_MILLIS)
-        ioExecutor.execute {
+
+        executeOnOwner {
             try {
+                if (!isActive()) return@executeOnOwner
+
+                initializeNativeResourcesOnOwner()
+                if (!isActive()) return@executeOnOwner
+                notifyLocalMediaReadyOnOwner()
+                updateBluetoothCommunicationRoute(preferredAudioInput)
+                audioRouteMonitor.start()
+                updateState(WebRtcConnectionState.CONNECTING, "WebRTC 연결 준비 중")
+                connectionTimeoutTask = timerExecutor.schedule(
+                    { fail("WebRTC 연결 시간이 초과되었습니다.") },
+                    CONNECTION_TIMEOUT_MILLIS,
+                    TimeUnit.MILLISECONDS,
+                )
+
                 val iceServers = loadIceServers()
-                if (closed.get()) return@execute
+                if (!isActive()) return@executeOnOwner
 
                 val createdSession = createSession()
                 session = createdSession
-                if (closed.get()) {
-                    deleteSession(createdSession)
-                    return@execute
-                }
+                if (!isActive()) return@executeOnOwner
 
                 val connection = createPeerConnection(iceServers)
-                if (closed.get()) {
-                    connection.close()
-                    connection.dispose()
-                    return@execute
-                }
                 peerConnection = connection
+                if (!isActive()) return@executeOnOwner
+
                 addAudioTransceiver(connection)
+                if (!isActive()) return@executeOnOwner
                 addVideoTransceiver(connection)
-                frameAnalyzer.start()
+                if (!isActive()) return@executeOnOwner
+                checkNotNull(frameAnalyzer).start()
                 openSignalingSocket(createdSession)
             } catch (exception: Exception) {
                 fail(exception.message ?: "WebRTC 연결을 시작하지 못했습니다.")
@@ -158,28 +196,65 @@ class WebRtcConnection(
     }
 
     override fun close() {
-        if (!closed.compareAndSet(false, true)) return
+        close(null)
+    }
 
-        terminal.set(true)
-        mainHandler.removeCallbacks(connectionTimeout)
-        releasePeerConnection()
-        val createdSession = takeSession()
-        ioExecutor.execute {
-            createdSession?.let(::deleteSession)
-            localAudioTrack.dispose()
-            audioSource.dispose()
-            localVideoTrack.dispose()
-            videoSource.dispose()
-            peerConnectionFactory.dispose()
-            audioDeviceModule.release()
-            eglBase.release()
-            httpClient.connectionPool.evictAll()
-            httpClient.dispatcher.executorService.shutdown()
+    /**
+     * Closes this connection and invokes [onComplete] after the owner has
+     * released every resource. The callback is useful when a failed session
+     * must finish teardown before a retry creates its replacement.
+     */
+    fun close(onComplete: (() -> Unit)?) {
+        var callbackAfterShutdown: (() -> Unit)? = null
+        val shouldStartShutdown = synchronized(shutdownLock) {
+            onComplete?.let { callback ->
+                if (shutdownFinished) {
+                    callbackAfterShutdown = callback
+                } else {
+                    closeCallbacks += callback
+                }
+            }
+            closed.set(true)
+            terminal.set(true)
+            if (shutdownInitiated.compareAndSet(false, true)) {
+                closeSignal.close()
+                cancelHttpRequests()
+                true
+            } else {
+                false
+            }
         }
-        ioExecutor.shutdown()
+
+        callbackAfterShutdown?.let(::invokeCloseCallback)
+        if (shouldStartShutdown) enqueueResourceRelease()
+    }
+
+    private fun initializeNativeResourcesOnOwner() {
+        if (peerConnectionFactory != null) return
+
+        eglBase = EglBase.create()
+        audioDeviceModule = createAudioDeviceModule()
+        val factory = createPeerConnectionFactory()
+        peerConnectionFactory = factory
+        val createdAudioSource = factory.createAudioSource(MediaConstraints())
+        audioSource = createdAudioSource
+        localAudioTrack = factory.createAudioTrack("microphone-audio", createdAudioSource)
+        val createdVideoSource = factory.createVideoSource(false)
+        videoSource = createdVideoSource
+        localVideoTrack = factory.createVideoTrack("camera-video", createdVideoSource)
+        frameAnalyzer = CameraFrameAnalyzer(createdVideoSource.capturerObserver)
+    }
+
+    private fun notifyLocalMediaReadyOnOwner() {
+        val analyzer = frameAnalyzer ?: return
+        val context = eglBase?.eglBaseContext ?: return
+        onLocalMediaReady(analyzer, context)
     }
 
     private fun createPeerConnectionFactory(): PeerConnectionFactory {
+        val eglContext = checkNotNull(this@WebRtcConnection.eglBase).eglBaseContext
+        val createdAudioDeviceModule =
+            checkNotNull(this@WebRtcConnection.audioDeviceModule)
         if (factoryInitialized.compareAndSet(false, true)) {
             PeerConnectionFactory.initialize(
                 PeerConnectionFactory.InitializationOptions
@@ -188,26 +263,27 @@ class WebRtcConnection(
             )
         }
         return PeerConnectionFactory.builder()
-            .setAudioDeviceModule(audioDeviceModule)
+            .setAudioDeviceModule(createdAudioDeviceModule)
             .setVideoEncoderFactory(
-                DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true),
+                DefaultVideoEncoderFactory(eglContext, true, true),
             )
-            .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
+            .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglContext))
             .createPeerConnectionFactory()
     }
 
     fun setPreferredAudioInput(audioInput: AudioDeviceInfo?) {
-        mainHandler.post {
-            if (closed.get() || terminal.get()) return@post
+        executeOnOwner {
+            if (!isActive()) return@executeOnOwner
+            preferredAudioInput = audioInput
+            if (!started.get()) return@executeOnOwner
 
             try {
                 updateBluetoothCommunicationRoute(audioInput)
             } catch (exception: Exception) {
                 fail(exception.message ?: "Bluetooth 오디오 기기를 준비하지 못했습니다.")
-                return@post
+                return@executeOnOwner
             }
-            preferredAudioInput = audioInput
-            audioInput?.let(audioDeviceModule::setPreferredInputDevice)
+            audioInput?.let { audioDeviceModule?.setPreferredInputDevice(it) }
             resetAudioRouteVerification()
         }
     }
@@ -260,20 +336,26 @@ class WebRtcConnection(
     }
 
     private fun runBroadcastOperation(operation: () -> Unit) {
-        if (closed.get() || !broadcastOperation.compareAndSet(false, true)) return
-        ioExecutor.execute {
-            try {
-                check(session != null) { "WebRTC 세션이 없습니다." }
-                operation()
-            } catch (exception: Exception) {
-                updateBroadcastState(
-                    BroadcastState.FAILED,
-                    exception.message ?: "방송 요청을 처리하지 못했습니다.",
-                )
-            } finally {
+        if (!isActive() || !broadcastOperation.compareAndSet(false, true)) return
+        executeOnOwner(
+            block = {
+                try {
+                    if (!isActive()) return@executeOnOwner
+                    check(session != null) { "WebRTC 세션이 없습니다." }
+                    operation()
+                } catch (exception: Exception) {
+                    updateBroadcastState(
+                        BroadcastState.FAILED,
+                        exception.message ?: "방송 요청을 처리하지 못했습니다.",
+                    )
+                } finally {
+                    broadcastOperation.set(false)
+                }
+            },
+            onRejected = {
                 broadcastOperation.set(false)
-            }
-        }
+            },
+        )
     }
 
     private fun putBroadcastSettings(settings: BroadcastSettings) {
@@ -290,7 +372,7 @@ class WebRtcConnection(
             .header("X-Session-Owner-Token", createdSession.ownerToken)
             .method(method, body.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        httpClient.newCall(request).execute().use { response ->
+        executeHttp(request).use { response ->
             val payload = response.body.string()
             if (!response.isSuccessful) throw parseServerApiException(response.code, payload)
         }
@@ -298,14 +380,16 @@ class WebRtcConnection(
 
     private fun goLiveWithRetry() {
         repeat(GO_LIVE_RETRY_COUNT) { attempt ->
-            check(!closed.get()) { "WebRTC 연결이 종료되었습니다." }
+            check(isActive()) { "WebRTC 연결이 종료되었습니다." }
             try {
                 postSessionRequest("stream/golive")
                 return
             } catch (exception: ServerApiException) {
                 if (exception.code != "broadcast_not_ready") throw exception
                 if (attempt < GO_LIVE_RETRY_COUNT - 1) {
-                    Thread.sleep(GO_LIVE_RETRY_DELAY_MILLIS)
+                    if (closeSignal.await(GO_LIVE_RETRY_DELAY_MILLIS, TimeUnit.MILLISECONDS)) {
+                        throw IOException("WebRTC 연결이 종료되었습니다.")
+                    }
                 }
             }
         }
@@ -349,8 +433,8 @@ class WebRtcConnection(
         .setAudioRecordStateCallback(
             object : JavaAudioDeviceModule.AudioRecordStateCallback {
                 override fun onWebRtcAudioRecordStart() {
-                    mainHandler.post {
-                        if (closed.get() || terminal.get()) return@post
+                    executeOnOwner {
+                        if (!isActive()) return@executeOnOwner
 
                         audioRecordingStarted = true
                         resetAudioRouteVerification()
@@ -358,10 +442,11 @@ class WebRtcConnection(
                 }
 
                 override fun onWebRtcAudioRecordStop() {
-                    mainHandler.post {
+                    executeOnOwner {
                         audioRecordingStarted = false
-                        mainHandler.removeCallbacks(audioRouteVerification)
-                        if (!closed.get() && !terminal.get()) {
+                        audioRouteVerificationTask?.cancel(false)
+                        audioRouteVerificationTask = null
+                        if (isActive()) {
                             fail("오디오 입력이 중지되었습니다.")
                         }
                     }
@@ -369,20 +454,21 @@ class WebRtcConnection(
             },
         )
         .createAudioDeviceModule()
-        .also { audioDeviceModule ->
-            preferredAudioInput?.let(audioDeviceModule::setPreferredInputDevice)
-        }
+        .also { createdAudioDeviceModule ->
+            preferredAudioInput?.let(createdAudioDeviceModule::setPreferredInputDevice)
+    }
 
     private fun addAudioTransceiver(connection: PeerConnection) {
+        val audioTrack = checkNotNull(this@WebRtcConnection.localAudioTrack)
         val audioTransceiver = checkNotNull(
             connection.addTransceiver(
-                localAudioTrack,
+                audioTrack,
                 RtpTransceiver.RtpTransceiverInit(
                     RtpTransceiver.RtpTransceiverDirection.SEND_ONLY,
                 ),
             ),
         ) { "Unable to add the microphone audio transceiver." }
-        val opusCodecs = peerConnectionFactory
+        val opusCodecs = checkNotNull(peerConnectionFactory)
             .getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO)
             .codecs
             .filter { codec -> codec.name.equals("opus", ignoreCase = true) }
@@ -393,9 +479,10 @@ class WebRtcConnection(
     }
 
     private fun addVideoTransceiver(connection: PeerConnection) {
+        val videoTrack = checkNotNull(this@WebRtcConnection.localVideoTrack)
         check(
             connection.addTransceiver(
-                localVideoTrack,
+                videoTrack,
                 RtpTransceiver.RtpTransceiverInit(
                     RtpTransceiver.RtpTransceiverDirection.SEND_RECV,
                 ),
@@ -405,7 +492,7 @@ class WebRtcConnection(
 
     private fun loadIceServers(): List<PeerConnection.IceServer> {
         val request = authenticatedRequest("/webrtc/config").get().build()
-        return httpClient.newCall(request).execute().use { response ->
+        return executeHttp(request).use { response ->
             requireSuccessful(response, "ICE 서버 설정 조회")
             parseIceServers(response.body.string())
         }
@@ -423,7 +510,7 @@ class WebRtcConnection(
             .post(requestBody)
             .build()
 
-        return httpClient.newCall(request).execute().use { response ->
+        return executeHttp(request).use { response ->
             requireSuccessful(response, "WebRTC 세션 생성")
             parseCreatedSession(response.body.string())
         }
@@ -432,13 +519,15 @@ class WebRtcConnection(
     private fun createPeerConnection(
         iceServers: List<PeerConnection.IceServer>,
     ): PeerConnection = checkNotNull(
-        peerConnectionFactory.createPeerConnection(
+        checkNotNull(peerConnectionFactory).createPeerConnection(
             PeerConnection.RTCConfiguration(iceServers),
             peerConnectionObserver,
         ),
     ) { "Unable to create the WebRTC peer connection." }
 
     private fun openSignalingSocket(createdSession: CreatedSession) {
+        if (!isActive()) return
+
         val httpUrl = checkNotNull(serverBaseUrl.resolve("/signaling"))
         val signalingUrl = httpUrl.toString().replaceFirst("https://", "wss://")
         val request = Request.Builder().url(signalingUrl).build()
@@ -447,15 +536,25 @@ class WebRtcConnection(
             request,
             object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
-                    if (closed.get()) {
-                        webSocket.close(1000, null)
+                    if (!isActive()) {
+                        executeOnOwner { webSocket.close(1000, null) }
                         return
                     }
-                    createOffer(createdSession)
+                    executeOnOwner {
+                        if (isActive() && this@WebRtcConnection.webSocket === webSocket) {
+                            createOffer(createdSession)
+                        } else {
+                            webSocket.close(1000, null)
+                        }
+                    }
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
-                    handleServerMessage(text)
+                    executeOnOwner {
+                        if (isActive() && this@WebRtcConnection.webSocket === webSocket) {
+                            handleServerMessage(text)
+                        }
+                    }
                 }
 
                 override fun onFailure(
@@ -463,13 +562,13 @@ class WebRtcConnection(
                     t: Throwable,
                     response: Response?,
                 ) {
-                    if (!terminal.get()) {
+                    if (isActive()) {
                         fail(t.message ?: "WebRTC signaling 연결에 실패했습니다.")
                     }
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    if (!terminal.get()) {
+                    if (isActive()) {
                         fail("WebRTC signaling 연결이 종료되었습니다.")
                     }
                 }
@@ -478,22 +577,30 @@ class WebRtcConnection(
     }
 
     private fun createOffer(createdSession: CreatedSession) {
+        if (!isActive()) return
         val connection = peerConnection ?: return
         connection.createOffer(
             object : SdpObserverAdapter() {
                 override fun onCreateSuccess(description: SessionDescription) {
-                    connection.setLocalDescription(
-                        object : SdpObserverAdapter() {
-                            override fun onSetSuccess() {
-                                sendOffer(createdSession, description.description)
-                            }
+                    executeOnOwner {
+                        if (!isActive() || peerConnection !== connection) return@executeOnOwner
+                        connection.setLocalDescription(
+                            object : SdpObserverAdapter() {
+                                override fun onSetSuccess() {
+                                    executeOnOwner {
+                                        if (isActive() && peerConnection === connection) {
+                                            sendOffer(createdSession, description.description)
+                                        }
+                                    }
+                                }
 
-                            override fun onSetFailure(error: String) {
-                                fail(error)
-                            }
-                        },
-                        description,
-                    )
+                                override fun onSetFailure(error: String) {
+                                    fail(error)
+                                }
+                            },
+                            description,
+                        )
+                    }
                 }
 
                 override fun onCreateFailure(error: String) {
@@ -505,6 +612,7 @@ class WebRtcConnection(
     }
 
     private fun sendOffer(createdSession: CreatedSession, sdp: String) {
+        if (!isActive() || session !== createdSession) return
         val payload = JSONObject()
             .put("type", "offer")
             .put("session_id", createdSession.sessionId)
@@ -531,6 +639,7 @@ class WebRtcConnection(
     }
 
     private fun sendIceCandidate(candidate: IceCandidate?) {
+        if (!isActive()) return
         val createdSession = session ?: return
         val payload = JSONObject()
             .put("type", "ice_candidate")
@@ -557,11 +666,13 @@ class WebRtcConnection(
     }
 
     private fun handleServerMessage(payload: String) {
+        if (!isActive()) return
         try {
-            when (val message = parseServerMessage(payload)) {
+            val expectedSessionId = session?.sessionId ?: return
+            when (val message = parseServerMessage(payload, expectedSessionId)) {
                 is ServerMessage.Answer -> applyAnswer(message.sdp)
                 is ServerMessage.Error -> fail(message.message)
-                ServerMessage.IceCandidateAdded -> Unit
+                is ServerMessage.IceCandidateAdded -> Unit
             }
         } catch (exception: Exception) {
             fail(exception.message ?: "서버 signaling 응답이 올바르지 않습니다.")
@@ -569,11 +680,16 @@ class WebRtcConnection(
     }
 
     private fun applyAnswer(sdp: String) {
+        if (!isActive()) return
         val connection = peerConnection ?: return
         connection.setRemoteDescription(
             object : SdpObserverAdapter() {
                 override fun onSetSuccess() {
-                    updateState(WebRtcConnectionState.CONNECTING, "서버 영상 수신 대기 중")
+                    executeOnOwner {
+                        if (isActive() && peerConnection === connection) {
+                            updateState(WebRtcConnectionState.CONNECTING, "서버 영상 수신 대기 중")
+                        }
+                    }
                 }
 
                 override fun onSetFailure(error: String) {
@@ -585,15 +701,16 @@ class WebRtcConnection(
     }
 
     private fun attachRemoteTrack(receiver: RtpReceiver) {
+        if (!isActive()) return
         val track = receiver.track() as? VideoTrack ?: return
         mainHandler.post {
-            if (!closed.get()) onRemoteTrackChanged(track)
+            if (!closed.get() && !terminal.get()) onRemoteTrackChanged(track)
         }
     }
 
     private fun onAudioRouteChanged(deviceId: Int?, isSilenced: Boolean) {
-        mainHandler.post {
-            if (closed.get() || terminal.get()) return@post
+        executeOnOwner {
+            if (!isActive()) return@executeOnOwner
 
             actualAudioInputId = deviceId
             actualAudioInputSilenced = isSilenced
@@ -613,12 +730,16 @@ class WebRtcConnection(
     }
 
     private fun scheduleAudioRouteVerification() {
-        mainHandler.removeCallbacks(audioRouteVerification)
-        mainHandler.postDelayed(audioRouteVerification, AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS)
+        audioRouteVerificationTask?.cancel(false)
+        audioRouteVerificationTask = timerExecutor.schedule(
+            { executeOnOwner { verifyAudioRoute() } },
+            AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS,
+            TimeUnit.MILLISECONDS,
+        )
     }
 
     private fun verifyAudioRoute() {
-        if (closed.get() || terminal.get() || audioInputVerified) return
+        if (!isActive() || audioInputVerified) return
 
         if (actualAudioInputSilenced) {
             fail("다른 앱 또는 시스템 정책으로 마이크 입력이 차단되었습니다.")
@@ -636,7 +757,7 @@ class WebRtcConnection(
 
         if (!audioRouteRetryAttempted) {
             audioRouteRetryAttempted = true
-            preferredAudioInput?.let(audioDeviceModule::setPreferredInputDevice)
+            preferredAudioInput?.let { audioDeviceModule?.setPreferredInputDevice(it) }
             audioRouteMonitor.refresh()
             scheduleAudioRouteVerification()
             return
@@ -648,29 +769,71 @@ class WebRtcConnection(
     private fun updateConnectedState() {
         if (!peerConnectionConnected || !audioInputVerified) return
 
-        mainHandler.removeCallbacks(connectionTimeout)
+        connectionTimeoutTask?.cancel(false)
+        connectionTimeoutTask = null
         updateState(WebRtcConnectionState.CONNECTED, "WebRTC 연결됨")
     }
 
     private fun fail(message: String) {
-        if (closed.get() || !terminal.compareAndSet(false, true)) return
-
-        mainHandler.removeCallbacks(connectionTimeout)
-        releasePeerConnection()
-        val createdSession = takeSession()
-        if (createdSession != null) {
-            runCatching {
-                ioExecutor.execute { deleteSession(createdSession) }
+        val shouldStartShutdown = synchronized(shutdownLock) {
+            if (closed.get() || terminal.get()) {
+                false
+            } else {
+                terminal.set(true)
+                if (shutdownInitiated.compareAndSet(false, true)) {
+                    closeSignal.close()
+                    cancelHttpRequests()
+                    true
+                } else {
+                    false
+                }
             }
         }
+        if (!shouldStartShutdown) return
+
         updateState(WebRtcConnectionState.FAILED, message)
+        enqueueResourceRelease()
     }
 
-    private fun releasePeerConnection() {
+    private fun enqueueResourceRelease() {
+        executeOnOwner(
+            block = {
+                try {
+                    releaseResourcesOnOwner()
+                } finally {
+                    completeCloseCallbacks()
+                }
+            },
+            onRejected = ::completeCloseCallbacks,
+        )
+    }
+
+    private fun completeCloseCallbacks() {
+        val callbacks = synchronized(shutdownLock) {
+            shutdownFinished = true
+            closeCallbacks.toList().also { closeCallbacks.clear() }
+        }
+        callbacks.forEach(::invokeCloseCallback)
+    }
+
+    private fun invokeCloseCallback(callback: () -> Unit) {
+        runCatching { callback() }
+    }
+
+    private fun releaseResourcesOnOwner() {
+        if (!resourcesReleased.compareAndSet(false, true)) return
+
+        timerExecutor.shutdownNow()
+        connectionTimeoutTask?.cancel(false)
+        connectionTimeoutTask = null
+        audioRouteVerificationTask?.cancel(false)
+        audioRouteVerificationTask = null
+
         runCatching { clearBluetoothCommunicationRoute() }
-        frameAnalyzer.stop()
-        audioRouteMonitor.close()
-        mainHandler.removeCallbacks(audioRouteVerification)
+        runCatching { onLocalMediaCleared() }
+        runCatching { frameAnalyzer?.stop() }
+        frameAnalyzer = null
+        runCatching { audioRouteMonitor.close() }
         audioRecordingStarted = false
         audioInputVerified = false
         peerConnectionConnected = false
@@ -678,16 +841,50 @@ class WebRtcConnection(
             pendingSignals.clear()
             offerSent = false
         }
-        webSocket?.close(1000, null)
+        runCatching { webSocket?.close(1000, null) }
         webSocket = null
-        peerConnection?.close()
-        peerConnection?.dispose()
+        runCatching { peerConnection?.close() }
+        runCatching { peerConnection?.dispose() }
         peerConnection = null
+
+        val createdSession = takeSession()
+        runCatching { localAudioTrack?.dispose() }
+        localAudioTrack = null
+        runCatching { audioSource?.dispose() }
+        audioSource = null
+        runCatching { localVideoTrack?.dispose() }
+        localVideoTrack = null
+        runCatching { videoSource?.dispose() }
+        videoSource = null
+        runCatching { peerConnectionFactory?.dispose() }
+        peerConnectionFactory = null
+        runCatching { audioDeviceModule?.release() }
+        audioDeviceModule = null
+        runCatching { eglBase?.release() }
+        eglBase = null
+        runCatching { createdSession?.let(::deleteSession) }
+        runCatching { httpClient.connectionPool.evictAll() }
+        runCatching { httpClient.dispatcher.executorService.shutdown() }
+
         mainHandler.post { onRemoteTrackChanged(null) }
+        ownerExecutor.shutdown()
     }
 
     @Synchronized
     private fun takeSession(): CreatedSession? = session.also { session = null }
+
+    private fun isActive(): Boolean = !closed.get() && !terminal.get()
+
+    private fun executeOnOwner(
+        onRejected: (() -> Unit)? = null,
+        block: () -> Unit,
+    ) {
+        try {
+            ownerExecutor.execute(block)
+        } catch (_: RejectedExecutionException) {
+            onRejected?.invoke()
+        }
+    }
 
     private fun deleteSession(createdSession: CreatedSession) {
         val request = authenticatedRequest("/sessions/${createdSession.sessionId}")
@@ -695,8 +892,32 @@ class WebRtcConnection(
             .delete()
             .build()
         runCatching {
-            httpClient.newCall(request).execute().close()
+            executeHttp(request, allowAfterClose = true).close()
         }
+    }
+
+    private fun executeHttp(
+        request: Request,
+        allowAfterClose: Boolean = false,
+    ): Response {
+        val call = httpClient.newCall(request)
+        activeHttpCalls += call
+        if (closeSignal.isClosed && !allowAfterClose) {
+            activeHttpCalls -= call
+            call.cancel()
+            throw IOException("WebRTC 연결이 종료되었습니다.")
+        }
+
+        return try {
+            call.execute()
+        } finally {
+            activeHttpCalls -= call
+        }
+    }
+
+    private fun cancelHttpRequests() {
+        httpClient.dispatcher.cancelAll()
+        activeHttpCalls.forEach { call -> call.cancel() }
     }
 
     private fun authenticatedRequest(path: String): Request.Builder {
@@ -708,11 +929,14 @@ class WebRtcConnection(
 
     private fun updateState(state: WebRtcConnectionState, message: String) {
         mainHandler.post {
-            if (!closed.get()) onStateChanged(state, message)
+            if (closed.get()) return@post
+            if (terminal.get() && state != WebRtcConnectionState.FAILED) return@post
+            onStateChanged(state, message)
         }
     }
 
     private fun updateBroadcastState(state: BroadcastState, message: String) {
+        if (!isActive()) return
         broadcastState = state
         mainHandler.post {
             if (!closed.get()) onBroadcastStateChanged(state, message)
@@ -728,12 +952,12 @@ class WebRtcConnection(
 
         override fun onIceGatheringChange(state: PeerConnection.IceGatheringState) {
             if (state == PeerConnection.IceGatheringState.COMPLETE) {
-                sendIceCandidate(null)
+                executeOnOwner { sendIceCandidate(null) }
             }
         }
 
         override fun onIceCandidate(candidate: IceCandidate) {
-            sendIceCandidate(candidate)
+            executeOnOwner { sendIceCandidate(candidate) }
         }
 
         override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>) = Unit
@@ -749,9 +973,8 @@ class WebRtcConnection(
         override fun onConnectionChange(state: PeerConnection.PeerConnectionState) {
             when (state) {
                 PeerConnection.PeerConnectionState.CONNECTED -> {
-                    mainHandler.post {
-                        if (closed.get() || terminal.get()) return@post
-
+                    executeOnOwner {
+                        if (!isActive()) return@executeOnOwner
                         peerConnectionConnected = true
                         updateConnectedState()
                     }
@@ -766,11 +989,11 @@ class WebRtcConnection(
         }
 
         override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<out MediaStream>) {
-            attachRemoteTrack(receiver)
+            executeOnOwner { attachRemoteTrack(receiver) }
         }
 
         override fun onTrack(transceiver: RtpTransceiver) {
-            attachRemoteTrack(transceiver.receiver)
+            executeOnOwner { attachRemoteTrack(transceiver.receiver) }
         }
     }
 
@@ -803,34 +1026,6 @@ private data class CreatedSession(
     val sessionId: String,
     val ownerToken: String,
 )
-
-internal sealed interface ServerMessage {
-    data class Answer(val sdp: String) : ServerMessage
-
-    data class Error(val message: String) : ServerMessage
-
-    data object IceCandidateAdded : ServerMessage
-}
-
-internal fun parseServerMessage(payload: String): ServerMessage {
-    val response = JSONObject(payload)
-    return when (val type = response.optString("type")) {
-        "answer" -> ServerMessage.Answer(
-            response.optString("sdp").takeIf { it.isNotBlank() }
-                ?: throw IllegalArgumentException("서버 answer에 SDP가 없습니다."),
-        )
-
-        "error" -> ServerMessage.Error(
-            response.optJSONObject("error")
-                ?.optString("message")
-                ?.takeIf { it.isNotBlank() }
-                ?: "서버가 WebRTC 연결을 거부했습니다.",
-        )
-
-        "ice_candidate_added" -> ServerMessage.IceCandidateAdded
-        else -> throw IllegalArgumentException("지원하지 않는 signaling 응답입니다: $type")
-    }
-}
 
 internal fun isBluetoothAudioInputType(type: Int): Boolean = when (type) {
     AudioDeviceInfo.TYPE_BLUETOOTH_SCO,

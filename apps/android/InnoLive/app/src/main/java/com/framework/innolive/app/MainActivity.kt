@@ -3,7 +3,6 @@ package com.framework.innolive.app
 import android.app.Activity
 import android.content.pm.PackageManager
 import android.media.AudioDeviceInfo
-import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.framework.innolive.feature.live.AudioInputDevice
@@ -46,13 +47,11 @@ import com.framework.innolive.feature.live.LiveScreen
 import com.framework.innolive.feature.live.LiveScreenProps
 import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
-import com.framework.innolive.feature.live.isSelectableAudioInputType
+import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
-import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
-import com.framework.innolive.feature.login.oauth.google.continueWithGoogle
-import com.framework.innolive.feature.login.oauth.google.refreshGoogleSession
+import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.feature.settings.broadcast.BroadcastSetting
@@ -61,6 +60,7 @@ import com.framework.innolive.feature.settings.camera.CameraSetting
 import com.framework.innolive.feature.settings.camera.CameraSettingProps
 import com.framework.innolive.feature.settings.selection.OptionSelectionScreen
 import com.framework.innolive.feature.settings.selection.SettingOption
+import com.framework.innolive.feature.youtube.OperationGeneration
 import com.framework.innolive.feature.youtube.StreamingAccount
 import com.framework.innolive.feature.youtube.YouTubeAccountCoordinator
 import com.framework.innolive.ui.theme.MyApplicationTheme
@@ -120,11 +120,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val webRtcSession = ViewModelProvider(this)[WebRtcSessionViewModel::class.java]
+        val authenticationSession =
+            ViewModelProvider(this)[AuthenticationSessionViewModel::class.java]
         setContent {
             MyApplicationTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     AppNavigation(
                         webRtcSession = webRtcSession,
+                        authenticationSession = authenticationSession,
                         modifier = Modifier
                             .padding(innerPadding)
                             .background(color = MaterialTheme.colorScheme.background),
@@ -138,33 +141,61 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(
     webRtcSession: WebRtcSessionViewModel,
+    authenticationSession: AuthenticationSessionViewModel,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val activity = context as? ComponentActivity
     val coroutineScope = rememberCoroutineScope()
-    val sessionStore = remember(context) { GoogleSessionStore(context) }
-    var session by remember { mutableStateOf(sessionStore.load()) }
+    val session by authenticationSession.session.collectAsStateWithLifecycle()
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
-    var youtubeAccount by remember { mutableStateOf<StreamingAccount?>(null) }
-    var youtubeAccountStatus by remember {
+    var youtubeAccountProvider by rememberSaveable { mutableStateOf<String?>(null) }
+    var youtubeAccountChannelId by rememberSaveable { mutableStateOf<String?>(null) }
+    var youtubeAccountChannelTitle by rememberSaveable { mutableStateOf<String?>(null) }
+    var youtubeAccountReconnectRequired by rememberSaveable { mutableStateOf(false) }
+    val youtubeAccount = youtubeAccountProvider?.let { provider ->
+        StreamingAccount(
+            provider = provider,
+            channelId = youtubeAccountChannelId.orEmpty(),
+            channelTitle = youtubeAccountChannelTitle.orEmpty(),
+            reconnectRequired = youtubeAccountReconnectRequired,
+        )
+    }
+    var youtubeAccountStatus by rememberSaveable {
         mutableStateOf("로그인 후 YouTube 계정을 연동할 수 있습니다.")
     }
-    var isYouTubeAccountActionInProgress by remember { mutableStateOf(false) }
+    var isYouTubeAccountActionInProgress by rememberSaveable { mutableStateOf(false) }
+    var isYouTubeAuthorizationLaunched by rememberSaveable { mutableStateOf(false) }
+    var youtubeAuthorizationOperation by rememberSaveable { mutableStateOf<Long?>(null) }
+    val youtubeOperationGeneration = rememberSaveable(
+        saver = Saver<OperationGeneration, Long>(
+            save = { generation -> generation.current },
+            restore = { value -> OperationGeneration(value) },
+        ),
+    ) { OperationGeneration() }
 
     DisposableEffect(youtubeCoordinator) {
         onDispose { youtubeCoordinator.close() }
     }
 
+    LaunchedEffect(Unit) {
+        if (isYouTubeAccountActionInProgress && !isYouTubeAuthorizationLaunched) {
+            youtubeAuthorizationOperation = null
+            youtubeOperationGeneration.invalidate()
+            isYouTubeAccountActionInProgress = false
+            youtubeAccountStatus = "YouTube 계정 연동을 다시 시도해 주세요."
+        }
+    }
+
     suspend fun refreshCurrentAccessToken(): String {
-        val currentSession = checkNotNull(session) { "Authentication session is missing." }
-        return refreshGoogleSession(context, currentSession)
-            .also { refreshedSession -> session = refreshedSession }
-            .accessToken
+        return authenticationSession.refreshAccessToken()
     }
 
     fun updateYouTubeAccount(account: StreamingAccount?) {
-        youtubeAccount = account
+        youtubeAccountProvider = account?.provider
+        youtubeAccountChannelId = account?.channelId
+        youtubeAccountChannelTitle = account?.channelTitle
+        youtubeAccountReconnectRequired = account?.reconnectRequired == true
         youtubeAccountStatus = when {
             account == null -> "연결된 YouTube 계정이 없습니다."
             account.reconnectRequired -> "YouTube 재연동이 필요합니다."
@@ -173,23 +204,35 @@ fun AppNavigation(
         }
     }
 
-    fun showYouTubeAccountFailure() {
+    fun showYouTubeAccountFailure(operation: Long) {
+        if (!youtubeOperationGeneration.isCurrent(operation) || session == null) return
+        youtubeAuthorizationOperation = null
+        isYouTubeAuthorizationLaunched = false
         isYouTubeAccountActionInProgress = false
         youtubeAccountStatus = "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요."
     }
 
-    val completeYouTubeConnection: (String) -> Unit = { serverAuthCode ->
+    fun isCurrentYouTubeOperation(operation: Long): Boolean =
+        youtubeOperationGeneration.isCurrent(operation) && session != null
+
+    fun completeYouTubeConnection(operation: Long, serverAuthCode: String) {
+        if (!isCurrentYouTubeOperation(operation) || !isYouTubeAccountActionInProgress) return
+        youtubeAuthorizationOperation = null
+        isYouTubeAuthorizationLaunched = false
         coroutineScope.launch {
             try {
-                updateYouTubeAccount(
-                    youtubeCoordinator.connect(serverAuthCode, ::refreshCurrentAccessToken),
-                )
+                val account = youtubeCoordinator.connect(serverAuthCode, ::refreshCurrentAccessToken)
+                if (isCurrentYouTubeOperation(operation)) updateYouTubeAccount(account)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
-                showYouTubeAccountFailure()
+                showYouTubeAccountFailure(operation)
             } finally {
-                isYouTubeAccountActionInProgress = false
+                if (youtubeOperationGeneration.isCurrent(operation)) {
+                    youtubeAuthorizationOperation = null
+                    isYouTubeAuthorizationLaunched = false
+                    isYouTubeAccountActionInProgress = false
+                }
             }
         }
     }
@@ -197,14 +240,22 @@ fun AppNavigation(
     val authorizationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
-        val data = result.data
-        if (result.resultCode == Activity.RESULT_OK && data != null) {
-            runCatching { youtubeCoordinator.serverAuthCodeFromIntent(data) }
-                .onSuccess(completeYouTubeConnection)
-                .onFailure { showYouTubeAccountFailure() }
-        } else {
-            isYouTubeAccountActionInProgress = false
-            youtubeAccountStatus = "YouTube 권한 동의를 취소했습니다."
+        val operation = youtubeAuthorizationOperation ?: return@rememberLauncherForActivityResult
+        youtubeAuthorizationOperation = null
+        if (isCurrentYouTubeOperation(operation) && isYouTubeAccountActionInProgress) {
+            val data = result.data
+            if (result.resultCode == Activity.RESULT_OK && data != null) {
+                isYouTubeAuthorizationLaunched = false
+                runCatching { youtubeCoordinator.serverAuthCodeFromIntent(data) }
+                    .onSuccess { serverAuthCode ->
+                        completeYouTubeConnection(operation, serverAuthCode)
+                    }
+                    .onFailure { showYouTubeAccountFailure(operation) }
+            } else {
+                isYouTubeAuthorizationLaunched = false
+                isYouTubeAccountActionInProgress = false
+                youtubeAccountStatus = "YouTube 권한 동의를 취소했습니다."
+            }
         }
     }
     val packageManager = context.packageManager
@@ -214,14 +265,7 @@ fun AppNavigation(
             hasFrontCamera = packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_FRONT),
         )
     }
-    val audioInputDevices = remember(context) {
-        context.getSystemService(AudioManager::class.java)
-            .getDevices(AudioManager.GET_DEVICES_INPUTS)
-            .filter { device -> isSelectableAudioInputType(device.type) }
-            .distinctBy { device ->
-                if (device.type == AudioDeviceInfo.TYPE_BUILTIN_MIC) null else device.id
-            }
-    }
+    val audioInputDevices = rememberAudioInputDevices(context)
     val audioDeviceOptions = remember(audioInputDevices) {
         audioInputDevices
             .map { device ->
@@ -246,15 +290,25 @@ fun AppNavigation(
             backStack.add(LiveRoute)
         }
     }
-    LaunchedEffect(backStack.lastOrNull(), session?.profileEmail) {
+    LaunchedEffect(
+        backStack.lastOrNull(),
+        session?.profileEmail,
+        isYouTubeAccountActionInProgress,
+    ) {
+        if (isYouTubeAccountActionInProgress) return@LaunchedEffect
+
+        val operation = youtubeOperationGeneration.begin()
         if (backStack.lastOrNull() in setOf(BroadcastSettingRoute, LiveRoute) && session != null) {
             youtubeAccountStatus = "YouTube 연결 상태를 확인하는 중입니다."
             try {
-                updateYouTubeAccount(youtubeCoordinator.loadAccount(::refreshCurrentAccessToken))
+                val account = youtubeCoordinator.loadAccount(::refreshCurrentAccessToken)
+                if (isCurrentYouTubeOperation(operation)) updateYouTubeAccount(account)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
-                youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다."
+                if (isCurrentYouTubeOperation(operation)) {
+                    youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다."
+                }
             }
         }
     }
@@ -269,6 +323,16 @@ fun AppNavigation(
     }
     var selectedAudioDeviceId by rememberSaveable {
         mutableIntStateOf(audioDeviceOptions.firstOrNull()?.id ?: -1)
+    }
+    LaunchedEffect(audioInputDevices, selectedAudioDeviceId) {
+        val availableAudioDeviceId = audioInputDevices
+            .firstOrNull { device -> device.id == selectedAudioDeviceId }
+            ?.id
+            ?: audioInputDevices.firstOrNull()?.id
+            ?: -1
+        if (selectedAudioDeviceId != availableAudioDeviceId) {
+            selectedAudioDeviceId = availableAudioDeviceId
+        }
     }
     var selectedBroadcastPlatform by rememberSaveable {
         mutableStateOf(broadcastPlatformOptions.first())
@@ -351,24 +415,53 @@ fun AppNavigation(
             return@connectYouTube
         }
 
+        val operation = youtubeOperationGeneration.begin()
+        val accountEmail = session?.profileEmail
+        youtubeAuthorizationOperation = null
         isYouTubeAccountActionInProgress = true
+        isYouTubeAuthorizationLaunched = false
         youtubeAccountStatus = "YouTube 계정 연동을 시작하는 중입니다."
         coroutineScope.launch {
             try {
                 youtubeCoordinator.beginAuthorization(
-                    accountEmail = session?.profileEmail,
+                    accountEmail = accountEmail,
                     onAuthorizationRequired = { pendingIntent ->
-                        authorizationLauncher.launch(
-                            IntentSenderRequest.Builder(pendingIntent).build(),
-                        )
+                        if (isCurrentYouTubeOperation(operation) &&
+                            isYouTubeAccountActionInProgress
+                        ) {
+                            youtubeAuthorizationOperation = operation
+                            isYouTubeAuthorizationLaunched = true
+                            try {
+                                authorizationLauncher.launch(
+                                    IntentSenderRequest.Builder(pendingIntent).build(),
+                                )
+                            } catch (_: Exception) {
+                                youtubeAuthorizationOperation = null
+                                isYouTubeAuthorizationLaunched = false
+                                showYouTubeAccountFailure(operation)
+                            }
+                        }
                     },
-                    onAuthorized = completeYouTubeConnection,
-                    onFailure = { showYouTubeAccountFailure() },
+                    onAuthorized = { serverAuthCode ->
+                        if (isCurrentYouTubeOperation(operation) &&
+                            isYouTubeAccountActionInProgress
+                        ) {
+                            youtubeAuthorizationOperation = null
+                            isYouTubeAuthorizationLaunched = false
+                            completeYouTubeConnection(operation, serverAuthCode)
+                        }
+                    },
+                    onFailure = {
+                        if (isCurrentYouTubeOperation(operation)) {
+                            isYouTubeAuthorizationLaunched = false
+                            showYouTubeAccountFailure(operation)
+                        }
+                    },
                 )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
-                showYouTubeAccountFailure()
+                showYouTubeAccountFailure(operation)
             }
         }
     }
@@ -415,13 +508,14 @@ fun AppNavigation(
                         LoginScreen(
                             props = LoginScreenProps(
                                 onLogin = {
-                                    session = sessionStore.load()
-                                    if (session != null) {
+                                    if (authenticationSession.reload() != null) {
                                         backStack.clear()
                                         backStack.add(LiveRoute)
                                     }
                                 },
-                                onGoogleLogin = { continueWithGoogle(context) },
+                                onGoogleLogin = {
+                                    authenticationSession.continueWithGoogle(context)
+                                },
                             ),
                         )
                     }
@@ -450,9 +544,14 @@ fun AppNavigation(
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
                                 onLogout = {
+                                    youtubeAuthorizationOperation = null
+                                    youtubeOperationGeneration.invalidate()
+                                    isYouTubeAuthorizationLaunched = false
                                     webRtcSession.close()
-                                    sessionStore.clear()
-                                    session = null
+                                    authenticationSession.clear()
+                                    updateYouTubeAccount(null)
+                                    youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
+                                    isYouTubeAccountActionInProgress = false
                                     backStack.clear()
                                     backStack.add(LoginRoute)
                                 },

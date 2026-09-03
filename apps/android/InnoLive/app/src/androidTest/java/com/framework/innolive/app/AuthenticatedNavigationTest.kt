@@ -3,10 +3,13 @@ package com.framework.innolive.app
 import android.Manifest
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
 import org.junit.Rule
 import org.junit.Test
@@ -40,8 +43,12 @@ class AuthenticatedNavigationTest {
                     profileEmail = "user@example.com",
                 ),
             )
+            composeRule.activityRule.scenario.onActivity { activity ->
+                ViewModelProvider(activity)[AuthenticationSessionViewModel::class.java].reload()
+            }
             composeRule.activityRule.scenario.recreate()
 
+            composeRule.onNodeWithContentDescription("settings").performClick()
             composeRule.onNodeWithText("user@example.com").assertIsDisplayed()
             composeRule.onNodeWithText("로그아웃").performClick()
             composeRule.onNodeWithText("Google로 계속하기").assertIsDisplayed()
