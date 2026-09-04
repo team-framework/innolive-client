@@ -36,7 +36,7 @@ inventory for the web application's complete dependency tree.
 ## Bundled font
 
 - **Wanted Sans** (`apps/web/public/fonts/wanted-sans`)
-  - License: SIL Open Font License 1.1
+  - License: SIL Open Font License 1.1 (`OFL.txt` 동봉)
   - Source: https://github.com/wanteddev/wanted-sans
 
 The project-level Apache License 2.0 applies only to InnoLive-owned source
