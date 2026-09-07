@@ -133,7 +133,7 @@ private fun JSONObject.requiredString(key: String): String {
         throw IllegalArgumentException("signaling 응답에 필수 필드가 없습니다: $key")
     }
     return get(key) as? String
-        ?: throw IllegalArgumentException("signaling 응답의 $key가 문자열이 아닙니다.")
+        ?: throw IllegalArgumentException("signaling 응답의 ${key}가 문자열이 아닙니다.")
 }
 
 private fun JSONObject.requiredBoolean(key: String): Boolean {
@@ -141,7 +141,7 @@ private fun JSONObject.requiredBoolean(key: String): Boolean {
         throw IllegalArgumentException("signaling 응답에 필수 필드가 없습니다: $key")
     }
     return get(key) as? Boolean
-        ?: throw IllegalArgumentException("signaling 응답의 $key가 Boolean이 아닙니다.")
+        ?: throw IllegalArgumentException("signaling 응답의 ${key}가 Boolean이 아닙니다.")
 }
 
 private fun JSONObject.requiredObject(key: String, message: String): JSONObject {
