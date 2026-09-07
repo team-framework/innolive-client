@@ -16,4 +16,5 @@ data class LiveScreenProps(
     val onConnectYouTube: () -> Unit,
     val onRefreshAccessToken: suspend () -> String,
     val onOpenSettings: () -> Unit,
+    val onGetAccessToken: () -> String? = { null },
 )

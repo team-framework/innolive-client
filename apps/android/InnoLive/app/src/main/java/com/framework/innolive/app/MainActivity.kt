@@ -491,6 +491,7 @@ fun AppNavigation(
             isYouTubeConnectEnabled = session != null,
             onConnectYouTube = connectYouTube,
             onRefreshAccessToken = ::refreshCurrentAccessToken,
+            onGetAccessToken = { authenticationSession.session.value?.accessToken },
             onOpenSettings = {
                 backStack.add(SettingsRoute)
             },

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
+import com.framework.innolive.feature.face.FaceRegistrationScreen
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
@@ -39,6 +42,7 @@ fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
 ) {
+    var openFaceRegistration by remember { mutableStateOf(false) }
     var openPlatformDialog by remember { mutableStateOf(false) }
     var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
@@ -71,6 +75,22 @@ fun LiveScreen(
             openYouTubeSettingsDialog = true
         }
     }
+
+    if (openFaceRegistration) {
+        FaceRegistrationScreen(
+            cameraLensFacing = props.cameraLensFacing,
+            onGetAccessToken = props.onGetAccessToken,
+            onRefreshAccessToken = props.onRefreshAccessToken,
+            onBack = { openFaceRegistration = false },
+        )
+        return
+    }
+
+    val canRegisterFace =
+        webRtcSession.connectionState in setOf(
+            WebRtcConnectionState.IDLE,
+            WebRtcConnectionState.FAILED,
+        ) && webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
 
     Box(
         modifier = Modifier
@@ -145,15 +165,18 @@ fun LiveScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = {}) {
+                IconButton(
+                    enabled = canRegisterFace,
+                    onClick = { openFaceRegistration = true },
+                ) {
                     Icon(
+                        imageVector = Icons.Default.Face,
+                        contentDescription = "얼굴 등록",
                         modifier = Modifier
                             .padding(1.dp)
                             .width(32.dp)
                             .height(32.dp),
-                        painter = painterResource(R.drawable.change_camera),
-                        contentDescription = "Change camera facing",
-                        tint = Color.White
+                        tint = Color.White,
                     )
                 }
                 Box(contentAlignment = Alignment.Center) {
