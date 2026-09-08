@@ -27,6 +27,19 @@ internal data class ReferenceFaceRegistrationResult(
     val count: Int?,
 )
 
+internal data class ReferenceFace(
+    val faceId: String,
+    val registeredAt: String?,
+)
+
+internal data class ReferenceFaceStatus(
+    val registered: Boolean,
+    val source: String?,
+    val registeredAt: String?,
+    val count: Int?,
+    val faces: List<ReferenceFace>,
+)
+
 internal class ReferenceFaceApiException(
     val statusCode: Int?,
     val code: String?,
@@ -54,38 +67,52 @@ internal class ReferenceFaceApi(
         refreshAccessToken: suspend () -> String,
     ): ReferenceFaceRegistrationResult {
         require(image.isNotEmpty()) { "Reference face image must not be empty." }
-        var token = accessToken.trim()
-        require(token.isNotEmpty()) { "Access token must not be blank." }
-        var hasRetriedAfterUnauthorized = false
+        return parseRegistrationResponse(
+            executeAuthenticated(
+                accessToken = accessToken,
+                refreshAccessToken = refreshAccessToken,
+                buildRequest = { token -> buildRegisterRequest(image, token) },
+            ),
+        )
+    }
 
-        while (true) {
-            val response = execute(buildRegisterRequest(image, token))
-            if (response.statusCode == 401 && !hasRetriedAfterUnauthorized) {
-                hasRetriedAfterUnauthorized = true
-                token = try {
-                    refreshAccessToken().trim()
-                } catch (exception: CancellationException) {
-                    throw exception
-                } catch (exception: Exception) {
-                    throw ReferenceFaceApiException(
-                        statusCode = 401,
-                        code = "authentication_error",
-                        message = "인증 토큰을 갱신하지 못했습니다.",
-                        cause = exception,
-                    )
-                }
-                if (token.isEmpty()) {
-                    throw ReferenceFaceApiException(
-                        statusCode = 401,
-                        code = "authentication_error",
-                        message = "인증 토큰을 갱신하지 못했습니다.",
-                    )
-                }
-                continue
-            }
+    suspend fun getStatus(
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ): ReferenceFaceStatus = parseStatusResponse(
+        executeAuthenticated(
+            accessToken = accessToken,
+            refreshAccessToken = refreshAccessToken,
+            buildRequest = ::buildStatusRequest,
+        ),
+    )
 
-            return parseResponse(response)
-        }
+    suspend fun deleteAll(
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ) {
+        parseDeleteResponse(
+            executeAuthenticated(
+                accessToken = accessToken,
+                refreshAccessToken = refreshAccessToken,
+                buildRequest = { token -> buildDeleteRequest(token, faceId = null) },
+            ),
+        )
+    }
+
+    suspend fun deleteFace(
+        faceId: String,
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ) {
+        require(faceId.isNotBlank()) { "Face id must not be blank." }
+        parseDeleteResponse(
+            executeAuthenticated(
+                accessToken = accessToken,
+                refreshAccessToken = refreshAccessToken,
+                buildRequest = { token -> buildDeleteRequest(token, faceId) },
+            ),
+        )
     }
 
     override fun close() {
@@ -112,10 +139,69 @@ internal class ReferenceFaceApi(
             .build()
     }
 
+    private fun buildStatusRequest(accessToken: String): Request =
+        Request.Builder()
+            .url(serverBaseUrl.resolveOrThrow("/reference-face"))
+            .header("Accept", "application/json")
+            .header("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+    private fun buildDeleteRequest(accessToken: String, faceId: String?): Request {
+        val collectionUrl = serverBaseUrl.resolveOrThrow("/reference-face")
+        val url = faceId?.let { collectionUrl.newBuilder().addPathSegment(it).build() }
+            ?: collectionUrl
+        return Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("Authorization", "Bearer $accessToken")
+            .delete()
+            .build()
+    }
+
     private data class HttpResult(
         val statusCode: Int,
         val body: String,
     )
+
+    private suspend fun executeAuthenticated(
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+        buildRequest: (String) -> Request,
+    ): HttpResult {
+        var token = accessToken.trim()
+        require(token.isNotEmpty()) { "Access token must not be blank." }
+        var hasRetriedAfterUnauthorized = false
+
+        while (true) {
+            val response = execute(buildRequest(token))
+            if (response.statusCode == 401 && !hasRetriedAfterUnauthorized) {
+                hasRetriedAfterUnauthorized = true
+                token = try {
+                    refreshAccessToken().trim()
+                } catch (exception: CancellationException) {
+                    throw exception
+                } catch (exception: Exception) {
+                    throw ReferenceFaceApiException(
+                        statusCode = 401,
+                        code = "authentication_error",
+                        message = "인증 토큰을 갱신하지 못했습니다.",
+                        cause = exception,
+                    )
+                }
+                if (token.isEmpty()) {
+                    throw ReferenceFaceApiException(
+                        statusCode = 401,
+                        code = "authentication_error",
+                        message = "인증 토큰을 갱신하지 못했습니다.",
+                    )
+                }
+                continue
+            }
+
+            return response
+        }
+    }
 
     private suspend fun execute(request: Request): HttpResult =
         suspendCancellableCoroutine { continuation ->
@@ -163,7 +249,7 @@ internal class ReferenceFaceApi(
             })
         }
 
-    private fun parseResponse(response: HttpResult): ReferenceFaceRegistrationResult {
+    private fun parseRegistrationResponse(response: HttpResult): ReferenceFaceRegistrationResult {
         if (response.statusCode !in 200..299) {
             throw parseError(response.statusCode, response.body)
         }
@@ -188,6 +274,55 @@ internal class ReferenceFaceApi(
         )
     }
 
+    private fun parseStatusResponse(response: HttpResult): ReferenceFaceStatus {
+        if (response.statusCode !in 200..299) {
+            throw parseError(response.statusCode, response.body)
+        }
+        val json = parseJson(
+            statusCode = response.statusCode,
+            body = response.body,
+            message = "얼굴 상태 응답을 확인하지 못했습니다.",
+        )
+        val faces = buildList {
+            val faceArray = json.optJSONArray("faces") ?: return@buildList
+            for (index in 0 until faceArray.length()) {
+                val face = faceArray.optJSONObject(index) ?: continue
+                val faceId = face.optString("face_id").trim()
+                if (faceId.isNotEmpty()) {
+                    add(
+                        ReferenceFace(
+                            faceId = faceId,
+                            registeredAt = face.optNullableString("registered_at"),
+                        ),
+                    )
+                }
+            }
+        }
+        return ReferenceFaceStatus(
+            registered = json.opt("registered") == true,
+            source = json.optNullableString("source"),
+            registeredAt = json.optNullableString("registered_at"),
+            count = (json.opt("count") as? Number)?.toInt(),
+            faces = faces,
+        )
+    }
+
+    private fun parseDeleteResponse(response: HttpResult) {
+        if (response.statusCode != 204) {
+            throw parseError(response.statusCode, response.body)
+        }
+    }
+
+    private fun parseJson(statusCode: Int, body: String, message: String): JSONObject =
+        runCatching { JSONObject(body) }.getOrElse { exception ->
+            throw ReferenceFaceApiException(
+                statusCode = statusCode,
+                code = "invalid_response",
+                message = message,
+                cause = exception,
+            )
+        }
+
     private fun parseError(statusCode: Int, responseBody: String): ReferenceFaceApiException {
         val root = runCatching { JSONObject(responseBody) }.getOrNull()
         val error = root?.optJSONObject("error")
@@ -211,6 +346,12 @@ internal class ReferenceFaceApi(
         )
     }
 }
+
+private fun JSONObject.optNullableString(key: String): String? =
+    opt(key).takeIf { it is String }
+        ?.toString()
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
 
 private fun String.toHttpUrlOrThrow(): HttpUrl = runCatching { toHttpUrl() }
     .getOrElse { exception ->

@@ -32,7 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
-import com.framework.innolive.feature.face.FaceRegistrationScreen
+import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
@@ -42,7 +42,7 @@ fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
 ) {
-    var openFaceRegistration by remember { mutableStateOf(false) }
+    var openFaceManagement by remember { mutableStateOf(false) }
     var openPlatformDialog by remember { mutableStateOf(false) }
     var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
@@ -76,17 +76,17 @@ fun LiveScreen(
         }
     }
 
-    if (openFaceRegistration) {
-        FaceRegistrationScreen(
+    if (openFaceManagement) {
+        FaceManagementScreen(
             cameraLensFacing = props.cameraLensFacing,
             onGetAccessToken = props.onGetAccessToken,
             onRefreshAccessToken = props.onRefreshAccessToken,
-            onBack = { openFaceRegistration = false },
+            onBack = { openFaceManagement = false },
         )
         return
     }
 
-    val canRegisterFace =
+    val canManageFace =
         webRtcSession.connectionState in setOf(
             WebRtcConnectionState.IDLE,
             WebRtcConnectionState.FAILED,
@@ -146,11 +146,30 @@ fun LiveScreen(
                     tint = Color.White
                 )
             }
-            Text(
-                text = "00:00:00",
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color.White
-            )
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "00:00:00",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color.White,
+                )
+            }
+            IconButton(
+                enabled = props.canSwitchCamera && !presentation.isConnecting,
+                onClick = props.onSwitchCamera,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.change_camera),
+                    contentDescription = "카메라 전환",
+                    modifier = Modifier
+                        .padding(1.dp)
+                        .width(32.dp)
+                        .height(32.dp),
+                    tint = Color.White,
+                )
+            }
         }
 
         Column(
@@ -166,12 +185,12 @@ fun LiveScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
-                    enabled = canRegisterFace,
-                    onClick = { openFaceRegistration = true },
+                    enabled = canManageFace,
+                    onClick = { openFaceManagement = true },
                 ) {
                     Icon(
                         imageVector = Icons.Default.Face,
-                        contentDescription = "얼굴 등록",
+                        contentDescription = "얼굴 관리",
                         modifier = Modifier
                             .padding(1.dp)
                             .width(32.dp)

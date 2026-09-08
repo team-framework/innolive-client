@@ -324,7 +324,7 @@ internal fun FaceRegistrationScreen(
     }
 }
 
-private fun ReferenceFaceApiException.toUserMessage(): String = when {
+internal fun ReferenceFaceApiException.toUserMessage(): String = when {
     code == "face_not_detected" -> "얼굴을 찾지 못했습니다. 한 사람의 얼굴을 중앙에 맞춰 주세요."
     code == "invalid_image" -> "이미지를 처리하지 못했습니다. 다시 촬영해 주세요."
     code == "reference_rejected" -> "기준 얼굴 등록이 거부되었습니다. 얼굴을 선명하게 맞춰 주세요."

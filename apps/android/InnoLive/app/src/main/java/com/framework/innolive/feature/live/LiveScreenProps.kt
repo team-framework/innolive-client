@@ -17,4 +17,6 @@ data class LiveScreenProps(
     val onRefreshAccessToken: suspend () -> String,
     val onOpenSettings: () -> Unit,
     val onGetAccessToken: () -> String? = { null },
+    val canSwitchCamera: Boolean = false,
+    val onSwitchCamera: () -> Unit = {},
 )
