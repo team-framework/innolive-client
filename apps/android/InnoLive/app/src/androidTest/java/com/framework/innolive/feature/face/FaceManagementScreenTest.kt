@@ -46,5 +46,11 @@ class FaceManagementScreenTest {
         composeRule.onNodeWithContentDescription("닫기").performClick()
         composeRule.waitForIdle()
         composeRule.onNodeWithText("얼굴 관리").assertIsDisplayed()
+
+        composeRule.onNodeWithText("얼굴 등록").performClick()
+        composeRule.onNodeWithText("얼굴 등록").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("닫기").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("얼굴 관리").assertIsDisplayed()
     }
 }

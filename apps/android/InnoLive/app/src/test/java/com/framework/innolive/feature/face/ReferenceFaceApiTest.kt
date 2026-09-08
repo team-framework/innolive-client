@@ -71,6 +71,37 @@ class ReferenceFaceApiTest {
     }
 
     @Test
+    fun registerReadsReturnedFaceMetadataForLocalImageAssociation() {
+        val client = clientWithResponse { request ->
+            response(
+                request,
+                201,
+                """
+                    {
+                      "registered": true,
+                      "count": 1,
+                      "faces": [{"face_id": "face-1", "registered_at": "2026-09-08T00:00:00Z"}]
+                    }
+                """.trimIndent(),
+            )
+        }
+        val api = ReferenceFaceApi("https://example.com", client)
+
+        try {
+            val result = runBlocking {
+                api.register(image, "access-token") { error("refresh must not run") }
+            }
+
+            assertEquals(
+                listOf(ReferenceFace("face-1", "2026-09-08T00:00:00Z")),
+                result.faces,
+            )
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
+    @Test
     fun refreshesOnceAfterFirst401AndRetriesWithTheNewBearerToken() {
         val requests = mutableListOf<Request>()
         val callCount = AtomicInteger()
