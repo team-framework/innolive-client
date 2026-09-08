@@ -14,7 +14,6 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     @Published private(set) var isUsingFrontCamera = false
     @Published private(set) var isSwitchingCamera = false
     @Published private(set) var isReleasingCamera = false
-    @Published private(set) var isReleasingMedia = false
     @Published private(set) var requiresMediaPermissionSettings = false
 
     private static let sslInitialized = LKRTCInitializeSSL()
@@ -23,11 +22,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     let decoder = JSONDecoder()
     let peerConnectionFactory: LKRTCPeerConnectionFactory
     var peerConnection: LKRTCPeerConnection?
-    var cameraSource: CameraSource?
-    var fileSource: FileSource?
-    var mediaSource: MediaSource?
-    var activeMediaSource: MediaSourceKind?
-    var videoFrameConsumer: WebRTCVideoFrameConsumer?
+    var cameraCapturer: LKRTCCameraVideoCapturer?
+    var fileVideoCapturer: LKRTCFileVideoCapturer?
+    var cameraFrameRelay: WebRTCCameraFrameRelay?
     var videoSource: LKRTCVideoSource?
     var localVideoTrack: LKRTCVideoTrack?
     var remoteVideoTrack: LKRTCVideoTrack?
@@ -50,7 +47,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var startContinuation: CheckedContinuation<Void, Error>?
     private var startTimeoutTask: Task<Void, Never>?
     var outboundVerificationTask: Task<Void, Never>?
-    private var pendingMediaStopTask: Task<Void, Never>?
+    private var pendingCameraStopTask: Task<Void, Never>?
     var cameraOperationGeneration: UInt = 0
     var isStopping = false
     var onConnectionInterrupted: (() -> Void)?
@@ -93,15 +90,16 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     }
 
     var isCapturingCamera: Bool {
-        cameraSource != nil || isReleasingCamera
+        cameraCapturer != nil || isReleasingCamera
     }
 
     var isCapturingMedia: Bool {
-        mediaSource != nil || isReleasingMedia
+        cameraCapturer != nil || fileVideoCapturer != nil || isReleasingCamera
     }
 
     var canProvideFaceRegistrationFrames: Bool {
-        cameraSource != nil
+        cameraCapturer != nil
+            && cameraFrameRelay != nil
             && localVideoTrack != nil
             && activeCameraID != nil
             && !isStopping
@@ -150,7 +148,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
                 preferredAudioID: preferredAudioID,
                 operationGeneration: operationGeneration
             )
-            try await prepareNativeMediaSource(
+            try await prepareNativeCamera(
                 preferredCameraID: preferredCameraID,
                 preferredVideoQuality: preferredVideoQuality,
                 operationGeneration: operationGeneration
@@ -185,30 +183,29 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         isReconnectPending = false
         isReconnectInProgress = false
         let capturer = beginTeardown()
-        scheduleMediaStop(capturer)
+        scheduleCameraStop(capturer)
     }
 
     func stopAndWait() async {
         shouldReconnectAutomatically = false
         isReconnectPending = false
         isReconnectInProgress = false
-        let pendingStop = pendingMediaStopTask
+        let pendingStop = pendingCameraStopTask
         let capturer = beginTeardown()
         if let pendingStop {
             await pendingStop.value
-            pendingMediaStopTask = nil
+            pendingCameraStopTask = nil
         }
-        if let mediaSource = capturer {
-            await mediaSource.stop()
+        if let capturer {
+            await stopCapture(capturer)
         }
         isReleasingCamera = false
-        isReleasingMedia = false
     }
 
     private func beginTeardown(
         resetState: Bool = true,
         continuationError: WebRTCVideoUplinkError = .cancelled
-    ) -> MediaSource? {
+    ) -> LKRTCCameraVideoCapturer? {
         isStopping = true
         cameraOperationGeneration &+= 1
         startTimeoutTask?.cancel()
@@ -225,16 +222,15 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         webSocketTask = nil
         peerConnection?.close()
         peerConnection = nil
-        let mediaSource = self.mediaSource
-        self.mediaSource = nil
-        cameraSource?.stopFaceFrameDelivery()
-        cameraSource = nil
-        fileSource = nil
-        activeMediaSource = nil
-        videoFrameConsumer = nil
-        if mediaSource != nil {
-            isReleasingMedia = true
-            isReleasingCamera = mediaSource?.kind == .camera
+        let capturer = cameraCapturer
+        cameraCapturer = nil
+        let fileCapturer = fileVideoCapturer
+        fileVideoCapturer = nil
+        fileCapturer?.stopCapture()
+        cameraFrameRelay?.setFaceFrameHandler(nil, cameraPosition: .unspecified)
+        cameraFrameRelay = nil
+        if capturer != nil {
+            isReleasingCamera = true
         }
 
         detachTracksFromRenderers()
@@ -260,23 +256,26 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         if resetState {
             updateState(.idle, "영상 업링크 대기")
         }
-        return mediaSource
+        return capturer
     }
 
-    private func scheduleMediaStop(_ mediaSource: MediaSource?) {
-        guard let mediaSource else { return }
+    private func scheduleCameraStop(_ capturer: LKRTCCameraVideoCapturer?) {
+        guard let capturer else { return }
         let operationGeneration = cameraOperationGeneration
         let stopTask = Task {
-            await mediaSource.stop()
+            await withCheckedContinuation { continuation in
+                capturer.stopCapture {
+                    continuation.resume()
+                }
+            }
         }
-        pendingMediaStopTask = stopTask
+        pendingCameraStopTask = stopTask
         Task { [weak self] in
             await stopTask.value
             guard let self,
                   self.cameraOperationGeneration == operationGeneration else { return }
-            self.pendingMediaStopTask = nil
+            self.pendingCameraStopTask = nil
             self.isReleasingCamera = false
-            self.isReleasingMedia = false
         }
     }
 
@@ -295,6 +294,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     func setUsingFrontCamera(_ isFrontCamera: Bool) {
         isUsingFrontCamera = isFrontCamera
+        cameraFrameRelay?.updateCameraPosition(isFrontCamera ? .front : .back)
     }
 
     func setCameraSwitching(_ isSwitching: Bool) {
@@ -320,7 +320,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             resetState: false,
             continuationError: continuationError ?? .failed(message)
         )
-        scheduleMediaStop(capturer)
+        scheduleCameraStop(capturer)
         updateState(.failed, message)
     }
 
