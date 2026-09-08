@@ -227,6 +227,74 @@ class ReferenceFaceApiTest {
         }
     }
 
+    @Test
+    fun readsStatusAndParsesReferenceFaceMetadata() {
+        val requests = mutableListOf<Request>()
+        val client = clientWithResponse { request ->
+            requests += request
+            response(
+                request,
+                200,
+                """
+                    {
+                      "registered": true,
+                      "source": "api",
+                      "registered_at": "2026-08-30T00:00:00Z",
+                      "count": 1,
+                      "faces": [
+                        {"face_id": "face-1", "registered_at": "2026-08-30T00:00:00Z"}
+                      ]
+                    }
+                """.trimIndent(),
+            )
+        }
+        val api = ReferenceFaceApi("https://example.com", client)
+
+        try {
+            val status = runBlocking {
+                api.getStatus("access-token") { error("refresh must not run") }
+            }
+
+            assertTrue(status.registered)
+            assertEquals("api", status.source)
+            assertEquals("2026-08-30T00:00:00Z", status.registeredAt)
+            assertEquals(1, status.count)
+            assertEquals(listOf(ReferenceFace("face-1", "2026-08-30T00:00:00Z")), status.faces)
+            assertEquals("GET", requests.single().method)
+            assertEquals("/reference-face", requests.single().url.encodedPath)
+            assertEquals("Bearer access-token", requests.single().header("Authorization"))
+            assertNoSessionOrClientHeaders(requests)
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
+    @Test
+    fun deletesAllAndIndividualFacesWith204AndEncodedFaceId() {
+        val requests = mutableListOf<Request>()
+        val client = clientWithResponse { request ->
+            requests += request
+            response(request, 204, "")
+        }
+        val api = ReferenceFaceApi("https://example.com/api", client)
+
+        try {
+            runBlocking {
+                api.deleteFace("face/1", "access-token") { error("refresh must not run") }
+                api.deleteAll("access-token") { error("refresh must not run") }
+            }
+
+            assertEquals(2, requests.size)
+            assertEquals("DELETE", requests[0].method)
+            assertEquals("/reference-face/face%2F1", requests[0].url.encodedPath)
+            assertEquals("DELETE", requests[1].method)
+            assertEquals("/reference-face", requests[1].url.encodedPath)
+            assertNoSessionOrClientHeaders(requests)
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
     private fun clientWithResponse(
         responder: (Request) -> Response,
     ): OkHttpClient = OkHttpClient.Builder()
@@ -253,6 +321,17 @@ class ReferenceFaceApiTest {
     private fun requestBodyBytes(request: Request): ByteArray = Buffer().also { buffer ->
         request.body!!.writeTo(buffer)
     }.readByteArray()
+
+    private fun assertNoSessionOrClientHeaders(requests: List<Request>) {
+        requests.forEach { request ->
+            assertTrue(
+                request.headers.names().none { name ->
+                    val normalized = name.lowercase()
+                    normalized.contains("session") || normalized.contains("client")
+                },
+            )
+        }
+    }
 
     private fun ByteArray.containsSubsequence(needle: ByteArray): Boolean =
         indices.any { start ->
