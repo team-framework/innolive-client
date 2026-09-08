@@ -179,7 +179,7 @@ struct CameraAudioSettingsView: View {
         deviceErrorMessage = nil
         defer { isChangingAudio = false }
 
-        if youtube.videoUplink.isCapturingCamera,
+        if youtube.videoUplink.isCapturingMedia,
            !youtube.switchAudioInput(to: audioID) {
             deviceErrorMessage = youtube.errorMessage
                 ?? "오디오 기기를 전환하지 못해 기존 기기를 계속 사용합니다."
@@ -229,7 +229,7 @@ struct CameraAudioSettingsView: View {
             // 방송 중에는 LKRTCAudioSession이 audio unit과 route를 소유하므로
             // 여기서 category를 다시 설정하지 않고 현재 입력 목록만 읽는다.
             if !youtube.videoUplink.isActive,
-               !youtube.videoUplink.isCapturingCamera {
+               !youtube.videoUplink.isCapturingMedia {
                 try audioSession.setCategory(
                     .playAndRecord,
                     mode: .videoChat,

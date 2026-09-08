@@ -109,7 +109,7 @@ final class FaceRegistrationViewModel: ObservableObject {
         }
 
         guard !videoUplink.isActive,
-              !videoUplink.isCapturingCamera,
+              !videoUplink.isCapturingMedia,
               !videoUplink.isSwitchingCamera else {
             activeFrameSource = nil
             isUsingWebRTCFrames = false

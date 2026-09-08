@@ -10,23 +10,22 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var authentication = AuthSession()
     @StateObject private var youtube = YouTubeIntegration()
+    @State private var isHarnessOpen: Bool = {
+        #if DEBUG
+        return MediaSourceDebugConfiguration.opensPreviewHarness
+        #else
+        return false
+        #endif
+    }()
 
     var body: some View {
         Group {
-            if authentication.isAuthenticated {
-                NavigationStack {
-                    HomeView(
-                        authentication: authentication,
-                        youtube: youtube
-                    )
-                }
-            } else {
-                NavigationStack {
-                    SignInView(authentication: authentication)
-                }
-            }
+            rootContent
         }
         .task {
+            #if DEBUG
+            guard !isHarnessOpen else { return }
+            #endif
             youtube.configureAuthentication(authentication)
             authentication.restore()
         }
@@ -51,7 +50,42 @@ struct ContentView: View {
                 youtube.dismissError()
             }
         }
+        .onChange(of: isHarnessOpen) { _, isOpen in
+            guard !isOpen else { return }
+            youtube.configureAuthentication(authentication)
+            authentication.restore()
+        }
     }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        if isHarnessOpen {
+            debugHarnessView
+        } else {
+            if authentication.isAuthenticated {
+                NavigationStack {
+                    HomeView(
+                        authentication: authentication,
+                        youtube: youtube
+                    )
+                }
+            } else {
+                NavigationStack {
+                    SignInView(authentication: authentication)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var debugHarnessView: some View {
+        #if DEBUG
+        DebugMediaSourceHarness { isHarnessOpen = false }
+        #else
+        EmptyView()
+        #endif
+    }
+
 }
 
 #Preview("Dark") {

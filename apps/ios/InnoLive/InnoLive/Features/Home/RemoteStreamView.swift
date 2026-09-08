@@ -32,10 +32,10 @@ struct RemoteStreamView: View {
         if previewTransition == .starting || isConnectingVideo || uplink.isConnecting {
             return .connectingCamera
         }
-        if previewTransition == .stopping || uplink.isReleasingCamera {
+        if previewTransition == .stopping || uplink.isReleasingMedia {
             return .restoringPreview
         }
-        if uplink.isCapturingCamera && !uplink.hasRemoteVideo {
+        if uplink.isCapturingMedia && !uplink.hasRemoteVideo {
             return .waitingForProcessedVideo
         }
         return nil
@@ -45,8 +45,8 @@ struct RemoteStreamView: View {
         ZStack {
             Color.black
 
-            if uplink.isCapturingCamera,
-               !uplink.isReleasingCamera,
+            if uplink.isCapturingMedia,
+               !uplink.isReleasingMedia,
                previewTransition == .none {
                 WebRTCRemoteVideoView(uplink: uplink)
             }
