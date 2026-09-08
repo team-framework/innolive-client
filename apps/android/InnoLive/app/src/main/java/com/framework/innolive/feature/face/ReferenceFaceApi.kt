@@ -3,6 +3,8 @@ package com.framework.innolive.feature.face
 import com.framework.innolive.BuildConfig
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CancellationException
@@ -60,6 +62,7 @@ internal class ReferenceFaceApi(
         .writeTimeout(REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
     private val serverBaseUrl: HttpUrl = serverUrl.trim().trimEnd('/').toHttpUrlOrThrow()
+    private val closeStarted = AtomicBoolean(false)
 
     suspend fun register(
         image: ByteArray,
@@ -116,9 +119,20 @@ internal class ReferenceFaceApi(
     }
 
     override fun close() {
-        if (ownsHttpClient) {
-            httpClient.connectionPool.evictAll()
-            httpClient.dispatcher.executorService.shutdown()
+        if (!ownsHttpClient || !closeStarted.compareAndSet(false, true)) return
+
+        val cleanup = Runnable {
+            try {
+                httpClient.dispatcher.cancelAll()
+                httpClient.connectionPool.evictAll()
+            } finally {
+                httpClient.dispatcher.executorService.shutdown()
+            }
+        }
+        try {
+            httpClient.dispatcher.executorService.execute(cleanup)
+        } catch (_: RejectedExecutionException) {
+            Thread(cleanup, "reference-face-api-close").start()
         }
     }
 
