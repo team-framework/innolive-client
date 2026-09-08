@@ -165,8 +165,8 @@ fun LiveScreen(
                     contentDescription = "카메라 전환",
                     modifier = Modifier
                         .padding(1.dp)
-                        .width(32.dp)
-                        .height(32.dp),
+                        .width(28.dp)
+                        .height(28.dp),
                     tint = Color.White,
                 )
             }
