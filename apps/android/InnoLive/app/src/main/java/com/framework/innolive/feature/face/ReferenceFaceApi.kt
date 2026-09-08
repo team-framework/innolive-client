@@ -27,6 +27,7 @@ private val jpegMediaType = "image/jpeg".toMediaType()
 internal data class ReferenceFaceRegistrationResult(
     val registered: Boolean,
     val count: Int?,
+    val faces: List<ReferenceFace>,
 )
 
 internal data class ReferenceFace(
@@ -285,6 +286,7 @@ internal class ReferenceFaceApi(
         return ReferenceFaceRegistrationResult(
             registered = true,
             count = json.optInt("count").takeIf { json.has("count") },
+            faces = parseFaces(json),
         )
     }
 
@@ -297,28 +299,31 @@ internal class ReferenceFaceApi(
             body = response.body,
             message = "얼굴 상태 응답을 확인하지 못했습니다.",
         )
-        val faces = buildList {
-            val faceArray = json.optJSONArray("faces") ?: return@buildList
-            for (index in 0 until faceArray.length()) {
-                val face = faceArray.optJSONObject(index) ?: continue
-                val faceId = face.optString("face_id").trim()
-                if (faceId.isNotEmpty()) {
-                    add(
-                        ReferenceFace(
-                            faceId = faceId,
-                            registeredAt = face.optNullableString("registered_at"),
-                        ),
-                    )
-                }
-            }
-        }
         return ReferenceFaceStatus(
             registered = json.opt("registered") == true,
             source = json.optNullableString("source"),
             registeredAt = json.optNullableString("registered_at"),
             count = (json.opt("count") as? Number)?.toInt(),
-            faces = faces,
+            faces = parseFaces(json),
         )
+    }
+
+    private fun parseFaces(json: JSONObject): List<ReferenceFace> = buildList {
+        val faceArray = json.optJSONArray("faces") ?: return@buildList
+        for (index in 0 until faceArray.length()) {
+            val face = faceArray.optJSONObject(index) ?: continue
+            val faceId = (face.opt("face_id") as? String)
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+            if (faceId != null) {
+                add(
+                    ReferenceFace(
+                        faceId = faceId,
+                        registeredAt = face.optNullableString("registered_at"),
+                    ),
+                )
+            }
+        }
     }
 
     private fun parseDeleteResponse(response: HttpResult) {

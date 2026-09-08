@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -64,11 +65,14 @@ internal fun FaceRegistrationScreen(
     onGetAccessToken: () -> String?,
     onRefreshAccessToken: suspend () -> String,
     onBack: () -> Unit,
+    profileEmail: String = "",
 ) {
+    val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val detector = remember { FaceDetectionPipeline() }
     val apiState = remember { mutableStateOf<ReferenceFaceApi?>(null) }
+    val imageStore = remember(context) { ReferenceFaceImageStore(context) }
     val currentGetAccessToken by rememberUpdatedState(onGetAccessToken)
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
     var phase by remember { mutableStateOf(FaceRegistrationPhase.CAPTURING) }
@@ -140,10 +144,32 @@ internal fun FaceRegistrationScreen(
         uploadJob = scope.launch {
             try {
                 val image = withContext(Dispatchers.Default) { bitmap.toJpegBytes() }
-                api.register(image, accessToken, refreshAccessToken)
+                val registration = api.register(image, accessToken, refreshAccessToken)
+                val localStorageWarning = if (profileEmail.isBlank()) {
+                    null
+                } else {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            if (registration.faces.size == 1) {
+                                imageStore.save(
+                                    accountEmail = profileEmail,
+                                    faceId = registration.faces.single().faceId,
+                                    jpeg = image,
+                                )
+                            } else {
+                                imageStore.deleteAll(profileEmail)
+                            }
+                        }
+                        null
+                    } catch (exception: CancellationException) {
+                        throw exception
+                    } catch (_: Exception) {
+                        "얼굴 등록은 완료되었지만 사진을 기기에 저장하지 못했습니다."
+                    }
+                }
                 if (uploadGeneration == operationGeneration && isLifecycleActive) {
                     phase = FaceRegistrationPhase.SUCCESS
-                    statusMessage = "얼굴 등록이 완료되었습니다."
+                    statusMessage = localStorageWarning ?: "얼굴 등록이 완료되었습니다."
                 }
             } catch (exception: CancellationException) {
                 throw exception

@@ -1,6 +1,9 @@
 package com.framework.innolive.feature.face
 
+import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,12 +34,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.CameraLensFacing
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class FaceManagementPhase {
     LOADING,
@@ -49,14 +58,18 @@ internal fun FaceManagementScreen(
     onGetAccessToken: () -> String?,
     onRefreshAccessToken: suspend () -> String,
     onBack: () -> Unit,
+    profileEmail: String = "",
 ) {
+    val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
     val apiState = remember { mutableStateOf<ReferenceFaceApi?>(null) }
+    val imageStore = remember(context) { ReferenceFaceImageStore(context) }
     val currentGetAccessToken by rememberUpdatedState(onGetAccessToken)
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
-    var phase by remember { mutableStateOf(FaceManagementPhase.LOADING) }
-    var statusMessage by remember { mutableStateOf<String?>(null) }
-    var faceStatus by remember { mutableStateOf<ReferenceFaceStatus?>(null) }
+    var phase by remember(profileEmail) { mutableStateOf(FaceManagementPhase.LOADING) }
+    var statusMessage by remember(profileEmail) { mutableStateOf<String?>(null) }
+    var faceStatus by remember(profileEmail) { mutableStateOf<ReferenceFaceStatus?>(null) }
+    var faceImages by remember(profileEmail) { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
     var openRegistration by remember { mutableStateOf(false) }
     var requestJob by remember { mutableStateOf<Job?>(null) }
 
@@ -82,9 +95,25 @@ internal fun FaceManagementScreen(
             val api = apiState.value ?: ReferenceFaceApi(BuildConfig.INNOLIVE_SERVER_URL).also {
                 apiState.value = it
             }
-            faceStatus = api.getStatus(accessToken, currentRefreshAccessToken)
+            val status = api.getStatus(accessToken, currentRefreshAccessToken)
+            faceStatus = status
+            faceImages = if (profileEmail.isBlank()) {
+                emptyMap()
+            } else {
+                withContext(Dispatchers.IO) {
+                    status.faces.mapNotNull { face ->
+                        imageStore.load(profileEmail, face.faceId)?.let { face.faceId to it }
+                    }.toMap()
+                }
+            }
             phase = FaceManagementPhase.READY
         } catch (exception: CancellationException) {
+            if (faceStatus != null) {
+                phase = FaceManagementPhase.READY
+            } else {
+                phase = FaceManagementPhase.ERROR
+                statusMessage = "얼굴 등록 상태 확인이 취소되었습니다. 다시 시도해 주세요."
+            }
             throw exception
         } catch (exception: ReferenceFaceApiException) {
             if (faceStatus != null && exception.statusCode == 502) {
@@ -93,11 +122,13 @@ internal fun FaceManagementScreen(
             } else {
                 phase = FaceManagementPhase.ERROR
                 faceStatus = null
+                faceImages = emptyMap()
                 statusMessage = exception.toUserMessage()
             }
         } catch (_: Exception) {
             phase = FaceManagementPhase.ERROR
             faceStatus = null
+            faceImages = emptyMap()
             statusMessage = "얼굴 등록 상태를 확인하지 못했습니다. 다시 시도해 주세요."
         }
     }
@@ -105,6 +136,24 @@ internal fun FaceManagementScreen(
     fun launchRequest(request: suspend () -> Unit) {
         requestJob?.cancel()
         requestJob = scope.launch { request() }
+    }
+
+    suspend fun deleteLocalFace(faceId: String): Boolean = try {
+        withContext(Dispatchers.IO) { imageStore.delete(profileEmail, faceId) }
+        false
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (_: Exception) {
+        true
+    }
+
+    suspend fun deleteLocalFaces(): Boolean = try {
+        withContext(Dispatchers.IO) { imageStore.deleteAll(profileEmail) }
+        false
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (_: Exception) {
+        true
     }
 
     fun deleteFace(faceId: String) {
@@ -122,12 +171,17 @@ internal fun FaceManagementScreen(
                     apiState.value = it
                 }
                 api.deleteFace(faceId, accessToken, currentRefreshAccessToken)
+                val localDeleteFailed = deleteLocalFace(faceId)
                 refreshStatus()
+                if (localDeleteFailed && phase == FaceManagementPhase.READY) {
+                    statusMessage = "얼굴은 삭제했지만 저장된 사진을 제거하지 못했습니다."
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: ReferenceFaceApiException) {
                 if (exception.statusCode == 404) {
                     statusMessage = "얼굴 목록이 변경되었습니다. 목록을 새로 고침했습니다."
+                    deleteLocalFace(faceId)
                     refreshStatus()
                 } else if (exception.statusCode == 502 && faceStatus != null) {
                     phase = FaceManagementPhase.READY
@@ -158,12 +212,17 @@ internal fun FaceManagementScreen(
                     apiState.value = it
                 }
                 api.deleteAll(accessToken, currentRefreshAccessToken)
+                val localDeleteFailed = deleteLocalFaces()
                 refreshStatus()
+                if (localDeleteFailed && phase == FaceManagementPhase.READY) {
+                    statusMessage = "얼굴은 삭제했지만 저장된 사진을 제거하지 못했습니다."
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: ReferenceFaceApiException) {
                 if (exception.statusCode == 404) {
                     statusMessage = "얼굴 목록이 변경되었습니다. 목록을 새로 고침했습니다."
+                    deleteLocalFaces()
                     refreshStatus()
                 } else if (exception.statusCode == 502 && faceStatus != null) {
                     phase = FaceManagementPhase.READY
@@ -179,7 +238,7 @@ internal fun FaceManagementScreen(
         }
     }
 
-    LaunchedEffect(openRegistration) {
+    LaunchedEffect(openRegistration, profileEmail) {
         if (!openRegistration) refreshStatus()
     }
 
@@ -189,6 +248,7 @@ internal fun FaceManagementScreen(
             onGetAccessToken = currentGetAccessToken,
             onRefreshAccessToken = currentRefreshAccessToken,
             onBack = { openRegistration = false },
+            profileEmail = profileEmail,
         )
         return
     }
@@ -248,9 +308,25 @@ internal fun FaceManagementScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
+                            Box(
+                                modifier = Modifier.size(96.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                faceImages[face.faceId]?.let { bitmap ->
+                                    Image(
+                                        bitmap = bitmap.asImageBitmap(),
+                                        contentDescription = "등록된 얼굴",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                } ?: Text(text = "사진 없음", color = Color.White)
+                            }
                             Text(
                                 text = face.registeredAt ?: "등록된 얼굴",
                                 color = Color.White,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp),
                             )
                             Button(
                                 onClick = { deleteFace(face.faceId) },

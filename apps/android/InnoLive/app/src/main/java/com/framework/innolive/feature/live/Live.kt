@@ -82,6 +82,7 @@ fun LiveScreen(
             onGetAccessToken = props.onGetAccessToken,
             onRefreshAccessToken = props.onRefreshAccessToken,
             onBack = { openFaceManagement = false },
+            profileEmail = props.profileEmail,
         )
         return
     }
