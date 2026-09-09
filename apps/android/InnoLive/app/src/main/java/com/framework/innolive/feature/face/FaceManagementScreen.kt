@@ -265,6 +265,7 @@ internal fun FaceManagementScreen(
             onGetAccessToken = currentGetAccessToken,
             onRefreshAccessToken = currentRefreshAccessToken,
             onBack = { openRegistration = false },
+            onRegistrationSuccess = onBack,
             profileEmail = profileEmail,
         )
         return

@@ -65,6 +65,7 @@ internal fun FaceRegistrationScreen(
     onGetAccessToken: () -> String?,
     onRefreshAccessToken: suspend () -> String,
     onBack: () -> Unit,
+    onRegistrationSuccess: () -> Unit = {},
     profileEmail: String = "",
 ) {
     val context = LocalContext.current.applicationContext
@@ -75,6 +76,7 @@ internal fun FaceRegistrationScreen(
     val imageStore = remember(context) { ReferenceFaceImageStore(context) }
     val currentGetAccessToken by rememberUpdatedState(onGetAccessToken)
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
+    val currentOnRegistrationSuccess by rememberUpdatedState(onRegistrationSuccess)
     var phase by remember { mutableStateOf(FaceRegistrationPhase.CAPTURING) }
     var statusMessage by remember { mutableStateOf("얼굴을 화면 중앙에 맞추고 잠시 기다려 주세요.") }
     var latestBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -170,6 +172,7 @@ internal fun FaceRegistrationScreen(
                 if (uploadGeneration == operationGeneration && isLifecycleActive) {
                     phase = FaceRegistrationPhase.SUCCESS
                     statusMessage = localStorageWarning ?: "얼굴 등록이 완료되었습니다."
+                    currentOnRegistrationSuccess()
                 }
             } catch (exception: CancellationException) {
                 throw exception
