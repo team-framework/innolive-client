@@ -59,6 +59,7 @@ internal fun FaceManagementScreen(
     onRefreshAccessToken: suspend () -> String,
     onBack: () -> Unit,
     profileEmail: String = "",
+    apiFactory: () -> ReferenceFaceApi = { ReferenceFaceApi(BuildConfig.INNOLIVE_SERVER_URL) },
 ) {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
@@ -66,6 +67,7 @@ internal fun FaceManagementScreen(
     val imageStore = remember(context) { ReferenceFaceImageStore(context) }
     val currentGetAccessToken by rememberUpdatedState(onGetAccessToken)
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
+    val currentApiFactory by rememberUpdatedState(apiFactory)
     var phase by remember(profileEmail) { mutableStateOf(FaceManagementPhase.LOADING) }
     var statusMessage by remember(profileEmail) { mutableStateOf<String?>(null) }
     var faceStatus by remember(profileEmail) { mutableStateOf<ReferenceFaceStatus?>(null) }
@@ -92,7 +94,7 @@ internal fun FaceManagementScreen(
         phase = FaceManagementPhase.LOADING
         statusMessage = null
         try {
-            val api = apiState.value ?: ReferenceFaceApi(BuildConfig.INNOLIVE_SERVER_URL).also {
+            val api = apiState.value ?: currentApiFactory().also {
                 apiState.value = it
             }
             val status = api.getStatus(accessToken, currentRefreshAccessToken)
@@ -167,11 +169,20 @@ internal fun FaceManagementScreen(
             phase = FaceManagementPhase.LOADING
             statusMessage = "얼굴을 삭제하는 중입니다."
             try {
-                val api = apiState.value ?: ReferenceFaceApi(BuildConfig.INNOLIVE_SERVER_URL).also {
+                val api = apiState.value ?: currentApiFactory().also {
                     apiState.value = it
                 }
                 api.deleteFace(faceId, accessToken, currentRefreshAccessToken)
                 val localDeleteFailed = deleteLocalFace(faceId)
+                faceStatus = faceStatus?.let { status ->
+                    val remainingFaces = status.faces.filterNot { face -> face.faceId == faceId }
+                    status.copy(
+                        registered = remainingFaces.isNotEmpty(),
+                        count = remainingFaces.size,
+                        faces = remainingFaces,
+                    )
+                }
+                faceImages = faceImages - faceId
                 refreshStatus()
                 if (localDeleteFailed && phase == FaceManagementPhase.READY) {
                     statusMessage = "얼굴은 삭제했지만 저장된 사진을 제거하지 못했습니다."
@@ -208,11 +219,17 @@ internal fun FaceManagementScreen(
             phase = FaceManagementPhase.LOADING
             statusMessage = "등록된 얼굴을 삭제하는 중입니다."
             try {
-                val api = apiState.value ?: ReferenceFaceApi(BuildConfig.INNOLIVE_SERVER_URL).also {
+                val api = apiState.value ?: currentApiFactory().also {
                     apiState.value = it
                 }
                 api.deleteAll(accessToken, currentRefreshAccessToken)
                 val localDeleteFailed = deleteLocalFaces()
+                faceStatus = faceStatus?.copy(
+                    registered = false,
+                    count = 0,
+                    faces = emptyList(),
+                )
+                faceImages = emptyMap()
                 refreshStatus()
                 if (localDeleteFailed && phase == FaceManagementPhase.READY) {
                     statusMessage = "얼굴은 삭제했지만 저장된 사진을 제거하지 못했습니다."
