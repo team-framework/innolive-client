@@ -16,6 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -285,13 +287,23 @@ internal fun FaceManagementScreen(
             .background(Color.Black)
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
+            IconButton(
+                onClick = { launchRequest { refreshStatus() } },
+                enabled = phase != FaceManagementPhase.LOADING,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "새로 고침",
+                    tint = Color.White,
+                )
+            }
             IconButton(onClick = ::close) {
                 Icon(
                     imageVector = Icons.Default.Close,
@@ -377,17 +389,20 @@ internal fun FaceManagementScreen(
                 Text(text = message, color = Color.White)
             }
         }
-        Button(
-            onClick = { openRegistration = true },
-            enabled = phase != FaceManagementPhase.LOADING,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
         ) {
-            Text(text = "얼굴 등록")
-        }
-        Button(
-            onClick = { launchRequest { refreshStatus() } },
-            enabled = phase != FaceManagementPhase.LOADING,
-        ) {
-            Text(text = "새로 고침")
+            IconButton(
+                onClick = { openRegistration = true },
+                enabled = phase != FaceManagementPhase.LOADING,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Face,
+                    contentDescription = "얼굴 등록",
+                    tint = Color.White,
+                )
+            }
         }
     }
 }
