@@ -62,6 +62,55 @@ extension WebRTCVideoUplink {
         preferredVideoQuality: CameraQualityPreset,
         operationGeneration: UInt
     ) async throws {
+        #if DEBUG
+        #if targetEnvironment(simulator)
+        if SimulatorVideoInput.isEnabled {
+            guard SimulatorVideoInput.bundledURL != nil else {
+                throw WebRTCVideoUplinkError.failed(
+                    "번들 시뮬레이터 영상을 찾지 못했습니다."
+                )
+            }
+
+            setUsingFrontCamera(false)
+            let source = peerConnectionFactory.videoSource()
+            adapt(source, to: preferredVideoQuality)
+            let capturer = LKRTCFileVideoCapturer(delegate: source)
+            let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
+            track.isEnabled = true
+            videoSource = source
+            fileVideoCapturer = capturer
+            cameraCapturer = nil
+            cameraFrameRelay = nil
+            localVideoTrack = track
+            if let localRenderer {
+                track.add(localRenderer)
+            }
+            if let faceRegistrationRenderer {
+                track.add(faceRegistrationRenderer)
+            }
+
+            capturer.startCapturing(fromFileNamed: SimulatorVideoInput.fileName) { [weak self] error in
+                Task { @MainActor [weak self] in
+                    guard let self,
+                          self.cameraOperationGeneration == operationGeneration,
+                          !self.isStopping else { return }
+                    self.fail(
+                        "시뮬레이터 영상을 읽지 못했습니다: \(error.localizedDescription)"
+                    )
+                }
+            }
+            guard !isStopping,
+                  cameraOperationGeneration == operationGeneration,
+                  fileVideoCapturer === capturer else {
+                capturer.stopCapture()
+                throw WebRTCVideoUplinkError.cancelled
+            }
+            activeVideoQuality = preferredVideoQuality
+            return
+        }
+        #endif
+        #endif
+
         guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
             markMediaPermissionRequired()
             throw WebRTCVideoUplinkError.failed("카메라 권한이 필요합니다.")

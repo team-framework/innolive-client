@@ -23,6 +23,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     let peerConnectionFactory: LKRTCPeerConnectionFactory
     var peerConnection: LKRTCPeerConnection?
     var cameraCapturer: LKRTCCameraVideoCapturer?
+    var fileVideoCapturer: LKRTCFileVideoCapturer?
     var cameraFrameRelay: WebRTCCameraFrameRelay?
     var videoSource: LKRTCVideoSource?
     var localVideoTrack: LKRTCVideoTrack?
@@ -90,6 +91,10 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     var isCapturingCamera: Bool {
         cameraCapturer != nil || isReleasingCamera
+    }
+
+    var isCapturingMedia: Bool {
+        cameraCapturer != nil || fileVideoCapturer != nil || isReleasingCamera
     }
 
     var canProvideFaceRegistrationFrames: Bool {
@@ -219,6 +224,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         peerConnection = nil
         let capturer = cameraCapturer
         cameraCapturer = nil
+        let fileCapturer = fileVideoCapturer
+        fileVideoCapturer = nil
+        fileCapturer?.stopCapture()
         cameraFrameRelay?.setFaceFrameHandler(nil, cameraPosition: .unspecified)
         cameraFrameRelay = nil
         if capturer != nil {

@@ -22,9 +22,14 @@ struct HomeView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
 
+    private var usesSimulatorVideo: Bool {
+        SimulatorVideoInput.isEnabled
+    }
+
     private var isCameraAccessDenied: Bool {
-        cameraManager.authorizationStatus == .denied
-            || cameraManager.authorizationStatus == .restricted
+        !usesSimulatorVideo
+            && (cameraManager.authorizationStatus == .denied
+                || cameraManager.authorizationStatus == .restricted)
     }
 
     var body: some View {
@@ -38,7 +43,7 @@ struct HomeView: View {
                 .ignoresSafeArea()
 
             if isHomeVisible
-                && !youtube.videoUplink.isCapturingCamera
+                && !youtube.videoUplink.isCapturingMedia
                 && previewTransition == .none {
                 LocalPreviewView(
                     session: cameraManager.session,
@@ -77,6 +82,7 @@ struct HomeView: View {
                 .disabled(
                     isSwitchingCamera
                         || cameraManager.authorizationStatus != .authorized
+                        || usesSimulatorVideo
                         || youtube.videoUplink.isConnecting
                         || CameraDeviceCatalog.devices.count < 2
                 )
@@ -127,7 +133,13 @@ struct HomeView: View {
                 isBroadcasting = true
                 return
             }
-            guard !youtube.videoUplink.isCapturingCamera else { return }
+            guard !youtube.videoUplink.isCapturingMedia else { return }
+            if usesSimulatorVideo {
+                Task {
+                    await startCameraAndConnect()
+                }
+                return
+            }
             switch cameraManager.authorizationStatus {
             case .authorized:
                 Task {
@@ -149,11 +161,14 @@ struct HomeView: View {
             isHomeVisible = false
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
-            if status == .authorized, !youtube.videoUplink.isCapturingCamera {
+            if !usesSimulatorVideo,
+               status == .authorized,
+               !youtube.videoUplink.isCapturingMedia {
                 Task {
                     await startCameraAndConnect()
                 }
-            } else if status == .denied || status == .restricted {
+            } else if !usesSimulatorVideo,
+                      status == .denied || status == .restricted {
                 isShowingCameraPermissionAlert = true
             }
         }
@@ -164,7 +179,7 @@ struct HomeView: View {
                 await youtube.recoverFromVideoUplinkFailure(
                     accessToken: authentication.currentAccessToken()
                 )
-                if cameraManager.authorizationStatus == .authorized {
+                if !usesSimulatorVideo, cameraManager.authorizationStatus == .authorized {
                     await cameraManager.startDefaultCamera()
                 }
             }
@@ -215,7 +230,7 @@ struct HomeView: View {
     }
 
     private func startCameraAndConnect() async {
-        guard cameraManager.authorizationStatus == .authorized else {
+        guard usesSimulatorVideo || cameraManager.authorizationStatus == .authorized else {
             isShowingCameraPermissionAlert = true
             return
         }
@@ -233,7 +248,7 @@ struct HomeView: View {
         isStartingServerConnection = true
         defer { isStartingServerConnection = false }
 
-        if !youtube.videoUplink.isCapturingCamera {
+        if !usesSimulatorVideo, !youtube.videoUplink.isCapturingCamera {
             await cameraManager.startDefaultCamera()
         }
         guard await youtube.prepareSession(accessToken: authentication.currentAccessToken()) else {
@@ -246,17 +261,18 @@ struct HomeView: View {
 
         if await youtube.connectVideo(
             accessToken: authentication.currentAccessToken(),
-            preferredCameraID: cameraManager.currentCameraID,
+            preferredCameraID: usesSimulatorVideo ? nil : cameraManager.currentCameraID,
             preferredAudioID: UserDefaults.standard.string(forKey: "selectedAudioID"),
             preferredVideoQuality: CameraQualityPreset(
                 rawValue: UserDefaults.standard.string(forKey: "selectedResolution") ?? ""
             ) ?? .defaultValue
         ) {
-            if let activeCameraID = youtube.videoUplink.currentCameraID {
+            if !usesSimulatorVideo,
+               let activeCameraID = youtube.videoUplink.currentCameraID {
                 _ = await cameraManager.switchCamera(to: activeCameraID)
             }
             isBroadcasting = true
-        } else {
+        } else if !usesSimulatorVideo {
             await cameraManager.startDefaultCamera()
         }
     }
