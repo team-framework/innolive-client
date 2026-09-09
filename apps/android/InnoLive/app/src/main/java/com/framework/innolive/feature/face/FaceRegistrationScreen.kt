@@ -141,8 +141,11 @@ internal fun FaceRegistrationScreen(
             try {
                 val image = withContext(Dispatchers.Default) { bitmap.toJpegBytes() }
                 capturedImages = capturedImages + image
-                phase = FaceRegistrationPhase.READY_TO_SUBMIT
-                statusMessage = "얼굴 ${capturedImages.size}개가 준비되었습니다. 추가 촬영하거나 등록해 주세요."
+                if (isLifecycleActive) {
+                    phase = FaceRegistrationPhase.READY_TO_SUBMIT
+                    statusMessage =
+                        "얼굴 ${capturedImages.size}개가 준비되었습니다. 추가 촬영하거나 등록해 주세요."
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
