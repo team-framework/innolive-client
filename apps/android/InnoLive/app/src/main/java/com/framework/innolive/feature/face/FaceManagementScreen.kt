@@ -15,8 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -281,14 +281,18 @@ internal fun FaceManagementScreen(
 
     BackHandler(onBack = ::close)
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 88.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -389,20 +393,19 @@ internal fun FaceManagementScreen(
                 Text(text = message, color = Color.White)
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+        }
+        IconButton(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            onClick = { openRegistration = true },
+            enabled = phase != FaceManagementPhase.LOADING,
         ) {
-            IconButton(
-                onClick = { openRegistration = true },
-                enabled = phase != FaceManagementPhase.LOADING,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Face,
-                    contentDescription = "얼굴 등록",
-                    tint = Color.White,
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "얼굴 등록",
+                tint = Color.White,
+            )
         }
     }
 }
