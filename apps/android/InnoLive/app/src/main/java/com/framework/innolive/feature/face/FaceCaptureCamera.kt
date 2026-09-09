@@ -21,6 +21,8 @@ import java.util.concurrent.Executors
 
 private const val TARGET_WIDTH = 1_280
 private const val TARGET_HEIGHT = 720
+private const val MAX_CAPTURE_LONG_EDGE = 1_920
+private const val MAX_CAPTURE_SHORT_EDGE = 1_080
 private const val FRAME_INTERVAL_NANOS = 180_000_000L
 
 @Composable
@@ -43,6 +45,12 @@ internal fun FaceCaptureCamera(
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val analysisExecutor = Executors.newSingleThreadExecutor()
         val resolutionSelector = ResolutionSelector.Builder()
+            .setResolutionFilter { supportedSizes, _ ->
+                supportedSizes.filter { size ->
+                    maxOf(size.width, size.height) <= MAX_CAPTURE_LONG_EDGE &&
+                        minOf(size.width, size.height) <= MAX_CAPTURE_SHORT_EDGE
+                }
+            }
             .setResolutionStrategy(
                 ResolutionStrategy(
                     Size(TARGET_WIDTH, TARGET_HEIGHT),
