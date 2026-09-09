@@ -320,7 +320,7 @@ internal fun FaceManagementScreen(
                         color = Color.White,
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    status.faces.forEach { face ->
+                    status.faces.forEachIndexed { index, face ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -340,7 +340,7 @@ internal fun FaceManagementScreen(
                                 } ?: Text(text = "사진 없음", color = Color.White)
                             }
                             Text(
-                                text = face.registeredAt ?: "등록된 얼굴",
+                                text = "등록된 얼굴 " + (index + 1),
                                 color = Color.White,
                                 modifier = Modifier
                                     .weight(1f)
