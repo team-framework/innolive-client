@@ -189,7 +189,9 @@ fun LiveScreen(
                 IconButton(
                     enabled = canManageFace,
                     onClick = {
-                        webRtcSession.close()
+                        if (webRtcSession.connectionState != WebRtcConnectionState.CONNECTED) {
+                            webRtcSession.close()
+                        }
                         openFaceManagement = true
                     },
                 ) {
