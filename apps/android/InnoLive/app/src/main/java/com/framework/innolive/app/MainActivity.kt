@@ -471,6 +471,18 @@ fun AppNavigation(
     val liveScreenProps = rememberUpdatedState(
         LiveScreenProps(
             cameraLensFacing = selectedCameraLensFacing,
+            canSwitchCamera = cameraDeviceOptions.size > 1,
+            onSwitchCamera = {
+                val currentIndex = cameraDeviceOptions.indexOf(selectedCameraLensFacing)
+                val nextIndex = if (currentIndex < 0) {
+                    0
+                } else {
+                    (currentIndex + 1) % cameraDeviceOptions.size
+                }
+                cameraDeviceOptions.getOrNull(nextIndex)?.let { facing ->
+                    selectedCameraLensFacing = facing
+                }
+            },
             cameraResolution = selectedResolution,
             broadcastSettings = broadcastSettings,
             onBroadcastSettingsChanged = { settings ->
@@ -491,6 +503,8 @@ fun AppNavigation(
             isYouTubeConnectEnabled = session != null,
             onConnectYouTube = connectYouTube,
             onRefreshAccessToken = ::refreshCurrentAccessToken,
+            onGetAccessToken = { authenticationSession.session.value?.accessToken },
+            profileEmail = session?.profileEmail.orEmpty(),
             onOpenSettings = {
                 backStack.add(SettingsRoute)
             },

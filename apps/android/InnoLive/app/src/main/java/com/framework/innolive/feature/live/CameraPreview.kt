@@ -74,6 +74,11 @@ fun CameraPreview(
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val resolutionSelector = cameraResolution?.let { resolution ->
             ResolutionSelector.Builder()
+                .setResolutionFilter { supportedSizes, _ ->
+                    supportedSizes.filter { size ->
+                        isWithinCameraResolutionLimit(size.width, size.height)
+                    }
+                }
                 .setResolutionStrategy(
                     ResolutionStrategy(
                         Size(resolution.width, resolution.height),
