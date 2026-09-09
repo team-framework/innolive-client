@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.VerticalAlignmentLine
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.BuildConfig
@@ -316,16 +319,20 @@ internal fun FaceManagementScreen(
                 )
             }
         }
-        Text(
-            text = "얼굴 관리",
-            color = Color.White,
-            style = MaterialTheme.typography.headlineSmall,
-        )
-        Text(
-            text = "등록된 얼굴을 확인하고 관리할 수 있습니다.",
-            color = Color.White,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "얼굴 관리",
+                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            Text(
+                text = "등록된 얼굴을 확인하고 관리할 수 있습니다.",
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
 
         when (phase) {
             FaceManagementPhase.LOADING -> CircularProgressIndicator()
@@ -394,10 +401,10 @@ internal fun FaceManagementScreen(
             }
         }
         }
-        IconButton(
+        FilledIconButton (
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp),
+                .padding(24.dp),
             onClick = { openRegistration = true },
             enabled = phase != FaceManagementPhase.LOADING,
         ) {
@@ -405,6 +412,8 @@ internal fun FaceManagementScreen(
                 imageVector = Icons.Default.Add,
                 contentDescription = "얼굴 등록",
                 tint = Color.White,
+                modifier = Modifier
+                    .width(48.dp)
             )
         }
     }

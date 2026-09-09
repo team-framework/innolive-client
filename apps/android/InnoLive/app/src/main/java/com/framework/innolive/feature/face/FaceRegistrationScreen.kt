@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -341,7 +342,7 @@ internal fun FaceRegistrationScreen(
                 .fillMaxSize()
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(
@@ -356,16 +357,20 @@ internal fun FaceRegistrationScreen(
                     )
                 }
             }
-            Text(
-                text = "얼굴 등록",
-                color = Color.White,
-                style = MaterialTheme.typography.headlineSmall,
-            )
-            Text(
-                text = "등록된 얼굴은 유지되고 새 얼굴을 추가할 수 있습니다.",
-                color = Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "얼굴 등록",
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Text(
+                    text = "등록된 얼굴은 유지되고 새 얼굴을 추가할 수 있습니다.",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -385,29 +390,47 @@ internal fun FaceRegistrationScreen(
                     color = Color.White,
                 )
             }
-            Text(
-                text = statusMessage,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            if (phase == FaceRegistrationPhase.UPLOADING) {
-                CircularProgressIndicator(modifier = Modifier.size(28.dp))
-            }
-            if (phase == FaceRegistrationPhase.PREPARING) {
-                CircularProgressIndicator(modifier = Modifier.size(28.dp))
-            }
-            if (phase == FaceRegistrationPhase.READY_TO_SUBMIT) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
                 Text(
-                    text = "준비된 얼굴 ${capturedImages.size}개",
+                    text = statusMessage,
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = ::captureAnother) {
-                        Text(text = "얼굴 추가 촬영")
-                    }
-                    Button(onClick = ::startUpload) {
-                        Text(text = "등록하기")
+                if (phase == FaceRegistrationPhase.UPLOADING) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                }
+                if (phase == FaceRegistrationPhase.PREPARING) {
+                    CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                }
+                if (phase == FaceRegistrationPhase.READY_TO_SUBMIT) {
+                    Text(
+                        text = "준비된 얼굴 ${capturedImages.size}개",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = ::captureAnother,
+                            modifier = Modifier.fillMaxWidth(0.5f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.background,
+                                contentColor = Color.White
+                            )
+                            ) {
+                            Text(text = "얼굴 추가 촬영")
+                        }
+                        Button(
+                            onClick = ::startUpload,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = Color.Black
+                            )
+                        ) {
+                            Text(text = "등록하기")
+                        }
                     }
                 }
             }
