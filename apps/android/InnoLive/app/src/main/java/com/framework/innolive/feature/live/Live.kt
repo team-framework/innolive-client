@@ -91,6 +91,7 @@ fun LiveScreen(
         webRtcSession.connectionState in setOf(
             WebRtcConnectionState.IDLE,
             WebRtcConnectionState.FAILED,
+            WebRtcConnectionState.CONNECTED,
         ) && webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
 
     Box(
@@ -187,7 +188,10 @@ fun LiveScreen(
             ) {
                 IconButton(
                     enabled = canManageFace,
-                    onClick = { openFaceManagement = true },
+                    onClick = {
+                        webRtcSession.close()
+                        openFaceManagement = true
+                    },
                 ) {
                     Icon(
                         imageVector = Icons.Default.Face,
