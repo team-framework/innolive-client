@@ -102,6 +102,53 @@ class ReferenceFaceApiTest {
     }
 
     @Test
+    fun appendsMultipleImagesUsingTheImagesMultipartField() {
+        val requests = mutableListOf<Request>()
+        val firstImage = byteArrayOf(1, 2, 3)
+        val secondImage = byteArrayOf(4, 5, 6)
+        val client = clientWithResponse { request ->
+            requests += request
+            response(
+                request,
+                201,
+                """
+                    {
+                      "registered": true,
+                      "count": 2,
+                      "faces": [
+                        {"face_id": "face-1"},
+                        {"face_id": "face-2"}
+                      ]
+                    }
+                """.trimIndent(),
+            )
+        }
+        val api = ReferenceFaceApi("https://example.com", client)
+
+        try {
+            val result = runBlocking {
+                api.append(listOf(firstImage, secondImage), "access-token") {
+                    error("refresh must not run")
+                }
+            }
+
+            assertEquals(2, result.faces.size)
+            val request = requests.single()
+            assertEquals("POST", request.method)
+            assertEquals("/reference-face", request.url.encodedPath)
+            val body = requestBodyBytes(request)
+            val bodyText = body.toString(Charsets.ISO_8859_1)
+            assertEquals(2, bodyText.split("name=\"images\"").size - 1)
+            assertTrue(bodyText.contains("filename=\"reference-face-1.jpg\""))
+            assertTrue(bodyText.contains("filename=\"reference-face-2.jpg\""))
+            assertTrue(body.containsSubsequence(firstImage))
+            assertTrue(body.containsSubsequence(secondImage))
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
+    @Test
     fun refreshesOnceAfterFirst401AndRetriesWithTheNewBearerToken() {
         val requests = mutableListOf<Request>()
         val callCount = AtomicInteger()

@@ -47,7 +47,7 @@ class FaceRegistrationScreenTest {
 
         composeRule.onNodeWithText("얼굴 등록").assertIsDisplayed()
         composeRule
-            .onNodeWithText("등록하면 기존에 등록한 얼굴이 교체됩니다.")
+            .onNodeWithText("등록된 얼굴은 유지되고 새 얼굴을 추가할 수 있습니다.")
             .assertIsDisplayed()
         composeRule.onNodeWithContentDescription("닫기").assertIsDisplayed().performClick()
         composeRule.waitForIdle()

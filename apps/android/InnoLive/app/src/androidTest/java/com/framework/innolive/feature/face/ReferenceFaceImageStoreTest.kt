@@ -41,6 +41,24 @@ class ReferenceFaceImageStoreTest {
         }
     }
 
+    @Test
+    fun appendsImagesWithoutRemovingExistingAccountImages() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = ReferenceFaceImageStore(context)
+        val firstImage = jpeg(0xFFFF0000.toInt())
+        val secondImage = jpeg(0xFF0000FF.toInt())
+
+        try {
+            store.append("append@example.com", "face-1", firstImage)
+            store.append("append@example.com", "face-2", secondImage)
+
+            assertNotNull(store.load("append@example.com", "face-1"))
+            assertNotNull(store.load("append@example.com", "face-2"))
+        } finally {
+            store.deleteAll("append@example.com")
+        }
+    }
+
     private fun jpeg(color: Int): ByteArray = java.io.ByteArrayOutputStream().use { output ->
         Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888).apply {
             eraseColor(color)
