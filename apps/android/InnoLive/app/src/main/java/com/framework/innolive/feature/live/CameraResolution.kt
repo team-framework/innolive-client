@@ -6,6 +6,13 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.CameraInfo
 
+internal const val MAX_CAMERA_LONG_EDGE = 1_920
+internal const val MAX_CAMERA_SHORT_EDGE = 1_080
+
+internal fun isWithinCameraResolutionLimit(width: Int, height: Int): Boolean =
+    maxOf(width, height) <= MAX_CAMERA_LONG_EDGE &&
+        minOf(width, height) <= MAX_CAMERA_SHORT_EDGE
+
 data class CameraResolution(
     val width: Int,
     val height: Int,
@@ -21,6 +28,7 @@ data class CameraResolution(
             outputSizes: Iterable<Pair<Int, Int>>,
         ): List<CameraResolution> = outputSizes
             .distinct()
+            .filter { (width, height) -> isWithinCameraResolutionLimit(width, height) }
             .sortedByDescending { (width, height) -> width.toLong() * height }
             .map { (width, height) -> CameraResolution(width, height) }
     }

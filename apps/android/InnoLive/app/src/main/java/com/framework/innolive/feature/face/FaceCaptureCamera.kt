@@ -16,13 +16,12 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.core.content.ContextCompat
 import com.framework.innolive.feature.live.CameraLensFacing
+import com.framework.innolive.feature.live.isWithinCameraResolutionLimit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.Executors
 
 private const val TARGET_WIDTH = 1_280
 private const val TARGET_HEIGHT = 720
-private const val MAX_CAPTURE_LONG_EDGE = 1_920
-private const val MAX_CAPTURE_SHORT_EDGE = 1_080
 private const val FRAME_INTERVAL_NANOS = 180_000_000L
 
 @Composable
@@ -47,8 +46,7 @@ internal fun FaceCaptureCamera(
         val resolutionSelector = ResolutionSelector.Builder()
             .setResolutionFilter { supportedSizes, _ ->
                 supportedSizes.filter { size ->
-                    maxOf(size.width, size.height) <= MAX_CAPTURE_LONG_EDGE &&
-                        minOf(size.width, size.height) <= MAX_CAPTURE_SHORT_EDGE
+                    isWithinCameraResolutionLimit(size.width, size.height)
                 }
             }
             .setResolutionStrategy(
