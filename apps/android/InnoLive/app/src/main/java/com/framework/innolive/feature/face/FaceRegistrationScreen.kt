@@ -54,6 +54,8 @@ import kotlinx.coroutines.withContext
 
 private enum class FaceRegistrationPhase {
     CAPTURING,
+    PREPARING,
+    READY_TO_SUBMIT,
     UPLOADING,
     SUCCESS,
     ERROR,
@@ -67,6 +69,7 @@ internal fun FaceRegistrationScreen(
     onBack: () -> Unit,
     onRegistrationSuccess: () -> Unit = {},
     profileEmail: String = "",
+    existingFaces: List<ReferenceFace> = emptyList(),
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -80,6 +83,7 @@ internal fun FaceRegistrationScreen(
     var phase by remember { mutableStateOf(FaceRegistrationPhase.CAPTURING) }
     var statusMessage by remember { mutableStateOf("얼굴을 화면 중앙에 맞추고 잠시 기다려 주세요.") }
     var latestBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var capturedImages by remember { mutableStateOf<List<ByteArray>>(emptyList()) }
     var operationGeneration by remember { mutableIntStateOf(0) }
     var isLifecycleActive by remember {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
@@ -103,7 +107,10 @@ internal fun FaceRegistrationScreen(
                     operationGeneration += 1
                     detector.reset()
                     uploadJob?.cancel()
-                    if (phase == FaceRegistrationPhase.UPLOADING) {
+                    if (
+                        phase == FaceRegistrationPhase.UPLOADING ||
+                        phase == FaceRegistrationPhase.PREPARING
+                    ) {
                         phase = FaceRegistrationPhase.ERROR
                         statusMessage = "등록이 중단되었습니다. 다시 촬영해 주세요."
                     }
@@ -124,8 +131,32 @@ internal fun FaceRegistrationScreen(
         statusMessage = message
     }
 
-    fun startUpload(bitmap: Bitmap) {
+    fun captureFace(bitmap: Bitmap) {
         if (phase != FaceRegistrationPhase.CAPTURING || !isLifecycleActive) return
+        phase = FaceRegistrationPhase.PREPARING
+        detector.reset()
+        statusMessage = "촬영한 얼굴을 준비하는 중입니다."
+        uploadJob?.cancel()
+        uploadJob = scope.launch {
+            try {
+                val image = withContext(Dispatchers.Default) { bitmap.toJpegBytes() }
+                capturedImages = capturedImages + image
+                phase = FaceRegistrationPhase.READY_TO_SUBMIT
+                statusMessage = "얼굴 ${capturedImages.size}개가 준비되었습니다. 추가 촬영하거나 등록해 주세요."
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                capturedImages = emptyList()
+                phase = FaceRegistrationPhase.ERROR
+                statusMessage = "이미지를 처리하지 못했습니다. 다시 촬영해 주세요."
+            }
+        }
+    }
+
+    fun startUpload() {
+        if (phase != FaceRegistrationPhase.READY_TO_SUBMIT || !isLifecycleActive) return
+        val images = capturedImages
+        if (images.isEmpty()) return
         val accessToken = currentGetAccessToken()?.trim().orEmpty()
         if (accessToken.isEmpty()) {
             stopWithError("로그인 정보가 없습니다. 다시 로그인해 주세요.")
@@ -145,21 +176,24 @@ internal fun FaceRegistrationScreen(
         statusMessage = "얼굴을 등록하는 중입니다."
         uploadJob = scope.launch {
             try {
-                val image = withContext(Dispatchers.Default) { bitmap.toJpegBytes() }
-                val registration = api.register(image, accessToken, refreshAccessToken)
+                val registration = api.append(images, accessToken, refreshAccessToken)
+                val existingFaceIds = existingFaces.mapTo(mutableSetOf()) { it.faceId }
+                val newFaces = registration.faces.filterNot { it.faceId in existingFaceIds }
                 val localStorageWarning = if (profileEmail.isBlank()) {
                     null
                 } else {
                     try {
                         withContext(Dispatchers.IO) {
-                            if (registration.faces.size == 1) {
-                                imageStore.save(
-                                    accountEmail = profileEmail,
-                                    faceId = registration.faces.single().faceId,
-                                    jpeg = image,
-                                )
+                            if (newFaces.size == images.size) {
+                                newFaces.forEachIndexed { index, face ->
+                                    imageStore.append(
+                                        accountEmail = profileEmail,
+                                        faceId = face.faceId,
+                                        jpeg = images[index],
+                                    )
+                                }
                             } else {
-                                imageStore.deleteAll(profileEmail)
+                                throw IllegalStateException("The server did not return appended face metadata.")
                             }
                         }
                         null
@@ -193,6 +227,18 @@ internal fun FaceRegistrationScreen(
     fun retry() {
         operationGeneration += 1
         uploadJob?.cancel()
+        detector.reset()
+        latestBitmap = null
+        capturedImages = emptyList()
+        phase = FaceRegistrationPhase.CAPTURING
+        statusMessage = "얼굴을 화면 중앙에 맞추고 잠시 기다려 주세요."
+    }
+
+    fun captureAnother() {
+        if (capturedImages.size >= 20) {
+            statusMessage = "한 번에 최대 20개의 얼굴만 등록할 수 있습니다."
+            return
+        }
         detector.reset()
         latestBitmap = null
         phase = FaceRegistrationPhase.CAPTURING
@@ -245,7 +291,7 @@ internal fun FaceRegistrationScreen(
                             FaceStabilityStatus.WAITING,
                             -> statusMessage = "얼굴을 중앙에 맞추고 움직이지 마세요."
 
-                            FaceStabilityStatus.STABLE -> startUpload(detectedBitmap)
+                            FaceStabilityStatus.STABLE -> captureFace(detectedBitmap)
                             FaceStabilityStatus.DETECTOR_ERROR ->
                                 stopWithError("얼굴을 인식하지 못했습니다. 다시 촬영해 주세요.")
                         }
@@ -313,7 +359,7 @@ internal fun FaceRegistrationScreen(
                 style = MaterialTheme.typography.headlineSmall,
             )
             Text(
-                text = "등록하면 기존에 등록한 얼굴이 교체됩니다.",
+                text = "등록된 얼굴은 유지되고 새 얼굴을 추가할 수 있습니다.",
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -343,6 +389,24 @@ internal fun FaceRegistrationScreen(
             )
             if (phase == FaceRegistrationPhase.UPLOADING) {
                 CircularProgressIndicator(modifier = Modifier.size(28.dp))
+            }
+            if (phase == FaceRegistrationPhase.PREPARING) {
+                CircularProgressIndicator(modifier = Modifier.size(28.dp))
+            }
+            if (phase == FaceRegistrationPhase.READY_TO_SUBMIT) {
+                Text(
+                    text = "준비된 얼굴 ${capturedImages.size}개",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = ::captureAnother) {
+                        Text(text = "얼굴 추가 촬영")
+                    }
+                    Button(onClick = ::startUpload) {
+                        Text(text = "등록하기")
+                    }
+                }
             }
             if (phase == FaceRegistrationPhase.ERROR) {
                 Button(onClick = ::retry) {

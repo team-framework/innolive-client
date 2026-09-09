@@ -267,6 +267,7 @@ internal fun FaceManagementScreen(
             onBack = { openRegistration = false },
             onRegistrationSuccess = onBack,
             profileEmail = profileEmail,
+            existingFaces = faceStatus?.faces.orEmpty(),
         )
         return
     }

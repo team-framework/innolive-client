@@ -12,6 +12,23 @@ internal class ReferenceFaceImageStore(context: Context) {
     private val rootDirectory = File(context.noBackupFilesDir, "reference-faces")
 
     fun save(accountEmail: String, faceId: String, jpeg: ByteArray) {
+        store(accountEmail, faceId, jpeg)
+
+        val accountDirectory = accountDirectory(accountEmail)
+        accountDirectory.listFiles()
+            ?.filter { file -> file.extension == "jpg" && file.name != imageFile(accountEmail, faceId).name }
+            ?.forEach { file ->
+                if (!file.delete() && file.exists()) {
+                    throw IOException("An old reference face image could not be removed.")
+                }
+            }
+    }
+
+    fun append(accountEmail: String, faceId: String, jpeg: ByteArray) {
+        store(accountEmail, faceId, jpeg)
+    }
+
+    private fun store(accountEmail: String, faceId: String, jpeg: ByteArray) {
         require(accountEmail.isNotBlank()) { "Account email must not be blank." }
         require(faceId.isNotBlank()) { "Face id must not be blank." }
         require(jpeg.isNotEmpty()) { "Reference face image must not be empty." }
@@ -28,14 +45,6 @@ internal class ReferenceFaceImageStore(context: Context) {
         } finally {
             if (temporary.exists()) temporary.delete()
         }
-
-        accountDirectory.listFiles()
-            ?.filter { file -> file.extension == "jpg" && file != target }
-            ?.forEach { file ->
-                if (!file.delete() && file.exists()) {
-                    throw IOException("An old reference face image could not be removed.")
-                }
-            }
     }
 
     fun load(accountEmail: String, faceId: String): Bitmap? {

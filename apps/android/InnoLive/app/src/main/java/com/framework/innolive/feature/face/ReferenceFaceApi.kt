@@ -22,6 +22,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
 private const val REQUEST_TIMEOUT_SECONDS = 15L
+private const val MAX_APPEND_IMAGES = 20
 private val jpegMediaType = "image/jpeg".toMediaType()
 
 internal data class ReferenceFaceRegistrationResult(
@@ -76,6 +77,25 @@ internal class ReferenceFaceApi(
                 accessToken = accessToken,
                 refreshAccessToken = refreshAccessToken,
                 buildRequest = { token -> buildRegisterRequest(image, token) },
+            ),
+        )
+    }
+
+    suspend fun append(
+        images: List<ByteArray>,
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ): ReferenceFaceRegistrationResult {
+        require(images.isNotEmpty()) { "Reference face images must not be empty." }
+        require(images.size <= MAX_APPEND_IMAGES) {
+            "At most $MAX_APPEND_IMAGES reference face images may be appended at once."
+        }
+        require(images.all { it.isNotEmpty() }) { "Reference face images must not be empty." }
+        return parseRegistrationResponse(
+            executeAuthenticated(
+                accessToken = accessToken,
+                refreshAccessToken = refreshAccessToken,
+                buildRequest = { token -> buildAppendRequest(images, token) },
             ),
         )
     }
@@ -145,6 +165,27 @@ internal class ReferenceFaceApi(
                 "reference-face.jpg",
                 image.toRequestBody(jpegMediaType),
             )
+            .build()
+        return Request.Builder()
+            .url(serverBaseUrl.resolveOrThrow("/reference-face"))
+            .header("Accept", "application/json")
+            .header("Authorization", "Bearer $accessToken")
+            .post(body)
+            .build()
+    }
+
+    private fun buildAppendRequest(images: List<ByteArray>, accessToken: String): Request {
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .apply {
+                images.forEachIndexed { index, image ->
+                    addFormDataPart(
+                        "images",
+                        "reference-face-${index + 1}.jpg",
+                        image.toRequestBody(jpegMediaType),
+                    )
+                }
+            }
             .build()
         return Request.Builder()
             .url(serverBaseUrl.resolveOrThrow("/reference-face"))
