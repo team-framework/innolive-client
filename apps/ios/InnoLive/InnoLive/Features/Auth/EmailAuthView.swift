@@ -159,7 +159,7 @@ struct EmailAuthView: View {
                 passwordField("비밀번호", text: $password, field: .password)
                 if step == .signUp {
                     feedback(
-                        password.isEmpty ? "영문·숫자 기준 8~72자" : hasValidPassword ? "사용할 수 있는 길이입니다." : "영문·숫자 기준 8~72자로 입력해 주세요.",
+                        password.isEmpty ? "영문·숫자 기준 8~72자" : hasValidPassword ? "사용할 수 있는 비밀번호입니다." : "영문·숫자 기준 8~72자로 입력해 주세요.",
                         symbol: hasValidPassword ? "checkmark.circle.fill" : "info.circle",
                         color: hasValidPassword ? .green : .secondary
                     )
