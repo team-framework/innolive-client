@@ -102,7 +102,8 @@ fun YouTubeLiveSettingsDialog(
         Surface (
             modifier = Modifier.width(dialogWidth),
             shape = RoundedCornerShape(26.dp),
-            color = Color.White.copy(alpha = 0.9f),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             shadowElevation = 12.dp,
         ) {
             Column(
@@ -118,7 +119,7 @@ fun YouTubeLiveSettingsDialog(
                         text = "라이브 설정",
                         style = MaterialTheme.typography.headlineSmall,
                         fontSize = 20.sp,
-                        color = Color.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     IconButton(onClick = onDismissRequest, modifier = Modifier.offset(6.dp)) {
                         Icon(
@@ -134,11 +135,11 @@ fun YouTubeLiveSettingsDialog(
                         validation = validation.copy(titleError = false)
                         onSettingsChanged(settings.copy(title = value.take(MAX_YOUTUBE_TITLE_LENGTH)))
                     },
-                    label = { Text("방송 제목", color = Color.Black) },
+                    label = { Text("방송 제목", color = MaterialTheme.colorScheme.onSurface) },
                     singleLine = true,
                     isError = validation.titleError,
                     supportingText = if (validation.titleError) {
-                        { Text("방송 제목을 입력해 주세요.", color = Color.Black) }
+                        { Text("방송 제목을 입력해 주세요.", color = MaterialTheme.colorScheme.onSurface) }
                     } else {
                         null
                     },
@@ -153,12 +154,12 @@ fun YouTubeLiveSettingsDialog(
                             settings.copy(description = value.take(MAX_YOUTUBE_DESCRIPTION_LENGTH)),
                         )
                     },
-                    label = { Text("방송 설명", color = Color.Black) },
+                    label = { Text("방송 설명", color = MaterialTheme.colorScheme.onSurface) },
                     minLines = 3,
                     maxLines = 5,
                     isError = validation.descriptionError,
                     supportingText = if (validation.descriptionError) {
-                        { Text("방송 설명을 입력해 주세요.", color = Color.Black) }
+                        { Text("방송 설명을 입력해 주세요.", color = MaterialTheme.colorScheme.onSurface) }
                     } else {
                         null
                     },
@@ -173,7 +174,7 @@ fun YouTubeLiveSettingsDialog(
                         value = privacyLabel,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("공개 범위", color = Color.Black) },
+                        label = { Text("공개 범위", color = MaterialTheme.colorScheme.onSurface) },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(
                                 expanded = isPrivacyMenuExpanded,
@@ -188,21 +189,21 @@ fun YouTubeLiveSettingsDialog(
                         onDismissRequest = { isPrivacyMenuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("공개", color = Color.Black) },
+                            text = { Text("공개", color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "public"))
                                 isPrivacyMenuExpanded = false
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("일부 공개", color = Color.Black) },
+                            text = { Text("일부 공개", color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "unlisted"))
                                 isPrivacyMenuExpanded = false
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("비공개", color = Color.Black) },
+                            text = { Text("비공개", color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "private"))
                                 isPrivacyMenuExpanded = false
@@ -220,9 +221,9 @@ fun YouTubeLiveSettingsDialog(
                         onValueChange = {},
                         readOnly = true,
                         isError = validation.audienceError,
-                        label = { Text("아동용 설정", color = Color.Black) },
+                        label = { Text("아동용 설정", color = MaterialTheme.colorScheme.onSurface) },
                         supportingText = if (validation.audienceError) {
-                            { Text("아동용 설정을 선택해 주세요.", color = Color.Black) }
+                            { Text("아동용 설정을 선택해 주세요.", color = MaterialTheme.colorScheme.onSurface) }
                         } else {
                             null
                         },
@@ -240,7 +241,7 @@ fun YouTubeLiveSettingsDialog(
                         onDismissRequest = { isAudienceMenuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("아동용", color = Color.Black) },
+                            text = { Text("아동용", color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 onSettingsChanged(settings.copy(madeForKids = true))
                                 validation = validation.copy(audienceError = false)
@@ -248,7 +249,7 @@ fun YouTubeLiveSettingsDialog(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("아동용 아님", color = Color.Black) },
+                            text = { Text("아동용 아님", color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 onSettingsChanged(settings.copy(madeForKids = false))
                                 validation = validation.copy(audienceError = false)
@@ -265,7 +266,7 @@ fun YouTubeLiveSettingsDialog(
                     Text(
                         text = "계정 정보",
                         modifier = Modifier.weight(1f),
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(text = accountLabel)
                     if (youtubeChannelTitle.isNullOrBlank() || isYouTubeReconnectRequired) {
@@ -275,7 +276,6 @@ fun YouTubeLiveSettingsDialog(
                         ) {
                             Text(
                                 text = if (isYouTubeReconnectRequired) "재연동" else "연동",
-                                color = Color.Black
                             )
                         }
                     }

@@ -416,7 +416,7 @@ internal fun FaceRegistrationScreen(
                             modifier = Modifier.fillMaxWidth(0.5f),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.background,
-                                contentColor = Color.White
+                                contentColor = MaterialTheme.colorScheme.onBackground
                             )
                             ) {
                             Text(text = "얼굴 추가 촬영")
