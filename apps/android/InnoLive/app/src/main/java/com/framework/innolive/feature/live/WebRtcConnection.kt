@@ -60,6 +60,7 @@ class WebRtcConnection(
     private val onLocalMediaReady: (CameraFrameAnalyzer, EglBase.Context) -> Unit,
     private val onLocalMediaCleared: () -> Unit,
     private val onBroadcastStateChanged: (BroadcastState, String) -> Unit,
+    private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
@@ -178,6 +179,9 @@ class WebRtcConnection(
                 val createdSession = createSession()
                 session = createdSession
                 if (!isActive()) return@executeOnOwner
+                mainHandler.post {
+                    if (isActive()) onAnonymizationStateConfirmed(createdSession.anonymizationState)
+                }
 
                 val connection = createPeerConnection(iceServers)
                 peerConnection = connection
@@ -1022,11 +1026,6 @@ private class ServerApiException(
     message: String,
 ) : IOException(message)
 
-private data class CreatedSession(
-    val sessionId: String,
-    val ownerToken: String,
-)
-
 internal fun isBluetoothAudioInputType(type: Int): Boolean = when (type) {
     AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
     AudioDeviceInfo.TYPE_BLE_HEADSET,
@@ -1073,16 +1072,6 @@ private fun parseIceServers(payload: String): List<PeerConnection.IceServer> {
             )
         }
     }
-}
-
-private fun parseCreatedSession(payload: String): CreatedSession {
-    val response = JSONObject(payload)
-    return CreatedSession(
-        sessionId = response.optString("session_id").takeIf { it.isNotBlank() }
-            ?: throw IllegalArgumentException("세션 ID가 없습니다."),
-        ownerToken = response.optString("owner_token").takeIf { it.isNotBlank() }
-            ?: throw IllegalArgumentException("세션 owner token이 없습니다."),
-    )
 }
 
 private fun requireSuccessful(response: Response, operation: String) {
