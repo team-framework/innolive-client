@@ -20,6 +20,7 @@ struct ContentView: View {
                         youtube: youtube
                     )
                 }
+                .disabled(authentication.isDeletingAccount)
             } else {
                 NavigationStack {
                     SignInView(authentication: authentication)

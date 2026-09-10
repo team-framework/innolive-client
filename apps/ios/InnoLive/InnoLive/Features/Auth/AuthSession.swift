@@ -7,6 +7,7 @@ import Security
 final class AuthSession: ObservableObject {
     @Published private(set) var isAuthenticated = false
     @Published private(set) var isLoading = false
+    @Published private(set) var isDeletingAccount = false
     @Published private(set) var errorMessage: String?
 
     private let api: AuthenticationAPIClient
@@ -131,6 +132,63 @@ final class AuthSession: ObservableObject {
         }
     }
 
+    @discardableResult
+    func deleteAccount(cleanup: @escaping @MainActor () -> Void = {}) async -> Bool {
+        guard !isDeletingAccount,
+              isAuthenticated,
+              let currentTokens = tokenStore.load(),
+              !currentTokens.accessToken.isEmpty else {
+            return false
+        }
+
+        isDeletingAccount = true
+        errorMessage = nil
+        defer { isDeletingAccount = false }
+
+        let generation = sessionGeneration
+        do {
+            try await api.deleteAccount(accessToken: currentTokens.accessToken)
+        } catch let AuthenticationError.api(code, _) where code == "unauthorized" {
+            guard isCurrentSession(generation) else { return false }
+            switch await refreshSession() {
+            case .refreshed:
+                guard isCurrentSession(generation),
+                      let refreshedAccessToken = tokenStore.load()?.accessToken,
+                      !refreshedAccessToken.isEmpty else {
+                    return false
+                }
+                do {
+                    try await api.deleteAccount(accessToken: refreshedAccessToken)
+                } catch {
+                    guard isCurrentSession(generation) else { return false }
+                    errorMessage = message(for: error)
+                    return false
+                }
+            case .invalid:
+                guard isCurrentSession(generation) else { return false }
+                expireSession()
+                return false
+            case .unavailable:
+                guard isCurrentSession(generation) else { return false }
+                errorMessage = "로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요."
+                return false
+            }
+        } catch {
+            guard isCurrentSession(generation) else { return false }
+            errorMessage = message(for: error)
+            return false
+        }
+
+        guard isCurrentSession(generation) else { return false }
+        cleanup()
+        invalidateSessionGeneration()
+        tokenStore.remove()
+        pendingSignup = nil
+        errorMessage = nil
+        isAuthenticated = false
+        return true
+    }
+
     func signOut() {
         invalidateSessionGeneration()
         tokenStore.remove()
@@ -207,6 +265,12 @@ final class AuthSession: ObservableObject {
 
     static func isValidSignupPassword(_ password: String) -> Bool { (8...72).contains(password.utf8.count) }
 
+    private func isCurrentSession(_ generation: UInt) -> Bool {
+        sessionGeneration == generation
+            && isAuthenticated
+            && tokenStore.load() != nil
+    }
+
     private func authenticate(_ action: () async throws -> AuthenticationTokenPair) async {
         isLoading = true
         errorMessage = nil
@@ -235,6 +299,7 @@ final class AuthSession: ObservableObject {
         switch error {
         case let .api(code, fallback):
             switch code {
+            case "unauthorized": return "로그인이 만료되었습니다. 다시 로그인해 주세요."
             case "email_already_registered": return "이미 가입된 이메일입니다. 로그인해 주세요."
             case "invalid_email_credentials": return "이메일 또는 비밀번호가 올바르지 않습니다."
             case "invalid_verification_code": return "인증 코드가 올바르지 않거나 만료됐습니다."
@@ -242,6 +307,7 @@ final class AuthSession: ObservableObject {
             case "invalid_google_token": return "Google 로그인을 확인하지 못했습니다. 다시 시도해 주세요."
             case "invalid_apple_token": return "Apple 로그인을 확인하지 못했습니다. 다시 시도해 주세요."
             case "email_delivery_unavailable", "email_delivery_failed", "email_auth_unavailable": return "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요."
+            case "withdrawal_unavailable", "withdrawal_failed": return "계정 삭제를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요."
             default: return fallback
             }
         case .configuration: return "인증 서버 설정이 필요합니다."
