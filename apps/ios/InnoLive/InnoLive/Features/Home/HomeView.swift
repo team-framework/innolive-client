@@ -16,6 +16,10 @@ struct HomeView: View {
     @State private var isStartingServerConnection = false
     @State private var cameraSwitchErrorMessage: String?
     @State private var isHomeVisible = false
+    @State private var previewCorner: LocalPreviewCorner = .topLeading
+    @State private var previewDragOffset: CGSize = .zero
+    @State private var topTrailingReserved = CGSize(width: 44, height: 44)
+    @State private var bottomReservedHeight: CGFloat = 56
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @Environment(CameraManager.self) private var cameraManager
@@ -45,23 +49,49 @@ struct HomeView: View {
             if isHomeVisible
                 && !youtube.videoUplink.isCapturingMedia
                 && previewTransition == .none {
-                LocalPreviewView(
-                    session: cameraManager.session,
-                    // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
-                    cameraID: cameraManager.currentCameraID
-                )
+                GeometryReader { geo in
+                    let layout = snapLayout(in: geo.size)
+                    let restOrigin = layout.origin(for: previewCorner)
+                    let draggedOrigin = layout.clampedOrigin(
+                        CGPoint(
+                            x: restOrigin.x + previewDragOffset.width,
+                            y: restOrigin.y + previewDragOffset.height
+                        )
+                    )
+
+                    LocalPreviewView(
+                        session: cameraManager.session,
+                        // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
+                        cameraID: cameraManager.currentCameraID
+                    )
                     .frame(
                         width: BroadcastVideoLayout.previewWidth,
                         height: BroadcastVideoLayout.previewHeight
                     )
-                    .padding(.leading, 24)
-                    // 이 ZStack은 이미 safe area 아래에서 시작하므로 추가 보정을 하지 않는다.
-                    .frame(
-                        maxWidth: .infinity,
-                        maxHeight: .infinity,
-                        alignment: .topLeading
+                    .position(
+                        x: draggedOrigin.x + BroadcastVideoLayout.previewWidth / 2,
+                        y: draggedOrigin.y + BroadcastVideoLayout.previewHeight / 2
                     )
-                    .allowsHitTesting(false)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                previewDragOffset = value.translation
+                            }
+                            .onEnded { value in
+                                let endOrigin = layout.clampedOrigin(
+                                    CGPoint(
+                                        x: restOrigin.x + value.translation.width,
+                                        y: restOrigin.y + value.translation.height
+                                    )
+                                )
+                                let nextCorner = layout.nearestCorner(toPreviewOrigin: endOrigin)
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                                    previewCorner = nextCorner
+                                    previewDragOffset = .zero
+                                }
+                            }
+                    )
+                }
             }
 
             VStack(alignment: .trailing, spacing: 12) {
@@ -101,6 +131,11 @@ struct HomeView: View {
                     .buttonBorderShape(.capsule)
                 }
             }
+            .onGeometryChange(for: CGSize.self) { proxy in
+                proxy.size
+            } action: { _, size in
+                topTrailingReserved = size
+            }
             .padding(.top, 8)
             .padding(.horizontal, 24)
             .frame(
@@ -117,6 +152,11 @@ struct HomeView: View {
                 isStartingServerConnection: isStartingServerConnection,
                 onRetryConnection: retryServerConnection
             )
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.height
+                } action: { _, height in
+                    bottomReservedHeight = height
+                }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 12)
                 .frame(
@@ -212,6 +252,22 @@ struct HomeView: View {
         } message: {
             Text(cameraSwitchErrorMessage ?? "다시 시도해 주세요.")
         }
+    }
+
+    private func snapLayout(in containerSize: CGSize) -> LocalPreviewSnapLayout {
+        LocalPreviewSnapLayout(
+            containerSize: containerSize,
+            previewSize: CGSize(
+                width: BroadcastVideoLayout.previewWidth,
+                height: BroadcastVideoLayout.previewHeight
+            ),
+            horizontalPadding: LocalPreviewSnapLayout.defaultHorizontalPadding,
+            topPadding: LocalPreviewSnapLayout.defaultTopPadding,
+            bottomPadding: LocalPreviewSnapLayout.defaultBottomPadding,
+            topTrailingReserved: topTrailingReserved,
+            bottomReservedHeight: bottomReservedHeight,
+            cornerSpacing: LocalPreviewSnapLayout.defaultCornerSpacing
+        )
     }
 
     // 앱 설정 화면을 열어 사용자가 카메라 권한을 직접 변경할 수 있게 함

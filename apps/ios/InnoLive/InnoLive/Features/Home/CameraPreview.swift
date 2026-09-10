@@ -59,6 +59,7 @@ final class PreviewView: UIView {
         cameraID: String?,
         videoGravity: AVLayerVideoGravity
     ) {
+        isUserInteractionEnabled = false
         previewLayer.session = session
         previewLayer.videoGravity = videoGravity
 

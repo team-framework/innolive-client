@@ -20,6 +20,11 @@ struct LocalPreviewView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(.gray.opacity(0.6), lineWidth: 1)
         }
+        .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("원본 미리보기")
+        .accessibilityHint("끌어다 놓으면 가까운 모서리에 붙습니다")
+        .accessibilityAddTraits(.allowsDirectInteraction)
     }
 }
 
