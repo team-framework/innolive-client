@@ -292,6 +292,31 @@ class WebRtcConnection(
         }
     }
 
+    internal fun setAnonymizationEnabled(
+        enabled: Boolean,
+        onComplete: (AnonymizationState?, String?) -> Unit,
+    ) {
+        fun complete(state: AnonymizationState?, error: String?) {
+            mainHandler.post { if (isActive()) onComplete(state, error) }
+        }
+        executeOnOwner(
+            block = {
+                if (!isActive()) return@executeOnOwner
+                try {
+                    val currentSession = checkNotNull(session) { "WebRTC 세션이 없습니다." }
+                    val payload = executeSessionRequest("anonymization", "PATCH", anonymizationPayload(enabled))
+                    val confirmed = parseAnonymizationResponse(payload, currentSession.sessionId)
+                    val expected = if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED
+                    complete(confirmed, if (confirmed == expected) null else "서버가 요청한 비식별화 설정을 적용하지 않았습니다.")
+                } catch (_: Exception) {
+                    // 응답 유실 시 서버에 적용됐을 수도 있으므로 실패를 Off로 해석하지 않습니다.
+                    complete(null, "비식별화 변경을 확인하지 못했습니다. 마지막 확인값을 유지합니다. 다시 시도해 주세요.")
+                }
+            },
+            onRejected = { complete(null, "비식별화 변경 요청을 시작하지 못했습니다.") },
+        )
+    }
+
     fun saveBroadcastSettings(settings: BroadcastSettings) {
         runBroadcastOperation {
             require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
@@ -370,15 +395,16 @@ class WebRtcConnection(
         executeSessionRequest(path, "POST", body)
     }
 
-    private fun executeSessionRequest(path: String, method: String, body: JSONObject) {
+    private fun executeSessionRequest(path: String, method: String, body: JSONObject): String {
         val createdSession = checkNotNull(session) { "WebRTC 세션이 없습니다." }
         val request = authenticatedRequest("/sessions/${createdSession.sessionId}/$path")
             .header("X-Session-Owner-Token", createdSession.ownerToken)
             .method(method, body.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        executeHttp(request).use { response ->
+        return executeHttp(request).use { response ->
             val payload = response.body.string()
             if (!response.isSuccessful) throw parseServerApiException(response.code, payload)
+            payload
         }
     }
 

@@ -12,6 +12,7 @@ internal data class WebRtcSessionState(
     val generation: Long = 0,
     val connection: WebRtcConnectionState = WebRtcConnectionState.IDLE,
     val anonymization: AnonymizationState = AnonymizationState.UNKNOWN,
+    val anonymizationChange: AnonymizationChange = AnonymizationChange(),
 ) {
     fun beginConnection() = WebRtcSessionState(
         generation = generation + 1,
@@ -28,10 +29,42 @@ internal data class WebRtcSessionState(
         if (!acceptsCallback(generation)) return this
         return copy(
             connection = state,
+            anonymizationChange = when (state) {
+                WebRtcConnectionState.IDLE, WebRtcConnectionState.FAILED -> AnonymizationChange()
+                else -> anonymizationChange
+            },
             anonymization = when (state) {
                 WebRtcConnectionState.IDLE, WebRtcConnectionState.FAILED -> AnonymizationState.UNKNOWN
                 else -> anonymization
             },
+        )
+    }
+
+    fun beginAnonymizationChange(enabled: Boolean): WebRtcSessionState {
+        if (connection != WebRtcConnectionState.CONNECTED ||
+            anonymizationChange.status == AnonymizationChangeStatus.CHANGING) return this
+        return copy(anonymizationChange = AnonymizationChange(
+            status = AnonymizationChangeStatus.CHANGING,
+            requestId = anonymizationChange.requestId + 1,
+            requestedEnabled = enabled,
+        ))
+    }
+
+    fun finishAnonymizationChange(
+        generation: Long,
+        requestId: Long,
+        confirmed: AnonymizationState?,
+        error: String?,
+    ): WebRtcSessionState {
+        if (!acceptsCallback(generation) || anonymizationChange.requestId != requestId ||
+            anonymizationChange.status != AnonymizationChangeStatus.CHANGING) return this
+        return copy(
+            anonymization = confirmed ?: anonymization,
+            anonymizationChange = anonymizationChange.copy(
+                status = if (error == null) AnonymizationChangeStatus.IDLE else AnonymizationChangeStatus.FAILED,
+                requestedEnabled = null,
+                errorMessage = error,
+            ),
         )
     }
 

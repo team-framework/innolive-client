@@ -28,6 +28,8 @@ class WebRtcSessionViewModel : ViewModel() {
         get() = sessionState.connection
     val anonymizationState: AnonymizationState
         get() = sessionState.anonymization
+    val anonymizationChange: AnonymizationChange
+        get() = sessionState.anonymizationChange
     var connectionStatus by mutableStateOf("WebRTC 연결 대기")
         private set
     var remoteVideoTrack by mutableStateOf<VideoTrack?>(null)
@@ -143,6 +145,20 @@ class WebRtcSessionViewModel : ViewModel() {
                 }
             }
         }
+    }
+
+    // 연결 전 요청은 예약하지 않습니다. 초기 Off 적용은 별도 연결 초기화 작업입니다.
+    fun setAnonymizationEnabled(enabled: Boolean): Boolean {
+        val currentConnection = connection ?: return false
+        val next = sessionState.beginAnonymizationChange(enabled)
+        if (next == sessionState) return false
+        sessionState = next
+        val generation = next.generation
+        val requestId = next.anonymizationChange.requestId
+        currentConnection.setAnonymizationEnabled(enabled) { confirmed, error ->
+            sessionState = sessionState.finishAnonymizationChange(generation, requestId, confirmed, error)
+        }
+        return true
     }
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
