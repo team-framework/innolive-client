@@ -20,7 +20,8 @@
       "descriptionLine1": "Be the first to hear the latest from InnoLive",
       "descriptionLine2": "and enjoy exclusive benefits when we officially launch."
     },
-    "privacyPolicy": "Privacy Policy"
+    "privacyPolicy": "Privacy Policy",
+    "support": "Support"
   },
   "preRegistration": {
     "emailLabel": "Email",
@@ -81,7 +82,7 @@
       "before": "Before",
       "after": "After",
       "pendingAlt": "InnoLive live-stream standby screen",
-      "notStored": "※ Video is not stored on the server. ※"
+      "notStored": "※ The live processing path does not include recording. ※"
     }
   },
   "faceRegistration": {
@@ -120,37 +121,88 @@
     "back": "Back to InnoLive",
     "pageTitle": "Privacy Policy",
     "effectiveDateLabel": "Effective date:",
-    "effectiveDateValue": "July 27, 2026",
+    "effectiveDateValue": "September 10, 2026",
     "collection": {
       "title": "1. Personal Data We Collect",
       "preRegistrationTitle": "When you pre-register",
       "preRegistrationBody": "InnoLive collects your email address to process your pre-registration.",
-      "experienceTitle": "When you use the demo",
-      "experienceBody": "InnoLive temporarily collects the original facial image you register to provide the demo."
+      "accountTitle": "When you create, sign in to, or manage an account",
+      "accountBody": "We process your name, email address, account identifier, external sign-in identifier, hashed password for email sign-in, and token information including refresh token hashes, IP address, and User-Agent information used to maintain sign-in and protect authentication.",
+      "experienceTitle": "When you register a face or broadcast",
+      "experienceBody": "We send the reference face photo you register and broadcast video and audio to the server. The AI service extracts facial features from the reference photo and keeps those features in memory while processing. The server separately manages information such as the registered face identifier, registration entry identifier, and registration time.",
+      "youtubeTitle": "When you connect YouTube or send a broadcast",
+      "youtubeBody": "We process channel identifiers, encrypted connection tokens, and broadcast connection information to connect YouTube and send broadcasts."
     },
     "purpose": {
       "title": "2. Purpose of Use",
       "preRegistrationBody": "We use your email address only to send InnoLive launch notifications and information about pre-registration benefits.",
-      "experienceBody": "We use the original facial image only to provide the demo."
+      "accountBody": "We use this information to provide account creation, sign-in, session maintenance, account management, and authentication security.",
+      "experienceBody": "We process and relay face data and broadcast video and audio to distinguish registered faces from other faces and de-identify other faces in broadcast video.",
+      "youtubeBody": "We use this information to send processed video and audio to your connected YouTube channel and manage the broadcast state."
     },
     "retention": {
       "title": "3. Retention and Use Period",
-      "preRegistrationBody": "We retain personal data until you withdraw your consent or the purpose of collection has been fulfilled. We delete it without delay once that purpose has been fulfilled, unless applicable law requires us to retain it for a specified period.",
-      "experienceStorage": "We do not save the original facial image to a file or database. It is held only in temporary memory and cannot be viewed.",
-      "experienceDeletion": "Original facial images are deleted every day at 00:00 KST."
+      "preRegistrationBody": "We retain the email address used for pre-registration until you withdraw your consent or the pre-registration purpose has been fulfilled. We delete it without delay once that purpose has been fulfilled, unless applicable law requires us to retain it for a specified period.",
+      "accountStorage": "We retain account, sign-in, and broadcast connection information as needed to operate the service and process account deletion. When account deletion is complete, we clear that user's account, sign-in, broadcast connection, and registered-face data.",
+      "experienceStorage": "The registered face photo is sent to the AI service when processing is requested. The AI service retains facial features extracted from the photo as registered information after the request is processed. The retained facial features are cleared when the registered face is deleted, when account deletion is complete, or when the AI service is shut down. The reference photo is not retained separately. Server registration records include information such as the registered face identifier, registration entry identifier, and registration time; they do not include the image or facial features. Temporary files may be created during transfer and are cleared after transfer processing ends.",
+      "experienceDeletion": "You can delete registered faces in Face Management in the app. When account deletion is complete, we clear the account's facial features and registration records. Face information registered by a guest during the web demo is cleared when the demo session ends."
     },
     "refusal": {
       "title": "4. Right to Withhold Consent",
       "preRegistrationBody": "You may decline to consent to the collection and use of your personal data. However, you cannot pre-register without providing consent.",
-      "experienceBody": "You cannot use the face registration demo if you do not consent to the collection and use of the original facial image."
+      "experienceBody": "You cannot use the face registration and broadcast demo if you do not consent to face registration and broadcast processing."
+    },
+    "accountDeletion": {
+      "title": "5. Account Deletion",
+      "body": "You can request deletion in the app at Settings > Account Settings > Delete Account. The server ends broadcast sessions, attempts to clean up external connections, and then clears account, sign-in, broadcast connection, and registered-face data. You can try again in the app if a temporary error occurs.",
+      "externalCleanup": "If an external connection authorization has already been revoked, we may be unable to clean up the external broadcast resource directly. In that case, InnoLive still proceeds with deleting the account data. Account deletion does not delete past videos from your YouTube channel."
+    },
+    "external": {
+      "title": "6. External Services",
+      "body": "Google and Apple process authentication for their respective sign-in services, while InnoLive processes the external identifiers and authentication results needed for sign-in. Information processed by Google and Apple is handled under their respective policies. YouTube connection and broadcast information, and videos sent to YouTube, are handled under the applicable provider policies and your channel settings."
     },
     "contact": {
-      "title": "5. Inquiries and Withdrawal of Consent",
+      "title": "7. Inquiries and Withdrawal of Consent",
       "beforeEmail": "For privacy inquiries or to withdraw your consent, contact",
       "afterEmail": "."
     },
     "consentModalTitle": "Consent to Personal Data Collection",
     "agree": "I Agree",
     "disagree": "I Do Not Agree"
+  },
+  "support": {
+    "back": "Back to InnoLive",
+    "pageTitle": "Support",
+    "intro": "Find help with sign-in, face registration, YouTube Live, and account deletion.",
+    "signIn": {
+      "title": "Sign in",
+      "body": "You can sign in with email, Google, or Apple. Use the same sign-in method you used to create your account."
+    },
+    "accountDeletion": {
+      "title": "Delete your account",
+      "body": "Deleting your account signs you out and clears account, sign-in, broadcast connection, and registered-face data. Past videos already published on your YouTube channel are not deleted.",
+      "step1": "Open Settings in the app.",
+      "step2": "Choose Account Settings.",
+      "step3": "Choose Delete Account and confirm.",
+      "note": "If a temporary error appears, try again in the app after a moment."
+    },
+    "face": {
+      "title": "Face registration and deletion",
+      "body": "After signing in, use Face Management in the app to register the face you will use for broadcasting. You can delete a registered face from the same screen."
+    },
+    "youtube": {
+      "title": "YouTube Live",
+      "body": "You need a YouTube account with live streaming enabled and a stable network connection. Connect your YouTube account in the app before starting a broadcast. If connection or broadcasting fails, check that live streaming is enabled for the account and check your network."
+    },
+    "contact": {
+      "title": "Contact support",
+      "beforeEmail": "If you need help, email",
+      "afterEmail": "."
+    },
+    "navigation": {
+      "label": "Support page navigation",
+      "home": "Home",
+      "privacy": "Privacy Policy"
+    }
   }
 }
