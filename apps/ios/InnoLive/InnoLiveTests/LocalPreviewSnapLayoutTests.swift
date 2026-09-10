@@ -100,6 +100,66 @@ final class LocalPreviewSnapLayoutTests: XCTestCase {
         }
     }
 
+    func testIdleHomeShowsCameraSessionPreview() {
+        XCTAssertEqual(
+            LocalPreviewPresentation.current(
+                isHomeVisible: true,
+                previewTransition: .none,
+                isCapturingMedia: false,
+                isReleasingCamera: false
+            ),
+            .cameraSession
+        )
+    }
+
+    func testCapturingMediaShowsWebRTCLocalPreview() {
+        XCTAssertEqual(
+            LocalPreviewPresentation.current(
+                isHomeVisible: true,
+                previewTransition: .none,
+                isCapturingMedia: true,
+                isReleasingCamera: false
+            ),
+            .webrtcLocal
+        )
+    }
+
+    func testPreviewIsHiddenWhenHomeIsNotVisible() {
+        XCTAssertEqual(
+            LocalPreviewPresentation.current(
+                isHomeVisible: false,
+                previewTransition: .none,
+                isCapturingMedia: true,
+                isReleasingCamera: false
+            ),
+            .hidden
+        )
+    }
+
+    func testPreviewIsHiddenDuringConnectionTransition() {
+        XCTAssertEqual(
+            LocalPreviewPresentation.current(
+                isHomeVisible: true,
+                previewTransition: .starting,
+                isCapturingMedia: false,
+                isReleasingCamera: false
+            ),
+            .hidden
+        )
+    }
+
+    func testPreviewIsHiddenWhileReleasingCamera() {
+        XCTAssertEqual(
+            LocalPreviewPresentation.current(
+                isHomeVisible: true,
+                previewTransition: .none,
+                isCapturingMedia: true,
+                isReleasingCamera: true
+            ),
+            .hidden
+        )
+    }
+
     func testClampedOriginStaysInsideContainer() {
         let layout = makeLayout()
         let clamped = layout.clampedOrigin(CGPoint(x: -40, y: 2000))

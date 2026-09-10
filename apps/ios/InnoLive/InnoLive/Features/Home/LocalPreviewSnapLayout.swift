@@ -1,6 +1,24 @@
 import CoreGraphics
 import Foundation
 
+enum LocalPreviewPresentation: Equatable {
+    case hidden
+    case cameraSession
+    case webrtcLocal
+
+    static func current(
+        isHomeVisible: Bool,
+        previewTransition: BroadcastPreviewTransition,
+        isCapturingMedia: Bool,
+        isReleasingCamera: Bool
+    ) -> LocalPreviewPresentation {
+        guard isHomeVisible, previewTransition == .none, !isReleasingCamera else {
+            return .hidden
+        }
+        return isCapturingMedia ? .webrtcLocal : .cameraSession
+    }
+}
+
 enum LocalPreviewCorner: CaseIterable, Equatable {
     case topLeading
     case topTrailing

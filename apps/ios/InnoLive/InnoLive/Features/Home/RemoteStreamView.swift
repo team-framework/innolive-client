@@ -113,41 +113,75 @@ private struct BroadcastConnectionOverlay: View {
     }
 }
 
+struct WebRTCLocalPreviewView: UIViewRepresentable {
+    @ObservedObject var uplink: WebRTCVideoUplink
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(uplink: uplink)
+    }
+
+    func makeUIView(context: Context) -> LKRTCMTLVideoView {
+        let view = LKRTCMTLVideoView(frame: .zero)
+        view.videoContentMode = .scaleAspectFit
+        view.isUserInteractionEnabled = false
+        context.coordinator.uplink = uplink
+        uplink.attachLocalRenderer(view)
+        applyMirroring(to: view)
+        return view
+    }
+
+    func updateUIView(_ uiView: LKRTCMTLVideoView, context: Context) {
+        context.coordinator.uplink = uplink
+        uplink.attachLocalRenderer(uiView)
+        applyMirroring(to: uiView)
+    }
+
+    static func dismantleUIView(_ uiView: LKRTCMTLVideoView, coordinator: Coordinator) {
+        coordinator.uplink.detachLocalRenderer(uiView)
+    }
+
+    private func applyMirroring(to view: LKRTCMTLVideoView) {
+        view.transform = uplink.isUsingFrontCamera
+            ? CGAffineTransform(scaleX: -1, y: 1)
+            : .identity
+    }
+
+    final class Coordinator {
+        var uplink: WebRTCVideoUplink
+
+        init(uplink: WebRTCVideoUplink) {
+            self.uplink = uplink
+        }
+    }
+}
+
 private struct WebRTCRemoteVideoView: UIViewRepresentable {
     @ObservedObject var uplink: WebRTCVideoUplink
 
     func makeUIView(context: Context) -> NativeWebRTCVideoView {
         let container = NativeWebRTCVideoView()
         container.uplink = uplink
-        uplink.attachRenderers(local: container.localVideoView, remote: container.remoteVideoView)
-        container.update(
-            hasRemoteVideo: uplink.hasRemoteVideo,
-            mirrorsLocalVideo: uplink.isUsingFrontCamera
-        )
+        uplink.attachRemoteRenderer(container.remoteVideoView)
+        container.update(hasRemoteVideo: uplink.hasRemoteVideo)
         return container
     }
 
     func updateUIView(_ uiView: NativeWebRTCVideoView, context: Context) {
         uiView.uplink = uplink
-        uplink.attachRenderers(local: uiView.localVideoView, remote: uiView.remoteVideoView)
-        uiView.update(
-            hasRemoteVideo: uplink.hasRemoteVideo,
-            mirrorsLocalVideo: uplink.isUsingFrontCamera
-        )
+        uplink.attachRemoteRenderer(uiView.remoteVideoView)
+        uiView.update(hasRemoteVideo: uplink.hasRemoteVideo)
     }
 
     static func dismantleUIView(_ uiView: NativeWebRTCVideoView, coordinator: ()) {
-        uiView.uplink?.detachRenderers(local: uiView.localVideoView, remote: uiView.remoteVideoView)
+        uiView.uplink?.detachRemoteRenderer(uiView.remoteVideoView)
     }
 }
 
 private final class NativeWebRTCVideoView: UIView {
-    let localVideoView = LKRTCMTLVideoView(frame: .zero)
     let remoteVideoView = LKRTCMTLVideoView(frame: .zero)
     weak var uplink: WebRTCVideoUplink?
 
     private var hasRemoteVideo = false
-    private var mirrorsLocalVideo = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -156,18 +190,15 @@ private final class NativeWebRTCVideoView: UIView {
         // 세로 9:16 처리 영상을 iPhone 화면에 맞춰 채운다.
         // 화면 비율 차이로 좌우 가장자리는 일부 잘릴 수 있다.
         remoteVideoView.videoContentMode = .scaleAspectFill
-        localVideoView.videoContentMode = .scaleAspectFit
         addSubview(remoteVideoView)
-        addSubview(localVideoView)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func update(hasRemoteVideo: Bool, mirrorsLocalVideo: Bool) {
+    func update(hasRemoteVideo: Bool) {
         self.hasRemoteVideo = hasRemoteVideo
-        self.mirrorsLocalVideo = mirrorsLocalVideo
         remoteVideoView.isHidden = !hasRemoteVideo
         setNeedsLayout()
     }
@@ -175,23 +206,6 @@ private final class NativeWebRTCVideoView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         remoteVideoView.frame = bounds
-
-        // 수신 영상이 오기 전에도 로컬 카메라는 작은 프리뷰로만 표시한다.
-        // 처리되지 않은 로컬 영상을 수신 화면 전체에 대신 표시하지 않는다.
-        localVideoView.frame = CGRect(
-            x: 24,
-            y: max(safeAreaInsets.top, 54),
-            width: BroadcastVideoLayout.previewWidth,
-            height: BroadcastVideoLayout.previewHeight
-        )
-        localVideoView.layer.cornerRadius = 18
-        localVideoView.layer.borderWidth = 1
-        localVideoView.layer.borderColor = UIColor.white.withAlphaComponent(0.65).cgColor
-        localVideoView.clipsToBounds = true
-
-        localVideoView.transform = mirrorsLocalVideo
-            ? CGAffineTransform(scaleX: -1, y: 1)
-            : .identity
     }
 }
 

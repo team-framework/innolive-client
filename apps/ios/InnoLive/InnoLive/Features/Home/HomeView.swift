@@ -46,9 +46,7 @@ struct HomeView: View {
             )
                 .ignoresSafeArea()
 
-            if isHomeVisible
-                && !youtube.videoUplink.isCapturingMedia
-                && previewTransition == .none {
+            if localPreviewPresentation != .hidden {
                 GeometryReader { geo in
                     let layout = snapLayout(in: geo.size)
                     let restOrigin = layout.origin(for: previewCorner)
@@ -59,11 +57,7 @@ struct HomeView: View {
                         )
                     )
 
-                    LocalPreviewView(
-                        session: cameraManager.session,
-                        // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
-                        cameraID: cameraManager.currentCameraID
-                    )
+                    originalPreview(for: localPreviewPresentation)
                     .frame(
                         width: BroadcastVideoLayout.previewWidth,
                         height: BroadcastVideoLayout.previewHeight
@@ -251,6 +245,33 @@ struct HomeView: View {
             Button("확인", role: .cancel) { }
         } message: {
             Text(cameraSwitchErrorMessage ?? "다시 시도해 주세요.")
+        }
+    }
+
+    private var localPreviewPresentation: LocalPreviewPresentation {
+        LocalPreviewPresentation.current(
+            isHomeVisible: isHomeVisible,
+            previewTransition: previewTransition,
+            isCapturingMedia: youtube.videoUplink.isCapturingMedia,
+            isReleasingCamera: youtube.videoUplink.isReleasingCamera
+        )
+    }
+
+    @ViewBuilder
+    private func originalPreview(for presentation: LocalPreviewPresentation) -> some View {
+        switch presentation {
+        case .cameraSession:
+            LocalPreviewView(
+                session: cameraManager.session,
+                // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
+                cameraID: cameraManager.currentCameraID
+            )
+        case .webrtcLocal:
+            OriginalPreviewFrame {
+                WebRTCLocalPreviewView(uplink: youtube.videoUplink)
+            }
+        case .hidden:
+            EmptyView()
         }
     }
 
