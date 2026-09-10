@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.CameraLensFacing
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -76,8 +75,7 @@ internal fun FaceRegistrationScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     val detector = remember { FaceDetectionPipeline() }
-    val apiState = remember { mutableStateOf<ReferenceFaceApi?>(null) }
-    val imageStore = remember(context) { ReferenceFaceImageStore(context) }
+    val repository = remember(context) { ReferenceFaceRepository(context) }
     val currentGetAccessToken by rememberUpdatedState(onGetAccessToken)
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
     val currentOnRegistrationSuccess by rememberUpdatedState(onRegistrationSuccess)
@@ -95,7 +93,7 @@ internal fun FaceRegistrationScreen(
         onDispose { detector.close() }
     }
     DisposableEffect(Unit) {
-        onDispose { apiState.value?.close() }
+        onDispose { repository.close() }
     }
     DisposableEffect(lifecycleOwner, detector) {
         val observer = LifecycleEventObserver { _, event ->
@@ -166,10 +164,8 @@ internal fun FaceRegistrationScreen(
             stopWithError("로그인 정보가 없습니다. 다시 로그인해 주세요.")
             return
         }
-        val api = try {
-            apiState.value ?: ReferenceFaceApi(BuildConfig.INNOLIVE_SERVER_URL).also {
-                apiState.value = it
-            }
+        try {
+            repository.ensureApiAvailable()
         } catch (_: Exception) {
             stopWithError("얼굴 등록 서버를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.")
             return
@@ -180,36 +176,20 @@ internal fun FaceRegistrationScreen(
         statusMessage = "얼굴을 등록하는 중입니다."
         uploadJob = scope.launch {
             try {
-                val registration = api.append(images, accessToken, refreshAccessToken)
-                val existingFaceIds = existingFaces.mapTo(mutableSetOf()) { it.faceId }
-                val newFaces = registration.faces.filterNot { it.faceId in existingFaceIds }
-                val localStorageWarning = if (profileEmail.isBlank()) {
-                    null
-                } else {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            if (newFaces.size == images.size) {
-                                newFaces.forEachIndexed { index, face ->
-                                    imageStore.append(
-                                        accountEmail = profileEmail,
-                                        faceId = face.faceId,
-                                        jpeg = images[index],
-                                    )
-                                }
-                            } else {
-                                throw IllegalStateException("The server did not return appended face metadata.")
-                            }
-                        }
-                        null
-                    } catch (exception: CancellationException) {
-                        throw exception
-                    } catch (_: Exception) {
-                        "얼굴 등록은 완료되었지만 사진을 기기에 저장하지 못했습니다."
-                    }
-                }
+                val result = repository.append(
+                    images = images,
+                    existingFaces = existingFaces,
+                    accountEmail = profileEmail,
+                    accessToken = accessToken,
+                    refreshAccessToken = refreshAccessToken,
+                )
                 if (uploadGeneration == operationGeneration && isLifecycleActive) {
                     phase = FaceRegistrationPhase.SUCCESS
-                    statusMessage = localStorageWarning ?: "얼굴 등록이 완료되었습니다."
+                    statusMessage = if (result.localImageStoreFailed) {
+                        "얼굴 등록은 완료되었지만 사진을 기기에 저장하지 못했습니다."
+                    } else {
+                        "얼굴 등록이 완료되었습니다."
+                    }
                     currentOnRegistrationSuccess()
                 }
             } catch (exception: CancellationException) {

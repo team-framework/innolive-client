@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.face
 
+import android.content.Context
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -43,13 +44,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.VerticalAlignmentLine
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.CameraLensFacing
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private enum class FaceManagementPhase {
     LOADING,
@@ -64,15 +62,15 @@ internal fun FaceManagementScreen(
     onRefreshAccessToken: suspend () -> String,
     onBack: () -> Unit,
     profileEmail: String = "",
-    apiFactory: () -> ReferenceFaceApi = { ReferenceFaceApi(BuildConfig.INNOLIVE_SERVER_URL) },
+    repositoryFactory: (Context) -> ReferenceFaceRepository = { context ->
+        ReferenceFaceRepository(context)
+    },
 ) {
     val context = LocalContext.current.applicationContext
     val scope = rememberCoroutineScope()
-    val apiState = remember { mutableStateOf<ReferenceFaceApi?>(null) }
-    val imageStore = remember(context) { ReferenceFaceImageStore(context) }
+    val repository = remember(context) { repositoryFactory(context) }
     val currentGetAccessToken by rememberUpdatedState(onGetAccessToken)
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
-    val currentApiFactory by rememberUpdatedState(apiFactory)
     var phase by remember(profileEmail) { mutableStateOf(FaceManagementPhase.LOADING) }
     var statusMessage by remember(profileEmail) { mutableStateOf<String?>(null) }
     var faceStatus by remember(profileEmail) { mutableStateOf<ReferenceFaceStatus?>(null) }
@@ -83,7 +81,7 @@ internal fun FaceManagementScreen(
     DisposableEffect(Unit) {
         onDispose {
             requestJob?.cancel()
-            apiState.value?.close()
+            repository.close()
         }
     }
 
@@ -99,20 +97,13 @@ internal fun FaceManagementScreen(
         phase = FaceManagementPhase.LOADING
         statusMessage = null
         try {
-            val api = apiState.value ?: currentApiFactory().also {
-                apiState.value = it
-            }
-            val status = api.getStatus(accessToken, currentRefreshAccessToken)
-            faceStatus = status
-            faceImages = if (profileEmail.isBlank()) {
-                emptyMap()
-            } else {
-                withContext(Dispatchers.IO) {
-                    status.faces.mapNotNull { face ->
-                        imageStore.load(profileEmail, face.faceId)?.let { face.faceId to it }
-                    }.toMap()
-                }
-            }
+            val snapshot = repository.loadStatus(
+                accountEmail = profileEmail,
+                accessToken = accessToken,
+                refreshAccessToken = currentRefreshAccessToken,
+            )
+            faceStatus = snapshot.status
+            faceImages = snapshot.images
             phase = FaceManagementPhase.READY
         } catch (exception: CancellationException) {
             if (faceStatus != null) {
@@ -145,24 +136,6 @@ internal fun FaceManagementScreen(
         requestJob = scope.launch { request() }
     }
 
-    suspend fun deleteLocalFace(faceId: String): Boolean = try {
-        withContext(Dispatchers.IO) { imageStore.delete(profileEmail, faceId) }
-        false
-    } catch (exception: CancellationException) {
-        throw exception
-    } catch (_: Exception) {
-        true
-    }
-
-    suspend fun deleteLocalFaces(): Boolean = try {
-        withContext(Dispatchers.IO) { imageStore.deleteAll(profileEmail) }
-        false
-    } catch (exception: CancellationException) {
-        throw exception
-    } catch (_: Exception) {
-        true
-    }
-
     fun deleteFace(faceId: String) {
         launchRequest {
             val accessToken = currentGetAccessToken()?.trim().orEmpty()
@@ -174,11 +147,12 @@ internal fun FaceManagementScreen(
             phase = FaceManagementPhase.LOADING
             statusMessage = "얼굴을 삭제하는 중입니다."
             try {
-                val api = apiState.value ?: currentApiFactory().also {
-                    apiState.value = it
-                }
-                api.deleteFace(faceId, accessToken, currentRefreshAccessToken)
-                val localDeleteFailed = deleteLocalFace(faceId)
+                val localDeleteFailed = repository.deleteFace(
+                    faceId = faceId,
+                    accountEmail = profileEmail,
+                    accessToken = accessToken,
+                    refreshAccessToken = currentRefreshAccessToken,
+                )
                 faceStatus = faceStatus?.let { status ->
                     val remainingFaces = status.faces.filterNot { face -> face.faceId == faceId }
                     status.copy(
@@ -197,7 +171,7 @@ internal fun FaceManagementScreen(
             } catch (exception: ReferenceFaceApiException) {
                 if (exception.statusCode == 404) {
                     statusMessage = "얼굴 목록이 변경되었습니다. 목록을 새로 고침했습니다."
-                    deleteLocalFace(faceId)
+                    repository.deleteLocalFace(profileEmail, faceId)
                     refreshStatus()
                 } else if (exception.statusCode == 502 && faceStatus != null) {
                     phase = FaceManagementPhase.READY
@@ -224,11 +198,11 @@ internal fun FaceManagementScreen(
             phase = FaceManagementPhase.LOADING
             statusMessage = "등록된 얼굴을 삭제하는 중입니다."
             try {
-                val api = apiState.value ?: currentApiFactory().also {
-                    apiState.value = it
-                }
-                api.deleteAll(accessToken, currentRefreshAccessToken)
-                val localDeleteFailed = deleteLocalFaces()
+                val localDeleteFailed = repository.deleteAll(
+                    accountEmail = profileEmail,
+                    accessToken = accessToken,
+                    refreshAccessToken = currentRefreshAccessToken,
+                )
                 faceStatus = faceStatus?.copy(
                     registered = false,
                     count = 0,
@@ -244,7 +218,7 @@ internal fun FaceManagementScreen(
             } catch (exception: ReferenceFaceApiException) {
                 if (exception.statusCode == 404) {
                     statusMessage = "얼굴 목록이 변경되었습니다. 목록을 새로 고침했습니다."
-                    deleteLocalFaces()
+                    repository.deleteLocalFaces(profileEmail)
                     refreshStatus()
                 } else if (exception.statusCode == 502 && faceStatus != null) {
                     phase = FaceManagementPhase.READY
