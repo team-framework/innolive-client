@@ -53,7 +53,7 @@ fun LoginScreen(props: LoginScreenProps) {
         Row(
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = "라이브 방송을 안전하게\n만드는 쉬운 방법", style = MaterialTheme.typography.headlineLarge, color = Color.White)
+            Text(text = "라이브 방송을 안전하게\n만드는 쉬운 방법", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
         }
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -64,7 +64,8 @@ fun LoginScreen(props: LoginScreenProps) {
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 border = BorderStroke(1.dp, Color.Black),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White
+                    containerColor = Color.White,
+                    contentColor = Color.Black,
                 ),
                 enabled = !isGoogleLoginInProgress,
                 onClick = {
@@ -100,7 +101,7 @@ fun LoginScreen(props: LoginScreenProps) {
                         contentDescription = "Google 트레이드마크",
                         modifier = Modifier.height(20.dp)
                     )
-                    Text(text = "Google로 계속하기", color = Color.Black, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.offset(y = (-2).dp))
+                    Text(text = "Google로 계속하기", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.offset(y = (-2).dp))
                 }
             }
             if (isGoogleLoginInProgress) {
@@ -122,7 +123,8 @@ fun LoginScreen(props: LoginScreenProps) {
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 border = BorderStroke(1.dp, Color.Black),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Black
+                    containerColor = Color.Black,
+                    contentColor = Color.White,
                 ),
                 enabled = !isGoogleLoginInProgress,
                 onClick = {
@@ -140,10 +142,9 @@ fun LoginScreen(props: LoginScreenProps) {
                     Icon(
                         imageVector = Icons.Outlined.Email,
                         contentDescription = "이메일 아이콘",
-                        tint = Color.White,
                         modifier = Modifier.height(20.dp)
                     )
-                    Text(text = "이메일로 계속하기", color = Color.White, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.offset(y = (-2).dp))
+                    Text(text = "이메일로 계속하기", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.offset(y = (-2).dp))
                 }
             }
         }
