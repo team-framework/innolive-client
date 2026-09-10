@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "withdrawal_in_progress",
+    "message": "Account deletion is already in progress. Retry shortly."
+  },
+  "request_id": "b3bfbe21-8b1f-4f9f-ae75-b760d7b902c1"
+}

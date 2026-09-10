@@ -41,3 +41,8 @@ X-Session-Owner-Token: <owner_token>
 | `live` | 방송 종료, 설정 잠금 |
 
 `stream.status`는 RTMP egress 상태이고 `broadcast_phase`를 대신하지 않는다.
+
+계정 삭제 중에는 세션·방송 요청이 `409 withdrawal_in_progress`를 반환할 수 있다.
+클라이언트는 삭제 결과를 기다리고 새 방송 요청을 시작하지 않는다. 계정 삭제가
+실패하면 로그인을 유지한 채 재시도할 수 있다. 자세한 범위는
+[계정 삭제 계약](account-deletion-v1.md)을 따른다.

@@ -17,6 +17,7 @@ The server uses the shared JSON error envelope for failures:
 | HTTP | Code | Client behavior |
 | --- | --- | --- |
 | 401 | `unauthorized` | Refresh authentication and retry this request once |
+| 409 | `withdrawal_in_progress` | Preserve the local session and offer retry after the current deletion finishes |
 | 503 | `withdrawal_unavailable` | Preserve the local session and offer retry |
 | 502 | `withdrawal_failed` | Preserve the local session and offer retry |
 
@@ -31,17 +32,48 @@ After a successful response, the client removes authentication secrets,
 clears the local YouTube connection and broadcast preferences, and resets
 active media state. Camera and audio preferences remain on the device.
 
-## Server retention boundary
+## Server cleanup boundary
 
-The endpoint currently revokes the encrypted Apple provider refresh token,
-revokes authentication refresh sessions, clears selected user and OAuth
-fields, and closes active stream sessions. This contract does not promise that
-email account rows or password hashes, OAuth provider subjects, streaming
-credentials, or reference-face records are removed. Those records require a
-separate server cleanup review, so clients must not present this endpoint as a
-guarantee that every server-side record has been erased.
+Server builds containing the cleanup for
+[innolive-server#182](https://github.com/team-framework/innolive-server/issues/182)
+complete these stages before returning `204`:
 
-See the follow-up server cleanup issue: [innolive-server#182](https://github.com/team-framework/innolive-server/issues/182).
+- Close the user's sessions and wait for media egress to stop.
+- Delete prepared broadcasts, end live broadcasts, clean up reusable YouTube
+  streams, and revoke stored Google and Apple provider credentials.
+- Clear the user's AI whitelist and reference-face metadata, including the
+  optional metadata file.
+- Delete the user's `email_accounts`, `oauth_accounts`, `streaming_accounts`,
+  `refresh_sessions`, and `users` rows in one database transaction. This
+  removes password hashes, provider subjects, encrypted streaming credentials,
+  refresh-token hashes, IP addresses, and User-Agent values in those rows.
+- Clear the user's cached YouTube access token.
 
-This is an additive client contract. It does not change API fields or WebRTC
-signaling payloads.
+When a provider reports that its saved authorization is no longer valid, the
+server can finish deleting its own data without authenticating further remote
+cleanup requests. Previously published YouTube videos remain subject to the
+YouTube account's controls; this endpoint does not delete the channel's video
+history.
+
+A temporary provider, AI, file, or database failure prevents `204`. Earlier
+cleanup stages may already have completed. The server preserves account rows
+for retry, stores completed reusable-stream cleanup in the database, and keeps
+failed session-broadcast cleanup in process memory. The latter retry state does
+not survive a server restart.
+
+## Compatibility
+
+Earlier server builds only cleared selected account fields and revoked refresh
+sessions. Confirm that the server cleanup is deployed before relying on the
+expanded deletion boundary.
+
+`withdrawal_in_progress` is an additive error code. It can also be returned by
+authenticated session, signaling, reference-face, and streaming-account
+operations while deletion holds the user's operation gate. Clients keep their
+local session until deletion succeeds and avoid starting competing operations.
+The existing JSON fields, successful `204` response, and WebRTC signaling
+schema are unchanged. Older clients may display this as a generic retryable
+failure.
+
+Examples: [HTTP conflict](../fixtures/account-deletion-conflict.v1.json) and
+[signaling error](../fixtures/signaling-withdrawal-error.v2.json).
