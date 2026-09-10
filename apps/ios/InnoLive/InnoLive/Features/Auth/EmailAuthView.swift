@@ -289,10 +289,13 @@ struct EmailAuthView: View {
     }
 
     private func feedback(_ message: String, symbol: String, color: Color) -> some View {
-        Label(message, systemImage: symbol)
-            .font(.footnote)
-            .foregroundStyle(color)
-            .fixedSize(horizontal: false, vertical: true)
+        Label {
+            Text(message).foregroundStyle(.primary)
+        } icon: {
+            Image(systemName: symbol).foregroundStyle(color)
+        }
+        .font(.footnote)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private func passwordFocus(_ field: Field) -> Field {
