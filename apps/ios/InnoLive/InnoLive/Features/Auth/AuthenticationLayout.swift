@@ -2,8 +2,10 @@ import SwiftUI
 
 struct AuthenticationLayout<Content: View>: View {
     private let content: Content
+    private let alignment: Alignment
 
-    init(@ViewBuilder content: () -> Content) {
+    init(alignment: Alignment = .center, @ViewBuilder content: () -> Content) {
+        self.alignment = alignment
         self.content = content()
     }
 
@@ -15,7 +17,7 @@ struct AuthenticationLayout<Content: View>: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal, proxy.size.width >= 600 ? 40 : 24)
                     .padding(.vertical, 32)
-                    .frame(minHeight: proxy.size.height, alignment: .center)
+                    .frame(minHeight: proxy.size.height, alignment: alignment)
             }
             .scrollIndicators(.hidden)
             .scrollDismissesKeyboard(.interactively)
