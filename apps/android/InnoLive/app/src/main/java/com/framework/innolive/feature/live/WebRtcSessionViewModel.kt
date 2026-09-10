@@ -16,17 +16,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 
 class WebRtcSessionViewModel : ViewModel() {
     private var startJob: Job? = null
     private var selectedAudioInput: AudioDeviceInfo? = null
-    private val connectionGeneration = AtomicLong(0)
+    private var sessionState by mutableStateOf(WebRtcSessionState())
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    var connectionState by mutableStateOf(WebRtcConnectionState.IDLE)
-        private set
+    val connectionState: WebRtcConnectionState
+        get() = sessionState.connection
+    val anonymizationState: AnonymizationState
+        get() = sessionState.anonymization
     var connectionStatus by mutableStateOf("WebRTC 연결 대기")
         private set
     var remoteVideoTrack by mutableStateOf<VideoTrack?>(null)
@@ -59,7 +60,8 @@ class WebRtcSessionViewModel : ViewModel() {
             return
         }
 
-        val generation = connectionGeneration.incrementAndGet()
+        sessionState = sessionState.beginConnection()
+        val generation = sessionState.generation
         startJob?.cancel()
         startJob = null
         val previousConnection = connection
@@ -72,7 +74,6 @@ class WebRtcSessionViewModel : ViewModel() {
             broadcastStatus = "방송 대기"
         }
 
-        connectionState = WebRtcConnectionState.CONNECTING
         connectionStatus = "인증 토큰 갱신 중"
         startJob = viewModelScope.launch {
             try {
@@ -88,10 +89,13 @@ class WebRtcSessionViewModel : ViewModel() {
                     accessToken = accessToken,
                     preferredAudioInput = selectedAudioInput,
                     onStateChanged = { state, message ->
-                        if (isCurrentGeneration(generation)) {
-                            connectionState = state
+                        if (sessionState.acceptsCallback(generation)) {
+                            sessionState = sessionState.connectionChanged(generation, state)
                             connectionStatus = message
                         }
+                    },
+                    onAnonymizationStateConfirmed = { state ->
+                        sessionState = sessionState.anonymizationConfirmed(generation, state)
                     },
                     onRemoteTrackChanged = { track ->
                         if (isCurrentGeneration(generation)) remoteVideoTrack = track
@@ -127,13 +131,13 @@ class WebRtcSessionViewModel : ViewModel() {
                 newConnection.start()
             } catch (exception: CancellationException) {
                 if (isCurrentGeneration(generation)) {
-                    connectionState = WebRtcConnectionState.IDLE
+                    sessionState = sessionState.connectionChanged(generation, WebRtcConnectionState.IDLE)
                     connectionStatus = "WebRTC 연결 대기"
                 }
                 throw exception
             } catch (exception: Exception) {
                 if (isCurrentGeneration(generation)) {
-                    connectionState = WebRtcConnectionState.FAILED
+                    sessionState = sessionState.connectionChanged(generation, WebRtcConnectionState.FAILED)
                     connectionStatus = exception.message
                         ?: "인증 토큰을 갱신하지 못했습니다."
                 }
@@ -166,7 +170,7 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun close() {
-        connectionGeneration.incrementAndGet()
+        sessionState = sessionState.endConnection()
         startJob?.cancel()
         startJob = null
         val currentConnection = connection
@@ -175,7 +179,6 @@ class WebRtcSessionViewModel : ViewModel() {
         frameAnalyzer = null
         eglContext = null
         currentConnection?.close()
-        connectionState = WebRtcConnectionState.IDLE
         connectionStatus = "WebRTC 연결 대기"
         broadcastState = BroadcastState.IDLE
         broadcastStatus = "방송 대기"
@@ -186,7 +189,7 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     private fun isCurrentGeneration(generation: Long): Boolean =
-        connectionGeneration.get() == generation
+        sessionState.generation == generation
 
     private suspend fun awaitClose(webRtcConnection: WebRtcConnection) {
         suspendCancellableCoroutine { continuation ->
