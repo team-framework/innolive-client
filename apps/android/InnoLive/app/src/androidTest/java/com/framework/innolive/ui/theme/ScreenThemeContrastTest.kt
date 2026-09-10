@@ -46,7 +46,7 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
         compose.onNodeWithText("Google로 계속하기").performClick()
         compose.onNodeWithText("Google로 계속하기").assertIsNotEnabled()
         compose.onNodeWithText("이메일로 계속하기").assertIsNotEnabled()
-        // Disabled text intentionally has lower contrast; measure it separately.
+        // 비활성 글자는 의도적으로 대비가 낮으므로 별도로 측정합니다.
         contrast("Google로 계속하기", minimum = 1.5f)
         contrast("이메일로 계속하기", minimum = 1.5f)
         contrast("Google 로그인 중…")
@@ -89,7 +89,7 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
         val layouts = mutableListOf<TextLayoutResult>()
         node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val pixels = node.captureToImage().toPixelMap()
-        // In a text bounding rectangle the most frequent pixel is its actual backdrop.
+        // 글자 영역에서 가장 많이 나타나는 픽셀 색상을 실제 배경색으로 간주합니다.
         val counts = mutableMapOf<Int, Int>()
         for (y in 0 until pixels.height) for (x in 0 until pixels.width) {
             val argb = pixels[x, y].toArgb()

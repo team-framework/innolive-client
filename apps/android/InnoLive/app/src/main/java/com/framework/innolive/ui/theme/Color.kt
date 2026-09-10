@@ -12,7 +12,7 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-// Compose colors use ARGB: the leading FF keeps every surface opaque.
+// Compose 색상은 ARGB 형식이며, 맨 앞의 FF는 배경을 불투명하게 유지합니다.
 internal val DarkColorScheme = androidx.compose.material3.darkColorScheme(
     primary = Color(0xFFFFFFFF),
     onPrimary = Color(0xFF050505),
@@ -35,7 +35,7 @@ internal val LightColorScheme = androidx.compose.material3.lightColorScheme(
     onSurface = Color(0xFF1C1B1F),
 )
 
-// Some system palettes provide primary/onPrimary pairs below readable text contrast.
+// 일부 시스템 색상 팔레트의 primary/onPrimary 조합은 글자 가독성에 필요한 대비를 충족하지 못합니다.
 internal fun ColorScheme.withReadablePrimaryContent(): ColorScheme {
     fun contrast(content: Color): Float {
         val backgroundLuminance = primary.luminance()
