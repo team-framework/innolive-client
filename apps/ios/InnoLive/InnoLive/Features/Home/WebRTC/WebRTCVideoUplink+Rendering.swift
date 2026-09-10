@@ -2,28 +2,43 @@
 
 extension WebRTCVideoUplink {
     func attachRenderers(local: LKRTCMTLVideoView, remote: LKRTCMTLVideoView) {
-        if localRenderer !== local {
-            if let localRenderer {
-                localVideoTrack?.remove(localRenderer)
-            }
-            localRenderer = local
-            localVideoTrack?.add(local)
-        }
-
-        if remoteRenderer !== remote {
-            if let remoteRenderer {
-                remoteVideoTrack?.remove(remoteRenderer)
-            }
-            remoteRenderer = remote
-            remoteVideoTrack?.add(remote)
-        }
+        attachLocalRenderer(local)
+        attachRemoteRenderer(remote)
     }
 
     func detachRenderers(local: LKRTCMTLVideoView, remote: LKRTCMTLVideoView) {
-        localVideoTrack?.remove(local)
-        remoteVideoTrack?.remove(remote)
-        if localRenderer === local { localRenderer = nil }
-        if remoteRenderer === remote { remoteRenderer = nil }
+        detachLocalRenderer(local)
+        detachRemoteRenderer(remote)
+    }
+
+    func attachLocalRenderer(_ renderer: LKRTCMTLVideoView) {
+        if localRenderer !== renderer {
+            if let localRenderer {
+                localVideoTrack?.remove(localRenderer)
+            }
+            localRenderer = renderer
+            localVideoTrack?.add(renderer)
+        }
+    }
+
+    func detachLocalRenderer(_ renderer: LKRTCMTLVideoView) {
+        localVideoTrack?.remove(renderer)
+        if localRenderer === renderer { localRenderer = nil }
+    }
+
+    func attachRemoteRenderer(_ renderer: LKRTCMTLVideoView) {
+        if remoteRenderer !== renderer {
+            if let remoteRenderer {
+                remoteVideoTrack?.remove(remoteRenderer)
+            }
+            remoteRenderer = renderer
+            remoteVideoTrack?.add(renderer)
+        }
+    }
+
+    func detachRemoteRenderer(_ renderer: LKRTCMTLVideoView) {
+        remoteVideoTrack?.remove(renderer)
+        if remoteRenderer === renderer { remoteRenderer = nil }
     }
 
     func attachFaceRegistrationRenderer(_ renderer: LKRTCMTLVideoView) {
