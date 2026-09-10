@@ -1,5 +1,7 @@
 package com.framework.innolive.ui.theme
 
+import androidx.compose.material3.ColorScheme
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Color
 
 val Purple80 = Color(0xFFD0BCFF)
@@ -32,3 +34,15 @@ internal val LightColorScheme = androidx.compose.material3.lightColorScheme(
     surface = Color(0xFFFFFFFF),
     onSurface = Color(0xFF1C1B1F),
 )
+
+// Some system palettes provide primary/onPrimary pairs below readable text contrast.
+internal fun ColorScheme.withReadablePrimaryContent(): ColorScheme {
+    fun contrast(content: Color): Float {
+        val backgroundLuminance = primary.luminance()
+        val contentLuminance = content.luminance()
+        return (maxOf(backgroundLuminance, contentLuminance) + 0.05f) /
+            (minOf(backgroundLuminance, contentLuminance) + 0.05f)
+    }
+    if (contrast(onPrimary) >= 4.5f) return this
+    return copy(onPrimary = if (contrast(Color.Black) >= contrast(Color.White)) Color.Black else Color.White)
+}

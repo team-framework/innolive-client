@@ -50,7 +50,7 @@ fun MyApplicationTheme(
     }
 
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = colorScheme.withReadablePrimaryContent(),
         typography = InnoLiveTypography,
         content = content
     )

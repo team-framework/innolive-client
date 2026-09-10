@@ -13,6 +13,25 @@ class ThemeContrastTest {
     @Test
     fun darkThemeTextAndButtonLabelsHaveReadableContrast() = assertReadable(DarkColorScheme)
 
+    @Test
+    fun systemPrimaryWithInsufficientContrastGetsReadableContent() {
+        val systemScheme = LightColorScheme.copy(
+            primary = Color(0xFF387AFF),
+            onPrimary = Color(0xFFFCFCFF),
+        )
+        assertTrue(contrast(systemScheme.primary, systemScheme.onPrimary) < 4.5f)
+        val adjusted = systemScheme.withReadablePrimaryContent()
+        assertTrue(contrast(adjusted.primary, adjusted.onPrimary) >= 4.5f)
+        assertEquals(systemScheme.primary, adjusted.primary)
+        assertEquals(systemScheme.surface, adjusted.surface)
+    }
+
+    @Test
+    fun readablePaletteKeepsItsOriginalContentColor() {
+        assertEquals(LightColorScheme, LightColorScheme.withReadablePrimaryContent())
+        assertEquals(DarkColorScheme, DarkColorScheme.withReadablePrimaryContent())
+    }
+
     private fun assertReadable(scheme: androidx.compose.material3.ColorScheme) {
         listOf(
             scheme.background to scheme.onBackground,
