@@ -26,6 +26,12 @@ final class YouTubePreferencesStore {
         userDefaults.removeObject(forKey: Key.connection)
     }
 
+    func removeAccountData() {
+        removeConnection()
+        userDefaults.removeObject(forKey: Key.broadcastSettings)
+        userDefaults.removeObject(forKey: YouTubeBroadcastAudience.storageKey)
+    }
+
     func loadBroadcastSettings() -> YouTubeBroadcastSettings {
         var settings = userDefaults
             .data(forKey: Key.broadcastSettings)

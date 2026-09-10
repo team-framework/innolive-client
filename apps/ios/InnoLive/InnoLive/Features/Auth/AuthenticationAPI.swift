@@ -7,10 +7,20 @@ protocol AuthenticationAPIClient {
     func googleSignIn(idToken: String) async throws -> AuthenticationTokenPair
     func appleSignIn(authorizationCode: String, nonce: String, givenName: String?, familyName: String?) async throws -> AuthenticationTokenPair
     func refresh(refreshToken: String) async throws -> AuthenticationTokenPair
+    func deleteAccount(accessToken: String) async throws
 }
 
 struct AuthenticationAPI: AuthenticationAPIClient {
-    nonisolated init() {}
+    private let urlSession: URLSession
+    private let serverURLProvider: @MainActor @Sendable (String) -> URL?
+
+    nonisolated init(
+        urlSession: URLSession = .shared,
+        serverURLProvider: @escaping @MainActor @Sendable (String) -> URL? = AuthenticationConfiguration.serverURL(path:)
+    ) {
+        self.urlSession = urlSession
+        self.serverURLProvider = serverURLProvider
+    }
 
     func emailSignIn(email: String, password: String) async throws -> AuthenticationTokenPair {
         try await request("/auth/sign-in", body: EmailCredentials(email: email, password: password))
@@ -38,24 +48,53 @@ struct AuthenticationAPI: AuthenticationAPIClient {
         try await request("/auth/refresh", body: RefreshTokenRequest(refreshToken: refreshToken))
     }
 
+    func deleteAccount(accessToken: String) async throws {
+        try await requestNoContent(path: "/auth/me", method: "DELETE", accessToken: accessToken)
+    }
+
     private func request<Body: Encodable, Response: Decodable>(_ path: String, body: Body) async throws -> Response {
-        guard let url = AuthenticationConfiguration.serverURL(path: path) else { throw AuthenticationError.configuration }
+        guard let url = serverURLProvider(path) else { throw AuthenticationError.configuration }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = try JSONEncoder().encode(body)
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
             guard let response = response as? HTTPURLResponse else { throw AuthenticationError.response }
             guard (200..<300).contains(response.statusCode) else {
-                let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
-                throw AuthenticationError.api(code: apiError?.error.code, fallback: apiError?.error.message ?? "요청을 처리하지 못했습니다. 다시 시도해 주세요.")
+                throw apiError(statusCode: response.statusCode, data: data)
             }
             do { return try JSONDecoder().decode(Response.self, from: data) }
             catch { throw AuthenticationError.response }
         } catch let error as AuthenticationError { throw error }
         catch { throw AuthenticationError.response }
+    }
+
+    private func requestNoContent(path: String, method: String, accessToken: String) async throws {
+        guard let url = serverURLProvider(path) else { throw AuthenticationError.configuration }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, response) = try await urlSession.data(for: request)
+            guard let response = response as? HTTPURLResponse else { throw AuthenticationError.response }
+            guard response.statusCode == 204 else {
+                throw apiError(statusCode: response.statusCode, data: data)
+            }
+        } catch let error as AuthenticationError { throw error }
+        catch { throw AuthenticationError.response }
+    }
+
+    private func apiError(statusCode: Int, data: Data) -> AuthenticationError {
+        let response = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
+        let code = response?.error.code ?? (statusCode == 401 ? "unauthorized" : nil)
+        return .api(
+            code: code,
+            fallback: response?.error.message ?? "요청을 처리하지 못했습니다. 다시 시도해 주세요."
+        )
     }
 }
 

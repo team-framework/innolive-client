@@ -163,6 +163,10 @@ private final class TestAuthenticationAPI: AuthenticationAPIClient {
         throw TestAuthenticationError.unexpectedCall
     }
 
+    func deleteAccount(accessToken: String) async throws {
+        throw TestAuthenticationError.unexpectedCall
+    }
+
     func refresh(refreshToken: String) async throws -> AuthenticationTokenPair {
         refreshCallCount += 1
         refreshStartContinuation?.resume()

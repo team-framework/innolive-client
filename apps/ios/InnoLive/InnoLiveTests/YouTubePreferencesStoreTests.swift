@@ -91,4 +91,28 @@ final class YouTubePreferencesStoreTests: XCTestCase {
         XCTAssertNil(store.loadConnection())
         XCTAssertNil(userDefaults.data(forKey: "com.framework.innolive.youtube.connection"))
     }
+
+    func testRemoveAccountDataClearsConnectionAndBroadcastPreferences() {
+        store.saveConnection(
+            YouTubeConnection(
+                provider: "youtube",
+                channel: YouTubeChannel(id: "channel-id", title: "Test Channel")
+            )
+        )
+        store.saveBroadcastSettings(
+            YouTubeBroadcastSettings(
+                title: "Account broadcast",
+                description: "Account description",
+                privacy: .public,
+                audience: .madeForKids
+            )
+        )
+
+        store.removeAccountData()
+
+        XCTAssertNil(store.loadConnection())
+        XCTAssertNil(userDefaults.data(forKey: "com.framework.innolive.youtube.connection"))
+        XCTAssertNil(userDefaults.data(forKey: "com.framework.innolive.youtube.broadcast-settings.v1"))
+        XCTAssertNil(userDefaults.string(forKey: YouTubeBroadcastAudience.storageKey))
+    }
 }

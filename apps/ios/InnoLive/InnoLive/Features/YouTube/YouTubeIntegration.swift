@@ -19,7 +19,11 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var helpURL: URL?
     @Published var broadcastSettings: YouTubeBroadcastSettings {
-        didSet { persistBroadcastSettings() }
+        didSet {
+            if !suppressBroadcastSettingsPersistence {
+                persistBroadcastSettings()
+            }
+        }
     }
 
     let videoUplink = WebRTCVideoUplink()
@@ -27,6 +31,7 @@ final class YouTubeIntegration: ObservableObject {
     private let api = YouTubeAPI()
     private let authorization = YouTubeAuthorization()
     private let preferencesStore: YouTubePreferencesStore
+    private var suppressBroadcastSettingsPersistence = false
     private var pollingTask: Task<Void, Never>?
     private var pollingGeneration = 0
     // stream.started_at은 prepare에서 egress가 시작된 시각이므로 공개 방송 타이머에 사용하지 않는다.
@@ -477,6 +482,14 @@ final class YouTubeIntegration: ObservableObject {
         errorMessage = nil
         helpURL = nil
         preferencesStore.removeConnection()
+    }
+
+    func resetForAccountDeletion() {
+        reset()
+        suppressBroadcastSettingsPersistence = true
+        broadcastSettings = .defaultValue
+        suppressBroadcastSettingsPersistence = false
+        preferencesStore.removeAccountData()
     }
 
     func dismissError() {
