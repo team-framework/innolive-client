@@ -13,3 +13,5 @@ is included in the same task.
 - `signaling/v2.schema.json`: authenticated signaling payloads with access and owner tokens
 - `api/reference-face-v1.md`: authenticated reference-face registration, status, and deletion
 - `api/account-deletion-v1.md`: authenticated account deletion and client cleanup boundary
+- `fixtures/account-deletion-conflict.v1.json`: concurrent account deletion HTTP error
+- `fixtures/signaling-withdrawal-error.v2.json`: signaling error during account deletion

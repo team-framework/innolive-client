@@ -106,4 +106,5 @@ Errors use the shared JSON error envelope. Relevant codes include:
 | 400 | `bad_request` | Inspect details such as `ai_disabled` |
 | 401 | authentication error | Refresh and retry once |
 | 404 | `not_found` | Refresh the displayed face list |
+| 409 | `withdrawal_in_progress` | Preserve local state and wait for the account deletion result |
 | 502 | `ai_unavailable` | Preserve the current UI state and offer retry |
