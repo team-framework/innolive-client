@@ -11,6 +11,16 @@
 		B2C3D4E50101010101010101 /* LiveKitWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = B2C3D4E60101010101010101 /* LiveKitWebRTC */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		7B64AA103013CA7300BA69CE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7B64A9F93013CA7300BA69CE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7B64AA003013CA7300BA69CE;
+			remoteInfo = InnoLive;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		7B64AA013013CA7300BA69CE /* InnoLive.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InnoLive.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B64AA043013CA7300BA69CE /* InnoLiveTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InnoLiveTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -69,16 +79,6 @@
 		};
 /* End PBXGroup section */
 
-/* Begin PBXContainerItemProxy section */
-		7B64AA103013CA7300BA69CE /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 7B64A9F93013CA7300BA69CE /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 7B64AA003013CA7300BA69CE;
-			remoteInfo = InnoLive;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXNativeTarget section */
 		7B64AA003013CA7300BA69CE /* InnoLive */ = {
 			isa = PBXNativeTarget;
@@ -115,7 +115,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				7B64AA0F3013CA7300BA69CE /* InnoLiveTests depends on InnoLive */,
+				7B64AA0F3013CA7300BA69CE /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				7B64AA053013CA7300BA69CE /* InnoLiveTests */,
@@ -126,14 +126,6 @@
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
-
-/* Begin PBXTargetDependency section */
-		7B64AA0F3013CA7300BA69CE /* InnoLiveTests depends on InnoLive */ = {
-			isa = PBXTargetDependency;
-			target = 7B64AA003013CA7300BA69CE /* InnoLive */;
-			targetProxy = 7B64AA103013CA7300BA69CE /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin PBXProject section */
 		7B64A9F93013CA7300BA69CE /* Project object */ = {
@@ -210,6 +202,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7B64AA0F3013CA7300BA69CE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7B64AA003013CA7300BA69CE /* InnoLive */;
+			targetProxy = 7B64AA103013CA7300BA69CE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		7B64AA0A3013CA7400BA69CE /* Debug */ = {
@@ -350,6 +350,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INNOLIVE_SERVER_URL = "https://api.innolive.studio";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -359,13 +360,13 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.framework.innolive;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -387,6 +388,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INNOLIVE_SERVER_URL = "https://api.innolive.studio";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -396,13 +398,13 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.framework.innolive;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
