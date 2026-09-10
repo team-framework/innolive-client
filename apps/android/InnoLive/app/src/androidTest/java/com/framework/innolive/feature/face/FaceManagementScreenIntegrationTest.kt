@@ -171,7 +171,11 @@ class FaceManagementScreenIntegrationTest {
                     onRefreshAccessToken = { error("refresh must not run") },
                     onBack = {},
                     profileEmail = "e2e@example.com",
-                    apiFactory = { ReferenceFaceApi("https://example.com", client) },
+                    repositoryFactory = { context ->
+                        ReferenceFaceRepository(context) {
+                            ReferenceFaceApi("https://example.com", client)
+                        }
+                    },
                 )
             }
         }
