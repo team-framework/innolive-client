@@ -29,6 +29,16 @@ struct SignInView: View {
                     .frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
                 }
                 if let errorMessage = authentication.errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
+                if let privacyPolicyURL = InnoLiveLinks.privacyPolicyURL {
+                    Link(destination: privacyPolicyURL) {
+                        Label("개인정보처리방침", systemImage: "doc.text")
+                            .font(.footnote.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity).frame(height: 44)
+                }
             }
         }
     }

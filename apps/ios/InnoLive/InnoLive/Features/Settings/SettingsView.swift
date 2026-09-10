@@ -60,6 +60,28 @@ struct SettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
+
+                    if let privacyPolicyURL = InnoLiveLinks.privacyPolicyURL {
+                        Link(destination: privacyPolicyURL) {
+                            SettingsGlassRow {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "doc.text")
+                                        .font(.body)
+                                        .frame(width: 28)
+
+                                    Text("개인정보처리방침")
+                                        .font(.body.weight(.semibold))
+
+                                    Spacer()
+
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 
                 Spacer()
