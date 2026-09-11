@@ -120,10 +120,11 @@ extension WebRTCVideoUplink {
         }
 
         let availableDevices = LKRTCCameraVideoCapturer.captureDevices()
-        let selectedDevice = preferredCameraID
-            .flatMap { cameraID in availableDevices.first { $0.uniqueID == cameraID } }
+        let selectedDevice = preferredCameraID.flatMap(CameraDeviceCatalog.resolvedDevice(for:))
             ?? availableDevices.first { $0.position == .front }
+            ?? CameraDeviceCatalog.devices.first { $0.position == .front }
             ?? availableDevices.first
+            ?? CameraDeviceCatalog.devices.first
 
         guard let selectedDevice else {
             throw WebRTCVideoUplinkError.failed("사용할 수 있는 카메라를 찾지 못했습니다.")

@@ -19,6 +19,14 @@ final class CameraZoomTests: XCTestCase {
         XCTAssertEqual(CameraZoom.factorAfterSwitchReset(min: 0.5, max: 0.8), 0.8)
     }
 
+    func testPinchCanReachHalfTimesWhenDeviceMinimumAllowsIt() {
+        XCTAssertEqual(
+            CameraZoom.factor(fromPinchStart: 1, magnification: 0.5, min: 0.5, max: 8),
+            0.5
+        )
+        XCTAssertEqual(CameraZoom.steppedDown(from: 1, min: 0.5, max: 8), 0.5)
+    }
+
     func testPinchFactorMultipliesStartZoomThenClamps() {
         XCTAssertEqual(
             CameraZoom.factor(fromPinchStart: 2, magnification: 1.5, min: 1, max: 8),

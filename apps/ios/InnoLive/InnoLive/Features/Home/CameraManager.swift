@@ -58,7 +58,7 @@ final class CameraManager {
 
     // 설정 화면에서 선택한 id의 카메라를 찾음
     private func cameraDevice(for cameraID: String) -> AVCaptureDevice? {
-        AVCaptureDevice(uniqueID: cameraID)
+        CameraDeviceCatalog.resolvedDevice(for: cameraID)
     }
 
     func addCameraInput(for cameraID: String) {
