@@ -9,9 +9,9 @@ enum YouTubeBroadcastPrivacy: String, CaseIterable, Codable, Identifiable {
 
     var title: String {
         switch self {
-        case .public: return "공개"
-        case .unlisted: return "일부 공개"
-        case .private: return "비공개"
+        case .public: return String(localized: "공개")
+        case .unlisted: return String(localized: "일부 공개")
+        case .private: return String(localized: "비공개")
         }
     }
 }
@@ -26,8 +26,8 @@ enum YouTubeBroadcastAudience: String, CaseIterable, Codable, Identifiable {
 
     var title: String {
         switch self {
-        case .notMadeForKids: return "아동용 아님"
-        case .madeForKids: return "아동용"
+        case .notMadeForKids: return String(localized: "아동용 아님")
+        case .madeForKids: return String(localized: "아동용")
         }
     }
 
@@ -171,9 +171,9 @@ struct YouTubeBroadcastSettings: Codable, Equatable {
         guard let year = components.year,
               let month = components.month,
               let day = components.day else {
-            return "InnoLive 방송"
+            return String(localized: "InnoLive 방송")
         }
-        return String(format: "%04d%02d%02d InnoLive 방송", year, month, day)
+        return String(format: String(localized: "%04d%02d%02d InnoLive 방송"), year, month, day)
     }
 
     var normalized: Self {

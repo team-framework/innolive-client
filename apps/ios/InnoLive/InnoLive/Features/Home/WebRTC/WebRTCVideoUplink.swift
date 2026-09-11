@@ -8,7 +8,7 @@ import UIKit
 @MainActor
 final class WebRTCVideoUplink: NSObject, ObservableObject {
     @Published private(set) var state: WebRTCVideoUplinkState = .idle
-    @Published private(set) var statusText = "영상 업링크 대기"
+    @Published private(set) var statusText = String(localized: "영상 업링크 대기")
     @Published private(set) var errorMessage: String?
     @Published private(set) var hasRemoteVideo = false
     @Published private(set) var isUsingFrontCamera = false
@@ -246,7 +246,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         requiresMediaPermissionSettings = false
         hasRemoteVideo = false
         pendingRemoteCandidates = []
-        updateState(.preparing, "카메라와 마이크를 준비 중…")
+        updateState(.preparing, String(localized: "카메라와 마이크를 준비 중…"))
 
         do {
             try await prepareNativeMicrophone(
@@ -271,13 +271,13 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
                 startTimeoutTask = Task { [weak self] in
                     try? await Task.sleep(for: .seconds(25))
                     guard let self, self.startContinuation != nil else { return }
-                    self.fail("카메라 영상의 서버 전송을 확인하지 못했습니다. 방송을 다시 시작해 주세요.")
+                    self.fail(String(localized: "카메라 영상의 서버 전송을 확인하지 못했습니다. 방송을 다시 시작해 주세요."))
                 }
                 createAndSendOffer()
             }
         } catch {
             if !isStopping, state != .failed {
-                fail((error as? LocalizedError)?.errorDescription ?? "카메라 영상을 연결하지 못했습니다.")
+                fail((error as? LocalizedError)?.errorDescription ?? String(localized: "카메라 영상을 연결하지 못했습니다."))
             }
             throw error
         }
@@ -359,7 +359,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         isSwitchingCamera = false
         deactivateAudioSessionIfNeeded()
         if resetState {
-            updateState(.idle, "영상 업링크 대기")
+            updateState(.idle, String(localized: "영상 업링크 대기"))
         }
         return capturer
     }
@@ -386,7 +386,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     func markPublisherReady() {
         guard state == .connected else { return }
-        updateState(.connected, "카메라 영상이 서버에 연결되었습니다.")
+        updateState(.connected, String(localized: "카메라 영상이 서버에 연결되었습니다."))
     }
 
     func dismissError() {
@@ -440,11 +440,11 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         guard !isStopping else { return }
         guard !isReconnectPending, !isReconnectInProgress else { return }
         guard state == .connected else {
-            fail("WebRTC 영상 연결이 끊겼습니다.")
+            fail(String(localized: "WebRTC 영상 연결이 끊겼습니다."))
             return
         }
         isReconnectPending = true
-        updateState(.connecting, "네트워크 연결을 복구하는 중…")
+        updateState(.connecting, String(localized: "네트워크 연결을 복구하는 중…"))
         resumePendingReconnectIfPossible()
     }
 

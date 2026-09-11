@@ -105,13 +105,13 @@ struct HomeView: View {
                         || youtube.videoUplink.isConnecting
                         || CameraDeviceCatalog.devices.count < 2
                 )
-                .accessibilityLabel("카메라 전환")
+                .accessibilityLabel(String(localized: "카메라 전환"))
 
                 if isCameraAccessDenied {
                     Button {
                         isShowingCameraPermissionAlert = true
                     } label: {
-                        Label("카메라 권한 필요", systemImage: "camera.fill")
+                        Label(String(localized: "카메라 권한 필요"), systemImage: "camera.fill")
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -222,25 +222,25 @@ struct HomeView: View {
             // 설정 앱에서 권한을 바꾼 뒤 돌아오면 안내 UI 상태를 즉시 갱신함
             cameraManager.refreshAuthorizationStatus()
         }
-        .alert("카메라 권한이 필요합니다", isPresented: $isShowingCameraPermissionAlert) {
-            Button("설정 열기") {
+        .alert(String(localized: "카메라 권한이 필요합니다"), isPresented: $isShowingCameraPermissionAlert) {
+            Button(String(localized: "설정 열기")) {
                 openCameraSettings()
             }
 
-            Button("취소", role: .cancel) { }
+            Button(String(localized: "취소"), role: .cancel) { }
         } message: {
-            Text("카메라를 사용하려면 설정에서 카메라 접근을 허용해 주세요.")
+            Text(String(localized: "카메라를 사용하려면 설정에서 카메라 접근을 허용해 주세요."))
         }
         .alert(
-            "카메라를 전환하지 못했습니다",
+            String(localized: "카메라를 전환하지 못했습니다"),
             isPresented: Binding(
                 get: { cameraSwitchErrorMessage != nil },
                 set: { if !$0 { cameraSwitchErrorMessage = nil } }
             )
         ) {
-            Button("확인", role: .cancel) { }
+            Button(String(localized: "확인"), role: .cancel) { }
         } message: {
-            Text(cameraSwitchErrorMessage ?? "다시 시도해 주세요.")
+            Text(cameraSwitchErrorMessage ?? String(localized: "다시 시도해 주세요."))
         }
     }
 
@@ -388,7 +388,7 @@ struct HomeView: View {
     }
 
     private var zoomAccessibilityValue: String {
-        String(format: "%.1f배", activeZoomFactor)
+        String(format: String(localized: "%.1f배"), activeZoomFactor)
     }
 
     private var cameraZoomGesture: some Gesture {
@@ -464,18 +464,18 @@ struct HomeView: View {
                         if let previousCameraID {
                             try? await youtube.videoUplink.switchCamera(to: previousCameraID)
                         }
-                        cameraSwitchErrorMessage = "카메라 선택을 저장하지 못해 기존 카메라를 계속 사용합니다."
+                        cameraSwitchErrorMessage = String(localized: "카메라 선택을 저장하지 못해 기존 카메라를 계속 사용합니다.")
                         return
                     }
                 } catch {
                     cameraSwitchErrorMessage = (error as? LocalizedError)?.errorDescription
-                        ?? "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다."
+                        ?? String(localized: "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다.")
                 }
                 return
             }
 
             guard await cameraManager.switchCamera(to: nextCamera.uniqueID) else {
-                cameraSwitchErrorMessage = "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다."
+                cameraSwitchErrorMessage = String(localized: "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다.")
                 return
             }
         }
@@ -488,8 +488,8 @@ private struct CameraZoomAccessibility: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .accessibilityLabel("카메라 줌")
-            .accessibilityHint("두 손가락으로 확대하거나 축소합니다")
+            .accessibilityLabel(String(localized: "카메라 줌"))
+            .accessibilityHint(String(localized: "두 손가락으로 확대하거나 축소합니다"))
             .accessibilityValue(value)
             .accessibilityAdjustableAction(onAdjust)
     }

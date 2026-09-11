@@ -47,8 +47,8 @@ enum WebRTCVideoUplinkError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .cancelled: return "영상 연결이 취소되었습니다."
-        case .unauthorized: return "영상 연결 인증이 만료되었습니다."
+        case .cancelled: return String(localized: "영상 연결이 취소되었습니다.")
+        case .unauthorized: return String(localized: "영상 연결 인증이 만료되었습니다.")
         case let .failed(message): return message
         }
     }

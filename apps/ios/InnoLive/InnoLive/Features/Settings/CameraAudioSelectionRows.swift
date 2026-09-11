@@ -10,11 +10,11 @@ struct CameraQualitySelectionRow: View {
             HStack(spacing: 12) {
                 Image(systemName: "video.fill")
                     .frame(width: 24)
-                Text("카메라 화질")
+                Text(String(localized: "카메라 화질"))
                     .font(.body.weight(.semibold))
                 Spacer()
                 Menu {
-                    Picker("카메라 화질", selection: $selectedQualityRaw) {
+                    Picker(String(localized: "카메라 화질"), selection: $selectedQualityRaw) {
                         ForEach(CameraQualityPreset.allCases) { quality in
                             Text(quality.rawValue).tag(quality.rawValue)
                         }
@@ -42,11 +42,11 @@ struct CameraDeviceSelectionRow: View {
             HStack(spacing: 12) {
                 Image(systemName: "camera.fill")
                     .frame(width: 24)
-                Text("카메라 기기")
+                Text(String(localized: "카메라 기기"))
                     .font(.body.weight(.semibold))
                 Spacer()
                 Menu {
-                    Picker("카메라 기기", selection: $selectedCameraID) {
+                    Picker(String(localized: "카메라 기기"), selection: $selectedCameraID) {
                         ForEach(options) { option in
                             Text(option.name).tag(option.id)
                         }
@@ -66,7 +66,7 @@ struct AudioDeviceSelectionRow: View {
     let isChanging: Bool
 
     private var selectedName: String {
-        options.first { $0.id == selectedAudioID }?.name ?? "시스템 기본값"
+        options.first { $0.id == selectedAudioID }?.name ?? String(localized: "시스템 기본값")
     }
 
     var body: some View {
@@ -74,11 +74,11 @@ struct AudioDeviceSelectionRow: View {
             HStack(spacing: 12) {
                 Image(systemName: "mic.fill")
                     .frame(width: 24)
-                Text("오디오 기기")
+                Text(String(localized: "오디오 기기"))
                     .font(.body.weight(.semibold))
                 Spacer()
                 Menu {
-                    Picker("오디오 기기", selection: $selectedAudioID) {
+                    Picker(String(localized: "오디오 기기"), selection: $selectedAudioID) {
                         ForEach(options) { option in
                             Text(option.name).tag(option.id)
                         }

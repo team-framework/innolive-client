@@ -18,7 +18,7 @@ struct SettingsView: View {
                     } label: {
                         SettingsGlassRow {
                             settingsRowContent(
-                                title: "카메라 및 오디오 설정",
+                                title: String(localized: "카메라 및 오디오 설정"),
                                 systemImage: "camera.fill"
                             )
                         }
@@ -30,7 +30,7 @@ struct SettingsView: View {
                     } label: {
                         SettingsGlassRow {
                             settingsRowContent(
-                                title: "얼굴 관리",
+                                title: String(localized: "얼굴 관리"),
                                 systemImage: "faceid"
                             )
                         }
@@ -42,7 +42,7 @@ struct SettingsView: View {
                     } label: {
                         SettingsGlassRow {
                             settingsRowContent(
-                                title: "방송 설정",
+                                title: String(localized: "방송 설정"),
                                 systemImage: "dot.radiowaves.left.and.right"
                             )
                         }
@@ -54,7 +54,7 @@ struct SettingsView: View {
                     } label: {
                         SettingsGlassRow {
                             settingsRowContent(
-                                title: "계정 설정",
+                                title: String(localized: "계정 설정"),
                                 systemImage: "person.crop.circle.fill"
                             )
                         }
@@ -69,7 +69,7 @@ struct SettingsView: View {
                                         .font(.body)
                                         .frame(width: 28)
 
-                                    Text("개인정보처리방침")
+                                    Text(String(localized: "개인정보처리방침"))
                                         .font(.body.weight(.semibold))
 
                                     Spacer()
@@ -87,7 +87,7 @@ struct SettingsView: View {
                 Spacer()
             }
             .padding(24)
-            .navigationTitle("설정")
+            .navigationTitle(String(localized: "설정"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }

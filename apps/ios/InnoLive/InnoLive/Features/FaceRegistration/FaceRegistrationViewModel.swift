@@ -68,7 +68,7 @@ final class FaceRegistrationViewModel: ObservableObject {
               isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
 
         guard cameraManager.authorizationStatus == .authorized else {
-            phase = .failed("카메라 권한을 허용한 뒤 다시 시도해 주세요.")
+            phase = .failed(String(localized: "카메라 권한을 허용한 뒤 다시 시도해 주세요."))
             return
         }
 
@@ -99,12 +99,12 @@ final class FaceRegistrationViewModel: ObservableObject {
                       isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
                 activeFrameSource = nil
                 isUsingWebRTCFrames = false
-                phase = .failed("서버에 연결된 카메라 영상을 가져오지 못했습니다. 다시 시도해 주세요.")
+                phase = .failed(String(localized: "서버에 연결된 카메라 영상을 가져오지 못했습니다. 다시 시도해 주세요."))
                 return
             }
             guard !Task.isCancelled,
                   isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
-            phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
+            phase = .detecting(String(localized: "얼굴을 가운데 영역에 맞춰 주세요."))
             return
         }
 
@@ -113,7 +113,7 @@ final class FaceRegistrationViewModel: ObservableObject {
               !videoUplink.isSwitchingCamera else {
             activeFrameSource = nil
             isUsingWebRTCFrames = false
-            phase = .failed("서버 카메라 연결이 완료된 뒤 다시 시도해 주세요.")
+            phase = .failed(String(localized: "서버 카메라 연결이 완료된 뒤 다시 시도해 주세요."))
             return
         }
 
@@ -143,12 +143,12 @@ final class FaceRegistrationViewModel: ObservableObject {
             guard !Task.isCancelled,
                   isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
             activeFrameSource = nil
-            phase = .failed("카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요.")
+            phase = .failed(String(localized: "카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요."))
             return
         }
         guard !Task.isCancelled,
               isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
-        phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
+        phase = .detecting(String(localized: "얼굴을 가운데 영역에 맞춰 주세요."))
     }
 
     func stopDetection(
@@ -198,7 +198,7 @@ final class FaceRegistrationViewModel: ObservableObject {
         isUsingWebRTCFrames = false
         videoUplink.stopFaceFrameDelivery()
         stableDetectionCount = 0
-        phase = .failed("서버 카메라 연결이 변경되었습니다. 다시 시도해 주세요.")
+        phase = .failed(String(localized: "서버 카메라 연결이 변경되었습니다. 다시 시도해 주세요."))
     }
 
     func delete(faceID: String) async {
@@ -241,20 +241,20 @@ final class FaceRegistrationViewModel: ObservableObject {
         switch outcome {
         case .noFace:
             stableDetectionCount = 0
-            phase = .detecting("얼굴을 가운데 영역에 보여 주세요.")
+            phase = .detecting(String(localized: "얼굴을 가운데 영역에 보여 주세요."))
         case .multipleFaces:
             stableDetectionCount = 0
-            phase = .detecting("한 명의 얼굴만 화면에 보여 주세요.")
+            phase = .detecting(String(localized: "한 명의 얼굴만 화면에 보여 주세요."))
         case .moveCloser:
             stableDetectionCount = 0
-            phase = .detecting("얼굴이 조금 더 크게 보이도록 가까이 와 주세요.")
+            phase = .detecting(String(localized: "얼굴이 조금 더 크게 보이도록 가까이 와 주세요."))
         case .centerFace:
             stableDetectionCount = 0
-            phase = .detecting("얼굴을 가운데 영역에 맞춰 주세요.")
+            phase = .detecting(String(localized: "얼굴을 가운데 영역에 맞춰 주세요."))
         case let .ready(jpegData):
             stableDetectionCount += 1
             guard stableDetectionCount >= 3 else {
-                phase = .detecting("좋아요. 잠시 그대로 있어 주세요.")
+                phase = .detecting(String(localized: "좋아요. 잠시 그대로 있어 주세요."))
                 return
             }
             phase = .registering
@@ -292,7 +292,7 @@ final class FaceRegistrationViewModel: ObservableObject {
             registrationTask = task
         case .failed:
             stableDetectionCount = 0
-            phase = .failed("얼굴을 분석하지 못했습니다. 다시 시도해 주세요.")
+            phase = .failed(String(localized: "얼굴을 분석하지 못했습니다. 다시 시도해 주세요."))
             Task { @MainActor [weak self] in
                 guard let self,
                       !Task.isCancelled,
@@ -332,6 +332,6 @@ final class FaceRegistrationViewModel: ObservableObject {
 
     private func message(for error: Error) -> String {
         (error as? ReferenceFaceAPIError)?.userMessage
-            ?? "얼굴 관리 요청을 처리하지 못했습니다. 다시 시도해 주세요."
+            ?? String(localized: "얼굴 관리 요청을 처리하지 못했습니다. 다시 시도해 주세요.")
     }
 }

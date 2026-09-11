@@ -207,7 +207,7 @@ final class YouTubeIntegration: ObservableObject {
                 let isReady = try await waitForVideoTrack(session: session, accessToken: refreshedAccessToken)
                 guard isReady, videoUplink.state == .connected else {
                     throw WebRTCVideoUplinkError.failed(
-                        videoUplink.errorMessage ?? "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요."
+                        videoUplink.errorMessage ?? String(localized: "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요.")
                     )
                 }
                 videoConnectionConfiguration = VideoConnectionConfiguration(
@@ -237,7 +237,7 @@ final class YouTubeIntegration: ObservableObject {
         self.stream = nil
         self.liveStartedAt = nil
         self.videoTrack = nil
-        handle(terminalError ?? WebRTCVideoUplinkError.failed("카메라 영상 연결을 완료하지 못했습니다."))
+        handle(terminalError ?? WebRTCVideoUplinkError.failed(String(localized: "카메라 영상 연결을 완료하지 못했습니다.")))
         return false
     }
 
@@ -248,7 +248,7 @@ final class YouTubeIntegration: ObservableObject {
             return true
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription
-                ?? "카메라를 전환하지 못했습니다. 다시 시도해 주세요."
+                ?? String(localized: "카메라를 전환하지 못했습니다. 다시 시도해 주세요.")
             return false
         }
     }
@@ -260,7 +260,7 @@ final class YouTubeIntegration: ObservableObject {
             return true
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription
-                ?? "오디오 기기를 전환하지 못했습니다. 다시 시도해 주세요."
+                ?? String(localized: "오디오 기기를 전환하지 못했습니다. 다시 시도해 주세요.")
             return false
         }
     }
@@ -272,7 +272,7 @@ final class YouTubeIntegration: ObservableObject {
             return true
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription
-                ?? "화질을 변경하지 못했습니다. 다시 시도해 주세요."
+                ?? String(localized: "화질을 변경하지 못했습니다. 다시 시도해 주세요.")
             return false
         }
     }
@@ -299,7 +299,7 @@ final class YouTubeIntegration: ObservableObject {
         defer { isRecoveringVideoFailure = false }
 
         let failureMessage = videoUplink.errorMessage
-            ?? "카메라 영상 연결이 끊겼습니다. 비식별화를 다시 시작해 주세요."
+            ?? String(localized: "카메라 영상 연결이 끊겼습니다. 비식별화를 다시 시작해 주세요.")
         let failedSession = session
         let shouldStopYouTube = isYouTubeBroadcastActive
 
@@ -391,7 +391,7 @@ final class YouTubeIntegration: ObservableObject {
         guard statePolicy.broadcastPhase == .prepared else {
             showError(.api(
                 code: "broadcast_not_prepared",
-                fallback: "YouTube 방송을 먼저 준비해 주세요.",
+                fallback: String(localized: "YouTube 방송을 먼저 준비해 주세요."),
                 helpURL: nil
             ))
             return
@@ -567,7 +567,7 @@ final class YouTubeIntegration: ObservableObject {
         for _ in 0..<15 {
             guard videoUplink.state == .connected else {
                 throw WebRTCVideoUplinkError.failed(
-                    videoUplink.errorMessage ?? "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요."
+                    videoUplink.errorMessage ?? String(localized: "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요.")
                 )
             }
             let snapshot = try await api.sessionStatus(session: session, accessToken: accessToken)
@@ -579,7 +579,7 @@ final class YouTubeIntegration: ObservableObject {
             if snapshot.media.rawVideoTrack?.readyStateValue == .live {
                 guard videoUplink.state == .connected else {
                     throw WebRTCVideoUplinkError.failed(
-                        videoUplink.errorMessage ?? "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요."
+                        videoUplink.errorMessage ?? String(localized: "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요.")
                     )
                 }
                 videoUplink.markPublisherReady()
@@ -646,7 +646,7 @@ final class YouTubeIntegration: ObservableObject {
                     )
                     guard !Task.isCancelled else { return }
                     guard try await self.waitForVideoTrack(session: session, accessToken: accessToken) else {
-                        throw WebRTCVideoUplinkError.failed("카메라 영상 연결을 복구하지 못했습니다.")
+                        throw WebRTCVideoUplinkError.failed(String(localized: "카메라 영상 연결을 복구하지 못했습니다."))
                     }
                     self.videoUplink.markPublisherReady()
                     return
@@ -662,7 +662,7 @@ final class YouTubeIntegration: ObservableObject {
                         return
                     case .unavailable:
                         guard !Task.isCancelled else { return }
-                        self.videoUplink.markReconnectFailed("네트워크 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요.")
+                        self.videoUplink.markReconnectFailed(String(localized: "네트워크 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요."))
                         return
                     }
                 } catch {
@@ -675,7 +675,7 @@ final class YouTubeIntegration: ObservableObject {
             }
 
             guard !Task.isCancelled else { return }
-            self.videoUplink.markReconnectFailed("네트워크 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요.")
+            self.videoUplink.markReconnectFailed(String(localized: "네트워크 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요."))
         }
     }
 
@@ -693,7 +693,7 @@ final class YouTubeIntegration: ObservableObject {
             return
         }
         guard let session, isYouTubeBroadcastActive else {
-            showError(.api(code: "stream_not_active", fallback: "YouTube 송출 중이 아닙니다.", helpURL: nil))
+            showError(.api(code: "stream_not_active", fallback: String(localized: "YouTube 송출 중이 아닙니다."), helpURL: nil))
             return
         }
         guard shouldPause ? canPauseYouTubeBroadcast : canResumeYouTubeBroadcast else {
@@ -723,7 +723,7 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = uplinkError
             return
         }
-        errorMessage = "YouTube 연결을 완료하지 못했습니다. 다시 시도해 주세요."
+        errorMessage = String(localized: "YouTube 연결을 완료하지 못했습니다. 다시 시도해 주세요.")
     }
 
     private func showError(_ error: YouTubeAPIError) {

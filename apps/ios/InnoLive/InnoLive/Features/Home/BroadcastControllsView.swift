@@ -36,7 +36,7 @@ struct BroadcastControllsView: View {
                         }
                         .buttonStyle(.glass)
                         .buttonBorderShape(.circle)
-                        .accessibilityLabel("설정")
+                        .accessibilityLabel(String(localized: "설정"))
 
                         Button(action: performPrimaryAction) {
                             if isBroadcasting {
@@ -58,7 +58,7 @@ struct BroadcastControllsView: View {
                         .contextMenu {
                             if youtube.broadcastPhase == "prepared" {
                                 Button(role: .destructive, action: cancelYouTubePreparation) {
-                                    Label("방송 준비 취소", systemImage: "xmark.circle.fill")
+                                    Label(String(localized: "방송 준비 취소"), systemImage: "xmark.circle.fill")
                                 }
                             }
                         }
@@ -73,9 +73,9 @@ struct BroadcastControllsView: View {
                         .tint(youtube.isAnonymizationEnabled ? .purple : nil)
                         .disabled(!isBroadcasting || youtube.isTogglingAnonymization)
                         .accessibilityLabel(
-                            youtube.isAnonymizationEnabled ? "비식별화 켜짐" : "비식별화 꺼짐"
+                            youtube.isAnonymizationEnabled ? String(localized: "비식별화 켜짐") : String(localized: "비식별화 꺼짐")
                         )
-                        .accessibilityHint("서버 영상 연결을 유지한 채 AI 비식별화 처리를 켜거나 끕니다.")
+                        .accessibilityHint(String(localized: "서버 영상 연결을 유지한 채 AI 비식별화 처리를 켜거나 끕니다."))
                     }
                 }
             }
@@ -89,7 +89,7 @@ struct BroadcastControllsView: View {
                 )
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("닫기") {
+                        Button(String(localized: "닫기")) {
                             isShowingBroadcastSettings = false
                         }
                         .disabled(youtube.isChangingStreamState)
@@ -101,19 +101,19 @@ struct BroadcastControllsView: View {
             .interactiveDismissDisabled(youtube.isChangingStreamState)
         }
         .confirmationDialog(
-            "방송 제어",
+            String(localized: "방송 제어"),
             isPresented: $isShowingBroadcastActions,
             titleVisibility: .visible
         ) {
             Button(
-                youtube.isYouTubeBroadcastPaused ? "방송 재개" : "방송 일시 중지",
+                youtube.isYouTubeBroadcastPaused ? String(localized: "방송 재개") : String(localized: "방송 일시 중지"),
                 action: toggleYouTubePause
             )
             .disabled(!youtube.canChangeYouTubePauseState)
-            Button("방송 종료", role: .destructive, action: stopYouTubeStream)
-            Button("취소", role: .cancel) { }
+            Button(String(localized: "방송 종료"), role: .destructive, action: stopYouTubeStream)
+            Button(String(localized: "취소"), role: .cancel) { }
         } message: {
-            Text("YouTube에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요.")
+            Text(String(localized: "YouTube에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
         }
     }
 
@@ -157,15 +157,15 @@ struct BroadcastControllsView: View {
 
     private var primaryActionHint: String {
         if !isBroadcasting {
-            return "카메라와 마이크를 서버에 다시 연결합니다."
+            return String(localized: "카메라와 마이크를 서버에 다시 연결합니다.")
         }
         if isYouTubeStreaming {
-            return "현재 방송 시간을 표시합니다. 누르면 방송 종료를 확인합니다."
+            return String(localized: "현재 방송 시간을 표시합니다. 누르면 방송 종료를 확인합니다.")
         }
         if youtube.broadcastPhase == "prepared" {
-            return "준비된 YouTube 방송을 시청자에게 공개합니다."
+            return String(localized: "준비된 YouTube 방송을 시청자에게 공개합니다.")
         }
-        return "방송 설정 시트를 엽니다."
+        return String(localized: "방송 설정 시트를 엽니다.")
     }
 
     private var feedback: BroadcastFeedback? {

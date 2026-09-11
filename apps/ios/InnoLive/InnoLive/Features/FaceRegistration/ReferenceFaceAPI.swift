@@ -85,7 +85,7 @@ final class ReferenceFaceAPI {
             let envelope = try? JSONDecoder().decode(ReferenceFaceErrorEnvelope.self, from: result.data)
             throw ReferenceFaceAPIError.api(
                 code: envelope?.error.code,
-                fallback: envelope?.error.message ?? "얼굴 관리 요청을 처리하지 못했습니다."
+                fallback: envelope?.error.message ?? String(localized: "얼굴 관리 요청을 처리하지 못했습니다.")
             )
         }
         return result.data
