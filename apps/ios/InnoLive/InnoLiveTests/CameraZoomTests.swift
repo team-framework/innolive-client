@@ -20,6 +20,32 @@ final class CameraZoomTests: XCTestCase {
         XCTAssertNotEqual(factor, 0.5)
     }
 
+    func testDisplayRangeAllowsHalfTimesWithoutUsingCollapsedVirtualMaximum() {
+        XCTAssertEqual(
+            CameraZoom.displayRange(hasHalfTimes: true, activeMin: 1, activeMax: 8),
+            0.5...8
+        )
+        XCTAssertEqual(
+            CameraZoom.displayRange(hasHalfTimes: true, activeMin: 0.5, activeMax: 0.5),
+            0.5...16
+        )
+        XCTAssertEqual(
+            CameraZoom.displayRange(hasHalfTimes: false, activeMin: 1, activeMax: 6),
+            1...6
+        )
+    }
+
+    func testPinchRequestCanGoToHalfTimesEvenWhenCurrentDeviceMinimumIsOne() {
+        XCTAssertEqual(
+            CameraZoom.requestedPinchFactor(fromPinchStart: 1, magnification: 0.5),
+            0.5
+        )
+        XCTAssertEqual(
+            CameraZoom.requestedPinchFactor(fromPinchStart: 1, magnification: 2),
+            2
+        )
+    }
+
     func testOneTimesUsesWideCameraNotVirtualCamera() {
         let plan = CameraZoom.plan(
             requestedFactor: 1,

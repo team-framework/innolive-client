@@ -395,17 +395,14 @@ struct HomeView: View {
         MagnifyGesture()
             .onChanged { value in
                 guard canZoomCamera else { return }
-                let range = activeZoomRange
                 if pinchStartZoom == nil {
                     pinchStartZoom = activeZoomFactor
                 }
                 let start = pinchStartZoom ?? activeZoomFactor
                 applyUserZoom(
-                    CameraZoom.factor(
+                    CameraZoom.requestedPinchFactor(
                         fromPinchStart: start,
-                        magnification: value.magnification,
-                        min: range.lowerBound,
-                        max: range.upperBound
+                        magnification: value.magnification
                     )
                 )
             }

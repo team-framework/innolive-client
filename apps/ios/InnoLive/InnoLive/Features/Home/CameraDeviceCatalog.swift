@@ -104,16 +104,13 @@ enum CameraDeviceCatalog {
     }
 
     static func expandedZoomRange(for device: AVCaptureDevice) -> ClosedRange<CGFloat> {
-        let virtual = virtualZoomDevice(position: device.position)
-        let minimum = min(
-            device.minAvailableVideoZoomFactor,
-            virtual?.minAvailableVideoZoomFactor ?? device.minAvailableVideoZoomFactor
+        let hasHalfTimes = virtualZoomDevice(position: device.position) != nil
+            || device.minAvailableVideoZoomFactor < CameraZoom.defaultFactor
+        return CameraZoom.displayRange(
+            hasHalfTimes: hasHalfTimes,
+            activeMin: device.minAvailableVideoZoomFactor,
+            activeMax: device.maxAvailableVideoZoomFactor
         )
-        let maximum = max(
-            device.maxAvailableVideoZoomFactor,
-            virtual?.maxAvailableVideoZoomFactor ?? device.maxAvailableVideoZoomFactor
-        )
-        return minimum...maximum
     }
 
     static func nextCamera(after currentCameraID: String?) -> AVCaptureDevice? {

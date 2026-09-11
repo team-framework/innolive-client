@@ -3,7 +3,9 @@ import CoreGraphics
 
 enum CameraZoom {
     static let defaultFactor: CGFloat = 1
+    static let halfTimesFactor: CGFloat = 0.5
     static let accessibilityStep: CGFloat = 0.5
+    static let fallbackMaxFactor: CGFloat = 16
 
     struct DeviceLimits: Equatable {
         var id: String
@@ -35,6 +37,20 @@ enum CameraZoom {
         clamped(start * magnification, min: min, max: max)
     }
 
+    static func requestedPinchFactor(fromPinchStart start: CGFloat, magnification: CGFloat) -> CGFloat {
+        start * magnification
+    }
+
+    static func displayRange(
+        hasHalfTimes: Bool,
+        activeMin: CGFloat,
+        activeMax: CGFloat
+    ) -> ClosedRange<CGFloat> {
+        let lower = hasHalfTimes ? min(halfTimesFactor, activeMin) : activeMin
+        let upper = activeMax > lower ? activeMax : max(lower, fallbackMaxFactor)
+        return lower...upper
+    }
+
     static func steppedUp(from current: CGFloat, min: CGFloat, max: CGFloat) -> CGFloat {
         clamped(current + accessibilityStep, min: min, max: max)
     }
@@ -50,9 +66,10 @@ enum CameraZoom {
         virtual: DeviceLimits?
     ) -> DevicePlan {
         if requestedFactor < defaultFactor, let virtual {
+            let virtualMax = virtual.max > virtual.min ? virtual.max : fallbackMaxFactor
             return DevicePlan(
                 deviceID: virtual.id,
-                factor: clamped(requestedFactor, min: virtual.min, max: virtual.max)
+                factor: clamped(requestedFactor, min: virtual.min, max: virtualMax)
             )
         }
         if let wide {
