@@ -234,6 +234,7 @@ struct BroadcastSettingsView: View {
             || (isPreparingBroadcast && draftSettings.audience == nil)
             || (isPreparingBroadcast && !youtube.isConnected)
             || (isPreparingBroadcast && !youtube.isVideoConnected)
+            || (isPreparingBroadcast && youtube.isYouTubeConnectionOperationInProgress)
     }
 
     private func performPrimaryAction() {

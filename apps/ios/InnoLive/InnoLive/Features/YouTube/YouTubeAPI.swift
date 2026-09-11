@@ -59,9 +59,20 @@ private struct AnonymizationRequest: Encodable {
 
 @MainActor
 final class YouTubeAPI {
+    private let urlSession: URLSession
+    private let serverURLProvider: @MainActor @Sendable (String) -> URL?
     private var accessTokenProvider: (() -> String?)?
     private var refreshSession: (() async -> AuthenticationRefreshResult)?
     private var onInvalidRefresh: (() -> Void)?
+    private var authenticationRequestGeneration: UInt = 0
+
+    init(
+        urlSession: URLSession = .shared,
+        serverURLProvider: @escaping @MainActor @Sendable (String) -> URL? = AuthenticationConfiguration.serverURL(path:)
+    ) {
+        self.urlSession = urlSession
+        self.serverURLProvider = serverURLProvider
+    }
 
     func configureAuthentication(
         accessTokenProvider: @escaping () -> String?,
@@ -86,8 +97,12 @@ final class YouTubeAPI {
         return result
     }
 
+    func invalidateAuthenticationRequests() {
+        authenticationRequestGeneration &+= 1
+    }
+
     func configuration() async throws -> YouTubeConfiguration {
-        guard let url = AuthenticationConfiguration.serverURL(path: "/auth/youtube/config") else {
+        guard let url = serverURLProvider("/auth/youtube/config") else {
             throw YouTubeAPIError.configuration
         }
         var request = URLRequest(url: url)
@@ -111,6 +126,30 @@ final class YouTubeAPI {
             accessToken: accessToken,
             body: YouTubeConnectRequest(serverAuthCode: serverAuthCode)
         )
+    }
+
+    func streamingAccounts(accessToken: String) async throws -> [YouTubeStreamingAccountSummary] {
+        try await request(
+            path: "/auth/streaming/accounts",
+            method: "GET",
+            accessToken: accessToken,
+            body: Optional<YouTubeEmptyRequest>.none
+        )
+    }
+
+    func disconnectStreamingAccount(accessToken: String, provider: String = "youtube") async throws {
+        guard let url = serverURLProvider("/auth/streaming/accounts/\(provider)") else {
+            throw YouTubeAPIError.configuration
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await authenticatedData(for: request, accessToken: accessToken)
+        try validate(response, data: data)
+        guard response.statusCode == 204 else {
+            throw YouTubeAPIError.response
+        }
     }
 
     func createSession(accessToken: String) async throws -> YouTubeBroadcastSession {
@@ -229,7 +268,7 @@ final class YouTubeAPI {
         ownerToken: String? = nil,
         body: Body? = nil
     ) async throws -> Response {
-        guard let url = AuthenticationConfiguration.serverURL(path: path) else {
+        guard let url = serverURLProvider(path) else {
             throw YouTubeAPIError.configuration
         }
         var request = URLRequest(url: url)
@@ -241,11 +280,33 @@ final class YouTubeAPI {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(body)
         }
+        let (data, httpResponse) = try await authenticatedData(for: request, accessToken: accessToken)
+        try validate(httpResponse, data: data)
+        return try decode(Response.self, from: data)
+    }
+
+    private func authenticatedData(
+        for request: URLRequest,
+        accessToken: String
+    ) async throws -> (Data, HTTPURLResponse) {
+        let requestGeneration = authenticationRequestGeneration
+        var request = request
+        request.setValue("Bearer \(currentAccessToken(fallback: accessToken))", forHTTPHeaderField: "Authorization")
+
         var (data, response) = try await perform(request)
-        guard let initialHTTPResponse = response as? HTTPURLResponse else { throw YouTubeAPIError.response }
+        guard requestGeneration == authenticationRequestGeneration else {
+            throw YouTubeAPIRequestInvalidated()
+        }
+        guard let initialHTTPResponse = response as? HTTPURLResponse else {
+            throw YouTubeAPIError.response
+        }
         if initialHTTPResponse.statusCode == 401,
            let refreshSession {
-            switch await refreshSession() {
+            let refreshResult = await refreshSession()
+            guard requestGeneration == authenticationRequestGeneration else {
+                throw YouTubeAPIRequestInvalidated()
+            }
+            switch refreshResult {
             case .refreshed:
                 request.setValue("Bearer \(currentAccessToken(fallback: accessToken))", forHTTPHeaderField: "Authorization")
                 (data, response) = try await perform(request)
@@ -255,14 +316,18 @@ final class YouTubeAPI {
                 break
             }
         }
-        guard let httpResponse = response as? HTTPURLResponse else { throw YouTubeAPIError.response }
-        try validate(httpResponse, data: data)
-        return try decode(Response.self, from: data)
+        guard requestGeneration == authenticationRequestGeneration else {
+            throw YouTubeAPIRequestInvalidated()
+        }
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw YouTubeAPIError.response
+        }
+        return (data, httpResponse)
     }
 
     private func perform(_ request: URLRequest) async throws -> (Data, URLResponse) {
         do {
-            return try await URLSession.shared.data(for: request)
+            return try await urlSession.data(for: request)
         } catch {
             throw YouTubeAPIError.transport
         }
@@ -286,6 +351,9 @@ final class YouTubeAPI {
         }
     }
 }
+
+private struct YouTubeAPIRequestInvalidated: Error {}
+
 private struct YouTubeAPIErrorEnvelope: Decodable {
     struct ErrorBody: Decodable {
         struct Details: Decodable { let helpURL: URL?; enum CodingKeys: String, CodingKey { case helpURL = "help_url" } }

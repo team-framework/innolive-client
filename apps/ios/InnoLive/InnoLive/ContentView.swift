@@ -50,6 +50,11 @@ struct ContentView: View {
             // 이전 만료 오류 배너가 남지 않도록 한다.
             if isAuthenticated {
                 youtube.dismissError()
+                Task {
+                    await youtube.refreshConnection(
+                        accessToken: authentication.currentAccessToken()
+                    )
+                }
             }
         }
     }

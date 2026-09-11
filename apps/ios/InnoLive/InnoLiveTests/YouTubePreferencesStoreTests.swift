@@ -41,6 +41,29 @@ final class YouTubePreferencesStoreTests: XCTestCase {
         XCTAssertEqual(store.loadConnection(), connection)
     }
 
+    func testLegacyConnectionWithoutReconnectFlagStillLoads() throws {
+        let legacyConnection = Data(
+            """
+            {
+              "provider": "youtube",
+              "channel": {
+                "id": "channel-id",
+                "title": "Test Channel"
+              }
+            }
+            """.utf8
+        )
+        userDefaults.set(legacyConnection, forKey: "com.framework.innolive.youtube.connection")
+
+        XCTAssertEqual(
+            store.loadConnection(),
+            YouTubeConnection(
+                provider: "youtube",
+                channel: YouTubeChannel(id: "channel-id", title: "Test Channel")
+            )
+        )
+    }
+
     func testBroadcastSettingsAndAudienceRoundTrip() {
         let settings = YouTubeBroadcastSettings(
             title: "Test broadcast",

@@ -191,11 +191,60 @@ struct YouTubeBroadcastSettings: Codable, Equatable {
 struct YouTubeConnection: Codable, Equatable {
     let provider: String
     let channel: YouTubeChannel
+    let requiresReconnection: Bool
+
+    init(provider: String, channel: YouTubeChannel, requiresReconnection: Bool = false) {
+        self.provider = provider
+        self.channel = channel
+        self.requiresReconnection = requiresReconnection
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case provider
+        case channel
+        case requiresReconnection = "requires_reconnection"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        provider = try container.decode(String.self, forKey: .provider)
+        channel = try container.decode(YouTubeChannel.self, forKey: .channel)
+        // Older installs persisted only provider and channel.
+        requiresReconnection = try container.decodeIfPresent(Bool.self, forKey: .requiresReconnection) ?? false
+    }
 }
 
 struct YouTubeChannel: Codable, Equatable {
     let id: String
     let title: String
+}
+
+struct YouTubeStreamingAccountSummary: Decodable, Equatable {
+    let provider: String
+    let channelID: String
+    let channelTitle: String
+    let connectedAt: String?
+    let reconnectRequired: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case provider
+        case channelID = "channel_id"
+        case channelTitle = "channel_title"
+        case connectedAt = "connected_at"
+        case reconnectRequired = "reconnect_required"
+    }
+
+    var youtubeConnection: YouTubeConnection? {
+        guard provider == "youtube" else { return nil }
+        return YouTubeConnection(
+            provider: provider,
+            channel: YouTubeChannel(
+                id: channelID,
+                title: channelTitle.isEmpty ? channelID : channelTitle
+            ),
+            requiresReconnection: reconnectRequired
+        )
+    }
 }
 
 struct YouTubeBroadcastSession: Decodable, Equatable {

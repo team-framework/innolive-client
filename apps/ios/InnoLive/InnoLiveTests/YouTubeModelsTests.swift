@@ -72,6 +72,37 @@ final class YouTubeModelsTests: XCTestCase {
         XCTAssertEqual(track.readyState, "future_ready_state")
     }
 
+    func testStreamingAccountSummaryMapsOnlyYouTubeAccounts() throws {
+        let data = Data(
+            """
+            [{
+              "provider": "chzzk",
+              "channel_id": "chzzk-1",
+              "channel_title": "Other platform",
+              "connected_at": "2026-09-12T00:00:00Z",
+              "reconnect_required": false
+            }, {
+              "provider": "youtube",
+              "channel_id": "UCabc",
+              "channel_title": "Team Framework",
+              "connected_at": "2026-09-12T00:00:00Z",
+              "reconnect_required": false
+            }]
+            """.utf8
+        )
+
+        let summaries = try JSONDecoder().decode([YouTubeStreamingAccountSummary].self, from: data)
+
+        XCTAssertNil(summaries[0].youtubeConnection)
+        XCTAssertEqual(
+            summaries[1].youtubeConnection,
+            YouTubeConnection(
+                provider: "youtube",
+                channel: YouTubeChannel(id: "UCabc", title: "Team Framework")
+            )
+        )
+    }
+
     func testMarkedStoppedByUserKeepsExistingValuesAndUsesIdlePhase() throws {
         let data = Data(
             """

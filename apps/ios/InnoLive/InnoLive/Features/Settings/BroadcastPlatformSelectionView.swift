@@ -11,6 +11,7 @@ struct BroadcastPlatformSelectionView: View {
     @ObservedObject var youtube: YouTubeIntegration
     @State private var connectedPlatforms: Set<BroadcastPlatform> = []
     @State private var selectedPlatforms: Set<BroadcastPlatform> = []
+    @State private var isShowingDisconnectConfirmation = false
 
     private var visiblePlatforms: [BroadcastPlatform] {
         BroadcastPlatform.allCases.filter { $0 != .youTube || youtube.isFeatureAvailable }
@@ -44,6 +45,9 @@ struct BroadcastPlatformSelectionView: View {
         .task {
             youtube.dismissError()
             await youtube.refreshAvailability()
+            if youtube.isFeatureAvailable {
+                await youtube.refreshConnection(accessToken: authentication.currentAccessToken())
+            }
         }
     }
 
@@ -76,10 +80,33 @@ struct BroadcastPlatformSelectionView: View {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(connection.channel.title)
                             .font(.callout.weight(.semibold))
-                        Text(String(localized: "연결됨"))
+                        Text(
+                            connection.requiresReconnection
+                                ? String(localized: "재연결 필요")
+                                : String(localized: "연결됨")
+                        )
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(connection.requiresReconnection ? .orange : .secondary)
+                        HStack(spacing: 8) {
+                            if youtube.isConnecting || youtube.isRefreshingConnection || youtube.isDisconnecting {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                            if connection.requiresReconnection {
+                                Button(String(localized: "다시 연결"), action: connectYouTube)
+                                    .buttonStyle(.borderless)
+                                    .disabled(youtube.isYouTubeAccountChangeBlocked)
+                            }
+                            Button(String(localized: "연결 해제"), role: .destructive) {
+                                isShowingDisconnectConfirmation = true
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(!youtube.canDisconnectYouTubeAccount)
+                        }
                     }
+                } else if youtube.isRefreshingConnection {
+                    ProgressView()
+                        .controlSize(.small)
                 } else {
                     Button(action: connectYouTube) {
                         if youtube.isConnecting {
@@ -90,9 +117,26 @@ struct BroadcastPlatformSelectionView: View {
                     }
                     .buttonStyle(.glassProminent)
                     .tint(.blue)
-                    .disabled(youtube.isConnecting)
+                    .disabled(youtube.isYouTubeAccountChangeBlocked)
                 }
             }
+        }
+        .confirmationDialog(
+            String(localized: "YouTube 연결 해제"),
+            isPresented: $isShowingDisconnectConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "연결 해제"), role: .destructive) {
+                Task {
+                    await youtube.disconnectYouTubeAccount(
+                        accessToken: authentication.currentAccessToken()
+                    )
+                }
+            }
+            .disabled(!youtube.canDisconnectYouTubeAccount)
+            Button(String(localized: "취소"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "연결을 해제하면 다시 방송하기 전에 YouTube 계정을 연결해야 합니다."))
         }
     }
 
