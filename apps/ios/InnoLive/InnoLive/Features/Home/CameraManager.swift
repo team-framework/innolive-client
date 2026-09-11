@@ -90,7 +90,9 @@ final class CameraManager {
             videoInput = input
             sessionCameraID = device.uniqueID
             updateCurrentCamera(device)
-            applyZoomOnSessionQueue(sessionTargetZoomFactor, to: device)
+            if session.isRunning {
+                applyZoomOnSessionQueue(sessionTargetZoomFactor, to: device)
+            }
             return true
         } catch {
             print("카메라를 연결하지 못했습니다: \(error.localizedDescription)")
@@ -203,11 +205,12 @@ final class CameraManager {
 
     // sessionQueue에서 실행
     private func startSessionOnSessionQueue() {
-        guard !session.isRunning else {
-            return
+        if !session.isRunning {
+            session.startRunning()
         }
-
-        session.startRunning()
+        // Dual Wide/Triple은 startRunning 때 줌이 0.5로 내려가므로
+        // 세션이 돈 뒤에 1x(또는 기억한 배율)를 다시 건다.
+        applyZoomOnSessionQueue(sessionTargetZoomFactor)
     }
 
     @discardableResult

@@ -14,6 +14,12 @@ final class CameraZoomTests: XCTestCase {
         XCTAssertEqual(CameraZoom.factorAfterSwitchReset(min: 1, max: 6), 1)
     }
 
+    func testDefaultZoomStaysOneTimesWhenHalfTimesIsAvailable() {
+        let factor = CameraZoom.factorAfterSwitchReset(min: 0.5, max: 16)
+        XCTAssertEqual(factor, 1)
+        XCTAssertNotEqual(factor, 0.5)
+    }
+
     func testSwitchResetClampsOneTimesToDeviceLimits() {
         XCTAssertEqual(CameraZoom.factorAfterSwitchReset(min: 1.2, max: 5), 1.2)
         XCTAssertEqual(CameraZoom.factorAfterSwitchReset(min: 0.5, max: 0.8), 0.8)

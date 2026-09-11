@@ -128,18 +128,18 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         currentZoomFactor = factor
     }
 
-    func applyZoom(_ factor: CGFloat) {
+    func applyZoom(_ factor: CGFloat, waitUntilApplied: Bool = false) {
         guard !SimulatorVideoInput.isEnabled else { return }
         guard let cameraID = activeCameraID else {
             targetZoomFactor = factor
             currentZoomFactor = factor
             return
         }
-        applyZoom(factor, cameraID: cameraID)
+        applyZoom(factor, cameraID: cameraID, waitUntilApplied: waitUntilApplied)
     }
 
     func reapplyTargetZoom() {
-        applyZoom(targetZoomFactor)
+        applyZoom(targetZoomFactor, waitUntilApplied: true)
     }
 
     func resetZoomToDefault() {
@@ -154,15 +154,26 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             min: device.minAvailableVideoZoomFactor,
             max: device.maxAvailableVideoZoomFactor
         )
-        applyZoom(resetFactor, cameraID: cameraID)
+        applyZoom(resetFactor, cameraID: cameraID, waitUntilApplied: true)
     }
 
-    func applyZoom(_ factor: CGFloat, cameraID: String) {
-        zoomQueue.async { [weak self] in
-            guard let device = AVCaptureDevice(uniqueID: cameraID),
-                  let applied = CameraDeviceZoom.apply(factor, to: device) else {
-                return
+    func applyZoom(_ factor: CGFloat, cameraID: String, waitUntilApplied: Bool = false) {
+        let apply = { () -> CameraDeviceZoom.Applied? in
+            guard let device = AVCaptureDevice(uniqueID: cameraID) else { return nil }
+            return CameraDeviceZoom.apply(factor, to: device)
+        }
+
+        if waitUntilApplied {
+            if let applied = zoomQueue.sync(execute: apply) {
+                targetZoomFactor = applied.factor
+                currentZoomFactor = applied.factor
+                zoomRange = applied.min...applied.max
             }
+            return
+        }
+
+        zoomQueue.async { [weak self] in
+            guard let applied = apply() else { return }
             DispatchQueue.main.async {
                 self?.targetZoomFactor = applied.factor
                 self?.currentZoomFactor = applied.factor

@@ -46,7 +46,7 @@ extension WebRTCVideoUplink {
             do {
                 try await startCapture(capturer, device: previousDevice, setting: previousSetting)
                 try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
-                applyZoom(previousZoom, cameraID: previousCameraID)
+                applyZoom(previousZoom, cameraID: previousCameraID, waitUntilApplied: true)
             } catch {
                 guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                     throw WebRTCVideoUplinkError.cancelled
