@@ -60,18 +60,18 @@ struct YouTubeBroadcastControlLabel: View {
     }
 
     private func buttonTitle(at date: Date) -> String {
-        if youtube.broadcastPhase == "prepared" { return "방송 시작" }
-        if youtube.broadcastPhase == "preparing" { return "방송 준비 중" }
-        if youtube.broadcastPhase == "going_live" { return "방송 시작 중" }
-        guard youtube.isYouTubeBroadcastActive else { return "방송 준비" }
+        if youtube.broadcastPhase == "prepared" { return String(localized: "방송 시작") }
+        if youtube.broadcastPhase == "preparing" { return String(localized: "방송 준비 중") }
+        if youtube.broadcastPhase == "going_live" { return String(localized: "방송 시작 중") }
+        guard youtube.isYouTubeBroadcastActive else { return String(localized: "방송 준비") }
         let duration = formattedDuration(since: youtube.streamStartedAt, now: date)
         if youtube.isYouTubeBroadcastPaused {
-            return "방송 일시 중지 (\(duration))"
+            return String(localized: "방송 일시 중지 (\(duration))")
         }
         if youtube.stream?.status == "reconnecting" {
-            return "재연결 중 (\(duration))"
+            return String(localized: "재연결 중 (\(duration))")
         }
-        return "방송 중 (\(duration))"
+        return String(localized: "방송 중 (\(duration))")
     }
 
     private func formattedDuration(since startDate: Date?, now: Date) -> String {
@@ -98,7 +98,7 @@ struct ServerConnectionControlLabel: View {
                 Image(systemName: "arrow.clockwise")
                     .font(.body.weight(.semibold))
             }
-            Text(isLoading ? "서버 연결 중" : "연결 재시도")
+            Text(isLoading ? String(localized: "서버 연결 중") : String(localized: "연결 재시도"))
                 .font(.headline.weight(.bold))
         }
         .frame(maxWidth: .infinity)
@@ -137,16 +137,16 @@ struct BroadcastFeedbackBanner: View {
                             .font(.caption.weight(.semibold))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("오류 닫기")
+                    .accessibilityLabel(String(localized: "오류 닫기"))
                 }
             }
 
             if let helpURL = youtube.helpURL {
-                Link("YouTube 라이브 활성화 안내", destination: helpURL)
+                Link(String(localized: "YouTube 라이브 활성화 안내"), destination: helpURL)
                     .font(.caption.weight(.semibold))
             } else if youtube.videoUplink.requiresMediaPermissionSettings,
                       let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                Link("앱 설정 열기", destination: settingsURL)
+                Link(String(localized: "앱 설정 열기"), destination: settingsURL)
                     .font(.caption.weight(.semibold))
             }
         }

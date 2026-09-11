@@ -51,7 +51,7 @@ struct FaceManagementView: View {
                     Button {
                         isShowingRegistration = true
                     } label: {
-                        Label("얼굴 등록", systemImage: "viewfinder.circle.fill")
+                        Label(String(localized: "얼굴 등록"), systemImage: "viewfinder.circle.fill")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
@@ -65,18 +65,18 @@ struct FaceManagementView: View {
                     )
 
                     if isCameraTransitioning {
-                        Text("카메라 연결이 완료된 뒤 얼굴을 등록할 수 있어요.")
+                        Text(String(localized: "카메라 연결이 완료된 뒤 얼굴을 등록할 수 있어요."))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
                     } else if cameraManager.authorizationStatus != .authorized {
                         HStack {
-                            Text("얼굴을 등록하려면 카메라 권한이 필요합니다.")
+                            Text(String(localized: "얼굴을 등록하려면 카메라 권한이 필요합니다."))
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Button("설정 열기") {
+                            Button(String(localized: "설정 열기")) {
                                 guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
                                 openURL(settingsURL)
                             }
@@ -89,7 +89,7 @@ struct FaceManagementView: View {
             }
             .padding(24)
         }
-        .navigationTitle("얼굴 관리")
+        .navigationTitle(String(localized: "얼굴 관리"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await model.loadStatus()
@@ -110,16 +110,16 @@ struct FaceManagementView: View {
             .interactiveDismissDisabled(model.phase == .registering)
         }
         .confirmationDialog(
-            "등록된 얼굴을 모두 삭제할까요?",
+            String(localized: "등록된 얼굴을 모두 삭제할까요?"),
             isPresented: $isShowingDeleteAllConfirmation,
             titleVisibility: .visible
         ) {
-            Button("모두 삭제", role: .destructive) {
+            Button(String(localized: "모두 삭제"), role: .destructive) {
                 Task { await model.deleteAll() }
             }
-            Button("취소", role: .cancel) {}
+            Button(String(localized: "취소"), role: .cancel) {}
         } message: {
-            Text("삭제하면 해당 얼굴은 다시 비식별화 대상이 됩니다.")
+            Text(String(localized: "삭제하면 해당 얼굴은 다시 비식별화 대상이 됩니다."))
         }
     }
 
@@ -129,10 +129,10 @@ struct FaceManagementView: View {
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundStyle(.blue)
 
-            Text("비식별화하지 않을 얼굴을 등록해주세요")
+            Text(String(localized: "비식별화하지 않을 얼굴을 등록해주세요"))
                 .font(.title3.weight(.bold))
 
-            Text("방송인이나 게스트의 얼굴을 등록하면, 방송 중 해당 인물은 비식별화 처리되지 않아 자연스러운 방송을 진행할 수 있습니다.")
+            Text(String(localized: "방송인이나 게스트의 얼굴을 등록하면, 방송 중 해당 인물은 비식별화 처리되지 않아 자연스러운 방송을 진행할 수 있습니다."))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -175,7 +175,7 @@ struct FaceManagementView: View {
                             .font(.body.weight(.semibold))
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("등록 상태 새로고침")
+                    .accessibilityLabel(String(localized: "등록 상태 새로고침"))
                 }
             }
         }
@@ -184,10 +184,10 @@ struct FaceManagementView: View {
     private func registeredFacesSection(_ faces: [ReferenceFace]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("등록된 얼굴")
+                Text(String(localized: "등록된 얼굴"))
                     .font(.headline)
                 Spacer()
-                Button("모두 삭제", role: .destructive) {
+                Button(String(localized: "모두 삭제"), role: .destructive) {
                     isShowingDeleteAllConfirmation = true
                 }
                 .font(.caption.weight(.semibold))
@@ -202,7 +202,7 @@ struct FaceManagementView: View {
                             .font(.title3)
                             .foregroundStyle(.blue)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("등록 얼굴 \(index + 1)")
+                            Text(String(localized: "등록 얼굴 \(index + 1)"))
                                 .font(.body.weight(.semibold))
                             Text(FaceRegistrationDateFormatting.displayDate(from: face.registeredAt))
                                 .font(.caption)
@@ -216,7 +216,7 @@ struct FaceManagementView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(model.isDeleting)
-                        .accessibilityLabel("등록 얼굴 \(index + 1) 삭제")
+                        .accessibilityLabel(String(localized: "등록 얼굴 \(index + 1) 삭제"))
                     }
                 }
             }
@@ -224,13 +224,13 @@ struct FaceManagementView: View {
     }
 
     private var statusTitle: String {
-        guard let status = model.status else { return "등록 상태 확인 필요" }
-        return status.registered ? "얼굴 등록됨" : "등록된 얼굴 없음"
+        guard let status = model.status else { return String(localized: "등록 상태 확인 필요") }
+        return status.registered ? String(localized: "얼굴 등록됨") : String(localized: "등록된 얼굴 없음")
     }
 
     private var statusDetail: String {
-        guard let status = model.status else { return "서버 상태를 불러와 주세요" }
-        return status.registered ? "\(status.count)개의 얼굴 정보" : "등록하면 내 얼굴의 비식별화를 제외합니다"
+        guard let status = model.status else { return String(localized: "서버 상태를 불러와 주세요") }
+        return status.registered ? String(localized: "\(status.count)개의 얼굴 정보") : String(localized: "등록하면 내 얼굴의 비식별화를 제외합니다")
     }
 
     private var statusIcon: String {

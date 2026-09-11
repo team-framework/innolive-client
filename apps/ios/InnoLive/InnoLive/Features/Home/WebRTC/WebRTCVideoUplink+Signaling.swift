@@ -4,7 +4,7 @@ import Foundation
 extension WebRTCVideoUplink {
     func sendOffer(_ sdp: String) {
         guard let credentials, let accessToken else {
-            fail("영상 연결 인증 정보가 없습니다.")
+            fail(String(localized: "영상 연결 인증 정보가 없습니다."))
             return
         }
         sendSignal(.offer(session: credentials, accessToken: accessToken, sdp: sdp))
@@ -28,7 +28,7 @@ extension WebRTCVideoUplink {
                     self.receiveNextMessage(for: task)
                 case .failure:
                     if !self.isStopping, self.state != .connected {
-                        self.fail("영상 서버와의 연결이 끊겼습니다.")
+                        self.fail(String(localized: "영상 서버와의 연결이 끊겼습니다."))
                     }
                 }
             }
@@ -51,7 +51,7 @@ extension WebRTCVideoUplink {
         switch signal.type {
         case "answer":
             guard let sdp = signal.sdp else {
-                fail("영상 서버의 WebRTC 응답이 올바르지 않습니다.")
+                fail(String(localized: "영상 서버의 WebRTC 응답이 올바르지 않습니다."))
                 return
             }
             applyRemoteAnswer(sdp)
@@ -60,12 +60,12 @@ extension WebRTCVideoUplink {
         case "error":
             if signal.error?.code == "unauthorized" {
                 fail(
-                    signal.error?.message ?? "영상 연결 인증이 만료되었습니다.",
+                    signal.error?.message ?? String(localized: "영상 연결 인증이 만료되었습니다."),
                     continuationError: .unauthorized
                 )
                 return
             }
-            fail(signal.error?.message ?? "영상 서버가 WebRTC 연결을 거부했습니다.")
+            fail(signal.error?.message ?? String(localized: "영상 서버가 WebRTC 연결을 거부했습니다."))
         default:
             break
         }
@@ -73,16 +73,16 @@ extension WebRTCVideoUplink {
 
     private func applyRemoteAnswer(_ sdp: String) {
         guard let peerConnection else {
-            fail("WebRTC 영상 연결이 준비되지 않았습니다.")
+            fail(String(localized: "WebRTC 영상 연결이 준비되지 않았습니다."))
             return
         }
-        updateState(.connecting, "영상 서버 응답을 적용하는 중…")
+        updateState(.connecting, String(localized: "영상 서버 응답을 적용하는 중…"))
         let answer = LKRTCSessionDescription(type: .answer, sdp: sdp)
         peerConnection.setRemoteDescription(answer) { [weak self] error in
             Task { @MainActor [weak self] in
                 guard let self, !self.isStopping else { return }
                 if let error {
-                    self.fail("영상 서버의 WebRTC 응답을 적용하지 못했습니다: \(error.localizedDescription)")
+                    self.fail(String(localized: "영상 서버의 WebRTC 응답을 적용하지 못했습니다: \(error.localizedDescription)"))
                     return
                 }
                 self.flushRemoteCandidates()
@@ -110,7 +110,7 @@ extension WebRTCVideoUplink {
         peerConnection.add(candidate) { [weak self] error in
             guard let error else { return }
             Task { @MainActor [weak self] in
-                self?.fail("영상 서버의 ICE 후보를 적용하지 못했습니다: \(error.localizedDescription)")
+                self?.fail(String(localized: "영상 서버의 ICE 후보를 적용하지 못했습니다: \(error.localizedDescription)"))
             }
         }
     }
@@ -136,23 +136,23 @@ extension WebRTCVideoUplink {
 
     private func sendSignal(_ signal: WebRTCClientSignal) {
         guard let webSocketTask else {
-            fail("영상 서버 WebSocket이 열려 있지 않습니다.")
+            fail(String(localized: "영상 서버 WebSocket이 열려 있지 않습니다."))
             return
         }
         do {
             let data = try encoder.encode(signal)
             guard let text = String(data: data, encoding: .utf8) else {
-                fail("영상 신호를 만들지 못했습니다.")
+                fail(String(localized: "영상 신호를 만들지 못했습니다."))
                 return
             }
             webSocketTask.send(.string(text)) { [weak self] error in
                 guard let error else { return }
                 Task { @MainActor [weak self] in
-                    self?.fail("영상 신호 전송에 실패했습니다: \(error.localizedDescription)")
+                    self?.fail(String(localized: "영상 신호 전송에 실패했습니다: \(error.localizedDescription)"))
                 }
             }
         } catch {
-            fail("영상 신호를 만들지 못했습니다.")
+            fail(String(localized: "영상 신호를 만들지 못했습니다."))
         }
     }
 

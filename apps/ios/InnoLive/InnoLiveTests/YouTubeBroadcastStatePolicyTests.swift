@@ -33,7 +33,7 @@ final class YouTubeBroadcastStatePolicyTests: XCTestCase {
         XCTAssertFalse(policy.canPauseBroadcast)
         XCTAssertTrue(policy.canResumeBroadcast)
         XCTAssertTrue(policy.canChangePauseState)
-        XCTAssertTrue(policy.streamStatusText.hasPrefix("YouTube 송출 일시 중지됨"))
+        XCTAssertTrue(policy.streamStatusText.hasPrefix(String(localized: "YouTube 송출 일시 중지됨")))
     }
 
     func testStoppedStateIsNotActiveAndUnlocksSettings() throws {
@@ -47,7 +47,7 @@ final class YouTubeBroadcastStatePolicyTests: XCTestCase {
         XCTAssertFalse(policy.isBroadcastPaused)
         XCTAssertFalse(policy.canPauseBroadcast)
         XCTAssertFalse(policy.canResumeBroadcast)
-        XCTAssertEqual(policy.streamStatusText, "YouTube 송출 중지됨")
+        XCTAssertEqual(policy.streamStatusText, String(localized: "YouTube 송출 중지됨"))
     }
 
     func testUnknownStatePreservesRawValuesAndUsesSafePolicyFallback() throws {
@@ -64,7 +64,7 @@ final class YouTubeBroadcastStatePolicyTests: XCTestCase {
         XCTAssertFalse(policy.isBroadcastPaused)
         XCTAssertFalse(policy.canPauseBroadcast)
         XCTAssertFalse(policy.canResumeBroadcast)
-        XCTAssertEqual(policy.streamStatusText, "YouTube 송출 대기")
+        XCTAssertEqual(policy.streamStatusText, String(localized: "YouTube 송출 대기"))
     }
 
     private func decodeStream(

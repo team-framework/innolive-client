@@ -47,7 +47,7 @@ final class AuthSessionAccountDeletionTests: XCTestCase {
         XCTAssertEqual(api.deleteCallCount, 1)
         assertTokens(tokenStore.tokens, equalTo: storedTokens)
         XCTAssertTrue(session.isAuthenticated)
-        XCTAssertEqual(session.errorMessage, "계정 삭제를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+        XCTAssertEqual(session.errorMessage, String(localized: "계정 삭제를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요."))
     }
 
     func testUnauthorizedDeletionRefreshesOnceAndRetriesWithRotatedAccessToken() async {
@@ -91,7 +91,7 @@ final class AuthSessionAccountDeletionTests: XCTestCase {
         XCTAssertEqual(api.refreshCallCount, 1)
         assertTokens(tokenStore.tokens, equalTo: storedTokens)
         XCTAssertTrue(session.isAuthenticated)
-        XCTAssertEqual(session.errorMessage, "로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+        XCTAssertEqual(session.errorMessage, String(localized: "로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요."))
     }
 
     func testDuplicateAndLateDeletionResponseCannotClearNewSession() async throws {

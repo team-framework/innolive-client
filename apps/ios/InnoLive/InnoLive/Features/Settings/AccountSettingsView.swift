@@ -30,7 +30,7 @@ struct AccountSettingsView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: "rectangle.portrait.and.arrow.right")
                                     .frame(width: 28)
-                                Text("로그아웃")
+                                Text(String(localized: "로그아웃"))
                                     .font(.body.weight(.semibold))
                                 Spacer()
                             }
@@ -47,7 +47,7 @@ struct AccountSettingsView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: "trash")
                                     .frame(width: 28)
-                                Text("계정 삭제")
+                                Text(String(localized: "계정 삭제"))
                                     .font(.body.weight(.semibold))
                                 Spacer()
                             }
@@ -62,7 +62,7 @@ struct AccountSettingsView: View {
                             HStack(spacing: 12) {
                                 ProgressView()
                                     .controlSize(.small)
-                                Text("계정 삭제 중…")
+                                Text(String(localized: "계정 삭제 중…"))
                                     .font(.body.weight(.semibold))
                                 Spacer()
                             }
@@ -81,14 +81,14 @@ struct AccountSettingsView: View {
             }
             .padding(24)
         }
-        .navigationTitle("계정 설정")
+        .navigationTitle(String(localized: "계정 설정"))
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
-            "계정을 삭제할까요?",
+            String(localized: "계정을 삭제할까요?"),
             isPresented: $isShowingDeleteConfirmation,
             titleVisibility: .visible
         ) {
-            Button("계정 삭제", role: .destructive) {
+            Button(String(localized: "계정 삭제"), role: .destructive) {
                 Task { @MainActor in
                     guard !isDeletionBlocked else { return }
                     await authentication.deleteAccount {
@@ -96,9 +96,9 @@ struct AccountSettingsView: View {
                     }
                 }
             }
-            Button("취소", role: .cancel) {}
+            Button(String(localized: "취소"), role: .cancel) {}
         } message: {
-            Text("계정 삭제가 완료되면 로그아웃되며 이 기기의 YouTube 연결과 방송 설정이 초기화됩니다.")
+            Text(String(localized: "계정 삭제가 완료되면 로그아웃되며 이 기기의 YouTube 연결과 방송 설정이 초기화됩니다."))
         }
     }
 }

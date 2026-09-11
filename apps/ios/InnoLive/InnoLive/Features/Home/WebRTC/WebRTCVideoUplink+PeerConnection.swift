@@ -15,13 +15,13 @@ extension WebRTCVideoUplink {
             constraints: constraints,
             delegate: self
         ) else {
-            throw WebRTCVideoUplinkError.failed("WebRTC 영상 연결을 만들지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "WebRTC 영상 연결을 만들지 못했습니다."))
         }
         guard let localVideoTrack else {
-            throw WebRTCVideoUplinkError.failed("카메라 영상 트랙을 만들지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "카메라 영상 트랙을 만들지 못했습니다."))
         }
         guard let localAudioTrack else {
-            throw WebRTCVideoUplinkError.failed("마이크 오디오 트랙을 만들지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "마이크 오디오 트랙을 만들지 못했습니다."))
         }
 
         let audioTransceiverConfiguration = LKRTCRtpTransceiverInit()
@@ -31,7 +31,7 @@ extension WebRTCVideoUplink {
             with: localAudioTrack,
             init: audioTransceiverConfiguration
         ) else {
-            throw WebRTCVideoUplinkError.failed("마이크 오디오 송신기를 만들지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "마이크 오디오 송신기를 만들지 못했습니다."))
         }
 
         let audioCodecs = peerConnectionFactory
@@ -39,7 +39,7 @@ extension WebRTCVideoUplink {
             .codecs
         let opusCodecs = audioCodecs.filter { $0.name.caseInsensitiveCompare("opus") == .orderedSame }
         guard !opusCodecs.isEmpty else {
-            throw WebRTCVideoUplinkError.failed("서버와 호환되는 Opus 오디오 코덱을 찾지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "서버와 호환되는 Opus 오디오 코덱을 찾지 못했습니다."))
         }
         do {
             try audioTransceiver.setCodecPreferences(
@@ -47,7 +47,7 @@ extension WebRTCVideoUplink {
                 error: ()
             )
         } catch {
-            throw WebRTCVideoUplinkError.failed("서버 호환 오디오 코덱을 설정하지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "서버 호환 오디오 코덱을 설정하지 못했습니다."))
         }
 
         let transceiverConfiguration = LKRTCRtpTransceiverInit()
@@ -57,7 +57,7 @@ extension WebRTCVideoUplink {
             with: localVideoTrack,
             init: transceiverConfiguration
         ) else {
-            throw WebRTCVideoUplinkError.failed("카메라 영상 송신기를 만들지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "카메라 영상 송신기를 만들지 못했습니다."))
         }
 
         // 프로덕션 Pion 서버가 실제 RTP 수신까지 검증한 VP8을 첫 번째로 제안한다.
@@ -68,7 +68,7 @@ extension WebRTCVideoUplink {
             .codecs
         let vp8Codecs = videoCodecs.filter { $0.name.caseInsensitiveCompare("VP8") == .orderedSame }
         guard !vp8Codecs.isEmpty else {
-            throw WebRTCVideoUplinkError.failed("서버와 호환되는 VP8 영상 코덱을 찾지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "서버와 호환되는 VP8 영상 코덱을 찾지 못했습니다."))
         }
         do {
             try transceiver.setCodecPreferences(
@@ -76,7 +76,7 @@ extension WebRTCVideoUplink {
                 error: ()
             )
         } catch {
-            throw WebRTCVideoUplinkError.failed("서버 호환 영상 코덱을 설정하지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "서버 호환 영상 코덱을 설정하지 못했습니다."))
         }
 
         self.peerConnection = peerConnection
@@ -86,27 +86,27 @@ extension WebRTCVideoUplink {
 
     func createAndSendOffer() {
         guard let peerConnection else {
-            fail("WebRTC 영상 연결이 준비되지 않았습니다.")
+            fail(String(localized: "WebRTC 영상 연결이 준비되지 않았습니다."))
             return
         }
-        updateState(.connecting, "카메라 영상을 서버에 연결하는 중…")
+        updateState(.connecting, String(localized: "카메라 영상을 서버에 연결하는 중…"))
         let constraints = LKRTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
         peerConnection.offer(for: constraints) { [weak self] description, error in
             Task { @MainActor [weak self] in
                 guard let self, !self.isStopping else { return }
                 if let error {
-                    self.fail("카메라 영상의 WebRTC offer를 만들지 못했습니다: \(error.localizedDescription)")
+                    self.fail(String(localized: "카메라 영상의 WebRTC offer를 만들지 못했습니다: \(error.localizedDescription)"))
                     return
                 }
                 guard let description else {
-                    self.fail("카메라 영상의 WebRTC offer가 비어 있습니다.")
+                    self.fail(String(localized: "카메라 영상의 WebRTC offer가 비어 있습니다."))
                     return
                 }
                 do {
                     try await peerConnection.setLocalDescription(description)
                     self.sendOffer(description.sdp)
                 } catch {
-                    self.fail("카메라 영상의 WebRTC offer를 적용하지 못했습니다: \(error.localizedDescription)")
+                    self.fail(String(localized: "카메라 영상의 WebRTC offer를 적용하지 못했습니다: \(error.localizedDescription)"))
                 }
             }
         }
@@ -125,7 +125,7 @@ extension WebRTCVideoUplink {
                     sender: videoSender
                 )
                 if packetsSent > 0 {
-                    self.updateState(.connected, "카메라 영상 연결됨 · 서버 수신 확인 중")
+                    self.updateState(.connected, String(localized: "카메라 영상 연결됨 · 서버 수신 확인 중"))
                     self.completeStartIfNeeded()
                     self.outboundVerificationTask = nil
                     return
@@ -135,7 +135,7 @@ extension WebRTCVideoUplink {
 
             guard let self, !Task.isCancelled, !self.isStopping else { return }
             self.outboundVerificationTask = nil
-            self.fail("카메라는 열렸지만 영상 패킷이 서버로 전송되지 않았습니다. 방송을 다시 시작해 주세요.")
+            self.fail(String(localized: "카메라는 열렸지만 영상 패킷이 서버로 전송되지 않았습니다. 방송을 다시 시작해 주세요."))
         }
     }
 
@@ -181,7 +181,7 @@ extension WebRTCVideoUplink: LKRTCPeerConnectionDelegate {
                 self.handlePeerConnectionInterruption()
             case .closed:
                 if !self.isStopping, !self.isReconnectInProgress {
-                    self.fail("WebRTC 영상 연결이 종료되었습니다.")
+                    self.fail(String(localized: "WebRTC 영상 연결이 종료되었습니다."))
                 }
             default:
                 break
@@ -224,13 +224,13 @@ extension WebRTCVideoUplink: LKRTCPeerConnectionDelegate {
             guard let self else { return }
             switch newState {
             case .connected:
-                self.updateState(.connecting, "영상 패킷 전송을 확인하는 중…")
+                self.updateState(.connecting, String(localized: "영상 패킷 전송을 확인하는 중…"))
                 self.verifyOutboundVideo()
             case .disconnected, .failed:
                 self.handlePeerConnectionInterruption()
             case .closed:
                 if !self.isStopping, !self.isReconnectInProgress {
-                    self.fail("WebRTC 영상 연결이 종료되었습니다.")
+                    self.fail(String(localized: "WebRTC 영상 연결이 종료되었습니다."))
                 }
             default:
                 break

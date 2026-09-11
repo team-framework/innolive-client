@@ -16,9 +16,9 @@ struct FaceRegistrationCaptureView: View {
                 Spacer(minLength: 12)
 
                 VStack(spacing: 8) {
-                    Text("얼굴 등록")
+                    Text(String(localized: "얼굴 등록"))
                         .font(.largeTitle.weight(.bold))
-                    Text("얼굴을 가운데 영역에 맞춰 주세요.")
+                    Text(String(localized: "얼굴을 가운데 영역에 맞춰 주세요."))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -61,7 +61,7 @@ struct FaceRegistrationCaptureView: View {
         .foregroundStyle(.white)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("취소") {
+                Button(String(localized: "취소")) {
                     Task {
                         await model.stopDetection(
                             lifecycleSessionID: lifecycleSessionID,
@@ -150,7 +150,7 @@ struct FaceRegistrationCaptureView: View {
                     )
                 }
             } label: {
-                Text("다시 시도")
+                Text(String(localized: "다시 시도"))
                     .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
@@ -165,13 +165,13 @@ struct FaceRegistrationCaptureView: View {
     private var phaseMessage: String {
         switch model.phase {
         case .idle, .preparing:
-            return "카메라를 준비하고 있어요."
+            return String(localized: "카메라를 준비하고 있어요.")
         case let .detecting(message):
             return message
         case .registering:
-            return "얼굴을 등록하고 있어요. 잠시만 기다려 주세요."
+            return String(localized: "얼굴을 등록하고 있어요. 잠시만 기다려 주세요.")
         case .success:
-            return "얼굴 등록이 완료됐어요."
+            return String(localized: "얼굴 등록이 완료됐어요.")
         case let .failed(message):
             return message
         }

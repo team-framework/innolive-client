@@ -12,8 +12,8 @@ struct SignInView: View {
         AuthenticationLayout {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("라이브 방송을 안전하게")
-                    Text("만드는 쉬운 방법")
+                    Text(String(localized: "라이브 방송을 안전하게"))
+                    Text(String(localized: "만드는 쉬운 방법"))
                 }
                 .font(.system(size: 30, weight: .semibold))
 
@@ -21,7 +21,7 @@ struct SignInView: View {
                     googleButton
                     appleButton
                     NavigationLink { EmailAuthView(authentication: authentication) } label: {
-                        Label("이메일로 계속하기", systemImage: "envelope.fill")
+                        Label(String(localized: "이메일로 계속하기"), systemImage: "envelope.fill")
                             .font(.callout.weight(.semibold)).frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.glass)
@@ -31,7 +31,7 @@ struct SignInView: View {
                 if let errorMessage = authentication.errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
                 if let privacyPolicyURL = InnoLiveLinks.privacyPolicyURL {
                     Link(destination: privacyPolicyURL) {
-                        Label("개인정보처리방침", systemImage: "doc.text")
+                        Label(String(localized: "개인정보처리방침"), systemImage: "doc.text")
                             .font(.footnote.weight(.semibold))
                             .frame(maxWidth: .infinity)
                     }
@@ -52,7 +52,7 @@ struct SignInView: View {
                         .scaledToFit()
                         .frame(width: 18, height: 18)
                 }
-                Text("Google 계정으로 로그인")
+                Text(String(localized: "Google 계정으로 로그인"))
                     .font(.callout.weight(.semibold))
             }
             .foregroundStyle(Color(red: 31.0 / 255.0, green: 31.0 / 255.0, blue: 31.0 / 255.0))
@@ -79,7 +79,7 @@ struct SignInView: View {
         guard let presentingViewController else { return }
         guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
               let serverClientID = Bundle.main.object(forInfoDictionaryKey: "GIDServerClientID") as? String else {
-            authentication.showError("Google 로그인 설정이 필요합니다.")
+            authentication.showError(String(localized: "Google 로그인 설정이 필요합니다."))
             return
         }
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(
@@ -91,7 +91,7 @@ struct SignInView: View {
                 let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController)
                 await authentication.signInWithGoogle(idToken: result.user.idToken?.tokenString ?? "")
             } catch {
-                authentication.showError("Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요.")
+                authentication.showError(String(localized: "Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요."))
             }
         }
     }
@@ -110,7 +110,7 @@ struct SignInView: View {
             case .failure(let error) where (error as? ASAuthorizationError)?.code == .canceled:
                 break
             case .failure:
-                authentication.showError("Apple 로그인을 완료하지 못했습니다. 다시 시도해 주세요.")
+                authentication.showError(String(localized: "Apple 로그인을 완료하지 못했습니다. 다시 시도해 주세요."))
             }
         }
         .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)

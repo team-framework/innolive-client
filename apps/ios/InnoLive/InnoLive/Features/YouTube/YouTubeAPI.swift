@@ -273,7 +273,7 @@ final class YouTubeAPI {
         let envelope = try? JSONDecoder().decode(YouTubeAPIErrorEnvelope.self, from: data)
         throw YouTubeAPIError.api(
             code: envelope?.error.code,
-            fallback: envelope?.error.message ?? "YouTube 요청을 처리하지 못했습니다.",
+            fallback: envelope?.error.message ?? String(localized: "YouTube 요청을 처리하지 못했습니다."),
             helpURL: envelope?.error.details?.helpURL
         )
     }

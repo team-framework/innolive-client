@@ -62,7 +62,7 @@ struct CameraAudioSettingsView: View {
             }
             .padding(24)
         }
-        .navigationTitle("카메라 및 오디오")
+        .navigationTitle(String(localized: "카메라 및 오디오"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadAvailableDevices()
@@ -116,22 +116,22 @@ struct CameraAudioSettingsView: View {
                     } else if youtube.videoUplink.currentCameraID == previousCameraID
                                 || youtube.videoUplink.currentCameraID == nil {
                         didSwitch = false
-                        deviceErrorMessage = "카메라 선택을 저장하지 못해 기존 카메라를 계속 사용합니다."
+                        deviceErrorMessage = String(localized: "카메라 선택을 저장하지 못해 기존 카메라를 계속 사용합니다.")
                     } else {
                         // rollback도 실패했다면 실제 송출 중인 카메라를 UI에 유지한다.
                         didSwitch = true
                         selectedCameraID = youtube.videoUplink.currentCameraID ?? cameraID
-                        deviceErrorMessage = "기존 카메라로 복구하지 못했습니다. 현재 카메라를 계속 사용합니다."
+                        deviceErrorMessage = String(localized: "기존 카메라로 복구하지 못했습니다. 현재 카메라를 계속 사용합니다.")
                     }
                 } catch {
                     didSwitch = false
                     deviceErrorMessage = (error as? LocalizedError)?.errorDescription
-                        ?? "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다."
+                        ?? String(localized: "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다.")
                 }
             } else {
                 didSwitch = await cameraManager.switchCamera(to: cameraID)
                 if !didSwitch {
-                    deviceErrorMessage = "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다."
+                    deviceErrorMessage = String(localized: "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다.")
                 }
             }
 
@@ -159,7 +159,7 @@ struct CameraAudioSettingsView: View {
             defer { isChangingQuality = false }
             guard await youtube.switchVideoQuality(to: quality) else {
                 deviceErrorMessage = youtube.errorMessage
-                    ?? "화질을 변경하지 못해 기존 화질을 계속 사용합니다."
+                    ?? String(localized: "화질을 변경하지 못해 기존 화질을 계속 사용합니다.")
                 youtube.dismissError()
                 selectedQualityRaw = youtube.videoUplink.currentVideoQuality?.rawValue
                     ?? fallbackQuality
@@ -180,7 +180,7 @@ struct CameraAudioSettingsView: View {
         if youtube.videoUplink.isCapturingMedia,
            !youtube.switchAudioInput(to: audioID) {
             deviceErrorMessage = youtube.errorMessage
-                ?? "오디오 기기를 전환하지 못해 기존 기기를 계속 사용합니다."
+                ?? String(localized: "오디오 기기를 전환하지 못해 기존 기기를 계속 사용합니다.")
             youtube.dismissError()
             selectedAudioID = youtube.videoUplink.currentAudioInputID ?? fallbackAudioID
             return
@@ -244,7 +244,7 @@ struct CameraAudioSettingsView: View {
             }
         } catch {
             audioOptions = []
-            deviceErrorMessage = "오디오 기기 목록을 불러오지 못했습니다."
+            deviceErrorMessage = String(localized: "오디오 기기 목록을 불러오지 못했습니다.")
         }
     }
 }

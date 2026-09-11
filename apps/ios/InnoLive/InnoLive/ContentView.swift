@@ -41,7 +41,7 @@ struct ContentView: View {
                     youtube.reset()
                     authentication.expireSession()
                 case .unavailable:
-                    authentication.showError("로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+                    authentication.showError(String(localized: "로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요."))
                 }
             }
         }

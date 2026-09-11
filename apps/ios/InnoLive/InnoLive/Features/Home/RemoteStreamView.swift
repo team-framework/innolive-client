@@ -55,9 +55,9 @@ struct RemoteStreamView: View {
                 BroadcastConnectionOverlay(phase: connectionPhase)
             } else if !uplink.hasRemoteVideo {
                 ContentUnavailableView(
-                    "방송 송출 화면을 기다리는 중",
+                    String(localized: "방송 송출 화면을 기다리는 중"),
                     systemImage: "dot.radiowaves.left.and.right",
-                    description: Text("서버 처리 영상이 준비되면 이 영역에 표시됩니다.")
+                    description: Text(String(localized: "서버 처리 영상이 준비되면 이 영역에 표시됩니다."))
                 )
                 .foregroundStyle(.white.opacity(0.8))
             }
@@ -73,19 +73,19 @@ private enum BroadcastConnectionPhase {
 
     var title: String {
         switch self {
-        case .preparingSession: return "방송을 준비하는 중"
-        case .connectingCamera: return "서버에 카메라 영상을 연결하는 중"
-        case .waitingForProcessedVideo: return "비식별화 영상을 준비하는 중"
-        case .restoringPreview: return "카메라 미리보기를 복구하는 중"
+        case .preparingSession: return String(localized: "방송을 준비하는 중")
+        case .connectingCamera: return String(localized: "서버에 카메라 영상을 연결하는 중")
+        case .waitingForProcessedVideo: return String(localized: "비식별화 영상을 준비하는 중")
+        case .restoringPreview: return String(localized: "카메라 미리보기를 복구하는 중")
         }
     }
 
     var description: String {
         switch self {
-        case .preparingSession: return "방송 세션을 만들고 있습니다."
-        case .connectingCamera: return "카메라와 마이크를 서버에 연결하고 있습니다."
-        case .waitingForProcessedVideo: return "서버 처리 영상이 곧 표시됩니다."
-        case .restoringPreview: return "카메라를 다시 준비하고 있습니다."
+        case .preparingSession: return String(localized: "방송 세션을 만들고 있습니다.")
+        case .connectingCamera: return String(localized: "카메라와 마이크를 서버에 연결하고 있습니다.")
+        case .waitingForProcessedVideo: return String(localized: "서버 처리 영상이 곧 표시됩니다.")
+        case .restoringPreview: return String(localized: "카메라를 다시 준비하고 있습니다.")
         }
     }
 }

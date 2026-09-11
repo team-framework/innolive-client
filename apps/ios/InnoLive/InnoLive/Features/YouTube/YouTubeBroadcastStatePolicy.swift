@@ -63,21 +63,21 @@ struct YouTubeBroadcastStatePolicy {
 
     var streamStatusText: String {
         switch broadcastPhase {
-        case .preparing: return "YouTube 방송 준비 중…"
-        case .prepared: return "YouTube 라이브 전환 대기 중…"
-        case .goingLive: return "YouTube 라이브 전환 중…"
+        case .preparing: return String(localized: "YouTube 방송 준비 중…")
+        case .prepared: return String(localized: "YouTube 라이브 전환 대기 중…")
+        case .goingLive: return String(localized: "YouTube 라이브 전환 중…")
         default: break
         }
 
         switch streamStatus {
-        case .some(.streaming): return "YouTube 송출 중"
-        case .some(.reconnecting): return "YouTube 재연결 중…"
-        case .some(.paused): return pausedStatusText(prefix: "YouTube 송출 일시 중지됨")
-        case .some(.pausedReconfiguring): return pausedStatusText(prefix: "YouTube 일시 중지 준비 중…")
-        case .some(.pausedReconnecting): return pausedStatusText(prefix: "YouTube 일시 중지 화면 재연결 중…")
-        case .some(.idle): return "YouTube 준비 중…"
-        case .some(.stopped): return "YouTube 송출 중지됨"
-        default: return "YouTube 송출 대기"
+        case .some(.streaming): return String(localized: "YouTube 송출 중")
+        case .some(.reconnecting): return String(localized: "YouTube 재연결 중…")
+        case .some(.paused): return pausedStatusText(prefix: String(localized: "YouTube 송출 일시 중지됨"))
+        case .some(.pausedReconfiguring): return pausedStatusText(prefix: String(localized: "YouTube 일시 중지 준비 중…"))
+        case .some(.pausedReconnecting): return pausedStatusText(prefix: String(localized: "YouTube 일시 중지 화면 재연결 중…"))
+        case .some(.idle): return String(localized: "YouTube 준비 중…")
+        case .some(.stopped): return String(localized: "YouTube 송출 중지됨")
+        default: return String(localized: "YouTube 송출 대기")
         }
     }
 

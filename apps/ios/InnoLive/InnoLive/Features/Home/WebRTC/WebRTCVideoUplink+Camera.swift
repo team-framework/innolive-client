@@ -10,12 +10,12 @@ extension WebRTCVideoUplink {
               let previousDevice = AVCaptureDevice(uniqueID: previousCameraID),
               let activeVideoQuality,
               let previousSetting = captureSetting(for: previousDevice, quality: activeVideoQuality) else {
-            throw WebRTCVideoUplinkError.failed("비식별화를 시작한 뒤 카메라를 전환해 주세요.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "비식별화를 시작한 뒤 카메라를 전환해 주세요."))
         }
         guard cameraID != previousCameraID else { return }
         guard let newDevice = AVCaptureDevice(uniqueID: cameraID),
               let newSetting = captureSetting(for: newDevice, quality: activeVideoQuality) else {
-            throw WebRTCVideoUplinkError.failed("선택한 카메라를 사용할 수 없습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "선택한 카메라를 사용할 수 없습니다."))
         }
 
         cameraOperationGeneration &+= 1
@@ -55,12 +55,12 @@ extension WebRTCVideoUplink {
                 guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                     throw WebRTCVideoUplinkError.cancelled
                 }
-                fail("카메라 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요.")
-                throw WebRTCVideoUplinkError.failed("카메라 연결을 복구하지 못했습니다.")
+                fail(String(localized: "카메라 연결을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요."))
+                throw WebRTCVideoUplinkError.failed(String(localized: "카메라 연결을 복구하지 못했습니다."))
             }
             activeCameraID = previousDevice.uniqueID
             setUsingFrontCamera(previousDevice.position == .front)
-            throw WebRTCVideoUplinkError.failed("카메라를 전환하지 못해 기존 카메라를 계속 사용합니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "카메라를 전환하지 못해 기존 카메라를 계속 사용합니다."))
         }
     }
 
@@ -74,7 +74,7 @@ extension WebRTCVideoUplink {
         if SimulatorVideoInput.isEnabled {
             guard SimulatorVideoInput.bundledURL != nil else {
                 throw WebRTCVideoUplinkError.failed(
-                    "번들 시뮬레이터 영상을 찾지 못했습니다."
+                    String(localized: "번들 시뮬레이터 영상을 찾지 못했습니다.")
                 )
             }
 
@@ -102,7 +102,7 @@ extension WebRTCVideoUplink {
                           self.cameraOperationGeneration == operationGeneration,
                           !self.isStopping else { return }
                     self.fail(
-                        "시뮬레이터 영상을 읽지 못했습니다: \(error.localizedDescription)"
+                        String(localized: "시뮬레이터 영상을 읽지 못했습니다: \(error.localizedDescription)")
                     )
                 }
             }
@@ -120,7 +120,7 @@ extension WebRTCVideoUplink {
 
         guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
             markMediaPermissionRequired()
-            throw WebRTCVideoUplinkError.failed("카메라 권한이 필요합니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "카메라 권한이 필요합니다."))
         }
 
         let availableDevices = LKRTCCameraVideoCapturer.captureDevices()
@@ -131,13 +131,13 @@ extension WebRTCVideoUplink {
             ?? CameraDeviceCatalog.devices.first
 
         guard let selectedDevice else {
-            throw WebRTCVideoUplinkError.failed("사용할 수 있는 카메라를 찾지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "사용할 수 있는 카메라를 찾지 못했습니다."))
         }
         guard let captureSetting = captureSetting(
             for: selectedDevice,
             quality: preferredVideoQuality
         ) else {
-            throw WebRTCVideoUplinkError.failed("선택한 카메라의 영상 형식을 준비하지 못했습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "선택한 카메라의 영상 형식을 준비하지 못했습니다."))
         }
 
         setUsingFrontCamera(selectedDevice.position == .front)
@@ -197,11 +197,11 @@ extension WebRTCVideoUplink {
               let previousQuality = activeVideoQuality,
               let previousSetting = captureSetting(for: device, quality: previousQuality),
               let source = videoSource else {
-            throw WebRTCVideoUplinkError.failed("비식별화를 시작한 뒤 화질을 변경해 주세요.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "비식별화를 시작한 뒤 화질을 변경해 주세요."))
         }
         guard quality != previousQuality else { return }
         guard let newSetting = captureSetting(for: device, quality: quality) else {
-            throw WebRTCVideoUplinkError.failed("현재 카메라가 선택한 화질을 지원하지 않습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "현재 카메라가 선택한 화질을 지원하지 않습니다."))
         }
 
         cameraOperationGeneration &+= 1
@@ -238,10 +238,10 @@ extension WebRTCVideoUplink {
                 guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                     throw WebRTCVideoUplinkError.cancelled
                 }
-                fail("카메라 화질을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요.")
-                throw WebRTCVideoUplinkError.failed("카메라 화질을 복구하지 못했습니다.")
+                fail(String(localized: "카메라 화질을 복구하지 못했습니다. 비식별화를 다시 시작해 주세요."))
+                throw WebRTCVideoUplinkError.failed(String(localized: "카메라 화질을 복구하지 못했습니다."))
             }
-            throw WebRTCVideoUplinkError.failed("화질을 변경하지 못해 기존 화질을 계속 사용합니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "화질을 변경하지 못해 기존 화질을 계속 사용합니다."))
         }
     }
 
@@ -273,7 +273,7 @@ extension WebRTCVideoUplink {
                 if let error {
                     continuation.resume(
                         throwing: WebRTCVideoUplinkError.failed(
-                            "선택한 카메라를 열지 못했습니다: \(error.localizedDescription)"
+                            String(localized: "선택한 카메라를 열지 못했습니다: \(error.localizedDescription)")
                         )
                     )
                 } else {

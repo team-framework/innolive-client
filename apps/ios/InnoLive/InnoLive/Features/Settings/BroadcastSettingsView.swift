@@ -31,7 +31,7 @@ struct BroadcastSettingsView: View {
                         BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
                     } label: {
                         SettingsGlassRow {
-                            settingsRow(title: "방송할 플랫폼")
+                            settingsRow(title: String(localized: "방송할 플랫폼"))
                         }
                     }
                     .buttonStyle(.plain)
@@ -41,10 +41,10 @@ struct BroadcastSettingsView: View {
 
                     SettingsGlassRow {
                         HStack {
-                            Text("공개 범위")
+                            Text(String(localized: "공개 범위"))
                                 .font(.body.weight(.semibold))
                             Spacer()
-                            Picker("공개 범위", selection: privacyBinding) {
+                            Picker(String(localized: "공개 범위"), selection: privacyBinding) {
                                 ForEach(YouTubeBroadcastPrivacy.allCases) { privacy in
                                     Text(privacy.title).tag(privacy)
                                 }
@@ -57,11 +57,11 @@ struct BroadcastSettingsView: View {
 
                     SettingsGlassRow {
                         HStack {
-                            Text("YouTube 시청자층")
+                            Text(String(localized: "YouTube 시청자층"))
                                 .font(.body.weight(.semibold))
                             Spacer()
-                            Picker("YouTube 시청자층", selection: audienceBinding) {
-                                Text("선택 필요").tag(Optional<YouTubeBroadcastAudience>.none)
+                            Picker(String(localized: "YouTube 시청자층"), selection: audienceBinding) {
+                                Text(String(localized: "선택 필요")).tag(Optional<YouTubeBroadcastAudience>.none)
                                 ForEach(YouTubeBroadcastAudience.allCases) { audience in
                                     Text(audience.title).tag(Optional(audience))
                                 }
@@ -73,7 +73,7 @@ struct BroadcastSettingsView: View {
                     .disabled(youtube.isBroadcastSettingsLocked)
 
                     if youtube.isBroadcastSettingsLocked {
-                        Text("방송을 준비하거나 송출하는 동안에는 YouTube 방송 정보를 변경할 수 없습니다.")
+                        Text(String(localized: "방송을 준비하거나 송출하는 동안에는 YouTube 방송 정보를 변경할 수 없습니다."))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -81,13 +81,13 @@ struct BroadcastSettingsView: View {
                     }
 
                     if isPreparingBroadcast, !youtube.isConnected {
-                        Label("YouTube 계정을 먼저 연결해 주세요.", systemImage: "exclamationmark.circle.fill")
+                        Label(String(localized: "YouTube 계정을 먼저 연결해 주세요."), systemImage: "exclamationmark.circle.fill")
                             .font(.footnote)
                             .foregroundStyle(.orange)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
                     } else if isPreparingBroadcast, !youtube.isVideoConnected {
-                        Label("서버 영상 연결을 확인해 주세요.", systemImage: "exclamationmark.circle.fill")
+                        Label(String(localized: "서버 영상 연결을 확인해 주세요."), systemImage: "exclamationmark.circle.fill")
                             .font(.footnote)
                             .foregroundStyle(.orange)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -121,21 +121,21 @@ struct BroadcastSettingsView: View {
             }
             .padding(24)
         }
-        .navigationTitle("방송 설정")
+        .navigationTitle(String(localized: "방송 설정"))
         .navigationBarTitleDisplayMode(.inline)
-        .alert("방송 설정 저장 완료", isPresented: $isSaveConfirmationPresented) {
-            Button("확인", role: .cancel) {}
+        .alert(String(localized: "방송 설정 저장 완료"), isPresented: $isSaveConfirmationPresented) {
+            Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text("방송 시작 시 YouTube에 적용됩니다.")
+            Text(String(localized: "방송 시작 시 YouTube에 적용됩니다."))
         }
     }
 
     private var broadcastTitleSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Text("YouTube 방송 제목")
+                Text(String(localized: "YouTube 방송 제목"))
                     .font(.body.weight(.semibold))
-                Text("필수")
+                Text(String(localized: "필수"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -146,7 +146,7 @@ struct BroadcastSettingsView: View {
             .padding(.horizontal, 4)
 
             settingsCard {
-                TextField("방송 제목을 입력해 주세요", text: titleBinding)
+                TextField(String(localized: "방송 제목을 입력해 주세요"), text: titleBinding)
                     .textInputAutocapitalization(.sentences)
                     .submitLabel(.done)
                     .disabled(youtube.isBroadcastSettingsLocked)
@@ -157,7 +157,7 @@ struct BroadcastSettingsView: View {
     private var broadcastDescriptionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("YouTube 방송 설명")
+                Text(String(localized: "YouTube 방송 설명"))
                     .font(.body.weight(.semibold))
                 Spacer()
                 Text("\(draftSettings.description.count)/\(YouTubeBroadcastSettings.maxDescriptionLength)")
@@ -169,7 +169,7 @@ struct BroadcastSettingsView: View {
             settingsCard {
                 ZStack(alignment: .topLeading) {
                     if draftSettings.description.isEmpty {
-                        Text("방송 설명을 입력해 주세요")
+                        Text(String(localized: "방송 설명을 입력해 주세요"))
                             .foregroundStyle(.tertiary)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 8)
@@ -223,9 +223,9 @@ struct BroadcastSettingsView: View {
 
     private var primaryActionTitle: String {
         if isPreparingBroadcast && youtube.isChangingStreamState {
-            return "방송 준비 중"
+            return String(localized: "방송 준비 중")
         }
-        return isPreparingBroadcast ? "방송 준비" : "저장"
+        return isPreparingBroadcast ? String(localized: "방송 준비") : String(localized: "저장")
     }
 
     private var isPrimaryActionDisabled: Bool {

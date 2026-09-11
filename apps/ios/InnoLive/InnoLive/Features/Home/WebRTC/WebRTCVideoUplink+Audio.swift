@@ -4,12 +4,12 @@ import AVFoundation
 extension WebRTCVideoUplink {
     func switchAudioInput(to audioInputID: String) throws {
         guard isAudioSessionActivated, localAudioTrack != nil else {
-            throw WebRTCVideoUplinkError.failed("비식별화를 시작한 뒤 오디오 기기를 전환해 주세요.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "비식별화를 시작한 뒤 오디오 기기를 전환해 주세요."))
         }
 
         let audioSession = LKRTCAudioSession.sharedInstance()
         guard let input = audioSession.session.availableInputs?.first(where: { $0.uid == audioInputID }) else {
-            throw WebRTCVideoUplinkError.failed("선택한 오디오 기기를 사용할 수 없습니다.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "선택한 오디오 기기를 사용할 수 없습니다."))
         }
 
         do {
@@ -18,7 +18,7 @@ extension WebRTCVideoUplink {
             try audioSession.setPreferredInput(input)
             activeAudioInputID = input.uid
         } catch {
-            throw WebRTCVideoUplinkError.failed("오디오 기기를 전환하지 못했습니다: \(error.localizedDescription)")
+            throw WebRTCVideoUplinkError.failed(String(localized: "오디오 기기를 전환하지 못했습니다: \(error.localizedDescription)"))
         }
     }
 
@@ -28,7 +28,7 @@ extension WebRTCVideoUplink {
     ) async throws {
         guard await requestMicrophoneAccess() else {
             markMediaPermissionRequired()
-            throw WebRTCVideoUplinkError.failed("마이크 권한이 필요합니다. 설정에서 마이크 접근을 허용해 주세요.")
+            throw WebRTCVideoUplinkError.failed(String(localized: "마이크 권한이 필요합니다. 설정에서 마이크 접근을 허용해 주세요."))
         }
         try ensureCurrentCameraOperation(operationGeneration)
 
@@ -55,7 +55,7 @@ extension WebRTCVideoUplink {
                     ?? audioSession.session.availableInputs?.first?.uid
             }
         } catch {
-            throw WebRTCVideoUplinkError.failed("마이크를 준비하지 못했습니다: \(error.localizedDescription)")
+            throw WebRTCVideoUplinkError.failed(String(localized: "마이크를 준비하지 못했습니다: \(error.localizedDescription)"))
         }
 
         let constraints = LKRTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)

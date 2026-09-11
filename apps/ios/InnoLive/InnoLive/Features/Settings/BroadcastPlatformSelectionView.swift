@@ -19,7 +19,7 @@ struct BroadcastPlatformSelectionView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("여러 플랫폼에 동시송출을 하려면 여러 플랫폼을 선택하세요.")
+                Text(String(localized: "여러 플랫폼에 동시송출을 하려면 여러 플랫폼을 선택하세요."))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -39,7 +39,7 @@ struct BroadcastPlatformSelectionView: View {
             }
             .padding(24)
         }
-        .navigationTitle("방송할 플랫폼")
+        .navigationTitle(String(localized: "방송할 플랫폼"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             youtube.dismissError()
@@ -58,7 +58,7 @@ struct BroadcastPlatformSelectionView: View {
                 HStack(spacing: 12) {
                     platformIdentity(platform)
                     Spacer()
-                    Button("OAuth 연결") { connectedPlatforms.insert(platform) }
+                    Button(String(localized: "OAuth 연결")) { connectedPlatforms.insert(platform) }
                         .buttonStyle(.glassProminent)
                         .tint(.blue)
                 }
@@ -76,7 +76,7 @@ struct BroadcastPlatformSelectionView: View {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(connection.channel.title)
                             .font(.callout.weight(.semibold))
-                        Text("연결됨")
+                        Text(String(localized: "연결됨"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -85,7 +85,7 @@ struct BroadcastPlatformSelectionView: View {
                         if youtube.isConnecting {
                             ProgressView()
                         } else {
-                            Text("계정 연결")
+                            Text(String(localized: "계정 연결"))
                         }
                     }
                     .buttonStyle(.glassProminent)
@@ -109,7 +109,7 @@ struct BroadcastPlatformSelectionView: View {
                     platformIdentity(platform)
                     Spacer()
                     Label(
-                        selectedPlatforms.contains(platform) ? "선택됨" : "선택",
+                        selectedPlatforms.contains(platform) ? String(localized: "선택됨") : String(localized: "선택"),
                         systemImage: selectedPlatforms.contains(platform) ? "checkmark.square.fill" : "square"
                     )
                     .font(.callout.weight(.semibold))

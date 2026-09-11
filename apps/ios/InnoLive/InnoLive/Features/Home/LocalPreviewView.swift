@@ -34,8 +34,8 @@ struct OriginalPreviewFrame<Content: View>: View {
             }
             .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("원본 미리보기")
-            .accessibilityHint("끌어다 놓으면 가까운 모서리에 붙습니다")
+            .accessibilityLabel(String(localized: "원본 미리보기"))
+            .accessibilityHint(String(localized: "끌어다 놓으면 가까운 모서리에 붙습니다"))
             .accessibilityAddTraits(.allowsDirectInteraction)
     }
 }
