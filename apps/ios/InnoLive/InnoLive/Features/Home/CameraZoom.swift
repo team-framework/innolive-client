@@ -5,6 +5,17 @@ enum CameraZoom {
     static let defaultFactor: CGFloat = 1
     static let accessibilityStep: CGFloat = 0.5
 
+    struct DeviceLimits: Equatable {
+        var id: String
+        var min: CGFloat
+        var max: CGFloat
+    }
+
+    struct DevicePlan: Equatable {
+        var deviceID: String
+        var factor: CGFloat
+    }
+
     static func clamped(_ factor: CGFloat, min: CGFloat, max: CGFloat) -> CGFloat {
         let lower = Swift.min(min, max)
         let upper = Swift.max(min, max)
@@ -30,6 +41,37 @@ enum CameraZoom {
 
     static func steppedDown(from current: CGFloat, min: CGFloat, max: CGFloat) -> CGFloat {
         clamped(current - accessibilityStep, min: min, max: max)
+    }
+
+    static func plan(
+        requestedFactor: CGFloat,
+        currentDeviceID: String,
+        wide: DeviceLimits?,
+        virtual: DeviceLimits?
+    ) -> DevicePlan {
+        if requestedFactor < defaultFactor, let virtual {
+            return DevicePlan(
+                deviceID: virtual.id,
+                factor: clamped(requestedFactor, min: virtual.min, max: virtual.max)
+            )
+        }
+        if let wide {
+            return DevicePlan(
+                deviceID: wide.id,
+                factor: clamped(requestedFactor, min: wide.min, max: wide.max)
+            )
+        }
+        if let virtual {
+            return DevicePlan(
+                deviceID: virtual.id,
+                factor: clamped(
+                    max(requestedFactor, defaultFactor),
+                    min: virtual.min,
+                    max: virtual.max
+                )
+            )
+        }
+        return DevicePlan(deviceID: currentDeviceID, factor: requestedFactor)
     }
 }
 

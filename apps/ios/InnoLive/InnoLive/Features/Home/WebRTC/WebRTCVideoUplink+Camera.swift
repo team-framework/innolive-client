@@ -2,7 +2,7 @@ import AVFoundation
 @preconcurrency import LiveKitWebRTC
 
 extension WebRTCVideoUplink {
-    func switchCamera(to cameraID: String) async throws {
+    func switchCamera(to cameraID: String, resetZoom: Bool = true) async throws {
         guard !isStopping,
               !isSwitchingCamera,
               let capturer = cameraCapturer,
@@ -36,7 +36,11 @@ extension WebRTCVideoUplink {
             try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
             activeCameraID = newDevice.uniqueID
             setUsingFrontCamera(newDevice.position == .front)
-            resetZoomToDefault()
+            if resetZoom {
+                resetZoomToDefault()
+            } else {
+                reapplyTargetZoom()
+            }
         } catch {
             guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                 throw WebRTCVideoUplinkError.cancelled

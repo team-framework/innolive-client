@@ -12,55 +12,108 @@ enum CameraDeviceCatalog {
         .external
     ]
 
-    static var devices: [AVCaptureDevice] {
-        let discovered = AVCaptureDevice.DiscoverySession(
+    private static let hiddenVirtualTypes: Set<AVCaptureDevice.DeviceType> = [
+        .builtInTripleCamera,
+        .builtInDualWideCamera,
+        .builtInDualCamera
+    ]
+
+    static var discoveredDevices: [AVCaptureDevice] {
+        AVCaptureDevice.DiscoverySession(
             deviceTypes: discoveryDeviceTypes,
             mediaType: .video,
             position: .unspecified
         ).devices
-        return hidingConstituents(in: discovered)
     }
 
-    static func hidingConstituents(in devices: [AVCaptureDevice]) -> [AVCaptureDevice] {
-        let hiddenIDs = Set(devices.flatMap { $0.constituentDevices.map(\.uniqueID) })
-        return devices.filter { !hiddenIDs.contains($0.uniqueID) }
+    static var devices: [AVCaptureDevice] {
+        hidingVirtualCameras(in: discoveredDevices)
     }
 
-    static func visibleIDs(
-        _ deviceIDs: [String],
-        constituents: [String: [String]]
-    ) -> [String] {
-        let hidden = Set(constituents.values.flatMap { $0 })
+    static func hidingVirtualCameras(in devices: [AVCaptureDevice]) -> [AVCaptureDevice] {
+        devices.filter { !hiddenVirtualTypes.contains($0.deviceType) }
+    }
+
+    static func visibleIDs(_ deviceIDs: [String], hiding hiddenIDs: [String]) -> [String] {
+        let hidden = Set(hiddenIDs)
         return deviceIDs.filter { !hidden.contains($0) }
     }
 
     static func resolvedCameraID(
         savedID: String,
         availableIDs: [String],
-        constituents: [String: [String]]
+        virtualIDs: [String: String]
     ) -> String {
+        if let wideID = virtualIDs[savedID], availableIDs.contains(wideID) {
+            return wideID
+        }
         if availableIDs.contains(savedID) {
             return savedID
-        }
-        if let parentID = constituents.first(where: { $0.value.contains(savedID) })?.key,
-           availableIDs.contains(parentID) {
-            return parentID
         }
         return savedID
     }
 
     static func resolvedDevice(for cameraID: String) -> AVCaptureDevice? {
-        let available = devices
-        let constituents = Dictionary(uniqueKeysWithValues: available.map { device in
-            (device.uniqueID, device.constituentDevices.map(\.uniqueID))
-        })
+        let visible = devices
+        let virtualToWide = Dictionary(
+            uniqueKeysWithValues: discoveredDevices.compactMap { device -> (String, String)? in
+                guard hiddenVirtualTypes.contains(device.deviceType),
+                      let wide = wideAngleDevice(position: device.position) else {
+                    return nil
+                }
+                return (device.uniqueID, wide.uniqueID)
+            }
+        )
         let resolvedID = resolvedCameraID(
             savedID: cameraID,
-            availableIDs: available.map(\.uniqueID),
-            constituents: constituents
+            availableIDs: visible.map(\.uniqueID),
+            virtualIDs: virtualToWide
         )
-        return available.first(where: { $0.uniqueID == resolvedID })
+        return visible.first(where: { $0.uniqueID == resolvedID })
             ?? AVCaptureDevice(uniqueID: cameraID)
+    }
+
+    static func wideAngleDevice(position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        discoveredDevices.first {
+            $0.position == position && $0.deviceType == .builtInWideAngleCamera
+        }
+    }
+
+    static func virtualZoomDevice(position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        let preferredTypes: [AVCaptureDevice.DeviceType] = [
+            .builtInTripleCamera,
+            .builtInDualWideCamera,
+            .builtInDualCamera
+        ]
+        for type in preferredTypes {
+            if let device = discoveredDevices.first(where: { $0.position == position && $0.deviceType == type }) {
+                return device
+            }
+        }
+        return discoveredDevices.first {
+            $0.position == position && $0.deviceType == .builtInUltraWideCamera
+        }
+    }
+
+    static func zoomLimits(for device: AVCaptureDevice) -> CameraZoom.DeviceLimits {
+        CameraZoom.DeviceLimits(
+            id: device.uniqueID,
+            min: device.minAvailableVideoZoomFactor,
+            max: device.maxAvailableVideoZoomFactor
+        )
+    }
+
+    static func expandedZoomRange(for device: AVCaptureDevice) -> ClosedRange<CGFloat> {
+        let virtual = virtualZoomDevice(position: device.position)
+        let minimum = min(
+            device.minAvailableVideoZoomFactor,
+            virtual?.minAvailableVideoZoomFactor ?? device.minAvailableVideoZoomFactor
+        )
+        let maximum = max(
+            device.maxAvailableVideoZoomFactor,
+            virtual?.maxAvailableVideoZoomFactor ?? device.maxAvailableVideoZoomFactor
+        )
+        return minimum...maximum
     }
 
     static func nextCamera(after currentCameraID: String?) -> AVCaptureDevice? {

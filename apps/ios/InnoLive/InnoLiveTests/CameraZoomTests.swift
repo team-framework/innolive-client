@@ -20,6 +20,42 @@ final class CameraZoomTests: XCTestCase {
         XCTAssertNotEqual(factor, 0.5)
     }
 
+    func testOneTimesUsesWideCameraNotVirtualCamera() {
+        let plan = CameraZoom.plan(
+            requestedFactor: 1,
+            currentDeviceID: "wide",
+            wide: .init(id: "wide", min: 1, max: 8),
+            virtual: .init(id: "dual-wide", min: 0.5, max: 8)
+        )
+
+        XCTAssertEqual(plan.deviceID, "wide")
+        XCTAssertEqual(plan.factor, 1)
+    }
+
+    func testHalfTimesUsesVirtualCamera() {
+        let plan = CameraZoom.plan(
+            requestedFactor: 0.5,
+            currentDeviceID: "wide",
+            wide: .init(id: "wide", min: 1, max: 8),
+            virtual: .init(id: "dual-wide", min: 0.5, max: 8)
+        )
+
+        XCTAssertEqual(plan.deviceID, "dual-wide")
+        XCTAssertEqual(plan.factor, 0.5)
+    }
+
+    func testReturningToOneTimesLeavesVirtualCamera() {
+        let plan = CameraZoom.plan(
+            requestedFactor: 1,
+            currentDeviceID: "dual-wide",
+            wide: .init(id: "wide", min: 1, max: 8),
+            virtual: .init(id: "dual-wide", min: 0.5, max: 8)
+        )
+
+        XCTAssertEqual(plan.deviceID, "wide")
+        XCTAssertEqual(plan.factor, 1)
+    }
+
     func testSwitchResetClampsOneTimesToDeviceLimits() {
         XCTAssertEqual(CameraZoom.factorAfterSwitchReset(min: 1.2, max: 5), 1.2)
         XCTAssertEqual(CameraZoom.factorAfterSwitchReset(min: 0.5, max: 0.8), 0.8)

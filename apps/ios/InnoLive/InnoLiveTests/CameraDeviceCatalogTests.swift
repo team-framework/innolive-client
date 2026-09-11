@@ -3,41 +3,41 @@ import XCTest
 @testable import InnoLive
 
 final class CameraDeviceCatalogTests: XCTestCase {
-    func testHidesPhysicalCamerasCoveredByVirtualDevice() {
+    func testHidesVirtualCamerasSoWideRemainsTheBackCamera() {
         let visible = CameraDeviceCatalog.visibleIDs(
-            ["triple", "wide", "ultra", "tele", "front"],
-            constituents: ["triple": ["wide", "ultra", "tele"]]
+            ["triple", "dual-wide", "wide", "ultra", "tele", "front"],
+            hiding: ["triple", "dual-wide"]
         )
 
-        XCTAssertEqual(visible, ["triple", "front"])
+        XCTAssertEqual(visible, ["wide", "ultra", "tele", "front"])
     }
 
-    func testKeepsStandaloneCamerasWhenNoVirtualParentExists() {
+    func testKeepsStandaloneCamerasWhenNoVirtualCameraExists() {
         let visible = CameraDeviceCatalog.visibleIDs(
             ["wide", "front", "external"],
-            constituents: [:]
+            hiding: ["triple", "dual-wide"]
         )
 
         XCTAssertEqual(visible, ["wide", "front", "external"])
     }
 
-    func testResolvesSavedConstituentToVirtualParent() {
+    func testMapsSavedVirtualCameraBackToWide() {
         let resolved = CameraDeviceCatalog.resolvedCameraID(
-            savedID: "wide",
-            availableIDs: ["triple", "front"],
-            constituents: ["triple": ["wide", "ultra", "tele"]]
+            savedID: "dual-wide",
+            availableIDs: ["wide", "front"],
+            virtualIDs: ["dual-wide": "wide"]
         )
 
-        XCTAssertEqual(resolved, "triple")
+        XCTAssertEqual(resolved, "wide")
     }
 
-    func testKeepsSavedIDWhenItIsAlreadyVisible() {
+    func testKeepsSavedWideCamera() {
         let resolved = CameraDeviceCatalog.resolvedCameraID(
-            savedID: "front",
-            availableIDs: ["triple", "front"],
-            constituents: ["triple": ["wide", "ultra", "tele"]]
+            savedID: "wide",
+            availableIDs: ["wide", "front"],
+            virtualIDs: ["dual-wide": "wide"]
         )
 
-        XCTAssertEqual(resolved, "front")
+        XCTAssertEqual(resolved, "wide")
     }
 }

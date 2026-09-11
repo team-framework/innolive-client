@@ -219,7 +219,7 @@ final class CameraManager {
         let switchedDevice: AVCaptureDevice? = await withCheckedContinuation { continuation in
             sessionQueue.async { [weak self] in
                 guard let self,
-                      self.switchCameraOnSessionQueue(to: cameraID),
+                      self.switchCameraOnSessionQueue(to: cameraID, resetZoom: true),
                       let device = self.cameraDevice(for: cameraID) else {
                     continuation.resume(returning: nil)
                     return
@@ -250,7 +250,7 @@ final class CameraManager {
     }
 
     // sessionQueue에서 실행
-    private func switchCameraOnSessionQueue(to cameraID: String) -> Bool {
+    private func switchCameraOnSessionQueue(to cameraID: String, resetZoom: Bool = true) -> Bool {
         guard let device = cameraDevice(for: cameraID) else {
             return false
         }
@@ -261,7 +261,9 @@ final class CameraManager {
         guard videoInput != nil || session.isRunning else {
             if sessionCameraID != cameraID {
                 sessionCameraID = cameraID
-                resetZoomOnSessionQueue(device: nil)
+                if resetZoom {
+                    resetZoomOnSessionQueue(device: nil)
+                }
             }
             return true
         }
@@ -292,7 +294,9 @@ final class CameraManager {
             session.addInput(newInput)
             videoInput = newInput
             sessionCameraID = device.uniqueID
-            resetZoomOnSessionQueue(device: device)
+            if resetZoom {
+                resetZoomOnSessionQueue(device: device)
+            }
             return true
         } catch {
             print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
@@ -343,12 +347,11 @@ final class CameraManager {
 
     // sessionQueue에서 처리한 실제 카메라 상태를 메인 스레드에 반영
     private func updateCurrentCamera(_ device: AVCaptureDevice) {
-        let minFactor = device.minAvailableVideoZoomFactor
-        let maxFactor = device.maxAvailableVideoZoomFactor
+        let range = CameraDeviceCatalog.expandedZoomRange(for: device)
         DispatchQueue.main.async { [weak self] in
             self?.currentCameraID = device.uniqueID
             self?.currentCameraName = device.localizedName
-            self?.zoomRange = minFactor...maxFactor
+            self?.zoomRange = range
             self?.canApplyLiveZoom = true
         }
     }
@@ -361,7 +364,19 @@ final class CameraManager {
             }
             return
         }
-        applyZoomOnSessionQueue(factor, to: device)
+        let plan = CameraZoom.plan(
+            requestedFactor: factor,
+            currentDeviceID: device.uniqueID,
+            wide: CameraDeviceCatalog.wideAngleDevice(position: device.position)
+                .map(CameraDeviceCatalog.zoomLimits),
+            virtual: CameraDeviceCatalog.virtualZoomDevice(position: device.position)
+                .map(CameraDeviceCatalog.zoomLimits)
+        )
+        if plan.deviceID != device.uniqueID {
+            _ = switchCameraOnSessionQueue(to: plan.deviceID, resetZoom: false)
+        }
+        guard let activeDevice = videoInput?.device else { return }
+        applyZoomOnSessionQueue(plan.factor, to: activeDevice)
     }
 
     private func applyZoomOnSessionQueue(_ factor: CGFloat, to device: AVCaptureDevice) {
@@ -369,9 +384,10 @@ final class CameraManager {
             return
         }
         sessionTargetZoomFactor = applied.factor
+        let range = CameraDeviceCatalog.expandedZoomRange(for: device)
         DispatchQueue.main.async { [weak self] in
             self?.currentZoomFactor = applied.factor
-            self?.zoomRange = applied.min...applied.max
+            self?.zoomRange = range
             self?.canApplyLiveZoom = true
         }
     }
