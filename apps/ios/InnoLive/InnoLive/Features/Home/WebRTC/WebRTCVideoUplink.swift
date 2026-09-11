@@ -15,6 +15,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     @Published private(set) var isSwitchingCamera = false
     @Published private(set) var isReleasingCamera = false
     @Published private(set) var requiresMediaPermissionSettings = false
+    @Published private(set) var currentZoomFactor = CameraZoom.defaultFactor
+    @Published private(set) var zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
 
     private static let sslInitialized = LKRTCInitializeSSL()
 
@@ -50,6 +52,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var pendingCameraStopTask: Task<Void, Never>?
     var cameraOperationGeneration: UInt = 0
     var isStopping = false
+    var targetZoomFactor = CameraZoom.defaultFactor
+    var pendingZoomFactor: CGFloat?
+    private let zoomQueue = DispatchQueue(label: "com.innolive.webrtc.zoom")
     var onConnectionInterrupted: (() -> Void)?
     private let networkMonitor = NWPathMonitor()
     private let networkMonitorQueue = DispatchQueue(label: "com.framework.innolive.webrtc.network-monitor")
@@ -117,6 +122,106 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     var currentVideoQuality: CameraQualityPreset? {
         activeVideoQuality
+    }
+
+    func adoptZoomFactor(_ factor: CGFloat) {
+        targetZoomFactor = factor
+        currentZoomFactor = factor
+    }
+
+    func applyZoom(_ factor: CGFloat, waitUntilApplied: Bool = false) {
+        guard !SimulatorVideoInput.isEnabled else { return }
+        guard let cameraID = activeCameraID,
+              let device = AVCaptureDevice(uniqueID: cameraID) else {
+            targetZoomFactor = factor
+            currentZoomFactor = factor
+            return
+        }
+
+        let plan = CameraZoom.plan(
+            requestedFactor: factor,
+            currentDeviceID: cameraID,
+            wide: CameraDeviceCatalog.wideAngleDevice(position: device.position)
+                .map(CameraDeviceCatalog.zoomLimits),
+            virtual: CameraDeviceCatalog.virtualZoomDevice(position: device.position)
+                .map(CameraDeviceCatalog.zoomLimits)
+        )
+        targetZoomFactor = plan.factor
+        zoomRange = CameraDeviceCatalog.expandedZoomRange(for: device)
+
+        if plan.deviceID != cameraID {
+            pendingZoomFactor = plan.factor
+            guard !isSwitchingCamera else { return }
+            Task { await switchZoomDevice(to: plan.deviceID) }
+            return
+        }
+
+        applyZoom(plan.factor, cameraID: plan.deviceID, waitUntilApplied: waitUntilApplied)
+    }
+
+    func switchZoomDevice(to cameraID: String) async {
+        do {
+            try await switchCamera(to: cameraID, resetZoom: false)
+            let factor = pendingZoomFactor ?? targetZoomFactor
+            pendingZoomFactor = nil
+            if let activeID = activeCameraID {
+                applyZoom(factor, cameraID: activeID, waitUntilApplied: true)
+            }
+        } catch {
+            pendingZoomFactor = nil
+        }
+    }
+
+    func reapplyTargetZoom() {
+        applyZoom(targetZoomFactor, waitUntilApplied: true)
+    }
+
+    func resetZoomToDefault() {
+        guard let cameraID = activeCameraID,
+              let device = AVCaptureDevice(uniqueID: cameraID) else {
+            targetZoomFactor = CameraZoom.defaultFactor
+            currentZoomFactor = CameraZoom.defaultFactor
+            zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
+            return
+        }
+        let resetFactor = CameraZoom.factorAfterSwitchReset(
+            min: device.minAvailableVideoZoomFactor,
+            max: device.maxAvailableVideoZoomFactor
+        )
+        applyZoom(resetFactor, cameraID: cameraID, waitUntilApplied: true)
+    }
+
+    func applyZoom(_ factor: CGFloat, cameraID: String, waitUntilApplied: Bool = false) {
+        let apply = { () -> CameraDeviceZoom.Applied? in
+            guard let device = AVCaptureDevice(uniqueID: cameraID) else { return nil }
+            return CameraDeviceZoom.apply(factor, to: device)
+        }
+
+        if waitUntilApplied {
+            if let applied = zoomQueue.sync(execute: apply) {
+                targetZoomFactor = applied.factor
+                currentZoomFactor = applied.factor
+                if let device = AVCaptureDevice(uniqueID: cameraID) {
+                    zoomRange = CameraDeviceCatalog.expandedZoomRange(for: device)
+                } else {
+                    zoomRange = applied.min...applied.max
+                }
+            }
+            return
+        }
+
+        zoomQueue.async { [weak self] in
+            guard let applied = apply() else { return }
+            DispatchQueue.main.async {
+                self?.targetZoomFactor = applied.factor
+                self?.currentZoomFactor = applied.factor
+                if let device = AVCaptureDevice(uniqueID: cameraID) {
+                    self?.zoomRange = CameraDeviceCatalog.expandedZoomRange(for: device)
+                } else {
+                    self?.zoomRange = applied.min...applied.max
+                }
+            }
+        }
     }
 
     func start(

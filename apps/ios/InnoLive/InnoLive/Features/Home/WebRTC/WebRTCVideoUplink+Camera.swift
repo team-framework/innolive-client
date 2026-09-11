@@ -2,7 +2,7 @@ import AVFoundation
 @preconcurrency import LiveKitWebRTC
 
 extension WebRTCVideoUplink {
-    func switchCamera(to cameraID: String) async throws {
+    func switchCamera(to cameraID: String, resetZoom: Bool = true) async throws {
         guard !isStopping,
               !isSwitchingCamera,
               let capturer = cameraCapturer,
@@ -20,6 +20,7 @@ extension WebRTCVideoUplink {
 
         cameraOperationGeneration &+= 1
         let operationGeneration = cameraOperationGeneration
+        let previousZoom = targetZoomFactor
         setCameraSwitching(true)
         defer {
             if cameraOperationGeneration == operationGeneration {
@@ -35,6 +36,11 @@ extension WebRTCVideoUplink {
             try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
             activeCameraID = newDevice.uniqueID
             setUsingFrontCamera(newDevice.position == .front)
+            if resetZoom {
+                resetZoomToDefault()
+            } else {
+                reapplyTargetZoom()
+            }
         } catch {
             guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                 throw WebRTCVideoUplinkError.cancelled
@@ -44,6 +50,7 @@ extension WebRTCVideoUplink {
             do {
                 try await startCapture(capturer, device: previousDevice, setting: previousSetting)
                 try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
+                applyZoom(previousZoom, cameraID: previousCameraID, waitUntilApplied: true)
             } catch {
                 guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                     throw WebRTCVideoUplinkError.cancelled
@@ -117,10 +124,11 @@ extension WebRTCVideoUplink {
         }
 
         let availableDevices = LKRTCCameraVideoCapturer.captureDevices()
-        let selectedDevice = preferredCameraID
-            .flatMap { cameraID in availableDevices.first { $0.uniqueID == cameraID } }
+        let selectedDevice = preferredCameraID.flatMap(CameraDeviceCatalog.resolvedDevice(for:))
             ?? availableDevices.first { $0.position == .front }
+            ?? CameraDeviceCatalog.devices.first { $0.position == .front }
             ?? availableDevices.first
+            ?? CameraDeviceCatalog.devices.first
 
         guard let selectedDevice else {
             throw WebRTCVideoUplinkError.failed("사용할 수 있는 카메라를 찾지 못했습니다.")
@@ -159,6 +167,7 @@ extension WebRTCVideoUplink {
         }
         activeCameraID = selectedDevice.uniqueID
         activeVideoQuality = preferredVideoQuality
+        reapplyTargetZoom()
     }
 
     @discardableResult
@@ -212,6 +221,7 @@ extension WebRTCVideoUplink {
             try await startCapture(capturer, device: device, setting: newSetting)
             try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
             activeVideoQuality = quality
+            reapplyTargetZoom()
         } catch {
             guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                 throw WebRTCVideoUplinkError.cancelled
@@ -223,6 +233,7 @@ extension WebRTCVideoUplink {
                 try await startCapture(capturer, device: device, setting: previousSetting)
                 try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
                 activeVideoQuality = previousQuality
+                reapplyTargetZoom()
             } catch {
                 guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                     throw WebRTCVideoUplinkError.cancelled

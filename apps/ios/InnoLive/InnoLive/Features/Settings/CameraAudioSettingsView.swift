@@ -68,11 +68,9 @@ struct CameraAudioSettingsView: View {
             loadAvailableDevices()
             let savedCameraID = UserDefaults.standard.string(forKey: "selectedCameraID")
             selectedCameraID = youtube.videoUplink.currentCameraID
-                .flatMap(validCameraID)
-                ?? cameraManager.currentCameraID.flatMap(validCameraID)
-                ?? savedCameraID.flatMap { savedID in
-                    validCameraID(savedID)
-                }
+                .flatMap(resolvedVisibleCameraID)
+                ?? cameraManager.currentCameraID.flatMap(resolvedVisibleCameraID)
+                ?? savedCameraID.flatMap(resolvedVisibleCameraID)
                 ?? cameraOptions.first?.id
                 ?? ""
             restoreAudioSelection()
@@ -193,6 +191,11 @@ struct CameraAudioSettingsView: View {
 
     private func validCameraID(_ cameraID: String) -> String? {
         cameraOptions.contains(where: { $0.id == cameraID }) ? cameraID : nil
+    }
+
+    private func resolvedVisibleCameraID(_ cameraID: String) -> String? {
+        validCameraID(cameraID)
+            ?? CameraDeviceCatalog.resolvedDevice(for: cameraID).flatMap { validCameraID($0.uniqueID) }
     }
 
     private func restoreAudioSelection() {
