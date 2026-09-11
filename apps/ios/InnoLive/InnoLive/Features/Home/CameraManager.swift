@@ -22,9 +22,14 @@ final class CameraManager {
     private let faceFrameRelay = CameraFrameRelay()
     private(set) var currentCameraID: String?
     private(set) var currentCameraName: String?
+    private(set) var currentZoomFactor = CameraZoom.defaultFactor
+    private(set) var zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
+    private(set) var canApplyLiveZoom = false
 
     // AVCaptureSession을 만지는 작업은 이 큐에서만 실행
     private let sessionQueue = DispatchQueue(label: "com.innolive.camera.session")
+    private var sessionCameraID: String?
+    private var sessionTargetZoomFactor = CameraZoom.defaultFactor
 
     func requestCameraAccess() {
         switch authorizationStatus {
@@ -83,7 +88,9 @@ final class CameraManager {
 
             session.addInput(input)
             videoInput = input
+            sessionCameraID = device.uniqueID
             updateCurrentCamera(device)
+            applyZoomOnSessionQueue(sessionTargetZoomFactor, to: device)
             return true
         } catch {
             print("카메라를 연결하지 못했습니다: \(error.localizedDescription)")
@@ -123,6 +130,9 @@ final class CameraManager {
                     self.videoInput = nil
                 }
                 self.faceFrameRelay.update(handler: nil, cameraPosition: .unspecified)
+                DispatchQueue.main.async { [weak self] in
+                    self?.canApplyLiveZoom = false
+                }
                 continuation.resume()
             }
         }
@@ -221,6 +231,21 @@ final class CameraManager {
         return true
     }
 
+    func adoptZoomFactor(_ factor: CGFloat) {
+        sessionQueue.async { [weak self] in
+            self?.sessionTargetZoomFactor = factor
+            DispatchQueue.main.async {
+                self?.currentZoomFactor = factor
+            }
+        }
+    }
+
+    func applyZoom(_ factor: CGFloat) {
+        sessionQueue.async { [weak self] in
+            self?.applyZoomOnSessionQueue(factor)
+        }
+    }
+
     // sessionQueue에서 실행
     private func switchCameraOnSessionQueue(to cameraID: String) -> Bool {
         guard let device = cameraDevice(for: cameraID) else {
@@ -231,6 +256,10 @@ final class CameraManager {
         // 이때 설정에서 선택을 바꿔도 별도의 AVCaptureDeviceInput을 열지 않고
         // 다음 방송에 쓸 선택값만 갱신해 현재 WebRTC 영상이 멈추는 것을 막음
         guard videoInput != nil || session.isRunning else {
+            if sessionCameraID != cameraID {
+                sessionCameraID = cameraID
+                resetZoomOnSessionQueue(device: nil)
+            }
             return true
         }
 
@@ -259,6 +288,8 @@ final class CameraManager {
 
             session.addInput(newInput)
             videoInput = newInput
+            sessionCameraID = device.uniqueID
+            resetZoomOnSessionQueue(device: device)
             return true
         } catch {
             print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
@@ -309,9 +340,51 @@ final class CameraManager {
 
     // sessionQueue에서 처리한 실제 카메라 상태를 메인 스레드에 반영
     private func updateCurrentCamera(_ device: AVCaptureDevice) {
+        let minFactor = device.minAvailableVideoZoomFactor
+        let maxFactor = device.maxAvailableVideoZoomFactor
         DispatchQueue.main.async { [weak self] in
             self?.currentCameraID = device.uniqueID
             self?.currentCameraName = device.localizedName
+            self?.zoomRange = minFactor...maxFactor
+            self?.canApplyLiveZoom = true
+        }
+    }
+
+    private func applyZoomOnSessionQueue(_ factor: CGFloat) {
+        sessionTargetZoomFactor = factor
+        guard let device = videoInput?.device else {
+            DispatchQueue.main.async { [weak self] in
+                self?.currentZoomFactor = factor
+            }
+            return
+        }
+        applyZoomOnSessionQueue(factor, to: device)
+    }
+
+    private func applyZoomOnSessionQueue(_ factor: CGFloat, to device: AVCaptureDevice) {
+        guard let applied = CameraDeviceZoom.apply(factor, to: device) else {
+            return
+        }
+        sessionTargetZoomFactor = applied.factor
+        DispatchQueue.main.async { [weak self] in
+            self?.currentZoomFactor = applied.factor
+            self?.zoomRange = applied.min...applied.max
+            self?.canApplyLiveZoom = true
+        }
+    }
+
+    private func resetZoomOnSessionQueue(device: AVCaptureDevice?) {
+        let minFactor = device?.minAvailableVideoZoomFactor ?? CameraZoom.defaultFactor
+        let maxFactor = device?.maxAvailableVideoZoomFactor ?? CameraZoom.defaultFactor
+        let resetFactor = CameraZoom.factorAfterSwitchReset(min: minFactor, max: maxFactor)
+        if let device {
+            applyZoomOnSessionQueue(resetFactor, to: device)
+        } else {
+            sessionTargetZoomFactor = resetFactor
+            DispatchQueue.main.async { [weak self] in
+                self?.currentZoomFactor = resetFactor
+                self?.zoomRange = minFactor...maxFactor
+            }
         }
     }
 }

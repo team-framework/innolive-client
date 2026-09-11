@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var previewDragOffset: CGSize = .zero
     @State private var topTrailingReserved = CGSize(width: 44, height: 44)
     @State private var bottomReservedHeight: CGFloat = 56
+    @State private var pinchStartZoom: CGFloat?
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @Environment(CameraManager.self) private var cameraManager
@@ -38,13 +39,7 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            RemoteStreamView(
-                uplink: youtube.videoUplink,
-                previewTransition: previewTransition,
-                isPreparingSession: youtube.isPreparingSession,
-                isConnectingVideo: youtube.isConnectingVideo
-            )
-                .ignoresSafeArea()
+            zoomableRemoteStream
 
             if localPreviewPresentation != .hidden {
                 GeometryReader { geo in
@@ -214,6 +209,7 @@ struct HomeView: View {
                     accessToken: authentication.currentAccessToken()
                 )
                 if !usesSimulatorVideo, cameraManager.authorizationStatus == .authorized {
+                    cameraManager.adoptZoomFactor(youtube.videoUplink.currentZoomFactor)
                     await cameraManager.startDefaultCamera()
                 }
             }
@@ -334,7 +330,9 @@ struct HomeView: View {
 
         previewTransition = .starting
         defer { previewTransition = .none }
+        let zoomToKeep = cameraManager.currentZoomFactor
         await cameraManager.stopSession()
+        youtube.videoUplink.adoptZoomFactor(zoomToKeep)
 
         if await youtube.connectVideo(
             accessToken: authentication.currentAccessToken(),
@@ -350,7 +348,103 @@ struct HomeView: View {
             }
             isBroadcasting = true
         } else if !usesSimulatorVideo {
+            cameraManager.adoptZoomFactor(youtube.videoUplink.currentZoomFactor)
             await cameraManager.startDefaultCamera()
+        }
+    }
+
+    private var zoomableRemoteStream: some View {
+        RemoteStreamView(
+            uplink: youtube.videoUplink,
+            previewTransition: previewTransition,
+            isPreparingSession: youtube.isPreparingSession,
+            isConnectingVideo: youtube.isConnectingVideo
+        )
+        .ignoresSafeArea()
+        .contentShape(Rectangle())
+        .simultaneousGesture(cameraZoomGesture)
+        .modifier(CameraZoomAccessibility(
+            value: zoomAccessibilityValue,
+            onAdjust: adjustCameraZoom
+        ))
+    }
+
+    private var canZoomCamera: Bool {
+        !usesSimulatorVideo
+            && cameraManager.authorizationStatus == .authorized
+            && (youtube.videoUplink.isCapturingCamera || cameraManager.canApplyLiveZoom)
+    }
+
+    private var activeZoomFactor: CGFloat {
+        youtube.videoUplink.isCapturingCamera
+            ? youtube.videoUplink.currentZoomFactor
+            : cameraManager.currentZoomFactor
+    }
+
+    private var activeZoomRange: ClosedRange<CGFloat> {
+        youtube.videoUplink.isCapturingCamera
+            ? youtube.videoUplink.zoomRange
+            : cameraManager.zoomRange
+    }
+
+    private var zoomAccessibilityValue: String {
+        String(format: "%.1f배", activeZoomFactor)
+    }
+
+    private var cameraZoomGesture: some Gesture {
+        MagnifyGesture()
+            .onChanged { value in
+                guard canZoomCamera else { return }
+                let range = activeZoomRange
+                if pinchStartZoom == nil {
+                    pinchStartZoom = activeZoomFactor
+                }
+                let start = pinchStartZoom ?? activeZoomFactor
+                applyUserZoom(
+                    CameraZoom.factor(
+                        fromPinchStart: start,
+                        magnification: value.magnification,
+                        min: range.lowerBound,
+                        max: range.upperBound
+                    )
+                )
+            }
+            .onEnded { _ in
+                pinchStartZoom = nil
+            }
+    }
+
+    private func applyUserZoom(_ factor: CGFloat) {
+        guard canZoomCamera else { return }
+        if youtube.videoUplink.isCapturingCamera {
+            youtube.videoUplink.applyZoom(factor)
+        } else {
+            cameraManager.applyZoom(factor)
+        }
+    }
+
+    private func adjustCameraZoom(_ direction: AccessibilityAdjustmentDirection) {
+        guard canZoomCamera else { return }
+        let range = activeZoomRange
+        switch direction {
+        case .increment:
+            applyUserZoom(
+                CameraZoom.steppedUp(
+                    from: activeZoomFactor,
+                    min: range.lowerBound,
+                    max: range.upperBound
+                )
+            )
+        case .decrement:
+            applyUserZoom(
+                CameraZoom.steppedDown(
+                    from: activeZoomFactor,
+                    min: range.lowerBound,
+                    max: range.upperBound
+                )
+            )
+        @unknown default:
+            break
         }
     }
 
@@ -388,6 +482,19 @@ struct HomeView: View {
                 return
             }
         }
+    }
+}
+
+private struct CameraZoomAccessibility: ViewModifier {
+    let value: String
+    let onAdjust: (AccessibilityAdjustmentDirection) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityLabel("카메라 줌")
+            .accessibilityHint("두 손가락으로 확대하거나 축소합니다")
+            .accessibilityValue(value)
+            .accessibilityAdjustableAction(onAdjust)
     }
 }
 

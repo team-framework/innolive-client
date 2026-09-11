@@ -187,6 +187,8 @@ private final class NativeWebRTCVideoView: UIView {
         super.init(frame: frame)
         backgroundColor = .black
         clipsToBounds = true
+        isUserInteractionEnabled = false
+        remoteVideoView.isUserInteractionEnabled = false
         // 세로 9:16 처리 영상을 iPhone 화면에 맞춰 채운다.
         // 화면 비율 차이로 좌우 가장자리는 일부 잘릴 수 있다.
         remoteVideoView.videoContentMode = .scaleAspectFill

@@ -20,6 +20,7 @@ extension WebRTCVideoUplink {
 
         cameraOperationGeneration &+= 1
         let operationGeneration = cameraOperationGeneration
+        let previousZoom = targetZoomFactor
         setCameraSwitching(true)
         defer {
             if cameraOperationGeneration == operationGeneration {
@@ -35,6 +36,7 @@ extension WebRTCVideoUplink {
             try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
             activeCameraID = newDevice.uniqueID
             setUsingFrontCamera(newDevice.position == .front)
+            resetZoomToDefault()
         } catch {
             guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                 throw WebRTCVideoUplinkError.cancelled
@@ -44,6 +46,7 @@ extension WebRTCVideoUplink {
             do {
                 try await startCapture(capturer, device: previousDevice, setting: previousSetting)
                 try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
+                applyZoom(previousZoom, cameraID: previousCameraID)
             } catch {
                 guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                     throw WebRTCVideoUplinkError.cancelled
@@ -159,6 +162,7 @@ extension WebRTCVideoUplink {
         }
         activeCameraID = selectedDevice.uniqueID
         activeVideoQuality = preferredVideoQuality
+        reapplyTargetZoom()
     }
 
     @discardableResult
@@ -212,6 +216,7 @@ extension WebRTCVideoUplink {
             try await startCapture(capturer, device: device, setting: newSetting)
             try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
             activeVideoQuality = quality
+            reapplyTargetZoom()
         } catch {
             guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                 throw WebRTCVideoUplinkError.cancelled
@@ -223,6 +228,7 @@ extension WebRTCVideoUplink {
                 try await startCapture(capturer, device: device, setting: previousSetting)
                 try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
                 activeVideoQuality = previousQuality
+                reapplyTargetZoom()
             } catch {
                 guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {
                     throw WebRTCVideoUplinkError.cancelled

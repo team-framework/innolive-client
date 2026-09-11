@@ -15,6 +15,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     @Published private(set) var isSwitchingCamera = false
     @Published private(set) var isReleasingCamera = false
     @Published private(set) var requiresMediaPermissionSettings = false
+    @Published private(set) var currentZoomFactor = CameraZoom.defaultFactor
+    @Published private(set) var zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
 
     private static let sslInitialized = LKRTCInitializeSSL()
 
@@ -50,6 +52,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var pendingCameraStopTask: Task<Void, Never>?
     var cameraOperationGeneration: UInt = 0
     var isStopping = false
+    var targetZoomFactor = CameraZoom.defaultFactor
+    private let zoomQueue = DispatchQueue(label: "com.innolive.webrtc.zoom")
     var onConnectionInterrupted: (() -> Void)?
     private let networkMonitor = NWPathMonitor()
     private let networkMonitorQueue = DispatchQueue(label: "com.framework.innolive.webrtc.network-monitor")
@@ -117,6 +121,54 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     var currentVideoQuality: CameraQualityPreset? {
         activeVideoQuality
+    }
+
+    func adoptZoomFactor(_ factor: CGFloat) {
+        targetZoomFactor = factor
+        currentZoomFactor = factor
+    }
+
+    func applyZoom(_ factor: CGFloat) {
+        guard !SimulatorVideoInput.isEnabled else { return }
+        guard let cameraID = activeCameraID else {
+            targetZoomFactor = factor
+            currentZoomFactor = factor
+            return
+        }
+        applyZoom(factor, cameraID: cameraID)
+    }
+
+    func reapplyTargetZoom() {
+        applyZoom(targetZoomFactor)
+    }
+
+    func resetZoomToDefault() {
+        guard let cameraID = activeCameraID,
+              let device = AVCaptureDevice(uniqueID: cameraID) else {
+            targetZoomFactor = CameraZoom.defaultFactor
+            currentZoomFactor = CameraZoom.defaultFactor
+            zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
+            return
+        }
+        let resetFactor = CameraZoom.factorAfterSwitchReset(
+            min: device.minAvailableVideoZoomFactor,
+            max: device.maxAvailableVideoZoomFactor
+        )
+        applyZoom(resetFactor, cameraID: cameraID)
+    }
+
+    func applyZoom(_ factor: CGFloat, cameraID: String) {
+        zoomQueue.async { [weak self] in
+            guard let device = AVCaptureDevice(uniqueID: cameraID),
+                  let applied = CameraDeviceZoom.apply(factor, to: device) else {
+                return
+            }
+            DispatchQueue.main.async {
+                self?.targetZoomFactor = applied.factor
+                self?.currentZoomFactor = applied.factor
+                self?.zoomRange = applied.min...applied.max
+            }
+        }
     }
 
     func start(
