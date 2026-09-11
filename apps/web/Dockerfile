@@ -14,8 +14,11 @@ COPY . .
 RUN pnpm run build
 
 FROM base AS runner
+ARG INNOLIVE_WEB_REVISION
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV INNOLIVE_WEB_REVISION=$INNOLIVE_WEB_REVISION
+LABEL org.opencontainers.image.revision=$INNOLIVE_WEB_REVISION
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

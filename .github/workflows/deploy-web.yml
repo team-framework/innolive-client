@@ -6,6 +6,8 @@ on:
     paths:
       - "apps/web/**"
       - ".github/workflows/deploy-web.yml"
+      - "scripts/deploy-innolive-web.sh"
+      - "scripts/receive-innolive-web-deploy.sh"
   workflow_dispatch:
 
 concurrency:
@@ -17,8 +19,58 @@ permissions:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
+      - name: Check out the requested revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate deployment configuration
+        env:
+          DEPLOY_HOST: ${{ secrets.INNOLIVE_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.INNOLIVE_DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.INNOLIVE_DEPLOY_PORT }}
+          DEPLOY_KEY: ${{ secrets.INNOLIVE_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.INNOLIVE_DEPLOY_KNOWN_HOSTS }}
+          SITE_URL: ${{ vars.INNOLIVE_WEB_SITE_URL }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+          [[ -n "$DEPLOY_HOST" ]] || missing+=(INNOLIVE_DEPLOY_HOST)
+          [[ -n "$DEPLOY_USER" ]] || missing+=(INNOLIVE_DEPLOY_USER)
+          [[ -n "$DEPLOY_PORT" ]] || missing+=(INNOLIVE_DEPLOY_PORT)
+          [[ -n "$DEPLOY_KEY" ]] || missing+=(INNOLIVE_DEPLOY_SSH_KEY)
+          [[ -n "$KNOWN_HOSTS" ]] || missing+=(INNOLIVE_DEPLOY_KNOWN_HOSTS)
+          [[ -n "$SITE_URL" ]] || missing+=(INNOLIVE_WEB_SITE_URL)
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'deployment configuration is missing: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+          if [[ ! "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'GITHUB_SHA must be a 40-character lowercase hexadecimal revision.' >&2
+            exit 1
+          fi
+
+          if [[ ! "$DEPLOY_PORT" =~ ^[0-9]+$ ]] || (( DEPLOY_PORT < 1 || DEPLOY_PORT > 65535 )); then
+            echo 'INNOLIVE_DEPLOY_PORT must be a valid TCP port.' >&2
+            exit 1
+          fi
+
+          if [[ ! "$SITE_URL" =~ ^https?://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ ]]; then
+            echo 'INNOLIVE_WEB_SITE_URL must be an absolute HTTP(S) URL without a query or fragment.' >&2
+            exit 1
+          fi
+
+          printf 'stage: configuration-checked %s\n' "$GITHUB_SHA"
+
       - name: Configure deploy key
         env:
           DEPLOY_KEY: ${{ secrets.INNOLIVE_DEPLOY_SSH_KEY }}
@@ -30,8 +82,97 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Deploy current main revision
+      - name: Deploy the checked out revision
         env:
           DEPLOY_HOST: ${{ secrets.INNOLIVE_DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.INNOLIVE_DEPLOY_USER }}
-        run: ssh -o BatchMode=yes "${DEPLOY_USER}@${DEPLOY_HOST}" deploy
+          DEPLOY_PORT: ${{ secrets.INNOLIVE_DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+
+          ssh_output="$RUNNER_TEMP/innolive-web-deploy.stdout"
+          ssh_error="$RUNNER_TEMP/innolive-web-deploy.stderr"
+          ssh_key="$HOME/.ssh/id_ed25519"
+          known_hosts="$HOME/.ssh/known_hosts"
+
+          transport_status=0
+          if {
+            git archive --format=tar "$GITHUB_SHA" apps/web |
+              gzip -n |
+              ssh \
+                -p "$DEPLOY_PORT" \
+                -i "$ssh_key" \
+                -o BatchMode=yes \
+                -o ConnectTimeout=10 \
+                -o IdentitiesOnly=yes \
+                -o ServerAliveInterval=15 \
+                -o ServerAliveCountMax=3 \
+                -o StrictHostKeyChecking=yes \
+                -o UserKnownHostsFile="$known_hosts" \
+                "${DEPLOY_USER}@${DEPLOY_HOST}" "deploy-web $GITHUB_SHA"
+          } >"$ssh_output" 2>"$ssh_error"; then
+            :
+          else
+            transport_status=$?
+          fi
+
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^stage:\ [a-z0-9-]+\ $GITHUB_SHA$ ]]; then
+              printf '%s\n' "$line"
+            fi
+          done <"$ssh_output"
+
+          if (( transport_status != 0 )); then
+            printf 'stage: transport-failed %s\n' "$GITHUB_SHA" >&2
+            exit 1
+          fi
+
+          printf 'stage: archive-sent %s\n' "$GITHUB_SHA"
+
+      - name: Verify the public revision
+        env:
+          SITE_URL: ${{ vars.INNOLIVE_WEB_SITE_URL }}
+        run: |
+          set -euo pipefail
+
+          version_body="$RUNNER_TEMP/innolive-web-version.json"
+          version_headers="$RUNNER_TEMP/innolive-web-version.headers"
+          version_url="${SITE_URL%/}/api/version?deploy_sha=${GITHUB_SHA}&cache_bust=${GITHUB_SHA}"
+
+          if ! curl \
+            --fail \
+            --silent \
+            --show-error \
+            --location \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --header 'Cache-Control: no-cache, no-store' \
+            --header 'Pragma: no-cache' \
+            --dump-header "$version_headers" \
+            --output "$version_body" \
+            "$version_url" >"$RUNNER_TEMP/innolive-web-version.curl.log" 2>&1; then
+            printf 'stage: public-version-failed %s\n' "$GITHUB_SHA" >&2
+            exit 1
+          fi
+
+          if ! python3 - "$version_body" "$GITHUB_SHA" >>"$RUNNER_TEMP/innolive-web-version.python.log" 2>&1 <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as body:
+              payload = json.load(body)
+
+          if payload.get("revision") != sys.argv[2]:
+              raise SystemExit(1)
+          PY
+          then
+            printf 'stage: public-version-mismatch %s\n' "$GITHUB_SHA" >&2
+            exit 1
+          fi
+
+          if ! grep -Eiq '^cache-control:.*no-store' "$version_headers"; then
+            printf 'stage: public-cache-policy-failed %s\n' "$GITHUB_SHA" >&2
+            exit 1
+          fi
+
+          printf 'stage: public-version-verified %s\n' "$GITHUB_SHA"
