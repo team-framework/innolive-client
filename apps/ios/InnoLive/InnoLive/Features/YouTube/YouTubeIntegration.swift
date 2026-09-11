@@ -10,6 +10,8 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var videoTrack: YouTubeVideoTrackState?
     @Published private(set) var isFeatureAvailable = true
     @Published private(set) var isConnecting = false
+    @Published private(set) var isRefreshingConnection = false
+    @Published private(set) var isDisconnecting = false
     @Published private(set) var isPreparingSession = false
     @Published private(set) var isConnectingVideo = false
     @Published private(set) var isChangingStreamState = false
@@ -28,10 +30,11 @@ final class YouTubeIntegration: ObservableObject {
 
     let videoUplink = WebRTCVideoUplink()
 
-    private let api = YouTubeAPI()
+    private let api: YouTubeAPI
     private let authorization = YouTubeAuthorization()
     private let preferencesStore: YouTubePreferencesStore
     private var suppressBroadcastSettingsPersistence = false
+    private var connectionOperationGeneration: UInt = 0
     private var pollingTask: Task<Void, Never>?
     private var pollingGeneration = 0
     // stream.started_at은 prepare에서 egress가 시작된 시각이므로 공개 방송 타이머에 사용하지 않는다.
@@ -46,7 +49,8 @@ final class YouTubeIntegration: ObservableObject {
         self.init(preferencesStore: YouTubePreferencesStore())
     }
 
-    init(preferencesStore: YouTubePreferencesStore) {
+    init(preferencesStore: YouTubePreferencesStore, api: YouTubeAPI? = nil) {
+        self.api = api ?? YouTubeAPI()
         self.preferencesStore = preferencesStore
         broadcastSettings = preferencesStore.loadBroadcastSettings()
         connection = preferencesStore.loadConnection()
@@ -56,6 +60,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
+        invalidateConnectionOperation()
         api.configureAuthentication(
             accessTokenProvider: { [weak authentication] in
                 authentication?.currentAccessToken()
@@ -111,6 +116,19 @@ final class YouTubeIntegration: ObservableObject {
 
     var streamStatusText: String { statePolicy.streamStatusText }
 
+    var isYouTubeConnectionOperationInProgress: Bool {
+        isConnecting || isRefreshingConnection || isDisconnecting
+    }
+
+    var isYouTubeAccountChangeBlocked: Bool {
+        isBroadcastSettingsLocked
+            || isYouTubeConnectionOperationInProgress
+    }
+
+    var canDisconnectYouTubeAccount: Bool {
+        connection != nil && !isYouTubeAccountChangeBlocked
+    }
+
     func refreshAvailability() async {
         do {
             _ = try await api.configuration()
@@ -122,25 +140,97 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
+    func refreshConnection(accessToken: String?) async {
+        guard !isYouTubeAccountChangeBlocked,
+              let accessToken,
+              !accessToken.isEmpty else {
+            return
+        }
+
+        let generation = beginConnectionOperation()
+        isRefreshingConnection = true
+        defer {
+            if connectionOperationGeneration == generation {
+                isRefreshingConnection = false
+            }
+        }
+
+        do {
+            let accounts = try await api.streamingAccounts(accessToken: accessToken)
+            guard isCurrentConnectionOperation(generation) else { return }
+
+            if let connection = accounts.first(where: { $0.provider == "youtube" })?.youtubeConnection {
+                self.connection = connection
+                persistConnection()
+            } else {
+                // An authenticated empty list is authoritative for this user.
+                connection = nil
+                preferencesStore.removeConnection()
+            }
+        } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            // Keep the last known connection when the refresh is unavailable.
+            handle(error)
+        }
+    }
+
     func connect(presenting viewController: UIViewController, accessToken: String?) async {
+        guard !isYouTubeAccountChangeBlocked else { return }
         clearError()
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
             return
         }
 
+        let generation = beginConnectionOperation()
         isConnecting = true
-        defer { isConnecting = false }
+        defer {
+            if connectionOperationGeneration == generation {
+                isConnecting = false
+            }
+        }
         do {
             let configuration = try await api.configuration()
+            guard isCurrentConnectionOperation(generation) else { return }
             let serverAuthCode = try await authorization.authorize(
                 configuration: configuration,
                 presenting: viewController
             )
+            guard isCurrentConnectionOperation(generation) else { return }
             let response = try await api.connect(serverAuthCode: serverAuthCode, accessToken: accessToken)
+            guard isCurrentConnectionOperation(generation) else { return }
             connection = YouTubeConnection(provider: response.provider, channel: response.channel)
             persistConnection()
         } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            handle(error)
+        }
+    }
+
+    func disconnectYouTubeAccount(accessToken: String?) async {
+        guard canDisconnectYouTubeAccount else { return }
+        clearError()
+        guard let accessToken, !accessToken.isEmpty else {
+            showError(.unauthorized)
+            return
+        }
+
+        let generation = beginConnectionOperation()
+        isDisconnecting = true
+        defer {
+            if connectionOperationGeneration == generation {
+                isDisconnecting = false
+            }
+        }
+
+        do {
+            try await api.disconnectStreamingAccount(accessToken: accessToken)
+            guard isCurrentConnectionOperation(generation) else { return }
+            connection = nil
+            preferencesStore.removeConnection()
+        } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            // A failed DELETE does not prove that the server removed the link.
             handle(error)
         }
     }
@@ -327,7 +417,8 @@ final class YouTubeIntegration: ObservableObject {
 
     func prepareYouTubeStream(accessToken: String?) async {
         clearError()
-        guard !isChangingStreamState else { return }
+        guard !isChangingStreamState,
+              !isYouTubeConnectionOperationInProgress else { return }
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
             return
@@ -468,6 +559,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        invalidateConnectionOperation()
         stopPolling()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -738,6 +830,23 @@ final class YouTubeIntegration: ObservableObject {
 
     private func persistBroadcastSettings() {
         preferencesStore.saveBroadcastSettings(broadcastSettings)
+    }
+
+    private func beginConnectionOperation() -> UInt {
+        connectionOperationGeneration &+= 1
+        return connectionOperationGeneration
+    }
+
+    private func isCurrentConnectionOperation(_ generation: UInt) -> Bool {
+        connectionOperationGeneration == generation
+    }
+
+    private func invalidateConnectionOperation() {
+        connectionOperationGeneration &+= 1
+        api.invalidateAuthenticationRequests()
+        isConnecting = false
+        isRefreshingConnection = false
+        isDisconnecting = false
     }
 }
 

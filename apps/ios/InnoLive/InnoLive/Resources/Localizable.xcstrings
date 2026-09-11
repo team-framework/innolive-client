@@ -1345,6 +1345,29 @@
         }
       }
     },
+    "YouTube 연결 해제": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube 연결 해제"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect YouTube"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeの接続を解除"
+          }
+        }
+      }
+    },
     "YouTube 연결을 완료하지 못했습니다. 다시 시도해 주세요.": {
       "extractionState": "manual",
       "localizations": {
@@ -1778,6 +1801,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "アカウントを接続"
+          }
+        }
+      }
+    },
+    "다시 연결": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 연결"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnect"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再接続"
           }
         }
       }
@@ -4749,6 +4795,52 @@
         }
       }
     },
+    "연결을 해제하면 다시 방송하기 전에 YouTube 계정을 연결해야 합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결을 해제하면 다시 방송하기 전에 YouTube 계정을 연결해야 합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After disconnecting, you will need to reconnect an account to broadcast on YouTube."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続を解除すると、YouTubeで配信するにはアカウントを再接続する必要があります。"
+          }
+        }
+      }
+    },
+    "연결 해제": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결 해제"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続を解除"
+          }
+        }
+      }
+    },
     "영문·숫자 기준 8~72자": {
       "extractionState": "manual",
       "localizations": {
@@ -5941,6 +6033,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "再接続中（%@）"
+          }
+        }
+      }
+    },
+    "재연결 필요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재연결 필요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnect required"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再接続が必要です"
           }
         }
       }
