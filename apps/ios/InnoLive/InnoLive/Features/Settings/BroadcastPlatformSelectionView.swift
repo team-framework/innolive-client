@@ -9,9 +9,8 @@ import UIKit
 struct BroadcastPlatformSelectionView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
-    @State private var connectedPlatforms: Set<BroadcastPlatform> = []
-    @State private var selectedPlatforms: Set<BroadcastPlatform> = []
     @State private var isShowingDisconnectConfirmation = false
+    @State private var isShowingCHZZKUnavailableAlert = false
 
     private var visiblePlatforms: [BroadcastPlatform] {
         BroadcastPlatform.allCases.filter { $0 != .youTube || youtube.isFeatureAvailable }
@@ -42,6 +41,9 @@ struct BroadcastPlatformSelectionView: View {
         }
         .navigationTitle(String(localized: "방송할 플랫폼"))
         .navigationBarTitleDisplayMode(.inline)
+        .alert(String(localized: "현재 준비 중인 기능입니다."), isPresented: $isShowingCHZZKUnavailableAlert) {
+            Button(String(localized: "확인"), role: .cancel) {}
+        }
         .task {
             youtube.dismissError()
             await youtube.refreshAvailability()
@@ -55,16 +57,16 @@ struct BroadcastPlatformSelectionView: View {
     private func platformRow(_ platform: BroadcastPlatform) -> some View {
         if platform == .youTube {
             youTubeRow
-        } else if connectedPlatforms.contains(platform) {
-            selectionRow(platform)
         } else {
             SettingsGlassRow {
                 HStack(spacing: 12) {
                     platformIdentity(platform)
                     Spacer()
-                    Button(String(localized: "OAuth 연결")) { connectedPlatforms.insert(platform) }
-                        .buttonStyle(.glassProminent)
-                        .tint(.blue)
+                    Button(String(localized: "OAuth 연결")) {
+                        isShowingCHZZKUnavailableAlert = true
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(.blue)
                 }
             }
         }
@@ -140,35 +142,6 @@ struct BroadcastPlatformSelectionView: View {
         }
     }
 
-    private func selectionRow(_ platform: BroadcastPlatform) -> some View {
-        Button {
-            if selectedPlatforms.contains(platform) {
-                selectedPlatforms.remove(platform)
-            } else {
-                selectedPlatforms.insert(platform)
-            }
-        } label: {
-            SettingsGlassRow {
-                HStack(spacing: 12) {
-                    platformIdentity(platform)
-                    Spacer()
-                    Label(
-                        selectedPlatforms.contains(platform) ? String(localized: "선택됨") : String(localized: "선택"),
-                        systemImage: selectedPlatforms.contains(platform) ? "checkmark.square.fill" : "square"
-                    )
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(selectedPlatforms.contains(platform) ? .blue : .secondary)
-                }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(selectedPlatforms.contains(platform) ? .blue : .clear, lineWidth: 2)
-            }
-        }
-        .buttonStyle(PressEffectButtonStyle())
-        .sensoryFeedback(.selection, trigger: selectedPlatforms.contains(platform))
-    }
-
     private func connectYouTube() {
         guard let presentingViewController else { return }
         Task {
@@ -195,14 +168,5 @@ struct BroadcastPlatformSelectionView: View {
             .compactMap { ($0 as? UIWindowScene)?.keyWindow }
             .first?
             .rootViewController
-    }
-}
-
-private struct PressEffectButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .opacity(configuration.isPressed ? 0.72 : 1)
-            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

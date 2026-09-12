@@ -7279,6 +7279,29 @@
         }
       }
     },
+    "현재 준비 중인 기능입니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 준비 중인 기능입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This feature is currently in preparation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在準備中の機能です。"
+          }
+        }
+      }
+    },
     "현재 카메라가 선택한 화질을 지원하지 않습니다.": {
       "extractionState": "manual",
       "localizations": {
