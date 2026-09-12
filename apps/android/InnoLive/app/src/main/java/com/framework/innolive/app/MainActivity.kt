@@ -54,6 +54,7 @@ import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
+import com.framework.innolive.feature.settings.StudioSettingsViewModel
 import com.framework.innolive.feature.settings.broadcast.BroadcastSetting
 import com.framework.innolive.feature.settings.broadcast.BroadcastSettingProps
 import com.framework.innolive.feature.settings.camera.CameraSetting
@@ -63,6 +64,7 @@ import com.framework.innolive.feature.settings.selection.SettingOption
 import com.framework.innolive.feature.youtube.OperationGeneration
 import com.framework.innolive.feature.youtube.StreamingAccount
 import com.framework.innolive.feature.youtube.YouTubeAccountCoordinator
+import com.framework.innolive.feature.youtube.YouTubeAccountViewModel
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
@@ -122,12 +124,16 @@ class MainActivity : ComponentActivity() {
         val webRtcSession = ViewModelProvider(this)[WebRtcSessionViewModel::class.java]
         val authenticationSession =
             ViewModelProvider(this)[AuthenticationSessionViewModel::class.java]
+        val youtubeAccount = ViewModelProvider(this)[YouTubeAccountViewModel::class.java]
+        val studioSettings = ViewModelProvider(this)[StudioSettingsViewModel::class.java]
         setContent {
             MyApplicationTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     AppNavigation(
                         webRtcSession = webRtcSession,
                         authenticationSession = authenticationSession,
+                        youtubeAccountViewModel = youtubeAccount,
+                        studioSettingsViewModel = studioSettings,
                         modifier = Modifier
                             .padding(innerPadding)
                             .background(color = MaterialTheme.colorScheme.background),
@@ -142,6 +148,8 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     webRtcSession: WebRtcSessionViewModel,
     authenticationSession: AuthenticationSessionViewModel,
+    youtubeAccountViewModel: YouTubeAccountViewModel,
+    studioSettingsViewModel: StudioSettingsViewModel,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -149,10 +157,10 @@ fun AppNavigation(
     val coroutineScope = rememberCoroutineScope()
     val session by authenticationSession.session.collectAsStateWithLifecycle()
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
-    var youtubeAccountProvider by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountChannelId by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountChannelTitle by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountReconnectRequired by rememberSaveable { mutableStateOf(false) }
+    var youtubeAccountProvider by youtubeAccountViewModel::provider
+    var youtubeAccountChannelId by youtubeAccountViewModel::channelId
+    var youtubeAccountChannelTitle by youtubeAccountViewModel::channelTitle
+    var youtubeAccountReconnectRequired by youtubeAccountViewModel::reconnectRequired
     val youtubeAccount = youtubeAccountProvider?.let { provider ->
         StreamingAccount(
             provider = provider,
@@ -161,18 +169,11 @@ fun AppNavigation(
             reconnectRequired = youtubeAccountReconnectRequired,
         )
     }
-    var youtubeAccountStatus by rememberSaveable {
-        mutableStateOf("로그인 후 YouTube 계정을 연동할 수 있습니다.")
-    }
-    var isYouTubeAccountActionInProgress by rememberSaveable { mutableStateOf(false) }
-    var isYouTubeAuthorizationLaunched by rememberSaveable { mutableStateOf(false) }
-    var youtubeAuthorizationOperation by rememberSaveable { mutableStateOf<Long?>(null) }
-    val youtubeOperationGeneration = rememberSaveable(
-        saver = Saver<OperationGeneration, Long>(
-            save = { generation -> generation.current },
-            restore = { value -> OperationGeneration(value) },
-        ),
-    ) { OperationGeneration() }
+    var youtubeAccountStatus by youtubeAccountViewModel::status
+    var isYouTubeAccountActionInProgress by youtubeAccountViewModel::isActionInProgress
+    var isYouTubeAuthorizationLaunched by youtubeAccountViewModel::isAuthorizationLaunched
+    var youtubeAuthorizationOperation by youtubeAccountViewModel::authorizationOperation
+    val youtubeOperationGeneration = youtubeAccountViewModel.operationGeneration
 
     DisposableEffect(youtubeCoordinator) {
         onDispose { youtubeCoordinator.close() }
@@ -312,18 +313,10 @@ fun AppNavigation(
             }
         }
     }
-    var selectedResolutionKey by rememberSaveable {
-        mutableStateOf<String?>(null)
-    }
-    var selectedCameraLensFacing by rememberSaveable {
-        mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
-    }
-    var supportedCameraResolutions by remember {
-        mutableStateOf(emptyList<CameraResolution>())
-    }
-    var selectedAudioDeviceId by rememberSaveable {
-        mutableIntStateOf(audioDeviceOptions.firstOrNull()?.id ?: -1)
-    }
+    var selectedResolutionKey by studioSettingsViewModel::selectedResolutionKey
+    var selectedCameraLensFacing by studioSettingsViewModel::selectedCameraLensFacing
+    var supportedCameraResolutions by studioSettingsViewModel::supportedCameraResolutions
+    var selectedAudioDeviceId by studioSettingsViewModel::selectedAudioDeviceId
     LaunchedEffect(audioInputDevices, selectedAudioDeviceId) {
         val availableAudioDeviceId = audioInputDevices
             .firstOrNull { device -> device.id == selectedAudioDeviceId }
@@ -334,14 +327,12 @@ fun AppNavigation(
             selectedAudioDeviceId = availableAudioDeviceId
         }
     }
-    var selectedBroadcastPlatform by rememberSaveable {
-        mutableStateOf(broadcastPlatformOptions.first())
-    }
-    var broadcastTitle by rememberSaveable { mutableStateOf("") }
-    var broadcastDescription by rememberSaveable { mutableStateOf("") }
-    var broadcastPrivacy by rememberSaveable { mutableStateOf("private") }
-    var broadcastAudience by rememberSaveable { mutableStateOf("unset") }
-    var broadcastCategoryId by rememberSaveable { mutableStateOf("") }
+    var selectedBroadcastPlatform by studioSettingsViewModel::selectedBroadcastPlatform
+    var broadcastTitle by studioSettingsViewModel::broadcastTitle
+    var broadcastDescription by studioSettingsViewModel::broadcastDescription
+    var broadcastPrivacy by studioSettingsViewModel::broadcastPrivacy
+    var broadcastAudience by studioSettingsViewModel::broadcastAudience
+    var broadcastCategoryId by studioSettingsViewModel::broadcastCategoryId
 
     DisposableEffect(context, selectedCameraLensFacing) {
         var isDisposed = false
