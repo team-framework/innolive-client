@@ -1,6 +1,48 @@
 import AVFoundation
 
 enum CameraDeviceCatalog {
+    struct Source: Equatable {
+        var id: String
+        var position: Position
+        var isBuiltInWideAngle: Bool
+
+        enum Position: Equatable {
+            case front
+            case back
+            case unspecified
+
+            init(_ position: AVCaptureDevice.Position) {
+                switch position {
+                case .front: self = .front
+                case .back: self = .back
+                default: self = .unspecified
+                }
+            }
+
+            var opposite: Position? {
+                switch self {
+                case .front: .back
+                case .back: .front
+                case .unspecified: nil
+                }
+            }
+        }
+
+        init(id: String, position: Position, isBuiltInWideAngle: Bool) {
+            self.id = id
+            self.position = position
+            self.isBuiltInWideAngle = isBuiltInWideAngle
+        }
+
+        init(device: AVCaptureDevice) {
+            self.init(
+                id: device.uniqueID,
+                position: Position(device.position),
+                isBuiltInWideAngle: device.deviceType == .builtInWideAngleCamera
+            )
+        }
+    }
+
     static let discoveryDeviceTypes: [AVCaptureDevice.DeviceType] = [
         .builtInTripleCamera,
         .builtInDualWideCamera,
@@ -115,34 +157,48 @@ enum CameraDeviceCatalog {
 
     static func nextCamera(after currentCameraID: String?) -> AVCaptureDevice? {
         let availableDevices = devices
-        guard !availableDevices.isEmpty else { return nil }
         let resolvedID = currentCameraID.flatMap { resolvedDevice(for: $0)?.uniqueID }
             ?? currentCameraID
-        guard let resolvedID,
-              let currentDevice = availableDevices.first(where: { $0.uniqueID == resolvedID }) else {
-            return availableDevices.first
+        guard let nextID = nextCameraID(
+            after: resolvedID,
+            in: availableDevices.map { Source(device: $0) }
+        ) else {
+            return nil
+        }
+        return availableDevices.first { $0.uniqueID == nextID }
+    }
+
+    static func nextCameraID(after currentID: String?, in sources: [Source]) -> String? {
+        guard sources.count >= 2 else { return nil }
+
+        guard let currentID,
+              let current = sources.first(where: { $0.id == currentID }) else {
+            if let currentID {
+                return sources.first { $0.id != currentID }?.id
+            }
+            return nil
         }
 
-        let oppositePosition: AVCaptureDevice.Position? = switch currentDevice.position {
-        case .front: .back
-        case .back: .front
-        case .unspecified: nil
-        @unknown default: nil
+        if let opposite = current.position.opposite {
+            if let wide = sources.first(where: {
+                $0.position == opposite && $0.isBuiltInWideAngle
+            }) {
+                return wide.id
+            }
+            if let oppositeCamera = sources.first(where: {
+                $0.position == opposite && $0.id != current.id
+            }) {
+                return oppositeCamera.id
+            }
         }
 
-        if let oppositePosition,
-           let oppositeCamera = availableDevices.first(where: { $0.position == oppositePosition }) {
-            return oppositeCamera
+        guard let currentIndex = sources.firstIndex(where: { $0.id == current.id }) else {
+            return nil
         }
-
-        guard let currentIndex = availableDevices.firstIndex(where: {
-            $0.uniqueID == resolvedID
-        }) else {
-            return availableDevices.first
-        }
-        let nextIndex = availableDevices.index(after: currentIndex)
-        return nextIndex < availableDevices.endIndex
-            ? availableDevices[nextIndex]
-            : availableDevices.first
+        let nextIndex = sources.index(after: currentIndex)
+        let candidate = nextIndex < sources.endIndex
+            ? sources[nextIndex]
+            : sources[sources.startIndex]
+        return candidate.id != current.id ? candidate.id : nil
     }
 }

@@ -21,7 +21,7 @@ struct HomeView: View {
     @State private var previewDragOffset: CGSize = .zero
     @State private var topTrailingReserved = CGSize(width: 44, height: 44)
     @State private var bottomReservedHeight: CGFloat = 56
-    @State private var pinchStartZoom: CGFloat?
+    @GestureState private var pinchStartZoom: CGFloat?
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @Environment(CameraManager.self) private var cameraManager
@@ -99,13 +99,7 @@ struct HomeView: View {
                 }
                 .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
-                .disabled(
-                    isSwitchingCamera
-                        || cameraManager.authorizationStatus != .authorized
-                        || usesSimulatorVideo
-                        || youtube.videoUplink.isConnecting
-                        || CameraDeviceCatalog.devices.count < 2
-                )
+                .disabled(!canSwitchCameraSource)
                 .accessibilityLabel(String(localized: "카메라 전환"))
 
                 if isCameraAccessDenied {
@@ -363,11 +357,28 @@ struct HomeView: View {
         )
         .ignoresSafeArea()
         .contentShape(Rectangle())
-        .simultaneousGesture(cameraZoomGesture)
+        .simultaneousGesture(cameraZoomGesture.exclusively(before: cameraSwipeGesture))
         .modifier(CameraZoomAccessibility(
             value: zoomAccessibilityValue,
             onAdjust: adjustCameraZoom
         ))
+    }
+
+    private var activeCameraID: String? {
+        youtube.videoUplink.currentCameraID ?? cameraManager.currentCameraID
+    }
+
+    private var canSwitchCameraSource: Bool {
+        cameraManager.authorizationStatus == .authorized
+            && !usesSimulatorVideo
+            && !isStartingServerConnection
+            && !youtube.isPreparingSession
+            && !youtube.isConnectingVideo
+            && !youtube.videoUplink.isConnecting
+            && !isSwitchingCamera
+            && !youtube.videoUplink.isSwitchingCamera
+            && !youtube.videoUplink.isReleasingCamera
+            && CameraDeviceCatalog.nextCamera(after: activeCameraID) != nil
     }
 
     private var canZoomCamera: Bool {
@@ -394,21 +405,27 @@ struct HomeView: View {
 
     private var cameraZoomGesture: some Gesture {
         MagnifyGesture()
+            .updating($pinchStartZoom) { _, state, _ in
+                if state == nil {
+                    state = activeZoomFactor
+                }
+            }
             .onChanged { value in
                 guard canZoomCamera else { return }
-                if pinchStartZoom == nil {
-                    pinchStartZoom = activeZoomFactor
-                }
-                let start = pinchStartZoom ?? activeZoomFactor
                 applyUserZoom(
                     CameraZoom.requestedPinchFactor(
-                        fromPinchStart: start,
+                        fromPinchStart: pinchStartZoom ?? activeZoomFactor,
                         magnification: value.magnification
                     )
                 )
             }
-            .onEnded { _ in
-                pinchStartZoom = nil
+    }
+
+    private var cameraSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onEnded { value in
+                guard CameraInputSwipe.shouldSwitch(translation: value.translation) else { return }
+                switchCamera()
             }
     }
 
@@ -447,9 +464,8 @@ struct HomeView: View {
     }
 
     private func switchCamera() {
-        guard !isSwitchingCamera else { return }
-        let previousCameraID = youtube.videoUplink.currentCameraID
-            ?? cameraManager.currentCameraID
+        guard canSwitchCameraSource else { return }
+        let previousCameraID = activeCameraID
         guard let nextCamera = CameraDeviceCatalog.nextCamera(after: previousCameraID),
               nextCamera.uniqueID != previousCameraID else { return }
 
@@ -457,6 +473,10 @@ struct HomeView: View {
         cameraSwitchErrorMessage = nil
         Task { @MainActor in
             defer { isSwitchingCamera = false }
+            guard !youtube.videoUplink.isSwitchingCamera,
+                  !youtube.videoUplink.isReleasingCamera else {
+                return
+            }
 
             if youtube.videoUplink.isCapturingCamera {
                 do {
