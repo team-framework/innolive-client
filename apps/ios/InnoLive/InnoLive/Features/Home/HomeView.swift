@@ -357,7 +357,9 @@ struct HomeView: View {
     private var zoomableRemoteStream: some View {
         RemoteStreamView(
             uplink: youtube.videoUplink,
-            previewTransition: previewTransition
+            previewTransition: previewTransition,
+            isPreparingSession: youtube.isPreparingSession,
+            isConnectingVideo: youtube.isConnectingVideo
         )
         .ignoresSafeArea()
         .contentShape(Rectangle())
