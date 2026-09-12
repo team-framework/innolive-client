@@ -22,24 +22,6 @@ enum BroadcastPreviewTransition: Equatable {
 struct RemoteStreamView: View {
     @ObservedObject var uplink: WebRTCVideoUplink
     let previewTransition: BroadcastPreviewTransition
-    let isPreparingSession: Bool
-    let isConnectingVideo: Bool
-
-    private var connectionPhase: BroadcastConnectionPhase? {
-        if isPreparingSession {
-            return .preparingSession
-        }
-        if previewTransition == .starting || isConnectingVideo || uplink.isConnecting {
-            return .connectingCamera
-        }
-        if previewTransition == .stopping || uplink.isReleasingCamera {
-            return .restoringPreview
-        }
-        if uplink.isCapturingMedia && !uplink.hasRemoteVideo {
-            return .waitingForProcessedVideo
-        }
-        return nil
-    }
 
     var body: some View {
         ZStack {
@@ -50,66 +32,7 @@ struct RemoteStreamView: View {
                previewTransition == .none {
                 WebRTCRemoteVideoView(uplink: uplink)
             }
-
-            if let connectionPhase {
-                BroadcastConnectionOverlay(phase: connectionPhase)
-            } else if !uplink.hasRemoteVideo {
-                ContentUnavailableView(
-                    String(localized: "방송 송출 화면을 기다리는 중"),
-                    systemImage: "dot.radiowaves.left.and.right",
-                    description: Text(String(localized: "서버 처리 영상이 준비되면 이 영역에 표시됩니다."))
-                )
-                .foregroundStyle(.white.opacity(0.8))
-            }
         }
-    }
-}
-
-private enum BroadcastConnectionPhase {
-    case preparingSession
-    case connectingCamera
-    case waitingForProcessedVideo
-    case restoringPreview
-
-    var title: String {
-        switch self {
-        case .preparingSession: return String(localized: "방송을 준비하는 중")
-        case .connectingCamera: return String(localized: "서버에 카메라 영상을 연결하는 중")
-        case .waitingForProcessedVideo: return String(localized: "비식별화 영상을 준비하는 중")
-        case .restoringPreview: return String(localized: "카메라 미리보기를 복구하는 중")
-        }
-    }
-
-    var description: String {
-        switch self {
-        case .preparingSession: return String(localized: "방송 세션을 만들고 있습니다.")
-        case .connectingCamera: return String(localized: "카메라와 마이크를 서버에 연결하고 있습니다.")
-        case .waitingForProcessedVideo: return String(localized: "서버 처리 영상이 곧 표시됩니다.")
-        case .restoringPreview: return String(localized: "카메라를 다시 준비하고 있습니다.")
-        }
-    }
-}
-
-private struct BroadcastConnectionOverlay: View {
-    let phase: BroadcastConnectionPhase
-
-    var body: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-                .controlSize(.large)
-                .tint(.white)
-            Text(phase.title)
-                .font(.headline)
-            Text(phase.description)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.72))
-                .multilineTextAlignment(.center)
-        }
-        .foregroundStyle(.white)
-        .padding(24)
-        .glassEffect(.regular, in: .rect(cornerRadius: 22))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(phase.title). \(phase.description)")
     }
 }
 
@@ -214,8 +137,6 @@ private final class NativeWebRTCVideoView: UIView {
 #Preview {
     RemoteStreamView(
         uplink: WebRTCVideoUplink(),
-        previewTransition: .none,
-        isPreparingSession: false,
-        isConnectingVideo: false
+        previewTransition: .none
     )
 }
