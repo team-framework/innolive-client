@@ -6,6 +6,7 @@
 //
 
 import AVFoundation
+import Combine
 import SwiftUI
 
 struct HomeView: View {
@@ -201,7 +202,7 @@ struct HomeView: View {
                 isShowingCameraPermissionAlert = true
             }
         }
-        .onChange(of: youtube.videoUplink.state) { _, state in
+        .onReceive(youtube.videoUplink.$state.removeDuplicates()) { state in
             guard state == .failed, isBroadcasting else { return }
             isBroadcasting = false
             Task {

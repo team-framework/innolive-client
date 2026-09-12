@@ -20,7 +20,7 @@ struct BroadcastControllsView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            if let feedback {
+            if !isShowingBroadcastSettings, let feedback {
                 BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
                     youtube.dismissError()
                 }
@@ -168,19 +168,13 @@ struct BroadcastControllsView: View {
         return String(localized: "방송 설정 시트를 엽니다.")
     }
 
-    private var feedback: BroadcastFeedback? {
-        if let errorMessage = youtube.errorMessage {
-            return BroadcastFeedback(message: errorMessage, isError: true)
-        }
-        if youtube.videoUplink.state == .failed,
-           let errorMessage = youtube.videoUplink.errorMessage {
-            return BroadcastFeedback(message: errorMessage, isError: true)
-        }
-        guard youtube.videoUplink.state == .preparing
-                || youtube.videoUplink.state == .connecting else {
+    var feedback: BroadcastFeedback? {
+        // 연결/복구가 끝난 뒤 Integration이 확정한 오류만 표시한다.
+        // 업링크의 임시 오류를 먼저 표시하면 복구 후 같은 배너가 다시 나타난다.
+        guard !isPreparingConnection, let errorMessage = youtube.errorMessage else {
             return nil
         }
-        return BroadcastFeedback(message: youtube.videoUplink.statusText, isError: false)
+        return BroadcastFeedback(message: errorMessage, isError: true)
     }
 
     private func performPrimaryAction() {

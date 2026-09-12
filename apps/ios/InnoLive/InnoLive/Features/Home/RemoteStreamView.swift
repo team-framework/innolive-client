@@ -107,7 +107,6 @@ private struct BroadcastConnectionOverlay: View {
         }
         .foregroundStyle(.white)
         .padding(24)
-        .glassEffect(.regular, in: .rect(cornerRadius: 22))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(phase.title). \(phase.description)")
     }
