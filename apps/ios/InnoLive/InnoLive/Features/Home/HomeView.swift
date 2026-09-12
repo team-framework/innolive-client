@@ -376,6 +376,8 @@ struct HomeView: View {
             && !youtube.isConnectingVideo
             && !youtube.videoUplink.isConnecting
             && !isSwitchingCamera
+            && !youtube.videoUplink.isSwitchingCamera
+            && !youtube.videoUplink.isReleasingCamera
             && CameraDeviceCatalog.nextCamera(after: activeCameraID) != nil
     }
 
@@ -471,6 +473,10 @@ struct HomeView: View {
         cameraSwitchErrorMessage = nil
         Task { @MainActor in
             defer { isSwitchingCamera = false }
+            guard !youtube.videoUplink.isSwitchingCamera,
+                  !youtube.videoUplink.isReleasingCamera else {
+                return
+            }
 
             if youtube.videoUplink.isCapturingCamera {
                 do {
