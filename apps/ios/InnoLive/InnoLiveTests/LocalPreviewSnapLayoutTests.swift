@@ -171,6 +171,40 @@ final class LocalPreviewSnapLayoutTests: XCTestCase {
         )
     }
 
+    func testLandscapePreviewSizeStaysClampedAfterRotation() {
+        let portraitSize = BroadcastVideoLayout.previewSize(
+            containerSize: CGSize(width: 390, height: 844),
+            lockedOrientation: nil
+        )
+        let landscapeSize = BroadcastVideoLayout.previewSize(
+            containerSize: CGSize(width: 844, height: 390),
+            lockedOrientation: nil
+        )
+        let layout = makeLayout(
+            containerSize: CGSize(width: 844, height: 390),
+            previewSize: landscapeSize
+        )
+
+        XCTAssertEqual(portraitSize.width, 120)
+        XCTAssertEqual(landscapeSize.height, 120)
+        XCTAssertGreaterThan(landscapeSize.width, portraitSize.width)
+        for corner in LocalPreviewCorner.allCases {
+            let origin = layout.origin(for: corner)
+            XCTAssertGreaterThanOrEqual(origin.x, 0, "\(corner) x")
+            XCTAssertGreaterThanOrEqual(origin.y, 0, "\(corner) y")
+            XCTAssertLessThanOrEqual(
+                origin.x + layout.previewSize.width,
+                layout.containerSize.width,
+                "\(corner) right edge"
+            )
+            XCTAssertLessThanOrEqual(
+                origin.y + layout.previewSize.height,
+                layout.containerSize.height,
+                "\(corner) bottom edge"
+            )
+        }
+    }
+
     private func makeLayout(
         containerSize: CGSize = CGSize(width: 390, height: 844),
         previewSize: CGSize = CGSize(width: 120, height: 120 / (9.0 / 16.0))

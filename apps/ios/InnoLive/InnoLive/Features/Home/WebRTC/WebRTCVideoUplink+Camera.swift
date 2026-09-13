@@ -147,6 +147,9 @@ extension WebRTCVideoUplink {
             target: source,
             cameraPosition: selectedDevice.position
         )
+        if let lockedBroadcastOrientation {
+            frameRelay.setLockedInterfaceOrientation(lockedBroadcastOrientation)
+        }
         let capturer = LKRTCCameraVideoCapturer(delegate: frameRelay)
         let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
         track.isEnabled = true
@@ -281,6 +284,7 @@ extension WebRTCVideoUplink {
                 }
             }
         }
+        cameraFrameRelay?.updateCameraPosition(device.position)
     }
 
     func stopCapture(_ capturer: LKRTCCameraVideoCapturer) async {
@@ -350,6 +354,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private let lock = NSLock()
     private var faceFrameHandler: FaceFrameHandler?
     private var cameraPosition: AVCaptureDevice.Position
+    private var lockedInterfaceOrientation: BroadcastInterfaceOrientation?
     private var isAnalysisPending = false
     private var lastDeliveryTime: TimeInterval = 0
 
@@ -376,8 +381,24 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         lock.unlock()
     }
 
+    func setLockedInterfaceOrientation(_ orientation: BroadcastInterfaceOrientation?) {
+        lock.lock()
+        lockedInterfaceOrientation = orientation
+        lock.unlock()
+    }
+
     func capturer(_ capturer: LKRTCVideoCapturer, didCapture frame: LKRTCVideoFrame) {
-        target.capturer(capturer, didCapture: frame)
+        lock.lock()
+        let lockedOrientation = lockedInterfaceOrientation
+        let currentCameraPosition = cameraPosition
+        lock.unlock()
+
+        let outgoing = outgoingFrame(
+            from: frame,
+            lockedOrientation: lockedOrientation,
+            cameraPosition: currentCameraPosition
+        )
+        target.capturer(capturer, didCapture: outgoing)
 
         guard let frameBuffer = frame.buffer as? LKRTCCVPixelBuffer else { return }
 
@@ -391,7 +412,6 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         }
         isAnalysisPending = true
         lastDeliveryTime = now
-        let currentCameraPosition = cameraPosition
         lock.unlock()
 
         let payload = WebRTCFaceFramePayload(pixelBuffer: frameBuffer.pixelBuffer)
@@ -402,6 +422,25 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             self.isAnalysisPending = false
             self.lock.unlock()
         }
+    }
+
+    private func outgoingFrame(
+        from frame: LKRTCVideoFrame,
+        lockedOrientation: BroadcastInterfaceOrientation?,
+        cameraPosition: AVCaptureDevice.Position
+    ) -> LKRTCVideoFrame {
+        guard let lockedOrientation else { return frame }
+        let rotation = BroadcastOrientationPolicy.videoRotation(
+            interfaceOrientation: lockedOrientation,
+            cameraPosition: cameraPosition
+        )
+        let liveKitRotation = LKRTCVideoRotation(rawValue: rotation.rawValue) ?? frame.rotation
+        guard frame.rotation != liveKitRotation else { return frame }
+        return LKRTCVideoFrame(
+            buffer: frame.buffer,
+            rotation: liveKitRotation,
+            timeStampNs: frame.timeStampNs
+        )
     }
 }
 

@@ -18,3 +18,5 @@ Xcode 26.6, iPhone 17 / iOS 26.5 Simulator에서 확인했다.
 - iOS Release 빌드 통과
 
 실기기 카메라·마이크와 서버 비식별화·YouTube E2E는 이번 변경에서 실행하지 않았다. 파일 입력 검사와 실제 송출 검증은 구분한다.
+
+Debug Simulator 파일 입력은 `WebRTCCameraFrameRelay`를 만들지 않는다. YouTube 방송 시작 후 UI 방향 잠금은 적용되지만, 파일 프레임에는 카메라 전·후면 회전 덮어쓰기를 하지 않는다. 카메라 회전 고정은 실기기 카메라 경로에서 확인한다.
