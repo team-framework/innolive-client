@@ -45,7 +45,7 @@ final class YouTubeIntegration: ObservableObject {
     private var videoConnectionConfiguration: VideoConnectionConfiguration?
     private let maximumVideoReconnectAttempts = 3
     private let maximumGoLiveAttempts = 15
-    private var orientationLockGeneration: UInt = 0
+    private var ownedOrientationLockGeneration: UInt?
     private var broadcastOperationGeneration: UInt = 0
 
     convenience init() {
@@ -376,6 +376,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func endBroadcast(accessToken: String?) async {
+        invalidateBroadcastOperation()
         if isYouTubeBroadcastActive {
             await stopYouTubeStream(accessToken: accessToken)
         }
@@ -397,6 +398,7 @@ final class YouTubeIntegration: ObservableObject {
         isRecoveringVideoFailure = true
         defer { isRecoveringVideoFailure = false }
 
+        invalidateBroadcastOperation()
         let failureMessage = videoUplink.errorMessage
             ?? String(localized: "카메라 영상 연결이 끊겼습니다. 비식별화를 다시 시작해 주세요.")
         let failedSession = session
@@ -507,7 +509,11 @@ final class YouTubeIntegration: ObservableObject {
             }
         }
         do {
-            let liveStream = try await goLiveWithRetry(session: session, accessToken: accessToken)
+            let liveStream = try await goLiveWithRetry(
+                session: session,
+                accessToken: accessToken,
+                operationGeneration: operationGeneration
+            )
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
             liveStartedAt = Date()
             stream = liveStream
@@ -515,7 +521,9 @@ final class YouTubeIntegration: ObservableObject {
         } catch {
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
             handle(error)
-            releaseBroadcastOrientationLock(generation: lockGeneration)
+            if let lockGeneration {
+                releaseBroadcastOrientationLock(generation: lockGeneration)
+            }
         }
     }
 
@@ -542,7 +550,9 @@ final class YouTubeIntegration: ObservableObject {
             stream = stoppedStream.markedStoppedByUser()
             liveStartedAt = nil
             stopPolling()
-            releaseBroadcastOrientationLock(generation: orientationLockGeneration)
+            if let generation = ownedOrientationLockGeneration {
+                releaseBroadcastOrientationLock(generation: generation)
+            }
         } catch {
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
             handle(error)
@@ -587,6 +597,7 @@ final class YouTubeIntegration: ObservableObject {
 
     func reset() {
         invalidateConnectionOperation()
+        invalidateBroadcastOperation()
         stopPolling()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -601,7 +612,6 @@ final class YouTubeIntegration: ObservableObject {
         errorMessage = nil
         helpURL = nil
         preferencesStore.removeConnection()
-        invalidateBroadcastOperation()
         forceReleaseBroadcastOrientationLock()
     }
 
@@ -619,21 +629,50 @@ final class YouTubeIntegration: ObservableObject {
 
     private func goLiveWithRetry(
         session: YouTubeBroadcastSession,
-        accessToken: String
+        accessToken: String,
+        operationGeneration: UInt
     ) async throws -> YouTubeStreamState {
+        let sessionID = session.sessionID
         for attempt in 1...maximumGoLiveAttempts {
+            try ensureCurrentGoLiveAttempt(
+                operationGeneration: operationGeneration,
+                sessionID: sessionID
+            )
             do {
-                return try await api.goLive(session: session, accessToken: accessToken)
+                let liveStream = try await api.goLive(session: session, accessToken: accessToken)
+                try ensureCurrentGoLiveAttempt(
+                    operationGeneration: operationGeneration,
+                    sessionID: sessionID
+                )
+                return liveStream
             } catch let error as YouTubeAPIError {
                 guard case let .api(code, _, _) = error,
                       code == "broadcast_not_ready",
                       attempt < maximumGoLiveAttempts else {
                     throw error
                 }
+                try ensureCurrentGoLiveAttempt(
+                    operationGeneration: operationGeneration,
+                    sessionID: sessionID
+                )
                 try await Task.sleep(for: .seconds(1))
+                try ensureCurrentGoLiveAttempt(
+                    operationGeneration: operationGeneration,
+                    sessionID: sessionID
+                )
             }
         }
         throw YouTubeAPIError.response
+    }
+
+    private func ensureCurrentGoLiveAttempt(
+        operationGeneration: UInt,
+        sessionID: String
+    ) throws {
+        guard isCurrentBroadcastOperation(operationGeneration),
+              session?.sessionID == sessionID else {
+            throw CancellationError()
+        }
     }
 
     private func beginPolling(accessToken: String) {
@@ -667,7 +706,9 @@ final class YouTubeIntegration: ObservableObject {
                     }
                     if snapshot.stream.statusValue == .stopped {
                         self.liveStartedAt = nil
-                        self.releaseBroadcastOrientationLock(generation: self.orientationLockGeneration)
+                        if let generation = self.ownedOrientationLockGeneration {
+                            self.releaseBroadcastOrientationLock(generation: generation)
+                        }
                     }
                 } catch {
                     guard !Task.isCancelled, self.pollingGeneration == generation else {
@@ -862,6 +903,7 @@ final class YouTubeIntegration: ObservableObject {
         preferencesStore.saveBroadcastSettings(broadcastSettings)
     }
 
+    #if DEBUG
     func seedPreparedVideoSessionForTesting(
         connection: YouTubeConnection,
         session: YouTubeBroadcastSession,
@@ -873,11 +915,24 @@ final class YouTubeIntegration: ObservableObject {
         self.videoTrack = videoTrack
         videoUplink.updateState(.connected, "connected")
     }
+    #endif
 
     @discardableResult
-    private func lockBroadcastOrientationIfNeeded() -> UInt {
+    private func lockBroadcastOrientationIfNeeded() -> UInt? {
+        if let ownedOrientationLockGeneration {
+            if let orientation = orientationLock.lockedOrientation {
+                videoUplink.applyBroadcastOrientationLock(orientation)
+            }
+            return ownedOrientationLockGeneration
+        }
+        guard !orientationLock.isLocked else {
+            if let orientation = orientationLock.lockedOrientation {
+                videoUplink.applyBroadcastOrientationLock(orientation)
+            }
+            return nil
+        }
         let generation = orientationLock.lockToCurrentInterfaceOrientation()
-        orientationLockGeneration = generation
+        ownedOrientationLockGeneration = generation
         if let orientation = orientationLock.lockedOrientation {
             videoUplink.applyBroadcastOrientationLock(orientation)
         }
@@ -885,16 +940,20 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func releaseBroadcastOrientationLock(generation: UInt) {
+        guard ownedOrientationLockGeneration == generation else { return }
+        ownedOrientationLockGeneration = nil
+        videoUplink.clearBroadcastOrientationLock()
         orientationLock.unlock(generation: generation)
-        if generation == orientationLockGeneration {
-            videoUplink.clearBroadcastOrientationLock()
-        }
     }
 
     private func forceReleaseBroadcastOrientationLock() {
-        orientationLockGeneration &+= 1
+        guard let generation = ownedOrientationLockGeneration else {
+            videoUplink.clearBroadcastOrientationLock()
+            return
+        }
+        ownedOrientationLockGeneration = nil
         videoUplink.clearBroadcastOrientationLock()
-        orientationLock.unlock()
+        orientationLock.unlock(generation: generation)
     }
 
     private func beginBroadcastOperation() -> UInt {

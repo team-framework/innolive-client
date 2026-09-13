@@ -55,6 +55,7 @@ final class PreviewView: UIView {
     private var observedCameraID: String?
     private var orientationObserver: NSObjectProtocol?
     private var isLockedToBroadcastOrientation = false
+    private var rotationCoordinatorGeneration: UInt = 0
 
     func configure(
         session: AVCaptureSession,
@@ -68,6 +69,7 @@ final class PreviewView: UIView {
 
         if observedCameraID != cameraID {
             observedCameraID = cameraID
+            rotationCoordinatorGeneration &+= 1
             tearDownCoordinator()
         }
 
@@ -79,6 +81,7 @@ final class PreviewView: UIView {
             NotificationCenter.default.removeObserver(orientationObserver)
             self.orientationObserver = nil
         }
+        rotationCoordinatorGeneration &+= 1
         tearDownCoordinator()
         observedCameraID = nil
         isLockedToBroadcastOrientation = false
@@ -92,15 +95,25 @@ final class PreviewView: UIView {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.applyRotationPolicy()
+            Task { @MainActor [weak self] in
+                self?.applyRotationPolicy()
+            }
         }
     }
 
     private func applyRotationPolicy() {
         if let locked = BroadcastOrientationController.shared.lockedOrientation {
+            rotationCoordinatorGeneration &+= 1
             tearDownCoordinator()
             isLockedToBroadcastOrientation = true
-            applyPreviewAngle(BroadcastOrientationPolicy.previewRotationAngle(for: locked))
+            let cameraPosition = observedCameraID.flatMap { AVCaptureDevice(uniqueID: $0) }?.position
+                ?? .unspecified
+            applyPreviewAngle(
+                BroadcastOrientationPolicy.previewRotationAngle(
+                    for: locked,
+                    cameraPosition: cameraPosition
+                )
+            )
             return
         }
 
@@ -117,6 +130,8 @@ final class PreviewView: UIView {
             return
         }
 
+        rotationCoordinatorGeneration &+= 1
+        let generation = rotationCoordinatorGeneration
         let coordinator = AVCaptureDevice.RotationCoordinator(
             device: device,
             previewLayer: previewLayer
@@ -126,9 +141,14 @@ final class PreviewView: UIView {
             \.videoRotationAngleForHorizonLevelPreview,
             options: [.initial, .new]
         ) { [weak self] coordinator, _ in
+            let angle = coordinator.videoRotationAngleForHorizonLevelPreview
             DispatchQueue.main.async {
-                guard let self, !self.isLockedToBroadcastOrientation else { return }
-                self.applyPreviewAngle(coordinator.videoRotationAngleForHorizonLevelPreview)
+                guard let self,
+                      self.rotationCoordinatorGeneration == generation,
+                      self.observedCameraID == cameraID,
+                      self.rotationCoordinator === coordinator,
+                      !self.isLockedToBroadcastOrientation else { return }
+                self.applyPreviewAngle(angle)
             }
         }
     }

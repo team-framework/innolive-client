@@ -77,12 +77,42 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
         let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: .back)
         relay.setLockedInterfaceOrientation(.portrait)
         let frame = try makeFrame(rotation: 0, timeStampNs: 42)
+        frame.timeStamp = 7
 
         relay.capturer(LKRTCVideoCapturer(delegate: target), didCapture: frame)
 
         XCTAssertEqual(target.timeStamps, [42])
+        XCTAssertEqual(target.timeStamps90kHz, [7])
         XCTAssertEqual(target.widths, [8])
         XCTAssertEqual(target.rotations, [90])
+    }
+
+    func testCameraPositionUpdateAppliesToTheNextFrame() throws {
+        let target = RecordingVideoTarget()
+        let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: .front)
+        relay.setLockedInterfaceOrientation(.landscapeLeft)
+        let frame = try makeFrame(rotation: 90)
+
+        relay.updateCameraPosition(.back)
+        relay.capturer(LKRTCVideoCapturer(delegate: target), didCapture: frame)
+
+        XCTAssertEqual(target.rotations, [180])
+    }
+
+    func testRollbackCameraPositionAppliesBeforeNextFrame() throws {
+        let target = RecordingVideoTarget()
+        let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: .front)
+        relay.setLockedInterfaceOrientation(.landscapeLeft)
+        let frame = try makeFrame(rotation: 90)
+        let capturer = LKRTCVideoCapturer(delegate: target)
+
+        relay.capturer(capturer, didCapture: frame)
+        relay.updateCameraPosition(.back)
+        relay.capturer(capturer, didCapture: frame)
+        relay.updateCameraPosition(.front)
+        relay.capturer(capturer, didCapture: frame)
+
+        XCTAssertEqual(target.rotations, [0, 180, 0])
     }
 
     @MainActor
@@ -121,6 +151,7 @@ nonisolated private final class RecordingVideoTarget: NSObject, LKRTCVideoCaptur
     private let lock = NSLock()
     private var recordedRotations: [Int] = []
     private var recordedTimeStamps: [Int64] = []
+    private var recordedTimeStamps90kHz: [Int32] = []
     private var recordedWidths: [Int] = []
 
     var rotations: [Int] {
@@ -135,6 +166,12 @@ nonisolated private final class RecordingVideoTarget: NSObject, LKRTCVideoCaptur
         return recordedTimeStamps
     }
 
+    var timeStamps90kHz: [Int32] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recordedTimeStamps90kHz
+    }
+
     var widths: [Int] {
         lock.lock()
         defer { lock.unlock() }
@@ -145,6 +182,7 @@ nonisolated private final class RecordingVideoTarget: NSObject, LKRTCVideoCaptur
         lock.lock()
         recordedRotations.append(frame.rotation.rawValue)
         recordedTimeStamps.append(frame.timeStampNs)
+        recordedTimeStamps90kHz.append(frame.timeStamp)
         recordedWidths.append(Int(frame.width))
         lock.unlock()
     }

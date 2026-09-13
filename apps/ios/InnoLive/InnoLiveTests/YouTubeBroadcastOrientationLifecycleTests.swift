@@ -152,12 +152,114 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         }
         await fulfillment(of: [requestStarted], timeout: 1)
         XCTAssertTrue(locker.isLocked)
+        XCTAssertEqual(integration.broadcastPhase, "prepared")
         integration.reset()
         await goLiveTask.value
 
         XCTAssertFalse(locker.isLocked)
         XCTAssertNil(integration.session)
+        XCTAssertNotEqual(integration.broadcastPhase, "live")
         XCTAssertNil(integration.videoUplink.lockedBroadcastOrientation)
+    }
+
+    func testEndBroadcastDuringGoLiveIgnoresDelayedSuccessAndStopsRetries() async throws {
+        let integration = try makePreparedIntegration()
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(
+                statusCode: 409,
+                data: Data("{\"error\":{\"code\":\"broadcast_not_ready\",\"message\":\"not ready\"}}".utf8),
+                delay: .milliseconds(250)
+            ),
+            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+        ]
+        let requestStarted = expectation(description: "golive started")
+        YouTubeBroadcastOrientationURLProtocol.onRequest = {
+            requestStarted.fulfill()
+        }
+
+        let goLiveTask = Task { @MainActor in
+            await integration.goLiveYouTubeStream(accessToken: "access-token")
+        }
+        await fulfillment(of: [requestStarted], timeout: 1)
+        XCTAssertTrue(locker.isLocked)
+        XCTAssertEqual(integration.broadcastPhase, "prepared")
+        await integration.endBroadcast(accessToken: "access-token")
+        await goLiveTask.value
+
+        XCTAssertFalse(locker.isLocked)
+        XCTAssertNil(integration.session)
+        XCTAssertNotEqual(integration.broadcastPhase, "live")
+        XCTAssertNil(integration.videoUplink.lockedBroadcastOrientation)
+        XCTAssertEqual(YouTubeBroadcastOrientationURLProtocol.requests.count, 1)
+    }
+
+    func testRecoverFromUplinkFailureDuringGoLiveDoesNotRestoreLive() async throws {
+        let integration = try makePreparedIntegration()
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(
+                statusCode: 200,
+                data: streamState(phase: "live", status: "streaming"),
+                delay: .milliseconds(250)
+            ),
+        ]
+        let requestStarted = expectation(description: "golive started")
+        YouTubeBroadcastOrientationURLProtocol.onRequest = {
+            requestStarted.fulfill()
+        }
+
+        let goLiveTask = Task { @MainActor in
+            await integration.goLiveYouTubeStream(accessToken: "access-token")
+        }
+        await fulfillment(of: [requestStarted], timeout: 1)
+        XCTAssertTrue(locker.isLocked)
+        integration.videoUplink.fail("uplink failed")
+        await integration.recoverFromVideoUplinkFailure(accessToken: "access-token")
+        await goLiveTask.value
+
+        XCTAssertFalse(locker.isLocked)
+        XCTAssertNil(integration.session)
+        XCTAssertNotEqual(integration.broadcastPhase, "live")
+        XCTAssertNil(integration.videoUplink.lockedBroadcastOrientation)
+    }
+
+    func testUnownedIntegrationDoesNotReleaseSharedLock() async throws {
+        let sharedLocker = FakeBroadcastOrientationLock()
+        sharedLocker.current = .landscapeLeft
+        let owner = try makePreparedIntegration(locker: sharedLocker)
+        let other = try makePreparedIntegration(locker: sharedLocker)
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+        ]
+
+        await owner.goLiveYouTubeStream(accessToken: "access-token")
+        XCTAssertTrue(sharedLocker.isLocked)
+        XCTAssertEqual(sharedLocker.lockCallCount, 1)
+        XCTAssertEqual(owner.videoUplink.lockedBroadcastOrientation, .landscapeLeft)
+
+        other.reset()
+        XCTAssertTrue(sharedLocker.isLocked)
+        XCTAssertEqual(sharedLocker.unlockCallCount, 0)
+        XCTAssertEqual(sharedLocker.lockedOrientation, .landscapeLeft)
+        XCTAssertEqual(owner.videoUplink.lockedBroadcastOrientation, .landscapeLeft)
+        XCTAssertNil(other.videoUplink.lockedBroadcastOrientation)
+    }
+
+    func testGoLiveFailureOfUnownedIntegrationLeavesOwnerLock() async throws {
+        let sharedLocker = FakeBroadcastOrientationLock()
+        sharedLocker.current = .portrait
+        let owner = try makePreparedIntegration(locker: sharedLocker)
+        let other = try makePreparedIntegration(locker: sharedLocker)
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8)),
+        ]
+
+        await owner.goLiveYouTubeStream(accessToken: "access-token")
+        await other.goLiveYouTubeStream(accessToken: "access-token")
+
+        XCTAssertTrue(sharedLocker.isLocked)
+        XCTAssertEqual(sharedLocker.unlockCallCount, 0)
+        XCTAssertEqual(owner.videoUplink.lockedBroadcastOrientation, .portrait)
     }
 
     func testFinalUplinkFailureClearsLock() async throws {
@@ -190,8 +292,26 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         XCTAssertEqual(integration.videoUplink.lockedBroadcastOrientation, .portrait)
     }
 
+    func testReconnectKeepsLock() async throws {
+        let integration = try makePreparedIntegration()
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+        ]
+
+        await integration.goLiveYouTubeStream(accessToken: "access-token")
+        integration.videoUplink.isReconnectInProgress = true
+        integration.videoUplink.applyBroadcastOrientationLock(
+            locker.lockedOrientation ?? .portrait
+        )
+
+        XCTAssertTrue(locker.isLocked)
+        XCTAssertEqual(integration.videoUplink.lockedBroadcastOrientation, .portrait)
+        XCTAssertTrue(integration.videoUplink.isReconnectInProgress)
+    }
+
     private func makePreparedIntegration(
-        phase: String = "prepared"
+        phase: String = "prepared",
+        locker: FakeBroadcastOrientationLock? = nil
     ) throws -> YouTubeIntegration {
         let store = YouTubePreferencesStore(userDefaults: userDefaults)
         let configuration = URLSessionConfiguration.ephemeral
@@ -204,7 +324,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = YouTubeIntegration(
             preferencesStore: store,
             api: api,
-            orientationLock: locker
+            orientationLock: locker ?? self.locker
         )
         let broadcastSession = try decodeSession(phase: phase)
         integration.seedPreparedVideoSessionForTesting(
@@ -308,16 +428,12 @@ private final class FakeBroadcastOrientationLock: BroadcastOrientationLocking {
         return generation
     }
 
-    func unlock() {
+    func unlock(generation expected: UInt) {
+        guard expected == generation else { return }
         generation &+= 1
         guard lockedOrientation != nil else { return }
         unlockCallCount += 1
         lockedOrientation = nil
-    }
-
-    func unlock(generation expected: UInt) {
-        guard expected == generation else { return }
-        unlock()
     }
 }
 

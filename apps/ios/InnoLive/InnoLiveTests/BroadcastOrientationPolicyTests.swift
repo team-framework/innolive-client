@@ -101,28 +101,34 @@ final class BroadcastOrientationPolicyTests: XCTestCase {
         }
     }
 
-    func testPreviewRotationAnglesFollowInterfaceOrientation() {
-        XCTAssertEqual(BroadcastOrientationPolicy.previewRotationAngle(for: .portrait), 90)
-        XCTAssertEqual(BroadcastOrientationPolicy.previewRotationAngle(for: .portraitUpsideDown), 270)
-        XCTAssertEqual(BroadcastOrientationPolicy.previewRotationAngle(for: .landscapeLeft), 0)
-        XCTAssertEqual(BroadcastOrientationPolicy.previewRotationAngle(for: .landscapeRight), 180)
-    }
-
-    func testLifecycleKeepsPreparedUnlockedAndLocksAtGoLive() {
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .homeAppeared), .none)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .cameraUplinkConnected), .none)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .prepareRequested), .none)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .preparedWaiting), .none)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .goLiveRequested), .lockToCurrentIfUnlocked)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .goLiveRetryInOngoingOperation), .keep)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .live), .keep)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .paused), .keep)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .reconnecting), .keep)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .stopping), .keep)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .stopFailedWhileBroadcasting), .keep)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .goLiveFailedBackToPrepared), .release)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .stopSucceeded), .release)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .reset), .release)
-        XCTAssertEqual(BroadcastOrientationPolicy.action(for: .finalFailure), .release)
+    func testPreviewRotationAnglesAreCameraAware() {
+        XCTAssertEqual(
+            BroadcastOrientationPolicy.previewRotationAngle(for: .portrait, cameraPosition: .front),
+            90
+        )
+        XCTAssertEqual(
+            BroadcastOrientationPolicy.previewRotationAngle(for: .portrait, cameraPosition: .back),
+            90
+        )
+        XCTAssertEqual(
+            BroadcastOrientationPolicy.previewRotationAngle(for: .portraitUpsideDown, cameraPosition: .back),
+            270
+        )
+        XCTAssertEqual(
+            BroadcastOrientationPolicy.previewRotationAngle(for: .landscapeLeft, cameraPosition: .front),
+            0
+        )
+        XCTAssertEqual(
+            BroadcastOrientationPolicy.previewRotationAngle(for: .landscapeLeft, cameraPosition: .back),
+            180
+        )
+        XCTAssertEqual(
+            BroadcastOrientationPolicy.previewRotationAngle(for: .landscapeRight, cameraPosition: .front),
+            180
+        )
+        XCTAssertEqual(
+            BroadcastOrientationPolicy.previewRotationAngle(for: .landscapeRight, cameraPosition: .back),
+            0
+        )
     }
 }

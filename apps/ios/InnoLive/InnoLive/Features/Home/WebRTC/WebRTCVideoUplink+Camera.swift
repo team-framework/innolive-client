@@ -32,6 +32,7 @@ extension WebRTCVideoUplink {
         try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
 
         do {
+            cameraFrameRelay?.updateCameraPosition(newDevice.position)
             try await startCapture(capturer, device: newDevice, setting: newSetting)
             try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
             activeCameraID = newDevice.uniqueID
@@ -48,6 +49,7 @@ extension WebRTCVideoUplink {
             await stopCapture(capturer)
             try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
             do {
+                cameraFrameRelay?.updateCameraPosition(previousDevice.position)
                 try await startCapture(capturer, device: previousDevice, setting: previousSetting)
                 try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
                 applyZoom(previousZoom, cameraID: previousCameraID, waitUntilApplied: true)
@@ -271,6 +273,7 @@ extension WebRTCVideoUplink {
         device: AVCaptureDevice,
         setting: CameraCaptureSetting
     ) async throws {
+        cameraFrameRelay?.updateCameraPosition(device.position)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             capturer.startCapture(with: device, format: setting.format, fps: setting.fps) { error in
                 if let error {
@@ -284,7 +287,6 @@ extension WebRTCVideoUplink {
                 }
             }
         }
-        cameraFrameRelay?.updateCameraPosition(device.position)
     }
 
     func stopCapture(_ capturer: LKRTCCameraVideoCapturer) async {
@@ -436,11 +438,13 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         )
         let liveKitRotation = LKRTCVideoRotation(rawValue: rotation.rawValue) ?? frame.rotation
         guard frame.rotation != liveKitRotation else { return frame }
-        return LKRTCVideoFrame(
+        let outgoing = LKRTCVideoFrame(
             buffer: frame.buffer,
             rotation: liveKitRotation,
             timeStampNs: frame.timeStampNs
         )
+        outgoing.timeStamp = frame.timeStamp
+        return outgoing
     }
 }
 

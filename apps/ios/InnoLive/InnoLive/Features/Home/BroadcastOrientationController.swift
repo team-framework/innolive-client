@@ -1,5 +1,4 @@
 import Combine
-import ObjectiveC
 import SwiftUI
 import UIKit
 
@@ -15,7 +14,6 @@ protocol BroadcastOrientationLocking: AnyObject {
     var lockedOrientation: BroadcastInterfaceOrientation? { get }
     @discardableResult
     func lockToCurrentInterfaceOrientation() -> UInt
-    func unlock()
     func unlock(generation: UInt)
 }
 
@@ -34,9 +32,10 @@ final class BroadcastOrientationController: ObservableObject, BroadcastOrientati
 
     @Published private(set) var lockedOrientation: BroadcastInterfaceOrientation?
 
-    private let currentOrientationProvider: () -> BroadcastInterfaceOrientation
+    private let currentOrientationProvider: @MainActor () -> BroadcastInterfaceOrientation
     private let appliesSceneUpdates: Bool
     private var lockGeneration: UInt = 0
+    private weak var trackedWindowScene: UIWindowScene?
 
     var isLocked: Bool { lockedOrientation != nil }
 
@@ -52,13 +51,13 @@ final class BroadcastOrientationController: ObservableObject, BroadcastOrientati
     }
 
     init(
-        currentOrientationProvider: @escaping () -> BroadcastInterfaceOrientation
-            = BroadcastOrientationController.resolveCurrentInterfaceOrientation,
+        currentOrientationProvider: @escaping @MainActor () -> BroadcastInterfaceOrientation = {
+            BroadcastOrientationController.resolveCurrentInterfaceOrientation()
+        },
         appliesSceneUpdates: Bool = true
     ) {
         self.currentOrientationProvider = currentOrientationProvider
         self.appliesSceneUpdates = appliesSceneUpdates
-        Self.installPrefersInterfaceOrientationLockedHook()
     }
 
     @discardableResult
@@ -69,55 +68,60 @@ final class BroadcastOrientationController: ObservableObject, BroadcastOrientati
         lockGeneration &+= 1
         lockedOrientation = currentOrientationProvider()
         applyToScenes()
-        notify()
+        notifyLockDidChange()
         return lockGeneration
-    }
-
-    func unlock() {
-        lockGeneration &+= 1
-        guard lockedOrientation != nil else { return }
-        lockedOrientation = nil
-        applyToScenes()
-        notify()
     }
 
     func unlock(generation: UInt) {
         guard generation == lockGeneration else { return }
-        unlock()
+        clearLock()
     }
 
-    func captureActiveScene(from window: UIWindow?) {
-        guard lockedOrientation == nil else { return }
-        _ = window?.windowScene
-        notifyIfNeededForUnlockedRotation()
+    func unlock() {
+        clearLock()
     }
 
-    private func notifyIfNeededForUnlockedRotation() {
-        guard lockedOrientation == nil else { return }
-        NotificationCenter.default.post(name: .broadcastOrientationDidChange, object: self)
+    func trackScene(from window: UIWindow?) {
+        if let scene = window?.windowScene {
+            trackedWindowScene = scene
+        }
     }
 
-    private func notify() {
-        objectWillChange.send()
+    private func clearLock() {
+        lockGeneration &+= 1
+        guard lockedOrientation != nil else { return }
+        lockedOrientation = nil
+        applyToScenes()
+        notifyLockDidChange()
+    }
+
+    private func notifyLockDidChange() {
         NotificationCenter.default.post(name: .broadcastOrientationDidChange, object: self)
     }
 
     private func applyToScenes() {
         guard appliesSceneUpdates else { return }
         let mask = supportedInterfaceOrientations
-        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
-            scene.requestGeometryUpdate(
-                .iOS(interfaceOrientations: mask)
-            ) { _ in }
+        for scene in foregroundActiveScenes() {
             for window in scene.windows {
                 invalidateRotationSupport(from: window.rootViewController)
             }
+            scene.requestGeometryUpdate(
+                .iOS(interfaceOrientations: mask)
+            ) { _ in }
         }
+    }
+
+    private func foregroundActiveScenes() -> [UIWindowScene] {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
     }
 
     private func invalidateRotationSupport(from controller: UIViewController?) {
         guard let controller else { return }
         controller.setNeedsUpdateOfSupportedInterfaceOrientations()
+        controller.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
         invalidateRotationSupport(from: controller.presentedViewController)
         for child in controller.children {
             invalidateRotationSupport(from: child)
@@ -127,30 +131,19 @@ final class BroadcastOrientationController: ObservableObject, BroadcastOrientati
     static func resolveCurrentInterfaceOrientation() -> BroadcastInterfaceOrientation {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let activeScenes = scenes.filter { $0.activationState == .foregroundActive }
-        let scene = activeScenes.first(where: { scene in
-            scene.windows.contains(where: \.isKeyWindow)
-        }) ?? activeScenes.first ?? scenes.first
-        let interfaceOrientation = scene?.effectiveGeometry.interfaceOrientation
-            ?? scene?.interfaceOrientation
-            ?? .portrait
+        let tracked = shared.trackedWindowScene
+        let scene: UIWindowScene?
+        if let tracked, tracked.activationState == .foregroundActive {
+            scene = tracked
+        } else {
+            scene = activeScenes.first(where: { scene in
+                scene.windows.contains(where: \.isKeyWindow)
+            }) ?? activeScenes.first
+        }
+        let interfaceOrientation = scene?.effectiveGeometry.interfaceOrientation ?? .portrait
         return BroadcastInterfaceOrientation(interfaceOrientation: interfaceOrientation)
             ?? .portrait
     }
-
-    private static func installPrefersInterfaceOrientationLockedHook() {
-        _ = prefersInterfaceOrientationLockedHook
-    }
-
-    private static let prefersInterfaceOrientationLockedHook: Void = {
-        let originalSelector = #selector(getter: UIViewController.prefersInterfaceOrientationLocked)
-        let swizzledSelector = #selector(UIViewController.innolive_prefersInterfaceOrientationLocked)
-        guard let originalMethod = class_getInstanceMethod(UIViewController.self, originalSelector),
-              let swizzledMethod = class_getInstanceMethod(UIViewController.self, swizzledSelector)
-        else {
-            return
-        }
-        method_exchangeImplementations(originalMethod, swizzledMethod)
-    }()
 }
 
 struct BroadcastOrientationSceneBridge: UIViewControllerRepresentable {
@@ -175,10 +168,6 @@ final class BroadcastOrientationBridgeController: UIViewController {
         BroadcastOrientationController.shared.prefersInterfaceOrientationLocked
     }
 
-    override var shouldAutorotate: Bool {
-        !BroadcastOrientationController.shared.isLocked
-    }
-
     override func viewDidLoad() {
         super.viewDidLoad()
         view.isUserInteractionEnabled = false
@@ -188,7 +177,7 @@ final class BroadcastOrientationBridgeController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        BroadcastOrientationController.shared.captureActiveScene(from: view.window)
+        BroadcastOrientationController.shared.trackScene(from: view.window)
         refreshOrientationSupport()
     }
 
@@ -199,28 +188,22 @@ final class BroadcastOrientationBridgeController: UIViewController {
         super.viewWillTransition(to: size, with: coordinator)
         coordinator.animate(alongsideTransition: nil) { [weak self] _ in
             guard let self else { return }
-            BroadcastOrientationController.shared.captureActiveScene(from: self.view.window)
+            BroadcastOrientationController.shared.trackScene(from: self.view.window)
         }
     }
 
     func refreshOrientationSupport() {
         setNeedsUpdateOfSupportedInterfaceOrientations()
-        var controller: UIViewController? = self
+        setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        var controller: UIViewController? = parent ?? presentingViewController
         while let current = controller {
             current.setNeedsUpdateOfSupportedInterfaceOrientations()
+            current.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
             controller = current.parent ?? current.presentingViewController
         }
         if let presented = presentedViewController {
             presented.setNeedsUpdateOfSupportedInterfaceOrientations()
+            presented.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
         }
-    }
-}
-
-private extension UIViewController {
-    @objc func innolive_prefersInterfaceOrientationLocked() -> Bool {
-        if BroadcastOrientationController.shared.prefersInterfaceOrientationLocked {
-            return true
-        }
-        return innolive_prefersInterfaceOrientationLocked()
     }
 }

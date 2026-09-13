@@ -2,7 +2,7 @@ import AVFoundation
 import CoreGraphics
 import UIKit
 
-enum BroadcastInterfaceOrientation: Equatable, Sendable {
+nonisolated enum BroadcastInterfaceOrientation: Equatable, Sendable {
     case portrait
     case portraitUpsideDown
     case landscapeLeft
@@ -45,39 +45,14 @@ enum BroadcastInterfaceOrientation: Equatable, Sendable {
     }
 }
 
-enum BroadcastVideoRotation: Int, Equatable, Sendable {
+nonisolated enum BroadcastVideoRotation: Int, Equatable, Sendable {
     case rotation0 = 0
     case rotation90 = 90
     case rotation180 = 180
     case rotation270 = 270
 }
 
-enum BroadcastOrientationLockEvent: Equatable {
-    case homeAppeared
-    case cameraUplinkConnected
-    case prepareRequested
-    case preparedWaiting
-    case goLiveRequested
-    case goLiveRetryInOngoingOperation
-    case goLiveFailedBackToPrepared
-    case live
-    case paused
-    case reconnecting
-    case stopping
-    case stopFailedWhileBroadcasting
-    case stopSucceeded
-    case reset
-    case finalFailure
-}
-
-enum BroadcastOrientationLockAction: Equatable {
-    case none
-    case lockToCurrentIfUnlocked
-    case keep
-    case release
-}
-
-enum BroadcastOrientationPolicy {
+nonisolated enum BroadcastOrientationPolicy {
     static let previewShortSide: CGFloat = 120
     static let previewLongSide: CGFloat = previewShortSide / (9.0 / 16.0)
 
@@ -124,7 +99,8 @@ enum BroadcastOrientationPolicy {
     }
 
     /// WebRTC `RTCCameraVideoCapturer` maps `UIDeviceOrientation`. Interface landscape
-    /// left/right is the inverse of device landscape left/right.
+    /// left/right is the inverse of device landscape left/right. Front and back cameras
+    /// differ for landscape because of the sensor mount.
     static func videoRotation(
         interfaceOrientation: BroadcastInterfaceOrientation,
         cameraPosition: AVCaptureDevice.Position
@@ -143,27 +119,14 @@ enum BroadcastOrientationPolicy {
     }
 
     static func previewRotationAngle(
-        for interfaceOrientation: BroadcastInterfaceOrientation
+        for interfaceOrientation: BroadcastInterfaceOrientation,
+        cameraPosition: AVCaptureDevice.Position
     ) -> CGFloat {
-        switch interfaceOrientation {
-        case .portrait: return 90
-        case .portraitUpsideDown: return 270
-        case .landscapeLeft: return 0
-        case .landscapeRight: return 180
-        }
-    }
-
-    static func action(for event: BroadcastOrientationLockEvent) -> BroadcastOrientationLockAction {
-        switch event {
-        case .homeAppeared, .cameraUplinkConnected, .prepareRequested, .preparedWaiting:
-            return .none
-        case .goLiveRequested:
-            return .lockToCurrentIfUnlocked
-        case .goLiveRetryInOngoingOperation, .live, .paused, .reconnecting, .stopping,
-             .stopFailedWhileBroadcasting:
-            return .keep
-        case .goLiveFailedBackToPrepared, .stopSucceeded, .reset, .finalFailure:
-            return .release
-        }
+        CGFloat(
+            videoRotation(
+                interfaceOrientation: interfaceOrientation,
+                cameraPosition: cameraPosition
+            ).rawValue
+        )
     }
 }
