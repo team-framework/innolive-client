@@ -62,6 +62,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var shouldReconnectAutomatically = false
     private var isReconnectPending = false
     var isReconnectInProgress = false
+    var lockedBroadcastOrientation: BroadcastInterfaceOrientation?
 
     override init() {
         _ = Self.sslInitialized
@@ -400,6 +401,16 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     func setUsingFrontCamera(_ isFrontCamera: Bool) {
         isUsingFrontCamera = isFrontCamera
         cameraFrameRelay?.updateCameraPosition(isFrontCamera ? .front : .back)
+    }
+
+    func applyBroadcastOrientationLock(_ orientation: BroadcastInterfaceOrientation) {
+        lockedBroadcastOrientation = orientation
+        cameraFrameRelay?.setLockedInterfaceOrientation(orientation)
+    }
+
+    func clearBroadcastOrientationLock() {
+        lockedBroadcastOrientation = nil
+        cameraFrameRelay?.setLockedInterfaceOrientation(nil)
     }
 
     func setCameraSwitching(_ isSwitching: Bool) {

@@ -24,6 +24,7 @@ struct HomeView: View {
     @GestureState private var pinchStartZoom: CGFloat?
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    @ObservedObject private var broadcastOrientation = BroadcastOrientationController.shared
     @Environment(CameraManager.self) private var cameraManager
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
@@ -44,7 +45,11 @@ struct HomeView: View {
 
             if localPreviewPresentation != .hidden {
                 GeometryReader { geo in
-                    let layout = snapLayout(in: geo.size)
+                    let previewSize = BroadcastVideoLayout.previewSize(
+                        containerSize: geo.size,
+                        lockedOrientation: broadcastOrientation.lockedOrientation
+                    )
+                    let layout = snapLayout(in: geo.size, previewSize: previewSize)
                     let restOrigin = layout.origin(for: previewCorner)
                     let draggedOrigin = layout.clampedOrigin(
                         CGPoint(
@@ -54,13 +59,10 @@ struct HomeView: View {
                     )
 
                     originalPreview(for: localPreviewPresentation)
-                    .frame(
-                        width: BroadcastVideoLayout.previewWidth,
-                        height: BroadcastVideoLayout.previewHeight
-                    )
+                    .frame(width: previewSize.width, height: previewSize.height)
                     .position(
-                        x: draggedOrigin.x + BroadcastVideoLayout.previewWidth / 2,
-                        y: draggedOrigin.y + BroadcastVideoLayout.previewHeight / 2
+                        x: draggedOrigin.x + previewSize.width / 2,
+                        y: draggedOrigin.y + previewSize.height / 2
                     )
                     .gesture(
                         DragGesture()
@@ -81,6 +83,9 @@ struct HomeView: View {
                                 }
                             }
                     )
+                    .onChange(of: previewSize) { _, _ in
+                        previewDragOffset = .zero
+                    }
                 }
             }
 
@@ -266,13 +271,10 @@ struct HomeView: View {
         }
     }
 
-    private func snapLayout(in containerSize: CGSize) -> LocalPreviewSnapLayout {
+    private func snapLayout(in containerSize: CGSize, previewSize: CGSize) -> LocalPreviewSnapLayout {
         LocalPreviewSnapLayout(
             containerSize: containerSize,
-            previewSize: CGSize(
-                width: BroadcastVideoLayout.previewWidth,
-                height: BroadcastVideoLayout.previewHeight
-            ),
+            previewSize: previewSize,
             horizontalPadding: LocalPreviewSnapLayout.defaultHorizontalPadding,
             topPadding: LocalPreviewSnapLayout.defaultTopPadding,
             bottomPadding: LocalPreviewSnapLayout.defaultBottomPadding,

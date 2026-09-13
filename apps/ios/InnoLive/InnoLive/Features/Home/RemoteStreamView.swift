@@ -9,8 +9,18 @@ import UIKit
 
 enum BroadcastVideoLayout {
     static let aspectRatio: CGFloat = 9.0 / 16.0
-    static let previewWidth: CGFloat = 120
-    static let previewHeight: CGFloat = previewWidth / aspectRatio
+    static let previewWidth: CGFloat = BroadcastOrientationPolicy.previewShortSide
+    static let previewHeight: CGFloat = BroadcastOrientationPolicy.previewLongSide
+
+    static func previewSize(
+        containerSize: CGSize,
+        lockedOrientation: BroadcastInterfaceOrientation?
+    ) -> CGSize {
+        BroadcastOrientationPolicy.previewSize(
+            containerSize: containerSize,
+            lockedOrientation: lockedOrientation
+        )
+    }
 }
 
 enum BroadcastPreviewTransition: Equatable {

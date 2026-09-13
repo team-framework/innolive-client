@@ -10,12 +10,14 @@ import SwiftUI
 
 @main
 struct InnoLiveApp: App {
+    @UIApplicationDelegateAdaptor(InnoLiveAppDelegate.self) private var appDelegate
     @State private var cameraManager = CameraManager()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(cameraManager)
+                .background(BroadcastOrientationSceneBridge())
                 .onOpenURL { url in _ = GIDSignIn.sharedInstance.handle(url) }
         }
     }
