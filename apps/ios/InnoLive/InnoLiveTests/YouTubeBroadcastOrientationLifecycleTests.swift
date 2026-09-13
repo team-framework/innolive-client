@@ -55,7 +55,12 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
 
-        XCTAssertEqual(YouTubeBroadcastOrientationURLProtocol.requests.count, 1)
+        XCTAssertEqual(
+            YouTubeBroadcastOrientationURLProtocol.requests.filter {
+                $0.url?.path.hasSuffix("/stream/golive") == true
+            }.count,
+            1
+        )
         XCTAssertTrue(
             YouTubeBroadcastOrientationURLProtocol.requests.first?.url?.path.contains("golive") == true
         )
@@ -162,7 +167,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         XCTAssertNil(integration.videoUplink.lockedBroadcastOrientation)
     }
 
-    func testEndBroadcastDuringGoLiveIgnoresDelayedSuccessAndStopsRetries() async throws {
+    func testEndBroadcastDuringGoLiveStopsFurtherRetries() async throws {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
             .init(
@@ -190,7 +195,18 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         XCTAssertNil(integration.session)
         XCTAssertNotEqual(integration.broadcastPhase, "live")
         XCTAssertNil(integration.videoUplink.lockedBroadcastOrientation)
-        XCTAssertEqual(YouTubeBroadcastOrientationURLProtocol.requests.count, 1)
+        XCTAssertEqual(
+            YouTubeBroadcastOrientationURLProtocol.requests.filter {
+                $0.url?.path.hasSuffix("/stream/golive") == true
+            }.count,
+            1
+        )
+        XCTAssertEqual(
+            YouTubeBroadcastOrientationURLProtocol.requests.filter {
+                $0.url?.path.hasSuffix("/stream/stop") == true
+            }.count,
+            1
+        )
     }
 
     func testRecoverFromUplinkFailureDuringGoLiveDoesNotRestoreLive() async throws {
@@ -454,7 +470,9 @@ private final class YouTubeBroadcastOrientationURLProtocol: URLProtocol {
 
     override func startLoading() {
         Self.requests.append(request)
-        Self.onRequest?()
+        let onRequest = Self.onRequest
+        Self.onRequest = nil
+        onRequest?()
         let response = Self.responses.isEmpty
             ? Response(statusCode: 500, data: Data())
             : Self.responses.removeFirst()

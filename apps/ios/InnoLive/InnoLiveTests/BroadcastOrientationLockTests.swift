@@ -6,14 +6,14 @@ import XCTest
 @MainActor
 final class BroadcastOrientationLockTests: XCTestCase {
     func testLockCapturesCurrentInterfaceOrientationNotLaterChanges() {
-        var current = BroadcastInterfaceOrientation.landscapeRight
+        let current = OrientationSample(.landscapeRight)
         let controller = BroadcastOrientationController(
-            currentOrientationProvider: { current },
+            currentOrientationProvider: { current.value },
             appliesSceneUpdates: false
         )
 
         let first = controller.lockToCurrentInterfaceOrientation()
-        current = .portrait
+        current.value = .portrait
         let second = controller.lockToCurrentInterfaceOrientation()
 
         XCTAssertEqual(first, second)
@@ -38,15 +38,15 @@ final class BroadcastOrientationLockTests: XCTestCase {
     }
 
     func testStaleUnlockDoesNotClearANewerLock() {
-        var current = BroadcastInterfaceOrientation.portrait
+        let current = OrientationSample(.portrait)
         let controller = BroadcastOrientationController(
-            currentOrientationProvider: { current },
+            currentOrientationProvider: { current.value },
             appliesSceneUpdates: false
         )
 
         let first = controller.lockToCurrentInterfaceOrientation()
         controller.unlock(generation: first)
-        current = .landscapeLeft
+        current.value = .landscapeLeft
         let second = controller.lockToCurrentInterfaceOrientation()
         controller.unlock(generation: first)
 
@@ -59,7 +59,7 @@ final class BroadcastOrientationLockTests: XCTestCase {
             XCTFail("Test host window is required for UIKit orientation integration")
             return
         }
-        let before = UIApplication.shared.supportedInterfaceOrientations(for: window)
+        let before = applicationSupportedMask(for: window)
         let isolated = BroadcastOrientationController(
             currentOrientationProvider: { .landscapeRight },
             appliesSceneUpdates: false
@@ -68,7 +68,7 @@ final class BroadcastOrientationLockTests: XCTestCase {
         _ = isolated.lockToCurrentInterfaceOrientation()
 
         XCTAssertEqual(isolated.supportedInterfaceOrientations, .landscapeRight)
-        XCTAssertEqual(UIApplication.shared.supportedInterfaceOrientations(for: window), before)
+        XCTAssertEqual(applicationSupportedMask(for: window), before)
     }
 
     func testBridgeControllerUsesAppOwnedLockPreference() {
@@ -96,7 +96,7 @@ final class BroadcastOrientationLockTests: XCTestCase {
         )
     }
 
-    func testHostedWindowMaskFollowsSharedControllerLockAndRelease() async {
+    func testHostedWindowMaskFollowsSharedControllerLockAndRelease() async throws {
         let controller = BroadcastOrientationController.shared
         if controller.isLocked {
             controller.unlock()
@@ -107,20 +107,21 @@ final class BroadcastOrientationLockTests: XCTestCase {
             return
         }
 
-        let unlockedMask = UIApplication.shared.supportedInterfaceOrientations(for: window)
+        let unlockedMask = applicationSupportedMask(for: window)
         XCTAssertTrue(unlockedMask.contains(.portrait))
         XCTAssertTrue(unlockedMask.contains(.landscapeLeft) || unlockedMask.contains(.landscapeRight))
 
         let generation = controller.lockToCurrentInterfaceOrientation()
         defer { controller.unlock(generation: generation) }
 
+        try await Task.sleep(for: .milliseconds(200))
         let locked = try XCTUnwrap(controller.lockedOrientation)
         let expectedMask = BroadcastOrientationPolicy.supportedMask(
             lockedOrientation: locked,
             idiom: UIDevice.current.userInterfaceIdiom
         )
         XCTAssertEqual(
-            UIApplication.shared.supportedInterfaceOrientations(for: window),
+            applicationSupportedMask(for: window),
             expectedMask
         )
 
@@ -140,9 +141,19 @@ final class BroadcastOrientationLockTests: XCTestCase {
 
         controller.unlock(generation: generation)
         XCTAssertEqual(
-            UIApplication.shared.supportedInterfaceOrientations(for: window),
+            applicationSupportedMask(for: window),
             unlockedMask
         )
+    }
+
+    private func applicationSupportedMask(for window: UIWindow) -> UIInterfaceOrientationMask {
+        let application = UIApplication.shared
+        // UIKit uses the delegate override first. UIApplication's method returns
+        // the Info.plist default and is only the fallback when no override exists.
+        return application.delegate?.application?(
+            application,
+            supportedInterfaceOrientationsFor: window
+        ) ?? application.supportedInterfaceOrientations(for: window)
     }
 
     private func hostedKeyWindow() -> UIWindow? {
@@ -150,6 +161,15 @@ final class BroadcastOrientationLockTests: XCTestCase {
             .compactMap { $0 as? UIWindowScene }
             .flatMap(\.windows)
         return windows.first(where: \.isKeyWindow) ?? windows.first
+    }
+}
+
+@MainActor
+private final class OrientationSample {
+    var value: BroadcastInterfaceOrientation
+
+    init(_ value: BroadcastInterfaceOrientation) {
+        self.value = value
     }
 }
 
