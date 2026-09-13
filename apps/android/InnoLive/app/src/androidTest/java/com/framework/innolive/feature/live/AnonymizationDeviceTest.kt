@@ -22,10 +22,13 @@ class AnonymizationDeviceTest {
         for (permission in listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) {
             instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName, permission)
         }
+        val preference = AnonymizationPreference(compose.activity)
+        val previousSelection = preference.enabled
         lateinit var session: WebRtcSessionViewModel
         compose.runOnIdle {
             session = ViewModelProvider(compose.activity)[WebRtcSessionViewModel::class.java]
             assertFalse(session.setAnonymizationEnabled(false))
+            assertTrue(session.selectInitialAnonymization(compose.activity, false))
         }
         try {
             compose.setContent {
@@ -40,7 +43,12 @@ class AnonymizationDeviceTest {
                 session.start(compose.activity, auth::refreshAccessToken)
             }
             compose.waitUntil(45_000) { session.connectionState == WebRtcConnectionState.CONNECTED || session.connectionState == WebRtcConnectionState.FAILED }
-            compose.runOnIdle { assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState) }
+            compose.runOnIdle {
+                assertEquals(session.connectionStatus, WebRtcConnectionState.CONNECTED, session.connectionState)
+                assertEquals(AnonymizationState.DISABLED, session.anonymizationState)
+                assertFalse(session.selectInitialAnonymization(compose.activity, true))
+                Log.i("AnonymizationDeviceTest", "초기 Off 확인 후 WebRTC 연결 성공")
+            }
             compose.waitUntil(15_000) { session.remoteVideoTrack != null }
             val originalTrack = session.remoteVideoTrack
             val originalBroadcast = session.broadcastState
@@ -60,15 +68,36 @@ class AnonymizationDeviceTest {
                     Log.i("AnonymizationDeviceTest", "PATCH 확인: enabled=$enabled, WebRTC 및 원격 트랙 유지")
                 }
             }
+            // 새 세션에서도 마지막으로 성공한 Off를 다시 적용합니다.
             compose.runOnIdle {
-                assertTrue(session.setAnonymizationEnabled(true))
+                session.close()
+                val auth = ViewModelProvider(compose.activity)[AuthenticationSessionViewModel::class.java]
+                session.start(compose.activity, auth::refreshAccessToken)
+            }
+            compose.waitUntil(45_000) { session.connectionState == WebRtcConnectionState.CONNECTED || session.connectionState == WebRtcConnectionState.FAILED }
+            compose.runOnIdle {
+                assertEquals(session.connectionStatus, WebRtcConnectionState.CONNECTED, session.connectionState)
+                assertEquals(AnonymizationState.DISABLED, session.anonymizationState)
+                assertFalse(session.selectedAnonymizationEnabled)
+                Log.i("AnonymizationDeviceTest", "재연결 새 세션 Off 복원 확인")
+                session.close()
+                assertTrue(session.selectInitialAnonymization(compose.activity, true))
+                val auth = ViewModelProvider(compose.activity)[AuthenticationSessionViewModel::class.java]
+                session.start(compose.activity, auth::refreshAccessToken)
+            }
+            compose.waitUntil(45_000) { session.connectionState == WebRtcConnectionState.CONNECTED || session.connectionState == WebRtcConnectionState.FAILED }
+            compose.runOnIdle {
+                assertEquals(session.connectionStatus, WebRtcConnectionState.CONNECTED, session.connectionState)
+                assertEquals(AnonymizationState.ENABLED, session.anonymizationState)
+                Log.i("AnonymizationDeviceTest", "초기 On 확인 후 WebRTC 연결 성공")
+                assertTrue(session.setAnonymizationEnabled(false))
                 session.close()
                 assertEquals(AnonymizationState.UNKNOWN, session.anonymizationState)
                 assertEquals(AnonymizationChangeStatus.IDLE, session.anonymizationChange.status)
             }
             compose.runOnIdle { assertFalse(session.setAnonymizationEnabled(false)) }
         } finally {
-            compose.runOnIdle { session.close() }
+            compose.runOnIdle { session.close(); preference.enabled = previousSelection }
         }
     }
 }
