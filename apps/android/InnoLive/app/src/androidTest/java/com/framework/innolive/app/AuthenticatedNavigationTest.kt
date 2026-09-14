@@ -1,6 +1,7 @@
 package com.framework.innolive.app
 
 import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -11,14 +12,43 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
+import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AuthenticatedNavigationTest {
-    @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
+
+    private val mediaPermissions = object : ExternalResource() {
+        override fun before() {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val packageName = instrumentation.targetContext.packageName
+            // Live requests both permissions, including when a session already exists at launch.
+            instrumentation.uiAutomation.grantRuntimePermission(packageName, Manifest.permission.CAMERA)
+            instrumentation.uiAutomation.grantRuntimePermission(packageName, Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    @get:Rule
+    val rules: RuleChain = RuleChain.outerRule(mediaPermissions).around(composeRule)
+
+    @Test
+    fun activityStartsWithBothMediaPermissionsGranted() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            assertEquals(
+                PackageManager.PERMISSION_GRANTED,
+                activity.checkSelfPermission(Manifest.permission.CAMERA),
+            )
+            assertEquals(
+                PackageManager.PERMISSION_GRANTED,
+                activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO),
+            )
+        }
+    }
 
     @Test
     fun savedSessionOpensLiveUntilLogout() {
@@ -28,10 +58,6 @@ class AuthenticatedNavigationTest {
         val existingSession = store.load()
 
         try {
-            instrumentation.uiAutomation.grantRuntimePermission(
-                context.packageName,
-                Manifest.permission.CAMERA,
-            )
             store.save(
                 GoogleSessionStore.Session(
                     accessToken = "access-token",
