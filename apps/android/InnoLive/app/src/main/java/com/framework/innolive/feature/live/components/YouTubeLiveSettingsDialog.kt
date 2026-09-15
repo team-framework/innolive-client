@@ -51,6 +51,7 @@ import com.framework.innolive.feature.live.BroadcastSettings
 fun YouTubeLiveSettingsDialog(
     settings: BroadcastSettings,
     youtubeChannelTitle: String?,
+    hasYouTubeAccount: Boolean,
     youtubeAccountStatus: String,
     isYouTubeReconnectRequired: Boolean,
     isYouTubeAccountActionInProgress: Boolean,
@@ -81,7 +82,7 @@ fun YouTubeLiveSettingsDialog(
     }
     val accountLabel = youtubeChannelTitle?.takeIf { it.isNotBlank() }
         ?: youtubeAccountStatus
-    val canPrepare = !youtubeChannelTitle.isNullOrBlank() &&
+    val canPrepare = hasYouTubeAccount &&
         !isYouTubeReconnectRequired && !isYouTubeAccountActionInProgress
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -273,7 +274,7 @@ fun YouTubeLiveSettingsDialog(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(text = accountLabel)
-                    if (youtubeChannelTitle.isNullOrBlank() || isYouTubeReconnectRequired) {
+                    if (!hasYouTubeAccount || isYouTubeReconnectRequired) {
                         Button(
                             onClick = onConnectYouTube,
                             enabled = isYouTubeConnectEnabled && !isYouTubeAccountActionInProgress,

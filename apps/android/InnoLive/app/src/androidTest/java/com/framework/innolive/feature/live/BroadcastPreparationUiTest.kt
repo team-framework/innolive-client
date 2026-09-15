@@ -20,6 +20,9 @@ class BroadcastPreparationUiTest {
     private lateinit var session: WebRtcSessionViewModel
     private val settings = mutableStateOf(BroadcastSettings("검증 방송", "검증 설명", "private", null, "22"))
     private val channel = mutableStateOf<String?>("검증 채널")
+    private val hasAccount = mutableStateOf(true)
+    private val reconnectRequired = mutableStateOf(false)
+    private val accountBusy = mutableStateOf(false)
     private val refresh = CompletableDeferred<Unit>()
     private var authenticationCalls = 0
 
@@ -40,9 +43,10 @@ class BroadcastPreparationUiTest {
                         broadcastSettings = settings.value,
                         onBroadcastSettingsChanged = { settings.value = it },
                         youtubeChannelTitle = channel.value,
+                        hasYouTubeAccount = hasAccount.value,
                         youtubeAccountStatus = "연동 필요",
-                        isYouTubeReconnectRequired = false,
-                        isYouTubeAccountActionInProgress = false,
+                        isYouTubeReconnectRequired = reconnectRequired.value,
+                        isYouTubeAccountActionInProgress = accountBusy.value,
                         isYouTubeConnectEnabled = true,
                         onConnectYouTube = {},
                         onRefreshAccessToken = {
@@ -92,7 +96,7 @@ class BroadcastPreparationUiTest {
     }
 
     @Test fun unlinkedAccountCannotStartConnection() {
-        compose.runOnIdle { channel.value = null; settings.value = settings.value.copy(madeForKids = false) }
+        compose.runOnIdle { hasAccount.value = false; settings.value = settings.value.copy(madeForKids = false) }
         compose.onNodeWithText("방송 준비").performClick()
         compose.onNodeWithText("Youtube").performClick()
         compose.onNode(hasText("방송 준비") and hasAnyAncestor(isDialog())).assertIsNotEnabled()
@@ -100,6 +104,30 @@ class BroadcastPreparationUiTest {
         compose.runOnIdle {
             assertEquals(0, authenticationCalls)
             assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
+        }
+    }
+
+    @Test fun linkedAccountWithoutTitleCanPrepareButReconnectAndBusyStatesBlockIt() {
+        compose.runOnIdle {
+            channel.value = ""
+            settings.value = settings.value.copy(madeForKids = false)
+        }
+        compose.onNodeWithText("방송 준비").performClick()
+        compose.onNodeWithText("Youtube").performClick()
+        val confirm = hasText("방송 준비") and hasAnyAncestor(isDialog())
+        compose.onNode(confirm).assertIsEnabled()
+        compose.onNodeWithText("연동").assertDoesNotExist()
+        compose.runOnIdle { reconnectRequired.value = true }
+        compose.onNode(confirm).assertIsNotEnabled()
+        compose.onNodeWithText("재연동").assertExists()
+        compose.runOnIdle { reconnectRequired.value = false; accountBusy.value = true }
+        compose.onNode(confirm).assertIsNotEnabled()
+        compose.runOnIdle { accountBusy.value = false; channel.value = null }
+        compose.onNode(confirm).assertIsEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals(1, authenticationCalls)
+            assertEquals(WebRtcConnectionState.CONNECTING, session.connectionState)
+            session.close()
         }
     }
 }

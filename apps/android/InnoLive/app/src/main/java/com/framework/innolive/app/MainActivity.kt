@@ -497,6 +497,7 @@ fun AppNavigation(
                 broadcastCategoryId = settings.categoryId
             },
             youtubeChannelTitle = youtubeAccount?.channelTitle,
+            hasYouTubeAccount = youtubeAccount != null,
             youtubeAccountStatus = youtubeAccountStatus,
             isYouTubeReconnectRequired = youtubeAccount?.reconnectRequired == true,
             isYouTubeAccountActionInProgress = isYouTubeAccountActionInProgress,

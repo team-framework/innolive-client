@@ -227,6 +227,7 @@ fun LiveScreen(
                         YouTubeLiveSettingsDialog(
                             settings = props.broadcastSettings,
                             youtubeChannelTitle = props.youtubeChannelTitle,
+                            hasYouTubeAccount = props.hasYouTubeAccount,
                             youtubeAccountStatus = props.youtubeAccountStatus,
                             isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
                             isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
