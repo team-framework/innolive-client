@@ -39,7 +39,7 @@ fun buildLiveScreenPresentation(
     }
     val broadcastStatusText = when {
         connectionState == WebRtcConnectionState.FAILED ->
-            "비식별화 연결에 실패하였습니다."
+            "미리보기를 연결하지 못했습니다."
 
         broadcastState != BroadcastState.IDLE -> broadcastStatus
         else -> ""

@@ -30,7 +30,7 @@ class WebRtcSessionViewModel : ViewModel() {
         get() = sessionState.anonymization
     val anonymizationChange: AnonymizationChange
         get() = sessionState.anonymizationChange
-    var connectionStatus by mutableStateOf("WebRTC 연결 대기")
+    var connectionStatus by mutableStateOf("")
         private set
     var remoteVideoTrack by mutableStateOf<VideoTrack?>(null)
         private set
@@ -114,7 +114,7 @@ class WebRtcSessionViewModel : ViewModel() {
             broadcastStatus = "방송 대기"
         }
 
-        connectionStatus = "인증 토큰 갱신 중"
+        connectionStatus = "연결 준비 중…"
         startJob = viewModelScope.launch {
             try {
                 previousConnection?.let { oldConnection -> awaitClose(oldConnection) }
@@ -133,7 +133,7 @@ class WebRtcSessionViewModel : ViewModel() {
                     onStateChanged = { state, message ->
                         if (sessionState.acceptsCallback(generation)) {
                             sessionState = sessionState.connectionChanged(generation, state)
-                            connectionStatus = message
+                            connectionStatus = connectionUserMessage(state, message)
                         }
                     },
                     onAnonymizationStateConfirmed = { state ->
@@ -161,7 +161,7 @@ class WebRtcSessionViewModel : ViewModel() {
                     onBroadcastStateChanged = { state, message ->
                         if (isCurrentGeneration(generation)) {
                             broadcastState = state
-                            broadcastStatus = message
+                            broadcastStatus = if (state == BroadcastState.FAILED) broadcastUserMessage(message) else message
                         }
                     },
                 )
@@ -174,14 +174,13 @@ class WebRtcSessionViewModel : ViewModel() {
             } catch (exception: CancellationException) {
                 if (isCurrentGeneration(generation)) {
                     sessionState = sessionState.connectionChanged(generation, WebRtcConnectionState.IDLE)
-                    connectionStatus = "WebRTC 연결 대기"
+                    connectionStatus = ""
                 }
                 throw exception
             } catch (exception: Exception) {
                 if (isCurrentGeneration(generation)) {
                     sessionState = sessionState.connectionChanged(generation, WebRtcConnectionState.FAILED)
-                    connectionStatus = exception.message
-                        ?: "인증 토큰을 갱신하지 못했습니다."
+                    connectionStatus = connectionUserMessage(WebRtcConnectionState.FAILED, exception.message.orEmpty())
                 }
             }
         }
@@ -211,7 +210,7 @@ class WebRtcSessionViewModel : ViewModel() {
         connection?.saveBroadcastSettings(settings)
             ?: run {
                 broadcastState = BroadcastState.FAILED
-                broadcastStatus = "비식별화 연결 후 방송 설정을 저장해 주세요."
+                broadcastStatus = "미리보기를 먼저 연결해 주세요."
             }
     }
 
@@ -219,7 +218,7 @@ class WebRtcSessionViewModel : ViewModel() {
         connection?.prepareBroadcast(settings)
             ?: run {
                 broadcastState = BroadcastState.FAILED
-                broadcastStatus = "비식별화 연결 후 방송을 준비해 주세요."
+                broadcastStatus = "미리보기를 먼저 연결해 주세요."
             }
     }
 
@@ -242,7 +241,7 @@ class WebRtcSessionViewModel : ViewModel() {
         frameAnalyzer = null
         eglContext = null
         currentConnection?.close()
-        connectionStatus = "WebRTC 연결 대기"
+        connectionStatus = ""
         broadcastState = BroadcastState.IDLE
         broadcastStatus = "방송 대기"
     }

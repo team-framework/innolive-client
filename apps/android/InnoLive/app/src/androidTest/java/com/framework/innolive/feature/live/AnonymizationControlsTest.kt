@@ -26,7 +26,7 @@ class AnonymizationControlsTest {
                 AnonymizationControls(
                     anonymizationControlsState(WebRtcConnectionState.CONNECTED, AnonymizationState.ENABLED,
                         true, true, change.value, BroadcastState.LIVE),
-                    "WebRTC 연결됨", change.value.errorMessage,
+                    "미리보기 연결됨", change.value.errorMessage,
                     onSelect = {
                         assertFalse(it)
                         requests++

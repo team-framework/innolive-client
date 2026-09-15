@@ -67,7 +67,7 @@ class LiveScreenPresentationTest {
 
         assertEquals(LiveBroadcastAction.SELECT_PLATFORM, idle.broadcastAction)
         assertEquals("", idle.broadcastStatusText)
-        assertEquals("비식별화 연결에 실패하였습니다.", failed.broadcastStatusText)
+        assertEquals("미리보기를 연결하지 못했습니다.", failed.broadcastStatusText)
         assertTrue(failed.isBroadcastStatusError)
         assertFalse(failed.isBroadcastButtonEnabled)
     }

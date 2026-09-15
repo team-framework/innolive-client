@@ -319,7 +319,7 @@ class WebRtcConnection(
                     complete(confirmed, if (confirmed == expected) null else "서버가 요청한 비식별화 설정을 적용하지 않았습니다.")
                 } catch (_: Exception) {
                     // 응답 유실 시 서버에 적용됐을 수도 있으므로 실패를 Off로 해석하지 않습니다.
-                    complete(null, "비식별화 변경을 확인하지 못했습니다. 마지막 확인값을 유지합니다. 다시 시도해 주세요.")
+                    complete(null, "비식별화 변경 여부를 확인하지 못했습니다. 다시 시도해 주세요.")
                 }
             },
             onRejected = { complete(null, "비식별화 변경 요청을 시작하지 못했습니다.") },

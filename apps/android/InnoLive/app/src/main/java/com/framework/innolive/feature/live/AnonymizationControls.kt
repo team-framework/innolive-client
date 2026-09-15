@@ -89,7 +89,9 @@ internal fun AnonymizationControls(
                     Text(state.connectionLabel)
                 }
             }
-            Text(connectionStatus, style = MaterialTheme.typography.labelMedium)
+            if (connectionStatus.isNotBlank()) {
+                Text(connectionStatus, style = MaterialTheme.typography.labelMedium)
+            }
             if (!state.canControlConnection && state.connectionLabel == "연결 종료") {
                 Text("방송 작업을 종료한 뒤 연결을 종료할 수 있습니다.", style = MaterialTheme.typography.labelMedium)
             }
