@@ -66,6 +66,9 @@ fun LiveScreen(
             mediaPermissionLauncher.launch(missingMediaPermissions.toTypedArray())
         }
     }
+    LaunchedEffect(webRtcSession) {
+        webRtcSession.restoreAnonymizationSelection(context)
+    }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
     }
@@ -246,30 +249,33 @@ fun LiveScreen(
                         },
                     )
                 }
-                IconButton(
-                    enabled = !presentation.isConnecting,
-                    onClick = {
-                        if (presentation.isConnected) {
-                            webRtcSession.close()
-                        } else if (missingMediaPermissions.isNotEmpty()) {
-                            requestMissingMediaPermissions()
-                        } else {
-                            webRtcSession.start(context, props.onRefreshAccessToken)
-                        }
-                    }) {
-                    Icon(
-                        modifier = Modifier
-                            .padding(1.dp)
-                            .width(32.dp)
-                            .height(32.dp),
-                        painter = painterResource(
-                            if (presentation.isConnected) R.drawable.blur_enabled else R.drawable.blur_disabled,
-                        ),
-                        contentDescription = "Toggle face blur",
-                        tint = Color.White
-                    )
-                }
             }
+            AnonymizationControls(
+                state = anonymizationControlsState(
+                    webRtcSession.connectionState,
+                    webRtcSession.anonymizationState,
+                    webRtcSession.selectedAnonymizationEnabled,
+                    webRtcSession.isAnonymizationSelectionLoaded,
+                    webRtcSession.anonymizationChange,
+                    webRtcSession.broadcastState,
+                ),
+                connectionStatus = webRtcSession.connectionStatus,
+                error = webRtcSession.anonymizationChange.errorMessage,
+                onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
+                onConnection = {
+                    when (webRtcSession.connectionState) {
+                        WebRtcConnectionState.CONNECTING -> webRtcSession.close()
+                        WebRtcConnectionState.CONNECTED -> {
+                            if (webRtcSession.broadcastState == BroadcastState.IDLE ||
+                                webRtcSession.broadcastState == BroadcastState.FAILED) webRtcSession.close()
+                        }
+                        else -> {
+                            if (missingMediaPermissions.isNotEmpty()) requestMissingMediaPermissions()
+                            else webRtcSession.start(context, props.onRefreshAccessToken)
+                        }
+                    }
+                },
+            )
             if (presentation.isBroadcastPrepared) {
                 Button(
                     onClick = webRtcSession::stopBroadcast,
