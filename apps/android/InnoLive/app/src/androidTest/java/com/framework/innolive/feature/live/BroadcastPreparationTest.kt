@@ -89,4 +89,33 @@ class BroadcastPreparationTest {
             assertNull(session.frameAnalyzer)
         }
     }
+
+    @Test fun rejectedNativePreparationRestoresRetryableFailureState() {
+        lateinit var session: WebRtcSessionViewModel
+        lateinit var rejectedConnection: WebRtcConnection
+        compose.runOnIdle {
+            session = ViewModelProvider(compose.activity)[WebRtcSessionViewModel::class.java]
+            rejectedConnection = WebRtcConnection(
+                context = compose.activity,
+                serverUrl = "https://example.test",
+                accessToken = "test-token",
+                initialAnonymizationEnabled = true,
+                preferredAudioInput = null,
+                onStateChanged = { _, _ -> },
+                onRemoteTrackChanged = {},
+                onLocalMediaReady = { _, _ -> },
+                onLocalMediaCleared = {},
+                onBroadcastStateChanged = { _, _ -> },
+                onAnonymizationStateConfirmed = {},
+            ).also(WebRtcConnection::close)
+
+            assertFalse(session.requestBroadcastPreparation(rejectedConnection, settings))
+            assertEquals(BroadcastState.FAILED, session.broadcastState)
+            assertEquals(
+                "방송 준비 요청을 시작하지 못했습니다. 다시 시도해 주세요.",
+                session.broadcastStatus,
+            )
+            assertTrue(session.broadcastState.canPrepare)
+        }
+    }
 }

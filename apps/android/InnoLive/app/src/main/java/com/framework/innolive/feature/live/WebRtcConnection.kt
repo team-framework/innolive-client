@@ -337,9 +337,9 @@ class WebRtcConnection(
         }
     }
 
-    fun prepareBroadcast(settings: BroadcastSettings) {
-        if (!broadcastState.canPrepare) return
-        runBroadcastOperation {
+    fun prepareBroadcast(settings: BroadcastSettings): Boolean {
+        if (!broadcastState.canPrepare) return false
+        return runBroadcastOperation {
             require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
             updateBroadcastState(BroadcastState.SAVING_SETTINGS, "방송 설정 저장 중")
             putBroadcastSettings(settings)
@@ -375,9 +375,9 @@ class WebRtcConnection(
         }
     }
 
-    private fun runBroadcastOperation(operation: () -> Unit) {
-        if (!isActive() || !broadcastOperation.compareAndSet(false, true)) return
-        executeOnOwner(
+    private fun runBroadcastOperation(operation: () -> Unit): Boolean {
+        if (!isActive() || !broadcastOperation.compareAndSet(false, true)) return false
+        return executeOnOwner(
             block = {
                 try {
                     if (!isActive()) return@executeOnOwner
@@ -927,13 +927,14 @@ class WebRtcConnection(
     private fun executeOnOwner(
         onRejected: (() -> Unit)? = null,
         block: () -> Unit,
-    ) {
+    ): Boolean =
         try {
             ownerExecutor.execute(block)
+            true
         } catch (_: RejectedExecutionException) {
             onRejected?.invoke()
+            false
         }
-    }
 
     private fun deleteSession(createdSession: CreatedSession) {
         val request = authenticatedRequest("/sessions/${createdSession.sessionId}")

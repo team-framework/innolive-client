@@ -262,10 +262,7 @@ class WebRtcSessionViewModel : ViewModel() {
                     broadcastStatus = "연결하지 못해 방송을 준비하지 못했습니다. 다시 시도해 주세요."
                     return@launch
                 }
-                // 네이티브 작업의 상태 콜백이 도착하기 전에도 중복 준비를 막습니다.
-                broadcastState = BroadcastState.SAVING_SETTINGS
-                broadcastStatus = "방송 설정 저장 중"
-                activeConnection.prepareBroadcast(settings)
+                requestBroadcastPreparation(activeConnection, settings)
             } catch (_: TimeoutCancellationException) {
                 if (isCurrentGeneration(generation)) {
                     close()
@@ -277,6 +274,20 @@ class WebRtcSessionViewModel : ViewModel() {
             }
         }
         return true
+    }
+
+    // 네이티브 작업의 상태 콜백이 도착하기 전에도 중복 준비를 막습니다.
+    internal fun requestBroadcastPreparation(
+        activeConnection: WebRtcConnection,
+        settings: BroadcastSettings,
+    ): Boolean {
+        broadcastState = BroadcastState.SAVING_SETTINGS
+        broadcastStatus = "방송 설정 저장 중"
+        if (activeConnection.prepareBroadcast(settings)) return true
+
+        broadcastState = BroadcastState.FAILED
+        broadcastStatus = "방송 준비 요청을 시작하지 못했습니다. 다시 시도해 주세요."
+        return false
     }
 
     fun goLive() {
