@@ -58,6 +58,7 @@ fun YouTubeLiveSettingsDialog(
     onSettingsChanged: (BroadcastSettings) -> Unit,
     onConnectYouTube: () -> Unit,
     onDismissRequest: () -> Unit,
+    onPrepare: (() -> Unit)? = null,
 ) {
     var isPrivacyMenuExpanded by remember { mutableStateOf(false) }
     var isAudienceMenuExpanded by remember { mutableStateOf(false) }
@@ -80,6 +81,8 @@ fun YouTubeLiveSettingsDialog(
     }
     val accountLabel = youtubeChannelTitle?.takeIf { it.isNotBlank() }
         ?: youtubeAccountStatus
+    val canPrepare = !youtubeChannelTitle.isNullOrBlank() &&
+        !isYouTubeReconnectRequired && !isYouTubeAccountActionInProgress
 
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
@@ -94,7 +97,8 @@ fun YouTubeLiveSettingsDialog(
     fun validateForm() {
         validation = validateYouTubeLiveSettings(settings)
         if (validation.isValid) {
-            onDismissRequest()
+            if (onPrepare == null) onDismissRequest()
+            else if (canPrepare) onPrepare()
         }
     }
 
@@ -281,11 +285,19 @@ fun YouTubeLiveSettingsDialog(
                     }
                 }
 
+                if (onPrepare != null && !canPrepare) {
+                    Text(
+                        text = if (isYouTubeAccountActionInProgress) "YouTube 연동을 확인하고 있습니다."
+                        else "YouTube 계정을 연동한 뒤 방송을 준비해 주세요.",
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
                 Box(
                     modifier = Modifier
                         .height(40.dp)
                         .fillMaxWidth()
                         .clickable(
+                            enabled = onPrepare == null || canPrepare,
                             role = Role.Button,
                             interactionSource = interactionSource,
                             indication = null,
@@ -295,7 +307,7 @@ fun YouTubeLiveSettingsDialog(
                         .hoverable(interactionSource),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text="저장 및 닫기", style = MaterialTheme.typography.bodyLarge, color = Color.Black)
+                    Text(text = if (onPrepare == null) "저장 및 닫기" else "방송 준비", style = MaterialTheme.typography.bodyLarge, color = Color.Black)
                 }
             }
         }

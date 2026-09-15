@@ -960,6 +960,10 @@ class WebRtcConnection(
         return try {
             val operation = when {
                 request.url.encodedPath.endsWith("/anonymization") -> "anonymization"
+                request.url.encodedPath.endsWith("/broadcast") -> "broadcast_settings"
+                request.url.encodedPath.endsWith("/stream/prepare") -> "stream_prepare"
+                request.url.encodedPath.endsWith("/stream/stop") -> "stream_stop"
+                request.url.encodedPath.endsWith("/stream/golive") -> "stream_golive"
                 request.url.encodedPath.endsWith("/sessions") -> "create_session"
                 request.method == "DELETE" -> "delete_session"
                 else -> "connection_config"

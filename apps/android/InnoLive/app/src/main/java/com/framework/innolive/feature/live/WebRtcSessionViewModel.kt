@@ -7,19 +7,27 @@ import android.os.Looper
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
 import kotlin.coroutines.resume
 
 class WebRtcSessionViewModel : ViewModel() {
     private var startJob: Job? = null
+    private var prepareJob: Job? = null
+    var isPreparingBroadcast by mutableStateOf(false)
+        private set
     private var selectedAudioInput: AudioDeviceInfo? = null
     private var sessionState by mutableStateOf(WebRtcSessionState())
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -134,6 +142,10 @@ class WebRtcSessionViewModel : ViewModel() {
                         if (sessionState.acceptsCallback(generation)) {
                             sessionState = sessionState.connectionChanged(generation, state)
                             connectionStatus = connectionUserMessage(state, message)
+                            if (state == WebRtcConnectionState.FAILED && broadcastState != BroadcastState.IDLE) {
+                                broadcastState = BroadcastState.FAILED
+                                broadcastStatus = "연결이 끊겨 방송 준비를 계속할 수 없습니다. 다시 시도해 주세요."
+                            }
                         }
                     },
                     onAnonymizationStateConfirmed = { state ->
@@ -159,7 +171,7 @@ class WebRtcSessionViewModel : ViewModel() {
                         }
                     },
                     onBroadcastStateChanged = { state, message ->
-                        if (isCurrentGeneration(generation)) {
+                        if (sessionState.acceptsCallback(generation)) {
                             broadcastState = state
                             broadcastStatus = if (state == BroadcastState.FAILED) broadcastUserMessage(message) else message
                         }
@@ -214,12 +226,57 @@ class WebRtcSessionViewModel : ViewModel() {
             }
     }
 
-    fun prepareBroadcast(settings: BroadcastSettings) {
-        connection?.prepareBroadcast(settings)
-            ?: run {
-                broadcastState = BroadcastState.FAILED
-                broadcastStatus = "미리보기를 먼저 연결해 주세요."
+    // 사용자의 확인 한 번으로 연결부터 준비까지 진행하되, 연결 성공 전에 방송 API를 호출하지 않습니다.
+    fun prepareBroadcast(
+        context: Context,
+        settings: BroadcastSettings,
+        refreshAccessToken: suspend () -> String,
+    ): Boolean {
+        if (isPreparingBroadcast || !broadcastState.canPrepare) return false
+        if (!validateYouTubeLiveSettings(settings).isValid) {
+            broadcastState = BroadcastState.FAILED
+            broadcastStatus = "방송 제목, 설명과 아동용 콘텐츠 여부를 확인해 주세요."
+            return false
+        }
+        if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+            broadcastState = BroadcastState.FAILED
+            broadcastStatus = "카메라와 마이크 권한을 허용한 뒤 다시 시도해 주세요."
+            return false
+        }
+        isPreparingBroadcast = true
+        broadcastState = BroadcastState.IDLE
+        broadcastStatus = "방송 준비 중"
+        start(context.applicationContext, refreshAccessToken)
+        val generation = sessionState.generation
+        prepareJob = viewModelScope.launch {
+            try {
+                withTimeout(45_000) {
+                    snapshotFlow { sessionState }.first {
+                        it.generation != generation || it.connection != WebRtcConnectionState.CONNECTING
+                    }
+                }
+                if (!isCurrentGeneration(generation)) return@launch
+                val activeConnection = connection
+                if (connectionState != WebRtcConnectionState.CONNECTED || activeConnection == null) {
+                    broadcastState = BroadcastState.FAILED
+                    broadcastStatus = "연결하지 못해 방송을 준비하지 못했습니다. 다시 시도해 주세요."
+                    return@launch
+                }
+                // 네이티브 작업의 상태 콜백이 도착하기 전에도 중복 준비를 막습니다.
+                broadcastState = BroadcastState.SAVING_SETTINGS
+                broadcastStatus = "방송 설정 저장 중"
+                activeConnection.prepareBroadcast(settings)
+            } catch (_: TimeoutCancellationException) {
+                if (isCurrentGeneration(generation)) {
+                    close()
+                    broadcastState = BroadcastState.FAILED
+                    broadcastStatus = "연결 시간이 초과되었습니다. 방송 준비를 다시 시도해 주세요."
+                }
+            } finally {
+                if (isCurrentGeneration(generation)) isPreparingBroadcast = false
             }
+        }
+        return true
     }
 
     fun goLive() {
@@ -232,6 +289,9 @@ class WebRtcSessionViewModel : ViewModel() {
 
     fun close() {
         sessionState = sessionState.endConnection()
+        prepareJob?.cancel()
+        prepareJob = null
+        isPreparingBroadcast = false
         startJob?.cancel()
         startJob = null
         val currentConnection = connection

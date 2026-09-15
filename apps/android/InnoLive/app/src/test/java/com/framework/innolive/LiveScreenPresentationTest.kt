@@ -53,7 +53,7 @@ class LiveScreenPresentationTest {
     @Test
     fun disconnectedStateOpensPlatformOrShowsConnectionFailure() {
         val idle = buildLiveScreenPresentation(
-            connectionState = WebRtcConnectionState.CONNECTED,
+            connectionState = WebRtcConnectionState.IDLE,
             broadcastState = BroadcastState.IDLE,
             selectedPlatform = null,
             broadcastStatus = "방송 대기",
@@ -69,6 +69,23 @@ class LiveScreenPresentationTest {
         assertEquals("", idle.broadcastStatusText)
         assertEquals("미리보기를 연결하지 못했습니다.", failed.broadcastStatusText)
         assertTrue(failed.isBroadcastStatusError)
-        assertFalse(failed.isBroadcastButtonEnabled)
+        assertTrue(idle.isBroadcastButtonEnabled)
+        assertTrue(failed.isBroadcastButtonEnabled)
+    }
+
+    @Test
+    fun preparingConnectionLocksButtonUntilPreparationFinishes() {
+        for (connection in WebRtcConnectionState.entries) {
+            val preparing = buildLiveScreenPresentation(
+                connection, BroadcastState.IDLE, "YouTube", "방송 준비 중",
+                isPreparingBroadcast = true,
+            )
+            assertFalse(preparing.isBroadcastButtonEnabled)
+            assertEquals("방송 준비 중", preparing.broadcastButtonText)
+        }
+        val connecting = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTING, BroadcastState.IDLE, "YouTube", "",
+        )
+        assertFalse(connecting.isBroadcastButtonEnabled)
     }
 }

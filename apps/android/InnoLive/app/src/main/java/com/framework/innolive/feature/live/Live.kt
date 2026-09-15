@@ -53,6 +53,7 @@ fun LiveScreen(
         broadcastState = webRtcSession.broadcastState,
         selectedPlatform = selectedPlatform,
         broadcastStatus = webRtcSession.broadcastStatus,
+        isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
     )
     val mediaPermissions = rememberMediaPermissionController(context)
     val mediaPermissionState = mediaPermissions.state
@@ -95,7 +96,8 @@ fun LiveScreen(
             WebRtcConnectionState.IDLE,
             WebRtcConnectionState.FAILED,
             WebRtcConnectionState.CONNECTED,
-        ) && webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
+        ) && !webRtcSession.isPreparingBroadcast &&
+            webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
 
     Box(
         modifier = Modifier
@@ -232,6 +234,18 @@ fun LiveScreen(
                             onSettingsChanged = props.onBroadcastSettingsChanged,
                             onConnectYouTube = props.onConnectYouTube,
                             onDismissRequest = { openYouTubeSettingsDialog = false },
+                            onPrepare = {
+                                if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+                                    mediaPermissions.refresh()
+                                    mediaPermissionLauncher.launch(
+                                        readMediaPermissionState(context).missingPermissions.toTypedArray(),
+                                    )
+                                } else if (webRtcSession.prepareBroadcast(
+                                        context, props.broadcastSettings, props.onRefreshAccessToken,
+                                    )) {
+                                    openYouTubeSettingsDialog = false
+                                }
+                            },
                         )
                     }
                     VerticalHeroButton(
@@ -242,7 +256,7 @@ fun LiveScreen(
                                 LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
                                 LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
                                 LiveBroadcastAction.PREPARE_BROADCAST ->
-                                    webRtcSession.prepareBroadcast(props.broadcastSettings)
+                                    openYouTubeSettingsDialog = true
 
                                 LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
                             }

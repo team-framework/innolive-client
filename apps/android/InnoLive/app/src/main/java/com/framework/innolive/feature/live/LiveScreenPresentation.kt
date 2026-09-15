@@ -25,12 +25,13 @@ fun buildLiveScreenPresentation(
     broadcastState: BroadcastState,
     selectedPlatform: String?,
     broadcastStatus: String,
+    isPreparingBroadcast: Boolean = false,
 ): LiveScreenPresentation {
     val isConnected = connectionState == WebRtcConnectionState.CONNECTED
     val isConnecting = connectionState == WebRtcConnectionState.CONNECTING
     val isBroadcastLive = broadcastState == BroadcastState.LIVE
     val isBroadcastPrepared = broadcastState == BroadcastState.PREPARED
-    val isBroadcastBusy = broadcastState.isBusy
+    val isBroadcastBusy = broadcastState.isBusy || isPreparingBroadcast
     val broadcastAction = when {
         isBroadcastLive -> LiveBroadcastAction.STOP_BROADCAST
         isBroadcastPrepared -> LiveBroadcastAction.GO_LIVE
@@ -57,7 +58,8 @@ fun buildLiveScreenPresentation(
             isBroadcastBusy -> "방송 준비 중"
             else -> "방송 준비"
         },
-        isBroadcastButtonEnabled = isConnected && !isBroadcastBusy,
+        isBroadcastButtonEnabled = !isConnecting && !isBroadcastBusy &&
+            (!(isBroadcastLive || isBroadcastPrepared) || isConnected),
         broadcastAction = broadcastAction,
         broadcastStatusText = broadcastStatusText,
         isBroadcastStatusError =
