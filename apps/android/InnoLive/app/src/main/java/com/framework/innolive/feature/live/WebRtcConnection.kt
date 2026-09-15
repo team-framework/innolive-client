@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live
 
+import android.util.Log
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -203,6 +204,7 @@ class WebRtcConnection(
                 checkNotNull(frameAnalyzer).start()
                 openSignalingSocket(createdSession)
             } catch (exception: Exception) {
+                Log.w("LiveConnection", "start_failed type=${exception.javaClass.simpleName} cause=${exception.cause?.javaClass?.simpleName}")
                 fail(exception.message ?: "WebRTC 연결을 시작하지 못했습니다.")
             }
         }
@@ -830,6 +832,14 @@ class WebRtcConnection(
         }
         if (!shouldStartShutdown) return
 
+        val category = when {
+            message == "WebRTC 연결 시간이 초과되었습니다." -> "timeout"
+            message.contains("signaling") -> "signaling"
+            message.contains("ICE") -> "ice"
+            message.contains("마이크") || message.contains("오디오") -> "audio"
+            else -> "connection"
+        }
+        Log.w("LiveConnection", "connection_failed category=$category")
         updateState(WebRtcConnectionState.FAILED, message)
         enqueueResourceRelease()
     }
@@ -948,7 +958,15 @@ class WebRtcConnection(
         }
 
         return try {
-            call.execute()
+            val operation = when {
+                request.url.encodedPath.endsWith("/anonymization") -> "anonymization"
+                request.url.encodedPath.endsWith("/sessions") -> "create_session"
+                request.method == "DELETE" -> "delete_session"
+                else -> "connection_config"
+            }
+            call.execute().also { response ->
+                Log.i("LiveConnection", "operation=$operation status=${response.code}")
+            }
         } finally {
             activeHttpCalls -= call
         }
