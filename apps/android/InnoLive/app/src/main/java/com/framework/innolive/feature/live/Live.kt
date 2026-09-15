@@ -53,6 +53,7 @@ fun LiveScreen(
         broadcastState = webRtcSession.broadcastState,
         selectedPlatform = selectedPlatform,
         broadcastStatus = webRtcSession.broadcastStatus,
+        isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
     )
     val mediaPermissions = rememberMediaPermissionController(context)
     val mediaPermissionState = mediaPermissions.state
@@ -65,6 +66,9 @@ fun LiveScreen(
         if (missingMediaPermissions.isNotEmpty()) {
             mediaPermissionLauncher.launch(missingMediaPermissions.toTypedArray())
         }
+    }
+    LaunchedEffect(webRtcSession) {
+        webRtcSession.restoreAnonymizationSelection(context)
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
@@ -92,7 +96,8 @@ fun LiveScreen(
             WebRtcConnectionState.IDLE,
             WebRtcConnectionState.FAILED,
             WebRtcConnectionState.CONNECTED,
-        ) && webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
+        ) && !webRtcSession.isPreparingBroadcast &&
+            webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
 
     Box(
         modifier = Modifier
@@ -222,6 +227,7 @@ fun LiveScreen(
                         YouTubeLiveSettingsDialog(
                             settings = props.broadcastSettings,
                             youtubeChannelTitle = props.youtubeChannelTitle,
+                            hasYouTubeAccount = props.hasYouTubeAccount,
                             youtubeAccountStatus = props.youtubeAccountStatus,
                             isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
                             isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
@@ -229,6 +235,18 @@ fun LiveScreen(
                             onSettingsChanged = props.onBroadcastSettingsChanged,
                             onConnectYouTube = props.onConnectYouTube,
                             onDismissRequest = { openYouTubeSettingsDialog = false },
+                            onPrepare = {
+                                if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+                                    mediaPermissions.refresh()
+                                    mediaPermissionLauncher.launch(
+                                        readMediaPermissionState(context).missingPermissions.toTypedArray(),
+                                    )
+                                } else if (webRtcSession.prepareBroadcast(
+                                        context, props.broadcastSettings, props.onRefreshAccessToken,
+                                    )) {
+                                    openYouTubeSettingsDialog = false
+                                }
+                            },
                         )
                     }
                     VerticalHeroButton(
@@ -239,36 +257,33 @@ fun LiveScreen(
                                 LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
                                 LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
                                 LiveBroadcastAction.PREPARE_BROADCAST ->
-                                    webRtcSession.prepareBroadcast(props.broadcastSettings)
+                                    openYouTubeSettingsDialog = true
 
                                 LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
                             }
                         },
                     )
                 }
-                IconButton(
-                    enabled = !presentation.isConnecting,
-                    onClick = {
-                        if (presentation.isConnected) {
-                            webRtcSession.close()
-                        } else if (missingMediaPermissions.isNotEmpty()) {
-                            requestMissingMediaPermissions()
-                        } else {
-                            webRtcSession.start(context, props.onRefreshAccessToken)
-                        }
-                    }) {
-                    Icon(
-                        modifier = Modifier
-                            .padding(1.dp)
-                            .width(32.dp)
-                            .height(32.dp),
-                        painter = painterResource(
-                            if (presentation.isConnected) R.drawable.blur_enabled else R.drawable.blur_disabled,
-                        ),
-                        contentDescription = "Toggle face blur",
-                        tint = Color.White
-                    )
-                }
+                AnonymizationControls(
+                    state = anonymizationControlsState(
+                        webRtcSession.connectionState,
+                        webRtcSession.anonymizationState,
+                        webRtcSession.selectedAnonymizationEnabled,
+                        webRtcSession.isAnonymizationSelectionLoaded,
+                        webRtcSession.anonymizationChange,
+                    ),
+                    onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
+                )
+            }
+            if (webRtcSession.connectionState == WebRtcConnectionState.FAILED) {
+                Text(webRtcSession.connectionStatus, color = Color.White, style = MaterialTheme.typography.labelMedium)
+            }
+            webRtcSession.anonymizationChange.errorMessage?.let { error ->
+                Text(
+                    text = "$error 비식별화 아이콘을 눌러 다시 시도해 주세요.",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                )
             }
             if (presentation.isBroadcastPrepared) {
                 Button(

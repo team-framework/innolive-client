@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live
 
+import android.util.Log
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -203,6 +204,7 @@ class WebRtcConnection(
                 checkNotNull(frameAnalyzer).start()
                 openSignalingSocket(createdSession)
             } catch (exception: Exception) {
+                Log.w("LiveConnection", "start_failed type=${exception.javaClass.simpleName} cause=${exception.cause?.javaClass?.simpleName}")
                 fail(exception.message ?: "WebRTC 연결을 시작하지 못했습니다.")
             }
         }
@@ -319,7 +321,7 @@ class WebRtcConnection(
                     complete(confirmed, if (confirmed == expected) null else "서버가 요청한 비식별화 설정을 적용하지 않았습니다.")
                 } catch (_: Exception) {
                     // 응답 유실 시 서버에 적용됐을 수도 있으므로 실패를 Off로 해석하지 않습니다.
-                    complete(null, "비식별화 변경을 확인하지 못했습니다. 마지막 확인값을 유지합니다. 다시 시도해 주세요.")
+                    complete(null, "비식별화 변경 여부를 확인하지 못했습니다. 다시 시도해 주세요.")
                 }
             },
             onRejected = { complete(null, "비식별화 변경 요청을 시작하지 못했습니다.") },
@@ -335,9 +337,9 @@ class WebRtcConnection(
         }
     }
 
-    fun prepareBroadcast(settings: BroadcastSettings) {
-        if (!broadcastState.canPrepare) return
-        runBroadcastOperation {
+    fun prepareBroadcast(settings: BroadcastSettings): Boolean {
+        if (!broadcastState.canPrepare) return false
+        return runBroadcastOperation {
             require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
             updateBroadcastState(BroadcastState.SAVING_SETTINGS, "방송 설정 저장 중")
             putBroadcastSettings(settings)
@@ -373,9 +375,9 @@ class WebRtcConnection(
         }
     }
 
-    private fun runBroadcastOperation(operation: () -> Unit) {
-        if (!isActive() || !broadcastOperation.compareAndSet(false, true)) return
-        executeOnOwner(
+    private fun runBroadcastOperation(operation: () -> Unit): Boolean {
+        if (!isActive() || !broadcastOperation.compareAndSet(false, true)) return false
+        return executeOnOwner(
             block = {
                 try {
                     if (!isActive()) return@executeOnOwner
@@ -830,6 +832,14 @@ class WebRtcConnection(
         }
         if (!shouldStartShutdown) return
 
+        val category = when {
+            message == "WebRTC 연결 시간이 초과되었습니다." -> "timeout"
+            message.contains("signaling") -> "signaling"
+            message.contains("ICE") -> "ice"
+            message.contains("마이크") || message.contains("오디오") -> "audio"
+            else -> "connection"
+        }
+        Log.w("LiveConnection", "connection_failed category=$category")
         updateState(WebRtcConnectionState.FAILED, message)
         enqueueResourceRelease()
     }
@@ -917,13 +927,14 @@ class WebRtcConnection(
     private fun executeOnOwner(
         onRejected: (() -> Unit)? = null,
         block: () -> Unit,
-    ) {
+    ): Boolean =
         try {
             ownerExecutor.execute(block)
+            true
         } catch (_: RejectedExecutionException) {
             onRejected?.invoke()
+            false
         }
-    }
 
     private fun deleteSession(createdSession: CreatedSession) {
         val request = authenticatedRequest("/sessions/${createdSession.sessionId}")
@@ -948,7 +959,19 @@ class WebRtcConnection(
         }
 
         return try {
-            call.execute()
+            val operation = when {
+                request.url.encodedPath.endsWith("/anonymization") -> "anonymization"
+                request.url.encodedPath.endsWith("/broadcast") -> "broadcast_settings"
+                request.url.encodedPath.endsWith("/stream/prepare") -> "stream_prepare"
+                request.url.encodedPath.endsWith("/stream/stop") -> "stream_stop"
+                request.url.encodedPath.endsWith("/stream/golive") -> "stream_golive"
+                request.url.encodedPath.endsWith("/sessions") -> "create_session"
+                request.method == "DELETE" -> "delete_session"
+                else -> "connection_config"
+            }
+            call.execute().also { response ->
+                Log.i("LiveConnection", "operation=$operation status=${response.code}")
+            }
         } finally {
             activeHttpCalls -= call
         }

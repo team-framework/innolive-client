@@ -70,6 +70,7 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
             YouTubeLiveSettingsDialog(
                 settings = BroadcastSettings("테스트 제목", "테스트 설명", "public", false, "22"),
                 youtubeChannelTitle = null,
+                hasYouTubeAccount = false,
                 youtubeAccountStatus = "연결 안 됨",
                 isYouTubeReconnectRequired = false,
                 isYouTubeAccountActionInProgress = false,

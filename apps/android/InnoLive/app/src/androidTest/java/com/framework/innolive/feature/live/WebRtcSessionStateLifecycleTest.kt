@@ -93,12 +93,12 @@ class WebRtcSessionStateLifecycleTest {
         }
         compose.runOnIdle {
             assertEquals(WebRtcConnectionState.CONNECTING, session.connectionState)
-            assertEquals("인증 토큰 갱신 중", session.connectionStatus)
+            assertEquals("연결 준비 중…", session.connectionStatus)
             nextRefresh.complete(Unit)
         }
         compose.runOnIdle {
             assertEquals(WebRtcConnectionState.FAILED, session.connectionState)
-            assertEquals("현재 요청 실패", session.connectionStatus)
+            assertEquals("미리보기를 연결하지 못했습니다. 다시 시도해 주세요.", session.connectionStatus)
             assertEquals(AnonymizationState.UNKNOWN, session.anonymizationState)
             session.close()
         }

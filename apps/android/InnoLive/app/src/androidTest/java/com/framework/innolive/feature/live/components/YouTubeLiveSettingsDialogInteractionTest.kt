@@ -84,6 +84,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
                     YouTubeLiveSettingsDialog(
                         settings = settings,
                         youtubeChannelTitle = null,
+                        hasYouTubeAccount = false,
                         youtubeAccountStatus = "연결되지 않음",
                         isYouTubeReconnectRequired = false,
                         isYouTubeAccountActionInProgress = false,
@@ -167,6 +168,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
                     YouTubeLiveSettingsDialog(
                         settings = settings,
                         youtubeChannelTitle = null,
+                        hasYouTubeAccount = false,
                         youtubeAccountStatus = "연결되지 않음",
                         isYouTubeReconnectRequired = false,
                         isYouTubeAccountActionInProgress = false,
@@ -220,6 +222,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
                     broadcastSettings = settings,
                     onBroadcastSettingsChanged = { settings = it },
                     youtubeChannelTitle = null,
+                    hasYouTubeAccount = false,
                     youtubeAccountStatus = "연결되지 않음",
                     isYouTubeReconnectRequired = false,
                     isYouTubeAccountActionInProgress = false,
@@ -243,6 +246,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
                             YouTubeLiveSettingsDialog(
                                 settings = props.broadcastSettings,
                                 youtubeChannelTitle = props.youtubeChannelTitle,
+                                hasYouTubeAccount = props.hasYouTubeAccount,
                                 youtubeAccountStatus = props.youtubeAccountStatus,
                                 isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
                                 isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,

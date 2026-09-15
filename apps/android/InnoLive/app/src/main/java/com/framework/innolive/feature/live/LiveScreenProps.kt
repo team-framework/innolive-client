@@ -9,6 +9,7 @@ data class LiveScreenProps(
     val broadcastSettings: BroadcastSettings,
     val onBroadcastSettingsChanged: (BroadcastSettings) -> Unit,
     val youtubeChannelTitle: String?,
+    val hasYouTubeAccount: Boolean,
     val youtubeAccountStatus: String,
     val isYouTubeReconnectRequired: Boolean,
     val isYouTubeAccountActionInProgress: Boolean,
