@@ -54,6 +54,7 @@ class WebRtcConnection(
     context: Context,
     serverUrl: String,
     private val accessToken: String,
+    private val initialAnonymizationEnabled: Boolean,
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, String) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
@@ -179,8 +180,16 @@ class WebRtcConnection(
                 val createdSession = createSession()
                 session = createdSession
                 if (!isActive()) return@executeOnOwner
+                updateState(WebRtcConnectionState.CONNECTING, "비식별화 초기 설정 적용 중")
+                val confirmed = confirmInitialAnonymization(initialAnonymizationEnabled) {
+                    val payload = executeSessionRequest(
+                        "anonymization", "PATCH", anonymizationPayload(initialAnonymizationEnabled),
+                    )
+                    parseAnonymizationResponse(payload, createdSession.sessionId)
+                }
+                if (!isActive()) return@executeOnOwner
                 mainHandler.post {
-                    if (isActive()) onAnonymizationStateConfirmed(createdSession.anonymizationState)
+                    if (isActive()) onAnonymizationStateConfirmed(confirmed)
                 }
 
                 val connection = createPeerConnection(iceServers)

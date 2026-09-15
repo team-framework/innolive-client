@@ -13,6 +13,35 @@ import org.junit.Test
 class WebRtcSessionStateLifecycleTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
+    @Test fun restoredChoiceStaysSeparateFromConfirmedStateAndCannotChangeDuringStart() {
+        val preference = AnonymizationPreference(compose.activity)
+        val previous = preference.enabled
+        val refresh = CompletableDeferred<Unit>()
+        lateinit var session: WebRtcSessionViewModel
+        try {
+            compose.runOnIdle {
+                val first = WebRtcSessionViewModel()
+                assertTrue(first.selectInitialAnonymization(compose.activity, false))
+                first.close()
+                session = WebRtcSessionViewModel()
+                session.start(compose.activity) { refresh.await(); error("인증 실패") }
+                assertFalse(session.selectedAnonymizationEnabled)
+                assertEquals(AnonymizationState.UNKNOWN, session.anonymizationState)
+                assertFalse(session.selectInitialAnonymization(compose.activity, true))
+                assertFalse(AnonymizationPreference(compose.activity).enabled)
+                refresh.complete(Unit)
+            }
+            compose.runOnIdle {
+                assertEquals(WebRtcConnectionState.FAILED, session.connectionState)
+                assertFalse(session.selectedAnonymizationEnabled)
+                session.close()
+                assertFalse(AnonymizationPreference(compose.activity).enabled)
+            }
+        } finally {
+            compose.runOnIdle { session.close(); preference.enabled = previous }
+        }
+    }
+
     @Test fun duplicateStartAndLateRefreshCannotReviveClosedSession() {
         lateinit var session: WebRtcSessionViewModel
         val pending = CompletableDeferred<Unit>()
