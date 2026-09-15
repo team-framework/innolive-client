@@ -249,19 +249,27 @@ fun LiveScreen(
                         },
                     )
                 }
+                AnonymizationControls(
+                    state = anonymizationControlsState(
+                        webRtcSession.connectionState,
+                        webRtcSession.anonymizationState,
+                        webRtcSession.selectedAnonymizationEnabled,
+                        webRtcSession.isAnonymizationSelectionLoaded,
+                        webRtcSession.anonymizationChange,
+                    ),
+                    onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
+                )
             }
-            AnonymizationControls(
-                state = anonymizationControlsState(
-                    webRtcSession.connectionState,
-                    webRtcSession.anonymizationState,
-                    webRtcSession.selectedAnonymizationEnabled,
-                    webRtcSession.isAnonymizationSelectionLoaded,
-                    webRtcSession.anonymizationChange,
-                ),
-                connectionStatus = webRtcSession.connectionStatus,
-                error = webRtcSession.anonymizationChange.errorMessage,
-                onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
-            )
+            if (webRtcSession.connectionState == WebRtcConnectionState.FAILED) {
+                Text(webRtcSession.connectionStatus, color = Color.White, style = MaterialTheme.typography.labelMedium)
+            }
+            webRtcSession.anonymizationChange.errorMessage?.let { error ->
+                Text(
+                    text = "$error 비식별화 아이콘을 눌러 다시 시도해 주세요.",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             if (presentation.isBroadcastPrepared) {
                 Button(
                     onClick = webRtcSession::stopBroadcast,

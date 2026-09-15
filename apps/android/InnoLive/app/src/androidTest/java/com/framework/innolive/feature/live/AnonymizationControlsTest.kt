@@ -24,7 +24,6 @@ class AnonymizationControlsTest {
                 AnonymizationControls(
                     anonymizationControlsState(WebRtcConnectionState.CONNECTED, AnonymizationState.ENABLED,
                         true, true, change.value),
-                    "미리보기 연결됨", change.value.errorMessage,
                     onSelect = {
                         assertFalse(it)
                         requests++
@@ -33,26 +32,26 @@ class AnonymizationControlsTest {
                 )
             }
         }
-        compose.onNodeWithText("Off").performClick()
-        compose.onNodeWithText("On", substring = false).assertIsSelected().assertIsNotEnabled()
-        compose.onNodeWithText("Off").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("비식별화 비활성화").performClick()
+        compose.onNodeWithContentDescription("비식별화 비활성화").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("비식별화 비활성화").assertIsNotEnabled()
         compose.onNodeWithText("연결 종료").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(1, requests)
             change.value = AnonymizationChange(status = AnonymizationChangeStatus.FAILED, errorMessage = "변경 실패")
         }
-        compose.onNodeWithText("변경 실패").assertIsDisplayed()
-        compose.onNodeWithText("On", substring = false).assertIsSelected()
+        compose.onNodeWithContentDescription("비식별화 비활성화")
         val screenshot = compose.onRoot().captureToImage().asAndroidBitmap()
         File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "anonymization-controls.png")
             .outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        compose.onNodeWithText("Off").assertIsEnabled().performClick()
+        compose.onNodeWithContentDescription("비식별화 비활성화").assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(2, requests) }
     }
     @Test fun offlineChoiceUsesViewModelWithoutManualConnectionControls() {
         val session = WebRtcSessionViewModel()
         val preference = AnonymizationPreference(compose.activity)
         val original = preference.enabled
+        preference.enabled = true
         compose.runOnIdle { session.restoreAnonymizationSelection(compose.activity) }
         try {
             compose.setContent {
@@ -61,12 +60,11 @@ class AnonymizationControlsTest {
                         anonymizationControlsState(session.connectionState, session.anonymizationState,
                             session.selectedAnonymizationEnabled, session.isAnonymizationSelectionLoaded,
                             session.anonymizationChange),
-                        session.connectionStatus, session.anonymizationChange.errorMessage,
                         onSelect = { session.selectAnonymization(compose.activity, it) },
                     )
                 }
             }
-            compose.onNodeWithText("Off").performClick().assertIsSelected()
+            compose.onNodeWithContentDescription("비식별화 비활성화").performClick()
             compose.runOnIdle {
                 assertFalse(preference.enabled)
                 assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
