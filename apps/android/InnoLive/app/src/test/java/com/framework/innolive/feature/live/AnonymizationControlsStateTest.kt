@@ -8,9 +8,8 @@ class AnonymizationControlsStateTest {
         connection: WebRtcConnectionState = WebRtcConnectionState.CONNECTED,
         confirmed: AnonymizationState = AnonymizationState.ENABLED,
         change: AnonymizationChange = AnonymizationChange(),
-        broadcast: BroadcastState = BroadcastState.IDLE,
         loaded: Boolean = true,
-    ) = anonymizationControlsState(connection, confirmed, false, loaded, change, broadcast)
+    ) = anonymizationControlsState(connection, confirmed, false, loaded, change)
 
     @Test fun disconnectedUsesSelectionButConnectedUsesOnlyServerConfirmation() {
         assertEquals(false, state(connection = WebRtcConnectionState.IDLE).selectedEnabled)
@@ -31,22 +30,12 @@ class AnonymizationControlsStateTest {
         assertTrue(failed.canChange)
     }
 
-    @Test fun connectingAllowsCancelButRejectsSelectionAndUnloadedDisablesActions() {
+    @Test fun connectingAndUnloadedDisableSelection() {
         val connecting = state(connection = WebRtcConnectionState.CONNECTING)
         assertFalse(connecting.canChange)
-        assertTrue(connecting.canControlConnection)
-        assertEquals("연결 취소", connecting.connectionLabel)
         val unloaded = state(connection = WebRtcConnectionState.IDLE, loaded = false)
         assertFalse(unloaded.canChange)
-        assertFalse(unloaded.canControlConnection)
         assertNull(unloaded.selectedEnabled)
     }
 
-    @Test fun broadcastKeepsToggleAvailableButProtectsConnection() {
-        for (broadcast in BroadcastState.entries) {
-            val current = state(broadcast = broadcast)
-            assertTrue(current.canChange)
-            assertEquals(broadcast == BroadcastState.IDLE || broadcast == BroadcastState.FAILED, current.canControlConnection)
-        }
-    }
 }

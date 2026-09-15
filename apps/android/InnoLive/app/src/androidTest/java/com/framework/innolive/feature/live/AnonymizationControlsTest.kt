@@ -10,7 +10,6 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import android.graphics.Bitmap
 import java.io.File
 import androidx.test.platform.app.InstrumentationRegistry
-import kotlinx.coroutines.CompletableDeferred
 import org.junit.Rule
 import org.junit.Test
 
@@ -20,29 +19,26 @@ class AnonymizationControlsTest {
     @Test fun offUsesSelectionCallbackAndFailureAllowsExplicitRetryWithoutDisconnect() {
         val change = mutableStateOf(AnonymizationChange())
         var requests = 0
-        var disconnects = 0
         compose.setContent {
             MaterialTheme {
                 AnonymizationControls(
                     anonymizationControlsState(WebRtcConnectionState.CONNECTED, AnonymizationState.ENABLED,
-                        true, true, change.value, BroadcastState.LIVE),
+                        true, true, change.value),
                     "미리보기 연결됨", change.value.errorMessage,
                     onSelect = {
                         assertFalse(it)
                         requests++
                         change.value = AnonymizationChange(status = AnonymizationChangeStatus.CHANGING)
                     },
-                    onConnection = { disconnects++ },
                 )
             }
         }
         compose.onNodeWithText("Off").performClick()
         compose.onNodeWithText("On", substring = false).assertIsSelected().assertIsNotEnabled()
         compose.onNodeWithText("Off").assertIsNotEnabled()
-        compose.onNodeWithText("연결 종료").assertIsNotEnabled()
+        compose.onNodeWithText("연결 종료").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(1, requests)
-            assertEquals(0, disconnects)
             change.value = AnonymizationChange(status = AnonymizationChangeStatus.FAILED, errorMessage = "변경 실패")
         }
         compose.onNodeWithText("변경 실패").assertIsDisplayed()
@@ -51,13 +47,12 @@ class AnonymizationControlsTest {
         File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "anonymization-controls.png")
             .outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
         compose.onNodeWithText("Off").assertIsEnabled().performClick()
-        compose.runOnIdle { assertEquals(2, requests); assertEquals(0, disconnects) }
+        compose.runOnIdle { assertEquals(2, requests) }
     }
-    @Test fun offlineChoiceUsesViewModelAndSurvivesCancelledConnection() {
+    @Test fun offlineChoiceUsesViewModelWithoutManualConnectionControls() {
         val session = WebRtcSessionViewModel()
         val preference = AnonymizationPreference(compose.activity)
         val original = preference.enabled
-        val authentication = CompletableDeferred<Unit>()
         compose.runOnIdle { session.restoreAnonymizationSelection(compose.activity) }
         try {
             compose.setContent {
@@ -65,13 +60,9 @@ class AnonymizationControlsTest {
                     AnonymizationControls(
                         anonymizationControlsState(session.connectionState, session.anonymizationState,
                             session.selectedAnonymizationEnabled, session.isAnonymizationSelectionLoaded,
-                            session.anonymizationChange, session.broadcastState),
+                            session.anonymizationChange),
                         session.connectionStatus, session.anonymizationChange.errorMessage,
                         onSelect = { session.selectAnonymization(compose.activity, it) },
-                        onConnection = {
-                            if (session.connectionState == WebRtcConnectionState.CONNECTING) session.close()
-                            else session.start(compose.activity) { authentication.await(); error("사용하지 않는 인증") }
-                        },
                     )
                 }
             }
@@ -81,11 +72,9 @@ class AnonymizationControlsTest {
                 assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
                 assertEquals(AnonymizationState.UNKNOWN, session.anonymizationState)
             }
-            compose.onNodeWithText("미리보기 연결").performClick()
-            compose.onNodeWithText("Off").assertIsNotEnabled()
-            compose.onNodeWithText("연결 취소").performClick()
-            compose.onNodeWithText("Off").assertIsEnabled().assertIsSelected()
-            compose.runOnIdle { assertFalse(preference.enabled); assertEquals(WebRtcConnectionState.IDLE, session.connectionState) }
+            compose.onNodeWithText("미리보기 연결").assertDoesNotExist()
+            compose.onNodeWithText("연결 취소").assertDoesNotExist()
+            compose.onNodeWithText("연결 종료").assertDoesNotExist()
         } finally {
             compose.runOnIdle { session.close(); preference.enabled = original }
         }

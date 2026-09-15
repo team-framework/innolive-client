@@ -257,24 +257,10 @@ fun LiveScreen(
                     webRtcSession.selectedAnonymizationEnabled,
                     webRtcSession.isAnonymizationSelectionLoaded,
                     webRtcSession.anonymizationChange,
-                    webRtcSession.broadcastState,
                 ),
                 connectionStatus = webRtcSession.connectionStatus,
                 error = webRtcSession.anonymizationChange.errorMessage,
                 onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
-                onConnection = {
-                    when (webRtcSession.connectionState) {
-                        WebRtcConnectionState.CONNECTING -> webRtcSession.close()
-                        WebRtcConnectionState.CONNECTED -> {
-                            if (webRtcSession.broadcastState == BroadcastState.IDLE ||
-                                webRtcSession.broadcastState == BroadcastState.FAILED) webRtcSession.close()
-                        }
-                        else -> {
-                            if (missingMediaPermissions.isNotEmpty()) requestMissingMediaPermissions()
-                            else webRtcSession.start(context, props.onRefreshAccessToken)
-                        }
-                    }
-                },
             )
             if (presentation.isBroadcastPrepared) {
                 Button(

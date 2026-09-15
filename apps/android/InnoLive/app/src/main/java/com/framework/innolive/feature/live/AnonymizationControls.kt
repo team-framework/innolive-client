@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -19,8 +18,6 @@ internal data class AnonymizationControlsState(
     val label: String,
     val selectedEnabled: Boolean?,
     val canChange: Boolean,
-    val connectionLabel: String,
-    val canControlConnection: Boolean,
 )
 
 internal fun anonymizationControlsState(
@@ -29,7 +26,6 @@ internal fun anonymizationControlsState(
     selected: Boolean,
     loaded: Boolean,
     change: AnonymizationChange,
-    broadcast: BroadcastState,
 ): AnonymizationControlsState {
     val connected = connection == WebRtcConnectionState.CONNECTED
     val connecting = connection == WebRtcConnectionState.CONNECTING
@@ -50,13 +46,6 @@ internal fun anonymizationControlsState(
         },
         selectedEnabled = value,
         canChange = loaded && !connecting && !changing,
-        connectionLabel = when {
-            connecting -> "연결 취소"
-            connected -> "연결 종료"
-            else -> "미리보기 연결"
-        },
-        canControlConnection = loaded &&
-            (!connected || broadcast == BroadcastState.IDLE || broadcast == BroadcastState.FAILED),
     )
 }
 
@@ -67,7 +56,6 @@ internal fun AnonymizationControls(
     connectionStatus: String,
     error: String?,
     onSelect: (Boolean) -> Unit,
-    onConnection: () -> Unit,
 ) {
     Surface(shape = MaterialTheme.shapes.medium) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -85,15 +73,9 @@ internal fun AnonymizationControls(
                     onClick = { onSelect(false) },
                     label = { Text("Off") },
                 )
-                Button(onClick = onConnection, enabled = state.canControlConnection) {
-                    Text(state.connectionLabel)
-                }
             }
             if (connectionStatus.isNotBlank()) {
                 Text(connectionStatus, style = MaterialTheme.typography.labelMedium)
-            }
-            if (!state.canControlConnection && state.connectionLabel == "연결 종료") {
-                Text("방송 작업을 종료한 뒤 연결을 종료할 수 있습니다.", style = MaterialTheme.typography.labelMedium)
             }
             if (error != null) {
                 Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
