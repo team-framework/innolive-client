@@ -6,7 +6,9 @@
 
 ## 문서 상태
 
-`apps/android`의 구현 전 기준선, 리팩터링 계획, 현재 작업 트리와 검증 한계를 기록한다.
+이 문서는 2026-09-03 당시 `apps/android`의 구현 전 기준선, 리팩터링 계획, 작업 트리와 검증 한계를 기록한 이력이다. 아래의 ‘현재’와 SDK 부재·미실행 표기는 당시 환경을 뜻한다.
+
+2026-09-15의 방송 준비 시 자동 연결, 비식별화 상태 분리, 계정 연동 조건과 실제 기기 검증 결과는 [Android 방송 준비와 비식별화 상태](android-broadcast-preparation.md)를 따른다. 당시 미검증 항목 전체가 해결된 것은 아니며, 최신 문서에 명시한 시나리오만 추가 확인했다.
 
 2026-09-02 기준선에서 production Kotlin 파일 45개, 4,594줄을 확인했다. JVM unit test와 Android instrumented test는 각각 7개 파일이었고, 두 영역에 `@Test`가 21개 있었다. 이 수치는 구현 전 기준선으로 유지한다.
 
@@ -262,6 +264,8 @@ find apps/android/InnoLive/app/src/main -name '*.xml' -type f -print0 \
 ```
 
 ## 실제 기기 검증 항목
+
+아래는 2026-09-03 당시 체크리스트다. 현재 UI에는 수동 WebRTC 연결·종료 버튼이 없으므로, 연결 진입은 방송 설정 창에서 준비를 확정하는 흐름으로 검증한다. 최신 실행 방법과 남은 항목은 [방송 준비 검증 문서](android-broadcast-preparation.md#재검증-방법)를 참고한다.
 
 1. 카메라와 마이크 권한을 허용하고 비식별화 WebRTC 연결을 시작·종료한다.
 2. 연결 시작 직후 종료를 반복하고 camera, microphone, Bluetooth route가 남지 않는지 확인한다.
