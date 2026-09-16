@@ -33,6 +33,14 @@ class AuthenticationSessionViewModel(
         )
     }
 
+    private val emailApi = com.framework.innolive.feature.login.EmailSignInApi()
+
+    suspend fun signInWithEmail(email: String, password: String) {
+        com.framework.innolive.feature.login.authenticateAndSaveEmailSession(
+            email, password, emailApi::authenticate, repository::save,
+        )
+    }
+
     suspend fun refresh(): GoogleSessionStore.Session = repository.refresh()
 
     suspend fun refreshAccessToken(): String = refresh().accessToken

@@ -45,7 +45,11 @@ fun LoginScreen(props: LoginScreenProps) {
     var showEmailAuthentication by rememberSaveable { mutableStateOf(false) }
 
     if (showEmailAuthentication) {
-        EmailAuthScreen(onBack = { showEmailAuthentication = false })
+        EmailLoginScreen(
+            onBack = { showEmailAuthentication = false },
+            onLogin = props.onLogin,
+            signIn = props.onEmailLogin,
+        )
         return
     }
 

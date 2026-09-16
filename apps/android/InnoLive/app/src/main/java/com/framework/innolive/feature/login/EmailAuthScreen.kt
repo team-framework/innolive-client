@@ -27,6 +27,9 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -54,11 +57,13 @@ fun EmailAuthScreen(
     modifier: Modifier = Modifier,
     onSignIn: ((email: String, password: String) -> Unit)? = null,
     onSignUp: ((email: String, password: String) -> Unit)? = null,
+    isSubmitting: Boolean = false,
+    errorMessage: String? = null,
 ) {
     var mode by rememberSaveable { mutableStateOf(EmailAuthMode.SIGN_IN) }
     var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var passwordConfirmation by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordConfirmation by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordConfirmationVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -127,6 +132,7 @@ fun EmailAuthScreen(
                     label = "이메일",
                     value = email,
                     onValueChange = { email = it },
+                    enabled = !isSubmitting,
                     placeholder = "name@example.com",
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
@@ -137,6 +143,7 @@ fun EmailAuthScreen(
                     label = "비밀번호",
                     value = password,
                     onValueChange = { password = it },
+                    enabled = !isSubmitting,
                     placeholder = "비밀번호 입력",
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
@@ -190,7 +197,7 @@ fun EmailAuthScreen(
 
             Button(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
-                enabled = canSubmit,
+                enabled = canSubmit && !isSubmitting,
                 onClick = {
                     if (isSignIn) {
                         onSignIn?.invoke(normalizedEmail, password)
@@ -199,7 +206,15 @@ fun EmailAuthScreen(
                     }
                 },
             ) {
-                Text(if (isSignIn) "로그인" else "인증 메일 보내기")
+                Text(if (isSubmitting) "로그인 중…" else if (isSignIn) "로그인" else "인증 메일 보내기")
+            }
+
+            if (isSignIn && errorMessage != null) {
+                Text(
+                    text = errorMessage,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
+                )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -219,6 +234,7 @@ fun EmailAuthScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 TextButton(
+                    enabled = !isSubmitting,
                     onClick = {
                         changeMode(if (isSignIn) EmailAuthMode.SIGN_UP else EmailAuthMode.SIGN_IN)
                     },
@@ -237,6 +253,7 @@ private fun AuthenticationTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     keyboardOptions: KeyboardOptions,
+    enabled: Boolean = true,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: (@Composable () -> Unit)? = null,
 ) {
@@ -244,6 +261,7 @@ private fun AuthenticationTextField(
         Text(text = label, style = MaterialTheme.typography.labelLarge)
         TextField(
             value = value,
+            enabled = enabled,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text(placeholder) },
