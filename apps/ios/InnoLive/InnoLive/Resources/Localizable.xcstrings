@@ -1,6 +1,351 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "수집하는 계정 정보": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수집하는 계정 정보"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account information we collect"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得するアカウント情報"
+          }
+        }
+      }
+    },
+    "회원가입·로그인·계정 관리를 위해 이름, 이메일 주소, 회원 식별자, 외부 로그인 식별자, 이메일 로그인 비밀번호 해시, 인증 토큰 정보(갱신 토큰 해시 포함), IP 주소와 User-Agent 정보를 처리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회원가입·로그인·계정 관리를 위해 이름, 이메일 주소, 회원 식별자, 외부 로그인 식별자, 이메일 로그인 비밀번호 해시, 인증 토큰 정보(갱신 토큰 해시 포함), IP 주소와 User-Agent 정보를 처리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For account creation, sign-in, and account management, we process your name, email address, account identifier, external sign-in identifier, hashed password for email sign-in, authentication token information (including refresh token hashes), IP address, and User-Agent information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントの作成・ログイン・管理のため、氏名、メールアドレス、アカウント識別子、外部ログイン識別子、メールログイン用のハッシュ化されたパスワード、認証トークン情報（リフレッシュトークンのハッシュを含む）、IPアドレス、User-Agent情報を取り扱います。"
+          }
+        }
+      }
+    },
+    "계정 정보 이용 목적": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 정보 이용 목적"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How we use account information"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント情報の利用目的"
+          }
+        }
+      }
+    },
+    "회원가입, 로그인, 세션 유지, 계정 관리와 인증 보안을 위해 이용합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회원가입, 로그인, 세션 유지, 계정 관리와 인증 보안을 위해 이용합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We use this information for account creation, sign-in, session maintenance, account management, and authentication security."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントの作成、ログイン、セッションの維持、アカウント管理、認証の安全確保のために利用します。"
+          }
+        }
+      }
+    },
+    "계정 정보 보유 및 삭제": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 정보 보유 및 삭제"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account information retention and deletion"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント情報の保有と削除"
+          }
+        }
+      }
+    },
+    "계정·로그인·방송 연결 정보는 서비스 운영과 계정 삭제 처리에 필요한 범위에서 보관합니다. 계정 삭제가 완료되면 계정·로그인·방송 연결 정보와 얼굴 등록 데이터를 정리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정·로그인·방송 연결 정보는 서비스 운영과 계정 삭제 처리에 필요한 범위에서 보관합니다. 계정 삭제가 완료되면 계정·로그인·방송 연결 정보와 얼굴 등록 데이터를 정리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We retain account, sign-in, and broadcast connection information as needed to operate the service and process account deletion. When account deletion is complete, we clear your account, sign-in, broadcast connection, and registered-face data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント・ログイン・配信接続情報は、サービスの運営とアカウント削除の処理に必要な範囲で保有します。アカウントの削除が完了すると、アカウント・ログイン・配信接続情報と顔登録データを整理します。"
+          }
+        }
+      }
+    },
+    "외부 로그인 안내": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "외부 로그인 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Third-party sign-in"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外部サービスでのログイン"
+          }
+        }
+      }
+    },
+    "Google과 Apple은 각 제공자가 인증을 처리합니다. InnoLive는 로그인에 필요한 외부 식별자와 인증 결과를 처리하며, 각 제공자가 처리하는 정보에는 해당 제공자의 정책이 적용됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google과 Apple은 각 제공자가 인증을 처리합니다. InnoLive는 로그인에 필요한 외부 식별자와 인증 결과를 처리하며, 각 제공자가 처리하는 정보에는 해당 제공자의 정책이 적용됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google and Apple handle authentication for their respective sign-in services. InnoLive processes the external identifiers and authentication results needed for sign-in. Information handled by each provider is subject to that provider’s policies."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoogleとAppleはそれぞれのログインサービスの認証を処理します。InnoLiveはログインに必要な外部識別子と認証結果を取り扱います。各提供者が取り扱う情報には、その提供者のポリシーが適用されます。"
+          }
+        }
+      }
+    },
+    "동의하지 않으면 이 가입·소셜 로그인 절차를 진행하지 않습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동의하지 않으면 이 가입·소셜 로그인 절차를 진행하지 않습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you do not consent, this sign-up or social sign-in process will not continue. For privacy inquiries or withdrawal of consent, use the contact listed in the Privacy Policy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同意しない場合、このアカウント作成・ソーシャルログインの手続きは進みません。個人情報に関するお問い合わせや同意の撤回は、プライバシーポリシーに記載の連絡先へご連絡ください。"
+          }
+        }
+      }
+    },
+    "개인정보처리방침 전문 보기": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개인정보처리방침 전문 보기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read the full Privacy Policy"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーポリシーの全文を読む"
+          }
+        }
+      }
+    },
+    "내용을 끝까지 스크롤하면 동의할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내용을 끝까지 스크롤하면 동의할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll to the end to enable consent."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最後までスクロールすると同意できます。"
+          }
+        }
+      }
+    },
+    "개인정보처리방침을 확인했으며, 계정 정보 수집·이용에 동의합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개인정보처리방침을 확인했으며, 계정 정보 수집·이용에 동의합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I have read the Privacy Policy and consent to the collection and use of my account information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーポリシーを確認し、アカウント情報の取得・利用に同意します。"
+          }
+        }
+      }
+    },
+    "동의하고 계속": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동의하고 계속"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agree and continue"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同意して続ける"
+          }
+        }
+      }
+    },
+    "계정 정보 수집·이용 동의": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 정보 수집·이용 동의"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account information consent"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント情報の取得・利用への同意"
+          }
+        }
+      }
+    },
+    "계정 정보 수집·이용에 동의해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 정보 수집·이용에 동의해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please consent to the collection and use of your account information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント情報の取得・利用に同意してください。"
+          }
+        }
+      }
+    },
     "%.1f배": {
       "extractionState": "manual",
       "localizations": {

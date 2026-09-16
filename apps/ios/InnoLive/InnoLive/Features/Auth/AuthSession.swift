@@ -43,7 +43,12 @@ final class AuthSession: ObservableObject {
         await authenticate { try await self.api.emailSignIn(email: normalizedEmail, password: password) }
     }
 
-    func startSignup(email: String, password: String) async -> Bool {
+    func startSignup(email: String, password: String, consent: SignupConsent) async -> Bool {
+        guard requireConsent(consent) else { return false }
+        return await requestSignup(email: email, password: password)
+    }
+
+    private func requestSignup(email: String, password: String) async -> Bool {
         clearError()
         let normalizedEmail = Self.normalizedEmail(email)
         guard Self.isValidEmail(normalizedEmail) else {
@@ -97,7 +102,7 @@ final class AuthSession: ObservableObject {
             errorMessage = String(localized: "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.")
             return false
         }
-        return await startSignup(email: pendingSignup.email, password: pendingSignup.password)
+        return await requestSignup(email: pendingSignup.email, password: pendingSignup.password)
     }
 
     func cancelSignup() {
@@ -105,7 +110,8 @@ final class AuthSession: ObservableObject {
         errorMessage = nil
     }
 
-    func signInWithGoogle(idToken: String) async {
+    func signInWithGoogle(idToken: String, consent: SignupConsent) async {
+        guard requireConsent(consent) else { return }
         clearError()
         guard !idToken.isEmpty else {
             errorMessage = String(localized: "Google 로그인 정보를 받지 못했습니다.")
@@ -114,7 +120,8 @@ final class AuthSession: ObservableObject {
         await authenticate { try await self.api.googleSignIn(idToken: idToken) }
     }
 
-    func signInWithApple(credential: ASAuthorizationAppleIDCredential, nonce: String) async {
+    func signInWithApple(credential: ASAuthorizationAppleIDCredential, nonce: String, consent: SignupConsent) async {
+        guard requireConsent(consent) else { return }
         clearError()
         guard let authorizationCode = credential.authorizationCode,
               let code = String(data: authorizationCode, encoding: .utf8),
@@ -130,6 +137,14 @@ final class AuthSession: ObservableObject {
                 familyName: credential.fullName?.familyName
             )
         }
+    }
+
+    private func requireConsent(_ consent: SignupConsent) -> Bool {
+        guard consent.isAccepted else {
+            errorMessage = String(localized: "계정 정보 수집·이용에 동의해 주세요.")
+            return false
+        }
+        return true
     }
 
     @discardableResult
