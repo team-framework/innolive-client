@@ -197,7 +197,7 @@ fun AppNavigation(
         youtubeAccountChannelTitle = account?.channelTitle
         youtubeAccountReconnectRequired = account?.reconnectRequired == true
         youtubeAccountStatus = when {
-            account == null -> "연결된 YouTube 계정이 없습니다."
+            account == null -> "연결된 계정이 없습니다"
             account.reconnectRequired -> "YouTube 재연동이 필요합니다."
             account.channelTitle.isNotBlank() -> "YouTube 채널: ${account.channelTitle}"
             else -> "YouTube 계정이 연동되었습니다."

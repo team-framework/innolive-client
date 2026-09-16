@@ -264,24 +264,34 @@ fun YouTubeLiveSettingsDialog(
                     }
                 }
 
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth().padding(0.dp, 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
                         text = "계정 정보",
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Medium,
                     )
-                    Text(text = accountLabel)
-                    if (!hasYouTubeAccount || isYouTubeReconnectRequired) {
-                        Button(
-                            onClick = onConnectYouTube,
-                            enabled = isYouTubeConnectEnabled && !isYouTubeAccountActionInProgress,
-                        ) {
-                            Text(
-                                text = if (isYouTubeReconnectRequired) "재연동" else "연동",
-                            )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = accountLabel,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (!hasYouTubeAccount || isYouTubeReconnectRequired) {
+                            Button(
+                                onClick = onConnectYouTube,
+                                enabled = isYouTubeConnectEnabled && !isYouTubeAccountActionInProgress,
+                            ) {
+                                Text(
+                                    text = if (isYouTubeReconnectRequired) "재연동" else "연동",
+                                    maxLines = 1,
+                                )
+                            }
                         }
                     }
                 }

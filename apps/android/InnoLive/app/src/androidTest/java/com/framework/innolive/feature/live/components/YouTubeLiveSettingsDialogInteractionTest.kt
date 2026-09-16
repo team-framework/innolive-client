@@ -17,6 +17,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -28,6 +29,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.LiveScreenProps
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -36,6 +38,33 @@ private object LiveSettingsRoute
 class YouTubeLiveSettingsDialogInteractionTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun unlinkedAccountInformationUsesReadableRows() {
+        composeRule.setContent {
+            MaterialTheme {
+                YouTubeLiveSettingsDialog(
+                    settings = BroadcastSettings("검증 방송", "검증 설명", "private", false, "22"),
+                    youtubeChannelTitle = null,
+                    hasYouTubeAccount = false,
+                    youtubeAccountStatus = "연결된 계정이 없습니다",
+                    isYouTubeReconnectRequired = false,
+                    isYouTubeAccountActionInProgress = false,
+                    isYouTubeConnectEnabled = true,
+                    onSettingsChanged = {},
+                    onConnectYouTube = {},
+                    onDismissRequest = {},
+                )
+            }
+        }
+
+        val heading = composeRule.onNodeWithText("계정 정보").getUnclippedBoundsInRoot()
+        val status = composeRule
+            .onNodeWithText("연결된 계정이 없습니다")
+            .getUnclippedBoundsInRoot()
+
+        assertTrue("계정 제목은 상태 문구보다 위에 있어야 합니다.", heading.bottom <= status.top)
+    }
 
     @Test
     fun youtubeSelectionOpensInteractiveSettingsDialog() {
