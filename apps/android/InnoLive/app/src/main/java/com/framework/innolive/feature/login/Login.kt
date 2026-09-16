@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,6 +42,12 @@ fun LoginScreen(props: LoginScreenProps) {
     val coroutineScope = rememberCoroutineScope()
     var isGoogleLoginInProgress by remember { mutableStateOf(false) }
     var googleLoginFailed by remember { mutableStateOf(false) }
+    var showEmailAuthentication by rememberSaveable { mutableStateOf(false) }
+
+    if (showEmailAuthentication) {
+        EmailAuthScreen(onBack = { showEmailAuthentication = false })
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(28.dp),
@@ -128,7 +135,7 @@ fun LoginScreen(props: LoginScreenProps) {
                 ),
                 enabled = !isGoogleLoginInProgress,
                 onClick = {
-                    props.onLogin()
+                    showEmailAuthentication = true
                 },
             ) {
                 Row(
