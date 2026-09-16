@@ -1,6 +1,190 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "전송하는 방송 정보": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전송하는 방송 정보"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast information we send"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信する配信情報"
+          }
+        }
+      }
+    },
+    "카메라와 마이크로 수집한 방송 영상·음성을 서버로 전송합니다. 비식별화 처리를 위해 AI 서비스가 이 영상·음성을 처리·중계합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카메라와 마이크로 수집한 방송 영상·음성을 서버로 전송합니다. 비식별화 처리를 위해 AI 서비스가 이 영상·음성을 처리·중계합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We send the broadcast video and audio captured by the camera and microphone to the server. An AI service processes and relays this video and audio for de-identification."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラとマイクで取得した配信映像・音声をサーバーに送信します。匿名化処理のため、AIサービスがこの映像・音声を処理・中継します。"
+          }
+        }
+      }
+    },
+    "이용 목적": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이용 목적"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purpose of use"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用目的"
+          }
+        }
+      }
+    },
+    "등록 얼굴과 다른 얼굴을 구분하고, 방송 영상에서 다른 얼굴을 비식별화하기 위해 이용합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록 얼굴과 다른 얼굴을 구분하고, 방송 영상에서 다른 얼굴을 비식별화하기 위해 이용합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We use this information to distinguish registered faces from other faces and to de-identify other faces in the broadcast video."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録した顔と他の顔を区別し、配信映像の他の顔を匿名化するために利用します。"
+          }
+        }
+      }
+    },
+    "보유 및 처리": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보유 및 처리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retention and processing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保有および処理"
+          }
+        }
+      }
+    },
+    "AI 서비스는 처리 중 얼굴 특징값을 메모리에 보관합니다. 보관한 얼굴 특징값은 등록 얼굴을 삭제하거나 계정 삭제가 완료되거나 AI 서비스가 종료될 때 정리합니다. 기준 사진 원본은 별도로 보관하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 서비스는 처리 중 얼굴 특징값을 메모리에 보관합니다. 보관한 얼굴 특징값은 등록 얼굴을 삭제하거나 계정 삭제가 완료되거나 AI 서비스가 종료될 때 정리합니다. 기준 사진 원본은 별도로 보관하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI service keeps face feature values in memory during processing. Stored face feature values are deleted when you delete a registered face, when account deletion is completed, or when the AI service is discontinued. Original reference photos are not stored separately."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIサービスは処理中、顔の特徴値をメモリに保持します。保持した顔の特徴値は、登録顔の削除、アカウント削除の完了、またはAIサービスの終了時に削除します。基準写真の原本は別に保管しません。"
+          }
+        }
+      }
+    },
+    "동의하지 않으면 카메라와 마이크를 서버에 연결하지 않습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동의하지 않으면 카메라와 마이크를 서버에 연결하지 않습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you do not consent, the camera and microphone will not be connected to the server. For privacy inquiries or withdrawal of consent, use the contact listed in the Privacy Policy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同意しない場合、カメラとマイクはサーバーに接続しません。個人情報に関するお問い合わせや同意の撤回は、プライバシーポリシーに記載の連絡先へご連絡ください。"
+          }
+        }
+      }
+    },
+    "방송 영상·음성 전송 동의": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 영상·음성 전송 동의"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast video and audio consent"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信映像・音声の送信への同意"
+          }
+        }
+      }
+    },
     "수집하는 계정 정보": {
       "extractionState": "manual",
       "localizations": {

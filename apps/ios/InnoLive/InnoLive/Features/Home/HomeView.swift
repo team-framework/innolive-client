@@ -15,6 +15,7 @@ struct HomeView: View {
     @State private var isShowingCameraPermissionAlert = false
     @State private var isSwitchingCamera = false
     @State private var isStartingServerConnection = false
+    @State private var isShowingMediaTransmissionConsent = false
     @State private var cameraSwitchErrorMessage: String?
     @State private var isHomeVisible = false
     @State private var previewCorner: LocalPreviewCorner = .topLeading
@@ -158,40 +159,21 @@ struct HomeView: View {
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
         .onAppear {
             isHomeVisible = true
-            if youtube.isVideoConnected {
-                isBroadcasting = true
-                return
-            }
-            guard !youtube.videoUplink.isCapturingMedia else { return }
-            if usesSimulatorVideo {
-                Task {
-                    await startCameraAndConnect()
-                }
-                return
-            }
-            switch cameraManager.authorizationStatus {
-            case .authorized:
-                Task {
-                    await startCameraAndConnect()
-                }
-
-            case .notDetermined:
-                cameraManager.requestCameraAccess()
-
-            case .denied, .restricted:
-                // 이미 거부된 권한은 우측 상단 버튼으로 다시 안내함
-                break
-
-            @unknown default:
-                break
-            }
+            beginCameraConnectionIfNeeded()
         }
         .onDisappear {
             isHomeVisible = false
         }
+        .sheet(isPresented: $isShowingMediaTransmissionConsent) {
+            MediaTransmissionConsentView { consent in
+                guard authentication.acceptMediaTransmission(consent) else { return }
+                requestCameraAccessThenConnect()
+            }
+        }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
             if !usesSimulatorVideo,
                status == .authorized,
+               authentication.hasAcceptedMediaTransmission,
                !youtube.videoUplink.isCapturingMedia {
                 Task {
                     await startCameraAndConnect()
@@ -294,12 +276,42 @@ struct HomeView: View {
     }
 
     private func retryServerConnection() {
-        Task {
-            await startCameraAndConnect()
+        beginCameraConnectionIfNeeded()
+    }
+
+    private func beginCameraConnectionIfNeeded() {
+        if youtube.isVideoConnected {
+            isBroadcasting = true
+            return
+        }
+        guard !youtube.videoUplink.isCapturingMedia else { return }
+        guard authentication.hasAcceptedMediaTransmission else {
+            isShowingMediaTransmissionConsent = true
+            return
+        }
+        requestCameraAccessThenConnect()
+    }
+
+    private func requestCameraAccessThenConnect() {
+        if usesSimulatorVideo || cameraManager.authorizationStatus == .authorized {
+            Task { await startCameraAndConnect() }
+            return
+        }
+        switch cameraManager.authorizationStatus {
+        case .notDetermined:
+            cameraManager.requestCameraAccess()
+        case .denied, .restricted:
+            isShowingCameraPermissionAlert = true
+        default:
+            break
         }
     }
 
     private func startCameraAndConnect() async {
+        guard authentication.hasAcceptedMediaTransmission else {
+            isShowingMediaTransmissionConsent = true
+            return
+        }
         guard usesSimulatorVideo || cameraManager.authorizationStatus == .authorized else {
             isShowingCameraPermissionAlert = true
             return

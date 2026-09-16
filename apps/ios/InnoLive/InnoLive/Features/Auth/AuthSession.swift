@@ -8,6 +8,7 @@ final class AuthSession: ObservableObject {
     @Published private(set) var isAuthenticated = false
     @Published private(set) var isLoading = false
     @Published private(set) var isDeletingAccount = false
+    @Published private(set) var hasAcceptedMediaTransmission = false
     @Published private(set) var errorMessage: String?
 
     private let api: AuthenticationAPIClient
@@ -139,12 +140,22 @@ final class AuthSession: ObservableObject {
         }
     }
 
+    func acceptMediaTransmission(_ consent: SignupConsent) -> Bool {
+        guard consent.isAccepted else { return false }
+        hasAcceptedMediaTransmission = true
+        return true
+    }
+
     private func requireConsent(_ consent: SignupConsent) -> Bool {
         guard consent.isAccepted else {
             errorMessage = String(localized: "계정 정보 수집·이용에 동의해 주세요.")
             return false
         }
         return true
+    }
+
+    private func clearMediaTransmissionConsent() {
+        hasAcceptedMediaTransmission = false
     }
 
     @discardableResult
@@ -199,6 +210,7 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         pendingSignup = nil
+        clearMediaTransmissionConsent()
         errorMessage = nil
         isAuthenticated = false
         return true
@@ -208,6 +220,7 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         pendingSignup = nil
+        clearMediaTransmissionConsent()
         errorMessage = nil
         isAuthenticated = false
     }
@@ -216,6 +229,7 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         pendingSignup = nil
+        clearMediaTransmissionConsent()
         errorMessage = String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
         isAuthenticated = false
     }
