@@ -414,7 +414,7 @@ internal fun BroadcastActionDialog(
                 Text(text = "방송 제어", style = MaterialTheme.typography.titleLarge)
                 if (presentation.isBroadcastLive) {
                     Text(
-                        text = "YouTube에 송출되는 화면만 일시 중단되고, 서버와의 연결은 유지됩니다.",
+                        text = "방송 일시 중지 시 YouTube에 송출만 중지되고, 방송 연결은 유지됩니다.",
                         modifier = Modifier.padding(vertical = 8.dp),
                         style = MaterialTheme.typography.bodyMedium,
                     )
