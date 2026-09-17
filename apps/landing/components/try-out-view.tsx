@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/button";
+import { Dialog } from "@/components/dialog";
 import { FaceRegistrationOverlay } from "@/components/face-registration-overlay";
 import { WaitingOverlay } from "@/components/waiting-overlay";
 import { cn } from "@/lib/cn";
@@ -19,28 +20,9 @@ export function TryOutView() {
   const [preview, setPreview] = useState<Preview>("guest");
   const [overlay, setOverlay] = useState<Overlay>("none");
   const [notice, setNotice] = useState<string | null>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const lastFocus = useRef<HTMLElement | null>(null);
   const noticeId = useId();
 
-  useEffect(() => {
-    if (overlay === "none") {
-      lastFocus.current?.focus();
-      return;
-    }
-    lastFocus.current = document.activeElement as HTMLElement | null;
-    const node = overlayRef.current;
-    const close = node?.querySelector<HTMLElement>("[data-overlay-close]");
-    close?.focus();
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOverlay("none");
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [overlay]);
+  const closeOverlay = () => setOverlay("none");
 
   const unavailable = () => {
     setNotice("체험 기능을 준비 중입니다");
@@ -189,31 +171,20 @@ export function TryOutView() {
         </div>
       </div>
 
-      {overlay !== "none" ? (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setOverlay("none")}
-        >
-          <div
-            ref={overlayRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={overlay === "face" ? "얼굴 등록" : "대기 안내"}
-            className="relative max-h-[90dvh] overflow-auto"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              data-overlay-close
-              className="absolute top-3 right-3 z-10 rounded-pill bg-background-secondary px-3 py-1 text-sm text-text-primary shadow-button"
-              onClick={() => setOverlay("none")}
-            >
-              닫기
-            </button>
-            {overlay === "face" ? <FaceRegistrationOverlay /> : <WaitingOverlay />}
-          </div>
-        </div>
-      ) : null}
+      <Dialog
+        open={overlay === "waiting"}
+        onClose={closeOverlay}
+        label="대기 안내 화면 미리보기"
+      >
+        <WaitingOverlay />
+      </Dialog>
+      <Dialog
+        open={overlay === "face"}
+        onClose={closeOverlay}
+        label="얼굴 등록 화면 미리보기"
+      >
+        <FaceRegistrationOverlay />
+      </Dialog>
     </section>
   );
 }

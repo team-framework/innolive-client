@@ -2,9 +2,10 @@ import Image from "next/image";
 
 export function FaceRegistrationOverlay() {
   return (
-    <div className="flex max-h-[45rem] w-full max-w-[40.4375rem] overflow-clip rounded-[12px] bg-background-secondary">
-      <div className="flex min-h-0 w-[15.125rem] shrink-0 flex-col items-start justify-between gap-8 overflow-clip p-8">
+    <div className="flex w-full max-w-[40.4375rem] flex-col overflow-clip rounded-[12px] bg-background-secondary min-[48rem]:h-[45rem] min-[48rem]:flex-row">
+      <div className="flex w-full flex-col items-start justify-between gap-8 p-8 min-[48rem]:h-full min-[48rem]:w-[15.125rem] min-[48rem]:shrink-0">
         <div className="flex flex-col items-start gap-2.5">
+          <p className="text-sm font-medium text-text-secondary">화면 미리보기</p>
           <p className="text-[2.25rem] font-medium leading-none text-text-primary">
             얼굴 등록
           </p>
@@ -16,8 +17,11 @@ export function FaceRegistrationOverlay() {
           *관련 약관이 적용됩니다.
         </p>
       </div>
-      <div className="w-px self-stretch bg-text-secondary" aria-hidden="true" />
-      <div className="relative h-[45rem] w-[25.3125rem] max-w-full shrink-0 overflow-clip">
+      <div
+        className="hidden w-px self-stretch bg-text-secondary min-[48rem]:block"
+        aria-hidden="true"
+      />
+      <div className="relative aspect-[405/720] w-full min-[48rem]:h-[45rem] min-[48rem]:w-[25.3125rem] min-[48rem]:shrink-0 min-[48rem]:aspect-auto">
         <Image
           src="/try-out/face-preview.jpg"
           alt=""
@@ -33,7 +37,7 @@ export function FaceRegistrationOverlay() {
           unoptimized
           className="absolute inset-0 size-full"
         />
-        <div className="absolute top-[39.1875rem] left-[3.3125rem] flex w-[18.6875rem] flex-col items-center gap-2 text-center">
+        <div className="absolute top-[87.083%] left-[13.086%] flex w-[73.827%] flex-col items-center gap-2 text-center">
           <p className="w-full text-xl font-semibold leading-none text-text-reversed">
             얼굴이 등록되었습니다.
           </p>
