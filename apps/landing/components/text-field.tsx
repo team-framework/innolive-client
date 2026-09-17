@@ -40,7 +40,7 @@ export function TextField({
     <div className="flex w-full max-w-[512px] flex-col gap-1">
       <div
         className={cn(
-          "flex min-h-[54px] w-full items-center gap-3 overflow-hidden rounded-field bg-background-primary px-5 py-[var(--space-14)]",
+          "flex min-h-[54px] w-full items-center gap-2 overflow-hidden rounded-field bg-background-primary px-5 py-[var(--space-14)] sm:gap-3",
           className,
         )}
       >
@@ -64,7 +64,7 @@ export function TextField({
           placeholder={label}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className="min-w-0 flex-1 bg-transparent text-xl font-medium leading-[1.3] text-text-primary placeholder:text-text-secondary"
+          className="min-w-0 flex-1 bg-transparent text-base font-medium leading-[1.3] text-text-primary placeholder:text-text-secondary sm:text-xl"
           {...props}
         />
         {revealable ? (

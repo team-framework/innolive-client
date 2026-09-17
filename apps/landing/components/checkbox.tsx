@@ -24,7 +24,7 @@ export function Checkbox({
   return (
     <label
       htmlFor={inputId}
-      className={cn("inline-flex items-start gap-2", className)}
+      className={cn("flex min-w-0 items-start gap-2 break-keep", className)}
     >
       <input
         id={inputId}
@@ -44,7 +44,7 @@ export function Checkbox({
         />
       </span>
       {label ? (
-        <span className="text-caption font-normal text-text-secondary">
+        <span className="min-w-0 break-keep text-caption font-normal text-text-secondary">
           {label}
         </span>
       ) : null}
