@@ -129,11 +129,17 @@
 
   body:has([data-page="home"]),
   body:has([data-page="pricing"]),
-  body:has([data-page="try-out"]) {
+  body:has([data-page="try-out"]),
+  body:has([data-page="auth"]) {
     background: var(--color-background-primary);
   }
 
   body:has([data-page="home"]) > header {
+    display: none;
+  }
+
+  body:has([data-page="auth"]) > header,
+  body:has([data-page="auth"]) > footer {
     display: none;
   }
 

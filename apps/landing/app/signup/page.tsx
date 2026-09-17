@@ -1,3 +1,10 @@
+import { AuthShell } from "@/components/auth-shell";
+import { SignupForm } from "@/components/signup-form";
+
 export default function SignupPage() {
-  return <main id="main" className="min-h-dvh" />;
+  return (
+    <AuthShell>
+      <SignupForm />
+    </AuthShell>
+  );
 }
