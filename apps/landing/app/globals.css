@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./landing-motion.css";
 
 :root {
   --color-text-primary: #000000;

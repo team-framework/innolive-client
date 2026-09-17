@@ -1,4 +1,9 @@
+"use client";
+
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
+import { useLayoutEffect, useRef } from "react";
 
 const cardClass = "overflow-clip rounded-[12px]";
 
@@ -40,8 +45,32 @@ const faceMaskArtworkStyle = {
 } as const;
 
 export function FeatureSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const section = sectionRef.current;
+    if (!section || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    gsap.registerPlugin(ScrollTrigger);
+    const context = gsap.context(() => {
+      section.querySelectorAll<HTMLElement>("[data-feature-card] > *").forEach((content) => {
+        gsap.from(content, {
+          autoAlpha: 0,
+          duration: 0.55,
+          ease: "power2.out",
+          scale: 0.96,
+          scrollTrigger: { start: "top 88%", trigger: content, once: true },
+          y: 24,
+        });
+      });
+    }, section);
+
+    return () => context.revert();
+  }, []);
+
   return (
     <section
+      ref={sectionRef}
       className="flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pb-24 lg:pt-24 min-[106.5rem]:pb-[142px] min-[106.5rem]:pt-40"
       aria-labelledby="features-heading"
     >
@@ -63,6 +92,7 @@ export function FeatureSection() {
           <div className="flex w-full flex-col gap-5">
             <div className="flex w-full flex-col items-stretch justify-center gap-4 lg:flex-row lg:items-stretch">
               <div
+                data-feature-card
                 className={`${cardClass} flex min-h-[14.5rem] w-full flex-col items-center justify-center gap-[15px] bg-gradient-to-b from-[#2563eb] to-[#b3bed7] p-8 lg:min-h-[23.125rem] lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[518px] min-[106.5rem]:flex-none min-[106.5rem]:p-8`}
               >
                 <p className="text-[clamp(3.5rem,1.6rem+8vw,7.5rem)] font-extrabold leading-none text-text-reversed">
@@ -88,6 +118,7 @@ export function FeatureSection() {
               </div>
 
               <div
+                data-feature-card
                 className={`${cardClass} flex min-h-[14.5rem] w-full flex-col items-center justify-center gap-[19px] p-8 lg:min-h-[23.125rem] lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[874px] min-[106.5rem]:flex-none`}
                 style={platformFill}
               >
@@ -121,6 +152,7 @@ export function FeatureSection() {
 
             <div className="flex w-full flex-col items-stretch justify-center gap-4 lg:flex-row lg:items-stretch">
               <div
+                data-feature-card
                 className={`${cardClass} relative aspect-[874/370] w-full bg-background-secondary lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[874px] min-[106.5rem]:flex-none min-[106.5rem]:aspect-auto`}
                 aria-label="AI 비식별화 라이브"
               >
@@ -172,6 +204,7 @@ export function FeatureSection() {
 
               <div className="flex w-full min-w-0 flex-col gap-5 lg:flex-1 min-[106.5rem]:w-[518px] min-[106.5rem]:max-w-[518px] min-[106.5rem]:flex-none">
                 <div
+                  data-feature-card
                   className={`${cardClass} flex min-h-[10.875rem] w-full flex-col items-center justify-center gap-2.5 bg-background-secondary min-[106.5rem]:h-[174px] min-[106.5rem]:min-h-[174px]`}
                 >
                   <p className="text-[clamp(2.5rem,1.4rem+4vw,4rem)] font-extrabold leading-none text-text-primary">
@@ -182,6 +215,7 @@ export function FeatureSection() {
                   </p>
                 </div>
                 <div
+                  data-feature-card
                   className={`${cardClass} flex min-h-[10.875rem] w-full flex-col items-center justify-center gap-2.5 bg-background-secondary min-[106.5rem]:h-[176px] min-[106.5rem]:min-h-[174px]`}
                 >
                   <p className="bg-gradient-to-b from-[#10b981] to-[#a7ffe2] bg-clip-text text-[clamp(2.5rem,1.4rem+4vw,4rem)] font-extrabold leading-none text-transparent">

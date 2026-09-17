@@ -1,0 +1,74 @@
+.progressive-blur-text {
+  --blur-mask-padding: 72px;
+}
+
+.progressive-blur-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: calc(-1 * var(--blur-mask-padding));
+  padding: var(--blur-mask-padding);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.progressive-blur-layer > span {
+  display: inline-block;
+  filter: blur(var(--character-blur));
+}
+
+.progressive-blur-text[data-revealed="true"] .progressive-blur-layer {
+  mask-image: radial-gradient(
+    circle 70px at calc(var(--blur-pointer-x) + var(--blur-mask-padding))
+      calc(var(--blur-pointer-y) + var(--blur-mask-padding)),
+    transparent 0 35px,
+    rgb(0 0 0 / 18%) 46px,
+    rgb(0 0 0 / 55%) 57px,
+    #000 70px
+  );
+}
+
+.progressive-sharp-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: calc(-1 * var(--blur-mask-padding));
+  padding: var(--blur-mask-padding);
+  color: var(--color-text-primary);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.progressive-blur-text[data-revealed="true"] .progressive-sharp-layer {
+  mask-image: radial-gradient(
+    circle 70px at calc(var(--blur-pointer-x) + var(--blur-mask-padding))
+      calc(var(--blur-pointer-y) + var(--blur-mask-padding)),
+    #000 0 35px,
+    rgb(0 0 0 / 82%) 46px,
+    rgb(0 0 0 / 45%) 57px,
+    transparent 70px
+  );
+  opacity: 1;
+}
+
+body > header + div {
+  padding-top: 101px;
+}
+
+body:has([data-page="auth"]) > header + div {
+  padding-top: 0;
+}
+
+.privacy-phone {
+  width: min(100%, calc((100dvh - 18rem) * 438 / 881));
+}
+
+@media (min-width: 64rem) {
+  .privacy-phone {
+    width: min(100%, 438px, calc((100dvh - 8rem) * 438 / 881));
+  }
+}
+
+@media (min-width: 48rem) {
+  body > header + div {
+    padding-top: var(--header-block-desktop);
+  }
+}

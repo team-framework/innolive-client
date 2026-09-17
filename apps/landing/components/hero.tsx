@@ -1,39 +1,7 @@
-import Image from "next/image";
-import type { CSSProperties } from "react";
 import { Button } from "@/components/button";
 import { DownloadMenu } from "@/components/download-menu";
-
-const phoneSrc = "/landing/hero-phone.png";
-const phoneWidth = 1359;
-const phoneHeight = 2736;
-const phoneSizes = "(min-width: 106.5rem) 400px, (min-width: 64rem) 40vw, 80vw";
-
-function PhoneArtwork({
-  frameClassName,
-  imageStyle,
-  fetchPriority,
-}: {
-  frameClassName: string;
-  imageStyle: CSSProperties;
-  fetchPriority?: "high";
-}) {
-  return (
-    <div
-      className={`absolute overflow-hidden rounded-tl-[min(74px,18.48%)] rounded-tr-[min(74px,18.48%)] bg-phone-fill ${frameClassName}`}
-    >
-      <Image
-        src={phoneSrc}
-        alt=""
-        width={phoneWidth}
-        height={phoneHeight}
-        sizes={phoneSizes}
-        fetchPriority={fetchPriority}
-        className="absolute max-w-none"
-        style={imageStyle}
-      />
-    </div>
-  );
-}
+import { PhoneArtwork } from "@/components/phone-artwork";
+import { ProgressiveBlurText } from "@/components/progressive-blur-text";
 
 export function Hero() {
   return (
@@ -52,14 +20,7 @@ export function Hero() {
                 주인공이 아니라면
                 <br />
                 과감하게{" "}
-                <span className="relative inline-block">
-                  가리기
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-[-0.15em_-0.12em] bg-overlay backdrop-blur-[0.09em]"
-                  />
-                </span>
-                .
+                <ProgressiveBlurText text="가리기." />
               </h1>
               <div className="w-full break-keep text-body-lg font-normal text-text-primary">
                 <p>야외 방송에 노출된 행인의 얼굴을 아직도 일일이 지우고 계신가요?</p>
