@@ -27,6 +27,7 @@ function MdxAnchor({
       <Link
         href={resolved}
         className="break-words underline underline-offset-4"
+        {...props}
       >
         {children}
       </Link>
@@ -45,11 +46,14 @@ function MdxAnchor({
 }
 
 export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
+  const wrapClassName =
+    locale === "ja" ? "break-normal break-words" : "break-keep";
+
   return {
     h1: ({ children, id, ...props }: ComponentPropsWithoutRef<"h1">) => (
       <h1
         id={id ?? "document-heading"}
-        className="mb-8 break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none"
+        className={`mb-8 ${wrapClassName} text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none`}
         {...props}
       >
         {children}
@@ -57,7 +61,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     h2: ({ children, ...props }: ComponentPropsWithoutRef<"h2">) => (
       <h2
-        className="mt-10 mb-4 break-keep text-[clamp(1.25rem,1.05rem+1vw,1.75rem)] font-semibold leading-[1.3]"
+        className={`mt-10 mb-4 ${wrapClassName} text-[clamp(1.25rem,1.05rem+1vw,1.75rem)] font-semibold leading-[1.3]`}
         {...props}
       >
         {children}
@@ -65,7 +69,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     h3: ({ children, ...props }: ComponentPropsWithoutRef<"h3">) => (
       <h3
-        className="mt-8 mb-3 break-keep text-[clamp(1.0625rem,1rem+0.4vw,1.25rem)] font-semibold leading-[1.3]"
+        className={`mt-8 mb-3 ${wrapClassName} text-[clamp(1.0625rem,1rem+0.4vw,1.25rem)] font-semibold leading-[1.3]`}
         {...props}
       >
         {children}
@@ -73,7 +77,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     p: ({ children, ...props }: ComponentPropsWithoutRef<"p">) => (
       <p
-        className="my-3 break-keep text-body-lg font-normal leading-[1.25]"
+        className={`my-3 ${wrapClassName} text-body-lg font-normal leading-[1.25]`}
         {...props}
       >
         {children}
@@ -96,7 +100,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
       </ol>
     ),
     li: ({ children, ...props }: ComponentPropsWithoutRef<"li">) => (
-      <li className="break-keep" {...props}>
+      <li className={wrapClassName} {...props}>
         {children}
       </li>
     ),
@@ -128,7 +132,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     th: ({ children, ...props }: ComponentPropsWithoutRef<"th">) => (
       <th
-        className="break-keep border border-surface-primary px-3 py-2 align-top font-semibold"
+        className={`${wrapClassName} border border-surface-primary px-3 py-2 align-top font-semibold`}
         {...props}
       >
         {children}
@@ -136,7 +140,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     td: ({ children, ...props }: ComponentPropsWithoutRef<"td">) => (
       <td
-        className="break-keep border border-surface-primary px-3 py-2 align-top"
+        className={`${wrapClassName} border border-surface-primary px-3 py-2 align-top`}
         {...props}
       >
         {children}

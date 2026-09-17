@@ -144,11 +144,6 @@
     display: none;
   }
 
-  [data-page="policy"] article[lang="ja"] :is(h1, h2, h3, p, li, th, td, blockquote) {
-    word-break: normal;
-    overflow-wrap: break-word;
-  }
-
   .intro-root {
     display: none;
   }

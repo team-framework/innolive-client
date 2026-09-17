@@ -127,7 +127,27 @@ function isDocumentLocale(value: string): value is DocumentLocale {
   return value === "ko" || value === "en" || value === "ja";
 }
 
+function isRelativeDocumentHref(href: string): boolean {
+  if (href.startsWith("/") || href.startsWith("//")) {
+    return false;
+  }
+
+  const colon = href.indexOf(":");
+  if (colon >= 0) {
+    const slash = href.indexOf("/");
+    if (slash < 0 || colon < slash) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export function resolveDocumentHref(href: string): string {
+  if (!isRelativeDocumentHref(href)) {
+    return href;
+  }
+
   const name = fileName(href);
   let stemWithLocale = name;
   if (stemWithLocale.endsWith(".mdx")) {
