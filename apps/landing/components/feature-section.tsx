@@ -14,6 +14,32 @@ const portraitCrop = {
   top: 0,
 } as const;
 
+const portraitSizes = "(min-width: 106.5rem) 532px, 80vw";
+
+// Path from features-face-blur.svg, opaque fill. Original SVG fill-opacity is 0.01.
+const faceMaskImage = `url("data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 122.5 168" preserveAspectRatio="none"><path fill="white" d="M4 42.5L17.5 17L46.5 10L68.5 4H91L99 15L113.5 60L118.5 95V111.5L116.5 123L105 141.5L86.5 160L60.5 164L38 151.5L20 135L15.5 123L8 93.5L4 62L6.5 52L4 42.5Z"/></svg>',
+)}")`;
+
+const faceMaskStyle = {
+  WebkitMaskImage: faceMaskImage,
+  maskImage: faceMaskImage,
+  WebkitMaskMode: "alpha",
+  maskMode: "alpha",
+  WebkitMaskRepeat: "no-repeat",
+  maskRepeat: "no-repeat",
+  WebkitMaskSize: "100% 100%",
+  maskSize: "100% 100%",
+} as const;
+
+// Artwork frame reconstructed from the expanded face box (Figma inset -2.5% / -3.49%).
+const faceMaskArtworkStyle = {
+  top: "-29.18%",
+  left: "-151.459%",
+  width: "434.366%",
+  height: "198.247%",
+} as const;
+
 export function FeatureSection() {
   return (
     <section
@@ -116,22 +142,30 @@ export function FeatureSection() {
                       alt=""
                       width={1122}
                       height={1402}
-                      sizes="(min-width: 106.5rem) 532px, 80vw"
+                      sizes={portraitSizes}
                       className="absolute max-w-none"
                       style={portraitCrop}
                     />
                   </div>
-                  <div className="absolute inset-[15.92%_42.86%_36.04%_35.62%]">
-                    <div className="absolute inset-[-2.5%_-3.49%] bg-[#d9d9d903] backdrop-blur-[12px] [mask-image:url(/landing/features-face-blur.svg)] [mask-mode:alpha] [mask-repeat:no-repeat] [mask-size:100%_100%] [-webkit-mask-image:url(/landing/features-face-blur.svg)] [-webkit-mask-repeat:no-repeat] [-webkit-mask-size:100%_100%]" />
-                    <div className="absolute inset-[-2.5%_-3.49%]">
-                      <Image
-                        src="/landing/features-face-blur.svg"
-                        alt=""
-                        width={123}
-                        height={168}
-                        unoptimized
-                        className="size-full max-w-none"
-                      />
+                  <div
+                    className="pointer-events-none absolute inset-[15.92%_42.86%_36.04%_35.62%]"
+                    aria-hidden="true"
+                  >
+                    <div
+                      className="absolute inset-[-2.5%_-3.49%] overflow-hidden"
+                      style={faceMaskStyle}
+                    >
+                      <div className="absolute" style={faceMaskArtworkStyle}>
+                        <Image
+                          src="/landing/features-portrait.png"
+                          alt=""
+                          width={1122}
+                          height={1402}
+                          sizes={portraitSizes}
+                          className="absolute max-w-none blur-[12px]"
+                          style={portraitCrop}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

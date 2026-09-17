@@ -5,7 +5,9 @@ const phoneSizes = "(min-width: 106.5rem) 438px, (min-width: 64rem) 40vw, 80vw";
 
 const aiAccentStyle = {
   backgroundImage:
-    "linear-gradient(90deg, rgb(108, 99, 255) 0%, rgb(79, 140, 255) 8.6538%, rgb(34, 211, 238) 12.981%), linear-gradient(90deg, rgb(0, 0, 0) 0%, rgb(0, 0, 0) 100%)",
+    "linear-gradient(90deg, rgb(108, 99, 255) 0%, rgb(79, 140, 255) 8.6538%, rgb(34, 211, 238) 12.981%)",
+  backgroundRepeat: "no-repeat",
+  backgroundSize: "100cqw 100%",
 } as const;
 
 export function PrivacySection() {
@@ -22,13 +24,15 @@ export function PrivacySection() {
           >
             초상권 걱정 없는
             <br />
-            <span
-              className="bg-clip-text text-transparent"
-              style={aiAccentStyle}
-            >
-              AI{" "}
+            <span className="inline-block max-w-full [container-type:inline-size]">
+              <span
+                className="bg-clip-text text-transparent"
+                style={aiAccentStyle}
+              >
+                AI{" "}
+              </span>
+              비식별화 라이브
             </span>
-            비식별화 라이브
           </h2>
           <div className="w-full break-keep text-body-lg font-normal text-text-primary">
             <p>실시간 AI 비식별화 기능을 통해 배경으로 등장하는</p>
