@@ -39,8 +39,8 @@ fun buildLiveScreenPresentation(
         else -> LiveBroadcastAction.SELECT_PLATFORM
     }
     val broadcastStatusText = when {
-        connectionState == WebRtcConnectionState.FAILED ->
-            "미리보기를 연결하지 못했습니다."
+        // The connection status above the broadcast controls already explains this failure.
+        connectionState == WebRtcConnectionState.FAILED -> ""
 
         broadcastState != BroadcastState.IDLE -> broadcastStatus
         else -> ""
@@ -62,9 +62,7 @@ fun buildLiveScreenPresentation(
             (!(isBroadcastLive || isBroadcastPrepared) || isConnected),
         broadcastAction = broadcastAction,
         broadcastStatusText = broadcastStatusText,
-        isBroadcastStatusError =
-            connectionState == WebRtcConnectionState.FAILED ||
-                broadcastState == BroadcastState.FAILED,
+        isBroadcastStatusError = broadcastState == BroadcastState.FAILED,
     )
 }
 
