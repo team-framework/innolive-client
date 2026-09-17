@@ -17,7 +17,7 @@ class LiveScreenPresentationTest {
             connectionState = WebRtcConnectionState.CONNECTED,
             broadcastState = BroadcastState.LIVE,
             selectedPlatform = "YouTube",
-            broadcastStatus = "방송 중",
+            broadcastStatus = "YouTube 방송 중",
         )
 
         assertEquals("방송 중", presentation.broadcastButtonText)
@@ -38,14 +38,14 @@ class LiveScreenPresentationTest {
             connectionState = WebRtcConnectionState.CONNECTED,
             broadcastState = BroadcastState.PREPARING,
             selectedPlatform = "YouTube",
-            broadcastStatus = "방송 준비 중",
+            broadcastStatus = "YouTube 방송 준비 중",
         )
 
         assertEquals("방송 준비 완료", prepared.broadcastButtonText)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, prepared.broadcastAction)
         assertTrue(prepared.isBroadcastPrepared)
         assertTrue(prepared.isBroadcastButtonEnabled)
-        assertEquals("", prepared.broadcastStatusText)
+        assertEquals("방송 준비 완료", prepared.broadcastStatusText)
 
         assertEquals("방송 준비 중", preparing.broadcastButtonText)
         assertEquals(LiveBroadcastAction.PREPARE_BROADCAST, preparing.broadcastAction)
@@ -67,7 +67,7 @@ class LiveScreenPresentationTest {
         assertTrue(paused.isBroadcastPaused)
         assertEquals("방송 일시 중지", paused.broadcastButtonText)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, paused.broadcastAction)
-        assertEquals("", paused.broadcastStatusText)
+        assertEquals("YouTube 송출 일시 중지됨", paused.broadcastStatusText)
         assertEquals(BroadcastState.STOPPING, BroadcastState.PAUSED.stoppingState())
     }
 
@@ -163,5 +163,56 @@ class LiveScreenPresentationTest {
         assertFalse(stopping.isBroadcastButtonEnabled)
         assertEquals("방송 준비", idle.broadcastButtonText)
         assertTrue(idle.isBroadcastButtonEnabled)
+    }
+
+    @Test
+    fun normalStateErrorsAndRecoveryGuidanceRemainVisibleWhenTheyDoNotRepeatTheButton() {
+        val pauseFailed = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED,
+            BroadcastState.LIVE,
+            "YouTube",
+            "YouTube 송출을 일시 중지하지 못했습니다.",
+        )
+        val resumeFailed = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED,
+            BroadcastState.PAUSED,
+            "YouTube",
+            "YouTube 송출을 재개하지 못했습니다.",
+        )
+        val notReady = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED,
+            BroadcastState.PREPARED,
+            "YouTube",
+            "YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요.",
+        )
+        val goingLive = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED,
+            BroadcastState.GOING_LIVE,
+            "YouTube",
+            "YouTube 라이브 전환 중",
+        )
+
+        assertEquals("YouTube 송출을 일시 중지하지 못했습니다.", pauseFailed.broadcastStatusText)
+        assertEquals("YouTube 송출을 재개하지 못했습니다.", resumeFailed.broadcastStatusText)
+        assertEquals("YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요.", notReady.broadcastStatusText)
+        assertEquals("YouTube 라이브 전환 중", goingLive.broadcastStatusText)
+    }
+
+    @Test
+    fun onlyKnownButtonDuplicatesAreHidden() {
+        val duplicateStatuses = listOf(
+            BroadcastState.PAUSING to "YouTube 송출 일시 중지 중",
+            BroadcastState.RESUMING to "YouTube 송출 재개 중",
+        )
+
+        duplicateStatuses.forEach { (state, status) ->
+            val presentation = buildLiveScreenPresentation(
+                WebRtcConnectionState.CONNECTED,
+                state,
+                "YouTube",
+                status,
+            )
+            assertEquals("Duplicate status for $state", "", presentation.broadcastStatusText)
+        }
     }
 }
