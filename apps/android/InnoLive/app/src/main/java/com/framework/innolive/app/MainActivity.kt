@@ -565,7 +565,7 @@ fun AppNavigation(
             when (result) {
                 AccountDeletionResult.Deleted -> {
                     webRtcSession.close()
-                    runCatching { webRtcSession.clearSessionRecovery(context) }
+                    runCatching { webRtcSession.clearSessionRecovery(context, deletingSession.accessToken) }
                     runCatching {
                         withContext(Dispatchers.IO) {
                             ReferenceFaceImageStore(context.applicationContext)

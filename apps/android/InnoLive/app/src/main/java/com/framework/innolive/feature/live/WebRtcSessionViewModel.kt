@@ -336,9 +336,10 @@ class WebRtcSessionViewModel : ViewModel() {
         broadcastStartedAtElapsedRealtimeMillis = null
     }
 
-    /** Removes credentials that could otherwise reopen a deleted user's stale session. */
-    fun clearSessionRecovery(context: Context) {
-        EncryptedSessionRecoveryStore(context.applicationContext).clear()
+    /** Removes only the deleted account's credentials for its current server. */
+    fun clearSessionRecovery(context: Context, accessToken: String) {
+        val scope = sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, accessToken)
+        EncryptedSessionRecoveryStore(context.applicationContext).clear(scope)
     }
 
     override fun onCleared() {
