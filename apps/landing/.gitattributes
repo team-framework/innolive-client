@@ -1,1 +1,2 @@
 app/fonts/wanted-sans/OFL.txt -whitespace
+content/documents/*.mdx whitespace=-blank-at-eol
