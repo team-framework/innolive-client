@@ -27,7 +27,9 @@ pnpm start
 | `/privacy` | 개인정보 처리방침 (한국어 MDX) |
 | `/terms` | 이용약관 (한국어 MDX) |
 | `/support` | 고객 지원 (한국어 MDX) |
-| `/ko/privacy` | `/privacy`로 이동 |
+| `/en/privacy`, `/en/terms`, `/en/support` | 영어 MDX |
+| `/ja/privacy`, `/ja/terms`, `/ja/support` | 일본어 MDX |
+| `/ko/privacy`, `/ko/terms`, `/ko/support` | 접두사 없는 한국어 경로로 이동 |
 
 ## 인트로
 
@@ -48,4 +50,6 @@ pnpm start
 
 ## 정책
 
-한국어 문서는 `content/documents/`의 `privacy-policy.ko.mdx`, `terms-of-service.ko.mdx`, `support.ko.mdx`에서 편집합니다. 프론트매터 없이 본문만 두고, `/privacy`, `/terms`, `/support`가 이 파일을 그대로 렌더합니다. 게시일·시행일은 문서 본문에 있습니다. 다른 언어 연결은 이후 단계에서 다룹니다.
+문서는 `content/documents/`의 `{privacy-policy,terms-of-service,support}.{ko,en,ja}.mdx`에서 편집합니다. 프론트매터 없이 본문만 둡니다. 기본 경로는 한국어 `/privacy`, `/terms`, `/support`이고, 영어는 `/en/…`, 일본어는 `/ja/…`입니다. `/ko/privacy`, `/ko/terms`, `/ko/support`는 접두사 없는 한국어 경로로 이동합니다. 게시일·시행일은 문서 본문에 있습니다. MDX는 `@next/mdx`로 로컬 컴파일합니다. 설정은 [Next.js MDX 가이드](https://nextjs.org/docs/app/guides/mdx)를 따릅니다.
+
+랜딩의 로그인, 결제, 카메라, AI 비식별화 UI는 미리보기이며 동작하지 않습니다. 문서 본문은 제품 전체의 처리·약관·지원을 설명합니다.
