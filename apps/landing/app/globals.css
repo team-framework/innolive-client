@@ -132,6 +132,16 @@
     background: var(--color-background-primary);
   }
 
+  body:has([data-page="home"]) > header {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .intro-root {
+      display: none;
+    }
+  }
+
   :focus {
     outline: none;
   }

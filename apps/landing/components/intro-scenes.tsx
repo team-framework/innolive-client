@@ -37,7 +37,7 @@ const g3: OverlayBox = { t: -0.56, r: 15.62, b: 92.04, l: 57.5 };
 const g4: OverlayBox = { t: -0.56, r: 3.23, b: 77.13, l: 57.5 };
 const g5: OverlayBox = { t: -0.56, r: -1.31, b: 43.98, l: 57.5 };
 
-const scenes: {
+export const introScenes: {
   id: string;
   label: string;
   lettering: IntroLettering;
@@ -179,12 +179,13 @@ const scenes: {
 export function IntroScenes() {
   return (
     <div className="flex w-full flex-col">
-      {scenes.map((scene) => (
+      {introScenes.map((scene, index) => (
         <IntroScene
           key={scene.id}
           label={scene.label}
           overlays={scene.overlays}
           lettering={scene.lettering}
+          sceneIndex={index}
         />
       ))}
     </div>

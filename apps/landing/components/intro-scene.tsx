@@ -98,15 +98,26 @@ export function IntroScene({
   label,
   overlays,
   lettering,
+  fill = false,
+  sceneIndex,
+  priority = false,
 }: {
   label: string;
   overlays: FaceOverlaySpec[];
   lettering: IntroLettering;
+  fill?: boolean;
+  sceneIndex?: number;
+  priority?: boolean;
 }) {
   return (
     <section
-      className="relative aspect-[16/9] w-full overflow-clip bg-background-secondary"
+      className={
+        fill
+          ? "relative h-full w-full overflow-clip bg-background-secondary"
+          : "relative aspect-[16/9] w-full overflow-clip bg-background-secondary"
+      }
       aria-label={label}
+      data-scene-index={sceneIndex}
     >
       <Image
         src={photoSrc}
@@ -114,6 +125,7 @@ export function IntroScene({
         width={1672}
         height={941}
         sizes={photoSizes}
+        fetchPriority={priority ? "high" : undefined}
         className="absolute inset-0 size-full object-cover"
         aria-hidden="true"
       />
