@@ -9,7 +9,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
       data-page="auth"
       className="relative min-h-dvh bg-background-primary"
     >
-      <div className="flex min-h-dvh flex-col items-center justify-center px-[var(--page-gutter)] py-16 pb-24 lg:py-0">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-[var(--page-gutter)] py-16 pb-24 lg:min-h-[max(100dvh,62rem)] lg:py-0">
         <div className="flex w-full max-w-[86rem] flex-col overflow-clip rounded-[24px] bg-background-secondary shadow-[0_0_32px_0_#0000000d] min-[48rem]:flex-row">
           <div className="flex w-full flex-col items-center justify-center gap-7 px-5 pb-8 pt-[4.5rem] sm:px-8 min-[48rem]:max-w-[36rem]">
             {children}
