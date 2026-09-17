@@ -128,7 +128,8 @@
   }
 
   body:has([data-page="home"]),
-  body:has([data-page="pricing"]) {
+  body:has([data-page="pricing"]),
+  body:has([data-page="try-out"]) {
     background: var(--color-background-primary);
   }
 
