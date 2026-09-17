@@ -94,6 +94,35 @@ function FaceOverlay({ overlay }: { overlay: FaceOverlaySpec }) {
   );
 }
 
+function SceneArtwork({
+  overlays,
+  priority,
+}: {
+  overlays: FaceOverlaySpec[];
+  priority?: boolean;
+}) {
+  return (
+    <>
+      <Image
+        src={photoSrc}
+        alt=""
+        width={1672}
+        height={941}
+        sizes={photoSizes}
+        fetchPriority={priority ? "high" : undefined}
+        className="absolute inset-0 size-full object-cover"
+        aria-hidden="true"
+      />
+      {overlays.map((overlay) => (
+        <FaceOverlay
+          key={overlay.mask + overlay.box.l + overlay.box.t}
+          overlay={overlay}
+        />
+      ))}
+    </>
+  );
+}
+
 export function IntroScene({
   label,
   overlays,
@@ -109,35 +138,46 @@ export function IntroScene({
   sceneIndex?: number;
   priority?: boolean;
 }) {
+  const letteringClass = fill
+    ? `absolute left-[5%] top-[12%] h-auto w-[70%] mix-blend-multiply min-[48rem]:left-[7.92%] min-[48rem]:top-[calc(50%-7.8%)] ${
+        lettering.width === 374
+          ? "min-[48rem]:w-[19.5%]"
+          : "min-[48rem]:w-[24.7%]"
+      }`
+    : `${lettering.className} mix-blend-multiply`;
+  const logoClass = fill
+    ? "absolute bottom-[3.33%] left-1/2 h-auto w-24 -translate-x-1/2 object-contain min-[48rem]:w-[9rem]"
+    : "absolute bottom-[3.33%] left-1/2 h-[3.52%] w-[7.5%] max-w-[9rem] -translate-x-1/2 object-contain";
+
   return (
     <section
       className={
         fill
-          ? "relative h-full w-full overflow-clip bg-background-secondary"
+          ? "relative h-full w-full overflow-clip bg-background-secondary [container-type:size]"
           : "relative aspect-[16/9] w-full overflow-clip bg-background-secondary"
       }
       aria-label={label}
       data-scene-index={sceneIndex}
     >
-      <Image
-        src={photoSrc}
-        alt=""
-        width={1672}
-        height={941}
-        sizes={photoSizes}
-        fetchPriority={priority ? "high" : undefined}
-        className="absolute inset-0 size-full object-cover"
-        aria-hidden="true"
-      />
-      {overlays.map((overlay) => (
-        <FaceOverlay key={overlay.mask + overlay.box.l + overlay.box.t} overlay={overlay} />
-      ))}
+      {fill ? (
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-[72%] -translate-y-1/2 min-[48rem]:-translate-x-1/2"
+          style={{
+            width: "max(100cqw, 177.7778cqh)",
+            height: "max(56.25cqw, 100cqh)",
+          }}
+        >
+          <SceneArtwork overlays={overlays} priority={priority} />
+        </div>
+      ) : (
+        <SceneArtwork overlays={overlays} priority={priority} />
+      )}
       <Image
         src={lettering.src}
         alt={lettering.alt}
         width={lettering.width}
         height={lettering.height}
-        className={`${lettering.className} mix-blend-multiply`}
+        className={letteringClass}
       />
       <Image
         src="/intro/logo.svg"
@@ -145,7 +185,7 @@ export function IntroScene({
         width={144}
         height={38}
         unoptimized
-        className="absolute bottom-[3.33%] left-1/2 h-[3.52%] w-[7.5%] max-w-[9rem] -translate-x-1/2 object-contain"
+        className={logoClass}
       />
     </section>
   );

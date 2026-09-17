@@ -136,10 +136,8 @@
     display: none;
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .intro-root {
-      display: none;
-    }
+  .intro-root {
+    display: none;
   }
 
   :focus {

@@ -8,7 +8,6 @@ import { introScenes } from "@/components/intro-scenes";
 
 const SCENE_COUNT = introScenes.length;
 const INTRO_DISTANCE = 1.75;
-const INTRO_SEEN_KEY = "innolive-intro-complete";
 const INTRO_TRIGGER_ID = "intro-scroll";
 
 const preloadSrcs = Array.from(
@@ -30,22 +29,7 @@ function shouldSkipIntro() {
     return true;
   }
   const hash = window.location.hash;
-  if (hash === "#main" || hash === "#faq") {
-    return true;
-  }
-  try {
-    return sessionStorage.getItem(INTRO_SEEN_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function markIntroSeen() {
-  try {
-    sessionStorage.setItem(INTRO_SEEN_KEY, "1");
-  } catch {
-    /* ignore */
-  }
+  return hash === "#main" || hash === "#faq";
 }
 
 function focusMain() {
@@ -56,10 +40,20 @@ function focusMain() {
   main.focus({ preventScroll: true });
 }
 
+function scrollHashTarget() {
+  const id = window.location.hash.replace("#", "");
+  if (id !== "main" && id !== "faq") {
+    return;
+  }
+  document.getElementById(id)?.scrollIntoView();
+  if (id === "main") {
+    focusMain();
+  }
+}
+
 export function IntroScroll() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [skipped, setSkipped] = useState(false);
   const rendered = useMemo(() => {
     const indices = [activeIndex - 1, activeIndex, activeIndex + 1].filter(
       (index) => index >= 0 && index < SCENE_COUNT,
@@ -74,14 +68,12 @@ export function IntroScroll() {
     }
 
     if (shouldSkipIntro()) {
-      setSkipped(true);
-      const id = window.location.hash.replace("#", "");
-      if (id === "main" || id === "faq") {
-        document.getElementById(id)?.scrollIntoView();
-      }
+      root.style.display = "none";
+      scrollHashTarget();
       return;
     }
 
+    root.style.display = "block";
     gsap.registerPlugin(ScrollTrigger);
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     const ctx = gsap.context(() => {
@@ -101,19 +93,13 @@ export function IntroScroll() {
           );
           setActiveIndex((prev) => (prev === next ? prev : next));
         },
-        onLeave: markIntroSeen,
       });
     }, root);
 
-    const skipFromHash = () => {
-      if (window.location.hash !== "#main" && window.location.hash !== "#faq") {
-        return;
+    const onHashChange = () => {
+      if (window.location.hash === "#main") {
+        window.requestAnimationFrame(focusMain);
       }
-      const trigger = ScrollTrigger.getById(INTRO_TRIGGER_ID);
-      if (trigger) {
-        trigger.scroll(trigger.end);
-      }
-      markIntroSeen();
     };
 
     const onReduce = (event: MediaQueryListEvent) => {
@@ -121,22 +107,18 @@ export function IntroScroll() {
         return;
       }
       ctx.revert();
-      setSkipped(true);
+      root.style.display = "none";
     };
 
-    window.addEventListener("hashchange", skipFromHash);
+    window.addEventListener("hashchange", onHashChange);
     reduce.addEventListener("change", onReduce);
 
     return () => {
-      window.removeEventListener("hashchange", skipFromHash);
+      window.removeEventListener("hashchange", onHashChange);
       reduce.removeEventListener("change", onReduce);
       ctx.revert();
     };
   }, []);
-
-  if (skipped) {
-    return null;
-  }
 
   return (
     <div
@@ -146,7 +128,6 @@ export function IntroScroll() {
     >
       <div className="hidden" aria-hidden="true">
         {preloadSrcs.map((src) => (
-          // Preload shared photo, lettering, and overlay bytes before rapid swaps.
           // eslint-disable-next-line @next/next/no-img-element
           <img key={src} src={src} alt="" />
         ))}
@@ -158,9 +139,7 @@ export function IntroScroll() {
           <div
             key={scene.id}
             className={
-              active
-                ? "absolute inset-0"
-                : "invisible absolute inset-0"
+              active ? "absolute inset-0" : "invisible absolute inset-0"
             }
             aria-hidden={active ? undefined : true}
           >
@@ -178,13 +157,7 @@ export function IntroScroll() {
       <a
         href="#main"
         className="absolute top-4 right-4 z-20 rounded-pill bg-background-secondary/90 px-4 py-2 text-base font-medium text-text-primary shadow-button min-[48rem]:top-8 min-[48rem]:right-8"
-        onClick={(event) => {
-          const trigger = ScrollTrigger.getById(INTRO_TRIGGER_ID);
-          if (trigger) {
-            event.preventDefault();
-            markIntroSeen();
-            trigger.scroll(trigger.end);
-          }
+        onClick={() => {
           window.requestAnimationFrame(focusMain);
         }}
       >
