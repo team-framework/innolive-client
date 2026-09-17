@@ -1,6 +1,9 @@
 package com.framework.innolive.feature.login
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,18 +62,23 @@ fun EmailAuthScreen(
     onSignUp: ((email: String, password: String) -> Unit)? = null,
     isSubmitting: Boolean = false,
     errorMessage: String? = null,
+    noticeMessage: String? = null,
+    initialEmail: String = "",
+    startWithSignUp: Boolean = false,
+    onModeChanged: () -> Unit = {},
 ) {
-    var mode by rememberSaveable { mutableStateOf(EmailAuthMode.SIGN_IN) }
-    var email by rememberSaveable { mutableStateOf("") }
+    var mode by rememberSaveable { mutableStateOf(if (startWithSignUp) EmailAuthMode.SIGN_UP else EmailAuthMode.SIGN_IN) }
+    var email by rememberSaveable { mutableStateOf(initialEmail) }
     var password by remember { mutableStateOf("") }
     var passwordConfirmation by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordConfirmationVisible by rememberSaveable { mutableStateOf(false) }
 
     val isSignIn = mode == EmailAuthMode.SIGN_IN
+    val backBlocked = isSubmitting && !isSignIn
     val normalizedEmail = email.trim()
     val isEmailValid = EMAIL_PATTERN.matches(normalizedEmail)
-    val isPasswordValid = password.length in 8..72
+    val isPasswordValid = isSignUpPasswordValid(password)
     val canSubmit = if (isSignIn) {
         isEmailValid && password.isNotEmpty() && onSignIn != null
     } else {
@@ -78,6 +86,7 @@ fun EmailAuthScreen(
     }
 
     fun changeMode(nextMode: EmailAuthMode) {
+        onModeChanged()
         mode = nextMode
         password = ""
         passwordConfirmation = ""
@@ -85,7 +94,12 @@ fun EmailAuthScreen(
         passwordConfirmationVisible = false
     }
 
-    BackHandler(onBack = onBack)
+    val handleBack = {
+        if (!backBlocked) {
+            if (isSignIn) onBack() else changeMode(EmailAuthMode.SIGN_IN)
+        }
+    }
+    BackHandler(onBack = handleBack)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -93,7 +107,7 @@ fun EmailAuthScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = handleBack, enabled = !backBlocked) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "뒤로",
@@ -107,6 +121,8 @@ fun EmailAuthScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
@@ -167,6 +183,7 @@ fun EmailAuthScreen(
                         label = "비밀번호 확인",
                         value = passwordConfirmation,
                         onValueChange = { passwordConfirmation = it },
+                        enabled = !isSubmitting,
                         placeholder = "비밀번호 입력",
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
@@ -206,10 +223,10 @@ fun EmailAuthScreen(
                     }
                 },
             ) {
-                Text(if (isSubmitting) "로그인 중…" else if (isSignIn) "로그인" else "인증 메일 보내기")
+                Text(if (isSubmitting) { if (isSignIn) "로그인 중…" else "인증 메일 보내는 중…" } else if (isSignIn) "로그인" else "인증 메일 보내기")
             }
 
-            if (isSignIn && errorMessage != null) {
+            if (errorMessage != null) {
                 Text(
                     text = errorMessage,
                     color = MaterialTheme.colorScheme.error,
@@ -217,6 +234,9 @@ fun EmailAuthScreen(
                 )
             }
 
+            if (isSignIn && noticeMessage != null) {
+                Text(noticeMessage, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            }
             Spacer(modifier = Modifier.height(4.dp))
 
             Column(

@@ -1,12 +1,12 @@
-# Android 이메일 로그인
+# Android 이메일 로그인·회원가입
 
 ## 범위
 
-이메일 로그인 화면을 기존 `POST /auth/sign-in`에 연결한다. 서버 계약은 변경하지 않는다. 기존 회원가입 폼은 그대로 두며 회원가입·인증 메일 API는 연결하지 않는다.
+이메일 로그인 화면은 기존 `POST /auth/sign-in`, 회원가입은 `POST /auth/native/sign-up`과 `POST /auth/native/verify-email`을 사용한다. 서버 계약은 변경하지 않는다.
 
 ## 동작
 
-- 이메일 앞뒤 공백만 제거하고 비밀번호는 입력 그대로 전송한다.
+- 이메일 앞뒤 공백을 제거하고 소문자로 정규화하며, 비밀번호는 입력 그대로 전송한다.
 - 로그인 요청 중 입력·재요청·회원가입 전환을 잠그고 `로그인 중…`을 표시한다.
 - 뒤로가기·화면 제거·Activity 재생성으로 요청이 취소되면 HTTP 호출을 취소하고 늦은 응답을 세션에 저장하지 않는다. 비밀번호는 saved state에 보관하지 않는다.
 - 성공 응답의 access/refresh token, Bearer token type, 양수 만료 시간을 검증한 뒤 기존 `AuthenticationSessionRepository`와 Keystore 기반 암호화 저장소에 저장한다. 로그인 후 기존 메인 화면 이동·토큰 갱신·로그아웃을 재사용한다. 비밀번호는 저장하지 않는다.
@@ -22,3 +22,15 @@
 - 앱 설정 서버에 비등록 테스트 자격정보로 `POST /auth/sign-in`을 호출해 `401 / invalid_email_credentials`를 확인했다. 기존 계정의 로그인 성공·앱 재실행 후 세션 복원은 아직 실제 계정으로 확인하지 않았다.
 
 실행: `apps/android/InnoLive`에서 `./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest`. UI 테스트는 설치된 APK와 동일한 androidTest APK에서 `com.framework.innolive.feature.login.EmailAuthScreenTest`를 지정한다.
+
+## 회원가입 흐름 (2026-09-17)
+
+1. 이메일·비밀번호·비밀번호 확인이 유효하면 native sign-up에 이메일과 비밀번호를 전송한다. 이메일은 공백 제거 후 소문자로 정규화하고 비밀번호는 그대로 전달한다. 서버와 동일하게 UTF-8 8~72바이트를 검사한다.
+2. `status=verification_email_sent`와 문자열 `signup_token`을 확인한 뒤 6자리 코드 입력 화면을 표시한다. 쿠키 대신 받은 토큰과 `verification_code`를 native verify-email에 전송한다.
+3. 인증이 끝나면 메모리에 보관한 이메일과 비밀번호로 로그인하고 세션을 저장한 뒤 메인 화면으로 이동한다. 사용자는 가입 정보를 다시 입력하지 않는다.
+
+요청 중 중복 제출을 막고 입력과 뒤로가기를 잠근다. 코드 오류·만료는 수정 후 재시도, 중복 이메일은 로그인, 요청 제한·메일 발송 실패는 잠시 후 재시도로 안내한다. 인증 메일을 다시 요청하면 메모리에 보관한 이메일과 비밀번호로 새 가입 토큰을 발급하고 기존 인증 화면에 머문다. 재전송 성공 시 코드 입력만 비우므로 가입 정보를 다시 작성할 필요가 없다. 별도 자동 재전송이나 가입 HTTP 자동 재시도는 하지 않는다.
+
+비밀번호·가입 토큰·인증 코드는 디스크 또는 saved state에 저장하지 않고 ViewModel 메모리에만 둔다. 인증 화면에서 뒤로 가거나 로그인 화면을 떠나면 보관 정보를 지우며, 늦은 응답이 화면을 다시 바꾸거나 세션을 저장하지 못하게 한다. 앱 프로세스가 종료되어 보관 정보가 사라지면 메일 요청부터 다시 진행한다. 클라이언트 취소가 서버 작업을 되돌리지는 않는다.
+
+회원가입 검증은 `EmailSignUpTest`, `EmailSignupSessionTest`, `EmailSignUpScreenTest`와 기존 로그인 테스트로 구분한다. `EmailSignupSessionTest`는 가입 정보 재사용, 재전송 토큰 교체, 인증 후 자동 로그인·세션 저장, 취소 시 정보 제거를 확인한다. 서버의 기존 native 계약·인증 코드 일회성·재요청 제한 테스트는 테스트 저장소와 기록용 메일 발송기를 사용한다. 실제 서버에는 빈 요청을 보내 두 native 경로의 `400 / bad_request`를 확인했으며, 이는 경로와 입력 검증 확인이다. 실제 이메일 도착·인증 완료·새 계정 로그인은 아직 확인하지 않았다.

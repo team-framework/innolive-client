@@ -35,6 +35,35 @@ class AuthenticationSessionViewModel(
 
     private val emailApi = com.framework.innolive.feature.login.EmailSignInApi()
 
+    private val emailSignUpApi = com.framework.innolive.feature.login.EmailSignUpApi()
+
+    private val emailSignupSession = com.framework.innolive.feature.login.EmailSignupSession(
+        signUp = emailSignUpApi::signUp,
+        verifyEmail = emailSignUpApi::verify,
+        authenticate = emailApi::authenticate,
+        saveSession = repository::save,
+    )
+
+    suspend fun startEmailSignup(email: String, password: String) {
+        emailSignupSession.start(email, password)
+    }
+
+    suspend fun resendEmailSignup() {
+        emailSignupSession.resend()
+    }
+
+    suspend fun verifyEmailSignup(code: String) {
+        emailSignupSession.verify(code)
+    }
+
+    fun cancelEmailSignup() {
+        emailSignupSession.cancel()
+    }
+
+    fun hasPendingEmailSignup(): Boolean = emailSignupSession.hasPendingSignup()
+
+    fun isEmailSignupVerified(): Boolean = emailSignupSession.isVerified()
+
     suspend fun signInWithEmail(email: String, password: String) {
         com.framework.innolive.feature.login.authenticateAndSaveEmailSession(
             email, password, emailApi::authenticate, repository::save,
@@ -46,10 +75,12 @@ class AuthenticationSessionViewModel(
     suspend fun refreshAccessToken(): String = refresh().accessToken
 
     fun clear() {
+        emailSignupSession.cancel()
         repository.clear()
     }
 
     override fun onCleared() {
+        emailSignupSession.cancel()
         repository.close()
         super.onCleared()
     }
