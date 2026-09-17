@@ -86,7 +86,8 @@ class LiveControlsLayoutTest {
                 Box(
                     modifier = Modifier
                         .width(360.dp)
-                        .height(260.dp),
+                        .height(260.dp)
+                        .testTag("container"),
                 ) {
                     Column(modifier = Modifier.align(Alignment.BottomCenter)) {
                         BroadcastActionControls(
@@ -131,6 +132,8 @@ class LiveControlsLayoutTest {
         }
         val cancelBounds = compose.onNodeWithText("방송 준비 취소").getUnclippedBoundsInRoot()
         assertTrue(cancelBounds.bottom <= after[1].top)
+        val bottomGap = bounds("container").bottom - after[0].bottom
+        assertTrue("얼굴 관리 버튼이 하단에서 너무 멀어지지 않아야 합니다.", bottomGap <= 36.dp)
     }
 
     private fun bounds(tag: String) =
