@@ -37,11 +37,27 @@ class AuthenticationSessionViewModel(
 
     private val emailSignUpApi = com.framework.innolive.feature.login.EmailSignUpApi()
 
-    suspend fun signUpWithEmail(email: String, password: String): String =
-        emailSignUpApi.signUp(email, password)
+    private val emailSignupSession = com.framework.innolive.feature.login.EmailSignupSession(
+        signUp = emailSignUpApi::signUp,
+        verifyEmail = emailSignUpApi::verify,
+        authenticate = emailApi::authenticate,
+        saveSession = repository::save,
+    )
 
-    suspend fun verifyEmail(signupToken: String, code: String) {
-        emailSignUpApi.verify(signupToken, code)
+    suspend fun startEmailSignup(email: String, password: String) {
+        emailSignupSession.start(email, password)
+    }
+
+    suspend fun resendEmailSignup() {
+        emailSignupSession.resend()
+    }
+
+    suspend fun verifyEmailSignup(code: String) {
+        emailSignupSession.verify(code)
+    }
+
+    fun cancelEmailSignup() {
+        emailSignupSession.cancel()
     }
 
     suspend fun signInWithEmail(email: String, password: String) {
@@ -55,10 +71,12 @@ class AuthenticationSessionViewModel(
     suspend fun refreshAccessToken(): String = refresh().accessToken
 
     fun clear() {
+        emailSignupSession.cancel()
         repository.clear()
     }
 
     override fun onCleared() {
+        emailSignupSession.cancel()
         repository.close()
         super.onCleared()
     }

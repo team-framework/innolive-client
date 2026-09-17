@@ -1,7 +1,14 @@
 package com.framework.innolive.feature.login
 
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
@@ -11,7 +18,8 @@ import org.junit.Rule
 import org.junit.Test
 
 class EmailSignUpScreenTest {
-    @get:Rule val rule = createComposeRule()
+    @get:Rule
+    val rule = createComposeRule()
 
     private fun fillSignup() {
         rule.onNodeWithText("회원가입").performScrollTo().performClick()
@@ -22,76 +30,118 @@ class EmailSignUpScreenTest {
     }
 
     @Test
-    fun signupVerifiesCodeThenReturnsToLoginWithoutAutomaticAuthentication() {
-        val sent = CompletableDeferred<String>()
-        val verified = CompletableDeferred<Unit>()
-        var sends = 0
-        var verifies = 0
-        var logins = 0
+    fun verifiedSignupAuthenticatesAndNavigatesWithoutReenteringCredentials() {
+        val signupFinished = CompletableDeferred<Unit>()
+        val verificationFinished = CompletableDeferred<Unit>()
+        var signups = 0
+        var verifications = 0
+        var navigations = 0
         rule.setContent {
             MyApplicationTheme(dynamicColor = false) {
-                EmailLoginScreen({}, { logins++ }, { _, _ -> logins++ },
-                    signUp = { _, _ -> sends++; sent.await() },
-                    verifyEmail = { token, code ->
-                        assertEquals("signup-token", token)
+                EmailLoginScreen(
+                    onBack = {},
+                    onLogin = { navigations++ },
+                    signIn = { _, _ -> },
+                    signUp = { _, _ -> signups++; signupFinished.await() },
+                    verifyEmail = { code ->
                         assertEquals("012345", code)
-                        verifies++
-                        verified.await()
-                    })
+                        verifications++
+                        verificationFinished.await()
+                    },
+                    resendSignup = {},
+                )
             }
         }
+
         fillSignup()
-        rule.onNodeWithText("인증 메일 보내는 중…").assertIsNotEnabled().performClick()
-        rule.runOnIdle { assertEquals(1, sends); sent.complete("signup-token") }
-        rule.onNodeWithText("이메일 인증").assertIsDisplayed()
-        rule.onNodeWithText("인증 완료").assertIsNotEnabled()
+        rule.onNodeWithText("인증 메일 보내는 중…").assertIsNotEnabled()
+        rule.runOnIdle { assertEquals(1, signups); signupFinished.complete(Unit) }
+        rule.onNodeWithText("이메일을 확인해 주세요").assertIsDisplayed()
+        rule.onNodeWithText("member@example.com").assertIsDisplayed()
+        rule.onNodeWithText("인증하고 시작하기").assertIsNotEnabled()
         rule.onNode(hasSetTextAction()).performTextInput("012345")
-        rule.onNodeWithText("인증 완료").performClick()
-        rule.onNodeWithText("인증 확인 중…").assertIsNotEnabled().performClick()
-        rule.runOnIdle { assertEquals(1, verifies); verified.complete(Unit) }
-        rule.onNodeWithText("이메일로 로그인").assertIsDisplayed()
-        rule.onNodeWithText("회원가입이 완료됐습니다. 이메일로 로그인해 주세요.").performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("member@example.com").assertExists()
-        rule.runOnIdle { assertEquals(0, logins) }
+        rule.onNodeWithText("인증하고 시작하기").performClick()
+        rule.runOnIdle { assertEquals(1, verifications); verificationFinished.complete(Unit) }
+        rule.waitUntil { navigations == 1 }
     }
 
     @Test
-    fun invalidCodeCanRetryAndRequestAnotherEmail() {
-        var verifies = 0
+    fun resendStaysOnVerificationAndClearsOnlyTheCode() {
+        var resends = 0
         rule.setContent {
             MyApplicationTheme(dynamicColor = false) {
-                EmailLoginScreen({}, {}, { _, _ -> },
-                    signUp = { _, _ -> "signup-token" },
-                    verifyEmail = { _, _ -> verifies++; throw EmailSignUpException("인증 코드가 틀렸거나 만료됐습니다.") })
+                EmailLoginScreen(
+                    onBack = {},
+                    onLogin = {},
+                    signIn = { _, _ -> },
+                    signUp = { _, _ -> },
+                    verifyEmail = {},
+                    resendSignup = { resends++ },
+                )
             }
         }
+
         fillSignup()
         rule.onNode(hasSetTextAction()).performTextInput("123456")
-        rule.onNodeWithText("인증 완료").performClick()
-        rule.onNodeWithText("인증 코드가 틀렸거나 만료됐습니다.").assertIsDisplayed()
-        rule.onNodeWithText("인증 완료").assertIsEnabled().performClick()
-        rule.runOnIdle { assertEquals(2, verifies) }
-        rule.onNodeWithText("인증 메일 다시 요청").performScrollTo().performClick()
+        rule.onNodeWithText("인증 코드 다시 보내기").performClick()
+
+        rule.waitUntil { resends == 1 }
+        rule.onNodeWithText("이메일을 확인해 주세요").assertIsDisplayed()
+        rule.onNodeWithText("member@example.com").assertIsDisplayed()
+        rule.onNodeWithText("인증 코드를 다시 보냈어요.").assertIsDisplayed()
+        rule.onNodeWithText("인증하고 시작하기").assertIsNotEnabled()
+        rule.runOnIdle { assertEquals(1, resends) }
+    }
+
+    @Test
+    fun verificationBackCancelsPendingSignupAndRestoresSignupForm() {
+        var cancellations = 0
+        rule.setContent {
+            MyApplicationTheme(dynamicColor = false) {
+                EmailLoginScreen(
+                    onBack = {},
+                    onLogin = {},
+                    signIn = { _, _ -> },
+                    signUp = { _, _ -> },
+                    verifyEmail = {},
+                    resendSignup = {},
+                    cancelSignup = { cancellations++ },
+                )
+            }
+        }
+
+        fillSignup()
+        rule.onNodeWithContentDescription("뒤로").performClick()
+
         rule.onNodeWithText("계정 만들기").assertIsDisplayed()
-        rule.onNodeWithText("인증 메일 보내기").performScrollTo().assertIsNotEnabled()
+        rule.onNodeWithText("member@example.com").assertIsDisplayed()
+        rule.onNodeWithText("인증 메일 보내기").assertIsNotEnabled()
+        rule.runOnIdle { assertEquals(1, cancellations) }
     }
 
     @Test
-    fun cancelledLateVerificationCannotShowSignupSuccess() {
+    fun pendingVerificationDisablesBackAndNavigatesAfterSuccess() {
         val finish = CompletableDeferred<Unit>()
+        var navigations = 0
         rule.setContent {
             MyApplicationTheme(dynamicColor = false) {
-                EmailLoginScreen({}, {}, { _, _ -> },
-                    signUp = { _, _ -> "signup-token" },
-                    verifyEmail = { _, _ -> withContext(NonCancellable) { finish.await() } })
+                EmailLoginScreen(
+                    onBack = {},
+                    onLogin = { navigations++ },
+                    signIn = { _, _ -> },
+                    signUp = { _, _ -> },
+                    verifyEmail = { withContext(NonCancellable) { finish.await() } },
+                    resendSignup = {},
+                )
             }
         }
+
         fillSignup()
         rule.onNode(hasSetTextAction()).performTextInput("123456")
-        rule.onNodeWithText("인증 완료").performClick()
-        rule.onNodeWithText("로그인으로 돌아가기").performScrollTo().performClick()
+        rule.onNodeWithText("인증하고 시작하기").performClick()
+        rule.onNodeWithContentDescription("뒤로").assertIsNotEnabled()
         rule.runOnIdle { finish.complete(Unit) }
-        rule.onNodeWithText("이메일로 로그인").assertIsDisplayed()
-        rule.onNodeWithText("회원가입이 완료됐습니다. 이메일로 로그인해 주세요.").assertDoesNotExist()
+        rule.waitUntil { navigations == 1 }
+        rule.onNodeWithText("이메일로 로그인").assertDoesNotExist()
     }
 }

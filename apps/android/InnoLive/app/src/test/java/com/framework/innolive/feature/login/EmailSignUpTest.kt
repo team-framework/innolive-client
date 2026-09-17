@@ -37,9 +37,30 @@ class EmailSignUpTest {
                 .code(200).message("OK").body(response.toResponseBody()).build()
         }.build()
         val api = EmailSignUpApi(client) { "https://example.test" }
-        val token = api.signUp(" member@example.com ", " password ")
+        val token = api.signUp(" Member@Example.com ", " password ")
         api.verify(token, "012345")
         assertEquals(listOf("/auth/native/sign-up", "/auth/native/verify-email"), paths)
+    }
+
+    @Test
+    fun serverErrorCodesUseTheSameSignupMessagesAsIos() = runBlocking {
+        val cases = mapOf(
+            "email_already_registered" to "이미 가입된 이메일입니다. 로그인해 주세요.",
+            "invalid_verification_code" to "인증 코드가 올바르지 않거나 만료됐습니다.",
+            "invalid_signup_token" to "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
+            "email_delivery_failed" to "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
+        )
+
+        for ((code, expected) in cases) {
+            val body = JSONObject()
+                .put("error", JSONObject().put("code", code).put("message", "private details"))
+                .toString()
+            val error = assertThrows(EmailSignUpException::class.java) {
+                runBlocking { api(400, body).verify("token", "123456") }
+            }
+            assertEquals(expected, error.message)
+            assertFalse(error.message!!.contains("private details"))
+        }
     }
 
     @Test

@@ -34,7 +34,7 @@ internal class EmailSignInApi(
 ) {
     suspend fun authenticate(email: String, password: String): GoogleSessionStore.Session =
         withContext(Dispatchers.IO) {
-            val normalizedEmail = email.trim()
+            val normalizedEmail = normalizeEmail(email)
             require(normalizedEmail.isNotEmpty() && password.isNotEmpty())
             val request = Request.Builder()
                 .url(endpoint())

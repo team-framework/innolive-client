@@ -2,12 +2,15 @@ package com.framework.innolive.feature.login
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
@@ -16,22 +19,25 @@ internal fun EmailLoginScreen(
     onBack: () -> Unit,
     onLogin: () -> Unit,
     signIn: (suspend (String, String) -> Unit)?,
-    signUp: (suspend (String, String) -> String)? = null,
-    verifyEmail: (suspend (String, String) -> Unit)? = null,
+    signUp: (suspend (String, String) -> Unit)? = null,
+    verifyEmail: (suspend (String) -> Unit)? = null,
+    resendSignup: (suspend () -> Unit)? = null,
+    cancelSignup: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var request by remember { mutableStateOf<Job?>(null) }
     var generation by remember { mutableStateOf(0L) }
-    var signupToken by remember { mutableStateOf<String?>(null) }
-    var emailAddress by remember { mutableStateOf("") }
-    var startWithSignUp by remember { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
+    var emailAddress by rememberSaveable { mutableStateOf("") }
+    var showingVerification by rememberSaveable { mutableStateOf(false) }
+    var startWithSignUp by rememberSaveable { mutableStateOf(false) }
+    var resendGeneration by rememberSaveable { mutableIntStateOf(0) }
 
     fun cancelRequest() {
         generation++
         request?.cancel()
+        request = null
         pending = false
         error = null
     }
@@ -54,63 +60,77 @@ internal fun EmailLoginScreen(
                     }
                 }
             } finally {
-                if (generation == activeGeneration) pending = false
+                if (generation == activeGeneration) {
+                    pending = false
+                    request = null
+                }
             }
         }
     }
 
-    val token = signupToken
-    if (token != null && verifyEmail != null) {
+    if (showingVerification && verifyEmail != null && resendSignup != null) {
         EmailVerificationScreen(
-            email = emailAddress, pending = pending, error = error,
+            email = emailAddress,
+            pending = pending,
+            error = error,
+            resendGeneration = resendGeneration,
             onVerify = { code ->
                 submit {
-                    verifyEmail(token, code)
-                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                    signupToken = null
-                    startWithSignUp = false
-                    notice = "회원가입이 완료됐습니다. 이메일로 로그인해 주세요."
+                    verifyEmail(code)
+                    currentCoroutineContext().ensureActive()
+                    showingVerification = false
+                    onLogin()
                 }
             },
-            onRestart = {
-                cancelRequest()
-                signupToken = null
-                startWithSignUp = true
+            onResend = {
+                submit {
+                    resendSignup()
+                    currentCoroutineContext().ensureActive()
+                    resendGeneration++
+                }
             },
-            onSignIn = {
+            onBack = {
                 cancelRequest()
-                signupToken = null
-                startWithSignUp = false
+                cancelSignup()
+                showingVerification = false
+                startWithSignUp = true
             },
         )
         return
     }
 
     EmailAuthScreen(
-        onBack = { cancelRequest(); onBack() },
+        onBack = {
+            cancelRequest()
+            cancelSignup()
+            onBack()
+        },
         isSubmitting = pending,
         errorMessage = error,
-        noticeMessage = notice,
         initialEmail = emailAddress,
         startWithSignUp = startWithSignUp,
-        onModeChanged = { error = null; notice = null },
+        onModeChanged = { error = null },
         onSignIn = signIn?.let { authenticate ->
-            { email, password ->
+            { emailAddress, password ->
                 submit {
-                    authenticate(email, password)
-                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    authenticate(emailAddress, password)
+                    currentCoroutineContext().ensureActive()
                     onLogin()
                 }
             }
         },
-        onSignUp = if (signUp != null && verifyEmail != null) { email, password ->
-            submit {
-                val newToken = signUp(email, password)
-                kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                emailAddress = email
-                notice = null
-                signupToken = newToken
+        onSignUp = if (signUp != null && verifyEmail != null && resendSignup != null) {
+            { submittedEmail, password ->
+                submit {
+                    signUp(submittedEmail, password)
+                    currentCoroutineContext().ensureActive()
+                    emailAddress = submittedEmail
+                    showingVerification = true
+                    resendGeneration = 0
+                }
             }
-        } else null,
+        } else {
+            null
+        },
     )
 }

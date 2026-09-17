@@ -93,7 +93,10 @@ fun EmailAuthScreen(
         passwordConfirmationVisible = false
     }
 
-    BackHandler(onBack = onBack)
+    val handleBack = {
+        if (isSignIn) onBack() else changeMode(EmailAuthMode.SIGN_IN)
+    }
+    BackHandler(onBack = handleBack)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -101,7 +104,7 @@ fun EmailAuthScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = handleBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "뒤로",
