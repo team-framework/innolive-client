@@ -248,10 +248,10 @@ fun LiveScreen(
                                 },
                             )
                         }
-                        VerticalHeroButton(
-                            text = presentation.broadcastButtonText,
-                            enabled = presentation.isBroadcastButtonEnabled,
-                            onClick = {
+                        BroadcastActionButtons(
+                            presentation = presentation,
+                            onCancelPreparation = webRtcSession::stopBroadcast,
+                            onBroadcastAction = {
                                 when (presentation.broadcastAction) {
                                     LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
                                     LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
@@ -293,14 +293,6 @@ fun LiveScreen(
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
-            if (presentation.isBroadcastPrepared) {
-                Button(
-                    onClick = webRtcSession::stopBroadcast,
-                    enabled = !presentation.isBroadcastBusy,
-                ) {
-                    Text(text = "방송 준비 취소")
-                }
-            }
             Text(
                 text = presentation.broadcastStatusText,
                 modifier = Modifier.padding(horizontal = 24.dp),
@@ -312,6 +304,32 @@ fun LiveScreen(
                 },
             )
         }
+    }
+}
+
+@Composable
+internal fun BroadcastActionButtons(
+    presentation: LiveScreenPresentation,
+    onCancelPreparation: () -> Unit,
+    onBroadcastAction: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (presentation.isBroadcastPrepared) {
+            Button(
+                onClick = onCancelPreparation,
+                enabled = !presentation.isBroadcastBusy,
+            ) {
+                Text(text = "방송 준비 취소")
+            }
+        }
+        VerticalHeroButton(
+            text = presentation.broadcastButtonText,
+            enabled = presentation.isBroadcastButtonEnabled,
+            onClick = onBroadcastAction,
+        )
     }
 }
 
