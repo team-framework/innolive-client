@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -79,6 +80,40 @@ class EmailSignupSessionTest {
             signupCalls,
         )
         assertEquals("token-2", verifiedToken)
+    }
+
+    @Test
+    fun failedAuthenticationRetriesWithoutReusingVerificationCodeOrResendingSignup() = runBlocking {
+        var verifications = 0
+        var signups = 0
+        var authentications = 0
+        var saved = false
+        val signup = EmailSignupSession(
+            signUp = { _, _ -> signups++; "token" },
+            verifyEmail = { _, _ -> verifications++ },
+            authenticate = { _, _ ->
+                if (++authentications == 1) throw EmailSignInException("잠시 후 다시 시도해 주세요.")
+                authenticatedSession
+            },
+            saveSession = { saved = true },
+        )
+
+        signup.start("member@example.com", "password123")
+        assertThrows(EmailSignInException::class.java) {
+            runBlocking { signup.verify("123456") }
+        }
+        assertTrue(signup.hasPendingSignup())
+        assertTrue(signup.isVerified())
+        assertThrows(EmailSignUpException::class.java) {
+            runBlocking { signup.resend() }
+        }
+        signup.verify("")
+
+        assertEquals(1, signups)
+        assertEquals(1, verifications)
+        assertEquals(2, authentications)
+        assertTrue(saved)
+        assertFalse(signup.hasPendingSignup())
     }
 
     @Test

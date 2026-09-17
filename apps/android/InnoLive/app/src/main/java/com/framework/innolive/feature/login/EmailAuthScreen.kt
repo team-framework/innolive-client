@@ -75,6 +75,7 @@ fun EmailAuthScreen(
     var passwordConfirmationVisible by rememberSaveable { mutableStateOf(false) }
 
     val isSignIn = mode == EmailAuthMode.SIGN_IN
+    val backBlocked = isSubmitting && !isSignIn
     val normalizedEmail = email.trim()
     val isEmailValid = EMAIL_PATTERN.matches(normalizedEmail)
     val isPasswordValid = isSignUpPasswordValid(password)
@@ -94,7 +95,9 @@ fun EmailAuthScreen(
     }
 
     val handleBack = {
-        if (isSignIn) onBack() else changeMode(EmailAuthMode.SIGN_IN)
+        if (!backBlocked) {
+            if (isSignIn) onBack() else changeMode(EmailAuthMode.SIGN_IN)
+        }
     }
     BackHandler(onBack = handleBack)
 
@@ -104,7 +107,7 @@ fun EmailAuthScreen(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = handleBack) {
+                    IconButton(onClick = handleBack, enabled = !backBlocked) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "뒤로",

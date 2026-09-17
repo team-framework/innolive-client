@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.login
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +24,8 @@ internal fun EmailLoginScreen(
     verifyEmail: (suspend (String) -> Unit)? = null,
     resendSignup: (suspend () -> Unit)? = null,
     cancelSignup: () -> Unit = {},
+    hasPendingSignup: () -> Boolean = { true },
+    isSignupVerified: () -> Boolean = { false },
 ) {
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf(false) }
@@ -34,6 +37,13 @@ internal fun EmailLoginScreen(
     var showingVerification by rememberSaveable { mutableStateOf(false) }
     var startWithSignUp by rememberSaveable { mutableStateOf(false) }
     var resendGeneration by rememberSaveable { mutableIntStateOf(0) }
+    val restoredWithoutSignup = showingVerification && !hasPendingSignup()
+    LaunchedEffect(restoredWithoutSignup) {
+        if (restoredWithoutSignup) {
+            showingVerification = false
+            startWithSignUp = true
+        }
+    }
 
     fun cancelRequest() {
         generation++
@@ -72,10 +82,11 @@ internal fun EmailLoginScreen(
         }
     }
 
-    if (showingVerification && verifyEmail != null && resendSignup != null) {
+    if (showingVerification && !restoredWithoutSignup && verifyEmail != null && resendSignup != null) {
         EmailVerificationScreen(
             email = emailAddress,
             pending = pending,
+            verified = isSignupVerified(),
             isResending = isResending,
             error = error,
             resendGeneration = resendGeneration,
@@ -113,7 +124,7 @@ internal fun EmailLoginScreen(
         isSubmitting = pending,
         errorMessage = error,
         initialEmail = emailAddress,
-        startWithSignUp = startWithSignUp,
+        startWithSignUp = startWithSignUp || restoredWithoutSignup,
         onModeChanged = { error = null },
         onSignIn = signIn?.let { authenticate ->
             { emailAddress, password ->

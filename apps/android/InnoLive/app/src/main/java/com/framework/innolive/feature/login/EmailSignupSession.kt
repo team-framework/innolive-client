@@ -26,6 +26,7 @@ internal class EmailSignupSession(
 
     suspend fun resend() {
         val pending = pendingSignup ?: throw expiredSignup()
+        if (pending.verified) throw EmailSignUpException("이메일 인증이 완료됐습니다. 로그인을 다시 시도해 주세요.")
         val token = signUp(pending.email, pending.password)
         currentCoroutineContext().ensureActive()
         if (pendingSignup !== pending) throw CancellationException("Email signup was cancelled.")
@@ -34,8 +35,12 @@ internal class EmailSignupSession(
 
     suspend fun verify(code: String) {
         val pending = pendingSignup ?: throw expiredSignup()
-        verifyEmail(pending.token, code)
-        currentCoroutineContext().ensureActive()
+        if (!pending.verified) {
+            verifyEmail(pending.token, code)
+            currentCoroutineContext().ensureActive()
+            if (pendingSignup !== pending) throw CancellationException("Email signup was cancelled.")
+            pending.verified = true
+        }
         val session = authenticate(pending.email, pending.password)
         currentCoroutineContext().ensureActive()
         if (pendingSignup !== pending) throw CancellationException("Email signup was cancelled.")
@@ -47,6 +52,10 @@ internal class EmailSignupSession(
         pendingSignup = null
     }
 
+    fun hasPendingSignup(): Boolean = pendingSignup != null
+
+    fun isVerified(): Boolean = pendingSignup?.verified == true
+
     private fun expiredSignup() = EmailSignUpException(
         "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
     )
@@ -55,6 +64,7 @@ internal class EmailSignupSession(
         val email: String,
         val password: String,
         val token: String,
+        var verified: Boolean = false,
     )
 }
 

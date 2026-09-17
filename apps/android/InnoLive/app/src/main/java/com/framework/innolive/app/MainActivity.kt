@@ -536,6 +536,8 @@ fun AppNavigation(
                                 onEmailVerification = authenticationSession::verifyEmailSignup,
                                 onEmailSignupResend = authenticationSession::resendEmailSignup,
                                 onEmailSignupCancel = authenticationSession::cancelEmailSignup,
+                                hasPendingEmailSignup = authenticationSession::hasPendingEmailSignup,
+                                isEmailSignupVerified = authenticationSession::isEmailSignupVerified,
                             ),
                         )
                     }

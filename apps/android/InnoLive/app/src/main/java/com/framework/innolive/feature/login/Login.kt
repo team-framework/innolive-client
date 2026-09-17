@@ -53,6 +53,8 @@ fun LoginScreen(props: LoginScreenProps) {
             verifyEmail = props.onEmailVerification,
             resendSignup = props.onEmailSignupResend,
             cancelSignup = props.onEmailSignupCancel,
+            hasPendingSignup = props.hasPendingEmailSignup,
+            isSignupVerified = props.isEmailSignupVerified,
         )
         return
     }

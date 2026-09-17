@@ -60,6 +60,10 @@ class AuthenticationSessionViewModel(
         emailSignupSession.cancel()
     }
 
+    fun hasPendingEmailSignup(): Boolean = emailSignupSession.hasPendingSignup()
+
+    fun isEmailSignupVerified(): Boolean = emailSignupSession.isVerified()
+
     suspend fun signInWithEmail(email: String, password: String) {
         com.framework.innolive.feature.login.authenticateAndSaveEmailSession(
             email, password, emailApi::authenticate, repository::save,
