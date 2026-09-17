@@ -186,7 +186,17 @@ fun LiveScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            BalancedLiveControls(
+            BroadcastActionControls(
+                presentation = presentation,
+                onCancelPreparation = webRtcSession::stopBroadcast,
+                onBroadcastAction = {
+                    when (presentation.broadcastAction) {
+                        LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
+                        LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
+                        LiveBroadcastAction.PREPARE_BROADCAST -> openYouTubeSettingsDialog = true
+                        LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
+                    }
+                },
                 leading = {
                     IconButton(
                         enabled = canManageFace,
@@ -208,57 +218,41 @@ fun LiveScreen(
                         )
                     }
                 },
-                center = {
-                    Box(contentAlignment = Alignment.Center) {
-                        if (openPlatformDialog) {
-                            PlatformDialog(
-                                onDismissRequest = {
-                                    openPlatformDialog = false
-                                },
-                                onYouTubeSelected = {
-                                    selectedPlatform = "YouTube"
-                                    pendingYouTubeSettingsDialog = true
-                                    openPlatformDialog = false
-                                },
-                            )
-                        }
-                        if (openYouTubeSettingsDialog) {
-                            YouTubeLiveSettingsDialog(
-                                settings = props.broadcastSettings,
-                                youtubeChannelTitle = props.youtubeChannelTitle,
-                                hasYouTubeAccount = props.hasYouTubeAccount,
-                                youtubeAccountStatus = props.youtubeAccountStatus,
-                                isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
-                                isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
-                                isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
-                                onSettingsChanged = props.onBroadcastSettingsChanged,
-                                onConnectYouTube = props.onConnectYouTube,
-                                onDismissRequest = { openYouTubeSettingsDialog = false },
-                                onPrepare = {
-                                    if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
-                                        mediaPermissions.refresh()
-                                        mediaPermissionLauncher.launch(
-                                            readMediaPermissionState(context).missingPermissions.toTypedArray(),
-                                        )
-                                    } else if (webRtcSession.prepareBroadcast(
-                                            context, props.broadcastSettings, props.onRefreshAccessToken,
-                                        )) {
-                                        openYouTubeSettingsDialog = false
-                                    }
-                                },
-                            )
-                        }
-                        BroadcastActionButtons(
-                            presentation = presentation,
-                            onCancelPreparation = webRtcSession::stopBroadcast,
-                            onBroadcastAction = {
-                                when (presentation.broadcastAction) {
-                                    LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
-                                    LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
-                                    LiveBroadcastAction.PREPARE_BROADCAST ->
-                                        openYouTubeSettingsDialog = true
-
-                                    LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
+                centerOverlay = {
+                    if (openPlatformDialog) {
+                        PlatformDialog(
+                            onDismissRequest = {
+                                openPlatformDialog = false
+                            },
+                            onYouTubeSelected = {
+                                selectedPlatform = "YouTube"
+                                pendingYouTubeSettingsDialog = true
+                                openPlatformDialog = false
+                            },
+                        )
+                    }
+                    if (openYouTubeSettingsDialog) {
+                        YouTubeLiveSettingsDialog(
+                            settings = props.broadcastSettings,
+                            youtubeChannelTitle = props.youtubeChannelTitle,
+                            hasYouTubeAccount = props.hasYouTubeAccount,
+                            youtubeAccountStatus = props.youtubeAccountStatus,
+                            isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
+                            isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
+                            isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
+                            onSettingsChanged = props.onBroadcastSettingsChanged,
+                            onConnectYouTube = props.onConnectYouTube,
+                            onDismissRequest = { openYouTubeSettingsDialog = false },
+                            onPrepare = {
+                                if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+                                    mediaPermissions.refresh()
+                                    mediaPermissionLauncher.launch(
+                                        readMediaPermissionState(context).missingPermissions.toTypedArray(),
+                                    )
+                                } else if (webRtcSession.prepareBroadcast(
+                                        context, props.broadcastSettings, props.onRefreshAccessToken,
+                                    )) {
+                                    openYouTubeSettingsDialog = false
                                 }
                             },
                         )
@@ -308,10 +302,13 @@ fun LiveScreen(
 }
 
 @Composable
-internal fun BroadcastActionButtons(
+internal fun BroadcastActionControls(
     presentation: LiveScreenPresentation,
     onCancelPreparation: () -> Unit,
     onBroadcastAction: () -> Unit,
+    leading: @Composable () -> Unit,
+    centerOverlay: @Composable () -> Unit = {},
+    trailing: @Composable () -> Unit,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -325,10 +322,19 @@ internal fun BroadcastActionButtons(
                 Text(text = "방송 준비 취소")
             }
         }
-        VerticalHeroButton(
-            text = presentation.broadcastButtonText,
-            enabled = presentation.isBroadcastButtonEnabled,
-            onClick = onBroadcastAction,
+        BalancedLiveControls(
+            leading = leading,
+            center = {
+                Box(contentAlignment = Alignment.Center) {
+                    centerOverlay()
+                    VerticalHeroButton(
+                        text = presentation.broadcastButtonText,
+                        enabled = presentation.isBroadcastButtonEnabled,
+                        onClick = onBroadcastAction,
+                    )
+                }
+            },
+            trailing = trailing,
         )
     }
 }
