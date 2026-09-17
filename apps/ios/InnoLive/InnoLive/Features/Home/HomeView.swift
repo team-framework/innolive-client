@@ -197,12 +197,24 @@ struct HomeView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else {
-                return
+            switch phase {
+            case .active:
+                // 설정 앱에서 권한을 바꾼 뒤 돌아오면 안내 UI 상태를 즉시 갱신함
+                cameraManager.refreshAuthorizationStatus()
+                Task {
+                    await youtube.handleAppBecameActive(
+                        accessToken: authentication.currentAccessToken()
+                    )
+                }
+            case .background:
+                Task {
+                    await youtube.handleAppMovedToBackground(
+                        accessToken: authentication.currentAccessToken()
+                    )
+                }
+            default:
+                break
             }
-
-            // 설정 앱에서 권한을 바꾼 뒤 돌아오면 안내 UI 상태를 즉시 갱신함
-            cameraManager.refreshAuthorizationStatus()
         }
         .alert(String(localized: "카메라 권한이 필요합니다"), isPresented: $isShowingCameraPermissionAlert) {
             Button(String(localized: "설정 열기")) {
