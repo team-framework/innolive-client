@@ -26,6 +26,7 @@ internal fun EmailLoginScreen(
 ) {
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf(false) }
+    var isResending by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var request by remember { mutableStateOf<Job?>(null) }
     var generation by remember { mutableStateOf(0L) }
@@ -39,12 +40,14 @@ internal fun EmailLoginScreen(
         request?.cancel()
         request = null
         pending = false
+        isResending = false
         error = null
     }
 
-    fun submit(action: suspend () -> Unit) {
+    fun submit(resending: Boolean = false, action: suspend () -> Unit) {
         if (pending) return
         pending = true
+        isResending = resending
         error = null
         val activeGeneration = ++generation
         request = scope.launch {
@@ -62,6 +65,7 @@ internal fun EmailLoginScreen(
             } finally {
                 if (generation == activeGeneration) {
                     pending = false
+                    isResending = false
                     request = null
                 }
             }
@@ -72,6 +76,7 @@ internal fun EmailLoginScreen(
         EmailVerificationScreen(
             email = emailAddress,
             pending = pending,
+            isResending = isResending,
             error = error,
             resendGeneration = resendGeneration,
             onVerify = { code ->
@@ -83,7 +88,7 @@ internal fun EmailLoginScreen(
                 }
             },
             onResend = {
-                submit {
+                submit(resending = true) {
                     resendSignup()
                     currentCoroutineContext().ensureActive()
                     resendGeneration++

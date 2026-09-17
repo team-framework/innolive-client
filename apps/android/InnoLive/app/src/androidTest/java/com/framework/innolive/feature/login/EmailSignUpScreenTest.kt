@@ -4,6 +4,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -93,6 +94,49 @@ class EmailSignUpScreenTest {
         rule.onNodeWithText("인증 코드를 다시 보냈어요.").assertIsDisplayed()
         rule.onNodeWithText("인증하고 시작하기").assertIsNotEnabled()
         rule.runOnIdle { assertEquals(1, resends) }
+    }
+
+    @Test
+    fun resendFeedbackDoesNotMoveResendButton() {
+        val firstResendFinished = CompletableDeferred<Unit>()
+        var resendAttempts = 0
+        rule.setContent {
+            MyApplicationTheme(dynamicColor = false) {
+                EmailLoginScreen(
+                    onBack = {},
+                    onLogin = {},
+                    signIn = { _, _ -> },
+                    signUp = { _, _ -> },
+                    verifyEmail = {},
+                    resendSignup = {
+                        resendAttempts++
+                        if (resendAttempts == 1) {
+                            firstResendFinished.await()
+                        } else {
+                            throw EmailSignUpException("요청이 많습니다. 잠시 후 다시 시도해 주세요.")
+                        }
+                    },
+                )
+            }
+        }
+
+        fillSignup()
+        val resendButton = rule.onNodeWithText("인증 코드 다시 보내기")
+        val initialTop = resendButton.getUnclippedBoundsInRoot().top
+
+        resendButton.performClick()
+        rule.onNodeWithText("인증 메일 보내는 중...").assertIsDisplayed()
+        resendButton.assertIsNotEnabled()
+        assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
+
+        rule.runOnIdle { firstResendFinished.complete(Unit) }
+        rule.onNodeWithText("인증 코드를 다시 보냈어요.").assertIsDisplayed()
+        assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
+
+        resendButton.performClick()
+        rule.onNodeWithText("요청이 많습니다. 잠시 후 다시 시도해 주세요.").assertIsDisplayed()
+        assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
+        rule.runOnIdle { assertEquals(2, resendAttempts) }
     }
 
     @Test
