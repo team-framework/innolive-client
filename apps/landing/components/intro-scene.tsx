@@ -12,7 +12,6 @@ export type FaceOverlaySpec = {
   box: OverlayBox;
   mask: string;
   blur: number;
-  stripes?: boolean;
 };
 
 export type IntroLettering = {
@@ -37,13 +36,12 @@ export function nestBox(parent: OverlayBox, child: OverlayBox): OverlayBox {
 const photoSrc = "/intro/photo.png";
 const photoSizes = "100vw";
 
-const stripeFill: CSSProperties = {
-  backgroundImage:
-    "repeating-linear-gradient(90deg, rgba(255,255,255,0.16) 0 2px, rgba(255,255,255,0.01) 2px 4px)",
-};
+function overlaySrcFromMask(mask: string) {
+  return mask.replace("/intro/masks/", "/intro/overlays/");
+}
 
 function FaceOverlay({ overlay }: { overlay: FaceOverlaySpec }) {
-  const { box, mask, blur, stripes } = overlay;
+  const { box, mask, blur } = overlay;
   const width = 100 - box.l - box.r;
   const height = 100 - box.t - box.b;
   const photoStyle: CSSProperties = {
@@ -84,10 +82,14 @@ function FaceOverlay({ overlay }: { overlay: FaceOverlaySpec }) {
           className="absolute max-w-none"
           style={photoStyle}
         />
-        {stripes ? (
-          <div className="absolute inset-0" style={stripeFill} />
-        ) : null}
       </div>
+      <Image
+        src={overlaySrcFromMask(mask)}
+        alt=""
+        fill
+        unoptimized
+        className="object-fill"
+      />
     </div>
   );
 }
@@ -123,7 +125,7 @@ export function IntroScene({
         alt={lettering.alt}
         width={lettering.width}
         height={lettering.height}
-        className={lettering.className}
+        className={`${lettering.className} mix-blend-multiply`}
       />
       <Image
         src="/intro/logo.svg"
