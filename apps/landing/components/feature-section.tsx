@@ -51,19 +51,18 @@ export function FeatureSection() {
     const section = sectionRef.current;
     if (!section || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    const grid = section.querySelector<HTMLElement>("[data-feature-grid]");
     const rows = Array.from(
       section.querySelectorAll<HTMLElement>("[data-feature-row]"),
     );
-    if (!grid || rows.length === 0) return;
+    if (rows.length === 0) return;
 
     gsap.registerPlugin(ScrollTrigger);
     const context = gsap.context(() => {
-      const cardsByRow = rows.map((row) =>
-        Array.from(row.querySelectorAll<HTMLElement>("[data-feature-card]")),
+      const contentsByRow = rows.map((row) =>
+        Array.from(row.querySelectorAll<HTMLElement>("[data-feature-content]")),
       );
-      const cards = cardsByRow.flat();
-      gsap.set(cards, { autoAlpha: 0, scale: 0.94, y: 32 });
+      const contents = contentsByRow.flat();
+      gsap.set(contents, { autoAlpha: 0, y: 48 });
 
       const timeline = gsap.timeline({
         scrollTrigger: {
@@ -77,23 +76,13 @@ export function FeatureSection() {
         },
       });
 
-      cardsByRow.forEach((cardsInRow, index) => {
-        timeline.to(cardsInRow, {
+      contentsByRow.forEach((contentsInRow) => {
+        timeline.to(contentsInRow, {
           autoAlpha: 1,
           duration: 0.7,
           ease: "power2.out",
-          scale: 1,
           stagger: 0.12,
           y: 0,
-        });
-
-        const nextRow = rows[index + 1];
-        if (!nextRow) return;
-
-        timeline.to(grid, {
-          duration: 1,
-          ease: "none",
-          y: () => -(nextRow.offsetTop - rows[0].offsetTop),
         });
       });
     }, section);
@@ -122,7 +111,7 @@ export function FeatureSection() {
         </div>
 
         <div className="flex w-full flex-col gap-6">
-          <div data-feature-grid className="flex w-full flex-col gap-5">
+          <div className="flex w-full flex-col gap-5">
             <div
               data-feature-row
               className="flex w-full flex-col items-stretch justify-center gap-4 lg:flex-row lg:items-stretch"
@@ -131,25 +120,27 @@ export function FeatureSection() {
                 data-feature-card
                 className={`${cardClass} flex min-h-[14.5rem] w-full flex-col items-center justify-center gap-[15px] bg-gradient-to-b from-[#2563eb] to-[#b3bed7] p-8 lg:min-h-[23.125rem] lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[518px] min-[106.5rem]:flex-none min-[106.5rem]:p-8`}
               >
-                <p className="text-[clamp(3.5rem,1.6rem+8vw,7.5rem)] font-extrabold leading-none text-text-reversed">
-                  25ms
-                </p>
-                <div className="flex items-start gap-1">
-                  <p className="break-keep text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-none text-text-reversed">
-                    비식별화 최대 지연시간
+                <div data-feature-content className="flex flex-col items-center gap-[15px]">
+                  <p className="text-[clamp(3.5rem,1.6rem+8vw,7.5rem)] font-extrabold leading-none text-text-reversed">
+                    25ms
                   </p>
-                  <span className="relative mt-0.5 inline-block h-[11.667px] w-[10.104px] shrink-0">
-                    <span className="absolute inset-[-7.14%_-8.25%]">
-                      <Image
-                        src="/landing/features-asterisk.svg"
-                        alt=""
-                        width={12}
-                        height={13}
-                        unoptimized
-                        className="size-full max-w-none"
-                      />
+                  <div className="flex items-start gap-1">
+                    <p className="break-keep text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-none text-text-reversed">
+                      비식별화 최대 지연시간
+                    </p>
+                    <span className="relative mt-0.5 inline-block h-[11.667px] w-[10.104px] shrink-0">
+                      <span className="absolute inset-[-7.14%_-8.25%]">
+                        <Image
+                          src="/landing/features-asterisk.svg"
+                          alt=""
+                          width={12}
+                          height={13}
+                          unoptimized
+                          className="size-full max-w-none"
+                        />
+                      </span>
                     </span>
-                  </span>
+                  </div>
                 </div>
               </div>
 
@@ -158,31 +149,33 @@ export function FeatureSection() {
                 className={`${cardClass} flex min-h-[14.5rem] w-full flex-col items-center justify-center gap-[19px] p-8 lg:min-h-[23.125rem] lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[874px] min-[106.5rem]:flex-none`}
                 style={platformFill}
               >
-                <div className="flex w-full max-w-[810px] flex-wrap content-center items-center justify-center gap-x-6 gap-y-6 min-[106.5rem]:gap-x-[100px]">
-                  <div className="relative aspect-[307/134] w-[min(100%,19.1875rem)]">
-                    <Image
-                      src="/landing/youtube-logo.png"
-                      alt="YouTube"
-                      width={1705}
-                      height={573}
-                      sizes="307px"
-                      className="absolute inset-0 size-full max-w-none object-cover"
-                    />
+                <div data-feature-content className="flex w-full flex-col items-center gap-[19px]">
+                  <div className="flex w-full max-w-[810px] flex-wrap content-center items-center justify-center gap-x-6 gap-y-6 min-[106.5rem]:gap-x-[100px]">
+                    <div className="relative aspect-[307/134] w-[min(100%,19.1875rem)]">
+                      <Image
+                        src="/landing/youtube-logo.png"
+                        alt="YouTube"
+                        width={1705}
+                        height={573}
+                        sizes="307px"
+                        className="absolute inset-0 size-full max-w-none object-cover"
+                      />
+                    </div>
+                    <div className="relative aspect-[268/84] w-[min(100%,16.772rem)]">
+                      <Image
+                        src="/landing/chzzk-logo.png"
+                        alt="치지직"
+                        width={1920}
+                        height={601}
+                        sizes="268px"
+                        className="absolute inset-0 size-full max-w-none object-cover"
+                      />
+                    </div>
                   </div>
-                  <div className="relative aspect-[268/84] w-[min(100%,16.772rem)]">
-                    <Image
-                      src="/landing/chzzk-logo.png"
-                      alt="치지직"
-                      width={1920}
-                      height={601}
-                      sizes="268px"
-                      className="absolute inset-0 size-full max-w-none object-cover"
-                    />
-                  </div>
+                  <p className="w-full max-w-[810px] break-keep text-center text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-none text-text-primary">
+                    다양한 플랫폼에 직접 송출
+                  </p>
                 </div>
-                <p className="w-full max-w-[810px] break-keep text-center text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-none text-text-primary">
-                  다양한 플랫폼에 직접 송출
-                </p>
               </div>
             </div>
 
@@ -195,7 +188,10 @@ export function FeatureSection() {
                 className={`${cardClass} relative aspect-[874/370] w-full bg-background-secondary lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[874px] min-[106.5rem]:flex-none min-[106.5rem]:aspect-auto`}
                 aria-label="AI 비식별화 라이브"
               >
-                <div className="absolute inset-[39.68%_8.62%_40.08%_8.44%]">
+                <div
+                  data-feature-content
+                  className="absolute inset-[39.68%_8.62%_40.08%_8.44%]"
+                >
                   <Image
                     src="/landing/features-lettering.svg"
                     alt=""
@@ -246,23 +242,27 @@ export function FeatureSection() {
                   data-feature-card
                   className={`${cardClass} flex min-h-[10.875rem] w-full flex-col items-center justify-center gap-2.5 bg-background-secondary min-[106.5rem]:h-[174px] min-[106.5rem]:min-h-[174px]`}
                 >
-                  <p className="text-[clamp(2.5rem,1.4rem+4vw,4rem)] font-extrabold leading-none text-text-primary">
-                    1080p
-                  </p>
-                  <p className="text-center text-xl font-medium leading-none text-text-primary">
-                    고해상도 라이브
-                  </p>
+                  <div data-feature-content className="flex flex-col items-center gap-2.5">
+                    <p className="text-[clamp(2.5rem,1.4rem+4vw,4rem)] font-extrabold leading-none text-text-primary">
+                      1080p
+                    </p>
+                    <p className="text-center text-xl font-medium leading-none text-text-primary">
+                      고해상도 라이브
+                    </p>
+                  </div>
                 </div>
                 <div
                   data-feature-card
                   className={`${cardClass} flex min-h-[10.875rem] w-full flex-col items-center justify-center gap-2.5 bg-background-secondary min-[106.5rem]:h-[176px] min-[106.5rem]:min-h-[174px]`}
                 >
-                  <p className="bg-gradient-to-b from-[#10b981] to-[#a7ffe2] bg-clip-text text-[clamp(2.5rem,1.4rem+4vw,4rem)] font-extrabold leading-none text-transparent">
-                    FREEE
-                  </p>
-                  <p className="text-center text-xl font-medium leading-none text-text-primary">
-                    무료 요금제로 LITE하게**
-                  </p>
+                  <div data-feature-content className="flex flex-col items-center gap-2.5">
+                    <p className="bg-gradient-to-b from-[#10b981] to-[#a7ffe2] bg-clip-text text-[clamp(2.5rem,1.4rem+4vw,4rem)] font-extrabold leading-none text-transparent">
+                      FREEE
+                    </p>
+                    <p className="text-center text-xl font-medium leading-none text-text-primary">
+                      무료 요금제로 LITE하게**
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

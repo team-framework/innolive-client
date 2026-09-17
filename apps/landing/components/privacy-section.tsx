@@ -81,7 +81,7 @@ export function PrivacySection() {
             <p>행인의 초상권과 당신의 방송을 동시에 보호하세요.</p>
           </div>
         </div>
-        <div className="privacy-phone relative aspect-[438/881] min-w-0 lg:flex-none">
+        <div className="privacy-phone relative aspect-[438/881] min-w-0 lg:-translate-y-10 lg:flex-none">
           <Image
             src="/landing/privacy-phone.png"
             alt=""
