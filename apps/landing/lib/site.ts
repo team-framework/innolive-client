@@ -8,9 +8,22 @@ export type DownloadPlatform = {
   href: string | null;
 };
 
-function envUrl(name: string): string | null {
-  const value = process.env[name]?.trim();
-  return value ? value : null;
+function publicHttpUrl(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return trimmed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 export const downloadPlatforms: DownloadPlatform[] = [
@@ -21,7 +34,7 @@ export const downloadPlatforms: DownloadPlatform[] = [
     iconSrc: "/icons/android-head.svg",
     iconWidth: 26,
     iconHeight: 15,
-    href: envUrl("NEXT_PUBLIC_ANDROID_DOWNLOAD_URL"),
+    href: publicHttpUrl(process.env.NEXT_PUBLIC_ANDROID_DOWNLOAD_URL),
   },
   {
     id: "ios",
@@ -30,7 +43,7 @@ export const downloadPlatforms: DownloadPlatform[] = [
     iconSrc: "/icons/apple.svg",
     iconWidth: 26,
     iconHeight: 26,
-    href: envUrl("NEXT_PUBLIC_IOS_DOWNLOAD_URL"),
+    href: publicHttpUrl(process.env.NEXT_PUBLIC_IOS_DOWNLOAD_URL),
   },
 ];
 

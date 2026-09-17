@@ -51,6 +51,9 @@
   --content-max-wide: 1640px;
   --page-gutter: 32px;
   --viewport-base: 360px;
+  --header-offset-desktop: 49px;
+  --header-inner-desktop: 52px;
+  --header-block-desktop: 101px;
 
   /* Scale from a 360px base. Do not lock type to Figma min-widths 634/704. */
   --text-display: clamp(2.5rem, 1.2rem + 5.8vw, 5.25rem);

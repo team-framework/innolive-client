@@ -11,13 +11,6 @@ export function DownloadMenu() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
 
-  function close(restoreFocus = true) {
-    setOpen(false);
-    if (restoreFocus) {
-      buttonRef.current?.focus();
-    }
-  }
-
   useEffect(() => {
     if (!open) {
       return;
@@ -26,13 +19,14 @@ export function DownloadMenu() {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        close();
+        setOpen(false);
+        buttonRef.current?.focus();
       }
     }
 
     function onPointerDown(event: PointerEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
-        close();
+        setOpen(false);
       }
     }
 
@@ -49,8 +43,7 @@ export function DownloadMenu() {
       <button
         ref={buttonRef}
         type="button"
-        className="inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline sm:text-2xl"
-        aria-haspopup="menu"
+        className="inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline md:text-2xl"
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => setOpen((current) => !current)}
@@ -60,17 +53,14 @@ export function DownloadMenu() {
       {open ? (
         <div
           id={menuId}
-          role="menu"
           aria-label="다운로드"
           className="absolute right-0 z-20 mt-2 flex w-[195px] flex-col gap-2.5 rounded-[20px] bg-background-secondary p-2.5 shadow-button"
         >
           {downloadPlatforms.map((platform) => {
             const unavailable = !platform.href;
             const itemClass = cn(
-              "flex h-[54px] w-full items-center gap-2 overflow-hidden rounded-[10px] p-2.5 text-left",
-              unavailable
-                ? "cursor-not-allowed"
-                : "hover:bg-background-primary",
+              "flex h-[54px] w-full items-center gap-2 rounded-[10px] p-2.5 text-left",
+              unavailable ? "cursor-not-allowed" : "hover:bg-background-primary",
             );
             const content = (
               <>
@@ -84,14 +74,12 @@ export function DownloadMenu() {
                     aria-hidden="true"
                   />
                 </span>
-                <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="flex min-w-0 flex-col justify-center leading-none">
                   <span className="text-base font-semibold leading-none text-text-primary">
                     {platform.name}
                   </span>
-                  <span className="text-base font-semibold leading-none text-text-secondary">
-                    {unavailable
-                      ? "아직 받을 수 없습니다"
-                      : platform.minOs}
+                  <span className="text-sm font-semibold leading-none text-text-secondary">
+                    {unavailable ? "준비 중" : platform.minOs}
                   </span>
                 </span>
               </>
@@ -101,7 +89,6 @@ export function DownloadMenu() {
               return (
                 <a
                   key={platform.id}
-                  role="menuitem"
                   className={itemClass}
                   href={platform.href}
                   target="_blank"
@@ -113,14 +100,9 @@ export function DownloadMenu() {
             }
 
             return (
-              <div
-                key={platform.id}
-                role="menuitem"
-                aria-disabled="true"
-                className={itemClass}
-              >
+              <p key={platform.id} className={itemClass}>
                 {content}
-              </div>
+              </p>
             );
           })}
         </div>
