@@ -10,4 +10,7 @@ data class SettingsScreenProps(
     val profileName: String,
     val profileEmail: String,
     val onLogout: () -> Unit,
+    val onDeleteAccount: () -> Unit = {},
+    val isDeletingAccount: Boolean = false,
+    val accountDeletionError: String? = null,
 )

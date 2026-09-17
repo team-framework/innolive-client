@@ -336,6 +336,11 @@ class WebRtcSessionViewModel : ViewModel() {
         broadcastStartedAtElapsedRealtimeMillis = null
     }
 
+    /** Removes credentials that could otherwise reopen a deleted user's stale session. */
+    fun clearSessionRecovery(context: Context) {
+        EncryptedSessionRecoveryStore(context.applicationContext).clear()
+    }
+
     override fun onCleared() {
         close()
     }
