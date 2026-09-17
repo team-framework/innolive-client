@@ -64,6 +64,7 @@ import com.framework.innolive.feature.settings.selection.SettingOption
 import com.framework.innolive.feature.youtube.OperationGeneration
 import com.framework.innolive.feature.youtube.StreamingAccount
 import com.framework.innolive.feature.youtube.YouTubeAccountCoordinator
+import com.framework.innolive.feature.youtube.YouTubePreferencesStore
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
@@ -154,10 +155,25 @@ fun AppNavigation(
     val coroutineScope = rememberCoroutineScope()
     val session by authenticationSession.session.collectAsStateWithLifecycle()
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
-    var youtubeAccountProvider by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountChannelId by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountChannelTitle by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountReconnectRequired by rememberSaveable { mutableStateOf(false) }
+    val youtubePreferencesStore = remember(context) { YouTubePreferencesStore(context) }
+    val restoredYouTubeAccount = remember(youtubePreferencesStore) {
+        youtubePreferencesStore.loadConnection()
+    }
+    val restoredBroadcastSettings = remember(youtubePreferencesStore) {
+        youtubePreferencesStore.loadBroadcastSettings()
+    }
+    var youtubeAccountProvider by rememberSaveable {
+        mutableStateOf(restoredYouTubeAccount?.provider)
+    }
+    var youtubeAccountChannelId by rememberSaveable {
+        mutableStateOf(restoredYouTubeAccount?.channelId)
+    }
+    var youtubeAccountChannelTitle by rememberSaveable {
+        mutableStateOf(restoredYouTubeAccount?.channelTitle)
+    }
+    var youtubeAccountReconnectRequired by rememberSaveable {
+        mutableStateOf(restoredYouTubeAccount?.reconnectRequired == true)
+    }
     val youtubeAccount = youtubeAccountProvider?.let { provider ->
         StreamingAccount(
             provider = provider,
@@ -167,7 +183,13 @@ fun AppNavigation(
         )
     }
     var youtubeAccountStatus by rememberSaveable {
-        mutableStateOf("로그인 후 YouTube 계정을 연동할 수 있습니다.")
+        mutableStateOf(
+            if (restoredYouTubeAccount == null) {
+                "로그인 후 YouTube 계정을 연동할 수 있습니다."
+            } else {
+                "저장된 YouTube 연결 정보를 확인하는 중입니다."
+            },
+        )
     }
     var isYouTubeAccountActionInProgress by rememberSaveable { mutableStateOf(false) }
     var isYouTubeAuthorizationLaunched by rememberSaveable { mutableStateOf(false) }
@@ -201,6 +223,13 @@ fun AppNavigation(
         youtubeAccountChannelId = account?.channelId
         youtubeAccountChannelTitle = account?.channelTitle
         youtubeAccountReconnectRequired = account?.reconnectRequired == true
+        // This function is called only after the server account list or connect response succeeds.
+        // The local value is a display cache and never overrides an authenticated server response.
+        if (account == null) {
+            youtubePreferencesStore.removeConnection()
+        } else {
+            youtubePreferencesStore.saveConnection(account)
+        }
         youtubeAccountStatus = when {
             account == null -> "연결된 계정이 없습니다"
             account.reconnectRequired -> "YouTube 재연동이 필요합니다."
@@ -342,11 +371,23 @@ fun AppNavigation(
     var selectedBroadcastPlatform by rememberSaveable {
         mutableStateOf(broadcastPlatformOptions.first())
     }
-    var broadcastTitle by rememberSaveable { mutableStateOf("") }
-    var broadcastDescription by rememberSaveable { mutableStateOf("") }
-    var broadcastPrivacy by rememberSaveable { mutableStateOf("private") }
-    var broadcastAudience by rememberSaveable { mutableStateOf("unset") }
-    var broadcastCategoryId by rememberSaveable { mutableStateOf("") }
+    var broadcastTitle by rememberSaveable { mutableStateOf(restoredBroadcastSettings.title) }
+    var broadcastDescription by rememberSaveable {
+        mutableStateOf(restoredBroadcastSettings.description)
+    }
+    var broadcastPrivacy by rememberSaveable { mutableStateOf(restoredBroadcastSettings.privacy) }
+    var broadcastAudience by rememberSaveable {
+        mutableStateOf(
+            when (restoredBroadcastSettings.madeForKids) {
+                true -> "true"
+                false -> "false"
+                null -> "unset"
+            },
+        )
+    }
+    var broadcastCategoryId by rememberSaveable {
+        mutableStateOf(restoredBroadcastSettings.categoryId)
+    }
 
     DisposableEffect(context, selectedCameraLensFacing) {
         var isDisposed = false
@@ -404,6 +445,18 @@ fun AppNavigation(
         },
         categoryId = broadcastCategoryId,
     )
+    fun updateBroadcastSettings(settings: BroadcastSettings) {
+        broadcastTitle = settings.title
+        broadcastDescription = settings.description
+        broadcastPrivacy = settings.privacy
+        broadcastAudience = when (settings.madeForKids) {
+            true -> "true"
+            false -> "false"
+            null -> "unset"
+        }
+        broadcastCategoryId = settings.categoryId
+        youtubePreferencesStore.saveBroadcastSettings(settings)
+    }
     LaunchedEffect(selectedAudioInput?.id) {
         webRtcSession.selectAudioInput(selectedAudioInput)
     }
@@ -490,17 +543,7 @@ fun AppNavigation(
             },
             cameraResolution = selectedResolution,
             broadcastSettings = broadcastSettings,
-            onBroadcastSettingsChanged = { settings ->
-                broadcastTitle = settings.title
-                broadcastDescription = settings.description
-                broadcastPrivacy = settings.privacy
-                broadcastAudience = when (settings.madeForKids) {
-                    true -> "true"
-                    false -> "false"
-                    null -> "unset"
-                }
-                broadcastCategoryId = settings.categoryId
-            },
+            onBroadcastSettingsChanged = ::updateBroadcastSettings,
             youtubeChannelTitle = youtubeAccount?.channelTitle,
             hasYouTubeAccount = youtubeAccount != null,
             youtubeAccountStatus = youtubeAccountStatus,
@@ -576,6 +619,7 @@ fun AppNavigation(
                                     isYouTubeAuthorizationLaunched = false
                                     webRtcSession.close()
                                     authenticationSession.clear()
+                                    youtubePreferencesStore.clearAccountData()
                                     updateYouTubeAccount(null)
                                     youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
                                     isYouTubeAccountActionInProgress = false
@@ -627,10 +671,16 @@ fun AppNavigation(
                                     )
                                 },
                                 title = broadcastTitle,
-                                onTitleChanged = { value -> broadcastTitle = value.take(100) },
+                                onTitleChanged = { value ->
+                                    updateBroadcastSettings(
+                                        broadcastSettings.copy(title = value.take(100)),
+                                    )
+                                },
                                 description = broadcastDescription,
                                 onDescriptionChanged = { value ->
-                                    broadcastDescription = value.take(5_000)
+                                    updateBroadcastSettings(
+                                        broadcastSettings.copy(description = value.take(5_000)),
+                                    )
                                 },
                                 selectedPrivacy = broadcastPrivacyOptions
                                     .first { option -> option.key == broadcastPrivacy }
@@ -650,7 +700,11 @@ fun AppNavigation(
                                 },
                                 categoryId = broadcastCategoryId,
                                 onCategoryIdChanged = { value ->
-                                    broadcastCategoryId = value.filter(Char::isDigit)
+                                    updateBroadcastSettings(
+                                        broadcastSettings.copy(
+                                            categoryId = value.filter(Char::isDigit),
+                                        ),
+                                    )
                                 },
                                 youtubeChannelTitle = youtubeAccount?.channelTitle,
                                 youtubeAccountStatus = youtubeAccountStatus,
@@ -737,14 +791,26 @@ fun AppNavigation(
                             title = "공개 범위",
                             options = broadcastPrivacyOptions,
                             selectedKey = broadcastPrivacy,
-                            onOptionSelected = { broadcastPrivacy = it },
+                            onOptionSelected = { key ->
+                                updateBroadcastSettings(broadcastSettings.copy(privacy = key))
+                            },
                         )
 
                         SettingOptionType.BROADCAST_AUDIENCE -> OptionSelectionConfig(
                             title = "아동용 콘텐츠",
                             options = broadcastAudienceOptions,
                             selectedKey = broadcastAudience,
-                            onOptionSelected = { broadcastAudience = it },
+                            onOptionSelected = { key ->
+                                updateBroadcastSettings(
+                                    broadcastSettings.copy(
+                                        madeForKids = when (key) {
+                                            "true" -> true
+                                            "false" -> false
+                                            else -> null
+                                        },
+                                    ),
+                                )
+                            },
                         )
                     }
 
