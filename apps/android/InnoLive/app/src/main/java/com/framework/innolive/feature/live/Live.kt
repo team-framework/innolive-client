@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live
 
+import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -19,10 +20,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -32,11 +36,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
+import kotlinx.coroutines.delay
 
 @Composable
 fun LiveScreen(
@@ -46,6 +52,7 @@ fun LiveScreen(
     var openFaceManagement by remember { mutableStateOf(false) }
     var openPlatformDialog by remember { mutableStateOf(false) }
     var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
+    var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -55,6 +62,9 @@ fun LiveScreen(
         selectedPlatform = selectedPlatform,
         broadcastStatus = webRtcSession.broadcastStatus,
         isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
+    )
+    val broadcastDurationText = rememberBroadcastDurationText(
+        webRtcSession.broadcastStartedAtElapsedRealtimeMillis,
     )
     val mediaPermissions = rememberMediaPermissionController(context)
     val mediaPermissionState = mediaPermissions.state
@@ -159,7 +169,7 @@ fun LiveScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "00:00:00",
+                    text = broadcastDurationText,
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                 )
@@ -189,11 +199,9 @@ fun LiveScreen(
         ) {
             BroadcastActionControls(
                 presentation = presentation,
-                onCancelPreparation = webRtcSession::stopBroadcast,
                 onBroadcastAction = {
                     when (presentation.broadcastAction) {
-                        LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
-                        LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
+                        LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
                         LiveBroadcastAction.PREPARE_BROADCAST -> openYouTubeSettingsDialog = true
                         LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
                     }
@@ -258,6 +266,32 @@ fun LiveScreen(
                             },
                         )
                     }
+                    if (openBroadcastActions) {
+                        BroadcastActionDialog(
+                            presentation = presentation,
+                            onDismiss = { openBroadcastActions = false },
+                            onGoLive = {
+                                openBroadcastActions = false
+                                webRtcSession.goLive()
+                            },
+                            onCancelPreparation = {
+                                openBroadcastActions = false
+                                webRtcSession.stopBroadcast()
+                            },
+                            onPauseOrResume = {
+                                openBroadcastActions = false
+                                if (presentation.isBroadcastPaused) {
+                                    webRtcSession.resumeBroadcast()
+                                } else {
+                                    webRtcSession.pauseBroadcast()
+                                }
+                            },
+                            onStop = {
+                                openBroadcastActions = false
+                                webRtcSession.stopBroadcast()
+                            },
+                        )
+                    }
                 },
                 trailing = {
                     AnonymizationControls(
@@ -303,6 +337,22 @@ fun LiveScreen(
 }
 
 @Composable
+private fun rememberBroadcastDurationText(startedAtElapsedRealtimeMillis: Long?): String {
+    var elapsedMillis by remember(startedAtElapsedRealtimeMillis) { mutableLongStateOf(0L) }
+    LaunchedEffect(startedAtElapsedRealtimeMillis) {
+        val startedAt = startedAtElapsedRealtimeMillis ?: run {
+            elapsedMillis = 0L
+            return@LaunchedEffect
+        }
+        while (true) {
+            elapsedMillis = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0L)
+            delay(1_000L - elapsedMillis % 1_000L)
+        }
+    }
+    return formatBroadcastDuration(elapsedMillis)
+}
+
+@Composable
 internal fun StableBroadcastFeedback(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
@@ -319,37 +369,89 @@ internal fun StableBroadcastFeedback(
 @Composable
 internal fun BroadcastActionControls(
     presentation: LiveScreenPresentation,
-    onCancelPreparation: () -> Unit,
     onBroadcastAction: () -> Unit,
     leading: @Composable () -> Unit,
     centerOverlay: @Composable () -> Unit = {},
     trailing: @Composable () -> Unit,
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        if (presentation.isBroadcastPrepared) {
-            Button(
-                onClick = onCancelPreparation,
-                enabled = !presentation.isBroadcastBusy,
-            ) {
-                Text(text = "방송 준비 취소")
+    BalancedLiveControls(
+        leading = leading,
+        center = {
+            Box(contentAlignment = Alignment.Center) {
+                centerOverlay()
+                VerticalHeroButton(
+                    text = presentation.broadcastButtonText,
+                    enabled = presentation.isBroadcastButtonEnabled,
+                    onClick = onBroadcastAction,
+                )
             }
-        }
-        BalancedLiveControls(
-            leading = leading,
-            center = {
-                Box(contentAlignment = Alignment.Center) {
-                    centerOverlay()
-                    VerticalHeroButton(
-                        text = presentation.broadcastButtonText,
-                        enabled = presentation.isBroadcastButtonEnabled,
-                        onClick = onBroadcastAction,
+        },
+        trailing = trailing,
+    )
+}
+
+@Composable
+internal fun BroadcastActionDialog(
+    presentation: LiveScreenPresentation,
+    onDismiss: () -> Unit,
+    onGoLive: () -> Unit,
+    onCancelPreparation: () -> Unit,
+    onPauseOrResume: () -> Unit,
+    onStop: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .width(300.dp)
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(text = "방송 제어", style = MaterialTheme.typography.titleLarge)
+                if (presentation.isBroadcastLive) {
+                    Text(
+                        text = "YouTube에 송출되는 화면만 일시 중단되고, 서버와의 연결은 유지됩니다.",
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-            },
-            trailing = trailing,
+                if (presentation.isBroadcastPrepared) {
+                    BroadcastDialogButton("방송 시작", onGoLive)
+                    BroadcastDialogButton(
+                        text = "방송 준비 취소",
+                        onClick = onCancelPreparation,
+                        destructive = true,
+                    )
+                } else if (presentation.isBroadcastLive) {
+                    BroadcastDialogButton(
+                        text = if (presentation.isBroadcastPaused) "방송 재개" else "방송 일시 중지",
+                        onClick = onPauseOrResume,
+                    )
+                    BroadcastDialogButton("방송 종료", onStop, destructive = true)
+                }
+                BroadcastDialogButton("취소", onDismiss)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BroadcastDialogButton(
+    text: String,
+    onClick: () -> Unit,
+    destructive: Boolean = false,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = text,
+            color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         )
     }
 }

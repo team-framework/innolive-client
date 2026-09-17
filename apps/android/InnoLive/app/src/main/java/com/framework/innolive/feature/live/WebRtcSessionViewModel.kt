@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioDeviceInfo
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -45,6 +46,8 @@ class WebRtcSessionViewModel : ViewModel() {
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
     var broadcastStatus by mutableStateOf("방송 대기")
+        private set
+    var broadcastStartedAtElapsedRealtimeMillis by mutableStateOf<Long?>(null)
         private set
 
     var frameAnalyzer: CameraFrameAnalyzer? by mutableStateOf(null)
@@ -120,6 +123,7 @@ class WebRtcSessionViewModel : ViewModel() {
         if (previousConnection != null) {
             broadcastState = BroadcastState.IDLE
             broadcastStatus = "방송 대기"
+            broadcastStartedAtElapsedRealtimeMillis = null
         }
 
         connectionStatus = "연결 준비 중…"
@@ -145,6 +149,7 @@ class WebRtcSessionViewModel : ViewModel() {
                             if (state == WebRtcConnectionState.FAILED && broadcastState != BroadcastState.IDLE) {
                                 broadcastState = BroadcastState.FAILED
                                 broadcastStatus = "연결이 끊겨 방송 준비를 계속할 수 없습니다. 다시 시도해 주세요."
+                                broadcastStartedAtElapsedRealtimeMillis = null
                             }
                         }
                     },
@@ -172,6 +177,11 @@ class WebRtcSessionViewModel : ViewModel() {
                     },
                     onBroadcastStateChanged = { state, message ->
                         if (sessionState.acceptsCallback(generation)) {
+                            broadcastStartedAtElapsedRealtimeMillis = nextBroadcastStartedAt(
+                                currentStartedAtMillis = broadcastStartedAtElapsedRealtimeMillis,
+                                state = state,
+                                nowMillis = SystemClock.elapsedRealtime(),
+                            )
                             broadcastState = state
                             broadcastStatus = if (state == BroadcastState.FAILED) broadcastUserMessage(message) else message
                         }
@@ -294,6 +304,14 @@ class WebRtcSessionViewModel : ViewModel() {
         connection?.goLive()
     }
 
+    fun pauseBroadcast() {
+        connection?.pauseBroadcast()
+    }
+
+    fun resumeBroadcast() {
+        connection?.resumeBroadcast()
+    }
+
     fun stopBroadcast() {
         connection?.stopBroadcast()
     }
@@ -315,6 +333,7 @@ class WebRtcSessionViewModel : ViewModel() {
         connectionStatus = ""
         broadcastState = BroadcastState.IDLE
         broadcastStatus = "방송 대기"
+        broadcastStartedAtElapsedRealtimeMillis = null
     }
 
     override fun onCleared() {

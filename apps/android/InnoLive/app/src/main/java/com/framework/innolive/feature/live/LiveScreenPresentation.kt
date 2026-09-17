@@ -1,8 +1,7 @@
 package com.framework.innolive.feature.live
 
 enum class LiveBroadcastAction {
-    STOP_BROADCAST,
-    GO_LIVE,
+    SHOW_BROADCAST_ACTIONS,
     PREPARE_BROADCAST,
     SELECT_PLATFORM,
 }
@@ -12,6 +11,7 @@ data class LiveScreenPresentation(
     val isConnecting: Boolean,
     val isBroadcastLive: Boolean,
     val isBroadcastPrepared: Boolean,
+    val isBroadcastPaused: Boolean,
     val isBroadcastBusy: Boolean,
     val broadcastButtonText: String,
     val isBroadcastButtonEnabled: Boolean,
@@ -29,12 +29,12 @@ fun buildLiveScreenPresentation(
 ): LiveScreenPresentation {
     val isConnected = connectionState == WebRtcConnectionState.CONNECTED
     val isConnecting = connectionState == WebRtcConnectionState.CONNECTING
-    val isBroadcastLive = broadcastState == BroadcastState.LIVE
+    val isBroadcastLive = broadcastState == BroadcastState.LIVE || broadcastState == BroadcastState.PAUSED
     val isBroadcastPrepared = broadcastState == BroadcastState.PREPARED
+    val isBroadcastPaused = broadcastState == BroadcastState.PAUSED
     val isBroadcastBusy = broadcastState.isBusy || isPreparingBroadcast
     val broadcastAction = when {
-        isBroadcastLive -> LiveBroadcastAction.STOP_BROADCAST
-        isBroadcastPrepared -> LiveBroadcastAction.GO_LIVE
+        isBroadcastLive || isBroadcastPrepared -> LiveBroadcastAction.SHOW_BROADCAST_ACTIONS
         selectedPlatform == "YouTube" -> LiveBroadcastAction.PREPARE_BROADCAST
         else -> LiveBroadcastAction.SELECT_PLATFORM
     }
@@ -51,10 +51,14 @@ fun buildLiveScreenPresentation(
         isConnecting = isConnecting,
         isBroadcastLive = isBroadcastLive,
         isBroadcastPrepared = isBroadcastPrepared,
+        isBroadcastPaused = isBroadcastPaused,
         isBroadcastBusy = isBroadcastBusy,
         broadcastButtonText = when {
-            isBroadcastLive -> "방송 종료"
-            isBroadcastPrepared -> "방송 시작"
+            isBroadcastPaused -> "방송 일시 중지"
+            isBroadcastLive -> "방송 중"
+            isBroadcastPrepared -> "방송 준비 완료"
+            broadcastState == BroadcastState.PAUSING -> "방송 일시 중지 중"
+            broadcastState == BroadcastState.RESUMING -> "방송 재개 중"
             broadcastState == BroadcastState.CANCELLING_PREPARATION -> "방송 준비 취소 중"
             broadcastState == BroadcastState.STOPPING -> "방송 종료 중"
             isBroadcastBusy -> "방송 준비 중"
@@ -73,6 +77,8 @@ private val BroadcastState.isBusy: Boolean
         BroadcastState.SAVING_SETTINGS,
         BroadcastState.PREPARING,
         BroadcastState.GOING_LIVE,
+        BroadcastState.PAUSING,
+        BroadcastState.RESUMING,
         BroadcastState.CANCELLING_PREPARATION,
         BroadcastState.STOPPING -> true
         else -> false

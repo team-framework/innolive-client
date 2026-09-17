@@ -97,7 +97,6 @@ class LiveControlsLayoutTest {
                                 selectedPlatform = "YouTube",
                                 broadcastStatus = if (prepared) "방송 준비 완료" else "",
                             ),
-                            onCancelPreparation = {},
                             onBroadcastAction = {},
                             leading = { Box(Modifier.size(48.dp).testTag("face-control")) },
                             trailing = { Box(Modifier.size(48.dp).testTag("anonymization-control")) },
@@ -118,7 +117,7 @@ class LiveControlsLayoutTest {
         compose.runOnIdle { prepared = true }
         val after = listOf(
             bounds("face-control"),
-            compose.onNodeWithText("방송 시작").getUnclippedBoundsInRoot(),
+            compose.onNodeWithText("방송 준비 완료").getUnclippedBoundsInRoot(),
             bounds("anonymization-control"),
         )
 
@@ -130,8 +129,6 @@ class LiveControlsLayoutTest {
                 0.5f,
             )
         }
-        val cancelBounds = compose.onNodeWithText("방송 준비 취소").getUnclippedBoundsInRoot()
-        assertTrue(cancelBounds.bottom <= after[1].top)
         val bottomGap = bounds("container").bottom - after[0].bottom
         assertTrue("얼굴 관리 버튼이 하단에서 너무 멀어지지 않아야 합니다.", bottomGap <= 36.dp)
     }

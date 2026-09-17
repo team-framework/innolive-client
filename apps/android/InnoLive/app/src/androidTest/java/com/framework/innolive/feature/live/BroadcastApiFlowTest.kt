@@ -28,6 +28,10 @@ class BroadcastApiFlowTest {
             assertFalse(h.connection.prepareBroadcast(settings))
             h.connection.goLive()
             h.awaitState(BroadcastState.LIVE)
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.connection.resumeBroadcast()
+            h.awaitState(BroadcastState.LIVE)
             h.patch(true, AnonymizationState.ENABLED)
             h.patch(false, AnonymizationState.DISABLED)
             val statesBeforeFailure = h.states.toList()
@@ -47,6 +51,8 @@ class BroadcastApiFlowTest {
             h.awaitState(BroadcastState.IDLE)
             assertEquals(2, h.requests.count { it.url.encodedPath.endsWith("stream/prepare") })
             assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("stream/golive") })
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("stream/pause") })
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("stream/resume") })
             val save = h.requests.first { it.method == "PUT" }
             val payload = JSONObject(h.body(save))
             assertEquals("private", payload.getString("privacy"))
@@ -56,6 +62,26 @@ class BroadcastApiFlowTest {
                 assertEquals("test-owner", request.header("X-Session-Owner-Token"))
                 assertTrue(request.url.encodedPath.startsWith("/sessions/test-session/"))
             }
+        }
+    }
+
+    @Test fun pauseAndResumeFailureKeepTheLastUsableBroadcastState() {
+        Harness().use { h ->
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+
+            h.pauseStatus = 500
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.LIVE)
+
+            h.pauseStatus = 200
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.resumeStatus = 500
+            h.connection.resumeBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
         }
     }
 
@@ -106,6 +132,8 @@ class BroadcastApiFlowTest {
         @Volatile var patchStatus = 200
         @Volatile var settingsStatus = 200
         @Volatile var stopStatus = 200
+        @Volatile var pauseStatus = 200
+        @Volatile var resumeStatus = 200
         @Volatile var deleteStatus = 204
         @Volatile var goLiveNotReady = false
         val connection = WebRtcConnection(
@@ -139,6 +167,8 @@ class BroadcastApiFlowTest {
                         409
                     }
                     request.url.encodedPath.endsWith("stop") -> stopStatus
+                    request.url.encodedPath.endsWith("pause") -> pauseStatus
+                    request.url.encodedPath.endsWith("resume") -> resumeStatus
                     else -> 200
                 }
                 Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
