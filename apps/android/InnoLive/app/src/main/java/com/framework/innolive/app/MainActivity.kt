@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -124,12 +125,16 @@ class MainActivity : ComponentActivity() {
             ViewModelProvider(this)[AuthenticationSessionViewModel::class.java]
         setContent {
             MyApplicationTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    containerColor = MaterialTheme.colorScheme.background,
+                ) { innerPadding ->
                     AppNavigation(
                         webRtcSession = webRtcSession,
                         authenticationSession = authenticationSession,
                         modifier = Modifier
                             .padding(innerPadding)
+                            .consumeWindowInsets(innerPadding)
                             .background(color = MaterialTheme.colorScheme.background),
                     )
                 }
