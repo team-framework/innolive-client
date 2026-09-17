@@ -48,7 +48,6 @@ export function LoginForm() {
         <TextField
           icon="mail"
           label="이메일"
-          name="email"
           type="email"
           autoComplete="email"
           value={email}
@@ -58,7 +57,6 @@ export function LoginForm() {
         <TextField
           icon="lock"
           label="비밀번호"
-          name="password"
           autoComplete="current-password"
           revealable
           value={password}

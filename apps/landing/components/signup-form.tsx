@@ -63,7 +63,6 @@ export function SignupForm() {
         <TextField
           icon="mail"
           label="이메일"
-          name="email"
           type="email"
           autoComplete="email"
           value={email}
@@ -73,7 +72,6 @@ export function SignupForm() {
         <TextField
           icon="lock"
           label="비밀번호"
-          name="password"
           autoComplete="new-password"
           revealable
           value={password}
@@ -83,15 +81,15 @@ export function SignupForm() {
         <TextField
           icon="lock"
           label="비밀번호 재입력"
-          name="password-confirm"
           autoComplete="new-password"
           revealable
           value={confirm}
           error={errors.confirm}
           onChange={(event) => setConfirm(event.target.value)}
         />
-        <div className="flex w-full flex-col gap-1 px-2">
+        <div className="flex w-full min-w-0 flex-col gap-1 px-2 break-keep">
           <Checkbox
+            className="w-full min-w-0 break-keep"
             checked={agreed}
             onChange={(event) => setAgreed(event.target.checked)}
             aria-invalid={errors.agreed ? true : undefined}
