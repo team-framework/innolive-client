@@ -366,6 +366,38 @@ class WebRtcConnection(
         }
     }
 
+    fun pauseBroadcast() {
+        if (!broadcastState.canPause) return
+        runBroadcastOperation {
+            updateBroadcastState(BroadcastState.PAUSING, "YouTube 송출 일시 중지 중")
+            try {
+                postSessionRequest("stream/pause")
+                updateBroadcastState(BroadcastState.PAUSED, "YouTube 송출 일시 중지됨")
+            } catch (exception: Exception) {
+                updateBroadcastState(
+                    BroadcastState.LIVE,
+                    exception.message ?: "YouTube 송출을 일시 중지하지 못했습니다.",
+                )
+            }
+        }
+    }
+
+    fun resumeBroadcast() {
+        if (!broadcastState.canResume) return
+        runBroadcastOperation {
+            updateBroadcastState(BroadcastState.RESUMING, "YouTube 송출 재개 중")
+            try {
+                postSessionRequest("stream/resume")
+                updateBroadcastState(BroadcastState.LIVE, "YouTube 방송 중")
+            } catch (exception: Exception) {
+                updateBroadcastState(
+                    BroadcastState.PAUSED,
+                    exception.message ?: "YouTube 송출을 재개하지 못했습니다.",
+                )
+            }
+        }
+    }
+
     fun stopBroadcast() {
         if (!broadcastState.canStop) return
         runBroadcastOperation {

@@ -20,9 +20,9 @@ class LiveScreenPresentationTest {
             broadcastStatus = "방송 중",
         )
 
-        assertEquals("방송 종료", presentation.broadcastButtonText)
+        assertEquals("방송 중", presentation.broadcastButtonText)
         assertTrue(presentation.isBroadcastButtonEnabled)
-        assertEquals(LiveBroadcastAction.STOP_BROADCAST, presentation.broadcastAction)
+        assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, presentation.broadcastAction)
     }
 
     @Test
@@ -40,8 +40,8 @@ class LiveScreenPresentationTest {
             broadcastStatus = "방송 준비 중",
         )
 
-        assertEquals("방송 시작", prepared.broadcastButtonText)
-        assertEquals(LiveBroadcastAction.GO_LIVE, prepared.broadcastAction)
+        assertEquals("방송 준비 완료", prepared.broadcastButtonText)
+        assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, prepared.broadcastAction)
         assertTrue(prepared.isBroadcastPrepared)
         assertTrue(prepared.isBroadcastButtonEnabled)
 
@@ -49,6 +49,22 @@ class LiveScreenPresentationTest {
         assertEquals(LiveBroadcastAction.PREPARE_BROADCAST, preparing.broadcastAction)
         assertTrue(preparing.isBroadcastBusy)
         assertFalse(preparing.isBroadcastButtonEnabled)
+    }
+
+    @Test
+    fun pausedBroadcastShowsInformationButtonAndCanBeStopped() {
+        val paused = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED,
+            BroadcastState.PAUSED,
+            "YouTube",
+            "YouTube 송출 일시 중지됨",
+        )
+
+        assertTrue(paused.isBroadcastLive)
+        assertTrue(paused.isBroadcastPaused)
+        assertEquals("방송 일시 중지", paused.broadcastButtonText)
+        assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, paused.broadcastAction)
+        assertEquals(BroadcastState.STOPPING, BroadcastState.PAUSED.stoppingState())
     }
 
     @Test
