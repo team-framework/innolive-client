@@ -114,11 +114,11 @@ class LiveScreenPresentationTest {
         )
 
         assertEquals(BroadcastState.CANCELLING_PREPARATION, cancelledState)
-        assertEquals("방송 준비 취소 중…", cancelling.broadcastButtonText)
+        assertEquals("방송 준비 취소 중", cancelling.broadcastButtonText)
         assertFalse(cancelling.isBroadcastButtonEnabled)
         assertEquals("YouTube 방송 준비 취소 중", cancelling.broadcastStatusText)
         assertEquals(BroadcastState.STOPPING, stoppedState)
-        assertEquals("방송 종료 중…", stopping.broadcastButtonText)
+        assertEquals("방송 종료 중", stopping.broadcastButtonText)
         assertFalse(stopping.isBroadcastButtonEnabled)
         assertEquals("방송 준비", idle.broadcastButtonText)
         assertTrue(idle.isBroadcastButtonEnabled)
