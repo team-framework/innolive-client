@@ -1,0 +1,168 @@
+import Image from "next/image";
+import { Button } from "@/components/button";
+import { OnDeviceHelp } from "@/components/on-device-help";
+import { cn } from "@/lib/cn";
+import type { Plan } from "@/lib/plans";
+
+const featureIcons = {
+  check: { src: "/icons/circle-check.svg", width: 24, height: 24 },
+  sparkles: { src: "/icons/sparkles.svg", width: 24, height: 24 },
+} as const;
+
+function PromoRibbon({ label }: { label: string }) {
+  return (
+    <div
+      className="pointer-events-none absolute -top-4 right-[-1.15rem] flex h-[10rem] w-[10.4rem] items-center justify-center"
+      aria-hidden="true"
+    >
+      <div className="flex-none rotate-[44.24deg] skew-x-[-1.52deg]">
+        <div className="flex h-[2.42rem] w-[9.41rem] items-center justify-center bg-gradient-to-r from-[#1a1a1a] via-[#808080] via-[29.808%] to-[#1a1a1a] shadow-[0_4px_4px_#00000040]">
+          <p className="text-center text-lg font-medium leading-[1.15] whitespace-nowrap text-text-reversed">
+            {label}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PriceLine({
+  amount,
+  period,
+  emphasize,
+  original,
+}: {
+  amount: string;
+  period: string;
+  emphasize?: boolean;
+  original?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <p
+        className={cn(
+          "min-w-0 break-keep leading-[1.15] text-text-primary",
+          original
+            ? "text-2xl line-through [text-underline-position:from-font]"
+            : emphasize
+              ? "text-[2rem] font-semibold"
+              : "text-[1.75rem]",
+        )}
+      >
+        ₩{amount}
+      </p>
+      <p
+        className={cn(
+          "flex items-center gap-1 leading-[1.15] text-text-secondary",
+          original ? "text-base" : emphasize ? "text-[1.375rem]" : "text-xl",
+        )}
+      >
+        <span>/</span>
+        <span>{period}</span>
+      </p>
+    </div>
+  );
+}
+
+export function PlanCard({ plan }: { plan: Plan }) {
+  const footnotesId = plan.footnotes ? `${plan.id}-notes` : undefined;
+
+  return (
+    <article
+      className={cn(
+        "relative flex h-auto w-full flex-col gap-8 rounded-[20px] bg-gradient-to-b from-white to-[#efefefef] px-8 pb-7 pt-9 shadow-[2px_2px_12px_0_#0000000d] min-[64rem]:h-[46.25rem]",
+        plan.ribbon ? "overflow-visible" : "overflow-clip",
+      )}
+    >
+      {plan.ribbon ? <PromoRibbon label={plan.ribbon} /> : null}
+      <div className="flex min-h-0 flex-1 flex-col justify-between gap-8">
+        <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center gap-3">
+              <h3
+                className={cn(
+                  "text-[clamp(1.5rem,1.15rem+1.4vw,2.25rem)] font-bold leading-[1.15]",
+                  plan.nameTone === "streamer"
+                    ? "bg-gradient-to-r from-[#00da7c] to-[#0048ff] bg-clip-text text-transparent"
+                    : "text-text-primary",
+                )}
+              >
+                {plan.name}
+              </h3>
+              {plan.helpLabel ? <OnDeviceHelp label={plan.helpLabel} /> : null}
+            </div>
+            <p className="break-keep text-[clamp(1.125rem,0.95rem+0.8vw,1.625rem)] font-normal leading-[1.15] text-text-primary">
+              {plan.description}
+            </p>
+          </div>
+
+          <div className="flex flex-col">
+            {plan.originalPrice ? (
+              <PriceLine
+                amount={plan.originalPrice.amount}
+                period={plan.originalPrice.period}
+                original
+              />
+            ) : null}
+            <PriceLine
+              amount={plan.price.amount}
+              period={plan.price.period}
+              emphasize={plan.price.emphasize}
+            />
+          </div>
+
+          {plan.cta.current ? (
+            <span className="inline-flex min-h-14 w-full max-w-none items-center justify-center rounded-pill border border-button-secondary bg-background-primary px-8 py-[var(--space-18)] text-xl font-semibold leading-none text-text-primary shadow-button">
+              {plan.cta.label}
+            </span>
+          ) : (
+            <Button
+              variant="secondary"
+              href={plan.cta.href}
+              showChevron={false}
+              className="w-full max-w-none"
+            >
+              {plan.cta.label}
+            </Button>
+          )}
+
+          <ul className="flex flex-col gap-6 overflow-clip p-3">
+            {plan.features.map((feature) => {
+              const icon = featureIcons[feature.icon];
+              return (
+                <li
+                  key={feature.text}
+                  className="flex min-h-6 w-full items-center gap-2"
+                >
+                  <Image
+                    src={icon.src}
+                    alt=""
+                    width={icon.width}
+                    height={icon.height}
+                    unoptimized
+                    className="size-6 shrink-0"
+                  />
+                  <span className="min-w-0 flex-1 break-keep text-xl leading-none text-text-primary">
+                    {feature.text}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        {plan.footnotes ? (
+          <div
+            id={footnotesId}
+            tabIndex={-1}
+            className="w-full text-base leading-[1.6] text-text-secondary underline [text-underline-position:from-font]"
+          >
+            {plan.footnotes.map((note) => (
+              <p key={note}>{note}</p>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
