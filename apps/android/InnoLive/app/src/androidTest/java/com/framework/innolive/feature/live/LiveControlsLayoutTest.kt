@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,8 +17,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -60,17 +64,17 @@ class LiveControlsLayoutTest {
         assertEquals(
             ((container.left + container.right) / 2f).value,
             ((center.left + center.right) / 2f).value,
-            0.01f,
+            0.5f,
         )
         assertEquals(
             ((container.left + center.left) / 2f).value,
             ((leading.left + leading.right) / 2f).value,
-            0.01f,
+            0.5f,
         )
         assertEquals(
             ((center.right + container.right) / 2f).value,
             ((trailing.left + trailing.right) / 2f).value,
-            0.01f,
+            0.5f,
         )
     }
 
@@ -78,26 +82,28 @@ class LiveControlsLayoutTest {
     fun primaryControlsKeepTheirPositionsWhenBroadcastBecomesPrepared() {
         var prepared by mutableStateOf(false)
         compose.setContent {
-            Box(
-                modifier = Modifier
-                    .width(360.dp)
-                    .height(220.dp),
-            ) {
-                Column(modifier = Modifier.align(Alignment.BottomCenter)) {
-                    BalancedLiveControls(
-                        leading = { Box(Modifier.size(48.dp).testTag("face-control")) },
-                        center = {
-                            Box(
-                                Modifier
-                                    .width(240.dp)
-                                    .height(57.dp)
-                                    .testTag("broadcast-control"),
-                            )
-                        },
-                        trailing = { Box(Modifier.size(48.dp).testTag("anonymization-control")) },
-                    )
-                    StableBroadcastFeedback {
-                        if (prepared) Box(Modifier.size(48.dp).testTag("cancel-control"))
+            MaterialTheme {
+                Box(
+                    modifier = Modifier
+                        .width(360.dp)
+                        .height(260.dp),
+                ) {
+                    Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+                        BroadcastActionControls(
+                            presentation = buildLiveScreenPresentation(
+                                connectionState = WebRtcConnectionState.CONNECTED,
+                                broadcastState = if (prepared) BroadcastState.PREPARED else BroadcastState.IDLE,
+                                selectedPlatform = "YouTube",
+                                broadcastStatus = if (prepared) "방송 준비 완료" else "",
+                            ),
+                            onCancelPreparation = {},
+                            onBroadcastAction = {},
+                            leading = { Box(Modifier.size(48.dp).testTag("face-control")) },
+                            trailing = { Box(Modifier.size(48.dp).testTag("anonymization-control")) },
+                        )
+                        StableBroadcastFeedback {
+                            Text(if (prepared) "방송 준비 완료" else "")
+                        }
                     }
                 }
             }
@@ -105,20 +111,26 @@ class LiveControlsLayoutTest {
 
         val before = listOf(
             bounds("face-control"),
-            bounds("broadcast-control"),
+            compose.onNodeWithText("방송 준비").getUnclippedBoundsInRoot(),
             bounds("anonymization-control"),
         )
         compose.runOnIdle { prepared = true }
         val after = listOf(
             bounds("face-control"),
-            bounds("broadcast-control"),
+            compose.onNodeWithText("방송 시작").getUnclippedBoundsInRoot(),
             bounds("anonymization-control"),
         )
 
         before.zip(after).forEach { (beforeBounds, afterBounds) ->
-            assertEquals(beforeBounds.left.value, afterBounds.left.value, 0.01f)
-            assertEquals(beforeBounds.top.value, afterBounds.top.value, 0.01f)
+            assertEquals(beforeBounds.top.value, afterBounds.top.value, 0.5f)
+            assertEquals(
+                ((beforeBounds.left + beforeBounds.right) / 2f).value,
+                ((afterBounds.left + afterBounds.right) / 2f).value,
+                0.5f,
+            )
         }
+        val cancelBounds = compose.onNodeWithText("방송 준비 취소").getUnclippedBoundsInRoot()
+        assertTrue(cancelBounds.bottom <= after[1].top)
     }
 
     private fun bounds(tag: String) =

@@ -157,8 +157,30 @@ final class YouTubeAPI {
             path: "/sessions",
             method: "POST",
             accessToken: accessToken,
-            body: Optional<YouTubeEmptyRequest>.none
+            body: Optional<YouTubeEmptyRequest>.none,
+            preserveCreatedSession: true
         )
+    }
+
+    func broadcastSessionScope(accessToken: String) throws -> BroadcastSessionScope {
+        guard let server = serverURLProvider("/") else { throw YouTubeAPIError.configuration }
+        return try BroadcastSessionScope(server: server, accessToken: currentAccessToken(fallback: accessToken))
+    }
+
+    func deleteSession(_ session: StoredBroadcastSession, accessToken: String) async throws {
+        guard let url = serverURLProvider("/sessions/\(session.sessionID)") else {
+            throw YouTubeAPIError.configuration
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(session.ownerToken, forHTTPHeaderField: "X-Session-Owner-Token")
+        let (data, response) = try await authenticatedData(for: request, accessToken: accessToken)
+        if response.statusCode == 404,
+           let envelope = try? JSONDecoder().decode(YouTubeAPIErrorEnvelope.self, from: data),
+           envelope.error.code == "not_found" { return }
+        try validate(response, data: data)
+        guard response.statusCode == 204 else { throw YouTubeAPIError.response }
     }
 
     func webrtcConfiguration(accessToken: String) async throws -> [WebRTCIceServer] {
@@ -266,7 +288,8 @@ final class YouTubeAPI {
         method: String,
         accessToken: String,
         ownerToken: String? = nil,
-        body: Body? = nil
+        body: Body? = nil,
+        preserveCreatedSession: Bool = false
     ) async throws -> Response {
         guard let url = serverURLProvider(path) else {
             throw YouTubeAPIError.configuration
@@ -280,20 +303,30 @@ final class YouTubeAPI {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(body)
         }
-        let (data, httpResponse) = try await authenticatedData(for: request, accessToken: accessToken)
+        let (data, httpResponse) = try await authenticatedData(
+            for: request, accessToken: accessToken, preserveCreatedSession: preserveCreatedSession
+        )
         try validate(httpResponse, data: data)
         return try decode(Response.self, from: data)
     }
 
     private func authenticatedData(
         for request: URLRequest,
-        accessToken: String
+        accessToken: String,
+        preserveCreatedSession: Bool = false
     ) async throws -> (Data, HTTPURLResponse) {
         let requestGeneration = authenticationRequestGeneration
+        let initialScope = try? broadcastSessionScope(accessToken: accessToken)
         var request = request
         request.setValue("Bearer \(currentAccessToken(fallback: accessToken))", forHTTPHeaderField: "Authorization")
 
         var (data, response) = try await perform(request)
+        // 생성 후 초기화됐더라도 owner token은 정리용으로 보관해야 한다.
+        // 상태 복원 여부는 호출자의 세대 검사에서 결정한다. 인증 재시도는 하지 않는다.
+        if preserveCreatedSession, requestGeneration != authenticationRequestGeneration,
+           let http = response as? HTTPURLResponse, http.statusCode == 201 {
+            return (data, http)
+        }
         guard requestGeneration == authenticationRequestGeneration else {
             throw YouTubeAPIRequestInvalidated()
         }
@@ -306,6 +339,10 @@ final class YouTubeAPI {
             guard requestGeneration == authenticationRequestGeneration else {
                 throw YouTubeAPIRequestInvalidated()
             }
+            if let initialScope,
+               (try? broadcastSessionScope(accessToken: accessToken)) != initialScope {
+                throw YouTubeAPIRequestInvalidated()
+            }
             switch refreshResult {
             case .refreshed:
                 request.setValue("Bearer \(currentAccessToken(fallback: accessToken))", forHTTPHeaderField: "Authorization")
@@ -315,6 +352,10 @@ final class YouTubeAPI {
             case .unavailable:
                 break
             }
+        }
+        if preserveCreatedSession, requestGeneration != authenticationRequestGeneration,
+           let http = response as? HTTPURLResponse, http.statusCode == 201 {
+            return (data, http)
         }
         guard requestGeneration == authenticationRequestGeneration else {
             throw YouTubeAPIRequestInvalidated()

@@ -32,6 +32,12 @@ final class YouTubeIntegration: ObservableObject {
     let videoUplink = WebRTCVideoUplink()
 
     private let api: YouTubeAPI
+    private let sessionStore: any BroadcastSessionStoring
+    private var sessionScope: BroadcastSessionScope?
+    private var sessionPreparationTask: Task<Bool, Never>?
+    private var sessionOperationGeneration: UInt = 0
+    private var isEndingSession = false
+    private var unsavedSessions: [String: StoredBroadcastSession] = [:]
     private let authorization = YouTubeAuthorization()
     private let preferencesStore: YouTubePreferencesStore
     private let consentStore: ConsentAcknowledgementStore
@@ -58,9 +64,11 @@ final class YouTubeIntegration: ObservableObject {
         preferencesStore: YouTubePreferencesStore,
         api: YouTubeAPI? = nil,
         orientationLock: (any BroadcastOrientationLocking)? = nil,
-        consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore()
+        consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore(),
+        sessionStore: (any BroadcastSessionStoring)? = nil
     ) {
         self.api = api ?? YouTubeAPI()
+        self.sessionStore = sessionStore ?? BroadcastSessionStore()
         self.preferencesStore = preferencesStore
         self.consentStore = consentStore
         self.orientationLock = orientationLock ?? BroadcastOrientationController.shared
@@ -86,6 +94,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
+        sessionOperationGeneration &+= 1
         invalidateConnectionOperation()
         api.configureAuthentication(
             accessTokenProvider: { [weak authentication] in
@@ -262,22 +271,91 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func prepareSession(accessToken: String?) async -> Bool {
+        guard !isEndingSession else { return false }
+        if let task = sessionPreparationTask {
+            let generation = sessionOperationGeneration
+            let result = await task.value
+            return result && generation == sessionOperationGeneration
+                && sessionScope == (accessToken.flatMap { try? api.broadcastSessionScope(accessToken: $0) })
+        }
         clearError()
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
             return false
         }
-        if session != nil { return true }
+        if session != nil {
+            return sessionScope == (try? api.broadcastSessionScope(accessToken: accessToken))
+        }
 
+        let generation = sessionOperationGeneration
         isPreparingSession = true
-        defer { isPreparingSession = false }
+        let task = Task { [self] in
+            guard sessionOperationGeneration == generation else { return false }
+            do {
+                let scope = try api.broadcastSessionScope(accessToken: accessToken)
+                try await removePreviousSession(scope: scope, accessToken: accessToken)
+                guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
+                let created = try await api.createSession(accessToken: accessToken)
+                let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
+                // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
+                do {
+                    try sessionStore.save(record, scope: scope)
+                } catch {
+                    unsavedSessions[scope.storageKey] = record
+                    if isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) {
+                        try? await removePreviousSession(scope: scope, accessToken: accessToken)
+                    }
+                    throw error
+                }
+                guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
+                sessionScope = scope
+                session = created
+                stream = created.stream
+                return true
+            } catch {
+                if sessionOperationGeneration == generation {
+                    handle(error)
+                }
+                return false
+            }
+        }
+        sessionPreparationTask = task
+        let result = await task.value
+        sessionPreparationTask = nil
+        isPreparingSession = false
+        return result && sessionOperationGeneration == generation && session != nil
+    }
+
+    private func isCurrentSessionOperation(_ generation: UInt, scope: BroadcastSessionScope, accessToken: String) -> Bool {
+        sessionOperationGeneration == generation
+            && !Task.isCancelled
+            && (try? api.broadcastSessionScope(accessToken: accessToken)) == scope
+    }
+
+    private func removePreviousSession(scope: BroadcastSessionScope, accessToken: String) async throws {
+        guard (try api.broadcastSessionScope(accessToken: accessToken)) == scope else {
+            throw YouTubeAPIError.unauthorized
+        }
+        let previous = try unsavedSessions[scope.storageKey] ?? sessionStore.load(scope: scope)
+        guard let previous else { return }
+        try await api.deleteSession(previous, accessToken: accessToken)
+        try sessionStore.remove(scope: scope)
+        unsavedSessions.removeValue(forKey: scope.storageKey)
+    }
+
+    private func deleteCurrentSession(accessToken: String?) async {
+        guard let accessToken else { return }
+        let generation = sessionOperationGeneration
         do {
-            session = try await api.createSession(accessToken: accessToken)
-            stream = session?.stream
-            return true
+            if let scope = sessionScope ?? (try? api.broadcastSessionScope(accessToken: accessToken)) {
+                try await removePreviousSession(scope: scope, accessToken: accessToken)
+            } else if let session {
+                try await api.deleteSession(
+                    .init(sessionID: session.sessionID, ownerToken: session.ownerToken), accessToken: accessToken
+                )
+            }
         } catch {
-            handle(error)
-            return false
+            if sessionOperationGeneration == generation { handle(error) }
         }
     }
 
@@ -301,6 +379,7 @@ final class YouTubeIntegration: ObservableObject {
             return false
         }
 
+        let generation = sessionOperationGeneration
         isConnectingVideo = true
         defer { isConnectingVideo = false }
         var currentAccessToken = accessToken
@@ -310,6 +389,7 @@ final class YouTubeIntegration: ObservableObject {
         while true {
             do {
                 let iceServers = try await api.webrtcConfiguration(accessToken: currentAccessToken)
+                guard generation == sessionOperationGeneration else { return false }
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
                     session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken),
@@ -320,7 +400,9 @@ final class YouTubeIntegration: ObservableObject {
                     preferredAudioID: preferredAudioID,
                     preferredVideoQuality: preferredVideoQuality
                 )
+                guard generation == sessionOperationGeneration else { return false }
                 let isReady = try await waitForVideoTrack(session: session, accessToken: refreshedAccessToken)
+                guard generation == sessionOperationGeneration else { return false }
                 guard isReady, videoUplink.state == .connected else {
                     throw WebRTCVideoUplinkError.failed(
                         videoUplink.errorMessage ?? String(localized: "카메라 영상 연결이 끊겼습니다. 다시 시작해 주세요.")
@@ -333,8 +415,10 @@ final class YouTubeIntegration: ObservableObject {
                 )
                 return true
             } catch WebRTCVideoUplinkError.unauthorized where shouldRetryAfterRefresh {
+                guard generation == sessionOperationGeneration else { return false }
                 shouldRetryAfterRefresh = false
                 await videoUplink.stopAndWait()
+                guard generation == sessionOperationGeneration else { return false }
 
                 guard await api.refreshAuthentication() == .refreshed else {
                     terminalError = WebRTCVideoUplinkError.unauthorized
@@ -347,9 +431,14 @@ final class YouTubeIntegration: ObservableObject {
             }
         }
 
+        guard generation == sessionOperationGeneration else { return false }
         await videoUplink.stopAndWait()
+        guard generation == sessionOperationGeneration else { return false }
         videoConnectionConfiguration = nil
+        await deleteCurrentSession(accessToken: currentAccessToken)
+        guard generation == sessionOperationGeneration else { return false }
         self.session = nil
+        sessionScope = nil
         self.stream = nil
         self.liveStartedAt = nil
         self.videoTrack = nil
@@ -394,7 +483,12 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func endBroadcast(accessToken: String?) async {
+        guard !isEndingSession else { return }
+        isEndingSession = true
+        defer { isEndingSession = false }
+        sessionOperationGeneration &+= 1
         invalidateBroadcastOperation()
+        if let task = sessionPreparationTask { _ = await task.value }
         if isYouTubeBroadcastActive {
             await stopYouTubeStream(accessToken: accessToken)
         }
@@ -403,7 +497,9 @@ final class YouTubeIntegration: ObservableObject {
         reconnectTask = nil
         videoConnectionConfiguration = nil
         stopPolling()
+        await deleteCurrentSession(accessToken: accessToken)
         session = nil
+        sessionScope = nil
         stream = nil
         liveStartedAt = nil
         videoTrack = nil
@@ -412,22 +508,26 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func recoverFromVideoUplinkFailure(accessToken: String?) async {
-        guard !isRecoveringVideoFailure else { return }
+        guard !isRecoveringVideoFailure, !isEndingSession else { return }
+        isEndingSession = true
+        defer { isEndingSession = false }
         isRecoveringVideoFailure = true
         defer { isRecoveringVideoFailure = false }
 
+        sessionOperationGeneration &+= 1
         invalidateBroadcastOperation()
+        if let task = sessionPreparationTask { _ = await task.value }
         let failureMessage = videoUplink.errorMessage
             ?? String(localized: "카메라 영상 연결이 끊겼습니다. 비식별화를 다시 시작해 주세요.")
-        let failedSession = session
-        let shouldStopYouTube = isYouTubeBroadcastActive
 
         await videoUplink.stopAndWait()
         reconnectTask?.cancel()
         reconnectTask = nil
         videoConnectionConfiguration = nil
         stopPolling()
+        await deleteCurrentSession(accessToken: accessToken)
         session = nil
+        sessionScope = nil
         stream = nil
         liveStartedAt = nil
         videoTrack = nil
@@ -435,14 +535,6 @@ final class YouTubeIntegration: ObservableObject {
         helpURL = nil
         forceReleaseBroadcastOrientationLock()
 
-        if shouldStopYouTube,
-           let accessToken,
-           !accessToken.isEmpty,
-           let failedSession {
-            Task { [api] in
-                _ = try? await api.stopStream(session: failedSession, accessToken: accessToken)
-            }
-        }
     }
 
     func prepareYouTubeStream(accessToken: String?) async {
@@ -614,6 +706,8 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        sessionOperationGeneration &+= 1
+        sessionScope = nil
         invalidateConnectionOperation()
         invalidateBroadcastOperation()
         stopPolling()
