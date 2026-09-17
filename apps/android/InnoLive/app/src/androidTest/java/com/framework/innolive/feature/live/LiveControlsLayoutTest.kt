@@ -15,9 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -117,7 +119,7 @@ class LiveControlsLayoutTest {
         compose.runOnIdle { prepared = true }
         val after = listOf(
             bounds("face-control"),
-            compose.onNodeWithText("방송 준비 완료").getUnclippedBoundsInRoot(),
+            compose.onNode(hasText("방송 준비 완료") and hasClickAction()).getUnclippedBoundsInRoot(),
             bounds("anonymization-control"),
         )
 
