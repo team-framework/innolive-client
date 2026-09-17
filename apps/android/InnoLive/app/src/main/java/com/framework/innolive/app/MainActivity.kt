@@ -50,8 +50,12 @@ import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
+import com.framework.innolive.feature.face.ReferenceFaceImageStore
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
+import com.framework.innolive.feature.login.account.AccountDeletionApi
+import com.framework.innolive.feature.login.account.AccountDeletionResult
+import com.framework.innolive.feature.login.account.AccountDeletionUseCase
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
@@ -68,7 +72,9 @@ import com.framework.innolive.feature.youtube.YouTubePreferencesStore
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed interface AppRoute : Serializable
 data object LoginRoute : AppRoute
@@ -154,6 +160,8 @@ fun AppNavigation(
     val activity = context as? ComponentActivity
     val coroutineScope = rememberCoroutineScope()
     val session by authenticationSession.session.collectAsStateWithLifecycle()
+    var isDeletingAccount by remember { mutableStateOf(false) }
+    var accountDeletionError by remember { mutableStateOf<String?>(null) }
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
     val youtubePreferencesStore = remember(context) { YouTubePreferencesStore(context) }
     val restoredYouTubeAccount = remember(youtubePreferencesStore) {
@@ -328,8 +336,9 @@ fun AppNavigation(
         backStack.lastOrNull(),
         session?.profileEmail,
         isYouTubeAccountActionInProgress,
+        isDeletingAccount,
     ) {
-        if (isYouTubeAccountActionInProgress) return@LaunchedEffect
+        if (isYouTubeAccountActionInProgress || isDeletingAccount) return@LaunchedEffect
 
         val operation = youtubeOperationGeneration.begin()
         if (backStack.lastOrNull() in setOf(BroadcastSettingRoute, LiveRoute) && session != null) {
@@ -469,7 +478,7 @@ fun AppNavigation(
     }
 
     val connectYouTube: () -> Unit = connectYouTube@{
-        if (isYouTubeAccountActionInProgress || session == null) {
+        if (isDeletingAccount || isYouTubeAccountActionInProgress || session == null) {
             return@connectYouTube
         }
 
@@ -521,6 +530,67 @@ fun AppNavigation(
             } catch (_: Exception) {
                 showYouTubeAccountFailure(operation)
             }
+        }
+    }
+
+    val deleteAccount: () -> Unit = deleteAccount@{
+        if (isDeletingAccount) return@deleteAccount
+        val deletingSession = authenticationSession.session.value ?: return@deleteAccount
+
+        isDeletingAccount = true
+        accountDeletionError = null
+        youtubeAuthorizationOperation = null
+        youtubeOperationGeneration.invalidate()
+        isYouTubeAuthorizationLaunched = false
+        isYouTubeAccountActionInProgress = false
+        youtubeCoordinator.close()
+
+        coroutineScope.launch {
+            val result = try {
+                val deletionApi = AccountDeletionApi()
+                try {
+                    AccountDeletionUseCase(
+                        gateway = deletionApi,
+                        refreshAccessToken = authenticationSession::refreshAccessToken,
+                    ).delete(deletingSession.accessToken)
+                } finally {
+                    deletionApi.close()
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                AccountDeletionResult.Failed("계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+            }
+
+            when (result) {
+                AccountDeletionResult.Deleted -> {
+                    webRtcSession.close()
+                    runCatching { webRtcSession.clearSessionRecovery(context, deletingSession.accessToken) }
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            ReferenceFaceImageStore(context.applicationContext)
+                                .deleteAll(deletingSession.profileEmail)
+                        }
+                    }
+                    authenticationSession.clear()
+                    youtubePreferencesStore.clearAccountData()
+                    updateYouTubeAccount(null)
+                    youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
+                    selectedBroadcastPlatform = broadcastPlatformOptions.first()
+                    broadcastTitle = ""
+                    broadcastDescription = ""
+                    broadcastPrivacy = "private"
+                    broadcastAudience = "unset"
+                    broadcastCategoryId = ""
+                    backStack.clear()
+                    backStack.add(LoginRoute)
+                }
+
+                is AccountDeletionResult.Failed -> {
+                    accountDeletionError = result.message
+                }
+            }
+            isDeletingAccount = false
         }
     }
 
@@ -614,18 +684,23 @@ fun AppNavigation(
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
                                 onLogout = {
-                                    youtubeAuthorizationOperation = null
-                                    youtubeOperationGeneration.invalidate()
-                                    isYouTubeAuthorizationLaunched = false
-                                    webRtcSession.close()
-                                    authenticationSession.clear()
-                                    youtubePreferencesStore.clearAccountData()
-                                    updateYouTubeAccount(null)
-                                    youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
-                                    isYouTubeAccountActionInProgress = false
-                                    backStack.clear()
-                                    backStack.add(LoginRoute)
+                                    if (!isDeletingAccount) {
+                                        youtubeAuthorizationOperation = null
+                                        youtubeOperationGeneration.invalidate()
+                                        isYouTubeAuthorizationLaunched = false
+                                        webRtcSession.close()
+                                        authenticationSession.clear()
+                                        youtubePreferencesStore.clearAccountData()
+                                        updateYouTubeAccount(null)
+                                        youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
+                                        isYouTubeAccountActionInProgress = false
+                                        backStack.clear()
+                                        backStack.add(LoginRoute)
+                                    }
                                 },
+                                onDeleteAccount = deleteAccount,
+                                isDeletingAccount = isDeletingAccount,
+                                accountDeletionError = accountDeletionError,
                             ),
                         )
                     }

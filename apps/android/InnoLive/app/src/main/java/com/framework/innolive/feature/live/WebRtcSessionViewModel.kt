@@ -336,6 +336,12 @@ class WebRtcSessionViewModel : ViewModel() {
         broadcastStartedAtElapsedRealtimeMillis = null
     }
 
+    /** Removes only the deleted account's credentials for its current server. */
+    fun clearSessionRecovery(context: Context, accessToken: String) {
+        val scope = sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, accessToken)
+        EncryptedSessionRecoveryStore(context.applicationContext).clear(scope)
+    }
+
     override fun onCleared() {
         close()
     }
