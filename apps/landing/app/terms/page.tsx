@@ -1,16 +1,9 @@
-import type { Metadata } from "next";
 import { DocumentPage } from "@/components/document-page";
 import TermsOfService from "@/content/documents/terms-of-service.ko.mdx";
-import { documentTitles } from "@/lib/documents";
+import { documentMetadata } from "@/lib/documents";
 
-export const metadata: Metadata = {
-  title: documentTitles.terms.ko,
-};
+export const metadata = documentMetadata("terms", "ko");
 
 export default function TermsPage() {
-  return (
-    <DocumentPage locale="ko">
-      <TermsOfService />
-    </DocumentPage>
-  );
+  return <DocumentPage locale="ko" slug="terms" Content={TermsOfService} />;
 }
