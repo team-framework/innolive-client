@@ -161,16 +161,18 @@ export const introScenes: {
       { box: v1Inner, mask: "/intro/masks/s7-v1.svg", blur: blob },
       { box: centerFace, mask: "/intro/masks/s7-rect.svg", blur: blob },
       { box: rightLow, mask: "/intro/masks/s7-v3.svg", blur: blob },
-      {
-        box: { t: 78.84, r: 9.77, b: 0.05, l: 76.15 },
-        mask: "/intro/masks/s7-v4.svg",
-        blur: blob,
-      },
       { box: rightMid, mask: "/intro/masks/s7-v5.svg", blur: blob },
+      {
+        box: { t: -0.56, r: -1.31, b: 0.05, l: 57.5 },
+        mask: "/intro/masks/s6-g7.svg",
+        blur: stripe,
+      },
       {
         box: { t: -0.56, r: -1.31, b: -0.05, l: 51.04 },
         mask: "/intro/masks/s7-g7.svg",
         blur: stripe,
+        // Only the newly hidden person; keep earlier people on their original mask.
+        clipPath: "inset(55% 75% 0 0)",
       },
     ],
   },

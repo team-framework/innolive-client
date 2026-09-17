@@ -144,9 +144,6 @@
     display: none;
   }
 
-  .intro-root {
-    display: none;
-  }
 
   :focus {
     outline: none;
