@@ -1,14 +1,177 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #111111;
+  --color-text-primary: #000000;
+  --color-text-secondary: #767676;
+  --color-text-reversed: #ffffff;
+  --color-background-primary: #f8f8f8;
+  --color-background-secondary: #ffffff;
+  --color-background-footer: #f0f0f0;
+  --color-button-primary: #ffffff;
+  --color-button-primary-hover: #f4f3f3;
+  --color-button-primary-pressed: #e2e2e2;
+  --color-button-secondary: #000000;
+  --color-button-secondary-hover: #333333;
+  --color-button-secondary-pressed: #666666;
+  --color-button-secondary-disabled: #353535;
+  --color-surface-primary: #e4e4e4;
+  --color-overlay: #ffffff03;
+  --color-shadow: #0000000d;
+  --color-phone-fill: #7f7f7f;
+  --color-logo-mark: #313131;
+
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-18: 18px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-32: 32px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-72: 72px;
+  --space-96: 96px;
+  --space-110: 110px;
+
+  --radius-control: 4px;
+  --radius-card: 24px;
+  --radius-field: 10000px;
+  --radius-pill: 1000000px;
+  --radius-phone: 74px;
+
+  --shadow-button: 2px 2px 8px 0px var(--color-shadow);
+  --shadow-card: 0 0 32px 0 var(--color-shadow);
+
+  --content-max: 1408px;
+  --content-max-wide: 1640px;
+  --page-gutter: 32px;
+  --viewport-base: 360px;
+
+  /* Scale from a 360px base. Do not lock type to Figma min-widths 634/704. */
+  --text-display: clamp(2.5rem, 1.2rem + 5.8vw, 5.25rem);
+  --text-heading: clamp(1.75rem, 1.15rem + 2.2vw, 2.75rem);
+  --text-body-lg: clamp(1rem, 0.82rem + 0.8vw, 1.5rem);
+  --text-body: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);
+  --text-caption: 1rem;
+  --leading-display: 1;
+  --leading-body: 1.15;
+  --leading-caption: 1.3;
+  --tracking-tight: -0.02em;
+}
+
+@theme inline {
+  --font-sans: var(--font-wanted-sans), "Wanted Sans", system-ui, sans-serif;
+
+  --color-text-primary: #000000;
+  --color-text-secondary: #767676;
+  --color-text-reversed: #ffffff;
+  --color-background-primary: #f8f8f8;
+  --color-background-secondary: #ffffff;
+  --color-background-footer: #f0f0f0;
+  --color-button-primary: #ffffff;
+  --color-button-primary-hover: #f4f3f3;
+  --color-button-primary-pressed: #e2e2e2;
+  --color-button-secondary: #000000;
+  --color-button-secondary-hover: #333333;
+  --color-button-secondary-pressed: #666666;
+  --color-button-secondary-disabled: #353535;
+  --color-surface-primary: #e4e4e4;
+  --color-overlay: #ffffff03;
+  --color-shadow: #0000000d;
+
+  --radius-control: 4px;
+  --radius-card: 24px;
+  --radius-field: 10000px;
+  --radius-pill: 1000000px;
+  --radius-phone: 74px;
+
+  --shadow-button: 2px 2px 8px 0px #0000000d;
+  --shadow-card: 0 0 32px 0 #0000000d;
+
+  --text-display: clamp(2.5rem, 1.2rem + 5.8vw, 5.25rem);
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 700;
+  --text-heading: clamp(1.75rem, 1.15rem + 2.2vw, 2.75rem);
+  --text-heading--line-height: 1.3;
+  --text-heading--font-weight: 600;
+  --text-body-lg: clamp(1rem, 0.82rem + 0.8vw, 1.5rem);
+  --text-body-lg--line-height: 1.15;
+  --text-body: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);
+  --text-body--line-height: 1;
+  --text-caption: 1rem;
+  --text-caption--line-height: 1.3;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  line-height: var(--leading-body);
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

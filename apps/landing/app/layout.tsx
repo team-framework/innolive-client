@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { wantedSans } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko">
+    <html lang="ko" className={`${wantedSans.variable} ${wantedSans.className}`}>
       <body>{children}</body>
     </html>
   );
