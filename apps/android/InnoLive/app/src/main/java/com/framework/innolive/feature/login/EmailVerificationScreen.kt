@@ -41,6 +41,23 @@ import androidx.compose.ui.unit.dp
 private const val INITIAL_EMAIL_HINT = "메일이 오지 않았다면 스팸함을 확인해 주세요."
 private const val SENDING_EMAIL_HINT = "인증 메일 보내는 중..."
 private const val RESENT_EMAIL_HINT = "인증 코드를 다시 보냈어요."
+private val FEEDBACK_LAYOUT_MESSAGES = listOf(
+    INITIAL_EMAIL_HINT,
+    SENDING_EMAIL_HINT,
+    RESENT_EMAIL_HINT,
+    "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+    "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
+    "이미 가입된 이메일입니다. 로그인해 주세요.",
+    "인증 코드가 올바르지 않거나 만료됐습니다.",
+    "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
+    "이메일과 비밀번호를 확인해 주세요.",
+    "이메일 또는 비밀번호를 확인해 주세요.",
+    "요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요.",
+    "지금은 이메일로 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+    "로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    "요청을 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.",
+)
 
 @Composable
 internal fun EmailVerificationScreen(
@@ -99,20 +116,16 @@ internal fun EmailVerificationScreen(
         ) {
             Text("인증하고 시작하기")
         }
-        val statusMessages = listOf(
-            INITIAL_EMAIL_HINT,
-            SENDING_EMAIL_HINT,
-            RESENT_EMAIL_HINT,
-        )
         val statusMessage = when {
             isResending -> SENDING_EMAIL_HINT
-            error != null -> null
+            error != null -> error
             resendGeneration > 0 -> RESENT_EMAIL_HINT
             else -> INITIAL_EMAIL_HINT
         }
+        val isErrorMessage = error != null && !isResending
         Box(modifier = Modifier.fillMaxWidth()) {
-            // 모든 상태의 높이를 미리 확보해 안내가 바뀌어도 재전송 버튼이 움직이지 않는다.
-            statusMessages.forEach { message ->
+            // 현재 표시 가능한 모든 안내·오류의 높이를 확보해 버튼 위치를 고정한다.
+            FEEDBACK_LAYOUT_MESSAGES.forEach { message ->
                 Text(
                     text = message,
                     style = MaterialTheme.typography.bodySmall,
@@ -122,26 +135,23 @@ internal fun EmailVerificationScreen(
                         .clearAndSetSemantics {},
                 )
             }
-            if (statusMessage != null) {
-                Text(
-                    text = statusMessage,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
-            }
+            Text(
+                text = statusMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isErrorMessage) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        liveRegion = if (isErrorMessage) LiveRegionMode.Assertive else LiveRegionMode.Polite
+                    },
+            )
         }
         TextButton(onClick = onResend, enabled = !pending) {
             Text("인증 코드 다시 보내기")
-        }
-        if (error != null) {
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
-            )
         }
     }
 }

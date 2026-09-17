@@ -99,6 +99,20 @@ class EmailSignUpScreenTest {
     @Test
     fun resendFeedbackDoesNotMoveResendButton() {
         val firstResendFinished = CompletableDeferred<Unit>()
+        val resendErrors = listOf(
+            "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+            "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
+            "이미 가입된 이메일입니다. 로그인해 주세요.",
+            "인증 코드가 올바르지 않거나 만료됐습니다.",
+            "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
+            "이메일과 비밀번호를 확인해 주세요.",
+            "이메일 또는 비밀번호를 확인해 주세요.",
+            "요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            "로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요.",
+            "지금은 이메일로 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+            "로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            "요청을 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.",
+        )
         var resendAttempts = 0
         rule.setContent {
             MyApplicationTheme(dynamicColor = false) {
@@ -113,7 +127,7 @@ class EmailSignUpScreenTest {
                         if (resendAttempts == 1) {
                             firstResendFinished.await()
                         } else {
-                            throw EmailSignUpException("요청이 많습니다. 잠시 후 다시 시도해 주세요.")
+                            throw EmailSignUpException(resendErrors[resendAttempts - 2])
                         }
                     },
                 )
@@ -123,20 +137,30 @@ class EmailSignUpScreenTest {
         fillSignup()
         val resendButton = rule.onNodeWithText("인증 코드 다시 보내기")
         val initialTop = resendButton.getUnclippedBoundsInRoot().top
+        val feedbackTop = rule.onNodeWithText("메일이 오지 않았다면 스팸함을 확인해 주세요.")
+            .getUnclippedBoundsInRoot().top
 
         resendButton.performClick()
-        rule.onNodeWithText("인증 메일 보내는 중...").assertIsDisplayed()
+        val sendingFeedback = rule.onNodeWithText("인증 메일 보내는 중...")
+        sendingFeedback.assertIsDisplayed()
+        assertEquals(feedbackTop, sendingFeedback.getUnclippedBoundsInRoot().top)
         resendButton.assertIsNotEnabled()
         assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
 
         rule.runOnIdle { firstResendFinished.complete(Unit) }
-        rule.onNodeWithText("인증 코드를 다시 보냈어요.").assertIsDisplayed()
+        val successFeedback = rule.onNodeWithText("인증 코드를 다시 보냈어요.")
+        successFeedback.assertIsDisplayed()
+        assertEquals(feedbackTop, successFeedback.getUnclippedBoundsInRoot().top)
         assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
 
-        resendButton.performClick()
-        rule.onNodeWithText("요청이 많습니다. 잠시 후 다시 시도해 주세요.").assertIsDisplayed()
-        assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
-        rule.runOnIdle { assertEquals(2, resendAttempts) }
+        resendErrors.forEach { message ->
+            resendButton.performClick()
+            val errorFeedback = rule.onNodeWithText(message)
+            errorFeedback.assertIsDisplayed()
+            assertEquals(feedbackTop, errorFeedback.getUnclippedBoundsInRoot().top)
+            assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
+        }
+        rule.runOnIdle { assertEquals(resendErrors.size + 1, resendAttempts) }
     }
 
     @Test
