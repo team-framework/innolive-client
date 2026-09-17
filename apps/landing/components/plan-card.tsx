@@ -37,10 +37,10 @@ function PriceLine({
   original?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       <p
         className={cn(
-          "flex items-center leading-[1.15] text-text-primary",
+          "min-w-0 break-keep leading-[1.15] text-text-primary",
           original
             ? "text-2xl line-through [text-underline-position:from-font]"
             : emphasize
@@ -69,7 +69,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
   return (
     <article
       className={cn(
-        "relative flex h-auto w-[min(100%,30rem)] shrink-0 flex-col gap-8 rounded-[20px] bg-gradient-to-b from-white to-[#efefefef] px-8 pb-7 pt-9 shadow-[2px_2px_12px_0_#0000000d] min-[64rem]:h-[46.25rem]",
+        "relative flex h-auto w-full flex-col gap-8 rounded-[20px] bg-gradient-to-b from-white to-[#efefefef] px-8 pb-7 pt-9 shadow-[2px_2px_12px_0_#0000000d] min-[64rem]:h-[46.25rem]",
         plan.ribbon ? "overflow-visible" : "overflow-clip",
       )}
     >
@@ -88,12 +88,11 @@ export function PlanCard({ plan }: { plan: Plan }) {
               >
                 {plan.name}
               </h3>
-              {plan.helpLabel ? (
-                <button
-                  type="button"
+              {plan.helpLabel && footnotesId ? (
+                <a
+                  href={`#${footnotesId}`}
                   className="relative size-7 shrink-0"
                   aria-label={plan.helpLabel}
-                  aria-describedby={footnotesId}
                 >
                   <Image
                     src="/icons/circle-question.svg"
@@ -103,7 +102,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
                     unoptimized
                     className="size-7"
                   />
-                </button>
+                </a>
               ) : null}
             </div>
             <p className="break-keep text-[clamp(1.125rem,0.95rem+0.8vw,1.625rem)] font-normal leading-[1.15] text-text-primary">
@@ -169,6 +168,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
         {plan.footnotes ? (
           <div
             id={footnotesId}
+            tabIndex={-1}
             className="w-full text-base leading-[1.6] text-text-secondary underline [text-underline-position:from-font]"
           >
             {plan.footnotes.map((note) => (

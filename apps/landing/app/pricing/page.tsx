@@ -17,10 +17,10 @@ function PlanScroller({
       role="region"
       aria-label={label}
       tabIndex={0}
-      className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pt-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary ${className ?? ""}`}
+      className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pr-7 pt-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary ${className ?? ""}`}
     >
       {plans.map((plan) => (
-        <div key={plan.id} className="snap-start">
+        <div key={plan.id} className="w-[min(100%,30rem)] shrink-0 snap-start">
           <PlanCard plan={plan} />
         </div>
       ))}
@@ -49,26 +49,28 @@ export default function PricingPage() {
         className="flex w-full flex-col items-center gap-12 overflow-x-clip px-[var(--page-gutter)] pb-[5.25rem] pt-16 lg:pt-24 min-[106.5rem]:gap-[7.5rem] min-[106.5rem]:pt-[9.5rem]"
         aria-labelledby="pricing-heading"
       >
-        <div className="flex w-full max-w-[37.0625rem] flex-col items-center gap-8 text-center">
+        <div className="flex w-full max-w-[43.75rem] flex-col items-center gap-8 text-center">
           <h1
             id="pricing-heading"
-            className="break-keep text-[clamp(2rem,1.1rem+3.6vw,4rem)] font-bold leading-none tracking-tight text-text-primary"
+            className="w-max max-w-full break-keep text-[clamp(2rem,1.1rem+3.6vw,4rem)] font-bold leading-none text-text-primary"
           >
-            InnoLive의{" "}
+            <span className="font-normal tracking-[-0.05em]">InnoLive</span>
+            의{" "}
             <span className="bg-gradient-to-r from-[#ff0000] to-[#00f2ff] bg-clip-text text-transparent">
               잠재력 해제
             </span>
           </h1>
-          <div className="break-keep text-body-lg font-normal text-text-primary">
+          <div className="w-full max-w-[37.0625rem] break-keep text-body-lg font-normal text-text-primary">
             <p>합리적인 가격으로 InnoLive의 모든 기능을 잠금 해제하세요.</p>
             <p>실시간 얼굴 대체, 더 높은 사용량 등이 플랜에 포함됩니다.</p>
           </div>
           <Button
             href="/signup"
             showChevron={false}
-            className="w-[15.8125rem] max-w-[15.8125rem]"
+            className="min-w-[15.8125rem] w-max max-w-none whitespace-nowrap"
           >
-            InnoLive 플랜 구독하기
+            <span className="font-normal">InnoLive</span>{" "}
+            <span className="font-semibold">플랜 구독하기</span>
           </Button>
         </div>
 
@@ -98,7 +100,7 @@ export default function PricingPage() {
           <PlanScroller
             label="기업 요금제"
             plans={businessPlans}
-            className="min-[64rem]:justify-center"
+            className="min-[68rem]:justify-center"
           />
           <TermsNote />
         </div>
