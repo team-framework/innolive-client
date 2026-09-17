@@ -127,7 +127,8 @@
     line-height: var(--leading-body);
   }
 
-  body:has([data-page="home"]) {
+  body:has([data-page="home"]),
+  body:has([data-page="pricing"]) {
     background: var(--color-background-primary);
   }
 
