@@ -1,64 +1,107 @@
+import Foundation
 import XCTest
 
 @testable import InnoLive
 
 @MainActor
 final class MediaTransmissionConsentTests: XCTestCase {
+    private var suiteName: String!
+    private var userDefaults: UserDefaults!
+    private var consentStore: ConsentAcknowledgementStore!
+
+    override func setUp() {
+        super.setUp()
+        suiteName = "com.framework.innolive.tests.media-consent.\(UUID().uuidString)"
+        guard let userDefaults = UserDefaults(suiteName: suiteName) else {
+            XCTFail("테스트용 UserDefaults suite를 만들지 못했습니다.")
+            return
+        }
+        self.userDefaults = userDefaults
+        consentStore = ConsentAcknowledgementStore(userDefaults: userDefaults)
+    }
+
+    override func tearDown() {
+        if let suiteName {
+            userDefaults.removePersistentDomain(forName: suiteName)
+        }
+        consentStore = nil
+        userDefaults = nil
+        suiteName = nil
+        super.tearDown()
+    }
+
     func testMediaTransmissionStartsRejected() {
-        let session = AuthSession(api: MediaConsentAPI(), tokenStore: MediaConsentTokenStore())
+        let session = makeSession()
         XCTAssertFalse(session.hasAcceptedMediaTransmission)
     }
 
     func testReadingWithoutAcceptingDoesNotGrantMediaTransmission() {
-        let session = AuthSession(api: MediaConsentAPI(), tokenStore: MediaConsentTokenStore())
+        let session = makeSession()
         var consent = SignupConsent()
         consent.observeScroll(contentHeight: 200, visibleHeight: 400, offset: 0)
         XCTAssertFalse(session.acceptMediaTransmission(consent))
         XCTAssertFalse(session.hasAcceptedMediaTransmission)
         XCTAssertFalse(session.acceptMediaTransmission(SignupConsent()))
         XCTAssertFalse(session.hasAcceptedMediaTransmission)
+        XCTAssertFalse(consentStore.hasAcceptedMediaTransmission)
     }
 
     func testAcceptedScrollConsentGrantsMediaTransmission() {
-        let session = AuthSession(api: MediaConsentAPI(), tokenStore: MediaConsentTokenStore())
+        let session = makeSession()
         XCTAssertTrue(session.acceptMediaTransmission(acceptedConsent()))
+        XCTAssertTrue(session.hasAcceptedMediaTransmission)
+        XCTAssertTrue(consentStore.hasAcceptedMediaTransmission)
+    }
+
+    func testNewSessionReadsPersistedMediaTransmission() {
+        consentStore.recordMediaTransmission()
+        let session = makeSession()
         XCTAssertTrue(session.hasAcceptedMediaTransmission)
     }
 
-    func testSignOutAndExpirationClearMediaTransmission() async {
-        let store = MediaConsentTokenStore()
-        let session = AuthSession(api: MediaConsentAPI(), tokenStore: store)
+    func testSignOutAndExpirationKeepMediaTransmission() {
+        let tokenStore = MediaConsentTokenStore()
+        let session = makeSession(tokenStore: tokenStore)
         _ = session.acceptMediaTransmission(acceptedConsent())
         session.signOut()
-        XCTAssertFalse(session.hasAcceptedMediaTransmission)
+        XCTAssertTrue(session.hasAcceptedMediaTransmission)
+        XCTAssertTrue(consentStore.hasAcceptedMediaTransmission)
         _ = session.acceptMediaTransmission(acceptedConsent())
         session.expireSession()
-        XCTAssertFalse(session.hasAcceptedMediaTransmission)
+        XCTAssertTrue(session.hasAcceptedMediaTransmission)
+        XCTAssertTrue(consentStore.hasAcceptedMediaTransmission)
     }
 
     func testDeleteAccountClearsMediaTransmission() async {
         let api = MediaConsentAPI()
-        let store = MediaConsentTokenStore()
-        store.tokens = AuthenticationTokenPair(accessToken: "test-access", refreshToken: "test-refresh")
-        let session = AuthSession(api: api, tokenStore: store)
+        let tokenStore = MediaConsentTokenStore()
+        tokenStore.tokens = AuthenticationTokenPair(accessToken: "test-access", refreshToken: "test-refresh")
+        let session = makeSession(api: api, tokenStore: tokenStore)
         session.restore()
         _ = session.acceptMediaTransmission(acceptedConsent())
         XCTAssertTrue(session.hasAcceptedMediaTransmission)
         let deleted = await session.deleteAccount()
         XCTAssertTrue(deleted)
         XCTAssertFalse(session.hasAcceptedMediaTransmission)
+        XCTAssertFalse(consentStore.hasAcceptedMediaTransmission)
     }
 
-    func testRestoreDoesNotReuseMediaTransmission() {
-        let store = MediaConsentTokenStore()
-        store.tokens = AuthenticationTokenPair(accessToken: "test-access", refreshToken: "test-refresh")
-        let session = AuthSession(api: MediaConsentAPI(), tokenStore: store)
+    func testRestoreReusesPersistedMediaTransmission() {
+        let tokenStore = MediaConsentTokenStore()
+        let session = makeSession(tokenStore: tokenStore)
         _ = session.acceptMediaTransmission(acceptedConsent())
         session.signOut()
-        store.tokens = AuthenticationTokenPair(accessToken: "test-access", refreshToken: "test-refresh")
+        tokenStore.tokens = AuthenticationTokenPair(accessToken: "test-access", refreshToken: "test-refresh")
         session.restore()
         XCTAssertTrue(session.isAuthenticated)
-        XCTAssertFalse(session.hasAcceptedMediaTransmission)
+        XCTAssertTrue(session.hasAcceptedMediaTransmission)
+    }
+
+    private func makeSession(
+        api: AuthenticationAPIClient = MediaConsentAPI(),
+        tokenStore: AuthenticationTokenStoring = MediaConsentTokenStore()
+    ) -> AuthSession {
+        AuthSession(api: api, tokenStore: tokenStore, consentStore: consentStore)
     }
 
     private func acceptedConsent() -> SignupConsent {
