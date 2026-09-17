@@ -34,7 +34,7 @@ export function nestBox(parent: OverlayBox, child: OverlayBox): OverlayBox {
 }
 
 const photoSrc = "/intro/photo.png";
-const photoSizes = "100vw";
+const photoSizes = "(max-aspect-ratio: 16/9) 177.7778vh, 100vw";
 
 function overlaySrcFromMask(mask: string) {
   return mask.replace("/intro/masks/", "/intro/overlays/");
