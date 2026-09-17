@@ -20,6 +20,7 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var isTogglingAnonymization = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var helpURL: URL?
+    @Published private(set) var hasAcknowledgedYouTubeTransmission = false
     @Published var broadcastSettings: YouTubeBroadcastSettings {
         didSet {
             if !suppressBroadcastSettingsPersistence {
@@ -33,6 +34,7 @@ final class YouTubeIntegration: ObservableObject {
     private let api: YouTubeAPI
     private let authorization = YouTubeAuthorization()
     private let preferencesStore: YouTubePreferencesStore
+    private let consentStore: ConsentAcknowledgementStore
     private let orientationLock: any BroadcastOrientationLocking
     private var suppressBroadcastSettingsPersistence = false
     private var connectionOperationGeneration: UInt = 0
@@ -55,16 +57,32 @@ final class YouTubeIntegration: ObservableObject {
     init(
         preferencesStore: YouTubePreferencesStore,
         api: YouTubeAPI? = nil,
-        orientationLock: (any BroadcastOrientationLocking)? = nil
+        orientationLock: (any BroadcastOrientationLocking)? = nil,
+        consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore()
     ) {
         self.api = api ?? YouTubeAPI()
         self.preferencesStore = preferencesStore
+        self.consentStore = consentStore
         self.orientationLock = orientationLock ?? BroadcastOrientationController.shared
         broadcastSettings = preferencesStore.loadBroadcastSettings()
         connection = preferencesStore.loadConnection()
+        hasAcknowledgedYouTubeTransmission = consentStore.hasAcknowledgedYouTubeTransmission
         videoUplink.onConnectionInterrupted = { [weak self] in
             self?.reconnectVideoUsingExistingSession()
         }
+    }
+
+    func acknowledgeYouTubeTransmission(_ consent: SignupConsent) -> Bool {
+        guard consent.isAccepted else { return false }
+        consentStore.recordYouTubeTransmission()
+        hasAcknowledgedYouTubeTransmission = true
+        return true
+    }
+
+    private func clearPersistedYouTubeConnection() {
+        preferencesStore.removeConnection()
+        consentStore.clearYouTubeTransmission()
+        hasAcknowledgedYouTubeTransmission = false
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
@@ -173,7 +191,7 @@ final class YouTubeIntegration: ObservableObject {
             } else {
                 // An authenticated empty list is authoritative for this user.
                 connection = nil
-                preferencesStore.removeConnection()
+                clearPersistedYouTubeConnection()
             }
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
@@ -235,7 +253,7 @@ final class YouTubeIntegration: ObservableObject {
             try await api.disconnectStreamingAccount(accessToken: accessToken)
             guard isCurrentConnectionOperation(generation) else { return }
             connection = nil
-            preferencesStore.removeConnection()
+            clearPersistedYouTubeConnection()
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
             // A failed DELETE does not prove that the server removed the link.
@@ -611,7 +629,7 @@ final class YouTubeIntegration: ObservableObject {
         isAnonymizationEnabled = false
         errorMessage = nil
         helpURL = nil
-        preferencesStore.removeConnection()
+        clearPersistedYouTubeConnection()
         forceReleaseBroadcastOrientationLock()
     }
 

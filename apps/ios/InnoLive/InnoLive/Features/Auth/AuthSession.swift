@@ -13,6 +13,7 @@ final class AuthSession: ObservableObject {
 
     private let api: AuthenticationAPIClient
     private let tokenStore: AuthenticationTokenStoring
+    private let consentStore: ConsentAcknowledgementStore
     private var pendingSignup: PendingSignup?
     private var tokenRefreshTask: Task<AuthenticationRefreshResult, Never>?
     private var tokenRefreshTaskGeneration: UInt?
@@ -20,10 +21,13 @@ final class AuthSession: ObservableObject {
 
     init(
         api: AuthenticationAPIClient = AuthenticationAPI(),
-        tokenStore: AuthenticationTokenStoring = AuthenticationTokenStore()
+        tokenStore: AuthenticationTokenStoring = AuthenticationTokenStore(),
+        consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore()
     ) {
         self.api = api
         self.tokenStore = tokenStore
+        self.consentStore = consentStore
+        hasAcceptedMediaTransmission = consentStore.hasAcceptedMediaTransmission
     }
 
     func restore() { isAuthenticated = tokenStore.load() != nil }
@@ -142,6 +146,7 @@ final class AuthSession: ObservableObject {
 
     func acceptMediaTransmission(_ consent: SignupConsent) -> Bool {
         guard consent.isAccepted else { return false }
+        consentStore.recordMediaTransmission()
         hasAcceptedMediaTransmission = true
         return true
     }
@@ -155,6 +160,7 @@ final class AuthSession: ObservableObject {
     }
 
     private func clearMediaTransmissionConsent() {
+        consentStore.clearMediaTransmission()
         hasAcceptedMediaTransmission = false
     }
 
@@ -220,7 +226,6 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         pendingSignup = nil
-        clearMediaTransmissionConsent()
         errorMessage = nil
         isAuthenticated = false
     }
@@ -229,7 +234,6 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         pendingSignup = nil
-        clearMediaTransmissionConsent()
         errorMessage = String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
         isAuthenticated = false
     }
