@@ -130,7 +130,8 @@
   body:has([data-page="home"]),
   body:has([data-page="pricing"]),
   body:has([data-page="try-out"]),
-  body:has([data-page="auth"]) {
+  body:has([data-page="auth"]),
+  body:has([data-page="policy"]) {
     background: var(--color-background-primary);
   }
 
