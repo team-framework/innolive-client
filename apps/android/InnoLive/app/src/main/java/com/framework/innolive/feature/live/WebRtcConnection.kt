@@ -370,9 +370,17 @@ class WebRtcConnection(
     fun stopBroadcast() {
         if (!broadcastState.canStop) return
         runBroadcastOperation {
-            updateBroadcastState(BroadcastState.STOPPING, "YouTube 방송 종료 중")
+            val stoppingState = broadcastState.stoppingState()
+            val isCancellingPreparation = stoppingState == BroadcastState.CANCELLING_PREPARATION
+            updateBroadcastState(
+                stoppingState,
+                if (isCancellingPreparation) "YouTube 방송 준비 취소 중" else "YouTube 방송 종료 중",
+            )
             postSessionRequest("stream/stop")
-            updateBroadcastState(BroadcastState.IDLE, "YouTube 방송 종료됨")
+            updateBroadcastState(
+                BroadcastState.IDLE,
+                if (isCancellingPreparation) "YouTube 방송 준비 취소됨" else "YouTube 방송 종료됨",
+            )
         }
     }
 

@@ -15,6 +15,7 @@ enum class BroadcastState {
     PREPARED,
     GOING_LIVE,
     LIVE,
+    CANCELLING_PREPARATION,
     STOPPING,
     FAILED,
 }
@@ -27,3 +28,9 @@ internal val BroadcastState.canGoLive: Boolean
 
 internal val BroadcastState.canStop: Boolean
     get() = this == BroadcastState.PREPARED || this == BroadcastState.LIVE
+
+internal fun BroadcastState.stoppingState(): BroadcastState = when (this) {
+    BroadcastState.PREPARED -> BroadcastState.CANCELLING_PREPARATION
+    BroadcastState.LIVE -> BroadcastState.STOPPING
+    else -> throw IllegalStateException("방송을 중지할 수 없는 상태입니다: $this")
+}

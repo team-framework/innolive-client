@@ -141,6 +141,46 @@ final class YouTubeAccountAPITests: XCTestCase {
             serverURLProvider: { path in URL(string: "https://example.invalid\(path)") }
         )
     }
+
+    func testDeleteSessionUsesOwnerAndAccessTokens() async throws {
+        AccountManagementURLProtocol.responses = [.init(statusCode: 204, data: Data())]
+        try await makeAPI().deleteSession(.init(sessionID: "previous", ownerToken: "owner"), accessToken: "access")
+        let request = try XCTUnwrap(AccountManagementURLProtocol.requests.first)
+        XCTAssertEqual(request.url?.path, "/sessions/previous")
+        XCTAssertEqual(request.httpMethod, "DELETE")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-Session-Owner-Token"), "owner")
+        XCTAssertNil(request.httpBody)
+    }
+
+    func testDeleteSessionAcceptsOnlyNoContentOrSessionNotFound() async {
+        for (status, body, succeeds) in [
+            (204, "", true), (404, "{\"error\":{\"code\":\"not_found\"}}", true),
+            (404, "", false), (202, "", false), (403, "", false), (503, "", false)
+        ] {
+            AccountManagementURLProtocol.responses = [.init(statusCode: status, data: Data(body.utf8))]
+            do {
+                try await makeAPI().deleteSession(.init(sessionID: "old", ownerToken: "owner"), accessToken: "access")
+                XCTAssertTrue(succeeds, "unexpected success: \(status)")
+            } catch { XCTAssertFalse(succeeds, "unexpected failure: \(status)") }
+        }
+    }
+
+    func testDeleteSessionRefreshesAccessTokenAndKeepsOwnerToken() async throws {
+        AccountManagementURLProtocol.responses = [
+            .init(statusCode: 401, data: Data()), .init(statusCode: 204, data: Data())
+        ]
+        var refreshed = false
+        let api = makeAPI()
+        api.configureAuthentication(
+            accessTokenProvider: { refreshed ? "new" : "old" },
+            refreshSession: { refreshed = true; return .refreshed }, onInvalidRefresh: {}
+        )
+        try await api.deleteSession(.init(sessionID: "session", ownerToken: "owner"), accessToken: "old")
+        XCTAssertEqual(AccountManagementURLProtocol.requests.count, 2)
+        XCTAssertEqual(AccountManagementURLProtocol.requests.last?.value(forHTTPHeaderField: "Authorization"), "Bearer new")
+        XCTAssertEqual(AccountManagementURLProtocol.requests.last?.value(forHTTPHeaderField: "X-Session-Owner-Token"), "owner")
+    }
 }
 
 private final class AccountManagementURLProtocol: URLProtocol {
