@@ -10,6 +10,7 @@ internal fun connectionUserMessage(state: WebRtcConnectionState, detail: String)
         "WebRTC 연결이 끊겼습니다.", "WebRTC signaling 연결이 종료되었습니다." ->
             "연결이 끊겼습니다. 다시 연결해 주세요."
         "INNOLIVE_SERVER_URL must use HTTPS." -> "연결 설정에 문제가 있습니다. 관리자에게 문의해 주세요."
+        "이미 활성화된 방송 세션이 있습니다. 기존 방송을 종료한 뒤 다시 시도해 주세요." -> detail
         "선택한 Bluetooth 오디오 기기의 통신용 출력을 찾지 못했습니다.",
         "선택한 Bluetooth 오디오 기기를 통신 장치로 설정하지 못했습니다.",
         "선택한 오디오 기기를 실제 입력으로 적용하지 못했습니다.",

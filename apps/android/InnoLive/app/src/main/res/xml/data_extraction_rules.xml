@@ -6,6 +6,7 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="innolive_google_session.xml" />
+        <exclude domain="sharedpref" path="innolive_session_recovery.xml" />
         <!-- TODO: Use <include> and <exclude> to control what is backed up.
         <include .../>
         <exclude .../>
@@ -13,6 +14,7 @@
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="innolive_google_session.xml" />
+        <exclude domain="sharedpref" path="innolive_session_recovery.xml" />
     </device-transfer>
     <!--
     <device-transfer>
