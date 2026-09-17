@@ -23,8 +23,7 @@ export function PrivacySection() {
             className="w-full break-words text-[clamp(2rem,1.05rem+4.2vw,4.25rem)] font-bold leading-[1.3] tracking-tight text-text-primary"
           >
             초상권 걱정 없는
-            <br />
-            <span className="inline-block max-w-full [container-type:inline-size]">
+            <span className="block w-full [container-type:inline-size]">
               <span
                 className="bg-clip-text text-transparent"
                 style={aiAccentStyle}
