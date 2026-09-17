@@ -23,6 +23,7 @@ class LiveScreenPresentationTest {
         assertEquals("방송 중", presentation.broadcastButtonText)
         assertTrue(presentation.isBroadcastButtonEnabled)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, presentation.broadcastAction)
+        assertEquals("", presentation.broadcastStatusText)
     }
 
     @Test
@@ -44,6 +45,7 @@ class LiveScreenPresentationTest {
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, prepared.broadcastAction)
         assertTrue(prepared.isBroadcastPrepared)
         assertTrue(prepared.isBroadcastButtonEnabled)
+        assertEquals("", prepared.broadcastStatusText)
 
         assertEquals("방송 준비 중", preparing.broadcastButtonText)
         assertEquals(LiveBroadcastAction.PREPARE_BROADCAST, preparing.broadcastAction)
@@ -65,6 +67,7 @@ class LiveScreenPresentationTest {
         assertTrue(paused.isBroadcastPaused)
         assertEquals("방송 일시 중지", paused.broadcastButtonText)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, paused.broadcastAction)
+        assertEquals("", paused.broadcastStatusText)
         assertEquals(BroadcastState.STOPPING, BroadcastState.PAUSED.stoppingState())
     }
 
@@ -89,6 +92,14 @@ class LiveScreenPresentationTest {
         assertTrue(failed.isBroadcastStatusError)
         assertTrue(idle.isBroadcastButtonEnabled)
         assertTrue(failed.isBroadcastButtonEnabled)
+
+        val connectedBroadcastFailure = buildLiveScreenPresentation(
+            connectionState = WebRtcConnectionState.CONNECTED,
+            broadcastState = BroadcastState.FAILED,
+            selectedPlatform = "YouTube",
+            broadcastStatus = "방송 준비에 실패했습니다.",
+        )
+        assertEquals("방송 준비에 실패했습니다.", connectedBroadcastFailure.broadcastStatusText)
     }
 
     @Test

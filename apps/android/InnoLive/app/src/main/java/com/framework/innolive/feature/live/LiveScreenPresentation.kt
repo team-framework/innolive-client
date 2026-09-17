@@ -42,12 +42,9 @@ fun buildLiveScreenPresentation(
         // The connection status above the broadcast controls already explains this failure.
         connectionState == WebRtcConnectionState.FAILED -> ""
 
-        // Progress is already communicated by the disabled primary button.
-        // Showing it again below the controls makes preparation and cancellation
-        // look like duplicate status messages.
-        isBroadcastBusy -> ""
-
-        broadcastState != BroadcastState.IDLE -> broadcastStatus
+        // The primary button already communicates all normal broadcast states.
+        // Reserve the lower status area for actionable broadcast errors only.
+        broadcastState == BroadcastState.FAILED -> broadcastStatus
         else -> ""
     }
 
