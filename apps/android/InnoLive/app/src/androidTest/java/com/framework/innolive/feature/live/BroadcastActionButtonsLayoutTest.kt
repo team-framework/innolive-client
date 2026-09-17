@@ -40,12 +40,12 @@ class BroadcastActionButtonsLayoutTest {
         }
 
         val cancelBounds = compose.onNodeWithText("방송 준비 취소").getUnclippedBoundsInRoot()
-        val startBounds = compose.onNodeWithText("라이브 시작").getUnclippedBoundsInRoot()
+        val startBounds = compose.onNodeWithText("방송 시작").getUnclippedBoundsInRoot()
         val faceBounds = compose.onNodeWithTag("face-control").getUnclippedBoundsInRoot()
         val anonymizationBounds = compose.onNodeWithTag("anonymization-control").getUnclippedBoundsInRoot()
 
         assertTrue(
-            "방송 준비 취소 버튼은 라이브 시작 버튼 위에 있어야 합니다.",
+            "방송 준비 취소 버튼은 방송 시작 버튼 위에 있어야 합니다.",
             cancelBounds.bottom <= startBounds.top,
         )
         val startCenterY = (startBounds.top.value + startBounds.bottom.value) / 2f

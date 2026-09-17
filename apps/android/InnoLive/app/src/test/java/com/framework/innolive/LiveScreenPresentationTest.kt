@@ -40,7 +40,7 @@ class LiveScreenPresentationTest {
             broadcastStatus = "방송 준비 중",
         )
 
-        assertEquals("라이브 시작", prepared.broadcastButtonText)
+        assertEquals("방송 시작", prepared.broadcastButtonText)
         assertEquals(LiveBroadcastAction.GO_LIVE, prepared.broadcastAction)
         assertTrue(prepared.isBroadcastPrepared)
         assertTrue(prepared.isBroadcastButtonEnabled)

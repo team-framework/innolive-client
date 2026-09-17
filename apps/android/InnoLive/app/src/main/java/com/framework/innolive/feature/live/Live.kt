@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -287,17 +288,33 @@ fun LiveScreen(
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
-            Text(
-                text = presentation.broadcastStatusText,
-                modifier = Modifier.padding(horizontal = 24.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = if (presentation.isBroadcastStatusError) {
-                    Color.Red
-                } else {
-                    Color.White
-                },
-            )
+            StableBroadcastFeedback {
+                Text(
+                    text = presentation.broadcastStatusText,
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (presentation.isBroadcastStatusError) {
+                        Color.Red
+                    } else {
+                        Color.White
+                    },
+                )
+            }
         }
+    }
+}
+
+@Composable
+internal fun StableBroadcastFeedback(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier.heightIn(min = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        content()
     }
 }
 
