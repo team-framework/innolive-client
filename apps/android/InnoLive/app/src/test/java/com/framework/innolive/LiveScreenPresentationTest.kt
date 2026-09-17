@@ -4,6 +4,7 @@ import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.LiveBroadcastAction
 import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.buildLiveScreenPresentation
+import com.framework.innolive.feature.live.stoppingState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -87,5 +88,39 @@ class LiveScreenPresentationTest {
             WebRtcConnectionState.CONNECTING, BroadcastState.IDLE, "YouTube", "",
         )
         assertFalse(connecting.isBroadcastButtonEnabled)
+    }
+
+    @Test
+    fun cancellingPreparationAndStoppingLiveShowDistinctProgressAndReturnToPrepare() {
+        val cancelledState = BroadcastState.PREPARED.stoppingState()
+        val stoppedState = BroadcastState.LIVE.stoppingState()
+        val cancelling = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED,
+            cancelledState,
+            "YouTube",
+            "YouTube 방송 준비 취소 중",
+        )
+        val stopping = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED,
+            stoppedState,
+            "YouTube",
+            "YouTube 방송 종료 중",
+        )
+        val idle = buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED,
+            BroadcastState.IDLE,
+            "YouTube",
+            "YouTube 방송 준비 취소됨",
+        )
+
+        assertEquals(BroadcastState.CANCELLING_PREPARATION, cancelledState)
+        assertEquals("방송 준비 취소 중…", cancelling.broadcastButtonText)
+        assertFalse(cancelling.isBroadcastButtonEnabled)
+        assertEquals("YouTube 방송 준비 취소 중", cancelling.broadcastStatusText)
+        assertEquals(BroadcastState.STOPPING, stoppedState)
+        assertEquals("방송 종료 중…", stopping.broadcastButtonText)
+        assertFalse(stopping.isBroadcastButtonEnabled)
+        assertEquals("방송 준비", idle.broadcastButtonText)
+        assertTrue(idle.isBroadcastButtonEnabled)
     }
 }
