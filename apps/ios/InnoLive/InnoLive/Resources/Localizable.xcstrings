@@ -1,6 +1,742 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "YouTube 전송 안내": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube 전송 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube transmission notice"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube送信のご案内"
+          }
+        }
+      }
+    },
+    "전송하는 정보": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전송하는 정보"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Information we send"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信する情報"
+          }
+        }
+      }
+    },
+    "처리된 방송 영상·음성을 연결한 YouTube 채널로 전송합니다. YouTube 연결과 방송을 위해 채널 식별 정보, 암호화한 연결 토큰과 방송 연결 정보를 처리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "처리된 방송 영상·음성을 연결한 YouTube 채널로 전송합니다. YouTube 연결과 방송을 위해 채널 식별 정보, 암호화한 연결 토큰과 방송 연결 정보를 처리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We send the processed broadcast video and audio to the connected YouTube channel. For YouTube connection and broadcasting, we process channel identifiers, encrypted connection tokens, and broadcast connection information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "処理済みの配信映像・音声を連携したYouTubeチャンネルに送信します。YouTube連携と配信のため、チャンネル識別情報、暗号化した接続トークン、配信接続情報を取り扱います。"
+          }
+        }
+      }
+    },
+    "연결한 YouTube 채널로 처리한 영상과 음성을 전송하고 방송 상태를 관리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결한 YouTube 채널로 처리한 영상과 음성을 전송하고 방송 상태를 관리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We send the processed video and audio to the connected YouTube channel and manage the broadcast state."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連携したYouTubeチャンネルへ処理済みの映像と音声を送信し、配信状態を管理します。"
+          }
+        }
+      }
+    },
+    "YouTube에서의 처리": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube에서의 처리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing on YouTube"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeでの取り扱い"
+          }
+        }
+      }
+    },
+    "YouTube에 전송된 영상은 YouTube의 정책과 사용자 채널 설정에 따라 처리됩니다. 계정 삭제는 YouTube 채널의 과거 영상을 삭제하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube에 전송된 영상은 YouTube의 정책과 사용자 채널 설정에 따라 처리됩니다. 계정 삭제는 YouTube 채널의 과거 영상을 삭제하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video sent to YouTube is processed under YouTube's policies and your channel settings. Deleting your InnoLive account does not delete past videos on your YouTube channel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeに送信された映像は、YouTubeのポリシーとチャンネル設定に従って取り扱われます。アカウント削除ではYouTubeチャンネルの過去の映像は削除されません。"
+          }
+        }
+      }
+    },
+    "이 안내를 확인하지 않으면 방송 준비를 진행하지 않습니다. 개인정보 관련 문의는 개인정보처리방침의 연락처로 요청할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 안내를 확인하지 않으면 방송 준비를 진행하지 않습니다. 개인정보 관련 문의는 개인정보처리방침의 연락처로 요청할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast preparation will not continue until you acknowledge this notice. For privacy inquiries, use the contact listed in the Privacy Policy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この案内を確認するまで配信準備は進みません。個人情報に関するお問い合わせは、プライバシーポリシーに記載の連絡先へご連絡ください。"
+          }
+        }
+      }
+    },
+    "내용을 끝까지 스크롤하면 계속할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내용을 끝까지 스크롤하면 계속할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll to the end to continue."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最後までスクロールすると続行できます。"
+          }
+        }
+      }
+    },
+    "확인하고 방송 준비": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인하고 방송 준비"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acknowledge and prepare broadcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認して配信準備"
+          }
+        }
+      }
+    },
+    "전송하는 방송 정보": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전송하는 방송 정보"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast information we send"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信する配信情報"
+          }
+        }
+      }
+    },
+    "카메라와 마이크로 수집한 방송 영상·음성을 서버로 전송합니다. 비식별화 처리를 위해 AI 서비스가 이 영상·음성을 처리·중계합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카메라와 마이크로 수집한 방송 영상·음성을 서버로 전송합니다. 비식별화 처리를 위해 AI 서비스가 이 영상·음성을 처리·중계합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We send the broadcast video and audio captured by the camera and microphone to the server. An AI service processes and relays this video and audio for de-identification."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラとマイクで取得した配信映像・音声をサーバーに送信します。匿名化処理のため、AIサービスがこの映像・音声を処理・中継します。"
+          }
+        }
+      }
+    },
+    "이용 목적": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이용 목적"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purpose of use"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用目的"
+          }
+        }
+      }
+    },
+    "등록 얼굴과 다른 얼굴을 구분하고, 방송 영상에서 다른 얼굴을 비식별화하기 위해 이용합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록 얼굴과 다른 얼굴을 구분하고, 방송 영상에서 다른 얼굴을 비식별화하기 위해 이용합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We use this information to distinguish registered faces from other faces and to de-identify other faces in the broadcast video."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録した顔と他の顔を区別し、配信映像の他の顔を匿名化するために利用します。"
+          }
+        }
+      }
+    },
+    "보유 및 처리": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "보유 및 처리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retention and processing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保有および処理"
+          }
+        }
+      }
+    },
+    "AI 서비스는 처리 중 얼굴 특징값을 메모리에 보관합니다. 보관한 얼굴 특징값은 등록 얼굴을 삭제하거나 계정 삭제가 완료되거나 AI 서비스가 종료될 때 정리합니다. 기준 사진 원본은 별도로 보관하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 서비스는 처리 중 얼굴 특징값을 메모리에 보관합니다. 보관한 얼굴 특징값은 등록 얼굴을 삭제하거나 계정 삭제가 완료되거나 AI 서비스가 종료될 때 정리합니다. 기준 사진 원본은 별도로 보관하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI service keeps face feature values in memory during processing. Stored face feature values are deleted when you delete a registered face, when account deletion is completed, or when the AI service is discontinued. Original reference photos are not stored separately."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIサービスは処理中、顔の特徴値をメモリに保持します。保持した顔の特徴値は、登録顔の削除、アカウント削除の完了、またはAIサービスの終了時に削除します。基準写真の原本は別に保管しません。"
+          }
+        }
+      }
+    },
+    "동의하지 않으면 카메라와 마이크를 서버에 연결하지 않습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동의하지 않으면 카메라와 마이크를 서버에 연결하지 않습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you do not consent, the camera and microphone will not be connected to the server. For privacy inquiries or withdrawal of consent, use the contact listed in the Privacy Policy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同意しない場合、カメラとマイクはサーバーに接続しません。個人情報に関するお問い合わせや同意の撤回は、プライバシーポリシーに記載の連絡先へご連絡ください。"
+          }
+        }
+      }
+    },
+    "방송 영상·음성 전송 동의": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 영상·음성 전송 동의"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast video and audio consent"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信映像・音声の送信への同意"
+          }
+        }
+      }
+    },
+    "수집하는 계정 정보": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "수집하는 계정 정보"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account information we collect"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取得するアカウント情報"
+          }
+        }
+      }
+    },
+    "회원가입·로그인·계정 관리를 위해 이름, 이메일 주소, 회원 식별자, 외부 로그인 식별자, 이메일 로그인 비밀번호 해시, 인증 토큰 정보(갱신 토큰 해시 포함), IP 주소와 User-Agent 정보를 처리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회원가입·로그인·계정 관리를 위해 이름, 이메일 주소, 회원 식별자, 외부 로그인 식별자, 이메일 로그인 비밀번호 해시, 인증 토큰 정보(갱신 토큰 해시 포함), IP 주소와 User-Agent 정보를 처리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For account creation, sign-in, and account management, we process your name, email address, account identifier, external sign-in identifier, hashed password for email sign-in, authentication token information (including refresh token hashes), IP address, and User-Agent information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントの作成・ログイン・管理のため、氏名、メールアドレス、アカウント識別子、外部ログイン識別子、メールログイン用のハッシュ化されたパスワード、認証トークン情報（リフレッシュトークンのハッシュを含む）、IPアドレス、User-Agent情報を取り扱います。"
+          }
+        }
+      }
+    },
+    "계정 정보 이용 목적": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 정보 이용 목적"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How we use account information"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント情報の利用目的"
+          }
+        }
+      }
+    },
+    "회원가입, 로그인, 세션 유지, 계정 관리와 인증 보안을 위해 이용합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회원가입, 로그인, 세션 유지, 계정 관리와 인증 보안을 위해 이용합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We use this information for account creation, sign-in, session maintenance, account management, and authentication security."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントの作成、ログイン、セッションの維持、アカウント管理、認証の安全確保のために利用します。"
+          }
+        }
+      }
+    },
+    "계정 정보 보유 및 삭제": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 정보 보유 및 삭제"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account information retention and deletion"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント情報の保有と削除"
+          }
+        }
+      }
+    },
+    "계정·로그인·방송 연결 정보는 서비스 운영과 계정 삭제 처리에 필요한 범위에서 보관합니다. 계정 삭제가 완료되면 계정·로그인·방송 연결 정보와 얼굴 등록 데이터를 정리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정·로그인·방송 연결 정보는 서비스 운영과 계정 삭제 처리에 필요한 범위에서 보관합니다. 계정 삭제가 완료되면 계정·로그인·방송 연결 정보와 얼굴 등록 데이터를 정리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We retain account, sign-in, and broadcast connection information as needed to operate the service and process account deletion. When account deletion is complete, we clear your account, sign-in, broadcast connection, and registered-face data."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント・ログイン・配信接続情報は、サービスの運営とアカウント削除の処理に必要な範囲で保有します。アカウントの削除が完了すると、アカウント・ログイン・配信接続情報と顔登録データを整理します。"
+          }
+        }
+      }
+    },
+    "외부 로그인 안내": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "외부 로그인 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Third-party sign-in"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外部サービスでのログイン"
+          }
+        }
+      }
+    },
+    "Google과 Apple은 각 제공자가 인증을 처리합니다. InnoLive는 로그인에 필요한 외부 식별자와 인증 결과를 처리하며, 각 제공자가 처리하는 정보에는 해당 제공자의 정책이 적용됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google과 Apple은 각 제공자가 인증을 처리합니다. InnoLive는 로그인에 필요한 외부 식별자와 인증 결과를 처리하며, 각 제공자가 처리하는 정보에는 해당 제공자의 정책이 적용됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google and Apple handle authentication for their respective sign-in services. InnoLive processes the external identifiers and authentication results needed for sign-in. Information handled by each provider is subject to that provider’s policies."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GoogleとAppleはそれぞれのログインサービスの認証を処理します。InnoLiveはログインに必要な外部識別子と認証結果を取り扱います。各提供者が取り扱う情報には、その提供者のポリシーが適用されます。"
+          }
+        }
+      }
+    },
+    "동의하지 않으면 이 가입·소셜 로그인 절차를 진행하지 않습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동의하지 않으면 이 가입·소셜 로그인 절차를 진행하지 않습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you do not consent, this sign-up or social sign-in process will not continue. For privacy inquiries or withdrawal of consent, use the contact listed in the Privacy Policy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同意しない場合、このアカウント作成・ソーシャルログインの手続きは進みません。個人情報に関するお問い合わせや同意の撤回は、プライバシーポリシーに記載の連絡先へご連絡ください。"
+          }
+        }
+      }
+    },
+    "개인정보처리방침 전문 보기": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개인정보처리방침 전문 보기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read the full Privacy Policy"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーポリシーの全文を読む"
+          }
+        }
+      }
+    },
+    "내용을 끝까지 스크롤하면 동의할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내용을 끝까지 스크롤하면 동의할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll to the end to enable consent."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最後までスクロールすると同意できます。"
+          }
+        }
+      }
+    },
+    "개인정보처리방침을 확인했으며, 계정 정보 수집·이용에 동의합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개인정보처리방침을 확인했으며, 계정 정보 수집·이용에 동의합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I have read the Privacy Policy and consent to the collection and use of my account information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーポリシーを確認し、アカウント情報の取得・利用に同意します。"
+          }
+        }
+      }
+    },
+    "동의하고 계속": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동의하고 계속"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agree and continue"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同意して続ける"
+          }
+        }
+      }
+    },
+    "계정 정보 수집·이용 동의": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 정보 수집·이용 동의"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account information consent"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント情報の取得・利用への同意"
+          }
+        }
+      }
+    },
+    "계정 정보 수집·이용에 동의해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 정보 수집·이용에 동의해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please consent to the collection and use of your account information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウント情報の取得・利用に同意してください。"
+          }
+        }
+      }
+    },
     "%.1f배": {
       "extractionState": "manual",
       "localizations": {

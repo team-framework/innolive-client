@@ -10,6 +10,8 @@ struct BroadcastSettingsView: View {
     @ObservedObject var youtube: YouTubeIntegration
     @State private var draftSettings: YouTubeBroadcastSettings
     @State private var isSaveConfirmationPresented = false
+    @State private var isShowingYouTubeTransmissionNotice = false
+    @State private var youtubeTransmissionNotice = YouTubeTransmissionNotice()
     private let onPrepare: (() -> Void)?
 
     init(
@@ -128,6 +130,11 @@ struct BroadcastSettingsView: View {
         } message: {
             Text(String(localized: "방송 시작 시 YouTube에 적용됩니다."))
         }
+        .sheet(isPresented: $isShowingYouTubeTransmissionNotice) {
+            YouTubeTransmissionNoticeView { consent in
+                confirmYouTubeTransmissionNotice(consent)
+            }
+        }
     }
 
     private var broadcastTitleSection: some View {
@@ -239,10 +246,17 @@ struct BroadcastSettingsView: View {
 
     private func performPrimaryAction() {
         saveBroadcastSettings()
-        guard let onPrepare else {
+        guard onPrepare != nil else {
             isSaveConfirmationPresented = true
             return
         }
+        youtubeTransmissionNotice.reset()
+        isShowingYouTubeTransmissionNotice = true
+    }
+
+    private func confirmYouTubeTransmissionNotice(_ consent: SignupConsent) {
+        youtubeTransmissionNotice.record(consent)
+        guard youtubeTransmissionNotice.canPrepare, let onPrepare else { return }
         onPrepare()
     }
 

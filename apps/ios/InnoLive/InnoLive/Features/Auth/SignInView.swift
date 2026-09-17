@@ -6,7 +6,15 @@ import UIKit
 struct SignInView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var authentication: AuthSession
-    @State private var appleNonce = ""
+    @StateObject private var appleAuthorization = AppleSignInAuthorization()
+    @State private var consentProvider: Provider?
+    @State private var approvedSignIn: (Provider, SignupConsent)?
+    @State private var isAuthorizing = false
+
+    private enum Provider: String, Identifiable {
+        case google, apple
+        var id: String { rawValue }
+    }
 
     var body: some View {
         AuthenticationLayout {
@@ -28,23 +36,27 @@ struct SignInView: View {
                     .controlSize(.large)
                     .frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
                 }
+                .disabled(isAuthorizing || consentProvider != nil)
                 if let errorMessage = authentication.errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.red) }
-                if let privacyPolicyURL = InnoLiveLinks.privacyPolicyURL {
-                    Link(destination: privacyPolicyURL) {
-                        Label(String(localized: "개인정보처리방침"), systemImage: "doc.text")
-                            .font(.footnote.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.glass)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity).frame(height: 44)
-                }
+            }
+        }
+        .sheet(item: $consentProvider, onDismiss: {
+            guard let (provider, consent) = approvedSignIn else { return }
+            approvedSignIn = nil
+            guard consent.isAccepted, !isAuthorizing else { return }
+            switch provider {
+            case .google: signInWithGoogle(consent: consent)
+            case .apple: signInWithApple(consent: consent)
+            }
+        }) { provider in
+            SignupConsentView { consent in
+                approvedSignIn = (provider, consent)
             }
         }
     }
 
     private var googleButton: some View {
-        Button(action: signInWithGoogle) {
+        Button { consentProvider = .google } label: {
             HStack(spacing: 12) {
                 if let googleIcon = Self.googleIcon {
                     Image(uiImage: googleIcon)
@@ -74,7 +86,8 @@ struct SignInView: View {
         return UIImage(named: "google", in: resourceBundle, compatibleWith: nil)
     }()
 
-    private func signInWithGoogle() {
+    private func signInWithGoogle(consent: SignupConsent) {
+        guard consent.isAccepted, !isAuthorizing else { return }
         authentication.clearError()
         guard let presentingViewController else { return }
         guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
@@ -86,10 +99,12 @@ struct SignInView: View {
             clientID: clientID,
             serverClientID: serverClientID
         )
+        isAuthorizing = true
         Task {
+            defer { isAuthorizing = false }
             do {
                 let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController)
-                await authentication.signInWithGoogle(idToken: result.user.idToken?.tokenString ?? "")
+                await authentication.signInWithGoogle(idToken: result.user.idToken?.tokenString ?? "", consent: consent)
             } catch {
                 authentication.showError(String(localized: "Google 로그인을 완료하지 못했습니다. 다시 시도해 주세요."))
             }
@@ -97,24 +112,33 @@ struct SignInView: View {
     }
 
     private var appleButton: some View {
-        SignInWithAppleButton(.signIn) { request in
-            authentication.clearError()
-            appleNonce = authentication.makeNonce()
-            request.nonce = appleNonce
-            request.requestedScopes = [.fullName, .email]
-        } onCompletion: { result in
+        ConsentAppleSignInButton(style: colorScheme == .dark ? .white : .black) {
+            consentProvider = .apple
+        }
+        .id(colorScheme)
+        .frame(maxWidth: .infinity).frame(height: 48).disabled(authentication.isLoading)
+    }
+
+    private func signInWithApple(consent: SignupConsent) {
+        guard consent.isAccepted, !isAuthorizing,
+              let window = presentingViewController?.view.window else { return }
+        authentication.clearError()
+        let nonce = authentication.makeNonce()
+        isAuthorizing = true
+        appleAuthorization.start(nonce: nonce, window: window) { result in
             switch result {
-            case .success(let authorization):
-                guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
-                Task { await authentication.signInWithApple(credential: credential, nonce: appleNonce) }
+            case .success(let credential):
+                Task {
+                    defer { isAuthorizing = false }
+                    await authentication.signInWithApple(credential: credential, nonce: nonce, consent: consent)
+                }
             case .failure(let error) where (error as? ASAuthorizationError)?.code == .canceled:
-                break
+                isAuthorizing = false
             case .failure:
+                isAuthorizing = false
                 authentication.showError(String(localized: "Apple 로그인을 완료하지 못했습니다. 다시 시도해 주세요."))
             }
         }
-        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-        .frame(maxWidth: .infinity).frame(height: 48).disabled(authentication.isLoading)
     }
 
     private var presentingViewController: UIViewController? {

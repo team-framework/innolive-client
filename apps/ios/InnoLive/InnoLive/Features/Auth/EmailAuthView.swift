@@ -13,6 +13,8 @@ struct EmailAuthView: View {
     @State private var editedFields: Set<Field> = []
     @State private var visiblePasswords: Set<Field> = []
     @State private var didResendCode = false
+    @State private var emailSignupConsent = EmailSignupConsent()
+    @State private var isShowingConsent = false
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
@@ -40,7 +42,9 @@ struct EmailAuthView: View {
     private var canSubmit: Bool {
         switch step {
         case .signIn: hasValidEmail && !password.isEmpty
-        case .signUp: hasValidEmail && hasValidPassword && password == passwordConfirmation
+        case .signUp:
+            hasValidEmail && hasValidPassword && password == passwordConfirmation
+                && (!emailSignupConsent.policy.isAccepted || emailSignupConsent.isChecked)
         case .verification: verificationCode.count == 6 && verificationCode.allSatisfy(\.isNumber)
         }
     }
@@ -71,6 +75,9 @@ struct EmailAuthView: View {
                     }
                     if let message = authentication.errorMessage {
                         feedback(message, symbol: "exclamationmark.circle.fill", color: .red)
+                    }
+                    if step == .signUp {
+                        signupConsentToggle
                     }
                     Button(action: submit) {
                         HStack(spacing: 10) {
@@ -107,7 +114,15 @@ struct EmailAuthView: View {
             }
         }
         .onAppear { authentication.clearError() }
-        .onDisappear { authentication.cancelSignup() }
+        .sheet(isPresented: $isShowingConsent) {
+            SignupConsentView { consent in
+                emailSignupConsent.recordSheetAcceptance(consent)
+            }
+        }
+        .onDisappear {
+            authentication.cancelSignup()
+            emailSignupConsent.reset()
+        }
         .onChange(of: focusedField) { previous, next in
             if let previous, previous.concealed != next?.concealed {
                 editedFields.insert(previous.concealed)
@@ -195,6 +210,25 @@ struct EmailAuthView: View {
                 .accessibilityLabel(String(localized: "인증 코드"))
         }
         .disabled(authentication.isLoading)
+    }
+
+    private var signupConsentToggle: some View {
+        Toggle(isOn: Binding(
+            get: { emailSignupConsent.isChecked },
+            set: { checked in
+                if checked && !emailSignupConsent.policy.isAccepted {
+                    isShowingConsent = true
+                } else {
+                    emailSignupConsent.setChecked(checked)
+                }
+            }
+        )) {
+            Text(String(localized: "개인정보처리방침을 확인했으며, 계정 정보 수집·이용에 동의합니다."))
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .toggleStyle(ConsentCheckboxStyle())
+        .accessibilityIdentifier("emailAuth.signupConsent")
     }
 
     @ViewBuilder private var footer: some View {
@@ -305,6 +339,7 @@ struct EmailAuthView: View {
     }
 
     private func changeStep(to nextStep: EmailAuthenticationStep) {
+        emailSignupConsent.reset()
         focusedField = nil
         authentication.clearError()
         password = ""
@@ -319,12 +354,17 @@ struct EmailAuthView: View {
     private func submit() {
         guard canSubmit, !authentication.isLoading else { return }
         focusedField = nil
+        if step == .signUp && !emailSignupConsent.policy.isAccepted {
+            isShowingConsent = true
+            return
+        }
         Task {
             switch step {
             case .signIn:
                 await authentication.signIn(email: normalizedEmail, password: password)
             case .signUp:
-                if await authentication.startSignup(email: normalizedEmail, password: password) {
+                guard emailSignupConsent.canSubmit else { return }
+                if await authentication.startSignup(email: normalizedEmail, password: password, consent: emailSignupConsent.policy) {
                     verificationCode = ""
                     visiblePasswords = []
                     step = .verification
