@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "@/lib/cn";
@@ -15,9 +16,9 @@ const baseClass =
 
 const variantClass = {
   primary:
-    "bg-button-primary text-text-primary hover:bg-button-primary-hover active:bg-button-primary-pressed disabled:cursor-not-allowed disabled:opacity-60",
+    "bg-button-primary text-text-primary hover:bg-button-primary-hover active:bg-button-primary-pressed disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none aria-disabled:opacity-60",
   secondary:
-    "bg-button-secondary text-text-reversed hover:bg-button-secondary-hover active:bg-button-secondary-pressed disabled:cursor-not-allowed disabled:bg-button-secondary-disabled disabled:text-text-secondary disabled:opacity-100",
+    "bg-button-secondary text-text-reversed hover:bg-button-secondary-hover active:bg-button-secondary-pressed disabled:cursor-not-allowed disabled:bg-button-secondary-disabled disabled:text-text-secondary disabled:opacity-100 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none aria-disabled:bg-button-secondary-disabled aria-disabled:text-text-secondary aria-disabled:opacity-100",
 } as const;
 
 type Variant = keyof typeof variantClass;
@@ -60,11 +61,12 @@ function Chevron({ variant, disabled }: { variant: Variant; disabled: boolean })
       : chevrons.primary;
 
   return (
-    <img
+    <Image
       src={src}
       alt=""
       width={24}
       height={24}
+      unoptimized
       aria-hidden="true"
       className="size-6 shrink-0"
     />

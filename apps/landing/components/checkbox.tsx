@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { useId } from "react";
 import { cn } from "@/lib/cn";
@@ -31,12 +32,13 @@ export function Checkbox({
         className="peer sr-only focus:outline-none focus-visible:outline-none"
         {...props}
       />
-      <span className="relative mt-0.5 inline-flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-control bg-surface-primary peer-checked:bg-button-secondary peer-checked:[&>img]:opacity-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-text-primary">
-        <img
+      <span className="relative mt-0.5 inline-flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-control bg-surface-primary peer-checked:bg-button-secondary peer-checked:[&_img]:opacity-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-text-primary">
+        <Image
           src="/icons/checkbox-check.svg"
           alt=""
           width={15}
           height={11}
+          unoptimized
           aria-hidden="true"
           className="opacity-0"
         />

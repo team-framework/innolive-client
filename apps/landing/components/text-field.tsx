@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { ComponentPropsWithoutRef } from "react";
 import { cn } from "@/lib/cn";
 
@@ -24,11 +25,12 @@ export function TextField({ icon, className, ...props }: TextFieldProps) {
       )}
     >
       {icon ? (
-        <img
+        <Image
           src={icons[icon]}
           alt=""
           width={24}
           height={24}
+          unoptimized
           aria-hidden="true"
           className="size-6 shrink-0"
         />
