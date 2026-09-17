@@ -531,6 +531,7 @@ fun AppNavigation(
                                 onGoogleLogin = {
                                     authenticationSession.continueWithGoogle(context)
                                 },
+                                onEmailLogin = authenticationSession::signInWithEmail,
                             ),
                         )
                     }
