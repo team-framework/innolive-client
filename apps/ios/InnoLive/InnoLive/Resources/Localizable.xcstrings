@@ -1,6 +1,213 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "YouTube 전송 안내": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube 전송 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube transmission notice"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube送信のご案内"
+          }
+        }
+      }
+    },
+    "전송하는 정보": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전송하는 정보"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Information we send"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "送信する情報"
+          }
+        }
+      }
+    },
+    "처리된 방송 영상·음성을 연결한 YouTube 채널로 전송합니다. YouTube 연결과 방송을 위해 채널 식별 정보, 암호화한 연결 토큰과 방송 연결 정보를 처리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "처리된 방송 영상·음성을 연결한 YouTube 채널로 전송합니다. YouTube 연결과 방송을 위해 채널 식별 정보, 암호화한 연결 토큰과 방송 연결 정보를 처리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We send the processed broadcast video and audio to the connected YouTube channel. For YouTube connection and broadcasting, we process channel identifiers, encrypted connection tokens, and broadcast connection information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "処理済みの配信映像・音声を連携したYouTubeチャンネルに送信します。YouTube連携と配信のため、チャンネル識別情報、暗号化した接続トークン、配信接続情報を取り扱います。"
+          }
+        }
+      }
+    },
+    "연결한 YouTube 채널로 처리한 영상과 음성을 전송하고 방송 상태를 관리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결한 YouTube 채널로 처리한 영상과 음성을 전송하고 방송 상태를 관리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We send the processed video and audio to the connected YouTube channel and manage the broadcast state."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連携したYouTubeチャンネルへ処理済みの映像と音声を送信し、配信状態を管理します。"
+          }
+        }
+      }
+    },
+    "YouTube에서의 처리": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube에서의 처리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing on YouTube"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeでの取り扱い"
+          }
+        }
+      }
+    },
+    "YouTube에 전송된 영상은 YouTube의 정책과 사용자 채널 설정에 따라 처리됩니다. 계정 삭제는 YouTube 채널의 과거 영상을 삭제하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube에 전송된 영상은 YouTube의 정책과 사용자 채널 설정에 따라 처리됩니다. 계정 삭제는 YouTube 채널의 과거 영상을 삭제하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video sent to YouTube is processed under YouTube's policies and your channel settings. Deleting your InnoLive account does not delete past videos on your YouTube channel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeに送信された映像は、YouTubeのポリシーとチャンネル設定に従って取り扱われます。アカウント削除ではYouTubeチャンネルの過去の映像は削除されません。"
+          }
+        }
+      }
+    },
+    "이 안내를 확인하지 않으면 방송 준비를 진행하지 않습니다. 개인정보 관련 문의는 개인정보처리방침의 연락처로 요청할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 안내를 확인하지 않으면 방송 준비를 진행하지 않습니다. 개인정보 관련 문의는 개인정보처리방침의 연락처로 요청할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast preparation will not continue until you acknowledge this notice. For privacy inquiries, use the contact listed in the Privacy Policy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この案内を確認するまで配信準備は進みません。個人情報に関するお問い合わせは、プライバシーポリシーに記載の連絡先へご連絡ください。"
+          }
+        }
+      }
+    },
+    "내용을 끝까지 스크롤하면 계속할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내용을 끝까지 스크롤하면 계속할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scroll to the end to continue."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最後までスクロールすると続行できます。"
+          }
+        }
+      }
+    },
+    "확인하고 방송 준비": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인하고 방송 준비"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acknowledge and prepare broadcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認して配信準備"
+          }
+        }
+      }
+    },
     "전송하는 방송 정보": {
       "extractionState": "manual",
       "localizations": {
