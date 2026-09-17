@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Button } from "@/components/button";
+import { OnDeviceHelp } from "@/components/on-device-help";
 import { cn } from "@/lib/cn";
 import type { Plan } from "@/lib/plans";
 
@@ -88,22 +89,7 @@ export function PlanCard({ plan }: { plan: Plan }) {
               >
                 {plan.name}
               </h3>
-              {plan.helpLabel && footnotesId ? (
-                <a
-                  href={`#${footnotesId}`}
-                  className="relative size-7 shrink-0"
-                  aria-label={plan.helpLabel}
-                >
-                  <Image
-                    src="/icons/circle-question.svg"
-                    alt=""
-                    width={28}
-                    height={28}
-                    unoptimized
-                    className="size-7"
-                  />
-                </a>
-              ) : null}
+              {plan.helpLabel ? <OnDeviceHelp label={plan.helpLabel} /> : null}
             </div>
             <p className="break-keep text-[clamp(1.125rem,0.95rem+0.8vw,1.625rem)] font-normal leading-[1.15] text-text-primary">
               {plan.description}
