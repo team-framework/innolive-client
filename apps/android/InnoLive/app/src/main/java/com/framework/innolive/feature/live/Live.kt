@@ -182,105 +182,113 @@ fun LiveScreen(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(24.dp, 12.dp),
+                .padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(
-                    enabled = canManageFace,
-                    onClick = {
-                        if (webRtcSession.connectionState != WebRtcConnectionState.CONNECTED) {
-                            webRtcSession.close()
-                        }
-                        openFaceManagement = true
-                    },
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Face,
-                        contentDescription = "얼굴 관리",
-                        modifier = Modifier
-                            .padding(1.dp)
-                            .width(32.dp)
-                            .height(32.dp),
-                        tint = Color.White,
-                    )
-                }
-                Box(contentAlignment = Alignment.Center) {
-                    if (openPlatformDialog) {
-                        PlatformDialog(
-                            onDismissRequest = {
-                                openPlatformDialog = false
-                            },
-                            onYouTubeSelected = {
-                                selectedPlatform = "YouTube"
-                                pendingYouTubeSettingsDialog = true
-                                openPlatformDialog = false
-                            },
+            BalancedLiveControls(
+                leading = {
+                    IconButton(
+                        enabled = canManageFace,
+                        onClick = {
+                            if (webRtcSession.connectionState != WebRtcConnectionState.CONNECTED) {
+                                webRtcSession.close()
+                            }
+                            openFaceManagement = true
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Face,
+                            contentDescription = "얼굴 관리",
+                            modifier = Modifier
+                                .padding(1.dp)
+                                .width(32.dp)
+                                .height(32.dp),
+                            tint = Color.White,
                         )
                     }
-                    if (openYouTubeSettingsDialog) {
-                        YouTubeLiveSettingsDialog(
-                            settings = props.broadcastSettings,
-                            youtubeChannelTitle = props.youtubeChannelTitle,
-                            hasYouTubeAccount = props.hasYouTubeAccount,
-                            youtubeAccountStatus = props.youtubeAccountStatus,
-                            isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
-                            isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
-                            isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
-                            onSettingsChanged = props.onBroadcastSettingsChanged,
-                            onConnectYouTube = props.onConnectYouTube,
-                            onDismissRequest = { openYouTubeSettingsDialog = false },
-                            onPrepare = {
-                                if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
-                                    mediaPermissions.refresh()
-                                    mediaPermissionLauncher.launch(
-                                        readMediaPermissionState(context).missingPermissions.toTypedArray(),
-                                    )
-                                } else if (webRtcSession.prepareBroadcast(
-                                        context, props.broadcastSettings, props.onRefreshAccessToken,
-                                    )) {
-                                    openYouTubeSettingsDialog = false
+                },
+                center = {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (openPlatformDialog) {
+                            PlatformDialog(
+                                onDismissRequest = {
+                                    openPlatformDialog = false
+                                },
+                                onYouTubeSelected = {
+                                    selectedPlatform = "YouTube"
+                                    pendingYouTubeSettingsDialog = true
+                                    openPlatformDialog = false
+                                },
+                            )
+                        }
+                        if (openYouTubeSettingsDialog) {
+                            YouTubeLiveSettingsDialog(
+                                settings = props.broadcastSettings,
+                                youtubeChannelTitle = props.youtubeChannelTitle,
+                                hasYouTubeAccount = props.hasYouTubeAccount,
+                                youtubeAccountStatus = props.youtubeAccountStatus,
+                                isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
+                                isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
+                                isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
+                                onSettingsChanged = props.onBroadcastSettingsChanged,
+                                onConnectYouTube = props.onConnectYouTube,
+                                onDismissRequest = { openYouTubeSettingsDialog = false },
+                                onPrepare = {
+                                    if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+                                        mediaPermissions.refresh()
+                                        mediaPermissionLauncher.launch(
+                                            readMediaPermissionState(context).missingPermissions.toTypedArray(),
+                                        )
+                                    } else if (webRtcSession.prepareBroadcast(
+                                            context, props.broadcastSettings, props.onRefreshAccessToken,
+                                        )) {
+                                        openYouTubeSettingsDialog = false
+                                    }
+                                },
+                            )
+                        }
+                        VerticalHeroButton(
+                            text = presentation.broadcastButtonText,
+                            enabled = presentation.isBroadcastButtonEnabled,
+                            onClick = {
+                                when (presentation.broadcastAction) {
+                                    LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
+                                    LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
+                                    LiveBroadcastAction.PREPARE_BROADCAST ->
+                                        openYouTubeSettingsDialog = true
+
+                                    LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
                                 }
                             },
                         )
                     }
-                    VerticalHeroButton(
-                        text = presentation.broadcastButtonText,
-                        enabled = presentation.isBroadcastButtonEnabled,
-                        onClick = {
-                            when (presentation.broadcastAction) {
-                                LiveBroadcastAction.STOP_BROADCAST -> webRtcSession.stopBroadcast()
-                                LiveBroadcastAction.GO_LIVE -> webRtcSession.goLive()
-                                LiveBroadcastAction.PREPARE_BROADCAST ->
-                                    openYouTubeSettingsDialog = true
-
-                                LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
-                            }
-                        },
+                },
+                trailing = {
+                    AnonymizationControls(
+                        state = anonymizationControlsState(
+                            webRtcSession.connectionState,
+                            webRtcSession.anonymizationState,
+                            webRtcSession.selectedAnonymizationEnabled,
+                            webRtcSession.isAnonymizationSelectionLoaded,
+                            webRtcSession.anonymizationChange,
+                        ),
+                        onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
                     )
-                }
-                AnonymizationControls(
-                    state = anonymizationControlsState(
-                        webRtcSession.connectionState,
-                        webRtcSession.anonymizationState,
-                        webRtcSession.selectedAnonymizationEnabled,
-                        webRtcSession.isAnonymizationSelectionLoaded,
-                        webRtcSession.anonymizationChange,
-                    ),
-                    onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
-                )
-            }
+                },
+            )
             if (webRtcSession.connectionState == WebRtcConnectionState.FAILED) {
-                Text(webRtcSession.connectionStatus, color = Color.White, style = MaterialTheme.typography.labelMedium)
+                Text(
+                    webRtcSession.connectionStatus,
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                )
             }
             webRtcSession.anonymizationChange.errorMessage?.let { error ->
                 Text(
                     text = "$error 비식별화 아이콘을 눌러 다시 시도해 주세요.",
+                    modifier = Modifier.padding(horizontal = 24.dp),
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium,
                 )
@@ -295,6 +303,7 @@ fun LiveScreen(
             }
             Text(
                 text = presentation.broadcastStatusText,
+                modifier = Modifier.padding(horizontal = 24.dp),
                 style = MaterialTheme.typography.labelMedium,
                 color = if (presentation.isBroadcastStatusError) {
                     Color.Red
@@ -302,6 +311,33 @@ fun LiveScreen(
                     Color.White
                 },
             )
+        }
+    }
+}
+
+@Composable
+internal fun BalancedLiveControls(
+    modifier: Modifier = Modifier,
+    leading: @Composable () -> Unit,
+    center: @Composable () -> Unit,
+    trailing: @Composable () -> Unit,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            leading()
+        }
+        center()
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            trailing()
         }
     }
 }
