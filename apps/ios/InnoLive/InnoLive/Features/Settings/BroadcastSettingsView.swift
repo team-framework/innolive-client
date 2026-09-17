@@ -250,13 +250,16 @@ struct BroadcastSettingsView: View {
             isSaveConfirmationPresented = true
             return
         }
+        if youtube.hasAcknowledgedYouTubeTransmission {
+            onPrepare?()
+            return
+        }
         youtubeTransmissionNotice.reset()
         isShowingYouTubeTransmissionNotice = true
     }
 
     private func confirmYouTubeTransmissionNotice(_ consent: SignupConsent) {
-        youtubeTransmissionNotice.record(consent)
-        guard youtubeTransmissionNotice.canPrepare, let onPrepare else { return }
+        guard youtube.acknowledgeYouTubeTransmission(consent), let onPrepare else { return }
         onPrepare()
     }
 
