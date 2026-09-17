@@ -176,6 +176,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
                 delay: .milliseconds(250)
             ),
             .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+            .init(statusCode: 204, data: Data()),
         ]
         let requestStarted = expectation(description: "golive started")
         YouTubeBroadcastOrientationURLProtocol.onRequest = {
@@ -207,6 +208,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
             }.count,
             1
         )
+        XCTAssertEqual(YouTubeBroadcastOrientationURLProtocol.requests.filter { $0.httpMethod == "DELETE" }.count, 1)
     }
 
     func testRecoverFromUplinkFailureDuringGoLiveDoesNotRestoreLive() async throws {
@@ -217,6 +219,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
                 data: streamState(phase: "live", status: "streaming"),
                 delay: .milliseconds(250)
             ),
+            .init(statusCode: 204, data: Data()),
         ]
         let requestStarted = expectation(description: "golive started")
         YouTubeBroadcastOrientationURLProtocol.onRequest = {
@@ -282,6 +285,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
             .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+            .init(statusCode: 204, data: Data()),
         ]
         await integration.goLiveYouTubeStream(accessToken: "access-token")
         XCTAssertTrue(locker.isLocked)
