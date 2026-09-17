@@ -42,6 +42,10 @@ fun buildLiveScreenPresentation(
         // The connection status above the broadcast controls already explains this failure.
         connectionState == WebRtcConnectionState.FAILED -> ""
 
+        // Hide only the known provider messages that repeat the primary button.
+        // Other status text can contain recovery guidance or an operation-specific error.
+        broadcastState.hasRedundantButtonStatus(broadcastStatus) -> ""
+
         broadcastState != BroadcastState.IDLE -> broadcastStatus
         else -> ""
     }
@@ -70,6 +74,16 @@ fun buildLiveScreenPresentation(
         broadcastStatusText = broadcastStatusText,
         isBroadcastStatusError = broadcastState == BroadcastState.FAILED,
     )
+}
+
+private fun BroadcastState.hasRedundantButtonStatus(status: String): Boolean = when (this) {
+    BroadcastState.PREPARING -> status == "YouTube 방송 준비 중"
+    BroadcastState.LIVE -> status == "YouTube 방송 중"
+    BroadcastState.PAUSING -> status == "YouTube 송출 일시 중지 중"
+    BroadcastState.RESUMING -> status == "YouTube 송출 재개 중"
+    BroadcastState.CANCELLING_PREPARATION -> status == "YouTube 방송 준비 취소 중"
+    BroadcastState.STOPPING -> status == "YouTube 방송 종료 중"
+    else -> false
 }
 
 private val BroadcastState.isBusy: Boolean
