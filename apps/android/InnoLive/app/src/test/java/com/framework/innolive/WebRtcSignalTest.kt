@@ -9,6 +9,21 @@ import org.junit.Test
 
 class WebRtcSignalTest {
     @Test
+    fun reportsFieldNameForInvalidStringAndBooleanTypes() {
+        val stringError = assertThrows(IllegalArgumentException::class.java) {
+            parseServerMessage("""{"type":123}""")
+        }
+        assertEquals("signaling 응답의 type가 문자열이 아닙니다.", stringError.message)
+
+        val booleanError = assertThrows(IllegalArgumentException::class.java) {
+            parseServerMessage(
+                """{"type":"ice_candidate_added","session_id":"session","end_of_candidates":"false"}""",
+            )
+        }
+        assertEquals("signaling 응답의 end_of_candidates가 Boolean이 아닙니다.", booleanError.message)
+    }
+
+    @Test
     fun parsesServerAnswerAcknowledgementAndError() {
         assertEquals(
             ServerMessage.Answer(

@@ -52,8 +52,6 @@ internal fun EmailVerificationScreen(
             modifier = Modifier.fillMaxWidth(),
         ) { Text(if (pending) "인증 확인 중…" else "인증 완료") }
         TextButton(onClick = onRestart) { Text("인증 메일 다시 요청") }
-        Text("다시 요청하려면 이메일과 비밀번호를 입력해 주세요.",
-            style = MaterialTheme.typography.bodySmall)
         TextButton(onClick = onSignIn) { Text("로그인으로 돌아가기") }
     }
 }
