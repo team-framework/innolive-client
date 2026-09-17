@@ -56,7 +56,6 @@ function FaceOverlay({ overlay }: { overlay: FaceOverlaySpec }) {
   const maskStyle: CSSProperties = {
     WebkitMaskImage: `url(${mask})`,
     maskImage: `url(${mask})`,
-    WebkitMaskMode: "alpha",
     maskMode: "alpha",
     WebkitMaskRepeat: "no-repeat",
     maskRepeat: "no-repeat",

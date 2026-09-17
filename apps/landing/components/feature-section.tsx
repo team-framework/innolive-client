@@ -24,7 +24,6 @@ const faceMaskImage = `url("data:image/svg+xml,${encodeURIComponent(
 const faceMaskStyle = {
   WebkitMaskImage: faceMaskImage,
   maskImage: faceMaskImage,
-  WebkitMaskMode: "alpha",
   maskMode: "alpha",
   WebkitMaskRepeat: "no-repeat",
   maskRepeat: "no-repeat",
