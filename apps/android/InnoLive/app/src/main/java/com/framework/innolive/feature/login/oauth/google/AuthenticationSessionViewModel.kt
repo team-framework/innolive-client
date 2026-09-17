@@ -35,6 +35,15 @@ class AuthenticationSessionViewModel(
 
     private val emailApi = com.framework.innolive.feature.login.EmailSignInApi()
 
+    private val emailSignUpApi = com.framework.innolive.feature.login.EmailSignUpApi()
+
+    suspend fun signUpWithEmail(email: String, password: String): String =
+        emailSignUpApi.signUp(email, password)
+
+    suspend fun verifyEmail(signupToken: String, code: String) {
+        emailSignUpApi.verify(signupToken, code)
+    }
+
     suspend fun signInWithEmail(email: String, password: String) {
         com.framework.innolive.feature.login.authenticateAndSaveEmailSession(
             email, password, emailApi::authenticate, repository::save,

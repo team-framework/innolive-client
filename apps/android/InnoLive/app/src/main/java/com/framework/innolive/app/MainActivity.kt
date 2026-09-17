@@ -532,6 +532,8 @@ fun AppNavigation(
                                     authenticationSession.continueWithGoogle(context)
                                 },
                                 onEmailLogin = authenticationSession::signInWithEmail,
+                                onEmailSignUp = authenticationSession::signUpWithEmail,
+                                onEmailVerification = authenticationSession::verifyEmail,
                             ),
                         )
                     }

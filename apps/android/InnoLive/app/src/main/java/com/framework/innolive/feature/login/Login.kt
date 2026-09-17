@@ -49,6 +49,8 @@ fun LoginScreen(props: LoginScreenProps) {
             onBack = { showEmailAuthentication = false },
             onLogin = props.onLogin,
             signIn = props.onEmailLogin,
+            signUp = props.onEmailSignUp,
+            verifyEmail = props.onEmailVerification,
         )
         return
     }
