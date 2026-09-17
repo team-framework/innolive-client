@@ -51,16 +51,49 @@ export function FeatureSection() {
     const section = sectionRef.current;
     if (!section || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+    const grid = section.querySelector<HTMLElement>("[data-feature-grid]");
+    const rows = Array.from(
+      section.querySelectorAll<HTMLElement>("[data-feature-row]"),
+    );
+    if (!grid || rows.length === 0) return;
+
     gsap.registerPlugin(ScrollTrigger);
     const context = gsap.context(() => {
-      section.querySelectorAll<HTMLElement>("[data-feature-card] > *").forEach((content) => {
-        gsap.from(content, {
-          autoAlpha: 0,
-          duration: 0.55,
+      const cardsByRow = rows.map((row) =>
+        Array.from(row.querySelectorAll<HTMLElement>("[data-feature-card]")),
+      );
+      const cards = cardsByRow.flat();
+      gsap.set(cards, { autoAlpha: 0, scale: 0.94, y: 32 });
+
+      const timeline = gsap.timeline({
+        scrollTrigger: {
+          anticipatePin: 1,
+          end: () => `+=${window.innerHeight * (rows.length + 1)}`,
+          invalidateOnRefresh: true,
+          pin: true,
+          scrub: 0.35,
+          start: "top top",
+          trigger: section,
+        },
+      });
+
+      cardsByRow.forEach((cardsInRow, index) => {
+        timeline.to(cardsInRow, {
+          autoAlpha: 1,
+          duration: 0.7,
           ease: "power2.out",
-          scale: 0.96,
-          scrollTrigger: { start: "top 88%", trigger: content, once: true },
-          y: 24,
+          scale: 1,
+          stagger: 0.12,
+          y: 0,
+        });
+
+        const nextRow = rows[index + 1];
+        if (!nextRow) return;
+
+        timeline.to(grid, {
+          duration: 1,
+          ease: "none",
+          y: () => -(nextRow.offsetTop - rows[0].offsetTop),
         });
       });
     }, section);
@@ -89,8 +122,11 @@ export function FeatureSection() {
         </div>
 
         <div className="flex w-full flex-col gap-6">
-          <div className="flex w-full flex-col gap-5">
-            <div className="flex w-full flex-col items-stretch justify-center gap-4 lg:flex-row lg:items-stretch">
+          <div data-feature-grid className="flex w-full flex-col gap-5">
+            <div
+              data-feature-row
+              className="flex w-full flex-col items-stretch justify-center gap-4 lg:flex-row lg:items-stretch"
+            >
               <div
                 data-feature-card
                 className={`${cardClass} flex min-h-[14.5rem] w-full flex-col items-center justify-center gap-[15px] bg-gradient-to-b from-[#2563eb] to-[#b3bed7] p-8 lg:min-h-[23.125rem] lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[518px] min-[106.5rem]:flex-none min-[106.5rem]:p-8`}
@@ -150,7 +186,10 @@ export function FeatureSection() {
               </div>
             </div>
 
-            <div className="flex w-full flex-col items-stretch justify-center gap-4 lg:flex-row lg:items-stretch">
+            <div
+              data-feature-row
+              className="flex w-full flex-col items-stretch justify-center gap-4 lg:flex-row lg:items-stretch"
+            >
               <div
                 data-feature-card
                 className={`${cardClass} relative aspect-[874/370] w-full bg-background-secondary lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[874px] min-[106.5rem]:flex-none min-[106.5rem]:aspect-auto`}
