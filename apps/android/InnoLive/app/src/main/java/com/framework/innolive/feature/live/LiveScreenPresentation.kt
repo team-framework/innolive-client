@@ -54,7 +54,7 @@ fun buildLiveScreenPresentation(
         isBroadcastBusy = isBroadcastBusy,
         broadcastButtonText = when {
             isBroadcastLive -> "방송 종료"
-            isBroadcastPrepared -> "라이브 시작"
+            isBroadcastPrepared -> "방송 시작"
             isBroadcastBusy -> "방송 준비 중"
             else -> "방송 준비"
         },

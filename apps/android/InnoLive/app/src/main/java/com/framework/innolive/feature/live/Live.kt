@@ -293,25 +293,41 @@ fun LiveScreen(
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
-            if (presentation.isBroadcastPrepared) {
-                Button(
-                    onClick = webRtcSession::stopBroadcast,
-                    enabled = !presentation.isBroadcastBusy,
-                ) {
-                    Text(text = "방송 준비 취소")
+            StableBroadcastFeedback {
+                if (presentation.isBroadcastPrepared) {
+                    Button(
+                        onClick = webRtcSession::stopBroadcast,
+                        enabled = !presentation.isBroadcastBusy,
+                    ) {
+                        Text(text = "방송 준비 취소")
+                    }
                 }
+                Text(
+                    text = presentation.broadcastStatusText,
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (presentation.isBroadcastStatusError) {
+                        Color.Red
+                    } else {
+                        Color.White
+                    },
+                )
             }
-            Text(
-                text = presentation.broadcastStatusText,
-                modifier = Modifier.padding(horizontal = 24.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = if (presentation.isBroadcastStatusError) {
-                    Color.Red
-                } else {
-                    Color.White
-                },
-            )
         }
+    }
+}
+
+@Composable
+internal fun StableBroadcastFeedback(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        modifier = modifier.height(76.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        content()
     }
 }
 
