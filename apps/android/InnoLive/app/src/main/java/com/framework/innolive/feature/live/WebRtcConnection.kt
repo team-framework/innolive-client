@@ -69,6 +69,7 @@ class WebRtcConnection(
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
         require(url.isHttps) { "INNOLIVE_SERVER_URL must use HTTPS." }
     }
+    private val sessionRecoveryScope = sessionRecoveryScope(serverBaseUrl.toString(), accessToken)
     private val audioManager = applicationContext.getSystemService(AudioManager::class.java)
     private val mainHandler = Handler(Looper.getMainLooper())
     /**
@@ -581,7 +582,7 @@ class WebRtcConnection(
     }
 
     private fun createSession(): CreatedSession {
-        sessionRecoveryStore.load()?.let { staleSession ->
+        sessionRecoveryStore.load(sessionRecoveryScope)?.let { staleSession ->
             // The owner token is only returned at creation. A previous process may have
             // died before its normal close could remove this account's session.
             deleteSession(staleSession, allowAfterClose = false)
@@ -607,7 +608,7 @@ class WebRtcConnection(
             }
             parseCreatedSession(response.body.string()).also { created ->
                 try {
-                    sessionRecoveryStore.save(created)
+                    sessionRecoveryStore.save(created, sessionRecoveryScope)
                 } catch (exception: Exception) {
                     runCatching { deleteSession(created, allowAfterClose = false) }
                     throw IOException("세션 복구 정보를 저장하지 못했습니다.", exception)
@@ -1003,7 +1004,7 @@ class WebRtcConnection(
             .build()
         executeHttp(request, allowAfterClose = allowAfterClose).use { response ->
             when (response.code) {
-                204, 404, 403 -> sessionRecoveryStore.clear()
+                204, 404, 403 -> sessionRecoveryStore.clear(sessionRecoveryScope)
                 else -> throw IOException("WebRTC 세션 삭제 실패: HTTP ${response.code}")
             }
         }
