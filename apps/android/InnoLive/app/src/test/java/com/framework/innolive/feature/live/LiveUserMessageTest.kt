@@ -21,5 +21,7 @@ class LiveUserMessageTest {
         assertEquals("연결이 지연되고 있습니다. 다시 시도해 주세요.", connectionUserMessage(WebRtcConnectionState.FAILED, "WebRTC 연결 시간이 초과되었습니다."))
         assertEquals("선택한 마이크를 사용할 수 없습니다. 다른 마이크를 선택해 주세요.", connectionUserMessage(WebRtcConnectionState.FAILED, "선택한 오디오 기기를 실제 입력으로 적용하지 못했습니다."))
         assertEquals("YouTube 계정을 다시 연결해 주세요.", broadcastUserMessage("YouTube 계정을 다시 연결해 주세요."))
+        val existingSession = "이미 활성화된 방송 세션이 있습니다. 기존 방송을 종료한 뒤 다시 시도해 주세요."
+        assertEquals(existingSession, connectionUserMessage(WebRtcConnectionState.FAILED, existingSession))
     }
 }

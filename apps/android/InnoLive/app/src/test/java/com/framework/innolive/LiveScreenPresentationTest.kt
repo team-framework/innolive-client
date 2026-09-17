@@ -68,10 +68,23 @@ class LiveScreenPresentationTest {
 
         assertEquals(LiveBroadcastAction.SELECT_PLATFORM, idle.broadcastAction)
         assertEquals("", idle.broadcastStatusText)
-        assertEquals("미리보기를 연결하지 못했습니다.", failed.broadcastStatusText)
+        assertEquals("", failed.broadcastStatusText)
         assertTrue(failed.isBroadcastStatusError)
         assertTrue(idle.isBroadcastButtonEnabled)
         assertTrue(failed.isBroadcastButtonEnabled)
+    }
+
+    @Test
+    fun failedConnectionNeverAddsASecondBroadcastMessage() {
+        for (broadcast in BroadcastState.entries) {
+            val presentation = buildLiveScreenPresentation(
+                connectionState = WebRtcConnectionState.FAILED,
+                broadcastState = broadcast,
+                selectedPlatform = "YouTube",
+                broadcastStatus = "연결하지 못해 방송을 준비하지 못했습니다. 다시 시도해 주세요.",
+            )
+            assertEquals("Duplicate failure for $broadcast", "", presentation.broadcastStatusText)
+        }
     }
 
     @Test

@@ -289,16 +289,14 @@ fun LiveScreen(
                 )
             }
             StableBroadcastFeedback {
-                Text(
-                    text = presentation.broadcastStatusText,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (presentation.isBroadcastStatusError) {
-                        Color.Red
-                    } else {
-                        Color.White
-                    },
-                )
+                if (presentation.broadcastStatusText.isNotEmpty()) {
+                    Text(
+                        text = presentation.broadcastStatusText,
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (presentation.isBroadcastStatusError) Color.Red else Color.White,
+                    )
+                }
             }
         }
     }

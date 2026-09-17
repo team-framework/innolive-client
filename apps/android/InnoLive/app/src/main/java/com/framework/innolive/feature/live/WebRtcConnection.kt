@@ -65,6 +65,7 @@ class WebRtcConnection(
     private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
+    private var sessionRecoveryStore: SessionRecoveryStore = EncryptedSessionRecoveryStore(applicationContext)
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
         require(url.isHttps) { "INNOLIVE_SERVER_URL must use HTTPS." }
     }
@@ -548,6 +549,11 @@ class WebRtcConnection(
     }
 
     private fun createSession(): CreatedSession {
+        sessionRecoveryStore.load()?.let { staleSession ->
+            // The owner token is only returned at creation. A previous process may have
+            // died before its normal close could remove this account's session.
+            deleteSession(staleSession, allowAfterClose = false)
+        }
         val requestBody = JSONObject()
             .put(
                 "metadata",
@@ -560,8 +566,21 @@ class WebRtcConnection(
             .build()
 
         return executeHttp(request).use { response ->
-            requireSuccessful(response, "WebRTC 세션 생성")
-            parseCreatedSession(response.body.string())
+            if (!response.isSuccessful) {
+                val code = runCatching { JSONObject(response.body.string()).optJSONObject("error")?.optString("code") }.getOrNull()
+                if (response.code == 409 && code == "session_already_exists") {
+                    throw IOException("이미 활성화된 방송 세션이 있습니다. 기존 방송을 종료한 뒤 다시 시도해 주세요.")
+                }
+                throw IOException("WebRTC 세션 생성 실패: HTTP ${response.code}")
+            }
+            parseCreatedSession(response.body.string()).also { created ->
+                try {
+                    sessionRecoveryStore.save(created)
+                } catch (exception: Exception) {
+                    runCatching { deleteSession(created, allowAfterClose = false) }
+                    throw IOException("세션 복구 정보를 저장하지 못했습니다.", exception)
+                }
+            }
         }
     }
 
@@ -919,7 +938,8 @@ class WebRtcConnection(
         audioDeviceModule = null
         runCatching { eglBase?.release() }
         eglBase = null
-        runCatching { createdSession?.let(::deleteSession) }
+        runCatching { createdSession?.let { deleteSession(it, allowAfterClose = true) } }
+            .onFailure { Log.w("LiveConnection", "session_cleanup_failed type=${it.javaClass.simpleName}") }
         runCatching { httpClient.connectionPool.evictAll() }
         runCatching { httpClient.dispatcher.executorService.shutdown() }
 
@@ -944,13 +964,16 @@ class WebRtcConnection(
             false
         }
 
-    private fun deleteSession(createdSession: CreatedSession) {
+    private fun deleteSession(createdSession: CreatedSession, allowAfterClose: Boolean) {
         val request = authenticatedRequest("/sessions/${createdSession.sessionId}")
             .header("X-Session-Owner-Token", createdSession.ownerToken)
             .delete()
             .build()
-        runCatching {
-            executeHttp(request, allowAfterClose = true).close()
+        executeHttp(request, allowAfterClose = allowAfterClose).use { response ->
+            when (response.code) {
+                204, 404, 403 -> sessionRecoveryStore.clear()
+                else -> throw IOException("WebRTC 세션 삭제 실패: HTTP ${response.code}")
+            }
         }
     }
 
