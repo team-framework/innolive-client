@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode, Ref } from "react";
 import { cn } from "@/lib/cn";
 
 const chevrons = {
@@ -29,6 +29,7 @@ type CommonProps = {
   children: ReactNode;
   className?: string;
   disabled?: boolean;
+  ref?: Ref<HTMLButtonElement>;
 };
 
 type ButtonAsButton = CommonProps &
@@ -80,6 +81,7 @@ export function Button({
   children,
   disabled = false,
   href,
+  ref,
   ...rest
 }: ButtonProps) {
   const classes = cn(baseClass, variantClass[variant], className);
@@ -120,6 +122,7 @@ export function Button({
 
   return (
     <button
+      ref={ref}
       type="button"
       className={classes}
       disabled={disabled}

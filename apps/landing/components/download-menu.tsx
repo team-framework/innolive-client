@@ -2,14 +2,20 @@
 
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
+import { Button } from "@/components/button";
 import { cn } from "@/lib/cn";
 import { downloadPlatforms } from "@/lib/site";
 
-export function DownloadMenu() {
+type DownloadMenuProps = {
+  trigger?: "default" | "hero";
+};
+
+export function DownloadMenu({ trigger = "default" }: DownloadMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+  const isHero = trigger === "hero";
 
   useEffect(() => {
     if (!open) {
@@ -38,23 +44,43 @@ export function DownloadMenu() {
     };
   }, [open]);
 
+  const triggerProps = {
+    ref: buttonRef,
+    "aria-expanded": open,
+    "aria-controls": menuId,
+    onClick: () => setOpen((current) => !current),
+  };
+
   return (
-    <div ref={rootRef} className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        className="inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline md:text-2xl"
-        aria-expanded={open}
-        aria-controls={menuId}
-        onClick={() => setOpen((current) => !current)}
-      >
-        Download
-      </button>
+    <div ref={rootRef} className="relative w-fit">
+      {isHero ? (
+        <Button
+          variant="primary"
+          showChevron
+          className="h-[76px] w-[195px]"
+          {...triggerProps}
+        >
+          Download
+          <br aria-hidden="true" />
+          InnoLive
+        </Button>
+      ) : (
+        <button
+          type="button"
+          className="inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline md:text-2xl"
+          {...triggerProps}
+        >
+          Download
+        </button>
+      )}
       {open ? (
         <div
           id={menuId}
           aria-label="다운로드"
-          className="absolute right-0 z-20 mt-2 flex w-[195px] flex-col gap-2.5 rounded-[20px] bg-background-secondary p-2.5 shadow-button"
+          className={cn(
+            "absolute z-20 mt-2 flex w-[195px] flex-col gap-2.5 rounded-[20px] bg-background-secondary p-2.5 shadow-button",
+            isHero ? "left-0" : "right-0",
+          )}
         >
           {downloadPlatforms.map((platform) => {
             const unavailable = !platform.href;

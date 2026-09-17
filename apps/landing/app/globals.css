@@ -86,6 +86,7 @@
   --color-surface-primary: #e4e4e4;
   --color-overlay: #ffffff03;
   --color-shadow: #0000000d;
+  --color-phone-fill: #7f7f7f;
 
   --radius-control: 4px;
   --radius-card: 24px;
@@ -124,6 +125,10 @@
     font-family: var(--font-sans);
     font-weight: 400;
     line-height: var(--leading-body);
+  }
+
+  body:has([data-page="home"]) {
+    background: var(--color-background-primary);
   }
 
   :focus {
