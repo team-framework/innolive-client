@@ -24,7 +24,9 @@ pnpm start
 | `/pricing` | 요금제 |
 | `/try-out` | 비식별화 체험 **화면 미리보기** |
 | `/login`, `/signup` | 계정 UI. 제출 시 준비 중 안내만 |
-| `/privacy`, `/terms` | 정책 레이아웃. 본문 준비 중 |
+| `/privacy` | 개인정보 처리방침 (한국어 MDX) |
+| `/terms` | 이용약관 (한국어 MDX) |
+| `/support` | 고객 지원 (한국어 MDX) |
 | `/ko/privacy` | `/privacy`로 이동 |
 
 ## 인트로
@@ -46,4 +48,4 @@ pnpm start
 
 ## 정책
 
-`/privacy`와 `/terms`는 제목과 레이아웃만 있고 본문은 `본문 준비 중`입니다. 시행일을 표시하지 않습니다.
+한국어 문서는 `content/documents/`의 `privacy-policy.ko.mdx`, `terms-of-service.ko.mdx`, `support.ko.mdx`에서 편집합니다. 프론트매터 없이 본문만 두고, `/privacy`, `/terms`, `/support`가 이 파일을 그대로 렌더합니다. 게시일·시행일은 문서 본문에 있습니다. 다른 언어 연결은 이후 단계에서 다룹니다.

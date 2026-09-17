@@ -1,10 +1,16 @@
-import { PolicyPage } from "@/components/policy-page";
+import type { Metadata } from "next";
+import { DocumentPage } from "@/components/document-page";
+import PrivacyPolicy from "@/content/documents/privacy-policy.ko.mdx";
+import { documentTitles } from "@/lib/documents";
+
+export const metadata: Metadata = {
+  title: documentTitles.privacy.ko,
+};
 
 export default function PrivacyPage() {
   return (
-    <PolicyPage
-      title="개인정보 처리방침"
-      subtitle="이용자 개인정보 보호를 최우선의 가치로 두고 있습니다."
-    />
+    <DocumentPage locale="ko">
+      <PrivacyPolicy />
+    </DocumentPage>
   );
 }

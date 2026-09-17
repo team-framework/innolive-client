@@ -41,6 +41,9 @@ export function Footer() {
                 <Link href="/terms" className="underline">
                   서비스 이용약관
                 </Link>
+                <Link href="/support" className="underline">
+                  고객 지원
+                </Link>
                 <Link href="/#faq" className="underline">
                   FAQ
                 </Link>
