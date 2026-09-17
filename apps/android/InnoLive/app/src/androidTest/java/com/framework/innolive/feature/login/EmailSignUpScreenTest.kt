@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.login
 
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasSetTextAction
@@ -122,17 +124,25 @@ class EmailSignUpScreenTest {
     @Test
     fun pendingVerificationDisablesBackAndNavigatesAfterSuccess() {
         val finish = CompletableDeferred<Unit>()
+        val showingLiveScreen = mutableStateOf(false)
         var navigations = 0
         rule.setContent {
             MyApplicationTheme(dynamicColor = false) {
-                EmailLoginScreen(
-                    onBack = {},
-                    onLogin = { navigations++ },
-                    signIn = { _, _ -> },
-                    signUp = { _, _ -> },
-                    verifyEmail = { withContext(NonCancellable) { finish.await() } },
-                    resendSignup = {},
-                )
+                if (showingLiveScreen.value) {
+                    Text("라이브 화면")
+                } else {
+                    EmailLoginScreen(
+                        onBack = {},
+                        onLogin = {
+                            navigations++
+                            showingLiveScreen.value = true
+                        },
+                        signIn = { _, _ -> },
+                        signUp = { _, _ -> },
+                        verifyEmail = { withContext(NonCancellable) { finish.await() } },
+                        resendSignup = {},
+                    )
+                }
             }
         }
 
@@ -141,7 +151,8 @@ class EmailSignUpScreenTest {
         rule.onNodeWithText("인증하고 시작하기").performClick()
         rule.onNodeWithContentDescription("뒤로").assertIsNotEnabled()
         rule.runOnIdle { finish.complete(Unit) }
-        rule.waitUntil { navigations == 1 }
+        rule.onNodeWithText("라이브 화면").assertIsDisplayed()
         rule.onNodeWithText("이메일로 로그인").assertDoesNotExist()
+        rule.runOnIdle { assertEquals(1, navigations) }
     }
 }
