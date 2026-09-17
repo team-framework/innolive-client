@@ -1,3 +1,3 @@
-export default function Home() {
+export default function PricingPage() {
   return <main id="main" className="min-h-dvh" />;
 }
