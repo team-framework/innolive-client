@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 import { getTranslation } from '../../../lib/i18n'
 
-const supportEmail = process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL ?? 'chaeyn@dgsw.hs.kr'
+const supportEmail = process.env.NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL ?? 'contact@innolive.studio'
 
 export default async function SupportPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params
