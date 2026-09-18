@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/button";
 import { PlanCard } from "@/components/plan-card";
+import { PricingHeroHeading } from "@/components/pricing-hero-heading";
 import { businessPlans, personalPlans } from "@/lib/plans";
 
 function PlanScroller({
@@ -50,16 +51,7 @@ export default function PricingPage() {
         aria-labelledby="pricing-heading"
       >
         <div className="flex w-full max-w-[43.75rem] flex-col items-center gap-8 text-center">
-          <h1
-            id="pricing-heading"
-            className="w-max max-w-full break-keep text-[clamp(2rem,1.1rem+3.6vw,4rem)] font-bold leading-none text-text-primary"
-          >
-            <span className="font-normal tracking-[-0.05em]">InnoLive</span>
-            의{" "}
-            <span className="bg-gradient-to-r from-[#ff0000] to-[#00f2ff] bg-clip-text text-transparent">
-              잠재력 해제
-            </span>
-          </h1>
+          <PricingHeroHeading />
           <div className="w-full max-w-[37.0625rem] break-keep text-body-lg font-normal text-text-primary">
             <p>합리적인 가격으로 InnoLive의 모든 기능을 잠금 해제하세요.</p>
             <p>실시간 얼굴 대체, 더 높은 사용량 등이 플랜에 포함됩니다.</p>

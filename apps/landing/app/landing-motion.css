@@ -2,6 +2,17 @@
   --blur-mask-padding: 72px;
 }
 
+@keyframes pricing-character-dissolve {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pricing-dissolve-character {
+    animation: pricing-character-dissolve 480ms ease-out var(--character-delay) both;
+  }
+}
+
 .progressive-blur-layer {
   pointer-events: none;
   position: absolute;
