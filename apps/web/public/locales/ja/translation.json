@@ -122,7 +122,7 @@
     "back": "InnoLiveに戻る",
     "pageTitle": "プライバシーポリシー",
     "effectiveDateLabel": "施行日：",
-    "effectiveDateValue": "2026年9月10日",
+    "effectiveDateValue": "2026年9月19日",
     "collection": {
       "title": "1. 取得する個人情報",
       "preRegistrationTitle": "事前登録時",
@@ -160,12 +160,33 @@
     },
     "external": {
       "title": "6. 外部サービス",
-      "body": "GoogleとAppleはそれぞれのログインサービスの認証を処理し、InnoLiveはログインに必要な外部識別子と認証結果を取り扱います。GoogleとAppleが取り扱う情報は、それぞれのポリシーに基づき処理されます。YouTubeとの接続・配信情報とYouTubeへ送信された動画は、各提供者のポリシーおよびユーザーのチャンネル設定に基づき処理されます。"
+      "body": "GoogleとAppleはそれぞれのログインサービスの認証を処理し、InnoLiveはログインに必要な外部識別子と認証結果を取り扱います。GoogleとAppleが取り扱う情報は、それぞれのポリシーに基づき処理されます。YouTubeとの接続・配信情報とYouTubeへ送信された動画は、各提供者のポリシーおよびユーザーのチャンネル設定に基づき処理されます。",
+      "youtubeApiIntro": "InnoLiveはYouTube API Servicesを使用します。YouTube連携機能を利用する場合、ユーザーはYouTube利用規約に同意したものとみなされます。",
+      "youtubeTermsLabel": "YouTube利用規約",
+      "googlePrivacyLabel": "Googleプライバシーポリシー",
+      "revokeBefore": "ユーザーは",
+      "revokeAfter": "から、InnoLiveに付与したGoogleアカウントへのアクセス権限をいつでも自身で取り消すことができます。権限を取り消すと、InnoLiveは当該YouTubeチャンネルへ配信を送信できなくなり、保存された連携トークンは無効になります。",
+      "scopeBefore": "InnoLiveが要求するGoogleの権限は",
+      "scopeAfter": "の1つのみであり、ユーザーのYouTubeチャンネルにライブ配信を作成し、その配信状態を管理する目的にのみ使用します。YouTube Live APIはこれより狭い範囲の権限を提供していません。"
+    },
+    "limitedUse": {
+      "title": "7. Googleユーザーデータの限定的な使用",
+      "introBefore": "InnoLiveがGoogle APIから受け取った情報の使用および他のアプリへの転送は、",
+      "policyLabel": "Google API Services User Data Policy",
+      "introAfter": "に準拠し、これにはLimited Useの要件が含まれます。",
+      "listIntro": "具体的に、InnoLiveはGoogleユーザーデータを次のように取り扱います。",
+      "item1": "ユーザーが要求した配信機能を提供する目的にのみ使用します。",
+      "item2": "広告目的で使用したり、第三者に販売したりしません。",
+      "item3": "人が直接閲覧することはありません。ただし、ユーザーの明示的な同意がある場合、セキュリティ目的の場合、法令の遵守に必要な場合、またはデータが集計され匿名化されている場合を除きます。",
+      "item4": "機能の提供に必要な期間を超えて保管せず、アカウント削除または連携解除の際に保存したトークンと連携情報を整理します。",
+      "item5": "AIモデルの学習には使用しません。"
     },
     "contact": {
-      "title": "7. お問い合わせおよび同意の撤回",
+      "title": "8. お問い合わせおよび同意の撤回",
       "beforeEmail": "個人情報に関するお問い合わせ、または同意の撤回をご希望の場合は、",
-      "afterEmail": "までご連絡ください。"
+      "afterEmail": "までご連絡ください。",
+      "googleRevokeBefore": "Googleアカウントの連携のみを解除する場合は、アプリでYouTube連携を解除するか、",
+      "googleRevokeAfter": "から直接取り消すことができます。アカウント全体の削除は、第5項の手続きに従います。"
     },
     "consentModalTitle": "個人情報の収集に関する同意",
     "agree": "同意する",

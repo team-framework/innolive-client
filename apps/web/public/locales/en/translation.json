@@ -122,7 +122,7 @@
     "back": "Back to InnoLive",
     "pageTitle": "Privacy Policy",
     "effectiveDateLabel": "Effective date:",
-    "effectiveDateValue": "September 10, 2026",
+    "effectiveDateValue": "September 19, 2026",
     "collection": {
       "title": "1. Personal Data We Collect",
       "preRegistrationTitle": "When you pre-register",
@@ -160,12 +160,33 @@
     },
     "external": {
       "title": "6. External Services",
-      "body": "Google and Apple process authentication for their respective sign-in services, while InnoLive processes the external identifiers and authentication results needed for sign-in. Information processed by Google and Apple is handled under their respective policies. YouTube connection and broadcast information, and videos sent to YouTube, are handled under the applicable provider policies and your channel settings."
+      "body": "Google and Apple process authentication for their respective sign-in services, while InnoLive processes the external identifiers and authentication results needed for sign-in. Information processed by Google and Apple is handled under their respective policies. YouTube connection and broadcast information, and videos sent to YouTube, are handled under the applicable provider policies and your channel settings.",
+      "youtubeApiIntro": "InnoLive uses YouTube API Services. By using the YouTube connection feature, you agree to be bound by the YouTube Terms of Service.",
+      "youtubeTermsLabel": "YouTube Terms of Service",
+      "googlePrivacyLabel": "Google Privacy Policy",
+      "revokeBefore": "You may revoke InnoLive's access to your Google account at any time at",
+      "revokeAfter": ". Once revoked, InnoLive can no longer transmit broadcasts to that YouTube channel, and the stored connection token becomes invalid.",
+      "scopeBefore": "InnoLive requests a single Google scope,",
+      "scopeAfter": ", and uses it only to create live broadcasts on your YouTube channel and manage the state of those broadcasts. The YouTube Live API does not offer a narrower scope for this purpose."
+    },
+    "limitedUse": {
+      "title": "7. Limited Use of Google User Data",
+      "introBefore": "InnoLive's use and transfer of information received from Google APIs to any other app will adhere to the",
+      "policyLabel": "Google API Services User Data Policy",
+      "introAfter": ", including the Limited Use requirements.",
+      "listIntro": "Specifically, InnoLive handles Google user data as follows:",
+      "item1": "We use it only to provide the broadcasting features you have requested.",
+      "item2": "We do not use it for advertising purposes and do not sell it to third parties.",
+      "item3": "We do not allow humans to read it, except with your explicit consent, for security purposes, to comply with applicable law, or where the data is aggregated and anonymized.",
+      "item4": "We do not retain it longer than necessary to provide the feature, and we clear stored tokens and connection information when your account is deleted or the connection is revoked.",
+      "item5": "We do not use it to train AI models."
     },
     "contact": {
-      "title": "7. Inquiries and Withdrawal of Consent",
+      "title": "8. Inquiries and Withdrawal of Consent",
       "beforeEmail": "For privacy inquiries or to withdraw your consent, contact",
-      "afterEmail": "."
+      "afterEmail": ".",
+      "googleRevokeBefore": "To disconnect only your Google account, you can revoke the YouTube connection in the app or revoke access directly at",
+      "googleRevokeAfter": ". To delete your entire account, follow the procedure in Section 5."
     },
     "consentModalTitle": "Consent to Personal Data Collection",
     "agree": "I Agree",

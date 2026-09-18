@@ -122,7 +122,7 @@
     "back": "InnoLive로 돌아가기",
     "pageTitle": "개인정보처리방침",
     "effectiveDateLabel": "시행일:",
-    "effectiveDateValue": "2026년 9월 10일",
+    "effectiveDateValue": "2026년 9월 19일",
     "collection": {
       "title": "1. 수집하는 개인정보",
       "preRegistrationTitle": "사전 등록 시",
@@ -160,12 +160,33 @@
     },
     "external": {
       "title": "6. 외부 서비스",
-      "body": "Google 및 Apple 로그인은 각 제공자가 인증을 처리하며, InnoLive는 로그인에 필요한 외부 식별자와 인증 결과를 처리합니다. Google·Apple이 처리하는 정보는 각 제공자의 정책을 따릅니다. YouTube 연결·방송 정보와 YouTube에 전송된 영상은 각 제공자의 정책과 사용자 채널 설정에 따라 처리됩니다."
+      "body": "Google 및 Apple 로그인은 각 제공자가 인증을 처리하며, InnoLive는 로그인에 필요한 외부 식별자와 인증 결과를 처리합니다. Google·Apple이 처리하는 정보는 각 제공자의 정책을 따릅니다. YouTube 연결·방송 정보와 YouTube에 전송된 영상은 각 제공자의 정책과 사용자 채널 설정에 따라 처리됩니다.",
+      "youtubeApiIntro": "InnoLive는 YouTube API Services를 사용합니다. YouTube 연결 기능을 이용하면 사용자는 YouTube 서비스 약관에 동의하는 것이 됩니다.",
+      "youtubeTermsLabel": "YouTube 서비스 약관",
+      "googlePrivacyLabel": "Google 개인정보처리방침",
+      "revokeBefore": "사용자는",
+      "revokeAfter": "에서 InnoLive에 부여한 Google 계정 접근 권한을 언제든지 직접 철회할 수 있습니다. 권한을 철회하면 InnoLive는 해당 YouTube 채널로 방송을 전송할 수 없으며, 저장한 연결 토큰은 무효화됩니다.",
+      "scopeBefore": "InnoLive가 요청하는 Google 권한은",
+      "scopeAfter": "하나이며, 사용자의 YouTube 채널에 라이브 방송을 생성하고 그 방송 상태를 관리하기 위한 용도로만 사용합니다. YouTube Live API는 이보다 좁은 범위의 권한을 제공하지 않습니다."
+    },
+    "limitedUse": {
+      "title": "7. Google 사용자 데이터의 제한적 사용",
+      "introBefore": "InnoLive가 Google API로부터 받은 정보의 사용 및 다른 앱으로의 전송은",
+      "policyLabel": "Google API Services User Data Policy",
+      "introAfter": "를 준수하며, 여기에는 Limited Use 요구사항이 포함됩니다.",
+      "listIntro": "구체적으로 InnoLive는 Google 사용자 데이터를 다음과 같이 취급합니다.",
+      "item1": "사용자가 요청한 방송 기능을 제공하는 목적으로만 사용합니다.",
+      "item2": "광고 목적으로 사용하거나 제3자에게 판매하지 않습니다.",
+      "item3": "사람이 직접 열람하지 않습니다. 다만 사용자의 명시적 동의가 있거나, 보안 목적, 법령 준수를 위해 필요하거나, 데이터가 집계되어 익명화된 경우는 예외입니다.",
+      "item4": "기능 제공에 필요한 기간을 넘겨 보관하지 않으며, 계정 삭제 또는 연결 해제 시 저장한 토큰과 연결 정보를 정리합니다.",
+      "item5": "AI 모델의 학습에 사용하지 않습니다."
     },
     "contact": {
-      "title": "7. 문의 및 동의 철회",
+      "title": "8. 문의 및 동의 철회",
       "beforeEmail": "개인정보 관련 문의 또는 동의 철회는",
-      "afterEmail": "로 요청할 수 있습니다."
+      "afterEmail": "로 요청할 수 있습니다.",
+      "googleRevokeBefore": "Google 계정 연결만 해제하려는 경우, 앱에서 YouTube 연결을 해제하거나",
+      "googleRevokeAfter": "에서 직접 철회할 수 있습니다. 계정 전체 삭제는 5항의 절차를 따릅니다."
     },
     "consentModalTitle": "개인정보 수집 동의",
     "agree": "동의합니다.",
