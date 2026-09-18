@@ -15,7 +15,7 @@ const ko = `
 
 이 약관은 Framework 팀(이하 “운영팀”)이 제공하는 InnoLive 웹사이트, 애플리케이션, 웹 체험 및 관련 서비스의 이용 조건과 운영팀·이용자의 권리 및 의무를 정합니다.
 
-개인정보의 처리에는 개인정보 처리방침과 기능별 개인정보 안내를 적용합니다. 별도 기능에 추가 이용 조건이 필요한 경우에는 해당 기능에서 사전에 안내합니다.
+개인정보의 처리에는 [개인정보 처리방침](/ko/privacy)과 기능별 개인정보 안내를 적용합니다. 별도 기능에 추가 이용 조건이 필요한 경우에는 해당 기능에서 사전에 안내합니다.
 
 ## 제2조. 이용계약과 계정
 
@@ -90,6 +90,8 @@ Google·Apple 로그인과 YouTube 연동에는 각 외부 서비스의 약관 �
 InnoLive는 YouTube API 서비스를 이용합니다. 이용자는 YouTube 연동 기능을 이용할 때 YouTube 이용약관을 준수해야 하며, 해당 이용약관의 적용에 동의합니다.
 
 [YouTube 이용약관](https://www.youtube.com/t/terms)
+
+[Google 개인정보처리방침](https://policies.google.com/privacy)
 
 이용자는 연결한 채널, 방송 제목·설명·공개 범위 및 방송 준비·송출 상태를 확인해야 합니다. 외부 플랫폼의 권한 제한, 정책 변경이나 장애로 연동 기능이 제한될 수 있습니다.
 
@@ -166,7 +168,7 @@ This document explains the conditions of use and the rights and obligations of u
 
 These Terms set the conditions of use of the InnoLive website, applications, web trial, and related services provided by the Framework team (the “Operations Team”), and the rights and obligations of the Operations Team and users.
 
-Processing of personal information is governed by the Privacy Policy and feature-specific personal-information notices. If a separate feature requires additional conditions of use, those conditions are notified in advance in that feature.
+Processing of personal information is governed by the [Privacy Policy](/en/privacy) and feature-specific personal-information notices. If a separate feature requires additional conditions of use, those conditions are notified in advance in that feature.
 
 ## Article 2. Service agreement and accounts
 
@@ -241,6 +243,8 @@ Google and Apple login and YouTube integration are also subject to each external
 InnoLive uses YouTube API Services. When you use YouTube integration features, you must comply with the YouTube Terms of Service and you agree to the application of those Terms of Service.
 
 [YouTube Terms of Service](https://www.youtube.com/t/terms)
+
+[Google Privacy Policy](https://policies.google.com/privacy)
 
 You must check the connected channel, broadcast title, description, and visibility, and the broadcast preparation and transmission status. Integration features may be limited because of permission restrictions, policy changes, or outages on the external platform.
 
@@ -317,7 +321,7 @@ const ja = `
 
 本規約は、Frameworkチーム（以下「運営チーム」）が提供するInnoLiveのウェブサイト、アプリケーション、Web体験および関連サービスの利用条件と、運営チーム・利用者の権利および義務を定めます。
 
-個人情報の取扱いには、個人情報取扱方針および機能別の個人情報案内を適用します。別途の機能に追加の利用条件が必要な場合は、当該機能で事前にご案内します。
+個人情報の取扱いには、[個人情報取扱方針](/ja/privacy)および機能別の個人情報案内を適用します。別途の機能に追加の利用条件が必要な場合は、当該機能で事前にご案内します。
 
 ## 第2条. 利用契約とアカウント
 
@@ -392,6 +396,8 @@ Google・AppleログインおよびYouTube連携には、各外部サービス�
 InnoLiveはYouTube APIサービスを利用します。利用者は、YouTube連携機能を利用するときYouTube利用規約を遵守しなければならず、当該利用規約の適用に同意します。
 
 [YouTube利用規約](https://www.youtube.com/t/terms)
+
+[Googleプライバシーポリシー](https://policies.google.com/privacy)
 
 利用者は、接続したチャンネル、配信タイトル・説明・公開範囲および配信準備・送出状態を確認しなければなりません。外部プラットフォームの権限制限、ポリシー変更または障害により、連携機能が制限されることがあります。
 
