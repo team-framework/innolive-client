@@ -36,15 +36,24 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
         </strong>,
       )
     } else {
+      const href = match[3]
+      // 사이트 안의 경로는 Link로, 바깥 주소는 새 탭으로 엽니다.
       nodes.push(
-        <a
-          key={`${keyPrefix}-a${index}`}
-          href={match[3]}
-          className="underline underline-offset-4"
-          rel="noreferrer"
-        >
-          {match[2]}
-        </a>,
+        href.startsWith('/') && !href.startsWith('//') ? (
+          <Link key={`${keyPrefix}-a${index}`} href={href} className="underline underline-offset-4">
+            {match[2]}
+          </Link>
+        ) : (
+          <a
+            key={`${keyPrefix}-a${index}`}
+            href={href}
+            className="underline underline-offset-4"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {match[2]}
+          </a>
+        ),
       )
     }
 
