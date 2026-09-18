@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.pm.PackageManager
 import android.media.AudioDeviceInfo
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -66,6 +67,7 @@ import com.framework.innolive.feature.youtube.StreamingAccount
 import com.framework.innolive.feature.youtube.YouTubeAccountCoordinator
 import com.framework.innolive.feature.youtube.YouTubeAccountVerificationState
 import com.framework.innolive.feature.youtube.YouTubePreferencesStore
+import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
@@ -240,14 +242,19 @@ fun AppNavigation(
     }
 
     fun updateVerifiedYouTubeAccount(account: StreamingAccount?) {
-        updateYouTubeAccount(account)
-        if (account == null) {
-            youtubePreferencesStore.removeConnection()
-        } else {
-            youtubePreferencesStore.saveConnection(account)
+        val cacheUpdated = acceptServerVerifiedYouTubeAccount(
+            account = account,
+            onVerified = { verifiedAccount ->
+                updateYouTubeAccount(verifiedAccount)
+                verifiedYouTubeProfileEmail = session?.profileEmail
+                youtubeAccountVerificationState = YouTubeAccountVerificationState.VERIFIED
+            },
+            saveConnection = youtubePreferencesStore::saveConnection,
+            removeConnection = youtubePreferencesStore::removeConnection,
+        )
+        if (!cacheUpdated) {
+            Log.w("InnoLiveYouTube", "Unable to update YouTube account display cache.")
         }
-        verifiedYouTubeProfileEmail = session?.profileEmail
-        youtubeAccountVerificationState = YouTubeAccountVerificationState.VERIFIED
     }
 
     fun isCurrentYouTubeOperation(operation: Long): Boolean =
