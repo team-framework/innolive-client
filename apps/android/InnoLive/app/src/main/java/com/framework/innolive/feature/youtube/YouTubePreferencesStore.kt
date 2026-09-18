@@ -1,7 +1,6 @@
 package com.framework.innolive.feature.youtube
 
 import android.content.Context
-import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.components.MAX_YOUTUBE_DESCRIPTION_LENGTH
 import com.framework.innolive.feature.live.components.MAX_YOUTUBE_TITLE_LENGTH
@@ -119,19 +118,15 @@ class YouTubePreferencesStore(
 internal fun normalizeYouTubeBroadcastSettings(
     settings: BroadcastSettings,
     defaultTitle: String = defaultYouTubeBroadcastTitle(),
-    defaultAudience: Boolean? = defaultYouTubeAudience(),
 ): BroadcastSettings = settings.copy(
     title = settings.title.trim().take(MAX_YOUTUBE_TITLE_LENGTH).ifBlank { defaultTitle },
     description = settings.description.take(MAX_YOUTUBE_DESCRIPTION_LENGTH),
     privacy = settings.privacy.takeIf { it in YOUTUBE_PRIVACY_VALUES } ?: "private",
-    madeForKids = settings.madeForKids ?: defaultAudience,
     categoryId = settings.categoryId.filter(Char::isDigit),
 )
 
 internal fun defaultYouTubeBroadcastTitle(today: LocalDate = LocalDate.now()): String =
     "${today.format(DateTimeFormatter.BASIC_ISO_DATE)} InnoLive 방송"
-
-private fun defaultYouTubeAudience(): Boolean? = if (BuildConfig.DEBUG) false else null
 
 private fun String?.toAudience(): Boolean? = when (this) {
     "true" -> true

@@ -87,4 +87,27 @@ class YouTubePreferencesStoreTest {
             store.clearAccountData()
         }
     }
+
+    @Test
+    fun unsetAudienceRemainsUnsetAfterSavingAndRestoringDraft() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferencesName = "youtube_preferences_unset_test_${System.nanoTime()}"
+        val store = YouTubePreferencesStore(context, preferencesName)
+
+        try {
+            assertNull(store.loadBroadcastSettings().madeForKids)
+            store.saveBroadcastSettings(
+                BroadcastSettings(
+                    title = "방송 제목",
+                    description = "방송 설명",
+                    privacy = "private",
+                    madeForKids = null,
+                    categoryId = "22",
+                ),
+            )
+            assertNull(YouTubePreferencesStore(context, preferencesName).loadBroadcastSettings().madeForKids)
+        } finally {
+            store.clearAccountData()
+        }
+    }
 }

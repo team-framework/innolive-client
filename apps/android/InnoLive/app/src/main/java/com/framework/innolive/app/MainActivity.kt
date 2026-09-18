@@ -777,6 +777,7 @@ fun AppNavigation(
                                 },
                                 youtubeChannelTitle = visibleYouTubeAccount?.channelTitle,
                                 youtubeAccountStatus = youtubeAccountStatus,
+                                hasVerifiedYouTubeAccount = hasServerVerifiedYouTubeAccount,
                                 isYouTubeReconnectRequired =
                                     visibleYouTubeAccount?.reconnectRequired == true,
                                 isYouTubeAccountActionInProgress =
