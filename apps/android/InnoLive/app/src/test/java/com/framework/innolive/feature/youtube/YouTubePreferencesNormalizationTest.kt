@@ -46,4 +46,48 @@ class YouTubePreferencesNormalizationTest {
         assertEquals("unlisted", normalized.privacy)
         assertEquals(true, normalized.madeForKids)
     }
+
+    @Test
+    fun cachedAccountIsUnavailableUntilServerVerificationSucceeds() {
+        val cachedAccount = StreamingAccount(
+            provider = "youtube",
+            channelId = "cached-channel",
+            channelTitle = "Cached Channel",
+            reconnectRequired = false,
+        )
+
+        assertFalse(
+            hasVerifiedYouTubeAccount(
+                cachedAccount,
+                YouTubeAccountVerificationState.UNVERIFIED,
+                verifiedProfileEmail = null,
+                currentProfileEmail = "current@example.com",
+            ),
+        )
+        assertFalse(
+            hasVerifiedYouTubeAccount(
+                cachedAccount,
+                YouTubeAccountVerificationState.CHECKING,
+                verifiedProfileEmail = null,
+                currentProfileEmail = "current@example.com",
+            ),
+        )
+        assertEquals(
+            true,
+            hasVerifiedYouTubeAccount(
+                cachedAccount,
+                YouTubeAccountVerificationState.VERIFIED,
+                verifiedProfileEmail = "current@example.com",
+                currentProfileEmail = "current@example.com",
+            ),
+        )
+        assertFalse(
+            hasVerifiedYouTubeAccount(
+                cachedAccount,
+                YouTubeAccountVerificationState.VERIFIED,
+                verifiedProfileEmail = "previous@example.com",
+                currentProfileEmail = "current@example.com",
+            ),
+        )
+    }
 }

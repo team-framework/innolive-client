@@ -92,7 +92,7 @@ class YouTubePreferencesStore(
             editor.putString(BROADCAST_AUDIENCE, normalized.madeForKids.toAudience())
         }
 
-        check(editor.commit()) { "Unable to persist YouTube broadcast settings." }
+        editor.apply()
     }
 
     /** Clears the non-sensitive cache when a user explicitly signs out or deletes their account. */
