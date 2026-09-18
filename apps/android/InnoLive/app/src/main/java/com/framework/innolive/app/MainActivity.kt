@@ -69,6 +69,7 @@ import com.framework.innolive.feature.youtube.YouTubeAccountVerificationState
 import com.framework.innolive.feature.youtube.YouTubePreferencesStore
 import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
+import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
@@ -261,12 +262,12 @@ fun AppNavigation(
         youtubeOperationGeneration.isCurrent(operation) &&
             session != null && youtubeOperationProfileEmail == session?.profileEmail
 
-    fun showYouTubeAccountFailure(operation: Long) {
+    fun showYouTubeAccountFailure(operation: Long, exception: Throwable? = null) {
         if (!isCurrentYouTubeOperation(operation)) return
         youtubeAuthorizationOperation = null
         isYouTubeAuthorizationLaunched = false
         isYouTubeAccountActionInProgress = false
-        youtubeAccountStatus = "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요."
+        youtubeAccountStatus = youtubeConnectionFailureMessage(exception)
     }
 
     fun completeYouTubeConnection(operation: Long, serverAuthCode: String) {
@@ -279,8 +280,8 @@ fun AppNavigation(
                 if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (_: Exception) {
-                showYouTubeAccountFailure(operation)
+            } catch (exception: Exception) {
+                showYouTubeAccountFailure(operation, exception)
             } finally {
                 if (isCurrentYouTubeOperation(operation)) {
                     youtubeAuthorizationOperation = null
@@ -304,7 +305,7 @@ fun AppNavigation(
                     .onSuccess { serverAuthCode ->
                         completeYouTubeConnection(operation, serverAuthCode)
                     }
-                    .onFailure { showYouTubeAccountFailure(operation) }
+                    .onFailure { exception -> showYouTubeAccountFailure(operation, exception) }
             } else {
                 isYouTubeAuthorizationLaunched = false
                 isYouTubeAccountActionInProgress = false
@@ -527,7 +528,6 @@ fun AppNavigation(
 
         val operation = youtubeOperationGeneration.begin()
         youtubeOperationProfileEmail = session?.profileEmail
-        val accountEmail = session?.profileEmail
         youtubeAuthorizationOperation = null
         isYouTubeAccountActionInProgress = true
         youtubeAccountVerificationState = YouTubeAccountVerificationState.UNVERIFIED
@@ -536,7 +536,6 @@ fun AppNavigation(
         coroutineScope.launch {
             try {
                 youtubeCoordinator.beginAuthorization(
-                    accountEmail = accountEmail,
                     onAuthorizationRequired = { pendingIntent ->
                         if (isCurrentYouTubeOperation(operation) &&
                             isYouTubeAccountActionInProgress
@@ -563,17 +562,17 @@ fun AppNavigation(
                             completeYouTubeConnection(operation, serverAuthCode)
                         }
                     },
-                    onFailure = {
+                    onFailure = { exception ->
                         if (isCurrentYouTubeOperation(operation)) {
                             isYouTubeAuthorizationLaunched = false
-                            showYouTubeAccountFailure(operation)
+                            showYouTubeAccountFailure(operation, exception)
                         }
                     },
                 )
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (_: Exception) {
-                showYouTubeAccountFailure(operation)
+            } catch (exception: Exception) {
+                showYouTubeAccountFailure(operation, exception)
             }
         }
     }

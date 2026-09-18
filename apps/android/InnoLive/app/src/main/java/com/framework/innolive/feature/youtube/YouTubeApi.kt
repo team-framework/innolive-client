@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.youtube
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -86,13 +87,20 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
     private fun <T> execute(request: Request, operation: String, parse: (String) -> T): T = try {
         httpClient.newCall(request).execute().use { response ->
             val body = response.body.string()
-            if (!response.isSuccessful) throw YouTubeApiException(response.code, operation)
+            Log.i("InnoLiveYouTube", "operation=$operation status=${response.code}")
+            if (!response.isSuccessful) {
+                throw YouTubeApiException(
+                    statusCode = response.code,
+                    operation = operation,
+                    errorCode = parseYouTubeApiErrorCode(body),
+                )
+            }
             parse(body)
         }
     } catch (exception: YouTubeApiException) {
         throw exception
     } catch (exception: IOException) {
-        throw YouTubeApiException(null, operation, exception)
+        throw YouTubeApiException(statusCode = null, operation = operation, cause = exception)
     }
 
     private fun JSONObject.requiredString(name: String): String = optString(name).trim()
