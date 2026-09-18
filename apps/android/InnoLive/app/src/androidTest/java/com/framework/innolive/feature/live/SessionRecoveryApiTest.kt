@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import androidx.test.platform.app.InstrumentationRegistry
+import android.util.Base64
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -16,7 +17,9 @@ import java.util.concurrent.TimeUnit
 
 class SessionRecoveryApiTest {
     @Test fun previousProcessSessionIsDeletedBeforeCreatingAReplacement() {
-        val store = FakeStore(CreatedSession("old-session", "old-owner", AnonymizationState.UNKNOWN))
+        val store = FakeStore().apply {
+            save(CreatedSession("old-session", "old-owner", AnonymizationState.UNKNOWN), scopeFor("user-a"))
+        }
         Fixture(store).use { fixture ->
             val created = fixture.createSession()
             assertEquals("new-session", created.sessionId)
@@ -24,27 +27,31 @@ class SessionRecoveryApiTest {
             assertEquals("/sessions/old-session", fixture.requests[0].url.encodedPath)
             assertEquals("old-owner", fixture.requests[0].header("X-Session-Owner-Token"))
             assertEquals("/sessions", fixture.requests[1].url.encodedPath)
-            assertTrue(fixture.requests.all { it.header("Authorization") == "Bearer test-access" })
-            assertEquals("new-session", store.session?.sessionId)
+            assertTrue(fixture.requests.all { it.header("Authorization") == "Bearer ${accessTokenFor("user-a")}" })
+            assertEquals("new-session", store.load(scopeFor("user-a"))?.sessionId)
         }
     }
 
     @Test fun failedCleanupPreservesCredentialsAndDoesNotCreateAnotherSession() {
-        val store = FakeStore(CreatedSession("old-session", "old-owner", AnonymizationState.UNKNOWN))
+        val store = FakeStore().apply {
+            save(CreatedSession("old-session", "old-owner", AnonymizationState.UNKNOWN), scopeFor("user-a"))
+        }
         Fixture(store, deleteStatus = 503).use { fixture ->
             val failure = assertThrows(IOException::class.java) { fixture.createSession() }
             assertTrue(failure.message.orEmpty().contains("503"))
             assertEquals(listOf("DELETE"), fixture.requests.map { it.method })
-            assertEquals("old-session", store.session?.sessionId)
+            assertEquals("old-session", store.load(scopeFor("user-a"))?.sessionId)
         }
     }
 
     @Test fun serverAlreadyRemovedPreviousSessionAllowsNewSession() {
-        val store = FakeStore(CreatedSession("old-session", "old-owner", AnonymizationState.UNKNOWN))
+        val store = FakeStore().apply {
+            save(CreatedSession("old-session", "old-owner", AnonymizationState.UNKNOWN), scopeFor("user-a"))
+        }
         Fixture(store, deleteStatus = 404).use { fixture ->
             assertEquals("new-session", fixture.createSession().sessionId)
             assertEquals(listOf("DELETE", "POST"), fixture.requests.map { it.method })
-            assertEquals("new-session", store.session?.sessionId)
+            assertEquals("new-session", store.load(scopeFor("user-a"))?.sessionId)
         }
     }
 
@@ -56,6 +63,25 @@ class SessionRecoveryApiTest {
         }
     }
 
+    @Test fun differentAccountDoesNotReadOrDeleteAnotherAccountsRecoverySession() {
+        val store = FakeStore().apply {
+            save(CreatedSession("user-a-session", "user-a-owner", AnonymizationState.UNKNOWN), scopeFor("user-a"))
+        }
+        Fixture(store, accessToken = accessTokenFor("user-b")).use { fixture ->
+            assertEquals("new-session", fixture.createSession().sessionId)
+            assertEquals(listOf("POST"), fixture.requests.map { it.method })
+            assertEquals("user-a-session", store.load(scopeFor("user-a"))?.sessionId)
+            assertEquals("new-session", store.load(scopeFor("user-b"))?.sessionId)
+        }
+    }
+
+    @Test fun recoveryScopeNormalizesTrailingServerSlash() {
+        assertEquals(
+            sessionRecoveryScope("https://example.test", accessTokenFor("user-a")),
+            sessionRecoveryScope(" https://example.test/ ", accessTokenFor("user-a")),
+        )
+    }
+
     @Test fun encryptedCredentialsSurviveStoreRecreationAndAreNotPlaintext() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = EncryptedSessionRecoveryStore(
@@ -63,40 +89,51 @@ class SessionRecoveryApiTest {
             preferencesName = "innolive_session_recovery_test",
             keyAlias = "innolive_session_recovery_test",
         )
-        store.clear()
+        val firstScope = scopeFor("user-a")
+        val otherScope = scopeFor("user-b")
+        val otherServerScope = sessionRecoveryScope("https://other.example.test/", accessTokenFor("user-a"))
+        store.clear(firstScope)
         try {
-            store.save(CreatedSession("private-session", "private-owner", AnonymizationState.UNKNOWN))
+            store.save(CreatedSession("private-session", "private-owner", AnonymizationState.UNKNOWN), firstScope)
             val raw = context.getSharedPreferences("innolive_session_recovery_test", 0).all.toString()
             assertFalse(raw.contains("private-session"))
             assertFalse(raw.contains("private-owner"))
+            assertFalse(raw.contains("user-a"))
             val restored = EncryptedSessionRecoveryStore(
                 context,
                 preferencesName = "innolive_session_recovery_test",
                 keyAlias = "innolive_session_recovery_test",
-            ).load()
+            ).load(firstScope)
             assertEquals("private-session", restored?.sessionId)
             assertEquals("private-owner", restored?.ownerToken)
+            assertNull(store.load(otherScope))
+            assertNull(store.load(otherServerScope))
         } finally {
-            store.clear()
+            store.clear(firstScope)
+            store.clear(otherScope)
+            store.clear(otherServerScope)
         }
     }
 
-    private class FakeStore(var session: CreatedSession? = null) : SessionRecoveryStore {
-        override fun load() = session
-        override fun save(session: CreatedSession) { this.session = session }
-        override fun clear() { session = null }
+    private class FakeStore : SessionRecoveryStore {
+        private val sessions = mutableMapOf<SessionRecoveryScope, CreatedSession>()
+
+        override fun load(scope: SessionRecoveryScope) = sessions[scope]
+        override fun save(session: CreatedSession, scope: SessionRecoveryScope) { sessions[scope] = session }
+        override fun clear(scope: SessionRecoveryScope) { sessions.remove(scope) }
     }
 
     private class Fixture(
         store: FakeStore,
         private val deleteStatus: Int = 204,
         private val createStatus: Int = 201,
+        accessToken: String = SessionRecoveryApiTest.accessTokenFor("user-a"),
     ) : AutoCloseable {
         val requests = CopyOnWriteArrayList<Request>()
         private val connection = WebRtcConnection(
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
-            accessToken = "test-access",
+            accessToken = accessToken,
             initialAnonymizationEnabled = false,
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},
@@ -136,6 +173,19 @@ class SessionRecoveryApiTest {
             val completed = CountDownLatch(1)
             connection.close { completed.countDown() }
             assertTrue(completed.await(10, TimeUnit.SECONDS))
+        }
+    }
+
+    private companion object {
+        fun scopeFor(user: String): SessionRecoveryScope =
+            sessionRecoveryScope("https://example.test/", accessTokenFor(user))
+
+        fun accessTokenFor(user: String): String {
+            val payload = Base64.encodeToString(
+                "{\"sub\":\"$user\"}".toByteArray(),
+                Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+            )
+            return "header.$payload.signature"
         }
     }
 }
