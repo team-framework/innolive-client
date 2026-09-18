@@ -59,10 +59,10 @@ export function PrivacySection() {
   return (
     <section
       ref={sectionRef}
-      className="flex w-full flex-col items-center bg-background-secondary px-[var(--page-gutter)] pb-10 pt-16 lg:pb-12 lg:pt-24 min-[106.5rem]:min-h-[67.5rem] min-[106.5rem]:pb-[39px] min-[106.5rem]:pt-40"
+      className="flex w-full h-screen flex-col justify-center items-center bg-background-secondary px-[var(--page-gutter)] pb-10 pt-16 lg:pb-12 lg:pt-24 min-[106.5rem]:min-h-[67.5rem] min-[106.5rem]:pb-[39px] min-[106.5rem]:pt-40"
       aria-labelledby="privacy-heading"
     >
-      <div className="flex w-full max-w-[1408px] flex-col items-center gap-y-12 lg:flex-row lg:items-center lg:justify-between lg:gap-x-16">
+      <div className="flex w-full max-w-[1408px] flex-col justify-center items-center gap-y-12 lg:flex-row lg:items-center lg:justify-between lg:gap-x-16">
         <div className="flex w-full min-w-0 max-w-[500px] flex-col items-start gap-2.5 lg:flex-1 min-[106.5rem]:w-[500px] min-[106.5rem]:flex-none min-[106.5rem]:pb-[121px]">
           <h2
             id="privacy-heading"
