@@ -33,7 +33,7 @@ export function Hero() {
           </div>
         </div>
         <div
-          className="relative aspect-[726.4803/758.516] w-full min-w-0 max-w-[726.4803px] overflow-clip lg:flex-1 min-[106.5rem]:w-[726.4803px] min-[106.5rem]:flex-none"
+          className="relative top-16 aspect-[726.4803/758.516] w-full min-w-0 max-w-[726.4803px] overflow-clip lg:flex-1 min-[106.5rem]:w-[726.4803px] min-[106.5rem]:flex-none"
           aria-hidden="true"
         >
           <PhoneArtwork
