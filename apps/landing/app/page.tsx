@@ -4,6 +4,7 @@ import { Header } from "@/components/header";
 import { Hero } from "@/components/hero";
 import { IntroScroll } from "@/components/intro-scroll";
 import { PrivacySection } from "@/components/privacy-section";
+import {SmoothScroll} from "@/components/smooth-wrapper";
 
 export default function Home() {
   return (
@@ -16,10 +17,12 @@ export default function Home() {
         data-page="home"
         className="bg-background-primary"
       >
-        <Hero />
-        <PrivacySection />
-        <FeatureSection />
-        <FAQSection />
+        <SmoothScroll>
+          <Hero />
+          <PrivacySection />
+          <FeatureSection />
+          <FAQSection />
+        </SmoothScroll>
       </main>
     </>
   );
