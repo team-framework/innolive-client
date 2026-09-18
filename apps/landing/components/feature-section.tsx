@@ -100,7 +100,7 @@ export function FeatureSection() {
   return (
     <section
       ref={sectionRef}
-      className="feature-section flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pb-24 lg:pt-24 min-[106.5rem]:pb-[142px] min-[106.5rem]:pt-40"
+      className="feature-section flex w-full h-[calc(100vh-12rem)] flex-col justify-center items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pb-24 lg:pt-24 min-[106.5rem]:pb-[142px] min-[106.5rem]:pt-40"
       aria-labelledby="features-heading"
     >
       <div className="feature-section-content flex w-full max-w-[1408px] flex-col items-stretch gap-12 min-[106.5rem]:gap-[107px]">
