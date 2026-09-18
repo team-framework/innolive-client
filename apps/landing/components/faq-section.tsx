@@ -59,10 +59,19 @@ export function FAQSection() {
       const entries = section.querySelectorAll("details");
       gsap.set(entries, { opacity: 0, y: 32 });
       ScrollTrigger.batch(entries, {
-        start: "top 90%",
-        once: true,
+        start: "top 80%",
         onEnter: (batch) => {
           gsap.to(batch, { opacity: 1, y: 0, duration: 0.6, stagger: 0.12, ease: "power2.out" });
+        },
+        onLeaveBack: (batch) => {
+          gsap.to(batch, {
+            opacity: 0,
+            y: 32,
+            duration: 0.6,
+            stagger: 0.12,
+            ease: "power2.out",
+            overwrite: true,
+          });
         },
       });
       // Keyboard focus must never remain on an invisible question or answer link.
