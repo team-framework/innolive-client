@@ -1,7 +1,7 @@
 import { Button } from "@/components/button";
 import { DownloadMenu } from "@/components/download-menu";
 import { PhoneArtwork } from "@/components/phone-artwork";
-import { ProgressiveBlurText } from "@/components/progressive-blur-text";
+import { TypewriterHeroHeading } from "@/components/typewriter-hero-heading";
 
 export function Hero() {
   return (
@@ -10,18 +10,10 @@ export function Hero() {
       aria-labelledby="hero-heading"
     >
       <div className="flex w-full max-w-[1640px] flex-col items-center gap-y-16 lg:flex-row lg:items-center lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
-        <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:flex-1 min-[106.5rem]:w-[752px] min-[106.5rem]:flex-none min-[106.5rem]:items-end min-[106.5rem]:pb-[178.516px]">
+        <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:translate-x-12 lg:flex-1 min-[106.5rem]:w-[752px] min-[106.5rem]:flex-none min-[106.5rem]:items-end min-[106.5rem]:pb-[178.516px]">
           <div className="flex w-full max-w-[634px] flex-col gap-12">
             <div className="relative flex w-full flex-col gap-8">
-              <h1
-                id="hero-heading"
-                className="w-full break-words text-[length:var(--text-display)] font-bold leading-[calc(100/84)] tracking-tight text-text-primary"
-              >
-                주인공이 아니라면
-                <br />
-                과감하게{" "}
-                <ProgressiveBlurText text="가리기." />
-              </h1>
+              <TypewriterHeroHeading />
               <div className="w-full break-keep text-body-lg font-normal text-text-primary">
                 <p>야외 방송에 노출된 행인의 얼굴을 아직도 일일이 지우고 계신가요?</p>
                 <p>InnoLive와 함께 더욱 안전한 방송을 만들어 보세요.</p>

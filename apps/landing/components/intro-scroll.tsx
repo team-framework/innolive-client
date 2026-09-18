@@ -6,6 +6,12 @@ import { IntroScene } from "@/components/intro-scene";
 import { introScenes } from "@/components/intro-scenes";
 
 const STORAGE_KEY = "innolive-intro-complete";
+const INTRO_COMPLETE_EVENT = "innolive:intro-complete";
+
+function markIntroComplete() {
+  document.documentElement.dataset.introComplete = "true";
+  window.dispatchEvent(new Event(INTRO_COMPLETE_EVENT));
+}
 
 function focusHashTarget() {
   const id = window.location.hash.slice(1);
@@ -43,6 +49,7 @@ export function IntroScroll() {
       }
       const skip = gsap.delayedCall(0, () => {
         setFinished(true);
+        markIntroComplete();
         focusHashTarget();
       });
       return () => skip.kill();
@@ -85,6 +92,7 @@ export function IntroScroll() {
         onComplete: () => {
           unlock();
           setFinished(true);
+          markIntroComplete();
           document.getElementById("main")?.focus({ preventScroll: true });
         },
       });
