@@ -18,7 +18,7 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
     const smoother = ScrollSmoother.create({
       wrapper: wrapperRef.current,
       content: contentRef.current,
-      smooth: 1.2,
+      smooth: 1,
       effects: true,
       normalizeScroll: true,
     });
