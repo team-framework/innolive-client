@@ -138,7 +138,8 @@
     background: var(--color-background-primary);
   }
 
-  body:has([data-page="home"]) > header {
+  body:has([data-page="home"]) > header,
+  body:has([data-page="home"]) > footer {
     display: none;
   }
 

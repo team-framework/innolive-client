@@ -1,5 +1,6 @@
 import { FAQSection } from "@/components/faq-section";
 import { FeatureSection } from "@/components/feature-section";
+import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { Hero } from "@/components/hero";
 import { IntroScroll } from "@/components/intro-scroll";
@@ -22,6 +23,7 @@ export default function Home() {
           <PrivacySection />
           <FeatureSection />
           <FAQSection />
+          <Footer />
         </SmoothScroll>
       </main>
     </>
