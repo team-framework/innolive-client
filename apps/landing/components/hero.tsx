@@ -6,11 +6,11 @@ import { TypewriterHeroHeading } from "@/components/typewriter-hero-heading";
 export function Hero() {
   return (
     <section
-      className="flex w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pt-12 lg:pt-16 min-[106.5rem]:min-h-[calc(100dvh-var(--header-block-desktop))] min-[106.5rem]:justify-end min-[106.5rem]:pt-[calc(321px-var(--header-block-desktop))]"
+      className="flex w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pt-12 lg:min-h-[calc(100dvh-var(--header-block-desktop))] lg:justify-center lg:pt-0"
       aria-labelledby="hero-heading"
     >
       <div className="flex w-full max-w-[1640px] flex-col items-center gap-y-16 lg:flex-row lg:items-center lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
-        <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:translate-x-12 lg:flex-1 min-[106.5rem]:w-[752px] min-[106.5rem]:flex-none min-[106.5rem]:items-end min-[106.5rem]:pb-[178.516px]">
+        <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:translate-x-12 lg:flex-1 min-[106.5rem]:w-[752px] min-[106.5rem]:flex-none min-[106.5rem]:items-end">
           <div className="flex w-full max-w-[634px] flex-col gap-12">
             <div className="relative flex w-full flex-col gap-8">
               <TypewriterHeroHeading />

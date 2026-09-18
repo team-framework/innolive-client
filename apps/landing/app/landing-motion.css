@@ -67,6 +67,34 @@ body:has([data-page="auth"]) > header + div {
   }
 }
 
+@media (min-width: 106.5rem) {
+  .feature-section {
+    --feature-card-height: 23.125rem;
+  }
+
+  .feature-section [data-feature-card] {
+    height: var(--feature-card-height);
+    min-height: var(--feature-card-height);
+  }
+
+  .feature-section [data-feature-card-size="half"] {
+    height: calc((var(--feature-card-height) - 1.25rem) / 2);
+    min-height: calc((var(--feature-card-height) - 1.25rem) / 2);
+  }
+}
+
+@media (min-width: 106.5rem) and (max-height: 67.5rem) {
+  .feature-section {
+    --feature-card-height: clamp(10.875rem, calc((100dvh - 28rem) / 2), 23.125rem);
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+  }
+
+  .feature-section-content {
+    gap: clamp(3rem, 8dvh, 6.6875rem);
+  }
+}
+
 @media (min-width: 48rem) {
   body > header + div {
     padding-top: var(--header-block-desktop);

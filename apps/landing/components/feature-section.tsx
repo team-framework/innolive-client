@@ -63,6 +63,13 @@ export function FeatureSection() {
       );
       const contents = contentsByRow.flat();
       gsap.set(contents, { autoAlpha: 0, y: 48 });
+      const headerHeight = () =>
+        Math.max(
+          0,
+          ...Array.from(document.querySelectorAll<HTMLElement>("header")).map(
+            (header) => header.offsetHeight,
+          ),
+        );
 
       const timeline = gsap.timeline({
         scrollTrigger: {
@@ -71,7 +78,7 @@ export function FeatureSection() {
           invalidateOnRefresh: true,
           pin: true,
           scrub: 0.35,
-          start: "top top",
+          start: () => `top ${headerHeight()}px`,
           trigger: section,
         },
       });
@@ -93,10 +100,10 @@ export function FeatureSection() {
   return (
     <section
       ref={sectionRef}
-      className="flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pb-24 lg:pt-24 min-[106.5rem]:pb-[142px] min-[106.5rem]:pt-40"
+      className="feature-section flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pb-24 lg:pt-24 min-[106.5rem]:pb-[142px] min-[106.5rem]:pt-40"
       aria-labelledby="features-heading"
     >
-      <div className="flex w-full max-w-[1408px] flex-col items-stretch gap-12 min-[106.5rem]:gap-[107px]">
+      <div className="feature-section-content flex w-full max-w-[1408px] flex-col items-stretch gap-12 min-[106.5rem]:gap-[107px]">
         <div className="flex w-full flex-col items-start justify-between gap-6 lg:flex-row lg:items-start lg:gap-x-16">
           <h2
             id="features-heading"
@@ -240,6 +247,7 @@ export function FeatureSection() {
               <div className="flex w-full min-w-0 flex-col gap-5 lg:flex-1 min-[106.5rem]:w-[518px] min-[106.5rem]:max-w-[518px] min-[106.5rem]:flex-none">
                 <div
                   data-feature-card
+                  data-feature-card-size="half"
                   className={`${cardClass} flex min-h-[10.875rem] w-full flex-col items-center justify-center gap-2.5 bg-background-secondary min-[106.5rem]:h-[174px] min-[106.5rem]:min-h-[174px]`}
                 >
                   <div data-feature-content className="flex flex-col items-center gap-2.5">
@@ -253,6 +261,7 @@ export function FeatureSection() {
                 </div>
                 <div
                   data-feature-card
+                  data-feature-card-size="half"
                   className={`${cardClass} flex min-h-[10.875rem] w-full flex-col items-center justify-center gap-2.5 bg-background-secondary min-[106.5rem]:h-[176px] min-[106.5rem]:min-h-[174px]`}
                 >
                   <div data-feature-content className="flex flex-col items-center gap-2.5">
