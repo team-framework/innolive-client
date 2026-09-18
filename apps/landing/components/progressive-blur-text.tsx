@@ -41,7 +41,7 @@ export function ProgressiveBlurText({ text }: { text: string }) {
         {Array.from(text).map((character, index) => (
           <span
             key={`${character}-${index}`}
-            style={{ "--character-blur": `${10 + index * 8}px` } as React.CSSProperties}
+            style={{ "--character-blur": `${6 + index * 3}px` } as React.CSSProperties}
           >
             {character}
           </span>
