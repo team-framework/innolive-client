@@ -68,6 +68,7 @@ import com.framework.innolive.feature.youtube.YouTubeAccountCoordinator
 import com.framework.innolive.feature.youtube.YouTubeAccountVerificationState
 import com.framework.innolive.feature.youtube.YouTubePreferencesStore
 import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
+import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
 import com.framework.innolive.ui.theme.MyApplicationTheme
@@ -205,6 +206,10 @@ fun AppNavigation(
     var previousProfileEmail by remember { mutableStateOf(session?.profileEmail) }
     var isYouTubeAuthorizationLaunched by rememberSaveable { mutableStateOf(false) }
     var youtubeAuthorizationOperation by rememberSaveable { mutableStateOf<Long?>(null) }
+    var youtubeAccountStatusBeforeAuthorization by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+    var suppressYouTubeAccountRefreshOnce by remember { mutableStateOf(false) }
     val youtubeOperationGeneration = rememberSaveable(
         saver = Saver<OperationGeneration, Long>(
             save = { generation -> generation.current },
@@ -219,6 +224,7 @@ fun AppNavigation(
     LaunchedEffect(Unit) {
         if (isYouTubeAccountActionInProgress && !isYouTubeAuthorizationLaunched) {
             youtubeAuthorizationOperation = null
+            youtubeAccountStatusBeforeAuthorization = null
             youtubeOperationGeneration.invalidate()
             isYouTubeAccountActionInProgress = false
             youtubeAccountStatus = "YouTube 계정 연동을 다시 시도해 주세요."
@@ -266,7 +272,9 @@ fun AppNavigation(
         if (!isCurrentYouTubeOperation(operation)) return
         youtubeAuthorizationOperation = null
         isYouTubeAuthorizationLaunched = false
+        suppressYouTubeAccountRefreshOnce = true
         isYouTubeAccountActionInProgress = false
+        youtubeAccountStatusBeforeAuthorization = null
         youtubeAccountStatus = youtubeConnectionFailureMessage(exception)
     }
 
@@ -286,7 +294,9 @@ fun AppNavigation(
                 if (isCurrentYouTubeOperation(operation)) {
                     youtubeAuthorizationOperation = null
                     isYouTubeAuthorizationLaunched = false
+                    suppressYouTubeAccountRefreshOnce = true
                     isYouTubeAccountActionInProgress = false
+                    youtubeAccountStatusBeforeAuthorization = null
                 }
             }
         }
@@ -308,8 +318,16 @@ fun AppNavigation(
                     .onFailure { exception -> showYouTubeAccountFailure(operation, exception) }
             } else {
                 isYouTubeAuthorizationLaunched = false
-                isYouTubeAccountActionInProgress = false
-                youtubeAccountStatus = "YouTube 권한 동의를 취소했습니다."
+                val cancellationState = cancelYouTubeAuthorization(
+                    accountStatusBeforeAuthorization =
+                        youtubeAccountStatusBeforeAuthorization ?: youtubeAccountStatus,
+                    verificationState = youtubeAccountVerificationState,
+                )
+                youtubeAccountStatus = cancellationState.accountStatus
+                youtubeAccountVerificationState = cancellationState.verificationState
+                suppressYouTubeAccountRefreshOnce = !cancellationState.shouldRefreshAccount
+                isYouTubeAccountActionInProgress = cancellationState.isActionInProgress
+                youtubeAccountStatusBeforeAuthorization = null
             }
         }
     }
@@ -352,6 +370,10 @@ fun AppNavigation(
         isYouTubeAccountActionInProgress,
     ) {
         if (isYouTubeAccountActionInProgress) return@LaunchedEffect
+        if (suppressYouTubeAccountRefreshOnce) {
+            suppressYouTubeAccountRefreshOnce = false
+            return@LaunchedEffect
+        }
 
         val operation = youtubeOperationGeneration.begin()
         youtubeOperationProfileEmail = session?.profileEmail
@@ -528,9 +550,9 @@ fun AppNavigation(
 
         val operation = youtubeOperationGeneration.begin()
         youtubeOperationProfileEmail = session?.profileEmail
+        youtubeAccountStatusBeforeAuthorization = youtubeAccountStatus
         youtubeAuthorizationOperation = null
         isYouTubeAccountActionInProgress = true
-        youtubeAccountVerificationState = YouTubeAccountVerificationState.UNVERIFIED
         isYouTubeAuthorizationLaunched = false
         youtubeAccountStatus = "YouTube 계정 연동을 시작하는 중입니다."
         coroutineScope.launch {

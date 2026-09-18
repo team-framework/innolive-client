@@ -6,6 +6,19 @@ import org.junit.Test
 
 class YouTubeAccountVerificationStateTest {
     @Test
+    fun cancellingAuthorizationRestoresPreviousStatusAndEnablesRetryImmediately() {
+        val result = cancelYouTubeAuthorization(
+            accountStatusBeforeAuthorization = "연결된 계정이 없습니다",
+            verificationState = YouTubeAccountVerificationState.VERIFIED,
+        )
+
+        assertEquals("연결된 계정이 없습니다", result.accountStatus)
+        assertEquals(YouTubeAccountVerificationState.VERIFIED, result.verificationState)
+        assertFalse(result.isActionInProgress)
+        assertFalse(result.shouldRefreshAccount)
+    }
+
+    @Test
     fun serverConfirmedConnectionStaysVerifiedWhenCacheSaveFails() {
         val account = StreamingAccount(
             provider = "youtube",

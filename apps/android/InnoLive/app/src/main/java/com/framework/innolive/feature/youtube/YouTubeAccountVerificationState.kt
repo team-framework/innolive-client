@@ -8,6 +8,23 @@ internal enum class YouTubeAccountVerificationState {
     VERIFIED,
 }
 
+internal data class YouTubeAuthorizationCancellationState(
+    val accountStatus: String,
+    val verificationState: YouTubeAccountVerificationState,
+    val isActionInProgress: Boolean,
+    val shouldRefreshAccount: Boolean,
+)
+
+internal fun cancelYouTubeAuthorization(
+    accountStatusBeforeAuthorization: String,
+    verificationState: YouTubeAccountVerificationState,
+): YouTubeAuthorizationCancellationState = YouTubeAuthorizationCancellationState(
+    accountStatus = accountStatusBeforeAuthorization,
+    verificationState = verificationState,
+    isActionInProgress = false,
+    shouldRefreshAccount = false,
+)
+
 internal fun hasVerifiedYouTubeAccount(
     account: StreamingAccount?,
     verificationState: YouTubeAccountVerificationState,
