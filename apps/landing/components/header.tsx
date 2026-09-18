@@ -10,7 +10,7 @@ export function Header() {
   return (
     <header
       data-fixed-header
-      className="fixed inset-x-0 top-0 z-50 w-full bg-background-secondary/90 pt-3 backdrop-blur-sm md:pt-[var(--header-offset-desktop)]"
+      className="fixed inset-x-0 top-0 z-50 w-full md:pt-[var(--header-offset-desktop)]"
     >
       <a
         href="#main"
