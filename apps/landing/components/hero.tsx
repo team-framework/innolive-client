@@ -14,12 +14,12 @@ export function Hero() {
           <div className="flex w-full max-w-[634px] flex-col gap-12">
             <div className="relative flex w-full flex-col gap-8">
               <TypewriterHeroHeading />
-              <div className="w-full break-keep text-body-lg font-normal text-text-primary">
+              <div className="hero-support-reveal w-full break-keep text-body-lg font-normal text-text-primary">
                 <p>야외 방송에 노출된 행인의 얼굴을 아직도 일일이 지우고 계신가요?</p>
                 <p>InnoLive와 함께 더욱 안전한 방송을 만들어 보세요.</p>
               </div>
             </div>
-            <div className="flex flex-wrap items-start gap-x-2.5 gap-y-4">
+            <div className="hero-support-reveal hero-support-actions flex flex-wrap items-start gap-x-2.5 gap-y-4">
               <DownloadMenu trigger="hero" />
               <Button
                 variant="secondary"

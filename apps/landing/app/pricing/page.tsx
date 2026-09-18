@@ -52,14 +52,14 @@ export default function PricingPage() {
       >
         <div className="flex w-full max-w-[43.75rem] flex-col items-center gap-8 text-center">
           <PricingHeroHeading />
-          <div className="w-full max-w-[37.0625rem] break-keep text-body-lg font-normal text-text-primary">
+          <div className="pricing-support-reveal w-full max-w-[37.0625rem] break-keep text-body-lg font-normal text-text-primary">
             <p>합리적인 가격으로 InnoLive의 모든 기능을 잠금 해제하세요.</p>
             <p>실시간 얼굴 대체, 더 높은 사용량 등이 플랜에 포함됩니다.</p>
           </div>
           <Button
             href="/signup"
             showChevron={false}
-            className="min-w-[15.8125rem] w-max max-w-none whitespace-nowrap"
+            className="pricing-support-reveal pricing-support-actions min-w-[15.8125rem] w-max max-w-none whitespace-nowrap"
           >
             <span className="font-normal">InnoLive</span>{" "}
             <span className="font-semibold">플랜 구독하기</span>

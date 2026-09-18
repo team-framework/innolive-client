@@ -7,6 +7,34 @@
   to { opacity: 1; }
 }
 
+@keyframes hero-support-rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-support-reveal {
+    animation: hero-support-rise 650ms ease-out 1.6s both paused;
+  }
+
+  html[data-intro-complete="true"] .hero-support-reveal {
+    animation-play-state: running;
+  }
+
+  .hero-support-actions { animation-delay: 1.8s; }
+
+  .pricing-support-reveal {
+    animation: hero-support-rise 650ms ease-out 1s both;
+  }
+
+  .pricing-support-actions { animation-delay: 1.2s; }
+
+  .hero-support-reveal:focus-within,
+  .pricing-support-reveal:focus-within {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .pricing-dissolve-character {
     animation: pricing-character-dissolve 480ms ease-out var(--character-delay) both;
