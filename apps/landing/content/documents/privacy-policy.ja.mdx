@@ -2,11 +2,11 @@
 
 個人情報の取扱い項目、目的、保管・削除の基準をご案内します。
 
-- 掲載日: 2026年9月17日
-- 施行日: 2026年9月17日
+- 掲載日: 2026年9月19日
+- 施行日: 2026年9月19日
 - サービス運営チーム: Frameworkチーム
 - 個人情報保護責任者: クォン・デヒョン（권대형）
-- 個人情報に関するお問い合わせ: [contact@innolive.studio](mailto:contact@innolive.studio)
+- 個人情報に関するお問い合わせ: [support@innolive.studio](mailto:support@innolive.studio)
 
 Frameworkチーム（以下「運営チーム」）は、InnoLiveのウェブサイト、アプリケーションおよびWeb体験サービスにおいて、次のとおり個人情報を取り扱います。実際の取扱い項目は、利用者が選択したログイン方法および機能によって異なります。
 
@@ -133,7 +133,7 @@ Google・Appleログイン、YouTube接続・送出およびWebの外部通信�
 
 個人情報の当事者は、自己の個人情報に対する閲覧、訂正・削除、取扱いの停止または同意の撤回を請求できます。法定代理人または適法な委任を受けた代理人を通じても請求できます。
 
-アプリで提供するアカウント・顔管理機能を利用するか、[contact@innolive.studio](mailto:contact@innolive.studio)へ請求できます。運営チームは、請求者本人または代理権限を確認するために必要な最小限の情報を確認します。
+アプリで提供するアカウント・顔管理機能を利用するか、[support@innolive.studio](mailto:support@innolive.studio)へ請求できます。運営チームは、請求者本人または代理権限を確認するために必要な最小限の情報を確認します。
 
 法令に従い請求を制限または拒否しなければならない場合は、その事由をご案内します。運営チームは、同意の撤回または削除の請求を受けたときは、当該取扱いの中断・削除の可否および必要な後続手続を確認します。
 
@@ -186,24 +186,37 @@ iOSアプリは、配信映像・音声送信の同意およびYouTube送信案�
 | サービス運営チーム | Frameworkチーム |
 | 個人情報保護責任者 | クォン・デヒョン（권대형） |
 | 個人情報お問い合わせ窓口 | InnoLive運営チーム |
-| メール | [contact@innolive.studio](mailto:contact@innolive.studio) |
+| メール | [support@innolive.studio](mailto:support@innolive.studio) |
 
 お問い合わせには、請求の種類および確認するアカウントまたは情報をご記入ください。パスワード、認証番号、認証トークンおよび配信ストリームキーは送らないでください。
 
 ## 11. 外部ポリシーと接続権限の管理
 
-InnoLiveはYouTube APIサービスを利用します。
+InnoLiveはYouTube API Servicesを使用します。YouTube接続機能を利用すると、利用者にはYouTube利用規約が適用されます。
+
+InnoLiveが要求するGoogle権限は`https://www.googleapis.com/auth/youtube`であり、利用者のYouTubeチャンネルでライブ配信を作成し、その配信状態を管理する目的にのみ使用します。YouTube Live APIには、これより狭い範囲の権限はありません。
+
+Google APIからInnoLiveが受け取った情報の使用および他のアプリへの転送は、Limited Use要件を含むGoogle API Services User Data Policyに準拠します。
+
+具体的に、InnoLiveはGoogleユーザーデータを次のとおり取り扱います。
+
+- 利用者が要求した配信機能を提供する目的にのみ使用します。
+- 広告目的で使用せず、第三者に販売しません。
+- 人が直接閲覧することはありません。ただし、利用者の明示的な同意がある場合、セキュリティ目的、法令遵守のために必要な場合、またはデータが集計・匿名化されている場合を除きます。
+- 機能提供に必要な期間を超えて保管せず、アカウント削除または接続解除時に保存したトークンと接続情報を整理します。
+- AIモデルの学習に使用しません。
 
 - [Googleプライバシーポリシー](https://policies.google.com/privacy?hl=ko)
 - [YouTube利用規約](https://www.youtube.com/t/terms)
-- [Googleアカウント接続権限の管理](https://security.google.com/settings/security/permissions)
+- [Googleアカウント接続権限の管理](https://myaccount.google.com/permissions)
+- [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy)
 - [Appleプライバシーポリシー](https://www.apple.com/legal/privacy/)
 - [jsDelivrプライバシーポリシー](https://www.jsdelivr.com/terms/privacy-policy)
 
-利用者は、Googleアカウントの接続権限管理ページでInnoLiveのアクセス権限を取り消すことができます。InnoLiveに残った関連情報の削除は、個人情報お問い合わせ窓口でも請求できます。
+利用者は、Googleアカウントの接続権限管理ページでInnoLiveのアクセス権限をいつでも取り消すことができます。権限を取り消すと、InnoLiveは該当するYouTubeチャンネルへ配信を送出できなくなり、保存した接続トークンは無効化されます。InnoLiveに残った関連情報の削除は、個人情報お問い合わせ窓口でも請求できます。
 
 ## 12. 方針の変更
 
 運営チームは、本方針を変更するときは、変更内容および施行日をウェブサイトまたはアプリでお知らせします。別途の同意が必要な変更は、当該取扱いを開始する前に同意を受けます。
 
-本方針の掲載日および施行日は**2026年9月17日**です。以前の方針の施行日は**2026年9月10日**です。変更により別途の同意が必要な取扱いは、当該同意を得た後に開始します。
+本方針の掲載日および施行日は**2026年9月19日**です。以前の方針の施行日は**2026年9月17日**です。変更により別途の同意が必要な取扱いは、当該同意を得た後に開始します。
