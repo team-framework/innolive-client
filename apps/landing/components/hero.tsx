@@ -36,6 +36,9 @@ export function Hero() {
           className="relative top-16 aspect-[726.4803/758.516] w-full min-w-0 max-w-[726.4803px] overflow-clip lg:flex-1 min-[106.5rem]:w-[726.4803px] min-[106.5rem]:flex-none"
           aria-hidden="true"
         >
+          <div
+            className="absolute inset-[4.22%_0_0_44.88%] overflow-hidden rounded-tl-[clamp(30px,8.5vw,70px)] rounded-tr-[clamp(30px,8.5vw,70px)] bg-[url('/mockups/hero-face-registration.png')] bg-cover bg-center lg:rounded-tl-[clamp(44px,5vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
+          />
           <PhoneArtwork
             frameClassName="inset-[4.22%_0_0_44.88%]"
             imageStyle={{
