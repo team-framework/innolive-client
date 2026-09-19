@@ -214,24 +214,11 @@ export function SignupForm({ children }: { children: ReactNode }) {
               ? "인증 완료"
               : "인증 메일 보내기"}
         </Button>
-        {step === "verification" ? (
-          <Button
-            type="button"
-            showChevron={false}
-            className="w-full max-w-none"
-            disabled={isSubmitting}
-            onClick={() => {
-              setStep("credentials");
-              setErrors({});
-              setNotice(null);
-            }}
-          >
-            가입 정보 다시 입력
+        {step !== "verification" ? (
+          <Button href="/login" showChevron={false} className="w-full max-w-none">
+            로그인으로 이동
           </Button>
-        ) : null}
-        <Button href="/login" showChevron={false} className="w-full max-w-none">
-          로그인으로 이동
-        </Button>
+        ): null}
       </div>
       {notice ? (
         <p role="status" aria-live="polite" className="w-full text-center text-base text-text-primary">
