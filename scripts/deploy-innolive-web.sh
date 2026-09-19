@@ -103,6 +103,7 @@ write_release_override() {
     printf '      context: %s\n' "$release_source"
     printf '      args:\n'
     printf '        INNOLIVE_WEB_REVISION: "%s"\n' "$expected_sha"
+    printf '        NEXT_PUBLIC_INNOLIVE_SERVER_URL: "%s"\n' "$NEXT_PUBLIC_INNOLIVE_SERVER_URL"
     printf '    image: %s\n' "$image"
   } >"$override_file"; then
     return 1
@@ -253,6 +254,7 @@ required_variables=(
   INNOLIVE_WEB_COMPOSE_PROJECT
   INNOLIVE_WEB_DB_CONTAINER
   INNOLIVE_WEB_PROXY_CONTAINER
+  NEXT_PUBLIC_INNOLIVE_SERVER_URL
 )
 for variable in "${required_variables[@]}"; do
   [[ -n "${!variable:-}" ]] || fail 'deployment configuration is incomplete'
@@ -267,6 +269,7 @@ done
 [[ "$INNOLIVE_WEB_DB_CONTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail 'database container name is invalid'
 [[ "$INNOLIVE_WEB_PROXY_CONTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail 'proxy container name is invalid'
 [[ "$INNOLIVE_WEB_SITE_URL" =~ ^https?://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ ]] || fail 'public site URL is invalid'
+[[ "$NEXT_PUBLIC_INNOLIVE_SERVER_URL" =~ ^https?://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ ]] || fail 'public server URL is invalid'
 
 web_dir=$INNOLIVE_WEB_DIR
 releases_dir=$INNOLIVE_WEB_RELEASES_DIR
@@ -378,8 +381,8 @@ with tarfile.open(tar_path, "r:") as archive:
             or any(part in ("", ".", "..") for part in name.split("/"))
         ):
             raise ValueError("archive contains an unsafe path")
-        if name != "apps" and name != "apps/web" and not name.startswith("apps/web/"):
-            raise ValueError("archive contains a path outside apps/web")
+        if name != "apps" and name != "apps/landing" and not name.startswith("apps/landing/"):
+            raise ValueError("archive contains a path outside apps/landing")
         if name in seen:
             raise ValueError("archive contains a duplicate path")
         seen.add(name)
@@ -417,8 +420,8 @@ with tarfile.open(tar_path, "r:") as archive:
             raise ValueError("archive member size is invalid")
         os.chmod(target, member.mode & 0o777)
 
-if not (destination / "apps" / "web" / "Dockerfile").is_file():
-    raise ValueError("archive does not contain the web Dockerfile")
+if not (destination / "apps" / "landing" / "Dockerfile").is_file():
+    raise ValueError("archive does not contain the landing Dockerfile")
 PY
 then
   fail 'deployment archive failed safety validation'
@@ -428,7 +431,7 @@ stage 'archive-validated'
 private_log="$release_dir/deployment.log"
 : >"$private_log"
 chmod 0600 "$private_log" 2>>"$private_log" || fail 'private deployment log could not be protected'
-release_source="$release_dir/apps/web"
+release_source="$release_dir/apps/landing"
 release_validated=1
 stage 'release-created'
 
