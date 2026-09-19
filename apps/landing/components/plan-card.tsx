@@ -12,7 +12,7 @@ const featureIcons = {
 function PromoRibbon({ label }: { label: string }) {
   return (
     <div
-      className="pointer-events-none absolute -top-4 right-[-1.15rem] flex h-[10rem] w-[10.4rem] items-center justify-center"
+      className="pointer-events-none absolute -top-6 right-[-2.35rem] flex h-[10rem] w-[10.4rem] items-center justify-center"
       aria-hidden="true"
     >
       <Image
