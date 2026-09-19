@@ -12,7 +12,7 @@ import Image from "next/image";
 const Arrow = ({direction, onClick}: { direction: "left" | "right"; onClick: () => void; }) => {
   return (
     <div
-      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-300 ease-linear hover:bg-[#00000030]`}
+      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-200 ease-linear hover:bg-[#00000080]`}
       onClick={onClick}
     >
       <Image
@@ -53,24 +53,41 @@ function PlanScroller({
   }
 
   return (
-    <div
-      role="region"
-      aria-label={label}
-      tabIndex={0}
-      className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pt-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary ${className ?? ""}`}
-      ref={plansRef}
-    >
-      <Arrow direction="left" onClick={() => handleScroll("l")}/>
-      {plans.map((plan: Plan) => (
-        <div key={plan.id} className="w-[min(100%,30rem)] shrink-0 snap-start">
-          <PlanCard
-            plan={plan}
-            isLogined={isLogined}
-            isLoading={isLoading}
-          />
-        </div>
-      ))}
-      <Arrow direction="right" onClick={() => handleScroll("r")}/>
+    <div className="relative flex w-full">
+      {plans.length > 3 && (
+        <Arrow
+          direction="left"
+          onClick={() => handleScroll("l")}
+        />
+      )}
+
+      <div
+        role="region"
+        aria-label={label}
+        tabIndex={0}
+        className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pt-10 ${className ?? ""}`}
+        ref={plansRef}
+      >
+        {plans.map((plan: Plan) => (
+          <div
+            key={plan.id}
+            className="w-[min(100%,30rem)] shrink-0 snap-start"
+          >
+            <PlanCard
+              plan={plan}
+              isLogined={isLogined}
+              isLoading={isLoading}
+            />
+          </div>
+        ))}
+      </div>
+
+      {plans.length > 3 && (
+        <Arrow
+          direction="right"
+          onClick={() => handleScroll("r")}
+        />
+      )}
     </div>
   );
 }
