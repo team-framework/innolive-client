@@ -103,9 +103,13 @@ export function FeatureSection() {
       const context = gsap.context(() => {
         gsap.from(section, {
           autoAlpha: 0,
-          duration: 0.6,
+          duration: 0.8,
           ease: "power2.out",
-          scrollTrigger: { once: true, start: "top 80%", trigger: section },
+          scrollTrigger: {
+            start: "top 70%",
+            toggleActions: "restart none restart reverse",
+            trigger: section,
+          },
           y: 48,
         });
       }, section);
