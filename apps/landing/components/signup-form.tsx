@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/button";
 import { Checkbox } from "@/components/checkbox";
 import { TextField } from "@/components/text-field";
+import { TermsConsentDialog } from "@/components/terms-consent-dialog";
 import { authErrorMessage, completeSignup, startSignup } from "@/lib/auth-client";
 import {
   isValidEmail,
   isValidSignupPassword,
   isVerificationCode,
 } from "@/lib/auth-validation";
+
 type SignupErrors = {
   email?: string;
   password?: string;
@@ -20,13 +22,15 @@ type SignupErrors = {
   verificationCode?: string;
 };
 
-export function SignupForm() {
+export function SignupForm({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [agreed, setAgreed] = useState(false);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const [termsDialogOpen, setTermsDialogOpen] = useState(false);
   const [step, setStep] = useState<"credentials" | "verification">(
     "credentials",
   );
@@ -157,7 +161,13 @@ export function SignupForm() {
             <Checkbox
               className="w-full min-w-0 break-keep"
               checked={agreed}
-              onChange={(event) => setAgreed(event.target.checked)}
+              onChange={(event) => {
+                if (event.target.checked && !hasAcceptedTerms) {
+                  setTermsDialogOpen(true);
+                  return;
+                }
+                setAgreed(event.target.checked);
+              }}
               aria-invalid={errors.agreed ? true : undefined}
               aria-describedby={errors.agreed ? "signup-agree-error" : undefined}
               label={
@@ -165,6 +175,12 @@ export function SignupForm() {
                   <Link
                     href="/terms"
                     className="underline [text-underline-position:from-font]"
+                    onClick={(event) => {
+                      if (!hasAcceptedTerms) {
+                        event.preventDefault();
+                        setTermsDialogOpen(true);
+                      }
+                    }}
                   >
                     서비스 이용약관
                   </Link>
@@ -221,6 +237,19 @@ export function SignupForm() {
         <p role="status" aria-live="polite" className="w-full text-center text-base text-text-primary">
           {notice}
         </p>
+      ) : null}
+      {termsDialogOpen ? (
+        <TermsConsentDialog
+          onClose={() => setTermsDialogOpen(false)}
+          onAgree={() => {
+            setHasAcceptedTerms(true);
+            setAgreed(true);
+            setTermsDialogOpen(false);
+            setErrors((current) => ({ ...current, agreed: undefined }));
+          }}
+        >
+          {children}
+        </TermsConsentDialog>
       ) : null}
     </form>
   );

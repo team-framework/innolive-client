@@ -9,7 +9,10 @@ const navClassName =
 
 export function Header() {
   return (
-    <header className="relative z-10 w-full pt-3 md:pt-[var(--header-offset-desktop)]">
+    <header
+      data-fixed-header
+      className="fixed inset-x-0 top-0 z-50 w-full md:pt-[var(--header-offset-desktop)]"
+    >
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-30 focus:bg-background-secondary focus:px-3 focus:py-2 focus:text-text-primary"

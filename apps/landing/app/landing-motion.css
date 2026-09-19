@@ -1,0 +1,160 @@
+.progressive-blur-text {
+  --blur-mask-padding: 72px;
+}
+
+@keyframes pricing-character-dissolve {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes hero-support-rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-support-reveal {
+    animation: hero-support-rise 650ms ease-out 1.6s both paused;
+  }
+
+  html[data-intro-complete="true"] .hero-support-reveal {
+    animation-play-state: running;
+  }
+
+  .hero-support-actions { animation-delay: 1.8s; }
+
+  .pricing-support-reveal {
+    animation: hero-support-rise 650ms ease-out 1s both;
+  }
+
+  .pricing-support-actions { animation-delay: 1.2s; }
+
+  .hero-support-reveal:focus-within,
+  .pricing-support-reveal:focus-within {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pricing-dissolve-character {
+    animation: pricing-character-dissolve 480ms ease-out var(--character-delay) both;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sequential-dissolve-character {
+    animation: pricing-character-dissolve 480ms ease-out var(--character-delay) both;
+  }
+}
+
+.progressive-blur-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: calc(-1 * var(--blur-mask-padding));
+  padding: var(--blur-mask-padding);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.progressive-blur-layer > span {
+  display: inline-block;
+  filter: blur(var(--character-blur));
+}
+
+.progressive-blur-text[data-revealed="true"] .progressive-blur-layer {
+  mask-image: radial-gradient(
+    circle 70px at calc(var(--blur-pointer-x) + var(--blur-mask-padding))
+      calc(var(--blur-pointer-y) + var(--blur-mask-padding)),
+    transparent 0 35px,
+    rgb(0 0 0 / 18%) 46px,
+    rgb(0 0 0 / 55%) 57px,
+    #000 70px
+  );
+}
+
+.progressive-sharp-layer {
+  pointer-events: none;
+  position: absolute;
+  inset: calc(-1 * var(--blur-mask-padding));
+  padding: var(--blur-mask-padding);
+  color: var(--color-text-primary);
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.progressive-blur-text[data-revealed="true"] .progressive-sharp-layer {
+  mask-image: radial-gradient(
+    circle 70px at calc(var(--blur-pointer-x) + var(--blur-mask-padding))
+      calc(var(--blur-pointer-y) + var(--blur-mask-padding)),
+    #000 0 35px,
+    rgb(0 0 0 / 82%) 46px,
+    rgb(0 0 0 / 45%) 57px,
+    transparent 70px
+  );
+  opacity: 1;
+}
+
+body > header + div {
+  padding-top: 101px;
+}
+
+body:has([data-page="auth"]) > header + div {
+  padding-top: 0;
+}
+
+.privacy-phone {
+  width: min(100%, calc((100dvh - 18rem) * 438 / 881));
+}
+
+@media (min-width: 64rem) {
+  .privacy-phone {
+    width: min(100%, 438px, calc((100dvh - 8rem) * 438 / 881));
+  }
+}
+
+@media (min-width: 64rem) {
+  .feature-section {
+    --feature-card-height: 23.125rem;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  /* Scale the complete artwork equally; the pinned section stays unscaled. */
+  .feature-section-content {
+    zoom: 0.8;
+    gap: 32px;
+    width: 125%;
+  }
+
+  .feature-section [data-feature-row] > :first-child {
+    flex: 518 1 0;
+  }
+
+  .feature-section [data-feature-row] > :last-child {
+    flex: 874 1 0;
+  }
+
+  .feature-section [data-feature-row] + [data-feature-row] > :first-child {
+    flex: 874 1 0;
+  }
+
+  .feature-section [data-feature-row] + [data-feature-row] > :last-child {
+    flex: 518 1 0;
+  }
+
+  .feature-section [data-feature-card] {
+    height: var(--feature-card-height);
+    min-height: var(--feature-card-height);
+  }
+
+  .feature-section [data-feature-card-size="half"] {
+    height: calc((var(--feature-card-height) - 1.25rem) / 2);
+    min-height: calc((var(--feature-card-height) - 1.25rem) / 2);
+  }
+}
+
+@media (min-width: 48rem) {
+  body > header + div {
+    padding-top: var(--header-block-desktop);
+  }
+}

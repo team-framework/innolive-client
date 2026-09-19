@@ -107,6 +107,7 @@ export default function HomePage() {
 
       <footer className="flex justify-center gap-6 px-6 py-8 text-center text-sm text-[#a3a3a3]">
         <Link href={`/${locale}/privacy`} className="cursor-pointer underline underline-offset-4 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{t('home.privacyPolicy')}</Link>
+        <Link href={`/${locale}/terms`} className="cursor-pointer underline underline-offset-4 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{t('home.terms')}</Link>
         <Link href={`/${locale}/support`} className="cursor-pointer underline underline-offset-4 transition-colors hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">{t('home.support')}</Link>
       </footer>
     </main>
