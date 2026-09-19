@@ -8,6 +8,13 @@ on:
       - ".github/workflows/deploy-web.yml"
       - "scripts/deploy-innolive-web.sh"
       - "scripts/receive-innolive-web-deploy.sh"
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/landing/**"
+      - ".github/workflows/deploy-web.yml"
+      - "scripts/deploy-innolive-web.sh"
+      - "scripts/receive-innolive-web-deploy.sh"
   workflow_dispatch:
 
 concurrency:
@@ -18,8 +25,48 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the requested revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Build the landing image
+        env:
+          IMAGE: innolive-landing-ci:${{ github.sha }}
+        run: |
+          docker build \
+            --build-arg INNOLIVE_WEB_REVISION="$GITHUB_SHA" \
+            --build-arg NEXT_PUBLIC_INNOLIVE_SERVER_URL=https://api.innolive.studio \
+            --tag "$IMAGE" \
+            apps/landing
+
+      - name: Test the landing image
+        env:
+          IMAGE: innolive-landing-ci:${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          docker run --rm \
+            --entrypoint node \
+            "$IMAGE" \
+            --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
+            --test \
+            app/api/version/route.test.mts \
+            lib/auth-validation.test.mts
+
+          docker run --rm \
+            --entrypoint node \
+            "$IMAGE" \
+            node_modules/eslint/bin/eslint.js .
+
   deploy:
     if: github.ref == 'refs/heads/main'
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
