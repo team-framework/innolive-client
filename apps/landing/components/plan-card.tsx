@@ -15,12 +15,18 @@ function PromoRibbon({ label }: { label: string }) {
       className="pointer-events-none absolute -top-4 right-[-1.15rem] flex h-[10rem] w-[10.4rem] items-center justify-center"
       aria-hidden="true"
     >
-      <div className="flex-none rotate-[44.24deg] skew-x-[-1.52deg]">
-        <div className="flex h-[2.42rem] w-[9.41rem] items-center justify-center bg-gradient-to-r from-[#1a1a1a] via-[#808080] via-[29.808%] to-[#1a1a1a] shadow-[0_4px_4px_#00000040]">
-          <p className="text-center text-lg font-medium leading-[1.15] whitespace-nowrap text-text-reversed">
-            {label}
-          </p>
-        </div>
+      <Image
+        src="/icons/ribbon.svg"
+        alt=""
+        width={166}
+        height={160}
+        unoptimized
+        className="absolute inset-0 size-full"
+      />
+      <div className="relative flex-none rotate-[44.24deg] skew-x-[-1.52deg]">
+        <p className="flex h-[2.42rem] w-[9.41rem] items-center justify-center text-center text-lg font-medium leading-[1.15] whitespace-nowrap text-text-reversed">
+          {label}
+        </p>
       </div>
     </div>
   );
