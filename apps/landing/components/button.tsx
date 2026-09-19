@@ -12,7 +12,7 @@ const chevrons = {
 } as const;
 
 const baseClass =
-  "inline-flex max-w-[358.4px] min-h-11 min-w-[70px] items-center justify-center gap-[8.4px] overflow-hidden rounded-pill px-[22.4px] py-[9.91px] text-left text-[14px] font-semibold leading-none shadow-button transition-colors md:max-w-[512px] md:min-h-14 md:min-w-[100px] md:gap-3 md:px-8 md:py-[var(--space-18)] md:text-xl";
+  "inline-flex max-w-[358.4px] min-h-11 min-w-[70px] items-center justify-center gap-[8.4px] overflow-hidden rounded-pill px-[22.4px] py-[9.91px] text-left text-xl font-semibold leading-none shadow-button transition-colors md:max-w-[512px] md:min-h-14 md:min-w-[100px] md:gap-3 md:px-8 md:py-[var(--space-18)]";
 
 const variantClass = {
   primary:
@@ -69,7 +69,7 @@ function Chevron({ variant, disabled }: { variant: Variant; disabled: boolean })
       height={24}
       unoptimized
       aria-hidden="true"
-      className="size-[16.8px] shrink-0 md:size-6"
+      className="size-6 shrink-0"
     />
   );
 }
