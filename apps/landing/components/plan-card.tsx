@@ -45,8 +45,8 @@ function PriceLine({
           original
             ? "text-2xl line-through [text-underline-position:from-font]"
             : emphasize
-              ? "text-[2rem] font-semibold"
-              : "text-[1.75rem]",
+              ? "text-[2rem] font-medium"
+              : "text-[2rem]",
         )}
       >
         ₩{amount}
