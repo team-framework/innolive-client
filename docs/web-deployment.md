@@ -63,6 +63,10 @@ port forwarding, X11 forwarding, PTY를 끈다. 기존 Go 배포 key와 스크�
 3. 운영 Compose 구성을 출력해 landing이 DB 환경과 내부 네트워크를 상속하지 않는지 확인한다.
 4. 이 변경을 `main`에 병합한다.
 
+이미 4가 끝난 뒤에는 1–2만 적용한 다음 `workflow_dispatch`로 배포한다.
+Compose `ps web`이 비어 있고 `{project}-web-1` 이름의 수동 컨테이너가 있으면,
+배포 스크립트는 새 이미지를 만든 뒤 그 컨테이너를 제거하고 Compose로 교체한다.
+
 ## 교체와 확인
 
 배포는 flock으로 직렬화한다. 새 release에 landing build context와
