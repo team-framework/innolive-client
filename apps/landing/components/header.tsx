@@ -36,7 +36,7 @@ export function Header() {
       >
         본문으로 건너뛰기
       </a>
-      <div className="relative mx-auto flex w-full max-w-[1640px] items-center justify-between gap-3 bg-background-secondary/90 px-5 py-3 backdrop-blur md:bg-transparent md:p-2.5">
+      <div className="absolute mx-auto flex w-screen h-23 top-0 items-end justify-between gap-3 bg-background-secondary/90 px-5 py-3 backdrop-blur md:bg-transparent md:p-4 md:px-12">
         <Link href="/" className="shrink-0" aria-label="InnoLive 홈">
           <Image
             src="/brand/logo-header.svg"
