@@ -114,7 +114,7 @@ export function PrivacySection() {
                 <div
                   key={`${slide.label}-${index}`}
                   data-privacy-slide
-                  className="absolute inset-0 hidden items-center justify-center bg-gradient-to-br from-[#eef2ff] to-[#dbeafe] p-4 text-center first:flex lg:flex motion-reduce:static motion-reduce:min-h-24 motion-reduce:border-b motion-reduce:border-background-primary"
+                  className="absolute inset-0 hidden items-center justify-center bg-gradient-to-br from-[#eef2ff] to-[#dbeafe] p-4 text-center first:flex lg:flex motion-reduce:hidden motion-reduce:first:flex lg:motion-reduce:hidden lg:motion-reduce:first:flex"
                 >
                   {slide.src ? (
                     <Image
