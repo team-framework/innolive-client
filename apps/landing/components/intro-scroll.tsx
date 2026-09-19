@@ -34,8 +34,9 @@ export function IntroScroll() {
     if (!root || finished) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     const mobile = window.matchMedia("(max-width: 47.999rem)");
+    const alreadyCompleted = document.documentElement.dataset.introComplete === "true";
     const hasHashTarget = ["main", "faq"].includes(window.location.hash.slice(1));
-    if (reduce.matches || mobile.matches || hasHashTarget) {
+    if (alreadyCompleted || reduce.matches || mobile.matches || hasHashTarget) {
       const skip = gsap.delayedCall(0, () => {
         setFinished(true);
         markIntroComplete();
