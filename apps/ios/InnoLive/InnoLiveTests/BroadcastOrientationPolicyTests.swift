@@ -131,4 +131,20 @@ final class BroadcastOrientationPolicyTests: XCTestCase {
             0
         )
     }
+
+    func testFrontCameraPreviewDisplayIsMirroredHorizontally() {
+        let transform = BroadcastOrientationPolicy.previewDisplayTransform(isUsingFrontCamera: true)
+
+        XCTAssertEqual(transform.a, -1)
+        XCTAssertEqual(transform.d, 1)
+        XCTAssertEqual(transform.b, 0)
+        XCTAssertEqual(transform.c, 0)
+    }
+
+    func testBackCameraPreviewDisplayIsNotMirrored() {
+        XCTAssertEqual(
+            BroadcastOrientationPolicy.previewDisplayTransform(isUsingFrontCamera: false),
+            .identity
+        )
+    }
 }

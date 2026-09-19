@@ -129,4 +129,9 @@ nonisolated enum BroadcastOrientationPolicy {
             ).rawValue
         )
     }
+
+    /// Display-only horizontal flip for front-camera previews. Capture frames stay unmirrored.
+    static func previewDisplayTransform(isUsingFrontCamera: Bool) -> CGAffineTransform {
+        isUsingFrontCamera ? CGAffineTransform(scaleX: -1, y: 1) : .identity
+    }
 }
