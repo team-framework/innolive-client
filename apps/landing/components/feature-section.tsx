@@ -80,7 +80,7 @@ export function FeatureSection() {
             invalidateOnRefresh: true,
             pin: true,
             scrub: 0.35,
-            start: () => `top ${headerHeight()}px`,
+            start: () => `top ${headerHeight()+60}px`,
             trigger: section,
           },
         });
