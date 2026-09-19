@@ -55,9 +55,9 @@ final class NativeWebRTCFaceRegistrationPreview: UIView {
     }
 
     func update(mirrorsVideo: Bool) {
-        videoView.transform = mirrorsVideo
-            ? CGAffineTransform(scaleX: -1, y: 1)
-            : .identity
+        videoView.transform = BroadcastOrientationPolicy.previewDisplayTransform(
+            isUsingFrontCamera: mirrorsVideo
+        )
     }
 
     func detach() {
