@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { isLocale, localePath, locales, type Locale } from "@/lib/locales";
 
-export type DocumentLocale = "ko" | "en" | "ja";
+export type DocumentLocale = Locale;
 export type DocumentSlug = "privacy" | "terms" | "support";
 
-export const documentLocales = ["ko", "en", "ja"] as const;
+export const documentLocales = locales;
 export const documentSlugs = ["privacy", "terms", "support"] as const;
 
 export const documentTitles = {
@@ -84,10 +85,7 @@ export function documentPath(
 ): string {
   const leaf =
     slug === "privacy" ? "privacy" : slug === "terms" ? "terms" : "support";
-  if (locale === "ko") {
-    return `/${leaf}`;
-  }
-  return `/${locale}/${leaf}`;
+  return localePath(locale, `/${leaf}`);
 }
 
 export function documentMetadata(
@@ -124,7 +122,7 @@ function fileName(href: string): string {
 }
 
 function isDocumentLocale(value: string): value is DocumentLocale {
-  return value === "ko" || value === "en" || value === "ja";
+  return isLocale(value);
 }
 
 function isRelativeDocumentHref(href: string): boolean {

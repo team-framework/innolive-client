@@ -6,13 +6,14 @@ import { Dialog } from "@/components/dialog";
 import { FaceRegistrationOverlay } from "@/components/face-registration-overlay";
 import { WaitingOverlay } from "@/components/waiting-overlay";
 import { SequentialHeroHeading } from "@/components/sequential-hero-heading";
-import { cn } from "@/lib/cn";
+import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
 
 type Preview = "guest" | "active" | "member";
 type Overlay = "none" | "face" | "waiting";
 
 export function TryOutView() {
+  const { href, messages } = useLocale();
   const { isLogined, isLoading } = useIsLogined();
   const [preview, setPreview] = useState<Preview>("guest");
   const [overlay, setOverlay] = useState<Overlay>("none");
@@ -22,7 +23,7 @@ export function TryOutView() {
   const closeOverlay = () => setOverlay("none");
 
   const unavailable = () => {
-    setNotice("체험 기능을 준비 중입니다");
+    setNotice(messages.tryOut.unavailable);
   };
 
   return (
@@ -35,15 +36,15 @@ export function TryOutView() {
           <SequentialHeroHeading
             segments={[
               {
-                text: "보이는 순간, 보호는 시작",
+                text: messages.tryOut.heading,
                 className:
                   "break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none",
               },
             ]}
-            ariaLabel="보이는 순간, 보호는 시작"
+            ariaLabel={messages.tryOut.ariaLabel}
           />
           <p className="break-keep text-body-lg font-normal">
-            InnoLive의 뛰어난 잠재력을 눈으로 직접 확인해 보세요.
+            {messages.tryOut.body}
           </p>
         </div>
 
@@ -57,7 +58,7 @@ export function TryOutView() {
             <div className="relative flex aspect-[16/9] w-full items-center justify-center overflow-clip rounded-[12px] bg-background-secondary">
               {preview === "guest" ? (
                 <p className="px-4 text-center text-[clamp(1.5rem,1rem+2vw,3rem)] font-normal leading-none text-text-primary">
-                  카메라 권한을 허용해 주세요
+                  {messages.tryOut.cameraPermission}
                 </p>
               ) : null}
             </div>
@@ -68,26 +69,26 @@ export function TryOutView() {
               {preview === "guest" ? (
                 <>
                   <Button
-                    href="/try-out/experience"
+                    href={href("/try-out/experience")}
                     showChevron={false}
                     className="w-[14.375rem] max-w-[14.375rem]"
                     disabled={isLoading}
                     aria-describedby={notice ? noticeId : undefined}
                   >
                     {isLoading
-                      ? "확인 중"
+                      ? messages.tryOut.checking
                       : isLogined
-                        ? "체험 시작"
-                        : "비회원으로 체험 시작"}
+                        ? messages.tryOut.start
+                        : messages.tryOut.startGuest}
                   </Button>
                   {!isLogined && !isLoading ? (
                     <Button
                       variant="secondary"
-                      href="/login"
+                      href={href("/login")}
                       showChevron={false}
                       className="w-[14.375rem] max-w-[14.375rem]"
                     >
-                      회원가입 또는 로그인
+                      {messages.tryOut.loginOrSignup}
                     </Button>
                   ) : null}
                 </>
@@ -102,7 +103,7 @@ export function TryOutView() {
                       setNotice(null);
                     }}
                   >
-                    체험 중지
+                    {messages.tryOut.stop}
                   </Button>
                   <Button
                     variant="secondary"
@@ -110,7 +111,7 @@ export function TryOutView() {
                     className="w-[8.6875rem] max-w-[8.6875rem]"
                     onClick={() => setOverlay("face")}
                   >
-                    얼굴 등록
+                    {messages.tryOut.registerFace}
                   </Button>
                 </>
               ) : null}
@@ -121,17 +122,17 @@ export function TryOutView() {
                   onClick={unavailable}
                   aria-describedby={notice ? noticeId : undefined}
                 >
-                  비식별화 체험하기
+                  {messages.tryOut.memberCta}
                 </Button>
               ) : null}
             </div>
             {!isLogined ? (
               <p className="w-full text-center text-xl font-medium text-text-secondary">
-                Tip! 회원가입 시 대기 시간이 줄어듭니다.
+                {messages.tryOut.tip}
               </p>
             ) : null}
             <p className="w-full text-center text-xl font-medium text-text-secondary">
-              네트워크 환경에 따라 성능에 편차가 있을 수 있습니다.
+              {messages.tryOut.networkNote}
             </p>
             {notice ? (
               <p
@@ -149,14 +150,14 @@ export function TryOutView() {
       <Dialog
         open={overlay === "waiting"}
         onClose={closeOverlay}
-        label="대기 안내 화면 미리보기"
+        label={messages.tryOut.waitingPreview}
       >
         <WaitingOverlay />
       </Dialog>
       <Dialog
         open={overlay === "face"}
         onClose={closeOverlay}
-        label="얼굴 등록 화면 미리보기"
+        label={messages.tryOut.facePreview}
       >
         <FaceRegistrationOverlay />
       </Dialog>

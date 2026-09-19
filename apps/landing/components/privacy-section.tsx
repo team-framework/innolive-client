@@ -4,7 +4,8 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
 import { useLayoutEffect, useRef } from "react";
-import { privacySlides } from "@/lib/privacy-slides";
+import { useLocale } from "@/components/locale-provider";
+import { privacySlideSources } from "@/lib/privacy-slides";
 
 const phoneSizes = "(min-width: 106.5rem) 438px, (min-width: 64rem) 40vw, 80vw";
 
@@ -16,27 +17,33 @@ const aiAccentStyle = {
 } as const;
 
 export function PrivacySection() {
+  const { messages } = useLocale();
+  const slides = privacySlideSources.map((src, index) => ({
+    src,
+    alt: messages.privacy.slides[index]?.alt ?? "",
+    label: messages.privacy.slides[index]?.label ?? "",
+  }));
   const sectionRef = useRef<HTMLElement>(null);
 
   useLayoutEffect(() => {
     const section = sectionRef.current;
-    if (!section || privacySlides.length < 2) return;
+    if (!section || slides.length < 2) return;
 
-    const slides = Array.from(
+    const slideNodes = Array.from(
       section.querySelectorAll<HTMLElement>("[data-privacy-slide]"),
     );
-    if (slides.length < 2) return;
+    if (slideNodes.length < 2) return;
 
     gsap.registerPlugin(ScrollTrigger);
     const media = gsap.matchMedia();
     media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
       const context = gsap.context(() => {
-        gsap.set(slides, { autoAlpha: 0, yPercent: 100 });
-        gsap.set(slides[0], { autoAlpha: 1, yPercent: 0 });
+        gsap.set(slideNodes, { autoAlpha: 0, yPercent: 100 });
+        gsap.set(slideNodes[0], { autoAlpha: 1, yPercent: 0 });
         const timeline = gsap.timeline({
           scrollTrigger: {
             anticipatePin: 1,
-            end: () => `+=${window.innerHeight * (slides.length - 1)}`,
+            end: () => `+=${window.innerHeight * (slideNodes.length - 1)}`,
             invalidateOnRefresh: true,
             pin: true,
             scrub: 0.4,
@@ -45,8 +52,8 @@ export function PrivacySection() {
           },
         });
 
-        slides.slice(1).forEach((slide, index) => {
-          timeline.to(slides[index], { autoAlpha: 0, duration: 1, yPercent: -100 });
+        slideNodes.slice(1).forEach((slide, index) => {
+          timeline.to(slideNodes[index], { autoAlpha: 0, duration: 1, yPercent: -100 });
           timeline.to(slide, { autoAlpha: 1, duration: 1, yPercent: 0 }, "<");
         });
       }, section);
@@ -72,7 +79,7 @@ export function PrivacySection() {
     });
 
     return () => media.revert();
-  }, []);
+  }, [slides.length]);
 
   return (
     <section
@@ -86,17 +93,17 @@ export function PrivacySection() {
             id="privacy-heading"
             className="w-full break-words text-[clamp(2rem,1.05rem+4.2vw,4.25rem)] font-bold leading-[1.3] tracking-tight text-text-primary"
           >
-            초상권 걱정 없는
+            {messages.privacy.titleLine1}
             <span className="block w-full [container-type:inline-size]">
               <span className="bg-clip-text text-transparent" style={aiAccentStyle}>
                 AI{" "}
               </span>
-              비식별화 라이브
+              {messages.privacy.titleAfterAi}
             </span>
           </h2>
           <div className="w-full break-keep text-body-lg font-normal text-text-primary">
-            <p>실시간 AI 비식별화 기능을 통해 배경으로 등장하는</p>
-            <p>행인의 초상권과 당신의 방송을 동시에 보호하세요.</p>
+            <p>{messages.privacy.body1}</p>
+            <p>{messages.privacy.body2}</p>
           </div>
         </div>
         <div className="privacy-phone relative aspect-[438/881] min-w-0 lg:-translate-y-10 lg:flex-none">
@@ -109,8 +116,8 @@ export function PrivacySection() {
             className="absolute inset-0 size-full max-w-none z-1"
           />
           <div className="absolute inset-[3.2%_5.5%] z-0 overflow-hidden rounded-[3rem] bg-background-secondary">
-            {privacySlides.length ? (
-              privacySlides.map((slide, index) => (
+            {slides.length ? (
+              slides.map((slide, index) => (
                 <div
                   key={`${slide.label}-${index}`}
                   data-privacy-slide
@@ -134,7 +141,7 @@ export function PrivacySection() {
               ))
             ) : (
               <div className="flex size-full items-center justify-center p-4 text-center text-sm font-semibold text-text-secondary">
-                비식별화 데모 준비 중
+                {messages.privacy.empty}
               </div>
             )}
           </div>

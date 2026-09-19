@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import { Button } from "@/components/button";
+import { useLocale } from "@/components/locale-provider";
 import { OnDeviceHelp } from "@/components/on-device-help";
 import { cn } from "@/lib/cn";
 import type { Plan } from "@/lib/plans";
@@ -79,6 +82,7 @@ export function PlanCard({
   isLogined: boolean;
   isLoading: boolean;
 }) {
+  const { href, messages } = useLocale();
   const footnotesId = plan.footnotes ? `${plan.id}-notes` : undefined;
 
   return (
@@ -133,16 +137,16 @@ export function PlanCard({
                 showChevron={false}
                 className="w-full max-w-none border border-button-secondary"
               >
-                {isLoading ? "로딩 중" : plan.cta.label}
+                {isLoading ? messages.common.loading : plan.cta.label}
               </Button>
             ) : (
               <Button
                 variant="secondary"
-                href="/login"
+                href={href("/login")}
                 showChevron={false}
                 className="w-full max-w-none"
               >
-                로그인해서 무료 플랜 사용하기
+                {messages.pricing.loginCta}
               </Button>
             )
           ) : (

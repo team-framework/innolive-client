@@ -4,6 +4,8 @@ import gsap from "gsap";
 import { useLayoutEffect, useRef, useState } from "react";
 import { IntroScene } from "@/components/intro-scene";
 import { introScenes } from "@/components/intro-scenes";
+import { useLocale } from "@/components/locale-provider";
+import { interpolate } from "@/lib/locales";
 
 const INTRO_COMPLETE_EVENT = "innolive:intro-complete";
 // 마지막 문구가 완전히 나타난 뒤 유지할 시간(ms).
@@ -25,6 +27,7 @@ function focusHashTarget() {
 }
 
 export function IntroScroll() {
+  const { messages } = useLocale();
   const rootRef = useRef<HTMLDivElement>(null);
   const finishRef = useRef<() => void>(() => {});
   const [finished, setFinished] = useState(false);
@@ -156,10 +159,23 @@ export function IntroScroll() {
   }, [finished]);
 
   if (finished) return null;
+  const scenes = introScenes.map((scene, index) => {
+    const focus = scene.id === "p7";
+    return {
+      ...scene,
+      label: interpolate(focus ? messages.intro.sceneFocus : messages.intro.sceneSafe, {
+        n: String(index + 1),
+      }),
+      lettering: {
+        ...scene.lettering,
+        alt: focus ? messages.intro.letteringFocus : messages.intro.letteringSafe,
+      },
+    };
+  });
   return (
-    <div ref={rootRef} role="dialog" aria-modal="true" aria-label="InnoLive 소개" data-scene-index="0"
+    <div ref={rootRef} role="dialog" aria-modal="true" aria-label={messages.intro.dialogLabel} data-scene-index="0"
       className="intro-root invisible fixed inset-0 z-[100] h-dvh overflow-clip bg-background-secondary">
-      {introScenes.map((scene, index) => (
+      {scenes.map((scene, index) => (
         <div key={scene.id} data-intro-layer aria-hidden={index !== 0 ? true : undefined}
           className={`absolute inset-0 ${index === 0 ? "" : "invisible opacity-0"}`}>
           <IntroScene {...scene} fill sceneIndex={index} priority={index === 0} />
@@ -167,7 +183,7 @@ export function IntroScroll() {
       ))}
       <button type="button" onClick={() => finishRef.current()}
         className="absolute top-4 right-4 z-20 rounded-pill bg-background-secondary/90 px-4 py-2 text-base font-medium text-text-primary shadow-button min-[48rem]:top-8 min-[48rem]:right-8">
-        본문으로 건너뛰기
+        {messages.intro.skip}
       </button>
     </div>
   );

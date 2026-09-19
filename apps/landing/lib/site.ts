@@ -48,8 +48,8 @@ export const downloadPlatforms: DownloadPlatform[] = [
 ];
 
 export const navLinks = [
-  { href: "/try-out", label: "Try out" },
-  { href: "/pricing", label: "Pricing" },
+  { id: "tryOut", href: "/try-out" },
+  { id: "pricing", href: "/pricing" },
 ] as const;
 
 export const socialLinks = [

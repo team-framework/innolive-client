@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:auth": "node --test lib/auth-validation.test.mts",
+    "test:i18n": "node --experimental-strip-types --test lib/locales.test.mts lib/messages.test.mts",
     "test:version": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test app/api/version/route.test.mts"
   },
   "dependencies": {

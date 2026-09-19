@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/button";
+import { useLocale } from "@/components/locale-provider";
 
 type TermsConsentDialogProps = {
   onClose: () => void;
@@ -14,6 +15,7 @@ export function TermsConsentDialog({
   onAgree,
   children,
 }: TermsConsentDialogProps) {
+  const { messages } = useLocale();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [hasReachedEnd, setHasReachedEnd] = useState(false);
@@ -57,10 +59,10 @@ export function TermsConsentDialog({
         <div className="flex flex-col justify-between gap-8 p-8 min-[48rem]:p-10">
           <div>
             <h2 id="terms-consent-title" className="text-heading text-text-primary">
-              이용약관
+              {messages.auth.termsTitle}
             </h2>
             <p className="mt-2 text-body text-text-secondary">
-              서비스를 이용하기 위한 필수 약관만 추렸어요.
+              {messages.auth.termsLead}
             </p>
           </div>
           <Button
@@ -71,13 +73,13 @@ export function TermsConsentDialog({
             className="w-full max-w-none"
             onClick={onAgree}
           >
-            동의합니다.
+            {messages.auth.agreeButton}
           </Button>
         </div>
         <div
           ref={contentRef}
           tabIndex={0}
-          aria-label="서비스 이용약관 본문"
+          aria-label={messages.auth.termsBodyLabel}
           className="min-h-0 overflow-y-auto border-t border-surface-primary px-6 py-8 min-[48rem]:border-l min-[48rem]:border-t-0"
           onScroll={updateScrollState}
         >

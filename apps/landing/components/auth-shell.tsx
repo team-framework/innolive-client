@@ -1,8 +1,12 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useLocale } from "@/components/locale-provider";
 
 export function AuthShell({ children }: { children: ReactNode }) {
+  const { href, messages } = useLocale();
   return (
     <main
       id="main"
@@ -34,19 +38,19 @@ export function AuthShell({ children }: { children: ReactNode }) {
         </div>
         <nav
           className="mt-8 flex flex-wrap items-center justify-center gap-2 text-base font-medium text-text-primary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2"
-          aria-label="약관"
+          aria-label={messages.auth.policyNav}
         >
           <Link
-            href="/privacy"
+            href={href("/privacy")}
             className="underline [text-underline-position:from-font]"
           >
-            개인정보 처리방침
+            {messages.auth.privacy}
           </Link>
           <Link
-            href="/terms"
+            href={href("/terms")}
             className="underline [text-underline-position:from-font]"
           >
-            이용약관
+            {messages.auth.terms}
           </Link>
         </nav>
       </div>

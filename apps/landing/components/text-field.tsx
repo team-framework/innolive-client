@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { ComponentPropsWithoutRef } from "react";
 import { useId, useState } from "react";
+import { useLocale } from "@/components/locale-provider";
 import { cn } from "@/lib/cn";
 
 const icons = {
@@ -30,6 +31,7 @@ export function TextField({
   type,
   ...props
 }: TextFieldProps) {
+  const { messages } = useLocale();
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const errorId = `${inputId}-error`;
@@ -72,10 +74,10 @@ export function TextField({
             type="button"
             className="shrink-0 text-sm font-medium text-text-secondary"
             aria-pressed={visible}
-            aria-label={visible ? "비밀번호 숨기기" : "비밀번호 보기"}
+            aria-label={visible ? messages.auth.hidePasswordLabel : messages.auth.showPasswordLabel}
             onClick={() => setVisible((current) => !current)}
           >
-            {visible ? "숨기기" : "보기"}
+            {visible ? messages.auth.hidePassword : messages.auth.showPassword}
           </button>
         ) : null}
       </div>

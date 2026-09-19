@@ -1,9 +1,13 @@
+"use client";
+
 import { Button } from "@/components/button";
 import { DownloadMenu } from "@/components/download-menu";
+import { useLocale } from "@/components/locale-provider";
 import { PhoneArtwork } from "@/components/phone-artwork";
 import { TypewriterHeroHeading } from "@/components/typewriter-hero-heading";
 
 export function Hero() {
+  const { href, messages } = useLocale();
   return (
     <section
       className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 lg:h-screen lg:min-h-[calc(100dvh-var(--header-block-desktop))] lg:justify-center lg:pb-0 lg:pt-0"
@@ -15,8 +19,8 @@ export function Hero() {
             <div className="relative flex w-full flex-col gap-8">
               <TypewriterHeroHeading />
               <div className="hero-support-reveal w-full break-keep text-body-lg font-normal text-text-primary">
-                <p>야외 방송에 노출된 행인의 얼굴을 아직도 일일이 지우고 계신가요?</p>
-                <p>InnoLive와 함께 더욱 안전한 방송을 만들어 보세요.</p>
+                <p>{messages.hero.support1}</p>
+                <p>{messages.hero.support2}</p>
               </div>
             </div>
             <div className="hero-support-reveal hero-support-actions flex flex-wrap items-start gap-x-2.5 gap-y-4">
@@ -24,10 +28,10 @@ export function Hero() {
               <Button
                 variant="secondary"
                 showChevron={false}
-                href="/try-out"
+                href={href("/try-out")}
                 className="h-[53.2px] w-[95.9px] md:h-[76px] md:w-[137px]"
               >
-                Try Out
+                {messages.hero.tryOut}
               </Button>
             </div>
           </div>
