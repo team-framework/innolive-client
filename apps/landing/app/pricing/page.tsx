@@ -57,7 +57,7 @@ export default function PricingPage() {
             <p>실시간 얼굴 대체, 더 높은 사용량 등이 플랜에 포함됩니다.</p>
           </div>
           <Button
-            href="/signup"
+            href="/login"
             showChevron={false}
             className="pricing-support-reveal pricing-support-actions min-w-[15.8125rem] w-max max-w-none whitespace-nowrap"
           >
