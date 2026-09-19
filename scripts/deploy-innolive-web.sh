@@ -105,6 +105,12 @@ write_release_override() {
     printf '        INNOLIVE_WEB_REVISION: "%s"\n' "$expected_sha"
     printf '        NEXT_PUBLIC_INNOLIVE_SERVER_URL: "%s"\n' "$NEXT_PUBLIC_INNOLIVE_SERVER_URL"
     printf '    image: %s\n' "$image"
+    printf '%s\n' '    env_file: !reset []'
+    printf '%s\n' '    depends_on: !reset {}'
+    printf '%s\n' '    networks: !override'
+    printf '%s\n' '      monitoring_default:'
+    printf '%s\n' '        aliases:'
+    printf '%s\n' '          - innolive-web'
   } >"$override_file"; then
     return 1
   fi
@@ -269,7 +275,7 @@ done
 [[ "$INNOLIVE_WEB_DB_CONTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail 'database container name is invalid'
 [[ "$INNOLIVE_WEB_PROXY_CONTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail 'proxy container name is invalid'
 [[ "$INNOLIVE_WEB_SITE_URL" =~ ^https?://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ ]] || fail 'public site URL is invalid'
-[[ "$NEXT_PUBLIC_INNOLIVE_SERVER_URL" =~ ^https?://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ ]] || fail 'public server URL is invalid'
+[[ "$NEXT_PUBLIC_INNOLIVE_SERVER_URL" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/%:@+-]*)?$ ]] || fail 'public server URL is invalid'
 
 web_dir=$INNOLIVE_WEB_DIR
 releases_dir=$INNOLIVE_WEB_RELEASES_DIR
