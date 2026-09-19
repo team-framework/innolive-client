@@ -50,7 +50,6 @@ export function IntroScroll() {
     root.style.visibility = "visible";
     root.dataset.active = "true";
     const skipButton = root.querySelector<HTMLButtonElement>("button");
-    skipButton?.focus({ preventScroll: true });
     let index = 0;
     let busy = false;
     let leaving = false;
@@ -74,7 +73,6 @@ export function IntroScroll() {
           unlock();
           setFinished(true);
           markIntroComplete();
-          document.getElementById("main")?.focus({ preventScroll: true });
         },
       });
     };
