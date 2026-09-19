@@ -31,49 +31,13 @@ export function TryOutView() {
     setNotice("체험 기능을 준비 중입니다");
   };
 
-  const audience = isLoading ? "확인 중" : isLogined ? "회원" : "게스트";
-
   return (
     <section
       className="flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pt-24 min-[106.5rem]:pb-[5.25rem] min-[106.5rem]:pt-[9.5rem]"
       aria-labelledby="try-out-heading"
     >
-      <div className="mb-8 flex w-full max-w-[100rem] flex-col items-start gap-2 text-text-secondary">
-        <p className="text-sm font-medium">화면 미리보기</p>
-        <div className="flex flex-wrap gap-2">
-          {previews.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={cn(
-                "rounded-pill px-3 py-1.5 text-sm leading-none",
-                preview === item.id
-                  ? "bg-button-secondary text-text-reversed"
-                  : "bg-background-secondary text-text-primary shadow-button",
-              )}
-              aria-pressed={preview === item.id}
-              onClick={() => {
-                setPreview(item.id);
-                setOverlay("none");
-                setNotice(null);
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="rounded-pill bg-background-secondary px-3 py-1.5 text-sm leading-none text-text-primary shadow-button"
-            onClick={() => setOverlay("waiting")}
-          >
-            대기 안내
-          </button>
-        </div>
-      </div>
-
       <div className="flex w-full max-w-[100rem] flex-col items-center gap-[4.125rem]">
         <div className="flex flex-col items-center gap-8 text-center text-text-primary">
-          <p className="text-sm font-medium text-text-secondary">{audience}</p>
           <SequentialHeroHeading
             segments={[
               {
