@@ -1,10 +1,10 @@
-name: Deploy InnoLive web
+name: Deploy InnoLive landing
 
 on:
   push:
     branches: [main]
     paths:
-      - "apps/web/**"
+      - "apps/landing/**"
       - ".github/workflows/deploy-web.yml"
       - "scripts/deploy-innolive-web.sh"
       - "scripts/receive-innolive-web-deploy.sh"
@@ -97,7 +97,7 @@ jobs:
 
           transport_status=0
           if {
-            git archive --format=tar "$GITHUB_SHA" apps/web |
+            git archive --format=tar "$GITHUB_SHA" apps/landing |
               gzip -n |
               ssh \
                 -p "$DEPLOY_PORT" \

@@ -1,20 +1,20 @@
 # 웹 배포
 
-`apps/web`은 `main`에 반영된 커밋을 기준으로 독립 배포한다. workflow는
+`apps/landing`은 `main`에 반영된 커밋을 기준으로 독립 배포한다. workflow는
 `github.sha`를 checkout한 뒤 다음 archive만 전송한다.
 
 ```text
-git archive --format=tar $GITHUB_SHA apps/web | gzip -n
+git archive --format=tar $GITHUB_SHA apps/landing | gzip -n
 ```
 
 수신기는 SSH 강제 명령 `deploy-web <40자리 소문자 SHA>`만 허용한다. 다른
 명령, 추가 인자, 줄바꿈은 거부한다. 수신한 archive의 Git PAX 전역
-`comment`가 명령의 SHA와 같은지, 경로가 `apps/web` 아래인지, symlink·hardlink와
+`comment`가 명령의 SHA와 같은지, 경로가 `apps/landing` 아래인지, symlink·hardlink와
 특수 파일이 없는지 확인한 뒤 격리된 release 디렉터리에 푼다.
 
 ## 호스트 설정
 
-root가 `/etc/innolive/web-deploy.env`를 만들고 다음 여섯 변수를 설정한다.
+root가 `/etc/innolive/web-deploy.env`를 만들고 다음 일곱 변수를 설정한다.
 값은 저장소에 기록하지 않는다.
 
 ```text
@@ -24,11 +24,14 @@ INNOLIVE_WEB_SITE_URL
 INNOLIVE_WEB_COMPOSE_PROJECT
 INNOLIVE_WEB_DB_CONTAINER
 INNOLIVE_WEB_PROXY_CONTAINER
+NEXT_PUBLIC_INNOLIVE_SERVER_URL
 ```
 
 현재 운영 경로와 이름은 각각 `/opt/innolive/web-src`,
 `/opt/innolive/web-releases`, 공개 사이트 URL, `innolive-web`,
-`innolive-web-db-1`, `innolive-caddy`를 사용한다. 배포 스크립트는
+`innolive-web-db-1`, `innolive-caddy`를 사용한다.
+`NEXT_PUBLIC_INNOLIVE_SERVER_URL`에 `https://api.innolive.studio`를 사용한다.
+배포 스크립트는
 `web-src/.env`, `docker-compose.yml`, `docker-compose.server.yml`,
 `docker-compose.gpu.yml`이 이미 존재하는지 확인한다. 이 파일과 Caddy 설정,
 DB 데이터 및 DB·proxy 서비스는 수정하지 않는다.
@@ -55,10 +58,10 @@ port forwarding, X11 forwarding, PTY를 끈다. 기존 Go 배포 key와 스크�
 
 ## 교체와 확인
 
-배포는 flock으로 직렬화한다. 새 release에 web build context와
-`INNOLIVE_WEB_REVISION` build arg, SHA가 포함된 image tag만 담은 Compose
-override를 만든다. 기존 web image를 rollback용 tag로 저장한 뒤 다음 두
-동작만 수행한다.
+배포는 flock으로 직렬화한다. 새 release에 landing build context와
+`INNOLIVE_WEB_REVISION`, `NEXT_PUBLIC_INNOLIVE_SERVER_URL` build arg, SHA가
+포함된 image tag만 담은 Compose override를 만든다. 기존 web image를
+rollback용 tag로 저장한 뒤 다음 두 동작만 수행한다.
 
 ```text
 docker compose ... build web
