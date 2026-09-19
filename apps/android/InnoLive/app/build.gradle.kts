@@ -65,7 +65,7 @@ dependencies {
     implementation("androidx.camera:camera-view:$cameraXVersion")
     implementation("androidx.credentials:credentials:1.7.0-alpha02")
     implementation("androidx.credentials:credentials-play-services-auth:1.7.0-alpha02")
-    implementation("com.google.android.gms:play-services-auth:21.1.1")
+    implementation("com.google.android.gms:play-services-auth:22.0.0")
     implementation("com.google.mlkit:face-detection:16.1.7")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.squareup.okhttp3:okhttp:5.3.0")
