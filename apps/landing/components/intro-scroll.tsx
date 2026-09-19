@@ -5,7 +5,6 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { IntroScene } from "@/components/intro-scene";
 import { introScenes } from "@/components/intro-scenes";
 
-const STORAGE_KEY = "innolive-intro-complete";
 const INTRO_COMPLETE_EVENT = "innolive:intro-complete";
 
 function markIntroComplete() {
@@ -32,21 +31,8 @@ export function IntroScroll() {
     const root = rootRef.current;
     if (!root || finished) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(STORAGE_KEY) === "true";
-    } catch {
-      // Storage can be unavailable in private contexts.
-    }
     const hasHashTarget = ["main", "faq"].includes(window.location.hash.slice(1));
-    if (seen || reduce.matches || hasHashTarget) {
-      if (!seen) {
-        try {
-          sessionStorage.setItem(STORAGE_KEY, "true");
-        } catch {
-          // In-memory completion still works.
-        }
-      }
+    if (reduce.matches || hasHashTarget) {
       const skip = gsap.delayedCall(0, () => {
         setFinished(true);
         markIntroComplete();
@@ -80,11 +66,6 @@ export function IntroScroll() {
     const finish = () => {
       if (leaving) return;
       leaving = true;
-      try {
-        sessionStorage.setItem(STORAGE_KEY, "true");
-      } catch {
-        // In-memory completion still works.
-      }
       window.scrollTo({ top: 0, behavior: "auto" });
       tween?.kill();
       tween = gsap.to(root, {
