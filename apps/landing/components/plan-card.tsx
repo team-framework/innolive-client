@@ -64,7 +64,15 @@ function PriceLine({
   );
 }
 
-export function PlanCard({ plan }: { plan: Plan }) {
+export function PlanCard({
+  plan,
+  isLogined,
+  isLoading,
+}: {
+  plan: Plan;
+  isLogined: boolean;
+  isLoading: boolean;
+}) {
   const footnotesId = plan.footnotes ? `${plan.id}-notes` : undefined;
 
   return (
@@ -112,9 +120,25 @@ export function PlanCard({ plan }: { plan: Plan }) {
           </div>
 
           {plan.cta.current ? (
-            <span className="inline-flex min-h-14 w-full max-w-none items-center justify-center rounded-pill border border-button-secondary bg-background-primary px-8 py-[var(--space-18)] text-xl font-semibold leading-none text-text-primary shadow-button">
-              {plan.cta.label}
-            </span>
+            isLogined || isLoading ? (
+              <Button
+                variant="primary"
+                disabled
+                showChevron={false}
+                className="w-full max-w-none border border-button-secondary"
+              >
+                {isLoading ? "로그인 상태 확인 중" : plan.cta.label}
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                href="/login"
+                showChevron={false}
+                className="w-full max-w-none"
+              >
+                로그인해서 무료 플랜 사용하기
+              </Button>
+            )
           ) : (
             <Button
               variant="secondary"
