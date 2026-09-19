@@ -74,22 +74,48 @@ image_id() {
   printf '%s' "$output"
 }
 
+web_compose_container_name() {
+  printf '%s-web-1' "$INNOLIVE_WEB_COMPOSE_PROJECT"
+}
+
 web_container_id() {
   local output line count=0 selected=''
 
-  if ! output=$("${compose_base[@]}" ps -q web 2>>"$private_log"); then
-    return 1
+  if output=$("${compose_base[@]}" ps -q web 2>>"$private_log"); then
+    while IFS= read -r line; do
+      if [[ -n "$line" ]]; then
+        count=$((count + 1))
+        selected=$line
+      fi
+    done <<<"$output"
+    if [[ "$count" -eq 1 && "$selected" =~ ^[0-9a-f]{12,64}$ ]]; then
+      printf '%s' "$selected"
+      return 0
+    fi
+    if [[ "$count" -gt 1 ]]; then
+      return 1
+    fi
   fi
 
-  while IFS= read -r line; do
-    if [[ -n "$line" ]]; then
-      count=$((count + 1))
-      selected=$line
-    fi
-  done <<<"$output"
+  container_id "$(web_compose_container_name)"
+}
 
-  [[ "$count" -eq 1 && "$selected" =~ ^[0-9a-f]{12,64}$ ]] || return 1
-  printf '%s' "$selected"
+remove_unmanaged_web_container() {
+  local name project
+
+  name=$(web_compose_container_name)
+  docker inspect "$name" >/dev/null 2>>"$private_log" || return 0
+
+  if ! project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$name" 2>>"$private_log"); then
+    return 1
+  fi
+  project=${project//$'\n'/}
+  if [[ "$project" == "$INNOLIVE_WEB_COMPOSE_PROJECT" ]]; then
+    return 0
+  fi
+
+  docker rm -f "$name" >>"$private_log" 2>&1 || return 1
+  stage 'unmanaged-web-removed'
 }
 
 write_release_override() {
@@ -506,6 +532,9 @@ built_revision=${built_revision//$'\n'/}
 stage 'web-built'
 
 replacement_attempted=1
+if ! remove_unmanaged_web_container; then
+  fail 'unmanaged web container could not be replaced'
+fi
 if ! "${compose_with_release[@]}" up -d --no-deps --no-build web >>"$private_log" 2>&1; then
   fail 'web container replacement failed'
 fi
