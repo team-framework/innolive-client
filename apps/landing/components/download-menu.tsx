@@ -57,7 +57,7 @@ export function DownloadMenu({ trigger = "default" }: DownloadMenuProps) {
         <Button
           variant="primary"
           showChevron
-          className="h-[60.8px] w-[156px] md:h-[76px] md:w-[195px]"
+          className="h-[53.2px] w-[136.5px] md:h-[76px] md:w-[195px]"
           {...triggerProps}
         >
           Download

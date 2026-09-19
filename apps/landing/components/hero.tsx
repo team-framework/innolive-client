@@ -25,7 +25,7 @@ export function Hero() {
                 variant="secondary"
                 showChevron={false}
                 href="/try-out"
-                className="h-[60.8px] w-[109.6px] md:h-[76px] md:w-[137px]"
+                className="h-[53.2px] w-[95.9px] md:h-[76px] md:w-[137px]"
               >
                 Try Out
               </Button>
