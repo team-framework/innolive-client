@@ -6,6 +6,8 @@ import { IntroScene } from "@/components/intro-scene";
 import { introScenes } from "@/components/intro-scenes";
 
 const INTRO_COMPLETE_EVENT = "innolive:intro-complete";
+// 마지막 문구가 완전히 나타난 뒤 유지할 시간(ms).
+const FINAL_SCENE_MINIMUM_DISPLAY_MS = 1_000;
 
 function markIntroComplete() {
   document.documentElement.dataset.introComplete = "true";
@@ -57,6 +59,7 @@ export function IntroScroll() {
     let wheelDistance = 0;
     let lastWheel = 0;
     let touchY = 0;
+    let finalSceneAvailableAt = 0;
     let tween: gsap.core.Tween | undefined;
 
     const unlock = () => {
@@ -80,6 +83,11 @@ export function IntroScroll() {
     finishRef.current = finish;
     const step = (direction: number) => {
       if (busy || leaving) return;
+      if (
+        index === layers.length - 1
+        && direction > 0
+        && performance.now() < finalSceneAvailableAt
+      ) return;
       const next = Math.max(0, index + direction);
       if (next >= layers.length) { finish(); return; }
       if (next === index) return;
@@ -95,6 +103,9 @@ export function IntroScroll() {
       root.dataset.sceneIndex = String(index);
       tween = gsap.to(target, { autoAlpha: 1, duration: 0.5, onComplete: () => {
         gsap.set(previous, { autoAlpha: 0 });
+        if (index === layers.length - 1) {
+          finalSceneAvailableAt = performance.now() + FINAL_SCENE_MINIMUM_DISPLAY_MS;
+        }
         busy = false;
       } });
     };
