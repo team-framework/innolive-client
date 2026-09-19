@@ -45,8 +45,11 @@ export function Hero() {
               top: "-1.31%",
             }}
           />
+          <div
+            className="absolute inset-[0_44.88%_0_0] overflow-hidden rounded-tl-[clamp(30px,8.6vw,70px)] rounded-tr-[clamp(30px,8.6vw,70px)] bg-[url('/mockups/Phone1.gif')] bg-cover bg-center lg:rounded-tl-[clamp(44px,4.3vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
+          />
           <PhoneArtwork
-            frameClassName="inset-[0_44.88%_0_0]"
+            frameClassName="inset-[0_44.85%_0_0] -top-[1px]"
             fetchPriority="high"
             imageStyle={{
               height: "110.49%",

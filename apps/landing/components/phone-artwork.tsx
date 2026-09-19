@@ -17,7 +17,7 @@ export function PhoneArtwork({
 }: PhoneArtworkProps) {
   return (
     <div
-      className={`absolute overflow-hidden rounded-tl-[clamp(30px,8.5vw,70px)] lg:rounded-tl-[clamp(44px,5vw,70px)] rounded-tr-[clamp(30px,8.5vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)] bg-phone-fill ${frameClassName}`}
+      className={`absolute overflow-hidden rounded-tl-[clamp(30px,8.5vw,70px)] lg:rounded-tl-[clamp(44px,5vw,70px)] rounded-tr-[clamp(30px,8.5vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)] ${frameClassName}`}
     >
       <Image
         src={phoneSrc}
