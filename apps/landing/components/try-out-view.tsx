@@ -12,12 +12,6 @@ import { useIsLogined } from "@/hooks/use-is-logined";
 type Preview = "guest" | "active" | "member";
 type Overlay = "none" | "face" | "waiting";
 
-const previews: { id: Preview; label: string }[] = [
-  { id: "guest", label: "게스트" },
-  { id: "active", label: "체험 중" },
-  { id: "member", label: "회원" },
-];
-
 export function TryOutView() {
   const { isLogined, isLoading } = useIsLogined();
   const [preview, setPreview] = useState<Preview>("guest");
@@ -83,7 +77,7 @@ export function TryOutView() {
                     {isLoading
                       ? "확인 중"
                       : isLogined
-                        ? "회원으로 체험 시작"
+                        ? "체험 시작"
                         : "비회원으로 체험 시작"}
                   </Button>
                   {!isLogined && !isLoading ? (
@@ -131,7 +125,7 @@ export function TryOutView() {
                 </Button>
               ) : null}
             </div>
-            {preview !== "member" ? (
+            {!isLogined ? (
               <p className="w-full text-center text-xl font-medium text-text-secondary">
                 Tip! 회원가입 시 대기 시간이 줄어듭니다.
               </p>

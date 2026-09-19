@@ -118,6 +118,7 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    font-size: clamp(11.2px, calc(9.02px + 0.682vw), 16px);
   }
 
   body {

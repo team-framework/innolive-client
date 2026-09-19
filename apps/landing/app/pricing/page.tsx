@@ -5,13 +5,14 @@ import { Button } from "@/components/button";
 import { PlanCard } from "@/components/plan-card";
 import {businessPlans, personalPlans, Plan} from "@/lib/plans";
 import {SequentialHeroHeading} from "@/components/sequential-hero-heading";
+import {useIsLogined} from "@/hooks/use-is-logined";
 import {useRef} from "react";
 import Image from "next/image";
 
 const Arrow = ({direction, onClick}: { direction: "left" | "right"; onClick: () => void; }) => {
   return (
     <div
-      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-300 ease-linear hover:bg-[#00000030]`}
+      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-200 ease-linear hover:bg-[#00000080]`}
       onClick={onClick}
     >
       <Image
@@ -28,10 +29,14 @@ const Arrow = ({direction, onClick}: { direction: "left" | "right"; onClick: () 
 function PlanScroller({
   label,
   plans,
+  isLogined,
+  isLoading,
   className,
 }: {
   label: string;
   plans: typeof personalPlans;
+  isLogined: boolean;
+  isLoading: boolean;
   className?: string;
 }) {
   const plansRef = useRef<HTMLDivElement>(null);
@@ -48,20 +53,41 @@ function PlanScroller({
   }
 
   return (
-    <div
-      role="region"
-      aria-label={label}
-      tabIndex={0}
-      className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pt-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary ${className ?? ""}`}
-      ref={plansRef}
-    >
-      <Arrow direction="left" onClick={() => handleScroll("l")}/>
-      {plans.map((plan: Plan) => (
-        <div key={plan.id} className="w-[min(100%,30rem)] shrink-0 snap-start">
-          <PlanCard plan={plan} />
-        </div>
-      ))}
-      <Arrow direction="right" onClick={() => handleScroll("r")}/>
+    <div className="relative flex w-full">
+      {plans.length > 3 && (
+        <Arrow
+          direction="left"
+          onClick={() => handleScroll("l")}
+        />
+      )}
+
+      <div
+        role="region"
+        aria-label={label}
+        tabIndex={0}
+        className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pt-10 ${className ?? ""}`}
+        ref={plansRef}
+      >
+        {plans.map((plan: Plan) => (
+          <div
+            key={plan.id}
+            className="w-[min(100%,30rem)] shrink-0 snap-start"
+          >
+            <PlanCard
+              plan={plan}
+              isLogined={isLogined}
+              isLoading={isLoading}
+            />
+          </div>
+        ))}
+      </div>
+
+      {plans.length > 3 && (
+        <Arrow
+          direction="right"
+          onClick={() => handleScroll("r")}
+        />
+      )}
     </div>
   );
 }
@@ -81,6 +107,7 @@ function TermsNote() {
 }
 
 export default function PricingPage() {
+  const { isLogined, isLoading } = useIsLogined();
   const segments = [
     { text: "InnoLive", className: "font-normal tracking-[-0.05em]" },
     { text: "의 ", className: "" },
@@ -110,7 +137,12 @@ export default function PricingPage() {
         </div>
 
         <div className="flex w-full max-w-[102.5rem] flex-col items-center gap-[2.625rem]">
-          <PlanScroller label="개인 요금제" plans={personalPlans} />
+          <PlanScroller
+            label="개인 요금제"
+            plans={personalPlans}
+            isLogined={isLogined}
+            isLoading={isLoading}
+          />
           <TermsNote />
         </div>
       </section>
@@ -135,6 +167,8 @@ export default function PricingPage() {
           <PlanScroller
             label="기업 요금제"
             plans={businessPlans}
+            isLogined={isLogined}
+            isLoading={isLoading}
             className="min-[68rem]:justify-center"
           />
           <TermsNote />

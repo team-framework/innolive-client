@@ -12,7 +12,7 @@ const chevrons = {
 } as const;
 
 const baseClass =
-  "inline-flex max-w-[512px] min-h-14 min-w-[100px] items-center justify-center gap-3 overflow-hidden rounded-pill px-8 py-[var(--space-18)] text-left text-xl font-semibold leading-none shadow-button transition-colors";
+  "inline-flex max-w-[358.4px] min-h-11 min-w-[70px] items-center justify-center gap-[8.4px] overflow-hidden rounded-pill px-[22.4px] py-[9.91px] text-left text-xl font-semibold leading-none shadow-button transition-colors md:max-w-[512px] md:min-h-14 md:min-w-[100px] md:gap-3 md:px-8 md:py-[var(--space-18)]";
 
 const variantClass = {
   primary:

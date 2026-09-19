@@ -6,10 +6,10 @@ import { TypewriterHeroHeading } from "@/components/typewriter-hero-heading";
 export function Hero() {
   return (
     <section
-      className="flex w-full h-screen flex-col items-center overflow-x-clip px-[var(--page-gutter)] pt-12 lg:min-h-[calc(100dvh-var(--header-block-desktop))] lg:justify-center lg:pt-0"
+      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 lg:h-screen lg:min-h-[calc(100dvh-var(--header-block-desktop))] lg:justify-center lg:pb-0 lg:pt-0"
       aria-labelledby="hero-heading"
     >
-      <div className="flex relative top-12 w-full max-w-[1640px] flex-col items-center gap-y-16 lg:flex-row lg:items-center lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
+      <div className="flex relative top-12 w-full max-w-[1640px] flex-col items-center gap-y-2 lg:flex-row lg:items-center lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
         <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:translate-x-12 lg:flex-1 min-[106.5rem]:w-[752px] min-[106.5rem]:flex-none min-[106.5rem]:items-end">
           <div className="flex w-full max-w-[634px] flex-col gap-12">
             <div className="relative flex w-full flex-col gap-8">
@@ -25,7 +25,7 @@ export function Hero() {
                 variant="secondary"
                 showChevron={false}
                 href="/try-out"
-                className="h-[76px] w-[137px]"
+                className="h-[53.2px] w-[95.9px] md:h-[76px] md:w-[137px]"
               >
                 Try Out
               </Button>

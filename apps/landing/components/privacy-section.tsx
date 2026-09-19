@@ -20,11 +20,7 @@ export function PrivacySection() {
 
   useLayoutEffect(() => {
     const section = sectionRef.current;
-    if (
-      !section ||
-      privacySlides.length < 2 ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) return;
+    if (!section || privacySlides.length < 2) return;
 
     const slides = Array.from(
       section.querySelectorAll<HTMLElement>("[data-privacy-slide]"),
@@ -32,34 +28,56 @@ export function PrivacySection() {
     if (slides.length < 2) return;
 
     gsap.registerPlugin(ScrollTrigger);
-    const context = gsap.context(() => {
-      gsap.set(slides, { autoAlpha: 0, yPercent: 100 });
-      gsap.set(slides[0], { autoAlpha: 1, yPercent: 0 });
-      const timeline = gsap.timeline({
-        scrollTrigger: {
-          anticipatePin: 1,
-          end: () => `+=${window.innerHeight * (slides.length - 1)}`,
-          invalidateOnRefresh: true,
-          pin: true,
-          scrub: 0.4,
-          start: "top top",
-          trigger: section,
-        },
-      });
+    const media = gsap.matchMedia();
+    media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
+      const context = gsap.context(() => {
+        gsap.set(slides, { autoAlpha: 0, yPercent: 100 });
+        gsap.set(slides[0], { autoAlpha: 1, yPercent: 0 });
+        const timeline = gsap.timeline({
+          scrollTrigger: {
+            anticipatePin: 1,
+            end: () => `+=${window.innerHeight * (slides.length - 1)}`,
+            invalidateOnRefresh: true,
+            pin: true,
+            scrub: 0.4,
+            start: "top top",
+            trigger: section,
+          },
+        });
 
-      slides.slice(1).forEach((slide, index) => {
-        timeline.to(slides[index], { autoAlpha: 0, duration: 1, yPercent: -100 });
-        timeline.to(slide, { autoAlpha: 1, duration: 1, yPercent: 0 }, "<");
-      });
-    }, section);
+        slides.slice(1).forEach((slide, index) => {
+          timeline.to(slides[index], { autoAlpha: 0, duration: 1, yPercent: -100 });
+          timeline.to(slide, { autoAlpha: 1, duration: 1, yPercent: 0 }, "<");
+        });
+      }, section);
 
-    return () => context.revert();
+      return () => context.revert();
+    });
+    media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
+      const context = gsap.context(() => {
+        gsap.from(section, {
+          autoAlpha: 0,
+          duration: 0.8,
+          ease: "power2.out",
+          scrollTrigger: {
+            start: "top 70%",
+            toggleActions: "restart none restart reverse",
+            trigger: section,
+          },
+          y: 48,
+        });
+      }, section);
+
+      return () => context.revert();
+    });
+
+    return () => media.revert();
   }, []);
 
   return (
     <section
       ref={sectionRef}
-      className="flex w-full h-screen flex-col justify-center items-center bg-background-secondary px-[var(--page-gutter)] pb-10 pt-16 lg:pb-12 lg:pt-24 min-[106.5rem]:min-h-[67.5rem] min-[106.5rem]:pb-[39px] min-[106.5rem]:pt-40"
+      className="flex h-fit w-full flex-col items-center justify-center bg-background-secondary px-[var(--page-gutter)] pb-10 pt-16 lg:h-screen lg:pb-12 lg:pt-24 min-[106.5rem]:min-h-[67.5rem] min-[106.5rem]:pb-[39px] min-[106.5rem]:pt-40"
       aria-labelledby="privacy-heading"
     >
       <div className="flex w-full max-w-[1408px] flex-col justify-center items-center gap-y-12 lg:flex-row lg:items-center lg:justify-between lg:gap-x-16">
@@ -96,7 +114,7 @@ export function PrivacySection() {
                 <div
                   key={`${slide.label}-${index}`}
                   data-privacy-slide
-                  className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#eef2ff] to-[#dbeafe] p-4 text-center motion-reduce:static motion-reduce:min-h-24 motion-reduce:border-b motion-reduce:border-background-primary"
+                  className="absolute inset-0 hidden items-center justify-center bg-gradient-to-br from-[#eef2ff] to-[#dbeafe] p-4 text-center first:flex lg:flex motion-reduce:static motion-reduce:min-h-24 motion-reduce:border-b motion-reduce:border-background-primary"
                 >
                   {slide.src ? (
                     <Image
