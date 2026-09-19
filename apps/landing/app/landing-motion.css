@@ -41,6 +41,12 @@
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .sequential-dissolve-character {
+    animation: pricing-character-dissolve 480ms ease-out var(--character-delay) both;
+  }
+}
+
 .progressive-blur-layer {
   pointer-events: none;
   position: absolute;
