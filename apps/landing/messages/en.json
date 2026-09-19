@@ -1,0 +1,329 @@
+{
+  "metadata": {
+    "title": "InnoLive",
+    "description": "Real-time AI de-identification for live streaming",
+    "pricingTitle": "Pricing | InnoLive",
+    "tryOutTitle": "Try out | InnoLive",
+    "experienceTitle": "InnoLive experience",
+    "loginTitle": "Log in | InnoLive",
+    "signupTitle": "Sign up | InnoLive"
+  },
+  "common": {
+    "skipToMain": "Skip to main content",
+    "close": "Close",
+    "loading": "Loading",
+    "languageNav": "Language"
+  },
+  "header": {
+    "home": "InnoLive home",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "primaryNav": "Primary"
+  },
+  "nav": {
+    "tryOut": "Try out",
+    "pricing": "Pricing"
+  },
+  "download": {
+    "label": "Download",
+    "unavailable": "Coming soon"
+  },
+  "authNav": {
+    "login": "Login",
+    "logout": "Logout",
+    "signingOut": "Signing out"
+  },
+  "footer": {
+    "tagline": "Real-time AI de-identification for live streaming",
+    "ceo": "Framework CEO: Chae Geun-yeong",
+    "dpo": "Privacy Officer: Kwon Dae-hyeong",
+    "phone": "Phone: 010-2732-9514",
+    "address": "Address: 93 Changni-ro 11-gil, Guji-myeon, Dalseong-gun, Daegu, Republic of Korea",
+    "copyright": "Copyright © 2026 Framework",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "support": "Support",
+    "faq": "FAQ",
+    "socialMissing": "{name} link is not available yet"
+  },
+  "intro": {
+    "dialogLabel": "InnoLive introduction",
+    "skip": "Skip to main content",
+    "letteringSafe": "Keep your broadcast safe.",
+    "letteringFocus": "Focus only on you.",
+    "sceneSafe": "Intro {n}. Keep your broadcast safe.",
+    "sceneFocus": "Intro {n}. Focus only on you."
+  },
+  "hero": {
+    "line1": "If you're not the star,",
+    "line2Prefix": "cover them ",
+    "line2Blur": "boldly.",
+    "support1": "Are you still editing out bystanders' faces one by one after an outdoor stream?",
+    "support2": "Make safer broadcasts with InnoLive.",
+    "tryOut": "Try Out"
+  },
+  "privacy": {
+    "titleLine1": "No portrait-rights worries",
+    "titleAfterAi": "de-identified live",
+    "body1": "Real-time AI de-identification protects",
+    "body2": "bystanders' portrait rights and your broadcast at the same time.",
+    "empty": "De-identification demo coming soon",
+    "slides": [
+      { "alt": "Bystander face detection demo", "label": "Bystander face detection demo" },
+      { "alt": "Real-time de-identification demo", "label": "Real-time de-identification demo" },
+      { "alt": "Safe live streaming demo", "label": "Safe live streaming demo" }
+    ]
+  },
+  "features": {
+    "title": "The basics, done well",
+    "body1": "InnoLive covers the core job of a broadcasting app.",
+    "body2": "Pick a platform and start streaming without extra setup.",
+    "latency": "Max de-identification latency",
+    "platforms": "Stream directly to multiple platforms",
+    "lettering": "AI de-identified live",
+    "letteringAria": "AI de-identified live",
+    "chzzkAlt": "CHZZK",
+    "resolution": "High-resolution live",
+    "free": "Stay LITE on the free plan**",
+    "note1": "*Server-to-AI latency measurements. Results vary by network and device.",
+    "note2": "**The free plan may include usage limits."
+  },
+  "faq": {
+    "subtitle": "Frequently asked questions",
+    "items": [
+      {
+        "question": "Q. What is InnoLive?",
+        "answer": "InnoLive is a broadcast tool that de-identifies other people's faces in real time during a live stream. Register people who are allowed to appear, and everyone else is covered automatically."
+      },
+      {
+        "question": "Q. The app does not work on my device.",
+        "answer": "InnoLive requires iOS 26 or later and Android 11 or later for stable operation."
+      },
+      {
+        "question": "Q. Which streaming platforms can I use?",
+        "answer": "InnoLive currently supports YouTube and CHZZK."
+      },
+      {
+        "question": "Q. My face is covered on the stream.",
+        "answer": "To appear on the broadcast, register your own face as an allowed person first. If you already did, make sure your face is clearly visible to the camera."
+      },
+      {
+        "question": "Q. Can I register more than one face?",
+        "answer": "Yes. You can register each co-host as an allowed person. Free allows up to 2 faces, and Streamer and above allow up to 5."
+      }
+    ],
+    "privacyQuestion": "Q. How do you handle signup information and registered faces?",
+    "privacyBefore": "See the ",
+    "privacyLink": "Privacy Policy",
+    "privacyAfter": " for how we process personal information."
+  },
+  "pricing": {
+    "ariaLabel": "Unlock InnoLive's potential",
+    "headingBrand": "InnoLive",
+    "headingMid": "'s ",
+    "headingAccent": "potential, unlocked",
+    "body1": "Unlock every InnoLive feature at a reasonable price.",
+    "body2": "Plans include real-time face replacement and higher usage.",
+    "subscribeBrand": "InnoLive",
+    "subscribe": "Subscribe to a plan",
+    "personalLabel": "Personal plans",
+    "businessTitle": "Plans for crews and businesses",
+    "businessBody": "Run streams more easily and affordably with Crew and Business.",
+    "businessLabel": "Business plans",
+    "termsNote": "Terms apply.",
+    "termsLink": "Learn more",
+    "loginCta": "Log in to use the free plan",
+    "scrollLeft": "Scroll left",
+    "scrollRight": "Scroll right"
+  },
+  "plans": {
+    "periodMonth": "month",
+    "periodOnce": "one-time",
+    "ribbon": "Beta tester",
+    "personal": {
+      "free": {
+        "description": "Essential protection",
+        "cta": "Current plan",
+        "features": [
+          "Accurate de-identification for every bystander",
+          "Limited use of higher-tier models",
+          "X hours of continuous streaming",
+          "Register up to 2 faces",
+          "Android and iOS apps"
+        ]
+      },
+      "streamer": {
+        "description": "Segmentation and more usage",
+        "cta": "Subscribe to Streamer",
+        "features": [
+          "Everything in Free",
+          "Improved de-identification with segmentation",
+          "2× usage",
+          "XX hours of continuous streaming",
+          "Register up to 5 faces"
+        ]
+      },
+      "pro": {
+        "description": "Face replacement and top performance",
+        "cta": "Subscribe to Pro",
+        "features": [
+          "Everything in Streamer",
+          "More natural streams with real-time face replacement",
+          "3× usage",
+          "Access to experimental models"
+        ]
+      },
+      "onDevice": {
+        "description": "Unlimited usage and maximum privacy",
+        "cta": "Pay for On Device",
+        "helpLabel": "On Device details",
+        "features": [
+          "Accurate de-identification for every bystander",
+          "Pay once, use permanently",
+          "All limits removed",
+          "Android and iOS apps",
+          "De-identify on device, then stream",
+          "No added streaming delay"
+        ],
+        "footnotes": [
+          "*The plan may be cancelled when the promotion ends.",
+          "*De-identification quality can vary with device performance."
+        ]
+      }
+    },
+    "business": {
+      "crew": {
+        "description": "One plan, lower cost",
+        "amount": "30,000 ~ ₩93,500",
+        "cta": "Subscribe to Crew",
+        "features": ["Share up to 3 accounts", "Every feature of the selected plan"]
+      },
+      "business": {
+        "description": "Flexible for any situation",
+        "amount": "Custom",
+        "cta": "Contact us",
+        "features": ["Custom plan", "Stronger security"]
+      }
+    }
+  },
+  "onDevice": {
+    "subtitle": "Everything stays on the device",
+    "pay": "Pay for On Device",
+    "termsNote": "*Terms apply.",
+    "termsLink": "Learn more",
+    "body": "Content coming soon"
+  },
+  "tryOut": {
+    "ariaLabel": "The moment it appears, protection starts",
+    "heading": "The moment it appears, protection starts",
+    "body": "See InnoLive's potential with your own eyes.",
+    "cameraPermission": "Please allow camera access",
+    "checking": "Checking",
+    "start": "Start experience",
+    "startGuest": "Start as a guest",
+    "loginOrSignup": "Sign up or log in",
+    "stop": "Stop experience",
+    "registerFace": "Register face",
+    "memberCta": "Try de-identification",
+    "tip": "Tip! Signing up shortens wait time.",
+    "networkNote": "Performance can vary with your network.",
+    "unavailable": "This experience is not ready yet",
+    "waitingPreview": "Waiting screen preview",
+    "facePreview": "Face registration screen preview"
+  },
+  "waiting": {
+    "preview": "Screen preview",
+    "queue": "People waiting",
+    "count": "10 people",
+    "eta": "Estimated wait: 3 minutes",
+    "note": "Please wait a moment to keep the servers from overloading."
+  },
+  "face": {
+    "preview": "Screen preview",
+    "title": "Face registration",
+    "subtitle": "Keep only your face clear",
+    "termsNote": "*Terms apply.",
+    "registered": "Your face has been registered.",
+    "guide": "Place your face inside the circle and wait a moment."
+  },
+  "experience": {
+    "title": "Real-time de-identification demo",
+    "preparing": "Preparing the experience connection.",
+    "checkingMedia": "Checking camera and microphone permission.",
+    "connected": "The experience is connected.",
+    "startingWebrtc": "Starting the WebRTC connection.",
+    "ended": "The experience has ended.",
+    "remoteLabel": "Processed remote video",
+    "remotePlaceholder": "Processed video appears when the connection is ready.",
+    "localLabel": "Your camera preview",
+    "localBadge": "Your preview",
+    "retry": "Try again",
+    "end": "End experience",
+    "restart": "Start again",
+    "errors": {
+      "permission": "Please allow camera and microphone access.",
+      "notFound": "No camera or microphone was found.",
+      "failed": "Could not connect the experience. Please try again."
+    }
+  },
+  "auth": {
+    "loginTitle": "Log in",
+    "signupTitle": "Sign up",
+    "verifyTitle": "Email verification",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "verificationCode": "6-digit verification code",
+    "showPassword": "Show",
+    "hidePassword": "Hide",
+    "showPasswordLabel": "Show password",
+    "hidePasswordLabel": "Hide password",
+    "forgotPassword": "Forgot password",
+    "forgotPending": "Password recovery is not ready yet",
+    "submitLogin": "Log in",
+    "submittingLogin": "Signing in",
+    "goSignup": "Go to sign up",
+    "goLogin": "Go to log in",
+    "sendCode": "Send verification email",
+    "completeVerify": "Verify",
+    "processing": "Working",
+    "policyNav": "Policies",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "agree": "I agree to the {terms}.",
+    "termsTitle": "Terms of Service",
+    "termsLead": "Only the terms required to use the service.",
+    "agreeButton": "I agree.",
+    "termsBodyLabel": "Terms of Service body",
+    "verificationSent": "We sent a verification email. Enter the 6-digit code.",
+    "verificationHint": "Enter the code we sent to {email}.",
+    "validation": {
+      "emailRequired": "Enter your email",
+      "emailInvalid": "Enter a valid email address",
+      "passwordRequired": "Enter your password",
+      "passwordLength": "Password must be 8–72 bytes in UTF-8",
+      "confirmRequired": "Re-enter your password",
+      "confirmMismatch": "Passwords do not match",
+      "termsRequired": "Please agree to the Terms of Service",
+      "codeRequired": "Enter the 6-digit verification code"
+    },
+    "errors": {
+      "fallback": "Could not complete the sign-in request. Please try again shortly.",
+      "configuration_error": "The server address is not configured.",
+      "network_error": "Could not reach the server. Please try again shortly.",
+      "auth_unavailable": "Could not reach the auth server. Please try again shortly.",
+      "email_already_registered": "This email is already registered.",
+      "email_delivery_unavailable": "Could not send a verification email. Please try again shortly.",
+      "email_delivery_failed": "Failed to send the verification email. Please try again shortly.",
+      "email_auth_unavailable": "Email verification is unavailable. Please try again shortly.",
+      "invalid_signup_token": "Sign-up verification expired. Please start again.",
+      "invalid_verification_code": "The verification code is incorrect or expired.",
+      "invalid_email_credentials": "Email or password is incorrect.",
+      "too_many_signup_requests": "Too many sign-up requests. Please try again shortly.",
+      "too_many_requests": "Too many requests. Please try again shortly.",
+      "origin_not_allowed": "Sign-in is not available from this address.",
+      "invalid_request": "Check your email and password.",
+      "invalid_token_response": "Could not confirm the login session."
+    }
+  }
+}

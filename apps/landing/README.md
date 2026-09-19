@@ -18,19 +18,18 @@ pnpm start
 
 ## 라우트
 
+모든 페이지는 `/ko`, `/en`, `/ja` 접두사를 사용합니다. 접두사가 없는 경로는 `NEXT_LOCALE` 쿠키, `Accept-Language`, 기본값 `ko` 순으로 로케일을 붙여 이동합니다. 지원하지 않는 두 글자 코드(`/fr`)는 404입니다.
+
 | 경로 | 설명 |
 | --- | --- |
-| `/` | 인트로 후 홈(히어로, 프라이버시, 기능, FAQ) |
-| `/pricing` | 요금제 |
-| `/try-out` | 로그인 세션에 따른 게스트·회원 체험 진입 |
-| `/try-out/experience` | WebRTC 체험 연결 |
-| `/login`, `/signup` | 이메일 로그인·인증 회원가입 |
-| `/privacy` | 개인정보 처리방침 (한국어 MDX) |
-| `/terms` | 이용약관 (한국어 MDX) |
-| `/support` | 고객 지원 (한국어 MDX) |
-| `/en/privacy`, `/en/terms`, `/en/support` | 영어 MDX |
-| `/ja/privacy`, `/ja/terms`, `/ja/support` | 일본어 MDX |
-| `/ko/privacy`, `/ko/terms`, `/ko/support` | 접두사 없는 한국어 경로로 이동 |
+| `/ko`, `/en`, `/ja` | 인트로 후 홈(히어로, 프라이버시, 기능, FAQ) |
+| `/ko/pricing`, `/en/pricing`, `/ja/pricing` | 요금제 |
+| `/ko/try-out` 등 | 로그인 세션에 따른 게스트·회원 체험 진입 |
+| `/ko/try-out/experience` 등 | WebRTC 체험 연결 |
+| `/ko/login`, `/ko/signup` 등 | 이메일 로그인·인증 회원가입 |
+| `/ko/privacy`, `/en/privacy`, `/ja/privacy` | 개인정보 처리방침 MDX |
+| `/ko/terms`, `/en/terms`, `/ja/terms` | 이용약관 MDX |
+| `/ko/support`, `/en/support`, `/ja/support` | 고객 지원 MDX |
 
 ## 인트로
 
@@ -53,7 +52,7 @@ pnpm start
 
 ## 정책
 
-문서는 `content/documents/`의 `{privacy-policy,terms-of-service,support}.{ko,en,ja}.mdx`에서 편집합니다. 프론트매터 없이 본문만 둡니다. 기본 경로는 한국어 `/privacy`, `/terms`, `/support`이고, 영어는 `/en/…`, 일본어는 `/ja/…`입니다. `/ko/privacy`, `/ko/terms`, `/ko/support`는 접두사 없는 한국어 경로로 이동합니다. 게시일·시행일은 문서 본문에 있습니다. MDX는 `@next/mdx`로 로컬 컴파일합니다. 설정은 [Next.js MDX 가이드](https://nextjs.org/docs/app/guides/mdx)를 따릅니다.
+문서는 `content/documents/`의 `{privacy-policy,terms-of-service,support}.{ko,en,ja}.mdx`에서 편집합니다. 프론트매터 없이 본문만 둡니다. 화면 문구는 `messages/{ko,en,ja}.json`에서 편집하며 세 파일의 키를 같게 유지합니다. 게시일·시행일은 문서 본문에 있습니다. MDX는 `@next/mdx`로 로컬 컴파일합니다. 설정은 [Next.js MDX 가이드](https://nextjs.org/docs/app/guides/mdx)를 따릅니다. 인트로 장면의 손글씨 이미지는 한국어 아트워크입니다.
 
 랜딩의 결제와 얼굴 등록 UI는 포함하지 않습니다. 실제 WebRTC 연결 결과는 서버의 인증, CORS, ICE/TURN, 게스트 대기열 운영 설정에 따라 달라집니다. 문서 본문은 제품 전체의 처리·약관·지원을 설명합니다.
 

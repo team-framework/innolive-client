@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef } from "react";
+import { useLocale } from "@/components/locale-provider";
 
 type DialogProps = {
   open: boolean;
@@ -11,6 +12,7 @@ type DialogProps = {
 };
 
 export function Dialog({ open, onClose, label, children }: DialogProps) {
+  const { messages } = useLocale();
   const ref = useRef<HTMLDialogElement>(null);
 
   useLayoutEffect(() => {
@@ -59,7 +61,7 @@ export function Dialog({ open, onClose, label, children }: DialogProps) {
           className="rounded-pill bg-background-secondary px-3 py-1 text-sm text-text-primary shadow-button"
           onClick={onClose}
         >
-          닫기
+          {messages.common.close}
         </button>
       </div>
       <div className="min-h-0 overflow-y-auto overflow-x-hidden px-2 pb-2">

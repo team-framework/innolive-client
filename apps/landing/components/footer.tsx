@@ -1,8 +1,14 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useLocale } from "@/components/locale-provider";
+import { interpolate } from "@/lib/locales";
 import { socialLinks } from "@/lib/site";
 
 export function Footer() {
+  const { href, messages } = useLocale();
+
   return (
     <footer className="w-full bg-background-footer">
       <div className="mx-auto flex w-full max-w-[1408px] flex-col gap-12 px-4 pt-16 pb-7 sm:gap-[110px] sm:px-8">
@@ -25,36 +31,36 @@ export function Footer() {
               className="block lg:hidden"
             />
             <p className="text-lg leading-[1.15] text-text-primary">
-              실시간 AI 비식별화 방송 솔루션
+              {messages.footer.tagline}
             </p>
           </div>
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
             <div className="flex min-w-0 max-w-[1100px] flex-1 flex-col gap-1.5 text-base leading-[1.3] tracking-[-0.02em] text-text-secondary">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                <p>Framework 대표: 채근영</p>
-                <p>개인정보보호책임자: 권대형</p>
+                <p>{messages.footer.ceo}</p>
+                <p>{messages.footer.dpo}</p>
                 <a className="underline" href="mailto:contact@innolive.studio">
                   contact@innolive.studio
                 </a>
                 <p>Hosted by Framework</p>
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                <p>전화번호: 010-2732-9514</p>
-                <p>주소: 대구광역시 달성군 구지면 창리로11길 93</p>
-                <p>Copyright © 2026 Framework</p>
+                <p>{messages.footer.phone}</p>
+                <p>{messages.footer.address}</p>
+                <p>{messages.footer.copyright}</p>
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-text-secondary">
-                <Link href="/privacy" className="font-semibold underline">
-                  개인정보 처리방침
+                <Link href={href("/privacy")} className="font-semibold underline">
+                  {messages.footer.privacy}
                 </Link>
-                <Link href="/terms" className="underline">
-                  서비스 이용약관
+                <Link href={href("/terms")} className="underline">
+                  {messages.footer.terms}
                 </Link>
-                <Link href="/support" className="underline">
-                  고객 지원
+                <Link href={href("/support")} className="underline">
+                  {messages.footer.support}
                 </Link>
-                <Link href="/#faq" className="underline">
-                  FAQ
+                <Link href={href("/#faq")} className="underline">
+                  {messages.footer.faq}
                 </Link>
               </div>
             </div>
@@ -89,7 +95,9 @@ export function Footer() {
                 return (
                   <li key={social.name}>
                     <span
-                      aria-label={`${social.name} 링크는 아직 없습니다`}
+                      aria-label={interpolate(messages.footer.socialMissing, {
+                        name: social.name,
+                      })}
                       className="block size-8"
                     >
                       {icon}

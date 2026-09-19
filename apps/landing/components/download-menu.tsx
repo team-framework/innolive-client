@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/button";
+import { useLocale } from "@/components/locale-provider";
 import { cn } from "@/lib/cn";
 import { downloadPlatforms } from "@/lib/site";
 
@@ -11,6 +12,7 @@ type DownloadMenuProps = {
 };
 
 export function DownloadMenu({ trigger = "default" }: DownloadMenuProps) {
+  const { messages } = useLocale();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -76,7 +78,7 @@ export function DownloadMenu({ trigger = "default" }: DownloadMenuProps) {
       {open ? (
         <div
           id={menuId}
-          aria-label="다운로드"
+          aria-label={messages.download.label}
           className={cn(
             "absolute z-20 mt-2 flex w-[195px] flex-col gap-2.5 rounded-[20px] bg-background-secondary p-2.5 shadow-button",
             isHero ? "left-0" : "right-0",
@@ -105,7 +107,7 @@ export function DownloadMenu({ trigger = "default" }: DownloadMenuProps) {
                     {platform.name}
                   </span>
                   <span className="text-sm font-semibold leading-none text-text-secondary">
-                    {unavailable ? "준비 중" : platform.minOs}
+                    {unavailable ? messages.download.unavailable : platform.minOs}
                   </span>
                 </span>
               </>

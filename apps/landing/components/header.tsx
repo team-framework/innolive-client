@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthNavigation } from "@/components/auth-navigation";
 import { DownloadMenu } from "@/components/download-menu";
+import { LanguageSwitch } from "@/components/language-switch";
+import { useLocale } from "@/components/locale-provider";
 import { cn } from "@/lib/cn";
 import { navLinks } from "@/lib/site";
 
@@ -12,6 +14,7 @@ const navClassName =
   "inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline md:text-2xl";
 
 export function Header() {
+  const { href, messages } = useLocale();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -34,10 +37,10 @@ export function Header() {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-30 focus:bg-background-secondary focus:px-3 focus:py-2 focus:text-text-primary"
       >
-        본문으로 건너뛰기
+        {messages.common.skipToMain}
       </a>
       <div className=" absolute mx-auto flex w-screen h-24 top-0 items-end justify-between gap-3  px-5 py-5 backdrop-blur bg-background-primary/80 md:p-8 md:px-12">
-        <Link href="/" className="shrink-0" aria-label="InnoLive 홈">
+        <Link href={href("/")} className="shrink-0" aria-label={messages.header.home}>
           <Image
             src="/brand/logo-header.svg"
             alt="InnoLive"
@@ -63,7 +66,7 @@ export function Header() {
             type="button"
             aria-controls="mobile-navigation"
             aria-expanded={mobileMenuOpen}
-            aria-label={mobileMenuOpen ? "메뉴 닫기" : "메뉴 열기"}
+            aria-label={mobileMenuOpen ? messages.header.closeMenu : messages.header.openMenu}
             className="inline-flex size-11 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-background-primary"
             onClick={() => setMobileMenuOpen((open) => !open)}
           >
@@ -74,7 +77,7 @@ export function Header() {
         </div>
         <nav
           id="mobile-navigation"
-          aria-label="주요"
+          aria-label={messages.header.primaryNav}
           className={cn(
             "absolute inset-x-0 top-full flex-col gap-4 border-t border-surface-primary bg-background-secondary px-5 py-5 shadow-button md:static md:flex md:w-auto md:flex-row md:items-center md:justify-end md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
             mobileMenuOpen ? "flex" : "hidden",
@@ -83,17 +86,18 @@ export function Header() {
           {navLinks.map((link) => (
             <Link
               key={link.href}
-              href={link.href}
+              href={href(link.href)}
               className={navClassName}
               onClick={() => setMobileMenuOpen(false)}
             >
-              {link.label}
+              {messages.nav[link.id]}
             </Link>
           ))}
           <div className="hidden md:block">
             <DownloadMenu />
           </div>
           <AuthNavigation className={navClassName} />
+          <LanguageSwitch className="pt-2 md:pt-0" />
         </nav>
       </div>
     </header>

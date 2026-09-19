@@ -3,12 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/button";
+import { useLocale } from "@/components/locale-provider";
 import { TextField } from "@/components/text-field";
 import { authErrorMessage, signIn } from "@/lib/auth-client";
 import { isValidEmail } from "@/lib/auth-validation";
 
 export function LoginForm() {
   const router = useRouter();
+  const { href, messages } = useLocale();
+  const copy = messages.auth;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
@@ -22,12 +25,12 @@ export function LoginForm() {
     const next: { email?: string; password?: string } = {};
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      next.email = "이메일을 입력해 주세요";
+      next.email = copy.validation.emailRequired;
     } else if (!isValidEmail(trimmedEmail)) {
-      next.email = "올바른 이메일 주소를 입력해 주세요";
+      next.email = copy.validation.emailInvalid;
     }
     if (!password) {
-      next.password = "비밀번호를 입력해 주세요";
+      next.password = copy.validation.passwordRequired;
     }
     setErrors(next);
     setNotice(null);
@@ -36,10 +39,10 @@ export function LoginForm() {
     setIsSubmitting(true);
     try {
       await signIn(trimmedEmail, password);
-      router.push("/");
+      router.push(href("/"));
       router.refresh();
     } catch (error) {
-      setNotice(authErrorMessage(error));
+      setNotice(authErrorMessage(error, copy.errors));
     } finally {
       setIsSubmitting(false);
     }
@@ -52,12 +55,12 @@ export function LoginForm() {
       onSubmit={onSubmit}
     >
       <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary">
-        로그인
+        {copy.loginTitle}
       </h1>
       <div className="flex w-full flex-col items-start gap-2">
         <TextField
           icon="mail"
-          label="이메일"
+          label={copy.email}
           type="email"
           autoComplete="email"
           value={email}
@@ -66,7 +69,7 @@ export function LoginForm() {
         />
         <TextField
           icon="lock"
-          label="비밀번호"
+          label={copy.password}
           autoComplete="current-password"
           revealable
           value={password}
@@ -77,9 +80,9 @@ export function LoginForm() {
           <button
             type="button"
             className="text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font]"
-            onClick={() => setNotice("비밀번호 찾기 기능을 준비 중입니다")}
+            onClick={() => setNotice(copy.forgotPending)}
           >
-            비밀번호 찾기
+            {copy.forgotPassword}
           </button>
         </div>
       </div>
@@ -91,15 +94,15 @@ export function LoginForm() {
           className="w-full max-w-none"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "로그인 중" : "로그인"}
+          {isSubmitting ? copy.submittingLogin : copy.submitLogin}
         </Button>
         <Button
-          href="/signup"
+          href={href("/signup")}
           showChevron={false}
           className="w-full max-w-none"
           disabled={isSubmitting}
         >
-          회원가입으로 이동
+          {copy.goSignup}
         </Button>
       </div>
       {notice ? (

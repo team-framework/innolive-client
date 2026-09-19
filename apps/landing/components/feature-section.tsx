@@ -4,6 +4,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
 import { useLayoutEffect, useRef } from "react";
+import { useLocale } from "@/components/locale-provider";
 
 const cardClass = "overflow-clip rounded-[12px]";
 
@@ -45,6 +46,7 @@ const faceMaskArtworkStyle = {
 } as const;
 
 export function FeatureSection() {
+  const { locale, messages } = useLocale();
   const sectionRef = useRef<HTMLElement>(null);
 
   useLayoutEffect(() => {
@@ -134,11 +136,11 @@ export function FeatureSection() {
             id="features-heading"
             className="break-words text-[clamp(2rem,1.05rem+4.2vw,4.25rem)] font-bold leading-[1.3] tracking-tight text-text-primary"
           >
-            기본은 충실하게
+            {messages.features.title}
           </h2>
           <div className="max-w-[494px] break-keep text-body-lg font-normal text-text-primary">
-            <p>방송 어플리케이션의 기본 역할을 충실히 수행합니다.</p>
-            <p>원하는 플랫폼을 선택하고 손쉽게 방송을 시작하세요!</p>
+            <p>{messages.features.body1}</p>
+            <p>{messages.features.body2}</p>
           </div>
         </div>
 
@@ -158,7 +160,7 @@ export function FeatureSection() {
                   </p>
                   <div className="flex items-start gap-1">
                     <p className="break-keep text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-none text-text-reversed">
-                      비식별화 최대 지연시간
+                      {messages.features.latency}
                     </p>
                     <span className="relative mt-0.5 inline-block h-[11.667px] w-[10.104px] shrink-0">
                       <span className="absolute inset-[-7.14%_-8.25%]">
@@ -196,7 +198,7 @@ export function FeatureSection() {
                     <div className="relative aspect-[268/84] w-[min(100%,16.772rem)]">
                       <Image
                         src="/landing/chzzk-logo.png"
-                        alt="치지직"
+                        alt={messages.features.chzzkAlt}
                         width={1920}
                         height={601}
                         sizes="268px"
@@ -205,7 +207,7 @@ export function FeatureSection() {
                     </div>
                   </div>
                   <p className="w-full max-w-[810px] break-keep text-center text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-none text-text-primary">
-                    다양한 플랫폼에 직접 송출
+                    {messages.features.platforms}
                   </p>
                 </div>
               </div>
@@ -218,20 +220,26 @@ export function FeatureSection() {
               <div
                 data-feature-card
                 className={`${cardClass} relative aspect-[874/370] w-full bg-background-secondary lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[874px] min-[106.5rem]:flex-none min-[106.5rem]:aspect-auto`}
-                aria-label="AI 비식별화 라이브"
+                aria-label={messages.features.letteringAria}
               >
                 <div
                   data-feature-content
                   className="absolute inset-[39.68%_8.62%_40.08%_8.44%]"
                 >
-                  <Image
-                    src="/landing/features-lettering.svg"
-                    alt=""
-                    width={725}
-                    height={75}
-                    unoptimized
-                    className="absolute inset-0 size-full max-w-none"
-                  />
+                  {locale === "ko" ? (
+                    <Image
+                      src="/landing/features-lettering.svg"
+                      alt=""
+                      width={725}
+                      height={75}
+                      unoptimized
+                      className="absolute inset-0 size-full max-w-none"
+                    />
+                  ) : (
+                    <p className="flex size-full items-center justify-center text-center text-[clamp(1.25rem,0.9rem+1.6vw,2.35rem)] font-extrabold leading-none text-text-primary">
+                      {messages.features.lettering}
+                    </p>
+                  )}
                 </div>
                 <div className="absolute inset-[10%_8.35%_0_30.78%]">
                   <div className="absolute inset-0 overflow-hidden">
@@ -280,7 +288,7 @@ export function FeatureSection() {
                       1080p
                     </p>
                     <p className="text-center text-xl font-medium leading-none text-text-primary">
-                      고해상도 라이브
+                      {messages.features.resolution}
                     </p>
                   </div>
                 </div>
@@ -294,7 +302,7 @@ export function FeatureSection() {
                       FREEE
                     </p>
                     <p className="text-center text-xl font-medium leading-none text-text-primary">
-                      무료 요금제로 LITE하게**
+                      {messages.features.free}
                     </p>
                   </div>
                 </div>
@@ -303,8 +311,8 @@ export function FeatureSection() {
           </div>
 
           <div className="flex w-full flex-col break-keep text-[length:clamp(1rem,0.9rem+0.4vw,1.25rem)] font-normal leading-[1.3] tracking-tight text-text-secondary">
-            <p>*서버-AI간 지연시간 측정 자료, 네트워크 환경 및 기기에 따라 변동 가능</p>
-            <p>**무료 요금제의 경우 사용에 일부 제한이 있을 수 있습니다.</p>
+            <p>{messages.features.note1}</p>
+            <p>{messages.features.note2}</p>
           </div>
         </div>
       </div>
