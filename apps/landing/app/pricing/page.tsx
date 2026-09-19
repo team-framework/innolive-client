@@ -21,6 +21,7 @@ function PlanScroller({
       tabIndex={0}
       className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pr-7 pt-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary ${className ?? ""}`}
     >
+      <div className="w-10 shrink-0 self-stretch bg-black" onClick={() => handleScroll("r")} />
       {plans.map((plan) => (
         <div key={plan.id} className="w-[min(100%,30rem)] shrink-0 snap-start">
           <PlanCard plan={plan} />
