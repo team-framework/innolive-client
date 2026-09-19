@@ -11,7 +11,7 @@ import Image from "next/image";
 const Arrow = ({direction, onClick}: { direction: "left" | "right"; onClick: () => void; }) => {
   return (
     <div
-      className={`sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 p-[20px] transition-all duration-300 ease-linear hover:bg-[#00000030] rounded-full`}
+      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-300 ease-linear hover:bg-[#00000030]`}
       onClick={onClick}
     >
       <Image
@@ -19,7 +19,7 @@ const Arrow = ({direction, onClick}: { direction: "left" | "right"; onClick: () 
         height={28}
         src={`/icons/arrow-${direction}.svg`}
         alt={`scroll ${direction}`}
-        className="transition-[filter] hover:invert"
+        className="transition-[filter] group-hover:invert"
       />
     </div>
   );
