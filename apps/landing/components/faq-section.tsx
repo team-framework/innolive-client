@@ -1,6 +1,10 @@
+"use client";
+
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 const items: { question: string; answer: ReactNode }[] = [
   {
@@ -44,8 +48,46 @@ const items: { question: string; answer: ReactNode }[] = [
 ];
 
 export function FAQSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    gsap.registerPlugin(ScrollTrigger);
+    const media = gsap.matchMedia();
+    media.add("(prefers-reduced-motion: no-preference)", () => {
+      const entries = section.querySelectorAll("details");
+      gsap.set(entries, { opacity: 0, y: 32 });
+      ScrollTrigger.batch(entries, {
+        start: "top 80%",
+        onEnter: (batch) => {
+          gsap.to(batch, { opacity: 1, y: 0, duration: 0.6, stagger: 0.12, ease: "power2.out" });
+        },
+        onLeaveBack: (batch) => {
+          gsap.to(batch, {
+            opacity: 0,
+            y: 32,
+            duration: 0.6,
+            stagger: 0.12,
+            ease: "power2.out",
+            overwrite: true,
+          });
+        },
+      });
+      // Keyboard focus must never remain on an invisible question or answer link.
+      const revealFocused = (event: FocusEvent) => {
+        const entry = (event.target as HTMLElement).closest("details");
+        if (entry) gsap.to(entry, { opacity: 1, y: 0, duration: 0, overwrite: true });
+      };
+      section.addEventListener("focusin", revealFocused);
+      return () => section.removeEventListener("focusin", revealFocused);
+    }, section);
+    return () => media.revert();
+  }, []);
+
   return (
     <section
+      ref={sectionRef}
       id="faq"
       className="flex w-full flex-col items-center bg-background-secondary px-[var(--page-gutter)] py-16 lg:py-24 min-[106.5rem]:py-40"
       aria-labelledby="faq-heading"
@@ -67,7 +109,7 @@ export function FAQSection() {
           {items.map((item) => (
             <details
               key={item.question}
-              open
+              open={false}
               className="flex w-full flex-col gap-2.5 py-2 open:[&_summary_img]:rotate-180"
             >
               <summary className="flex w-full cursor-pointer list-none items-center gap-2.5 py-2 [&::-webkit-details-marker]:hidden [&::marker]:content-none">

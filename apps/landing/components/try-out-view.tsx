@@ -6,6 +6,7 @@ import { Dialog } from "@/components/dialog";
 import { FaceRegistrationOverlay } from "@/components/face-registration-overlay";
 import { WaitingOverlay } from "@/components/waiting-overlay";
 import { cn } from "@/lib/cn";
+import {SequentialHeroHeading} from "@/components/sequential-hero-heading";
 
 type Preview = "guest" | "active" | "member";
 type Overlay = "none" | "face" | "waiting";
@@ -68,12 +69,7 @@ export function TryOutView() {
 
       <div className="flex w-full max-w-[100rem] flex-col items-center gap-[4.125rem]">
         <div className="flex flex-col items-center gap-8 text-center text-text-primary">
-          <h1
-            id="try-out-heading"
-            className="break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none"
-          >
-            보이는 순간, 보호는 시작
-          </h1>
+          <SequentialHeroHeading segments={[{text: "보이는 순간, 보호는 시작", className: "break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none"}]} ariaLabel="보이는 순간, 보호는 시작" />
           <p className="break-keep text-body-lg font-normal">
             InnoLive의 뛰어난 잠재력을 눈으로 직접 확인해 보세요.
           </p>

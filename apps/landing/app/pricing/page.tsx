@@ -1,7 +1,29 @@
+"use client";
+
 import Link from "next/link";
 import { Button } from "@/components/button";
 import { PlanCard } from "@/components/plan-card";
-import { businessPlans, personalPlans } from "@/lib/plans";
+import {businessPlans, personalPlans, Plan} from "@/lib/plans";
+import {SequentialHeroHeading} from "@/components/sequential-hero-heading";
+import {useRef} from "react";
+import Image from "next/image";
+
+const Arrow = ({direction, onClick}: { direction: "left" | "right"; onClick: () => void; }) => {
+  return (
+    <div
+      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-300 ease-linear hover:bg-[#00000030]`}
+      onClick={onClick}
+    >
+      <Image
+        width={28}
+        height={28}
+        src={`/icons/arrow-${direction}.svg`}
+        alt={`scroll ${direction}`}
+        className="transition-[filter] group-hover:invert"
+      />
+    </div>
+  );
+};
 
 function PlanScroller({
   label,
@@ -12,18 +34,34 @@ function PlanScroller({
   plans: typeof personalPlans;
   className?: string;
 }) {
+  const plansRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (direction: "l" | "r") => {
+    if (!plansRef.current) {
+      return;
+    }
+
+    plansRef.current.scrollBy({
+      left: direction === "l" ? -400 : 400,
+      behavior: "smooth",
+    });
+  }
+
   return (
     <div
       role="region"
       aria-label={label}
       tabIndex={0}
-      className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pr-7 pt-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary ${className ?? ""}`}
+      className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pt-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary ${className ?? ""}`}
+      ref={plansRef}
     >
-      {plans.map((plan) => (
+      <Arrow direction="left" onClick={() => handleScroll("l")}/>
+      {plans.map((plan: Plan) => (
         <div key={plan.id} className="w-[min(100%,30rem)] shrink-0 snap-start">
           <PlanCard plan={plan} />
         </div>
       ))}
+      <Arrow direction="right" onClick={() => handleScroll("r")}/>
     </div>
   );
 }
@@ -43,6 +81,12 @@ function TermsNote() {
 }
 
 export default function PricingPage() {
+  const segments = [
+    { text: "InnoLive", className: "font-normal tracking-[-0.05em]" },
+    { text: "의 ", className: "" },
+    { text: "잠재력 해제", className: "", gradient: true },
+  ];
+
   return (
     <main id="main" data-page="pricing" className="bg-background-primary">
       <section
@@ -50,24 +94,15 @@ export default function PricingPage() {
         aria-labelledby="pricing-heading"
       >
         <div className="flex w-full max-w-[43.75rem] flex-col items-center gap-8 text-center">
-          <h1
-            id="pricing-heading"
-            className="w-max max-w-full break-keep text-[clamp(2rem,1.1rem+3.6vw,4rem)] font-bold leading-none text-text-primary"
-          >
-            <span className="font-normal tracking-[-0.05em]">InnoLive</span>
-            의{" "}
-            <span className="bg-gradient-to-r from-[#ff0000] to-[#00f2ff] bg-clip-text text-transparent">
-              잠재력 해제
-            </span>
-          </h1>
-          <div className="w-full max-w-[37.0625rem] break-keep text-body-lg font-normal text-text-primary">
+          <SequentialHeroHeading segments={segments} ariaLabel={"InnoLive의 잠재력 해제"} />
+          <div className="pricing-support-reveal w-full max-w-[37.0625rem] break-keep text-body-lg font-normal text-text-primary">
             <p>합리적인 가격으로 InnoLive의 모든 기능을 잠금 해제하세요.</p>
             <p>실시간 얼굴 대체, 더 높은 사용량 등이 플랜에 포함됩니다.</p>
           </div>
           <Button
-            href="/signup"
+            href="/login"
             showChevron={false}
-            className="min-w-[15.8125rem] w-max max-w-none whitespace-nowrap"
+            className="pricing-support-reveal pricing-support-actions min-w-[15.8125rem] w-max max-w-none whitespace-nowrap"
           >
             <span className="font-normal">InnoLive</span>{" "}
             <span className="font-semibold">플랜 구독하기</span>
