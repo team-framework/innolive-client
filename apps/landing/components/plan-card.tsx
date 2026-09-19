@@ -127,7 +127,7 @@ export function PlanCard({
                 showChevron={false}
                 className="w-full max-w-none border border-button-secondary"
               >
-                {isLoading ? "로그인 상태 확인 중" : plan.cta.label}
+                {isLoading ? "로딩 중" : plan.cta.label}
               </Button>
             ) : (
               <Button
