@@ -14,6 +14,15 @@ export function Footer() {
               width={150}
               height={38}
               unoptimized
+              className="hidden lg:block"
+            />
+            <Image
+              src="/brand/logo-header.svg"
+              alt="InnoLive"
+              width={100}
+              height={25}
+              unoptimized
+              className="block lg:hidden"
             />
             <p className="text-lg leading-[1.15] text-text-primary">
               실시간 AI 비식별화 방송 솔루션
