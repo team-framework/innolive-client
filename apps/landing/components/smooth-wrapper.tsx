@@ -19,6 +19,7 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
       wrapper: wrapperRef.current,
       content: contentRef.current,
       smooth: 1,
+      smoothTouch: 0.1,
       effects: true,
       normalizeScroll: true,
     });
