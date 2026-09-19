@@ -7,7 +7,14 @@ export default function SignupPage() {
   return (
     <AuthShell>
       <SignupForm>
-        <TermsOfService components={documentMdxComponents("ko")} />
+        <article className="
+          [&_p]:text-body
+          [&_h1]:text-heading
+          [&_h2]:text-body-lg
+          [&_li]:text-caption
+        ">
+          <TermsOfService components={documentMdxComponents("ko")} />
+        </article>
       </SignupForm>
     </AuthShell>
   );
