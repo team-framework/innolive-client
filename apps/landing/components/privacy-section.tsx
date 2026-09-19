@@ -88,9 +88,9 @@ export function PrivacySection() {
             width={1359}
             height={2736}
             sizes={phoneSizes}
-            className="absolute inset-0 size-full max-w-none"
+            className="absolute inset-0 size-full max-w-none z-1"
           />
-          <div className="absolute inset-[3.2%_5.5%] z-10 overflow-hidden rounded-[12%] bg-background-secondary">
+          <div className="absolute inset-[3.2%_5.5%] z-0 overflow-hidden rounded-[3rem] bg-background-secondary">
             {privacySlides.length ? (
               privacySlides.map((slide, index) => (
                 <div
@@ -119,10 +119,6 @@ export function PrivacySection() {
                 비식별화 데모 준비 중
               </div>
             )}
-            <div
-              aria-hidden="true"
-              className="absolute top-[4%] left-1/2 z-10 h-[5.5%] w-[34%] -translate-x-1/2 rounded-pill bg-black/90"
-            />
           </div>
         </div>
       </div>
