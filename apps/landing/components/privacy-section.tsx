@@ -53,6 +53,19 @@ export function PrivacySection() {
 
       return () => context.revert();
     });
+    media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
+      const context = gsap.context(() => {
+        gsap.from(section, {
+          autoAlpha: 0,
+          duration: 0.6,
+          ease: "power2.out",
+          scrollTrigger: { once: true, start: "top 80%", trigger: section },
+          y: 48,
+        });
+      }, section);
+
+      return () => context.revert();
+    });
 
     return () => media.revert();
   }, []);
