@@ -1,38 +1,56 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/button";
 import { TextField } from "@/components/text-field";
+import { authErrorMessage, requestAuth, saveSession } from "@/lib/auth-client";
+import { utf8ByteLength } from "@/lib/auth-config";
 
-const emailPattern = /.+@.+\..+/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {},
   );
   const [notice, setNotice] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const next: { email?: string; password?: string } = {};
-    if (!email.trim()) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       next.email = "이메일을 입력해 주세요";
-    } else if (!emailPattern.test(email.trim())) {
+    } else if (!emailPattern.test(trimmedEmail)) {
       next.email = "올바른 이메일 주소를 입력해 주세요";
     }
     if (!password) {
       next.password = "비밀번호를 입력해 주세요";
-    } else if (password.length < 8) {
-      next.password = "비밀번호는 8자 이상이어야 합니다";
+    } else if (utf8ByteLength(password) < 8 || utf8ByteLength(password) > 72) {
+      next.password = "비밀번호는 UTF-8 기준 8~72바이트여야 합니다";
     }
     setErrors(next);
-    if (Object.keys(next).length > 0) {
-      setNotice(null);
-      return;
+    setNotice(null);
+    if (Object.keys(next).length > 0) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await requestAuth("/auth/sign-in", {
+        method: "POST",
+        body: JSON.stringify({ email: trimmedEmail, password }),
+      });
+      await saveSession(await response.json());
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      setNotice(authErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
     }
-    setNotice("로그인 기능을 준비 중입니다");
   };
 
   return (
@@ -79,19 +97,21 @@ export function LoginForm() {
           variant="secondary"
           showChevron={false}
           className="w-full max-w-none"
+          disabled={isSubmitting}
         >
-          로그인
+          {isSubmitting ? "로그인 중" : "로그인"}
         </Button>
         <Button
           href="/signup"
           showChevron={false}
           className="w-full max-w-none"
+          disabled={isSubmitting}
         >
           회원가입으로 이동
         </Button>
       </div>
       {notice ? (
-        <p role="status" className="w-full text-center text-base text-text-primary">
+        <p role="status" aria-live="polite" className="w-full text-center text-base text-text-primary">
           {notice}
         </p>
       ) : null}
