@@ -109,7 +109,7 @@ export function FAQSection() {
           {items.map((item) => (
             <details
               key={item.question}
-              open
+              open={false}
               className="flex w-full flex-col gap-2.5 py-2 open:[&_summary_img]:rotate-180"
             >
               <summary className="flex w-full cursor-pointer list-none items-center gap-2.5 py-2 [&::-webkit-details-marker]:hidden [&::marker]:content-none">
