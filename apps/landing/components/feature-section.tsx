@@ -101,16 +101,18 @@ export function FeatureSection() {
     });
     media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
       const context = gsap.context(() => {
-        gsap.from(section, {
-          autoAlpha: 0,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            start: "top 70%",
-            toggleActions: "restart none restart reverse",
-            trigger: section,
-          },
-          y: 48,
+        section.querySelectorAll<HTMLElement>("[data-feature-card]").forEach((card) => {
+          gsap.from(card, {
+            autoAlpha: 0,
+            duration: 0.8,
+            ease: "power2.out",
+            scrollTrigger: {
+              start: "top 70%",
+              toggleActions: "restart none restart reverse",
+              trigger: card,
+            },
+            y: 48,
+          });
         });
       }, section);
 
