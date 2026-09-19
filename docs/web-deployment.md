@@ -56,12 +56,23 @@ key는 `deploy-web` 수신기를 forced command로 지정하고 agent forwarding
 port forwarding, X11 forwarding, PTY를 끈다. 기존 Go 배포 key와 스크립트는
 그대로 둔다.
 
+배포 대상 전환은 다음 순서로 적용한다.
+
+1. `/etc/innolive/web-deploy.env`에 `NEXT_PUBLIC_INNOLIVE_SERVER_URL`을 추가한다.
+2. 새 `deploy-innolive-web.sh`를 설치하고 권한 및 sudoers 규칙을 확인한다.
+3. 운영 Compose 구성을 출력해 landing이 DB 환경과 내부 네트워크를 상속하지 않는지 확인한다.
+4. 이 변경을 `main`에 병합한다.
+
 ## 교체와 확인
 
 배포는 flock으로 직렬화한다. 새 release에 landing build context와
 `INNOLIVE_WEB_REVISION`, `NEXT_PUBLIC_INNOLIVE_SERVER_URL` build arg, SHA가
 포함된 image tag만 담은 Compose override를 만든다. 기존 web image를
 rollback용 tag로 저장한 뒤 다음 두 동작만 수행한다.
+
+release override는 기존 web 서비스의 DB `env_file`, `depends_on`, 내부
+네트워크를 제거한다. Caddy가 사용하는 `monitoring_default`의 `innolive-web`
+alias와 `127.0.0.1:3010` 포트는 유지한다.
 
 ```text
 docker compose ... build web
