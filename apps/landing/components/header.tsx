@@ -66,8 +66,8 @@ export function Header() {
           id="mobile-navigation"
           aria-label="주요"
           className={cn(
-            "absolute inset-x-0 top-full hidden flex-col gap-4 border-t border-surface-primary bg-background-secondary px-5 py-5 shadow-button md:static md:flex md:w-auto md:flex-row md:items-center md:justify-end md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
-            mobileMenuOpen && "flex",
+            "absolute inset-x-0 top-full flex-col gap-4 border-t border-surface-primary bg-background-secondary px-5 py-5 shadow-button md:static md:flex md:w-auto md:flex-row md:items-center md:justify-end md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
+            mobileMenuOpen ? "flex" : "hidden",
           )}
         >
           {navLinks.map((link) => (

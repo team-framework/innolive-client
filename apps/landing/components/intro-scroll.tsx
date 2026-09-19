@@ -31,8 +31,9 @@ export function IntroScroll() {
     const root = rootRef.current;
     if (!root || finished) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mobile = window.matchMedia("(max-width: 47.999rem)");
     const hasHashTarget = ["main", "faq"].includes(window.location.hash.slice(1));
-    if (reduce.matches || hasHashTarget) {
+    if (reduce.matches || mobile.matches || hasHashTarget) {
       const skip = gsap.delayedCall(0, () => {
         setFinished(true);
         markIntroComplete();
@@ -121,12 +122,14 @@ export function IntroScroll() {
       }
     };
     const onReduce = () => { if (reduce.matches) finish(); };
+    const onMobile = () => { if (mobile.matches) finish(); };
     root.addEventListener("wheel", onWheel, { passive: false });
     root.addEventListener("touchstart", onTouchStart, { passive: true });
     root.addEventListener("touchmove", onTouchMove, { passive: false });
     root.addEventListener("touchend", onTouchEnd);
     root.addEventListener("keydown", onKey);
     reduce.addEventListener("change", onReduce);
+    mobile.addEventListener("change", onMobile);
     return () => {
       tween?.kill();
       unlock();
@@ -136,6 +139,7 @@ export function IntroScroll() {
       root.removeEventListener("touchend", onTouchEnd);
       root.removeEventListener("keydown", onKey);
       reduce.removeEventListener("change", onReduce);
+      mobile.removeEventListener("change", onMobile);
     };
   }, [finished]);
 
