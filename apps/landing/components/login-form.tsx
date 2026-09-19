@@ -4,10 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/button";
 import { TextField } from "@/components/text-field";
-import { authErrorMessage, requestAuth, saveSession } from "@/lib/auth-client";
-import { utf8ByteLength } from "@/lib/auth-config";
-
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { authErrorMessage, signIn } from "@/lib/auth-client";
+import { isValidEmail } from "@/lib/auth-validation";
 
 export function LoginForm() {
   const router = useRouter();
@@ -25,13 +23,11 @@ export function LoginForm() {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       next.email = "이메일을 입력해 주세요";
-    } else if (!emailPattern.test(trimmedEmail)) {
+    } else if (!isValidEmail(trimmedEmail)) {
       next.email = "올바른 이메일 주소를 입력해 주세요";
     }
     if (!password) {
       next.password = "비밀번호를 입력해 주세요";
-    } else if (utf8ByteLength(password) < 8 || utf8ByteLength(password) > 72) {
-      next.password = "비밀번호는 UTF-8 기준 8~72바이트여야 합니다";
     }
     setErrors(next);
     setNotice(null);
@@ -39,11 +35,7 @@ export function LoginForm() {
 
     setIsSubmitting(true);
     try {
-      const response = await requestAuth("/auth/sign-in", {
-        method: "POST",
-        body: JSON.stringify({ email: trimmedEmail, password }),
-      });
-      await saveSession(await response.json());
+      await signIn(trimmedEmail, password);
       router.push("/");
       router.refresh();
     } catch (error) {

@@ -19,10 +19,48 @@ export class AuthRequestError extends Error {
   }
 }
 
-export async function requestAuth(
-  path: string,
-  init: RequestInit = {},
-): Promise<Response> {
+export const AUTH_STATE_CHANGE_EVENT = "innolive-auth-state-change";
+
+function notifyAuthStateChanged() {
+  window.dispatchEvent(new Event(AUTH_STATE_CHANGE_EVENT));
+}
+
+async function request(url: string, body: unknown, credentials: RequestCredentials) {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      cache: "no-store",
+      credentials,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new AuthRequestError(
+      "network_error",
+      "서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+  }
+
+  if (!response.ok) {
+    let payload: ServerErrorBody = {};
+    try {
+      payload = (await response.json()) as ServerErrorBody;
+    } catch {
+      // Status-based fallback is used when no error JSON was returned.
+    }
+    const code = typeof payload.error?.code === "string" ? payload.error.code : "server_error";
+    const message =
+      typeof payload.error?.message === "string"
+        ? payload.error.message
+        : "인증 요청을 처리하지 못했습니다.";
+    throw new AuthRequestError(code, message, response.status);
+  }
+
+  return response;
+}
+
+async function requestAuthServer(path: string, body: unknown) {
   let url: string;
   try {
     url = `${getInnoLiveServerUrl()}${path}`;
@@ -33,57 +71,39 @@ export async function requestAuth(
     );
   }
 
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      ...init,
-      cache: "no-store",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...init.headers,
-      },
-    });
-  } catch {
-    throw new AuthRequestError(
-      "network_error",
-      "서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    );
-  }
-
-  if (!response.ok) {
-    let body: ServerErrorBody = {};
-    try {
-      body = (await response.json()) as ServerErrorBody;
-    } catch {
-      // Keep the status-based fallback below when the server returned no JSON.
-    }
-    const code = typeof body.error?.code === "string" ? body.error.code : "server_error";
-    const message =
-      typeof body.error?.message === "string"
-        ? body.error.message
-        : "인증 요청을 처리하지 못했습니다.";
-    throw new AuthRequestError(code, message, response.status);
-  }
-
-  return response;
+  return request(url, body, "omit");
 }
 
-export async function saveSession(pair: unknown) {
-  const response = await fetch("/api/auth/session", {
-    method: "POST",
-    cache: "no-store",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(pair),
-  });
-  if (!response.ok) {
+async function requestLandingAuth(path: string, body: unknown) {
+  return request(path, body, "include");
+}
+
+export async function startSignup(email: string, password: string) {
+  const response = await requestAuthServer("/auth/native/sign-up", { email, password });
+  const payload = (await response.json()) as { signup_token?: unknown };
+  if (typeof payload.signup_token !== "string" || !payload.signup_token) {
     throw new AuthRequestError(
-      "session_storage_error",
-      "로그인 세션을 저장하지 못했습니다.",
-      response.status,
+      "invalid_signup_token",
+      "회원가입 인증 정보를 받지 못했습니다.",
     );
   }
+  await requestLandingAuth("/api/auth/signup", { signup_token: payload.signup_token });
+}
+
+export async function completeSignup(verificationCode: string) {
+  await requestLandingAuth("/api/auth/verify-email", {
+    verification_code: verificationCode,
+  });
+}
+
+export async function signIn(email: string, password: string) {
+  await requestLandingAuth("/api/auth/login", { email, password });
+  notifyAuthStateChanged();
+}
+
+export async function signOut() {
+  await requestLandingAuth("/api/auth/logout", {});
+  notifyAuthStateChanged();
 }
 
 export function authErrorMessage(error: unknown) {
@@ -94,6 +114,7 @@ export function authErrorMessage(error: unknown) {
   const messages: Record<string, string> = {
     configuration_error: "서버 주소가 설정되지 않았습니다.",
     network_error: "서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    auth_unavailable: "인증 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
     email_already_registered: "이미 가입된 이메일입니다.",
     email_delivery_unavailable: "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
     email_delivery_failed: "인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.",
@@ -104,7 +125,6 @@ export function authErrorMessage(error: unknown) {
     too_many_signup_requests: "가입 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
     too_many_requests: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
     origin_not_allowed: "현재 주소에서는 인증을 사용할 수 없습니다.",
-    session_storage_error: "로그인 세션을 저장하지 못했습니다.",
   };
   return messages[error.code] ?? error.message;
 }

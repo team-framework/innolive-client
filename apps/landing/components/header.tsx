@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AuthNavigation } from "@/components/auth-navigation";
 import { DownloadMenu } from "@/components/download-menu";
 import { navLinks } from "@/lib/site";
 
@@ -36,9 +37,7 @@ export function Header() {
             </Link>
           ))}
           <DownloadMenu />
-          <Link href="/login" className={navClassName}>
-            Login
-          </Link>
+          <AuthNavigation className={navClassName} />
         </nav>
       </div>
     </header>

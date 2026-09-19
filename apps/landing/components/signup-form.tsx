@@ -6,10 +6,12 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/button";
 import { Checkbox } from "@/components/checkbox";
 import { TextField } from "@/components/text-field";
-import { authErrorMessage, requestAuth } from "@/lib/auth-client";
-import { utf8ByteLength } from "@/lib/auth-config";
-
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { authErrorMessage, completeSignup, startSignup } from "@/lib/auth-client";
+import {
+  isValidEmail,
+  isValidSignupPassword,
+  isVerificationCode,
+} from "@/lib/auth-validation";
 type SignupErrors = {
   email?: string;
   password?: string;
@@ -35,15 +37,14 @@ export function SignupForm() {
   const submitCredentials = async () => {
     const next: SignupErrors = {};
     const trimmedEmail = email.trim();
-    const passwordBytes = utf8ByteLength(password);
     if (!trimmedEmail) {
       next.email = "이메일을 입력해 주세요";
-    } else if (!emailPattern.test(trimmedEmail)) {
+    } else if (!isValidEmail(trimmedEmail)) {
       next.email = "올바른 이메일 주소를 입력해 주세요";
     }
     if (!password) {
       next.password = "비밀번호를 입력해 주세요";
-    } else if (passwordBytes < 8 || passwordBytes > 72) {
+    } else if (!isValidSignupPassword(password)) {
       next.password = "비밀번호는 UTF-8 기준 8~72바이트여야 합니다";
     }
     if (!confirm) {
@@ -59,10 +60,7 @@ export function SignupForm() {
 
     setIsSubmitting(true);
     try {
-      await requestAuth("/auth/sign-up", {
-        method: "POST",
-        body: JSON.stringify({ email: trimmedEmail, password }),
-      });
+      await startSignup(trimmedEmail, password);
       setStep("verification");
       setNotice("인증 메일을 보냈습니다. 6자리 인증 코드를 입력해 주세요.");
     } catch (error) {
@@ -74,7 +72,7 @@ export function SignupForm() {
 
   const submitVerification = async () => {
     const next: SignupErrors = {};
-    if (!/^\d{6}$/.test(verificationCode.trim())) {
+    if (!isVerificationCode(verificationCode)) {
       next.verificationCode = "6자리 인증 코드를 입력해 주세요";
     }
     setErrors(next);
@@ -83,10 +81,7 @@ export function SignupForm() {
 
     setIsSubmitting(true);
     try {
-      await requestAuth("/auth/verify-email", {
-        method: "POST",
-        body: JSON.stringify({ verification_code: verificationCode.trim() }),
-      });
+      await completeSignup(verificationCode.trim());
       router.replace("/login");
     } catch (error) {
       setNotice(authErrorMessage(error));

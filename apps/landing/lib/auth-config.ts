@@ -13,7 +13,3 @@ export function getInnoLiveServerUrl() {
 
   return url.toString().replace(/\/$/, "");
 }
-
-export function utf8ByteLength(value: string) {
-  return new TextEncoder().encode(value).length;
-}

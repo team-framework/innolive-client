@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import {
   accessTokenIsFresh,
   clearSessionCookies,
-  isTokenPair,
   noStore,
   readAuthCookies,
   refreshSession,
@@ -30,21 +29,5 @@ export async function GET() {
 
   const response = NextResponse.json({ authenticated: true });
   setSessionCookies(response, pair);
-  return noStore(response);
-}
-
-export async function POST(request: Request) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return noStore(NextResponse.json({ error: "invalid_session" }, { status: 400 }));
-  }
-  if (!isTokenPair(body)) {
-    return noStore(NextResponse.json({ error: "invalid_session" }, { status: 400 }));
-  }
-
-  const response = NextResponse.json({ authenticated: true });
-  setSessionCookies(response, body);
   return noStore(response);
 }

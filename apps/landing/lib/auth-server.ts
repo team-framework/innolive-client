@@ -2,8 +2,9 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
 
-export const ACCESS_TOKEN_COOKIE = "innolive_access_token";
-export const REFRESH_TOKEN_COOKIE = "innolive_refresh_token";
+export const ACCESS_TOKEN_COOKIE = "accessToken";
+export const REFRESH_TOKEN_COOKIE = "refreshToken";
+const SIGNUP_TOKEN_COOKIE = "signupToken";
 
 export type TokenPair = {
   access_token: string;
@@ -19,6 +20,10 @@ export async function readAuthCookies() {
     access: store.get(ACCESS_TOKEN_COOKIE)?.value,
     refresh: store.get(REFRESH_TOKEN_COOKIE)?.value,
   };
+}
+
+export async function readSignupToken() {
+  return (await cookies()).get(SIGNUP_TOKEN_COOKIE)?.value;
 }
 
 export function isTokenPair(value: unknown): value is TokenPair {
@@ -94,42 +99,72 @@ export function clearSessionCookies(response: NextResponse) {
   });
 }
 
+export function setSignupTokenCookie(response: NextResponse, token: string) {
+  response.cookies.set({
+    name: SIGNUP_TOKEN_COOKIE,
+    value: token,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 5 * 60,
+  });
+}
+
+export function clearSignupTokenCookie(response: NextResponse) {
+  response.cookies.set({
+    name: SIGNUP_TOKEN_COOKIE,
+    value: "",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+}
+
 export function noStore(response: NextResponse) {
   response.headers.set("Cache-Control", "no-store");
   response.headers.set("Pragma", "no-cache");
   return response;
 }
 
-export async function refreshSession(refreshToken: string) {
-  let response: Response;
+type AuthErrorBody = {
+  error?: {
+    code?: unknown;
+    message?: unknown;
+  };
+};
+
+export async function postToAuth(path: string, body: unknown) {
   try {
-    response = await fetch(`${getInnoLiveServerUrl()}/auth/refresh`, {
+    const response = await fetch(`${getInnoLiveServerUrl()}${path}`, {
       method: "POST",
       cache: "no-store",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
+      body: JSON.stringify(body),
     });
+    const payload: unknown = await response.json().catch(() => null);
+    return { response, payload };
   } catch {
-    return null;
-  }
-  if (!response.ok) return null;
-  try {
-    const pair: unknown = await response.json();
-    return isTokenPair(pair) ? pair : null;
-  } catch {
-    return null;
+    return { response: null, payload: null };
   }
 }
 
+export function authErrorResponse(response: Response | null, payload: unknown) {
+  const body = payload as AuthErrorBody | null;
+  const code = typeof body?.error?.code === "string" ? body.error.code : "auth_unavailable";
+  const message = typeof body?.error?.message === "string" ? body.error.message : "인증 서버에 연결하지 못했습니다.";
+  return noStore(NextResponse.json({ error: { code, message } }, { status: response?.status ?? 503 }));
+}
+
+export async function refreshSession(refreshToken: string) {
+  const { response, payload } = await postToAuth("/auth/refresh", {
+    refresh_token: refreshToken,
+  });
+  return response?.ok && isTokenPair(payload) ? payload : null;
+}
+
 export async function logoutSession(refreshToken: string) {
-  try {
-    await fetch(`${getInnoLiveServerUrl()}/auth/logout`, {
-      method: "POST",
-      cache: "no-store",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-  } catch {
-    // Local session cookies are cleared even when the upstream is unavailable.
-  }
+  await postToAuth("/auth/logout", { refresh_token: refreshToken });
 }

@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { AUTH_STATE_CHANGE_EVENT } from "@/lib/auth-client";
 
 export function useIsLogined() {
-  const pathname = usePathname();
   const [isLogined, setIsLogined] = useState<boolean | null>(null);
 
   const loadSession = useCallback(async () => {
@@ -25,13 +24,18 @@ export function useIsLogined() {
 
   useEffect(() => {
     let active = true;
-    void loadSession().then((authenticated) => {
-      if (active) setIsLogined(authenticated);
-    });
+    const refresh = () => {
+      void loadSession().then((authenticated) => {
+        if (active) setIsLogined(authenticated);
+      });
+    };
+    refresh();
+    window.addEventListener(AUTH_STATE_CHANGE_EVENT, refresh);
     return () => {
       active = false;
+      window.removeEventListener(AUTH_STATE_CHANGE_EVENT, refresh);
     };
-  }, [loadSession, pathname]);
+  }, [loadSession]);
 
   const refresh = useCallback(async () => {
     setIsLogined(await loadSession());
