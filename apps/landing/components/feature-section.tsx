@@ -49,7 +49,7 @@ export function FeatureSection() {
 
   useLayoutEffect(() => {
     const section = sectionRef.current;
-    if (!section || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!section) return;
 
     const rows = Array.from(
       section.querySelectorAll<HTMLElement>("[data-feature-row]"),
@@ -57,50 +57,56 @@ export function FeatureSection() {
     if (rows.length === 0) return;
 
     gsap.registerPlugin(ScrollTrigger);
-    const context = gsap.context(() => {
-      const contentsByRow = rows.map((row) =>
-        Array.from(row.querySelectorAll<HTMLElement>("[data-feature-content]")),
-      );
-      const contents = contentsByRow.flat();
-      gsap.set(contents, { autoAlpha: 0, y: 48 });
-      const headerHeight = () =>
-        Math.max(
-          0,
-          ...Array.from(document.querySelectorAll<HTMLElement>("header")).map(
-            (header) => header.offsetHeight,
-          ),
+    const media = gsap.matchMedia();
+    media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
+      const context = gsap.context(() => {
+        const contentsByRow = rows.map((row) =>
+          Array.from(row.querySelectorAll<HTMLElement>("[data-feature-content]")),
         );
+        const contents = contentsByRow.flat();
+        gsap.set(contents, { autoAlpha: 0, y: 48 });
+        const headerHeight = () =>
+          Math.max(
+            0,
+            ...Array.from(document.querySelectorAll<HTMLElement>("header")).map(
+              (header) => header.offsetHeight,
+            ),
+          );
 
-      const timeline = gsap.timeline({
-        scrollTrigger: {
-          anticipatePin: 1,
-          end: () => `+=${window.innerHeight * (rows.length + 1)}`,
-          invalidateOnRefresh: true,
-          pin: true,
-          scrub: 0.35,
-          start: () => `top ${headerHeight()}px`,
-          trigger: section,
-        },
-      });
-
-      contentsByRow.forEach((contentsInRow) => {
-        timeline.to(contentsInRow, {
-          autoAlpha: 1,
-          duration: 0.7,
-          ease: "power2.out",
-          stagger: 0.12,
-          y: 0,
+        const timeline = gsap.timeline({
+          scrollTrigger: {
+            anticipatePin: 1,
+            end: () => `+=${window.innerHeight * (rows.length + 1)}`,
+            invalidateOnRefresh: true,
+            pin: true,
+            scrub: 0.35,
+            start: () => `top ${headerHeight()}px`,
+            trigger: section,
+          },
         });
-      });
-    }, section);
 
-    return () => context.revert();
+        contentsByRow.forEach((contentsInRow) => {
+          timeline.to(contentsInRow, {
+            autoAlpha: 1,
+            duration: 0.7,
+            ease: "power2.out",
+            stagger: 0.12,
+            y: 0,
+          });
+        });
+
+      }, section);
+
+      return () => context.revert();
+    });
+
+    return () => media.revert();
   }, []);
 
   return (
     <section
       ref={sectionRef}
-      className="feature-section flex w-full h-[calc(100vh-12rem)] flex-col justify-center items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pb-24 lg:pt-24 min-[106.5rem]:pb-[142px] min-[106.5rem]:pt-40"
+      className="feature-section flex h-fit w-full flex-col items-center justify-center px-[var(--page-gutter)] pb-16 pt-16 lg:h-[calc(100vh-12rem)] lg:pb-24 lg:pt-24 min-[106.5rem]:pb-[142px] min-[106.5rem]:pt-40"
       aria-labelledby="features-heading"
     >
       <div className="feature-section-content flex w-full max-w-[1408px] flex-col items-stretch gap-12 min-[106.5rem]:gap-[107px]">
