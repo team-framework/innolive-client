@@ -5,8 +5,9 @@ import { Button } from "@/components/button";
 import { Dialog } from "@/components/dialog";
 import { FaceRegistrationOverlay } from "@/components/face-registration-overlay";
 import { WaitingOverlay } from "@/components/waiting-overlay";
+import { SequentialHeroHeading } from "@/components/sequential-hero-heading";
 import { cn } from "@/lib/cn";
-import {SequentialHeroHeading} from "@/components/sequential-hero-heading";
+import { useIsLogined } from "@/hooks/use-is-logined";
 
 type Preview = "guest" | "active" | "member";
 type Overlay = "none" | "face" | "waiting";
@@ -18,6 +19,7 @@ const previews: { id: Preview; label: string }[] = [
 ];
 
 export function TryOutView() {
+  const { isLogined, isLoading } = useIsLogined();
   const [preview, setPreview] = useState<Preview>("guest");
   const [overlay, setOverlay] = useState<Overlay>("none");
   const [notice, setNotice] = useState<string | null>(null);
@@ -34,42 +36,18 @@ export function TryOutView() {
       className="flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pt-24 min-[106.5rem]:pb-[5.25rem] min-[106.5rem]:pt-[9.5rem]"
       aria-labelledby="try-out-heading"
     >
-      <div className="mb-8 flex w-full max-w-[100rem] flex-col items-start gap-2 text-text-secondary">
-        <p className="text-sm font-medium">화면 미리보기</p>
-        <div className="flex flex-wrap gap-2">
-          {previews.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={cn(
-                "rounded-pill px-3 py-1.5 text-sm leading-none",
-                preview === item.id
-                  ? "bg-button-secondary text-text-reversed"
-                  : "bg-background-secondary text-text-primary shadow-button",
-              )}
-              aria-pressed={preview === item.id}
-              onClick={() => {
-                setPreview(item.id);
-                setOverlay("none");
-                setNotice(null);
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="rounded-pill bg-background-secondary px-3 py-1.5 text-sm leading-none text-text-primary shadow-button"
-            onClick={() => setOverlay("waiting")}
-          >
-            대기 안내
-          </button>
-        </div>
-      </div>
-
       <div className="flex w-full max-w-[100rem] flex-col items-center gap-[4.125rem]">
         <div className="flex flex-col items-center gap-8 text-center text-text-primary">
-          <SequentialHeroHeading segments={[{text: "보이는 순간, 보호는 시작", className: "break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none"}]} ariaLabel="보이는 순간, 보호는 시작" />
+          <SequentialHeroHeading
+            segments={[
+              {
+                text: "보이는 순간, 보호는 시작",
+                className:
+                  "break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none",
+              },
+            ]}
+            ariaLabel="보이는 순간, 보호는 시작"
+          />
           <p className="break-keep text-body-lg font-normal">
             InnoLive의 뛰어난 잠재력을 눈으로 직접 확인해 보세요.
           </p>
@@ -96,21 +74,28 @@ export function TryOutView() {
               {preview === "guest" ? (
                 <>
                   <Button
+                    href="/try-out/experience"
                     showChevron={false}
                     className="w-[14.375rem] max-w-[14.375rem]"
-                    onClick={unavailable}
+                    disabled={isLoading}
                     aria-describedby={notice ? noticeId : undefined}
                   >
-                    비회원으로 체험 시작
+                    {isLoading
+                      ? "확인 중"
+                      : isLogined
+                        ? "회원으로 체험 시작"
+                        : "비회원으로 체험 시작"}
                   </Button>
-                  <Button
-                    variant="secondary"
-                    href="/login"
-                    showChevron={false}
-                    className="w-[14.375rem] max-w-[14.375rem]"
-                  >
-                    회원가입 또는 로그인
-                  </Button>
+                  {!isLogined && !isLoading ? (
+                    <Button
+                      variant="secondary"
+                      href="/login"
+                      showChevron={false}
+                      className="w-[14.375rem] max-w-[14.375rem]"
+                    >
+                      회원가입 또는 로그인
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
               {preview === "active" ? (

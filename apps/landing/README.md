@@ -1,6 +1,6 @@
 # InnoLive landing
 
-Next.js 16 App Router 사이트입니다. 마케팅 페이지와 UI 미리보기만 포함합니다. 로그인, 회원가입, 결제, 카메라, AI 비식별화는 동작하지 않습니다.
+Next.js 16 App Router 사이트입니다. 마케팅 페이지와 이메일 인증 로그인, WebRTC 체험을 포함합니다. 결제와 얼굴 등록 UI는 포함하지 않습니다.
 
 ## 개발
 
@@ -22,8 +22,9 @@ pnpm start
 | --- | --- |
 | `/` | 인트로 후 홈(히어로, 프라이버시, 기능, FAQ) |
 | `/pricing` | 요금제 |
-| `/try-out` | 비식별화 체험 **화면 미리보기** |
-| `/login`, `/signup` | 계정 UI. 제출 시 준비 중 안내만 |
+| `/try-out` | 로그인 세션에 따른 게스트·회원 체험 진입 |
+| `/try-out/experience` | WebRTC 체험 연결 |
+| `/login`, `/signup` | 이메일 로그인·인증 회원가입 |
 | `/privacy` | 개인정보 처리방침 (한국어 MDX) |
 | `/terms` | 이용약관 (한국어 MDX) |
 | `/support` | 고객 지원 (한국어 MDX) |
@@ -46,13 +47,15 @@ pnpm start
 
 ## 인증·AI 경계
 
-폼은 브라우저에만 있고 자격 증명을 보내지 않습니다. 체험 화면의 게스트/체험 중/회원은 미리보기이며 로그인 상태가 아닙니다. 카메라와 실시간 비식별화는 호출하지 않습니다. 실제 동작이 없는 버튼은 `체험 기능을 준비 중입니다`처럼 짧게 알립니다.
+인증 서버 주소는 `NEXT_PUBLIC_INNOLIVE_SERVER_URL`에 설정합니다. 로그인 토큰은 Landing same-origin Route Handler가 HttpOnly Cookie로 보관하며, 브라우저 저장소에는 남기지 않습니다. 회원 체험은 이 세션으로 서버의 ICE 설정과 WebRTC 세션을 요청합니다.
+
+게스트 체험은 서버의 게스트 대기열을 내부적으로만 사용하며, 순번·대기 인원은 표시하지 않습니다. 게스트 대기열은 서버의 Redis 및 `GUEST_QUEUE_ENABLED=true`, HTTPS Cookie, Landing origin의 CORS 허용 설정이 필요합니다.
 
 ## 정책
 
 문서는 `content/documents/`의 `{privacy-policy,terms-of-service,support}.{ko,en,ja}.mdx`에서 편집합니다. 프론트매터 없이 본문만 둡니다. 기본 경로는 한국어 `/privacy`, `/terms`, `/support`이고, 영어는 `/en/…`, 일본어는 `/ja/…`입니다. `/ko/privacy`, `/ko/terms`, `/ko/support`는 접두사 없는 한국어 경로로 이동합니다. 게시일·시행일은 문서 본문에 있습니다. MDX는 `@next/mdx`로 로컬 컴파일합니다. 설정은 [Next.js MDX 가이드](https://nextjs.org/docs/app/guides/mdx)를 따릅니다.
 
-랜딩의 로그인, 결제, 카메라, AI 비식별화 UI는 미리보기이며 동작하지 않습니다. 문서 본문은 제품 전체의 처리·약관·지원을 설명합니다.
+랜딩의 결제와 얼굴 등록 UI는 포함하지 않습니다. 실제 WebRTC 연결 결과는 서버의 인증, CORS, ICE/TURN, 게스트 대기열 운영 설정에 따라 달라집니다. 문서 본문은 제품 전체의 처리·약관·지원을 설명합니다.
 
 ## Privacy 데모 슬라이드
 
