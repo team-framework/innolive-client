@@ -45,6 +45,16 @@ export function Header() {
             height={32}
             unoptimized
             priority
+            className="hidden md:block"
+          />
+          <Image
+            src="/brand/logo-header.svg"
+            alt="InnoLive"
+            width={94}
+            height={24}
+            unoptimized
+            priority
+            className="block md:hidden"
           />
         </Link>
         <div className="flex items-center gap-2 md:hidden">
