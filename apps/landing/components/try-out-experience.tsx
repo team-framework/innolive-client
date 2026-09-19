@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/button";
 import { useIsLogined } from "@/hooks/use-is-logined";
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
+import {redirect} from "next/navigation";
 
 type ExperienceState = "connecting" | "connected" | "failed" | "ended";
 type ExperienceRole = "member" | "guest";
@@ -543,6 +544,7 @@ export function TryOutExperience() {
     cleanupResources(true);
     setState("ended");
     setStatus("체험을 종료했습니다.");
+    redirect("/try-out")
   }, [cleanupResources]);
 
   useEffect(() => {
@@ -563,14 +565,11 @@ export function TryOutExperience() {
       aria-labelledby="try-out-experience-heading"
     >
       <div className="flex w-full max-w-[100rem] flex-col items-center gap-4 text-center">
-        <p className="text-sm font-medium text-text-secondary">
-          {isLoading ? "회원 상태를 확인하는 중입니다." : isLogined ? "회원 체험" : "게스트 체험"}
-        </p>
         <h1
           id="try-out-experience-heading"
           className="break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none"
         >
-          실시간 비식별화 체험
+          실시간 비식별화 데모
         </h1>
         <p role="status" aria-live="polite" className="text-body-lg text-text-secondary">
           {status}
