@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live
 
+import android.util.Base64
 import androidx.test.platform.app.InstrumentationRegistry
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -18,6 +19,7 @@ import java.util.concurrent.TimeUnit
 // 제품의 요청 생성·응답 처리·작업 큐를 실행한다. 네트워크와 미디어 연결은 검증하지 않는다.
 class BroadcastApiFlowTest {
     private val settings = BroadcastSettings("검증", "검증 설명", "private", false, "22")
+    private val accessToken = accessTokenFor("broadcast-api-user")
 
     @Test fun offBroadcastCanGoLiveToggleRecoverFromFailureAndStopWithoutDeletingSession() {
         Harness().use { h ->
@@ -58,7 +60,7 @@ class BroadcastApiFlowTest {
             assertEquals("private", payload.getString("privacy"))
             assertFalse(payload.getBoolean("made_for_kids"))
             for (request in h.requests) {
-                assertEquals("Bearer test-access", request.header("Authorization"))
+                assertEquals("Bearer $accessToken", request.header("Authorization"))
                 assertEquals("test-owner", request.header("X-Session-Owner-Token"))
                 assertTrue(request.url.encodedPath.startsWith("/sessions/test-session/"))
             }
@@ -139,7 +141,7 @@ class BroadcastApiFlowTest {
         val connection = WebRtcConnection(
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
-            accessToken = "test-access",
+            accessToken = accessTokenFor("broadcast-api-user"),
             initialAnonymizationEnabled = false,
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},
@@ -218,6 +220,16 @@ class BroadcastApiFlowTest {
             val closed = CountDownLatch(1)
             connection.close { closed.countDown() }
             assertTrue("연결 정리 대기", closed.await(10, TimeUnit.SECONDS))
+        }
+    }
+
+    private companion object {
+        fun accessTokenFor(user: String): String {
+            val payload = Base64.encodeToString(
+                "{\"sub\":\"$user\"}".toByteArray(),
+                Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+            )
+            return "header.$payload.signature"
         }
     }
 }

@@ -62,11 +62,32 @@ internal class EncryptedSessionRecoveryStore(
         val initializationVectorKey = initializationVectorKey(scope)
         val encrypted = preferences.getString(encryptedKey, null)
         val iv = preferences.getString(initializationVectorKey, null)
-        if (encrypted == null || iv == null) {
-            if (encrypted != null || iv != null) clear(scope)
+        if (encrypted != null || iv != null) {
+            if (encrypted == null || iv == null) {
+                clear(scope)
+                return null
+            }
+            return decrypt(encrypted, iv) { clear(scope) }
+        }
+
+        val legacyEncrypted = preferences.getString(ENCRYPTED_SESSION, null)
+        val legacyIv = preferences.getString(INITIALIZATION_VECTOR, null)
+        if (legacyEncrypted == null || legacyIv == null) {
+            if (legacyEncrypted != null || legacyIv != null) clearLegacy()
             return null
         }
-        return runCatching {
+        val legacySession = decrypt(legacyEncrypted, legacyIv, ::clearLegacy) ?: return null
+        check(preferences.edit()
+            .putString(encryptedKey, legacyEncrypted)
+            .putString(initializationVectorKey, legacyIv)
+            .remove(ENCRYPTED_SESSION)
+            .remove(INITIALIZATION_VECTOR)
+            .commit()) { "Unable to migrate session recovery credentials." }
+        return legacySession
+    }
+
+    private fun decrypt(encrypted: String, iv: String, clearInvalid: () -> Unit): CreatedSession? =
+        runCatching {
             val cipher = Cipher.getInstance("AES/GCM/NoPadding")
             cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
             val payload = JSONObject(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)).toString(Charsets.UTF_8))
@@ -76,10 +97,9 @@ internal class EncryptedSessionRecoveryStore(
                 anonymizationState = AnonymizationState.UNKNOWN,
             ).also { check(it.sessionId.isNotBlank() && it.ownerToken.isNotBlank()) }
         }.getOrElse {
-            clear(scope)
+            clearInvalid()
             null
         }
-    }
 
     override fun save(session: CreatedSession, scope: SessionRecoveryScope) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -100,6 +120,13 @@ internal class EncryptedSessionRecoveryStore(
             .remove(encryptedSessionKey(scope))
             .remove(initializationVectorKey(scope))
             .commit()) { "Unable to clear session recovery credentials." }
+    }
+
+    private fun clearLegacy() {
+        check(preferences.edit()
+            .remove(ENCRYPTED_SESSION)
+            .remove(INITIALIZATION_VECTOR)
+            .commit()) { "Unable to clear legacy session recovery credentials." }
     }
 
     private fun encryptedSessionKey(scope: SessionRecoveryScope): String =
