@@ -416,7 +416,7 @@ export function TryOutExperience() {
       sessionRef.current = session;
       if (session.ticketID) ticketIDRef.current = session.ticketID;
       setStatus(copy.checkingMedia);
-      const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       if (generationRef.current !== generation) {
         stopStream(localStream);
         return;
@@ -458,7 +458,10 @@ export function TryOutExperience() {
 
       peerConnection.ontrack = (event) => {
         if (!isCurrent()) return;
-        const stream = event.streams[0] ?? new MediaStream([event.track]);
+        const stream = remoteStreamRef.current ?? event.streams[0] ?? new MediaStream();
+        if (!stream.getTracks().some((track) => track.id === event.track.id)) {
+          stream.addTrack(event.track);
+        }
         remoteStreamRef.current = stream;
         attachVideo(remoteVideoRef.current, stream);
       };
@@ -583,7 +586,7 @@ export function TryOutExperience() {
 
       <div className="flex w-full max-w-[100rem] flex-col gap-3 lg:flex-row">
         <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={remoteVideoRef} autoPlay playsInline className="size-full object-contain" aria-label={copy.remoteLabel} />
+          <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-contain" aria-label={copy.remoteLabel} />
           {state !== "connected" ? (
             <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
               {copy.remotePlaceholder}
