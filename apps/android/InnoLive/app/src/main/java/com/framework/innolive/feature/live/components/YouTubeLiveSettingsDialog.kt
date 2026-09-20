@@ -80,8 +80,7 @@ fun YouTubeLiveSettingsDialog(
         false -> "아동용 아님"
         null -> "선택 필요"
     }
-    val accountLabel = youtubeChannelTitle?.takeIf { it.isNotBlank() }
-        ?: youtubeAccountStatus
+    val accountLabel = youtubeAccountStatus
     val canPrepare = hasYouTubeAccount &&
         !isYouTubeReconnectRequired && !isYouTubeAccountActionInProgress
 
