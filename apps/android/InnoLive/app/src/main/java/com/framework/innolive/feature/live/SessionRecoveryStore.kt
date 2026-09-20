@@ -14,8 +14,10 @@ import javax.crypto.spec.GCMParameterSpec
 
 internal interface SessionRecoveryStore {
     fun load(scope: SessionRecoveryScope): CreatedSession?
+    fun loadLegacy(): CreatedSession?
     fun save(session: CreatedSession, scope: SessionRecoveryScope)
     fun clear(scope: SessionRecoveryScope)
+    fun clearLegacy()
 }
 
 /**
@@ -70,20 +72,17 @@ internal class EncryptedSessionRecoveryStore(
             return decrypt(encrypted, iv) { clear(scope) }
         }
 
-        val legacyEncrypted = preferences.getString(ENCRYPTED_SESSION, null)
-        val legacyIv = preferences.getString(INITIALIZATION_VECTOR, null)
-        if (legacyEncrypted == null || legacyIv == null) {
-            if (legacyEncrypted != null || legacyIv != null) clearLegacy()
+        return null
+    }
+
+    override fun loadLegacy(): CreatedSession? {
+        val encrypted = preferences.getString(ENCRYPTED_SESSION, null)
+        val iv = preferences.getString(INITIALIZATION_VECTOR, null)
+        if (encrypted == null || iv == null) {
+            if (encrypted != null || iv != null) clearLegacy()
             return null
         }
-        val legacySession = decrypt(legacyEncrypted, legacyIv, ::clearLegacy) ?: return null
-        check(preferences.edit()
-            .putString(encryptedKey, legacyEncrypted)
-            .putString(initializationVectorKey, legacyIv)
-            .remove(ENCRYPTED_SESSION)
-            .remove(INITIALIZATION_VECTOR)
-            .commit()) { "Unable to migrate session recovery credentials." }
-        return legacySession
+        return decrypt(encrypted, iv, ::clearLegacy)
     }
 
     private fun decrypt(encrypted: String, iv: String, clearInvalid: () -> Unit): CreatedSession? =
@@ -122,7 +121,7 @@ internal class EncryptedSessionRecoveryStore(
             .commit()) { "Unable to clear session recovery credentials." }
     }
 
-    private fun clearLegacy() {
+    override fun clearLegacy() {
         check(preferences.edit()
             .remove(ENCRYPTED_SESSION)
             .remove(INITIALIZATION_VECTOR)
