@@ -69,9 +69,9 @@
     "body2": "bystanders' portrait rights and your broadcast at the same time.",
     "empty": "De-identification demo coming soon",
     "slides": [
-      { "alt": "Bystander face detection demo", "label": "Bystander face detection demo" },
-      { "alt": "Real-time de-identification demo", "label": "Real-time de-identification demo" },
-      { "alt": "Safe live streaming demo", "label": "Safe live streaming demo" }
+      { "alt": "Broadcast setup screen", "label": "Broadcast setup screen" },
+      { "alt": "Face registration screen", "label": "Face registration screen" },
+      { "alt": "Broadcast settings screen", "label": "Broadcast settings screen" }
     ]
   },
   "features": {

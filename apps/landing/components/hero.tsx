@@ -7,7 +7,7 @@ import { PhoneArtwork } from "@/components/phone-artwork";
 import { TypewriterHeroHeading } from "@/components/typewriter-hero-heading";
 
 export function Hero() {
-  const { href, messages } = useLocale();
+  const { href, locale, messages } = useLocale();
   return (
     <section
       className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 lg:h-screen lg:min-h-[calc(100dvh-var(--header-block-desktop))] lg:justify-center lg:pb-0 lg:pt-0"
@@ -17,7 +17,7 @@ export function Hero() {
         <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:translate-x-12 lg:flex-1 min-[106.5rem]:w-[752px] min-[106.5rem]:flex-none min-[106.5rem]:items-end">
           <div className="flex w-full max-w-[634px] flex-col gap-12">
             <div className="relative flex w-full flex-col gap-8">
-              <TypewriterHeroHeading />
+              <TypewriterHeroHeading key={locale} />
               <div className="hero-support-reveal w-full break-keep text-body-lg font-normal text-text-primary">
                 <p>{messages.hero.support1}</p>
                 <p>{messages.hero.support2}</p>
@@ -40,6 +40,9 @@ export function Hero() {
           className="relative top-16 aspect-[726.4803/758.516] w-full min-w-0 max-w-[726.4803px] overflow-clip lg:flex-1 min-[106.5rem]:w-[726.4803px] min-[106.5rem]:flex-none"
           aria-hidden="true"
         >
+          <div
+            className="absolute inset-[4.22%_0_0_44.88%] overflow-hidden rounded-tl-[clamp(30px,8.5vw,70px)] rounded-tr-[clamp(30px,8.5vw,70px)] bg-[url('/mockups/hero-face-registration.png')] bg-cover bg-center lg:rounded-tl-[clamp(44px,5vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
+          />
           <PhoneArtwork
             frameClassName="inset-[4.22%_0_0_44.88%]"
             imageStyle={{
@@ -49,8 +52,11 @@ export function Hero() {
               top: "-1.31%",
             }}
           />
+          <div
+            className="absolute inset-[0_44.88%_0_0] overflow-hidden rounded-tl-[clamp(30px,8.6vw,70px)] rounded-tr-[clamp(30px,8.6vw,70px)] bg-[url('/mockups/Phone1.gif')] bg-cover bg-center lg:rounded-tl-[clamp(44px,4.3vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
+          />
           <PhoneArtwork
-            frameClassName="inset-[0_44.88%_0_0]"
+            frameClassName="inset-[0_44.85%_0_0] -top-[1px]"
             fetchPriority="high"
             imageStyle={{
               height: "110.49%",

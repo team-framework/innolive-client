@@ -1,7 +1,7 @@
 import en from "@/messages/en.json";
 import ja from "@/messages/ja.json";
 import ko from "@/messages/ko.json";
-import { defaultLocale, isLocale, type Locale } from "@/lib/locales";
+import { defaultLocale, isLocale } from "@/lib/locales";
 
 const dictionaries = {
   ko,

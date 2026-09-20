@@ -15,7 +15,6 @@ export function TypewriterHeroHeading() {
   const [typedLength, setTypedLength] = useState(0);
 
   useEffect(() => {
-    setTypedLength(0);
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
     let timer: number | undefined;
 
