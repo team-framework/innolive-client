@@ -115,6 +115,36 @@ class SessionRecoveryApiTest {
         }
     }
 
+    @Test fun legacyCredentialsAreMigratedToTheCurrentAccountScope() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferencesName = "innolive_session_recovery_legacy_test"
+        val keyAlias = "innolive_session_recovery_legacy_test"
+        val preferences = context.getSharedPreferences(preferencesName, 0)
+        val store = EncryptedSessionRecoveryStore(context, preferencesName, keyAlias)
+        val scope = scopeFor("user-a")
+        store.clear(scope)
+        try {
+            store.save(CreatedSession("legacy-session", "legacy-owner", AnonymizationState.UNKNOWN), scope)
+            val scopedValues = preferences.all.mapValues { it.value as String }
+            assertEquals(2, scopedValues.size)
+            assertTrue(preferences.edit().clear()
+                .putString("encrypted_session", scopedValues.entries.single { it.key.startsWith("encrypted_session_") }.value)
+                .putString("initialization_vector", scopedValues.entries.single { it.key.startsWith("initialization_vector_") }.value)
+                .commit())
+
+            val restored = store.load(scope)
+
+            assertEquals("legacy-session", restored?.sessionId)
+            assertEquals("legacy-owner", restored?.ownerToken)
+            assertFalse(preferences.contains("encrypted_session"))
+            assertFalse(preferences.contains("initialization_vector"))
+            assertTrue(preferences.all.keys.any { it.startsWith("encrypted_session_") })
+            assertTrue(preferences.all.keys.any { it.startsWith("initialization_vector_") })
+        } finally {
+            preferences.edit().clear().commit()
+        }
+    }
+
     private class FakeStore : SessionRecoveryStore {
         private val sessions = mutableMapOf<SessionRecoveryScope, CreatedSession>()
 

@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import android.Manifest
+import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
@@ -98,7 +99,7 @@ class BroadcastPreparationTest {
             rejectedConnection = WebRtcConnection(
                 context = compose.activity,
                 serverUrl = "https://example.test",
-                accessToken = "test-token",
+                accessToken = accessTokenFor("broadcast-preparation-user"),
                 initialAnonymizationEnabled = true,
                 preferredAudioInput = null,
                 onStateChanged = { _, _ -> },
@@ -116,6 +117,16 @@ class BroadcastPreparationTest {
                 session.broadcastStatus,
             )
             assertTrue(session.broadcastState.canPrepare)
+        }
+    }
+
+    private companion object {
+        fun accessTokenFor(user: String): String {
+            val payload = Base64.encodeToString(
+                "{\"sub\":\"$user\"}".toByteArray(),
+                Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+            )
+            return "header.$payload.signature"
         }
     }
 }
