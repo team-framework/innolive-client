@@ -249,7 +249,7 @@
   "experience": {
     "title": "Real-time de-identification demo",
     "preparing": "Preparing the experience connection.",
-    "checkingMedia": "Checking camera and microphone permission.",
+    "checkingMedia": "Checking camera permission.",
     "connected": "The experience is connected.",
     "startingWebrtc": "Starting the WebRTC connection.",
     "ended": "The experience has ended.",
@@ -261,8 +261,8 @@
     "end": "End experience",
     "restart": "Start again",
     "errors": {
-      "permission": "Please allow camera and microphone access.",
-      "notFound": "No camera or microphone was found.",
+      "permission": "Please allow camera access.",
+      "notFound": "No camera was found.",
       "failed": "Could not connect the experience. Please try again."
     }
   },

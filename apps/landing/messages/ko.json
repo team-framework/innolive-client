@@ -249,7 +249,7 @@
   "experience": {
     "title": "실시간 비식별화 데모",
     "preparing": "체험 연결을 준비하는 중입니다.",
-    "checkingMedia": "카메라와 마이크 권한을 확인하는 중입니다.",
+    "checkingMedia": "카메라 권한을 확인하는 중입니다.",
     "connected": "체험 연결이 완료되었습니다.",
     "startingWebrtc": "WebRTC 연결을 시작하는 중입니다.",
     "ended": "체험을 종료했습니다.",
@@ -261,8 +261,8 @@
     "end": "체험 종료",
     "restart": "다시 시작",
     "errors": {
-      "permission": "카메라와 마이크 권한을 허용해 주세요.",
-      "notFound": "사용할 수 있는 카메라와 마이크를 찾지 못했습니다.",
+      "permission": "카메라 권한을 허용해 주세요.",
+      "notFound": "사용할 수 있는 카메라를 찾지 못했습니다.",
       "failed": "체험 연결에 실패했습니다. 다시 시도해 주세요."
     }
   },
