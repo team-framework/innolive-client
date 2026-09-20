@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.pm.PackageManager
 import android.media.AudioDeviceInfo
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -64,6 +65,12 @@ import com.framework.innolive.feature.settings.selection.SettingOption
 import com.framework.innolive.feature.youtube.OperationGeneration
 import com.framework.innolive.feature.youtube.StreamingAccount
 import com.framework.innolive.feature.youtube.YouTubeAccountCoordinator
+import com.framework.innolive.feature.youtube.YouTubeAccountVerificationState
+import com.framework.innolive.feature.youtube.YouTubePreferencesStore
+import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
+import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
+import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
+import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
@@ -154,10 +161,25 @@ fun AppNavigation(
     val coroutineScope = rememberCoroutineScope()
     val session by authenticationSession.session.collectAsStateWithLifecycle()
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
-    var youtubeAccountProvider by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountChannelId by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountChannelTitle by rememberSaveable { mutableStateOf<String?>(null) }
-    var youtubeAccountReconnectRequired by rememberSaveable { mutableStateOf(false) }
+    val youtubePreferencesStore = remember(context) { YouTubePreferencesStore(context) }
+    val restoredYouTubeAccount = remember(youtubePreferencesStore) {
+        youtubePreferencesStore.loadConnection()
+    }
+    val restoredBroadcastSettings = remember(youtubePreferencesStore) {
+        youtubePreferencesStore.loadBroadcastSettings()
+    }
+    var youtubeAccountProvider by rememberSaveable {
+        mutableStateOf(restoredYouTubeAccount?.provider)
+    }
+    var youtubeAccountChannelId by rememberSaveable {
+        mutableStateOf(restoredYouTubeAccount?.channelId)
+    }
+    var youtubeAccountChannelTitle by rememberSaveable {
+        mutableStateOf(restoredYouTubeAccount?.channelTitle)
+    }
+    var youtubeAccountReconnectRequired by rememberSaveable {
+        mutableStateOf(restoredYouTubeAccount?.reconnectRequired == true)
+    }
     val youtubeAccount = youtubeAccountProvider?.let { provider ->
         StreamingAccount(
             provider = provider,
@@ -167,11 +189,27 @@ fun AppNavigation(
         )
     }
     var youtubeAccountStatus by rememberSaveable {
-        mutableStateOf("로그인 후 YouTube 계정을 연동할 수 있습니다.")
+        mutableStateOf(
+            if (restoredYouTubeAccount == null) {
+                "로그인 후 YouTube 계정을 연동할 수 있습니다."
+            } else {
+                "저장된 YouTube 연결 정보를 확인하는 중입니다."
+            },
+        )
     }
     var isYouTubeAccountActionInProgress by rememberSaveable { mutableStateOf(false) }
+    var youtubeAccountVerificationState by remember {
+        mutableStateOf(YouTubeAccountVerificationState.UNVERIFIED)
+    }
+    var verifiedYouTubeProfileEmail by remember { mutableStateOf<String?>(null) }
+    var youtubeOperationProfileEmail by remember { mutableStateOf<String?>(null) }
+    var previousProfileEmail by remember { mutableStateOf(session?.profileEmail) }
     var isYouTubeAuthorizationLaunched by rememberSaveable { mutableStateOf(false) }
     var youtubeAuthorizationOperation by rememberSaveable { mutableStateOf<Long?>(null) }
+    var youtubeAccountStatusBeforeAuthorization by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+    var suppressYouTubeAccountRefreshOnce by remember { mutableStateOf(false) }
     val youtubeOperationGeneration = rememberSaveable(
         saver = Saver<OperationGeneration, Long>(
             save = { generation -> generation.current },
@@ -186,6 +224,7 @@ fun AppNavigation(
     LaunchedEffect(Unit) {
         if (isYouTubeAccountActionInProgress && !isYouTubeAuthorizationLaunched) {
             youtubeAuthorizationOperation = null
+            youtubeAccountStatusBeforeAuthorization = null
             youtubeOperationGeneration.invalidate()
             isYouTubeAccountActionInProgress = false
             youtubeAccountStatus = "YouTube 계정 연동을 다시 시도해 주세요."
@@ -209,16 +248,35 @@ fun AppNavigation(
         }
     }
 
-    fun showYouTubeAccountFailure(operation: Long) {
-        if (!youtubeOperationGeneration.isCurrent(operation) || session == null) return
-        youtubeAuthorizationOperation = null
-        isYouTubeAuthorizationLaunched = false
-        isYouTubeAccountActionInProgress = false
-        youtubeAccountStatus = "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요."
+    fun updateVerifiedYouTubeAccount(account: StreamingAccount?) {
+        val cacheUpdated = acceptServerVerifiedYouTubeAccount(
+            account = account,
+            onVerified = { verifiedAccount ->
+                updateYouTubeAccount(verifiedAccount)
+                verifiedYouTubeProfileEmail = session?.profileEmail
+                youtubeAccountVerificationState = YouTubeAccountVerificationState.VERIFIED
+            },
+            saveConnection = youtubePreferencesStore::saveConnection,
+            removeConnection = youtubePreferencesStore::removeConnection,
+        )
+        if (!cacheUpdated) {
+            Log.w("InnoLiveYouTube", "Unable to update YouTube account display cache.")
+        }
     }
 
     fun isCurrentYouTubeOperation(operation: Long): Boolean =
-        youtubeOperationGeneration.isCurrent(operation) && session != null
+        youtubeOperationGeneration.isCurrent(operation) &&
+            session != null && youtubeOperationProfileEmail == session?.profileEmail
+
+    fun showYouTubeAccountFailure(operation: Long, exception: Throwable? = null) {
+        if (!isCurrentYouTubeOperation(operation)) return
+        youtubeAuthorizationOperation = null
+        isYouTubeAuthorizationLaunched = false
+        suppressYouTubeAccountRefreshOnce = true
+        isYouTubeAccountActionInProgress = false
+        youtubeAccountStatusBeforeAuthorization = null
+        youtubeAccountStatus = youtubeConnectionFailureMessage(exception)
+    }
 
     fun completeYouTubeConnection(operation: Long, serverAuthCode: String) {
         if (!isCurrentYouTubeOperation(operation) || !isYouTubeAccountActionInProgress) return
@@ -227,16 +285,18 @@ fun AppNavigation(
         coroutineScope.launch {
             try {
                 val account = youtubeCoordinator.connect(serverAuthCode, ::refreshCurrentAccessToken)
-                if (isCurrentYouTubeOperation(operation)) updateYouTubeAccount(account)
+                if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (_: Exception) {
-                showYouTubeAccountFailure(operation)
+            } catch (exception: Exception) {
+                showYouTubeAccountFailure(operation, exception)
             } finally {
-                if (youtubeOperationGeneration.isCurrent(operation)) {
+                if (isCurrentYouTubeOperation(operation)) {
                     youtubeAuthorizationOperation = null
                     isYouTubeAuthorizationLaunched = false
+                    suppressYouTubeAccountRefreshOnce = true
                     isYouTubeAccountActionInProgress = false
+                    youtubeAccountStatusBeforeAuthorization = null
                 }
             }
         }
@@ -255,11 +315,19 @@ fun AppNavigation(
                     .onSuccess { serverAuthCode ->
                         completeYouTubeConnection(operation, serverAuthCode)
                     }
-                    .onFailure { showYouTubeAccountFailure(operation) }
+                    .onFailure { exception -> showYouTubeAccountFailure(operation, exception) }
             } else {
                 isYouTubeAuthorizationLaunched = false
-                isYouTubeAccountActionInProgress = false
-                youtubeAccountStatus = "YouTube 권한 동의를 취소했습니다."
+                val cancellationState = cancelYouTubeAuthorization(
+                    accountStatusBeforeAuthorization =
+                        youtubeAccountStatusBeforeAuthorization ?: youtubeAccountStatus,
+                    verificationState = youtubeAccountVerificationState,
+                )
+                youtubeAccountStatus = cancellationState.accountStatus
+                youtubeAccountVerificationState = cancellationState.verificationState
+                suppressYouTubeAccountRefreshOnce = !cancellationState.shouldRefreshAccount
+                isYouTubeAccountActionInProgress = cancellationState.isActionInProgress
+                youtubeAccountStatusBeforeAuthorization = null
             }
         }
     }
@@ -298,20 +366,28 @@ fun AppNavigation(
     LaunchedEffect(
         backStack.lastOrNull(),
         session?.profileEmail,
+        previousProfileEmail,
         isYouTubeAccountActionInProgress,
     ) {
         if (isYouTubeAccountActionInProgress) return@LaunchedEffect
+        if (suppressYouTubeAccountRefreshOnce) {
+            suppressYouTubeAccountRefreshOnce = false
+            return@LaunchedEffect
+        }
 
         val operation = youtubeOperationGeneration.begin()
+        youtubeOperationProfileEmail = session?.profileEmail
         if (backStack.lastOrNull() in setOf(BroadcastSettingRoute, LiveRoute) && session != null) {
+            youtubeAccountVerificationState = YouTubeAccountVerificationState.CHECKING
             youtubeAccountStatus = "YouTube 연결 상태를 확인하는 중입니다."
             try {
                 val account = youtubeCoordinator.loadAccount(::refreshCurrentAccessToken)
-                if (isCurrentYouTubeOperation(operation)) updateYouTubeAccount(account)
+                if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
                 if (isCurrentYouTubeOperation(operation)) {
+                    youtubeAccountVerificationState = YouTubeAccountVerificationState.UNVERIFIED
                     youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다."
                 }
             }
@@ -342,11 +418,47 @@ fun AppNavigation(
     var selectedBroadcastPlatform by rememberSaveable {
         mutableStateOf(broadcastPlatformOptions.first())
     }
-    var broadcastTitle by rememberSaveable { mutableStateOf("") }
-    var broadcastDescription by rememberSaveable { mutableStateOf("") }
-    var broadcastPrivacy by rememberSaveable { mutableStateOf("private") }
-    var broadcastAudience by rememberSaveable { mutableStateOf("unset") }
-    var broadcastCategoryId by rememberSaveable { mutableStateOf("") }
+    var broadcastTitle by rememberSaveable { mutableStateOf(restoredBroadcastSettings.title) }
+    var broadcastDescription by rememberSaveable {
+        mutableStateOf(restoredBroadcastSettings.description)
+    }
+    var broadcastPrivacy by rememberSaveable { mutableStateOf(restoredBroadcastSettings.privacy) }
+    var broadcastAudience by rememberSaveable {
+        mutableStateOf(
+            when (restoredBroadcastSettings.madeForKids) {
+                true -> "true"
+                false -> "false"
+                null -> "unset"
+            },
+        )
+    }
+    var broadcastCategoryId by rememberSaveable {
+        mutableStateOf(restoredBroadcastSettings.categoryId)
+    }
+    LaunchedEffect(session?.profileEmail) {
+        if (session == null || previousProfileEmail != session?.profileEmail) {
+            youtubeOperationGeneration.invalidate()
+            youtubeAuthorizationOperation = null
+            youtubeOperationProfileEmail = null
+            isYouTubeAuthorizationLaunched = false
+            isYouTubeAccountActionInProgress = false
+            youtubePreferencesStore.clearAccountData()
+            updateYouTubeAccount(null)
+            verifiedYouTubeProfileEmail = null
+            youtubeAccountVerificationState = YouTubeAccountVerificationState.UNVERIFIED
+            val defaults = youtubePreferencesStore.loadBroadcastSettings()
+            broadcastTitle = defaults.title
+            broadcastDescription = defaults.description
+            broadcastPrivacy = defaults.privacy
+            broadcastAudience = when (defaults.madeForKids) {
+                true -> "true"
+                false -> "false"
+                null -> "unset"
+            }
+            broadcastCategoryId = defaults.categoryId
+        }
+        previousProfileEmail = session?.profileEmail
+    }
 
     DisposableEffect(context, selectedCameraLensFacing) {
         var isDisposed = false
@@ -404,6 +516,18 @@ fun AppNavigation(
         },
         categoryId = broadcastCategoryId,
     )
+    fun updateBroadcastSettings(settings: BroadcastSettings) {
+        broadcastTitle = settings.title
+        broadcastDescription = settings.description
+        broadcastPrivacy = settings.privacy
+        broadcastAudience = when (settings.madeForKids) {
+            true -> "true"
+            false -> "false"
+            null -> "unset"
+        }
+        broadcastCategoryId = settings.categoryId
+        youtubePreferencesStore.saveBroadcastSettings(settings)
+    }
     LaunchedEffect(selectedAudioInput?.id) {
         webRtcSession.selectAudioInput(selectedAudioInput)
     }
@@ -416,12 +540,17 @@ fun AppNavigation(
     }
 
     val connectYouTube: () -> Unit = connectYouTube@{
-        if (isYouTubeAccountActionInProgress || session == null) {
+        if (
+            isYouTubeAccountActionInProgress ||
+            youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING ||
+            session == null
+        ) {
             return@connectYouTube
         }
 
         val operation = youtubeOperationGeneration.begin()
-        val accountEmail = session?.profileEmail
+        youtubeOperationProfileEmail = session?.profileEmail
+        youtubeAccountStatusBeforeAuthorization = youtubeAccountStatus
         youtubeAuthorizationOperation = null
         isYouTubeAccountActionInProgress = true
         isYouTubeAuthorizationLaunched = false
@@ -429,7 +558,6 @@ fun AppNavigation(
         coroutineScope.launch {
             try {
                 youtubeCoordinator.beginAuthorization(
-                    accountEmail = accountEmail,
                     onAuthorizationRequired = { pendingIntent ->
                         if (isCurrentYouTubeOperation(operation) &&
                             isYouTubeAccountActionInProgress
@@ -456,23 +584,34 @@ fun AppNavigation(
                             completeYouTubeConnection(operation, serverAuthCode)
                         }
                     },
-                    onFailure = {
+                    onFailure = { exception ->
                         if (isCurrentYouTubeOperation(operation)) {
                             isYouTubeAuthorizationLaunched = false
-                            showYouTubeAccountFailure(operation)
+                            showYouTubeAccountFailure(operation, exception)
                         }
                     },
                 )
             } catch (exception: CancellationException) {
                 throw exception
-            } catch (_: Exception) {
-                showYouTubeAccountFailure(operation)
+            } catch (exception: Exception) {
+                showYouTubeAccountFailure(operation, exception)
             }
         }
     }
 
     // NavDisplay keeps the LiveRoute NavEntry while the back stack is unchanged.
     // Keep its props up to date independently of NavEntry recreation.
+    val visibleYouTubeAccount = youtubeAccount.takeIf {
+        session != null && previousProfileEmail == session?.profileEmail
+    }
+    val hasServerVerifiedYouTubeAccount = hasVerifiedYouTubeAccount(
+        account = visibleYouTubeAccount,
+        verificationState = youtubeAccountVerificationState,
+        verifiedProfileEmail = verifiedYouTubeProfileEmail,
+        currentProfileEmail = session?.profileEmail,
+    )
+    val isYouTubeAccountOperationInProgress = isYouTubeAccountActionInProgress ||
+        youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING
     val liveScreenProps = rememberUpdatedState(
         LiveScreenProps(
             cameraLensFacing = selectedCameraLensFacing,
@@ -490,22 +629,12 @@ fun AppNavigation(
             },
             cameraResolution = selectedResolution,
             broadcastSettings = broadcastSettings,
-            onBroadcastSettingsChanged = { settings ->
-                broadcastTitle = settings.title
-                broadcastDescription = settings.description
-                broadcastPrivacy = settings.privacy
-                broadcastAudience = when (settings.madeForKids) {
-                    true -> "true"
-                    false -> "false"
-                    null -> "unset"
-                }
-                broadcastCategoryId = settings.categoryId
-            },
-            youtubeChannelTitle = youtubeAccount?.channelTitle,
-            hasYouTubeAccount = youtubeAccount != null,
+            onBroadcastSettingsChanged = ::updateBroadcastSettings,
+            youtubeChannelTitle = visibleYouTubeAccount?.channelTitle,
+            hasYouTubeAccount = hasServerVerifiedYouTubeAccount,
             youtubeAccountStatus = youtubeAccountStatus,
-            isYouTubeReconnectRequired = youtubeAccount?.reconnectRequired == true,
-            isYouTubeAccountActionInProgress = isYouTubeAccountActionInProgress,
+            isYouTubeReconnectRequired = visibleYouTubeAccount?.reconnectRequired == true,
+            isYouTubeAccountActionInProgress = isYouTubeAccountOperationInProgress,
             isYouTubeConnectEnabled = session != null,
             onConnectYouTube = connectYouTube,
             onRefreshAccessToken = ::refreshCurrentAccessToken,
@@ -573,10 +702,15 @@ fun AppNavigation(
                                 onLogout = {
                                     youtubeAuthorizationOperation = null
                                     youtubeOperationGeneration.invalidate()
+                                    youtubeOperationProfileEmail = null
                                     isYouTubeAuthorizationLaunched = false
                                     webRtcSession.close()
                                     authenticationSession.clear()
+                                    youtubePreferencesStore.clearAccountData()
                                     updateYouTubeAccount(null)
+                                    verifiedYouTubeProfileEmail = null
+                                    youtubeAccountVerificationState =
+                                        YouTubeAccountVerificationState.UNVERIFIED
                                     youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
                                     isYouTubeAccountActionInProgress = false
                                     backStack.clear()
@@ -627,10 +761,16 @@ fun AppNavigation(
                                     )
                                 },
                                 title = broadcastTitle,
-                                onTitleChanged = { value -> broadcastTitle = value.take(100) },
+                                onTitleChanged = { value ->
+                                    updateBroadcastSettings(
+                                        broadcastSettings.copy(title = value.take(100)),
+                                    )
+                                },
                                 description = broadcastDescription,
                                 onDescriptionChanged = { value ->
-                                    broadcastDescription = value.take(5_000)
+                                    updateBroadcastSettings(
+                                        broadcastSettings.copy(description = value.take(5_000)),
+                                    )
                                 },
                                 selectedPrivacy = broadcastPrivacyOptions
                                     .first { option -> option.key == broadcastPrivacy }
@@ -650,12 +790,19 @@ fun AppNavigation(
                                 },
                                 categoryId = broadcastCategoryId,
                                 onCategoryIdChanged = { value ->
-                                    broadcastCategoryId = value.filter(Char::isDigit)
+                                    updateBroadcastSettings(
+                                        broadcastSettings.copy(
+                                            categoryId = value.filter(Char::isDigit),
+                                        ),
+                                    )
                                 },
-                                youtubeChannelTitle = youtubeAccount?.channelTitle,
+                                youtubeChannelTitle = visibleYouTubeAccount?.channelTitle,
                                 youtubeAccountStatus = youtubeAccountStatus,
-                                isYouTubeReconnectRequired = youtubeAccount?.reconnectRequired == true,
-                                isYouTubeAccountActionInProgress = isYouTubeAccountActionInProgress,
+                                hasVerifiedYouTubeAccount = hasServerVerifiedYouTubeAccount,
+                                isYouTubeReconnectRequired =
+                                    visibleYouTubeAccount?.reconnectRequired == true,
+                                isYouTubeAccountActionInProgress =
+                                    isYouTubeAccountOperationInProgress,
                                 isYouTubeConnectEnabled = session != null,
                                 onConnectYouTube = connectYouTube,
                                 onSave = {
@@ -737,14 +884,26 @@ fun AppNavigation(
                             title = "공개 범위",
                             options = broadcastPrivacyOptions,
                             selectedKey = broadcastPrivacy,
-                            onOptionSelected = { broadcastPrivacy = it },
+                            onOptionSelected = { key ->
+                                updateBroadcastSettings(broadcastSettings.copy(privacy = key))
+                            },
                         )
 
                         SettingOptionType.BROADCAST_AUDIENCE -> OptionSelectionConfig(
                             title = "아동용 콘텐츠",
                             options = broadcastAudienceOptions,
                             selectedKey = broadcastAudience,
-                            onOptionSelected = { broadcastAudience = it },
+                            onOptionSelected = { key ->
+                                updateBroadcastSettings(
+                                    broadcastSettings.copy(
+                                        madeForKids = when (key) {
+                                            "true" -> true
+                                            "false" -> false
+                                            else -> null
+                                        },
+                                    ),
+                                )
+                            },
                         )
                     }
 

@@ -112,12 +112,17 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            if (props.youtubeChannelTitle.isNullOrBlank() || props.isYouTubeReconnectRequired) {
+            if (!props.hasVerifiedYouTubeAccount || props.isYouTubeReconnectRequired) {
                 Button(
                     onClick = props.onConnectYouTube,
                     enabled = props.isYouTubeConnectEnabled && !props.isYouTubeAccountActionInProgress,
                 ) {
-                    Text(text = if (props.isYouTubeReconnectRequired) "재연동" else "연동")
+                    Text(
+                        text = if (
+                            props.isYouTubeReconnectRequired ||
+                            !props.youtubeChannelTitle.isNullOrBlank()
+                        ) "재연동" else "연동",
+                    )
                 }
             }
         }

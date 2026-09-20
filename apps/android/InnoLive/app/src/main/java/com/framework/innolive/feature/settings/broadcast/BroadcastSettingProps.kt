@@ -19,6 +19,7 @@ data class BroadcastSettingProps(
     val onCategoryIdChanged: (String) -> Unit,
     val youtubeChannelTitle: String?,
     val youtubeAccountStatus: String,
+    val hasVerifiedYouTubeAccount: Boolean,
     val isYouTubeReconnectRequired: Boolean,
     val isYouTubeAccountActionInProgress: Boolean,
     val isYouTubeConnectEnabled: Boolean,

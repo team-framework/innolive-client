@@ -100,7 +100,7 @@ class BroadcastPreparationUiTest {
         compose.onNodeWithText("방송 준비").performClick()
         compose.onNodeWithText("Youtube").performClick()
         compose.onNode(hasText("방송 준비") and hasAnyAncestor(isDialog())).assertIsNotEnabled()
-        compose.onNodeWithText("YouTube 계정을 연동한 뒤 방송을 준비해 주세요.").assertIsDisplayed()
+        compose.onNodeWithText("YouTube 계정을 연동한 뒤 방송을 준비해 주세요.").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(0, authenticationCalls)
             assertEquals(WebRtcConnectionState.IDLE, session.connectionState)

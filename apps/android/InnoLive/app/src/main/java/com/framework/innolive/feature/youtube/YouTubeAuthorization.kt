@@ -1,10 +1,8 @@
 package com.framework.innolive.feature.youtube
 
-import android.accounts.Account
 import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
-import com.google.android.gms.auth.GoogleAuthUtil
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.AuthorizationResult
 import com.google.android.gms.auth.api.identity.Identity
@@ -15,12 +13,11 @@ class YouTubeAuthorization {
     fun request(
         activity: Activity,
         configuration: YouTubeConfiguration,
-        accountEmail: String?,
         onAuthorizationRequired: (PendingIntent) -> Unit,
         onAuthorized: (String) -> Unit,
         onFailure: (Exception) -> Unit,
     ): Task<AuthorizationResult> = Identity.getAuthorizationClient(activity)
-        .authorize(buildYouTubeAuthorizationRequest(configuration, accountEmail))
+        .authorize(buildYouTubeAuthorizationRequest(configuration))
         .addOnSuccessListener { result ->
             runCatching {
                 if (result.hasResolution()) {
@@ -47,14 +44,13 @@ class YouTubeAuthorization {
 
 internal fun buildYouTubeAuthorizationRequest(
     configuration: YouTubeConfiguration,
-    accountEmail: String?,
 ): AuthorizationRequest {
-    val builder = AuthorizationRequest.builder()
+    return AuthorizationRequest.builder()
         .requestOfflineAccess(configuration.webClientId)
+        .setPrompt(
+            AuthorizationRequest.Prompt.CONSENT or
+                AuthorizationRequest.Prompt.SELECT_ACCOUNT,
+        )
         .setRequestedScopes(listOf(Scope(configuration.scope)))
-
-    accountEmail?.trim()?.takeIf { it.isNotEmpty() }?.let { email ->
-        builder.setAccount(Account(email, GoogleAuthUtil.GOOGLE_ACCOUNT_TYPE))
-    }
-    return builder.build()
+        .build()
 }
