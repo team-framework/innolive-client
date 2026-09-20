@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "@/components/locale-provider";
 import { ProgressiveBlurText } from "@/components/progressive-blur-text";
 
-const firstLine = "주인공이 아니라면";
-const secondPrefix = "과감하게 ";
-const blurText = "가리기.";
-const heading = `${firstLine}${secondPrefix}${blurText}`;
 const INTRO_COMPLETE_EVENT = "innolive:intro-complete";
 
 export function TypewriterHeroHeading() {
+  const { messages } = useLocale();
+  const firstLine = messages.hero.line1;
+  const secondPrefix = messages.hero.line2Prefix;
+  const blurText = messages.hero.line2Blur;
+  const heading = `${firstLine}${secondPrefix}${blurText}`;
   const [typedLength, setTypedLength] = useState(0);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export function TypewriterHeroHeading() {
       if (timer !== undefined) window.clearInterval(timer);
       window.removeEventListener(INTRO_COMPLETE_EVENT, start);
     };
-  }, []);
+  }, [heading]);
 
   const firstLineLength = Math.min(typedLength, firstLine.length);
   const secondPrefixLength = Math.min(

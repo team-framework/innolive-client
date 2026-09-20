@@ -106,25 +106,13 @@ export async function signOut() {
   notifyAuthStateChanged();
 }
 
-export function authErrorMessage(error: unknown) {
+export function authErrorMessage(
+  error: unknown,
+  copy: { fallback: string } & Record<string, string | undefined>,
+) {
   if (!(error instanceof AuthRequestError)) {
-    return "인증 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    return copy.fallback;
   }
 
-  const messages: Record<string, string> = {
-    configuration_error: "서버 주소가 설정되지 않았습니다.",
-    network_error: "서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    auth_unavailable: "인증 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    email_already_registered: "이미 가입된 이메일입니다.",
-    email_delivery_unavailable: "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
-    email_delivery_failed: "인증 메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    email_auth_unavailable: "이메일 인증을 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
-    invalid_signup_token: "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
-    invalid_verification_code: "인증 코드가 올바르지 않거나 만료됐습니다.",
-    invalid_email_credentials: "이메일 또는 비밀번호가 올바르지 않습니다.",
-    too_many_signup_requests: "가입 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
-    too_many_requests: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
-    origin_not_allowed: "현재 주소에서는 인증을 사용할 수 없습니다.",
-  };
-  return messages[error.code] ?? error.message;
+  return copy[error.code] ?? copy.fallback;
 }

@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/button";
+import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
-import {redirect} from "next/navigation";
+import type { Messages } from "@/lib/messages";
 
 type ExperienceState = "connecting" | "connected" | "failed" | "ended";
 type ExperienceRole = "member" | "guest";
@@ -301,20 +303,23 @@ async function deleteGuestResources(ticketID: string | null, sessionID: string |
   await Promise.all(requests);
 }
 
-function userMessage(error: unknown) {
+function userMessage(error: unknown, copy: Messages["experience"]["errors"]) {
   if (error instanceof DOMException && error.name === "NotAllowedError") {
-    return "카메라와 마이크 권한을 허용해 주세요.";
+    return copy.permission;
   }
   if (error instanceof DOMException && error.name === "NotFoundError") {
-    return "사용할 수 있는 카메라와 마이크를 찾지 못했습니다.";
+    return copy.notFound;
   }
-  return "체험 연결에 실패했습니다. 다시 시도해 주세요.";
+  return copy.failed;
 }
 
 export function TryOutExperience() {
+  const router = useRouter();
+  const { href, messages } = useLocale();
+  const copy = messages.experience;
   const { isLogined, isLoading } = useIsLogined();
   const [state, setState] = useState<ExperienceState>("connecting");
-  const [status, setStatus] = useState("체험 연결을 준비하는 중입니다.");
+  const [status, setStatus] = useState(copy.preparing);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -376,15 +381,15 @@ export function TryOutExperience() {
     generationRef.current += 1;
     cleanupResources(true);
     setState("failed");
-    setStatus(userMessage(error));
-  }, [cleanupResources]);
+    setStatus(userMessage(error, copy.errors));
+  }, [cleanupResources, copy.errors]);
 
   const start = useCallback(async () => {
     const generation = generationRef.current + 1;
     generationRef.current = generation;
     cleanupResources(true);
     setState("connecting");
-    setStatus("체험 연결을 준비하는 중입니다.");
+    setStatus(copy.preparing);
     const controller = new AbortController();
     abortControllerRef.current = controller;
     const role: ExperienceRole = isLogined ? "member" : "guest";
@@ -410,7 +415,7 @@ export function TryOutExperience() {
 
       sessionRef.current = session;
       if (session.ticketID) ticketIDRef.current = session.ticketID;
-      setStatus("카메라와 마이크 권한을 확인하는 중입니다.");
+      setStatus(copy.checkingMedia);
       const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       if (generationRef.current !== generation) {
         stopStream(localStream);
@@ -466,7 +471,7 @@ export function TryOutExperience() {
             timeoutRef.current = null;
           }
           setState("connected");
-          setStatus("체험 연결이 완료되었습니다.");
+          setStatus(copy.connected);
         } else if (["failed", "disconnected"].includes(peerConnection.connectionState)) {
           fail(generation, new Error("peer connection failed"));
         }
@@ -476,7 +481,7 @@ export function TryOutExperience() {
         try {
           if (!isCurrent()) return;
           for (const candidate of pendingCandidates.splice(0)) send(candidate);
-          setStatus("WebRTC 연결을 시작하는 중입니다.");
+          setStatus(copy.startingWebrtc);
           const offer = await peerConnection.createOffer();
           await peerConnection.setLocalDescription(offer);
           if (!isCurrent()) return;
@@ -537,15 +542,15 @@ export function TryOutExperience() {
         fail(generation, error);
       }
     }
-  }, [cleanupResources, fail, isLogined]);
+  }, [cleanupResources, copy.checkingMedia, copy.connected, copy.preparing, copy.startingWebrtc, fail, isLogined]);
 
   const end = useCallback(() => {
     generationRef.current += 1;
     cleanupResources(true);
     setState("ended");
-    setStatus("체험을 종료했습니다.");
-    redirect("/try-out")
-  }, [cleanupResources]);
+    setStatus(copy.ended);
+    router.replace(href("/try-out"));
+  }, [cleanupResources, copy.ended, href, router]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -569,7 +574,7 @@ export function TryOutExperience() {
           id="try-out-experience-heading"
           className="break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none"
         >
-          실시간 비식별화 데모
+          {copy.title}
         </h1>
         <p role="status" aria-live="polite" className="text-body-lg text-text-secondary">
           {status}
@@ -578,17 +583,17 @@ export function TryOutExperience() {
 
       <div className="flex w-full max-w-[100rem] flex-col gap-3 lg:flex-row">
         <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={remoteVideoRef} autoPlay playsInline className="size-full object-contain" aria-label="처리된 원격 영상" />
+          <video ref={remoteVideoRef} autoPlay playsInline className="size-full object-contain" aria-label={copy.remoteLabel} />
           {state !== "connected" ? (
             <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
-              연결이 완료되면 처리된 영상이 표시됩니다.
+              {copy.remotePlaceholder}
             </p>
           ) : null}
         </div>
         <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-contain" aria-label="내 카메라 미리보기" />
+          <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-contain" aria-label={copy.localLabel} />
           <p className="absolute bottom-3 left-3 rounded-pill bg-background-primary/80 px-3 py-1 text-sm text-text-primary">
-            내 미리보기
+            {copy.localBadge}
           </p>
         </div>
       </div>
@@ -596,16 +601,16 @@ export function TryOutExperience() {
       <div className="flex flex-wrap justify-center gap-3">
         {state === "failed" ? (
           <Button showChevron={false} onClick={() => void start()}>
-            다시 시도
+            {copy.retry}
           </Button>
         ) : null}
         {state !== "ended" ? (
           <Button variant="secondary" showChevron={false} onClick={end} disabled={isBusy}>
-            체험 종료
+            {copy.end}
           </Button>
         ) : (
           <Button showChevron={false} onClick={() => void start()}>
-            다시 시작
+            {copy.restart}
           </Button>
         )}
       </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Button } from "@/components/button";
 import { Checkbox } from "@/components/checkbox";
+import { useLocale } from "@/components/locale-provider";
 import { TextField } from "@/components/text-field";
 import { TermsConsentDialog } from "@/components/terms-consent-dialog";
 import { authErrorMessage, completeSignup, startSignup } from "@/lib/auth-client";
@@ -13,6 +14,7 @@ import {
   isValidSignupPassword,
   isVerificationCode,
 } from "@/lib/auth-validation";
+import { interpolate } from "@/lib/locales";
 
 type SignupErrors = {
   email?: string;
@@ -24,6 +26,8 @@ type SignupErrors = {
 
 export function SignupForm({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const { href, messages } = useLocale();
+  const copy = messages.auth;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -38,25 +42,27 @@ export function SignupForm({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [agreeBefore, agreeAfter] = copy.agree.split("{terms}");
+
   const submitCredentials = async () => {
     const next: SignupErrors = {};
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      next.email = "이메일을 입력해 주세요";
+      next.email = copy.validation.emailRequired;
     } else if (!isValidEmail(trimmedEmail)) {
-      next.email = "올바른 이메일 주소를 입력해 주세요";
+      next.email = copy.validation.emailInvalid;
     }
     if (!password) {
-      next.password = "비밀번호를 입력해 주세요";
+      next.password = copy.validation.passwordRequired;
     } else if (!isValidSignupPassword(password)) {
-      next.password = "비밀번호는 UTF-8 기준 8~72바이트여야 합니다";
+      next.password = copy.validation.passwordLength;
     }
     if (!confirm) {
-      next.confirm = "비밀번호를 다시 입력해 주세요";
+      next.confirm = copy.validation.confirmRequired;
     } else if (confirm !== password) {
-      next.confirm = "비밀번호가 일치하지 않습니다";
+      next.confirm = copy.validation.confirmMismatch;
     }
-    if (!agreed) next.agreed = "서비스 이용약관에 동의해 주세요";
+    if (!agreed) next.agreed = copy.validation.termsRequired;
 
     setErrors(next);
     setNotice(null);
@@ -66,9 +72,9 @@ export function SignupForm({ children }: { children: ReactNode }) {
     try {
       await startSignup(trimmedEmail, password);
       setStep("verification");
-      setNotice("인증 메일을 보냈습니다. 6자리 인증 코드를 입력해 주세요.");
+      setNotice(copy.verificationSent);
     } catch (error) {
-      setNotice(authErrorMessage(error));
+      setNotice(authErrorMessage(error, copy.errors));
     } finally {
       setIsSubmitting(false);
     }
@@ -77,7 +83,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
   const submitVerification = async () => {
     const next: SignupErrors = {};
     if (!isVerificationCode(verificationCode)) {
-      next.verificationCode = "6자리 인증 코드를 입력해 주세요";
+      next.verificationCode = copy.validation.codeRequired;
     }
     setErrors(next);
     setNotice(null);
@@ -86,9 +92,9 @@ export function SignupForm({ children }: { children: ReactNode }) {
     setIsSubmitting(true);
     try {
       await completeSignup(verificationCode.trim());
-      router.replace("/login");
+      router.replace(href("/login"));
     } catch (error) {
-      setNotice(authErrorMessage(error));
+      setNotice(authErrorMessage(error, copy.errors));
     } finally {
       setIsSubmitting(false);
     }
@@ -110,16 +116,16 @@ export function SignupForm({ children }: { children: ReactNode }) {
       onSubmit={onSubmit}
     >
       <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary">
-        {step === "verification" ? "이메일 인증" : "회원가입"}
+        {step === "verification" ? copy.verifyTitle : copy.signupTitle}
       </h1>
       {step === "verification" ? (
         <div className="flex w-full flex-col items-start gap-2">
           <p className="w-full px-2 text-base text-text-secondary">
-            {email}으로 보낸 인증 코드를 입력해 주세요.
+            {interpolate(copy.verificationHint, { email })}
           </p>
           <TextField
             icon="mail"
-            label="6자리 인증 코드"
+            label={copy.verificationCode}
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
@@ -132,7 +138,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
         <div className="flex w-full flex-col items-start gap-2">
           <TextField
             icon="mail"
-            label="이메일"
+            label={copy.email}
             type="email"
             autoComplete="email"
             value={email}
@@ -141,7 +147,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
           />
           <TextField
             icon="lock"
-            label="비밀번호"
+            label={copy.password}
             autoComplete="new-password"
             revealable
             value={password}
@@ -150,7 +156,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
           />
           <TextField
             icon="lock"
-            label="비밀번호 재입력"
+            label={copy.confirmPassword}
             autoComplete="new-password"
             revealable
             value={confirm}
@@ -172,8 +178,9 @@ export function SignupForm({ children }: { children: ReactNode }) {
               aria-describedby={errors.agreed ? "signup-agree-error" : undefined}
               label={
                 <>
+                  {agreeBefore}
                   <Link
-                    href="/terms"
+                    href={href("/terms")}
                     className="underline [text-underline-position:from-font]"
                     onClick={(event) => {
                       if (!hasAcceptedTerms) {
@@ -182,9 +189,9 @@ export function SignupForm({ children }: { children: ReactNode }) {
                       }
                     }}
                   >
-                    서비스 이용약관
+                    {copy.terms}
                   </Link>
-                  에 동의합니다.
+                  {agreeAfter}
                 </>
               }
             />
@@ -209,14 +216,14 @@ export function SignupForm({ children }: { children: ReactNode }) {
           disabled={isSubmitting}
         >
           {isSubmitting
-            ? "처리 중"
+            ? copy.processing
             : step === "verification"
-              ? "인증 완료"
-              : "인증 메일 보내기"}
+              ? copy.completeVerify
+              : copy.sendCode}
         </Button>
         {step !== "verification" ? (
-          <Button href="/login" showChevron={false} className="w-full max-w-none">
-            로그인으로 이동
+          <Button href={href("/login")} showChevron={false} className="w-full max-w-none">
+            {copy.goLogin}
           </Button>
         ): null}
       </div>
