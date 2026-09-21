@@ -165,8 +165,6 @@ export function FaceRegistrationModal({
     const canvas = canvasRef.current;
     stableFaceCountRef.current = 0;
     isRegisteringRef.current = false;
-    setState("loading");
-    setStatus(copy.status.preparing);
 
     const stopPreview = () => {
       if (!video) return;
