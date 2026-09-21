@@ -14,15 +14,15 @@ extension WebRTCVideoUplink {
     func attachLocalRenderer(_ renderer: LKRTCMTLVideoView) {
         if localRenderer !== renderer {
             if let localRenderer {
-                localVideoTrack?.remove(localRenderer)
+                renderingLocalTrack?.remove(localRenderer)
             }
             localRenderer = renderer
-            localVideoTrack?.add(renderer)
+            renderingLocalTrack?.add(renderer)
         }
     }
 
     func detachLocalRenderer(_ renderer: LKRTCMTLVideoView) {
-        localVideoTrack?.remove(renderer)
+        renderingLocalTrack?.remove(renderer)
         if localRenderer === renderer { localRenderer = nil }
     }
 
@@ -44,14 +44,14 @@ extension WebRTCVideoUplink {
     func attachFaceRegistrationRenderer(_ renderer: LKRTCMTLVideoView) {
         guard faceRegistrationRenderer !== renderer else { return }
         if let faceRegistrationRenderer {
-            localVideoTrack?.remove(faceRegistrationRenderer)
+            renderingLocalTrack?.remove(faceRegistrationRenderer)
         }
         faceRegistrationRenderer = renderer
-        localVideoTrack?.add(renderer)
+        renderingLocalTrack?.add(renderer)
     }
 
     func detachFaceRegistrationRenderer(_ renderer: LKRTCMTLVideoView) {
-        localVideoTrack?.remove(renderer)
+        renderingLocalTrack?.remove(renderer)
         if faceRegistrationRenderer === renderer {
             faceRegistrationRenderer = nil
         }
@@ -70,13 +70,13 @@ extension WebRTCVideoUplink {
 
     func detachTracksFromRenderers() {
         if let localRenderer {
-            localVideoTrack?.remove(localRenderer)
+            renderingLocalTrack?.remove(localRenderer)
         }
         if let remoteRenderer {
             remoteVideoTrack?.remove(remoteRenderer)
         }
         if let faceRegistrationRenderer {
-            localVideoTrack?.remove(faceRegistrationRenderer)
+            renderingLocalTrack?.remove(faceRegistrationRenderer)
         }
         localRenderer = nil
         remoteRenderer = nil

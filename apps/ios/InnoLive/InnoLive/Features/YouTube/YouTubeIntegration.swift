@@ -31,6 +31,7 @@ final class YouTubeIntegration: ObservableObject {
 
     let videoUplink = WebRTCVideoUplink()
 
+    private let aiModeProvider: () -> AIProcessingMode
     private let api: YouTubeAPI
     private let sessionStore: any BroadcastSessionStoring
     private var sessionScope: BroadcastSessionScope?
@@ -70,8 +71,10 @@ final class YouTubeIntegration: ObservableObject {
         api: YouTubeAPI? = nil,
         orientationLock: (any BroadcastOrientationLocking)? = nil,
         consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore(),
-        sessionStore: (any BroadcastSessionStoring)? = nil
+        sessionStore: (any BroadcastSessionStoring)? = nil,
+        aiModeProvider: @escaping () -> AIProcessingMode = { .selected }
     ) {
+        self.aiModeProvider = aiModeProvider
         self.api = api ?? YouTubeAPI()
         self.sessionStore = sessionStore ?? BroadcastSessionStore()
         self.preferencesStore = preferencesStore
@@ -293,6 +296,7 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         let generation = sessionOperationGeneration
+        let requestedMode = aiModeProvider()
         isPreparingSession = true
         let task = Task { [self] in
             guard sessionOperationGeneration == generation else { return false }
@@ -300,7 +304,7 @@ final class YouTubeIntegration: ObservableObject {
                 let scope = try api.broadcastSessionScope(accessToken: accessToken)
                 try await removePreviousSession(scope: scope, accessToken: accessToken)
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                let created = try await api.createSession(accessToken: accessToken)
+                var created = try await api.createSession(accessToken: accessToken, mode: requestedMode)
                 let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
                 // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
                 do {
@@ -313,8 +317,26 @@ final class YouTubeIntegration: ObservableObject {
                     throw error
                 }
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
+                if requestedMode == .onDevice, created.aiProcessing == nil {
+                    // Legacy servers expose a per-session AI switch. Verify it is off before
+                    // starting capture; an echoed request metadata field alone is not an acknowledgement.
+                    do {
+                        let confirmed = try await api.toggleAnonymization(session: created, accessToken: accessToken, enabled: false)
+                        guard confirmed.media.anonymizationEnabled == false else { throw YouTubeAPIError.response }
+                        guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
+                        created.aiProcessing = AIProcessingMode.onDevice.rawValue
+                    } catch {
+                        try? await removePreviousSession(scope: scope, accessToken: accessToken)
+                        throw WebRTCVideoUplinkError.failed(String(localized: "서버 AI 중지를 확인하지 못해 온디바이스 영상 연결을 중단했습니다."))
+                    }
+                }
+                guard created.aiProcessing == requestedMode.rawValue || (requestedMode == .server && created.aiProcessing == nil) else {
+                    try? await removePreviousSession(scope: scope, accessToken: accessToken)
+                    throw WebRTCVideoUplinkError.failed(String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다."))
+                }
                 sessionScope = scope
                 session = created
+                if requestedMode == .onDevice { isAnonymizationEnabled = true }
                 stream = created.stream
                 return true
             } catch {
@@ -397,7 +419,7 @@ final class YouTubeIntegration: ObservableObject {
                 guard generation == sessionOperationGeneration else { return false }
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
-                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken),
+                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled),
                     accessToken: refreshedAccessToken,
                     serverURL: serverURL,
                     iceServers: iceServers,
@@ -485,6 +507,18 @@ final class YouTubeIntegration: ObservableObject {
                 ?? String(localized: "화질을 변경하지 못했습니다. 다시 시도해 주세요.")
             return false
         }
+    }
+
+    func changeAIProcessingMode(_ mode: AIProcessingMode, accessToken: String?) async -> Bool {
+        guard !isYouTubeBroadcastActive, !isChangingStreamState, !isPreparingSession,
+              !isConnectingVideo, !isEndingSession else { return false }
+        if mode == .onDevice && !AIProcessingMode.localModelsAvailable {
+            errorMessage = String(localized: "이 앱에 온디바이스 모델이 포함되어 있지 않습니다.")
+            return false
+        }
+        await endBroadcast(accessToken: accessToken)
+        UserDefaults.standard.set(mode.rawValue, forKey: AIProcessingMode.storageKey)
+        return true
     }
 
     func endBroadcast(accessToken: String?) async {
@@ -732,6 +766,12 @@ final class YouTubeIntegration: ObservableObject {
             return
         }
 
+        if session.processingMode == .onDevice {
+            isAnonymizationEnabled.toggle()
+            videoUplink.setLocalAnonymizationEnabled(isAnonymizationEnabled)
+            return
+        }
+
         isTogglingAnonymization = true
         defer { isTogglingAnonymization = false }
         do {
@@ -857,7 +897,7 @@ final class YouTubeIntegration: ObservableObject {
                     }
                     self.stream = snapshot.stream
                     self.videoTrack = snapshot.media.rawVideoTrack
-                    if let anonymization = snapshot.media.anonymizationEnabled {
+                    if session.processingMode == .server, let anonymization = snapshot.media.anonymizationEnabled {
                         self.isAnonymizationEnabled = anonymization
                     }
                     if snapshot.stream.statusValue == .stopped {
@@ -892,7 +932,7 @@ final class YouTubeIntegration: ObservableObject {
             let snapshot = try await api.sessionStatus(session: session, accessToken: accessToken)
             stream = snapshot.stream
             videoTrack = snapshot.media.rawVideoTrack
-            if let anonymization = snapshot.media.anonymizationEnabled {
+            if session.processingMode == .server, let anonymization = snapshot.media.anonymizationEnabled {
                 isAnonymizationEnabled = anonymization
             }
             if snapshot.media.rawVideoTrack?.readyStateValue == .live {
@@ -954,7 +994,8 @@ final class YouTubeIntegration: ObservableObject {
                     try await self.videoUplink.start(
                         session: WebRTCSessionCredentials(
                             sessionID: session.sessionID,
-                            ownerToken: session.ownerToken
+                            ownerToken: session.ownerToken,
+                            processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled
                         ),
                         accessToken: self.api.currentAccessToken(fallback: accessToken),
                         serverURL: serverURL,

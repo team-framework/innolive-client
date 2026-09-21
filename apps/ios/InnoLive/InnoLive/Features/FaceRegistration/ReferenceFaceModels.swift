@@ -1,6 +1,6 @@
 import Foundation
 
-struct ReferenceFaceStatus: Decodable, Equatable {
+nonisolated struct ReferenceFaceStatus: Decodable, Equatable, Sendable {
     let registered: Bool
     let source: String?
     let registeredAt: String?
@@ -17,11 +17,13 @@ struct ReferenceFaceStatus: Decodable, Equatable {
         case faces
     }
 }
-struct ReferenceFace: Decodable, Equatable, Identifiable {
+nonisolated struct ReferenceFace: Decodable, Equatable, Identifiable, Sendable {
     let id: String
+    var name: String? = nil
     let registeredAt: String
 
     enum CodingKeys: String, CodingKey {
+        case name
         case id = "face_id"
         case registeredAt = "registered_at"
     }
@@ -62,5 +64,13 @@ enum ReferenceFaceAPIError: Error, Equatable {
                 return fallback
             }
         }
+    }
+}
+
+nonisolated enum ReferenceFaceName {
+    static func isValid(_ name: String) -> Bool {
+        let value = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !value.isEmpty && value.unicodeScalars.count <= 40
+            && value.rangeOfCharacter(from: CharacterSet(charactersIn: "\r\n\0")) == nil
     }
 }

@@ -8175,6 +8175,397 @@
           }
         }
       }
+    },
+    "서버에 등록한 얼굴": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에 등록한 얼굴"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faces registered on the server"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに登録した顔"
+          }
+        }
+      }
+    },
+    "이 기기에만 저장한 얼굴": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에만 저장한 얼굴"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faces saved only on this device"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスだけに保存した顔"
+          }
+        }
+      }
+    },
+    "이름": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前"
+          }
+        }
+      }
+    },
+    "등록 상태를 불러와 주세요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록 상태를 불러와 주세요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load the registration status"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録状況を読み込んでください"
+          }
+        }
+      }
+    },
+    "이름을 1~40자로 입력해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름을 1~40자로 입력해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a name using 1–40 characters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前を1〜40文字で入力してください。"
+          }
+        }
+      }
+    },
+    "이 앱에 온디바이스 모델이 포함되어 있지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 앱에 온디바이스 모델이 포함되어 있지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This app does not include on-device models."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このアプリにはオンデバイスモデルが含まれていません。"
+          }
+        }
+      }
+    },
+    "AI 설정": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 설정"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI設定"
+          }
+        }
+      }
+    },
+    "서버 AI 중지를 확인하지 못해 온디바이스 영상 연결을 중단했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 AI 중지를 확인하지 못해 온디바이스 영상 연결을 중단했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The video connection stopped because disabling server AI could not be confirmed."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーAIの停止を確認できなかったため、映像接続を中止しました。"
+          }
+        }
+      }
+    },
+    "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current server does not support the selected AI processing mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のサーバーでは選択したAI処理方式を使用できません。"
+          }
+        }
+      }
+    },
+    "서버 AI 모델 사용": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 AI 모델 사용"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use server AI models"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーAIモデルを使用"
+          }
+        }
+      }
+    },
+    "온디바이스 AI 모델 사용": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온디바이스 AI 모델 사용"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use on-device AI models"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オンデバイスAIモデルを使用"
+          }
+        }
+      }
+    },
+    "서버에서 영상을 비식별화합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에서 영상을 비식별화합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anonymize video on the server."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーで映像を匿名化します。"
+          }
+        }
+      }
+    },
+    "이 기기에서 비식별화한 영상을 송출합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에서 비식별화한 영상을 송출합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stream video anonymized on this device."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスで匿名化した映像を配信します。"
+          }
+        }
+      }
+    },
+    "방송을 종료한 뒤 AI 처리 방식을 변경할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 종료한 뒤 AI 처리 방식을 변경할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End the broadcast to change the AI processing mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を終了するとAI処理方式を変更できます。"
+          }
+        }
+      }
+    },
+    "방식을 변경하면 영상 연결을 다시 준비합니다. 얼굴 등록은 서버와 이 기기에 각각 저장됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방식을 변경하면 영상 연결을 다시 준비합니다. 얼굴 등록은 서버와 이 기기에 각각 저장됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing the mode restarts the video connection. Face registrations are stored separately on the server and this device."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "方式を変更すると映像接続を準備し直します。顔の登録情報はサーバーとこのデバイスに別々に保存されます。"
+          }
+        }
+      }
+    },
+    "서버 얼굴 관리": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 얼굴 관리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage server faces"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーの顔登録を管理"
+          }
+        }
+      }
+    },
+    "이 기기 얼굴 관리": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기 얼굴 관리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage device faces"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスの顔登録を管理"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

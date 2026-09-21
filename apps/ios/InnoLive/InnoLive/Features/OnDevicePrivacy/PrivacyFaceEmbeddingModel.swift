@@ -1,4 +1,3 @@
-#if DEBUG
 import CoreML
 import CoreImage
 import ImageIO
@@ -257,10 +256,11 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
     }
 
     static func saveMetrics(_ rows: [[String: Double]], filename: String) {
+        #if DEBUG
         if let data = try? JSONSerialization.data(withJSONObject: rows, options: [.sortedKeys]),
            let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
             try? data.write(to: directory.appendingPathComponent(filename), options: .atomic)
         }
+        #endif
     }
 }
-#endif

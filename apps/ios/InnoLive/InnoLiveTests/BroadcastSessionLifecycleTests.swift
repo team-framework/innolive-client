@@ -231,6 +231,46 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(methods, ["POST", "DELETE"])
     }
 
+    func testOnDeviceLegacyServerRequiresConfirmedAIDisabled() async throws {
+        SessionLifecycleURLProtocol.responses = [.created("local"), .snapshot(enabled: false)]
+        let integration = makeIntegration(mode: .onDevice)
+        let ready = await integration.prepareSession(accessToken: token)
+        XCTAssertTrue(ready)
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertTrue(integration.isAnonymizationEnabled)
+        XCTAssertEqual(methods, ["POST", "PATCH"])
+        XCTAssertEqual(SessionLifecycleURLProtocol.requests[1].url?.path, "/sessions/local/anonymization")
+    }
+
+    func testOnDeviceRefusesUnconfirmedLegacyServerAndDeletesSession() async {
+        for confirmation in [true, nil] as [Bool?] {
+            SessionLifecycleURLProtocol.requests = []
+            SessionLifecycleURLProtocol.responses = [.created("unsafe"), .snapshot(enabled: confirmation), .empty(204)]
+            let integration = makeIntegration(mode: .onDevice)
+            let ready = await integration.prepareSession(accessToken: token)
+            XCTAssertFalse(ready)
+            XCTAssertNil(integration.session)
+            XCTAssertEqual(methods, ["POST", "PATCH", "DELETE"])
+        }
+    }
+
+    func testExplicitOnDeviceAcknowledgementSkipsLegacyToggle() async {
+        SessionLifecycleURLProtocol.responses = [.created("local", mode: "on_device")]
+        let integration = makeIntegration(mode: .onDevice)
+        let ready = await integration.prepareSession(accessToken: token)
+        XCTAssertTrue(ready)
+        XCTAssertEqual(methods, ["POST"])
+    }
+
+    func testMismatchedModeNeverStartsVideoAndDeletesSession() async {
+        SessionLifecycleURLProtocol.responses = [.created("wrong", mode: "server"), .empty(204)]
+        let integration = makeIntegration(mode: .onDevice)
+        let ready = await integration.prepareSession(accessToken: token)
+        XCTAssertFalse(ready)
+        XCTAssertNil(integration.session)
+        XCTAssertEqual(methods, ["POST", "DELETE"])
+    }
+
     private var methods: [String] { SessionLifecycleURLProtocol.requests.compactMap(\.httpMethod) }
 
     private static func token(_ user: String) -> String {
@@ -249,8 +289,8 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         })
     }
 
-    private func makeIntegration(api: YouTubeAPI? = nil) -> YouTubeIntegration {
-        YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api ?? makeAPI(), sessionStore: store)
+    private func makeIntegration(api: YouTubeAPI? = nil, mode: AIProcessingMode = .server) -> YouTubeIntegration {
+        YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api ?? makeAPI(), sessionStore: store, aiModeProvider: { mode })
     }
 }
 
@@ -278,9 +318,14 @@ private final class SessionLifecycleURLProtocol: URLProtocol {
     struct Response {
         let status: Int
         let body: String
+        static func snapshot(enabled: Bool?) -> Self {
+            let flag = enabled.map { String($0) } ?? "null"
+            return .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"anonymization_enabled\":\(flag)}}")
+        }
         static func empty(_ status: Int) -> Self { .init(status: status, body: "") }
-        static func created(_ id: String) -> Self {
-            .init(status: 201, body: "{\"session_id\":\"\(id)\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}")
+        static func created(_ id: String, mode: String? = nil) -> Self {
+            let extra = mode.map { "\"ai_processing\":\"\($0)\"," } ?? ""
+            return .init(status: 201, body: "{\(extra)\"session_id\":\"\(id)\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}")
         }
     }
     @MainActor static var responses: [Response] = []

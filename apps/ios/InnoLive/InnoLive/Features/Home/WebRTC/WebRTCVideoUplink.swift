@@ -27,8 +27,12 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     var cameraCapturer: LKRTCCameraVideoCapturer?
     var fileVideoCapturer: LKRTCFileVideoCapturer?
     var cameraFrameRelay: WebRTCCameraFrameRelay?
+    var frameRelayID: UUID?
     var videoSource: LKRTCVideoSource?
     var localVideoTrack: LKRTCVideoTrack?
+    var rawPreviewTrack: LKRTCVideoTrack?
+    var rawPreviewSource: LKRTCVideoSource?
+    var renderingLocalTrack: LKRTCVideoTrack? { rawPreviewTrack ?? localVideoTrack }
     var remoteVideoTrack: LKRTCVideoTrack?
     var videoSender: LKRTCRtpSender?
     var audioSource: LKRTCAudioSource?
@@ -242,6 +246,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         cameraOperationGeneration &+= 1
         let operationGeneration = cameraOperationGeneration
         credentials = session
+        if session.processingMode == .onDevice && !AIProcessingMode.localModelsAvailable {
+            throw WebRTCVideoUplinkError.failed(String(localized: "이 앱에 온디바이스 모델이 포함되어 있지 않습니다."))
+        }
         self.accessToken = accessToken
         errorMessage = nil
         requiresMediaPermissionSettings = false
@@ -334,7 +341,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         fileVideoCapturer = nil
         fileCapturer?.stopCapture()
         cameraFrameRelay?.setFaceFrameHandler(nil, cameraPosition: .unspecified)
+        cameraFrameRelay?.stopProcessing()
         cameraFrameRelay = nil
+        frameRelayID = nil
         if capturer != nil {
             isReleasingCamera = true
         }
@@ -342,11 +351,14 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         detachTracksFromRenderers()
         localAudioTrack?.isEnabled = false
         localVideoTrack?.isEnabled = false
+        rawPreviewTrack?.isEnabled = false
         audioSource = nil
         localAudioTrack = nil
         audioSender = nil
         videoSource = nil
         localVideoTrack = nil
+        rawPreviewTrack = nil
+        rawPreviewSource = nil
         remoteVideoTrack = nil
         videoSender = nil
         activeCameraID = nil
@@ -411,6 +423,10 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     func clearBroadcastOrientationLock() {
         lockedBroadcastOrientation = nil
         cameraFrameRelay?.setLockedInterfaceOrientation(nil)
+    }
+
+    func setLocalAnonymizationEnabled(_ enabled: Bool) {
+        cameraFrameRelay?.setLocalAnonymizationEnabled(enabled)
     }
 
     func setCameraSwitching(_ isSwitching: Bool) {

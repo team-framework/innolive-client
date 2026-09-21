@@ -1,4 +1,3 @@
-#if DEBUG
 import CoreImage
 
 nonisolated enum PrivacyMask {
@@ -24,4 +23,3 @@ nonisolated enum PrivacyMask {
             .cropped(to: source.extent)
     }
 }
-#endif

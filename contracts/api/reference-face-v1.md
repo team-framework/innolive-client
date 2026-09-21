@@ -54,9 +54,15 @@ operation as successful only when the response is 2xx and `registered` is
 ## Append multiple faces
 
 The multipart field `images` appends files to the current set. The server
-accepts at most 20 files in one request. Mobile automatic registration uses the
-single `image` replacement contract unless a multi-exemplar flow is explicitly
-designed.
+accepts at most 20 files in one request. iOS multiple-person registration sends one `images` file per registration, preserving
+previously registered people. The original 500 x 500 crop and stable-face detection
+flow still applies. The singular `image` field remains a replacement operation.
+
+An optional text field `name` labels a single image. The server trims whitespace,
+accepts at most 40 Unicode scalars, and rejects CR, LF, NUL, invalid UTF-8, or a
+non-empty name combined with multiple files before contacting the AI worker.
+Responses include optional `faces[].name`; old records without names remain valid.
+Local registration uses a separate device store; see [AI processing](ai-processing-v1.md).
 
 ## Read status
 

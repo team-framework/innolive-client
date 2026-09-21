@@ -55,8 +55,11 @@ enum WebRTCVideoUplinkError: LocalizedError {
 }
 
 struct WebRTCSessionCredentials {
+
     let sessionID: String
     let ownerToken: String
+    var processingMode: AIProcessingMode = .server
+    var localAnonymizationEnabled = true
 }
 
 struct WebRTCIceServer: Codable, Equatable {

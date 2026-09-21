@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import CoreImage
 
@@ -23,6 +22,7 @@ nonisolated final class PrivacyFaceCoordinator {
     private let tracking = PrivacyFaceTracking()
     private let context = CIContext(options: [.cacheIntermediates: false])
     private var library: PrivacyFaceLibrary?
+    private var libraryRevision = PrivacyFaceLibrary.revision
     private var pending: Enrollment?
     private var generation = 0
     private var disabled = false
@@ -78,6 +78,13 @@ nonisolated final class PrivacyFaceCoordinator {
 
     func process(image: CIImage, objects: [PrivacySegmentation.Detection], layout: PrivacySegmentation.Letterbox,
                  timestamp: Double) -> Set<Int> {
+        let revision = PrivacyFaceLibrary.revision
+        if libraryRevision != revision {
+            generation += 1
+            tracking.reset()
+            do { library = try PrivacyFaceLibrary(); libraryRevision = revision }
+            catch { disabled = true; message = "등록 데이터 읽기 실패: \(error.localizedDescription)" }
+        }
         let faceIndices = objects.indices.filter { objects[$0].classID == 0 }
         var boxes: [Int: CGRect] = [:]
         for index in faceIndices {
@@ -161,4 +168,3 @@ nonisolated final class PrivacyFaceCoordinator {
         }
     }
 }
-#endif

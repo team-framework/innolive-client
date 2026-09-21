@@ -1,10 +1,10 @@
-#if DEBUG
 import Foundation
 
 nonisolated struct PrivacyRegisteredFace: Codable, Identifiable, Sendable {
     let id: UUID
     let name: String
     let embedding: [Float]
+    var registeredAt: String? = nil
 }
 
 nonisolated enum PrivacyFaceMath {
@@ -32,6 +32,13 @@ nonisolated enum PrivacyFaceMath {
 
 /// Called only on the camera queue. Stores embeddings with complete file protection, without photos.
 nonisolated final class PrivacyFaceLibrary {
+    private static let revisionState = RevisionState()
+    private final class RevisionState: @unchecked Sendable {
+        let lock = NSLock()
+        var value = 0
+    }
+    static var revision: Int { revisionState.lock.withLock { revisionState.value } }
+    static func changed() { revisionState.lock.withLock { revisionState.value += 1 } }
     static let contract = "privacy-face-vit-kprpe-yunet-v1"
     private struct Document: Codable {
         let contract: String
@@ -61,8 +68,10 @@ nonisolated final class PrivacyFaceLibrary {
               let normalized = PrivacyFaceMath.normalized(embedding) else {
             throw PrivacyFaceError.message("이름은 1~40자, 등록은 최대 20명입니다.")
         }
-        try save(entries + [.init(id: UUID(), name: name, embedding: normalized)])
+        try save(entries + [.init(id: UUID(), name: name, embedding: normalized, registeredAt: Date().ISO8601Format())])
     }
+
+    func deleteAll() throws { try save([]) }
 
     func delete(id: UUID) throws { try save(entries.filter { $0.id != id }) }
 
@@ -75,6 +84,7 @@ nonisolated final class PrivacyFaceLibrary {
         values.isExcludedFromBackup = true
         try target.setResourceValues(values)
         entries = updated
+        Self.changed()
     }
 }
 
@@ -82,4 +92,3 @@ nonisolated enum PrivacyFaceError: LocalizedError {
     case message(String)
     var errorDescription: String? { switch self { case let .message(text): return text } }
 }
-#endif

@@ -13,9 +13,13 @@ final class ReferenceFaceAPI {
         return try decodeStatus(from: data)
     }
 
-    func register(jpegData: Data) async throws -> ReferenceFaceStatus {
+    func register(jpegData: Data, name: String = "") async throws -> ReferenceFaceStatus {
         let boundary = "InnoLive-Reference-Face-\(UUID().uuidString)"
         var body = Data()
+        if !name.isEmpty {
+            body.appendUTF8("--\(boundary)\r\nContent-Disposition: form-data; name=\"name\"\r\n\r\n")
+            body.appendUTF8(name + "\r\n")
+        }
         body.appendUTF8("--\(boundary)\r\n")
         body.appendUTF8("Content-Disposition: form-data; name=\"images\"; filename=\"reference-face.jpg\"\r\n")
         body.appendUTF8("Content-Type: image/jpeg\r\n\r\n")
