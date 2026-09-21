@@ -30,7 +30,7 @@ struct SettingsView: View {
                     } label: {
                         SettingsGlassRow {
                             settingsRowContent(
-                                title: String(localized: "AI 설정"),
+                                title: String(localized: "AI & Faces Setting"),
                                 systemImage: "sparkles"
                             )
                         }

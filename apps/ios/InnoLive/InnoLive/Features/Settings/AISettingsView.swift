@@ -55,7 +55,7 @@ struct AISettingsView: View {
                 if let error = youtube.errorMessage { Text(error).font(.footnote).foregroundStyle(.red) }
             }.padding(24)
         }
-        .navigationTitle(String(localized: "AI 설정"))
+        .navigationTitle(String(localized: "AI & Faces Setting"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

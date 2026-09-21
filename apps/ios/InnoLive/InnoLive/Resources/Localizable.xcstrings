@@ -8314,25 +8314,25 @@
         }
       }
     },
-    "AI 설정": {
+    "AI & Faces Setting": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "AI 설정"
+            "value": "AI & Faces Setting"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "AI settings"
+            "value": "AI & Faces Setting"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "AI設定"
+            "value": "AI & Faces Setting"
           }
         }
       }
