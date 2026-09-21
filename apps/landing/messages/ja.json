@@ -246,6 +246,33 @@
     "registered": "顔が登録されました。",
     "guide": "顔を円の中に入れて、しばらくお待ちください。"
   },
+  "faceRegistration": {
+    "dialogLabel": "顔登録",
+    "previewLabel": "顔登録カメラのプレビュー",
+    "retry": "再試行",
+    "status": {
+      "preparing": "顔登録を準備しています。",
+      "finding": "顔を探しています。",
+      "multiple": "円の中に顔を一つだけ合わせてください。",
+      "hold": "しばらくそのままお待ちください。",
+      "registering": "顔を登録しています。"
+    },
+    "errors": {
+      "previewStart": "カメラのプレビューを開始できませんでした。",
+      "cameraPermission": "カメラの権限を許可してください。",
+      "cameraNotFound": "利用できるカメラが見つかりませんでした。",
+      "lowResolution": "カメラの解像度が低すぎます。より高解像度のカメラを使用してください。",
+      "imageCreate": "顔画像を作成できませんでした。",
+      "jpegConversion": "顔画像を変換できませんでした。",
+      "detectorStart": "顔認識を準備できませんでした。",
+      "serverConnection": "顔登録サーバーに接続できませんでした。",
+      "faceNotDetected": "顔を認識できませんでした。もう一度お試しください。",
+      "sessionExpired": "ログインの有効期限が切れました。もう一度ログインしてください。",
+      "serverRequest": "顔登録に失敗しました。もう一度お試しください。",
+      "serverIncomplete": "顔登録の結果を確認できませんでした。",
+      "unknown": "顔登録中に問題が発生しました。もう一度お試しください。"
+    }
+  },
   "experience": {
     "title": "リアルタイム非識別化デモ",
     "preparing": "体験接続を準備しています。",
@@ -260,6 +287,7 @@
     "retry": "再試行",
     "end": "体験を終了",
     "restart": "再開する",
+    "faceRegistered": "顔登録が完了しました。",
     "errors": {
       "permission": "カメラの権限を許可してください。",
       "notFound": "利用できるカメラが見つかりませんでした。",

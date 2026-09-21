@@ -11,7 +11,8 @@ inventory for the web application's complete dependency tree.
   - License: Apache License 2.0
   - Source: https://github.com/google-ai-edge/mediapipe
 - **BlazeFace short-range model**
-  (`apps/web/public/models/blaze-face-short-range.tflite`)
+  (`apps/web/public/models/blaze-face-short-range.tflite` and
+  `apps/landing/public/models/blaze-face-short-range.tflite`)
   - Distributed for this integration with MediaPipe Tasks Vision.
   - Source and license reference: https://github.com/google-ai-edge/mediapipe
   - License: Apache License 2.0
