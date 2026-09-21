@@ -4,6 +4,8 @@ DerivedData/
 *.xcuserstate
 xcuserdata/
 apps/ios/InnoLive/InnoLive/Resources/PrivacyDetector.mlpackage/
+apps/ios/InnoLive/InnoLive/Resources/PrivacyFaceRecognizer.mlpackage/
+apps/ios/InnoLive/InnoLive/Resources/PrivacyFaceRecognizer.manifest.json
 
 # Android / Gradle
 .gradle/
