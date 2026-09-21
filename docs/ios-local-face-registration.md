@@ -124,6 +124,18 @@ xcrun devicectl device copy from --device '<device-id>' \
 `privacy-face-metrics.json`이다. 이름·embedding·얼굴 사진을 이 로그에 넣지 않는다.
 카메라 `privacy-lab-metrics.json`에도 등록 수·블러 해제 수·최근 얼굴 인식 시간을 추가했다.
 
+### 카메라 실행 중 관측한 숫자 로그
+
+벤치마크 후 일반 로컬 카메라 화면으로 다시 실행했다. 기기에서 복사한
+`privacy-lab-metrics.json`에는 48개 표본이 있었고, 등록 수 1명인 39개 표본은
+76.00초 범위를 포함했다. 해당 구간의 처리 시간 중앙값은 21.91ms, 순간 처리 FPS
+중앙값은 28.65였다. 39개 중 18개 표본에 블러 해제 수 1명이 기록됐다.
+
+이 기록으로 실제 등록 저장과 블러 예외 코드가 기기에서 실행된 사실을 확인했다.
+촬영 장면·사람의 정답을 관찰하지 않았으므로 18/39를 인식 성공률로 해석하지 않는다.
+화면 이탈·자세·겹침·UI 조작을 통제한 성능 비교도 아니다. 실제 다른 사람을
+구별하는지와 다인 동시 식별은 별도로 확인해야 한다.
+
 ### 자동 검증과 남은 기기 확인
 
 - iOS 기기 빌드 성공, iPhone 16 설치 및 합성 입력 추론 성공.
@@ -141,3 +153,5 @@ xcrun devicectl device copy from --device '<device-id>' \
 - [기존 서버 전처리](https://github.com/team-framework/innolive-ai/blob/main/service/adaface_model.py)
 - [Apple Core ML 변환 출력 비교](https://apple.github.io/coremltools/docs-guides/source/model-prediction.html)
 - 초기 Core ML 변환 기록: `07bd8b3`.
+
+- 다중 등록·실기기 검증 코드: `bd3be09`.
