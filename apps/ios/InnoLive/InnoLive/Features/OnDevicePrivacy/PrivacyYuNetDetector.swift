@@ -79,7 +79,8 @@ nonisolated final class PrivacyYuNetDetector {
             throw PrivacyFaceError.message("YuNet 모델이 없습니다. 모델을 포함해 빌드해 주세요.")
         }
         let config = MLModelConfiguration()
-        config.computeUnits = .cpuAndGPU
+        // Small, variable-size YuNet stays on CPU to avoid growing GPU shape caches.
+        config.computeUnits = .cpuOnly
         model = try MLModel(contentsOf: url, configuration: config)
         let metadata = model.modelDescription.metadata[.creatorDefinedKey] as? [String: String]
         guard metadata?["innolive.contract"] == "privacy-yunet-2023mar-v1",
