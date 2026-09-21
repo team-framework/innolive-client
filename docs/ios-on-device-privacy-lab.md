@@ -29,7 +29,8 @@ Xcode가 빌드하면서 `.mlmodelc`로 컴파일한다. 모델이 없거나 출
 - 얼굴 0, 번호판 1. 출력 `[1,38,8400]`, prototype `[1,32,160,160]`.
 - RGB, 비율 유지 letterbox, padding 114. 모델에 1/255 스케일이 포함된다.
 - confidence 0.25, NMS IoU 0.45, mask logit > 0, mask 크기 160×160.
-- 마스크를 2px 확장한 뒤 원본 좌표로 복원한다. 탐지된 객체의 마스크가 비면 bbox를 사용한다.
+- 마스크를 2px 확장한 보호 영역을 유지하고, 4px 확장·Gaussian radius 1.5의 부드러운 바깥
+  경계를 합친 뒤 원본 좌표로 복원한다. 탐지된 객체의 마스크가 비면 bbox를 사용한다.
 
 Core ML Tools는 설치한 Torch 2.14.0을 공식 테스트한 버전이 아니라는 경고를 출력한다.
 변환 성공과 별도로 체크포인트마다 출력 비교를 수행해야 한다. 기준 학습/서버 모델이 사용하는
@@ -84,7 +85,7 @@ xcrun devicectl device copy from --device '<device-id>' \
 ## 검증 범위
 
 - `PrivacySegmentationTests`: 클래스별 NMS, 잘못된 출력 거부, 빈 마스크의 bbox 보호,
-  세로·가로 letterbox 좌표.
+  세로·가로 letterbox 좌표, 경계 완화 후 보호 영역 유지, Core Image 상하 좌표.
 - 같은 실제 장면에서 전면·후면, 가까운 얼굴·작은 얼굴, 여러 얼굴, 번호판을 확인한다.
 - 비행기 모드에서도 로컬 처리가 지속되는지 확인한다.
 - 15분 실행 후 FPS와 발열을 측정한다. 순간 FPS를 지속 성능으로 보고하지 않는다.

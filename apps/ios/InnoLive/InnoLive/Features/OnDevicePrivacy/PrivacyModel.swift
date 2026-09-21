@@ -70,15 +70,7 @@ nonisolated final class PrivacyModel {
         let bytes = try PrivacySegmentation.unionMask(detections: objects,
                                                      prototypes: PrivacySegmentation.floats(proto, shape: [1, 32, 160, 160]))
         let masked = ProcessInfo.processInfo.systemUptime
-        guard let provider = CGDataProvider(data: Data(bytes) as CFData),
-              let bitmap = CGImage(width: 160, height: 160, bitsPerComponent: 8, bitsPerPixel: 8,
-                                   bytesPerRow: 160, space: CGColorSpaceCreateDeviceGray(),
-                                   bitmapInfo: CGBitmapInfo(rawValue: 0), provider: provider,
-                                   decode: nil, shouldInterpolate: false, intent: .defaultIntent) else {
-            throw PrivacyModelError.imageBuffer
-        }
-        let mask = CIImage(cgImage: bitmap)
-            .applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": 2])
+        let mask = try PrivacyMask.modelImage(bytes: bytes)
             .transformed(by: CGAffineTransform(scaleX: 4, y: 4))
             .transformed(by: CGAffineTransform(translationX: -layout.left, y: -layout.bottom))
             .transformed(by: CGAffineTransform(scaleX: size.width / layout.resized.width,

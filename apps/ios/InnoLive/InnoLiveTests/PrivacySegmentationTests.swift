@@ -1,5 +1,6 @@
 #if DEBUG
 import CoreML
+import CoreImage
 import XCTest
 @testable import InnoLive
 
@@ -46,6 +47,43 @@ final class PrivacySegmentationTests: XCTestCase {
         XCTAssertEqual(landscape.resized, CGSize(width: 640, height: 360))
         XCTAssertEqual(landscape.left, 0)
         XCTAssertEqual(landscape.bottom, 140)
+    }
+
+    func testSoftEdgeDoesNotReducePreviouslyProtectedArea() throws {
+        var bytes = [UInt8](repeating: 0, count: 160 * 160)
+        for y in 40..<80 { for x in 40..<80 { bytes[y * 160 + x] = 255 } }
+        let hard = try maskPixels(PrivacyMask.modelImage(bytes: bytes, feathered: false))
+        let soft = try maskPixels(PrivacyMask.modelImage(bytes: bytes))
+        for i in hard.indices {
+            XCTAssertGreaterThanOrEqual(Int(soft[i]) + 1, Int(hard[i]))
+        }
+        XCTAssertTrue(soft.indices.contains { hard[$0] == 0 && soft[$0] > 0 && soft[$0] < 255 })
+        XCTAssertEqual(soft[0], 0)
+    }
+
+    func testMaskTopLeftCoordinatesSurviveCoreImageConversion() throws {
+        var bytes = [UInt8](repeating: 0, count: 160 * 160)
+        for y in 20..<30 { for x in 10..<20 { bytes[y * 160 + x] = 255 } }
+        let image = try PrivacyMask.modelImage(bytes: bytes)
+        let context = CIContext(options: [.useSoftwareRenderer: true])
+        var sample = [UInt8](repeating: 0, count: 1)
+        context.render(image, toBitmap: &sample, rowBytes: 1,
+                       bounds: CGRect(x: 15, y: 135, width: 1, height: 1), format: .L8,
+                       colorSpace: CGColorSpaceCreateDeviceGray())
+        XCTAssertEqual(sample[0], 255)
+        context.render(image, toBitmap: &sample, rowBytes: 1,
+                       bounds: CGRect(x: 15, y: 25, width: 1, height: 1), format: .L8,
+                       colorSpace: CGColorSpaceCreateDeviceGray())
+        XCTAssertEqual(sample[0], 0)
+    }
+
+    private func maskPixels(_ image: CIImage) throws -> [UInt8] {
+        let context = CIContext(options: [.useSoftwareRenderer: true])
+        var pixels = [UInt8](repeating: 0, count: 160 * 160)
+        context.render(image, toBitmap: &pixels, rowBytes: 160,
+                       bounds: CGRect(x: 0, y: 0, width: 160, height: 160), format: .L8,
+                       colorSpace: CGColorSpaceCreateDeviceGray())
+        return pixels
     }
 }
 #endif
