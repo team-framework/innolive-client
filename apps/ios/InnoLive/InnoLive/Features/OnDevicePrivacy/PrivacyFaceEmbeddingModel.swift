@@ -25,8 +25,12 @@ nonisolated final class PrivacyFaceEmbeddingModel {
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private let buffer: CVPixelBuffer
     let loadMilliseconds: Double
+    let recognizerLoadMilliseconds: Double
+    let detectorLoadMilliseconds: Double
 
-    init(computeUnits: MLComputeUnits = .all) throws {
+    // iPhone 16 measurements: CPU/GPU loads and predicts faster for this ViT graph.
+    // Keep YuNet's separate CPU-only setting.
+    init(computeUnits: MLComputeUnits = .cpuAndGPU) throws {
         let start = ProcessInfo.processInfo.systemUptime
         guard let url = Bundle.main.url(forResource: "PrivacyFaceRecognizer", withExtension: "mlmodelc") else {
             throw PrivacyFaceError.message("얼굴 인식 모델이 없습니다. 모델을 포함해 빌드해 주세요.")
@@ -34,6 +38,7 @@ nonisolated final class PrivacyFaceEmbeddingModel {
         let config = MLModelConfiguration()
         config.computeUnits = computeUnits
         model = try MLModel(contentsOf: url, configuration: config)
+        recognizerLoadMilliseconds = (ProcessInfo.processInfo.systemUptime - start) * 1000
         let metadata = model.modelDescription.metadata[.creatorDefinedKey] as? [String: String]
         guard metadata?["innolive.contract"] == "privacy-face-vit-kprpe-v1",
               metadata?["innolive.checkpoint_sha256"] == "04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9",
@@ -47,7 +52,9 @@ nonisolated final class PrivacyFaceEmbeddingModel {
                                          [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &created)
         guard result == kCVReturnSuccess, let created else { throw PrivacyModelError.imageBuffer }
         buffer = created
+        let detectorStart = ProcessInfo.processInfo.systemUptime
         detector = try PrivacyYuNetDetector()
+        detectorLoadMilliseconds = (ProcessInfo.processInfo.systemUptime - detectorStart) * 1000
         loadMilliseconds = (ProcessInfo.processInfo.systemUptime - start) * 1000
     }
 
@@ -80,11 +87,27 @@ nonisolated final class PrivacyFaceEmbeddingModel {
     }
 
     /// Synthetic smoke test: exercises the real weights and runtime without capturing a person's image.
-    func benchmarkPrediction() throws {
+    @discardableResult
+    func benchmarkPrediction(sample: Int = 0) throws -> [Float] {
         let bounds = CGRect(x: 0, y: 0, width: 112, height: 112)
-        context.render(CIImage(color: CIColor(red: 0.4, green: 0.5, blue: 0.6)).cropped(to: bounds),
-                       to: buffer, bounds: bounds, colorSpace: colorSpace)
-        _ = try predict(points: [0.34, 0.46, 0.66, 0.46, 0.50, 0.64, 0.37, 0.82, 0.63, 0.82])
+        let image: CIImage
+        switch sample {
+        case 1:
+            image = CIFilter(name: "CILinearGradient", parameters: [
+                "inputPoint0": CIVector(x: 0, y: 0), "inputPoint1": CIVector(x: 112, y: 112),
+                "inputColor0": CIColor(red: 0.1, green: 0.8, blue: 0.2),
+                "inputColor1": CIColor(red: 0.9, green: 0.2, blue: 0.7)
+            ])!.outputImage!
+        case 2:
+            image = CIFilter(name: "CICheckerboardGenerator", parameters: [
+                "inputCenter": CIVector(x: 57, y: 53), "inputWidth": 13,
+                "inputColor0": CIColor(red: 0.2, green: 0.3, blue: 0.9),
+                "inputColor1": CIColor(red: 0.8, green: 0.7, blue: 0.1)
+            ])!.outputImage!
+        default: image = CIImage(color: CIColor(red: 0.4, green: 0.5, blue: 0.6))
+        }
+        context.render(image.cropped(to: bounds), to: buffer, bounds: bounds, colorSpace: colorSpace)
+        return try predict(points: [0.34, 0.46, 0.66, 0.46, 0.50, 0.64, 0.37, 0.82, 0.63, 0.82])
     }
 
     static func memoryMegabytes() -> Double {
@@ -148,9 +171,15 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
                 Self.saveMetrics([["state": 0, "uptime": start]], filename: "privacy-face-preparation.json")
                 do {
                     if recognizer == nil { recognizer = try PrivacyFaceEmbeddingModel() }
+                    let warmupStart = ProcessInfo.processInfo.systemUptime
                     try recognizer!.benchmarkPrediction()
                     lock.withLock { prepared = true; working = false }
-                    Self.saveMetrics([["state": 1, "prepare_ms": (ProcessInfo.processInfo.systemUptime - start) * 1000]],
+                    Self.saveMetrics([["state": 1, "uptime": start,
+                                       "compute_mode": 2,
+                                       "prepare_ms": (ProcessInfo.processInfo.systemUptime - start) * 1000,
+                                       "recognizer_load_ms": recognizer!.recognizerLoadMilliseconds,
+                                       "detector_load_ms": recognizer!.detectorLoadMilliseconds,
+                                       "warmup_ms": (ProcessInfo.processInfo.systemUptime - warmupStart) * 1000]],
                                      filename: "privacy-face-preparation.json")
                 } catch {
                     lock.withLock { prepared = false; working = false; preparationFailure = error.localizedDescription }
