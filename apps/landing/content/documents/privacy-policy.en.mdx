@@ -2,8 +2,8 @@
 
 This document explains the personal information we process, the purposes of processing, and the criteria for retention and deletion.
 
-- Publication date: September 19, 2026
-- Effective date: September 19, 2026
+- Publication date: September 21, 2026
+- Effective date: September 21, 2026
 - Service operations team: Framework team
 - Personal information protection officer: Kwon Dae-hyeong
 - Personal information inquiries: [support@innolive.studio](mailto:support@innolive.studio)
@@ -173,7 +173,9 @@ Consent and confirmation status stored on the device does not substitute for del
 
 ## 9. Personal information safeguards
 
-The Operations Team manages email-login passwords, refresh tokens, and broadcast-session ownership verification tokens in hashed form. Encryption is applied to YouTube connection tokens and stored Apple connection tokens.
+All communication between the app and our servers, and between our servers and Google APIs, is encrypted in transit using HTTPS/TLS.
+
+The Operations Team manages email-login passwords, refresh tokens, and broadcast-session ownership verification tokens in hashed form. YouTube connection tokens and stored Apple connection tokens are encrypted at rest using AES-256-GCM with a unique random nonce per value; they are never stored in plaintext. Short-lived access tokens are not written to the database and are held in memory only for the duration of a request.
 
 Access is controlled by verifying member authentication and ownership of broadcast sessions, and repeated email-verification and login requests are limited.
 
@@ -219,4 +221,4 @@ You can revoke InnoLive’s access permissions at any time on the Google account
 
 When the Operations Team changes this policy, it announces the changes and the effective date on the website or in the app. Changes that require separate consent are subject to consent before the relevant processing begins.
 
-The publication date and effective date of this policy are **September 19, 2026**. The effective date of the previous policy is **September 17, 2026**. Processing that requires separate consent because of a change begins after that consent is obtained.
+The publication date and effective date of this policy are **September 21, 2026**. The effective date of the previous policy is **September 19, 2026**. Processing that requires separate consent because of a change begins after that consent is obtained.
