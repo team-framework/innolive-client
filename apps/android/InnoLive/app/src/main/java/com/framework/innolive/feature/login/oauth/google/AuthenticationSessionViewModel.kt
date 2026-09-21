@@ -3,7 +3,17 @@ package com.framework.innolive.feature.login.oauth.google
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.framework.innolive.feature.login.account.AccountDeletionApi
+import com.framework.innolive.feature.login.account.AccountDeletionCoordinator
+import com.framework.innolive.feature.login.account.AccountDeletionCleanupStore
+import com.framework.innolive.feature.login.account.AccountDeletionState
+import com.framework.innolive.feature.login.account.AccountDeletionUseCase
+import com.framework.innolive.feature.login.account.AccountLocalDataCleaner
+import com.framework.innolive.feature.login.account.PendingAccountDeletion
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 
 /**
  * Activity-scoped owner for the encrypted Google session and its network
@@ -20,10 +30,13 @@ class AuthenticationSessionViewModel(
 
     val session: StateFlow<GoogleSessionStore.Session?> = repository.session
 
-    fun reload(): GoogleSessionStore.Session? = repository.reload()
+    fun reload(): GoogleSessionStore.Session? = repository.reload().also {
+        syncAccountDeletionState()
+    }
 
     fun save(session: GoogleSessionStore.Session) {
         repository.save(session)
+        syncAccountDeletionState()
     }
 
     suspend fun continueWithGoogle(context: Context) {
@@ -31,6 +44,7 @@ class AuthenticationSessionViewModel(
             context = context,
             sessionRepository = repository,
         )
+        syncAccountDeletionState()
     }
 
     private val emailApi = com.framework.innolive.feature.login.EmailSignInApi()
@@ -44,6 +58,49 @@ class AuthenticationSessionViewModel(
         saveSession = repository::save,
     )
 
+    private val accountLocalDataCleaner = AccountLocalDataCleaner(application)
+    private val accountDeletionCleanupStore = AccountDeletionCleanupStore(application)
+    private val initialPendingDeletion = repository.currentSession?.let { currentSession ->
+        accountDeletionCleanupStore.loadPhaseFor(currentSession)?.let { phase ->
+            PendingAccountDeletion(currentSession, phase)
+        }
+    }
+    private val accountDeletionCoordinator = AccountDeletionCoordinator(
+        scope = viewModelScope,
+        currentSession = { repository.currentSession },
+        deleteRemoteAccount = { deletingSession ->
+            AccountDeletionApi().use { deletionApi ->
+                AccountDeletionUseCase(
+                    gateway = deletionApi,
+                    refreshAccessToken = repository::refreshAccessToken,
+                ).delete(deletingSession.accessToken)
+            }
+        },
+        clearLocalAccountData = accountLocalDataCleaner::clear,
+        clearAuthentication = {
+            emailSignupSession.cancel()
+            repository.clear()
+        },
+        initialPendingDeletion = initialPendingDeletion,
+        persistPendingDeletion = { session, phase ->
+            withContext(Dispatchers.IO) {
+                accountDeletionCleanupStore.save(session, phase)
+            }
+        },
+        clearPendingDeletion = {
+            withContext(Dispatchers.IO) {
+                accountDeletionCleanupStore.clear()
+            }
+        },
+    )
+
+    internal val accountDeletionState: StateFlow<AccountDeletionState> =
+        accountDeletionCoordinator.state
+
+    internal fun deleteAccount(onRemoteDeletionConfirmed: () -> Unit = {}) {
+        accountDeletionCoordinator.delete(onRemoteDeletionConfirmed)
+    }
+
     suspend fun startEmailSignup(email: String, password: String) {
         emailSignupSession.start(email, password)
     }
@@ -54,6 +111,7 @@ class AuthenticationSessionViewModel(
 
     suspend fun verifyEmailSignup(code: String) {
         emailSignupSession.verify(code)
+        syncAccountDeletionState()
     }
 
     fun cancelEmailSignup() {
@@ -68,6 +126,7 @@ class AuthenticationSessionViewModel(
         com.framework.innolive.feature.login.authenticateAndSaveEmailSession(
             email, password, emailApi::authenticate, repository::save,
         )
+        syncAccountDeletionState()
     }
 
     suspend fun refresh(): GoogleSessionStore.Session = repository.refresh()
@@ -77,6 +136,16 @@ class AuthenticationSessionViewModel(
     fun clear() {
         emailSignupSession.cancel()
         repository.clear()
+        syncAccountDeletionState()
+    }
+
+    private fun syncAccountDeletionState() {
+        val pending = repository.currentSession?.let { currentSession ->
+            accountDeletionCleanupStore.loadPhaseFor(currentSession)?.let { phase ->
+                PendingAccountDeletion(currentSession, phase)
+            }
+        }
+        accountDeletionCoordinator.authenticationChanged(pending)
     }
 
     override fun onCleared() {

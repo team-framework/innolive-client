@@ -8,6 +8,7 @@
 <full-backup-content>
     <exclude domain="sharedpref" path="innolive_google_session.xml" />
     <exclude domain="sharedpref" path="innolive_session_recovery.xml" />
+    <exclude domain="sharedpref" path="innolive_account_deletion_cleanup.xml" />
     <exclude domain="sharedpref" path="innolive_youtube_preferences.xml" />
     <!--
    <include domain="sharedpref" path="."/>

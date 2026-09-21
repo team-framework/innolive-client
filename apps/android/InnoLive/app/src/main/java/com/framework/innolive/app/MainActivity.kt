@@ -160,6 +160,9 @@ fun AppNavigation(
     val activity = context as? ComponentActivity
     val coroutineScope = rememberCoroutineScope()
     val session by authenticationSession.session.collectAsStateWithLifecycle()
+    val accountDeletionState by authenticationSession.accountDeletionState.collectAsStateWithLifecycle()
+    val isDeletingAccount = accountDeletionState.isInProgress
+    val isAccountDeletionPending = accountDeletionState.hasPendingDeletion
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
     val youtubePreferencesStore = remember(context) { YouTubePreferencesStore(context) }
     val restoredYouTubeAccount = remember(youtubePreferencesStore) {
@@ -355,21 +358,22 @@ fun AppNavigation(
             restore = { it.toCollection(mutableStateListOf()) },
         ),
     ) {
-        mutableStateListOf<AppRoute>(if (session == null) LoginRoute else LiveRoute)
-    }
-    LaunchedEffect(session) {
-        if (session != null && backStack.lastOrNull() == LoginRoute) {
-            backStack.clear()
-            backStack.add(LiveRoute)
-        }
+        mutableStateListOf<AppRoute>(
+            when {
+                session == null -> LoginRoute
+                isAccountDeletionPending -> SettingsRoute
+                else -> LiveRoute
+            },
+        )
     }
     LaunchedEffect(
         backStack.lastOrNull(),
         session?.profileEmail,
         previousProfileEmail,
         isYouTubeAccountActionInProgress,
+        isDeletingAccount,
     ) {
-        if (isYouTubeAccountActionInProgress) return@LaunchedEffect
+        if (isYouTubeAccountActionInProgress || isDeletingAccount) return@LaunchedEffect
         if (suppressYouTubeAccountRefreshOnce) {
             suppressYouTubeAccountRefreshOnce = false
             return@LaunchedEffect
@@ -458,6 +462,19 @@ fun AppNavigation(
             broadcastCategoryId = defaults.categoryId
         }
         previousProfileEmail = session?.profileEmail
+        if (session != null && isAccountDeletionPending) {
+            if (backStack.lastOrNull() != SettingsRoute) {
+                backStack.clear()
+                backStack.add(SettingsRoute)
+            }
+        } else if (session == null && backStack.lastOrNull() != LoginRoute) {
+            selectedBroadcastPlatform = broadcastPlatformOptions.first()
+            backStack.clear()
+            backStack.add(LoginRoute)
+        } else if (session != null && backStack.lastOrNull() == LoginRoute) {
+            backStack.clear()
+            backStack.add(LiveRoute)
+        }
     }
 
     DisposableEffect(context, selectedCameraLensFacing) {
@@ -532,7 +549,9 @@ fun AppNavigation(
         webRtcSession.selectAudioInput(selectedAudioInput)
     }
     val onBack: () -> Unit = {
-        if (backStack.size > 1) {
+        if (isDeletingAccount || isAccountDeletionPending) {
+            Unit
+        } else if (backStack.size > 1) {
             backStack.removeLastOrNull()
         } else {
             (context as? Activity)?.finish()
@@ -541,6 +560,7 @@ fun AppNavigation(
 
     val connectYouTube: () -> Unit = connectYouTube@{
         if (
+            isDeletingAccount ||
             isYouTubeAccountActionInProgress ||
             youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING ||
             session == null
@@ -597,6 +617,18 @@ fun AppNavigation(
                 showYouTubeAccountFailure(operation, exception)
             }
         }
+    }
+
+    val deleteAccount: () -> Unit = deleteAccount@{
+        if (isDeletingAccount) return@deleteAccount
+        if (authenticationSession.session.value == null) return@deleteAccount
+
+        youtubeAuthorizationOperation = null
+        youtubeOperationGeneration.invalidate()
+        isYouTubeAuthorizationLaunched = false
+        isYouTubeAccountActionInProgress = false
+        youtubeCoordinator.close()
+        authenticationSession.deleteAccount(webRtcSession::close)
     }
 
     // NavDisplay keeps the LiveRoute NavEntry while the back stack is unchanged.
@@ -700,22 +732,33 @@ fun AppNavigation(
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
                                 onLogout = {
-                                    youtubeAuthorizationOperation = null
-                                    youtubeOperationGeneration.invalidate()
-                                    youtubeOperationProfileEmail = null
-                                    isYouTubeAuthorizationLaunched = false
-                                    webRtcSession.close()
-                                    authenticationSession.clear()
-                                    youtubePreferencesStore.clearAccountData()
-                                    updateYouTubeAccount(null)
-                                    verifiedYouTubeProfileEmail = null
-                                    youtubeAccountVerificationState =
-                                        YouTubeAccountVerificationState.UNVERIFIED
-                                    youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
-                                    isYouTubeAccountActionInProgress = false
-                                    backStack.clear()
-                                    backStack.add(LoginRoute)
+                                    if (
+                                        !isDeletingAccount &&
+                                        !isAccountDeletionPending
+                                    ) {
+                                        youtubeAuthorizationOperation = null
+                                        youtubeOperationGeneration.invalidate()
+                                        youtubeOperationProfileEmail = null
+                                        isYouTubeAuthorizationLaunched = false
+                                        webRtcSession.close()
+                                        authenticationSession.clear()
+                                        youtubePreferencesStore.clearAccountData()
+                                        updateYouTubeAccount(null)
+                                        verifiedYouTubeProfileEmail = null
+                                        youtubeAccountVerificationState =
+                                            YouTubeAccountVerificationState.UNVERIFIED
+                                        youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
+                                        isYouTubeAccountActionInProgress = false
+                                        backStack.clear()
+                                        backStack.add(LoginRoute)
+                                    }
                                 },
+                                onDeleteAccount = deleteAccount,
+                                isDeletingAccount = isDeletingAccount,
+                                isAccountDeletionPending = isAccountDeletionPending,
+                                isAccountDeletionCleanupPending =
+                                    accountDeletionState.localCleanupPending,
+                                accountDeletionError = accountDeletionState.error,
                             ),
                         )
                     }
