@@ -46,6 +46,16 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     private let onError: @Sendable (String) -> Void
 
     init(onError: @escaping @Sendable (String) -> Void) { self.onError = onError }
+    func prepare() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            queue.async { [self] in
+                do {
+                    if model == nil { model = try PrivacyModel() }
+                    continuation.resume()
+                } catch { continuation.resume(throwing: error) }
+            }
+        }
+    }
     func setEnabled(_ enabled: Bool) { gate.invalidate(enabled: enabled) }
     func reset() { gate.invalidate() }
     func stop() { gate.invalidate(stop: true) }
@@ -131,3 +141,26 @@ nonisolated enum PrivacyUplinkValidationMetrics {
     }
 }
 #endif
+
+/// Serializes the routing decision with delivery, including asynchronous AI results.
+nonisolated final class PrivacyUplinkRoute: @unchecked Sendable {
+    struct Ticket { let generation: UInt; let mode: AIProcessingMode }
+    private let lock = NSLock()
+    private var generation: UInt = 0
+    private var mode: AIProcessingMode
+    private var stopped = false
+    init(mode: AIProcessingMode) { self.mode = mode }
+    func ticket() -> Ticket? {
+        lock.withLock { stopped ? nil : Ticket(generation: generation, mode: mode) }
+    }
+    func change(to mode: AIProcessingMode) {
+        lock.withLock { generation &+= 1; self.mode = mode }
+    }
+    func stop() { lock.withLock { generation &+= 1; stopped = true } }
+    func deliver(_ ticket: Ticket, _ body: () -> Void) {
+        lock.withLock {
+            guard !stopped, ticket.generation == generation else { return }
+            body()
+        }
+    }
+}

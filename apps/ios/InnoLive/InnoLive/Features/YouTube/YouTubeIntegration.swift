@@ -18,6 +18,8 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var isRecoveringVideoFailure = false
     @Published private(set) var isAnonymizationEnabled = false
     @Published private(set) var isTogglingAnonymization = false
+    @Published private(set) var isChangingAIProcessing = false
+    @Published private(set) var isAIProcessingUnconfirmed = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var helpURL: URL?
     @Published private(set) var hasAcknowledgedYouTubeTransmission = false
@@ -32,6 +34,8 @@ final class YouTubeIntegration: ObservableObject {
     let videoUplink = WebRTCVideoUplink()
 
     private let aiModeProvider: () -> AIProcessingMode
+    private let localModelsAvailable: () -> Bool
+    private let persistAIProcessingMode: (AIProcessingMode) -> Void
     private let api: YouTubeAPI
     private let sessionStore: any BroadcastSessionStoring
     private var sessionScope: BroadcastSessionScope?
@@ -72,9 +76,15 @@ final class YouTubeIntegration: ObservableObject {
         orientationLock: (any BroadcastOrientationLocking)? = nil,
         consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore(),
         sessionStore: (any BroadcastSessionStoring)? = nil,
-        aiModeProvider: @escaping () -> AIProcessingMode = { .selected }
+        aiModeProvider: @escaping () -> AIProcessingMode = { .selected },
+        localModelsAvailable: @escaping () -> Bool = { AIProcessingMode.localModelsAvailable },
+        persistAIProcessingMode: @escaping (AIProcessingMode) -> Void = {
+            UserDefaults.standard.set($0.rawValue, forKey: AIProcessingMode.storageKey)
+        }
     ) {
         self.aiModeProvider = aiModeProvider
+        self.localModelsAvailable = localModelsAvailable
+        self.persistAIProcessingMode = persistAIProcessingMode
         self.api = api ?? YouTubeAPI()
         self.sessionStore = sessionStore ?? BroadcastSessionStore()
         self.preferencesStore = preferencesStore
@@ -304,7 +314,8 @@ final class YouTubeIntegration: ObservableObject {
                 let scope = try api.broadcastSessionScope(accessToken: accessToken)
                 try await removePreviousSession(scope: scope, accessToken: accessToken)
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                var created = try await api.createSession(accessToken: accessToken, mode: requestedMode)
+                // Keep a server-capable session so either direction can switch in place.
+                var created = try await api.createSession(accessToken: accessToken, mode: .server)
                 let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
                 // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
                 do {
@@ -317,25 +328,26 @@ final class YouTubeIntegration: ObservableObject {
                     throw error
                 }
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                if requestedMode == .onDevice, created.aiProcessing == nil {
+                guard created.aiProcessing == nil || created.aiProcessing == AIProcessingMode.server.rawValue else {
+                    try? await removePreviousSession(scope: scope, accessToken: accessToken)
+                    throw WebRTCVideoUplinkError.failed(String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다."))
+                }
+                if requestedMode == .onDevice {
                     // Legacy servers expose a per-session AI switch. Verify it is off before
                     // starting capture; an echoed request metadata field alone is not an acknowledgement.
                     do {
                         let confirmed = try await api.toggleAnonymization(session: created, accessToken: accessToken, enabled: false)
                         guard confirmed.media.anonymizationEnabled == false else { throw YouTubeAPIError.response }
                         guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                        created.aiProcessing = AIProcessingMode.onDevice.rawValue
+                        created.clientProcessingMode = .onDevice
                     } catch {
                         try? await removePreviousSession(scope: scope, accessToken: accessToken)
                         throw WebRTCVideoUplinkError.failed(String(localized: "서버 AI 중지를 확인하지 못해 온디바이스 영상 연결을 중단했습니다."))
                     }
                 }
-                guard created.aiProcessing == requestedMode.rawValue || (requestedMode == .server && created.aiProcessing == nil) else {
-                    try? await removePreviousSession(scope: scope, accessToken: accessToken)
-                    throw WebRTCVideoUplinkError.failed(String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다."))
-                }
                 sessionScope = scope
                 session = created
+                isAIProcessingUnconfirmed = false
                 if requestedMode == .onDevice { isAnonymizationEnabled = true }
                 stream = created.stream
                 return true
@@ -511,14 +523,53 @@ final class YouTubeIntegration: ObservableObject {
 
     func changeAIProcessingMode(_ mode: AIProcessingMode, accessToken: String?) async -> Bool {
         guard !isYouTubeBroadcastActive, !isChangingStreamState, !isPreparingSession,
-              !isConnectingVideo, !isEndingSession else { return false }
-        if mode == .onDevice && !AIProcessingMode.localModelsAvailable {
+              !isConnectingVideo, !isEndingSession, !isChangingAIProcessing,
+              !isTogglingAnonymization else { return false }
+        clearError()
+        if mode == .onDevice && !localModelsAvailable() {
             errorMessage = String(localized: "이 앱에 온디바이스 모델이 포함되어 있지 않습니다.")
             return false
         }
-        await endBroadcast(accessToken: accessToken)
-        UserDefaults.standard.set(mode.rawValue, forKey: AIProcessingMode.storageKey)
-        return true
+        guard let current = session else {
+            persistAIProcessingMode(mode)
+            return true
+        }
+        guard let accessToken, !accessToken.isEmpty else { showError(.unauthorized); return false }
+        guard current.aiProcessing == nil || current.aiProcessing == AIProcessingMode.server.rawValue else {
+            errorMessage = String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다.")
+            return false
+        }
+        let generation = sessionOperationGeneration
+        let requestedAnonymization = isAnonymizationEnabled
+        isChangingAIProcessing = true
+        defer { isChangingAIProcessing = false }
+        do {
+            if mode == .onDevice {
+                try await videoUplink.prepareLocalProcessing()
+                guard generation == sessionOperationGeneration, session?.sessionID == current.sessionID else { return false }
+                // Protect all subsequent camera frames before disabling the server's AI.
+                // On an ambiguous HTTP failure this path remains protected and retryable.
+                videoUplink.setAIProcessingMode(.onDevice, anonymizationEnabled: true)
+                session?.clientProcessingMode = .onDevice
+                isAnonymizationEnabled = true
+                persistAIProcessingMode(.onDevice)
+            }
+            let serverEnabled = mode == .server && requestedAnonymization
+            let confirmed = try await api.toggleAnonymization(session: current, accessToken: accessToken, enabled: serverEnabled)
+            guard generation == sessionOperationGeneration, session?.sessionID == current.sessionID else { return false }
+            guard confirmed.media.anonymizationEnabled == serverEnabled else { throw YouTubeAPIError.response }
+            videoUplink.setAIProcessingMode(mode, anonymizationEnabled: requestedAnonymization)
+            session?.clientProcessingMode = mode
+            isAnonymizationEnabled = requestedAnonymization
+            isAIProcessingUnconfirmed = false
+            persistAIProcessingMode(mode)
+            return true
+        } catch {
+            guard generation == sessionOperationGeneration, session?.sessionID == current.sessionID else { return false }
+            isAIProcessingUnconfirmed = true
+            errorMessage = String(localized: "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요.")
+            return false
+        }
     }
 
     func endBroadcast(accessToken: String?) async {
@@ -544,6 +595,7 @@ final class YouTubeIntegration: ObservableObject {
         liveStartedAt = nil
         videoTrack = nil
         isAnonymizationEnabled = false
+        isAIProcessingUnconfirmed = false
         forceReleaseBroadcastOrientationLock()
     }
 
@@ -579,8 +631,12 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func prepareYouTubeStream(accessToken: String?) async {
+        guard !isAIProcessingUnconfirmed else {
+            errorMessage = String(localized: "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요.")
+            return
+        }
         clearError()
-        guard !isChangingStreamState,
+        guard !isChangingStreamState, !isChangingAIProcessing, !isAIProcessingUnconfirmed,
               !isYouTubeConnectionOperationInProgress else { return }
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
@@ -755,8 +811,12 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func toggleAnonymization(accessToken: String?) async {
+        guard !isAIProcessingUnconfirmed else {
+            errorMessage = String(localized: "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요.")
+            return
+        }
         clearError()
-        guard !isTogglingAnonymization else { return }
+        guard !isTogglingAnonymization, !isChangingAIProcessing, !isAIProcessingUnconfirmed else { return }
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
             return
@@ -805,6 +865,7 @@ final class YouTubeIntegration: ObservableObject {
         liveStartedAt = nil
         videoTrack = nil
         isAnonymizationEnabled = false
+        isAIProcessingUnconfirmed = false
         errorMessage = nil
         helpURL = nil
         clearPersistedYouTubeConnection()

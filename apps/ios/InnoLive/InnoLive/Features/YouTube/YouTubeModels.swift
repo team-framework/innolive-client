@@ -249,7 +249,9 @@ struct YouTubeStreamingAccountSummary: Decodable, Equatable {
 
 struct YouTubeBroadcastSession: Decodable, Equatable {
     var aiProcessing: String? = nil
-    var processingMode: AIProcessingMode { AIProcessingMode(rawValue: aiProcessing ?? "server") ?? .server }
+    // Server capability stays fixed; the client can move inference without replacing this session.
+    var clientProcessingMode: AIProcessingMode? = nil
+    var processingMode: AIProcessingMode { clientProcessingMode ?? AIProcessingMode(rawValue: aiProcessing ?? "server") ?? .server }
     let sessionID: String
     let ownerToken: String
     let stream: YouTubeStreamState

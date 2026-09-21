@@ -14,7 +14,9 @@ struct PrivateBroadcastValidationView: View {
         let api = YouTubeAPI()
         self.api = api
         _youtube = StateObject(wrappedValue: YouTubeIntegration(
-            preferencesStore: YouTubePreferencesStore(), api: api, aiModeProvider: { .onDevice }
+            preferencesStore: YouTubePreferencesStore(), api: api,
+            aiModeProvider: { ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") ? .server : .onDevice },
+            persistAIProcessingMode: { _ in }
         ))
     }
 
@@ -26,7 +28,8 @@ struct PrivateBroadcastValidationView: View {
         }.task {
             guard !started else { return }
             started = true
-            await run()
+            if ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") { await runSwitchTest() }
+            else { await run() }
         }
     }
 
@@ -36,6 +39,57 @@ struct PrivateBroadcastValidationView: View {
         if let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             try? report.write(to: documents.appendingPathComponent("private-broadcast-validation.txt"), atomically: true, encoding: .utf8)
         }
+    }
+
+    private func runSwitchTest() async {
+        UIApplication.shared.isIdleTimerDisabled = true
+        defer { UIApplication.shared.isIdleTimerDisabled = false }
+        youtube.configureAuthentication(authentication)
+        authentication.restore()
+        guard authentication.isAuthenticated else { record("BLOCKED: 앱 로그인이 필요합니다."); return }
+        do {
+            guard await youtube.prepareSession(accessToken: authentication.currentAccessToken()), let initial = youtube.session else {
+                throw PrivacyFaceError.message(youtube.errorMessage ?? "세션 준비 실패")
+            }
+            guard await youtube.connectVideo(accessToken: authentication.currentAccessToken(), preferredCameraID: nil,
+                                             preferredAudioID: nil, preferredVideoQuality: .hd30),
+                  let peer = youtube.videoUplink.peerConnection else {
+                throw PrivacyFaceError.message(youtube.errorMessage ?? "영상 연결 실패")
+            }
+            let capturer = youtube.videoUplink.cameraCapturer
+            if !youtube.isAnonymizationEnabled { await youtube.toggleAnonymization(accessToken: authentication.currentAccessToken()) }
+            guard youtube.isAnonymizationEnabled else { throw PrivacyFaceError.message("서버 AI 활성화 실패") }
+            record("switch_test_start: server connected; no YouTube broadcast created")
+            for cycle in 1...2 {
+                let start = ProcessInfo.processInfo.systemUptime
+                guard await youtube.changeAIProcessingMode(.onDevice, accessToken: authentication.currentAccessToken()) else {
+                    throw PrivacyFaceError.message(youtube.errorMessage ?? "로컬 전환 실패")
+                }
+                let counts = PrivacyUplinkValidationMetrics.counts
+                try await Task.sleep(for: .seconds(5))
+                guard youtube.session?.sessionID == initial.sessionID, youtube.videoUplink.peerConnection === peer,
+                      youtube.videoUplink.cameraCapturer === capturer, youtube.videoUplink.state == .connected,
+                      youtube.session?.processingMode == .onDevice,
+                      PrivacyUplinkValidationMetrics.counts.processed > counts.processed,
+                      PrivacyUplinkValidationMetrics.counts.raw == 0 else {
+                    throw PrivacyFaceError.message("로컬 전환 후 연결 또는 프레임 검증 실패")
+                }
+                record("cycle=\(cycle) local_same_session_peer_camera=true; processed_frames=\(PrivacyUplinkValidationMetrics.counts.processed - counts.processed); elapsed_ms=\(Int((ProcessInfo.processInfo.systemUptime - start - 5) * 1000))")
+                guard await youtube.changeAIProcessingMode(.server, accessToken: authentication.currentAccessToken()) else {
+                    throw PrivacyFaceError.message(youtube.errorMessage ?? "서버 전환 실패")
+                }
+                try await Task.sleep(for: .seconds(2))
+                guard youtube.session?.sessionID == initial.sessionID, youtube.videoUplink.peerConnection === peer,
+                      youtube.videoUplink.cameraCapturer === capturer, youtube.videoUplink.state == .connected,
+                      youtube.session?.processingMode == .server else {
+                    throw PrivacyFaceError.message("서버 전환 후 연결 검증 실패")
+                }
+                record("cycle=\(cycle) server_same_session_peer_camera=true")
+            }
+            record("PASS: bidirectional switch, no reconnect, raw_local_frames=0")
+        } catch { record("FAILED: \(error.localizedDescription)") }
+        await youtube.endBroadcast(accessToken: authentication.currentAccessToken())
+        record("switch_test_finished")
     }
 
     private func run() async {

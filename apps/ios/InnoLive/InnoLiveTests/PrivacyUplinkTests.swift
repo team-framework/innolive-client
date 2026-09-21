@@ -52,6 +52,25 @@ final class PrivacyUplinkTests: XCTestCase {
         }
     }
 
+    func testRoutingSwitchDiscardsFramesFromPreviousPath() throws {
+        let route = PrivacyUplinkRoute(mode: .server)
+        let serverFrame = try XCTUnwrap(route.ticket())
+        route.change(to: .onDevice)
+        route.deliver(serverFrame) { XCTFail("A raw frame survived local activation") }
+        let localFrame = try XCTUnwrap(route.ticket())
+        XCTAssertEqual(localFrame.mode, .onDevice)
+        route.change(to: .server)
+        route.deliver(localFrame) { XCTFail("An old AI result survived switching to server") }
+        let latest = try XCTUnwrap(route.ticket())
+        var delivered = false
+        route.deliver(latest) { delivered = true }
+        XCTAssertTrue(delivered)
+        route.stop()
+        route.change(to: .onDevice)
+        XCTAssertNil(route.ticket())
+        route.deliver(latest) { XCTFail("Stopped route delivered a frame") }
+    }
+
     func testRegistrationNameUsesServerCompatibleLimits() {
         XCTAssertTrue(ReferenceFaceName.isValid("  게스트 1  "))
         XCTAssertTrue(ReferenceFaceName.isValid(String(repeating: "가", count: 40)))

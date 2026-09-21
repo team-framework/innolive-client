@@ -177,18 +177,15 @@ extension WebRTCVideoUplink {
         let relayID = UUID()
         frameRelayID = relayID
         let local = credentials?.processingMode == .onDevice
-        var preview: LKRTCVideoSource?
-        if local {
-            let source = peerConnectionFactory.videoSource()
-            preview = source
-            rawPreviewSource = source
-            rawPreviewTrack = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-local-preview-only")
-        }
+        let preview = peerConnectionFactory.videoSource()
+        rawPreviewSource = preview
+        rawPreviewTrack = peerConnectionFactory.videoTrack(with: preview, trackId: "innolive-local-preview-only")
         let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: cameraPosition,
                                           processingMode: credentials?.processingMode ?? .server,
                                           previewTarget: preview) { [weak self] message in
             Task { @MainActor [weak self] in
-                guard let self, !self.isStopping, self.frameRelayID == relayID else { return }
+                guard let self, !self.isStopping, self.frameRelayID == relayID,
+                      self.credentials?.processingMode == .onDevice else { return }
                 self.fail(message)
             }
         }
@@ -374,7 +371,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
 
     private let target: LKRTCVideoCapturerDelegate
     private let previewTarget: LKRTCVideoCapturerDelegate?
-    private let processor: PrivacyUplinkProcessor?
+    private let processor: PrivacyUplinkProcessor
+    private let route: PrivacyUplinkRoute
     private let analysisQueue = DispatchQueue(label: "com.innolive.webrtc.face-detection")
     private let lock = NSLock()
     private var faceFrameHandler: FaceFrameHandler?
@@ -388,7 +386,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
          onError: @escaping @Sendable (String) -> Void = { _ in }) {
         self.target = target
         self.previewTarget = previewTarget
-        processor = processingMode == .onDevice ? PrivacyUplinkProcessor(onError: onError) : nil
+        processor = PrivacyUplinkProcessor(onError: onError)
+        route = PrivacyUplinkRoute(mode: processingMode)
         self.cameraPosition = cameraPosition
         super.init()
     }
@@ -405,14 +404,14 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     }
 
     func updateCameraPosition(_ cameraPosition: AVCaptureDevice.Position) {
-        processor?.reset()
+        processor.reset()
         lock.lock()
         self.cameraPosition = cameraPosition
         lock.unlock()
     }
 
     func setLockedInterfaceOrientation(_ orientation: BroadcastInterfaceOrientation?) {
-        processor?.reset()
+        processor.reset()
         lock.lock()
         lockedInterfaceOrientation = orientation
         lock.unlock()
@@ -430,10 +429,14 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             cameraPosition: currentCameraPosition
         )
         previewTarget?.capturer(capturer, didCapture: outgoing)
-        if let processor {
-            processor.submit(outgoing) { [target] result in target.capturer(capturer, didCapture: result) }
-        } else {
-            target.capturer(capturer, didCapture: outgoing)
+        if let ticket = route.ticket() {
+            if ticket.mode == .onDevice {
+                processor.submit(outgoing) { [target, route] result in
+                    route.deliver(ticket) { target.capturer(capturer, didCapture: result) }
+                }
+            } else {
+                route.deliver(ticket) { target.capturer(capturer, didCapture: outgoing) }
+            }
         }
 
         guard let frameBuffer = frame.buffer as? LKRTCCVPixelBuffer else { return }
@@ -460,8 +463,14 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         }
     }
 
-    func setLocalAnonymizationEnabled(_ enabled: Bool) { processor?.setEnabled(enabled) }
-    func stopProcessing() { processor?.stop() }
+    func setLocalAnonymizationEnabled(_ enabled: Bool) { processor.setEnabled(enabled) }
+    func prepareLocalProcessing() async throws { try await processor.prepare() }
+    func setProcessingMode(_ mode: AIProcessingMode) {
+        // Start protected before publishing the new route. Invalidate previous local work first.
+        processor.setEnabled(true)
+        route.change(to: mode)
+    }
+    func stopProcessing() { route.stop(); processor.stop() }
 
     private func outgoingFrame(
         from frame: LKRTCVideoFrame,
