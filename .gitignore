@@ -3,6 +3,7 @@
 DerivedData/
 *.xcuserstate
 xcuserdata/
+apps/ios/InnoLive/InnoLive/Resources/PrivacyDetector.mlpackage/
 
 # Android / Gradle
 .gradle/

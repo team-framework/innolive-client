@@ -15,10 +15,24 @@ struct InnoLiveApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            rootView
                 .environment(cameraManager)
                 .background(BroadcastOrientationSceneBridge())
                 .onOpenURL { url in _ = GIDSignIn.sharedInstance.handle(url) }
         }
+    }
+
+    @ViewBuilder
+    private var rootView: some View {
+        #if DEBUG
+        if Bundle.main.bundleIdentifier?.hasSuffix(".privacy-lab") == true
+            || ProcessInfo.processInfo.arguments.contains("--on-device-privacy") {
+            OnDevicePrivacyView()
+        } else {
+            ContentView()
+        }
+        #else
+        ContentView()
+        #endif
     }
 }
