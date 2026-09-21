@@ -38,8 +38,9 @@ nonisolated enum PrivacySegmentation {
         for i in 0..<count {
             let face = values[4 * count + i]
             let plate = values[5 * count + i]
+            guard face.isFinite, plate.isFinite else { throw PrivacyModelError.outputContract }
             let score = max(face, plate)
-            guard score.isFinite, score >= confidence else { continue }
+            guard score >= confidence else { continue }
             let x = values[i], y = values[count + i]
             let w = values[2 * count + i], h = values[3 * count + i]
             guard x.isFinite, y.isFinite, w.isFinite, h.isFinite, w > 0, h > 0 else {

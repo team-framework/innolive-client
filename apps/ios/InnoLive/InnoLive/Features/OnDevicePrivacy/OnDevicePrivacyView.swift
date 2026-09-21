@@ -12,6 +12,7 @@ final class OnDevicePrivacyController: ObservableObject {
     @Published var objects = 0
     @Published var milliseconds = 0.0
     @Published var fps = 0.0
+    @Published var breakdown = ""
     private let camera = PrivacyCamera()
     private var generation = 0
 
@@ -29,13 +30,15 @@ final class OnDevicePrivacyController: ObservableObject {
             status = "설정에서 카메라 접근을 허용해 주세요."
             return
         }
-        camera.start(front: front) { [weak self] image, count, ms, fps in
+        camera.start(front: front) { [weak self] image, count, timings, fps in
             Task { @MainActor [weak self] in
                 guard let self, self.generation == current, self.running else { return }
                 self.image = image
                 self.objects = count
-                self.milliseconds = ms
+                self.milliseconds = timings.total
                 self.fps = fps
+                self.breakdown = String(format: "전처리 %.0f · 추론 %.0f · 마스크 %.0f · 합성 %.0f ms",
+                                        timings.prepare, timings.inference, timings.mask, timings.render)
                 self.status = "얼굴·번호판 비식별화 중"
             }
         } onError: { [weak self] message in
@@ -95,6 +98,7 @@ struct OnDevicePrivacyView: View {
                 Spacer()
                 metric("처리 FPS", String(format: "%.1f", controller.fps))
             }.monospacedDigit()
+            Text(controller.breakdown).font(.caption2).monospacedDigit().foregroundStyle(.secondary)
             Text("탐지한 얼굴과 번호판을 블러 처리합니다. 탐지하지 못한 영역은 그대로 보일 수 있습니다.")
                 .font(.caption).foregroundStyle(.secondary)
             HStack(spacing: 16) {

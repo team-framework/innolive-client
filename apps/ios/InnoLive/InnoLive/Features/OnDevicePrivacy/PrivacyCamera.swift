@@ -4,7 +4,7 @@ import OSLog
 
 /// Capture, inference and compositing share one serial queue. Late frames are dropped by AVFoundation.
 nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
-    typealias FrameHandler = @Sendable (CGImage, Int, Double, Double) -> Void
+    typealias FrameHandler = @Sendable (CGImage, Int, PrivacyTimings, Double) -> Void
     typealias ErrorHandler = @Sendable (String) -> Void
     private let queue = DispatchQueue(label: "com.innolive.privacy-lab", qos: .userInitiated)
     private let session = AVCaptureSession()
@@ -16,6 +16,7 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
     private var position: AVCaptureDevice.Position = .front
     private var lastCompleted: TimeInterval = 0
     private var processed = 0
+    private var benchmark: [[String: Double]] = []
 
     func start(front: Bool, onFrame: @escaping FrameHandler, onError: @escaping ErrorHandler) {
         queue.async { [self] in
@@ -27,6 +28,7 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
                 try configure()
                 lastCompleted = 0
                 processed = 0
+                benchmark = []
                 session.startRunning()
                 logger.info("local camera started; model=CoreML FP16 640; no network transport")
             } catch {
@@ -82,17 +84,24 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
         guard session.isRunning, let model, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         autoreleasepool {
             do {
-                let start = ProcessInfo.processInfo.systemUptime
-                let (image, count) = try model.process(buffer)
+                let (image, count, timings) = try model.process(buffer)
                 let completed = ProcessInfo.processInfo.systemUptime
-                let milliseconds = (completed - start) * 1000
                 let fps = lastCompleted == 0 ? 0 : 1 / (completed - lastCompleted)
                 lastCompleted = completed
                 processed += 1
-                onFrame?(image, count, milliseconds, fps)
+                onFrame?(image, count, timings, fps)
                 if processed == 1 || processed % 60 == 0 {
-                    logger.info("processed=\(self.processed) objects=\(count) processing_ms=\(milliseconds) fps=\(fps)")
-
+                    logger.info("processed=\(self.processed) objects=\(count) processing_ms=\(timings.total) fps=\(fps)")
+                    // Numeric diagnostics only; no camera images, crops or embeddings are stored.
+                    benchmark.append(["frame": Double(processed), "uptime": completed,
+                                      "objects": Double(count), "fps": fps, "total_ms": timings.total,
+                                      "prepare_ms": timings.prepare, "inference_ms": timings.inference,
+                                      "mask_ms": timings.mask, "render_ms": timings.render])
+                    if benchmark.count > 900 { benchmark.removeFirst() }
+                    if let data = try? JSONSerialization.data(withJSONObject: benchmark),
+                       let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {
+                        try? data.write(to: directory.appendingPathComponent("privacy-lab-metrics.json"), options: .atomic)
+                    }
                 }
             } catch {
                 // Never show an unprocessed fallback frame after a runtime failure.

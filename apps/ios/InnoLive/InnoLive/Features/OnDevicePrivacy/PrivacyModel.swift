@@ -3,6 +3,15 @@ import CoreML
 import CoreImage
 import CoreVideo
 
+nonisolated struct PrivacyTimings: Sendable {
+    let prepare: Double
+    let inference: Double
+    let mask: Double
+    let render: Double
+
+    var total: Double { prepare + inference + mask + render }
+}
+
 nonisolated final class PrivacyModel {
     private let model: MLModel
     private let context = CIContext(options: [.cacheIntermediates: false])
@@ -39,7 +48,8 @@ nonisolated final class PrivacyModel {
         input = buffer
     }
 
-    func process(_ pixelBuffer: CVPixelBuffer) throws -> (CGImage, Int) {
+    func process(_ pixelBuffer: CVPixelBuffer) throws -> (CGImage, Int, PrivacyTimings) {
+        let start = ProcessInfo.processInfo.systemUptime
         let original = CIImage(cvPixelBuffer: pixelBuffer)
         let size = original.extent.size
         let layout = PrivacySegmentation.Letterbox(size: size)
@@ -49,7 +59,9 @@ nonisolated final class PrivacyModel {
         let bounds = CGRect(x: 0, y: 0, width: 640, height: 640)
         let background = CIImage(color: CIColor(red: 114 / 255, green: 114 / 255, blue: 114 / 255)).cropped(to: bounds)
         context.render(resized.composited(over: background), to: input, bounds: bounds, colorSpace: colorSpace)
+        let prepared = ProcessInfo.processInfo.systemUptime
         let prediction = try model.prediction(from: MLDictionaryFeatureProvider(dictionary: [inputName: MLFeatureValue(pixelBuffer: input)]))
+        let inferred = ProcessInfo.processInfo.systemUptime
         guard let raw = prediction.featureValue(for: detectionsName)?.multiArrayValue,
               let proto = prediction.featureValue(for: prototypesName)?.multiArrayValue else {
             throw PrivacyModelError.outputContract
@@ -57,6 +69,7 @@ nonisolated final class PrivacyModel {
         let objects = try PrivacySegmentation.detections(PrivacySegmentation.floats(raw, shape: [1, 38, 8400]))
         let bytes = try PrivacySegmentation.unionMask(detections: objects,
                                                      prototypes: PrivacySegmentation.floats(proto, shape: [1, 32, 160, 160]))
+        let masked = ProcessInfo.processInfo.systemUptime
         guard let provider = CGDataProvider(data: Data(bytes) as CFData),
               let bitmap = CGImage(width: 160, height: 160, bitsPerComponent: 8, bitsPerPixel: 8,
                                    bytesPerRow: 160, space: CGColorSpaceCreateDeviceGray(),
@@ -80,7 +93,11 @@ nonisolated final class PrivacyModel {
         guard let rendered = context.createCGImage(result, from: original.extent) else {
             throw PrivacyModelError.imageBuffer
         }
-        return (rendered, objects.count)
+        let completed = ProcessInfo.processInfo.systemUptime
+        return (rendered, objects.count, PrivacyTimings(prepare: (prepared - start) * 1000,
+                                                       inference: (inferred - prepared) * 1000,
+                                                       mask: (masked - inferred) * 1000,
+                                                       render: (completed - masked) * 1000))
     }
 }
 #endif

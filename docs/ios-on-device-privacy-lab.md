@@ -38,7 +38,7 @@ end-to-end head와 이 실험의 one-to-many head 사이 품질 차이도 별도
 ## 기기 빌드와 실행
 
 일반 앱과 함께 설치하려면 앱 타깃에만 적용되는 식별자·이름 옵션을 사용한다.
-이 단계에서는 최적화를 적용하지 않은 Debug 빌드로 기능을 확인한다.
+Debug에서 Swift 최적화를 켜야 디버그용 CPU 후처리 비용이 성능 측정을 왜곡하지 않는다.
 
 ```sh
 xcodebuild -project apps/ios/InnoLive/InnoLive.xcodeproj -scheme InnoLive \
@@ -46,6 +46,7 @@ xcodebuild -project apps/ios/InnoLive/InnoLive.xcodeproj -scheme InnoLive \
   -derivedDataPath /tmp/innolive-privacy-build \
   INNOLIVE_BUNDLE_IDENTIFIER=com.framework.innolive.privacy-lab \
   'INNOLIVE_DISPLAY_NAME=InnoLive Local' \
+  SWIFT_OPTIMIZATION_LEVEL=-O SWIFT_COMPILATION_MODE=wholemodule \
   -allowProvisioningUpdates build
 
 xcrun devicectl list devices
@@ -70,7 +71,15 @@ AVFoundation → `CVPixelBuffer` → Core ML → mask 복원 → Core Image 블�
 전처리·추론·마스크·합성이 포함되며 카메라 센서 지연과 화면 표시 지연은 포함하지 않는다.
 Core ML 가속 설정은 `.cpuAndNeuralEngine`이며 실제 연산별 배치를 보장하는 표시는 아니다.
 
-영상·얼굴 crop·embedding은 저장하거나 전송하지 않는다.
+영상·얼굴 crop·embedding은 저장하거나 전송하지 않는다. 첫 프레임과 이후 60프레임마다
+처리 구간 시간과 탐지 개수 등 숫자만 `Library/Caches/privacy-lab-metrics.json`에 기록한다.
+최대 900개를 유지하며 카메라를 시작할 때 기록을 새로 시작한다.
+
+```sh
+xcrun devicectl device copy from --device '<device-id>' \
+  --domain-type appDataContainer --domain-identifier com.framework.innolive.privacy-lab \
+  --source Library/Caches/privacy-lab-metrics.json --destination /tmp/privacy-lab-metrics.json
+```
 
 ## 검증 범위
 
