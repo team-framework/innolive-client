@@ -246,6 +246,33 @@
     "registered": "Your face has been registered.",
     "guide": "Place your face inside the circle and wait a moment."
   },
+  "faceRegistration": {
+    "dialogLabel": "Face registration",
+    "previewLabel": "Face registration camera preview",
+    "retry": "Try again",
+    "status": {
+      "preparing": "Preparing face registration.",
+      "finding": "Looking for a face.",
+      "multiple": "Place only one face inside the circle.",
+      "hold": "Please stay still for a moment.",
+      "registering": "Registering your face."
+    },
+    "errors": {
+      "previewStart": "Could not start the camera preview.",
+      "cameraPermission": "Please allow camera access.",
+      "cameraNotFound": "No camera was found.",
+      "lowResolution": "The camera resolution is too low. Please use a higher-resolution camera.",
+      "imageCreate": "Could not create the face image.",
+      "jpegConversion": "Could not convert the face image.",
+      "detectorStart": "Could not prepare face detection.",
+      "serverConnection": "Could not connect to the face registration server.",
+      "faceNotDetected": "No face was detected. Please try again.",
+      "sessionExpired": "Your session has expired. Please log in again.",
+      "serverRequest": "Face registration failed. Please try again.",
+      "serverIncomplete": "Could not confirm the face registration result.",
+      "unknown": "Something went wrong during face registration. Please try again."
+    }
+  },
   "experience": {
     "title": "Real-time de-identification demo",
     "preparing": "Preparing the experience connection.",
@@ -260,6 +287,7 @@
     "retry": "Try again",
     "end": "End experience",
     "restart": "Start again",
+    "faceRegistered": "Face registration completed.",
     "errors": {
       "permission": "Please allow camera access.",
       "notFound": "No camera was found.",
