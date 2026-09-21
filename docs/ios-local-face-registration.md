@@ -290,3 +290,9 @@ python scripts/prepare-ios-yunet-fixture.py \
   --image /path/to/public-test-image.jpg \
   --onnx /path/to/face_detection_yunet_2023mar.onnx
 ```
+
+수정 커밋 `f0310b3`을 같은 앱 식별자로 iPhone 16에 업데이트했다. 기기에서 모델 준비
+완료 `state=1`, 준비 시간 68,719.39ms를 확인했다. 최종 카메라 로그에는 등록 0명,
+검출 0개가 기록돼 이 실행의 새 얼굴 비교는 없었다. 앱 컨테이너의 YuNet 등록 파일은
+존재하지만 59바이트이며, 이전 실행의 얼굴 비교 로그를 수정본 결과로 해석하지 않았다.
+등록 데이터 초기화·삭제 코드는 이번 변경에 포함하지 않았다. 등록 후 기기 검증이 필요하다.
