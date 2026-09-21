@@ -27,3 +27,6 @@ coverage/
 !apps/web/.env.local.example
 apps/*/InnoLive/Config/Server.env
 apps/ios/InnoLive/InnoLive/Config/Server.env
+
+apps/ios/InnoLive/InnoLive/Resources/PrivacyYuNet.mlpackage/
+apps/ios/InnoLive/InnoLive/Resources/PrivacyYuNet.manifest.json
