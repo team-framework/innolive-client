@@ -152,12 +152,12 @@ final class YouTubeAPI {
         }
     }
 
-    func createSession(accessToken: String) async throws -> YouTubeBroadcastSession {
+    func createSession(accessToken: String, mode: AIProcessingMode = .server) async throws -> YouTubeBroadcastSession {
         try await request(
             path: "/sessions",
             method: "POST",
             accessToken: accessToken,
-            body: Optional<YouTubeEmptyRequest>.none,
+            body: mode == .server ? [:] : ["metadata": ["ai_processing": mode.rawValue]],
             preserveCreatedSession: true
         )
     }

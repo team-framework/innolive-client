@@ -83,19 +83,20 @@ extension WebRTCVideoUplink {
             setUsingFrontCamera(false)
             let source = peerConnectionFactory.videoSource()
             adapt(source, to: preferredVideoQuality)
-            let capturer = LKRTCFileVideoCapturer(delegate: source)
+            let frameRelay = makeFrameRelay(target: source, cameraPosition: .back)
+            let capturer = LKRTCFileVideoCapturer(delegate: frameRelay)
             let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
             track.isEnabled = true
             videoSource = source
             fileVideoCapturer = capturer
             cameraCapturer = nil
-            cameraFrameRelay = nil
+            cameraFrameRelay = frameRelay
             localVideoTrack = track
             if let localRenderer {
-                track.add(localRenderer)
+                renderingLocalTrack?.add(localRenderer)
             }
             if let faceRegistrationRenderer {
-                track.add(faceRegistrationRenderer)
+                renderingLocalTrack?.add(faceRegistrationRenderer)
             }
 
             capturer.startCapturing(fromFileNamed: SimulatorVideoInput.fileName) { [weak self] error in
@@ -145,10 +146,7 @@ extension WebRTCVideoUplink {
         setUsingFrontCamera(selectedDevice.position == .front)
         let source = peerConnectionFactory.videoSource()
         adapt(source, to: preferredVideoQuality)
-        let frameRelay = WebRTCCameraFrameRelay(
-            target: source,
-            cameraPosition: selectedDevice.position
-        )
+        let frameRelay = makeFrameRelay(target: source, cameraPosition: selectedDevice.position)
         if let lockedBroadcastOrientation {
             frameRelay.setLockedInterfaceOrientation(lockedBroadcastOrientation)
         }
@@ -160,10 +158,10 @@ extension WebRTCVideoUplink {
         cameraFrameRelay = frameRelay
         localVideoTrack = track
         if let localRenderer {
-            track.add(localRenderer)
+            renderingLocalTrack?.add(localRenderer)
         }
         if let faceRegistrationRenderer {
-            track.add(faceRegistrationRenderer)
+            renderingLocalTrack?.add(faceRegistrationRenderer)
         }
 
         try await startCapture(capturer, device: selectedDevice, setting: captureSetting)
@@ -173,6 +171,29 @@ extension WebRTCVideoUplink {
         activeCameraID = selectedDevice.uniqueID
         activeVideoQuality = preferredVideoQuality
         reapplyTargetZoom()
+    }
+
+    private func makeFrameRelay(target: LKRTCVideoSource, cameraPosition: AVCaptureDevice.Position) -> WebRTCCameraFrameRelay {
+        let relayID = UUID()
+        frameRelayID = relayID
+        let local = credentials?.processingMode == .onDevice
+        var preview: LKRTCVideoSource?
+        if local {
+            let source = peerConnectionFactory.videoSource()
+            preview = source
+            rawPreviewSource = source
+            rawPreviewTrack = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-local-preview-only")
+        }
+        let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: cameraPosition,
+                                          processingMode: credentials?.processingMode ?? .server,
+                                          previewTarget: preview) { [weak self] message in
+            Task { @MainActor [weak self] in
+                guard let self, !self.isStopping, self.frameRelayID == relayID else { return }
+                self.fail(message)
+            }
+        }
+        if local { relay.setLocalAnonymizationEnabled(credentials?.localAnonymizationEnabled ?? true) }
+        return relay
     }
 
     @discardableResult
@@ -352,6 +373,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private static let deliveryInterval: TimeInterval = 0.1
 
     private let target: LKRTCVideoCapturerDelegate
+    private let previewTarget: LKRTCVideoCapturerDelegate?
+    private let processor: PrivacyUplinkProcessor?
     private let analysisQueue = DispatchQueue(label: "com.innolive.webrtc.face-detection")
     private let lock = NSLock()
     private var faceFrameHandler: FaceFrameHandler?
@@ -360,8 +383,12 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private var isAnalysisPending = false
     private var lastDeliveryTime: TimeInterval = 0
 
-    init(target: LKRTCVideoCapturerDelegate, cameraPosition: AVCaptureDevice.Position) {
+    init(target: LKRTCVideoCapturerDelegate, cameraPosition: AVCaptureDevice.Position,
+         processingMode: AIProcessingMode = .server, previewTarget: LKRTCVideoCapturerDelegate? = nil,
+         onError: @escaping @Sendable (String) -> Void = { _ in }) {
         self.target = target
+        self.previewTarget = previewTarget
+        processor = processingMode == .onDevice ? PrivacyUplinkProcessor(onError: onError) : nil
         self.cameraPosition = cameraPosition
         super.init()
     }
@@ -372,18 +399,20 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     ) {
         lock.lock()
         faceFrameHandler = handler
-        self.cameraPosition = cameraPosition
+        if handler != nil { self.cameraPosition = cameraPosition }
         lastDeliveryTime = 0
         lock.unlock()
     }
 
     func updateCameraPosition(_ cameraPosition: AVCaptureDevice.Position) {
+        processor?.reset()
         lock.lock()
         self.cameraPosition = cameraPosition
         lock.unlock()
     }
 
     func setLockedInterfaceOrientation(_ orientation: BroadcastInterfaceOrientation?) {
+        processor?.reset()
         lock.lock()
         lockedInterfaceOrientation = orientation
         lock.unlock()
@@ -400,7 +429,12 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             lockedOrientation: lockedOrientation,
             cameraPosition: currentCameraPosition
         )
-        target.capturer(capturer, didCapture: outgoing)
+        previewTarget?.capturer(capturer, didCapture: outgoing)
+        if let processor {
+            processor.submit(outgoing) { [target] result in target.capturer(capturer, didCapture: result) }
+        } else {
+            target.capturer(capturer, didCapture: outgoing)
+        }
 
         guard let frameBuffer = frame.buffer as? LKRTCCVPixelBuffer else { return }
 
@@ -425,6 +459,9 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             self.lock.unlock()
         }
     }
+
+    func setLocalAnonymizationEnabled(_ enabled: Bool) { processor?.setEnabled(enabled) }
+    func stopProcessing() { processor?.stop() }
 
     private func outgoingFrame(
         from frame: LKRTCVideoFrame,

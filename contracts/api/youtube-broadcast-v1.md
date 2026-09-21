@@ -46,3 +46,9 @@ X-Session-Owner-Token: <owner_token>
 클라이언트는 삭제 결과를 기다리고 새 방송 요청을 시작하지 않는다. 계정 삭제가
 실패하면 로그인을 유지한 채 재시도할 수 있다. 자세한 범위는
 [계정 삭제 계약](account-deletion-v1.md)을 따른다.
+
+## AI 처리 위치
+
+[AI 처리 계약](ai-processing-v1.md)에 따라 세션을 생성한다. 온디바이스 모드에서도
+현재 송출 경로의 WebRTC 연결과 YouTube 중계 서버를 사용한다. AI 추론과
+비식별화는 iPhone에서 끝내고, 중계 서버에는 처리된 영상만 보낸다.

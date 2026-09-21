@@ -1,4 +1,3 @@
-#if DEBUG
 import CoreML
 import CoreImage
 import CoreVideo
@@ -53,8 +52,11 @@ nonisolated final class PrivacyModel {
     func resetTemporalState() { stabilizer.reset(); faces.reset() }
 
     func process(_ pixelBuffer: CVPixelBuffer) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
+        return try process(CIImage(cvPixelBuffer: pixelBuffer))
+    }
+
+    func process(_ original: CIImage) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
         let start = ProcessInfo.processInfo.systemUptime
-        let original = CIImage(cvPixelBuffer: pixelBuffer)
         let size = original.extent.size
         let layout = PrivacySegmentation.Letterbox(size: size)
         let resized = original.transformed(by: CGAffineTransform(
@@ -99,4 +101,3 @@ nonisolated final class PrivacyModel {
                                                        render: (completed - masked) * 1000), faces.snapshot)
     }
 }
-#endif

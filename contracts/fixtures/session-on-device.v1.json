@@ -1,0 +1,7 @@
+{
+  "ai_processing": "on_device",
+  "session_id": "fixture-session",
+  "owner_token": "fixture-owner-token",
+  "media": { "anonymization_enabled": false },
+  "stream": { "status": "idle", "publisher_active": false, "reconnect_attempts": 0 }
+}

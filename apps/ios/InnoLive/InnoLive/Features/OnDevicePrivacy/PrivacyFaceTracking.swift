@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import CoreGraphics
 
@@ -77,4 +76,3 @@ nonisolated final class PrivacyFaceTracking {
         }.map(\.index))
     }
 }
-#endif

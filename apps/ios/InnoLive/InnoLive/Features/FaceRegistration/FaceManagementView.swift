@@ -10,9 +10,9 @@ struct FaceManagementView: View {
     @State private var isShowingRegistration = false
     @State private var isShowingDeleteAllConfirmation = false
 
-    init(authentication: AuthSession, youtube: YouTubeIntegration) {
+    init(authentication: AuthSession, youtube: YouTubeIntegration, mode: AIProcessingMode = .selected) {
         self.youtube = youtube
-        _model = StateObject(wrappedValue: FaceRegistrationViewModel(authentication: authentication))
+        _model = StateObject(wrappedValue: FaceRegistrationViewModel(authentication: authentication, mode: mode))
     }
 
     private var isCameraTransitioning: Bool {
@@ -31,6 +31,12 @@ struct FaceManagementView: View {
             GlassEffectContainer {
                 VStack(spacing: 14) {
                     introductionCard
+                    Text(model.mode == .server ? String(localized: "서버에 등록한 얼굴") : String(localized: "이 기기에만 저장한 얼굴"))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                    TextField(String(localized: "이름"), text: $model.name)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.done)
+                        .disabled(model.phase == .registering)
 
                     if !hasRegisteredFaces {
                         statusCard
@@ -59,7 +65,7 @@ struct FaceManagementView: View {
                     .buttonStyle(.glassProminent)
                     .tint(.blue)
                     .disabled(
-                        isCameraTransitioning
+                        !model.canRegister || isCameraTransitioning
                             || model.isDeleting
                             || cameraManager.authorizationStatus != .authorized
                     )
@@ -202,7 +208,7 @@ struct FaceManagementView: View {
                             .font(.title3)
                             .foregroundStyle(.blue)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(String(localized: "등록 얼굴 \(index + 1)"))
+                            Text(face.name?.isEmpty == false ? face.name! : String(localized: "등록 얼굴 \(index + 1)"))
                                 .font(.body.weight(.semibold))
                             Text(FaceRegistrationDateFormatting.displayDate(from: face.registeredAt))
                                 .font(.caption)
@@ -229,7 +235,7 @@ struct FaceManagementView: View {
     }
 
     private var statusDetail: String {
-        guard let status = model.status else { return String(localized: "서버 상태를 불러와 주세요") }
+        guard let status = model.status else { return String(localized: "등록 상태를 불러와 주세요") }
         return status.registered ? String(localized: "\(status.count)개의 얼굴 정보") : String(localized: "등록하면 내 얼굴의 비식별화를 제외합니다")
     }
 

@@ -26,12 +26,12 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
 
                     NavigationLink {
-                        FaceManagementView(authentication: authentication, youtube: youtube)
+                        AISettingsView(authentication: authentication, youtube: youtube)
                     } label: {
                         SettingsGlassRow {
                             settingsRowContent(
-                                title: String(localized: "얼굴 관리"),
-                                systemImage: "faceid"
+                                title: String(localized: "AI & Faces Setting"),
+                                systemImage: "sparkles"
                             )
                         }
                     }

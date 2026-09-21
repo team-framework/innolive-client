@@ -1,4 +1,3 @@
-#if DEBUG
 import Accelerate
 import CoreML
 import CoreImage
@@ -150,4 +149,3 @@ nonisolated enum PrivacyModelError: LocalizedError {
         }
     }
 }
-#endif

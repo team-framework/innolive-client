@@ -248,11 +248,14 @@ struct YouTubeStreamingAccountSummary: Decodable, Equatable {
 }
 
 struct YouTubeBroadcastSession: Decodable, Equatable {
+    var aiProcessing: String? = nil
+    var processingMode: AIProcessingMode { AIProcessingMode(rawValue: aiProcessing ?? "server") ?? .server }
     let sessionID: String
     let ownerToken: String
     let stream: YouTubeStreamState
 
     enum CodingKeys: String, CodingKey {
+        case aiProcessing = "ai_processing"
         case sessionID = "session_id"
         case ownerToken = "owner_token"
         case stream
@@ -353,7 +356,12 @@ struct YouTubeConnectionResponse: Decodable {
     let channel: YouTubeChannel
 }
 
+struct YouTubeBroadcastVisibility: Decodable {
+    let privacy: String
+}
+
 struct YouTubeSessionResponse: Decodable {
+    var broadcast: YouTubeBroadcastVisibility? = nil
     let stream: YouTubeStreamState
     let media: YouTubeSessionMedia
 }

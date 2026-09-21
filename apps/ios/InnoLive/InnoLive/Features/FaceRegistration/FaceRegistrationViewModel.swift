@@ -19,6 +19,9 @@ private enum FaceRegistrationFrameSource: Equatable {
 
 @MainActor
 final class FaceRegistrationViewModel: ObservableObject {
+    @Published var name = ""
+    let mode: AIProcessingMode
+    var canRegister: Bool { ReferenceFaceName.isValid(name) }
     @Published private(set) var status: ReferenceFaceStatus?
     @Published private(set) var isLoadingStatus = false
     @Published private(set) var isDeleting = false
@@ -34,7 +37,8 @@ final class FaceRegistrationViewModel: ObservableObject {
     private var registrationTask: Task<Void, Never>?
     private var activeLifecycleSessionID: UUID?
 
-    init(authentication: AuthSession) {
+    init(authentication: AuthSession, mode: AIProcessingMode = .server) {
+        self.mode = mode
         api = ReferenceFaceAPI(authentication: authentication)
     }
 
@@ -44,7 +48,7 @@ final class FaceRegistrationViewModel: ObservableObject {
         statusErrorMessage = nil
         defer { isLoadingStatus = false }
         do {
-            status = try await api.status()
+            status = try await mode == .server ? api.status() : LocalFaceRegistrationStore.shared.status()
         } catch {
             statusErrorMessage = message(for: error)
         }
@@ -55,6 +59,7 @@ final class FaceRegistrationViewModel: ObservableObject {
         using cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) async {
+        guard canRegister else { phase = .failed(String(localized: "이름을 1~40자로 입력해 주세요.")); return }
         activeLifecycleSessionID = lifecycleSessionID
         invalidateDetection()
         let generation = detectionGeneration
@@ -207,8 +212,9 @@ final class FaceRegistrationViewModel: ObservableObject {
         statusErrorMessage = nil
         defer { isDeleting = false }
         do {
-            try await api.delete(faceID: faceID)
-            status = try await api.status()
+            if mode == .server { try await api.delete(faceID: faceID) }
+            else { try await LocalFaceRegistrationStore.shared.delete(faceID: faceID) }
+            status = try await mode == .server ? api.status() : LocalFaceRegistrationStore.shared.status()
         } catch {
             statusErrorMessage = message(for: error)
         }
@@ -220,8 +226,9 @@ final class FaceRegistrationViewModel: ObservableObject {
         statusErrorMessage = nil
         defer { isDeleting = false }
         do {
-            try await api.deleteAll()
-            status = try await api.status()
+            if mode == .server { try await api.deleteAll() }
+            else { try await LocalFaceRegistrationStore.shared.deleteAll() }
+            status = try await mode == .server ? api.status() : LocalFaceRegistrationStore.shared.status()
         } catch {
             statusErrorMessage = message(for: error)
         }
@@ -276,11 +283,15 @@ final class FaceRegistrationViewModel: ObservableObject {
                       case .registering = self.phase else { return }
 
                 do {
-                    let registeredStatus = try await self.api.register(jpegData: jpegData)
+                    let name = self.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let registeredStatus = try await self.mode == .server
+                        ? self.api.register(jpegData: jpegData, name: name)
+                        : LocalFaceRegistrationStore.shared.register(jpegData: jpegData, name: name)
                     guard !Task.isCancelled,
                           self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
                           case .registering = self.phase else { return }
                     self.status = registeredStatus
+                    self.name = ""
                     self.phase = .success
                 } catch {
                     guard !Task.isCancelled,
@@ -332,6 +343,7 @@ final class FaceRegistrationViewModel: ObservableObject {
 
     private func message(for error: Error) -> String {
         (error as? ReferenceFaceAPIError)?.userMessage
+            ?? (error as? LocalizedError)?.errorDescription
             ?? String(localized: "얼굴 관리 요청을 처리하지 못했습니다. 다시 시도해 주세요.")
     }
 }

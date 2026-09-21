@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import CoreML
 import CoreImage
@@ -153,4 +152,3 @@ nonisolated final class PrivacyYuNetDetector {
         return face
     }
 }
-#endif

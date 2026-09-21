@@ -1,0 +1,8 @@
+{
+  "registered": true,
+  "source": "api",
+  "registered_at": "2026-09-21T00:00:00Z",
+  "client_id": "fixture-account-scope",
+  "count": 1,
+  "faces": [{ "face_id": "fixture-face", "name": "게스트", "registered_at": "2026-09-21T00:00:00Z" }]
+}

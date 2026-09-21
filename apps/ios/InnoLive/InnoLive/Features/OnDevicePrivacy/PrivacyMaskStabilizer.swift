@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import CoreGraphics
 
@@ -78,4 +77,3 @@ nonisolated final class PrivacyMaskStabilizer {
         return top * (1 - dy) + bottom * dy
     }
 }
-#endif
