@@ -150,9 +150,9 @@ struct WebRTCLocalPreviewView: UIViewRepresentable {
     }
 
     private func applyMirroring(to view: LKRTCMTLVideoView) {
-        view.transform = uplink.isUsingFrontCamera
-            ? CGAffineTransform(scaleX: -1, y: 1)
-            : .identity
+        view.transform = BroadcastOrientationPolicy.previewDisplayTransform(
+            isUsingFrontCamera: uplink.isUsingFrontCamera
+        )
     }
 
     final class Coordinator {
@@ -171,14 +171,20 @@ private struct WebRTCRemoteVideoView: UIViewRepresentable {
         let container = NativeWebRTCVideoView()
         container.uplink = uplink
         uplink.attachRemoteRenderer(container.remoteVideoView)
-        container.update(hasRemoteVideo: uplink.hasRemoteVideo)
+        container.update(
+            hasRemoteVideo: uplink.hasRemoteVideo,
+            mirrorsVideo: uplink.isUsingFrontCamera
+        )
         return container
     }
 
     func updateUIView(_ uiView: NativeWebRTCVideoView, context: Context) {
         uiView.uplink = uplink
         uplink.attachRemoteRenderer(uiView.remoteVideoView)
-        uiView.update(hasRemoteVideo: uplink.hasRemoteVideo)
+        uiView.update(
+            hasRemoteVideo: uplink.hasRemoteVideo,
+            mirrorsVideo: uplink.isUsingFrontCamera
+        )
     }
 
     static func dismantleUIView(_ uiView: NativeWebRTCVideoView, coordinator: ()) {
@@ -208,15 +214,19 @@ private final class NativeWebRTCVideoView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func update(hasRemoteVideo: Bool) {
+    func update(hasRemoteVideo: Bool, mirrorsVideo: Bool) {
         self.hasRemoteVideo = hasRemoteVideo
         remoteVideoView.isHidden = !hasRemoteVideo
+        remoteVideoView.transform = BroadcastOrientationPolicy.previewDisplayTransform(
+            isUsingFrontCamera: mirrorsVideo
+        )
         setNeedsLayout()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        remoteVideoView.frame = bounds
+        remoteVideoView.bounds = CGRect(origin: .zero, size: bounds.size)
+        remoteVideoView.center = CGPoint(x: bounds.midX, y: bounds.midY)
     }
 }
 

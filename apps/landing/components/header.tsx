@@ -1,0 +1,105 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { AuthNavigation } from "@/components/auth-navigation";
+import { DownloadMenu } from "@/components/download-menu";
+import { LanguageSwitch } from "@/components/language-switch";
+import { useLocale } from "@/components/locale-provider";
+import { cn } from "@/lib/cn";
+import { navLinks } from "@/lib/site";
+
+const navClassName =
+  "inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline md:text-2xl";
+
+export function Header() {
+  const { href, messages } = useLocale();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobileMenuOpen]);
+
+  return (
+    <header
+      data-fixed-header
+      className="fixed inset-x-0 top-0 z-50 w-full md:pt-[var(--header-offset-desktop)]"
+    >
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-30 focus:bg-background-secondary focus:px-3 focus:py-2 focus:text-text-primary"
+      >
+        {messages.common.skipToMain}
+      </a>
+      <div className=" absolute mx-auto flex w-screen h-24 top-0 items-end justify-between gap-3  px-5 py-5 backdrop-blur bg-background-primary/80 md:p-8 md:px-12">
+        <Link href={href("/")} className="shrink-0" aria-label={messages.header.home}>
+          <Image
+            src="/brand/logo-header.svg"
+            alt="InnoLive"
+            width={124}
+            height={32}
+            unoptimized
+            priority
+            className="hidden md:block"
+          />
+          <Image
+            src="/brand/logo-header.svg"
+            alt="InnoLive"
+            width={94}
+            height={24}
+            unoptimized
+            priority
+            className="block md:hidden"
+          />
+        </Link>
+        <div className="flex items-center gap-2 md:hidden">
+          <DownloadMenu />
+          <button
+            type="button"
+            aria-controls="mobile-navigation"
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? messages.header.closeMenu : messages.header.openMenu}
+            className="inline-flex size-11 items-center justify-center rounded-full text-text-primary transition-colors hover:bg-background-primary"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none">
+              <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" />
+            </svg>
+          </button>
+        </div>
+        <nav
+          id="mobile-navigation"
+          aria-label={messages.header.primaryNav}
+          className={cn(
+            "absolute inset-x-0 top-full flex-col gap-4 border-t border-surface-primary bg-background-secondary px-5 py-5 shadow-button md:static md:flex md:w-auto md:flex-row md:items-center md:justify-end md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
+            mobileMenuOpen ? "flex" : "hidden",
+          )}
+        >
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={href(link.href)}
+              className={navClassName}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              {messages.nav[link.id]}
+            </Link>
+          ))}
+          <div className="hidden md:block">
+            <DownloadMenu />
+          </div>
+          <AuthNavigation className={navClassName} />
+          <LanguageSwitch className="pt-2 md:pt-0" />
+        </nav>
+      </div>
+    </header>
+  );
+}

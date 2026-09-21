@@ -80,8 +80,7 @@ fun YouTubeLiveSettingsDialog(
         false -> "아동용 아님"
         null -> "선택 필요"
     }
-    val accountLabel = youtubeChannelTitle?.takeIf { it.isNotBlank() }
-        ?: youtubeAccountStatus
+    val accountLabel = youtubeAccountStatus
     val canPrepare = hasYouTubeAccount &&
         !isYouTubeReconnectRequired && !isYouTubeAccountActionInProgress
 
@@ -296,13 +295,6 @@ fun YouTubeLiveSettingsDialog(
                     }
                 }
 
-                if (onPrepare != null && !canPrepare) {
-                    Text(
-                        text = if (isYouTubeAccountActionInProgress) "YouTube 연동을 확인하고 있습니다."
-                        else "YouTube 계정을 연동한 뒤 방송을 준비해 주세요.",
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
                 Box(
                     modifier = Modifier
                         .height(40.dp)

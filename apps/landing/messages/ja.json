@@ -1,0 +1,329 @@
+{
+  "metadata": {
+    "title": "InnoLive",
+    "description": "リアルタイムAI非識別化ライブ配信ソリューション",
+    "pricingTitle": "料金 | InnoLive",
+    "tryOutTitle": "体験 | InnoLive",
+    "experienceTitle": "InnoLive 体験",
+    "loginTitle": "ログイン | InnoLive",
+    "signupTitle": "会員登録 | InnoLive"
+  },
+  "common": {
+    "skipToMain": "本文へスキップ",
+    "close": "閉じる",
+    "loading": "読み込み中",
+    "languageNav": "言語"
+  },
+  "header": {
+    "home": "InnoLive ホーム",
+    "openMenu": "メニューを開く",
+    "closeMenu": "メニューを閉じる",
+    "primaryNav": "メイン"
+  },
+  "nav": {
+    "tryOut": "Try out",
+    "pricing": "Pricing"
+  },
+  "download": {
+    "label": "ダウンロード",
+    "unavailable": "準備中"
+  },
+  "authNav": {
+    "login": "Login",
+    "logout": "Logout",
+    "signingOut": "ログアウト中"
+  },
+  "footer": {
+    "tagline": "リアルタイムAI非識別化ライブ配信ソリューション",
+    "ceo": "Framework 代表: チェ・グニョン（채근영）",
+    "dpo": "個人情報保護責任者: クォン・デヒョン（권대형）",
+    "phone": "電話番号: 010-2732-9514",
+    "address": "住所: 大邱広域市達城郡求智面昌里路11ギル 93",
+    "copyright": "Copyright © 2026 Framework",
+    "privacy": "個人情報取扱方針",
+    "terms": "サービス利用規約",
+    "support": "カスタマーサポート",
+    "faq": "FAQ",
+    "socialMissing": "{name} のリンクはまだありません"
+  },
+  "intro": {
+    "dialogLabel": "InnoLive 紹介",
+    "skip": "本文へスキップ",
+    "letteringSafe": "あなたの配信を安全に。",
+    "letteringFocus": "あなただけに集中。",
+    "sceneSafe": "イントロ {n}. あなたの配信を安全に。",
+    "sceneFocus": "イントロ {n}. あなただけに集中。"
+  },
+  "hero": {
+    "line1": "主役でなければ",
+    "line2Prefix": "思い切って ",
+    "line2Blur": "隠す。",
+    "support1": "屋外配信に映った通行人の顔を、まだ一つずつ消していますか？",
+    "support2": "InnoLiveと一緒に、より安全な配信をつくりましょう。",
+    "tryOut": "Try Out"
+  },
+  "privacy": {
+    "titleLine1": "肖像権の心配なく",
+    "titleAfterAi": "非識別化ライブ",
+    "body1": "リアルタイムAI非識別化で、背景に映る",
+    "body2": "通行人の肖像権とあなたの配信を同時に守ります。",
+    "empty": "非識別化デモを準備中",
+    "slides": [
+      { "alt": "配信準備画面", "label": "配信準備画面" },
+      { "alt": "顔登録画面", "label": "顔登録画面" },
+      { "alt": "配信設定画面", "label": "配信設定画面" }
+    ]
+  },
+  "features": {
+    "title": "基本を誠実に",
+    "body1": "配信アプリとしての基本を着実に果たします。",
+    "body2": "使いたいプラットフォームを選んで、すぐに配信を始めましょう。",
+    "latency": "非識別化の最大遅延",
+    "platforms": "複数プラットフォームへ直接送出",
+    "lettering": "AI 非識別化ライブ",
+    "letteringAria": "AI 非識別化ライブ",
+    "chzzkAlt": "CHZZK",
+    "resolution": "高解像度ライブ",
+    "free": "無料プランでLITEに**",
+    "note1": "*サーバーとAI間の遅延測定値です。ネットワークと端末により変動します。",
+    "note2": "**無料プランでは利用に一部制限がある場合があります。"
+  },
+  "faq": {
+    "subtitle": "よくある質問",
+    "items": [
+      {
+        "question": "Q. InnoLiveはどのようなサービスですか？",
+        "answer": "InnoLiveはライブ配信中に他人の顔が映らないよう、リアルタイムで非識別化する配信支援サービスです。顔出しを許可した人を登録すると、登録されていない人は自動で隠されます。"
+      },
+      {
+        "question": "Q. 端末でアプリが動作しません。",
+        "answer": "InnoLiveは安定動作のため iOS 26以上、Android 11以上を必要とします。"
+      },
+      {
+        "question": "Q. どの配信プラットフォームで使えますか？",
+        "answer": "InnoLiveは現在 YouTube と CHZZK に対応しています。"
+      },
+      {
+        "question": "Q. 配信で自分の顔が隠されます。",
+        "answer": "配信に顔を出すには、まずご自身の顔を公開対象として登録してください。登録済みなら、顔がカメラに十分映っているか確認してください。"
+      },
+      {
+        "question": "Q. 複数人の顔を登録できますか？",
+        "answer": "はい。一緒に出演する人をそれぞれ公開対象として登録できます。Freeでは最大2人、Streamer以上では最大5人まで登録できます。"
+      }
+    ],
+    "privacyQuestion": "Q. 会員登録時の情報と登録した顔はどう扱われますか？",
+    "privacyBefore": "",
+    "privacyLink": "個人情報取扱方針",
+    "privacyAfter": "で、個人情報の取扱いを確認できます。"
+  },
+  "pricing": {
+    "ariaLabel": "InnoLiveの可能性を解放",
+    "headingBrand": "InnoLive",
+    "headingMid": "の",
+    "headingAccent": "可能性を解放",
+    "body1": "妥当な価格で InnoLive のすべての機能を解放しましょう。",
+    "body2": "リアルタイム顔置換やより多い使用量などがプランに含まれます。",
+    "subscribeBrand": "InnoLive",
+    "subscribe": "プランを購読する",
+    "personalLabel": "個人プラン",
+    "businessTitle": "クルーと企業のためのプラン",
+    "businessBody": "Crew、Business プランで、より便利に安く配信を運営できます。",
+    "businessLabel": "法人プラン",
+    "termsNote": "関連規約が適用されます。",
+    "termsLink": "詳しく見る",
+    "loginCta": "ログインして無料プランを使う",
+    "scrollLeft": "左にスクロール",
+    "scrollRight": "右にスクロール"
+  },
+  "plans": {
+    "periodMonth": "月",
+    "periodOnce": "一回払い",
+    "ribbon": "ベータテスター",
+    "personal": {
+      "free": {
+        "description": "保護に必要な基本機能",
+        "cta": "現在のプラン",
+        "features": [
+          "すべての通行人を正確に非識別化",
+          "上位モデルの限定利用",
+          "X時間の連続配信",
+          "最大2人の顔登録",
+          "Android、iOS アプリ"
+        ]
+      },
+      "streamer": {
+        "description": "Segmentation とより多い使用量",
+        "cta": "Streamer プランを購読",
+        "features": [
+          "無料プランのすべての機能",
+          "Segmentation による強化された非識別化",
+          "2倍の使用量",
+          "XX時間の連続配信",
+          "最大5人の顔登録"
+        ]
+      },
+      "pro": {
+        "description": "顔置換と最高性能",
+        "cta": "Pro プランを購読",
+        "features": [
+          "Streamer プランのすべての機能",
+          "リアルタイム顔置換でより自然な配信",
+          "3倍の使用量",
+          "実験的モデルへのアクセス"
+        ]
+      },
+      "onDevice": {
+        "description": "無制限の使用量と極限の安全性",
+        "cta": "On Device を購入",
+        "helpLabel": "On Device 案内",
+        "features": [
+          "すべての通行人を正確に非識別化",
+          "一度の支払いで永続利用",
+          "すべての上限を解除",
+          "Android、iOS アプリ",
+          "端末で非識別化してから送出",
+          "追加遅延なしの送出"
+        ],
+        "footnotes": [
+          "*プロモーション終了時にプランが取り消される場合があります。",
+          "*端末性能により非識別化の品質に差が出る場合があります。"
+        ]
+      }
+    },
+    "business": {
+      "crew": {
+        "description": "一つのプランでお得に",
+        "amount": "30,000 ~ ₩93,500",
+        "cta": "Crew プランを購読",
+        "features": ["最大3アカウント共有", "選択したプランのすべての機能"]
+      },
+      "business": {
+        "description": "どんな状況にも柔軟に合わせる",
+        "amount": "個別見積",
+        "cta": "導入について問い合わせ",
+        "features": ["カスタムプラン", "強化されたセキュリティ"]
+      }
+    }
+  },
+  "onDevice": {
+    "subtitle": "すべてを端末の中で",
+    "pay": "On Device を購入",
+    "termsNote": "*関連規約が適用されます。",
+    "termsLink": "詳しく見る",
+    "body": "本文を準備中"
+  },
+  "tryOut": {
+    "ariaLabel": "映った瞬間、保護が始まる",
+    "heading": "映った瞬間、保護が始まる",
+    "body": "InnoLiveの優れた可能性を、自分の目で確かめてください。",
+    "cameraPermission": "カメラの権限を許可してください",
+    "checking": "確認中",
+    "start": "体験を開始",
+    "startGuest": "非会員として体験を開始",
+    "loginOrSignup": "会員登録またはログイン",
+    "stop": "体験を停止",
+    "registerFace": "顔を登録",
+    "memberCta": "非識別化を体験する",
+    "tip": "Tip! 会員登録すると待ち時間が短くなります。",
+    "networkNote": "ネットワーク環境により性能に差が出る場合があります。",
+    "unavailable": "体験機能を準備しています",
+    "waitingPreview": "待機案内画面のプレビュー",
+    "facePreview": "顔登録画面のプレビュー"
+  },
+  "waiting": {
+    "preview": "画面プレビュー",
+    "queue": "接続待ち人数",
+    "count": "10人",
+    "eta": "予想待ち時間: 3分",
+    "note": "サーバーの過負荷を防ぐため、しばらくお待ちください。"
+  },
+  "face": {
+    "preview": "画面プレビュー",
+    "title": "顔登録",
+    "subtitle": "自分の顔だけを鮮明に",
+    "termsNote": "*関連規約が適用されます。",
+    "registered": "顔が登録されました。",
+    "guide": "顔を円の中に入れて、しばらくお待ちください。"
+  },
+  "experience": {
+    "title": "リアルタイム非識別化デモ",
+    "preparing": "体験接続を準備しています。",
+    "checkingMedia": "カメラの権限を確認しています。",
+    "connected": "体験接続が完了しました。",
+    "startingWebrtc": "WebRTC接続を開始しています。",
+    "ended": "体験を終了しました。",
+    "remoteLabel": "処理済みのリモート映像",
+    "remotePlaceholder": "接続が完了すると、処理済み映像が表示されます。",
+    "localLabel": "自分のカメラプレビュー",
+    "localBadge": "自分のプレビュー",
+    "retry": "再試行",
+    "end": "体験を終了",
+    "restart": "再開する",
+    "errors": {
+      "permission": "カメラの権限を許可してください。",
+      "notFound": "利用できるカメラが見つかりませんでした。",
+      "failed": "体験接続に失敗しました。もう一度お試しください。"
+    }
+  },
+  "auth": {
+    "loginTitle": "ログイン",
+    "signupTitle": "会員登録",
+    "verifyTitle": "メール認証",
+    "email": "メール",
+    "password": "パスワード",
+    "confirmPassword": "パスワード再入力",
+    "verificationCode": "6桁の認証コード",
+    "showPassword": "表示",
+    "hidePassword": "非表示",
+    "showPasswordLabel": "パスワードを表示",
+    "hidePasswordLabel": "パスワードを隠す",
+    "forgotPassword": "パスワードを忘れた場合",
+    "forgotPending": "パスワード再設定機能を準備しています",
+    "submitLogin": "ログイン",
+    "submittingLogin": "ログイン中",
+    "goSignup": "会員登録へ",
+    "goLogin": "ログインへ",
+    "sendCode": "認証メールを送る",
+    "completeVerify": "認証する",
+    "processing": "処理中",
+    "policyNav": "規約",
+    "privacy": "個人情報取扱方針",
+    "terms": "利用規約",
+    "agree": "{terms}に同意します。",
+    "termsTitle": "利用規約",
+    "termsLead": "サービス利用に必要な必須規約だけをまとめました。",
+    "agreeButton": "同意します。",
+    "termsBodyLabel": "サービス利用規約本文",
+    "verificationSent": "認証メールを送りました。6桁の認証コードを入力してください。",
+    "verificationHint": "{email} に送った認証コードを入力してください。",
+    "validation": {
+      "emailRequired": "メールアドレスを入力してください",
+      "emailInvalid": "正しいメールアドレスを入力してください",
+      "passwordRequired": "パスワードを入力してください",
+      "passwordLength": "パスワードは UTF-8 で 8〜72バイトである必要があります",
+      "confirmRequired": "パスワードを再入力してください",
+      "confirmMismatch": "パスワードが一致しません",
+      "termsRequired": "サービス利用規約に同意してください",
+      "codeRequired": "6桁の認証コードを入力してください"
+    },
+    "errors": {
+      "fallback": "認証リクエストを処理できませんでした。しばらくしてからもう一度お試しください。",
+      "configuration_error": "サーバーアドレスが設定されていません。",
+      "network_error": "サーバーに接続できませんでした。しばらくしてからもう一度お試しください。",
+      "auth_unavailable": "認証サーバーに接続できませんでした。しばらくしてからもう一度お試しください。",
+      "email_already_registered": "すでに登録されているメールアドレスです。",
+      "email_delivery_unavailable": "認証メールを送れません。しばらくしてからもう一度お試しください。",
+      "email_delivery_failed": "認証メールを送れませんでした。しばらくしてからもう一度お試しください。",
+      "email_auth_unavailable": "メール認証を利用できません。しばらくしてからもう一度お試しください。",
+      "invalid_signup_token": "会員登録の認証時間が切れました。最初からやり直してください。",
+      "invalid_verification_code": "認証コードが正しくないか、期限切れです。",
+      "invalid_email_credentials": "メールアドレスまたはパスワードが正しくありません。",
+      "too_many_signup_requests": "登録リクエストが多すぎます。しばらくしてからもう一度お試しください。",
+      "too_many_requests": "リクエストが多すぎます。しばらくしてからもう一度お試しください。",
+      "origin_not_allowed": "このアドレスでは認証を利用できません。",
+      "invalid_request": "メールアドレスとパスワードを確認してください。",
+      "invalid_token_response": "ログイン情報を確認できませんでした。"
+    }
+  }
+}

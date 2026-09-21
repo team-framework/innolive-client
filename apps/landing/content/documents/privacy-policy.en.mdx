@@ -1,0 +1,224 @@
+# InnoLive Privacy Policy
+
+This document explains the personal information we process, the purposes of processing, and the criteria for retention and deletion.
+
+- Publication date: September 21, 2026
+- Effective date: September 21, 2026
+- Service operations team: Framework team
+- Personal information protection officer: Kwon Dae-hyeong
+- Personal information inquiries: [contact@innolive.studio](mailto:contact@innolive.studio)
+
+The Framework team (the “Operations Team”) processes personal information on the InnoLive website, applications, and web trial service as described below. The items actually processed depend on the login method and features you choose.
+
+## 1. Personal information processed and purposes of use
+
+| Category | Information processed | Purpose of use |
+| --- | --- | --- |
+| Pre-registration | Email address, time of consent to collection and use of personal information, version of the privacy policy consented to | Launch notifications, pre-registration benefit notices, confirmation of consent records |
+| Sign-up and login | Name, email address, member identifier, external login provider and external login identifier, email-login password hash | Sign-up, login, user identification, and account management |
+| Email verification | Email address, verification code, and pending sign-up and verification processing information | Confirming email ownership, completing sign-up, and managing verification requests |
+| Login persistence and security | Authentication token information, refresh token hash, IP address, User-Agent, session identifier, and session ownership verification information | Keeping you signed in, session management, account protection, and preventing authentication abuse |
+| Face registration and management | Face photos for registration, facial feature values extracted from photos, registered-face identifiers, registration item IDs, registration timestamps | Distinguishing registered people, managing mosaic exclusion targets, and viewing or deleting registered faces |
+| Real-time video processing | Camera video, face detection, tracking, and comparison information generated from the video, and broadcast session and connection information | Face detection, comparison with registered people, video de-identification, processed-video preview, and transmission |
+| Audio transmission | Microphone audio and broadcast connection information | Audio relay, video-audio synchronization, and broadcast transmission |
+| YouTube connection and broadcasting | Channel identification information, encrypted connection tokens, broadcast title, description, and visibility, broadcast connection and status information, and transmitted video and audio | Connecting the YouTube channel you select, preparing and transmitting broadcasts, and managing status |
+| Preventing abuse of web pre-registration | Access IP address and request-count information | Preventing automated repeated submissions and excessive requests |
+| Customer support and exercise of rights | Email address, inquiry and report content, and device, app, and attachment information you submit | Responding to inquiries, confirming errors, handling account and personal-information requests, and processing reports of rights infringement |
+
+Names are processed according to the login method you used and the scope of information the external provider transmitted. User-Agent includes information such as the browser and operating system used to access the service.
+
+The current web trial feature requests camera video only and does not collect microphone audio. The audio processing items apply to the broadcasting features of apps that use the microphone.
+
+The Operations Team processes information you enter, capture, or transmit yourself, authentication information transmitted by external login providers, and information generated in the course of using the service. Consent to the collection and use of pre-registration and account information is obtained on the relevant application or sign-up screen.
+
+## 2. Processing of face information and broadcast data
+
+### 2.1 Processing entity and transmission path
+
+InnoLive’s service servers and AI processing servers are located in the Republic of Korea and are managed directly by the Framework team. Server-side face recognition and video de-identification are performed on the Operations Team’s AI processing servers. Face photos for registration and broadcast video are delivered to the AI processing servers via the Operations Team’s service servers.
+
+Even when a device-side face detection step exists, transmission of registration photos to the server and server-side face comparison take place separately. Web-trial face detection uses a MediaPipe component that runs in the browser, and iOS face registration uses the Vision feature that runs on the device.
+
+The basic video-processing flow is as follows.
+
+```text
+Camera on the user’s device
+→ Framework operations server
+→ Face detection, comparison, and mosaic on the Framework AI processing server
+→ The user’s processed-video preview
+→ YouTube transmission if the user chooses it
+```
+
+**Video is transmitted to the operations server before de-identification.** That video may include the faces of you and people around you, as well as the filming location and background.
+
+Even before you start a public YouTube broadcast, starting a server-processed preview or a server connection transmits camera video to the operations server. On apps that use the microphone, audio is also transmitted according to the consent and permission procedures for that feature.
+
+### 2.2 Comparison of registered faces with faces in the video
+
+Facial feature values are numeric information extracted from photos and are used to compare whether a registered person and a person in the video are the same person. The Operations Team manages registered faces by linking them to member accounts.
+
+The AI processing server detects and tracks faces in the video and compares them with registered faces. In this process, faces of people who are not registered may also be analyzed. Faces determined to be registered people are excluded from the mosaic, and a mosaic is applied to other detected faces.
+
+Even if faces are obscured, people may still be identifiable from audio, clothing, background, and surrounding information. This feature does not guarantee anonymity of the video as a whole.
+
+### 2.3 Consent and authority for processing face information
+
+Processing facial feature values to identify individuals requires a lawful basis, such as consent to processing sensitive information that is distinct from other personal-information processing. Sign-up consent or camera access permission alone cannot substitute for the separate consent required to process face information.
+
+A user who registers another person’s face must inform that person of the processing entity, items, purposes, and retention and deletion criteria, and must obtain the required consent. The photographer’s consent to use the service does not substitute for the consent of other people who appear in the video. The Operations Team also bears its own obligations regarding the personal-information processing it performs.
+
+### 2.4 Prohibition on use for training, research, or promotion
+
+The Operations Team does not use your photos, video, audio, or facial feature values for AI model training, research, or promotion.
+
+That information is used for face registration, real-time de-identification, preview, relay, and transmission you request. Consent to the Terms of Service alone does not grant authority to use the information for other purposes.
+
+## 3. Retention and deletion criteria
+
+The Operations Team retains personal information according to the criteria below and destroys it without delay when the purpose has been achieved or there is no longer a basis for retention.
+
+| Information | Retention and deletion criteria |
+| --- | --- |
+| Pre-registration email and consent records | Retained until consent is withdrawn or the purposes of launch notifications and pre-registration benefit notices have been achieved, then deleted. |
+| Account information | Retained while the account is maintained, and the account’s sign-up and login information is deleted when account deletion is processed. |
+| Customer-support inquiry records | When the inquiry is resolved, inquiry-related personal information such as the email address, inquiry content, and attachments is destroyed without delay. Information that must be retained under law is retained separately, limited to the applicable items and period. |
+| Pending email sign-up and verification information | Processed in temporary storage while sign-up and verification are in progress, and destroyed upon completion of sign-up, the result of verification processing, and expiration of the temporary information’s validity period. |
+| Authentication token and session information | Retained to the extent necessary for maintaining the account and managing authentication and sessions, and related information is destroyed when the account is deleted. Expiration or invalidation of a token is distinct from deletion of stored records. |
+| Original face photos for registration | Not retained persistently as a separate store. Temporary files may be created during upload and are cleaned up when transmission processing ends. |
+| Registered-face feature values | Retained in the memory of the AI processing server. They are cleaned up when an individual face is deleted, the account is deleted, or the AI process that holds those feature values is terminated or restarted. Feature values may remain after an individual registration request or a broadcast ends. |
+| Face-registration management information | Registered-face identifiers, registration item IDs, registration timestamps, and similar information are retained. Original photos and facial feature values are not included. This information is deleted together when the relevant face or account is deleted. |
+| Guest face information for the web trial | Cleaned up when the trial session ends. The browser requests session deletion from the server when the trial ends. |
+| Broadcast video and audio | The live processing path has no recording function. Temporary memory needed for transmission and processing is used, and video, audio, and temporary tracking information that are no longer needed after the processing purpose has been achieved are destroyed. |
+| YouTube connection and broadcast information | Used to maintain the connection and manage broadcasts, and related information is destroyed when the connection is disconnected or account deletion is processed. You can revoke access permissions directly in Google, and you can also request deletion of related information through the inquiry channel. |
+
+If the AI process is restarted, registered-face feature values may disappear and you may need to register faces again. In that case, the registration management information remaining on the server and the feature values in actual AI memory are different information.
+
+Videos retained by YouTube are not included in the InnoLive retention criteria in the table above. Videos posted to YouTube must be managed separately by you on YouTube.
+
+Pre-registration is managed in a web database separate from member accounts. You can separately request cancellation of pre-registration and deletion of related information by inquiry email.
+
+If personal information must be retained separately under law, we will specifically inform you of the applicable law, retained items, and retention period, and process the information only for that purpose.
+
+## 4. Use of external services and transmission of information
+
+The Operations Team uses the external services below. The provider’s policies also apply to information processed directly by each external service.
+
+| External service | Purpose of use | Related information |
+| --- | --- | --- |
+| Google login | Authentication through a Google account | External login identifier, authentication result, and account information you consented to provide |
+| Apple login | Authentication through an Apple account | External login identifier, authentication result, and account information you consented to provide |
+| YouTube / Google LLC | Channel connection, broadcast preparation and transmission, and status management | Connection and authentication information, channel and broadcast identification information, broadcast settings, and transmitted video and audio |
+| Google STUN servers | Confirming network addresses for real-time communication connections in the web trial | Communication information needed for connection, such as access IP address and port |
+| jsDelivr CDN | Downloading runtime components needed for web face detection | Communication information such as IP address, request URL, and browser information in the course of file requests |
+
+Google STUN servers assist with real-time communication connections, and jsDelivr provides face-detection components that run in the browser. Face photos for registration are transmitted to InnoLive operations servers; we do not request AI analysis of face photos from Google STUN servers or jsDelivr.
+
+Broadcast video and audio of users who choose YouTube integration are transmitted to the connected channel. After transmission, retention, publication, and deletion are subject to Google’s Privacy Policy, YouTube policies, and your channel settings.
+
+If you refuse YouTube connection or transmission, you cannot use the related integration and transmission features. If you do not want to use Google or Apple login, you may choose another login method provided in the relevant app.
+
+The Operations Team obtains the required consent or a legal basis for any provision of personal information to third parties beyond the scope described here.
+
+## 5. Server operations and external processing of personal information
+
+InnoLive’s service servers and AI processing servers are in the Republic of Korea and are managed directly by the Framework team. Face registration and comparison and video de-identification are performed on the Operations Team’s AI processing servers.
+
+The Operations Team sends emails required for the service, such as email verification, directly via SMTP.
+
+The services in Section 4 are involved in Google and Apple login, YouTube connection and transmission, and external web communications. Processing on first-party servers in Korea and processing by external services are distinct, and each provider’s privacy policy also applies to information processed directly by that external service.
+
+If the Operations Team outsources personal-information processing work, it will disclose the entrusted party and the outsourced work. Processing that transfers personal information overseas is subject to the legal basis and notice and consent procedures under applicable law. Operation of first-party servers in Korea does not mean that there is no overseas transfer of personal information, including through external services.
+
+## 6. Your rights and withdrawal of consent
+
+The data subject may request access to, correction or deletion of, suspension of processing of, or withdrawal of consent regarding their personal information. Requests may also be made through a legal representative or an agent with lawful authorization.
+
+You may use the account and face management features provided in the app, or make a request to [contact@innolive.studio](mailto:contact@innolive.studio). The Operations Team verifies the minimum information needed to confirm the requester’s identity or agency authority.
+
+If a request must be limited or refused under law, we will explain the reason. When the Operations Team receives a request to withdraw consent or delete information, it confirms whether the relevant processing will be stopped or deleted and any follow-up procedures required.
+
+If you do not consent to pre-registration, you cannot pre-register. If you refuse face registration, you cannot use the feature that designates registered people as mosaic exclusion targets. If you refuse server transmission of video or audio, you cannot use the related server processing and relay features.
+
+### Children’s personal information
+
+InnoLive does not impose a separate age limit on sign-up. If a child under 14 uses a feature that requires consent to personal-information processing, the legal representative’s consent and the Operations Team’s confirmation of that consent are required. The legal representative may request access to, correction or deletion of, suspension of processing of, and withdrawal of consent regarding the child’s personal information by inquiry email.
+
+## 7. Face deletion and account deletion
+
+### Deletion of registered faces
+
+You can view registered faces and request deletion of individual faces or all faces in the app at **Settings > Face management**. The Operations Team deletes the feature values and management information for those faces.
+
+### Account deletion
+
+You can request this in the app at **Settings > Account settings > Delete account**. The Operations Team ends the broadcast session, attempts to clean up external connections, and then deletes that account’s account, login, and broadcast-connection information and face-registration information.
+
+If you have already revoked external connection permissions, external broadcast resources may not be cleaned up. Even in that case, deletion of the account information InnoLive retains proceeds.
+
+If face or account deletion cannot be completed because of a temporary error, you can try again in the app or request deletion by inquiry email. Uninstalling the app, signing out, or deleting browser stored data alone does not delete the account or face information on the server.
+
+**Deleting an InnoLive account does not include deletion of past videos posted to YouTube.** If you also need to cancel pre-registration, please request that at the same time.
+
+## 8. Device access permissions and information stored on the device
+
+InnoLive uses camera and microphone access permissions for the relevant features. The current web trial uses the camera only. You can change access permissions in the device or browser permission settings, and features that require a withdrawn permission are restricted.
+
+Allowing camera and microphone access on the device and consenting to server transmission are separate procedures.
+
+On the web, whether you consented to the face-registration notice is stored in the browser’s local storage. You can erase that information with the browser’s site-data deletion function.
+
+The iOS app stores consent to transmission of broadcast video and audio and the confirmation status of the YouTube transmission notice in device settings storage. Related status is cleared when account deletion succeeds, and when a YouTube connection is disconnected, the notice-confirmation status for that connection is also reset.
+
+Consent and confirmation status stored on the device does not substitute for deletion of the account or personal information on the server.
+
+## 9. Personal information safeguards
+
+All communication between the app and our servers, and between our servers and Google APIs, is encrypted in transit using HTTPS/TLS.
+
+The Operations Team manages email-login passwords, refresh tokens, and broadcast-session ownership verification tokens in hashed form. YouTube connection tokens and stored Apple connection tokens are encrypted at rest using AES-256-GCM with a unique random nonce per value; they are never stored in plaintext. Short-lived access tokens are not written to the database and are held in memory only for the duration of a request.
+
+Access is controlled by verifying member authentication and ownership of broadcast sessions, and repeated email-verification and login requests are limited.
+
+Personal information subject to destruction is deleted in a manner that makes recovery or restoration difficult, and temporary memory and stored records are cleaned up according to the retention and deletion criteria in this policy.
+
+## 10. Personal information protection officer and inquiries
+
+| Category | Details |
+| --- | --- |
+| Service operations team | Framework team |
+| Personal information protection officer | Kwon Dae-hyeong |
+| Personal information inquiry channel | InnoLive Operations Team |
+| Email | [contact@innolive.studio](mailto:contact@innolive.studio) |
+
+Please include the type of request and the account or information to be verified in your inquiry. Do not send passwords, verification codes, authentication tokens, or broadcast stream keys.
+
+## 11. External policies and connection-permission management
+
+InnoLive uses YouTube API Services. When you use YouTube connection features, the YouTube Terms of Service apply to you.
+
+The Google permission InnoLive requests is `https://www.googleapis.com/auth/youtube`, and it is used only to create live broadcasts on your YouTube channel and manage their status. The YouTube Live API does not provide a narrower permission scope.
+
+InnoLive’s use and transfer to other apps of information received from Google APIs comply with the Google API Services User Data Policy, including the Limited Use requirements.
+
+Specifically, InnoLive handles Google user data as follows.
+
+- It is used only to provide the broadcast features you request.
+- It is not used for advertising or sold to third parties.
+- It is not accessed directly by people, except with your explicit consent; when necessary for security purposes or legal compliance; or when the data has been aggregated and anonymized.
+- It is not retained longer than needed to provide the feature, and stored tokens and connection information are removed when the account is deleted or the connection is disconnected.
+- It is not used to train AI models.
+
+- [Google Privacy Policy](https://policies.google.com/privacy?hl=ko)
+- [YouTube Terms of Service](https://www.youtube.com/t/terms)
+- [Google account connection permission management](https://myaccount.google.com/permissions)
+- [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy)
+- [Apple Privacy Policy](https://www.apple.com/legal/privacy/)
+- [jsDelivr Privacy Policy](https://www.jsdelivr.com/terms/privacy-policy)
+
+You can revoke InnoLive’s access permissions at any time on the Google account connection permission management page. Once you revoke permission, InnoLive cannot transmit broadcasts to the relevant YouTube channel and stored connection tokens are invalidated. You can also request deletion of related information remaining in InnoLive through the personal information inquiry channel.
+
+## 12. Changes to this policy
+
+When the Operations Team changes this policy, it announces the changes and the effective date on the website or in the app. Changes that require separate consent are subject to consent before the relevant processing begins.
+
+The publication date and effective date of this policy are **September 21, 2026**. The effective date of the previous policy is **September 19, 2026**. Processing that requires separate consent because of a change begins after that consent is obtained.

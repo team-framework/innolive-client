@@ -13,6 +13,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -38,6 +39,60 @@ private object LiveSettingsRoute
 class YouTubeLiveSettingsDialogInteractionTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun cachedChannelNeverHidesAccountVerificationFailure() {
+        composeRule.setContent {
+            MaterialTheme {
+                YouTubeLiveSettingsDialog(
+                    settings = BroadcastSettings("검증 방송", "검증 설명", "private", false, "22"),
+                    youtubeChannelTitle = "저장된 채널",
+                    hasYouTubeAccount = false,
+                    youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다.",
+                    isYouTubeReconnectRequired = false,
+                    isYouTubeAccountActionInProgress = false,
+                    isYouTubeConnectEnabled = true,
+                    onSettingsChanged = {},
+                    onConnectYouTube = {},
+                    onDismissRequest = {},
+                    onPrepare = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("YouTube 연결 상태를 확인하지 못했습니다.").assertIsDisplayed()
+        composeRule.onNodeWithText("저장된 채널").assertDoesNotExist()
+        composeRule.onNodeWithText("연동").assertIsDisplayed()
+        composeRule.onNodeWithText("방송 준비").assertIsNotEnabled()
+    }
+
+    @Test
+    fun reconnectFailureReplacesPreviouslyVerifiedChannelLabel() {
+        val status = mutableStateOf("YouTube 채널: 검증 채널")
+        composeRule.setContent {
+            MaterialTheme {
+                YouTubeLiveSettingsDialog(
+                    settings = BroadcastSettings("검증 방송", "검증 설명", "private", false, "22"),
+                    youtubeChannelTitle = "검증 채널",
+                    hasYouTubeAccount = true,
+                    youtubeAccountStatus = status.value,
+                    isYouTubeReconnectRequired = false,
+                    isYouTubeAccountActionInProgress = false,
+                    isYouTubeConnectEnabled = true,
+                    onSettingsChanged = {},
+                    onConnectYouTube = {},
+                    onDismissRequest = {},
+                    onPrepare = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("YouTube 채널: 검증 채널").assertIsDisplayed()
+        composeRule.runOnIdle { status.value = "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요." }
+        composeRule.onNodeWithText("YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요.")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("검증 채널").assertDoesNotExist()
+    }
 
     @Test
     fun unlinkedAccountInformationUsesReadableRows() {

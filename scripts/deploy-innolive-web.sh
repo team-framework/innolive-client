@@ -74,22 +74,48 @@ image_id() {
   printf '%s' "$output"
 }
 
+web_compose_container_name() {
+  printf '%s-web-1' "$INNOLIVE_WEB_COMPOSE_PROJECT"
+}
+
 web_container_id() {
   local output line count=0 selected=''
 
-  if ! output=$("${compose_base[@]}" ps -q web 2>>"$private_log"); then
-    return 1
+  if output=$("${compose_base[@]}" ps -q web 2>>"$private_log"); then
+    while IFS= read -r line; do
+      if [[ -n "$line" ]]; then
+        count=$((count + 1))
+        selected=$line
+      fi
+    done <<<"$output"
+    if [[ "$count" -eq 1 && "$selected" =~ ^[0-9a-f]{12,64}$ ]]; then
+      printf '%s' "$selected"
+      return 0
+    fi
+    if [[ "$count" -gt 1 ]]; then
+      return 1
+    fi
   fi
 
-  while IFS= read -r line; do
-    if [[ -n "$line" ]]; then
-      count=$((count + 1))
-      selected=$line
-    fi
-  done <<<"$output"
+  container_id "$(web_compose_container_name)"
+}
 
-  [[ "$count" -eq 1 && "$selected" =~ ^[0-9a-f]{12,64}$ ]] || return 1
-  printf '%s' "$selected"
+remove_unmanaged_web_container() {
+  local name project
+
+  name=$(web_compose_container_name)
+  docker inspect "$name" >/dev/null 2>>"$private_log" || return 0
+
+  if ! project=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$name" 2>>"$private_log"); then
+    return 1
+  fi
+  project=${project//$'\n'/}
+  if [[ "$project" == "$INNOLIVE_WEB_COMPOSE_PROJECT" ]]; then
+    return 0
+  fi
+
+  docker rm -f "$name" >>"$private_log" 2>&1 || return 1
+  stage 'unmanaged-web-removed'
 }
 
 write_release_override() {
@@ -103,7 +129,14 @@ write_release_override() {
     printf '      context: %s\n' "$release_source"
     printf '      args:\n'
     printf '        INNOLIVE_WEB_REVISION: "%s"\n' "$expected_sha"
+    printf '        NEXT_PUBLIC_INNOLIVE_SERVER_URL: "%s"\n' "$NEXT_PUBLIC_INNOLIVE_SERVER_URL"
     printf '    image: %s\n' "$image"
+    printf '%s\n' '    env_file: !reset []'
+    printf '%s\n' '    depends_on: !reset {}'
+    printf '%s\n' '    networks: !override'
+    printf '%s\n' '      monitoring_default:'
+    printf '%s\n' '        aliases:'
+    printf '%s\n' '          - innolive-web'
   } >"$override_file"; then
     return 1
   fi
@@ -253,6 +286,7 @@ required_variables=(
   INNOLIVE_WEB_COMPOSE_PROJECT
   INNOLIVE_WEB_DB_CONTAINER
   INNOLIVE_WEB_PROXY_CONTAINER
+  NEXT_PUBLIC_INNOLIVE_SERVER_URL
 )
 for variable in "${required_variables[@]}"; do
   [[ -n "${!variable:-}" ]] || fail 'deployment configuration is incomplete'
@@ -267,6 +301,7 @@ done
 [[ "$INNOLIVE_WEB_DB_CONTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail 'database container name is invalid'
 [[ "$INNOLIVE_WEB_PROXY_CONTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail 'proxy container name is invalid'
 [[ "$INNOLIVE_WEB_SITE_URL" =~ ^https?://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ ]] || fail 'public site URL is invalid'
+[[ "$NEXT_PUBLIC_INNOLIVE_SERVER_URL" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/%:@+-]*)?$ ]] || fail 'public server URL is invalid'
 
 web_dir=$INNOLIVE_WEB_DIR
 releases_dir=$INNOLIVE_WEB_RELEASES_DIR
@@ -378,8 +413,8 @@ with tarfile.open(tar_path, "r:") as archive:
             or any(part in ("", ".", "..") for part in name.split("/"))
         ):
             raise ValueError("archive contains an unsafe path")
-        if name != "apps" and name != "apps/web" and not name.startswith("apps/web/"):
-            raise ValueError("archive contains a path outside apps/web")
+        if name != "apps" and name != "apps/landing" and not name.startswith("apps/landing/"):
+            raise ValueError("archive contains a path outside apps/landing")
         if name in seen:
             raise ValueError("archive contains a duplicate path")
         seen.add(name)
@@ -417,8 +452,8 @@ with tarfile.open(tar_path, "r:") as archive:
             raise ValueError("archive member size is invalid")
         os.chmod(target, member.mode & 0o777)
 
-if not (destination / "apps" / "web" / "Dockerfile").is_file():
-    raise ValueError("archive does not contain the web Dockerfile")
+if not (destination / "apps" / "landing" / "Dockerfile").is_file():
+    raise ValueError("archive does not contain the landing Dockerfile")
 PY
 then
   fail 'deployment archive failed safety validation'
@@ -428,7 +463,7 @@ stage 'archive-validated'
 private_log="$release_dir/deployment.log"
 : >"$private_log"
 chmod 0600 "$private_log" 2>>"$private_log" || fail 'private deployment log could not be protected'
-release_source="$release_dir/apps/web"
+release_source="$release_dir/apps/landing"
 release_validated=1
 stage 'release-created'
 
@@ -497,6 +532,9 @@ built_revision=${built_revision//$'\n'/}
 stage 'web-built'
 
 replacement_attempted=1
+if ! remove_unmanaged_web_container; then
+  fail 'unmanaged web container could not be replaced'
+fi
 if ! "${compose_with_release[@]}" up -d --no-deps --no-build web >>"$private_log" 2>&1; then
   fail 'web container replacement failed'
 fi

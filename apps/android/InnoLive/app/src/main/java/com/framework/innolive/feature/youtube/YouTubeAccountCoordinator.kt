@@ -15,7 +15,6 @@ class YouTubeAccountCoordinator(
         findYouTubeAccount(api().listAccounts(refreshAccessToken()))
 
     suspend fun beginAuthorization(
-        accountEmail: String?,
         onAuthorizationRequired: (PendingIntent) -> Unit,
         onAuthorized: (String) -> Unit,
         onFailure: (Exception) -> Unit,
@@ -23,7 +22,6 @@ class YouTubeAccountCoordinator(
         authorization.request(
             activity = requireActivity(),
             configuration = api().configuration(),
-            accountEmail = accountEmail,
             onAuthorizationRequired = onAuthorizationRequired,
             onAuthorized = onAuthorized,
             onFailure = onFailure,

@@ -55,6 +55,11 @@ final class YouTubeIntegration: ObservableObject {
     private let maximumGoLiveAttempts = 15
     private var ownedOrientationLockGeneration: UInt?
     private var broadcastOperationGeneration: UInt = 0
+    private var didPauseYouTubeForBackground = false
+    private var shouldResumeAfterBackgroundPause = false
+    private var hasObservedActiveScene = false
+    private var backgroundPauseTask: Task<Void, Never>?
+    private var backgroundPauseGeneration: UInt = 0
 
     convenience init() {
         self.init(preferencesStore: YouTubePreferencesStore())
@@ -489,6 +494,7 @@ final class YouTubeIntegration: ObservableObject {
         sessionOperationGeneration &+= 1
         invalidateBroadcastOperation()
         if let task = sessionPreparationTask { _ = await task.value }
+        clearBackgroundYouTubePauseState()
         if isYouTubeBroadcastActive {
             await stopYouTubeStream(accessToken: accessToken)
         }
@@ -516,6 +522,7 @@ final class YouTubeIntegration: ObservableObject {
 
         sessionOperationGeneration &+= 1
         invalidateBroadcastOperation()
+        clearBackgroundYouTubePauseState()
         if let task = sessionPreparationTask { _ = await task.value }
         let failureMessage = videoUplink.errorMessage
             ?? String(localized: "카메라 영상 연결이 끊겼습니다. 비식별화를 다시 시작해 주세요.")
@@ -659,6 +666,7 @@ final class YouTubeIntegration: ObservableObject {
             // 앱에서는 송출을 종료로 처리해 타이머와 비식별화 제어 상태를 즉시 복구한다.
             stream = stoppedStream.markedStoppedByUser()
             liveStartedAt = nil
+            clearBackgroundYouTubePauseState()
             stopPolling()
             if let generation = ownedOrientationLockGeneration {
                 releaseBroadcastOrientationLock(generation: generation)
@@ -675,6 +683,41 @@ final class YouTubeIntegration: ObservableObject {
 
     func resumeYouTubeStream(accessToken: String?) async {
         await changePausedState(accessToken: accessToken, shouldPause: false)
+    }
+
+    func handleAppMovedToBackground(accessToken: String?) async {
+        shouldResumeAfterBackgroundPause = false
+        let shouldPauseForBackground = hasObservedActiveScene && canPauseYouTubeBroadcast
+        hasObservedActiveScene = false
+        if let backgroundPauseTask {
+            await backgroundPauseTask.value
+            self.backgroundPauseTask = nil
+        }
+        guard shouldPauseForBackground else { return }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.pauseYouTubeForBackground(accessToken: accessToken)
+        }
+        backgroundPauseTask = task
+        await task.value
+        if backgroundPauseTask == task {
+            backgroundPauseTask = nil
+        }
+    }
+
+    func handleAppBecameActive(accessToken: String?) async {
+        hasObservedActiveScene = true
+        shouldResumeAfterBackgroundPause = true
+        if let backgroundPauseTask {
+            await backgroundPauseTask.value
+            self.backgroundPauseTask = nil
+        }
+        guard shouldResumeAfterBackgroundPause, didPauseYouTubeForBackground else { return }
+        didPauseYouTubeForBackground = false
+        shouldResumeAfterBackgroundPause = false
+        guard canResumeYouTubeBroadcast else { return }
+        await resumeYouTubeStream(accessToken: accessToken)
     }
 
     func toggleAnonymization(accessToken: String?) async {
@@ -710,6 +753,7 @@ final class YouTubeIntegration: ObservableObject {
         sessionScope = nil
         invalidateConnectionOperation()
         invalidateBroadcastOperation()
+        clearBackgroundYouTubePauseState()
         stopPolling()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -960,6 +1004,49 @@ final class YouTubeIntegration: ObservableObject {
         videoUplink.dismissError()
     }
 
+    private func pauseYouTubeForBackground(accessToken: String?) async {
+        let pauseGeneration = backgroundPauseGeneration
+        let sessionGeneration = sessionOperationGeneration
+        guard canPauseYouTubeBroadcast,
+              let accessToken, !accessToken.isEmpty,
+              let session else { return }
+
+        await withBackgroundTaskNamed("youtube-background-pause") {
+            do {
+                let paused = try await api.pauseStream(session: session, accessToken: accessToken)
+                guard pauseGeneration == backgroundPauseGeneration,
+                      sessionGeneration == sessionOperationGeneration else { return }
+                stream = paused
+                didPauseYouTubeForBackground = true
+                beginPolling(accessToken: accessToken)
+            } catch {
+                // 홈 이탈로 보낸 자동 일시 중지는 배너를 띄우지 않는다.
+            }
+        }
+    }
+
+    private func withBackgroundTaskNamed(_ name: String, perform work: () async -> Void) async {
+        let token = BackgroundTaskToken()
+        token.identifier = UIApplication.shared.beginBackgroundTask(withName: name) {
+            let identifier = token.identifier
+            guard identifier != .invalid else { return }
+            token.identifier = .invalid
+            UIApplication.shared.endBackgroundTask(identifier)
+        }
+        await work()
+        let identifier = token.identifier
+        guard identifier != .invalid else { return }
+        token.identifier = .invalid
+        UIApplication.shared.endBackgroundTask(identifier)
+    }
+
+    private func clearBackgroundYouTubePauseState() {
+        backgroundPauseGeneration &+= 1
+        didPauseYouTubeForBackground = false
+        shouldResumeAfterBackgroundPause = false
+        backgroundPauseTask = nil
+    }
+
     private func changePausedState(accessToken: String?, shouldPause: Bool) async {
         clearError()
         guard !isChangingStreamState else { return }
@@ -1104,4 +1191,8 @@ private struct VideoConnectionConfiguration {
     let preferredCameraID: String?
     let preferredAudioID: String?
     let preferredVideoQuality: CameraQualityPreset
+}
+
+private final class BackgroundTaskToken: @unchecked Sendable {
+    var identifier = UIBackgroundTaskIdentifier.invalid
 }
