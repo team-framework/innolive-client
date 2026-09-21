@@ -12,6 +12,31 @@ nonisolated enum PrivacyYuNetDecoding {
         let score: Float
     }
 
+    struct InputLayout {
+        let original: CGSize
+        let resized: CGSize
+        let width: Int
+        let height: Int
+
+        init(size: CGSize, enrollment: Bool) {
+            original = size
+            // Camera ROIs can contain faces much larger than YuNet's training range.
+            // Keep registration's existing 500px capture path; bound live query work.
+            let scale = enrollment ? 1 : min(1, 320 / max(size.width, size.height))
+            resized = CGSize(width: max(1, (size.width * scale).rounded()),
+                             height: max(1, (size.height * scale).rounded()))
+            width = ((Int(resized.width) + 31) / 32) * 32
+            height = ((Int(resized.height) + 31) / 32) * 32
+        }
+
+        func restore(_ face: Face) -> Face {
+            let x = original.width / resized.width, y = original.height / resized.height
+            return Face(box: CGRect(x: face.box.minX * x, y: face.box.minY * y,
+                                    width: face.box.width * x, height: face.box.height * y),
+                        landmarks: face.landmarks.map { CGPoint(x: $0.x * x, y: $0.y * y) }, score: face.score)
+        }
+    }
+
     static func decode(outputs: [String: [Float]], width: Int, height: Int, threshold: Float = 0.6) throws -> [Face] {
         guard width > 0, height > 0, width % 32 == 0, height % 32 == 0 else { throw PrivacyModelError.outputContract }
         var faces: [Face] = []
@@ -90,7 +115,8 @@ nonisolated final class PrivacyYuNetDetector {
     }
 
     func face(in image: CGImage, enrollment: Bool) throws -> PrivacyYuNetDecoding.Face {
-        let width = ((image.width + 31) / 32) * 32, height = ((image.height + 31) / 32) * 32
+        let layout = PrivacyYuNetDecoding.InputLayout(size: CGSize(width: image.width, height: image.height), enrollment: enrollment)
+        let width = layout.width, height = layout.height
         guard width <= 2048, height <= 2048 else { throw PrivacyFaceSampleError.size }
         if input == nil || CVPixelBufferGetWidth(input!) != width || CVPixelBufferGetHeight(input!) != height {
             var created: CVPixelBuffer?
@@ -102,7 +128,10 @@ nonisolated final class PrivacyYuNetDetector {
         }
         guard let input else { throw PrivacyModelError.imageBuffer }
         let bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        let topAligned = CIImage(cgImage: image).transformed(by: CGAffineTransform(translationX: 0, y: CGFloat(height - image.height)))
+        let topAligned = CIImage(cgImage: image)
+            .transformed(by: CGAffineTransform(scaleX: layout.resized.width / CGFloat(image.width),
+                                              y: layout.resized.height / CGFloat(image.height)))
+            .transformed(by: CGAffineTransform(translationX: 0, y: CGFloat(height) - layout.resized.height))
         context.render(topAligned.composited(over: CIImage(color: .black).cropped(to: bounds)),
                        to: input, bounds: bounds, colorSpace: CGColorSpaceCreateDeviceRGB())
         let prediction = try model.prediction(from: MLDictionaryFeatureProvider(dictionary: ["image": MLFeatureValue(pixelBuffer: input)]))
@@ -118,7 +147,8 @@ nonisolated final class PrivacyYuNetDetector {
         let faces = try PrivacyYuNetDecoding.decode(outputs: values, width: width, height: height)
             .filter { $0.score >= (enrollment ? 0.9 : 0.6) }
         guard faces.count <= 1 else { throw PrivacyFaceSampleError.multipleFaces }
-        guard let face = faces.first else { throw PrivacyFaceSampleError.faceCount }
+        guard let detected = faces.first else { throw PrivacyFaceSampleError.faceCount }
+        let face = layout.restore(detected)
         guard min(face.box.width, face.box.height) >= (enrollment ? 40 : 24) else { throw PrivacyFaceSampleError.size }
         return face
     }

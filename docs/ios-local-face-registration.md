@@ -252,3 +252,41 @@ CPU YuNet 설정으로 업데이트한 기기에서 준비 완료 `state=1`, 준
 확인했다. 최종 확인 시점에는 이 실행의 새 얼굴 비교 표본이 없었으므로 CPU 설정의
 실제 얼굴 처리 시간·메모리 개선 수치는 아직 보고하지 않는다. 직전 YuNet 빌드에서
 완료된 등록 파일을 그대로 유지하며 재설치하지 않고 앱 업데이트로 적용했다.
+
+### 등록 이후 재검출 실패와 입력 크기 제한
+
+등록자가 계속 블러 처리된다는 보고 후 CPU YuNet 빌드의 숫자 로그를 확인했다.
+40.07초 동안 비교 88회 중 얼굴 없음 62회, 여러 얼굴 12회, embedding 생성 14회였다.
+14개 유효 입력 중 5개가 매칭 문턱을 넘었다. 현재 track은 80회 존재했으며,
+유효 결과 반영 지연 중앙값은 164.49ms였다. 비교 전 YuNet 재검출에서 대부분 탈락했다.
+별도 카메라 로그 89개에서 블러 해제는 관측하지 못했다. 두 로그의 표본 간격은 다르다.
+앱 전체 physical footprint 최댓값은 약 1,162MB였다.
+
+실시간 인식은 고해상도 얼굴 ROI를 YuNet에 그대로 전달하고 있었다. 이제 긴 변이
+320px를 넘는 query만 축소하고, 검출한 bbox와 5개 landmark를 원본 ROI 좌표로 복원한다.
+AdaFace에는 원본 ROI에서 자른 얼굴을 전달한다. 등록의 기존 500×500 입력, 저장된
+YuNet embedding, 유사도 0.60, 2회 확인 및 750ms 유효 기간은 유지한다.
+로그에 등록/비교 구분, 원본 입력 크기와 YuNet 입력 크기를 추가했다.
+이 변경은 큰 얼굴 입력의 검출 불안정을 줄이기 위한 수정이며, 위 로그만으로
+입력 크기가 실제 실패의 유일한 원인이라고 확정할 수는 없다.
+
+검증:
+
+- 공개 OpenCV 샘플을 동일한 320×320 PNG 픽셀로 준비하고 Swift의
+  CGImage → Core Image → CVPixelBuffer → Core ML → decode/NMS 경로를 실행했다.
+  Mac Swift와 OpenCV의 bbox·landmark·점수 최대 절대 차이는 약 0.00001526이었다.
+  JPEG를 각각 디코딩한 초기 비교에서는 좌표 차이가 약 1.74px였으므로,
+  픽셀 입력을 맞추기 위해 lossless PNG로 검사했다.
+- 같은 fixture의 iOS 27 시뮬레이터 native parity 테스트와 크기·좌표 복원 회귀 검사를
+  포함해 35개 테스트가 통과했다. 실패 0개, 생략 0개다. iOS 기기 서명 빌드도 통과했다.
+- 실제 등록자의 재블러 감소와 미등록자 보호는 수정본의 기기 로그와 화면에서 별도로 확인한다.
+  공개 이미지 한 장의 수치 일치를 인식 정확도로 해석하지 않는다.
+
+선택적인 native parity fixture는 아래 명령으로 생성한다. 이미지와 fixture 생성물은
+Git에서 제외한다. fixture나 Core ML 모델이 없으면 해당 검사만 `XCTSkip`으로 표시된다.
+
+```bash
+python scripts/prepare-ios-yunet-fixture.py \
+  --image /path/to/public-test-image.jpg \
+  --onnx /path/to/face_detection_yunet_2023mar.onnx
+```

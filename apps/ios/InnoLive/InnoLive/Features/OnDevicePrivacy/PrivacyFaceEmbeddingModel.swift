@@ -196,8 +196,10 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
                 var message: String?
                 var fatal = false
                 var failureCode = 0
+                var inputSize = CGSize(width: job.image.width, height: job.image.height)
                 do {
                     let image = try job.enrollment ? enrollmentImage(job) : job.image
+                    inputSize = CGSize(width: image.width, height: image.height)
                     embedding = try recognizer!.embedding(image: image, enrollment: job.enrollment)
                 } catch {
                     message = error.localizedDescription
@@ -205,7 +207,11 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
                     fatal = recognizer == nil
                 }
                 let milliseconds = (ProcessInfo.processInfo.systemUptime - start) * 1000
+                let layout = PrivacyYuNetDecoding.InputLayout(size: inputSize, enrollment: job.enrollment)
                 metrics.append(["uptime": start, "recognition_ms": milliseconds,
+                                "enrollment": job.enrollment ? 1 : 0,
+                                "input_width": Double(inputSize.width), "input_height": Double(inputSize.height),
+                                "detector_width": Double(layout.width), "detector_height": Double(layout.height),
                                 "load_ms": recognizer?.loadMilliseconds ?? 0,
                                 "success": embedding == nil ? 0 : 1, "failure_code": Double(failureCode),
                                 "memory_mb": PrivacyFaceEmbeddingModel.memoryMegabytes()])

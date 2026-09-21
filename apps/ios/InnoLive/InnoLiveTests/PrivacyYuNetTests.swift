@@ -2,9 +2,51 @@
 import XCTest
 import CoreGraphics
 import CoreImage
+import ImageIO
 @testable import InnoLive
 
 final class PrivacyYuNetTests: XCTestCase {
+    func testNativeCoreMLInputAndDecodingMatchOpenCVFixture() throws {
+        let bundle = Bundle(for: PrivacyYuNetTests.self)
+        guard let imageURL = bundle.url(forResource: "yunet-sample", withExtension: "png"),
+              let expectedURL = bundle.url(forResource: "yunet-expected", withExtension: "json"),
+              Bundle.main.url(forResource: "PrivacyYuNet", withExtension: "mlmodelc") != nil else {
+            throw XCTSkip("Optional public-image fixture and generated model are not present")
+        }
+        let source = try XCTUnwrap(CGImageSourceCreateWithURL(imageURL as CFURL, nil))
+        let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        let expected = try JSONDecoder().decode([Double].self, from: Data(contentsOf: expectedURL))
+        let actual = try PrivacyYuNetDetector().face(in: image, enrollment: false)
+        let values = [actual.box.minX, actual.box.minY, actual.box.width, actual.box.height]
+            + actual.landmarks.flatMap { [$0.x, $0.y] } + [CGFloat(actual.score)]
+        XCTAssertEqual(values.count, expected.count)
+        for i in values.indices { XCTAssertEqual(Double(values[i]), expected[i], accuracy: 0.05, "component \(i)") }
+    }
+
+    func testLiveQueryBoundsDetectorAndRestoresOriginalCoordinates() {
+        let layout = PrivacyYuNetDecoding.InputLayout(size: CGSize(width: 1080, height: 777), enrollment: false)
+        XCTAssertEqual(layout.resized, CGSize(width: 320, height: 230))
+        XCTAssertEqual(layout.width, 320)
+        XCTAssertEqual(layout.height, 256)
+        let restored = layout.restore(.init(box: CGRect(x: 32, y: 23, width: 160, height: 115),
+                                            landmarks: [CGPoint(x: 160, y: 115)], score: 0.9))
+        XCTAssertEqual(restored.box.minX, 108, accuracy: 0.001)
+        XCTAssertEqual(restored.box.minY, 77.7, accuracy: 0.001)
+        XCTAssertEqual(restored.box.width, 540, accuracy: 0.001)
+        XCTAssertEqual(restored.box.height, 388.5, accuracy: 0.001)
+        XCTAssertEqual(restored.landmarks, [CGPoint(x: 540, y: 388.5)])
+    }
+
+    func testRegistrationAndSmallQueriesKeepTheirOriginalPixels() {
+        let enrollment = PrivacyYuNetDecoding.InputLayout(size: CGSize(width: 500, height: 500), enrollment: true)
+        XCTAssertEqual(enrollment.resized, CGSize(width: 500, height: 500))
+        XCTAssertEqual(enrollment.width, 512)
+        let query = PrivacyYuNetDecoding.InputLayout(size: CGSize(width: 81, height: 99), enrollment: false)
+        XCTAssertEqual(query.resized, CGSize(width: 81, height: 99))
+        XCTAssertEqual(query.width, 96)
+        XCTAssertEqual(query.height, 128)
+    }
+
     private func emptyOutputs(width: Int = 32, height: Int = 32) -> [String: [Float]] {
         var output: [String: [Float]] = [:]
         for stride in [8, 16, 32] {
