@@ -35,6 +35,7 @@ import org.webrtc.SessionDescription
 import org.webrtc.VideoTrack
 import org.webrtc.audio.JavaAudioDeviceModule
 import java.io.IOException
+import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -63,6 +64,7 @@ class WebRtcConnection(
     private val onLocalMediaCleared: () -> Unit,
     private val onBroadcastStateChanged: (BroadcastState, String) -> Unit,
     private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
+    private val broadcastCallbackExecutor: Executor? = null,
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private var sessionRecoveryStore: SessionRecoveryStore = EncryptedSessionRecoveryStore(applicationContext)
@@ -85,6 +87,8 @@ class WebRtcConnection(
     private val closed = AtomicBoolean(false)
     private val terminal = AtomicBoolean(false)
     private val broadcastOperation = AtomicBoolean(false)
+    // 완료 콜백은 다음 제어 요청을 받을 수 있도록 작업 잠금을 해제한 뒤 전달합니다.
+    private var pendingBroadcastCompletion: Pair<BroadcastState, String>? = null
     private val closeSignal = CloseSignal()
     private val shutdownLock = Any()
     private val shutdownInitiated = AtomicBoolean(false)
@@ -430,7 +434,10 @@ class WebRtcConnection(
                         exception.message ?: "방송 요청을 처리하지 못했습니다.",
                     )
                 } finally {
+                    val completion = pendingBroadcastCompletion
+                    pendingBroadcastCompletion = null
                     broadcastOperation.set(false)
+                    completion?.let { (state, message) -> dispatchBroadcastState(state, message) }
                 }
             },
             onRejected = {
@@ -1063,8 +1070,24 @@ class WebRtcConnection(
     private fun updateBroadcastState(state: BroadcastState, message: String) {
         if (!isActive()) return
         broadcastState = state
-        mainHandler.post {
+        when (state) {
+            BroadcastState.IDLE,
+            BroadcastState.PREPARED,
+            BroadcastState.LIVE,
+            BroadcastState.PAUSED,
+            BroadcastState.FAILED -> pendingBroadcastCompletion = state to message
+            else -> dispatchBroadcastState(state, message)
+        }
+    }
+
+    private fun dispatchBroadcastState(state: BroadcastState, message: String) {
+        val callback = Runnable {
             if (!closed.get()) onBroadcastStateChanged(state, message)
+        }
+        if (broadcastCallbackExecutor != null) {
+            broadcastCallbackExecutor.execute(callback)
+        } else {
+            mainHandler.post(callback)
         }
     }
 

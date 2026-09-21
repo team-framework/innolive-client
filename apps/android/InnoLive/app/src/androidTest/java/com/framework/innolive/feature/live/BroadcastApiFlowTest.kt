@@ -12,6 +12,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
@@ -113,6 +114,23 @@ class BroadcastApiFlowTest {
         }
     }
 
+    @Test fun completedStateCallbackCanStartTheNextBroadcastOperation() {
+        lateinit var h: Harness
+        h = Harness(Executor { it.run() }) { state ->
+            when (state) {
+                BroadcastState.PREPARED -> h.connection.goLive()
+                BroadcastState.LIVE -> h.connection.stopBroadcast()
+                else -> Unit
+            }
+        }
+        h.use {
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.IDLE)
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("stream/golive") })
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("stream/stop") })
+        }
+    }
+
     @Test fun closeDeletesOnlyItsSessionOnceAndCompletesEvenWhenServerReturns404() {
         val h = Harness()
         h.deleteStatus = 404
@@ -125,7 +143,10 @@ class BroadcastApiFlowTest {
         assertFalse(h.connection.prepareBroadcast(settings))
     }
 
-    private class Harness : AutoCloseable {
+    private class Harness(
+        private val broadcastCallbackExecutor: Executor? = null,
+        private val onBroadcastState: (BroadcastState) -> Unit = {},
+    ) : AutoCloseable {
         val requests = CopyOnWriteArrayList<Request>()
         val states = CopyOnWriteArrayList<BroadcastState>()
         private val events = LinkedBlockingQueue<BroadcastState>()
@@ -144,8 +165,13 @@ class BroadcastApiFlowTest {
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},
             onLocalMediaReady = { _, _ -> }, onLocalMediaCleared = {},
-            onBroadcastStateChanged = { state, _ -> states.add(state); events.add(state) },
+            onBroadcastStateChanged = { state, _ ->
+                states.add(state)
+                events.add(state)
+                onBroadcastState(state)
+            },
             onAnonymizationStateConfirmed = {},
+            broadcastCallbackExecutor = broadcastCallbackExecutor,
         )
 
         init {
