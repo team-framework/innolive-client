@@ -47,28 +47,57 @@ Mac 값에는 Core ML predict 호출 시간이 포함되며 iPhone 처리 시간
 
 ### 등록과 저장
 
-화면의 `얼굴 등록 관리`에서 이름을 입력하고 `카메라로 등록`을 누른다.
-한 명씩 가까이 정면으로 등록한다. YOLO에서 얼굴이 한 개일 때 서로 일관된 embedding
-3개를 모아 합산·정규화한다. 30초 안에 완료하지 못하면 재시도한다.
-등록은 최대 20명이며, 각 항목의 `삭제`로 해당 등록만 제거한다.
+앱이 시작되면 별도 큐에서 AdaFace·YuNet을 준비하고 AdaFace 첫 추론까지 완료한다.
+화면에 준비 중임을 표시하고 준비가 끝나기 전에는 등록 버튼을 비활성화한다.
+준비가 끝난 뒤 `얼굴 등록 관리`에서 이름을 입력하고 `카메라로 등록`을 누른다.
+이 시점부터 30초 등록 시간을 센다. 파란 정사각형 안에 얼굴을 맞춘다.
 
-이름·UUID·정규화 embedding을 `Library/Application Support/privacy-lab-faces.json`에 저장한다.
+기존 iOS `FaceDetectionService`의 중앙 500×500 crop, 얼굴 한 명·크기·중앙 위치 검사,
+JPEG 품질 0.9 처리 코드를 재사용한다. 기존 등록 ViewModel처럼 350ms 이상 간격으로
+준비된 얼굴을 3회 확인한 뒤 사진 한 장의 embedding으로 등록한다.
+서버 API 호출은 로컬 특징값 저장으로 대체한다. 등록은 최대 20명이며 각 항목을 개별 삭제한다.
+
+이름·UUID·정규화 embedding을 `Library/Application Support/privacy-lab-faces-yunet.json`에 저장한다.
 사진·crop은 저장하지 않는다. 저장 파일에 iOS complete file protection과 백업 제외 속성을
 적용하며 API 전송을 하지 않는다. 앱 재실행 후 등록 목록을 읽는다.
-모델·전처리 계약이 다른 등록 데이터는 거부한다. 저장 실패는 UI에 표시한다.
+모델·전처리 계약이 다른 등록 데이터는 거부한다. 초기 Vision 실험의 `privacy-lab-faces.json`은
+덮어쓰거나 삭제하지 않으며 이번 YuNet 경로에서 읽지 않는다. 기존 사용자는 다시 등록해야 한다.
+저장 실패는 UI에 표시한다.
 삭제 저장이 실패하면 얼굴 예외 전체를 중지한다.
 
 ### 얼굴 전처리와 비교
 
-- 서버는 YuNet, 이번 iOS 실험은 Apple Vision의 얼굴 landmark를 사용한다.
-- YOLO 얼굴 bbox 주변을 crop한 뒤 Vision에서 얼굴 한 개를 확인한다. 눈 중심 2개,
-  nose crest 하단 1개, 입술 양 끝 2개를 얻는다. 얼굴 bbox를 정사각형 1.5배로 확장해
-  RGB 112×112와 top-left 기준 landmark를 만든다.
-- 원본·반전 결합은 모델 안에 포함된다. 신규 모델 학습이나 기존 서버 등록값 가져오기는 하지 않는다.
-- 등록 샘플 간 코사인 유사도 하한 0.65, 기존 등록과 0.75 이상이면 중복 후보로 등록을 거부한다.
-- 영상 비교의 실험 임계값은 0.60이며, 1·2위 점수 차가 0.08 미만이면 블러를 유지한다.
-  이 값은 실제 사용자 데이터로 보정한 운영 기준이 아니다. Vision과 YuNet의 전처리 차이도
-  인식 품질 검증 대상이다.
+초기 실험에서 사용한 Vision landmark를 제거하고 서버의 YuNet 2023mar 가중치를 재사용한다.
+기존 iOS의 Vision rectangle 검사는 등록 사진 준비 단계에서만 사용한다.
+
+- YuNet은 BGR 0~255 입력에 오른쪽·아래 검정 padding을 추가해 32의 배수로 만든다.
+  OpenCV FaceDetectorYN과 같은 stride 8/16/32 decode, `sqrt(cls * obj)` 점수,
+  정수 bbox NMS 0.3, top_k 5000을 사용한다. 재학습은 없다.
+- 서버처럼 YuNet 탐지 문턱 0.6으로 NMS한 뒤 등록은 0.9, 영상 비교는 0.6 이상을 채택한다.
+  얼굴 최소 변 길이는 등록 40px, 영상 비교 24px이다. 추가 yaw 제한은 두지 않는다.
+- YuNet의 눈 2개·코·입 양 끝 좌표를 그대로 사용한다. 서버 `_square_face_crop`과 같이
+  bbox의 긴 변을 1.5배 확장한 정사각형, 검정 외곽 padding, RGB 112×112,
+  top-left 정규화 landmark를 AdaFace에 전달한다. 영상에서 YOLO bbox의 crop margin도
+  서버 기본값 0.25로 맞춘다.
+- 원본·반전 norm 가중 결합은 기존 Core ML AdaFace 안에 포함된다.
+- 기존 등록과 코사인 유사도 0.75 이상이면 중복 후보로 등록을 거부한다.
+- 블러 예외 비교는 이번 수정에서도 0.60, 1·2위 점수 차 0.08을 유지한다.
+  서버 소스의 기본 코사인 문턱은 0.4다. 운영 서버의 실제 실행 옵션은 확인하지 않았다.
+  전처리 수정과 매칭 문턱 완화를 섞어 결과를 판단하지 않는다.
+
+YuNet 생성:
+
+```sh
+curl -L --fail -o /tmp/yunet.onnx \
+  https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+/tmp/innolive-coreml-venv/bin/python scripts/export-ios-yunet-model.py --onnx /tmp/yunet.onnx
+```
+
+`scripts/requirements-ios-privacy.txt`에 ONNX 1.19.1을 추가했다. 변환 스크립트는
+SHA-256 `8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`의
+그래프에 있는 연산만 PyTorch로 옮긴다. FP32 Core ML 모델은 291,013바이트이며
+32~2048px의 가변 입력을 받는다. Swift에서는 32의 배수로 padding한다.
+OpenCV의 stride decode/NMS 공식을 Swift로 옮겼으며 코드에 출처를 표시했다.
 
 ### 카메라 처리와 블러 예외
 
@@ -80,10 +109,12 @@ Mac 값에는 Core ML predict 호출 시간이 포함되며 iPhone 처리 시간
 bbox IoU 0.50 이상인 유일한 대응만 같은 track으로 유지한다. 얼굴끼리 IoU가 0.05를
 넘어 겹치거나 대응이 모호하면 track을 버린다. 동일 등록자에 두 번 연속 일치해야
 블러 예외를 허용하며, 결과의 원본 프레임 시각으로부터 최대 750ms 동안 유지한다.
-불일치, 750ms 이상 늦은 결과, 얼굴 사라짐, 200ms 이상 프레임 간격, 중지·카메라 전환,
+유효한 embedding의 불일치, 750ms 이상 늦은 비교 결과, 얼굴 사라짐, 200ms 이상 프레임 간격, 중지·카메라 전환,
 등록 목록 변경은 예외를 초기화한다. 같은 등록자가 두 track에서 동시에 검출되면 둘 다
 블러를 유지한다. 이전 작업의 결과는 generation과 track UUID가 맞아야 반영한다.
-번호판은 얼굴 비교 대상에서 제외하고 계속 보호한다.
+번호판은 얼굴 비교 대상에서 제외하고 계속 보호한다. 얼굴 검출·landmark·크기 등의
+일시적인 입력 실패는 이전 일치 결과를 즉시 지우지 않는다. 기존 750ms 기한을 연장하지도
+않는다. 한 crop에 여러 얼굴이 있거나 런타임 오류가 발생하면 예외를 취소한다.
 
 bbox 연속성은 신원 증명이 아니다. 급격한 장면 전환이나 교차에서 다른 사람에게 캐시가
 이어질 가능성과 모델 오인식을 실제 다인 장면에서 확인해야 한다. 보호 정확도를 보장하는
@@ -92,7 +123,7 @@ bbox 연속성은 신원 증명이 아니다. 급격한 장면 전환이나 교�
 
 ### 2026-09-21 iPhone 16·iOS 27 실측
 
-서명한 Debug 앱을 Swift `-O`·wholemodule로 빌드하고 실제 iPhone 16에 설치했다.
+초기 Vision 버전에서 서명한 Debug 앱을 Swift `-O`·wholemodule로 빌드하고 실제 iPhone 16에 설치했다.
 `--face-model-benchmark` 실행 인자로 카메라 없는 전용 화면에서 실제 모델의 합성 RGB
 입력과 고정 landmark를 처리했다. 설정별 10회 중 앞 2회를 제외한 8회 통계다.
 원본·반전 두 입력의 fusion까지 포함한다.
@@ -167,3 +198,44 @@ embedding 생성 성공은 289건, 실패는 462건이었다. 실패 시간 중�
 `privacy-face-decisions.json`에는 각 비교의 1·2위 유사도, 입력부터 결과 반영까지 시간,
 현재 track 존재 여부, 매칭 여부를 기록한다. 이름·UUID·embedding·이미지는 기록하지 않는다.
 등록 파일이나 인식 조건은 이 진단 단계에서 바꾸지 않았다.
+
+### 등록 실패 원인과 기존 경로 복원
+
+진단 빌드를 설치한 뒤 사용자가 등록 실패를 보고했다. 숫자 로그 한 건에서 AdaFace
+모델 로드가 54,832.11ms, 얼굴 작업 전체가 55,441.64ms였고 embedding 생성은 성공했다.
+기존 30초 등록 제한이 모델 준비 중 먼저 만료된 것이 이 시도의 직접 원인이었다.
+기존 코드는 2초보다 오래된 등록 결과도 버렸으므로 초기화 시간과 등록 입력 수명을 분리할 필요가 있었다.
+
+현재는 앱 시작 시 모델 로드와 첫 AdaFace 추론을 끝낸 뒤 등록을 허용한다. 등록은 기존
+사진 준비 코드를 통과한 한 장의 embedding으로 끝내며, 임의의 3개 embedding 일치 조건을
+제거했다. 업데이트한 iPhone에서 준비 완료 `state=1`, 준비 시간 62,851.28ms를 확인했다.
+이 준비 시간 동안 등록 요청을 받지 않으며 등록 제한 시간도 시작하지 않는다.
+
+YuNet의 전처리로 바꾸면서 영상 입력에 추가했던 Vision 신뢰도·yaw·landmark 조건도 제거했다.
+직전 일치 상태는 일시적인 입력 실패 때 원래 기한까지만 유지하며, 실제 비교 불일치와
+기하학적 모호성에서는 이전처럼 해제한다. 원래 블러 예외의 기한을 늘리거나 매칭 문턱을
+낮추는 수정은 포함하지 않았다.
+
+검증:
+
+- YuNet FP32 Core ML 출력 12종과 OpenCV DNN 출력을 320×320, 512×512, 384×640
+  무작위 입력에서 비교했다. 최대 절대 오차는 0.00000477이었다.
+- OpenCV 공개 샘플 `lena.jpg` 한 장에서 YuNet decode/NMS 결과의 좌표·점수 최대 절대
+  차이는 0.00001526이었다. 서버 Python 전처리·PyTorch AdaFace와 Core ML 경로의
+  최종 embedding 코사인 유사도는 0.99986982, 최대 절대 오차는 0.00265833이었다.
+  Mac CPU 결과이며 Swift Core Image 보간 차이와 실제 인식 정확도를 검증한 값은 아니다.
+- iOS 기기 빌드 성공, iPhone 16 설치·모델 사전 준비 완료 확인.
+- iOS 27 시뮬레이터 집중 테스트 32개 통과. 기존 23개에 입력 실패의 제한된 유지 4개,
+  YuNet stride/landmark·NMS·잘못된 출력·서버 crop 좌표·기존 촬영 준비 코드 5개를 추가했다.
+- 새 전처리로 다시 등록한 뒤 실제 사용자 인식과 재블러 빈도를 확인해야 한다.
+
+진단 로그의 최신 코드: 1=얼굴 없음, 2=검출 신뢰도, 3=각도, 4=landmark,
+5=크기, 6=여러 얼굴, 9=기타 오류·등록 준비 메시지. 2~4는 초기 Vision 진단과의 호환용이다.
+모델 준비 상태는 `privacy-face-preparation.json`의 0=준비 중, 1=완료, 2=실패로 기록한다.
+
+- [OpenCV FaceDetectorYN 구현](https://github.com/opencv/opencv/blob/4.x/modules/objdetect/src/face_detect.cpp)
+
+새 YuNet 빌드를 기기에서 실행한 뒤 숫자 로그에 등록 1명이 기록돼 등록 완료를 확인했다.
+후속 비교 61건에서는 embedding 생성 28건, 얼굴 없음 10건, 여러 얼굴 판정 23건이었다.
+유효 비교의 최고 유사도 중앙값은 0.66072였고 21건이 로컬 문턱을 넘었다.
+촬영 대상과 장면을 통제하지 않았으므로 재블러 감소율이나 인식 정확도로 해석하지 않는다.

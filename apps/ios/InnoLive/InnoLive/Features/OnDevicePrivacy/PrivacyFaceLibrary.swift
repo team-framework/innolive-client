@@ -32,7 +32,7 @@ nonisolated enum PrivacyFaceMath {
 
 /// Called only on the camera queue. Stores embeddings with complete file protection, without photos.
 nonisolated final class PrivacyFaceLibrary {
-    static let contract = "privacy-face-vit-kprpe-vision-v1"
+    static let contract = "privacy-face-vit-kprpe-yunet-v1"
     private struct Document: Codable {
         let contract: String
         let entries: [PrivacyRegisteredFace]
@@ -43,7 +43,7 @@ nonisolated final class PrivacyFaceLibrary {
     init(url: URL? = nil) throws {
         self.url = try url ?? FileManager.default.url(for: .applicationSupportDirectory,
                                                       in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("privacy-lab-faces.json")
+            .appendingPathComponent("privacy-lab-faces-yunet.json")
         if FileManager.default.fileExists(atPath: self.url.path) {
             let document = try JSONDecoder().decode(Document.self, from: Data(contentsOf: self.url))
             guard document.contract == Self.contract, document.entries.count <= 20,

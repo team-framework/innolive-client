@@ -14,7 +14,7 @@ final class OnDevicePrivacyController: ObservableObject {
     @Published var fps = 0.0
     @Published var breakdown = ""
     @Published var faces = PrivacyFaceSnapshot(people: [], message: "이름을 입력하고 한 명씩 등록하세요.",
-                                              enrolling: false, allowed: 0, milliseconds: 0)
+                                              enrolling: false, allowed: 0, milliseconds: 0, ready: false)
     private let camera = PrivacyCamera()
     private var generation = 0
 
@@ -101,6 +101,17 @@ struct OnDevicePrivacyView: View {
                     }.padding()
                 }
             }
+            .overlay {
+                if controller.faces.enrolling, let image = controller.image {
+                    GeometryReader { geometry in
+                        let scale = min(geometry.size.width / CGFloat(image.width), geometry.size.height / CGFloat(image.height))
+                        let side = CGFloat(min(image.width, image.height)) * scale
+                        RoundedRectangle(cornerRadius: 16).stroke(.blue, lineWidth: 3)
+                            .frame(width: side, height: side)
+                            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    }.allowsHitTesting(false)
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 20))
             .accessibilityLabel("비식별화 처리 영상")
             Text(controller.status).font(.subheadline)
@@ -146,11 +157,11 @@ struct OnDevicePrivacyView: View {
                     Button(controller.faces.enrolling ? "등록 중…" : "카메라로 등록") {
                         controller.enroll(name: faceName)
                         showingFaces = false
-                    }.disabled(!controller.running || controller.faces.enrolling || faceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }.disabled(!controller.running || !controller.faces.ready || controller.faces.enrolling || faceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     if controller.faces.enrolling {
                         Button("등록 취소") { controller.cancelEnrollment() }
                     }
-                    Text("한 명씩 정면으로 등록하세요. 얼굴을 3회 확인하며 최대 20명을 저장합니다.")
+                    Text("얼굴을 가운데에 맞춰 잠시 유지하세요. 준비가 끝나면 사진 한 장으로 등록하며 최대 20명을 저장합니다.")
                         .font(.caption).foregroundStyle(.secondary)
                     Text(controller.faces.message).font(.caption)
                 }

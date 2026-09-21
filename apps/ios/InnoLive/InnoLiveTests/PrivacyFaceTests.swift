@@ -77,6 +77,37 @@ final class PrivacyFaceTests: XCTestCase {
         XCTAssertTrue(tracker.allowed(at: 2.06).isEmpty)
     }
 
+    func testMissingLandmarksKeepOnlyTheOriginalUnexpiredLease() throws {
+        let (tracker, track, _) = try allowedTracker()
+        tracker.accept(trackID: track, match: nil, capturedAt: 1.3, now: 1.31, sampleAvailable: false)
+        XCTAssertEqual(tracker.allowed(at: 1.31), [0])
+        tracker.accept(trackID: track, match: nil, capturedAt: 1.7, now: 1.71, sampleAvailable: false)
+        XCTAssertEqual(tracker.allowed(at: 1.71), [0])
+        XCTAssertTrue(tracker.allowed(at: 1.78).isEmpty)
+    }
+
+    func testMissingSampleNeverGrantsAnUnknownTrackAnException() throws {
+        let tracker = PrivacyFaceTracking()
+        tracker.update([0: box], at: 1)
+        let track = try XCTUnwrap(tracker.next(at: 1))
+        tracker.accept(trackID: track.id, match: nil, capturedAt: 1, now: 1.01, sampleAvailable: false)
+        XCTAssertTrue(tracker.allowed(at: 1.01).isEmpty)
+    }
+
+    func testOverlapStillRevokesWhenTheSampleIsMissing() throws {
+        let (tracker, track, _) = try allowedTracker()
+        tracker.update([0: box, 1: box.offsetBy(dx: 30, dy: 0)], at: 1.05)
+        tracker.accept(trackID: track, match: nil, capturedAt: 1.02, now: 1.06, sampleAvailable: false)
+        XCTAssertTrue(tracker.allowed(at: 1.06).isEmpty)
+    }
+
+    func testValidConfirmationRecoversAfterOneMissingSample() throws {
+        let (tracker, track, person) = try allowedTracker()
+        tracker.accept(trackID: track, match: nil, capturedAt: 1.3, now: 1.31, sampleAvailable: false)
+        tracker.accept(trackID: track, match: person, capturedAt: 1.6, now: 1.61)
+        XCTAssertEqual(tracker.allowed(at: 1.9), [0])
+    }
+
     func testUnknownResultImmediatelyRevokesException() throws {
         let (tracker, track, _) = try allowedTracker()
         tracker.accept(trackID: track, match: nil, capturedAt: 1.1, now: 1.11)

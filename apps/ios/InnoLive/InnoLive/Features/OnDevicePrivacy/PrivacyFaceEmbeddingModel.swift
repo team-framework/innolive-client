@@ -1,15 +1,15 @@
 #if DEBUG
 import CoreML
 import CoreImage
-import Vision
+import ImageIO
 import Foundation
 import Darwin
 
 nonisolated enum PrivacyFaceSampleError: Int, LocalizedError {
-    case faceCount = 1, confidence, pose, landmarks, size
+    case faceCount = 1, confidence, pose, landmarks, size, multipleFaces
     var errorDescription: String? {
         switch self {
-        case .faceCount: return "얼굴 한 명이 보이도록 맞춰 주세요."
+        case .faceCount, .multipleFaces: return "얼굴 한 명이 보이도록 맞춰 주세요."
         case .confidence: return "얼굴이 선명하게 보이도록 맞춰 주세요."
         case .pose: return "얼굴을 정면으로 맞춰 주세요."
         case .landmarks: return "눈·코·입이 보이도록 맞춰 주세요."
@@ -20,6 +20,7 @@ nonisolated enum PrivacyFaceSampleError: Int, LocalizedError {
 
 nonisolated final class PrivacyFaceEmbeddingModel {
     private let model: MLModel
+    private let detector: PrivacyYuNetDetector
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private let buffer: CVPixelBuffer
@@ -46,50 +47,21 @@ nonisolated final class PrivacyFaceEmbeddingModel {
                                          [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &created)
         guard result == kCVReturnSuccess, let created else { throw PrivacyModelError.imageBuffer }
         buffer = created
+        detector = try PrivacyYuNetDetector()
         loadMilliseconds = (ProcessInfo.processInfo.systemUptime - start) * 1000
     }
 
     func embedding(image: CGImage, enrollment: Bool) throws -> [Float] {
-        let request = VNDetectFaceLandmarksRequest()
-        try VNImageRequestHandler(cgImage: image, orientation: .up).perform([request])
-        guard let faces = request.results, faces.count == 1, let face = faces.first else {
-            throw PrivacyFaceSampleError.faceCount
-        }
-        guard face.confidence >= 0.8 else { throw PrivacyFaceSampleError.confidence }
-        guard abs(face.yaw?.doubleValue ?? 0) < (enrollment ? 0.4 : 0.7) else { throw PrivacyFaceSampleError.pose }
-        guard let landmarks = face.landmarks, let leftEye = landmarks.leftEye, let rightEye = landmarks.rightEye,
-              let nose = landmarks.noseCrest, let lips = landmarks.outerLips,
-              leftEye.pointCount > 0, rightEye.pointCount > 0, nose.pointCount > 0, lips.pointCount > 1 else {
-            throw PrivacyFaceSampleError.landmarks
-        }
+        let face = try detector.face(in: image, enrollment: enrollment)
+        let square = PrivacyYuNetDecoding.square(for: face)
         let input = CIImage(cgImage: image)
-        let extent = input.extent
-        let box = CGRect(x: face.boundingBox.minX * extent.width, y: face.boundingBox.minY * extent.height,
-                         width: face.boundingBox.width * extent.width, height: face.boundingBox.height * extent.height)
-        guard min(box.width, box.height) >= (enrollment ? 100 : 48) else {
-            throw PrivacyFaceSampleError.size
-        }
-        let side = max(box.width, box.height) * 1.5
-        let square = CGRect(x: box.midX - side / 2, y: box.midY - side / 2, width: side, height: side)
         let bounds = CGRect(x: 0, y: 0, width: 112, height: 112)
-        let scaled = input.transformed(by: CGAffineTransform(translationX: -square.minX, y: -square.minY))
-            .transformed(by: CGAffineTransform(scaleX: 112 / side, y: 112 / side))
-        let black = CIImage(color: .black).cropped(to: bounds)
-        context.render(scaled.composited(over: black).cropped(to: bounds), to: buffer, bounds: bounds, colorSpace: colorSpace)
-        func center(_ region: VNFaceLandmarkRegion2D) -> CGPoint {
-            let points = region.normalizedPoints
-            return CGPoint(x: points.map(\.x).reduce(0, +) / CGFloat(points.count),
-                           y: points.map(\.y).reduce(0, +) / CGFloat(points.count))
-        }
-        let eyes = [center(leftEye), center(rightEye)].sorted { $0.x < $1.x }
-        let noseTip = nose.normalizedPoints.min { $0.y < $1.y }!
-        let mouthLeft = lips.normalizedPoints.min { $0.x < $1.x }!
-        let mouthRight = lips.normalizedPoints.max { $0.x < $1.x }!
-        let points = [eyes[0], eyes[1], noseTip, mouthLeft, mouthRight].flatMap { point -> [Float] in
-            let x = (box.minX + point.x * box.width - square.minX) / side
-            let y = 1 - (box.minY + point.y * box.height - square.minY) / side
-            return [Float(min(1, max(0, x))), Float(min(1, max(0, y)))]
-        }
+        let bottom = CGFloat(image.height) - square.maxY
+        let scaled = input.transformed(by: CGAffineTransform(translationX: -square.minX, y: -bottom))
+            .transformed(by: CGAffineTransform(scaleX: 112 / square.width, y: 112 / square.height))
+        context.render(scaled.composited(over: CIImage(color: .black).cropped(to: bounds)).cropped(to: bounds),
+                       to: buffer, bounds: bounds, colorSpace: colorSpace)
+        let points = PrivacyYuNetDecoding.normalizedLandmarks(face)
         return try predict(points: points)
     }
 
@@ -153,13 +125,66 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
     private var result: Output?
     private var recognizer: PrivacyFaceEmbeddingModel?
     private var metrics: [[String: Double]] = []
+    private let captureService = FaceDetectionService()
+    private var enrollmentID: UUID?
+    private var stableCaptures = 0
+    private var prepared = false
+    private var preparationFailure: String?
+
+    var ready: Bool { lock.withLock { prepared } }
+    var preparationMessage: String? { lock.withLock { preparationFailure } }
+
+    func prepare() {
+        let accepted = lock.withLock { () -> Bool in
+            guard !working, !prepared else { return false }
+            working = true
+            preparationFailure = nil
+            return true
+        }
+        guard accepted else { return }
+        queue.async { [self] in
+            autoreleasepool {
+                let start = ProcessInfo.processInfo.systemUptime
+                Self.saveMetrics([["state": 0, "uptime": start]], filename: "privacy-face-preparation.json")
+                do {
+                    if recognizer == nil { recognizer = try PrivacyFaceEmbeddingModel() }
+                    try recognizer!.benchmarkPrediction()
+                    lock.withLock { prepared = true; working = false }
+                    Self.saveMetrics([["state": 1, "prepare_ms": (ProcessInfo.processInfo.systemUptime - start) * 1000]],
+                                     filename: "privacy-face-preparation.json")
+                } catch {
+                    lock.withLock { prepared = false; working = false; preparationFailure = error.localizedDescription }
+                    Self.saveMetrics([["state": 2, "prepare_ms": (ProcessInfo.processInfo.systemUptime - start) * 1000]],
+                                     filename: "privacy-face-preparation.json")
+                }
+            }
+        }
+    }
+
+    private func enrollmentImage(_ job: Job) throws -> CGImage {
+        if enrollmentID != job.id { enrollmentID = job.id; stableCaptures = 0 }
+        let outcome = captureService.analyzeUpright(image: job.image)
+        switch outcome {
+        case let .ready(data):
+            stableCaptures += 1
+            guard stableCaptures >= 3 else { throw PrivacyFaceError.message("좋아요. 잠시 그대로 있어 주세요.") }
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+                  let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw PrivacyModelError.imageBuffer }
+            return image
+        case .noFace: stableCaptures = 0; throw PrivacyFaceSampleError.faceCount
+        case .multipleFaces: stableCaptures = 0; throw PrivacyFaceSampleError.multipleFaces
+        case .moveCloser: stableCaptures = 0; throw PrivacyFaceSampleError.size
+        case .centerFace: stableCaptures = 0; throw PrivacyFaceError.message("얼굴을 가운데 영역에 맞춰 주세요.")
+        case .failed: stableCaptures = 0; throw PrivacyFaceError.message("얼굴 촬영을 다시 시도합니다.")
+        }
+    }
 
     var busy: Bool { lock.withLock { working || result != nil } }
     func takeResult() -> Output? { lock.withLock { let value = result; result = nil; return value } }
 
     func submit(_ job: Job) {
         let accepted = lock.withLock { () -> Bool in
-            guard !working, result == nil else { return false }
+            guard prepared, !working, result == nil else { return false }
             working = true
             return true
         }
@@ -172,8 +197,8 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
                 var fatal = false
                 var failureCode = 0
                 do {
-                    if recognizer == nil { recognizer = try PrivacyFaceEmbeddingModel() }
-                    embedding = try recognizer!.embedding(image: job.image, enrollment: job.enrollment)
+                    let image = try job.enrollment ? enrollmentImage(job) : job.image
+                    embedding = try recognizer!.embedding(image: image, enrollment: job.enrollment)
                 } catch {
                     message = error.localizedDescription
                     failureCode = (error as? PrivacyFaceSampleError)?.rawValue ?? 9

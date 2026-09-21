@@ -64,6 +64,15 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
             return .failed
         }
 
+        return analyzePreparedCrop(crop)
+    }
+
+    func analyzeUpright(image: CGImage) -> FaceDetectionOutcome {
+        guard let crop = makeCenteredCrop(image: CIImage(cgImage: image)) else { return .failed }
+        return analyzePreparedCrop(crop)
+    }
+
+    private func analyzePreparedCrop(_ crop: CGImage) -> FaceDetectionOutcome {
         let request = VNDetectFaceRectanglesRequest()
         do {
             try VNImageRequestHandler(cgImage: crop, orientation: .up).perform([request])
@@ -99,7 +108,10 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         pixelBuffer: CVPixelBuffer,
         orientation: CGImagePropertyOrientation
     ) -> CGImage? {
-        let orientedImage = CIImage(cvPixelBuffer: pixelBuffer).oriented(orientation)
+        makeCenteredCrop(image: CIImage(cvPixelBuffer: pixelBuffer).oriented(orientation))
+    }
+
+    private func makeCenteredCrop(image orientedImage: CIImage) -> CGImage? {
         let extent = orientedImage.extent.integral
         let side = min(extent.width, extent.height)
         guard side >= CGFloat(Self.outputSize) else { return nil }

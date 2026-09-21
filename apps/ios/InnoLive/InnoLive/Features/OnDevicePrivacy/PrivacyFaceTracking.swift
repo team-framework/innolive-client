@@ -48,8 +48,11 @@ nonisolated final class PrivacyFaceTracking {
         return tracks[index]
     }
 
-    func accept(trackID: UUID, match: UUID?, capturedAt: Double, now: Double) {
+    func accept(trackID: UUID, match: UUID?, capturedAt: Double, now: Double, sampleAvailable: Bool = true) {
         guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { return }
+        // A missing landmark sample is not evidence of a different person. Do not renew
+        // the lease, and let its original 750ms deadline and geometry checks still apply.
+        guard sampleAvailable else { return }
         guard let match, now >= capturedAt, now - capturedAt < 0.75 else {
             tracks[index].candidate = nil
             tracks[index].confirmations = 0
