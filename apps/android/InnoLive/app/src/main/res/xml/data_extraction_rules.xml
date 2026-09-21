@@ -7,6 +7,7 @@
     <cloud-backup>
         <exclude domain="sharedpref" path="innolive_google_session.xml" />
         <exclude domain="sharedpref" path="innolive_session_recovery.xml" />
+        <exclude domain="sharedpref" path="innolive_account_deletion_cleanup.xml" />
         <!-- TODO: Use <include> and <exclude> to control what is backed up.
         <include .../>
         <exclude .../>
@@ -15,6 +16,7 @@
     <device-transfer>
         <exclude domain="sharedpref" path="innolive_google_session.xml" />
         <exclude domain="sharedpref" path="innolive_session_recovery.xml" />
+        <exclude domain="sharedpref" path="innolive_account_deletion_cleanup.xml" />
     </device-transfer>
     <!--
     <device-transfer>

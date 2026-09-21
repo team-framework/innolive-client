@@ -3,6 +3,13 @@ package com.framework.innolive.feature.login.oauth.google
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.framework.innolive.feature.login.account.AccountDeletionApi
+import com.framework.innolive.feature.login.account.AccountDeletionCoordinator
+import com.framework.innolive.feature.login.account.AccountDeletionCleanupStore
+import com.framework.innolive.feature.login.account.AccountDeletionState
+import com.framework.innolive.feature.login.account.AccountDeletionUseCase
+import com.framework.innolive.feature.login.account.AccountLocalDataCleaner
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -20,9 +27,12 @@ class AuthenticationSessionViewModel(
 
     val session: StateFlow<GoogleSessionStore.Session?> = repository.session
 
-    fun reload(): GoogleSessionStore.Session? = repository.reload()
+    fun reload(): GoogleSessionStore.Session? = repository.reload().also {
+        accountDeletionCoordinator.resetErrorForAuthenticationChange()
+    }
 
     fun save(session: GoogleSessionStore.Session) {
+        accountDeletionCoordinator.resetErrorForAuthenticationChange()
         repository.save(session)
     }
 
@@ -31,6 +41,7 @@ class AuthenticationSessionViewModel(
             context = context,
             sessionRepository = repository,
         )
+        accountDeletionCoordinator.resetErrorForAuthenticationChange()
     }
 
     private val emailApi = com.framework.innolive.feature.login.EmailSignInApi()
@@ -44,6 +55,38 @@ class AuthenticationSessionViewModel(
         saveSession = repository::save,
     )
 
+    private val accountLocalDataCleaner = AccountLocalDataCleaner(application)
+    private val accountDeletionCleanupStore = AccountDeletionCleanupStore(application)
+    private val accountDeletionCoordinator = AccountDeletionCoordinator(
+        scope = viewModelScope,
+        currentSession = { repository.currentSession },
+        deleteRemoteAccount = { deletingSession ->
+            AccountDeletionApi().use { deletionApi ->
+                AccountDeletionUseCase(
+                    gateway = deletionApi,
+                    refreshAccessToken = repository::refreshAccessToken,
+                ).delete(deletingSession.accessToken)
+            }
+        },
+        clearLocalAccountData = accountLocalDataCleaner::clear,
+        clearAuthentication = {
+            emailSignupSession.cancel()
+            repository.clear()
+        },
+        initialPendingCleanupSession = repository.currentSession?.takeIf(
+            accountDeletionCleanupStore::isPendingFor,
+        ),
+        markLocalCleanupPending = accountDeletionCleanupStore::save,
+        clearLocalCleanupPending = accountDeletionCleanupStore::clear,
+    )
+
+    internal val accountDeletionState: StateFlow<AccountDeletionState> =
+        accountDeletionCoordinator.state
+
+    internal fun deleteAccount() {
+        accountDeletionCoordinator.delete()
+    }
+
     suspend fun startEmailSignup(email: String, password: String) {
         emailSignupSession.start(email, password)
     }
@@ -54,6 +97,7 @@ class AuthenticationSessionViewModel(
 
     suspend fun verifyEmailSignup(code: String) {
         emailSignupSession.verify(code)
+        accountDeletionCoordinator.resetErrorForAuthenticationChange()
     }
 
     fun cancelEmailSignup() {
@@ -68,6 +112,7 @@ class AuthenticationSessionViewModel(
         com.framework.innolive.feature.login.authenticateAndSaveEmailSession(
             email, password, emailApi::authenticate, repository::save,
         )
+        accountDeletionCoordinator.resetErrorForAuthenticationChange()
     }
 
     suspend fun refresh(): GoogleSessionStore.Session = repository.refresh()
@@ -75,6 +120,7 @@ class AuthenticationSessionViewModel(
     suspend fun refreshAccessToken(): String = refresh().accessToken
 
     fun clear() {
+        accountDeletionCoordinator.resetErrorForAuthenticationChange()
         emailSignupSession.cancel()
         repository.clear()
     }

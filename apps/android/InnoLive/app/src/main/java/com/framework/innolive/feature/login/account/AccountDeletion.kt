@@ -1,8 +1,16 @@
 package com.framework.innolive.feature.login.account
 
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -69,6 +77,104 @@ internal sealed interface AccountDeletionResult {
     data object Deleted : AccountDeletionResult
 
     data class Failed(val message: String) : AccountDeletionResult
+}
+
+internal data class AccountDeletionState(
+    val isInProgress: Boolean = false,
+    val localCleanupPending: Boolean = false,
+    val error: String? = null,
+)
+
+/**
+ * Owns the complete deletion transaction outside Compose. Once deletion starts, cancellation of
+ * the caller cannot interrupt the transition from the server result to local cleanup. A failed
+ * local cleanup retains the session and retries only that cleanup on the next request.
+ */
+internal class AccountDeletionCoordinator(
+    private val scope: CoroutineScope,
+    private val currentSession: () -> GoogleSessionStore.Session?,
+    private val deleteRemoteAccount: suspend (GoogleSessionStore.Session) -> AccountDeletionResult,
+    private val clearLocalAccountData: suspend (GoogleSessionStore.Session) -> Unit,
+    private val clearAuthentication: () -> Unit,
+    initialPendingCleanupSession: GoogleSessionStore.Session? = null,
+    private val markLocalCleanupPending: (GoogleSessionStore.Session) -> Unit = {},
+    private val clearLocalCleanupPending: () -> Unit = {},
+) {
+    private val _state = MutableStateFlow(
+        if (initialPendingCleanupSession == null) {
+            AccountDeletionState()
+        } else {
+            AccountDeletionState(
+                localCleanupPending = true,
+                error = LOCAL_CLEANUP_FAILURE_MESSAGE,
+            )
+        },
+    )
+    val state: StateFlow<AccountDeletionState> = _state.asStateFlow()
+
+    private var activeJob: Job? = null
+    private var pendingCleanupSession: GoogleSessionStore.Session? =
+        initialPendingCleanupSession
+
+    fun delete() {
+        if (activeJob?.isActive == true) return
+        val cleanupOnly = pendingCleanupSession != null
+        val deletingSession = pendingCleanupSession ?: currentSession() ?: return
+        _state.value = AccountDeletionState(
+            isInProgress = true,
+            localCleanupPending = cleanupOnly,
+        )
+
+        activeJob = scope.launch {
+            withContext(NonCancellable) {
+                val remoteResult = if (cleanupOnly) {
+                    AccountDeletionResult.Deleted
+                } else {
+                    try {
+                        deleteRemoteAccount(deletingSession)
+                    } catch (_: Exception) {
+                        AccountDeletionResult.Failed(REMOTE_DELETION_FAILURE_MESSAGE)
+                    }
+                }
+
+                _state.value = when (remoteResult) {
+                    AccountDeletionResult.Deleted -> {
+                        pendingCleanupSession = deletingSession
+                        try {
+                            markLocalCleanupPending(deletingSession)
+                            clearLocalAccountData(deletingSession)
+                            clearLocalCleanupPending()
+                            clearAuthentication()
+                            pendingCleanupSession = null
+                            AccountDeletionState()
+                        } catch (_: Exception) {
+                            runCatching { markLocalCleanupPending(deletingSession) }
+                            AccountDeletionState(
+                                localCleanupPending = true,
+                                error = LOCAL_CLEANUP_FAILURE_MESSAGE,
+                            )
+                        }
+                    }
+
+                    is AccountDeletionResult.Failed -> AccountDeletionState(
+                        error = remoteResult.message,
+                    )
+                }
+            }
+        }
+    }
+
+    fun resetErrorForAuthenticationChange() {
+        if (activeJob?.isActive == true || pendingCleanupSession != null) return
+        _state.value = AccountDeletionState()
+    }
+
+    private companion object {
+        const val REMOTE_DELETION_FAILURE_MESSAGE =
+            "계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요."
+        const val LOCAL_CLEANUP_FAILURE_MESSAGE =
+            "서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요."
+    }
 }
 
 /**

@@ -76,7 +76,10 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 name = props.profileName,
                 email = props.profileEmail,
             )
-            OutlinedButton(onClick = props.onLogout, enabled = !props.isDeletingAccount) {
+            OutlinedButton(
+                onClick = props.onLogout,
+                enabled = !props.isDeletingAccount && !props.isAccountDeletionCleanupPending,
+            ) {
                 Text(text = "로그아웃")
             }
         }
@@ -86,7 +89,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
             settingItems.forEach { item ->
                 Button(
                     onClick = item.onNav,
-                    enabled = !props.isDeletingAccount,
+                    enabled = !props.isDeletingAccount && !props.isAccountDeletionCleanupPending,
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -108,7 +111,13 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 onClick = { isDeleteConfirmationVisible = true },
                 enabled = !props.isDeletingAccount,
             ) {
-                Text(text = if (props.isDeletingAccount) "계정 삭제 중…" else "계정 삭제")
+                Text(
+                    text = when {
+                        props.isDeletingAccount -> "계정 삭제 중…"
+                        props.isAccountDeletionCleanupPending -> "기기 데이터 정리 다시 시도"
+                        else -> "계정 삭제"
+                    },
+                )
             }
             props.accountDeletionError?.let { message ->
                 Text(
@@ -123,9 +132,23 @@ fun SettingsScreen(props: SettingsScreenProps) {
     if (isDeleteConfirmationVisible) {
         AlertDialog(
             onDismissRequest = { isDeleteConfirmationVisible = false },
-            title = { Text(text = "계정을 삭제할까요?") },
+            title = {
+                Text(
+                    text = if (props.isAccountDeletionCleanupPending) {
+                        "기기 데이터 정리를 다시 시도할까요?"
+                    } else {
+                        "계정을 삭제할까요?"
+                    },
+                )
+            },
             text = {
-                Text(text = "계정 삭제가 완료되면 로그아웃되며 이 기기의 YouTube 연결과 방송 설정이 초기화됩니다.")
+                Text(
+                    text = if (props.isAccountDeletionCleanupPending) {
+                        "서버 계정은 이미 삭제됐습니다. 남은 기기 데이터 정리를 다시 시도합니다."
+                    } else {
+                        "계정 삭제가 완료되면 로그아웃되며 이 기기의 YouTube 연결과 방송 설정이 초기화됩니다."
+                    },
+                )
             },
             confirmButton = {
                 Button(

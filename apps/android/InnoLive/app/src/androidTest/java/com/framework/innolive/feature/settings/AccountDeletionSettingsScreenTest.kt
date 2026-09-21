@@ -1,7 +1,9 @@
 package com.framework.innolive.feature.settings
 
+import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -12,7 +14,7 @@ import org.junit.Test
 
 class AccountDeletionSettingsScreenTest {
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun confirmationIsRequiredBeforeRequestingAccountDeletion() {
@@ -39,5 +41,32 @@ class AccountDeletionSettingsScreenTest {
 
         composeRule.onNodeWithContentDescription("계정 삭제 확인").performClick()
         assertEquals(1, deleteRequests)
+    }
+
+    @Test
+    fun localCleanupFailureOffersRetryAndDisablesLogout() {
+        composeRule.setContent {
+            MyApplicationTheme {
+                SettingsScreen(
+                    SettingsScreenProps(
+                        onBack = {},
+                        onOpenCameraSettings = {},
+                        onOpenBroadcastSettings = {},
+                        profileName = "InnoLive User",
+                        profileEmail = "user@example.com",
+                        onLogout = {},
+                        onDeleteAccount = {},
+                        isAccountDeletionCleanupPending = true,
+                        accountDeletionError =
+                            "서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요.",
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("기기 데이터 정리 다시 시도").assertIsDisplayed()
+        composeRule.onNodeWithText("로그아웃").assertIsDisplayed().assertIsNotEnabled()
+        composeRule.onNodeWithText("서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요.")
+            .assertIsDisplayed()
     }
 }
