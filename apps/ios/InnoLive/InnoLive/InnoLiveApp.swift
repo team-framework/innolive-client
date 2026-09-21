@@ -25,7 +25,9 @@ struct InnoLiveApp: App {
     @ViewBuilder
     private var rootView: some View {
         #if DEBUG
-        if Bundle.main.bundleIdentifier?.hasSuffix(".privacy-lab") == true
+        if ProcessInfo.processInfo.arguments.contains("--face-model-benchmark") {
+            PrivacyFaceBenchmarkView()
+        } else if Bundle.main.bundleIdentifier?.hasSuffix(".privacy-lab") == true
             || ProcessInfo.processInfo.arguments.contains("--on-device-privacy") {
             OnDevicePrivacyView()
         } else {

@@ -4,7 +4,7 @@ import OSLog
 
 /// Capture, inference and compositing share one serial queue. Late frames are dropped by AVFoundation.
 nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
-    typealias FrameHandler = @Sendable (CGImage, Int, PrivacyTimings, Double) -> Void
+    typealias FrameHandler = @Sendable (CGImage, Int, PrivacyTimings, Double, PrivacyFaceSnapshot) -> Void
     typealias ErrorHandler = @Sendable (String) -> Void
     private let queue = DispatchQueue(label: "com.innolive.privacy-lab", qos: .userInitiated)
     private let session = AVCaptureSession()
@@ -43,8 +43,27 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
     func stop() {
         queue.async { [self] in
             session.stopRunning()
+            model?.resetTemporalState()
             onFrame = nil
             onError = nil
+        }
+    }
+
+    func enroll(name: String) {
+        queue.async { [self] in
+            guard session.isRunning else { return }
+            model?.faces.enroll(name: name)
+        }
+    }
+
+    func cancelEnrollment() {
+        queue.async { [self] in model?.resetTemporalState() }
+    }
+
+    func deleteFace(id: UUID, onUpdate: @escaping @Sendable (PrivacyFaceSnapshot) -> Void) {
+        queue.async { [self] in
+            model?.faces.delete(id: id)
+            if let snapshot = model?.faces.snapshot { onUpdate(snapshot) }
         }
     }
 
@@ -85,19 +104,21 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
         guard session.isRunning, let model, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         autoreleasepool {
             do {
-                let (image, count, timings) = try model.process(buffer)
+                let (image, count, timings, faces) = try model.process(buffer)
                 let completed = ProcessInfo.processInfo.systemUptime
                 let fps = lastCompleted == 0 ? 0 : 1 / (completed - lastCompleted)
                 lastCompleted = completed
                 processed += 1
-                onFrame?(image, count, timings, fps)
+                onFrame?(image, count, timings, fps, faces)
                 if processed == 1 || processed % 60 == 0 {
                     logger.info("processed=\(self.processed) objects=\(count) processing_ms=\(timings.total) fps=\(fps)")
                     // Numeric diagnostics only; no camera images, crops or embeddings are stored.
                     benchmark.append(["frame": Double(processed), "uptime": completed,
                                       "objects": Double(count), "fps": fps, "total_ms": timings.total,
                                       "prepare_ms": timings.prepare, "inference_ms": timings.inference,
-                                      "mask_ms": timings.mask, "render_ms": timings.render])
+                                      "mask_ms": timings.mask, "render_ms": timings.render,
+                                      "registered": Double(faces.people.count), "unblurred": Double(faces.allowed),
+                                      "recognition_ms": faces.milliseconds])
                     if benchmark.count > 900 { benchmark.removeFirst() }
                     if let data = try? JSONSerialization.data(withJSONObject: benchmark),
                        let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first {

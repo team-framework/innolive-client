@@ -21,6 +21,7 @@ nonisolated final class PrivacyModel {
     private let detectionsName: String
     private let prototypesName: String
     private let stabilizer = PrivacyMaskStabilizer()
+    let faces = PrivacyFaceCoordinator()
 
     init() throws {
         guard let url = Bundle.main.url(forResource: "PrivacyDetector", withExtension: "mlmodelc") else {
@@ -49,9 +50,9 @@ nonisolated final class PrivacyModel {
         input = buffer
     }
 
-    func resetTemporalState() { stabilizer.reset() }
+    func resetTemporalState() { stabilizer.reset(); faces.reset() }
 
-    func process(_ pixelBuffer: CVPixelBuffer) throws -> (CGImage, Int, PrivacyTimings) {
+    func process(_ pixelBuffer: CVPixelBuffer) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
         let start = ProcessInfo.processInfo.systemUptime
         let original = CIImage(cvPixelBuffer: pixelBuffer)
         let size = original.extent.size
@@ -70,7 +71,9 @@ nonisolated final class PrivacyModel {
             throw PrivacyModelError.outputContract
         }
         let objects = try PrivacySegmentation.detections(PrivacySegmentation.floats(raw, shape: [1, 38, 8400]))
-        let instances = try PrivacySegmentation.instanceMasks(detections: objects,
+        let allowed = faces.process(image: original, objects: objects, layout: layout, timestamp: start)
+        let protected = objects.enumerated().filter { !allowed.contains($0.offset) }.map(\.element)
+        let instances = try PrivacySegmentation.instanceMasks(detections: protected,
                                                               prototypes: PrivacySegmentation.floats(proto, shape: [1, 32, 160, 160]))
         let bytes = try stabilizer.apply(instances, timestamp: start)
         let masked = ProcessInfo.processInfo.systemUptime
@@ -93,7 +96,7 @@ nonisolated final class PrivacyModel {
         return (rendered, objects.count, PrivacyTimings(prepare: (prepared - start) * 1000,
                                                        inference: (inferred - prepared) * 1000,
                                                        mask: (masked - inferred) * 1000,
-                                                       render: (completed - masked) * 1000))
+                                                       render: (completed - masked) * 1000), faces.snapshot)
     }
 }
 #endif
