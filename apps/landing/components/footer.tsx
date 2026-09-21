@@ -59,7 +59,7 @@ export function Footer() {
                 <Link href={href("/support")} className="underline">
                   {messages.footer.support}
                 </Link>
-                <Link href={href("/#faq")} className="underline">
+                <Link href={href("/#faq")} scroll={false} className="underline">
                   {messages.footer.faq}
                 </Link>
               </div>
