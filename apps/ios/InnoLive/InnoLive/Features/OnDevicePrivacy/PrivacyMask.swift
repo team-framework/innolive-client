@@ -3,7 +3,7 @@ import CoreImage
 
 nonisolated enum PrivacyMask {
     /// Keep the original protected area opaque and add a soft outer edge.
-    /// This uses only the current frame; it does not reuse an unaligned previous mask.
+    /// Input includes the current mask and any recent edge aligned by PrivacyMaskStabilizer.
     static func modelImage(bytes: [UInt8], feathered: Bool = true) throws -> CIImage {
         let size = PrivacySegmentation.maskSize
         guard bytes.count == size * size,

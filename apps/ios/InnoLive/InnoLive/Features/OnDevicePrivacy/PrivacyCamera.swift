@@ -25,6 +25,7 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
             position = front ? .front : .back
             do {
                 if model == nil { model = try PrivacyModel() }
+                model?.resetTemporalState()
                 try configure()
                 lastCompleted = 0
                 processed = 0

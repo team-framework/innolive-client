@@ -20,6 +20,7 @@ nonisolated final class PrivacyModel {
     private let inputName: String
     private let detectionsName: String
     private let prototypesName: String
+    private let stabilizer = PrivacyMaskStabilizer()
 
     init() throws {
         guard let url = Bundle.main.url(forResource: "PrivacyDetector", withExtension: "mlmodelc") else {
@@ -48,6 +49,8 @@ nonisolated final class PrivacyModel {
         input = buffer
     }
 
+    func resetTemporalState() { stabilizer.reset() }
+
     func process(_ pixelBuffer: CVPixelBuffer) throws -> (CGImage, Int, PrivacyTimings) {
         let start = ProcessInfo.processInfo.systemUptime
         let original = CIImage(cvPixelBuffer: pixelBuffer)
@@ -67,8 +70,9 @@ nonisolated final class PrivacyModel {
             throw PrivacyModelError.outputContract
         }
         let objects = try PrivacySegmentation.detections(PrivacySegmentation.floats(raw, shape: [1, 38, 8400]))
-        let bytes = try PrivacySegmentation.unionMask(detections: objects,
-                                                     prototypes: PrivacySegmentation.floats(proto, shape: [1, 32, 160, 160]))
+        let instances = try PrivacySegmentation.instanceMasks(detections: objects,
+                                                              prototypes: PrivacySegmentation.floats(proto, shape: [1, 32, 160, 160]))
+        let bytes = try stabilizer.apply(instances, timestamp: start)
         let masked = ProcessInfo.processInfo.systemUptime
         let mask = try PrivacyMask.modelImage(bytes: bytes)
             .transformed(by: CGAffineTransform(scaleX: 4, y: 4))

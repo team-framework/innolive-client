@@ -18,6 +18,11 @@ nonisolated enum PrivacySegmentation {
         let coefficients: [Float]
     }
 
+    struct InstanceMask {
+        let detection: Detection
+        let bytes: [UInt8]
+    }
+
     struct Letterbox {
         let resized: CGSize
         let left: CGFloat
@@ -72,13 +77,26 @@ nonisolated enum PrivacySegmentation {
     }
 
     static func unionMask(detections: [Detection], prototypes: [Float]) throws -> [UInt8] {
+        union(try instanceMasks(detections: detections, prototypes: prototypes))
+    }
+
+    static func union(_ instances: [InstanceMask]) -> [UInt8] {
+        var result = [UInt8](repeating: 0, count: maskSize * maskSize)
+        for instance in instances {
+            for i in result.indices { result[i] = max(result[i], instance.bytes[i]) }
+        }
+        return result
+    }
+
+    static func instanceMasks(detections: [Detection], prototypes: [Float]) throws -> [InstanceMask] {
         let pixels = maskSize * maskSize
         guard prototypes.count == channels * pixels, prototypes.allSatisfy(\.isFinite) else {
             throw PrivacyModelError.outputContract
         }
-        var union = [UInt8](repeating: 0, count: pixels)
+        var instances: [InstanceMask] = []
         var logits = [Float](repeating: 0, count: pixels)
         for object in detections {
+            var mask = [UInt8](repeating: 0, count: pixels)
             guard object.coefficients.count == channels else { throw PrivacyModelError.outputContract }
             vDSP_mmul(object.coefficients, 1, prototypes, 1, &logits, 1, 1, vDSP_Length(pixels), vDSP_Length(channels))
             let scale = CGFloat(maskSize) / CGFloat(inputSize)
@@ -90,16 +108,17 @@ nonisolated enum PrivacySegmentation {
             var covered = false
             for y in y0..<y1 {
                 for x in x0..<x1 where logits[y * maskSize + x] > 0 {
-                    union[y * maskSize + x] = 255
+                    mask[y * maskSize + x] = 255
                     covered = true
                 }
             }
             // A valid detection with an empty mask still needs protection.
             if !covered {
-                for y in y0..<y1 { for x in x0..<x1 { union[y * maskSize + x] = 255 } }
+                for y in y0..<y1 { for x in x0..<x1 { mask[y * maskSize + x] = 255 } }
             }
+            instances.append(InstanceMask(detection: object, bytes: mask))
         }
-        return union
+        return instances
     }
 
     static func floats(_ tensor: MLMultiArray, shape: [Int]) throws -> [Float] {
