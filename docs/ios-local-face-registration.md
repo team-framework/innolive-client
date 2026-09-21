@@ -155,3 +155,15 @@ xcrun devicectl device copy from --device '<device-id>' \
 - 초기 Core ML 변환 기록: `07bd8b3`.
 
 - 다중 등록·실기기 검증 코드: `bd3be09`.
+
+## 등록 얼굴 재블러 진단 (2026-09-21)
+
+사용자가 서버보다 등록자 재블러가 잦다고 보고했다. 수정 전 기기 얼굴 작업 로그 751건 중
+embedding 생성 성공은 289건, 실패는 462건이었다. 실패 시간 중앙값은 6.02ms,
+성공은 156.23ms로 전처리 탈락이 의심됐다. 기존 로그만으로 실패 원인을 구분할 수 없어
+`privacy-face-metrics.json`에 숫자 `failure_code`를 추가했다. 1=얼굴 수, 2=검출 신뢰도,
+3=각도, 4=landmark, 5=크기, 9=그 외 오류다.
+
+`privacy-face-decisions.json`에는 각 비교의 1·2위 유사도, 입력부터 결과 반영까지 시간,
+현재 track 존재 여부, 매칭 여부를 기록한다. 이름·UUID·embedding·이미지는 기록하지 않는다.
+등록 파일이나 인식 조건은 이 진단 단계에서 바꾸지 않았다.

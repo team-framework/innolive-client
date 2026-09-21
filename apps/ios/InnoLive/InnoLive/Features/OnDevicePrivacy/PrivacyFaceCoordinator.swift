@@ -30,6 +30,7 @@ nonisolated final class PrivacyFaceCoordinator {
     private var message = "이름을 입력하고 한 명씩 등록하세요."
     private var milliseconds = 0.0
     private var allowedCount = 0
+    private var decisionMetrics: [[String: Double]] = []
 
     init() {
         do { library = try PrivacyFaceLibrary() }
@@ -97,6 +98,16 @@ nonisolated final class PrivacyFaceCoordinator {
                 consumeEnrollment(output, now: timestamp)
             } else {
                 let match = output.embedding.flatMap { PrivacyFaceMath.match($0, entries: library?.entries ?? []) }
+                let scores = output.embedding.map { embedding in
+                    (library?.entries ?? []).map { PrivacyFaceMath.cosine(embedding, $0.embedding) }.sorted(by: >)
+                } ?? []
+                decisionMetrics.append(["uptime": timestamp, "age_ms": (timestamp - output.capturedAt) * 1000,
+                                        "failure_code": Double(output.failureCode), "best_score": Double(scores.first ?? -1),
+                                        "second_score": scores.count > 1 ? Double(scores[1]) : -1,
+                                        "matched": match == nil ? 0 : 1,
+                                        "current_track": tracking.tracks.contains { $0.id == output.id } ? 1 : 0])
+                if decisionMetrics.count > 900 { decisionMetrics.removeFirst() }
+                PrivacyFaceWorker.saveMetrics(decisionMetrics, filename: "privacy-face-decisions.json")
                 tracking.accept(trackID: output.id, match: match, capturedAt: output.capturedAt, now: timestamp)
             }
         }

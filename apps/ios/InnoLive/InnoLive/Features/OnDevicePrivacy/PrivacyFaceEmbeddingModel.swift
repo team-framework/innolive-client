@@ -5,6 +5,19 @@ import Vision
 import Foundation
 import Darwin
 
+nonisolated enum PrivacyFaceSampleError: Int, LocalizedError {
+    case faceCount = 1, confidence, pose, landmarks, size
+    var errorDescription: String? {
+        switch self {
+        case .faceCount: return "얼굴 한 명이 보이도록 맞춰 주세요."
+        case .confidence: return "얼굴이 선명하게 보이도록 맞춰 주세요."
+        case .pose: return "얼굴을 정면으로 맞춰 주세요."
+        case .landmarks: return "눈·코·입이 보이도록 맞춰 주세요."
+        case .size: return "얼굴을 카메라에 더 가까이 맞춰 주세요."
+        }
+    }
+}
+
 nonisolated final class PrivacyFaceEmbeddingModel {
     private let model: MLModel
     private let context = CIContext(options: [.cacheIntermediates: false])
@@ -39,19 +52,22 @@ nonisolated final class PrivacyFaceEmbeddingModel {
     func embedding(image: CGImage, enrollment: Bool) throws -> [Float] {
         let request = VNDetectFaceLandmarksRequest()
         try VNImageRequestHandler(cgImage: image, orientation: .up).perform([request])
-        guard let faces = request.results, faces.count == 1, let face = faces.first,
-              face.confidence >= 0.8, abs(face.yaw?.doubleValue ?? 0) < (enrollment ? 0.4 : 0.7),
-              let landmarks = face.landmarks, let leftEye = landmarks.leftEye, let rightEye = landmarks.rightEye,
+        guard let faces = request.results, faces.count == 1, let face = faces.first else {
+            throw PrivacyFaceSampleError.faceCount
+        }
+        guard face.confidence >= 0.8 else { throw PrivacyFaceSampleError.confidence }
+        guard abs(face.yaw?.doubleValue ?? 0) < (enrollment ? 0.4 : 0.7) else { throw PrivacyFaceSampleError.pose }
+        guard let landmarks = face.landmarks, let leftEye = landmarks.leftEye, let rightEye = landmarks.rightEye,
               let nose = landmarks.noseCrest, let lips = landmarks.outerLips,
               leftEye.pointCount > 0, rightEye.pointCount > 0, nose.pointCount > 0, lips.pointCount > 1 else {
-            throw PrivacyFaceError.message("얼굴 한 명이 정면을 보도록 맞춰 주세요.")
+            throw PrivacyFaceSampleError.landmarks
         }
         let input = CIImage(cgImage: image)
         let extent = input.extent
         let box = CGRect(x: face.boundingBox.minX * extent.width, y: face.boundingBox.minY * extent.height,
                          width: face.boundingBox.width * extent.width, height: face.boundingBox.height * extent.height)
         guard min(box.width, box.height) >= (enrollment ? 100 : 48) else {
-            throw PrivacyFaceError.message("얼굴을 카메라에 더 가까이 맞춰 주세요.")
+            throw PrivacyFaceSampleError.size
         }
         let side = max(box.width, box.height) * 1.5
         let square = CGRect(x: box.midX - side / 2, y: box.midY - side / 2, width: side, height: side)
@@ -128,6 +144,7 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
         let embedding: [Float]?
         let message: String?
         let fatal: Bool
+        let failureCode: Int
         let milliseconds: Double
     }
     private let queue = DispatchQueue(label: "com.innolive.privacy-face", qos: .userInitiated)
@@ -153,24 +170,26 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
                 var embedding: [Float]?
                 var message: String?
                 var fatal = false
+                var failureCode = 0
                 do {
                     if recognizer == nil { recognizer = try PrivacyFaceEmbeddingModel() }
                     embedding = try recognizer!.embedding(image: job.image, enrollment: job.enrollment)
                 } catch {
                     message = error.localizedDescription
+                    failureCode = (error as? PrivacyFaceSampleError)?.rawValue ?? 9
                     fatal = recognizer == nil
                 }
                 let milliseconds = (ProcessInfo.processInfo.systemUptime - start) * 1000
                 metrics.append(["uptime": start, "recognition_ms": milliseconds,
                                 "load_ms": recognizer?.loadMilliseconds ?? 0,
-                                "success": embedding == nil ? 0 : 1,
+                                "success": embedding == nil ? 0 : 1, "failure_code": Double(failureCode),
                                 "memory_mb": PrivacyFaceEmbeddingModel.memoryMegabytes()])
                 if metrics.count > 900 { metrics.removeFirst() }
                 Self.saveMetrics(metrics, filename: "privacy-face-metrics.json")
                 lock.withLock {
                     result = Output(id: job.id, generation: job.generation, capturedAt: job.capturedAt,
                                     enrollment: job.enrollment, embedding: embedding, message: message,
-                                    fatal: fatal, milliseconds: milliseconds)
+                                    fatal: fatal, failureCode: failureCode, milliseconds: milliseconds)
                     working = false
                 }
             }
