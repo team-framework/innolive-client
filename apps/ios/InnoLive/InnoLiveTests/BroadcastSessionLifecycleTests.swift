@@ -254,21 +254,86 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         }
     }
 
-    func testExplicitOnDeviceAcknowledgementSkipsLegacyToggle() async {
-        SessionLifecycleURLProtocol.responses = [.created("local", mode: "on_device")]
+    func testLocalSelectionCreatesSwitchableSessionAndConfirmsServerOff() async {
+        SessionLifecycleURLProtocol.responses = [.created("local", mode: "server"), .snapshot(enabled: false)]
         let integration = makeIntegration(mode: .onDevice)
         let ready = await integration.prepareSession(accessToken: token)
         XCTAssertTrue(ready)
-        XCTAssertEqual(methods, ["POST"])
+        XCTAssertEqual(methods, ["POST", "PATCH"])
+        XCTAssertEqual(integration.session?.aiProcessing, "server")
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
     }
 
     func testMismatchedModeNeverStartsVideoAndDeletesSession() async {
-        SessionLifecycleURLProtocol.responses = [.created("wrong", mode: "server"), .empty(204)]
+        SessionLifecycleURLProtocol.responses = [.created("wrong", mode: "on_device"), .empty(204)]
         let integration = makeIntegration(mode: .onDevice)
         let ready = await integration.prepareSession(accessToken: token)
         XCTAssertFalse(ready)
         XCTAssertNil(integration.session)
         XCTAssertEqual(methods, ["POST", "DELETE"])
+    }
+
+    func testChangingModeKeepsSessionAndStoredCredentialsInBothDirections() async throws {
+        SessionLifecycleURLProtocol.responses = [.created("same", mode: "server"), .snapshot(enabled: true), .snapshot(enabled: false), .snapshot(enabled: true)]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        await integration.toggleAnonymization(accessToken: token)
+        let local = await integration.changeAIProcessingMode(.onDevice, accessToken: token)
+        XCTAssertTrue(local)
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertTrue(integration.isAnonymizationEnabled)
+        let server = await integration.changeAIProcessingMode(.server, accessToken: token)
+        XCTAssertTrue(server)
+        XCTAssertEqual(integration.session?.processingMode, .server)
+        XCTAssertEqual(integration.session?.sessionID, "same")
+        XCTAssertEqual(try store.load(scope: scope())?.sessionID, "same")
+        XCTAssertEqual(methods, ["POST", "PATCH", "PATCH", "PATCH"])
+        XCTAssertFalse(integration.isAIProcessingUnconfirmed)
+    }
+
+    func testFailedServerOffKeepsLocalProtectionAndAllowsSameModeRetry() async {
+        SessionLifecycleURLProtocol.responses = [.created("same"), .snapshot(enabled: true), .empty(503), .snapshot(enabled: false)]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        await integration.toggleAnonymization(accessToken: token)
+        let failed = await integration.changeAIProcessingMode(.onDevice, accessToken: token)
+        XCTAssertFalse(failed)
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertTrue(integration.isAnonymizationEnabled)
+        XCTAssertTrue(integration.isAIProcessingUnconfirmed)
+        await integration.prepareYouTubeStream(accessToken: token)
+        XCTAssertNotNil(integration.errorMessage)
+        await integration.toggleAnonymization(accessToken: token)
+        XCTAssertTrue(integration.isAnonymizationEnabled)
+        XCTAssertNotNil(integration.errorMessage)
+        XCTAssertEqual(methods, ["POST", "PATCH", "PATCH"])
+        let retried = await integration.changeAIProcessingMode(.onDevice, accessToken: token)
+        XCTAssertTrue(retried)
+        XCTAssertFalse(integration.isAIProcessingUnconfirmed)
+        XCTAssertEqual(methods, ["POST", "PATCH", "PATCH", "PATCH"])
+    }
+
+    func testServerModeDoesNotReleaseLocalProtectionWithoutConfirmedServerAI() async {
+        SessionLifecycleURLProtocol.responses = [.created("same"), .snapshot(enabled: false), .snapshot(enabled: false)]
+        let integration = makeIntegration(mode: .onDevice)
+        _ = await integration.prepareSession(accessToken: token)
+        let changed = await integration.changeAIProcessingMode(.server, accessToken: token)
+        XCTAssertFalse(changed)
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertTrue(integration.isAnonymizationEnabled)
+        XCTAssertTrue(integration.isAIProcessingUnconfirmed)
+        XCTAssertEqual(methods, ["POST", "PATCH", "PATCH"])
+    }
+
+    func testResetDuringSwitchCannotRestoreSessionOrPersistLateMode() async {
+        SessionLifecycleURLProtocol.responses = [.created("same"), .snapshot(enabled: false), .snapshot(enabled: true)]
+        let integration = makeIntegration(mode: .onDevice)
+        _ = await integration.prepareSession(accessToken: token)
+        SessionLifecycleURLProtocol.beforeResponse = { _ in integration.reset() }
+        let changed = await integration.changeAIProcessingMode(.server, accessToken: token)
+        XCTAssertFalse(changed)
+        XCTAssertNil(integration.session)
+        XCTAssertNil(defaults.string(forKey: AIProcessingMode.storageKey))
     }
 
     private var methods: [String] { SessionLifecycleURLProtocol.requests.compactMap(\.httpMethod) }
@@ -290,7 +355,8 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
     }
 
     private func makeIntegration(api: YouTubeAPI? = nil, mode: AIProcessingMode = .server) -> YouTubeIntegration {
-        YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api ?? makeAPI(), sessionStore: store, aiModeProvider: { mode })
+        YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api ?? makeAPI(), sessionStore: store, aiModeProvider: { mode }, localModelsAvailable: { true },
+                           persistAIProcessingMode: { [defaults = defaults!] mode in defaults.set(mode.rawValue, forKey: AIProcessingMode.storageKey) })
     }
 }
 

@@ -425,7 +425,21 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         cameraFrameRelay?.setLockedInterfaceOrientation(nil)
     }
 
+    func prepareLocalProcessing() async throws {
+        guard let relay = cameraFrameRelay else { return }
+        try await relay.prepareLocalProcessing()
+        guard cameraFrameRelay === relay, !isStopping else { throw WebRTCVideoUplinkError.cancelled }
+    }
+
+    func setAIProcessingMode(_ mode: AIProcessingMode, anonymizationEnabled: Bool) {
+        credentials?.processingMode = mode
+        credentials?.localAnonymizationEnabled = anonymizationEnabled
+        cameraFrameRelay?.setProcessingMode(mode)
+        cameraFrameRelay?.setLocalAnonymizationEnabled(anonymizationEnabled)
+    }
+
     func setLocalAnonymizationEnabled(_ enabled: Bool) {
+        credentials?.localAnonymizationEnabled = enabled
         cameraFrameRelay?.setLocalAnonymizationEnabled(enabled)
     }
 

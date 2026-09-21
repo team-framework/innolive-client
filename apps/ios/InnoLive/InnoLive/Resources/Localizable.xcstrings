@@ -8498,29 +8498,6 @@
         }
       }
     },
-    "방식을 변경하면 영상 연결을 다시 준비합니다. 얼굴 등록은 서버와 이 기기에 각각 저장됩니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "방식을 변경하면 영상 연결을 다시 준비합니다. 얼굴 등록은 서버와 이 기기에 각각 저장됩니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Changing the mode restarts the video connection. Face registrations are stored separately on the server and this device."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "方式を変更すると映像接続を準備し直します。顔の登録情報はサーバーとこのデバイスに別々に保存されます。"
-          }
-        }
-      }
-    },
     "서버 얼굴 관리": {
       "extractionState": "manual",
       "localizations": {
@@ -8563,6 +8540,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "このデバイスの顔登録を管理"
+          }
+        }
+      }
+    },
+    "영상 연결을 유지하며 AI 처리 위치를 변경합니다. 얼굴 등록은 서버와 이 기기에 각각 저장됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상 연결을 유지하며 AI 처리 위치를 변경합니다. 얼굴 등록은 서버와 이 기기에 각각 저장됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change where AI runs while keeping the video connection. Face registrations are stored separately on the server and this device."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "映像接続を維持してAIの処理場所を変更します。顔の登録情報はサーバーとこのデバイスに別々に保存されます。"
+          }
+        }
+      }
+    },
+    "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI switch could not be confirmed. The current anonymization path remains active. Select a mode again to retry."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIの切り替えを確認できませんでした。現在の匿名化経路を維持します。使用する方式を再度選択してください。"
           }
         }
       }
