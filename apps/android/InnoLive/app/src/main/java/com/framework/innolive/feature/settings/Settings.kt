@@ -58,7 +58,10 @@ fun SettingsScreen(props: SettingsScreenProps) {
             title = { Text(text = "설정") },
             windowInsets = WindowInsets(0, 0, 0, 0),
             navigationIcon = {
-                IconButton(onClick = props.onBack) {
+                IconButton(
+                    onClick = props.onBack,
+                    enabled = !props.isDeletingAccount && !props.isAccountDeletionPending,
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = "뒤로가기",
@@ -78,7 +81,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
             )
             OutlinedButton(
                 onClick = props.onLogout,
-                enabled = !props.isDeletingAccount && !props.isAccountDeletionCleanupPending,
+                enabled = !props.isDeletingAccount && !props.isAccountDeletionPending,
             ) {
                 Text(text = "로그아웃")
             }
@@ -89,7 +92,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
             settingItems.forEach { item ->
                 Button(
                     onClick = item.onNav,
-                    enabled = !props.isDeletingAccount && !props.isAccountDeletionCleanupPending,
+                    enabled = !props.isDeletingAccount && !props.isAccountDeletionPending,
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),

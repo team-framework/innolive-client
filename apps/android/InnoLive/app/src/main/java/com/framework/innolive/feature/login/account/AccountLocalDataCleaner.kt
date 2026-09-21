@@ -18,34 +18,43 @@ internal class AccountLocalDataCleaner(context: Context) {
             server = BuildConfig.INNOLIVE_SERVER_URL,
             accessToken = session.accessToken,
         )
-        EncryptedSessionRecoveryStore(applicationContext).clear(recoveryScope)
+        EncryptedSessionRecoveryStore(applicationContext).run {
+            clear(recoveryScope)
+            clearLegacy()
+        }
         ReferenceFaceImageStore(applicationContext).deleteAll(session.profileEmail)
         YouTubePreferencesStore(applicationContext).clearAccountData()
     }
 }
 
-/** Persists only a non-secret account scope hash so cleanup can resume after process death. */
+/** Persists only a non-secret account scope hash and deletion phase for process-death recovery. */
 internal class AccountDeletionCleanupStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         PREFERENCES_NAME,
         Context.MODE_PRIVATE,
     )
 
-    fun save(session: GoogleSessionStore.Session) {
+    fun save(session: GoogleSessionStore.Session, phase: AccountDeletionPhase) {
         val scope = sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, session.accessToken)
         check(
             preferences.edit()
                 .putString(ACCOUNT_SCOPE_KEY, scope.storageKey)
+                .putString(PHASE_KEY, phase.name)
                 .commit(),
-        ) { "Unable to persist pending account cleanup." }
+        ) { "Unable to persist pending account deletion." }
     }
 
-    fun isPendingFor(session: GoogleSessionStore.Session): Boolean {
-        val savedScopeKey = preferences.getString(ACCOUNT_SCOPE_KEY, null) ?: return false
-        return runCatching {
-            sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, session.accessToken).storageKey ==
-                savedScopeKey
+    fun loadPhaseFor(session: GoogleSessionStore.Session): AccountDeletionPhase? {
+        val savedScopeKey = preferences.getString(ACCOUNT_SCOPE_KEY, null) ?: return null
+        val matches = runCatching {
+            sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, session.accessToken).storageKey == savedScopeKey
         }.getOrDefault(false)
+        if (!matches) return null
+
+        val savedPhase = preferences.getString(PHASE_KEY, null)
+        return savedPhase?.let { value ->
+            runCatching { AccountDeletionPhase.valueOf(value) }.getOrNull()
+        } ?: AccountDeletionPhase.LOCAL_CLEANUP_PENDING
     }
 
     fun clear() {
@@ -57,5 +66,6 @@ internal class AccountDeletionCleanupStore(context: Context) {
     private companion object {
         const val PREFERENCES_NAME = "innolive_account_deletion_cleanup"
         const val ACCOUNT_SCOPE_KEY = "account_scope_key"
+        const val PHASE_KEY = "phase"
     }
 }

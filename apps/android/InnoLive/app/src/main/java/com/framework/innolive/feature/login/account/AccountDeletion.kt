@@ -81,14 +81,31 @@ internal sealed interface AccountDeletionResult {
 
 internal data class AccountDeletionState(
     val isInProgress: Boolean = false,
-    val localCleanupPending: Boolean = false,
+    val pendingPhase: AccountDeletionPhase? = null,
     val error: String? = null,
+) {
+    val localCleanupPending: Boolean
+        get() = pendingPhase == AccountDeletionPhase.LOCAL_CLEANUP_PENDING
+
+    val hasPendingDeletion: Boolean
+        get() = pendingPhase != null
+}
+
+internal enum class AccountDeletionPhase {
+    REMOTE_DELETION_PENDING,
+    LOCAL_CLEANUP_PENDING,
+}
+
+internal data class PendingAccountDeletion(
+    val session: GoogleSessionStore.Session,
+    val phase: AccountDeletionPhase,
 )
 
 /**
  * Owns the complete deletion transaction outside Compose. Once deletion starts, cancellation of
- * the caller cannot interrupt the transition from the server result to local cleanup. A failed
- * local cleanup retains the session and retries only that cleanup on the next request.
+ * the caller cannot interrupt the transition from the server result to local cleanup. The remote
+ * pending phase is persisted before the request so a lost response can be reconciled by retrying
+ * the idempotent server deletion. A failed local cleanup retries only that cleanup.
  */
 internal class AccountDeletionCoordinator(
     private val scope: CoroutineScope,
@@ -96,37 +113,62 @@ internal class AccountDeletionCoordinator(
     private val deleteRemoteAccount: suspend (GoogleSessionStore.Session) -> AccountDeletionResult,
     private val clearLocalAccountData: suspend (GoogleSessionStore.Session) -> Unit,
     private val clearAuthentication: () -> Unit,
-    initialPendingCleanupSession: GoogleSessionStore.Session? = null,
-    private val markLocalCleanupPending: (GoogleSessionStore.Session) -> Unit = {},
-    private val clearLocalCleanupPending: () -> Unit = {},
+    initialPendingDeletion: PendingAccountDeletion? = null,
+    private val persistPendingDeletion: suspend (
+        GoogleSessionStore.Session,
+        AccountDeletionPhase,
+    ) -> Unit = { _, _ -> },
+    private val clearPendingDeletion: suspend () -> Unit = {},
 ) {
     private val _state = MutableStateFlow(
-        if (initialPendingCleanupSession == null) {
+        if (initialPendingDeletion == null) {
             AccountDeletionState()
         } else {
             AccountDeletionState(
-                localCleanupPending = true,
-                error = LOCAL_CLEANUP_FAILURE_MESSAGE,
+                pendingPhase = initialPendingDeletion.phase,
+                error = initialPendingDeletion.phase.failureMessage,
             )
         },
     )
     val state: StateFlow<AccountDeletionState> = _state.asStateFlow()
 
     private var activeJob: Job? = null
-    private var pendingCleanupSession: GoogleSessionStore.Session? =
-        initialPendingCleanupSession
+    private var pendingDeletion: PendingAccountDeletion? = initialPendingDeletion
 
-    fun delete() {
+    fun delete(onRemoteDeletionConfirmed: () -> Unit = {}) {
         if (activeJob?.isActive == true) return
-        val cleanupOnly = pendingCleanupSession != null
-        val deletingSession = pendingCleanupSession ?: currentSession() ?: return
+        val deletingSession = pendingDeletion?.session ?: currentSession() ?: return
         _state.value = AccountDeletionState(
             isInProgress = true,
-            localCleanupPending = cleanupOnly,
+            pendingPhase = pendingDeletion?.phase,
         )
 
         activeJob = scope.launch {
             withContext(NonCancellable) {
+                if (pendingDeletion == null) {
+                    try {
+                        persistPendingDeletion(
+                            deletingSession,
+                            AccountDeletionPhase.REMOTE_DELETION_PENDING,
+                        )
+                        pendingDeletion = PendingAccountDeletion(
+                            deletingSession,
+                            AccountDeletionPhase.REMOTE_DELETION_PENDING,
+                        )
+                        _state.value = AccountDeletionState(
+                            isInProgress = true,
+                            pendingPhase = AccountDeletionPhase.REMOTE_DELETION_PENDING,
+                        )
+                    } catch (_: Exception) {
+                        _state.value = AccountDeletionState(
+                            error = DELETION_STATE_PERSISTENCE_FAILURE_MESSAGE,
+                        )
+                        return@withContext
+                    }
+                }
+
+                val cleanupOnly =
+                    pendingDeletion?.phase == AccountDeletionPhase.LOCAL_CLEANUP_PENDING
                 val remoteResult = if (cleanupOnly) {
                     AccountDeletionResult.Deleted
                 } else {
@@ -139,24 +181,44 @@ internal class AccountDeletionCoordinator(
 
                 _state.value = when (remoteResult) {
                     AccountDeletionResult.Deleted -> {
-                        pendingCleanupSession = deletingSession
                         try {
-                            markLocalCleanupPending(deletingSession)
+                            if (!cleanupOnly) {
+                                runCatching(onRemoteDeletionConfirmed)
+                                persistPendingDeletion(
+                                    deletingSession,
+                                    AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
+                                )
+                                pendingDeletion = PendingAccountDeletion(
+                                    deletingSession,
+                                    AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
+                                )
+                            }
                             clearLocalAccountData(deletingSession)
-                            clearLocalCleanupPending()
+                            clearPendingDeletion()
                             clearAuthentication()
-                            pendingCleanupSession = null
+                            pendingDeletion = null
                             AccountDeletionState()
                         } catch (_: Exception) {
-                            runCatching { markLocalCleanupPending(deletingSession) }
+                            runCatching {
+                                persistPendingDeletion(
+                                    deletingSession,
+                                    AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
+                                )
+                                pendingDeletion = PendingAccountDeletion(
+                                    deletingSession,
+                                    AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
+                                )
+                            }
                             AccountDeletionState(
-                                localCleanupPending = true,
-                                error = LOCAL_CLEANUP_FAILURE_MESSAGE,
+                                pendingPhase = pendingDeletion?.phase,
+                                error = pendingDeletion?.phase?.failureMessage
+                                    ?: LOCAL_CLEANUP_FAILURE_MESSAGE,
                             )
                         }
                     }
 
                     is AccountDeletionResult.Failed -> AccountDeletionState(
+                        pendingPhase = AccountDeletionPhase.REMOTE_DELETION_PENDING,
                         error = remoteResult.message,
                     )
                 }
@@ -164,14 +226,28 @@ internal class AccountDeletionCoordinator(
         }
     }
 
-    fun resetErrorForAuthenticationChange() {
-        if (activeJob?.isActive == true || pendingCleanupSession != null) return
-        _state.value = AccountDeletionState()
+    fun authenticationChanged(restoredPendingDeletion: PendingAccountDeletion?) {
+        if (activeJob?.isActive == true) return
+        pendingDeletion = restoredPendingDeletion
+        _state.value = restoredPendingDeletion?.let { pending ->
+            AccountDeletionState(
+                pendingPhase = pending.phase,
+                error = pending.phase.failureMessage,
+            )
+        } ?: AccountDeletionState()
     }
 
     private companion object {
+        val AccountDeletionPhase.failureMessage: String
+            get() = when (this) {
+                AccountDeletionPhase.REMOTE_DELETION_PENDING -> REMOTE_DELETION_FAILURE_MESSAGE
+                AccountDeletionPhase.LOCAL_CLEANUP_PENDING -> LOCAL_CLEANUP_FAILURE_MESSAGE
+            }
+
         const val REMOTE_DELETION_FAILURE_MESSAGE =
             "계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요."
+        const val DELETION_STATE_PERSISTENCE_FAILURE_MESSAGE =
+            "계정 삭제 상태를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요."
         const val LOCAL_CLEANUP_FAILURE_MESSAGE =
             "서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요."
     }

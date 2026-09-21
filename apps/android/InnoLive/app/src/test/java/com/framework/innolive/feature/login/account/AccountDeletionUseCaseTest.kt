@@ -98,6 +98,77 @@ class AccountDeletionUseCaseTest {
     }
 
     @Test
+    fun remotePendingStateIsPersistedBeforeServerDeletionStarts() = runBlocking {
+        val coordinatorJob = Job()
+        val events = mutableListOf<String>()
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = {
+                events += "remote"
+                AccountDeletionResult.Deleted
+            },
+            clearLocalAccountData = { events += "local" },
+            clearAuthentication = { events += "auth" },
+            persistPendingDeletion = { _, phase -> events += "persist:$phase" },
+            clearPendingDeletion = { events += "clear-marker" },
+        )
+
+        coordinator.delete()
+        withTimeout(2_000) { coordinator.state.first { !it.isInProgress } }
+
+        assertEquals(
+            listOf(
+                "persist:REMOTE_DELETION_PENDING",
+                "remote",
+                "persist:LOCAL_CLEANUP_PENDING",
+                "local",
+                "clear-marker",
+                "auth",
+            ),
+            events,
+        )
+        coordinatorJob.cancel()
+    }
+
+    @Test
+    fun remoteFailureDoesNotCloseBroadcastAndRemainsRetryableAfterRestart() = runBlocking {
+        val coordinatorJob = Job()
+        var closeCount = 0
+        var remoteCount = 0
+        val firstSession = session()
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { firstSession },
+            deleteRemoteAccount = {
+                remoteCount += 1
+                if (remoteCount == 1) {
+                    AccountDeletionResult.Failed("network failure")
+                } else {
+                    AccountDeletionResult.Deleted
+                }
+            },
+            clearLocalAccountData = {},
+            clearAuthentication = {},
+            initialPendingDeletion = PendingAccountDeletion(
+                firstSession,
+                AccountDeletionPhase.REMOTE_DELETION_PENDING,
+            ),
+        )
+
+        coordinator.delete { closeCount += 1 }
+        withTimeout(2_000) { coordinator.state.first { it.error == "network failure" } }
+        assertEquals(0, closeCount)
+        assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
+
+        coordinator.delete { closeCount += 1 }
+        withTimeout(2_000) { coordinator.state.first { remoteCount == 2 && !it.isInProgress } }
+        assertEquals(1, closeCount)
+        assertEquals(2, remoteCount)
+        coordinatorJob.cancel()
+    }
+
+    @Test
     fun localCleanupFailureKeepsAuthenticationAndRetrySkipsServerDeletion() = runBlocking {
         val coordinatorJob = Job()
         var remoteDeletionCount = 0
@@ -116,8 +187,8 @@ class AccountDeletionUseCaseTest {
                 if (localCleanupCount == 1) error("disk failure")
             },
             clearAuthentication = { authenticationClearCount += 1 },
-            markLocalCleanupPending = { cleanupMarkerPresent = true },
-            clearLocalCleanupPending = { cleanupMarkerPresent = false },
+            persistPendingDeletion = { _, _ -> cleanupMarkerPresent = true },
+            clearPendingDeletion = { cleanupMarkerPresent = false },
         )
 
         coordinator.delete()
@@ -158,7 +229,10 @@ class AccountDeletionUseCaseTest {
             },
             clearLocalAccountData = { localCleanupCount += 1 },
             clearAuthentication = { authenticationClearCount += 1 },
-            initialPendingCleanupSession = session(),
+            initialPendingDeletion = PendingAccountDeletion(
+                session(),
+                AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
+            ),
         )
 
         assertTrue(coordinator.state.value.localCleanupPending)
@@ -188,7 +262,7 @@ class AccountDeletionUseCaseTest {
         withTimeout(2_000) {
             coordinator.state.first { it.error == "old account error" }
         }
-        coordinator.resetErrorForAuthenticationChange()
+        coordinator.authenticationChanged(null)
 
         assertEquals(AccountDeletionState(), coordinator.state.value)
         coordinatorJob.cancel()
@@ -212,6 +286,7 @@ class AccountDeletionUseCaseTest {
 
         assertTrue(coordinator.state.value.error?.contains("계정을 삭제하지 못했습니다") == true)
         assertEquals(false, coordinator.state.value.localCleanupPending)
+        assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
         coordinatorJob.cancel()
     }
 

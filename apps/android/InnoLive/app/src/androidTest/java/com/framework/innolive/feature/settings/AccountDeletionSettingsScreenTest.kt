@@ -56,6 +56,7 @@ class AccountDeletionSettingsScreenTest {
                         profileEmail = "user@example.com",
                         onLogout = {},
                         onDeleteAccount = {},
+                        isAccountDeletionPending = true,
                         isAccountDeletionCleanupPending = true,
                         accountDeletionError =
                             "서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요.",
@@ -66,6 +67,7 @@ class AccountDeletionSettingsScreenTest {
 
         composeRule.onNodeWithText("기기 데이터 정리 다시 시도").assertIsDisplayed()
         composeRule.onNodeWithText("로그아웃").assertIsDisplayed().assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("뒤로가기").assertIsNotEnabled()
         composeRule.onNodeWithText("서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요.")
             .assertIsDisplayed()
     }

@@ -162,6 +162,7 @@ fun AppNavigation(
     val session by authenticationSession.session.collectAsStateWithLifecycle()
     val accountDeletionState by authenticationSession.accountDeletionState.collectAsStateWithLifecycle()
     val isDeletingAccount = accountDeletionState.isInProgress
+    val isAccountDeletionPending = accountDeletionState.hasPendingDeletion
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
     val youtubePreferencesStore = remember(context) { YouTubePreferencesStore(context) }
     val restoredYouTubeAccount = remember(youtubePreferencesStore) {
@@ -357,7 +358,13 @@ fun AppNavigation(
             restore = { it.toCollection(mutableStateListOf()) },
         ),
     ) {
-        mutableStateListOf<AppRoute>(if (session == null) LoginRoute else LiveRoute)
+        mutableStateListOf<AppRoute>(
+            when {
+                session == null -> LoginRoute
+                isAccountDeletionPending -> SettingsRoute
+                else -> LiveRoute
+            },
+        )
     }
     LaunchedEffect(
         backStack.lastOrNull(),
@@ -455,7 +462,12 @@ fun AppNavigation(
             broadcastCategoryId = defaults.categoryId
         }
         previousProfileEmail = session?.profileEmail
-        if (session == null && backStack.lastOrNull() != LoginRoute) {
+        if (session != null && isAccountDeletionPending) {
+            if (backStack.lastOrNull() != SettingsRoute) {
+                backStack.clear()
+                backStack.add(SettingsRoute)
+            }
+        } else if (session == null && backStack.lastOrNull() != LoginRoute) {
             selectedBroadcastPlatform = broadcastPlatformOptions.first()
             backStack.clear()
             backStack.add(LoginRoute)
@@ -537,7 +549,9 @@ fun AppNavigation(
         webRtcSession.selectAudioInput(selectedAudioInput)
     }
     val onBack: () -> Unit = {
-        if (backStack.size > 1) {
+        if (isDeletingAccount || isAccountDeletionPending) {
+            Unit
+        } else if (backStack.size > 1) {
             backStack.removeLastOrNull()
         } else {
             (context as? Activity)?.finish()
@@ -614,8 +628,7 @@ fun AppNavigation(
         isYouTubeAuthorizationLaunched = false
         isYouTubeAccountActionInProgress = false
         youtubeCoordinator.close()
-        webRtcSession.close()
-        authenticationSession.deleteAccount()
+        authenticationSession.deleteAccount(webRtcSession::close)
     }
 
     // NavDisplay keeps the LiveRoute NavEntry while the back stack is unchanged.
@@ -721,7 +734,7 @@ fun AppNavigation(
                                 onLogout = {
                                     if (
                                         !isDeletingAccount &&
-                                        !accountDeletionState.localCleanupPending
+                                        !isAccountDeletionPending
                                     ) {
                                         youtubeAuthorizationOperation = null
                                         youtubeOperationGeneration.invalidate()
@@ -742,6 +755,7 @@ fun AppNavigation(
                                 },
                                 onDeleteAccount = deleteAccount,
                                 isDeletingAccount = isDeletingAccount,
+                                isAccountDeletionPending = isAccountDeletionPending,
                                 isAccountDeletionCleanupPending =
                                     accountDeletionState.localCleanupPending,
                                 accountDeletionError = accountDeletionState.error,
