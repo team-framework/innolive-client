@@ -32,6 +32,30 @@ class AccountDeletionCleanupStoreTest {
                 AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
                 AccountDeletionCleanupStore(context).loadPhaseFor(first),
             )
+
+            store.save(first, AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING)
+            assertEquals(
+                AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING,
+                AccountDeletionCleanupStore(context).loadPhaseFor(first),
+            )
+        } finally {
+            store.clear()
+        }
+    }
+
+    @Test
+    fun completedDeletionMarkerWithoutAuthenticationIsNotInheritedByNextLogin() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = AccountDeletionCleanupStore(context)
+        val previousSession = session("same-account")
+        store.clear()
+        try {
+            store.save(previousSession, AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING)
+
+            AccountDeletionCleanupStore(context).apply {
+                discardCompletedDeletionWithoutAuthentication()
+                assertNull(loadPhaseFor(session("same-account")))
+            }
         } finally {
             store.clear()
         }

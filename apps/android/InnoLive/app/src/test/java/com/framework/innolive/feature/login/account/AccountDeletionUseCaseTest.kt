@@ -123,6 +123,7 @@ class AccountDeletionUseCaseTest {
                 "remote",
                 "persist:LOCAL_CLEANUP_PENDING",
                 "local",
+                "persist:AUTHENTICATION_CLEANUP_PENDING",
                 "auth",
                 "clear-marker",
             ),
@@ -156,6 +157,10 @@ class AccountDeletionUseCaseTest {
 
         assertEquals(1, authenticationClearCount)
         assertTrue(markerPresent)
+        assertEquals(
+            AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING,
+            coordinator.state.value.pendingPhase,
+        )
         assertTrue(coordinator.state.value.error?.contains("기기 데이터 정리") == true)
         coordinatorJob.cancel()
     }
@@ -193,6 +198,7 @@ class AccountDeletionUseCaseTest {
                 "persist:REMOTE_DELETION_PENDING",
                 "persist:LOCAL_CLEANUP_PENDING",
                 "local",
+                "persist:AUTHENTICATION_CLEANUP_PENDING",
                 "auth",
                 "clear-marker",
             ),
@@ -200,6 +206,40 @@ class AccountDeletionUseCaseTest {
         )
         assertEquals(false, authenticationPresent)
         assertTrue(markerPresent)
+        assertEquals(AccountDeletionState(), coordinator.state.value)
+        coordinatorJob.cancel()
+    }
+
+    @Test
+    fun persistedAuthenticationCleanupDoesNotRepeatLocalCleanupForOldSession() = runBlocking {
+        val coordinatorJob = Job()
+        var remoteDeletionCount = 0
+        var localCleanupCount = 0
+        var authenticationClearCount = 0
+        var markerPresent = true
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = {
+                remoteDeletionCount += 1
+                AccountDeletionResult.Deleted
+            },
+            clearLocalAccountData = { localCleanupCount += 1 },
+            clearAuthentication = { authenticationClearCount += 1 },
+            initialPendingDeletion = PendingAccountDeletion(
+                session(),
+                AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING,
+            ),
+            clearPendingDeletion = { markerPresent = false },
+        )
+
+        coordinator.delete()
+        withTimeout(2_000) { coordinator.state.first { !it.isInProgress } }
+
+        assertEquals(0, remoteDeletionCount)
+        assertEquals(0, localCleanupCount)
+        assertEquals(1, authenticationClearCount)
+        assertEquals(false, markerPresent)
         assertEquals(AccountDeletionState(), coordinator.state.value)
         coordinatorJob.cancel()
     }
