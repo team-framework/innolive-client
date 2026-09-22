@@ -91,3 +91,10 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
+
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    systemProperty(
+        "innolive.android.resDir",
+        layout.projectDirectory.dir("src/main/res").asFile.absolutePath,
+    )
+}
