@@ -121,13 +121,6 @@ fun LoginScreen(props: LoginScreenProps) {
                     Text(text = "Google로 계속하기", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.offset(y = (-2).dp))
                 }
             }
-            if (isGoogleLoginInProgress) {
-                Text(
-                    text = "Google 로그인 중…",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                )
-            }
             if (googleLoginFailed) {
                 Text(
                     text = "Google 로그인에 실패했습니다. 다시 시도해 주세요.",

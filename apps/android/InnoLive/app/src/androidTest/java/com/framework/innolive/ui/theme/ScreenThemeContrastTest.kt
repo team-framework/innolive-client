@@ -49,7 +49,7 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
         // 비활성 글자는 의도적으로 대비가 낮으므로 별도로 측정합니다.
         contrast("Google로 계속하기", minimum = 1.5f)
         contrast("이메일로 계속하기", minimum = 1.5f)
-        contrast("Google 로그인 중…")
+        compose.onNodeWithText("Google 로그인 중…").assertDoesNotExist()
     }
 
     @Test fun loginFailure() {
