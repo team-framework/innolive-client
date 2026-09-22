@@ -5,6 +5,8 @@ import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Before
 import kotlinx.coroutines.CompletableDeferred
@@ -112,10 +114,7 @@ class BroadcastPreparationTest {
 
             assertFalse(session.requestBroadcastPreparation(rejectedConnection, settings))
             assertEquals(BroadcastState.FAILED, session.broadcastState)
-            assertEquals(
-                "방송 준비 요청을 시작하지 못했습니다. 다시 시도해 주세요.",
-                session.broadcastStatus,
-            )
+            assertEquals(UiText.Resource(R.string.error_broadcast_request), session.broadcastStatus)
             assertTrue(session.broadcastState.canPrepare)
         }
     }

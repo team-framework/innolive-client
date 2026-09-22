@@ -3,6 +3,8 @@ package com.framework.innolive.feature.live
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -93,12 +95,12 @@ class WebRtcSessionStateLifecycleTest {
         }
         compose.runOnIdle {
             assertEquals(WebRtcConnectionState.CONNECTING, session.connectionState)
-            assertEquals("연결 준비 중…", session.connectionStatus)
+            assertEquals(UiText.Resource(R.string.preview_connecting), session.connectionStatus)
             nextRefresh.complete(Unit)
         }
         compose.runOnIdle {
             assertEquals(WebRtcConnectionState.FAILED, session.connectionState)
-            assertEquals("미리보기를 연결하지 못했습니다. 다시 시도해 주세요.", session.connectionStatus)
+            assertEquals(UiText.Resource(R.string.error_preview_connect), session.connectionStatus)
             assertEquals(AnonymizationState.UNKNOWN, session.anonymizationState)
             session.close()
         }

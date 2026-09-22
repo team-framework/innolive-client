@@ -74,7 +74,7 @@ class BroadcastLiveDeviceTest {
             }
             compose.waitUntil(50_000) { session.connectionState != WebRtcConnectionState.CONNECTING }
             compose.runOnIdle {
-                assertEquals(session.connectionStatus, WebRtcConnectionState.CONNECTED, session.connectionState)
+                assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
                 assertEquals(AnonymizationState.DISABLED, session.anonymizationState)
                 assertFalse(preference.enabled)
                 assertEquals(BroadcastState.IDLE, session.broadcastState)
@@ -93,6 +93,6 @@ class BroadcastLiveDeviceTest {
 
     private fun awaitBroadcast(session: WebRtcSessionViewModel, expected: BroadcastState) {
         compose.waitUntil(70_000) { session.broadcastState == expected || session.broadcastState == BroadcastState.FAILED }
-        compose.runOnIdle { assertEquals(session.broadcastStatus, expected, session.broadcastState) }
+        compose.runOnIdle { assertEquals(expected, session.broadcastState) }
     }
 }

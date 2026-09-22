@@ -58,18 +58,18 @@ class WebRtcConnection(
     private val accessToken: String,
     private val initialAnonymizationEnabled: Boolean,
     private var preferredAudioInput: AudioDeviceInfo?,
-    private val onStateChanged: (WebRtcConnectionState, String) -> Unit,
+    private val onStateChanged: (WebRtcConnectionState, ConnectionFailure?) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
     private val onLocalMediaReady: (CameraFrameAnalyzer, EglBase.Context) -> Unit,
     private val onLocalMediaCleared: () -> Unit,
-    private val onBroadcastStateChanged: (BroadcastState, String) -> Unit,
+    private val onBroadcastStateChanged: (BroadcastState, BroadcastFailure?) -> Unit,
     private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
     private val broadcastCallbackExecutor: Executor? = null,
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private var sessionRecoveryStore: SessionRecoveryStore = EncryptedSessionRecoveryStore(applicationContext)
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
-        require(url.isHttps) { "INNOLIVE_SERVER_URL must use HTTPS." }
+        if (!url.isHttps) throw ConnectionFailureException(ConnectionFailure.CONFIGURATION)
     }
     private val sessionRecoveryScope = sessionRecoveryScope(serverBaseUrl.toString(), accessToken)
     private val audioManager = applicationContext.getSystemService(AudioManager::class.java)
@@ -89,7 +89,7 @@ class WebRtcConnection(
     private val terminal = AtomicBoolean(false)
     private val broadcastOperation = AtomicBoolean(false)
     // 완료 콜백은 다음 제어 요청을 받을 수 있도록 작업 잠금을 해제한 뒤 전달합니다.
-    private var pendingBroadcastCompletion: Pair<BroadcastState, String>? = null
+    private var pendingBroadcastCompletion: Pair<BroadcastState, BroadcastFailure?>? = null
     private val closeSignal = CloseSignal()
     private val shutdownLock = Any()
     private val shutdownInitiated = AtomicBoolean(false)
@@ -174,9 +174,9 @@ class WebRtcConnection(
                 notifyLocalMediaReadyOnOwner()
                 updateBluetoothCommunicationRoute(preferredAudioInput)
                 audioRouteMonitor.start()
-                updateState(WebRtcConnectionState.CONNECTING, "WebRTC 연결 준비 중")
+                updateState(WebRtcConnectionState.CONNECTING)
                 connectionTimeoutTask = timerExecutor.schedule(
-                    { fail("WebRTC 연결 시간이 초과되었습니다.") },
+                    { fail(ConnectionFailure.TIMEOUT) },
                     CONNECTION_TIMEOUT_MILLIS,
                     TimeUnit.MILLISECONDS,
                 )
@@ -187,7 +187,7 @@ class WebRtcConnection(
                 val createdSession = createSession()
                 session = createdSession
                 if (!isActive()) return@executeOnOwner
-                updateState(WebRtcConnectionState.CONNECTING, "비식별화 초기 설정 적용 중")
+                updateState(WebRtcConnectionState.CONNECTING)
                 val confirmed = confirmInitialAnonymization(initialAnonymizationEnabled) {
                     val payload = executeSessionRequest(
                         "anonymization", "PATCH", anonymizationPayload(initialAnonymizationEnabled),
@@ -211,7 +211,7 @@ class WebRtcConnection(
                 openSignalingSocket(createdSession)
             } catch (exception: Exception) {
                 Log.w("LiveConnection", "start_failed type=${exception.javaClass.simpleName} cause=${exception.cause?.javaClass?.simpleName}")
-                fail(exception.message ?: "WebRTC 연결을 시작하지 못했습니다.")
+                fail(exception.toConnectionFailure())
             }
         }
     }
@@ -301,7 +301,7 @@ class WebRtcConnection(
             try {
                 updateBluetoothCommunicationRoute(audioInput)
             } catch (exception: Exception) {
-                fail(exception.message ?: "Bluetooth 오디오 기기를 준비하지 못했습니다.")
+                fail(ConnectionFailure.MICROPHONE_UNAVAILABLE)
                 return@executeOnOwner
             }
             audioInput?.let { audioDeviceModule?.setPreferredInputDevice(it) }
@@ -311,9 +311,9 @@ class WebRtcConnection(
 
     internal fun setAnonymizationEnabled(
         enabled: Boolean,
-        onComplete: (AnonymizationState?, String?) -> Unit,
+        onComplete: (AnonymizationState?, AnonymizationFailure?) -> Unit,
     ) {
-        fun complete(state: AnonymizationState?, error: String?) {
+        fun complete(state: AnonymizationState?, error: AnonymizationFailure?) {
             mainHandler.post { if (isActive()) onComplete(state, error) }
         }
         executeOnOwner(
@@ -324,47 +324,56 @@ class WebRtcConnection(
                     val payload = executeSessionRequest("anonymization", "PATCH", anonymizationPayload(enabled))
                     val confirmed = parseAnonymizationResponse(payload, currentSession.sessionId)
                     val expected = if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED
-                    complete(confirmed, if (confirmed == expected) null else "서버가 요청한 비식별화 설정을 적용하지 않았습니다.")
+                    complete(
+                        confirmed,
+                        if (confirmed == expected) null else AnonymizationFailure.NOT_APPLIED,
+                    )
                 } catch (_: Exception) {
                     // 응답 유실 시 서버에 적용됐을 수도 있으므로 실패를 Off로 해석하지 않습니다.
-                    complete(null, "비식별화 변경 여부를 확인하지 못했습니다. 다시 시도해 주세요.")
+                    complete(null, AnonymizationFailure.CONFIRMATION)
                 }
             },
-            onRejected = { complete(null, "비식별화 변경 요청을 시작하지 못했습니다.") },
+            onRejected = { complete(null, AnonymizationFailure.REQUEST) },
         )
     }
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
         runBroadcastOperation {
-            require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
-            updateBroadcastState(BroadcastState.SAVING_SETTINGS, "방송 설정 저장 중")
+            if (settings.madeForKids == null) {
+                updateBroadcastState(BroadcastState.FAILED, BroadcastFailure.AUDIENCE_REQUIRED)
+                return@runBroadcastOperation
+            }
+            updateBroadcastState(BroadcastState.SAVING_SETTINGS)
             putBroadcastSettings(settings)
-            updateBroadcastState(BroadcastState.IDLE, "방송 설정 저장됨")
+            updateBroadcastState(BroadcastState.IDLE)
         }
     }
 
     fun prepareBroadcast(settings: BroadcastSettings): Boolean {
         if (!broadcastState.canPrepare) return false
         return runBroadcastOperation {
-            require(settings.madeForKids != null) { "아동용 콘텐츠 여부를 선택해 주세요." }
-            updateBroadcastState(BroadcastState.SAVING_SETTINGS, "방송 설정 저장 중")
+            if (settings.madeForKids == null) {
+                updateBroadcastState(BroadcastState.FAILED, BroadcastFailure.AUDIENCE_REQUIRED)
+                return@runBroadcastOperation
+            }
+            updateBroadcastState(BroadcastState.SAVING_SETTINGS)
             putBroadcastSettings(settings)
-            updateBroadcastState(BroadcastState.PREPARING, "YouTube 방송 준비 중")
+            updateBroadcastState(BroadcastState.PREPARING)
             postSessionRequest("stream/prepare", JSONObject().put("provider", "youtube"))
-            updateBroadcastState(BroadcastState.PREPARED, "YouTube 라이브 전환 대기 중")
+            updateBroadcastState(BroadcastState.PREPARED)
         }
     }
 
     fun goLive() {
         if (!broadcastState.canGoLive) return
         runBroadcastOperation {
-            updateBroadcastState(BroadcastState.GOING_LIVE, "YouTube 라이브 전환 중")
+            updateBroadcastState(BroadcastState.GOING_LIVE)
             try {
                 goLiveWithRetry()
-                updateBroadcastState(BroadcastState.LIVE, "YouTube 방송 중")
+                updateBroadcastState(BroadcastState.LIVE)
             } catch (exception: ServerApiException) {
                 if (exception.code == "broadcast_not_ready") {
-                    updateBroadcastState(BroadcastState.PREPARED, exception.message.orEmpty())
+                    updateBroadcastState(BroadcastState.PREPARED, BroadcastFailure.YOUTUBE_NOT_READY)
                     return@runBroadcastOperation
                 }
                 throw exception
@@ -375,15 +384,12 @@ class WebRtcConnection(
     fun pauseBroadcast() {
         if (!broadcastState.canPause) return
         runBroadcastOperation {
-            updateBroadcastState(BroadcastState.PAUSING, "YouTube 송출 일시 중지 중")
+            updateBroadcastState(BroadcastState.PAUSING)
             try {
                 postSessionRequest("stream/pause")
-                updateBroadcastState(BroadcastState.PAUSED, "YouTube 송출 일시 중지됨")
+                updateBroadcastState(BroadcastState.PAUSED)
             } catch (exception: Exception) {
-                updateBroadcastState(
-                    BroadcastState.LIVE,
-                    exception.message ?: "YouTube 송출을 일시 중지하지 못했습니다.",
-                )
+                updateBroadcastState(BroadcastState.LIVE, BroadcastFailure.YOUTUBE_PAUSE)
             }
         }
     }
@@ -391,15 +397,12 @@ class WebRtcConnection(
     fun resumeBroadcast() {
         if (!broadcastState.canResume) return
         runBroadcastOperation {
-            updateBroadcastState(BroadcastState.RESUMING, "YouTube 송출 재개 중")
+            updateBroadcastState(BroadcastState.RESUMING)
             try {
                 postSessionRequest("stream/resume")
-                updateBroadcastState(BroadcastState.LIVE, "YouTube 방송 중")
+                updateBroadcastState(BroadcastState.LIVE)
             } catch (exception: Exception) {
-                updateBroadcastState(
-                    BroadcastState.PAUSED,
-                    exception.message ?: "YouTube 송출을 재개하지 못했습니다.",
-                )
+                updateBroadcastState(BroadcastState.PAUSED, BroadcastFailure.YOUTUBE_RESUME)
             }
         }
     }
@@ -408,16 +411,9 @@ class WebRtcConnection(
         if (!broadcastState.canStop) return
         runBroadcastOperation {
             val stoppingState = broadcastState.stoppingState()
-            val isCancellingPreparation = stoppingState == BroadcastState.CANCELLING_PREPARATION
-            updateBroadcastState(
-                stoppingState,
-                if (isCancellingPreparation) "YouTube 방송 준비 취소 중" else "YouTube 방송 종료 중",
-            )
+            updateBroadcastState(stoppingState)
             postSessionRequest("stream/stop")
-            updateBroadcastState(
-                BroadcastState.IDLE,
-                if (isCancellingPreparation) "YouTube 방송 준비 취소됨" else "YouTube 방송 종료됨",
-            )
+            updateBroadcastState(BroadcastState.IDLE)
         }
     }
 
@@ -430,15 +426,12 @@ class WebRtcConnection(
                     check(session != null) { "WebRTC 세션이 없습니다." }
                     operation()
                 } catch (exception: Exception) {
-                    updateBroadcastState(
-                        BroadcastState.FAILED,
-                        exception.message ?: "방송 요청을 처리하지 못했습니다.",
-                    )
+                    updateBroadcastState(BroadcastState.FAILED, exception.toBroadcastFailure())
                 } finally {
                     val completion = pendingBroadcastCompletion
                     pendingBroadcastCompletion = null
                     broadcastOperation.set(false)
-                    completion?.let { (state, message) -> dispatchBroadcastState(state, message) }
+                    completion?.let { (state, failure) -> dispatchBroadcastState(state, failure) }
                 }
             },
             onRejected = {
@@ -463,7 +456,7 @@ class WebRtcConnection(
             .build()
         return executeHttp(request).use { response ->
             val payload = response.body.string()
-            if (!response.isSuccessful) throw parseServerApiException(response.code, payload)
+            if (!response.isSuccessful) throw parseServerApiException(payload)
             payload
         }
     }
@@ -483,10 +476,7 @@ class WebRtcConnection(
                 }
             }
         }
-        throw ServerApiException(
-            "broadcast_not_ready",
-            "YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요.",
-        )
+        throw ServerApiException("broadcast_not_ready")
     }
 
     private fun updateBluetoothCommunicationRoute(audioInput: AudioDeviceInfo?) {
@@ -537,7 +527,7 @@ class WebRtcConnection(
                         audioRouteVerificationTask?.cancel(false)
                         audioRouteVerificationTask = null
                         if (isActive()) {
-                            fail("오디오 입력이 중지되었습니다.")
+                            fail(ConnectionFailure.MICROPHONE_BLOCKED)
                         }
                     }
                 }
@@ -640,7 +630,7 @@ class WebRtcConnection(
     }
 
     private fun sessionAlreadyExistsException() =
-        IOException("이미 활성화된 방송 세션이 있습니다. 기존 방송을 종료한 뒤 다시 시도해 주세요.")
+        ConnectionFailureException(ConnectionFailure.EXISTING_BROADCAST)
 
     private fun createPeerConnection(
         iceServers: List<PeerConnection.IceServer>,
@@ -689,13 +679,13 @@ class WebRtcConnection(
                     response: Response?,
                 ) {
                     if (isActive()) {
-                        fail(t.message ?: "WebRTC signaling 연결에 실패했습니다.")
+                        fail(ConnectionFailure.GENERIC)
                     }
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     if (isActive()) {
-                        fail("WebRTC signaling 연결이 종료되었습니다.")
+                        fail(ConnectionFailure.DISCONNECTED)
                     }
                 }
             },
@@ -721,7 +711,7 @@ class WebRtcConnection(
                                 }
 
                                 override fun onSetFailure(error: String) {
-                                    fail(error)
+                                    fail(ConnectionFailure.GENERIC)
                                 }
                             },
                             description,
@@ -730,7 +720,7 @@ class WebRtcConnection(
                 }
 
                 override fun onCreateFailure(error: String) {
-                    fail(error)
+                    fail(ConnectionFailure.GENERIC)
                 }
             },
             MediaConstraints(),
@@ -750,13 +740,13 @@ class WebRtcConnection(
         synchronized(signalLock) {
             val socket = webSocket ?: return
             if (!socket.send(payload)) {
-                fail("WebRTC offer를 전송하지 못했습니다.")
+                fail(ConnectionFailure.GENERIC)
                 return
             }
             offerSent = true
             pendingSignals.forEach { signal ->
                 if (!socket.send(signal)) {
-                    fail("ICE candidate를 전송하지 못했습니다.")
+                    fail(ConnectionFailure.GENERIC)
                     return
                 }
             }
@@ -786,7 +776,7 @@ class WebRtcConnection(
             if (!offerSent || socket == null) {
                 pendingSignals += payload
             } else if (!socket.send(payload)) {
-                fail("ICE candidate를 전송하지 못했습니다.")
+                fail(ConnectionFailure.GENERIC)
             }
         }
     }
@@ -797,11 +787,11 @@ class WebRtcConnection(
             val expectedSessionId = session?.sessionId ?: return
             when (val message = parseServerMessage(payload, expectedSessionId)) {
                 is ServerMessage.Answer -> applyAnswer(message.sdp)
-                is ServerMessage.Error -> fail(message.message)
+                is ServerMessage.Error -> fail(connectionFailureForServerCode(message.code))
                 is ServerMessage.IceCandidateAdded -> Unit
             }
-        } catch (exception: Exception) {
-            fail(exception.message ?: "서버 signaling 응답이 올바르지 않습니다.")
+        } catch (_: Exception) {
+            fail(ConnectionFailure.GENERIC)
         }
     }
 
@@ -813,13 +803,13 @@ class WebRtcConnection(
                 override fun onSetSuccess() {
                     executeOnOwner {
                         if (isActive() && peerConnection === connection) {
-                            updateState(WebRtcConnectionState.CONNECTING, "서버 영상 수신 대기 중")
+                            updateState(WebRtcConnectionState.CONNECTING)
                         }
                     }
                 }
 
                 override fun onSetFailure(error: String) {
-                    fail(error)
+                    fail(ConnectionFailure.GENERIC)
                 }
             },
             SessionDescription(SessionDescription.Type.ANSWER, sdp),
@@ -868,7 +858,7 @@ class WebRtcConnection(
         if (!isActive() || audioInputVerified) return
 
         if (actualAudioInputSilenced) {
-            fail("다른 앱 또는 시스템 정책으로 마이크 입력이 차단되었습니다.")
+            fail(ConnectionFailure.MICROPHONE_BLOCKED)
             return
         }
 
@@ -889,7 +879,7 @@ class WebRtcConnection(
             return
         }
 
-        fail("선택한 오디오 기기를 실제 입력으로 적용하지 못했습니다.")
+        fail(ConnectionFailure.MICROPHONE_UNAVAILABLE)
     }
 
     private fun updateConnectedState() {
@@ -897,10 +887,10 @@ class WebRtcConnection(
 
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null
-        updateState(WebRtcConnectionState.CONNECTED, "WebRTC 연결됨")
+        updateState(WebRtcConnectionState.CONNECTED)
     }
 
-    private fun fail(message: String) {
+    private fun fail(failure: ConnectionFailure) {
         val shouldStartShutdown = synchronized(shutdownLock) {
             if (closed.get() || terminal.get()) {
                 false
@@ -917,15 +907,15 @@ class WebRtcConnection(
         }
         if (!shouldStartShutdown) return
 
-        val category = when {
-            message == "WebRTC 연결 시간이 초과되었습니다." -> "timeout"
-            message.contains("signaling") -> "signaling"
-            message.contains("ICE") -> "ice"
-            message.contains("마이크") || message.contains("오디오") -> "audio"
+        val category = when (failure) {
+            ConnectionFailure.TIMEOUT -> "timeout"
+            ConnectionFailure.MICROPHONE_UNAVAILABLE,
+            ConnectionFailure.MICROPHONE_BLOCKED,
+            -> "audio"
             else -> "connection"
         }
         Log.w("LiveConnection", "connection_failed category=$category")
-        updateState(WebRtcConnectionState.FAILED, message)
+        updateState(WebRtcConnectionState.FAILED, failure)
         enqueueResourceRelease()
     }
 
@@ -1092,15 +1082,21 @@ class WebRtcConnection(
             .header("Authorization", "Bearer $accessToken")
     }
 
-    private fun updateState(state: WebRtcConnectionState, message: String) {
+    private fun updateState(
+        state: WebRtcConnectionState,
+        failure: ConnectionFailure? = null,
+    ) {
         mainHandler.post {
             if (closed.get()) return@post
             if (terminal.get() && state != WebRtcConnectionState.FAILED) return@post
-            onStateChanged(state, message)
+            onStateChanged(state, failure)
         }
     }
 
-    private fun updateBroadcastState(state: BroadcastState, message: String) {
+    private fun updateBroadcastState(
+        state: BroadcastState,
+        failure: BroadcastFailure? = null,
+    ) {
         if (!isActive()) return
         broadcastState = state
         when (state) {
@@ -1108,14 +1104,14 @@ class WebRtcConnection(
             BroadcastState.PREPARED,
             BroadcastState.LIVE,
             BroadcastState.PAUSED,
-            BroadcastState.FAILED -> pendingBroadcastCompletion = state to message
-            else -> dispatchBroadcastState(state, message)
+            BroadcastState.FAILED -> pendingBroadcastCompletion = state to failure
+            else -> dispatchBroadcastState(state, failure)
         }
     }
 
-    private fun dispatchBroadcastState(state: BroadcastState, message: String) {
+    private fun dispatchBroadcastState(state: BroadcastState, failure: BroadcastFailure?) {
         val callback = Runnable {
-            if (!closed.get()) onBroadcastStateChanged(state, message)
+            if (!closed.get()) onBroadcastStateChanged(state, failure)
         }
         if (broadcastCallbackExecutor != null) {
             broadcastCallbackExecutor.execute(callback)
@@ -1163,7 +1159,7 @@ class WebRtcConnection(
 
                 PeerConnection.PeerConnectionState.FAILED,
                 PeerConnection.PeerConnectionState.DISCONNECTED,
-                -> fail("WebRTC 연결이 끊겼습니다.")
+                -> fail(ConnectionFailure.DISCONNECTED)
 
                 else -> Unit
             }
@@ -1200,8 +1196,32 @@ class WebRtcConnection(
 
 private class ServerApiException(
     val code: String?,
-    message: String,
-) : IOException(message)
+) : IOException("Server API request failed")
+
+internal class ConnectionFailureException(
+    val failure: ConnectionFailure,
+    cause: Throwable? = null,
+) : IOException(cause)
+
+private fun Throwable.toBroadcastFailure(): BroadcastFailure = when (
+    (this as? ServerApiException)?.code
+) {
+    "streaming_not_connected" -> BroadcastFailure.YOUTUBE_NOT_CONNECTED
+    "live_streaming_blocked" -> BroadcastFailure.YOUTUBE_LIVE_BLOCKED
+    "streaming_reconnect_required" -> BroadcastFailure.YOUTUBE_RECONNECT
+    "streaming_prepare_failed" -> BroadcastFailure.YOUTUBE_PREPARE
+    "broadcast_stopped" -> BroadcastFailure.YOUTUBE_STOPPED
+    "broadcast_not_ready" -> BroadcastFailure.YOUTUBE_NOT_READY
+    else -> BroadcastFailure.REQUEST
+}
+
+private fun connectionFailureForServerCode(code: String): ConnectionFailure = when (code) {
+    "session_already_exists" -> ConnectionFailure.EXISTING_BROADCAST
+    else -> ConnectionFailure.GENERIC
+}
+
+private fun Throwable.toConnectionFailure(): ConnectionFailure =
+    (this as? ConnectionFailureException)?.failure ?: ConnectionFailure.GENERIC
 
 internal fun isBluetoothAudioInputType(type: Int): Boolean = when (type) {
     AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
@@ -1257,20 +1277,11 @@ private fun requireSuccessful(response: Response, operation: String) {
     }
 }
 
-private fun parseServerApiException(statusCode: Int, payload: String): ServerApiException {
+private fun parseServerApiException(payload: String): ServerApiException {
     val error = runCatching { JSONObject(payload).optJSONObject("error") }.getOrNull()
     val code = error?.optString("code")?.takeIf { it.isNotBlank() }
-    val fallback = error?.optString("message")?.takeIf { it.isNotBlank() }
-        ?: "서버 요청 실패: HTTP $statusCode"
-    val message = when (code) {
-        "streaming_not_connected" -> "YouTube 계정을 먼저 연결해 주세요."
-        "live_streaming_blocked" -> "YouTube 라이브 기능을 먼저 활성화해 주세요."
-        "streaming_reconnect_required" -> "YouTube 계정을 다시 연결해 주세요."
-        "streaming_prepare_failed" -> "YouTube 방송을 준비하지 못했습니다."
-        "broadcast_stopped" -> "라이브 전환 중 방송이 종료되었습니다."
-        else -> fallback
-    }
-    return ServerApiException(code, message)
+    // 서버의 자유 형식 message는 보관하거나 화면에 노출하지 않습니다. wire error code만 유지합니다.
+    return ServerApiException(code)
 }
 
 internal fun buildBroadcastSettingsPayload(settings: BroadcastSettings): JSONObject = JSONObject()

@@ -101,6 +101,18 @@ class BroadcastApiFlowTest {
         }
     }
 
+    @Test fun serverFreeFormErrorIsReducedToTypedBroadcastFailure() {
+        Harness().use { h ->
+            h.settingsStatus = 500
+            h.serverErrorMessage = "internal upstream error: retry-id=abc123"
+
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.FAILED)
+
+            assertEquals(BroadcastFailure.REQUEST, h.failures.last().second)
+        }
+    }
+
     @Test fun notReadyGoLiveRetriesAndStopFailureDoesNotReportIdle() {
         Harness().use { h ->
             assertTrue(h.connection.prepareBroadcast(settings))
@@ -151,6 +163,7 @@ class BroadcastApiFlowTest {
     ) : AutoCloseable {
         val requests = CopyOnWriteArrayList<Request>()
         val states = CopyOnWriteArrayList<BroadcastState>()
+        val failures = CopyOnWriteArrayList<Pair<BroadcastState, BroadcastFailure?>>()
         private val events = LinkedBlockingQueue<BroadcastState>()
         @Volatile var patchStatus = 200
         @Volatile var settingsStatus = 200
@@ -159,6 +172,7 @@ class BroadcastApiFlowTest {
         @Volatile var resumeStatus = 200
         @Volatile var deleteStatus = 204
         @Volatile var goLiveNotReady = false
+        @Volatile var serverErrorMessage: String? = null
         val connection = WebRtcConnection(
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
@@ -167,8 +181,9 @@ class BroadcastApiFlowTest {
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},
             onLocalMediaReady = { _, _ -> }, onLocalMediaCleared = {},
-            onBroadcastStateChanged = { state, _ ->
+            onBroadcastStateChanged = { state, failure ->
                 states.add(state)
+                failures.add(state to failure)
                 events.add(state)
                 onBroadcastState(state)
             },
@@ -199,6 +214,13 @@ class BroadcastApiFlowTest {
                     request.url.encodedPath.endsWith("resume") -> resumeStatus
                     else -> 200
                 }
+                serverErrorMessage?.let { message ->
+                    if (status >= 400 && payload == "{}") {
+                        payload = JSONObject()
+                            .put("error", JSONObject().put("code", "unexpected_failure").put("message", message))
+                            .toString()
+                    }
+                }
                 Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
                     .code(status).message("fixture").body(payload.toResponseBody()).build()
             }.build()
@@ -225,9 +247,9 @@ class BroadcastApiFlowTest {
             }
         }
 
-        fun patchResult(enabled: Boolean): Pair<AnonymizationState?, String?> {
+        fun patchResult(enabled: Boolean): Pair<AnonymizationState?, AnonymizationFailure?> {
             val completed = CountDownLatch(1)
-            var result: Pair<AnonymizationState?, String?>? = null
+            var result: Pair<AnonymizationState?, AnonymizationFailure?>? = null
             connection.setAnonymizationEnabled(enabled) { state, error ->
                 result = state to error
                 completed.countDown()

@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
@@ -39,13 +40,15 @@ class WebRtcSessionViewModel : ViewModel() {
         get() = sessionState.anonymization
     val anonymizationChange: AnonymizationChange
         get() = sessionState.anonymizationChange
-    var connectionStatus by mutableStateOf("")
+    var connectionStatus by mutableStateOf<UiText?>(null)
         private set
     var remoteVideoTrack by mutableStateOf<VideoTrack?>(null)
         private set
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
-    var broadcastStatus by mutableStateOf("방송 대기")
+    var broadcastStatus by mutableStateOf(broadcastStateMessage(BroadcastState.IDLE).text)
+        private set
+    var isBroadcastStatusDefault by mutableStateOf(true)
         private set
     var broadcastStartedAtElapsedRealtimeMillis by mutableStateOf<Long?>(null)
         private set
@@ -122,11 +125,12 @@ class WebRtcSessionViewModel : ViewModel() {
         eglContext = null
         if (previousConnection != null) {
             broadcastState = BroadcastState.IDLE
-            broadcastStatus = "방송 대기"
+            broadcastStatus = broadcastStateMessage(BroadcastState.IDLE).text
+            isBroadcastStatusDefault = true
             broadcastStartedAtElapsedRealtimeMillis = null
         }
 
-        connectionStatus = "연결 준비 중…"
+        connectionStatus = UiText.Resource(com.framework.innolive.R.string.preview_connecting)
         startJob = viewModelScope.launch {
             try {
                 previousConnection?.let { oldConnection -> awaitClose(oldConnection) }
@@ -142,13 +146,16 @@ class WebRtcSessionViewModel : ViewModel() {
                     accessToken = accessToken,
                     initialAnonymizationEnabled = initialEnabled,
                     preferredAudioInput = selectedAudioInput,
-                    onStateChanged = { state, message ->
+                    onStateChanged = { state, failure ->
                         if (sessionState.acceptsCallback(generation)) {
                             sessionState = sessionState.connectionChanged(generation, state)
-                            connectionStatus = connectionUserMessage(state, message)
+                            connectionStatus = connectionUserMessage(state, failure)
                             if (state == WebRtcConnectionState.FAILED && broadcastState != BroadcastState.IDLE) {
                                 broadcastState = BroadcastState.FAILED
-                                broadcastStatus = "연결이 끊겨 방송 준비를 계속할 수 없습니다. 다시 시도해 주세요."
+                                broadcastStatus = UiText.Resource(
+                                    com.framework.innolive.R.string.error_broadcast_connection_lost,
+                                )
+                                isBroadcastStatusDefault = false
                                 broadcastStartedAtElapsedRealtimeMillis = null
                             }
                         }
@@ -175,7 +182,7 @@ class WebRtcSessionViewModel : ViewModel() {
                             }
                         }
                     },
-                    onBroadcastStateChanged = { state, message ->
+                    onBroadcastStateChanged = { state, failure ->
                         if (sessionState.acceptsCallback(generation)) {
                             broadcastStartedAtElapsedRealtimeMillis = nextBroadcastStartedAt(
                                 currentStartedAtMillis = broadcastStartedAtElapsedRealtimeMillis,
@@ -183,7 +190,9 @@ class WebRtcSessionViewModel : ViewModel() {
                                 nowMillis = SystemClock.elapsedRealtime(),
                             )
                             broadcastState = state
-                            broadcastStatus = if (state == BroadcastState.FAILED) broadcastUserMessage(message) else message
+                            val feedback = broadcastUserMessage(state, failure)
+                            broadcastStatus = feedback.text
+                            isBroadcastStatusDefault = feedback.isStateDescription
                         }
                     },
                 )
@@ -196,13 +205,17 @@ class WebRtcSessionViewModel : ViewModel() {
             } catch (exception: CancellationException) {
                 if (isCurrentGeneration(generation)) {
                     sessionState = sessionState.connectionChanged(generation, WebRtcConnectionState.IDLE)
-                    connectionStatus = ""
+                    connectionStatus = null
                 }
                 throw exception
             } catch (exception: Exception) {
                 if (isCurrentGeneration(generation)) {
                     sessionState = sessionState.connectionChanged(generation, WebRtcConnectionState.FAILED)
-                    connectionStatus = connectionUserMessage(WebRtcConnectionState.FAILED, exception.message.orEmpty())
+                    connectionStatus = connectionUserMessage(
+                        WebRtcConnectionState.FAILED,
+                        (exception as? ConnectionFailureException)?.failure
+                            ?: ConnectionFailure.GENERIC,
+                    )
                 }
             }
         }
@@ -217,7 +230,12 @@ class WebRtcSessionViewModel : ViewModel() {
         val generation = next.generation
         val requestId = next.anonymizationChange.requestId
         currentConnection.setAnonymizationEnabled(enabled) { confirmed, error ->
-            val nextState = sessionState.finishAnonymizationChange(generation, requestId, confirmed, error)
+            val nextState = sessionState.finishAnonymizationChange(
+                generation,
+                requestId,
+                confirmed,
+                error?.let(::anonymizationUserMessage),
+            )
             if (nextState != sessionState && error == null &&
                 confirmed == if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED) {
                 anonymizationPreference?.enabled = enabled
@@ -232,7 +250,8 @@ class WebRtcSessionViewModel : ViewModel() {
         connection?.saveBroadcastSettings(settings)
             ?: run {
                 broadcastState = BroadcastState.FAILED
-                broadcastStatus = "미리보기를 먼저 연결해 주세요."
+                broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_preview_required)
+                isBroadcastStatusDefault = false
             }
     }
 
@@ -245,17 +264,20 @@ class WebRtcSessionViewModel : ViewModel() {
         if (isPreparingBroadcast || !broadcastState.canPrepare) return false
         if (!validateYouTubeLiveSettings(settings).isValid) {
             broadcastState = BroadcastState.FAILED
-            broadcastStatus = "방송 제목, 설명과 아동용 콘텐츠 여부를 확인해 주세요."
+            broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_validation)
+            isBroadcastStatusDefault = false
             return false
         }
         if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
             broadcastState = BroadcastState.FAILED
-            broadcastStatus = "카메라와 마이크 권한을 허용한 뒤 다시 시도해 주세요."
+            broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_media_permission)
+            isBroadcastStatusDefault = false
             return false
         }
         isPreparingBroadcast = true
         broadcastState = BroadcastState.IDLE
-        broadcastStatus = "방송 준비 중"
+        broadcastStatus = broadcastStateMessage(BroadcastState.PREPARING).text
+        isBroadcastStatusDefault = true
         start(context.applicationContext, refreshAccessToken)
         val generation = sessionState.generation
         prepareJob = viewModelScope.launch {
@@ -269,7 +291,8 @@ class WebRtcSessionViewModel : ViewModel() {
                 val activeConnection = connection
                 if (connectionState != WebRtcConnectionState.CONNECTED || activeConnection == null) {
                     broadcastState = BroadcastState.FAILED
-                    broadcastStatus = "연결하지 못해 방송을 준비하지 못했습니다. 다시 시도해 주세요."
+                    broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_connect)
+                    isBroadcastStatusDefault = false
                     return@launch
                 }
                 requestBroadcastPreparation(activeConnection, settings)
@@ -277,7 +300,8 @@ class WebRtcSessionViewModel : ViewModel() {
                 if (isCurrentGeneration(generation)) {
                     close()
                     broadcastState = BroadcastState.FAILED
-                    broadcastStatus = "연결 시간이 초과되었습니다. 방송 준비를 다시 시도해 주세요."
+                    broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_timeout)
+                    isBroadcastStatusDefault = false
                 }
             } finally {
                 if (isCurrentGeneration(generation)) isPreparingBroadcast = false
@@ -292,11 +316,13 @@ class WebRtcSessionViewModel : ViewModel() {
         settings: BroadcastSettings,
     ): Boolean {
         broadcastState = BroadcastState.SAVING_SETTINGS
-        broadcastStatus = "방송 설정 저장 중"
+        broadcastStatus = broadcastStateMessage(BroadcastState.SAVING_SETTINGS).text
+        isBroadcastStatusDefault = true
         if (activeConnection.prepareBroadcast(settings)) return true
 
         broadcastState = BroadcastState.FAILED
-        broadcastStatus = "방송 준비 요청을 시작하지 못했습니다. 다시 시도해 주세요."
+        broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_request)
+        isBroadcastStatusDefault = false
         return false
     }
 
@@ -330,9 +356,10 @@ class WebRtcSessionViewModel : ViewModel() {
         frameAnalyzer = null
         eglContext = null
         currentConnection?.close()
-        connectionStatus = ""
+        connectionStatus = null
         broadcastState = BroadcastState.IDLE
-        broadcastStatus = "방송 대기"
+        broadcastStatus = broadcastStateMessage(BroadcastState.IDLE).text
+        isBroadcastStatusDefault = true
         broadcastStartedAtElapsedRealtimeMillis = null
     }
 

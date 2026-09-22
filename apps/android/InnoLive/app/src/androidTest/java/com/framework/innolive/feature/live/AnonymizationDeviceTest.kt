@@ -44,7 +44,7 @@ class AnonymizationDeviceTest {
             }
             compose.waitUntil(45_000) { session.connectionState == WebRtcConnectionState.CONNECTED || session.connectionState == WebRtcConnectionState.FAILED }
             compose.runOnIdle {
-                assertEquals(session.connectionStatus, WebRtcConnectionState.CONNECTED, session.connectionState)
+                assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
                 assertEquals(AnonymizationState.DISABLED, session.anonymizationState)
                 assertFalse(session.selectInitialAnonymization(compose.activity, true))
                 Log.i("AnonymizationDeviceTest", "초기 Off 확인 후 WebRTC 연결 성공")
@@ -60,7 +60,7 @@ class AnonymizationDeviceTest {
                 }
                 compose.waitUntil(20_000) { session.anonymizationChange.status != AnonymizationChangeStatus.CHANGING }
                 compose.runOnIdle {
-                    assertEquals(session.anonymizationChange.errorMessage, AnonymizationChangeStatus.IDLE, session.anonymizationChange.status)
+                    assertEquals(AnonymizationChangeStatus.IDLE, session.anonymizationChange.status)
                     assertEquals(if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED, session.anonymizationState)
                     assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
                     assertSame(originalTrack, session.remoteVideoTrack)
@@ -76,7 +76,7 @@ class AnonymizationDeviceTest {
             }
             compose.waitUntil(45_000) { session.connectionState == WebRtcConnectionState.CONNECTED || session.connectionState == WebRtcConnectionState.FAILED }
             compose.runOnIdle {
-                assertEquals(session.connectionStatus, WebRtcConnectionState.CONNECTED, session.connectionState)
+                assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
                 assertEquals(AnonymizationState.DISABLED, session.anonymizationState)
                 assertFalse(session.selectedAnonymizationEnabled)
                 Log.i("AnonymizationDeviceTest", "재연결 새 세션 Off 복원 확인")
@@ -87,7 +87,7 @@ class AnonymizationDeviceTest {
             }
             compose.waitUntil(45_000) { session.connectionState == WebRtcConnectionState.CONNECTED || session.connectionState == WebRtcConnectionState.FAILED }
             compose.runOnIdle {
-                assertEquals(session.connectionStatus, WebRtcConnectionState.CONNECTED, session.connectionState)
+                assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
                 assertEquals(AnonymizationState.ENABLED, session.anonymizationState)
                 Log.i("AnonymizationDeviceTest", "초기 On 확인 후 WebRTC 연결 성공")
                 assertTrue(session.setAnonymizationEnabled(false))

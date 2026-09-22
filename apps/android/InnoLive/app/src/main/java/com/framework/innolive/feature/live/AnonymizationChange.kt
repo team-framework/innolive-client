@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import org.json.JSONObject
+import com.framework.innolive.ui.text.UiText
 
 // 확인된 설정값과 별도로 요청의 진행·실패 상태를 보관합니다.
 enum class AnonymizationChangeStatus { IDLE, CHANGING, FAILED }
@@ -9,7 +10,7 @@ data class AnonymizationChange(
     val status: AnonymizationChangeStatus = AnonymizationChangeStatus.IDLE,
     val requestId: Long = 0,
     val requestedEnabled: Boolean? = null,
-    val errorMessage: String? = null,
+    val errorMessage: UiText? = null,
 )
 
 internal fun anonymizationPayload(enabled: Boolean): JSONObject = JSONObject().put("enabled", enabled)

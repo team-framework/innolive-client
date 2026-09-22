@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
@@ -42,6 +43,7 @@ import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
+import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.delay
 
 @Composable
@@ -56,11 +58,13 @@ fun LiveScreen(
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val broadcastStatus = webRtcSession.broadcastStatus.asString()
     val presentation = buildLiveScreenPresentation(
         connectionState = webRtcSession.connectionState,
         broadcastState = webRtcSession.broadcastState,
         selectedPlatform = selectedPlatform,
-        broadcastStatus = webRtcSession.broadcastStatus,
+        broadcastStatus = broadcastStatus,
+        isBroadcastStatusDefault = webRtcSession.isBroadcastStatusDefault,
         isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
     )
     val broadcastDurationText = rememberBroadcastDurationText(
@@ -307,16 +311,18 @@ fun LiveScreen(
                 },
             )
             if (webRtcSession.connectionState == WebRtcConnectionState.FAILED) {
-                Text(
-                    webRtcSession.connectionStatus,
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                )
+                webRtcSession.connectionStatus?.let { status ->
+                    Text(
+                        status.asString(),
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
             }
             webRtcSession.anonymizationChange.errorMessage?.let { error ->
                 Text(
-                    text = "$error 비식별화 아이콘을 눌러 다시 시도해 주세요.",
+                    text = stringResource(R.string.anonymization_error_retry, error.asString()),
                     modifier = Modifier.padding(horizontal = 24.dp),
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium,
@@ -380,7 +386,7 @@ internal fun BroadcastActionControls(
             Box(contentAlignment = Alignment.Center) {
                 centerOverlay()
                 VerticalHeroButton(
-                    text = presentation.broadcastButtonText,
+                    text = stringResource(presentation.broadcastButtonTextRes),
                     enabled = presentation.isBroadcastButtonEnabled,
                     onClick = onBroadcastAction,
                 )

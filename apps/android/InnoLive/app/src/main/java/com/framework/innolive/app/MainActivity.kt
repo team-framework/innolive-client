@@ -71,6 +71,7 @@ import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
+import com.framework.innolive.ui.text.asString
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
@@ -758,7 +759,7 @@ fun AppNavigation(
                                 isAccountDeletionPending = isAccountDeletionPending,
                                 isAccountDeletionCleanupPending =
                                     accountDeletionState.localCleanupPending,
-                                accountDeletionError = accountDeletionState.error,
+                                accountDeletionError = accountDeletionState.error?.asString(),
                             ),
                         )
                     }
@@ -865,7 +866,7 @@ fun AppNavigation(
                                 statusMessage = if (
                                     webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
                                 ) {
-                                    webRtcSession.broadcastStatus
+                                    webRtcSession.broadcastStatus.asString()
                                 } else {
                                     "비식별화 연결 후 방송 설정을 저장할 수 있습니다."
                                 },

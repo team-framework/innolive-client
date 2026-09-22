@@ -18,9 +18,10 @@ class LiveScreenPresentationTest {
             broadcastState = BroadcastState.LIVE,
             selectedPlatform = "YouTube",
             broadcastStatus = "YouTube 방송 중",
+            isBroadcastStatusDefault = true,
         )
 
-        assertEquals("방송 중", presentation.broadcastButtonText)
+        assertEquals(R.string.broadcast_state_live, presentation.broadcastButtonTextRes)
         assertTrue(presentation.isBroadcastButtonEnabled)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, presentation.broadcastAction)
         assertEquals("", presentation.broadcastStatusText)
@@ -39,15 +40,16 @@ class LiveScreenPresentationTest {
             broadcastState = BroadcastState.PREPARING,
             selectedPlatform = "YouTube",
             broadcastStatus = "YouTube 방송 준비 중",
+            isBroadcastStatusDefault = true,
         )
 
-        assertEquals("방송 준비 완료", prepared.broadcastButtonText)
+        assertEquals(R.string.broadcast_state_prepared, prepared.broadcastButtonTextRes)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, prepared.broadcastAction)
         assertTrue(prepared.isBroadcastPrepared)
         assertTrue(prepared.isBroadcastButtonEnabled)
         assertEquals("방송 준비 완료", prepared.broadcastStatusText)
 
-        assertEquals("방송 준비 중", preparing.broadcastButtonText)
+        assertEquals(R.string.broadcast_state_preparing, preparing.broadcastButtonTextRes)
         assertEquals(LiveBroadcastAction.PREPARE_BROADCAST, preparing.broadcastAction)
         assertTrue(preparing.isBroadcastBusy)
         assertFalse(preparing.isBroadcastButtonEnabled)
@@ -65,7 +67,7 @@ class LiveScreenPresentationTest {
 
         assertTrue(paused.isBroadcastLive)
         assertTrue(paused.isBroadcastPaused)
-        assertEquals("방송 일시 중지", paused.broadcastButtonText)
+        assertEquals(R.string.broadcast_state_paused, paused.broadcastButtonTextRes)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, paused.broadcastAction)
         assertEquals("YouTube 송출 일시 중지됨", paused.broadcastStatusText)
         assertEquals(BroadcastState.STOPPING, BroadcastState.PAUSED.stoppingState())
@@ -123,7 +125,7 @@ class LiveScreenPresentationTest {
                 isPreparingBroadcast = true,
             )
             assertFalse(preparing.isBroadcastButtonEnabled)
-            assertEquals("방송 준비 중", preparing.broadcastButtonText)
+            assertEquals(R.string.broadcast_state_preparing, preparing.broadcastButtonTextRes)
         }
         val connecting = buildLiveScreenPresentation(
             WebRtcConnectionState.CONNECTING, BroadcastState.IDLE, "YouTube", "",
@@ -140,12 +142,14 @@ class LiveScreenPresentationTest {
             cancelledState,
             "YouTube",
             "YouTube 방송 준비 취소 중",
+            isBroadcastStatusDefault = true,
         )
         val stopping = buildLiveScreenPresentation(
             WebRtcConnectionState.CONNECTED,
             stoppedState,
             "YouTube",
             "YouTube 방송 종료 중",
+            isBroadcastStatusDefault = true,
         )
         val idle = buildLiveScreenPresentation(
             WebRtcConnectionState.CONNECTED,
@@ -155,13 +159,13 @@ class LiveScreenPresentationTest {
         )
 
         assertEquals(BroadcastState.CANCELLING_PREPARATION, cancelledState)
-        assertEquals("방송 준비 취소 중", cancelling.broadcastButtonText)
+        assertEquals(R.string.broadcast_state_cancelling, cancelling.broadcastButtonTextRes)
         assertFalse(cancelling.isBroadcastButtonEnabled)
         assertEquals("", cancelling.broadcastStatusText)
         assertEquals(BroadcastState.STOPPING, stoppedState)
-        assertEquals("방송 종료 중", stopping.broadcastButtonText)
+        assertEquals(R.string.broadcast_state_stopping, stopping.broadcastButtonTextRes)
         assertFalse(stopping.isBroadcastButtonEnabled)
-        assertEquals("방송 준비", idle.broadcastButtonText)
+        assertEquals(R.string.action_prepare_broadcast, idle.broadcastButtonTextRes)
         assertTrue(idle.isBroadcastButtonEnabled)
     }
 
@@ -211,6 +215,7 @@ class LiveScreenPresentationTest {
                 state,
                 "YouTube",
                 status,
+                isBroadcastStatusDefault = true,
             )
             assertEquals("Duplicate status for $state", "", presentation.broadcastStatusText)
         }

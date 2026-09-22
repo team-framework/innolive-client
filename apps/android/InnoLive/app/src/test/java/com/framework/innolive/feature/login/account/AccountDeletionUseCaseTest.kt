@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.login.account
 
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +47,18 @@ class AccountDeletionUseCaseTest {
         assertTrue(result is AccountDeletionResult.Failed)
         assertEquals(0, refreshCount)
         assertEquals(listOf("access-token"), gateway.accessTokens)
+    }
+
+    @Test
+    fun serverSuppliedDeletionMessageIsNotStoredInUiState() = runBlocking {
+        val result = AccountDeletionUseCase(
+            FakeGateway(AccountDeletionException(code = "withdrawal_unavailable", message = "internal server detail")),
+        ) { "unused" }.delete("access-token")
+
+        assertEquals(
+            AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion)),
+            result,
+        )
     }
 
     @Test
@@ -161,7 +175,7 @@ class AccountDeletionUseCaseTest {
             AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING,
             coordinator.state.value.pendingPhase,
         )
-        assertTrue(coordinator.state.value.error?.contains("기기 데이터 정리") == true)
+        assertEquals(UiText.Resource(R.string.error_account_cleanup), coordinator.state.value.error)
         coordinatorJob.cancel()
     }
 
@@ -256,7 +270,7 @@ class AccountDeletionUseCaseTest {
             deleteRemoteAccount = {
                 remoteCount += 1
                 if (remoteCount == 1) {
-                    AccountDeletionResult.Failed("network failure")
+                    AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
                 } else {
                     AccountDeletionResult.Deleted
                 }
@@ -270,7 +284,9 @@ class AccountDeletionUseCaseTest {
         )
 
         coordinator.delete { closeCount += 1 }
-        withTimeout(2_000) { coordinator.state.first { it.error == "network failure" } }
+        withTimeout(2_000) {
+            coordinator.state.first { it.error == UiText.Resource(R.string.error_account_deletion) }
+        }
         assertEquals(0, closeCount)
         assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
 
@@ -312,7 +328,7 @@ class AccountDeletionUseCaseTest {
         assertEquals(1, remoteDeletionCount)
         assertEquals(0, authenticationClearCount)
         assertTrue(cleanupMarkerPresent)
-        assertTrue(coordinator.state.value.error?.contains("기기 데이터 정리") == true)
+        assertEquals(UiText.Resource(R.string.error_account_cleanup), coordinator.state.value.error)
 
         coordinator.delete()
         withTimeout(2_000) {
@@ -366,14 +382,16 @@ class AccountDeletionUseCaseTest {
         val coordinator = AccountDeletionCoordinator(
             scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
             currentSession = { session() },
-            deleteRemoteAccount = { AccountDeletionResult.Failed("old account error") },
+            deleteRemoteAccount = {
+                AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
+            },
             clearLocalAccountData = {},
             clearAuthentication = {},
         )
 
         coordinator.delete()
         withTimeout(2_000) {
-            coordinator.state.first { it.error == "old account error" }
+            coordinator.state.first { it.error == UiText.Resource(R.string.error_account_deletion) }
         }
         coordinator.authenticationChanged(null)
 
@@ -397,7 +415,7 @@ class AccountDeletionUseCaseTest {
             coordinator.state.first { it.error != null && !it.isInProgress }
         }
 
-        assertTrue(coordinator.state.value.error?.contains("계정을 삭제하지 못했습니다") == true)
+        assertEquals(UiText.Resource(R.string.error_account_deletion), coordinator.state.value.error)
         assertEquals(false, coordinator.state.value.localCleanupPending)
         assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
         coordinatorJob.cancel()
