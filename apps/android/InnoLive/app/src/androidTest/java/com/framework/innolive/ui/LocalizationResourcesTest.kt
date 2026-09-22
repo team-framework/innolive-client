@@ -5,6 +5,8 @@ import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.resolve
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,6 +41,19 @@ class LocalizationResourcesTest {
             "Google로 계속하기",
             localizedContext("fr").getString(R.string.continue_with_google),
         )
+    }
+
+    @Test
+    fun retainedUiTextResolvesInTheCurrentAppLanguage() {
+        val status = UiText.Resource(R.string.broadcast_state_prepared)
+        val saved = UiText.Resource(R.string.broadcast_settings_saved)
+        val error = UiText.Resource(R.string.error_account_deletion)
+
+        assertEquals("방송 준비 완료", status.resolve(localizedContext("ko")))
+        assertEquals("Broadcast prepared", status.resolve(localizedContext("en")))
+        assertEquals("配信の準備完了", status.resolve(localizedContext("ja")))
+        assertEquals("Broadcast settings saved.", saved.resolve(localizedContext("en")))
+        assertEquals("We could not delete your account. Please try again later.", error.resolve(localizedContext("en")))
     }
 
     @Test

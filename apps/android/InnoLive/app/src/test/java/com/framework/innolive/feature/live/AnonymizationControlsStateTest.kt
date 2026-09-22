@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -25,7 +27,10 @@ class AnonymizationControlsStateTest {
         assertEquals(true, pending.selectedEnabled)
         assertFalse(pending.canChange)
         assertEquals("비식별화 변경 중", pending.label)
-        val failed = state(change = AnonymizationChange(status = AnonymizationChangeStatus.FAILED, errorMessage = "오류"))
+        val failed = state(change = AnonymizationChange(
+            status = AnonymizationChangeStatus.FAILED,
+            errorMessage = UiText.Resource(R.string.error_anonymization_request),
+        ))
         assertEquals(true, failed.selectedEnabled)
         assertTrue(failed.canChange)
     }

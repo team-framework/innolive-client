@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -37,10 +39,11 @@ class AnonymizationChangeTest {
 
     @Test fun failedRequestPreservesLastKnownValueAndCanRetryEvenSameValue() {
         val pending = connected().beginAnonymizationChange(false)
-        val failed = pending.finishAnonymizationChange(pending.generation, pending.anonymizationChange.requestId, null, "확인 실패")
+        val error = UiText.Resource(R.string.error_anonymization_confirmation)
+        val failed = pending.finishAnonymizationChange(pending.generation, pending.anonymizationChange.requestId, null, error)
         assertEquals(AnonymizationState.ENABLED, failed.anonymization)
         assertEquals(WebRtcConnectionState.CONNECTED, failed.connection)
-        assertEquals("확인 실패", failed.anonymizationChange.errorMessage)
+        assertEquals(error, failed.anonymizationChange.errorMessage)
         val retry = failed.beginAnonymizationChange(true)
         assertEquals(AnonymizationChangeStatus.CHANGING, retry.anonymizationChange.status)
         assertNull(retry.anonymizationChange.errorMessage)
@@ -59,7 +62,12 @@ class AnonymizationChangeTest {
 
     @Test fun serverMismatchUsesConfirmedServerValueAndReportsFailure() {
         val p = connected().beginAnonymizationChange(false)
-        val result = p.finishAnonymizationChange(p.generation, p.anonymizationChange.requestId, AnonymizationState.ENABLED, "미적용")
+        val result = p.finishAnonymizationChange(
+            p.generation,
+            p.anonymizationChange.requestId,
+            AnonymizationState.ENABLED,
+            UiText.Resource(R.string.error_anonymization_not_applied),
+        )
         assertEquals(AnonymizationState.ENABLED, result.anonymization)
         assertEquals(AnonymizationChangeStatus.FAILED, result.anonymizationChange.status)
     }

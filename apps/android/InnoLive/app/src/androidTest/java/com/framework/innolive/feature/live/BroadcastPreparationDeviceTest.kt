@@ -54,7 +54,7 @@ class BroadcastPreparationDeviceTest {
                 }
                 compose.waitUntil(25_000) { session.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED) }
                 compose.runOnIdle {
-                    assertEquals(session.broadcastStatus, BroadcastState.IDLE, session.broadcastState)
+                    assertEquals(BroadcastState.IDLE, session.broadcastState)
                     assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
                     if (attempt == 1) {
                         assertTrue(session.prepareBroadcast(compose.activity, settings, auth::refreshAccessToken))
@@ -69,6 +69,6 @@ class BroadcastPreparationDeviceTest {
 
     private fun waitForPrepared(session: WebRtcSessionViewModel) {
         compose.waitUntil(65_000) { session.broadcastState in setOf(BroadcastState.PREPARED, BroadcastState.FAILED) }
-        compose.runOnIdle { assertEquals(session.broadcastStatus, BroadcastState.PREPARED, session.broadcastState) }
+        compose.runOnIdle { assertEquals(BroadcastState.PREPARED, session.broadcastState) }
     }
 }

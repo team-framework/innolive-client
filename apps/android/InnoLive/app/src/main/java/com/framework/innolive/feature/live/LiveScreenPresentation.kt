@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live
 
+import androidx.annotation.StringRes
+import com.framework.innolive.R
 enum class LiveBroadcastAction {
     SHOW_BROADCAST_ACTIONS,
     PREPARE_BROADCAST,
@@ -13,10 +15,11 @@ data class LiveScreenPresentation(
     val isBroadcastPrepared: Boolean,
     val isBroadcastPaused: Boolean,
     val isBroadcastBusy: Boolean,
-    val broadcastButtonText: String,
+    @param:StringRes val broadcastButtonTextRes: Int,
     val isBroadcastButtonEnabled: Boolean,
     val broadcastAction: LiveBroadcastAction,
     val broadcastStatusText: String,
+    val isBroadcastStatusDefault: Boolean,
     val isBroadcastStatusError: Boolean,
 )
 
@@ -25,6 +28,7 @@ fun buildLiveScreenPresentation(
     broadcastState: BroadcastState,
     selectedPlatform: String?,
     broadcastStatus: String,
+    isBroadcastStatusDefault: Boolean = false,
     isPreparingBroadcast: Boolean = false,
 ): LiveScreenPresentation {
     val isConnected = connectionState == WebRtcConnectionState.CONNECTED
@@ -42,9 +46,8 @@ fun buildLiveScreenPresentation(
         // The connection status above the broadcast controls already explains this failure.
         connectionState == WebRtcConnectionState.FAILED -> ""
 
-        // Hide only the known provider messages that repeat the primary button.
-        // Other status text can contain recovery guidance or an operation-specific error.
-        broadcastState.hasRedundantButtonStatus(broadcastStatus) -> ""
+        // Hide only a known state description that repeats the primary button.
+        isBroadcastStatusDefault -> ""
 
         broadcastState != BroadcastState.IDLE -> broadcastStatus
         else -> ""
@@ -57,33 +60,24 @@ fun buildLiveScreenPresentation(
         isBroadcastPrepared = isBroadcastPrepared,
         isBroadcastPaused = isBroadcastPaused,
         isBroadcastBusy = isBroadcastBusy,
-        broadcastButtonText = when {
-            isBroadcastPaused -> "방송 일시 중지"
-            isBroadcastLive -> "방송 중"
-            isBroadcastPrepared -> "방송 준비 완료"
-            broadcastState == BroadcastState.PAUSING -> "방송 일시 중지 중"
-            broadcastState == BroadcastState.RESUMING -> "방송 재개 중"
-            broadcastState == BroadcastState.CANCELLING_PREPARATION -> "방송 준비 취소 중"
-            broadcastState == BroadcastState.STOPPING -> "방송 종료 중"
-            isBroadcastBusy -> "방송 준비 중"
-            else -> "방송 준비"
+        broadcastButtonTextRes = when {
+            isBroadcastPaused -> R.string.broadcast_state_paused
+            isBroadcastLive -> R.string.broadcast_state_live
+            isBroadcastPrepared -> R.string.broadcast_state_prepared
+            broadcastState == BroadcastState.PAUSING -> R.string.broadcast_state_pausing
+            broadcastState == BroadcastState.RESUMING -> R.string.broadcast_state_resuming
+            broadcastState == BroadcastState.CANCELLING_PREPARATION -> R.string.broadcast_state_cancelling
+            broadcastState == BroadcastState.STOPPING -> R.string.broadcast_state_stopping
+            isBroadcastBusy -> R.string.broadcast_state_preparing
+            else -> R.string.action_prepare_broadcast
         },
         isBroadcastButtonEnabled = !isConnecting && !isBroadcastBusy &&
             (!(isBroadcastLive || isBroadcastPrepared) || isConnected),
         broadcastAction = broadcastAction,
         broadcastStatusText = broadcastStatusText,
+        isBroadcastStatusDefault = isBroadcastStatusDefault,
         isBroadcastStatusError = broadcastState == BroadcastState.FAILED,
     )
-}
-
-private fun BroadcastState.hasRedundantButtonStatus(status: String): Boolean = when (this) {
-    BroadcastState.PREPARING -> status == "YouTube 방송 준비 중"
-    BroadcastState.LIVE -> status == "YouTube 방송 중"
-    BroadcastState.PAUSING -> status == "YouTube 송출 일시 중지 중"
-    BroadcastState.RESUMING -> status == "YouTube 송출 재개 중"
-    BroadcastState.CANCELLING_PREPARATION -> status == "YouTube 방송 준비 취소 중"
-    BroadcastState.STOPPING -> status == "YouTube 방송 종료 중"
-    else -> false
 }
 
 private val BroadcastState.isBusy: Boolean

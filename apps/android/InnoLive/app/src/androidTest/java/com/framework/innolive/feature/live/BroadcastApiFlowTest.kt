@@ -76,8 +76,13 @@ class BroadcastApiFlowTest {
             h.awaitState(BroadcastState.LIVE)
 
             h.pauseStatus = 500
+            h.serverErrorCode = "streaming_reconnect_required"
             h.connection.pauseBroadcast()
             h.awaitState(BroadcastState.LIVE)
+            assertEquals(
+                BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_RECONNECT),
+                h.outcomes.last().second,
+            )
 
             h.pauseStatus = 200
             h.connection.pauseBroadcast()
@@ -85,6 +90,50 @@ class BroadcastApiFlowTest {
             h.resumeStatus = 500
             h.connection.resumeBroadcast()
             h.awaitState(BroadcastState.PAUSED)
+            assertEquals(
+                BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_RECONNECT),
+                h.outcomes.last().second,
+            )
+        }
+    }
+
+    @Test fun settingsSaveEmitsLocalizedSuccessEventAfterReturningToIdle() {
+        Harness().use { h ->
+            h.connection.saveBroadcastSettings(settings)
+            h.awaitState(BroadcastState.IDLE)
+
+            assertEquals(BroadcastEvent.SettingsSaved, h.outcomes.last().second)
+        }
+    }
+
+    @Test fun unknownPauseAndResumeErrorsRetainTheServerMessage() {
+        Harness().use { h ->
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+
+            h.pauseStatus = 500
+            h.serverErrorCode = "provider_rate_limited"
+            h.serverErrorMessage = "The provider is temporarily rate-limited."
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.LIVE)
+            assertEquals(
+                BroadcastEvent.ServerMessage("The provider is temporarily rate-limited."),
+                h.outcomes.last().second,
+            )
+
+            h.pauseStatus = 200
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.resumeStatus = 500
+            h.serverErrorMessage = "The provider is still rate-limited."
+            h.connection.resumeBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            assertEquals(
+                BroadcastEvent.ServerMessage("The provider is still rate-limited."),
+                h.outcomes.last().second,
+            )
         }
     }
 
@@ -98,6 +147,18 @@ class BroadcastApiFlowTest {
             assertTrue(h.connection.prepareBroadcast(settings))
             h.awaitState(BroadcastState.PREPARED)
             assertEquals(listOf("broadcast", "broadcast", "prepare"), h.requests.map { it.url.pathSegments.last() })
+        }
+    }
+
+    @Test fun serverFreeFormErrorIsReducedToTypedBroadcastFailure() {
+        Harness().use { h ->
+            h.settingsStatus = 500
+            h.serverErrorMessage = "internal upstream error: retry-id=abc123"
+
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.FAILED)
+
+            assertEquals(BroadcastEvent.Failure(BroadcastFailure.REQUEST), h.outcomes.last().second)
         }
     }
 
@@ -151,6 +212,7 @@ class BroadcastApiFlowTest {
     ) : AutoCloseable {
         val requests = CopyOnWriteArrayList<Request>()
         val states = CopyOnWriteArrayList<BroadcastState>()
+        val outcomes = CopyOnWriteArrayList<Pair<BroadcastState, BroadcastEvent?>>()
         private val events = LinkedBlockingQueue<BroadcastState>()
         @Volatile var patchStatus = 200
         @Volatile var settingsStatus = 200
@@ -159,6 +221,8 @@ class BroadcastApiFlowTest {
         @Volatile var resumeStatus = 200
         @Volatile var deleteStatus = 204
         @Volatile var goLiveNotReady = false
+        @Volatile var serverErrorMessage: String? = null
+        @Volatile var serverErrorCode: String? = null
         val connection = WebRtcConnection(
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
@@ -167,8 +231,9 @@ class BroadcastApiFlowTest {
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},
             onLocalMediaReady = { _, _ -> }, onLocalMediaCleared = {},
-            onBroadcastStateChanged = { state, _ ->
+            onBroadcastStateChanged = { state, event ->
                 states.add(state)
+                outcomes.add(state to event)
                 events.add(state)
                 onBroadcastState(state)
             },
@@ -199,6 +264,18 @@ class BroadcastApiFlowTest {
                     request.url.encodedPath.endsWith("resume") -> resumeStatus
                     else -> 200
                 }
+                if (status >= 400 && payload == "{}" &&
+                    (serverErrorCode != null || serverErrorMessage != null)
+                ) {
+                    payload = JSONObject()
+                        .put(
+                            "error",
+                            JSONObject()
+                                .put("code", serverErrorCode ?: "unexpected_failure")
+                                .put("message", serverErrorMessage.orEmpty()),
+                        )
+                        .toString()
+                }
                 Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
                     .code(status).message("fixture").body(payload.toResponseBody()).build()
             }.build()
@@ -225,9 +302,9 @@ class BroadcastApiFlowTest {
             }
         }
 
-        fun patchResult(enabled: Boolean): Pair<AnonymizationState?, String?> {
+        fun patchResult(enabled: Boolean): Pair<AnonymizationState?, AnonymizationFailure?> {
             val completed = CountDownLatch(1)
-            var result: Pair<AnonymizationState?, String?>? = null
+            var result: Pair<AnonymizationState?, AnonymizationFailure?>? = null
             connection.setAnonymizationEnabled(enabled) { state, error ->
                 result = state to error
                 completed.countDown()

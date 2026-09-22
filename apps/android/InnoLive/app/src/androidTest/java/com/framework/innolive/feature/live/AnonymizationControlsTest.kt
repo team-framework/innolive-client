@@ -10,6 +10,8 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import android.graphics.Bitmap
 import java.io.File
 import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import org.junit.Rule
 import org.junit.Test
 
@@ -38,7 +40,10 @@ class AnonymizationControlsTest {
         compose.onNodeWithText("연결 종료").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(1, requests)
-            change.value = AnonymizationChange(status = AnonymizationChangeStatus.FAILED, errorMessage = "변경 실패")
+            change.value = AnonymizationChange(
+                status = AnonymizationChangeStatus.FAILED,
+                errorMessage = UiText.Resource(R.string.error_anonymization_request),
+            )
         }
         compose.onNodeWithContentDescription("비식별화 비활성화")
         val screenshot = compose.onRoot().captureToImage().asAndroidBitmap()

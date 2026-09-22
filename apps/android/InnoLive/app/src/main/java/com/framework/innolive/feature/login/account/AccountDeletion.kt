@@ -1,7 +1,9 @@
 package com.framework.innolive.feature.login.account
 
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -76,13 +78,13 @@ internal class AccountDeletionException(
 internal sealed interface AccountDeletionResult {
     data object Deleted : AccountDeletionResult
 
-    data class Failed(val message: String) : AccountDeletionResult
+    data class Failed(val error: UiText) : AccountDeletionResult
 }
 
 internal data class AccountDeletionState(
     val isInProgress: Boolean = false,
     val pendingPhase: AccountDeletionPhase? = null,
-    val error: String? = null,
+    val error: UiText? = null,
 ) {
     val localCleanupPending: Boolean
         get() = pendingPhase == AccountDeletionPhase.LOCAL_CLEANUP_PENDING ||
@@ -164,7 +166,7 @@ internal class AccountDeletionCoordinator(
                         )
                     } catch (_: Exception) {
                         _state.value = AccountDeletionState(
-                            error = DELETION_STATE_PERSISTENCE_FAILURE_MESSAGE,
+                            error = DELETION_STATE_PERSISTENCE_FAILURE,
                         )
                         return@withContext
                     }
@@ -180,7 +182,7 @@ internal class AccountDeletionCoordinator(
                     try {
                         deleteRemoteAccount(deletingSession)
                     } catch (_: Exception) {
-                        AccountDeletionResult.Failed(REMOTE_DELETION_FAILURE_MESSAGE)
+                        AccountDeletionResult.Failed(REMOTE_DELETION_FAILURE)
                     }
                 }
 
@@ -237,14 +239,14 @@ internal class AccountDeletionCoordinator(
                             AccountDeletionState(
                                 pendingPhase = pendingDeletion?.phase,
                                 error = pendingDeletion?.phase?.failureMessage
-                                    ?: LOCAL_CLEANUP_FAILURE_MESSAGE,
+                                    ?: LOCAL_CLEANUP_FAILURE,
                             )
                         }
                     }
 
                     is AccountDeletionResult.Failed -> AccountDeletionState(
                         pendingPhase = AccountDeletionPhase.REMOTE_DELETION_PENDING,
-                        error = remoteResult.message,
+                        error = remoteResult.error,
                     )
                 }
             }
@@ -263,20 +265,17 @@ internal class AccountDeletionCoordinator(
     }
 
     private companion object {
-        val AccountDeletionPhase.failureMessage: String
+        val AccountDeletionPhase.failureMessage: UiText
             get() = when (this) {
-                AccountDeletionPhase.REMOTE_DELETION_PENDING -> REMOTE_DELETION_FAILURE_MESSAGE
-                AccountDeletionPhase.LOCAL_CLEANUP_PENDING -> LOCAL_CLEANUP_FAILURE_MESSAGE
+                AccountDeletionPhase.REMOTE_DELETION_PENDING -> REMOTE_DELETION_FAILURE
+                AccountDeletionPhase.LOCAL_CLEANUP_PENDING -> LOCAL_CLEANUP_FAILURE
                 AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING ->
-                    LOCAL_CLEANUP_FAILURE_MESSAGE
+                    LOCAL_CLEANUP_FAILURE
             }
 
-        const val REMOTE_DELETION_FAILURE_MESSAGE =
-            "계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요."
-        const val DELETION_STATE_PERSISTENCE_FAILURE_MESSAGE =
-            "계정 삭제 상태를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요."
-        const val LOCAL_CLEANUP_FAILURE_MESSAGE =
-            "서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요."
+        val REMOTE_DELETION_FAILURE = UiText.Resource(R.string.error_account_deletion)
+        val DELETION_STATE_PERSISTENCE_FAILURE = UiText.Resource(R.string.error_account_deletion_state)
+        val LOCAL_CLEANUP_FAILURE = UiText.Resource(R.string.error_account_cleanup)
     }
 }
 
@@ -303,7 +302,7 @@ internal class AccountDeletionUseCase(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
-                return AccountDeletionResult.Failed("로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+                return AccountDeletionResult.Failed(UiText.Resource(R.string.error_session_refresh))
             }
 
             try {
@@ -314,18 +313,18 @@ internal class AccountDeletionUseCase(
             } catch (retryException: AccountDeletionException) {
                 retryException.toFailure()
             } catch (_: Exception) {
-                AccountDeletionResult.Failed("계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+                AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
             }
         } catch (exception: CancellationException) {
             throw exception
         } catch (_: Exception) {
-            AccountDeletionResult.Failed("계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+            AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
         }
     }
 
     private fun AccountDeletionException.toFailure(): AccountDeletionResult.Failed =
         AccountDeletionResult.Failed(
-            message?.takeIf(String::isNotBlank)
-                ?: "계정을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            message?.takeIf(String::isNotBlank)?.let(UiText::Dynamic)
+                ?: UiText.Resource(R.string.error_account_deletion),
         )
 }

@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.login.account
 
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +11,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,6 +52,47 @@ class AccountDeletionUseCaseTest {
         assertTrue(result is AccountDeletionResult.Failed)
         assertEquals(0, refreshCount)
         assertEquals(listOf("access-token"), gateway.accessTokens)
+    }
+
+    @Test
+    fun serverSuppliedDeletionMessageIsRetainedAsDynamicUiText() = runBlocking {
+        val result = AccountDeletionUseCase(
+            FakeGateway(AccountDeletionException(code = "withdrawal_unavailable", message = "internal server detail")),
+        ) { "unused" }.delete("access-token")
+
+        assertEquals(
+            AccountDeletionResult.Failed(UiText.Dynamic("internal server detail")),
+            result,
+        )
+    }
+
+    @Test
+    fun deletionApiPassesServerFreeFormMessageToTheUiTextBoundary() = runBlocking {
+        var request: Request? = null
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            request = chain.request()
+            Response.Builder()
+                .request(checkNotNull(request))
+                .protocol(Protocol.HTTP_1_1)
+                .code(409)
+                .message("fixture")
+                .body(
+                    """{"error":{"code":"withdrawal_in_progress","message":"계정 삭제를 처리 중입니다."}}"""
+                        .toResponseBody(),
+                )
+                .build()
+        }.build()
+
+        val result = AccountDeletionApi("https://example.test", client).use { api ->
+            AccountDeletionUseCase(api) { error("재인증하면 안 됩니다.") }.delete("access-token")
+        }
+
+        assertEquals(
+            AccountDeletionResult.Failed(UiText.Dynamic("계정 삭제를 처리 중입니다.")),
+            result,
+        )
+        assertEquals("DELETE", request?.method)
+        assertEquals("/auth/me", request?.url?.encodedPath)
     }
 
     @Test
@@ -161,7 +209,7 @@ class AccountDeletionUseCaseTest {
             AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING,
             coordinator.state.value.pendingPhase,
         )
-        assertTrue(coordinator.state.value.error?.contains("기기 데이터 정리") == true)
+        assertEquals(UiText.Resource(R.string.error_account_cleanup), coordinator.state.value.error)
         coordinatorJob.cancel()
     }
 
@@ -256,7 +304,7 @@ class AccountDeletionUseCaseTest {
             deleteRemoteAccount = {
                 remoteCount += 1
                 if (remoteCount == 1) {
-                    AccountDeletionResult.Failed("network failure")
+                    AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
                 } else {
                     AccountDeletionResult.Deleted
                 }
@@ -270,7 +318,9 @@ class AccountDeletionUseCaseTest {
         )
 
         coordinator.delete { closeCount += 1 }
-        withTimeout(2_000) { coordinator.state.first { it.error == "network failure" } }
+        withTimeout(2_000) {
+            coordinator.state.first { it.error == UiText.Resource(R.string.error_account_deletion) }
+        }
         assertEquals(0, closeCount)
         assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
 
@@ -312,7 +362,7 @@ class AccountDeletionUseCaseTest {
         assertEquals(1, remoteDeletionCount)
         assertEquals(0, authenticationClearCount)
         assertTrue(cleanupMarkerPresent)
-        assertTrue(coordinator.state.value.error?.contains("기기 데이터 정리") == true)
+        assertEquals(UiText.Resource(R.string.error_account_cleanup), coordinator.state.value.error)
 
         coordinator.delete()
         withTimeout(2_000) {
@@ -366,14 +416,16 @@ class AccountDeletionUseCaseTest {
         val coordinator = AccountDeletionCoordinator(
             scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
             currentSession = { session() },
-            deleteRemoteAccount = { AccountDeletionResult.Failed("old account error") },
+            deleteRemoteAccount = {
+                AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
+            },
             clearLocalAccountData = {},
             clearAuthentication = {},
         )
 
         coordinator.delete()
         withTimeout(2_000) {
-            coordinator.state.first { it.error == "old account error" }
+            coordinator.state.first { it.error == UiText.Resource(R.string.error_account_deletion) }
         }
         coordinator.authenticationChanged(null)
 
@@ -397,7 +449,7 @@ class AccountDeletionUseCaseTest {
             coordinator.state.first { it.error != null && !it.isInProgress }
         }
 
-        assertTrue(coordinator.state.value.error?.contains("계정을 삭제하지 못했습니다") == true)
+        assertEquals(UiText.Resource(R.string.error_account_deletion), coordinator.state.value.error)
         assertEquals(false, coordinator.state.value.localCleanupPending)
         assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
         coordinatorJob.cancel()

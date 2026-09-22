@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.ui.text.UiText
 // UNKNOWN은 서버에서 확인하지 못한 상태이며 비식별화 Off를 의미하지 않습니다.
 enum class AnonymizationState {
     UNKNOWN,
@@ -54,7 +55,7 @@ internal data class WebRtcSessionState(
         generation: Long,
         requestId: Long,
         confirmed: AnonymizationState?,
-        error: String?,
+        error: UiText?,
     ): WebRtcSessionState {
         if (!acceptsCallback(generation) || anonymizationChange.requestId != requestId ||
             anonymizationChange.status != AnonymizationChangeStatus.CHANGING) return this

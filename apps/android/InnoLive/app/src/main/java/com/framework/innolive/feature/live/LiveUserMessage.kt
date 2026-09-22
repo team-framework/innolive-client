@@ -1,35 +1,134 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
+
+enum class ConnectionFailure {
+    TIMEOUT,
+    DISCONNECTED,
+    CONFIGURATION,
+    EXISTING_BROADCAST,
+    MICROPHONE_UNAVAILABLE,
+    MICROPHONE_BLOCKED,
+    GENERIC,
+}
+
+enum class BroadcastFailure {
+    PREVIEW_REQUIRED,
+    AUDIENCE_REQUIRED,
+    YOUTUBE_NOT_CONNECTED,
+    YOUTUBE_LIVE_BLOCKED,
+    YOUTUBE_RECONNECT,
+    YOUTUBE_PREPARE,
+    YOUTUBE_STOPPED,
+    YOUTUBE_NOT_READY,
+    YOUTUBE_PAUSE,
+    YOUTUBE_RESUME,
+    REQUEST,
+}
+
+sealed interface BroadcastEvent {
+    data class Failure(val failure: BroadcastFailure) : BroadcastEvent
+
+    /** A server-provided message that is intentionally displayed verbatim. */
+    data class ServerMessage(val value: String) : BroadcastEvent
+
+    data object SettingsSaved : BroadcastEvent
+}
+
+internal enum class AnonymizationFailure {
+    NOT_APPLIED,
+    CONFIRMATION,
+    REQUEST,
+}
+
 // 화면에 허용한 안내만 전달하여 서버·라이브러리의 내부 오류가 노출되지 않게 합니다.
-internal fun connectionUserMessage(state: WebRtcConnectionState, detail: String): String = when (state) {
-    WebRtcConnectionState.IDLE -> ""
-    WebRtcConnectionState.CONNECTED -> "미리보기 연결됨"
-    WebRtcConnectionState.CONNECTING -> "미리보기 연결 중…"
-    WebRtcConnectionState.FAILED -> when (detail) {
-        "WebRTC 연결 시간이 초과되었습니다." -> "연결이 지연되고 있습니다. 다시 시도해 주세요."
-        "WebRTC 연결이 끊겼습니다.", "WebRTC signaling 연결이 종료되었습니다." ->
-            "연결이 끊겼습니다. 다시 연결해 주세요."
-        "INNOLIVE_SERVER_URL must use HTTPS." -> "연결 설정에 문제가 있습니다. 관리자에게 문의해 주세요."
-        "이미 활성화된 방송 세션이 있습니다. 기존 방송을 종료한 뒤 다시 시도해 주세요." -> detail
-        "선택한 Bluetooth 오디오 기기의 통신용 출력을 찾지 못했습니다.",
-        "선택한 Bluetooth 오디오 기기를 통신 장치로 설정하지 못했습니다.",
-        "선택한 오디오 기기를 실제 입력으로 적용하지 못했습니다.",
-        "Bluetooth 오디오 기기를 준비하지 못했습니다." ->
-            "선택한 마이크를 사용할 수 없습니다. 다른 마이크를 선택해 주세요."
-        "오디오 입력이 중지되었습니다.", "다른 앱 또는 시스템 정책으로 마이크 입력이 차단되었습니다." ->
-            "마이크를 사용할 수 없습니다. 권한과 다른 앱의 마이크 사용 여부를 확인해 주세요."
-        else -> "미리보기를 연결하지 못했습니다. 다시 시도해 주세요."
+internal fun connectionUserMessage(
+    state: WebRtcConnectionState,
+    failure: ConnectionFailure? = null,
+): UiText? = when (state) {
+    WebRtcConnectionState.IDLE -> null
+    WebRtcConnectionState.CONNECTED -> UiText.Resource(R.string.preview_connected)
+    WebRtcConnectionState.CONNECTING -> UiText.Resource(R.string.preview_connecting)
+    WebRtcConnectionState.FAILED -> when (failure) {
+        ConnectionFailure.TIMEOUT -> UiText.Resource(R.string.error_preview_timeout)
+        ConnectionFailure.DISCONNECTED -> UiText.Resource(R.string.error_preview_disconnected)
+        ConnectionFailure.CONFIGURATION -> UiText.Resource(R.string.error_connection_configuration)
+        ConnectionFailure.EXISTING_BROADCAST -> UiText.Resource(R.string.error_existing_broadcast)
+        ConnectionFailure.MICROPHONE_UNAVAILABLE -> UiText.Resource(R.string.error_microphone_unavailable)
+        ConnectionFailure.MICROPHONE_BLOCKED -> UiText.Resource(R.string.error_microphone_blocked)
+        ConnectionFailure.GENERIC, null -> UiText.Resource(R.string.error_preview_connect)
     }
 }
 
-internal fun broadcastUserMessage(detail: String): String = when (detail) {
-    "WebRTC 세션이 없습니다.", "WebRTC 연결이 종료되었습니다." -> "미리보기를 먼저 연결해 주세요."
-    "아동용 콘텐츠 여부를 선택해 주세요.",
-    "YouTube 계정을 먼저 연결해 주세요.",
-    "YouTube 라이브 기능을 먼저 활성화해 주세요.",
-    "YouTube 계정을 다시 연결해 주세요.",
-    "YouTube 방송을 준비하지 못했습니다.",
-    "라이브 전환 중 방송이 종료되었습니다.",
-    "YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요." -> detail
-    else -> "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
+internal data class BroadcastUserMessage(
+    val text: UiText,
+    val isStateDescription: Boolean,
+)
+
+internal fun broadcastUserMessage(
+    state: BroadcastState,
+    event: BroadcastEvent? = null,
+): BroadcastUserMessage = when (event) {
+    is BroadcastEvent.Failure -> broadcastError(event.failure)
+    is BroadcastEvent.ServerMessage -> BroadcastUserMessage(
+        text = UiText.Dynamic(event.value),
+        isStateDescription = false,
+    )
+    BroadcastEvent.SettingsSaved -> BroadcastUserMessage(
+        text = UiText.Resource(R.string.broadcast_settings_saved),
+        isStateDescription = false,
+    )
+
+    null -> broadcastStateMessage(state)
 }
+
+internal fun broadcastStateMessage(state: BroadcastState): BroadcastUserMessage = BroadcastUserMessage(
+    text = UiText.Resource(
+        when (state) {
+            BroadcastState.IDLE -> R.string.broadcast_state_idle
+            BroadcastState.SAVING_SETTINGS -> R.string.broadcast_settings_saving
+            BroadcastState.PREPARING -> R.string.broadcast_state_preparing
+            BroadcastState.PREPARED -> R.string.broadcast_state_prepared
+            BroadcastState.GOING_LIVE -> R.string.broadcast_state_going_live
+            BroadcastState.LIVE -> R.string.broadcast_state_live
+            BroadcastState.PAUSING -> R.string.broadcast_state_pausing
+            BroadcastState.PAUSED -> R.string.broadcast_state_paused
+            BroadcastState.RESUMING -> R.string.broadcast_state_resuming
+            BroadcastState.CANCELLING_PREPARATION -> R.string.broadcast_state_cancelling
+            BroadcastState.STOPPING -> R.string.broadcast_state_stopping
+            BroadcastState.FAILED -> R.string.error_request_failed
+        },
+    ),
+    isStateDescription = state in setOf(
+        BroadcastState.PREPARING,
+        BroadcastState.LIVE,
+        BroadcastState.PAUSING,
+        BroadcastState.RESUMING,
+        BroadcastState.CANCELLING_PREPARATION,
+        BroadcastState.STOPPING,
+    ),
+)
+
+internal fun anonymizationUserMessage(failure: AnonymizationFailure): UiText = when (failure) {
+    AnonymizationFailure.NOT_APPLIED -> UiText.Resource(R.string.error_anonymization_not_applied)
+    AnonymizationFailure.CONFIRMATION -> UiText.Resource(R.string.error_anonymization_confirmation)
+    AnonymizationFailure.REQUEST -> UiText.Resource(R.string.error_anonymization_request)
+}
+
+private fun broadcastError(failure: BroadcastFailure) = BroadcastUserMessage(
+    text = UiText.Resource(when (failure) {
+        BroadcastFailure.PREVIEW_REQUIRED -> R.string.error_preview_required
+        BroadcastFailure.AUDIENCE_REQUIRED -> R.string.validation_audience
+        BroadcastFailure.YOUTUBE_NOT_CONNECTED -> R.string.error_youtube_not_connected
+        BroadcastFailure.YOUTUBE_LIVE_BLOCKED -> R.string.error_youtube_live_blocked
+        BroadcastFailure.YOUTUBE_RECONNECT -> R.string.error_youtube_reconnect
+        BroadcastFailure.YOUTUBE_PREPARE -> R.string.error_youtube_prepare
+        BroadcastFailure.YOUTUBE_STOPPED -> R.string.error_youtube_stopped
+        BroadcastFailure.YOUTUBE_NOT_READY -> R.string.error_youtube_not_ready
+        BroadcastFailure.YOUTUBE_PAUSE -> R.string.error_youtube_pause
+        BroadcastFailure.YOUTUBE_RESUME -> R.string.error_youtube_resume
+        BroadcastFailure.REQUEST -> R.string.error_request_failed
+    }),
+    isStateDescription = false,
+)
