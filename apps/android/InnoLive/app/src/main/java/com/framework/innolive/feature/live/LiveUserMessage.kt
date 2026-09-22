@@ -30,6 +30,9 @@ enum class BroadcastFailure {
 sealed interface BroadcastEvent {
     data class Failure(val failure: BroadcastFailure) : BroadcastEvent
 
+    /** A server-provided message that is intentionally displayed verbatim. */
+    data class ServerMessage(val value: String) : BroadcastEvent
+
     data object SettingsSaved : BroadcastEvent
 }
 
@@ -68,6 +71,10 @@ internal fun broadcastUserMessage(
     event: BroadcastEvent? = null,
 ): BroadcastUserMessage = when (event) {
     is BroadcastEvent.Failure -> broadcastError(event.failure)
+    is BroadcastEvent.ServerMessage -> BroadcastUserMessage(
+        text = UiText.Dynamic(event.value),
+        isStateDescription = false,
+    )
     BroadcastEvent.SettingsSaved -> BroadcastUserMessage(
         text = UiText.Resource(R.string.broadcast_settings_saved),
         isStateDescription = false,

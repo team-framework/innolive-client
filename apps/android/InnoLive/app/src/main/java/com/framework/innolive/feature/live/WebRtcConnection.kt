@@ -400,7 +400,7 @@ class WebRtcConnection(
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     BroadcastState.LIVE,
-                    BroadcastEvent.Failure(exception.toBroadcastFailure()),
+                    exception.toBroadcastEvent(BroadcastFailure.YOUTUBE_PAUSE),
                 )
             } catch (_: Exception) {
                 updateBroadcastState(
@@ -421,7 +421,7 @@ class WebRtcConnection(
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     BroadcastState.PAUSED,
-                    BroadcastEvent.Failure(exception.toBroadcastFailure()),
+                    exception.toBroadcastEvent(BroadcastFailure.YOUTUBE_RESUME),
                 )
             } catch (_: Exception) {
                 updateBroadcastState(
@@ -1224,6 +1224,7 @@ class WebRtcConnection(
 
 private class ServerApiException(
     val code: String?,
+    val serverMessage: String? = null,
 ) : IOException("Server API request failed")
 
 internal class ConnectionFailureException(
@@ -1231,17 +1232,24 @@ internal class ConnectionFailureException(
     cause: Throwable? = null,
 ) : IOException(cause)
 
-private fun Throwable.toBroadcastFailure(): BroadcastFailure = when (
-    (this as? ServerApiException)?.code
-) {
+private fun ServerApiException.toKnownBroadcastFailure(): BroadcastFailure? = when (code) {
     "streaming_not_connected" -> BroadcastFailure.YOUTUBE_NOT_CONNECTED
     "live_streaming_blocked" -> BroadcastFailure.YOUTUBE_LIVE_BLOCKED
     "streaming_reconnect_required" -> BroadcastFailure.YOUTUBE_RECONNECT
     "streaming_prepare_failed" -> BroadcastFailure.YOUTUBE_PREPARE
     "broadcast_stopped" -> BroadcastFailure.YOUTUBE_STOPPED
     "broadcast_not_ready" -> BroadcastFailure.YOUTUBE_NOT_READY
-    else -> BroadcastFailure.REQUEST
+    else -> null
 }
+
+private fun ServerApiException.toBroadcastEvent(
+    fallback: BroadcastFailure,
+): BroadcastEvent = toKnownBroadcastFailure()?.let(BroadcastEvent::Failure)
+    ?: serverMessage?.takeIf(String::isNotBlank)?.let(BroadcastEvent::ServerMessage)
+    ?: BroadcastEvent.Failure(fallback)
+
+private fun Throwable.toBroadcastFailure(): BroadcastFailure =
+    (this as? ServerApiException)?.toKnownBroadcastFailure() ?: BroadcastFailure.REQUEST
 
 private fun connectionFailureForServerCode(code: String): ConnectionFailure = when (code) {
     "session_already_exists" -> ConnectionFailure.EXISTING_BROADCAST
@@ -1308,8 +1316,8 @@ private fun requireSuccessful(response: Response, operation: String) {
 private fun parseServerApiException(payload: String): ServerApiException {
     val error = runCatching { JSONObject(payload).optJSONObject("error") }.getOrNull()
     val code = error?.optString("code")?.takeIf { it.isNotBlank() }
-    // 서버의 자유 형식 message는 보관하거나 화면에 노출하지 않습니다. wire error code만 유지합니다.
-    return ServerApiException(code)
+    val serverMessage = error?.optString("message")?.takeIf { it.isNotBlank() }
+    return ServerApiException(code, serverMessage)
 }
 
 internal fun buildBroadcastSettingsPayload(settings: BroadcastSettings): JSONObject = JSONObject()

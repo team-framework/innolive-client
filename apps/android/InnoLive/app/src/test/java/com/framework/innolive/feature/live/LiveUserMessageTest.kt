@@ -69,4 +69,17 @@ class LiveUserMessageTest {
         assertEquals(UiText.Resource(R.string.broadcast_settings_saved), feedback.text)
         assertFalse(feedback.isStateDescription)
     }
+
+    @Test fun serverMessageEventIsRetainedAsDynamicUiText() {
+        val feedback = broadcastUserMessage(
+            BroadcastState.LIVE,
+            BroadcastEvent.ServerMessage("The provider is temporarily rate-limited."),
+        )
+
+        assertEquals(
+            UiText.Dynamic("The provider is temporarily rate-limited."),
+            feedback.text,
+        )
+        assertFalse(feedback.isStateDescription)
+    }
 }

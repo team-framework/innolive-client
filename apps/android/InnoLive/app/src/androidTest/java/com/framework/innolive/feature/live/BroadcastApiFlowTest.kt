@@ -106,6 +106,37 @@ class BroadcastApiFlowTest {
         }
     }
 
+    @Test fun unknownPauseAndResumeErrorsRetainTheServerMessage() {
+        Harness().use { h ->
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+
+            h.pauseStatus = 500
+            h.serverErrorCode = "provider_rate_limited"
+            h.serverErrorMessage = "The provider is temporarily rate-limited."
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.LIVE)
+            assertEquals(
+                BroadcastEvent.ServerMessage("The provider is temporarily rate-limited."),
+                h.outcomes.last().second,
+            )
+
+            h.pauseStatus = 200
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.resumeStatus = 500
+            h.serverErrorMessage = "The provider is still rate-limited."
+            h.connection.resumeBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            assertEquals(
+                BroadcastEvent.ServerMessage("The provider is still rate-limited."),
+                h.outcomes.last().second,
+            )
+        }
+    }
+
     @Test fun failedSettingsSaveDoesNotPrepareAndExplicitRetrySucceeds() {
         Harness().use { h ->
             h.settingsStatus = 500
