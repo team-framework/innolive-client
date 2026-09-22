@@ -27,6 +27,12 @@ enum class BroadcastFailure {
     REQUEST,
 }
 
+sealed interface BroadcastEvent {
+    data class Failure(val failure: BroadcastFailure) : BroadcastEvent
+
+    data object SettingsSaved : BroadcastEvent
+}
+
 internal enum class AnonymizationFailure {
     NOT_APPLIED,
     CONFIRMATION,
@@ -59,8 +65,16 @@ internal data class BroadcastUserMessage(
 
 internal fun broadcastUserMessage(
     state: BroadcastState,
-    failure: BroadcastFailure? = null,
-): BroadcastUserMessage = failure?.let(::broadcastError) ?: broadcastStateMessage(state)
+    event: BroadcastEvent? = null,
+): BroadcastUserMessage = when (event) {
+    is BroadcastEvent.Failure -> broadcastError(event.failure)
+    BroadcastEvent.SettingsSaved -> BroadcastUserMessage(
+        text = UiText.Resource(R.string.broadcast_settings_saved),
+        isStateDescription = false,
+    )
+
+    null -> broadcastStateMessage(state)
+}
 
 internal fun broadcastStateMessage(state: BroadcastState): BroadcastUserMessage = BroadcastUserMessage(
     text = UiText.Resource(

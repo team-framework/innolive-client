@@ -53,6 +53,7 @@ internal class AccountDeletionApi(
                 throw AccountDeletionException(
                     code = error?.optString("code")?.takeIf(String::isNotBlank)
                         ?: if (response.code == 401) "unauthorized" else null,
+                    message = error?.optString("message")?.takeIf(String::isNotBlank),
                 )
             }
         } catch (exception: AccountDeletionException) {
@@ -322,5 +323,8 @@ internal class AccountDeletionUseCase(
     }
 
     private fun AccountDeletionException.toFailure(): AccountDeletionResult.Failed =
-        AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
+        AccountDeletionResult.Failed(
+            message?.takeIf(String::isNotBlank)?.let(UiText::Dynamic)
+                ?: UiText.Resource(R.string.error_account_deletion),
+        )
 }

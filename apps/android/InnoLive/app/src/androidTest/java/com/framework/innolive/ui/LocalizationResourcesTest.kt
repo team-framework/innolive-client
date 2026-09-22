@@ -46,11 +46,13 @@ class LocalizationResourcesTest {
     @Test
     fun retainedUiTextResolvesInTheCurrentAppLanguage() {
         val status = UiText.Resource(R.string.broadcast_state_prepared)
+        val saved = UiText.Resource(R.string.broadcast_settings_saved)
         val error = UiText.Resource(R.string.error_account_deletion)
 
         assertEquals("방송 준비 완료", status.resolve(localizedContext("ko")))
         assertEquals("Broadcast prepared", status.resolve(localizedContext("en")))
         assertEquals("配信の準備完了", status.resolve(localizedContext("ja")))
+        assertEquals("Broadcast settings saved.", saved.resolve(localizedContext("en")))
         assertEquals("We could not delete your account. Please try again later.", error.resolve(localizedContext("en")))
     }
 

@@ -62,7 +62,7 @@ class WebRtcConnection(
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
     private val onLocalMediaReady: (CameraFrameAnalyzer, EglBase.Context) -> Unit,
     private val onLocalMediaCleared: () -> Unit,
-    private val onBroadcastStateChanged: (BroadcastState, BroadcastFailure?) -> Unit,
+    private val onBroadcastStateChanged: (BroadcastState, BroadcastEvent?) -> Unit,
     private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
     private val broadcastCallbackExecutor: Executor? = null,
 ) : AutoCloseable {
@@ -89,7 +89,7 @@ class WebRtcConnection(
     private val terminal = AtomicBoolean(false)
     private val broadcastOperation = AtomicBoolean(false)
     // 완료 콜백은 다음 제어 요청을 받을 수 있도록 작업 잠금을 해제한 뒤 전달합니다.
-    private var pendingBroadcastCompletion: Pair<BroadcastState, BroadcastFailure?>? = null
+    private var pendingBroadcastCompletion: Pair<BroadcastState, BroadcastEvent?>? = null
     private val closeSignal = CloseSignal()
     private val shutdownLock = Any()
     private val shutdownInitiated = AtomicBoolean(false)
@@ -340,12 +340,15 @@ class WebRtcConnection(
     fun saveBroadcastSettings(settings: BroadcastSettings) {
         runBroadcastOperation {
             if (settings.madeForKids == null) {
-                updateBroadcastState(BroadcastState.FAILED, BroadcastFailure.AUDIENCE_REQUIRED)
+                updateBroadcastState(
+                    BroadcastState.FAILED,
+                    BroadcastEvent.Failure(BroadcastFailure.AUDIENCE_REQUIRED),
+                )
                 return@runBroadcastOperation
             }
             updateBroadcastState(BroadcastState.SAVING_SETTINGS)
             putBroadcastSettings(settings)
-            updateBroadcastState(BroadcastState.IDLE)
+            updateBroadcastState(BroadcastState.IDLE, BroadcastEvent.SettingsSaved)
         }
     }
 
@@ -353,7 +356,10 @@ class WebRtcConnection(
         if (!broadcastState.canPrepare) return false
         return runBroadcastOperation {
             if (settings.madeForKids == null) {
-                updateBroadcastState(BroadcastState.FAILED, BroadcastFailure.AUDIENCE_REQUIRED)
+                updateBroadcastState(
+                    BroadcastState.FAILED,
+                    BroadcastEvent.Failure(BroadcastFailure.AUDIENCE_REQUIRED),
+                )
                 return@runBroadcastOperation
             }
             updateBroadcastState(BroadcastState.SAVING_SETTINGS)
@@ -373,7 +379,10 @@ class WebRtcConnection(
                 updateBroadcastState(BroadcastState.LIVE)
             } catch (exception: ServerApiException) {
                 if (exception.code == "broadcast_not_ready") {
-                    updateBroadcastState(BroadcastState.PREPARED, BroadcastFailure.YOUTUBE_NOT_READY)
+                    updateBroadcastState(
+                        BroadcastState.PREPARED,
+                        BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_NOT_READY),
+                    )
                     return@runBroadcastOperation
                 }
                 throw exception
@@ -388,8 +397,16 @@ class WebRtcConnection(
             try {
                 postSessionRequest("stream/pause")
                 updateBroadcastState(BroadcastState.PAUSED)
-            } catch (exception: Exception) {
-                updateBroadcastState(BroadcastState.LIVE, BroadcastFailure.YOUTUBE_PAUSE)
+            } catch (exception: ServerApiException) {
+                updateBroadcastState(
+                    BroadcastState.LIVE,
+                    BroadcastEvent.Failure(exception.toBroadcastFailure()),
+                )
+            } catch (_: Exception) {
+                updateBroadcastState(
+                    BroadcastState.LIVE,
+                    BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_PAUSE),
+                )
             }
         }
     }
@@ -401,8 +418,16 @@ class WebRtcConnection(
             try {
                 postSessionRequest("stream/resume")
                 updateBroadcastState(BroadcastState.LIVE)
-            } catch (exception: Exception) {
-                updateBroadcastState(BroadcastState.PAUSED, BroadcastFailure.YOUTUBE_RESUME)
+            } catch (exception: ServerApiException) {
+                updateBroadcastState(
+                    BroadcastState.PAUSED,
+                    BroadcastEvent.Failure(exception.toBroadcastFailure()),
+                )
+            } catch (_: Exception) {
+                updateBroadcastState(
+                    BroadcastState.PAUSED,
+                    BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_RESUME),
+                )
             }
         }
     }
@@ -426,12 +451,15 @@ class WebRtcConnection(
                     check(session != null) { "WebRTC 세션이 없습니다." }
                     operation()
                 } catch (exception: Exception) {
-                    updateBroadcastState(BroadcastState.FAILED, exception.toBroadcastFailure())
+                    updateBroadcastState(
+                        BroadcastState.FAILED,
+                        BroadcastEvent.Failure(exception.toBroadcastFailure()),
+                    )
                 } finally {
                     val completion = pendingBroadcastCompletion
                     pendingBroadcastCompletion = null
                     broadcastOperation.set(false)
-                    completion?.let { (state, failure) -> dispatchBroadcastState(state, failure) }
+                    completion?.let { (state, event) -> dispatchBroadcastState(state, event) }
                 }
             },
             onRejected = {
@@ -1095,7 +1123,7 @@ class WebRtcConnection(
 
     private fun updateBroadcastState(
         state: BroadcastState,
-        failure: BroadcastFailure? = null,
+        event: BroadcastEvent? = null,
     ) {
         if (!isActive()) return
         broadcastState = state
@@ -1104,14 +1132,14 @@ class WebRtcConnection(
             BroadcastState.PREPARED,
             BroadcastState.LIVE,
             BroadcastState.PAUSED,
-            BroadcastState.FAILED -> pendingBroadcastCompletion = state to failure
-            else -> dispatchBroadcastState(state, failure)
+            BroadcastState.FAILED -> pendingBroadcastCompletion = state to event
+            else -> dispatchBroadcastState(state, event)
         }
     }
 
-    private fun dispatchBroadcastState(state: BroadcastState, failure: BroadcastFailure?) {
+    private fun dispatchBroadcastState(state: BroadcastState, event: BroadcastEvent?) {
         val callback = Runnable {
-            if (!closed.get()) onBroadcastStateChanged(state, failure)
+            if (!closed.get()) onBroadcastStateChanged(state, event)
         }
         if (broadcastCallbackExecutor != null) {
             broadcastCallbackExecutor.execute(callback)

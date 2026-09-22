@@ -11,6 +11,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -50,15 +55,44 @@ class AccountDeletionUseCaseTest {
     }
 
     @Test
-    fun serverSuppliedDeletionMessageIsNotStoredInUiState() = runBlocking {
+    fun serverSuppliedDeletionMessageIsRetainedAsDynamicUiText() = runBlocking {
         val result = AccountDeletionUseCase(
             FakeGateway(AccountDeletionException(code = "withdrawal_unavailable", message = "internal server detail")),
         ) { "unused" }.delete("access-token")
 
         assertEquals(
-            AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion)),
+            AccountDeletionResult.Failed(UiText.Dynamic("internal server detail")),
             result,
         )
+    }
+
+    @Test
+    fun deletionApiPassesServerFreeFormMessageToTheUiTextBoundary() = runBlocking {
+        var request: Request? = null
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            request = chain.request()
+            Response.Builder()
+                .request(checkNotNull(request))
+                .protocol(Protocol.HTTP_1_1)
+                .code(409)
+                .message("fixture")
+                .body(
+                    """{"error":{"code":"withdrawal_in_progress","message":"계정 삭제를 처리 중입니다."}}"""
+                        .toResponseBody(),
+                )
+                .build()
+        }.build()
+
+        val result = AccountDeletionApi("https://example.test", client).use { api ->
+            AccountDeletionUseCase(api) { error("재인증하면 안 됩니다.") }.delete("access-token")
+        }
+
+        assertEquals(
+            AccountDeletionResult.Failed(UiText.Dynamic("계정 삭제를 처리 중입니다.")),
+            result,
+        )
+        assertEquals("DELETE", request?.method)
+        assertEquals("/auth/me", request?.url?.encodedPath)
     }
 
     @Test

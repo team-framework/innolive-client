@@ -23,7 +23,10 @@ class LiveUserMessageTest {
             UiText.Resource(R.string.error_preview_connect),
             connectionUserMessage(WebRtcConnectionState.FAILED, ConnectionFailure.GENERIC),
         )
-        val broadcastMessage = broadcastUserMessage(BroadcastState.FAILED, BroadcastFailure.REQUEST)
+        val broadcastMessage = broadcastUserMessage(
+            BroadcastState.FAILED,
+            BroadcastEvent.Failure(BroadcastFailure.REQUEST),
+        )
         assertEquals(UiText.Resource(R.string.error_request_failed), broadcastMessage.text)
         assertFalse(broadcastMessage.text is UiText.Dynamic)
     }
@@ -42,7 +45,10 @@ class LiveUserMessageTest {
         )
         assertEquals(
             UiText.Resource(R.string.error_youtube_reconnect),
-            broadcastUserMessage(BroadcastState.FAILED, BroadcastFailure.YOUTUBE_RECONNECT).text,
+            broadcastUserMessage(
+                BroadcastState.FAILED,
+                BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_RECONNECT),
+            ).text,
         )
         assertEquals(
             UiText.Resource(R.string.error_existing_broadcast),
@@ -55,5 +61,12 @@ class LiveUserMessageTest {
 
         assertEquals(UiText.Resource(R.string.broadcast_state_preparing), feedback.text)
         assertTrue(feedback.isStateDescription)
+    }
+
+    @Test fun settingsSavedEventRemainsVisibleAfterReturningToIdle() {
+        val feedback = broadcastUserMessage(BroadcastState.IDLE, BroadcastEvent.SettingsSaved)
+
+        assertEquals(UiText.Resource(R.string.broadcast_settings_saved), feedback.text)
+        assertFalse(feedback.isStateDescription)
     }
 }

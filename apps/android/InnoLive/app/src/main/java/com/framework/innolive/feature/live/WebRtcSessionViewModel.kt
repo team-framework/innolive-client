@@ -182,7 +182,7 @@ class WebRtcSessionViewModel : ViewModel() {
                             }
                         }
                     },
-                    onBroadcastStateChanged = { state, failure ->
+                    onBroadcastStateChanged = { state, event ->
                         if (sessionState.acceptsCallback(generation)) {
                             broadcastStartedAtElapsedRealtimeMillis = nextBroadcastStartedAt(
                                 currentStartedAtMillis = broadcastStartedAtElapsedRealtimeMillis,
@@ -190,7 +190,7 @@ class WebRtcSessionViewModel : ViewModel() {
                                 nowMillis = SystemClock.elapsedRealtime(),
                             )
                             broadcastState = state
-                            val feedback = broadcastUserMessage(state, failure)
+                            val feedback = broadcastUserMessage(state, event)
                             broadcastStatus = feedback.text
                             isBroadcastStatusDefault = feedback.isStateDescription
                         }

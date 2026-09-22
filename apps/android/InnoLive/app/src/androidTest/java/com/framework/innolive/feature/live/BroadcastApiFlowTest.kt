@@ -76,8 +76,13 @@ class BroadcastApiFlowTest {
             h.awaitState(BroadcastState.LIVE)
 
             h.pauseStatus = 500
+            h.serverErrorCode = "streaming_reconnect_required"
             h.connection.pauseBroadcast()
             h.awaitState(BroadcastState.LIVE)
+            assertEquals(
+                BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_RECONNECT),
+                h.outcomes.last().second,
+            )
 
             h.pauseStatus = 200
             h.connection.pauseBroadcast()
@@ -85,6 +90,19 @@ class BroadcastApiFlowTest {
             h.resumeStatus = 500
             h.connection.resumeBroadcast()
             h.awaitState(BroadcastState.PAUSED)
+            assertEquals(
+                BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_RECONNECT),
+                h.outcomes.last().second,
+            )
+        }
+    }
+
+    @Test fun settingsSaveEmitsLocalizedSuccessEventAfterReturningToIdle() {
+        Harness().use { h ->
+            h.connection.saveBroadcastSettings(settings)
+            h.awaitState(BroadcastState.IDLE)
+
+            assertEquals(BroadcastEvent.SettingsSaved, h.outcomes.last().second)
         }
     }
 
@@ -109,7 +127,7 @@ class BroadcastApiFlowTest {
             assertTrue(h.connection.prepareBroadcast(settings))
             h.awaitState(BroadcastState.FAILED)
 
-            assertEquals(BroadcastFailure.REQUEST, h.failures.last().second)
+            assertEquals(BroadcastEvent.Failure(BroadcastFailure.REQUEST), h.outcomes.last().second)
         }
     }
 
@@ -163,7 +181,7 @@ class BroadcastApiFlowTest {
     ) : AutoCloseable {
         val requests = CopyOnWriteArrayList<Request>()
         val states = CopyOnWriteArrayList<BroadcastState>()
-        val failures = CopyOnWriteArrayList<Pair<BroadcastState, BroadcastFailure?>>()
+        val outcomes = CopyOnWriteArrayList<Pair<BroadcastState, BroadcastEvent?>>()
         private val events = LinkedBlockingQueue<BroadcastState>()
         @Volatile var patchStatus = 200
         @Volatile var settingsStatus = 200
@@ -173,6 +191,7 @@ class BroadcastApiFlowTest {
         @Volatile var deleteStatus = 204
         @Volatile var goLiveNotReady = false
         @Volatile var serverErrorMessage: String? = null
+        @Volatile var serverErrorCode: String? = null
         val connection = WebRtcConnection(
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
@@ -181,9 +200,9 @@ class BroadcastApiFlowTest {
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},
             onLocalMediaReady = { _, _ -> }, onLocalMediaCleared = {},
-            onBroadcastStateChanged = { state, failure ->
+            onBroadcastStateChanged = { state, event ->
                 states.add(state)
-                failures.add(state to failure)
+                outcomes.add(state to event)
                 events.add(state)
                 onBroadcastState(state)
             },
@@ -214,12 +233,17 @@ class BroadcastApiFlowTest {
                     request.url.encodedPath.endsWith("resume") -> resumeStatus
                     else -> 200
                 }
-                serverErrorMessage?.let { message ->
-                    if (status >= 400 && payload == "{}") {
-                        payload = JSONObject()
-                            .put("error", JSONObject().put("code", "unexpected_failure").put("message", message))
-                            .toString()
-                    }
+                if (status >= 400 && payload == "{}" &&
+                    (serverErrorCode != null || serverErrorMessage != null)
+                ) {
+                    payload = JSONObject()
+                        .put(
+                            "error",
+                            JSONObject()
+                                .put("code", serverErrorCode ?: "unexpected_failure")
+                                .put("message", serverErrorMessage.orEmpty()),
+                        )
+                        .toString()
                 }
                 Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
                     .code(status).message("fixture").body(payload.toResponseBody()).build()
