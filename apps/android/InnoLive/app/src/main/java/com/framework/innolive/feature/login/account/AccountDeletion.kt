@@ -85,7 +85,8 @@ internal data class AccountDeletionState(
     val error: String? = null,
 ) {
     val localCleanupPending: Boolean
-        get() = pendingPhase == AccountDeletionPhase.LOCAL_CLEANUP_PENDING
+        get() = pendingPhase == AccountDeletionPhase.LOCAL_CLEANUP_PENDING ||
+            pendingPhase == AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING
 
     val hasPendingDeletion: Boolean
         get() = pendingPhase != null
@@ -94,6 +95,7 @@ internal data class AccountDeletionState(
 internal enum class AccountDeletionPhase {
     REMOTE_DELETION_PENDING,
     LOCAL_CLEANUP_PENDING,
+    AUTHENTICATION_CLEANUP_PENDING,
 }
 
 internal data class PendingAccountDeletion(
@@ -105,7 +107,8 @@ internal data class PendingAccountDeletion(
  * Owns the complete deletion transaction outside Compose. Once deletion starts, cancellation of
  * the caller cannot interrupt the transition from the server result to local cleanup. The remote
  * pending phase is persisted before the request so a lost response can be reconciled by retrying
- * the idempotent server deletion. A failed local cleanup retries only that cleanup.
+ * the idempotent server deletion. Local-data and authentication cleanup each have their own phase,
+ * so a restart resumes only the unfinished step.
  */
 internal class AccountDeletionCoordinator(
     private val scope: CoroutineScope,
@@ -167,9 +170,11 @@ internal class AccountDeletionCoordinator(
                     }
                 }
 
-                val cleanupOnly =
-                    pendingDeletion?.phase == AccountDeletionPhase.LOCAL_CLEANUP_PENDING
-                val remoteResult = if (cleanupOnly) {
+                val pendingPhase = pendingDeletion?.phase
+                val remoteResult = if (
+                    pendingPhase != null &&
+                    pendingPhase != AccountDeletionPhase.REMOTE_DELETION_PENDING
+                ) {
                     AccountDeletionResult.Deleted
                 } else {
                     try {
@@ -182,7 +187,10 @@ internal class AccountDeletionCoordinator(
                 _state.value = when (remoteResult) {
                     AccountDeletionResult.Deleted -> {
                         try {
-                            if (!cleanupOnly) {
+                            if (
+                                pendingPhase == null ||
+                                pendingPhase == AccountDeletionPhase.REMOTE_DELETION_PENDING
+                            ) {
                                 runCatching(onRemoteDeletionConfirmed)
                                 persistPendingDeletion(
                                     deletingSession,
@@ -193,20 +201,37 @@ internal class AccountDeletionCoordinator(
                                     AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
                                 )
                             }
-                            clearLocalAccountData(deletingSession)
-                            clearPendingDeletion()
-                            clearAuthentication()
-                            pendingDeletion = null
-                            AccountDeletionState()
-                        } catch (_: Exception) {
-                            runCatching {
+                            if (pendingPhase != AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING) {
+                                clearLocalAccountData(deletingSession)
                                 persistPendingDeletion(
                                     deletingSession,
-                                    AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
+                                    AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING,
                                 )
                                 pendingDeletion = PendingAccountDeletion(
                                     deletingSession,
-                                    AccountDeletionPhase.LOCAL_CLEANUP_PENDING,
+                                    AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING,
+                                )
+                            }
+                            clearAuthentication()
+                            pendingDeletion = null
+                            // Authentication is the last sensitive local state. Keep the recovery
+                            // marker until its synchronous removal has succeeded so a process
+                            // death before this point resumes cleanup on the next launch.
+                            // A marker-only removal failure after authentication is gone is safe:
+                            // it contains only a scope hash and cannot restore the deleted session.
+                            runCatching { clearPendingDeletion() }
+                            AccountDeletionState()
+                        } catch (_: Exception) {
+                            runCatching {
+                                val retryPhase = pendingDeletion?.phase
+                                    ?: AccountDeletionPhase.LOCAL_CLEANUP_PENDING
+                                persistPendingDeletion(
+                                    deletingSession,
+                                    retryPhase,
+                                )
+                                pendingDeletion = PendingAccountDeletion(
+                                    deletingSession,
+                                    retryPhase,
                                 )
                             }
                             AccountDeletionState(
@@ -242,6 +267,8 @@ internal class AccountDeletionCoordinator(
             get() = when (this) {
                 AccountDeletionPhase.REMOTE_DELETION_PENDING -> REMOTE_DELETION_FAILURE_MESSAGE
                 AccountDeletionPhase.LOCAL_CLEANUP_PENDING -> LOCAL_CLEANUP_FAILURE_MESSAGE
+                AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING ->
+                    LOCAL_CLEANUP_FAILURE_MESSAGE
             }
 
         const val REMOTE_DELETION_FAILURE_MESSAGE =

@@ -33,6 +33,8 @@ internal class AccountDeletionCleanupStore(context: Context) {
         PREFERENCES_NAME,
         Context.MODE_PRIVATE,
     )
+    @Volatile
+    private var ignoreOrphanedAuthenticationCleanup = false
 
     fun save(session: GoogleSessionStore.Session, phase: AccountDeletionPhase) {
         val scope = sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, session.accessToken)
@@ -42,6 +44,7 @@ internal class AccountDeletionCleanupStore(context: Context) {
                 .putString(PHASE_KEY, phase.name)
                 .commit(),
         ) { "Unable to persist pending account deletion." }
+        ignoreOrphanedAuthenticationCleanup = false
     }
 
     fun loadPhaseFor(session: GoogleSessionStore.Session): AccountDeletionPhase? {
@@ -51,17 +54,42 @@ internal class AccountDeletionCleanupStore(context: Context) {
         }.getOrDefault(false)
         if (!matches) return null
 
-        val savedPhase = preferences.getString(PHASE_KEY, null)
-        return savedPhase?.let { value ->
-            runCatching { AccountDeletionPhase.valueOf(value) }.getOrNull()
-        } ?: AccountDeletionPhase.LOCAL_CLEANUP_PENDING
+        val phase = savedPhase() ?: AccountDeletionPhase.LOCAL_CLEANUP_PENDING
+        return phase.takeUnless {
+            it == AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING &&
+                ignoreOrphanedAuthenticationCleanup
+        }
+    }
+
+    /**
+     * This final-phase marker can outlive the authentication session only when deletion already
+     * completed. Ignore it immediately even if disk removal fails, so a later login in the same
+     * process cannot inherit an earlier account deletion.
+     */
+    fun discardCompletedDeletionWithoutAuthentication() {
+        if (savedPhase() != AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING) return
+        ignoreOrphanedAuthenticationCleanup = true
+        runCatching { clear() }
     }
 
     fun clear() {
-        check(preferences.edit().clear().commit()) {
+        val ignoreOnFailure =
+            savedPhase() == AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING
+        val cleared = preferences.edit().clear().commit()
+        if (cleared) {
+            ignoreOrphanedAuthenticationCleanup = false
+        } else if (ignoreOnFailure) {
+            ignoreOrphanedAuthenticationCleanup = true
+        }
+        check(cleared) {
             "Unable to clear pending account cleanup."
         }
     }
+
+    private fun savedPhase(): AccountDeletionPhase? =
+        preferences.getString(PHASE_KEY, null)?.let { value ->
+            runCatching { AccountDeletionPhase.valueOf(value) }.getOrNull()
+        }
 
     private companion object {
         const val PREFERENCES_NAME = "innolive_account_deletion_cleanup"

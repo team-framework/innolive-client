@@ -64,6 +64,9 @@ class AuthenticationSessionViewModel(
         accountDeletionCleanupStore.loadPhaseFor(currentSession)?.let { phase ->
             PendingAccountDeletion(currentSession, phase)
         }
+    } ?: run {
+        accountDeletionCleanupStore.discardCompletedDeletionWithoutAuthentication()
+        null
     }
     private val accountDeletionCoordinator = AccountDeletionCoordinator(
         scope = viewModelScope,
