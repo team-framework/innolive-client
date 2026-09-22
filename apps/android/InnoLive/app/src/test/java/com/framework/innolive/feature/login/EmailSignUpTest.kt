@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.login
 
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -45,10 +47,10 @@ class EmailSignUpTest {
     @Test
     fun serverErrorCodesUseTheSameSignupMessagesAsIos() = runBlocking {
         val cases = mapOf(
-            "email_already_registered" to "이미 가입된 이메일입니다. 로그인해 주세요.",
-            "invalid_verification_code" to "인증 코드가 올바르지 않거나 만료됐습니다.",
-            "invalid_signup_token" to "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
-            "email_delivery_failed" to "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
+            "email_already_registered" to UiText.Resource(R.string.error_email_already_registered),
+            "invalid_verification_code" to UiText.Resource(R.string.error_email_verification_code),
+            "invalid_signup_token" to UiText.Resource(R.string.error_email_signup_expired),
+            "email_delivery_failed" to UiText.Resource(R.string.error_email_delivery),
         )
 
         for ((code, expected) in cases) {
@@ -58,8 +60,8 @@ class EmailSignUpTest {
             val error = assertThrows(EmailSignUpException::class.java) {
                 runBlocking { api(400, body).verify("token", "123456") }
             }
-            assertEquals(expected, error.message)
-            assertFalse(error.message!!.contains("private details"))
+            assertEquals(expected, error.error)
+            assertFalse(error.error is UiText.Dynamic)
         }
     }
 
@@ -72,10 +74,16 @@ class EmailSignUpTest {
                     if (verify) api.verify("token", "123456") else api.signUp("member@example.com", "password")
                     fail("실패 응답을 성공으로 처리하면 안 된다")
                 } catch (error: EmailSignUpException) {
-                    assertFalse(error.message!!.contains("private server details"))
-                    if (status == 409) assertTrue(error.message!!.contains("이미 가입"))
-                    if (status == 429) assertTrue(error.message!!.contains("요청이 많습니다"))
-                    if (verify && status == 400) assertTrue(error.message!!.contains("만료"))
+                    assertFalse(error.error is UiText.Dynamic)
+                    if (status == 409) {
+                        assertEquals(UiText.Resource(R.string.error_email_already_registered), error.error)
+                    }
+                    if (status == 429) {
+                        assertEquals(UiText.Resource(R.string.error_too_many_requests), error.error)
+                    }
+                    if (verify && status == 400) {
+                        assertEquals(UiText.Resource(R.string.error_email_verification_code), error.error)
+                    }
                 }
             }
         }

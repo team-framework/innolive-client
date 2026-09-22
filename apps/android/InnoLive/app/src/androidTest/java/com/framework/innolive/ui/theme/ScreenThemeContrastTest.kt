@@ -1,6 +1,7 @@
 package com.framework.innolive.ui.theme
 
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -15,11 +16,14 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.text.TextLayoutResult
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
+import com.framework.innolive.feature.login.oauth.google.GoogleSignInState
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
-import kotlinx.coroutines.awaitCancellation
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -31,6 +35,9 @@ import org.junit.runners.Parameterized
 class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Boolean) {
     @get:Rule val compose = createComposeRule()
 
+    private fun string(@StringRes id: Int): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+
     private fun content(body: @Composable () -> Unit) {
         compose.setContent {
             MyApplicationTheme(darkTheme = dark, dynamicColor = dynamic) {
@@ -40,29 +47,49 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
     }
 
     @Test fun loginEnabledAndInProgress() {
-        content { LoginScreen(LoginScreenProps({}, { awaitCancellation() })) }
-        contrast("Google로 계속하기")
-        contrast("이메일로 계속하기")
-        compose.onNodeWithText("Google로 계속하기").performClick()
-        compose.onNodeWithText("Google로 계속하기").assertIsNotEnabled()
-        compose.onNodeWithText("이메일로 계속하기").assertIsNotEnabled()
+        content {
+            LoginScreen(
+                LoginScreenProps(
+                    onLogin = {},
+                    onGoogleLogin = {},
+                    googleSignInState = GoogleSignInState.InProgress,
+                ),
+            )
+        }
+        compose.onNodeWithText(string(R.string.continue_with_google)).assertIsNotEnabled()
+        compose.onNodeWithText(string(R.string.continue_with_email)).assertIsNotEnabled()
         // 비활성 글자는 의도적으로 대비가 낮으므로 별도로 측정합니다.
-        contrast("Google로 계속하기", minimum = 1.5f)
-        contrast("이메일로 계속하기", minimum = 1.5f)
-        compose.onNodeWithText("Google 로그인 중…").assertDoesNotExist()
+        contrast(string(R.string.continue_with_google), minimum = 1.5f)
+        contrast(string(R.string.continue_with_email), minimum = 1.5f)
     }
 
     @Test fun loginFailure() {
-        content { LoginScreen(LoginScreenProps({}, { error("Test login failure") })) }
-        compose.onNodeWithText("Google로 계속하기").performClick()
-        contrast("Google 로그인에 실패했습니다. 다시 시도해 주세요.")
-        compose.onNodeWithText("Google로 계속하기").assertIsEnabled()
-        contrast("Google로 계속하기")
+        content {
+            LoginScreen(
+                LoginScreenProps(
+                    onLogin = {},
+                    onGoogleLogin = {},
+                    googleSignInState = GoogleSignInState.Failed(
+                        UiText.Resource(R.string.google_login_failed),
+                    ),
+                ),
+            )
+        }
+        contrast(string(R.string.google_login_failed))
+        compose.onNodeWithText(string(R.string.continue_with_google)).assertIsEnabled()
+        contrast(string(R.string.continue_with_google))
     }
 
     @Test fun settings() {
         content { SettingsScreen(SettingsScreenProps({}, {}, {}, "테스트 사용자", "test@example.invalid", {})) }
-        listOf("설정", "테스트 사용자", "test@example.invalid", "로그아웃", "카메라 및 오디오 설정", "방송 설정").forEach { contrast(it) }
+        listOf(
+            string(R.string.settings_title),
+            "테스트 사용자",
+            "test@example.invalid",
+            string(R.string.action_logout),
+            string(R.string.settings_camera_audio),
+            string(R.string.settings_broadcast),
+        ).forEach { contrast(it) }
     }
 
     @Test fun youtubeSettings() {

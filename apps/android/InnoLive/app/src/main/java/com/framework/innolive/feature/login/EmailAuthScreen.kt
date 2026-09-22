@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -47,6 +48,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.asString
 
 internal enum class EmailAuthMode {
     SIGN_IN,
@@ -61,8 +65,8 @@ fun EmailAuthScreen(
     onSignIn: ((email: String, password: String) -> Unit)? = null,
     onSignUp: ((email: String, password: String) -> Unit)? = null,
     isSubmitting: Boolean = false,
-    errorMessage: String? = null,
-    noticeMessage: String? = null,
+    errorMessage: UiText? = null,
+    noticeMessage: UiText? = null,
     initialEmail: String = "",
     startWithSignUp: Boolean = false,
     onModeChanged: () -> Unit = {},
@@ -110,7 +114,7 @@ fun EmailAuthScreen(
                     IconButton(onClick = handleBack, enabled = !backBlocked) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "뒤로",
+                            contentDescription = stringResource(R.string.action_back),
                         )
                     }
                 },
@@ -128,16 +132,20 @@ fun EmailAuthScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = if (isSignIn) "이메일로 로그인" else "계정 만들기",
+                    text = stringResource(
+                        if (isSignIn) R.string.email_sign_in_title else R.string.email_sign_up_title,
+                    ),
                     style = MaterialTheme.typography.headlineLarge,
                     modifier = Modifier.semantics { heading() },
                 )
                 Text(
-                    text = if (isSignIn) {
-                        "InnoLive에서 라이브를 이어가세요."
-                    } else {
-                        "이메일 인증 후 라이브를 시작할 수 있어요."
-                    },
+                    text = stringResource(
+                        if (isSignIn) {
+                            R.string.email_sign_in_description
+                        } else {
+                            R.string.email_sign_up_description
+                        },
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -145,22 +153,22 @@ fun EmailAuthScreen(
 
             Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 AuthenticationTextField(
-                    label = "이메일",
+                    label = stringResource(R.string.label_email),
                     value = email,
                     onValueChange = { email = it },
                     enabled = !isSubmitting,
-                    placeholder = "name@example.com",
+                    placeholder = stringResource(R.string.email_placeholder),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next,
                     ),
                 )
                 AuthenticationTextField(
-                    label = "비밀번호",
+                    label = stringResource(R.string.label_password),
                     value = password,
                     onValueChange = { password = it },
                     enabled = !isSubmitting,
-                    placeholder = "비밀번호 입력",
+                    placeholder = stringResource(R.string.password_hint),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = if (isSignIn) ImeAction.Done else ImeAction.Next,
@@ -173,18 +181,18 @@ fun EmailAuthScreen(
                     trailingIcon = {
                         PasswordVisibilityButton(
                             visible = passwordVisible,
-                            label = "비밀번호",
+                            label = stringResource(R.string.label_password),
                             onClick = { passwordVisible = !passwordVisible },
                         )
                     },
                 )
                 if (!isSignIn) {
                     AuthenticationTextField(
-                        label = "비밀번호 확인",
+                        label = stringResource(R.string.label_password_confirmation),
                         value = passwordConfirmation,
                         onValueChange = { passwordConfirmation = it },
                         enabled = !isSubmitting,
-                        placeholder = "비밀번호 입력",
+                        placeholder = stringResource(R.string.password_hint),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             imeAction = ImeAction.Done,
@@ -197,7 +205,7 @@ fun EmailAuthScreen(
                         trailingIcon = {
                             PasswordVisibilityButton(
                                 visible = passwordConfirmationVisible,
-                                label = "비밀번호 확인",
+                                label = stringResource(R.string.label_password_confirmation),
                                 onClick = {
                                     passwordConfirmationVisible = !passwordConfirmationVisible
                                 },
@@ -205,7 +213,7 @@ fun EmailAuthScreen(
                         },
                     )
                     Text(
-                        text = "영문·숫자 기준 8~72자",
+                        text = stringResource(R.string.password_requirements),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -223,19 +231,31 @@ fun EmailAuthScreen(
                     }
                 },
             ) {
-                Text(if (isSubmitting) { if (isSignIn) "로그인 중…" else "인증 메일 보내는 중…" } else if (isSignIn) "로그인" else "인증 메일 보내기")
+                Text(
+                    text = stringResource(
+                        when {
+                            isSubmitting && isSignIn -> R.string.action_signing_in
+                            isSubmitting -> R.string.action_sending_verification_email
+                            isSignIn -> R.string.action_sign_in
+                            else -> R.string.action_send_verification_email
+                        },
+                    ),
+                )
             }
 
             if (errorMessage != null) {
                 Text(
-                    text = errorMessage,
+                    text = errorMessage.asString(),
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
                 )
             }
 
             if (isSignIn && noticeMessage != null) {
-                Text(noticeMessage, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                Text(
+                    text = noticeMessage.asString(),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
             }
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -245,11 +265,9 @@ fun EmailAuthScreen(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = if (isSignIn) {
-                        "InnoLive가 처음이신가요?"
-                    } else {
-                        "이미 계정이 있으신가요?"
-                    },
+                    text = stringResource(
+                        if (isSignIn) R.string.new_to_innolive else R.string.already_have_account,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -259,7 +277,11 @@ fun EmailAuthScreen(
                         changeMode(if (isSignIn) EmailAuthMode.SIGN_UP else EmailAuthMode.SIGN_IN)
                     },
                 ) {
-                    Text(if (isSignIn) "회원가입" else "로그인")
+                    Text(
+                        text = stringResource(
+                            if (isSignIn) R.string.action_sign_up else R.string.action_sign_in,
+                        ),
+                    )
                 }
             }
         }
@@ -308,7 +330,11 @@ private fun PasswordVisibilityButton(
     IconButton(onClick = onClick) {
         Icon(
             imageVector = if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-            contentDescription = if (visible) "$label 가리기" else "$label 보기",
+            contentDescription = stringResource(
+                if (visible) R.string.content_description_hide_value
+                else R.string.content_description_show_value,
+                label,
+            ),
         )
     }
 }

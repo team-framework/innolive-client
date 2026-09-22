@@ -32,6 +32,9 @@ class LocalizationResourcesTest {
             assertTrue(context.resources.getQuantityString(R.plurals.registered_face_count, 1, 1).isNotBlank())
             assertTrue(context.resources.getQuantityString(R.plurals.registered_face_count, 2, 2).isNotBlank())
             assertTrue(context.getString(R.string.error_preview_connect).isNotBlank())
+            assertTrue(context.getString(R.string.email_sign_in_title).isNotBlank())
+            assertTrue(context.getString(R.string.action_resend_verification).isNotBlank())
+            assertTrue(context.getString(R.string.content_description_hide_value, "Password").isNotBlank())
         }
     }
 
@@ -48,12 +51,18 @@ class LocalizationResourcesTest {
         val status = UiText.Resource(R.string.broadcast_state_prepared)
         val saved = UiText.Resource(R.string.broadcast_settings_saved)
         val error = UiText.Resource(R.string.error_account_deletion)
+        val emailError = UiText.Resource(R.string.error_email_credentials)
+        val serverMessage = UiText.Dynamic("Account deletion is already in progress. Retry shortly.")
 
         assertEquals("방송 준비 완료", status.resolve(localizedContext("ko")))
         assertEquals("Broadcast prepared", status.resolve(localizedContext("en")))
         assertEquals("配信の準備完了", status.resolve(localizedContext("ja")))
         assertEquals("Broadcast settings saved.", saved.resolve(localizedContext("en")))
         assertEquals("We could not delete your account. Please try again later.", error.resolve(localizedContext("en")))
+        assertEquals("Check your email or password.", emailError.resolve(localizedContext("en")))
+        assertEquals("メールアドレスまたはパスワードを確認してください。", emailError.resolve(localizedContext("ja")))
+        assertEquals(serverMessage.value, serverMessage.resolve(localizedContext("en")))
+        assertEquals(serverMessage.value, serverMessage.resolve(localizedContext("ja")))
     }
 
     @Test

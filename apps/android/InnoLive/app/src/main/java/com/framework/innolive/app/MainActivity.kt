@@ -161,6 +161,7 @@ fun AppNavigation(
     val activity = context as? ComponentActivity
     val coroutineScope = rememberCoroutineScope()
     val session by authenticationSession.session.collectAsStateWithLifecycle()
+    val googleSignInState by authenticationSession.googleSignInState.collectAsStateWithLifecycle()
     val accountDeletionState by authenticationSession.accountDeletionState.collectAsStateWithLifecycle()
     val isDeletingAccount = accountDeletionState.isInProgress
     val isAccountDeletionPending = accountDeletionState.hasPendingDeletion
@@ -695,9 +696,10 @@ fun AppNavigation(
                                         backStack.add(LiveRoute)
                                     }
                                 },
-                                onGoogleLogin = {
-                                    authenticationSession.continueWithGoogle(context)
-                                },
+                                onGoogleLogin = { authenticationSession.startGoogleSignIn(context) },
+                                onGoogleSignInSuccess =
+                                    authenticationSession::acknowledgeGoogleSignInSuccess,
+                                googleSignInState = googleSignInState,
                                 onEmailLogin = authenticationSession::signInWithEmail,
                                 onEmailSignUp = authenticationSession::startEmailSignup,
                                 onEmailVerification = authenticationSession::verifyEmailSignup,
@@ -759,7 +761,7 @@ fun AppNavigation(
                                 isAccountDeletionPending = isAccountDeletionPending,
                                 isAccountDeletionCleanupPending =
                                     accountDeletionState.localCleanupPending,
-                                accountDeletionError = accountDeletionState.error?.asString(),
+                                accountDeletionError = accountDeletionState.error,
                             ),
                         )
                     }

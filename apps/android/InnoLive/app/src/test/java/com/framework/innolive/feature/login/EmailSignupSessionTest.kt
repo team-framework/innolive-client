@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.login
 
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -92,7 +94,9 @@ class EmailSignupSessionTest {
             signUp = { _, _ -> signups++; "token" },
             verifyEmail = { _, _ -> verifications++ },
             authenticate = { _, _ ->
-                if (++authentications == 1) throw EmailSignInException("잠시 후 다시 시도해 주세요.")
+                if (++authentications == 1) {
+                    throw EmailSignInException(UiText.Resource(R.string.error_request_failed))
+                }
                 authenticatedSession
             },
             saveSession = { saved = true },

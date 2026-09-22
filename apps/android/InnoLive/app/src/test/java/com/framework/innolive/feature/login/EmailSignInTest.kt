@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.login
 
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
@@ -49,7 +51,14 @@ class EmailSignInTest {
 
     @Test
     fun failuresAreSafeAndDoNotSaveSession() = runBlocking {
-        for (code in listOf(401, 429, 503, 500, 302)) {
+        val expectedErrors = mapOf(
+            401 to UiText.Resource(R.string.error_email_credentials),
+            429 to UiText.Resource(R.string.error_sign_in_attempts),
+            503 to UiText.Resource(R.string.error_sign_in_unavailable),
+            500 to UiText.Resource(R.string.error_request_failed),
+            302 to UiText.Resource(R.string.error_request_failed),
+        )
+        for ((code, expectedError) in expectedErrors) {
             val client = OkHttpClient.Builder().addInterceptor { chain ->
                 Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
                     .code(code).message("failure").body("private server details".toResponseBody()).build()
@@ -60,9 +69,8 @@ class EmailSignInTest {
                 authenticateAndSaveEmailSession("member@example.com", "password", api::authenticate) { saved = true }
                 fail("로그인 실패 응답은 예외여야 한다")
             } catch (error: EmailSignInException) {
-                assertFalse(error.message!!.contains("private server details"))
-                if (code == 401) assertTrue(error.message!!.contains("비밀번호"))
-                if (code == 429) assertTrue(error.message!!.contains("시도가 많습니다"))
+                assertEquals(expectedError, error.error)
+                assertFalse(error.error is UiText.Dynamic)
             }
             assertFalse(saved)
         }

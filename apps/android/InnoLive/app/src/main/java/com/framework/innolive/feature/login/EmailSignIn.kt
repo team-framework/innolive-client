@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.login
 
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.feature.login.oauth.google.googleAuthEndpoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -20,7 +22,11 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-internal class EmailSignInException(message: String) : IOException(message)
+internal open class EmailAuthenticationException(
+    val error: UiText,
+) : IOException()
+
+internal class EmailSignInException(error: UiText) : EmailAuthenticationException(error)
 
 internal class EmailSignInApi(
     private val calls: Call.Factory = OkHttpClient.Builder()
@@ -54,10 +60,10 @@ internal class EmailSignInApi(
                             response.use {
                                 if (it.code != 200) {
                                     throw EmailSignInException(when (it.code) {
-                                        401 -> "이메일 또는 비밀번호를 확인해 주세요."
-                                        429 -> "로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요."
-                                        503 -> "지금은 이메일로 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요."
-                                        else -> "로그인하지 못했습니다. 잠시 후 다시 시도해 주세요."
+                                        401 -> UiText.Resource(R.string.error_email_credentials)
+                                        429 -> UiText.Resource(R.string.error_sign_in_attempts)
+                                        503 -> UiText.Resource(R.string.error_sign_in_unavailable)
+                                        else -> UiText.Resource(R.string.error_request_failed)
                                     })
                                 }
                                 parseEmailSession(it.body.string(), normalizedEmail)
