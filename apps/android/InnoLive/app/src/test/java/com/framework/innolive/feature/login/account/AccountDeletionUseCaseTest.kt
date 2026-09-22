@@ -123,11 +123,84 @@ class AccountDeletionUseCaseTest {
                 "remote",
                 "persist:LOCAL_CLEANUP_PENDING",
                 "local",
-                "clear-marker",
                 "auth",
+                "clear-marker",
             ),
             events,
         )
+        coordinatorJob.cancel()
+    }
+
+    @Test
+    fun authenticationFailureKeepsRecoveryMarkerForNextLaunch() = runBlocking {
+        val coordinatorJob = Job()
+        var markerPresent = false
+        var authenticationClearCount = 0
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = { AccountDeletionResult.Deleted },
+            clearLocalAccountData = {},
+            clearAuthentication = {
+                authenticationClearCount += 1
+                error("authentication storage failure")
+            },
+            persistPendingDeletion = { _, _ -> markerPresent = true },
+            clearPendingDeletion = { markerPresent = false },
+        )
+
+        coordinator.delete()
+        withTimeout(2_000) {
+            coordinator.state.first { it.localCleanupPending && !it.isInProgress }
+        }
+
+        assertEquals(1, authenticationClearCount)
+        assertTrue(markerPresent)
+        assertTrue(coordinator.state.value.error?.contains("기기 데이터 정리") == true)
+        coordinatorJob.cancel()
+    }
+
+    @Test
+    fun markerRemovalFailureAfterAuthenticationDoesNotUndoCompletedDeletion() = runBlocking {
+        val coordinatorJob = Job()
+        val events = mutableListOf<String>()
+        var authenticationPresent = true
+        var markerPresent = false
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = { AccountDeletionResult.Deleted },
+            clearLocalAccountData = { events += "local" },
+            clearAuthentication = {
+                events += "auth"
+                authenticationPresent = false
+            },
+            persistPendingDeletion = { _, phase ->
+                events += "persist:$phase"
+                markerPresent = true
+            },
+            clearPendingDeletion = {
+                events += "clear-marker"
+                error("marker storage failure")
+            },
+        )
+
+        coordinator.delete()
+        withTimeout(2_000) { coordinator.state.first { !it.isInProgress } }
+
+        assertEquals(
+            listOf(
+                "persist:REMOTE_DELETION_PENDING",
+                "persist:LOCAL_CLEANUP_PENDING",
+                "local",
+                "auth",
+                "clear-marker",
+            ),
+            events,
+        )
+        assertEquals(false, authenticationPresent)
+        assertTrue(markerPresent)
+        assertEquals(AccountDeletionState(), coordinator.state.value)
         coordinatorJob.cancel()
     }
 

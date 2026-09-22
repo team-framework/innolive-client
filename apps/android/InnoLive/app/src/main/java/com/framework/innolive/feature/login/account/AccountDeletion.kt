@@ -194,9 +194,14 @@ internal class AccountDeletionCoordinator(
                                 )
                             }
                             clearLocalAccountData(deletingSession)
-                            clearPendingDeletion()
                             clearAuthentication()
                             pendingDeletion = null
+                            // Authentication is the last sensitive local state. Keep the recovery
+                            // marker until its synchronous removal has succeeded so a process
+                            // death before this point resumes cleanup on the next launch.
+                            // A marker-only removal failure after authentication is gone is safe:
+                            // it contains only a scope hash and cannot restore the deleted session.
+                            runCatching { clearPendingDeletion() }
                             AccountDeletionState()
                         } catch (_: Exception) {
                             runCatching {
