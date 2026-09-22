@@ -103,6 +103,8 @@ class WebRtcConnection(
     private val signalLock = Any()
     private val pendingSignals = mutableListOf<String>()
     private var connectionTimeoutTask: ScheduledFuture<*>? = null
+    private var disconnectionTimeoutTask: ScheduledFuture<*>? = null
+    private var connectionStatsTask: ScheduledFuture<*>? = null
     private var audioRouteVerificationTask: ScheduledFuture<*>? = null
 
     @Volatile
@@ -897,7 +899,52 @@ class WebRtcConnection(
 
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null
+        disconnectionTimeoutTask?.cancel(false)
+        disconnectionTimeoutTask = null
         updateState(WebRtcConnectionState.CONNECTED, "WebRTC 연결됨")
+        startConnectionStatsLogging()
+    }
+
+    private fun beginDisconnectedRecovery() {
+        if (!isActive()) return
+        peerConnectionConnected = false
+        updateState(WebRtcConnectionState.CONNECTING, "네트워크 연결을 복구하는 중…")
+        collectConnectionStats("disconnected")
+        if (disconnectionTimeoutTask != null) return
+        disconnectionTimeoutTask = timerExecutor.schedule(
+            {
+                executeOnOwner {
+                    disconnectionTimeoutTask = null
+                    if (isActive() && !peerConnectionConnected) {
+                        fail("WebRTC 연결 복구 시간이 초과되었습니다.")
+                    }
+                }
+            },
+            DISCONNECTION_RECOVERY_TIMEOUT_MILLIS,
+            TimeUnit.MILLISECONDS,
+        )
+    }
+
+    private fun startConnectionStatsLogging() {
+        if (connectionStatsTask != null) return
+        connectionStatsTask = timerExecutor.scheduleWithFixedDelay(
+            { executeOnOwner { collectConnectionStats("periodic") } },
+            CONNECTION_STATS_INTERVAL_MILLIS,
+            CONNECTION_STATS_INTERVAL_MILLIS,
+            TimeUnit.MILLISECONDS,
+        )
+    }
+
+    private fun collectConnectionStats(trigger: String) {
+        val connection = peerConnection ?: return
+        val sessionId = session?.sessionId ?: return
+        connection.getStats { report ->
+            val summary = summarizeWebRtcStats(report.statsMap.values)
+            Log.i(
+                "LiveConnection",
+                "webrtc_stats session_id=$sessionId trigger=$trigger ${summary.toLogFields()}",
+            )
+        }
     }
 
     private fun fail(message: String) {
@@ -960,6 +1007,10 @@ class WebRtcConnection(
         timerExecutor.shutdownNow()
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null
+        disconnectionTimeoutTask?.cancel(false)
+        disconnectionTimeoutTask = null
+        connectionStatsTask?.cancel(false)
+        connectionStatsTask = null
         audioRouteVerificationTask?.cancel(false)
         audioRouteVerificationTask = null
 
@@ -1127,7 +1178,12 @@ class WebRtcConnection(
     private val peerConnectionObserver = object : PeerConnection.Observer {
         override fun onSignalingChange(state: PeerConnection.SignalingState) = Unit
 
-        override fun onIceConnectionChange(state: PeerConnection.IceConnectionState) = Unit
+        override fun onIceConnectionChange(state: PeerConnection.IceConnectionState) {
+            Log.i(
+                "LiveConnection",
+                "webrtc_state session_id=${session?.sessionId.orEmpty()} kind=ice state=${state.name.lowercase()}",
+            )
+        }
 
         override fun onIceConnectionReceivingChange(receiving: Boolean) = Unit
 
@@ -1152,20 +1208,26 @@ class WebRtcConnection(
         override fun onRenegotiationNeeded() = Unit
 
         override fun onConnectionChange(state: PeerConnection.PeerConnectionState) {
-            when (state) {
-                PeerConnection.PeerConnectionState.CONNECTED -> {
+            Log.i(
+                "LiveConnection",
+                "webrtc_state session_id=${session?.sessionId.orEmpty()} kind=peer state=${state.name.lowercase()}",
+            )
+            when (peerConnectionTransition(state)) {
+                PeerConnectionTransition.CONNECTED -> {
                     executeOnOwner {
                         if (!isActive()) return@executeOnOwner
                         peerConnectionConnected = true
+                        collectConnectionStats("connected")
                         updateConnectedState()
                     }
                 }
 
-                PeerConnection.PeerConnectionState.FAILED,
-                PeerConnection.PeerConnectionState.DISCONNECTED,
-                -> fail("WebRTC 연결이 끊겼습니다.")
+                PeerConnectionTransition.RECOVERING ->
+                    executeOnOwner { beginDisconnectedRecovery() }
 
-                else -> Unit
+                PeerConnectionTransition.FAILED -> fail("WebRTC 연결이 끊겼습니다.")
+
+                PeerConnectionTransition.IGNORE -> Unit
             }
         }
 
@@ -1192,6 +1254,8 @@ class WebRtcConnection(
         private val factoryInitialized = AtomicBoolean(false)
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private const val CONNECTION_TIMEOUT_MILLIS = 30_000L
+        private const val DISCONNECTION_RECOVERY_TIMEOUT_MILLIS = 15_000L
+        private const val CONNECTION_STATS_INTERVAL_MILLIS = 10_000L
         private const val AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS = 500L
         private const val GO_LIVE_RETRY_COUNT = 15
         private const val GO_LIVE_RETRY_DELAY_MILLIS = 1_000L
