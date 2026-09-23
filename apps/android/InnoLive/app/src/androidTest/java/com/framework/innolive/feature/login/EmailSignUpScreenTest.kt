@@ -6,9 +6,12 @@ import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -40,7 +43,12 @@ class EmailSignUpScreenTest {
         rule.onAllNodes(hasSetTextAction())[0].performTextInput("member@example.com")
         rule.onAllNodes(hasSetTextAction())[1].performTextInput("password123")
         rule.onAllNodes(hasSetTextAction())[2].performTextInput("password123")
-        rule.onNodeWithText(string(R.string.action_send_verification_email))
+        val sendLabel = string(R.string.action_send_verification_email)
+        rule.waitUntil(10_000) {
+            rule.onAllNodes(hasText(sendLabel) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithText(sendLabel)
+            .assertIsEnabled()
             .performScrollTo()
             .performClick()
         val expectedLabel = if (waitForVerification) {
