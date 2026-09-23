@@ -57,8 +57,8 @@ class SessionRecoveryApiTest {
 
     @Test fun unknownLegacyConflictIsNotDeletedWithoutOwnerToken() {
         Fixture(FakeStore(), createStatuses = listOf(409)).use { fixture ->
-            val failure = assertThrows(IOException::class.java) { fixture.createSession() }
-            assertTrue(failure.message.orEmpty().contains("기존 방송을 종료"))
+            val failure = assertThrows(ConnectionFailureException::class.java) { fixture.createSession() }
+            assertEquals(ConnectionFailure.EXISTING_BROADCAST, failure.failure)
             assertEquals(listOf("POST"), fixture.requests.map { it.method })
         }
     }

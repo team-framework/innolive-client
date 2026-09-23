@@ -13,7 +13,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
 
 @Composable
 fun ProfileDisplay(
@@ -27,12 +29,12 @@ fun ProfileDisplay(
     ) {
         Icon(
             imageVector = Icons.Outlined.AccountCircle,
-            contentDescription = "프로필",
+            contentDescription = stringResource(R.string.content_description_profile),
             modifier = Modifier.size(40.dp),
         )
         Column {
             Text(
-                text = name.ifBlank { "Google 사용자" },
+                text = name.ifBlank { stringResource(R.string.google_user) },
                 style = MaterialTheme.typography.titleMedium,
             )
             if (email.isNotBlank()) {

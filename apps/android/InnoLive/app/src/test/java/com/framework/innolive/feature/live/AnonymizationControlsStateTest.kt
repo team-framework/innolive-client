@@ -19,14 +19,14 @@ class AnonymizationControlsStateTest {
         val unknown = state(confirmed = AnonymizationState.UNKNOWN)
         assertNull(unknown.selectedEnabled)
         assertTrue(unknown.canChange)
-        assertEquals("비식별화 상태 확인 필요", unknown.label)
+        assertEquals(UiText.Resource(R.string.anonymization_needs_check), unknown.label)
     }
 
     @Test fun changingKeepsConfirmedValueAndPreventsDuplicateRequests() {
         val pending = state(change = AnonymizationChange(status = AnonymizationChangeStatus.CHANGING, requestedEnabled = false))
         assertEquals(true, pending.selectedEnabled)
         assertFalse(pending.canChange)
-        assertEquals("비식별화 변경 중", pending.label)
+        assertEquals(UiText.Resource(R.string.anonymization_changing), pending.label)
         val failed = state(change = AnonymizationChange(
             status = AnonymizationChangeStatus.FAILED,
             errorMessage = UiText.Resource(R.string.error_anonymization_request),

@@ -40,6 +40,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.AudioInputDevice
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
@@ -69,8 +70,13 @@ import com.framework.innolive.feature.youtube.YouTubeAccountVerificationState
 import com.framework.innolive.feature.youtube.YouTubePreferencesStore
 import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
+import com.framework.innolive.feature.youtube.defaultYouTubeBroadcastTitle
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
+import com.framework.innolive.feature.youtube.rememberYouTubeVerificationMemory
 import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.UiTextSaver
+import com.framework.innolive.ui.text.NullableUiTextSaver
 import com.framework.innolive.ui.text.asString
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
@@ -102,7 +108,7 @@ data class SettingOptionRoute(
 ) : AppRoute
 
 private data class OptionSelectionConfig(
-    val title: String,
+    val title: UiText,
     val options: List<SettingOption>,
     val selectedKey: String,
     val onOptionSelected: (String) -> Unit,
@@ -113,16 +119,27 @@ private val broadcastPlatformOptions = listOf(
 )
 
 private val broadcastPrivacyOptions = listOf(
-    SettingOption(key = "public", label = "공개"),
-    SettingOption(key = "unlisted", label = "일부 공개"),
-    SettingOption(key = "private", label = "비공개"),
+    SettingOption(key = "public", label = UiText.Resource(R.string.privacy_public)),
+    SettingOption(key = "unlisted", label = UiText.Resource(R.string.privacy_unlisted)),
+    SettingOption(key = "private", label = UiText.Resource(R.string.privacy_private)),
 )
 
 private val broadcastAudienceOptions = listOf(
-    SettingOption(key = "unset", label = "선택 필요"),
-    SettingOption(key = "true", label = "아동용"),
-    SettingOption(key = "false", label = "아동용 아님"),
+    SettingOption(key = "unset", label = UiText.Resource(R.string.audience_required)),
+    SettingOption(key = "true", label = UiText.Resource(R.string.audience_made_for_kids)),
+    SettingOption(key = "false", label = UiText.Resource(R.string.audience_not_made_for_kids)),
 )
+
+private fun CameraLensFacing.settingDisplayText(): UiText = when (this) {
+    CameraLensFacing.BACK -> UiText.Resource(R.string.camera_back)
+    CameraLensFacing.FRONT -> UiText.Resource(R.string.camera_front)
+}
+
+private fun AudioInputDevice.settingDisplayText(): UiText = if (isDefault) {
+    UiText.Resource(R.string.audio_device_default, listOf(name))
+} else {
+    UiText.Dynamic(name)
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -161,6 +178,7 @@ fun AppNavigation(
     val activity = context as? ComponentActivity
     val coroutineScope = rememberCoroutineScope()
     val session by authenticationSession.session.collectAsStateWithLifecycle()
+    val googleSignInState by authenticationSession.googleSignInState.collectAsStateWithLifecycle()
     val accountDeletionState by authenticationSession.accountDeletionState.collectAsStateWithLifecycle()
     val isDeletingAccount = accountDeletionState.isInProgress
     val isAccountDeletionPending = accountDeletionState.hasPendingDeletion
@@ -192,28 +210,29 @@ fun AppNavigation(
             reconnectRequired = youtubeAccountReconnectRequired,
         )
     }
-    var youtubeAccountStatus by rememberSaveable {
-        mutableStateOf(
+    var youtubeAccountStatus by rememberSaveable(stateSaver = UiTextSaver) {
+        mutableStateOf<UiText>(
             if (restoredYouTubeAccount == null) {
-                "로그인 후 YouTube 계정을 연동할 수 있습니다."
+                UiText.Resource(R.string.youtube_status_sign_in_required)
             } else {
-                "저장된 YouTube 연결 정보를 확인하는 중입니다."
+                UiText.Resource(R.string.youtube_status_checking_saved)
             },
         )
     }
     var isYouTubeAccountActionInProgress by rememberSaveable { mutableStateOf(false) }
-    var youtubeAccountVerificationState by remember {
-        mutableStateOf(YouTubeAccountVerificationState.UNVERIFIED)
-    }
-    var verifiedYouTubeProfileEmail by remember { mutableStateOf<String?>(null) }
-    var youtubeOperationProfileEmail by remember { mutableStateOf<String?>(null) }
-    var previousProfileEmail by remember { mutableStateOf(session?.profileEmail) }
+    val youtubeVerification = rememberYouTubeVerificationMemory()
+    var youtubeAccountVerificationState by youtubeVerification.state
+    var verifiedYouTubeProfileEmail by youtubeVerification.verifiedProfileEmail
+    var youtubeOperationProfileEmail by rememberSaveable { mutableStateOf<String?>(null) }
+    var previousProfileEmail by rememberSaveable { mutableStateOf(session?.profileEmail) }
     var isYouTubeAuthorizationLaunched by rememberSaveable { mutableStateOf(false) }
     var youtubeAuthorizationOperation by rememberSaveable { mutableStateOf<Long?>(null) }
-    var youtubeAccountStatusBeforeAuthorization by rememberSaveable {
-        mutableStateOf<String?>(null)
+    var youtubeAccountStatusBeforeAuthorization by rememberSaveable(
+        stateSaver = NullableUiTextSaver,
+    ) {
+        mutableStateOf<UiText?>(null)
     }
-    var suppressYouTubeAccountRefreshOnce by remember { mutableStateOf(false) }
+    var suppressYouTubeAccountRefreshOnce by youtubeVerification.suppressRefreshOnce
     val youtubeOperationGeneration = rememberSaveable(
         saver = Saver<OperationGeneration, Long>(
             save = { generation -> generation.current },
@@ -231,7 +250,7 @@ fun AppNavigation(
             youtubeAccountStatusBeforeAuthorization = null
             youtubeOperationGeneration.invalidate()
             isYouTubeAccountActionInProgress = false
-            youtubeAccountStatus = "YouTube 계정 연동을 다시 시도해 주세요."
+            youtubeAccountStatus = UiText.Resource(R.string.youtube_status_retry_connect)
         }
     }
 
@@ -245,10 +264,13 @@ fun AppNavigation(
         youtubeAccountChannelTitle = account?.channelTitle
         youtubeAccountReconnectRequired = account?.reconnectRequired == true
         youtubeAccountStatus = when {
-            account == null -> "연결된 계정이 없습니다"
-            account.reconnectRequired -> "YouTube 재연동이 필요합니다."
-            account.channelTitle.isNotBlank() -> "YouTube 채널: ${account.channelTitle}"
-            else -> "YouTube 계정이 연동되었습니다."
+            account == null -> UiText.Resource(R.string.youtube_status_no_account)
+            account.reconnectRequired -> UiText.Resource(R.string.youtube_status_reconnect_required)
+            account.channelTitle.isNotBlank() -> UiText.Resource(
+                R.string.youtube_status_channel,
+                listOf(account.channelTitle),
+            )
+            else -> UiText.Resource(R.string.youtube_status_connected)
         }
     }
 
@@ -384,7 +406,7 @@ fun AppNavigation(
         youtubeOperationProfileEmail = session?.profileEmail
         if (backStack.lastOrNull() in setOf(BroadcastSettingRoute, LiveRoute) && session != null) {
             youtubeAccountVerificationState = YouTubeAccountVerificationState.CHECKING
-            youtubeAccountStatus = "YouTube 연결 상태를 확인하는 중입니다."
+            youtubeAccountStatus = UiText.Resource(R.string.youtube_status_checking)
             try {
                 val account = youtubeCoordinator.loadAccount(::refreshCurrentAccessToken)
                 if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
@@ -393,7 +415,7 @@ fun AppNavigation(
             } catch (_: Exception) {
                 if (isCurrentYouTubeOperation(operation)) {
                     youtubeAccountVerificationState = YouTubeAccountVerificationState.UNVERIFIED
-                    youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다."
+                    youtubeAccountStatus = UiText.Resource(R.string.youtube_status_check_failed)
                 }
             }
         }
@@ -424,6 +446,14 @@ fun AppNavigation(
         mutableStateOf(broadcastPlatformOptions.first())
     }
     var broadcastTitle by rememberSaveable { mutableStateOf(restoredBroadcastSettings.title) }
+    var isBroadcastTitleGeneratedDefault by rememberSaveable {
+        mutableStateOf(!youtubePreferencesStore.hasSavedBroadcastTitle())
+    }
+    val displayedBroadcastTitle = if (isBroadcastTitleGeneratedDefault) {
+        defaultYouTubeBroadcastTitle(context)
+    } else {
+        broadcastTitle
+    }
     var broadcastDescription by rememberSaveable {
         mutableStateOf(restoredBroadcastSettings.description)
     }
@@ -453,6 +483,7 @@ fun AppNavigation(
             youtubeAccountVerificationState = YouTubeAccountVerificationState.UNVERIFIED
             val defaults = youtubePreferencesStore.loadBroadcastSettings()
             broadcastTitle = defaults.title
+            isBroadcastTitleGeneratedDefault = !youtubePreferencesStore.hasSavedBroadcastTitle()
             broadcastDescription = defaults.description
             broadcastPrivacy = defaults.privacy
             broadcastAudience = when (defaults.madeForKids) {
@@ -524,7 +555,7 @@ fun AppNavigation(
         device.id == selectedAudioDeviceId
     } ?: audioDeviceOptions.firstOrNull()
     val broadcastSettings = BroadcastSettings(
-        title = broadcastTitle,
+        title = displayedBroadcastTitle,
         description = broadcastDescription,
         privacy = broadcastPrivacy,
         madeForKids = when (broadcastAudience) {
@@ -535,6 +566,8 @@ fun AppNavigation(
         categoryId = broadcastCategoryId,
     )
     fun updateBroadcastSettings(settings: BroadcastSettings) {
+        isBroadcastTitleGeneratedDefault = isBroadcastTitleGeneratedDefault &&
+            settings.title == displayedBroadcastTitle
         broadcastTitle = settings.title
         broadcastDescription = settings.description
         broadcastPrivacy = settings.privacy
@@ -544,7 +577,10 @@ fun AppNavigation(
             null -> "unset"
         }
         broadcastCategoryId = settings.categoryId
-        youtubePreferencesStore.saveBroadcastSettings(settings)
+        youtubePreferencesStore.saveBroadcastSettings(
+            settings,
+            titleIsGeneratedDefault = isBroadcastTitleGeneratedDefault,
+        )
     }
     LaunchedEffect(selectedAudioInput?.id) {
         webRtcSession.selectAudioInput(selectedAudioInput)
@@ -575,7 +611,7 @@ fun AppNavigation(
         youtubeAuthorizationOperation = null
         isYouTubeAccountActionInProgress = true
         isYouTubeAuthorizationLaunched = false
-        youtubeAccountStatus = "YouTube 계정 연동을 시작하는 중입니다."
+        youtubeAccountStatus = UiText.Resource(R.string.youtube_status_starting)
         coroutineScope.launch {
             try {
                 youtubeCoordinator.beginAuthorization(
@@ -665,7 +701,7 @@ fun AppNavigation(
             onBroadcastSettingsChanged = ::updateBroadcastSettings,
             youtubeChannelTitle = visibleYouTubeAccount?.channelTitle,
             hasYouTubeAccount = hasServerVerifiedYouTubeAccount,
-            youtubeAccountStatus = youtubeAccountStatus,
+            youtubeAccountStatus = youtubeAccountStatus.asString(),
             isYouTubeReconnectRequired = visibleYouTubeAccount?.reconnectRequired == true,
             isYouTubeAccountActionInProgress = isYouTubeAccountOperationInProgress,
             isYouTubeConnectEnabled = session != null,
@@ -695,9 +731,10 @@ fun AppNavigation(
                                         backStack.add(LiveRoute)
                                     }
                                 },
-                                onGoogleLogin = {
-                                    authenticationSession.continueWithGoogle(context)
-                                },
+                                onGoogleLogin = { authenticationSession.startGoogleSignIn(context) },
+                                onGoogleSignInSuccess =
+                                    authenticationSession::acknowledgeGoogleSignInSuccess,
+                                googleSignInState = googleSignInState,
                                 onEmailLogin = authenticationSession::signInWithEmail,
                                 onEmailSignUp = authenticationSession::startEmailSignup,
                                 onEmailVerification = authenticationSession::verifyEmailSignup,
@@ -748,7 +785,9 @@ fun AppNavigation(
                                         verifiedYouTubeProfileEmail = null
                                         youtubeAccountVerificationState =
                                             YouTubeAccountVerificationState.UNVERIFIED
-                                        youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
+                                youtubeAccountStatus = UiText.Resource(
+                                    R.string.youtube_status_sign_in_required,
+                                )
                                         isYouTubeAccountActionInProgress = false
                                         backStack.clear()
                                         backStack.add(LoginRoute)
@@ -759,7 +798,7 @@ fun AppNavigation(
                                 isAccountDeletionPending = isAccountDeletionPending,
                                 isAccountDeletionCleanupPending =
                                     accountDeletionState.localCleanupPending,
-                                accountDeletionError = accountDeletionState.error?.asString(),
+                                accountDeletionError = accountDeletionState.error,
                             ),
                         )
                     }
@@ -771,8 +810,12 @@ fun AppNavigation(
                             props = CameraSettingProps(
                                 onBack = onBack,
                                 selectedResolution = selectedResolution?.displayName.orEmpty(),
-                                selectedCameraDevice = selectedCameraLensFacing.displayName,
-                                selectedAudioDevice = selectedAudioDevice?.displayName.orEmpty(),
+                                selectedCameraDevice =
+                                    selectedCameraLensFacing.settingDisplayText().asString(),
+                                selectedAudioDevice = selectedAudioDevice
+                                    ?.settingDisplayText()
+                                    ?.asString()
+                                    .orEmpty(),
                                 onOpenResolutionOptions = {
                                     backStack.add(
                                         SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION),
@@ -804,7 +847,7 @@ fun AppNavigation(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_PLATFORM),
                                     )
                                 },
-                                title = broadcastTitle,
+                                title = displayedBroadcastTitle,
                                 onTitleChanged = { value ->
                                     updateBroadcastSettings(
                                         broadcastSettings.copy(title = value.take(100)),
@@ -818,7 +861,8 @@ fun AppNavigation(
                                 },
                                 selectedPrivacy = broadcastPrivacyOptions
                                     .first { option -> option.key == broadcastPrivacy }
-                                    .label,
+                                    .label
+                                    .asString(),
                                 onOpenPrivacyOptions = {
                                     backStack.add(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_PRIVACY),
@@ -826,7 +870,8 @@ fun AppNavigation(
                                 },
                                 selectedAudience = broadcastAudienceOptions
                                     .first { option -> option.key == broadcastAudience }
-                                    .label,
+                                    .label
+                                    .asString(),
                                 onOpenAudienceOptions = {
                                     backStack.add(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_AUDIENCE),
@@ -841,7 +886,7 @@ fun AppNavigation(
                                     )
                                 },
                                 youtubeChannelTitle = visibleYouTubeAccount?.channelTitle,
-                                youtubeAccountStatus = youtubeAccountStatus,
+                                youtubeAccountStatus = youtubeAccountStatus.asString(),
                                 hasVerifiedYouTubeAccount = hasServerVerifiedYouTubeAccount,
                                 isYouTubeReconnectRequired =
                                     visibleYouTubeAccount?.reconnectRequired == true,
@@ -868,7 +913,7 @@ fun AppNavigation(
                                 ) {
                                     webRtcSession.broadcastStatus.asString()
                                 } else {
-                                    "비식별화 연결 후 방송 설정을 저장할 수 있습니다."
+                                    context.getString(R.string.broadcast_settings_connection_required)
                                 },
                             ),
                         )
@@ -878,11 +923,11 @@ fun AppNavigation(
                 is SettingOptionRoute -> {
                     val config = when (route.type) {
                         SettingOptionType.CAMERA_RESOLUTION -> OptionSelectionConfig(
-                            title = "카메라 해상도",
+                            title = UiText.Resource(R.string.label_camera_resolution),
                             options = supportedCameraResolutions.map { resolution ->
                                 SettingOption(
                                     key = resolution.key,
-                                    label = resolution.displayName,
+                                    label = UiText.Dynamic(resolution.displayName),
                                 )
                             },
                             selectedKey = selectedResolutionKey.orEmpty(),
@@ -890,11 +935,11 @@ fun AppNavigation(
                         )
 
                         SettingOptionType.CAMERA_DEVICE -> OptionSelectionConfig(
-                            title = "카메라 기기",
+                            title = UiText.Resource(R.string.label_camera_device),
                             options = cameraDeviceOptions.map { facing ->
                                 SettingOption(
                                     key = facing.name,
-                                    label = facing.displayName,
+                                    label = facing.settingDisplayText(),
                                 )
                             },
                             selectedKey = selectedCameraLensFacing.name,
@@ -904,11 +949,11 @@ fun AppNavigation(
                         )
 
                         SettingOptionType.AUDIO_DEVICE -> OptionSelectionConfig(
-                            title = "오디오 기기",
+                            title = UiText.Resource(R.string.label_audio_device),
                             options = audioDeviceOptions.map { device ->
                                 SettingOption(
                                     key = device.id.toString(),
-                                    label = device.displayName,
+                                    label = device.settingDisplayText(),
                                 )
                             },
                             selectedKey = selectedAudioDeviceId.toString(),
@@ -916,16 +961,16 @@ fun AppNavigation(
                         )
 
                         SettingOptionType.BROADCAST_PLATFORM -> OptionSelectionConfig(
-                            title = "방송 플랫폼",
+                            title = UiText.Resource(R.string.label_broadcast_platform),
                             options = broadcastPlatformOptions.map { platform ->
-                                SettingOption(key = platform, label = platform)
+                                SettingOption(key = platform, label = UiText.Dynamic(platform))
                             },
                             selectedKey = selectedBroadcastPlatform,
                             onOptionSelected = { selectedBroadcastPlatform = it },
                         )
 
                         SettingOptionType.BROADCAST_PRIVACY -> OptionSelectionConfig(
-                            title = "공개 범위",
+                            title = UiText.Resource(R.string.label_broadcast_privacy),
                             options = broadcastPrivacyOptions,
                             selectedKey = broadcastPrivacy,
                             onOptionSelected = { key ->
@@ -934,7 +979,7 @@ fun AppNavigation(
                         )
 
                         SettingOptionType.BROADCAST_AUDIENCE -> OptionSelectionConfig(
-                            title = "아동용 콘텐츠",
+                            title = UiText.Resource(R.string.label_made_for_kids),
                             options = broadcastAudienceOptions,
                             selectedKey = broadcastAudience,
                             onOptionSelected = { key ->

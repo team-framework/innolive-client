@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.login
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.performTextInput
@@ -11,13 +12,20 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.framework.innolive.R
+import com.framework.innolive.feature.login.oauth.google.GoogleSignInState
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.theme.MyApplicationTheme
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
 
 class EmailAuthScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    private fun string(@StringRes id: Int, vararg formatArgs: Any): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id, *formatArgs)
 
     @Test
     fun emailContinueOpensSignInAndBackReturnsToLoginOptions() {
@@ -27,16 +35,16 @@ class EmailAuthScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("이메일로 계속하기").performClick()
+        composeRule.onNodeWithText(string(R.string.continue_with_email)).performClick()
 
-        composeRule.onNodeWithText("이메일로 로그인").assertIsDisplayed()
-        composeRule.onNodeWithText("InnoLive에서 라이브를 이어가세요.").assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.email_sign_in_title)).assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.email_sign_in_description)).assertIsDisplayed()
         composeRule.onNodeWithText("name@example.com").assertIsDisplayed()
-        composeRule.onNodeWithText("로그인").assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.action_sign_in)).assertIsNotEnabled()
 
-        composeRule.onNodeWithContentDescription("뒤로").performClick()
-        composeRule.onNodeWithText("Google로 계속하기").assertIsDisplayed()
-        composeRule.onNodeWithText("이메일로 계속하기").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(string(R.string.action_back)).performClick()
+        composeRule.onNodeWithText(string(R.string.continue_with_google)).assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.continue_with_email)).assertIsDisplayed()
     }
 
     @Test
@@ -47,15 +55,57 @@ class EmailAuthScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("회원가입").performClick()
+        composeRule.onNodeWithText(string(R.string.action_sign_up)).performClick()
 
-        composeRule.onNodeWithText("계정 만들기").assertIsDisplayed()
-        composeRule.onNodeWithText("비밀번호 확인").assertIsDisplayed()
-        composeRule.onNodeWithText("인증 메일 보내기").assertIsNotEnabled()
-        composeRule.onNodeWithText("이미 계정이 있으신가요?").assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.email_sign_up_title)).assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.label_password_confirmation)).assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.action_send_verification_email))
+            .assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.already_have_account)).assertIsDisplayed()
 
-        composeRule.onNodeWithText("로그인").performClick()
-        composeRule.onNodeWithText("이메일로 로그인").assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.action_sign_in)).performClick()
+        composeRule.onNodeWithText(string(R.string.email_sign_in_title)).assertIsDisplayed()
+    }
+
+    @Test
+    fun talkBackLabelsUseLocalizedAccessibilityResources() {
+        composeRule.setContent {
+            MyApplicationTheme(dynamicColor = false) {
+                LoginScreen(LoginScreenProps(onLogin = {}, onGoogleLogin = {}))
+            }
+        }
+
+        composeRule.onNodeWithText(string(R.string.continue_with_email)).performClick()
+        composeRule.onNodeWithContentDescription(string(R.string.action_back)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            string(R.string.content_description_show_value, string(R.string.label_password)),
+        ).performClick()
+        composeRule.onNodeWithContentDescription(
+            string(R.string.content_description_hide_value, string(R.string.label_password)),
+        ).assertIsDisplayed()
+    }
+
+    @Test
+    fun completedGoogleSignInNavigatesAndAcknowledgesTheViewModelState() {
+        var navigations = 0
+        var acknowledgements = 0
+        composeRule.setContent {
+            MyApplicationTheme(dynamicColor = false) {
+                LoginScreen(
+                    LoginScreenProps(
+                        onLogin = { navigations++ },
+                        onGoogleLogin = {},
+                        onGoogleSignInSuccess = { acknowledgements++ },
+                        googleSignInState = GoogleSignInState.Succeeded,
+                    ),
+                )
+            }
+        }
+
+        composeRule.runOnIdle {
+            assertEquals(1, navigations)
+            assertEquals(1, acknowledgements)
+        }
     }
 
     @Test
@@ -74,12 +124,12 @@ class EmailAuthScreenTest {
                     }))
             }
         }
-        composeRule.onNodeWithText("이메일로 계속하기").performClick()
+        composeRule.onNodeWithText(string(R.string.continue_with_email)).performClick()
         composeRule.onAllNodes(hasSetTextAction())[0].performTextInput(" member@example.com ")
         composeRule.onAllNodes(hasSetTextAction())[1].performTextInput(" pass word ")
-        composeRule.onNodeWithText("로그인").assertIsEnabled().performClick()
-        composeRule.onNodeWithText("로그인 중…").assertIsNotEnabled().performClick()
-        composeRule.onNodeWithText("회원가입").assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.action_sign_in)).assertIsEnabled().performClick()
+        composeRule.onNodeWithText(string(R.string.action_signing_in)).assertIsNotEnabled().performClick()
+        composeRule.onNodeWithText(string(R.string.action_sign_up)).assertIsNotEnabled()
         composeRule.runOnIdle { assertEquals(1, calls); response.complete(Unit) }
         composeRule.waitUntil { navigations == 1 }
     }
@@ -93,16 +143,16 @@ class EmailAuthScreenTest {
                 LoginScreen(LoginScreenProps(onLogin = { navigations++ }, onGoogleLogin = {},
                     onEmailLogin = { _, _ ->
                         calls++
-                        throw EmailSignInException("이메일 또는 비밀번호를 확인해 주세요.")
+                        throw EmailSignInException(UiText.Resource(R.string.error_email_credentials))
                     }))
             }
         }
-        composeRule.onNodeWithText("이메일로 계속하기").performClick()
+        composeRule.onNodeWithText(string(R.string.continue_with_email)).performClick()
         composeRule.onAllNodes(hasSetTextAction())[0].performTextInput("member@example.com")
         composeRule.onAllNodes(hasSetTextAction())[1].performTextInput("wrong-password")
-        composeRule.onNodeWithText("로그인").performClick()
-        composeRule.onNodeWithText("이메일 또는 비밀번호를 확인해 주세요.").assertIsDisplayed()
-        composeRule.onNodeWithText("로그인").assertIsEnabled().performClick()
+        composeRule.onNodeWithText(string(R.string.action_sign_in)).performClick()
+        composeRule.onNodeWithText(string(R.string.error_email_credentials)).assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.action_sign_in)).assertIsEnabled().performClick()
         composeRule.runOnIdle { assertEquals(2, calls); assertEquals(0, navigations) }
     }
 
@@ -116,13 +166,13 @@ class EmailAuthScreenTest {
                     onEmailLogin = { _, _ -> response.await() }))
             }
         }
-        composeRule.onNodeWithText("이메일로 계속하기").performClick()
+        composeRule.onNodeWithText(string(R.string.continue_with_email)).performClick()
         composeRule.onAllNodes(hasSetTextAction())[0].performTextInput("member@example.com")
         composeRule.onAllNodes(hasSetTextAction())[1].performTextInput("password")
-        composeRule.onNodeWithText("로그인").performClick()
-        composeRule.onNodeWithContentDescription("뒤로").performClick()
+        composeRule.onNodeWithText(string(R.string.action_sign_in)).performClick()
+        composeRule.onNodeWithContentDescription(string(R.string.action_back)).performClick()
         composeRule.runOnIdle { response.complete(Unit) }
-        composeRule.onNodeWithText("Google로 계속하기").assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.continue_with_google)).assertIsDisplayed()
         composeRule.runOnIdle { assertEquals(0, navigations) }
     }
 }

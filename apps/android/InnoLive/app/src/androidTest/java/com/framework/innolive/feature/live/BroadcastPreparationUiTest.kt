@@ -9,6 +9,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.R
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.*
 import org.junit.Before
@@ -63,44 +64,43 @@ class BroadcastPreparationUiTest {
     }
 
     @Test fun cancelAndReopenSettingsDoesNotConnectUntilValidConfirmation() {
-        compose.onNodeWithText("방송 준비").assertIsEnabled().performClick()
-        compose.onNodeWithText("Youtube").performClick()
-        compose.onNodeWithText("라이브 설정").assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).assertIsEnabled().performClick()
+        compose.onNodeWithText("YouTube").performClick()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        compose.onNodeWithText("라이브 설정").assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(0, authenticationCalls)
             assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
         }
-        compose.onNodeWithText("방송 준비").performClick()
-        compose.onNodeWithText("라이브 설정").assertIsDisplayed()
-        val confirm = hasText("방송 준비") and hasAnyAncestor(isDialog())
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        val confirm = hasText(label(R.string.action_prepare_broadcast)) and hasAnyAncestor(isDialog())
         compose.onNode(confirm).performClick()
         compose.runOnIdle {
             assertEquals(0, authenticationCalls)
             assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
         }
-        compose.onNodeWithText("선택 필요").performClick()
-        compose.onNodeWithText("아동용 아님").performClick()
+        compose.onNodeWithText(label(R.string.audience_required)).performClick()
+        compose.onNodeWithText(label(R.string.audience_not_made_for_kids)).performClick()
         compose.onNode(confirm).performClick()
-        compose.onNodeWithText("라이브 설정").assertDoesNotExist()
-        compose.onNodeWithText("방송 준비 중").assertIsNotEnabled()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.broadcast_state_preparing)).assertIsNotEnabled()
         compose.runOnIdle {
             assertEquals(1, authenticationCalls)
             assertEquals(WebRtcConnectionState.CONNECTING, session.connectionState)
             refresh.complete(Unit)
         }
         compose.waitUntil { !session.isPreparingBroadcast }
-        compose.onNodeWithText("방송 준비").assertIsEnabled().performClick()
-        compose.onNodeWithText("라이브 설정").assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).assertIsEnabled().performClick()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
     }
 
     @Test fun unlinkedAccountCannotStartConnection() {
         compose.runOnIdle { hasAccount.value = false; settings.value = settings.value.copy(madeForKids = false) }
-        compose.onNodeWithText("방송 준비").performClick()
-        compose.onNodeWithText("Youtube").performClick()
-        compose.onNode(hasText("방송 준비") and hasAnyAncestor(isDialog())).assertIsNotEnabled()
-        compose.onNodeWithText("YouTube 계정을 연동한 뒤 방송을 준비해 주세요.").assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
+        compose.onNodeWithText("YouTube").performClick()
+        compose.onNode(hasText(label(R.string.action_prepare_broadcast)) and hasAnyAncestor(isDialog())).assertIsNotEnabled()
         compose.runOnIdle {
             assertEquals(0, authenticationCalls)
             assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
@@ -112,14 +112,14 @@ class BroadcastPreparationUiTest {
             channel.value = ""
             settings.value = settings.value.copy(madeForKids = false)
         }
-        compose.onNodeWithText("방송 준비").performClick()
-        compose.onNodeWithText("Youtube").performClick()
-        val confirm = hasText("방송 준비") and hasAnyAncestor(isDialog())
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
+        compose.onNodeWithText("YouTube").performClick()
+        val confirm = hasText(label(R.string.action_prepare_broadcast)) and hasAnyAncestor(isDialog())
         compose.onNode(confirm).assertIsEnabled()
-        compose.onNodeWithText("연동").assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.action_connect)).assertDoesNotExist()
         compose.runOnIdle { reconnectRequired.value = true }
         compose.onNode(confirm).assertIsNotEnabled()
-        compose.onNodeWithText("재연동").assertExists()
+        compose.onNodeWithText(label(R.string.action_reconnect)).assertExists()
         compose.runOnIdle { reconnectRequired.value = false; accountBusy.value = true }
         compose.onNode(confirm).assertIsNotEnabled()
         compose.runOnIdle { accountBusy.value = false; channel.value = null }
@@ -130,4 +130,6 @@ class BroadcastPreparationUiTest {
             session.close()
         }
     }
+
+    private fun label(id: Int): String = compose.activity.getString(id)
 }

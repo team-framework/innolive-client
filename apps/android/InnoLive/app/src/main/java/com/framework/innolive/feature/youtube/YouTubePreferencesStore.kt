@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.youtube
 
 import android.content.Context
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.components.MAX_YOUTUBE_DESCRIPTION_LENGTH
 import com.framework.innolive.feature.live.components.MAX_YOUTUBE_TITLE_LENGTH
@@ -18,6 +19,7 @@ class YouTubePreferencesStore(
     context: Context,
     preferencesName: String = PREFERENCES_NAME,
 ) {
+    private val resourceContext = context
     private val preferences = context.applicationContext.getSharedPreferences(
         preferencesName,
         Context.MODE_PRIVATE,
@@ -75,15 +77,29 @@ class YouTubePreferencesStore(
             madeForKids = preferences.getString(BROADCAST_AUDIENCE, null).toAudience(),
             categoryId = preferences.getString(BROADCAST_CATEGORY_ID, "").orEmpty(),
         ),
+        defaultTitle = defaultYouTubeBroadcastTitle(resourceContext),
     )
 
-    fun saveBroadcastSettings(settings: BroadcastSettings) {
-        val normalized = normalizeYouTubeBroadcastSettings(settings)
+    fun hasSavedBroadcastTitle(): Boolean = preferences.contains(BROADCAST_TITLE)
+
+    fun saveBroadcastSettings(
+        settings: BroadcastSettings,
+        titleIsGeneratedDefault: Boolean = false,
+    ) {
+        val normalized = normalizeYouTubeBroadcastSettings(
+            settings,
+            defaultTitle = defaultYouTubeBroadcastTitle(resourceContext),
+        )
         val editor = preferences.edit()
-            .putString(BROADCAST_TITLE, normalized.title)
             .putString(BROADCAST_DESCRIPTION, normalized.description)
             .putString(BROADCAST_PRIVACY, normalized.privacy)
             .putString(BROADCAST_CATEGORY_ID, normalized.categoryId)
+
+        if (titleIsGeneratedDefault) {
+            editor.remove(BROADCAST_TITLE)
+        } else {
+            editor.putString(BROADCAST_TITLE, normalized.title)
+        }
 
         if (normalized.madeForKids == null) {
             editor.remove(BROADCAST_AUDIENCE)
@@ -125,8 +141,17 @@ internal fun normalizeYouTubeBroadcastSettings(
     categoryId = settings.categoryId.filter(Char::isDigit),
 )
 
+internal fun defaultYouTubeBroadcastTitle(
+    context: Context,
+    today: LocalDate = LocalDate.now(),
+): String = context.getString(
+    R.string.default_youtube_broadcast_title,
+    today.format(DateTimeFormatter.BASIC_ISO_DATE),
+)
+
+/** A locale-neutral test fallback. Production code always supplies a Context. */
 internal fun defaultYouTubeBroadcastTitle(today: LocalDate = LocalDate.now()): String =
-    "${today.format(DateTimeFormatter.BASIC_ISO_DATE)} InnoLive 방송"
+    "${today.format(DateTimeFormatter.BASIC_ISO_DATE)} InnoLive"
 
 private fun String?.toAudience(): Boolean? = when (this) {
     "true" -> true

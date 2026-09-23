@@ -30,6 +30,18 @@ class AuthenticationSessionViewModel(
 
     val session: StateFlow<GoogleSessionStore.Session?> = repository.session
 
+    private val googleSignInController = GoogleSignInController(
+        scope = viewModelScope,
+        authenticate = { context ->
+            com.framework.innolive.feature.login.oauth.google.continueWithGoogle(
+                context = context,
+                sessionRepository = repository,
+            )
+            syncAccountDeletionState()
+        },
+    )
+    val googleSignInState: StateFlow<GoogleSignInState> = googleSignInController.state
+
     fun reload(): GoogleSessionStore.Session? = repository.reload().also {
         syncAccountDeletionState()
     }
@@ -39,13 +51,9 @@ class AuthenticationSessionViewModel(
         syncAccountDeletionState()
     }
 
-    suspend fun continueWithGoogle(context: Context) {
-        com.framework.innolive.feature.login.oauth.google.continueWithGoogle(
-            context = context,
-            sessionRepository = repository,
-        )
-        syncAccountDeletionState()
-    }
+    fun startGoogleSignIn(context: Context) = googleSignInController.start(context)
+
+    fun acknowledgeGoogleSignInSuccess() = googleSignInController.acknowledgeSuccess()
 
     private val emailApi = com.framework.innolive.feature.login.EmailSignInApi()
 

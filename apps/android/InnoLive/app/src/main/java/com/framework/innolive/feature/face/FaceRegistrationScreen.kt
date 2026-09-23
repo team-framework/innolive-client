@@ -41,11 +41,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraLensFacing
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -80,7 +84,9 @@ internal fun FaceRegistrationScreen(
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
     val currentOnRegistrationSuccess by rememberUpdatedState(onRegistrationSuccess)
     var phase by remember { mutableStateOf(FaceRegistrationPhase.CAPTURING) }
-    var statusMessage by remember { mutableStateOf("얼굴을 화면 중앙에 맞추고 잠시 기다려 주세요.") }
+    var statusMessage by remember {
+        mutableStateOf<UiText>(UiText.Resource(R.string.face_registration_instruction))
+    }
     var latestBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var capturedImages by remember { mutableStateOf<List<ByteArray>>(emptyList()) }
     var operationGeneration by remember { mutableIntStateOf(0) }
@@ -111,7 +117,7 @@ internal fun FaceRegistrationScreen(
                         phase == FaceRegistrationPhase.PREPARING
                     ) {
                         phase = FaceRegistrationPhase.ERROR
-                        statusMessage = "등록이 중단되었습니다. 다시 촬영해 주세요."
+                        statusMessage = UiText.Resource(R.string.error_face_registration_interrupted)
                     }
                 }
 
@@ -122,7 +128,7 @@ internal fun FaceRegistrationScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    fun stopWithError(message: String) {
+    fun stopWithError(message: UiText) {
         operationGeneration += 1
         detector.reset()
         uploadJob?.cancel()
@@ -134,7 +140,7 @@ internal fun FaceRegistrationScreen(
         if (phase != FaceRegistrationPhase.CAPTURING || !isLifecycleActive) return
         phase = FaceRegistrationPhase.PREPARING
         detector.reset()
-        statusMessage = "촬영한 얼굴을 준비하는 중입니다."
+        statusMessage = UiText.Resource(R.string.face_capture_preparing)
         uploadJob?.cancel()
         uploadJob = scope.launch {
             try {
@@ -142,15 +148,17 @@ internal fun FaceRegistrationScreen(
                 capturedImages = capturedImages + image
                 if (isLifecycleActive) {
                     phase = FaceRegistrationPhase.READY_TO_SUBMIT
-                    statusMessage =
-                        "얼굴 ${capturedImages.size}개가 준비되었습니다. 추가 촬영하거나 등록해 주세요."
+                    statusMessage = UiText.Plural(
+                        R.plurals.face_capture_ready_count,
+                        capturedImages.size,
+                    )
                 }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
                 capturedImages = emptyList()
                 phase = FaceRegistrationPhase.ERROR
-                statusMessage = "이미지를 처리하지 못했습니다. 다시 촬영해 주세요."
+                statusMessage = UiText.Resource(R.string.error_face_image_processing)
             }
         }
     }
@@ -161,19 +169,19 @@ internal fun FaceRegistrationScreen(
         if (images.isEmpty()) return
         val accessToken = currentGetAccessToken()?.trim().orEmpty()
         if (accessToken.isEmpty()) {
-            stopWithError("로그인 정보가 없습니다. 다시 로그인해 주세요.")
+            stopWithError(UiText.Resource(R.string.error_face_login_required))
             return
         }
         try {
             repository.ensureApiAvailable()
         } catch (_: Exception) {
-            stopWithError("얼굴 등록 서버를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.")
+            stopWithError(UiText.Resource(R.string.error_face_server_unavailable))
             return
         }
         val uploadGeneration = operationGeneration
         val refreshAccessToken = currentRefreshAccessToken
         phase = FaceRegistrationPhase.UPLOADING
-        statusMessage = "얼굴을 등록하는 중입니다."
+        statusMessage = UiText.Resource(R.string.face_registering)
         uploadJob = scope.launch {
             try {
                 val result = repository.append(
@@ -186,9 +194,9 @@ internal fun FaceRegistrationScreen(
                 if (uploadGeneration == operationGeneration && isLifecycleActive) {
                     phase = FaceRegistrationPhase.SUCCESS
                     statusMessage = if (result.localImageStoreFailed) {
-                        "얼굴 등록은 완료되었지만 사진을 기기에 저장하지 못했습니다."
+                        UiText.Resource(R.string.face_registered_local_photo_failed)
                     } else {
-                        "얼굴 등록이 완료되었습니다."
+                        UiText.Resource(R.string.face_registration_complete)
                     }
                     currentOnRegistrationSuccess()
                 }
@@ -202,7 +210,7 @@ internal fun FaceRegistrationScreen(
             } catch (_: Exception) {
                 if (uploadGeneration == operationGeneration && isLifecycleActive) {
                     phase = FaceRegistrationPhase.ERROR
-                    statusMessage = "얼굴 등록에 실패했습니다. 다시 시도해 주세요."
+                    statusMessage = UiText.Resource(R.string.error_face_registration)
                 }
             }
         }
@@ -215,18 +223,18 @@ internal fun FaceRegistrationScreen(
         latestBitmap = null
         capturedImages = emptyList()
         phase = FaceRegistrationPhase.CAPTURING
-        statusMessage = "얼굴을 화면 중앙에 맞추고 잠시 기다려 주세요."
+        statusMessage = UiText.Resource(R.string.face_registration_instruction)
     }
 
     fun captureAnother() {
         if (capturedImages.size >= 20) {
-            statusMessage = "한 번에 최대 20개의 얼굴만 등록할 수 있습니다."
+            statusMessage = UiText.Resource(R.string.error_face_maximum)
             return
         }
         detector.reset()
         latestBitmap = null
         phase = FaceRegistrationPhase.CAPTURING
-        statusMessage = "얼굴을 화면 중앙에 맞추고 잠시 기다려 주세요."
+        statusMessage = UiText.Resource(R.string.face_registration_instruction)
     }
 
     fun close() {
@@ -260,24 +268,26 @@ internal fun FaceRegistrationScreen(
                         latestBitmap = detectedBitmap
                         when (result.status) {
                             FaceStabilityStatus.NO_FACE ->
-                                statusMessage = "얼굴을 찾지 못했습니다. 카메라를 바라봐 주세요."
+                                statusMessage = UiText.Resource(
+                                    R.string.error_face_not_detected_camera,
+                                )
 
                             FaceStabilityStatus.MULTIPLE_FACES ->
-                                statusMessage = "한 사람만 화면에 보여 주세요."
+                                statusMessage = UiText.Resource(R.string.error_multiple_faces)
 
                             FaceStabilityStatus.OFF_CENTER ->
-                                statusMessage = "얼굴을 화면 중앙에 맞춰 주세요."
+                                statusMessage = UiText.Resource(R.string.error_face_off_center)
 
                             FaceStabilityStatus.TOO_SMALL ->
-                                statusMessage = "얼굴 전체가 중앙 영역에 충분한 크기로 보이도록 맞춰 주세요."
+                                statusMessage = UiText.Resource(R.string.error_face_too_small)
 
                             FaceStabilityStatus.MOVING,
                             FaceStabilityStatus.WAITING,
-                            -> statusMessage = "얼굴을 중앙에 맞추고 움직이지 마세요."
+                            -> statusMessage = UiText.Resource(R.string.face_hold_still)
 
                             FaceStabilityStatus.STABLE -> captureFace(detectedBitmap)
                             FaceStabilityStatus.DETECTOR_ERROR ->
-                                stopWithError("얼굴을 인식하지 못했습니다. 다시 촬영해 주세요.")
+                                stopWithError(UiText.Resource(R.string.error_face_detection))
                         }
                     }
                 }
@@ -300,7 +310,7 @@ internal fun FaceRegistrationScreen(
                         phase == FaceRegistrationPhase.CAPTURING &&
                         isLifecycleActive
                     ) {
-                        stopWithError("카메라 해상도가 등록 기준(최소 500px)보다 낮습니다.")
+                        stopWithError(UiText.Resource(R.string.error_face_resolution))
                     }
                 }
             },
@@ -311,7 +321,7 @@ internal fun FaceRegistrationScreen(
                         phase == FaceRegistrationPhase.CAPTURING &&
                         isLifecycleActive
                     ) {
-                        stopWithError("카메라를 사용할 수 없습니다. 다시 시도해 주세요.")
+                        stopWithError(UiText.Resource(R.string.error_face_camera))
                     }
                 }
             },
@@ -332,7 +342,7 @@ internal fun FaceRegistrationScreen(
                 IconButton(onClick = ::close) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "닫기",
+                        contentDescription = stringResource(R.string.action_close),
                         tint = Color.White,
                     )
                 }
@@ -341,12 +351,12 @@ internal fun FaceRegistrationScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "얼굴 등록",
+                    text = stringResource(R.string.action_register_face),
                     color = Color.White,
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Text(
-                    text = "등록된 얼굴은 유지되고 새 얼굴을 추가할 수 있습니다.",
+                    text = stringResource(R.string.face_registration_description),
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -361,12 +371,14 @@ internal fun FaceRegistrationScreen(
                 latestBitmap?.let { bitmap ->
                     Image(
                         bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "얼굴 등록 미리보기",
+                        contentDescription = stringResource(
+                            R.string.content_description_face_registration_preview,
+                        ),
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.FillBounds,
                     )
                 } ?: Text(
-                    text = "카메라를 준비하는 중입니다.",
+                    text = stringResource(R.string.face_camera_preparing),
                     color = Color.White,
                 )
             }
@@ -374,7 +386,7 @@ internal fun FaceRegistrationScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = statusMessage,
+                    text = statusMessage.asString(),
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -386,7 +398,10 @@ internal fun FaceRegistrationScreen(
                 }
                 if (phase == FaceRegistrationPhase.READY_TO_SUBMIT) {
                     Text(
-                        text = "준비된 얼굴 ${capturedImages.size}개",
+                        text = UiText.Plural(
+                            R.plurals.prepared_face_count,
+                            capturedImages.size,
+                        ).asString(),
                         color = Color.White,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -399,7 +414,7 @@ internal fun FaceRegistrationScreen(
                                 contentColor = MaterialTheme.colorScheme.onBackground
                             )
                             ) {
-                            Text(text = "얼굴 추가 촬영")
+                            Text(text = stringResource(R.string.action_capture_another_face))
                         }
                         Button(
                             onClick = ::startUpload,
@@ -409,32 +424,32 @@ internal fun FaceRegistrationScreen(
                                 contentColor = Color.Black
                             )
                         ) {
-                            Text(text = "등록하기")
+                            Text(text = stringResource(R.string.action_submit_face))
                         }
                     }
                 }
             }
             if (phase == FaceRegistrationPhase.ERROR) {
                 Button(onClick = ::retry) {
-                    Text(text = "다시 촬영")
+                    Text(text = stringResource(R.string.action_capture_again))
                 }
             }
         }
     }
 }
 
-internal fun ReferenceFaceApiException.toUserMessage(): String = when {
-    code == "face_not_detected" -> "얼굴을 찾지 못했습니다. 한 사람의 얼굴을 중앙에 맞춰 주세요."
-    code == "invalid_image" -> "이미지를 처리하지 못했습니다. 다시 촬영해 주세요."
-    code == "reference_rejected" -> "기준 얼굴 등록이 거부되었습니다. 얼굴을 선명하게 맞춰 주세요."
+internal fun ReferenceFaceApiException.toUserMessage(): UiText = when {
+    code == "face_not_detected" -> UiText.Resource(R.string.error_face_not_detected)
+    code == "invalid_image" -> UiText.Resource(R.string.error_face_image_processing)
+    code == "reference_rejected" -> UiText.Resource(R.string.error_face_rejected)
     code == "bad_request" && detailsReason == "ai_disabled" ->
-        "얼굴 등록 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요."
+        UiText.Resource(R.string.error_face_feature_unavailable)
 
     code == "ai_unavailable" || statusCode == 502 ->
-        "얼굴 인식 서버를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."
+        UiText.Resource(R.string.error_face_server_unavailable)
 
     statusCode == 401 || code == "authentication_error" ->
-        "로그인 정보가 만료되었습니다. 다시 로그인해 주세요."
+        UiText.Resource(R.string.error_face_session_expired)
 
-    else -> "얼굴 등록에 실패했습니다. 다시 시도해 주세요."
+    else -> UiText.Resource(R.string.error_face_registration)
 }

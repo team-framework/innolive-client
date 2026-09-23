@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live.components
 
 import androidx.activity.ComponentActivity
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.LiveScreenProps
@@ -40,6 +42,9 @@ class YouTubeLiveSettingsDialogInteractionTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    private fun text(@StringRes resourceId: Int, vararg arguments: Any): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(resourceId, *arguments)
+
     @Test
     fun cachedChannelNeverHidesAccountVerificationFailure() {
         composeRule.setContent {
@@ -48,7 +53,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
                     settings = BroadcastSettings("검증 방송", "검증 설명", "private", false, "22"),
                     youtubeChannelTitle = "저장된 채널",
                     hasYouTubeAccount = false,
-                    youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다.",
+                    youtubeAccountStatus = text(R.string.youtube_status_check_failed),
                     isYouTubeReconnectRequired = false,
                     isYouTubeAccountActionInProgress = false,
                     isYouTubeConnectEnabled = true,
@@ -60,15 +65,15 @@ class YouTubeLiveSettingsDialogInteractionTest {
             }
         }
 
-        composeRule.onNodeWithText("YouTube 연결 상태를 확인하지 못했습니다.").assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.youtube_status_check_failed)).assertIsDisplayed()
         composeRule.onNodeWithText("저장된 채널").assertDoesNotExist()
-        composeRule.onNodeWithText("연동").assertIsDisplayed()
-        composeRule.onNodeWithText("방송 준비").assertIsNotEnabled()
+        composeRule.onNodeWithText(text(R.string.action_connect)).assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.action_prepare_broadcast)).assertIsNotEnabled()
     }
 
     @Test
     fun reconnectFailureReplacesPreviouslyVerifiedChannelLabel() {
-        val status = mutableStateOf("YouTube 채널: 검증 채널")
+        val status = mutableStateOf(text(R.string.youtube_status_channel, "검증 채널"))
         composeRule.setContent {
             MaterialTheme {
                 YouTubeLiveSettingsDialog(
@@ -87,9 +92,9 @@ class YouTubeLiveSettingsDialogInteractionTest {
             }
         }
 
-        composeRule.onNodeWithText("YouTube 채널: 검증 채널").assertIsDisplayed()
-        composeRule.runOnIdle { status.value = "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요." }
-        composeRule.onNodeWithText("YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요.")
+        composeRule.onNodeWithText(text(R.string.youtube_status_channel, "검증 채널")).assertIsDisplayed()
+        composeRule.runOnIdle { status.value = text(R.string.error_youtube_connection) }
+        composeRule.onNodeWithText(text(R.string.error_youtube_connection))
             .assertIsDisplayed()
         composeRule.onNodeWithText("검증 채널").assertDoesNotExist()
     }
@@ -102,7 +107,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
                     settings = BroadcastSettings("검증 방송", "검증 설명", "private", false, "22"),
                     youtubeChannelTitle = null,
                     hasYouTubeAccount = false,
-                    youtubeAccountStatus = "연결된 계정이 없습니다",
+                    youtubeAccountStatus = text(R.string.youtube_status_no_account),
                     isYouTubeReconnectRequired = false,
                     isYouTubeAccountActionInProgress = false,
                     isYouTubeConnectEnabled = true,
@@ -113,9 +118,10 @@ class YouTubeLiveSettingsDialogInteractionTest {
             }
         }
 
-        val heading = composeRule.onNodeWithText("계정 정보").getUnclippedBoundsInRoot()
+        val heading = composeRule.onNodeWithText(text(R.string.label_account_information))
+            .getUnclippedBoundsInRoot()
         val status = composeRule
-            .onNodeWithText("연결된 계정이 없습니다")
+            .onNodeWithText(text(R.string.youtube_status_no_account))
             .getUnclippedBoundsInRoot()
 
         assertTrue("계정 제목은 상태 문구보다 위에 있어야 합니다.", heading.bottom <= status.top)
@@ -182,12 +188,12 @@ class YouTubeLiveSettingsDialogInteractionTest {
         }
 
         composeRule.onNodeWithText("방송 시작").performClick()
-        composeRule.onNodeWithText("Youtube").performClick()
+        composeRule.onNodeWithText("YouTube").performClick()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("라이브 설정").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText(text(R.string.live_settings_title)).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("라이브 설정").assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.live_settings_title)).assertIsDisplayed()
 
         val titleField = composeRule.onAllNodes(hasSetTextAction())[0].performClick()
         titleField.assertIsFocused()
@@ -205,10 +211,10 @@ class YouTubeLiveSettingsDialogInteractionTest {
             .assertIsDisplayed()
 
         composeRule
-            .onNode(hasText("공개 범위") and hasClickAction())
+            .onNode(hasText(text(R.string.label_broadcast_privacy)) and hasClickAction())
             .performClick()
-        composeRule.onAllNodesWithText("공개").assertCountEquals(2)
-        composeRule.onNodeWithText("일부 공개").performClick()
+        composeRule.onAllNodesWithText(text(R.string.privacy_public)).assertCountEquals(2)
+        composeRule.onNodeWithText(text(R.string.privacy_unlisted)).performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule
                 .onAllNodesWithText("state:ime-bound-input|privacy:unlisted|audience:null")
@@ -217,20 +223,26 @@ class YouTubeLiveSettingsDialogInteractionTest {
         }
 
         composeRule
-            .onNode(hasText("아동용 설정") and hasClickAction())
+            .onNode(hasText(text(R.string.audience_required)) and hasClickAction())
             .performClick()
-        composeRule.onNodeWithText("아동용").assertIsDisplayed()
-        composeRule.onNodeWithText("아동용 아님").assertIsDisplayed()
-        composeRule.onAllNodesWithText("선택 필요").assertCountEquals(1)
+        composeRule
+            .onNode(
+                hasText(text(R.string.audience_made_for_kids)) and
+                    !hasText(text(R.string.audience_required)) and hasClickAction(),
+            )
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.audience_not_made_for_kids)).assertIsDisplayed()
+        composeRule.onAllNodesWithText(text(R.string.audience_required)).assertCountEquals(1)
 
-        composeRule.onNodeWithText("아동용 아님").performClick()
+        composeRule.onNodeWithText(text(R.string.audience_not_made_for_kids)).performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("아동용 아님").fetchSemanticsNodes().size == 1
+            composeRule.onAllNodesWithText(text(R.string.audience_not_made_for_kids))
+                .fetchSemanticsNodes().size == 1
         }
         composeRule
             .onNodeWithText("state:ime-bound-input|privacy:unlisted|audience:false")
             .assertIsDisplayed()
-        composeRule.onAllNodesWithText("선택 필요").assertCountEquals(0)
+        composeRule.onAllNodesWithText(text(R.string.audience_required)).assertCountEquals(0)
     }
 
     @Test
@@ -267,23 +279,28 @@ class YouTubeLiveSettingsDialogInteractionTest {
             }
         }
 
-        composeRule.onNodeWithText("저장 및 닫기").performClick()
-        composeRule.onNodeWithText("방송 제목을 입력해 주세요.").assertIsDisplayed()
-        composeRule.onNodeWithText("방송 설명을 입력해 주세요.").assertIsDisplayed()
-        composeRule.onNodeWithText("아동용 설정을 선택해 주세요.").assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.action_save_and_close)).performClick()
+        composeRule.onNodeWithText(text(R.string.validation_broadcast_title)).assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.validation_broadcast_description)).assertIsDisplayed()
+        composeRule.onNodeWithText(text(R.string.validation_audience)).assertIsDisplayed()
 
         composeRule.onAllNodes(hasSetTextAction())[0].performTextInput("방송 제목")
         composeRule.onAllNodes(hasSetTextAction())[1].performTextInput("방송 설명")
-        composeRule.onAllNodesWithText("방송 제목을 입력해 주세요.").assertCountEquals(0)
-        composeRule.onAllNodesWithText("방송 설명을 입력해 주세요.").assertCountEquals(0)
+        composeRule.onAllNodesWithText(text(R.string.validation_broadcast_title)).assertCountEquals(0)
+        composeRule.onAllNodesWithText(text(R.string.validation_broadcast_description)).assertCountEquals(0)
 
         composeRule
-            .onNode(hasText("아동용 설정") and hasClickAction())
+            .onNode(hasText(text(R.string.audience_required)) and hasClickAction())
             .performClick()
-        composeRule.onNodeWithText("아동용").performClick()
-        composeRule.onAllNodesWithText("아동용 설정을 선택해 주세요.").assertCountEquals(0)
+        composeRule
+            .onNode(
+                hasText(text(R.string.audience_made_for_kids)) and
+                    !hasText(text(R.string.audience_required)) and hasClickAction(),
+            )
+            .performClick()
+        composeRule.onAllNodesWithText(text(R.string.validation_audience)).assertCountEquals(0)
 
-        composeRule.onNodeWithText("저장 및 닫기").performClick()
+        composeRule.onNodeWithText(text(R.string.action_save_and_close)).performClick()
         composeRule.onNodeWithText("dismissed").assertIsDisplayed()
     }
 
@@ -358,9 +375,9 @@ class YouTubeLiveSettingsDialogInteractionTest {
         }
 
         composeRule
-            .onNode(hasText("공개 범위") and hasClickAction())
+            .onNode(hasText(text(R.string.label_broadcast_privacy)) and hasClickAction())
             .performClick()
-        composeRule.onNodeWithText("일부 공개").performClick()
+        composeRule.onNodeWithText(text(R.string.privacy_unlisted)).performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule
                 .onAllNodesWithText("state:nav-entry-input|privacy:unlisted")

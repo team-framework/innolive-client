@@ -31,6 +31,7 @@
     <string name="email_sign_in_description">InnoLive에서 라이브를 이어가세요.</string>
     <string name="email_sign_up_description">이메일 인증 후 라이브를 시작할 수 있어요.</string>
     <string name="label_email">이메일</string>
+    <string name="email_placeholder">name@example.com</string>
     <string name="label_password">비밀번호</string>
     <string name="label_password_confirmation">비밀번호 확인</string>
     <string name="password_hint">비밀번호 입력</string>
@@ -129,7 +130,7 @@
     <string name="anonymization_off">비식별화 Off</string>
     <string name="anonymization_loading">선택 불러오는 중</string>
     <string name="anonymization_changing">비식별화 변경 중</string>
-    <string name="anonymization_connecting">비식별화 %1$s로 연결 중</string>
+    <string name="anonymization_connecting">비식별화 %1$s 상태로 연결 중</string>
     <string name="anonymization_needs_check">비식별화 상태 확인 필요</string>
     <string name="anonymization_when_connected">연결 시 비식별화 %1$s</string>
     <string name="anonymization_enable">비식별화 활성화</string>
@@ -144,6 +145,7 @@
     </plurals>
     <string name="registered_face_name">등록된 얼굴 %1$d</string>
     <string name="content_description_registered_face">등록된 얼굴</string>
+    <string name="content_description_delete_registered_face">등록된 얼굴 %1$d 삭제</string>
     <string name="no_face_photo">사진 없음</string>
     <string name="action_delete_all_faces">전체 삭제</string>
     <string name="no_registered_faces">등록된 얼굴이 없습니다.</string>
@@ -160,6 +162,10 @@
     <plurals name="prepared_face_count">
         <item quantity="one">준비된 얼굴 %d개</item>
         <item quantity="other">준비된 얼굴 %d개</item>
+    </plurals>
+    <plurals name="face_capture_ready_count">
+        <item quantity="one">얼굴 %d개가 준비되었습니다. 추가 촬영하거나 등록해 주세요.</item>
+        <item quantity="other">얼굴 %d개가 준비되었습니다. 추가 촬영하거나 등록해 주세요.</item>
     </plurals>
     <string name="face_capture_ready">얼굴을 확인했습니다. 등록할 사진을 준비 중입니다.</string>
     <string name="face_capture_failed">얼굴을 확인하지 못했습니다. 카메라를 보고 다시 시도해 주세요.</string>

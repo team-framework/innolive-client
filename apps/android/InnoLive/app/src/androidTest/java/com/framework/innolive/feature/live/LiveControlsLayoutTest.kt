@@ -21,6 +21,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -69,15 +70,12 @@ class LiveControlsLayoutTest {
             0.5f,
         )
         assertEquals(
-            ((container.left + center.left) / 2f).value,
-            ((leading.left + leading.right) / 2f).value,
+            (leading.left - container.left).value,
+            (container.right - trailing.right).value,
             0.5f,
         )
-        assertEquals(
-            ((center.right + container.right) / 2f).value,
-            ((trailing.left + trailing.right) / 2f).value,
-            0.5f,
-        )
+        assertTrue(leading.right <= center.left)
+        assertTrue(center.right <= trailing.left)
     }
 
     @Test
@@ -113,13 +111,16 @@ class LiveControlsLayoutTest {
 
         val before = listOf(
             bounds("face-control"),
-            compose.onNodeWithText("방송 준비").getUnclippedBoundsInRoot(),
+            compose.onNodeWithText(compose.activity.getString(R.string.action_prepare_broadcast))
+                .getUnclippedBoundsInRoot(),
             bounds("anonymization-control"),
         )
         compose.runOnIdle { prepared = true }
         val after = listOf(
             bounds("face-control"),
-            compose.onNode(hasText("방송 준비 완료") and hasClickAction()).getUnclippedBoundsInRoot(),
+            compose.onNode(
+                hasText(compose.activity.getString(R.string.broadcast_state_prepared)) and hasClickAction(),
+            ).getUnclippedBoundsInRoot(),
             bounds("anonymization-control"),
         )
 

@@ -93,6 +93,7 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
                     statusCode = response.code,
                     operation = operation,
                     errorCode = parseYouTubeApiErrorCode(body),
+                    serverMessage = parseYouTubeApiErrorMessage(body),
                 )
             }
             parse(body)
