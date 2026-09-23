@@ -25,14 +25,14 @@ class YouTubeApiExceptionTest {
     }
 
     @Test
-    fun unknownErrorsPreserveJsonAndPlainTextServerMessages() {
+    fun unknownErrorsNeverDisplayJsonOrPlainTextServerMessages() {
         val expected = UiText.Resource(R.string.error_youtube_connection)
 
         assertNull(parseYouTubeApiErrorCode("private server details"))
         assertEquals(expected, youtubeConnectionFailureMessage(null))
         assertEquals("private server details", parseYouTubeApiErrorMessage("private server details"))
         assertEquals(
-            UiText.Dynamic("private server details"),
+            expected,
             youtubeConnectionFailureMessage(
                 YouTubeApiException(
                     statusCode = 500,
@@ -43,6 +43,16 @@ class YouTubeApiExceptionTest {
                     serverMessage = parseYouTubeApiErrorMessage(
                         """{"error":{"code":"internal_error","message":"private server details"}}""",
                     ),
+                ),
+            ),
+        )
+        assertEquals(
+            expected,
+            youtubeConnectionFailureMessage(
+                YouTubeApiException(
+                    statusCode = 500,
+                    operation = "YouTube account connection",
+                    serverMessage = parseYouTubeApiErrorMessage("<html>private diagnostics</html>"),
                 ),
             ),
         )

@@ -53,10 +53,13 @@ final class LocalizationTests: XCTestCase {
         )
     }
 
-    func testUnknownServerMessagesAreNotTreatedAsLocalizationKeys() {
+    func testUnknownYouTubeServerMessagesAreNotShownToUsers() {
         let message = "서버가 제공한 사용자 메시지 / User content / ユーザーの内容"
         XCTAssertEqual(ReferenceFaceAPIError.api(code: "future_error", fallback: message).userMessage, message)
-        XCTAssertEqual(YouTubeAPIError.api(code: "future_error", fallback: message, helpURL: nil).userMessage, message)
+        XCTAssertEqual(
+            YouTubeAPIError.api(code: "future_error", fallback: message, helpURL: nil).userMessage,
+            String(localized: "YouTube 요청을 처리하지 못했습니다.")
+        )
     }
 
     func testPrivacyPolicyLinkUsesAppLanguage() {

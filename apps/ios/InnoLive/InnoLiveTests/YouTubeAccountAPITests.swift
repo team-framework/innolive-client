@@ -72,6 +72,50 @@ final class YouTubeAccountAPITests: XCTestCase {
         )
     }
 
+    func testUnknownYouTubeServerErrorsDoNotExposeResponseMessages() async {
+        for body in [
+            "{\"error\":{\"code\":\"internal_error\",\"message\":\"private server details\"}}",
+            "<html>private diagnostics</html>"
+        ] {
+            AccountManagementURLProtocol.responses = [
+                .init(statusCode: 500, data: Data(body.utf8))
+            ]
+
+            do {
+                _ = try await makeAPI().streamingAccounts(accessToken: "access-token")
+                XCTFail("an unknown server error must fail")
+            } catch let error as YouTubeAPIError {
+                XCTAssertEqual(error.userMessage, String(localized: "YouTube 요청을 처리하지 못했습니다."))
+                XCTAssertFalse(error.userMessage.contains("private"))
+            } catch {
+                XCTFail("unexpected error: \(error)")
+            }
+        }
+    }
+
+    func testKnownYouTubeServerErrorStillUsesRecoveryMessage() async {
+        AccountManagementURLProtocol.responses = [
+            .init(
+                statusCode: 422,
+                data: Data(
+                    "{\"error\":{\"code\":\"youtube_channel_missing\",\"message\":\"private server details\"}}".utf8
+                )
+            )
+        ]
+
+        do {
+            _ = try await makeAPI().streamingAccounts(accessToken: "access-token")
+            XCTFail("missing channel must fail")
+        } catch let error as YouTubeAPIError {
+            XCTAssertEqual(
+                error.userMessage,
+                String(localized: "이 Google 계정에 YouTube 채널이 없습니다. 채널을 먼저 만들어 주세요.")
+            )
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+    }
+
     func testDisconnectStreamingAccountUsesDeleteAndRequires204() async throws {
         AccountManagementURLProtocol.responses = [.init(statusCode: 204, data: Data())]
         let api = makeAPI()

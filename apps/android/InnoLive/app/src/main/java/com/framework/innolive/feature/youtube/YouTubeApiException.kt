@@ -48,8 +48,5 @@ internal fun youtubeConnectionFailureMessage(exception: Throwable?): UiText =
     when ((exception as? YouTubeApiException)?.errorCode) {
         "youtube_channel_missing" ->
             UiText.Resource(R.string.error_youtube_channel_missing)
-        else -> (exception as? YouTubeApiException)?.serverMessage
-            ?.takeIf(String::isNotBlank)
-            ?.let(UiText::Dynamic)
-            ?: UiText.Resource(R.string.error_youtube_connection)
+        else -> UiText.Resource(R.string.error_youtube_connection)
     }
