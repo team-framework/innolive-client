@@ -43,8 +43,14 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.VerticalAlignmentLine
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraLensFacing
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -72,7 +78,7 @@ internal fun FaceManagementScreen(
     val currentGetAccessToken by rememberUpdatedState(onGetAccessToken)
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
     var phase by remember(profileEmail) { mutableStateOf(FaceManagementPhase.LOADING) }
-    var statusMessage by remember(profileEmail) { mutableStateOf<String?>(null) }
+    var statusMessage by remember(profileEmail) { mutableStateOf<UiText?>(null) }
     var faceStatus by remember(profileEmail) { mutableStateOf<ReferenceFaceStatus?>(null) }
     var faceImages by remember(profileEmail) { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
     var openRegistration by remember { mutableStateOf(false) }
@@ -90,7 +96,7 @@ internal fun FaceManagementScreen(
         if (accessToken.isEmpty()) {
             phase = FaceManagementPhase.ERROR
             faceStatus = null
-            statusMessage = "로그인 정보가 없습니다. 다시 로그인해 주세요."
+            statusMessage = UiText.Resource(R.string.error_face_login_required)
             return
         }
 
@@ -110,7 +116,7 @@ internal fun FaceManagementScreen(
                 phase = FaceManagementPhase.READY
             } else {
                 phase = FaceManagementPhase.ERROR
-                statusMessage = "얼굴 등록 상태 확인이 취소되었습니다. 다시 시도해 주세요."
+                statusMessage = UiText.Resource(R.string.error_face_status_cancelled)
             }
             throw exception
         } catch (exception: ReferenceFaceApiException) {
@@ -127,7 +133,7 @@ internal fun FaceManagementScreen(
             phase = FaceManagementPhase.ERROR
             faceStatus = null
             faceImages = emptyMap()
-            statusMessage = "얼굴 등록 상태를 확인하지 못했습니다. 다시 시도해 주세요."
+            statusMessage = UiText.Resource(R.string.error_face_status)
         }
     }
 
@@ -141,11 +147,11 @@ internal fun FaceManagementScreen(
             val accessToken = currentGetAccessToken()?.trim().orEmpty()
             if (accessToken.isEmpty()) {
                 phase = FaceManagementPhase.ERROR
-                statusMessage = "로그인 정보가 없습니다. 다시 로그인해 주세요."
+                statusMessage = UiText.Resource(R.string.error_face_login_required)
                 return@launchRequest
             }
             phase = FaceManagementPhase.LOADING
-            statusMessage = "얼굴을 삭제하는 중입니다."
+            statusMessage = UiText.Resource(R.string.face_deleting)
             try {
                 val localDeleteFailed = repository.deleteFace(
                     faceId = faceId,
@@ -164,13 +170,13 @@ internal fun FaceManagementScreen(
                 faceImages = faceImages - faceId
                 refreshStatus()
                 if (localDeleteFailed && phase == FaceManagementPhase.READY) {
-                    statusMessage = "얼굴은 삭제했지만 저장된 사진을 제거하지 못했습니다."
+                    statusMessage = UiText.Resource(R.string.error_face_local_photo)
                 }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: ReferenceFaceApiException) {
                 if (exception.statusCode == 404) {
-                    statusMessage = "얼굴 목록이 변경되었습니다. 목록을 새로 고침했습니다."
+                    statusMessage = UiText.Resource(R.string.face_list_changed)
                     repository.deleteLocalFace(profileEmail, faceId)
                     refreshStatus()
                 } else if (exception.statusCode == 502 && faceStatus != null) {
@@ -182,7 +188,7 @@ internal fun FaceManagementScreen(
                 }
             } catch (_: Exception) {
                 phase = FaceManagementPhase.ERROR
-                statusMessage = "얼굴을 삭제하지 못했습니다. 다시 시도해 주세요."
+                statusMessage = UiText.Resource(R.string.error_face_delete)
             }
         }
     }
@@ -192,11 +198,11 @@ internal fun FaceManagementScreen(
             val accessToken = currentGetAccessToken()?.trim().orEmpty()
             if (accessToken.isEmpty()) {
                 phase = FaceManagementPhase.ERROR
-                statusMessage = "로그인 정보가 없습니다. 다시 로그인해 주세요."
+                statusMessage = UiText.Resource(R.string.error_face_login_required)
                 return@launchRequest
             }
             phase = FaceManagementPhase.LOADING
-            statusMessage = "등록된 얼굴을 삭제하는 중입니다."
+            statusMessage = UiText.Resource(R.string.faces_deleting)
             try {
                 val localDeleteFailed = repository.deleteAll(
                     accountEmail = profileEmail,
@@ -211,13 +217,13 @@ internal fun FaceManagementScreen(
                 faceImages = emptyMap()
                 refreshStatus()
                 if (localDeleteFailed && phase == FaceManagementPhase.READY) {
-                    statusMessage = "얼굴은 삭제했지만 저장된 사진을 제거하지 못했습니다."
+                    statusMessage = UiText.Resource(R.string.error_face_local_photo)
                 }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: ReferenceFaceApiException) {
                 if (exception.statusCode == 404) {
-                    statusMessage = "얼굴 목록이 변경되었습니다. 목록을 새로 고침했습니다."
+                    statusMessage = UiText.Resource(R.string.face_list_changed)
                     repository.deleteLocalFaces(profileEmail)
                     refreshStatus()
                 } else if (exception.statusCode == 502 && faceStatus != null) {
@@ -229,7 +235,7 @@ internal fun FaceManagementScreen(
                 }
             } catch (_: Exception) {
                 phase = FaceManagementPhase.ERROR
-                statusMessage = "얼굴을 삭제하지 못했습니다. 다시 시도해 주세요."
+                statusMessage = UiText.Resource(R.string.error_face_delete)
             }
         }
     }
@@ -281,14 +287,14 @@ internal fun FaceManagementScreen(
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = "새로 고침",
+                    contentDescription = stringResource(R.string.action_refresh),
                     tint = Color.White,
                 )
             }
             IconButton(onClick = ::close) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "닫기",
+                    contentDescription = stringResource(R.string.action_close),
                     tint = Color.White,
                 )
             }
@@ -297,12 +303,12 @@ internal fun FaceManagementScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                text = "얼굴 관리",
+                text = stringResource(R.string.face_management),
                 color = Color.White,
                 style = MaterialTheme.typography.headlineSmall,
             )
             Text(
-                text = "등록된 얼굴을 확인하고 관리할 수 있습니다.",
+                text = stringResource(R.string.face_management_description),
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -314,7 +320,10 @@ internal fun FaceManagementScreen(
                 val status = faceStatus
                 if (status?.registered == true && status.faces.isNotEmpty()) {
                     Text(
-                        text = "등록된 얼굴 ${status.count ?: status.faces.size}개",
+                        text = UiText.Plural(
+                            R.plurals.registered_face_count,
+                            status.count ?: status.faces.size,
+                        ).asString(),
                         color = Color.White,
                         style = MaterialTheme.typography.titleMedium,
                     )
@@ -331,32 +340,44 @@ internal fun FaceManagementScreen(
                                 faceImages[face.faceId]?.let { bitmap ->
                                     Image(
                                         bitmap = bitmap.asImageBitmap(),
-                                        contentDescription = "등록된 얼굴",
+                                        contentDescription = stringResource(
+                                            R.string.content_description_registered_face,
+                                        ),
                                         modifier = Modifier.fillMaxSize(),
                                         contentScale = ContentScale.Crop,
                                     )
-                                } ?: Text(text = "사진 없음", color = Color.White)
+                                } ?: Text(
+                                    text = stringResource(R.string.no_face_photo),
+                                    color = Color.White,
+                                )
                             }
                             Text(
-                                text = "등록된 얼굴 " + (index + 1),
+                                text = stringResource(R.string.registered_face_name, index + 1),
                                 color = Color.White,
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(horizontal = 8.dp),
                             )
+                            val deleteDescription = stringResource(
+                                R.string.content_description_delete_registered_face,
+                                index + 1,
+                            )
                             Button(
                                 onClick = { deleteFace(face.faceId) },
+                                modifier = Modifier.semantics {
+                                    contentDescription = deleteDescription
+                                },
                             ) {
-                                Text(text = "삭제")
+                                Text(text = stringResource(R.string.action_delete))
                             }
                         }
                     }
                     Button(onClick = ::deleteAllFaces) {
-                        Text(text = "전체 삭제")
+                        Text(text = stringResource(R.string.action_delete_all_faces))
                     }
                 } else {
                     Text(
-                        text = "등록된 얼굴이 없습니다.",
+                        text = stringResource(R.string.no_registered_faces),
                         color = Color.White,
                     )
                 }
@@ -364,14 +385,14 @@ internal fun FaceManagementScreen(
 
             FaceManagementPhase.ERROR -> {
                 statusMessage?.let { message ->
-                    Text(text = message, color = Color.White)
+                    Text(text = message.asString(), color = Color.White)
                 }
             }
         }
 
         statusMessage?.let { message ->
             if (phase == FaceManagementPhase.READY) {
-                Text(text = message, color = Color.White)
+                Text(text = message.asString(), color = Color.White)
             }
         }
         }
@@ -384,7 +405,7 @@ internal fun FaceManagementScreen(
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "얼굴 등록",
+                contentDescription = stringResource(R.string.action_register_face),
                 tint = Color.White,
                 modifier = Modifier
                     .width(48.dp)

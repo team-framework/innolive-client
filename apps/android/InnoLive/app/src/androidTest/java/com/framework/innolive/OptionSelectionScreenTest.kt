@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import com.framework.innolive.feature.settings.selection.OptionSelectionScreen
 import com.framework.innolive.feature.settings.selection.SettingOption
+import com.framework.innolive.ui.text.UiText
 import org.junit.Rule
 import org.junit.Test
 
@@ -18,10 +19,10 @@ class OptionSelectionScreenTest {
     fun duplicateOptionNamesRenderWithSingleSelection() {
         composeRule.setContent {
             OptionSelectionScreen(
-                title = "오디오 기기",
+                title = UiText.Dynamic("오디오 기기"),
                 options = listOf(
-                    SettingOption(key = "1", label = "동일 기기"),
-                    SettingOption(key = "2", label = "동일 기기"),
+                    SettingOption(key = "1", label = UiText.Dynamic("동일 기기")),
+                    SettingOption(key = "2", label = UiText.Dynamic("동일 기기")),
                 ),
                 selectedKey = "2",
                 onOptionSelected = {},

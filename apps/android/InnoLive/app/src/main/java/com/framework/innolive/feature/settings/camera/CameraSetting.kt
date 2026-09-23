@@ -12,6 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.framework.innolive.R
 import com.framework.innolive.feature.settings.components.Dropdown
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -19,30 +21,30 @@ import com.framework.innolive.feature.settings.components.Dropdown
 fun CameraSetting(props: CameraSettingProps) {
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text(text = "카메라 및 오디오 설정") },
+            title = { Text(text = stringResource(R.string.settings_camera_audio)) },
             windowInsets = WindowInsets(0, 0, 0, 0),
             navigationIcon = {
                 IconButton(onClick = props.onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "뒤로가기",
+                        contentDescription = stringResource(R.string.action_back),
                     )
                 }
             },
         )
 
         Dropdown(
-            label = "카메라 해상도",
+            label = stringResource(R.string.label_camera_resolution),
             selectedOption = props.selectedResolution,
             onClick = props.onOpenResolutionOptions,
         )
         Dropdown(
-            label = "카메라 기기",
+            label = stringResource(R.string.label_camera_device),
             selectedOption = props.selectedCameraDevice,
             onClick = props.onOpenCameraDeviceOptions,
         )
         Dropdown(
-            label = "오디오 기기",
+            label = stringResource(R.string.label_audio_device),
             selectedOption = props.selectedAudioDevice,
             onClick = props.onOpenAudioDeviceOptions,
         )
