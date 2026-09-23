@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.ByteArrayOutputStream
@@ -99,18 +100,18 @@ class FaceManagementScreenIntegrationTest {
         showScreen()
 
         composeRule.waitUntil(5_000) {
-            composeRule.onAllNodesWithText("삭제").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText(label(R.string.action_delete)).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("등록된 얼굴 1개").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("등록된 얼굴").assertIsDisplayed()
+        composeRule.onNodeWithText(faceCount(1)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(label(R.string.content_description_registered_face)).assertIsDisplayed()
 
-        composeRule.onNodeWithText("삭제").performClick()
+        composeRule.onNodeWithText(label(R.string.action_delete)).performClick()
         composeRule.waitUntil(5_000) {
-            composeRule.onAllNodesWithText("등록된 얼굴이 없습니다.").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText(label(R.string.no_registered_faces)).fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onNodeWithText("등록된 얼굴이 없습니다.").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("등록된 얼굴").assertDoesNotExist()
+        composeRule.onNodeWithText(label(R.string.no_registered_faces)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(label(R.string.content_description_registered_face)).assertDoesNotExist()
         assertEquals(1, deleteCount.get())
         assertEquals(2, getCount.get())
     }
@@ -121,15 +122,15 @@ class FaceManagementScreenIntegrationTest {
         showScreen()
 
         waitForRegisteredFace()
-        composeRule.onNodeWithText("삭제").performClick()
+        composeRule.onNodeWithText(label(R.string.action_delete)).performClick()
         composeRule.waitUntil(5_000) {
             composeRule.onAllNodesWithText(
-                "얼굴 인식 서버를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+                label(R.string.error_face_server_unavailable),
             ).fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onNodeWithText("등록된 얼굴 1개").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("등록된 얼굴").assertIsDisplayed()
+        composeRule.onNodeWithText(faceCount(1)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(label(R.string.content_description_registered_face)).assertIsDisplayed()
         assertEquals(1, getCount.get())
         assertEquals(1, deleteCount.get())
     }
@@ -139,13 +140,13 @@ class FaceManagementScreenIntegrationTest {
         showScreen()
 
         waitForRegisteredFace()
-        composeRule.onNodeWithText("전체 삭제").performClick()
+        composeRule.onNodeWithText(label(R.string.action_delete_all_faces)).performClick()
         composeRule.waitUntil(5_000) {
-            composeRule.onAllNodesWithText("등록된 얼굴이 없습니다.").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText(label(R.string.no_registered_faces)).fetchSemanticsNodes().isNotEmpty()
         }
 
-        composeRule.onNodeWithText("등록된 얼굴이 없습니다.").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("등록된 얼굴").assertDoesNotExist()
+        composeRule.onNodeWithText(label(R.string.no_registered_faces)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(label(R.string.content_description_registered_face)).assertDoesNotExist()
         assertEquals(1, deleteCount.get())
         assertEquals(2, getCount.get())
     }
@@ -156,9 +157,9 @@ class FaceManagementScreenIntegrationTest {
         showScreen()
 
         composeRule.waitUntil(5_000) {
-            composeRule.onAllNodesWithText("사진 없음").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText(label(R.string.no_face_photo)).fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("사진 없음").assertIsDisplayed()
+        composeRule.onNodeWithText(label(R.string.no_face_photo)).assertIsDisplayed()
         composeRule.onNodeWithText("face-1").assertDoesNotExist()
     }
 
@@ -183,9 +184,14 @@ class FaceManagementScreenIntegrationTest {
 
     private fun waitForRegisteredFace() {
         composeRule.waitUntil(5_000) {
-            composeRule.onAllNodesWithText("삭제").fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithText(label(R.string.action_delete)).fetchSemanticsNodes().isNotEmpty()
         }
     }
+
+    private fun label(id: Int): String = composeRule.activity.getString(id)
+
+    private fun faceCount(count: Int): String =
+        composeRule.activity.resources.getQuantityString(R.plurals.registered_face_count, count, count)
 
     private fun response(request: Request, statusCode: Int, body: String): Response =
         Response.Builder()

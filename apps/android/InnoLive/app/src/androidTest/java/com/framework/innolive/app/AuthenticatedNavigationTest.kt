@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
 import org.junit.Assert.assertEquals
@@ -74,10 +75,14 @@ class AuthenticatedNavigationTest {
             }
             composeRule.activityRule.scenario.recreate()
 
-            composeRule.onNodeWithContentDescription("settings").performClick()
+            composeRule.onNodeWithContentDescription(
+                composeRule.activity.getString(R.string.content_description_settings),
+            ).performClick()
             composeRule.onNodeWithText("user@example.com").assertIsDisplayed()
-            composeRule.onNodeWithText("로그아웃").performClick()
-            composeRule.onNodeWithText("Google로 계속하기").assertIsDisplayed()
+            composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_logout)).performClick()
+            composeRule.onNodeWithText(
+                composeRule.activity.getString(R.string.continue_with_google),
+            ).assertIsDisplayed()
         } finally {
             store.clear()
             existingSession?.let(store::save)

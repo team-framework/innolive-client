@@ -105,10 +105,22 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
                 onSettingsChanged = {}, onConnectYouTube = {}, onDismissRequest = {},
             )
         }
-        listOf("라이브 설정", "테스트 제목", "테스트 설명", "방송 제목", "방송 설명", "공개 범위", "아동용 설정", "계정 정보", "연결 안 됨", "연동", "저장 및 닫기").forEach { contrast(it) }
-        compose.onNodeWithText("공개", useUnmergedTree = true).performClick()
-        contrast("일부 공개")
-        contrast("비공개")
+        listOf(
+            string(R.string.live_settings_title),
+            "테스트 제목",
+            "테스트 설명",
+            string(R.string.label_broadcast_title),
+            string(R.string.label_broadcast_description),
+            string(R.string.label_broadcast_privacy),
+            string(R.string.label_made_for_kids),
+            string(R.string.label_account_information),
+            "연결 안 됨",
+            string(R.string.action_connect),
+            string(R.string.action_save_and_close),
+        ).forEach { contrast(it) }
+        compose.onNodeWithText(string(R.string.privacy_public), useUnmergedTree = true).performClick()
+        contrast(string(R.string.privacy_unlisted))
+        contrast(string(R.string.privacy_private))
     }
 
     private fun contrast(label: String, minimum: Float = 4.5f) {

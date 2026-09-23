@@ -9,6 +9,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import org.junit.Assert.assertTrue
@@ -34,7 +36,9 @@ class LoginThemeContrastTest(private val darkTheme: Boolean, private val dynamic
             }
         }
         val layouts = mutableListOf<TextLayoutResult>()
-        composeRule.onNodeWithText("라이브 방송을 안전하게\n만드는 쉬운 방법")
+        val headline = InstrumentationRegistry.getInstrumentation()
+            .targetContext.getString(R.string.login_headline)
+        composeRule.onNodeWithText(headline)
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         composeRule.runOnIdle {
             val text = layouts.single().layoutInput.style.color
