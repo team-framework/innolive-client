@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permission_camera_required">Camera permission is required.</string>
+    <string name="permission_microphone_required">Microphone permission is required.</string>
+    <string name="content_description_broadcast_duration">Broadcast duration: %1$s</string>
+    <string name="anonymization_current">Anonymization %1$s</string>
+    <string name="default_youtube_broadcast_title">%1$s InnoLive broadcast</string>
+    <string name="google_user">Google user</string>
+</resources>

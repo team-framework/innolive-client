@@ -11,11 +11,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -39,11 +43,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,18 +73,19 @@ fun YouTubeLiveSettingsDialog(
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp.dp
     val dialogWidth = screenWidthDp * 0.9f
+    val dialogMaxHeight = configuration.screenHeightDp.dp * 0.9f
 
     var validation by remember { mutableStateOf(YouTubeLiveSettingsValidation()) }
 
     val privacyLabel = when (settings.privacy) {
-        "unlisted" -> "일부 공개"
-        "private" -> "비공개"
-        else -> "공개"
+        "unlisted" -> stringResource(R.string.privacy_unlisted)
+        "private" -> stringResource(R.string.privacy_private)
+        else -> stringResource(R.string.privacy_public)
     }
     val audienceLabel = when (settings.madeForKids) {
-        true -> "아동용"
-        false -> "아동용 아님"
-        null -> "선택 필요"
+        true -> stringResource(R.string.audience_made_for_kids)
+        false -> stringResource(R.string.audience_not_made_for_kids)
+        null -> stringResource(R.string.audience_required)
     }
     val accountLabel = youtubeAccountStatus
     val canPrepare = hasYouTubeAccount &&
@@ -104,14 +111,19 @@ fun YouTubeLiveSettingsDialog(
 
     Dialog(onDismissRequest = onDismissRequest) {
         Surface (
-            modifier = Modifier.width(dialogWidth),
+            modifier = Modifier
+                .width(dialogWidth)
+                .widthIn(max = 600.dp)
+                .heightIn(max = dialogMaxHeight),
             shape = RoundedCornerShape(26.dp),
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shadowElevation = 12.dp,
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row(
@@ -120,7 +132,7 @@ fun YouTubeLiveSettingsDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
-                        text = "라이브 설정",
+                        text = stringResource(R.string.live_settings_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontSize = 20.sp,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -128,7 +140,7 @@ fun YouTubeLiveSettingsDialog(
                     IconButton(onClick = onDismissRequest, modifier = Modifier.offset(6.dp)) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
-                            contentDescription = "닫기",
+                            contentDescription = stringResource(R.string.action_close),
                         )
                     }
                 }
@@ -139,11 +151,21 @@ fun YouTubeLiveSettingsDialog(
                         validation = validation.copy(titleError = false)
                         onSettingsChanged(settings.copy(title = value.take(MAX_YOUTUBE_TITLE_LENGTH)))
                     },
-                    label = { Text("방송 제목", color = MaterialTheme.colorScheme.onSurface) },
+                    label = {
+                        Text(
+                            stringResource(R.string.label_broadcast_title),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    },
                     singleLine = true,
                     isError = validation.titleError,
                     supportingText = if (validation.titleError) {
-                        { Text("방송 제목을 입력해 주세요.", color = MaterialTheme.colorScheme.onSurface) }
+                        {
+                            Text(
+                                stringResource(R.string.validation_broadcast_title),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     } else {
                         null
                     },
@@ -158,12 +180,22 @@ fun YouTubeLiveSettingsDialog(
                             settings.copy(description = value.take(MAX_YOUTUBE_DESCRIPTION_LENGTH)),
                         )
                     },
-                    label = { Text("방송 설명", color = MaterialTheme.colorScheme.onSurface) },
+                    label = {
+                        Text(
+                            stringResource(R.string.label_broadcast_description),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    },
                     minLines = 3,
                     maxLines = 5,
                     isError = validation.descriptionError,
                     supportingText = if (validation.descriptionError) {
-                        { Text("방송 설명을 입력해 주세요.", color = MaterialTheme.colorScheme.onSurface) }
+                        {
+                            Text(
+                                stringResource(R.string.validation_broadcast_description),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     } else {
                         null
                     },
@@ -178,7 +210,12 @@ fun YouTubeLiveSettingsDialog(
                         value = privacyLabel,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("공개 범위", color = MaterialTheme.colorScheme.onSurface) },
+                        label = {
+                            Text(
+                                stringResource(R.string.label_broadcast_privacy),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(
                                 expanded = isPrivacyMenuExpanded,
@@ -193,21 +230,36 @@ fun YouTubeLiveSettingsDialog(
                         onDismissRequest = { isPrivacyMenuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("공개", color = MaterialTheme.colorScheme.onSurface) },
+                            text = {
+                                Text(
+                                    stringResource(R.string.privacy_public),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "public"))
                                 isPrivacyMenuExpanded = false
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("일부 공개", color = MaterialTheme.colorScheme.onSurface) },
+                            text = {
+                                Text(
+                                    stringResource(R.string.privacy_unlisted),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "unlisted"))
                                 isPrivacyMenuExpanded = false
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("비공개", color = MaterialTheme.colorScheme.onSurface) },
+                            text = {
+                                Text(
+                                    stringResource(R.string.privacy_private),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            },
                             onClick = {
                                 onSettingsChanged(settings.copy(privacy = "private"))
                                 isPrivacyMenuExpanded = false
@@ -225,9 +277,19 @@ fun YouTubeLiveSettingsDialog(
                         onValueChange = {},
                         readOnly = true,
                         isError = validation.audienceError,
-                        label = { Text("아동용 설정", color = MaterialTheme.colorScheme.onSurface) },
+                        label = {
+                            Text(
+                                stringResource(R.string.label_made_for_kids),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        },
                         supportingText = if (validation.audienceError) {
-                            { Text("아동용 설정을 선택해 주세요.", color = MaterialTheme.colorScheme.onSurface) }
+                            {
+                                Text(
+                                    stringResource(R.string.validation_audience),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         } else {
                             null
                         },
@@ -245,7 +307,12 @@ fun YouTubeLiveSettingsDialog(
                         onDismissRequest = { isAudienceMenuExpanded = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("아동용", color = MaterialTheme.colorScheme.onSurface) },
+                            text = {
+                                Text(
+                                    stringResource(R.string.audience_made_for_kids),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            },
                             onClick = {
                                 onSettingsChanged(settings.copy(madeForKids = true))
                                 validation = validation.copy(audienceError = false)
@@ -253,7 +320,12 @@ fun YouTubeLiveSettingsDialog(
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("아동용 아님", color = MaterialTheme.colorScheme.onSurface) },
+                            text = {
+                                Text(
+                                    stringResource(R.string.audience_not_made_for_kids),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            },
                             onClick = {
                                 onSettingsChanged(settings.copy(madeForKids = false))
                                 validation = validation.copy(audienceError = false)
@@ -268,7 +340,7 @@ fun YouTubeLiveSettingsDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = "계정 정보",
+                        text = stringResource(R.string.label_account_information),
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.Medium,
                     )
@@ -287,7 +359,13 @@ fun YouTubeLiveSettingsDialog(
                                 enabled = isYouTubeConnectEnabled && !isYouTubeAccountActionInProgress,
                             ) {
                                 Text(
-                                    text = if (isYouTubeReconnectRequired) "재연동" else "연동",
+                                    text = stringResource(
+                                        if (isYouTubeReconnectRequired) {
+                                            R.string.action_reconnect
+                                        } else {
+                                            R.string.action_connect
+                                        },
+                                    ),
                                     maxLines = 1,
                                 )
                             }
@@ -310,7 +388,14 @@ fun YouTubeLiveSettingsDialog(
                         .hoverable(interactionSource),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(text = if (onPrepare == null) "저장 및 닫기" else "방송 준비", style = MaterialTheme.typography.bodyLarge, color = Color.Black)
+                    Text(
+                        text = stringResource(
+                            if (onPrepare == null) R.string.action_save_and_close
+                            else R.string.action_prepare_broadcast,
+                        ),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.Black,
+                    )
                 }
             }
         }

@@ -50,29 +50,35 @@ class LocalizationCatalogTest {
     }
 
     private fun readCatalog(directoryName: String): Catalog {
-        val file = File(resourceDirectory, "$directoryName/strings.xml")
-        check(file.isFile) { "Missing localization catalog: ${file.absolutePath}" }
-        val document = DocumentBuilderFactory.newInstance().apply {
-            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-        }.newDocumentBuilder().parse(file)
+        val directory = File(resourceDirectory, directoryName)
+        check(directory.isDirectory) { "Missing localization catalog: ${directory.absolutePath}" }
         val strings = linkedMapOf<String, String>()
         val plurals = linkedMapOf<String, List<String>>()
-        val resourceNodes = document.documentElement.childNodes
+        val files = directory.listFiles { file -> file.extension == "xml" }
+            ?.sortedBy { it.name }
+            .orEmpty()
+        check(files.isNotEmpty()) { "No XML resources in ${directory.absolutePath}" }
 
-        for (index in 0 until resourceNodes.length) {
-            val node = resourceNodes.item(index) as? Element ?: continue
-            when (node.tagName) {
-                "string" -> strings.putUnique(node.getAttribute("name"), node.textContent)
-                "plurals" -> plurals.putUnique(
-                    node.getAttribute("name"),
-                    buildList {
-                        val itemNodes = node.childNodes
-                        for (itemIndex in 0 until itemNodes.length) {
-                            val item = itemNodes.item(itemIndex) as? Element ?: continue
-                            if (item.tagName == "item") add(item.textContent)
-                        }
-                    },
-                )
+        files.forEach { file ->
+            val document = DocumentBuilderFactory.newInstance().apply {
+                setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            }.newDocumentBuilder().parse(file)
+            val resourceNodes = document.documentElement.childNodes
+            for (index in 0 until resourceNodes.length) {
+                val node = resourceNodes.item(index) as? Element ?: continue
+                when (node.tagName) {
+                    "string" -> strings.putUnique(node.getAttribute("name"), node.textContent)
+                    "plurals" -> plurals.putUnique(
+                        node.getAttribute("name"),
+                        buildList {
+                            val itemNodes = node.childNodes
+                            for (itemIndex in 0 until itemNodes.length) {
+                                val item = itemNodes.item(itemIndex) as? Element ?: continue
+                                if (item.tagName == "item") add(item.textContent)
+                            }
+                        },
+                    )
+                }
             }
         }
         return Catalog(strings, plurals)

@@ -21,7 +21,7 @@ class YouTubePreferencesNormalizationTest {
             defaultTitle = defaultYouTubeBroadcastTitle(LocalDate.of(2026, 9, 17)),
         )
 
-        assertEquals("20260917 InnoLive 방송", normalized.title)
+        assertEquals("20260917 InnoLive", normalized.title)
         assertEquals("private", normalized.privacy)
         assertNull(normalized.madeForKids)
         assertEquals("22", normalized.categoryId)

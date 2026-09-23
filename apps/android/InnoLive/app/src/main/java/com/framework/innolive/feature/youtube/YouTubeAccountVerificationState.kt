@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.youtube
 
 import kotlinx.coroutines.CancellationException
+import com.framework.innolive.ui.text.UiText
 
 internal enum class YouTubeAccountVerificationState {
     UNVERIFIED,
@@ -9,14 +10,14 @@ internal enum class YouTubeAccountVerificationState {
 }
 
 internal data class YouTubeAuthorizationCancellationState(
-    val accountStatus: String,
+    val accountStatus: UiText,
     val verificationState: YouTubeAccountVerificationState,
     val isActionInProgress: Boolean,
     val shouldRefreshAccount: Boolean,
 )
 
 internal fun cancelYouTubeAuthorization(
-    accountStatusBeforeAuthorization: String,
+    accountStatusBeforeAuthorization: UiText,
     verificationState: YouTubeAccountVerificationState,
 ): YouTubeAuthorizationCancellationState = YouTubeAuthorizationCancellationState(
     accountStatus = accountStatusBeforeAuthorization,

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="permission_camera_required">カメラの権限が必要です。</string>
+    <string name="permission_microphone_required">マイクの権限が必要です。</string>
+    <string name="content_description_broadcast_duration">配信時間: %1$s</string>
+    <string name="anonymization_current">匿名化 %1$s</string>
+    <string name="default_youtube_broadcast_title">%1$s InnoLive 配信</string>
+    <string name="google_user">Google ユーザー</string>
+</resources>

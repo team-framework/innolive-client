@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.youtube
 
 import android.content.Context
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.components.MAX_YOUTUBE_DESCRIPTION_LENGTH
 import com.framework.innolive.feature.live.components.MAX_YOUTUBE_TITLE_LENGTH
@@ -18,7 +19,8 @@ class YouTubePreferencesStore(
     context: Context,
     preferencesName: String = PREFERENCES_NAME,
 ) {
-    private val preferences = context.applicationContext.getSharedPreferences(
+    private val applicationContext = context.applicationContext
+    private val preferences = applicationContext.getSharedPreferences(
         preferencesName,
         Context.MODE_PRIVATE,
     )
@@ -75,10 +77,14 @@ class YouTubePreferencesStore(
             madeForKids = preferences.getString(BROADCAST_AUDIENCE, null).toAudience(),
             categoryId = preferences.getString(BROADCAST_CATEGORY_ID, "").orEmpty(),
         ),
+        defaultTitle = defaultYouTubeBroadcastTitle(applicationContext),
     )
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
-        val normalized = normalizeYouTubeBroadcastSettings(settings)
+        val normalized = normalizeYouTubeBroadcastSettings(
+            settings,
+            defaultTitle = defaultYouTubeBroadcastTitle(applicationContext),
+        )
         val editor = preferences.edit()
             .putString(BROADCAST_TITLE, normalized.title)
             .putString(BROADCAST_DESCRIPTION, normalized.description)
@@ -125,8 +131,17 @@ internal fun normalizeYouTubeBroadcastSettings(
     categoryId = settings.categoryId.filter(Char::isDigit),
 )
 
+internal fun defaultYouTubeBroadcastTitle(
+    context: Context,
+    today: LocalDate = LocalDate.now(),
+): String = context.getString(
+    R.string.default_youtube_broadcast_title,
+    today.format(DateTimeFormatter.BASIC_ISO_DATE),
+)
+
+/** A locale-neutral test fallback. Production code always supplies a Context. */
 internal fun defaultYouTubeBroadcastTitle(today: LocalDate = LocalDate.now()): String =
-    "${today.format(DateTimeFormatter.BASIC_ISO_DATE)} InnoLive 방송"
+    "${today.format(DateTimeFormatter.BASIC_ISO_DATE)} InnoLive"
 
 private fun String?.toAudience(): Boolean? = when (this) {
     "true" -> true

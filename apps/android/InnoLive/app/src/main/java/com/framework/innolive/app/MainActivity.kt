@@ -40,6 +40,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.AudioInputDevice
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
@@ -71,6 +72,9 @@ import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.UiTextSaver
+import com.framework.innolive.ui.text.NullableUiTextSaver
 import com.framework.innolive.ui.text.asString
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
@@ -192,28 +196,30 @@ fun AppNavigation(
             reconnectRequired = youtubeAccountReconnectRequired,
         )
     }
-    var youtubeAccountStatus by rememberSaveable {
-        mutableStateOf(
+    var youtubeAccountStatus by rememberSaveable(stateSaver = UiTextSaver) {
+        mutableStateOf<UiText>(
             if (restoredYouTubeAccount == null) {
-                "로그인 후 YouTube 계정을 연동할 수 있습니다."
+                UiText.Resource(R.string.youtube_status_sign_in_required)
             } else {
-                "저장된 YouTube 연결 정보를 확인하는 중입니다."
+                UiText.Resource(R.string.youtube_status_checking_saved)
             },
         )
     }
     var isYouTubeAccountActionInProgress by rememberSaveable { mutableStateOf(false) }
-    var youtubeAccountVerificationState by remember {
+    var youtubeAccountVerificationState by rememberSaveable {
         mutableStateOf(YouTubeAccountVerificationState.UNVERIFIED)
     }
-    var verifiedYouTubeProfileEmail by remember { mutableStateOf<String?>(null) }
-    var youtubeOperationProfileEmail by remember { mutableStateOf<String?>(null) }
-    var previousProfileEmail by remember { mutableStateOf(session?.profileEmail) }
+    var verifiedYouTubeProfileEmail by rememberSaveable { mutableStateOf<String?>(null) }
+    var youtubeOperationProfileEmail by rememberSaveable { mutableStateOf<String?>(null) }
+    var previousProfileEmail by rememberSaveable { mutableStateOf(session?.profileEmail) }
     var isYouTubeAuthorizationLaunched by rememberSaveable { mutableStateOf(false) }
     var youtubeAuthorizationOperation by rememberSaveable { mutableStateOf<Long?>(null) }
-    var youtubeAccountStatusBeforeAuthorization by rememberSaveable {
-        mutableStateOf<String?>(null)
+    var youtubeAccountStatusBeforeAuthorization by rememberSaveable(
+        stateSaver = NullableUiTextSaver,
+    ) {
+        mutableStateOf<UiText?>(null)
     }
-    var suppressYouTubeAccountRefreshOnce by remember { mutableStateOf(false) }
+    var suppressYouTubeAccountRefreshOnce by rememberSaveable { mutableStateOf(false) }
     val youtubeOperationGeneration = rememberSaveable(
         saver = Saver<OperationGeneration, Long>(
             save = { generation -> generation.current },
@@ -231,7 +237,7 @@ fun AppNavigation(
             youtubeAccountStatusBeforeAuthorization = null
             youtubeOperationGeneration.invalidate()
             isYouTubeAccountActionInProgress = false
-            youtubeAccountStatus = "YouTube 계정 연동을 다시 시도해 주세요."
+            youtubeAccountStatus = UiText.Resource(R.string.youtube_status_retry_connect)
         }
     }
 
@@ -245,10 +251,13 @@ fun AppNavigation(
         youtubeAccountChannelTitle = account?.channelTitle
         youtubeAccountReconnectRequired = account?.reconnectRequired == true
         youtubeAccountStatus = when {
-            account == null -> "연결된 계정이 없습니다"
-            account.reconnectRequired -> "YouTube 재연동이 필요합니다."
-            account.channelTitle.isNotBlank() -> "YouTube 채널: ${account.channelTitle}"
-            else -> "YouTube 계정이 연동되었습니다."
+            account == null -> UiText.Resource(R.string.youtube_status_no_account)
+            account.reconnectRequired -> UiText.Resource(R.string.youtube_status_reconnect_required)
+            account.channelTitle.isNotBlank() -> UiText.Resource(
+                R.string.youtube_status_channel,
+                listOf(account.channelTitle),
+            )
+            else -> UiText.Resource(R.string.youtube_status_connected)
         }
     }
 
@@ -384,7 +393,7 @@ fun AppNavigation(
         youtubeOperationProfileEmail = session?.profileEmail
         if (backStack.lastOrNull() in setOf(BroadcastSettingRoute, LiveRoute) && session != null) {
             youtubeAccountVerificationState = YouTubeAccountVerificationState.CHECKING
-            youtubeAccountStatus = "YouTube 연결 상태를 확인하는 중입니다."
+            youtubeAccountStatus = UiText.Resource(R.string.youtube_status_checking)
             try {
                 val account = youtubeCoordinator.loadAccount(::refreshCurrentAccessToken)
                 if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
@@ -393,7 +402,7 @@ fun AppNavigation(
             } catch (_: Exception) {
                 if (isCurrentYouTubeOperation(operation)) {
                     youtubeAccountVerificationState = YouTubeAccountVerificationState.UNVERIFIED
-                    youtubeAccountStatus = "YouTube 연결 상태를 확인하지 못했습니다."
+                    youtubeAccountStatus = UiText.Resource(R.string.youtube_status_check_failed)
                 }
             }
         }
@@ -575,7 +584,7 @@ fun AppNavigation(
         youtubeAuthorizationOperation = null
         isYouTubeAccountActionInProgress = true
         isYouTubeAuthorizationLaunched = false
-        youtubeAccountStatus = "YouTube 계정 연동을 시작하는 중입니다."
+        youtubeAccountStatus = UiText.Resource(R.string.youtube_status_starting)
         coroutineScope.launch {
             try {
                 youtubeCoordinator.beginAuthorization(
@@ -665,7 +674,7 @@ fun AppNavigation(
             onBroadcastSettingsChanged = ::updateBroadcastSettings,
             youtubeChannelTitle = visibleYouTubeAccount?.channelTitle,
             hasYouTubeAccount = hasServerVerifiedYouTubeAccount,
-            youtubeAccountStatus = youtubeAccountStatus,
+            youtubeAccountStatus = youtubeAccountStatus.asString(),
             isYouTubeReconnectRequired = visibleYouTubeAccount?.reconnectRequired == true,
             isYouTubeAccountActionInProgress = isYouTubeAccountOperationInProgress,
             isYouTubeConnectEnabled = session != null,
@@ -748,7 +757,9 @@ fun AppNavigation(
                                         verifiedYouTubeProfileEmail = null
                                         youtubeAccountVerificationState =
                                             YouTubeAccountVerificationState.UNVERIFIED
-                                        youtubeAccountStatus = "로그인 후 YouTube 계정을 연동할 수 있습니다."
+                                youtubeAccountStatus = UiText.Resource(
+                                    R.string.youtube_status_sign_in_required,
+                                )
                                         isYouTubeAccountActionInProgress = false
                                         backStack.clear()
                                         backStack.add(LoginRoute)
@@ -841,7 +852,7 @@ fun AppNavigation(
                                     )
                                 },
                                 youtubeChannelTitle = visibleYouTubeAccount?.channelTitle,
-                                youtubeAccountStatus = youtubeAccountStatus,
+                                youtubeAccountStatus = youtubeAccountStatus.asString(),
                                 hasVerifiedYouTubeAccount = hasServerVerifiedYouTubeAccount,
                                 isYouTubeReconnectRequired =
                                     visibleYouTubeAccount?.reconnectRequired == true,
@@ -868,7 +879,7 @@ fun AppNavigation(
                                 ) {
                                     webRtcSession.broadcastStatus.asString()
                                 } else {
-                                    "비식별화 연결 후 방송 설정을 저장할 수 있습니다."
+                                    context.getString(R.string.broadcast_settings_connection_required)
                                 },
                             ),
                         )

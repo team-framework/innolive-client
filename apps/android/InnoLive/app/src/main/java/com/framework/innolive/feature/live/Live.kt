@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.Button
@@ -36,6 +39,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
@@ -58,17 +65,20 @@ fun LiveScreen(
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val broadcastStatus = webRtcSession.broadcastStatus.asString()
     val presentation = buildLiveScreenPresentation(
         connectionState = webRtcSession.connectionState,
         broadcastState = webRtcSession.broadcastState,
         selectedPlatform = selectedPlatform,
-        broadcastStatus = broadcastStatus,
+        broadcastStatus = webRtcSession.broadcastStatus,
         isBroadcastStatusDefault = webRtcSession.isBroadcastStatusDefault,
         isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
     )
     val broadcastDurationText = rememberBroadcastDurationText(
         webRtcSession.broadcastStartedAtElapsedRealtimeMillis,
+    )
+    val broadcastDurationDescription = stringResource(
+        R.string.content_description_broadcast_duration,
+        broadcastDurationText,
     )
     val mediaPermissions = rememberMediaPermissionController(context)
     val mediaPermissionState = mediaPermissions.state
@@ -119,7 +129,7 @@ fun LiveScreen(
             .fillMaxSize()
             .background(color = Color.Black),
     ) {
-        if (mediaPermissionState.hasCameraPermission) {
+        if (mediaPermissionState.hasCameraPermission && mediaPermissionState.hasMicrophonePermission) {
             LiveVideoPanels(
                 cameraLensFacing = props.cameraLensFacing,
                 cameraResolution = props.cameraResolution,
@@ -137,11 +147,14 @@ fun LiveScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(text = "카메라와 마이크 권한이 필요합니다.")
+                Text(
+                    text = stringResource(mediaPermissionGuidance(mediaPermissionState)),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
                 Button(
                     onClick = requestMissingMediaPermissions,
                 ) {
-                    Text(text = "권한 허용")
+                    Text(text = stringResource(R.string.action_allow_permissions))
                 }
             }
         }
@@ -160,7 +173,7 @@ fun LiveScreen(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.settings),
-                    contentDescription = "settings",
+                    contentDescription = stringResource(R.string.content_description_settings),
                     modifier = Modifier
                         .padding(1.dp)
                         .width(28.dp)
@@ -174,6 +187,9 @@ fun LiveScreen(
             ) {
                 Text(
                     text = broadcastDurationText,
+                    modifier = Modifier.semantics {
+                        contentDescription = broadcastDurationDescription
+                    },
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                 )
@@ -184,7 +200,7 @@ fun LiveScreen(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.change_camera),
-                    contentDescription = "카메라 전환",
+                    contentDescription = stringResource(R.string.content_description_switch_camera),
                     modifier = Modifier
                         .padding(1.dp)
                         .width(28.dp)
@@ -222,7 +238,7 @@ fun LiveScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Face,
-                            contentDescription = "얼굴 관리",
+                            contentDescription = stringResource(R.string.face_management),
                             modifier = Modifier
                                 .padding(1.dp)
                                 .width(32.dp)
@@ -314,7 +330,9 @@ fun LiveScreen(
                 webRtcSession.connectionStatus?.let { status ->
                     Text(
                         status.asString(),
-                        modifier = Modifier.padding(horizontal = 24.dp),
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
                         color = Color.White,
                         style = MaterialTheme.typography.labelMedium,
                     )
@@ -323,16 +341,20 @@ fun LiveScreen(
             webRtcSession.anonymizationChange.errorMessage?.let { error ->
                 Text(
                     text = stringResource(R.string.anonymization_error_retry, error.asString()),
-                    modifier = Modifier.padding(horizontal = 24.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
             StableBroadcastFeedback {
-                if (presentation.broadcastStatusText.isNotEmpty()) {
+                presentation.broadcastStatusText?.let { status ->
                     Text(
-                        text = presentation.broadcastStatusText,
-                        modifier = Modifier.padding(horizontal = 24.dp),
+                        text = status.asString(),
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
                         style = MaterialTheme.typography.labelMedium,
                         color = if (presentation.isBroadcastStatusError) Color.Red else Color.White,
                     )
@@ -356,6 +378,12 @@ private fun rememberBroadcastDurationText(startedAtElapsedRealtimeMillis: Long?)
         }
     }
     return formatBroadcastDuration(elapsedMillis)
+}
+
+private fun mediaPermissionGuidance(state: MediaPermissionState): Int = when {
+    !state.hasCameraPermission && !state.hasMicrophonePermission -> R.string.permission_media_required
+    !state.hasCameraPermission -> R.string.permission_camera_required
+    else -> R.string.permission_microphone_required
 }
 
 @Composable
@@ -407,39 +435,52 @@ internal fun BroadcastActionDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .widthIn(max = 400.dp),
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(
                 modifier = Modifier
-                    .width(300.dp)
-                    .padding(20.dp),
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(text = "방송 제어", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    text = stringResource(R.string.broadcast_control_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
                 if (presentation.isBroadcastLive) {
                     Text(
-                        text = "방송 일시 중지 시 YouTube에 송출만 중지되고, 방송 연결은 유지됩니다.",
+                        text = stringResource(R.string.broadcast_pause_notice),
                         modifier = Modifier.padding(vertical = 8.dp),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
                 if (presentation.isBroadcastPrepared) {
-                    BroadcastDialogButton("방송 시작", onGoLive)
+                    BroadcastDialogButton(stringResource(R.string.action_start_broadcast), onGoLive)
                     BroadcastDialogButton(
-                        text = "방송 준비 취소",
+                        text = stringResource(R.string.action_cancel_preparation),
                         onClick = onCancelPreparation,
                         destructive = true,
                     )
                 } else if (presentation.isBroadcastLive) {
                     BroadcastDialogButton(
-                        text = if (presentation.isBroadcastPaused) "방송 재개" else "방송 일시 중지",
+                        text = stringResource(
+                            if (presentation.isBroadcastPaused) R.string.action_resume_broadcast
+                            else R.string.action_pause_broadcast,
+                        ),
                         onClick = onPauseOrResume,
                     )
-                    BroadcastDialogButton("방송 종료", onStop, destructive = true)
+                    BroadcastDialogButton(
+                        stringResource(R.string.action_stop_broadcast),
+                        onStop,
+                        destructive = true,
+                    )
                 }
-                BroadcastDialogButton("취소", onDismiss)
+                BroadcastDialogButton(stringResource(R.string.action_cancel), onDismiss)
             }
         }
     }
@@ -479,7 +520,12 @@ internal fun BalancedLiveControls(
         ) {
             leading()
         }
-        center()
+        Box(
+            modifier = Modifier.weight(5f),
+            contentAlignment = Alignment.Center,
+        ) {
+            center()
+        }
         Box(
             modifier = Modifier.weight(1f),
             contentAlignment = Alignment.Center,
