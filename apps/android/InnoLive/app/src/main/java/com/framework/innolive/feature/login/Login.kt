@@ -18,31 +18,37 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.framework.innolive.R
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
+import com.framework.innolive.feature.login.oauth.google.GoogleSignInState
+import com.framework.innolive.ui.text.asString
 
 @Composable
 fun LoginScreen(props: LoginScreenProps) {
-    val coroutineScope = rememberCoroutineScope()
-    var isGoogleLoginInProgress by remember { mutableStateOf(false) }
-    var googleLoginFailed by remember { mutableStateOf(false) }
     var showEmailAuthentication by rememberSaveable { mutableStateOf(false) }
+    val isGoogleLoginInProgress = props.googleSignInState is GoogleSignInState.InProgress
+    val googleLoginError = (props.googleSignInState as? GoogleSignInState.Failed)?.error
+
+    LaunchedEffect(props.googleSignInState) {
+        if (props.googleSignInState is GoogleSignInState.Succeeded) {
+            props.onLogin()
+            props.onGoogleSignInSuccess()
+        }
+    }
 
     if (showEmailAuthentication) {
         EmailLoginScreen(
@@ -70,7 +76,12 @@ fun LoginScreen(props: LoginScreenProps) {
         Row(
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = "라이브 방송을 안전하게\n만드는 쉬운 방법", style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                text = stringResource(R.string.login_headline),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.semantics { heading() },
+            )
         }
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -86,23 +97,7 @@ fun LoginScreen(props: LoginScreenProps) {
                 ),
                 enabled = !isGoogleLoginInProgress,
                 onClick = {
-                    if (!isGoogleLoginInProgress) {
-                        isGoogleLoginInProgress = true
-                        googleLoginFailed = false
-                        coroutineScope.launch {
-                            try {
-                                props.onGoogleLogin()
-                                props.onLogin()
-                            } catch (_: GetCredentialCancellationException) {
-                            } catch (exception: CancellationException) {
-                                throw exception
-                            } catch (_: Exception) {
-                                googleLoginFailed = true
-                            } finally {
-                                isGoogleLoginInProgress = false
-                            }
-                        }
-                    }
+                    props.onGoogleLogin()
                 }
             ) {
                 Row(
@@ -115,15 +110,19 @@ fun LoginScreen(props: LoginScreenProps) {
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.google),
-                        contentDescription = "Google 트레이드마크",
+                        contentDescription = stringResource(R.string.content_description_google_logo),
                         modifier = Modifier.height(20.dp)
                     )
-                    Text(text = "Google로 계속하기", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.offset(y = (-2).dp))
+                    Text(
+                        text = stringResource(R.string.continue_with_google),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.offset(y = (-2).dp),
+                    )
                 }
             }
-            if (googleLoginFailed) {
+            if (googleLoginError != null) {
                 Text(
-                    text = "Google 로그인에 실패했습니다. 다시 시도해 주세요.",
+                    text = googleLoginError.asString(),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
@@ -151,10 +150,14 @@ fun LoginScreen(props: LoginScreenProps) {
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Email,
-                        contentDescription = "이메일 아이콘",
+                        contentDescription = stringResource(R.string.content_description_email_icon),
                         modifier = Modifier.height(20.dp)
                     )
-                    Text(text = "이메일로 계속하기", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.offset(y = (-2).dp))
+                    Text(
+                        text = stringResource(R.string.continue_with_email),
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.offset(y = (-2).dp),
+                    )
                 }
             }
         }

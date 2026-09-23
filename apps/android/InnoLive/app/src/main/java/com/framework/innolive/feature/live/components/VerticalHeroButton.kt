@@ -8,8 +8,8 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,8 +44,9 @@ fun VerticalHeroButton(
 
     Box(
         modifier = modifier
-            .width(240.dp)
-            .height(57.dp)
+            .widthIn(max = 240.dp)
+            .fillMaxWidth()
+            .heightIn(min = 57.dp)
             .background(backgroundColor, RoundedCornerShape(20.dp))
             .hoverable(interactionSource)
             .clickable(
@@ -65,6 +66,7 @@ fun VerticalHeroButton(
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
+            maxLines = 2,
         )
     }
 }

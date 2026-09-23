@@ -31,6 +31,7 @@
     <string name="email_sign_in_description">InnoLive에서 라이브를 이어가세요.</string>
     <string name="email_sign_up_description">이메일 인증 후 라이브를 시작할 수 있어요.</string>
     <string name="label_email">이메일</string>
+    <string name="email_placeholder">name@example.com</string>
     <string name="label_password">비밀번호</string>
     <string name="label_password_confirmation">비밀번호 확인</string>
     <string name="password_hint">비밀번호 입력</string>
@@ -129,7 +130,7 @@
     <string name="anonymization_off">비식별화 Off</string>
     <string name="anonymization_loading">선택 불러오는 중</string>
     <string name="anonymization_changing">비식별화 변경 중</string>
-    <string name="anonymization_connecting">비식별화 %1$s로 연결 중</string>
+    <string name="anonymization_connecting">비식별화 %1$s 상태로 연결 중</string>
     <string name="anonymization_needs_check">비식별화 상태 확인 필요</string>
     <string name="anonymization_when_connected">연결 시 비식별화 %1$s</string>
     <string name="anonymization_enable">비식별화 활성화</string>

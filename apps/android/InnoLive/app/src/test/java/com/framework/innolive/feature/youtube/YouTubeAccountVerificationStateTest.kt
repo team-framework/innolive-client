@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.youtube
 
+import com.framework.innolive.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
@@ -8,11 +9,11 @@ class YouTubeAccountVerificationStateTest {
     @Test
     fun cancellingAuthorizationRestoresPreviousStatusAndEnablesRetryImmediately() {
         val result = cancelYouTubeAuthorization(
-            accountStatusBeforeAuthorization = "연결된 계정이 없습니다",
+            accountStatusBeforeAuthorization = UiText.Dynamic("연결된 계정이 없습니다"),
             verificationState = YouTubeAccountVerificationState.VERIFIED,
         )
 
-        assertEquals("연결된 계정이 없습니다", result.accountStatus)
+        assertEquals(UiText.Dynamic("연결된 계정이 없습니다"), result.accountStatus)
         assertEquals(YouTubeAccountVerificationState.VERIFIED, result.verificationState)
         assertFalse(result.isActionInProgress)
         assertFalse(result.shouldRefreshAccount)

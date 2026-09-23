@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.login
 
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -26,7 +28,9 @@ internal class EmailSignupSession(
 
     suspend fun resend() {
         val pending = pendingSignup ?: throw expiredSignup()
-        if (pending.verified) throw EmailSignUpException("이메일 인증이 완료됐습니다. 로그인을 다시 시도해 주세요.")
+        if (pending.verified) {
+            throw EmailSignUpException(UiText.Resource(R.string.email_hint_verified))
+        }
         val token = signUp(pending.email, pending.password)
         currentCoroutineContext().ensureActive()
         if (pendingSignup !== pending) throw CancellationException("Email signup was cancelled.")
@@ -56,9 +60,8 @@ internal class EmailSignupSession(
 
     fun isVerified(): Boolean = pendingSignup?.verified == true
 
-    private fun expiredSignup() = EmailSignUpException(
-        "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
-    )
+    private fun expiredSignup() =
+        EmailSignUpException(UiText.Resource(R.string.error_email_signup_expired))
 
     private data class PendingSignup(
         val email: String,

@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import androidx.annotation.StringRes
 import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 enum class LiveBroadcastAction {
     SHOW_BROADCAST_ACTIONS,
     PREPARE_BROADCAST,
@@ -18,7 +19,7 @@ data class LiveScreenPresentation(
     @param:StringRes val broadcastButtonTextRes: Int,
     val isBroadcastButtonEnabled: Boolean,
     val broadcastAction: LiveBroadcastAction,
-    val broadcastStatusText: String,
+    val broadcastStatusText: UiText?,
     val isBroadcastStatusDefault: Boolean,
     val isBroadcastStatusError: Boolean,
 )
@@ -27,7 +28,7 @@ fun buildLiveScreenPresentation(
     connectionState: WebRtcConnectionState,
     broadcastState: BroadcastState,
     selectedPlatform: String?,
-    broadcastStatus: String,
+    broadcastStatus: UiText,
     isBroadcastStatusDefault: Boolean = false,
     isPreparingBroadcast: Boolean = false,
 ): LiveScreenPresentation {
@@ -44,13 +45,13 @@ fun buildLiveScreenPresentation(
     }
     val broadcastStatusText = when {
         // The connection status above the broadcast controls already explains this failure.
-        connectionState == WebRtcConnectionState.FAILED -> ""
+        connectionState == WebRtcConnectionState.FAILED -> null
 
         // Hide only a known state description that repeats the primary button.
-        isBroadcastStatusDefault -> ""
+        isBroadcastStatusDefault -> null
 
         broadcastState != BroadcastState.IDLE -> broadcastStatus
-        else -> ""
+        else -> null
     }
 
     return LiveScreenPresentation(
@@ -79,6 +80,23 @@ fun buildLiveScreenPresentation(
         isBroadcastStatusError = broadcastState == BroadcastState.FAILED,
     )
 }
+
+/** Test-only compatibility for callers that construct a transient status literal. */
+fun buildLiveScreenPresentation(
+    connectionState: WebRtcConnectionState,
+    broadcastState: BroadcastState,
+    selectedPlatform: String?,
+    broadcastStatus: String,
+    isBroadcastStatusDefault: Boolean = false,
+    isPreparingBroadcast: Boolean = false,
+): LiveScreenPresentation = buildLiveScreenPresentation(
+    connectionState = connectionState,
+    broadcastState = broadcastState,
+    selectedPlatform = selectedPlatform,
+    broadcastStatus = UiText.Dynamic(broadcastStatus),
+    isBroadcastStatusDefault = isBroadcastStatusDefault,
+    isPreparingBroadcast = isPreparingBroadcast,
+)
 
 private val BroadcastState.isBusy: Boolean
     get() = when (this) {

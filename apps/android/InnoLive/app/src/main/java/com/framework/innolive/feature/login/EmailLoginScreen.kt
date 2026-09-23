@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -30,7 +32,7 @@ internal fun EmailLoginScreen(
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf(false) }
     var isResending by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<UiText?>(null) }
     var request by remember { mutableStateOf<Job?>(null) }
     var generation by remember { mutableStateOf(0L) }
     var emailAddress by rememberSaveable { mutableStateOf("") }
@@ -68,8 +70,8 @@ internal fun EmailLoginScreen(
             } catch (failure: Exception) {
                 if (generation == activeGeneration) {
                     error = when (failure) {
-                        is EmailSignInException, is EmailSignUpException -> failure.message
-                        else -> "요청을 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요."
+                        is EmailAuthenticationException -> failure.error
+                        else -> UiText.Resource(R.string.error_request_connection_failed)
                     }
                 }
             } finally {

@@ -27,9 +27,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.framework.innolive.R
 import java.util.concurrent.Executors
 
 @Composable
@@ -170,7 +172,7 @@ fun CameraPreview(
 
         if (hasCameraError) {
             Text(
-                text = "카메라 화면을 불러오지 못했습니다.",
+                text = stringResource(R.string.error_camera_preview),
                 modifier = Modifier.align(Alignment.Center),
             )
         }
