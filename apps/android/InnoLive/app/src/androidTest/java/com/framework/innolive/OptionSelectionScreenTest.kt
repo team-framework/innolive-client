@@ -31,6 +31,8 @@ class OptionSelectionScreenTest {
         }
 
         composeRule.onAllNodesWithText("동일 기기").assertCountEquals(2)
-        composeRule.onAllNodesWithContentDescription("선택됨").assertCountEquals(1)
+        composeRule.onAllNodesWithContentDescription(
+            composeRule.activity.getString(R.string.label_selected),
+        ).assertCountEquals(1)
     }
 }

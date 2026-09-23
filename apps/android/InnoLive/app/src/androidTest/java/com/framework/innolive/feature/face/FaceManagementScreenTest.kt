@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import org.junit.Rule
@@ -38,19 +39,19 @@ class FaceManagementScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("얼굴 관리").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("얼굴 등록").performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.face_management)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.action_register_face)).performClick()
         composeRule
-            .onNodeWithText("등록된 얼굴은 유지되고 새 얼굴을 추가할 수 있습니다.")
+            .onNodeWithText(composeRule.activity.getString(R.string.face_registration_description))
             .assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("닫기").performClick()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.action_close)).performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("얼굴 관리").assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.face_management)).assertIsDisplayed()
 
-        composeRule.onNodeWithContentDescription("얼굴 등록").performClick()
-        composeRule.onNodeWithText("얼굴 등록").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("닫기").performClick()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.action_register_face)).performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_register_face)).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.action_close)).performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("얼굴 관리").assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.face_management)).assertIsDisplayed()
     }
 }
