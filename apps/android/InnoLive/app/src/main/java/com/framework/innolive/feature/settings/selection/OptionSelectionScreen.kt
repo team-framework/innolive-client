@@ -19,12 +19,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.asString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OptionSelectionScreen(
-    title: String,
+    title: UiText,
     options: List<SettingOption>,
     selectedKey: String,
     onOptionSelected: (String) -> Unit,
@@ -32,12 +36,12 @@ fun OptionSelectionScreen(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text(text = title) },
+            title = { Text(text = title.asString()) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "뒤로가기",
+                        contentDescription = stringResource(R.string.action_back),
                     )
                 }
             },
@@ -49,12 +53,12 @@ fun OptionSelectionScreen(
                 key = SettingOption::key,
             ) { option ->
                 ListItem(
-                    headlineContent = { Text(text = option.label) },
+                    headlineContent = { Text(text = option.label.asString()) },
                     leadingContent = {
                         if (option.key == selectedKey) {
                             Icon(
                                 imageVector = Icons.Outlined.Check,
-                                contentDescription = "선택됨",
+                                contentDescription = stringResource(R.string.label_selected),
                             )
                         } else {
                             Spacer(modifier = Modifier.size(24.dp))

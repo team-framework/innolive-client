@@ -40,6 +40,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.AudioInputDevice
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
@@ -72,6 +73,7 @@ import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
 import com.framework.innolive.ui.text.asString
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
@@ -102,7 +104,7 @@ data class SettingOptionRoute(
 ) : AppRoute
 
 private data class OptionSelectionConfig(
-    val title: String,
+    val title: UiText,
     val options: List<SettingOption>,
     val selectedKey: String,
     val onOptionSelected: (String) -> Unit,
@@ -113,16 +115,27 @@ private val broadcastPlatformOptions = listOf(
 )
 
 private val broadcastPrivacyOptions = listOf(
-    SettingOption(key = "public", label = "공개"),
-    SettingOption(key = "unlisted", label = "일부 공개"),
-    SettingOption(key = "private", label = "비공개"),
+    SettingOption(key = "public", label = UiText.Resource(R.string.privacy_public)),
+    SettingOption(key = "unlisted", label = UiText.Resource(R.string.privacy_unlisted)),
+    SettingOption(key = "private", label = UiText.Resource(R.string.privacy_private)),
 )
 
 private val broadcastAudienceOptions = listOf(
-    SettingOption(key = "unset", label = "선택 필요"),
-    SettingOption(key = "true", label = "아동용"),
-    SettingOption(key = "false", label = "아동용 아님"),
+    SettingOption(key = "unset", label = UiText.Resource(R.string.audience_required)),
+    SettingOption(key = "true", label = UiText.Resource(R.string.audience_made_for_kids)),
+    SettingOption(key = "false", label = UiText.Resource(R.string.audience_not_made_for_kids)),
 )
+
+private fun CameraLensFacing.settingDisplayText(): UiText = when (this) {
+    CameraLensFacing.BACK -> UiText.Resource(R.string.camera_back)
+    CameraLensFacing.FRONT -> UiText.Resource(R.string.camera_front)
+}
+
+private fun AudioInputDevice.settingDisplayText(): UiText = if (isDefault) {
+    UiText.Resource(R.string.audio_device_default, listOf(name))
+} else {
+    UiText.Dynamic(name)
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -773,8 +786,12 @@ fun AppNavigation(
                             props = CameraSettingProps(
                                 onBack = onBack,
                                 selectedResolution = selectedResolution?.displayName.orEmpty(),
-                                selectedCameraDevice = selectedCameraLensFacing.displayName,
-                                selectedAudioDevice = selectedAudioDevice?.displayName.orEmpty(),
+                                selectedCameraDevice =
+                                    selectedCameraLensFacing.settingDisplayText().asString(),
+                                selectedAudioDevice = selectedAudioDevice
+                                    ?.settingDisplayText()
+                                    ?.asString()
+                                    .orEmpty(),
                                 onOpenResolutionOptions = {
                                     backStack.add(
                                         SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION),
@@ -820,7 +837,8 @@ fun AppNavigation(
                                 },
                                 selectedPrivacy = broadcastPrivacyOptions
                                     .first { option -> option.key == broadcastPrivacy }
-                                    .label,
+                                    .label
+                                    .asString(),
                                 onOpenPrivacyOptions = {
                                     backStack.add(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_PRIVACY),
@@ -828,7 +846,8 @@ fun AppNavigation(
                                 },
                                 selectedAudience = broadcastAudienceOptions
                                     .first { option -> option.key == broadcastAudience }
-                                    .label,
+                                    .label
+                                    .asString(),
                                 onOpenAudienceOptions = {
                                     backStack.add(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_AUDIENCE),
@@ -880,11 +899,11 @@ fun AppNavigation(
                 is SettingOptionRoute -> {
                     val config = when (route.type) {
                         SettingOptionType.CAMERA_RESOLUTION -> OptionSelectionConfig(
-                            title = "카메라 해상도",
+                            title = UiText.Resource(R.string.label_camera_resolution),
                             options = supportedCameraResolutions.map { resolution ->
                                 SettingOption(
                                     key = resolution.key,
-                                    label = resolution.displayName,
+                                    label = UiText.Dynamic(resolution.displayName),
                                 )
                             },
                             selectedKey = selectedResolutionKey.orEmpty(),
@@ -892,11 +911,11 @@ fun AppNavigation(
                         )
 
                         SettingOptionType.CAMERA_DEVICE -> OptionSelectionConfig(
-                            title = "카메라 기기",
+                            title = UiText.Resource(R.string.label_camera_device),
                             options = cameraDeviceOptions.map { facing ->
                                 SettingOption(
                                     key = facing.name,
-                                    label = facing.displayName,
+                                    label = facing.settingDisplayText(),
                                 )
                             },
                             selectedKey = selectedCameraLensFacing.name,
@@ -906,11 +925,11 @@ fun AppNavigation(
                         )
 
                         SettingOptionType.AUDIO_DEVICE -> OptionSelectionConfig(
-                            title = "오디오 기기",
+                            title = UiText.Resource(R.string.label_audio_device),
                             options = audioDeviceOptions.map { device ->
                                 SettingOption(
                                     key = device.id.toString(),
-                                    label = device.displayName,
+                                    label = device.settingDisplayText(),
                                 )
                             },
                             selectedKey = selectedAudioDeviceId.toString(),
@@ -918,16 +937,16 @@ fun AppNavigation(
                         )
 
                         SettingOptionType.BROADCAST_PLATFORM -> OptionSelectionConfig(
-                            title = "방송 플랫폼",
+                            title = UiText.Resource(R.string.label_broadcast_platform),
                             options = broadcastPlatformOptions.map { platform ->
-                                SettingOption(key = platform, label = platform)
+                                SettingOption(key = platform, label = UiText.Dynamic(platform))
                             },
                             selectedKey = selectedBroadcastPlatform,
                             onOptionSelected = { selectedBroadcastPlatform = it },
                         )
 
                         SettingOptionType.BROADCAST_PRIVACY -> OptionSelectionConfig(
-                            title = "공개 범위",
+                            title = UiText.Resource(R.string.label_broadcast_privacy),
                             options = broadcastPrivacyOptions,
                             selectedKey = broadcastPrivacy,
                             onOptionSelected = { key ->
@@ -936,7 +955,7 @@ fun AppNavigation(
                         )
 
                         SettingOptionType.BROADCAST_AUDIENCE -> OptionSelectionConfig(
-                            title = "아동용 콘텐츠",
+                            title = UiText.Resource(R.string.label_made_for_kids),
                             options = broadcastAudienceOptions,
                             selectedKey = broadcastAudience,
                             onOptionSelected = { key ->
