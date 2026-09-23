@@ -2,11 +2,8 @@ package com.framework.innolive.feature.live.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -39,9 +36,7 @@ fun PlatformDialog(
         onDismissRequest = onDismissRequest,
     ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .widthIn(max = 360.dp),
+            modifier = Modifier.cappedDialogWidth(360.dp),
             shape = RoundedCornerShape(20.dp),
             color = Color.White.copy(alpha = 0.9f),
             shadowElevation = 12.dp,

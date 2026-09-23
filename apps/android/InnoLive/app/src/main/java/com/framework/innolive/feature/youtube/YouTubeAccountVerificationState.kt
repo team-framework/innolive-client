@@ -1,5 +1,8 @@
 package com.framework.innolive.feature.youtube
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import kotlinx.coroutines.CancellationException
 import com.framework.innolive.ui.text.UiText
 
@@ -8,6 +11,17 @@ internal enum class YouTubeAccountVerificationState {
     CHECKING,
     VERIFIED,
 }
+
+/** Server verification is valid only for the current screen instance. */
+internal class YouTubeVerificationMemory {
+    val state = mutableStateOf(YouTubeAccountVerificationState.UNVERIFIED)
+    val verifiedProfileEmail = mutableStateOf<String?>(null)
+    val suppressRefreshOnce = mutableStateOf(false)
+}
+
+@Composable
+internal fun rememberYouTubeVerificationMemory(): YouTubeVerificationMemory =
+    remember { YouTubeVerificationMemory() }
 
 internal data class YouTubeAuthorizationCancellationState(
     val accountStatus: UiText,

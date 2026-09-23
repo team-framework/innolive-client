@@ -70,7 +70,9 @@ import com.framework.innolive.feature.youtube.YouTubeAccountVerificationState
 import com.framework.innolive.feature.youtube.YouTubePreferencesStore
 import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
+import com.framework.innolive.feature.youtube.defaultYouTubeBroadcastTitle
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
+import com.framework.innolive.feature.youtube.rememberYouTubeVerificationMemory
 import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.UiTextSaver
@@ -206,10 +208,9 @@ fun AppNavigation(
         )
     }
     var isYouTubeAccountActionInProgress by rememberSaveable { mutableStateOf(false) }
-    var youtubeAccountVerificationState by rememberSaveable {
-        mutableStateOf(YouTubeAccountVerificationState.UNVERIFIED)
-    }
-    var verifiedYouTubeProfileEmail by rememberSaveable { mutableStateOf<String?>(null) }
+    val youtubeVerification = rememberYouTubeVerificationMemory()
+    var youtubeAccountVerificationState by youtubeVerification.state
+    var verifiedYouTubeProfileEmail by youtubeVerification.verifiedProfileEmail
     var youtubeOperationProfileEmail by rememberSaveable { mutableStateOf<String?>(null) }
     var previousProfileEmail by rememberSaveable { mutableStateOf(session?.profileEmail) }
     var isYouTubeAuthorizationLaunched by rememberSaveable { mutableStateOf(false) }
@@ -219,7 +220,7 @@ fun AppNavigation(
     ) {
         mutableStateOf<UiText?>(null)
     }
-    var suppressYouTubeAccountRefreshOnce by rememberSaveable { mutableStateOf(false) }
+    var suppressYouTubeAccountRefreshOnce by youtubeVerification.suppressRefreshOnce
     val youtubeOperationGeneration = rememberSaveable(
         saver = Saver<OperationGeneration, Long>(
             save = { generation -> generation.current },
@@ -433,6 +434,14 @@ fun AppNavigation(
         mutableStateOf(broadcastPlatformOptions.first())
     }
     var broadcastTitle by rememberSaveable { mutableStateOf(restoredBroadcastSettings.title) }
+    var isBroadcastTitleGeneratedDefault by rememberSaveable {
+        mutableStateOf(!youtubePreferencesStore.hasSavedBroadcastTitle())
+    }
+    val displayedBroadcastTitle = if (isBroadcastTitleGeneratedDefault) {
+        defaultYouTubeBroadcastTitle(context)
+    } else {
+        broadcastTitle
+    }
     var broadcastDescription by rememberSaveable {
         mutableStateOf(restoredBroadcastSettings.description)
     }
@@ -462,6 +471,7 @@ fun AppNavigation(
             youtubeAccountVerificationState = YouTubeAccountVerificationState.UNVERIFIED
             val defaults = youtubePreferencesStore.loadBroadcastSettings()
             broadcastTitle = defaults.title
+            isBroadcastTitleGeneratedDefault = !youtubePreferencesStore.hasSavedBroadcastTitle()
             broadcastDescription = defaults.description
             broadcastPrivacy = defaults.privacy
             broadcastAudience = when (defaults.madeForKids) {
@@ -533,7 +543,7 @@ fun AppNavigation(
         device.id == selectedAudioDeviceId
     } ?: audioDeviceOptions.firstOrNull()
     val broadcastSettings = BroadcastSettings(
-        title = broadcastTitle,
+        title = displayedBroadcastTitle,
         description = broadcastDescription,
         privacy = broadcastPrivacy,
         madeForKids = when (broadcastAudience) {
@@ -544,6 +554,8 @@ fun AppNavigation(
         categoryId = broadcastCategoryId,
     )
     fun updateBroadcastSettings(settings: BroadcastSettings) {
+        isBroadcastTitleGeneratedDefault = isBroadcastTitleGeneratedDefault &&
+            settings.title == displayedBroadcastTitle
         broadcastTitle = settings.title
         broadcastDescription = settings.description
         broadcastPrivacy = settings.privacy
@@ -553,7 +565,10 @@ fun AppNavigation(
             null -> "unset"
         }
         broadcastCategoryId = settings.categoryId
-        youtubePreferencesStore.saveBroadcastSettings(settings)
+        youtubePreferencesStore.saveBroadcastSettings(
+            settings,
+            titleIsGeneratedDefault = isBroadcastTitleGeneratedDefault,
+        )
     }
     LaunchedEffect(selectedAudioInput?.id) {
         webRtcSession.selectAudioInput(selectedAudioInput)
@@ -815,7 +830,7 @@ fun AppNavigation(
                                         SettingOptionRoute(SettingOptionType.BROADCAST_PLATFORM),
                                     )
                                 },
-                                title = broadcastTitle,
+                                title = displayedBroadcastTitle,
                                 onTitleChanged = { value ->
                                     updateBroadcastSettings(
                                         broadcastSettings.copy(title = value.take(100)),

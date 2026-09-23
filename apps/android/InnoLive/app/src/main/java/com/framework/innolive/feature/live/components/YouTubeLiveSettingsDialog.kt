@@ -112,8 +112,8 @@ fun YouTubeLiveSettingsDialog(
     Dialog(onDismissRequest = onDismissRequest) {
         Surface (
             modifier = Modifier
-                .width(dialogWidth)
                 .widthIn(max = 600.dp)
+                .width(dialogWidth)
                 .heightIn(max = dialogMaxHeight),
             shape = RoundedCornerShape(26.dp),
             color = MaterialTheme.colorScheme.surface,

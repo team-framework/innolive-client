@@ -19,8 +19,8 @@ class YouTubePreferencesStore(
     context: Context,
     preferencesName: String = PREFERENCES_NAME,
 ) {
-    private val applicationContext = context.applicationContext
-    private val preferences = applicationContext.getSharedPreferences(
+    private val resourceContext = context
+    private val preferences = context.applicationContext.getSharedPreferences(
         preferencesName,
         Context.MODE_PRIVATE,
     )
@@ -77,19 +77,29 @@ class YouTubePreferencesStore(
             madeForKids = preferences.getString(BROADCAST_AUDIENCE, null).toAudience(),
             categoryId = preferences.getString(BROADCAST_CATEGORY_ID, "").orEmpty(),
         ),
-        defaultTitle = defaultYouTubeBroadcastTitle(applicationContext),
+        defaultTitle = defaultYouTubeBroadcastTitle(resourceContext),
     )
 
-    fun saveBroadcastSettings(settings: BroadcastSettings) {
+    fun hasSavedBroadcastTitle(): Boolean = preferences.contains(BROADCAST_TITLE)
+
+    fun saveBroadcastSettings(
+        settings: BroadcastSettings,
+        titleIsGeneratedDefault: Boolean = false,
+    ) {
         val normalized = normalizeYouTubeBroadcastSettings(
             settings,
-            defaultTitle = defaultYouTubeBroadcastTitle(applicationContext),
+            defaultTitle = defaultYouTubeBroadcastTitle(resourceContext),
         )
         val editor = preferences.edit()
-            .putString(BROADCAST_TITLE, normalized.title)
             .putString(BROADCAST_DESCRIPTION, normalized.description)
             .putString(BROADCAST_PRIVACY, normalized.privacy)
             .putString(BROADCAST_CATEGORY_ID, normalized.categoryId)
+
+        if (titleIsGeneratedDefault) {
+            editor.remove(BROADCAST_TITLE)
+        } else {
+            editor.putString(BROADCAST_TITLE, normalized.title)
+        }
 
         if (normalized.madeForKids == null) {
             editor.remove(BROADCAST_AUDIENCE)

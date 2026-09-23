@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.Button
@@ -50,6 +50,7 @@ import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
+import com.framework.innolive.feature.live.components.cappedDialogWidth
 import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.delay
 
@@ -129,7 +130,10 @@ fun LiveScreen(
             .fillMaxSize()
             .background(color = Color.Black),
     ) {
-        if (mediaPermissionState.hasCameraPermission && mediaPermissionState.hasMicrophonePermission) {
+        LiveMediaPermissionContent(
+            permissionState = mediaPermissionState,
+            onRequestPermissions = requestMissingMediaPermissions,
+        ) {
             LiveVideoPanels(
                 cameraLensFacing = props.cameraLensFacing,
                 cameraResolution = props.cameraResolution,
@@ -139,24 +143,6 @@ fun LiveScreen(
                 isConnected = presentation.isConnected,
                 modifier = Modifier.fillMaxSize(),
             )
-        } else {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(mediaPermissionGuidance(mediaPermissionState)),
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                )
-                Button(
-                    onClick = requestMissingMediaPermissions,
-                ) {
-                    Text(text = stringResource(R.string.action_allow_permissions))
-                }
-            }
         }
 
         Row(
@@ -435,9 +421,7 @@ internal fun BroadcastActionDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .widthIn(max = 400.dp),
+            modifier = Modifier.cappedDialogWidth(400.dp),
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surface,
         ) {
@@ -481,6 +465,38 @@ internal fun BroadcastActionDialog(
                     )
                 }
                 BroadcastDialogButton(stringResource(R.string.action_cancel), onDismiss)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun LiveMediaPermissionContent(
+    permissionState: MediaPermissionState,
+    onRequestPermissions: () -> Unit,
+    preview: @Composable () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (permissionState.hasCameraPermission) preview()
+
+        if (permissionState.missingPermissions.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp)
+                    .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(mediaPermissionGuidance(permissionState)),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    color = Color.White,
+                )
+                Button(onClick = onRequestPermissions) {
+                    Text(text = stringResource(R.string.action_allow_permissions))
+                }
             }
         }
     }

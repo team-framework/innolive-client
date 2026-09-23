@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -42,7 +43,9 @@ class BroadcastActionButtonsLayoutTest {
             }
         }
 
-        val infoBounds = compose.onNodeWithText("방송 준비 완료").getUnclippedBoundsInRoot()
+        val infoBounds = compose.onNodeWithText(
+            compose.activity.getString(R.string.broadcast_state_prepared),
+        ).getUnclippedBoundsInRoot()
         val faceBounds = compose.onNodeWithTag("face-control").getUnclippedBoundsInRoot()
         val anonymizationBounds = compose.onNodeWithTag("anonymization-control").getUnclippedBoundsInRoot()
 
@@ -84,9 +87,12 @@ class BroadcastActionButtonsLayoutTest {
             }
         }
 
-        compose.onNodeWithText("방송 준비 완료").performClick()
-        compose.onNodeWithText("방송 시작").assertExists()
-        compose.onNodeWithText("방송 준비 취소").assertExists()
+        compose.onNodeWithText(compose.activity.getString(R.string.broadcast_state_prepared))
+            .performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.action_start_broadcast))
+            .assertExists()
+        compose.onNodeWithText(compose.activity.getString(R.string.action_cancel_preparation))
+            .assertExists()
     }
 
     @Test
@@ -119,8 +125,11 @@ class BroadcastActionButtonsLayoutTest {
             }
         }
 
-        compose.onNodeWithText("방송 중").performClick()
-        compose.onNodeWithText("방송 일시 중지").assertExists()
-        compose.onNodeWithText("방송 종료").assertExists()
+        compose.onNodeWithText(compose.activity.getString(R.string.broadcast_state_live))
+            .performClick()
+        compose.onNodeWithText(compose.activity.getString(R.string.action_pause_broadcast))
+            .assertExists()
+        compose.onNodeWithText(compose.activity.getString(R.string.action_stop_broadcast))
+            .assertExists()
     }
 }
