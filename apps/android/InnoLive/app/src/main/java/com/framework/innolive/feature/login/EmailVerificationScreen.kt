@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
@@ -37,29 +38,31 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.asString
 
-private const val INITIAL_EMAIL_HINT = "메일이 오지 않았다면 스팸함을 확인해 주세요."
-private const val SENDING_EMAIL_HINT = "인증 메일 보내는 중..."
-private const val RESENT_EMAIL_HINT = "인증 코드를 다시 보냈어요."
-private const val VERIFIED_EMAIL_HINT = "이메일 인증을 마쳤습니다. 로그인을 다시 시도해 주세요."
+private val INITIAL_EMAIL_HINT = UiText.Resource(R.string.email_hint_initial)
+private val SENDING_EMAIL_HINT = UiText.Resource(R.string.email_hint_sending)
+private val RESENT_EMAIL_HINT = UiText.Resource(R.string.email_hint_resent)
+private val VERIFIED_EMAIL_HINT = UiText.Resource(R.string.email_hint_verified)
 private val FEEDBACK_LAYOUT_MESSAGES = listOf(
     INITIAL_EMAIL_HINT,
     SENDING_EMAIL_HINT,
     RESENT_EMAIL_HINT,
     VERIFIED_EMAIL_HINT,
-    "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
-    "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
-    "이메일 인증이 완료됐습니다. 로그인을 다시 시도해 주세요.",
-    "이미 가입된 이메일입니다. 로그인해 주세요.",
-    "인증 코드가 올바르지 않거나 만료됐습니다.",
-    "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
-    "이메일과 비밀번호를 확인해 주세요.",
-    "이메일 또는 비밀번호를 확인해 주세요.",
-    "요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    "로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요.",
-    "지금은 이메일로 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
-    "로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    "요청을 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.",
+    UiText.Resource(R.string.error_too_many_requests),
+    UiText.Resource(R.string.error_email_signup_expired),
+    UiText.Resource(R.string.email_hint_verified),
+    UiText.Resource(R.string.error_email_already_registered),
+    UiText.Resource(R.string.error_email_verification_code),
+    UiText.Resource(R.string.error_email_delivery),
+    UiText.Resource(R.string.error_email_signup_credentials),
+    UiText.Resource(R.string.error_email_credentials),
+    UiText.Resource(R.string.error_request_failed),
+    UiText.Resource(R.string.error_sign_in_attempts),
+    UiText.Resource(R.string.error_sign_in_unavailable),
+    UiText.Resource(R.string.error_request_connection_failed),
 )
 
 @Composable
@@ -68,7 +71,7 @@ internal fun EmailVerificationScreen(
     pending: Boolean,
     verified: Boolean,
     isResending: Boolean,
-    error: String?,
+    error: UiText?,
     resendGeneration: Int,
     onVerify: (String) -> Unit,
     onResend: () -> Unit,
@@ -93,22 +96,32 @@ internal fun EmailVerificationScreen(
         IconButton(onClick = onBack, enabled = !pending) {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "뒤로",
+                contentDescription = stringResource(R.string.action_back),
             )
         }
         Text(
-            text = if (verified) "이메일 인증 완료" else "이메일을 확인해 주세요",
+            text = stringResource(
+                if (verified) R.string.verification_complete_title else R.string.verification_title,
+            ),
             style = MaterialTheme.typography.headlineLarge,
             modifier = Modifier.semantics { heading() },
         )
         Text(email, fontWeight = FontWeight.SemiBold)
-        Text(if (verified) "이메일 인증을 마쳤습니다. 로그인을 계속해 주세요." else "위 주소로 보낸 6자리 인증 코드를 입력해 주세요.")
+        Text(
+            text = stringResource(
+                if (verified) {
+                    R.string.verification_complete_description
+                } else {
+                    R.string.verification_description
+                },
+            ),
+        )
         if (!verified) {
             OutlinedTextField(
                 value = code,
                 onValueChange = { code = it.filter { char -> char in '0'..'9' }.take(6) },
-                label = { Text("인증 코드") },
-                placeholder = { Text("6자리 숫자") },
+                label = { Text(stringResource(R.string.label_verification_code)) },
+                placeholder = { Text(stringResource(R.string.verification_code_hint)) },
                 singleLine = true,
                 enabled = !pending,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -120,7 +133,11 @@ internal fun EmailVerificationScreen(
             enabled = !pending && (verified || code.length == 6),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(if (verified) "로그인 다시 시도" else "인증하고 시작하기")
+            Text(
+                text = stringResource(
+                    if (verified) R.string.action_sign_in_again else R.string.action_verify_and_start,
+                ),
+            )
         }
         val statusMessage = when {
             isResending -> SENDING_EMAIL_HINT
@@ -134,7 +151,7 @@ internal fun EmailVerificationScreen(
             // 현재 표시 가능한 모든 안내·오류의 높이를 확보해 버튼 위치를 고정한다.
             FEEDBACK_LAYOUT_MESSAGES.forEach { message ->
                 Text(
-                    text = message,
+                    text = message.asString(),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -143,7 +160,7 @@ internal fun EmailVerificationScreen(
                 )
             }
             Text(
-                text = statusMessage,
+                text = statusMessage.asString(),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (isErrorMessage) {
                     MaterialTheme.colorScheme.error
@@ -159,7 +176,7 @@ internal fun EmailVerificationScreen(
         }
         if (!verified) {
             TextButton(onClick = onResend, enabled = !pending) {
-                Text("인증 코드 다시 보내기")
+                Text(stringResource(R.string.action_resend_verification))
             }
         }
     }

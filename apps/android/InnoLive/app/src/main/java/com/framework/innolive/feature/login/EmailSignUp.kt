@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.login
 
+import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.googleAuthEndpoint
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -17,7 +19,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-internal class EmailSignUpException(message: String) : IOException(message)
+internal class EmailSignUpException(error: UiText) : EmailAuthenticationException(error)
 
 internal fun isSignUpPasswordValid(password: String): Boolean =
     password.toByteArray(Charsets.UTF_8).size in 8..72
@@ -79,26 +81,26 @@ internal class EmailSignUpApi(
     }
 }
 
-private fun signupErrorMessage(status: Int, path: String, body: String): String {
+private fun signupErrorMessage(status: Int, path: String, body: String): UiText {
     val code = runCatching {
         JSONObject(body).optJSONObject("error")?.optString("code")
     }.getOrNull()
     return when (code) {
-        "email_already_registered" -> "이미 가입된 이메일입니다. 로그인해 주세요."
-        "invalid_verification_code" -> "인증 코드가 올바르지 않거나 만료됐습니다."
-        "invalid_signup_token" -> "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요."
+        "email_already_registered" -> UiText.Resource(R.string.error_email_already_registered)
+        "invalid_verification_code" -> UiText.Resource(R.string.error_email_verification_code)
+        "invalid_signup_token" -> UiText.Resource(R.string.error_email_signup_expired)
         "email_delivery_unavailable", "email_delivery_failed", "email_auth_unavailable" ->
-            "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요."
+            UiText.Resource(R.string.error_email_delivery)
         else -> when (status) {
             400 -> if (path == "verify-email") {
-                "인증 코드가 올바르지 않거나 만료됐습니다."
+                UiText.Resource(R.string.error_email_verification_code)
             } else {
-                "이메일과 비밀번호를 확인해 주세요."
+                UiText.Resource(R.string.error_email_signup_credentials)
             }
-            409 -> "이미 가입된 이메일입니다. 로그인해 주세요."
-            429 -> "요청이 많습니다. 잠시 후 다시 시도해 주세요."
-            502, 503 -> "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요."
-            else -> "요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요."
+            409 -> UiText.Resource(R.string.error_email_already_registered)
+            429 -> UiText.Resource(R.string.error_too_many_requests)
+            502, 503 -> UiText.Resource(R.string.error_email_delivery)
+            else -> UiText.Resource(R.string.error_request_failed)
         }
     }
 }

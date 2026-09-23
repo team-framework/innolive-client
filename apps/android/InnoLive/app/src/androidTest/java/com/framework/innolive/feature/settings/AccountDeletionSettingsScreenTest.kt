@@ -1,12 +1,16 @@
 package com.framework.innolive.feature.settings
 
 import androidx.activity.ComponentActivity
+import androidx.annotation.StringRes
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -15,6 +19,9 @@ import org.junit.Test
 class AccountDeletionSettingsScreenTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    private fun string(@StringRes id: Int): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
     @Test
     fun confirmationIsRequiredBeforeRequestingAccountDeletion() {
@@ -35,11 +42,13 @@ class AccountDeletionSettingsScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("계정 삭제").performClick()
-        composeRule.onNodeWithText("계정을 삭제할까요?").assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.action_delete_account)).performClick()
+        composeRule.onNodeWithText(string(R.string.delete_account_title)).assertIsDisplayed()
         assertEquals(0, deleteRequests)
 
-        composeRule.onNodeWithContentDescription("계정 삭제 확인").performClick()
+        composeRule.onNodeWithContentDescription(
+            string(R.string.content_description_confirm_delete_account),
+        ).performClick()
         assertEquals(1, deleteRequests)
     }
 
@@ -59,15 +68,18 @@ class AccountDeletionSettingsScreenTest {
                         isAccountDeletionPending = true,
                         isAccountDeletionCleanupPending = true,
                         accountDeletionError =
-                            "서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요.",
+                            UiText.Dynamic(
+                                "서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요.",
+                            ),
                     ),
                 )
             }
         }
 
-        composeRule.onNodeWithText("기기 데이터 정리 다시 시도").assertIsDisplayed()
-        composeRule.onNodeWithText("로그아웃").assertIsDisplayed().assertIsNotEnabled()
-        composeRule.onNodeWithContentDescription("뒤로가기").assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.action_retry_device_cleanup))
+            .assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.action_logout)).assertIsDisplayed().assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription(string(R.string.action_back)).assertIsNotEnabled()
         composeRule.onNodeWithText("서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요.")
             .assertIsDisplayed()
     }

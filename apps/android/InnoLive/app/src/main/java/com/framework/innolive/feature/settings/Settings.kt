@@ -30,8 +30,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.ProfileDisplay
+import com.framework.innolive.ui.text.asString
 
 data class SettingsMenuItem(
     val icon: ImageVector,
@@ -43,9 +48,19 @@ data class SettingsMenuItem(
 @Composable
 fun SettingsScreen(props: SettingsScreenProps) {
     var isDeleteConfirmationVisible by rememberSaveable { mutableStateOf(false) }
+    val confirmDeletionDescription =
+        stringResource(R.string.content_description_confirm_delete_account)
     val settingItems = listOf(
-        SettingsMenuItem(Icons.Outlined.VideoCameraBack, "카메라 및 오디오 설정", props.onOpenCameraSettings),
-        SettingsMenuItem(Icons.Outlined.CloudUpload, "방송 설정", props.onOpenBroadcastSettings),
+        SettingsMenuItem(
+            Icons.Outlined.VideoCameraBack,
+            stringResource(R.string.settings_camera_audio),
+            props.onOpenCameraSettings,
+        ),
+        SettingsMenuItem(
+            Icons.Outlined.CloudUpload,
+            stringResource(R.string.settings_broadcast),
+            props.onOpenBroadcastSettings,
+        ),
     )
 
     Column(
@@ -55,7 +70,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
         )
     ) {
         TopAppBar(
-            title = { Text(text = "설정") },
+            title = { Text(text = stringResource(R.string.settings_title)) },
             windowInsets = WindowInsets(0, 0, 0, 0),
             navigationIcon = {
                 IconButton(
@@ -64,7 +79,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "뒤로가기",
+                        contentDescription = stringResource(R.string.action_back),
                     )
                 }
             },
@@ -83,7 +98,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 onClick = props.onLogout,
                 enabled = !props.isDeletingAccount && !props.isAccountDeletionPending,
             ) {
-                Text(text = "로그아웃")
+                Text(text = stringResource(R.string.action_logout))
             }
         }
         Column(
@@ -116,17 +131,20 @@ fun SettingsScreen(props: SettingsScreenProps) {
             ) {
                 Text(
                     text = when {
-                        props.isDeletingAccount -> "계정 삭제 중…"
-                        props.isAccountDeletionCleanupPending -> "기기 데이터 정리 다시 시도"
-                        else -> "계정 삭제"
+                        props.isDeletingAccount -> stringResource(R.string.action_deleting_account)
+                        props.isAccountDeletionCleanupPending ->
+                            stringResource(R.string.action_retry_device_cleanup)
+                        else -> stringResource(R.string.action_delete_account)
                     },
                 )
             }
             props.accountDeletionError?.let { message ->
                 Text(
-                    text = message,
+                    text = message.asString(),
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 12.dp),
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .semantics { liveRegion = LiveRegionMode.Assertive },
                 )
             }
         }
@@ -138,18 +156,18 @@ fun SettingsScreen(props: SettingsScreenProps) {
             title = {
                 Text(
                     text = if (props.isAccountDeletionCleanupPending) {
-                        "기기 데이터 정리를 다시 시도할까요?"
+                        stringResource(R.string.retry_device_cleanup_title)
                     } else {
-                        "계정을 삭제할까요?"
+                        stringResource(R.string.delete_account_title)
                     },
                 )
             },
             text = {
                 Text(
                     text = if (props.isAccountDeletionCleanupPending) {
-                        "서버 계정은 이미 삭제됐습니다. 남은 기기 데이터 정리를 다시 시도합니다."
+                        stringResource(R.string.retry_device_cleanup_description)
                     } else {
-                        "계정 삭제가 완료되면 로그아웃되며 이 기기의 YouTube 연결과 방송 설정이 초기화됩니다."
+                        stringResource(R.string.delete_account_description)
                     },
                 )
             },
@@ -160,14 +178,16 @@ fun SettingsScreen(props: SettingsScreenProps) {
                         props.onDeleteAccount()
                     },
                     enabled = !props.isDeletingAccount,
-                    modifier = Modifier.semantics { contentDescription = "계정 삭제 확인" },
+                    modifier = Modifier.semantics {
+                        contentDescription = confirmDeletionDescription
+                    },
                 ) {
-                    Text(text = "계정 삭제")
+                    Text(text = stringResource(R.string.action_delete_account))
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { isDeleteConfirmationVisible = false }) {
-                    Text(text = "취소")
+                    Text(text = stringResource(R.string.action_cancel))
                 }
             },
         )

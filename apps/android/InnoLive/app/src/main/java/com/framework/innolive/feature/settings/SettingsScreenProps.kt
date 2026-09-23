@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.settings
 
 import androidx.compose.runtime.Immutable
+import com.framework.innolive.ui.text.UiText
 
 @Immutable
 data class SettingsScreenProps(
@@ -14,5 +15,5 @@ data class SettingsScreenProps(
     val isDeletingAccount: Boolean = false,
     val isAccountDeletionPending: Boolean = false,
     val isAccountDeletionCleanupPending: Boolean = false,
-    val accountDeletionError: String? = null,
+    val accountDeletionError: UiText? = null,
 )

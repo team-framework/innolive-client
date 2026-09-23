@@ -31,6 +31,7 @@
     <string name="email_sign_in_description">InnoLive에서 라이브를 이어가세요.</string>
     <string name="email_sign_up_description">이메일 인증 후 라이브를 시작할 수 있어요.</string>
     <string name="label_email">이메일</string>
+    <string name="email_placeholder">name@example.com</string>
     <string name="label_password">비밀번호</string>
     <string name="label_password_confirmation">비밀번호 확인</string>
     <string name="password_hint">비밀번호 입력</string>

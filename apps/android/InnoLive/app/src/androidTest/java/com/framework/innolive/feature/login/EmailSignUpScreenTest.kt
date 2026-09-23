@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.login
 
 import androidx.activity.OnBackPressedDispatcher
+import androidx.annotation.StringRes
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
@@ -15,7 +16,10 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.junit4.StateRestorationTester
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.theme.MyApplicationTheme
+import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -27,12 +31,17 @@ class EmailSignUpScreenTest {
     @get:Rule
     val rule = createComposeRule()
 
+    private fun string(@StringRes id: Int): String =
+        InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+
     private fun fillSignup() {
-        rule.onNodeWithText("회원가입").performScrollTo().performClick()
+        rule.onNodeWithText(string(R.string.action_sign_up)).performScrollTo().performClick()
         rule.onAllNodes(hasSetTextAction())[0].performTextInput("member@example.com")
         rule.onAllNodes(hasSetTextAction())[1].performTextInput("password123")
         rule.onAllNodes(hasSetTextAction())[2].performTextInput("password123")
-        rule.onNodeWithText("인증 메일 보내기").performScrollTo().performClick()
+        rule.onNodeWithText(string(R.string.action_send_verification_email))
+            .performScrollTo()
+            .performClick()
     }
 
     @Test
@@ -65,13 +74,13 @@ class EmailSignUpScreenTest {
         }
 
         fillSignup()
-        rule.onNodeWithText("인증 메일 보내는 중…").assertIsNotEnabled()
+        rule.onNodeWithText(string(R.string.action_sending_verification_email)).assertIsNotEnabled()
         rule.runOnIdle { assertEquals(1, signups); signupFinished.complete(Unit) }
-        rule.onNodeWithText("이메일을 확인해 주세요").assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.verification_title)).assertIsDisplayed()
         rule.onNodeWithText("member@example.com").assertIsDisplayed()
-        rule.onNodeWithText("인증하고 시작하기").assertIsNotEnabled()
+        rule.onNodeWithText(string(R.string.action_verify_and_start)).assertIsNotEnabled()
         rule.onNode(hasSetTextAction()).performTextInput("012345")
-        rule.onNodeWithText("인증하고 시작하기").performClick()
+        rule.onNodeWithText(string(R.string.action_verify_and_start)).performClick()
         rule.runOnIdle { assertEquals(1, verifications); verificationFinished.complete(Unit) }
         rule.waitUntil { navigations == 1 }
         rule.onNodeWithText("라이브 화면").assertIsDisplayed()
@@ -95,13 +104,13 @@ class EmailSignUpScreenTest {
 
         fillSignup()
         rule.onNode(hasSetTextAction()).performTextInput("123456")
-        rule.onNodeWithText("인증 코드 다시 보내기").performClick()
+        rule.onNodeWithText(string(R.string.action_resend_verification)).performClick()
 
         rule.waitUntil { resends == 1 }
-        rule.onNodeWithText("이메일을 확인해 주세요").assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.verification_title)).assertIsDisplayed()
         rule.onNodeWithText("member@example.com").assertIsDisplayed()
-        rule.onNodeWithText("인증 코드를 다시 보냈어요.").assertIsDisplayed()
-        rule.onNodeWithText("인증하고 시작하기").assertIsNotEnabled()
+        rule.onNodeWithText(string(R.string.email_hint_resent)).assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.action_verify_and_start)).assertIsNotEnabled()
         rule.runOnIdle { assertEquals(1, resends) }
     }
 
@@ -109,18 +118,17 @@ class EmailSignUpScreenTest {
     fun resendFeedbackDoesNotMoveResendButton() {
         val firstResendFinished = CompletableDeferred<Unit>()
         val resendErrors = listOf(
-            "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
-            "회원가입 인증 시간이 만료됐습니다. 다시 시작해 주세요.",
-            "이미 가입된 이메일입니다. 로그인해 주세요.",
-            "인증 코드가 올바르지 않거나 만료됐습니다.",
-            "인증 메일을 보낼 수 없습니다. 잠시 후 다시 시도해 주세요.",
-            "이메일과 비밀번호를 확인해 주세요.",
-            "이메일 또는 비밀번호를 확인해 주세요.",
-            "요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-            "로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요.",
-            "지금은 이메일로 로그인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
-            "로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-            "요청을 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.",
+            UiText.Resource(R.string.error_too_many_requests),
+            UiText.Resource(R.string.error_email_signup_expired),
+            UiText.Resource(R.string.error_email_already_registered),
+            UiText.Resource(R.string.error_email_verification_code),
+            UiText.Resource(R.string.error_email_delivery),
+            UiText.Resource(R.string.error_email_signup_credentials),
+            UiText.Resource(R.string.error_email_credentials),
+            UiText.Resource(R.string.error_request_failed),
+            UiText.Resource(R.string.error_sign_in_attempts),
+            UiText.Resource(R.string.error_sign_in_unavailable),
+            UiText.Resource(R.string.error_request_connection_failed),
         )
         var resendAttempts = 0
         rule.setContent {
@@ -144,27 +152,27 @@ class EmailSignUpScreenTest {
         }
 
         fillSignup()
-        val resendButton = rule.onNodeWithText("인증 코드 다시 보내기")
+        val resendButton = rule.onNodeWithText(string(R.string.action_resend_verification))
         val initialTop = resendButton.getUnclippedBoundsInRoot().top
-        val feedbackTop = rule.onNodeWithText("메일이 오지 않았다면 스팸함을 확인해 주세요.")
+        val feedbackTop = rule.onNodeWithText(string(R.string.email_hint_initial))
             .getUnclippedBoundsInRoot().top
 
         resendButton.performClick()
-        val sendingFeedback = rule.onNodeWithText("인증 메일 보내는 중...")
+        val sendingFeedback = rule.onNodeWithText(string(R.string.email_hint_sending))
         sendingFeedback.assertIsDisplayed()
         assertEquals(feedbackTop, sendingFeedback.getUnclippedBoundsInRoot().top)
         resendButton.assertIsNotEnabled()
         assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
 
         rule.runOnIdle { firstResendFinished.complete(Unit) }
-        val successFeedback = rule.onNodeWithText("인증 코드를 다시 보냈어요.")
+        val successFeedback = rule.onNodeWithText(string(R.string.email_hint_resent))
         successFeedback.assertIsDisplayed()
         assertEquals(feedbackTop, successFeedback.getUnclippedBoundsInRoot().top)
         assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
 
-        resendErrors.forEach { message ->
+        resendErrors.forEach { error ->
             resendButton.performClick()
-            val errorFeedback = rule.onNodeWithText(message)
+            val errorFeedback = rule.onNodeWithText(string(error.id))
             errorFeedback.assertIsDisplayed()
             assertEquals(feedbackTop, errorFeedback.getUnclippedBoundsInRoot().top)
             assertEquals(initialTop, resendButton.getUnclippedBoundsInRoot().top)
@@ -190,11 +198,11 @@ class EmailSignUpScreenTest {
         }
 
         fillSignup()
-        rule.onNodeWithContentDescription("뒤로").performClick()
+        rule.onNodeWithContentDescription(string(R.string.action_back)).performClick()
 
-        rule.onNodeWithText("계정 만들기").assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.email_sign_up_title)).assertIsDisplayed()
         rule.onNodeWithText("member@example.com").assertIsDisplayed()
-        rule.onNodeWithText("인증 메일 보내기").assertIsNotEnabled()
+        rule.onNodeWithText(string(R.string.action_send_verification_email)).assertIsNotEnabled()
         rule.runOnIdle { assertEquals(1, cancellations) }
     }
 
@@ -225,11 +233,11 @@ class EmailSignUpScreenTest {
 
         fillSignup()
         rule.onNode(hasSetTextAction()).performTextInput("123456")
-        rule.onNodeWithText("인증하고 시작하기").performClick()
-        rule.onNodeWithContentDescription("뒤로").assertIsNotEnabled()
+        rule.onNodeWithText(string(R.string.action_verify_and_start)).performClick()
+        rule.onNodeWithContentDescription(string(R.string.action_back)).assertIsNotEnabled()
         rule.runOnIdle { finish.complete(Unit) }
         rule.onNodeWithText("라이브 화면").assertIsDisplayed()
-        rule.onNodeWithText("이메일로 로그인").assertDoesNotExist()
+        rule.onNodeWithText(string(R.string.email_sign_in_title)).assertDoesNotExist()
         rule.runOnIdle { assertEquals(1, navigations) }
     }
 
@@ -255,11 +263,11 @@ class EmailSignUpScreenTest {
         }
 
         fillSignup()
-        rule.onNodeWithContentDescription("뒤로").assertIsNotEnabled()
+        rule.onNodeWithContentDescription(string(R.string.action_back)).assertIsNotEnabled()
         rule.runOnIdle { checkNotNull(backDispatcher).onBackPressed() }
-        rule.onNodeWithText("계정 만들기").assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.email_sign_up_title)).assertIsDisplayed()
         rule.runOnIdle { assertEquals(1, signups); assertEquals(0, cancellations); finish.complete(Unit) }
-        rule.onNodeWithText("이메일을 확인해 주세요").assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.verification_title)).assertIsDisplayed()
     }
 
     @Test
@@ -281,12 +289,12 @@ class EmailSignUpScreenTest {
         }
 
         fillSignup()
-        rule.onNodeWithText("이메일을 확인해 주세요").assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.verification_title)).assertIsDisplayed()
         rule.runOnIdle { hasPendingSignup = false }
         restoration.emulateSavedInstanceStateRestore()
 
-        rule.onNodeWithText("계정 만들기").assertIsDisplayed()
-        rule.onNodeWithText("이메일을 확인해 주세요").assertDoesNotExist()
+        rule.onNodeWithText(string(R.string.email_sign_up_title)).assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.verification_title)).assertDoesNotExist()
     }
 
     @Test
@@ -310,7 +318,9 @@ class EmailSignUpScreenTest {
                             if (!verified.value) {
                                 verified.value = true
                                 verifications++
-                                throw EmailSignInException("로그인하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+                                throw EmailSignInException(
+                                    UiText.Resource(R.string.error_request_failed),
+                                )
                             }
                         },
                         resendSignup = { resends++ },
@@ -322,9 +332,9 @@ class EmailSignUpScreenTest {
 
         fillSignup()
         rule.onNode(hasSetTextAction()).performTextInput("123456")
-        rule.onNodeWithText("인증하고 시작하기").performClick()
-        rule.onNodeWithText("이메일 인증 완료").assertIsDisplayed()
-        rule.onNodeWithText("로그인 다시 시도").assertIsDisplayed().performClick()
+        rule.onNodeWithText(string(R.string.action_verify_and_start)).performClick()
+        rule.onNodeWithText(string(R.string.verification_complete_title)).assertIsDisplayed()
+        rule.onNodeWithText(string(R.string.action_sign_in_again)).assertIsDisplayed().performClick()
         rule.waitUntil { logins == 1 }
         rule.onNodeWithText("라이브 화면").assertIsDisplayed()
         rule.runOnIdle {
