@@ -52,7 +52,7 @@ enum YouTubeAPIError: Error, Equatable {
         case .configuration: return String(localized: "YouTube 연결 설정이 필요합니다.")
         case .transport: return String(localized: "YouTube 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.")
         case .response: return String(localized: "YouTube 서버 응답을 확인하지 못했습니다. 다시 시도해 주세요.")
-        case let .api(code, fallback, _):
+        case let .api(code, _, _):
             switch code {
             case "unauthorized": return String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
             case "bad_request": return String(localized: "YouTube 방송 설정을 확인한 뒤 다시 시도해 주세요.")
@@ -72,7 +72,7 @@ enum YouTubeAPIError: Error, Equatable {
             case "not_supported": return String(localized: "이 서버에는 YouTube 송출 기능이 아직 구성되지 않았습니다.")
             case "streaming_prepare_failed": return String(localized: "YouTube 송출을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.")
             case "streaming_golive_failed": return String(localized: "YouTube 방송을 라이브로 전환하지 못했습니다. 잠시 후 다시 시도해 주세요.")
-            default: return fallback
+            default: return String(localized: "YouTube 요청을 처리하지 못했습니다.")
             }
         }
     }

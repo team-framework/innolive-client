@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.semantics.SemanticsProperties
 import org.junit.Assert.*
 import androidx.compose.ui.graphics.asAndroidBitmap
 import android.graphics.Bitmap
@@ -20,6 +21,11 @@ class AnonymizationControlsTest {
 
     @Test fun offUsesSelectionCallbackAndFailureAllowsExplicitRetryWithoutDisconnect() {
         val change = mutableStateOf(AnonymizationChange())
+        val disableDescription = compose.activity.getString(R.string.anonymization_disable)
+        val enabledStateDescription = compose.activity.getString(
+            R.string.anonymization_current,
+            compose.activity.getString(R.string.anonymization_value_on),
+        )
         var requests = 0
         compose.setContent {
             MaterialTheme {
@@ -34,9 +40,11 @@ class AnonymizationControlsTest {
                 )
             }
         }
-        compose.onNodeWithContentDescription("비식별화 비활성화").performClick()
-        compose.onNodeWithContentDescription("비식별화 비활성화").assertIsNotEnabled()
-        compose.onNodeWithContentDescription("비식별화 비활성화").assertIsNotEnabled()
+        compose.onNodeWithContentDescription(disableDescription)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, enabledStateDescription))
+            .performClick()
+        compose.onNodeWithContentDescription(disableDescription).assertIsNotEnabled()
+        compose.onNodeWithContentDescription(disableDescription).assertIsNotEnabled()
         compose.onNodeWithText("연결 종료").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(1, requests)
@@ -45,15 +53,16 @@ class AnonymizationControlsTest {
                 errorMessage = UiText.Resource(R.string.error_anonymization_request),
             )
         }
-        compose.onNodeWithContentDescription("비식별화 비활성화")
+        compose.onNodeWithContentDescription(disableDescription)
         val screenshot = compose.onRoot().captureToImage().asAndroidBitmap()
         File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "anonymization-controls.png")
             .outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        compose.onNodeWithContentDescription("비식별화 비활성화").assertIsEnabled().performClick()
+        compose.onNodeWithContentDescription(disableDescription).assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(2, requests) }
     }
     @Test fun offlineChoiceUsesViewModelWithoutManualConnectionControls() {
         val session = WebRtcSessionViewModel()
+        val disableDescription = compose.activity.getString(R.string.anonymization_disable)
         val preference = AnonymizationPreference(compose.activity)
         val original = preference.enabled
         preference.enabled = true
@@ -69,7 +78,7 @@ class AnonymizationControlsTest {
                     )
                 }
             }
-            compose.onNodeWithContentDescription("비식별화 비활성화").performClick()
+            compose.onNodeWithContentDescription(disableDescription).performClick()
             compose.runOnIdle {
                 assertFalse(preference.enabled)
                 assertEquals(WebRtcConnectionState.IDLE, session.connectionState)

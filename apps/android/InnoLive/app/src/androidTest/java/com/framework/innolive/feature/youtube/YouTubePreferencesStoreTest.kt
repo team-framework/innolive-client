@@ -1,18 +1,59 @@
 package com.framework.innolive.feature.youtube
 
+import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.xmlpull.v1.XmlPullParser
+import java.util.Locale
 
 @RunWith(AndroidJUnit4::class)
 class YouTubePreferencesStoreTest {
+    @Test
+    fun untouchedDefaultTitleUsesTheNewLocaleWhileAnEnteredTitleStaysUnchanged() {
+        val baseContext = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferencesName = "youtube_title_locale_test_${System.nanoTime()}"
+        val englishConfig = Configuration(baseContext.resources.configuration).apply {
+            setLocale(Locale.ENGLISH)
+        }
+        val japaneseConfig = Configuration(baseContext.resources.configuration).apply {
+            setLocale(Locale.JAPANESE)
+        }
+        val englishContext = baseContext.createConfigurationContext(englishConfig)
+        val japaneseContext = baseContext.createConfigurationContext(japaneseConfig)
+        val englishStore = YouTubePreferencesStore(englishContext, preferencesName)
+        val japaneseStore = YouTubePreferencesStore(japaneseContext, preferencesName)
+
+        try {
+            val englishDefault = englishStore.loadBroadcastSettings()
+            assertFalse(englishStore.hasSavedBroadcastTitle())
+            englishStore.saveBroadcastSettings(
+                englishDefault.copy(privacy = "unlisted"),
+                titleIsGeneratedDefault = true,
+            )
+
+            val japaneseDefault = japaneseStore.loadBroadcastSettings()
+            assertFalse(japaneseStore.hasSavedBroadcastTitle())
+            assertNotEquals(englishDefault.title, japaneseDefault.title)
+            assertEquals(defaultYouTubeBroadcastTitle(japaneseContext), japaneseDefault.title)
+            assertEquals("unlisted", japaneseDefault.privacy)
+
+            japaneseStore.saveBroadcastSettings(japaneseDefault.copy(title = "Creator's title"))
+            assertTrue(japaneseStore.hasSavedBroadcastTitle())
+            assertEquals("Creator's title", englishStore.loadBroadcastSettings().title)
+        } finally {
+            englishStore.clearAccountData()
+        }
+    }
+
     @Test
     fun excludesYouTubePreferencesFromCloudBackupAndDeviceTransfer() {
         val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources

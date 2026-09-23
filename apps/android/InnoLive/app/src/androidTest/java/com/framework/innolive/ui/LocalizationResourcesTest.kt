@@ -66,6 +66,32 @@ class LocalizationResourcesTest {
     }
 
     @Test
+    fun liveAndYouTubeDisplayValuesResolveWhileWireAndServerValuesStayIntact() {
+        val expectations = mapOf(
+            "ko" to LiveExpectation("공개", "YouTube 채널: Creator", "20260917 InnoLive 방송"),
+            "en" to LiveExpectation("Public", "YouTube channel: Creator", "20260917 InnoLive broadcast"),
+            "ja" to LiveExpectation("公開", "YouTubeチャンネル: Creator", "20260917 InnoLive 配信"),
+        )
+
+        expectations.forEach { (language, expected) ->
+            val context = localizedContext(language)
+            assertEquals(expected.publicLabel, context.getString(R.string.privacy_public))
+            assertEquals(
+                expected.channelStatus,
+                UiText.Resource(R.string.youtube_status_channel, listOf("Creator")).resolve(context),
+            )
+            assertEquals(
+                expected.defaultTitle,
+                context.getString(R.string.default_youtube_broadcast_title, "20260917"),
+            )
+            assertEquals(
+                "streaming_reconnect_required",
+                UiText.Dynamic("streaming_reconnect_required").resolve(context),
+            )
+        }
+    }
+
+    @Test
     fun localeConfigExposesOnlySupportedSystemAndAppLanguages() {
         val parser = appContext.resources.getXml(R.xml.locales_config)
         val locales = buildList {
@@ -89,4 +115,10 @@ class LocalizationResourcesTest {
     private companion object {
         const val ANDROID_NAMESPACE = "http://schemas.android.com/apk/res/android"
     }
+
+    private data class LiveExpectation(
+        val publicLabel: String,
+        val channelStatus: String,
+        val defaultTitle: String,
+    )
 }

@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.youtube
 
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import java.io.IOException
 import org.json.JSONObject
 
@@ -7,6 +9,7 @@ class YouTubeApiException(
     val statusCode: Int?,
     operation: String,
     val errorCode: String? = null,
+    val serverMessage: String? = null,
     cause: Throwable? = null,
 ) : IOException(
     if (statusCode == null) "$operation request failed."
@@ -22,9 +25,28 @@ internal fun parseYouTubeApiErrorCode(body: String): String? = runCatching {
         ?.takeIf(String::isNotEmpty)
 }.getOrNull()
 
-internal fun youtubeConnectionFailureMessage(exception: Throwable?): String =
+internal fun parseYouTubeApiErrorMessage(body: String): String? {
+    val trimmedBody = body.trim()
+    if (trimmedBody.isEmpty()) return null
+
+    val payload = runCatching { JSONObject(trimmedBody) }.getOrElse {
+        // A server may intentionally return a plain-text error instead of the
+        // API error envelope. It is external content, so preserve it verbatim.
+        return trimmedBody
+    }
+    return payload
+        .optJSONObject("error")
+        ?.optString("message")
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?: payload.optString("message")
+            .trim()
+            .takeIf(String::isNotEmpty)
+}
+
+internal fun youtubeConnectionFailureMessage(exception: Throwable?): UiText =
     when ((exception as? YouTubeApiException)?.errorCode) {
         "youtube_channel_missing" ->
-            "선택한 Google 계정에 YouTube 채널이 없습니다. 채널을 만든 뒤 다시 시도하거나 다른 계정을 선택해 주세요."
-        else -> "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요."
+            UiText.Resource(R.string.error_youtube_channel_missing)
+        else -> UiText.Resource(R.string.error_youtube_connection)
     }

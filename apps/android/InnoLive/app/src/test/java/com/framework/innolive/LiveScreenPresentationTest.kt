@@ -5,6 +5,7 @@ import com.framework.innolive.feature.live.LiveBroadcastAction
 import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.buildLiveScreenPresentation
 import com.framework.innolive.feature.live.stoppingState
+import com.framework.innolive.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -24,7 +25,7 @@ class LiveScreenPresentationTest {
         assertEquals(R.string.broadcast_state_live, presentation.broadcastButtonTextRes)
         assertTrue(presentation.isBroadcastButtonEnabled)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, presentation.broadcastAction)
-        assertEquals("", presentation.broadcastStatusText)
+        assertEquals(null, presentation.broadcastStatusText)
     }
 
     @Test
@@ -47,13 +48,13 @@ class LiveScreenPresentationTest {
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, prepared.broadcastAction)
         assertTrue(prepared.isBroadcastPrepared)
         assertTrue(prepared.isBroadcastButtonEnabled)
-        assertEquals("방송 준비 완료", prepared.broadcastStatusText)
+        assertEquals(UiText.Dynamic("방송 준비 완료"), prepared.broadcastStatusText)
 
         assertEquals(R.string.broadcast_state_preparing, preparing.broadcastButtonTextRes)
         assertEquals(LiveBroadcastAction.PREPARE_BROADCAST, preparing.broadcastAction)
         assertTrue(preparing.isBroadcastBusy)
         assertFalse(preparing.isBroadcastButtonEnabled)
-        assertEquals("", preparing.broadcastStatusText)
+        assertEquals(null, preparing.broadcastStatusText)
     }
 
     @Test
@@ -69,7 +70,7 @@ class LiveScreenPresentationTest {
         assertTrue(paused.isBroadcastPaused)
         assertEquals(R.string.broadcast_state_paused, paused.broadcastButtonTextRes)
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, paused.broadcastAction)
-        assertEquals("YouTube 송출 일시 중지됨", paused.broadcastStatusText)
+        assertEquals(UiText.Dynamic("YouTube 송출 일시 중지됨"), paused.broadcastStatusText)
         assertEquals(BroadcastState.STOPPING, BroadcastState.PAUSED.stoppingState())
     }
 
@@ -89,8 +90,8 @@ class LiveScreenPresentationTest {
         )
 
         assertEquals(LiveBroadcastAction.SELECT_PLATFORM, idle.broadcastAction)
-        assertEquals("", idle.broadcastStatusText)
-        assertEquals("", failed.broadcastStatusText)
+        assertEquals(null, idle.broadcastStatusText)
+        assertEquals(null, failed.broadcastStatusText)
         assertTrue(failed.isBroadcastStatusError)
         assertTrue(idle.isBroadcastButtonEnabled)
         assertTrue(failed.isBroadcastButtonEnabled)
@@ -101,7 +102,10 @@ class LiveScreenPresentationTest {
             selectedPlatform = "YouTube",
             broadcastStatus = "방송 준비에 실패했습니다.",
         )
-        assertEquals("방송 준비에 실패했습니다.", connectedBroadcastFailure.broadcastStatusText)
+        assertEquals(
+            UiText.Dynamic("방송 준비에 실패했습니다."),
+            connectedBroadcastFailure.broadcastStatusText,
+        )
     }
 
     @Test
@@ -113,7 +117,7 @@ class LiveScreenPresentationTest {
                 selectedPlatform = "YouTube",
                 broadcastStatus = "연결하지 못해 방송을 준비하지 못했습니다. 다시 시도해 주세요.",
             )
-            assertEquals("Duplicate failure for $broadcast", "", presentation.broadcastStatusText)
+            assertEquals("Duplicate failure for $broadcast", null, presentation.broadcastStatusText)
         }
     }
 
@@ -161,7 +165,7 @@ class LiveScreenPresentationTest {
         assertEquals(BroadcastState.CANCELLING_PREPARATION, cancelledState)
         assertEquals(R.string.broadcast_state_cancelling, cancelling.broadcastButtonTextRes)
         assertFalse(cancelling.isBroadcastButtonEnabled)
-        assertEquals("", cancelling.broadcastStatusText)
+        assertEquals(null, cancelling.broadcastStatusText)
         assertEquals(BroadcastState.STOPPING, stoppedState)
         assertEquals(R.string.broadcast_state_stopping, stopping.broadcastButtonTextRes)
         assertFalse(stopping.isBroadcastButtonEnabled)
@@ -196,10 +200,13 @@ class LiveScreenPresentationTest {
             "YouTube 라이브 전환 중",
         )
 
-        assertEquals("YouTube 송출을 일시 중지하지 못했습니다.", pauseFailed.broadcastStatusText)
-        assertEquals("YouTube 송출을 재개하지 못했습니다.", resumeFailed.broadcastStatusText)
-        assertEquals("YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요.", notReady.broadcastStatusText)
-        assertEquals("YouTube 라이브 전환 중", goingLive.broadcastStatusText)
+        assertEquals(UiText.Dynamic("YouTube 송출을 일시 중지하지 못했습니다."), pauseFailed.broadcastStatusText)
+        assertEquals(UiText.Dynamic("YouTube 송출을 재개하지 못했습니다."), resumeFailed.broadcastStatusText)
+        assertEquals(
+            UiText.Dynamic("YouTube가 아직 영상을 받을 준비가 되지 않았습니다. 잠시 후 다시 시도해 주세요."),
+            notReady.broadcastStatusText,
+        )
+        assertEquals(UiText.Dynamic("YouTube 라이브 전환 중"), goingLive.broadcastStatusText)
     }
 
     @Test
@@ -217,7 +224,7 @@ class LiveScreenPresentationTest {
                 status,
                 isBroadcastStatusDefault = true,
             )
-            assertEquals("Duplicate status for $state", "", presentation.broadcastStatusText)
+            assertEquals("Duplicate status for $state", null, presentation.broadcastStatusText)
         }
     }
 }

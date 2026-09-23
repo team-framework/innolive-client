@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.youtube
 
+import com.framework.innolive.R
+import com.framework.innolive.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -12,21 +14,23 @@ class YouTubeApiExceptionTest {
             statusCode = 422,
             operation = "YouTube account connection",
             errorCode = parseYouTubeApiErrorCode(body),
+            serverMessage = parseYouTubeApiErrorMessage(body),
         )
 
         assertEquals("youtube_channel_missing", exception.errorCode)
         assertEquals(
-            "선택한 Google 계정에 YouTube 채널이 없습니다. 채널을 만든 뒤 다시 시도하거나 다른 계정을 선택해 주세요.",
+            UiText.Resource(R.string.error_youtube_channel_missing),
             youtubeConnectionFailureMessage(exception),
         )
     }
 
     @Test
-    fun unknownOrMalformedErrorsUseGenericMessageWithoutServerDetails() {
-        val expected = "YouTube 계정 연동에 실패했습니다. 다시 시도해 주세요."
+    fun unknownErrorsNeverDisplayJsonOrPlainTextServerMessages() {
+        val expected = UiText.Resource(R.string.error_youtube_connection)
 
         assertNull(parseYouTubeApiErrorCode("private server details"))
         assertEquals(expected, youtubeConnectionFailureMessage(null))
+        assertEquals("private server details", parseYouTubeApiErrorMessage("private server details"))
         assertEquals(
             expected,
             youtubeConnectionFailureMessage(
@@ -36,6 +40,19 @@ class YouTubeApiExceptionTest {
                     errorCode = parseYouTubeApiErrorCode(
                         """{"error":{"code":"internal_error","message":"private server details"}}""",
                     ),
+                    serverMessage = parseYouTubeApiErrorMessage(
+                        """{"error":{"code":"internal_error","message":"private server details"}}""",
+                    ),
+                ),
+            ),
+        )
+        assertEquals(
+            expected,
+            youtubeConnectionFailureMessage(
+                YouTubeApiException(
+                    statusCode = 500,
+                    operation = "YouTube account connection",
+                    serverMessage = parseYouTubeApiErrorMessage("<html>private diagnostics</html>"),
                 ),
             ),
         )
