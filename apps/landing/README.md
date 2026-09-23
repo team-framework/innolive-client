@@ -42,7 +42,7 @@ pnpm start
 - `NEXT_PUBLIC_ANDROID_DOWNLOAD_URL`
 - `NEXT_PUBLIC_IOS_DOWNLOAD_URL`
 
-값이 없으면 Download 메뉴가 준비 중이라고 안내합니다.
+값이 없으면 Download 메뉴가 준비 중이라고 안내합니다. 배포 환경에서는 이미지 빌드 전에 URL을 설정해야 합니다.
 
 ## 인증·AI 경계
 

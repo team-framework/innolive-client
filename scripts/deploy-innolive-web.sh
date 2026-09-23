@@ -130,6 +130,7 @@ write_release_override() {
     printf '      args:\n'
     printf '        INNOLIVE_WEB_REVISION: "%s"\n' "$expected_sha"
     printf '        NEXT_PUBLIC_INNOLIVE_SERVER_URL: "%s"\n' "$NEXT_PUBLIC_INNOLIVE_SERVER_URL"
+    printf '        NEXT_PUBLIC_IOS_DOWNLOAD_URL: "%s"\n' "$NEXT_PUBLIC_IOS_DOWNLOAD_URL"
     printf '    image: %s\n' "$image"
     printf '%s\n' '    env_file: !reset []'
     printf '%s\n' '    depends_on: !reset {}'
@@ -287,6 +288,7 @@ required_variables=(
   INNOLIVE_WEB_DB_CONTAINER
   INNOLIVE_WEB_PROXY_CONTAINER
   NEXT_PUBLIC_INNOLIVE_SERVER_URL
+  NEXT_PUBLIC_IOS_DOWNLOAD_URL
 )
 for variable in "${required_variables[@]}"; do
   [[ -n "${!variable:-}" ]] || fail 'deployment configuration is incomplete'
@@ -302,6 +304,7 @@ done
 [[ "$INNOLIVE_WEB_PROXY_CONTAINER" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail 'proxy container name is invalid'
 [[ "$INNOLIVE_WEB_SITE_URL" =~ ^https?://[^/?#[:space:]]+(/[^?#[:space:]]*)?$ ]] || fail 'public site URL is invalid'
 [[ "$NEXT_PUBLIC_INNOLIVE_SERVER_URL" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/%:@+-]*)?$ ]] || fail 'public server URL is invalid'
+[[ "$NEXT_PUBLIC_IOS_DOWNLOAD_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/%:@+-]*)?$ ]] || fail 'iOS download URL is invalid'
 
 web_dir=$INNOLIVE_WEB_DIR
 releases_dir=$INNOLIVE_WEB_RELEASES_DIR
