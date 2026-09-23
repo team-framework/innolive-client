@@ -129,7 +129,7 @@
     <string name="anonymization_off">비식별화 Off</string>
     <string name="anonymization_loading">선택 불러오는 중</string>
     <string name="anonymization_changing">비식별화 변경 중</string>
-    <string name="anonymization_connecting">비식별화 %1$s로 연결 중</string>
+    <string name="anonymization_connecting">비식별화 %1$s 상태로 연결 중</string>
     <string name="anonymization_needs_check">비식별화 상태 확인 필요</string>
     <string name="anonymization_when_connected">연결 시 비식별화 %1$s</string>
     <string name="anonymization_enable">비식별화 활성화</string>

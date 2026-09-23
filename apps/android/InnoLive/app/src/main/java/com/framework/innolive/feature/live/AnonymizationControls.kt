@@ -41,10 +41,10 @@ internal fun anonymizationControlsState(
         AnonymizationState.UNKNOWN -> null
     } else if (loaded) selected else null
     val selectedLabel = UiText.Resource(
-        if (selected) R.string.anonymization_on else R.string.anonymization_off,
+        if (selected) R.string.anonymization_value_on else R.string.anonymization_value_off,
     )
     val confirmedLabel = UiText.Resource(
-        if (value == true) R.string.anonymization_on else R.string.anonymization_off,
+        if (value == true) R.string.anonymization_value_on else R.string.anonymization_value_off,
     )
     return AnonymizationControlsState(
         label = when {
