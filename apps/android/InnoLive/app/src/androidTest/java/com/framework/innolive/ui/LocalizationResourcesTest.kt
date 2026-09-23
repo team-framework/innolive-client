@@ -31,6 +31,10 @@ class LocalizationResourcesTest {
             assertEquals(expectedGoogleLabel, context.getString(R.string.continue_with_google))
             assertTrue(context.resources.getQuantityString(R.plurals.registered_face_count, 1, 1).isNotBlank())
             assertTrue(context.resources.getQuantityString(R.plurals.registered_face_count, 2, 2).isNotBlank())
+            assertTrue(context.resources.getQuantityString(R.plurals.prepared_face_count, 1, 1).isNotBlank())
+            assertTrue(context.resources.getQuantityString(R.plurals.face_capture_ready_count, 2, 2).isNotBlank())
+            assertTrue(context.getString(R.string.content_description_delete_registered_face, 1).isNotBlank())
+            assertTrue(context.getString(R.string.privacy_policy).isNotBlank())
             assertTrue(context.getString(R.string.error_preview_connect).isNotBlank())
             assertTrue(context.getString(R.string.email_sign_in_title).isNotBlank())
             assertTrue(context.getString(R.string.action_resend_verification).isNotBlank())
@@ -51,6 +55,8 @@ class LocalizationResourcesTest {
         val status = UiText.Resource(R.string.broadcast_state_prepared)
         val saved = UiText.Resource(R.string.broadcast_settings_saved)
         val error = UiText.Resource(R.string.error_account_deletion)
+        val faceError = UiText.Resource(R.string.error_face_registration)
+        val preparedFaces = UiText.Plural(R.plurals.face_capture_ready_count, 2)
         val emailError = UiText.Resource(R.string.error_email_credentials)
         val serverMessage = UiText.Dynamic("Account deletion is already in progress. Retry shortly.")
 
@@ -61,6 +67,8 @@ class LocalizationResourcesTest {
         assertEquals("We could not delete your account. Please try again later.", error.resolve(localizedContext("en")))
         assertEquals("Check your email or password.", emailError.resolve(localizedContext("en")))
         assertEquals("メールアドレスまたはパスワードを確認してください。", emailError.resolve(localizedContext("ja")))
+        assertEquals("We could not register the face. Please try again.", faceError.resolve(localizedContext("en")))
+        assertEquals("2 faces are ready. Capture another face or register them.", preparedFaces.resolve(localizedContext("en")))
         assertEquals(serverMessage.value, serverMessage.resolve(localizedContext("en")))
         assertEquals(serverMessage.value, serverMessage.resolve(localizedContext("ja")))
     }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.VideoCameraBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
@@ -28,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -50,6 +53,10 @@ fun SettingsScreen(props: SettingsScreenProps) {
     var isDeleteConfirmationVisible by rememberSaveable { mutableStateOf(false) }
     val confirmDeletionDescription =
         stringResource(R.string.content_description_confirm_delete_account)
+    val uriHandler = LocalUriHandler.current
+    val privacyPolicyUrl = privacyPolicyUrlForLanguage(
+        LocalConfiguration.current.locales[0].language,
+    )
     val settingItems = listOf(
         SettingsMenuItem(
             Icons.Outlined.VideoCameraBack,
@@ -61,6 +68,12 @@ fun SettingsScreen(props: SettingsScreenProps) {
             stringResource(R.string.settings_broadcast),
             props.onOpenBroadcastSettings,
         ),
+        SettingsMenuItem(
+            Icons.Outlined.Description,
+            stringResource(R.string.privacy_policy),
+        ) {
+            uriHandler.openUri(privacyPolicyUrl)
+        },
     )
 
     Column(
@@ -119,7 +132,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
                     ) {
                         Icon(
                             imageVector = item.icon,
-                            contentDescription = item.label
+                            contentDescription = null,
                         )
                         Text(text = item.label)
                     }

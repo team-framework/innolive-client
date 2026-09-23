@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.util.concurrent.atomic.AtomicBoolean
@@ -45,13 +46,14 @@ class FaceRegistrationScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("얼굴 등록").assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_register_face)).assertIsDisplayed()
         composeRule
-            .onNodeWithText("등록된 얼굴은 유지되고 새 얼굴을 추가할 수 있습니다.")
+            .onNodeWithText(composeRule.activity.getString(R.string.face_registration_description))
             .assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("닫기").assertIsDisplayed().performClick()
+        composeRule.onNodeWithContentDescription(composeRule.activity.getString(R.string.action_close))
+            .assertIsDisplayed().performClick()
         composeRule.waitForIdle()
         assertTrue(closed.get())
-        composeRule.onNodeWithText("얼굴 등록").assertDoesNotExist()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_register_face)).assertDoesNotExist()
     }
 }
