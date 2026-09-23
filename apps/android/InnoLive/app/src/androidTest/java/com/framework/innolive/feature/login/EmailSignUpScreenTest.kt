@@ -11,6 +11,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -34,7 +35,7 @@ class EmailSignUpScreenTest {
     private fun string(@StringRes id: Int): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
-    private fun fillSignup() {
+    private fun fillSignup(waitForVerification: Boolean = true) {
         rule.onNodeWithText(string(R.string.action_sign_up)).performScrollTo().performClick()
         rule.onAllNodes(hasSetTextAction())[0].performTextInput("member@example.com")
         rule.onAllNodes(hasSetTextAction())[1].performTextInput("password123")
@@ -42,6 +43,14 @@ class EmailSignUpScreenTest {
         rule.onNodeWithText(string(R.string.action_send_verification_email))
             .performScrollTo()
             .performClick()
+        val expectedLabel = if (waitForVerification) {
+            string(R.string.verification_title)
+        } else {
+            string(R.string.action_sending_verification_email)
+        }
+        rule.waitUntil(10_000) {
+            rule.onAllNodesWithText(expectedLabel).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test
@@ -73,7 +82,7 @@ class EmailSignUpScreenTest {
             }
         }
 
-        fillSignup()
+        fillSignup(waitForVerification = false)
         rule.onNodeWithText(string(R.string.action_sending_verification_email)).assertIsNotEnabled()
         rule.runOnIdle { assertEquals(1, signups); signupFinished.complete(Unit) }
         rule.onNodeWithText(string(R.string.verification_title)).assertIsDisplayed()
@@ -262,7 +271,7 @@ class EmailSignUpScreenTest {
             }
         }
 
-        fillSignup()
+        fillSignup(waitForVerification = false)
         rule.onNodeWithContentDescription(string(R.string.action_back)).assertIsNotEnabled()
         rule.runOnIdle { checkNotNull(backDispatcher).onBackPressed() }
         rule.onNodeWithText(string(R.string.email_sign_up_title)).assertIsDisplayed()
