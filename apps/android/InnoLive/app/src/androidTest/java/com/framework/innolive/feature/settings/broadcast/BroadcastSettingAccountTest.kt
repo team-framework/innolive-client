@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.framework.innolive.R
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -36,14 +37,20 @@ class BroadcastSettingAccountTest {
         }
 
         composeRule.onNodeWithText("저장된 채널").assertExists()
-        composeRule.onNodeWithText("재연동").assertIsNotEnabled()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.action_reconnect),
+        ).assertIsNotEnabled()
 
         composeRule.runOnIdle { isChecking.value = false }
-        composeRule.onNodeWithText("재연동").assertIsEnabled().performClick()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.action_reconnect),
+        ).assertIsEnabled().performClick()
         composeRule.runOnIdle { assertEquals(1, reconnectClicks) }
 
         composeRule.runOnIdle { isVerified.value = true }
-        composeRule.onNodeWithText("재연동").assertDoesNotExist()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.action_reconnect),
+        ).assertDoesNotExist()
     }
 
     private fun testProps(
@@ -71,9 +78,11 @@ class BroadcastSettingAccountTest {
         isYouTubeReconnectRequired = false,
         isYouTubeAccountActionInProgress = isChecking,
         isYouTubeConnectEnabled = true,
+        connectDisabledReasonRes = if (isChecking) R.string.youtube_account_action_in_progress else null,
         onConnectYouTube = onConnect,
         onSave = {},
         isSaveEnabled = false,
+        saveDisabledReasonRes = R.string.broadcast_settings_connection_required,
         statusMessage = "",
     )
 }

@@ -3,6 +3,8 @@ package com.framework.innolive.feature.settings.camera
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,7 +21,7 @@ import com.framework.innolive.feature.settings.components.Dropdown
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CameraSetting(props: CameraSettingProps) {
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopAppBar(
             title = { Text(text = stringResource(R.string.settings_camera_audio)) },
             windowInsets = WindowInsets(0, 0, 0, 0),

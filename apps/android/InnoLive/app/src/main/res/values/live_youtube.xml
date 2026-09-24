@@ -8,4 +8,6 @@
     <string name="anonymization_value_off">Off</string>
     <string name="default_youtube_broadcast_title">%1$s InnoLive 방송</string>
     <string name="google_user">Google 사용자</string>
+    <string name="youtube_account_action_in_progress">YouTube 계정 작업이 진행 중입니다.</string>
+    <string name="broadcast_settings_save_unavailable">현재 방송 상태에서는 설정을 저장할 수 없습니다.</string>
 </resources>

@@ -2,7 +2,6 @@ package com.framework.innolive.feature.settings.broadcast
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +21,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.framework.innolive.R
 import com.framework.innolive.feature.settings.components.Dropdown
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,20 +37,20 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
             .verticalScroll(rememberScrollState()),
     ) {
         TopAppBar(
-            title = { Text(text = "방송 설정") },
+            title = { Text(text = stringResource(R.string.broadcast_settings_title)) },
             windowInsets = WindowInsets(0, 0, 0, 0),
             navigationIcon = {
                 IconButton(onClick = props.onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "뒤로가기",
+                        contentDescription = stringResource(R.string.action_back),
                     )
                 }
             },
         )
 
         Dropdown(
-            label = "방송 플랫폼",
+            label = stringResource(R.string.label_broadcast_platform),
             selectedOption = props.selectedPlatform,
             onClick = props.onOpenPlatformOptions,
         )
@@ -55,7 +58,7 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
         OutlinedTextField(
             value = props.title,
             onValueChange = props.onTitleChanged,
-            label = { Text(text = "방송 제목") },
+            label = { Text(text = stringResource(R.string.label_broadcast_title)) },
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
@@ -65,7 +68,7 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
         OutlinedTextField(
             value = props.description,
             onValueChange = props.onDescriptionChanged,
-            label = { Text(text = "방송 설명") },
+            label = { Text(text = stringResource(R.string.label_broadcast_description)) },
             minLines = 3,
             maxLines = 5,
             modifier = Modifier
@@ -74,13 +77,13 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
         )
 
         Dropdown(
-            label = "공개 범위",
+            label = stringResource(R.string.label_broadcast_privacy),
             selectedOption = props.selectedPrivacy,
             onClick = props.onOpenPrivacyOptions,
         )
 
         Dropdown(
-            label = "아동용 콘텐츠",
+            label = stringResource(R.string.label_made_for_kids),
             selectedOption = props.selectedAudience,
             onClick = props.onOpenAudienceOptions,
         )
@@ -88,22 +91,21 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
         OutlinedTextField(
             value = props.categoryId,
             onValueChange = props.onCategoryIdChanged,
-            label = { Text(text = "YouTube 카테고리 ID (선택)") },
+            label = { Text(text = stringResource(R.string.label_youtube_category)) },
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 6.dp),
         )
 
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "방송 계정",
+                text = stringResource(R.string.label_broadcast_account),
                 style = MaterialTheme.typography.bodyLarge,
             )
             if (!props.youtubeChannelTitle.isNullOrBlank()) {
@@ -113,15 +115,22 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
                 )
             }
             if (!props.hasVerifiedYouTubeAccount || props.isYouTubeReconnectRequired) {
+                val connectDisabledReason = props.connectDisabledReasonRes?.let { stringResource(it) }
                 Button(
                     onClick = props.onConnectYouTube,
                     enabled = props.isYouTubeConnectEnabled && !props.isYouTubeAccountActionInProgress,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .semantics {
+                            if (connectDisabledReason != null) stateDescription = connectDisabledReason
+                        },
                 ) {
                     Text(
                         text = if (
                             props.isYouTubeReconnectRequired ||
                             !props.youtubeChannelTitle.isNullOrBlank()
-                        ) "재연동" else "연동",
+                        ) stringResource(R.string.action_reconnect)
+                        else stringResource(R.string.action_connect),
                     )
                 }
             }
@@ -133,14 +142,18 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
             modifier = Modifier.padding(horizontal = 10.dp),
         )
 
+        val saveDisabledReason = props.saveDisabledReasonRes?.let { stringResource(it) }
         Button(
             onClick = props.onSave,
             enabled = props.isSaveEnabled,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 10.dp)
+                .semantics {
+                    if (saveDisabledReason != null) stateDescription = saveDisabledReason
+                },
         ) {
-            Text(text = "방송 설정 저장")
+            Text(text = stringResource(R.string.action_save_broadcast_settings))
         }
 
         Text(

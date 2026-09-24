@@ -8,4 +8,6 @@
     <string name="anonymization_value_off">オフ</string>
     <string name="default_youtube_broadcast_title">%1$s InnoLive 配信</string>
     <string name="google_user">Google ユーザー</string>
+    <string name="youtube_account_action_in_progress">YouTube アカウントの操作中です。</string>
+    <string name="broadcast_settings_save_unavailable">現在の配信状態では設定を保存できません。</string>
 </resources>
