@@ -327,7 +327,8 @@ fun LiveScreen(
                     )
                 },
             )
-            if (webRtcSession.connectionState == WebRtcConnectionState.FAILED) {
+            if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
+                webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
                 webRtcSession.connectionStatus?.let { status ->
                     Text(
                         status.asString(),

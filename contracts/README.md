@@ -15,3 +15,13 @@ is included in the same task.
 - `api/account-deletion-v1.md`: authenticated account deletion and client cleanup boundary
 - `fixtures/account-deletion-conflict.v1.json`: concurrent account deletion HTTP error
 - `fixtures/signaling-withdrawal-error.v2.json`: signaling error during account deletion
+- `fixtures/signaling-ice-restart.v2.json`: authenticated ICE restart offer using the
+  existing session and a new negotiation ID
+
+The v2 signaling server accepts `negotiation_id` on offers and ICE candidates,
+and echoes it on answers and candidate acknowledgements. An offer with
+`ice_restart: true` requires a new UUID negotiation ID. Clients must ignore
+answers and remote candidates from older negotiations. The existing session and
+owner token remain in use during recovery; older initial offers without these
+optional fields remain valid. `/webrtc/config` supplies `recovery.window_ms`,
+`recovery.debounce_ms`, and `recovery.max_attempts` for the recovery window.

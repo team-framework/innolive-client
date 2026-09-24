@@ -67,4 +67,27 @@ class WebRtcSessionStateTest {
         val idle = WebRtcSessionState()
         assertEquals(idle, idle.anonymizationConfirmed(idle.generation, AnonymizationState.DISABLED))
     }
+
+    @Test fun temporaryReconnectPreservesConfirmedAnonymizationAndGeneration() {
+        val started = WebRtcSessionState().beginConnection()
+        val connected = started.anonymizationConfirmed(
+            started.generation,
+            AnonymizationState.DISABLED,
+        ).connectionChanged(started.generation, WebRtcConnectionState.CONNECTED)
+        val reconnecting = connected.connectionChanged(
+            connected.generation,
+            WebRtcConnectionState.RECONNECTING,
+        )
+        assertEquals(connected.generation, reconnecting.generation)
+        assertEquals(AnonymizationState.DISABLED, reconnecting.anonymization)
+        assertTrue(reconnecting.acceptsCallback(connected.generation))
+        assertEquals(
+            AnonymizationState.DISABLED,
+            reconnecting.connectionChanged(connected.generation, WebRtcConnectionState.CONNECTED).anonymization,
+        )
+        assertEquals(
+            AnonymizationState.UNKNOWN,
+            reconnecting.connectionChanged(connected.generation, WebRtcConnectionState.FAILED).anonymization,
+        )
+    }
 }

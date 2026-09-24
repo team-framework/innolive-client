@@ -4,6 +4,6 @@
   "owner_token": "owner-token-example",
   "access_token": "access-token-example",
   "sdp": "v=0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n",
-  "negotiation_id": "73014724-28db-40af-b0d5-63df5f83d16b",
-  "ice_restart": false
+  "negotiation_id": "e12e59c1-7382-4144-bf37-32048ff48c18",
+  "ice_restart": true
 }

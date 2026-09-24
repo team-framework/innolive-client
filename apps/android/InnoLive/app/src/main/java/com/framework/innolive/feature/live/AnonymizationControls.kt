@@ -33,7 +33,8 @@ internal fun anonymizationControlsState(
     change: AnonymizationChange,
 ): AnonymizationControlsState {
     val connected = connection == WebRtcConnectionState.CONNECTED
-    val connecting = connection == WebRtcConnectionState.CONNECTING
+    val connecting = connection == WebRtcConnectionState.CONNECTING ||
+        connection == WebRtcConnectionState.RECONNECTING
     val changing = change.status == AnonymizationChangeStatus.CHANGING
     val value = if (connected) when (confirmed) {
         AnonymizationState.ENABLED -> true

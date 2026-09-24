@@ -37,4 +37,5 @@ on iOS merely because Android uses it.
 Android locks its Activity and CameraX output to the display direction accepted at
 `goLive`, then releases the lock on start failure, successful stop, or terminal
 connection failure. See [Android broadcast orientation](android-broadcast-orientation.md)
-for state transitions, verification, and the current reconnect limitation.
+for state transitions and verification. Network recovery preserves the captured
+rotation until the existing WebRTC session reconnects or fails terminally.

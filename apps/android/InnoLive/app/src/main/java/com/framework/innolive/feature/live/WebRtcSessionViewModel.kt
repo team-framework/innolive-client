@@ -87,6 +87,7 @@ class WebRtcSessionViewModel : ViewModel() {
     // 연결 중에는 초기 선택을 바꾸지 않고, 연결된 세션은 변경 API로만 갱신합니다.
     fun selectInitialAnonymization(context: Context, enabled: Boolean): Boolean {
         if (connectionState == WebRtcConnectionState.CONNECTING ||
+            connectionState == WebRtcConnectionState.RECONNECTING ||
             connectionState == WebRtcConnectionState.CONNECTED) return false
         val preference = AnonymizationPreference(context)
         preference.enabled = enabled
@@ -107,6 +108,7 @@ class WebRtcSessionViewModel : ViewModel() {
     ) {
         if (
             connectionState == WebRtcConnectionState.CONNECTING ||
+            connectionState == WebRtcConnectionState.RECONNECTING ||
             connectionState == WebRtcConnectionState.CONNECTED
         ) {
             return

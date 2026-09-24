@@ -32,7 +32,8 @@ fun buildLiveScreenPresentation(
     isBroadcastStatusDefault: Boolean = false,
     isPreparingBroadcast: Boolean = false,
 ): LiveScreenPresentation {
-    val isConnected = connectionState == WebRtcConnectionState.CONNECTED
+    val isConnected = connectionState == WebRtcConnectionState.CONNECTED ||
+        connectionState == WebRtcConnectionState.RECONNECTING
     val isConnecting = connectionState == WebRtcConnectionState.CONNECTING
     val isBroadcastLive = broadcastState == BroadcastState.LIVE || broadcastState == BroadcastState.PAUSED
     val isBroadcastPrepared = broadcastState == BroadcastState.PREPARED

@@ -8,6 +8,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -44,11 +45,13 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.UUID
 
 enum class WebRtcConnectionState {
     IDLE,
     CONNECTING,
     CONNECTED,
+    RECONNECTING,
     FAILED,
 }
 
@@ -104,6 +107,18 @@ class WebRtcConnection(
     private val pendingSignals = mutableListOf<String>()
     private var connectionTimeoutTask: ScheduledFuture<*>? = null
     private var audioRouteVerificationTask: ScheduledFuture<*>? = null
+    private var recoveryTask: ScheduledFuture<*>? = null
+    private var recoveryDeadlineTask: ScheduledFuture<*>? = null
+    private var answerTimeoutTask: ScheduledFuture<*>? = null
+    private var recoveryPolicy = WebRtcRecoveryPolicy()
+    private var recoveryWindow = WebRtcRecoveryWindow(recoveryPolicy)
+    private var hasConnected = false
+    private var recoveryOfferPending = false
+    private var recoveryAttemptActive = false
+    private var activeNegotiationId: String? = null
+    private var remoteDescriptionNegotiationId: String? = null
+    private val pendingRemoteCandidates = mutableListOf<Pair<String, IceCandidate>>()
+    private var localIceUfrags = emptySet<String>()
 
     @Volatile
     private var eglBase: EglBase? = null
@@ -181,7 +196,9 @@ class WebRtcConnection(
                     TimeUnit.MILLISECONDS,
                 )
 
-                val iceServers = loadIceServers()
+                val (iceServers, policy) = loadIceServers()
+                recoveryPolicy = policy
+                recoveryWindow = WebRtcRecoveryWindow(policy)
                 if (!isActive()) return@executeOnOwner
 
                 val createdSession = createSession()
@@ -208,7 +225,9 @@ class WebRtcConnection(
                 addVideoTransceiver(connection)
                 if (!isActive()) return@executeOnOwner
                 checkNotNull(frameAnalyzer).start()
-                openSignalingSocket(createdSession)
+                val negotiationId = UUID.randomUUID().toString()
+                activeNegotiationId = negotiationId
+                openSignalingSocket(createdSession, negotiationId, iceRestart = false)
             } catch (exception: Exception) {
                 Log.w("LiveConnection", "start_failed type=${exception.javaClass.simpleName} cause=${exception.cause?.javaClass?.simpleName}")
                 fail(exception.toConnectionFailure())
@@ -621,11 +640,12 @@ class WebRtcConnection(
         ) { "Unable to add the camera video transceiver." }
     }
 
-    private fun loadIceServers(): List<PeerConnection.IceServer> {
+    private fun loadIceServers(): Pair<List<PeerConnection.IceServer>, WebRtcRecoveryPolicy> {
         val request = authenticatedRequest("/webrtc/config").get().build()
         return executeHttp(request).use { response ->
             requireSuccessful(response, "ICE 서버 설정 조회")
-            parseIceServers(response.body.string())
+            val payload = response.body.string()
+            parseIceServers(payload) to parseWebRtcRecoveryPolicy(JSONObject(payload))
         }
     }
 
@@ -692,7 +712,11 @@ class WebRtcConnection(
         ),
     ) { "Unable to create the WebRTC peer connection." }
 
-    private fun openSignalingSocket(createdSession: CreatedSession) {
+    private fun openSignalingSocket(
+        createdSession: CreatedSession,
+        negotiationId: String,
+        iceRestart: Boolean,
+    ) {
         if (!isActive()) return
 
         val httpUrl = checkNotNull(serverBaseUrl.resolve("/signaling"))
@@ -709,7 +733,11 @@ class WebRtcConnection(
                     }
                     executeOnOwner {
                         if (isActive() && this@WebRtcConnection.webSocket === webSocket) {
-                            createOffer(createdSession)
+                            val connection = peerConnection
+                            if (connection != null && activeNegotiationId == negotiationId) {
+                                if (iceRestart) connection.restartIce()
+                                createOffer(createdSession, negotiationId, iceRestart)
+                            }
                         } else {
                             webSocket.close(1000, null)
                         }
@@ -729,40 +757,51 @@ class WebRtcConnection(
                     t: Throwable,
                     response: Response?,
                 ) {
-                    if (isActive()) {
-                        fail(ConnectionFailure.GENERIC)
+                    executeOnOwner {
+                        if (isActive() && this@WebRtcConnection.webSocket === webSocket) {
+                            onSignalingFailure()
+                        }
                     }
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    if (isActive()) {
-                        fail(ConnectionFailure.DISCONNECTED)
+                    executeOnOwner {
+                        if (isActive() && this@WebRtcConnection.webSocket === webSocket) {
+                            onSignalingFailure()
+                        }
                     }
                 }
             },
         )
     }
 
-    private fun createOffer(createdSession: CreatedSession) {
+    private fun createOffer(
+        createdSession: CreatedSession,
+        negotiationId: String,
+        iceRestart: Boolean,
+    ) {
         if (!isActive()) return
         val connection = peerConnection ?: return
         connection.createOffer(
             object : SdpObserverAdapter() {
                 override fun onCreateSuccess(description: SessionDescription) {
                     executeOnOwner {
-                        if (!isActive() || peerConnection !== connection) return@executeOnOwner
+                        if (!isActive() || peerConnection !== connection ||
+                            activeNegotiationId != negotiationId) return@executeOnOwner
+                        localIceUfrags = extractIceUfrags(description.description)
                         connection.setLocalDescription(
                             object : SdpObserverAdapter() {
                                 override fun onSetSuccess() {
                                     executeOnOwner {
-                                        if (isActive() && peerConnection === connection) {
-                                            sendOffer(createdSession, description.description)
+                                        if (isActive() && peerConnection === connection &&
+                                            activeNegotiationId == negotiationId) {
+                                            sendOffer(createdSession, description.description, negotiationId, iceRestart)
                                         }
                                     }
                                 }
 
                                 override fun onSetFailure(error: String) {
-                                    fail(ConnectionFailure.GENERIC)
+                                    executeOnOwner { onNegotiationFailure(negotiationId) }
                                 }
                             },
                             description,
@@ -771,55 +810,72 @@ class WebRtcConnection(
                 }
 
                 override fun onCreateFailure(error: String) {
-                    fail(ConnectionFailure.GENERIC)
+                    executeOnOwner { onNegotiationFailure(negotiationId) }
                 }
             },
             MediaConstraints(),
         )
     }
 
-    private fun sendOffer(createdSession: CreatedSession, sdp: String) {
-        if (!isActive() || session !== createdSession) return
+    private fun sendOffer(
+        createdSession: CreatedSession,
+        sdp: String,
+        negotiationId: String,
+        iceRestart: Boolean,
+    ) {
+        if (!isActive() || session !== createdSession || activeNegotiationId != negotiationId) return
         val payload = JSONObject()
             .put("type", "offer")
             .put("session_id", createdSession.sessionId)
             .put("owner_token", createdSession.ownerToken)
             .put("access_token", accessToken)
             .put("sdp", sdp)
+            .put("negotiation_id", negotiationId)
+            .put("ice_restart", iceRestart)
             .toString()
 
         synchronized(signalLock) {
             val socket = webSocket ?: return
             if (!socket.send(payload)) {
-                fail(ConnectionFailure.GENERIC)
+                onNegotiationFailure(negotiationId)
                 return
             }
             offerSent = true
             pendingSignals.forEach { signal ->
                 if (!socket.send(signal)) {
-                    fail(ConnectionFailure.GENERIC)
+                    onNegotiationFailure(negotiationId)
                     return
                 }
             }
             pendingSignals.clear()
         }
+        if (iceRestart) {
+            answerTimeoutTask?.cancel(false)
+            val timeout = recoveryWindow.remainingMillis(SystemClock.elapsedRealtime())
+                .minus(5_000).coerceIn(1_000, 30_000)
+            answerTimeoutTask = timerExecutor.schedule(
+                { executeOnOwner { onNegotiationFailure(negotiationId) } },
+                timeout,
+                TimeUnit.MILLISECONDS,
+            )
+        }
     }
 
-    private fun sendIceCandidate(candidate: IceCandidate?) {
+    private fun sendIceCandidate(candidate: IceCandidate) {
         if (!isActive()) return
         val createdSession = session ?: return
+        val negotiationId = activeNegotiationId ?: return
+        val candidateUfrag = extractCandidateUfrag(candidate.sdp)
+        if (candidateUfrag != null && candidateUfrag !in localIceUfrags) return
         val payload = JSONObject()
             .put("type", "ice_candidate")
             .put("session_id", createdSession.sessionId)
             .put("owner_token", createdSession.ownerToken)
             .put("access_token", accessToken)
-            .put("candidate", candidate?.sdp ?: JSONObject.NULL)
-            .apply {
-                if (candidate != null) {
-                    put("sdpMid", candidate.sdpMid)
-                    put("sdpMLineIndex", candidate.sdpMLineIndex)
-                }
-            }
+            .put("negotiation_id", negotiationId)
+            .put("candidate", candidate.sdp)
+            .put("sdpMid", candidate.sdpMid)
+            .put("sdpMLineIndex", candidate.sdpMLineIndex)
             .toString()
 
         synchronized(signalLock) {
@@ -837,30 +893,72 @@ class WebRtcConnection(
         try {
             val expectedSessionId = session?.sessionId ?: return
             when (val message = parseServerMessage(payload, expectedSessionId)) {
-                is ServerMessage.Answer -> applyAnswer(message.sdp)
-                is ServerMessage.Error -> fail(connectionFailureForServerCode(message.code))
+                is ServerMessage.Answer -> {
+                    val negotiationId = message.negotiationId
+                    if (negotiationId != null && negotiationId == activeNegotiationId) {
+                        applyAnswer(message.sdp, negotiationId)
+                    }
+                }
+                is ServerMessage.Error -> {
+                    if (message.code in setOf("forbidden", "unauthorized", "not_found", "peer_recovery_attempts_exhausted")) {
+                        fail(ConnectionFailure.DISCONNECTED)
+                    } else if (recoveryWindow.deadlineMillis != null) {
+                        activeNegotiationId?.let(::onNegotiationFailure)
+                    } else {
+                        fail(connectionFailureForServerCode(message.code))
+                    }
+                }
                 is ServerMessage.IceCandidateAdded -> Unit
+                is ServerMessage.RemoteIceCandidate -> {
+                    val negotiationId = message.negotiationId
+                    if (negotiationId != null && negotiationId == activeNegotiationId) {
+                        message.candidate?.let { candidate ->
+                            if (remoteDescriptionNegotiationId == negotiationId) {
+                                peerConnection?.addIceCandidate(candidate)
+                            } else {
+                                pendingRemoteCandidates += negotiationId to candidate
+                            }
+                        }
+                    }
+                }
             }
         } catch (_: Exception) {
-            fail(ConnectionFailure.GENERIC)
+            if (recoveryWindow.deadlineMillis != null) {
+                activeNegotiationId?.let(::onNegotiationFailure)
+            } else {
+                fail(ConnectionFailure.GENERIC)
+            }
         }
     }
 
-    private fun applyAnswer(sdp: String) {
+    private fun applyAnswer(sdp: String, negotiationId: String) {
         if (!isActive()) return
         val connection = peerConnection ?: return
+        if (connection.signalingState() != PeerConnection.SignalingState.HAVE_LOCAL_OFFER) return
         connection.setRemoteDescription(
             object : SdpObserverAdapter() {
                 override fun onSetSuccess() {
                     executeOnOwner {
-                        if (isActive() && peerConnection === connection) {
-                            updateState(WebRtcConnectionState.CONNECTING)
+                        if (isActive() && peerConnection === connection && activeNegotiationId == negotiationId) {
+                            answerTimeoutTask?.cancel(false)
+                            answerTimeoutTask = null
+                            remoteDescriptionNegotiationId = negotiationId
+                            pendingRemoteCandidates.filter { it.first == negotiationId }
+                                .forEach { (_, candidate) -> connection.addIceCandidate(candidate) }
+                            pendingRemoteCandidates.clear()
+                            if (recoveryWindow.deadlineMillis != null) {
+                                recoveryAttemptActive = false
+                                scheduleRecoveryAttempt(12_000)
+                                updateConnectedState()
+                            } else {
+                                updateState(WebRtcConnectionState.CONNECTING)
+                            }
                         }
                     }
                 }
 
                 override fun onSetFailure(error: String) {
-                    fail(ConnectionFailure.GENERIC)
+                    executeOnOwner { onNegotiationFailure(negotiationId) }
                 }
             },
             SessionDescription(SessionDescription.Type.ANSWER, sdp),
@@ -935,10 +1033,149 @@ class WebRtcConnection(
 
     private fun updateConnectedState() {
         if (!peerConnectionConnected || !audioInputVerified) return
+        if (recoveryWindow.deadlineMillis != null && recoveryWindow.attempts > 0 &&
+            remoteDescriptionNegotiationId != activeNegotiationId) return
 
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null
+        hasConnected = true
+        if (recoveryWindow.deadlineMillis != null) {
+            recoveryWindow.clear()
+            recoveryTask?.cancel(false)
+            recoveryTask = null
+            recoveryDeadlineTask?.cancel(false)
+            recoveryDeadlineTask = null
+            answerTimeoutTask?.cancel(false)
+            answerTimeoutTask = null
+            recoveryAttemptActive = false
+            recoveryOfferPending = false
+            Log.i("LiveConnection", "network_recovery_succeeded")
+        }
         updateState(WebRtcConnectionState.CONNECTED)
+    }
+
+    private fun onSignalingFailure() {
+        if (!hasConnected) {
+            fail(ConnectionFailure.DISCONNECTED)
+        } else if (recoveryWindow.deadlineMillis != null && recoveryAttemptActive) {
+            activeNegotiationId?.let(::onNegotiationFailure)
+        } else {
+            scheduleRecovery(immediate = true)
+        }
+    }
+
+    private fun scheduleRecovery(immediate: Boolean) {
+        if (!isActive()) return
+        if (!hasConnected || session == null) {
+            fail(ConnectionFailure.DISCONNECTED)
+            return
+        }
+        if (recoveryWindow.deadlineMillis == null) {
+            val now = SystemClock.elapsedRealtime()
+            recoveryWindow.begin(now)
+            peerConnectionConnected = false
+            updateState(WebRtcConnectionState.RECONNECTING)
+            recoveryDeadlineTask = timerExecutor.schedule(
+                {
+                    executeOnOwner {
+                        if (recoveryWindow.deadlineMillis != null && isActive()) {
+                            if (peerConnection?.connectionState() == PeerConnection.PeerConnectionState.CONNECTED) {
+                                peerConnectionConnected = true
+                                updateConnectedState()
+                                if (recoveryWindow.deadlineMillis != null) fail(ConnectionFailure.DISCONNECTED)
+                            } else {
+                                fail(ConnectionFailure.DISCONNECTED)
+                            }
+                        }
+                    }
+                },
+                recoveryWindow.remainingMillis(now),
+                TimeUnit.MILLISECONDS,
+            )
+            Log.w("LiveConnection", "network_recovery_started")
+        }
+        if (recoveryAttemptActive || recoveryOfferPending || recoveryTask != null) return
+        scheduleRecoveryAttempt(if (immediate) 0 else recoveryPolicy.debounceMillis)
+    }
+
+    private fun scheduleRecoveryAttempt(delayMillis: Long) {
+        if (recoveryWindow.deadlineMillis == null || !isActive()) return
+        recoveryTask?.cancel(false)
+        recoveryTask = timerExecutor.schedule(
+            { executeOnOwner { recoveryTask = null; runRecoveryAttempt() } },
+            delayMillis.coerceAtMost(recoveryWindow.remainingMillis(SystemClock.elapsedRealtime())),
+            TimeUnit.MILLISECONDS,
+        )
+    }
+
+    private fun runRecoveryAttempt() {
+        if (!isActive() || recoveryWindow.deadlineMillis == null) return
+        val connection = peerConnection ?: return fail(ConnectionFailure.DISCONNECTED)
+        if (connection.connectionState() == PeerConnection.PeerConnectionState.CONNECTED) {
+            peerConnectionConnected = true
+            updateConnectedState()
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (!recoveryWindow.mayAttempt(now)) {
+            fail(ConnectionFailure.DISCONNECTED)
+            return
+        }
+        if (connection.signalingState() != PeerConnection.SignalingState.STABLE) {
+            recoveryOfferPending = true
+            return
+        }
+        recoveryOfferPending = false
+        recoveryWindow.recordAttempt(now)
+        recoveryAttemptActive = true
+        val negotiationId = UUID.randomUUID().toString()
+        activeNegotiationId = negotiationId
+        remoteDescriptionNegotiationId = null
+        localIceUfrags = emptySet()
+        pendingRemoteCandidates.clear()
+        synchronized(signalLock) {
+            offerSent = false
+            pendingSignals.clear()
+        }
+        webSocket?.close(1000, null)
+        webSocket = null
+        try {
+            openSignalingSocket(checkNotNull(session), negotiationId, iceRestart = true)
+            Log.i("LiveConnection", "network_recovery_attempt count=${recoveryWindow.attempts}")
+        } catch (_: Exception) {
+            onNegotiationFailure(negotiationId)
+        }
+    }
+
+    private fun onNegotiationFailure(negotiationId: String) {
+        if (!isActive() || activeNegotiationId != negotiationId) return
+        if (recoveryWindow.deadlineMillis == null) {
+            fail(ConnectionFailure.GENERIC)
+            return
+        }
+        if (!recoveryAttemptActive) return
+        recoveryAttemptActive = false
+        activeNegotiationId = null
+        answerTimeoutTask?.cancel(false)
+        answerTimeoutTask = null
+        webSocket?.close(1000, null)
+        webSocket = null
+        pendingRemoteCandidates.clear()
+        val connection = peerConnection ?: return fail(ConnectionFailure.DISCONNECTED)
+        val retry = {
+            if (activeNegotiationId == null) scheduleRecoveryAttempt(recoveryPolicy.debounceMillis)
+        }
+        if (connection.signalingState() == PeerConnection.SignalingState.HAVE_LOCAL_OFFER) {
+            connection.setLocalDescription(
+                object : SdpObserverAdapter() {
+                    override fun onSetSuccess() { executeOnOwner { if (isActive()) retry() } }
+                    override fun onSetFailure(error: String) { fail(ConnectionFailure.DISCONNECTED) }
+                },
+                SessionDescription(SessionDescription.Type.ROLLBACK, ""),
+            )
+        } else {
+            retry()
+        }
     }
 
     private fun fail(failure: ConnectionFailure) {
@@ -1003,6 +1240,14 @@ class WebRtcConnection(
         connectionTimeoutTask = null
         audioRouteVerificationTask?.cancel(false)
         audioRouteVerificationTask = null
+        recoveryTask?.cancel(false)
+        recoveryTask = null
+        recoveryDeadlineTask?.cancel(false)
+        recoveryDeadlineTask = null
+        answerTimeoutTask?.cancel(false)
+        answerTimeoutTask = null
+        recoveryWindow.clear()
+        pendingRemoteCandidates.clear()
 
         runCatching { clearBluetoothCommunicationRoute() }
         runCatching { onLocalMediaCleared() }
@@ -1172,17 +1417,22 @@ class WebRtcConnection(
     }
 
     private val peerConnectionObserver = object : PeerConnection.Observer {
-        override fun onSignalingChange(state: PeerConnection.SignalingState) = Unit
+        override fun onSignalingChange(state: PeerConnection.SignalingState) {
+            if (state == PeerConnection.SignalingState.STABLE) {
+                executeOnOwner {
+                    if (isActive() && recoveryOfferPending) {
+                        recoveryOfferPending = false
+                        scheduleRecoveryAttempt(0)
+                    }
+                }
+            }
+        }
 
         override fun onIceConnectionChange(state: PeerConnection.IceConnectionState) = Unit
 
         override fun onIceConnectionReceivingChange(receiving: Boolean) = Unit
 
-        override fun onIceGatheringChange(state: PeerConnection.IceGatheringState) {
-            if (state == PeerConnection.IceGatheringState.COMPLETE) {
-                executeOnOwner { sendIceCandidate(null) }
-            }
-        }
+        override fun onIceGatheringChange(state: PeerConnection.IceGatheringState) = Unit
 
         override fun onIceCandidate(candidate: IceCandidate) {
             executeOnOwner { sendIceCandidate(candidate) }
@@ -1199,20 +1449,24 @@ class WebRtcConnection(
         override fun onRenegotiationNeeded() = Unit
 
         override fun onConnectionChange(state: PeerConnection.PeerConnectionState) {
-            when (state) {
-                PeerConnection.PeerConnectionState.CONNECTED -> {
-                    executeOnOwner {
-                        if (!isActive()) return@executeOnOwner
+            executeOnOwner {
+                if (!isActive()) return@executeOnOwner
+                when (state) {
+                    PeerConnection.PeerConnectionState.CONNECTED -> {
                         peerConnectionConnected = true
                         updateConnectedState()
                     }
+                    PeerConnection.PeerConnectionState.DISCONNECTED -> {
+                        peerConnectionConnected = false
+                        if (hasConnected) scheduleRecovery(immediate = false)
+                    }
+                    PeerConnection.PeerConnectionState.FAILED -> {
+                        peerConnectionConnected = false
+                        scheduleRecovery(immediate = true)
+                    }
+                    PeerConnection.PeerConnectionState.CLOSED -> fail(ConnectionFailure.DISCONNECTED)
+                    else -> Unit
                 }
-
-                PeerConnection.PeerConnectionState.FAILED,
-                PeerConnection.PeerConnectionState.DISCONNECTED,
-                -> fail(ConnectionFailure.DISCONNECTED)
-
-                else -> Unit
             }
         }
 
@@ -1329,6 +1583,19 @@ private fun parseIceServers(payload: String): List<PeerConnection.IceServer> {
         }
     }
 }
+
+internal fun extractIceUfrags(sdp: String): Set<String> =
+    Regex("(?m)^a=ice-ufrag:([^\\r\\n]+)")
+        .findAll(sdp)
+        .map { it.groupValues[1].trim() }
+        .filter(String::isNotEmpty)
+        .toSet()
+
+internal fun extractCandidateUfrag(candidate: String): String? =
+    Regex("(?:^|\\s)ufrag\\s+(\\S+)")
+        .find(candidate)
+        ?.groupValues
+        ?.get(1)
 
 private fun requireSuccessful(response: Response, operation: String) {
     if (!response.isSuccessful) {

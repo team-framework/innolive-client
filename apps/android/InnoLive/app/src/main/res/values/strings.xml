@@ -123,6 +123,7 @@
     <string name="broadcast_settings_connection_required">비식별화 연결 후 방송 설정을 저장할 수 있습니다.</string>
     <string name="preview_connected">미리보기 연결됨</string>
     <string name="preview_connecting">미리보기 연결 중…</string>
+    <string name="preview_reconnecting">네트워크 연결을 복구하는 중…</string>
     <string name="permission_media_required">카메라와 마이크 권한이 필요합니다.</string>
     <string name="action_allow_permissions">권한 허용</string>
     <string name="face_management">얼굴 관리</string>
