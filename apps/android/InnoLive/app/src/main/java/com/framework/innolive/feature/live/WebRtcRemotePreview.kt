@@ -19,6 +19,7 @@ import org.webrtc.VideoTrack
 fun WebRtcRemotePreview(
     remoteVideoTrack: VideoTrack?,
     eglContext: EglBase.Context?,
+    cameraLensFacing: CameraLensFacing,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -33,7 +34,7 @@ fun WebRtcRemotePreview(
             SurfaceViewRenderer(context).apply {
                 init(eglContext, null)
                 setEnableHardwareScaler(true)
-                setMirror(false)
+                setMirror(cameraLensFacing.shouldMirrorPreview)
                 setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
             }
         }
@@ -51,6 +52,7 @@ fun WebRtcRemotePreview(
         AndroidView(
             factory = { renderer },
             modifier = Modifier.fillMaxSize(),
+            update = { it.setMirror(cameraLensFacing.shouldMirrorPreview) },
         )
     }
 }

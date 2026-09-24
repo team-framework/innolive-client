@@ -45,6 +45,7 @@ fun LiveVideoPanels(
             WebRtcRemotePreview(
                 remoteVideoTrack = remoteVideoTrack,
                 eglContext = eglContext,
+                cameraLensFacing = cameraLensFacing,
                 modifier = mainModifier,
             )
             CameraPreview(
@@ -63,6 +64,7 @@ fun LiveVideoPanels(
             WebRtcRemotePreview(
                 remoteVideoTrack = null,
                 eglContext = eglContext,
+                cameraLensFacing = cameraLensFacing,
                 modifier = pipModifier,
             )
         }
