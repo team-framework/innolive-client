@@ -57,6 +57,10 @@ class WebRtcSessionViewModel : ViewModel() {
         private set
     var eglContext: EglBase.Context? by mutableStateOf(null)
         private set
+    var lockedBroadcastRotation: Int? by mutableStateOf(null)
+        private set
+    var lockedScreenOrientation: Int? by mutableStateOf(null)
+        private set
 
     private var connection: WebRtcConnection? = null
     private var closingConnection: WebRtcConnection? = null
@@ -114,6 +118,8 @@ class WebRtcSessionViewModel : ViewModel() {
         isAnonymizationSelectionLoaded = true
         val initialEnabled = selectedAnonymizationEnabled
         sessionState = sessionState.beginConnection()
+        lockedBroadcastRotation = null
+        lockedScreenOrientation = null
         val generation = sessionState.generation
         startJob?.cancel()
         startJob = null
@@ -150,6 +156,10 @@ class WebRtcSessionViewModel : ViewModel() {
                         if (sessionState.acceptsCallback(generation)) {
                             sessionState = sessionState.connectionChanged(generation, state)
                             connectionStatus = connectionUserMessage(state, failure)
+                            if (state == WebRtcConnectionState.FAILED) {
+                                lockedBroadcastRotation = null
+                                lockedScreenOrientation = null
+                            }
                             if (state == WebRtcConnectionState.FAILED && broadcastState != BroadcastState.IDLE) {
                                 broadcastState = BroadcastState.FAILED
                                 broadcastStatus = UiText.Resource(
@@ -184,6 +194,11 @@ class WebRtcSessionViewModel : ViewModel() {
                     },
                     onBroadcastStateChanged = { state, event ->
                         if (sessionState.acceptsCallback(generation)) {
+                            lockedBroadcastRotation = nextBroadcastRotation(
+                                lockedBroadcastRotation,
+                                state,
+                            )
+                            if (lockedBroadcastRotation == null) lockedScreenOrientation = null
                             broadcastStartedAtElapsedRealtimeMillis = nextBroadcastStartedAt(
                                 currentStartedAtMillis = broadcastStartedAtElapsedRealtimeMillis,
                                 state = state,
@@ -326,8 +341,20 @@ class WebRtcSessionViewModel : ViewModel() {
         return false
     }
 
-    fun goLive() {
-        connection?.goLive()
+    fun goLive(rotation: Int, screenOrientation: Int, onAccepted: () -> Unit): Boolean {
+        val activeConnection = connection ?: return false
+        val previousRotation = lockedBroadcastRotation
+        val previousScreenOrientation = lockedScreenOrientation
+        val accepted = activeConnection.goLive {
+            lockedBroadcastRotation = rotation
+            lockedScreenOrientation = screenOrientation
+            onAccepted()
+        }
+        if (!accepted) {
+            lockedBroadcastRotation = previousRotation
+            lockedScreenOrientation = previousScreenOrientation
+        }
+        return accepted
     }
 
     fun pauseBroadcast() {
@@ -343,6 +370,8 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun close() {
+        lockedBroadcastRotation = null
+        lockedScreenOrientation = null
         sessionState = sessionState.endConnection()
         prepareJob?.cancel()
         prepareJob = null

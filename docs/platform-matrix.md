@@ -31,3 +31,10 @@ for implementation scope and verification limits. The existing
 [iOS connection flow](ios-connection-feedback.md) connects on home entry;
 the proposed deferred connection flow must not be assumed to be implemented
 on iOS merely because Android uses it.
+
+### Android broadcast orientation (2026-09-25)
+
+Android locks its Activity and CameraX output to the display direction accepted at
+`goLive`, then releases the lock on start failure, successful stop, or terminal
+connection failure. See [Android broadcast orientation](android-broadcast-orientation.md)
+for state transitions, verification, and the current reconnect limitation.

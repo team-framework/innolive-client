@@ -1,6 +1,7 @@
 package com.framework.innolive.app
 
 import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.media.AudioDeviceInfo
 import android.os.Bundle
@@ -149,6 +150,14 @@ class MainActivity : ComponentActivity() {
         val authenticationSession =
             ViewModelProvider(this)[AuthenticationSessionViewModel::class.java]
         setContent {
+            LaunchedEffect(webRtcSession.lockedScreenOrientation) {
+                val lockedOrientation = webRtcSession.lockedScreenOrientation
+                if (lockedOrientation != null) {
+                    requestedOrientation = lockedOrientation
+                } else if (requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) {
+                    requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+            }
             MyApplicationTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),

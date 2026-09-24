@@ -23,6 +23,7 @@ class BroadcastLiveDeviceTest {
         }
         val preference = AnonymizationPreference(compose.activity)
         val originalSelection = preference.enabled
+        val originalOrientation = compose.activity.requestedOrientation
         lateinit var session: WebRtcSessionViewModel
         lateinit var auth: AuthenticationSessionViewModel
         compose.runOnIdle {
@@ -45,7 +46,15 @@ class BroadcastLiveDeviceTest {
             val originalTrack = session.remoteVideoTrack
             compose.runOnIdle {
                 assertEquals(AnonymizationState.DISABLED, session.anonymizationState)
-                session.goLive()
+                val activity = compose.activity
+                val rotation = checkNotNull(activity.display).rotation
+                val orientation = screenOrientationFor(
+                    rotation,
+                    activity.resources.configuration.orientation,
+                )
+                assertTrue(session.goLive(rotation, orientation) {
+                    activity.requestedOrientation = orientation
+                })
             }
             awaitBroadcast(session, BroadcastState.LIVE)
             for (enabled in listOf(true, false)) {
@@ -86,7 +95,11 @@ class BroadcastLiveDeviceTest {
                     awaitBroadcast(session, BroadcastState.IDLE)
                 }
             } finally {
-                compose.runOnIdle { session.close(); preference.enabled = originalSelection }
+                compose.runOnIdle {
+                    session.close()
+                    preference.enabled = originalSelection
+                    compose.activity.requestedOrientation = originalOrientation
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live
 
+import android.app.Activity
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -138,6 +139,7 @@ fun LiveScreen(
                 cameraLensFacing = props.cameraLensFacing,
                 cameraResolution = props.cameraResolution,
                 frameAnalyzer = webRtcSession.frameAnalyzer,
+                lockedRotation = webRtcSession.lockedBroadcastRotation,
                 remoteVideoTrack = webRtcSession.remoteVideoTrack,
                 eglContext = webRtcSession.eglContext,
                 isConnected = presentation.isConnected,
@@ -278,7 +280,20 @@ fun LiveScreen(
                             onDismiss = { openBroadcastActions = false },
                             onGoLive = {
                                 openBroadcastActions = false
-                                webRtcSession.goLive()
+                                val activity = context as? Activity
+                                val rotation = activity?.display?.rotation
+                                if (activity != null && rotation != null) {
+                                    val previousOrientation = activity.requestedOrientation
+                                    val screenOrientation = screenOrientationFor(
+                                        rotation,
+                                        activity.resources.configuration.orientation,
+                                    )
+                                    if (!webRtcSession.goLive(rotation, screenOrientation) {
+                                            activity.requestedOrientation = screenOrientation
+                                        }) {
+                                        activity.requestedOrientation = previousOrientation
+                                    }
+                                }
                             },
                             onCancelPreparation = {
                                 openBroadcastActions = false

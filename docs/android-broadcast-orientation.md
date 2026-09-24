@@ -1,0 +1,20 @@
+# Android YouTube 방송 방향 고정
+
+대상은 `apps/android/InnoLive/app`의 방송 화면, CameraX 미리보기와 WebRTC 송출 프레임이다. HTTP/WebRTC signaling 계약은 변경하지 않는다. iOS 기준 동작은 [iOS 방송 방향 고정](ios-broadcast-orientation.md)을 따른다.
+
+## 동작
+
+방송 준비 및 `prepared` 상태에서는 Android의 화면 회전 설정에 따라 화면과 미리보기가 회전한다. `goLive` 작업이 수락되면 첫 방송 시작 요청 전에 현재 디스플레이 회전을 저장하고, 화면 방향과 CameraX `Preview` 및 `ImageAnalysis` 대상 회전을 고정한다. 세로와 좌우 가로 방향을 구분한다.
+
+`going_live`, `live`, 일시 중지, 재개, 종료 요청 중에는 같은 방향을 유지한다. 중복 `goLive` 요청은 기존 잠금을 변경하지 않는다. 방송 시작이 실패해 `prepared`로 돌아가거나 종료가 성공하면 잠금을 해제한다. 종료 요청 실패 시에는 기존 라이브 또는 일시 중지 상태로 복귀해 방향을 유지하고 재시도할 수 있다. 연결 최종 실패, 세션 교체, 로그아웃으로 인한 `close`도 잠금을 해제한다.
+
+카메라 전환과 해상도 변경으로 CameraX use case가 다시 바인딩되면 저장된 대상 회전을 다시 적용한다. CameraX가 카메라 센서와 전·후면을 고려해 산출한 `ImageProxy.imageInfo.rotationDegrees`를 기존 `VideoFrame`에 전달한다. 픽셀 버퍼와 타임스탬프는 변경하지 않는다. 가로 화면에서는 메인 및 작은 미리보기의 가로세로 비율을 16:9로 사용한다.
+
+Android WebRTC 연결은 현재 `DISCONNECTED` 또는 `FAILED`를 최종 실패로 처리하며 방송 중 업링크를 자동 재연결하지 않는다. 따라서 iOS의 재연결 중 잠금 유지 동작은 Android에서 아직 재현할 수 없다. 재연결 기능을 별도로 도입할 때 저장된 방향을 새 CameraX use case와 송출 경로에 전달해야 한다.
+
+## 검증
+
+- 단위 테스트: `./gradlew :app:testDebugUnitTest --offline`
+- 기기 API 흐름 테스트: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.framework.innolive.feature.live.BroadcastApiFlowTest --offline`
+- 실제 방송 수동 확인: 세로, 가로 왼쪽, 가로 오른쪽에서 각각 비공개 방송을 시작한다. 방송 중 기기를 돌리고 전·후면 카메라를 전환한 뒤 로컬 미리보기와 YouTube 수신 화면의 방향을 확인한다. 일시 중지·재개, 방송 시작 실패, 종료 실패·재시도도 확인한다.
+- 태블릿 창 모드 및 화면 회전 제한 설정에서는 Android가 Activity 방향 요청을 제한할 수 있으므로 별도 확인한다.

@@ -370,22 +370,23 @@ class WebRtcConnection(
         }
     }
 
-    fun goLive() {
-        if (!broadcastState.canGoLive) return
-        runBroadcastOperation {
+    fun goLive(onAccepted: () -> Unit = {}): Boolean {
+        if (!broadcastState.canGoLive) return false
+        return runBroadcastOperation(onAccepted = onAccepted) {
             updateBroadcastState(BroadcastState.GOING_LIVE)
             try {
                 goLiveWithRetry()
                 updateBroadcastState(BroadcastState.LIVE)
             } catch (exception: ServerApiException) {
-                if (exception.code == "broadcast_not_ready") {
-                    updateBroadcastState(
-                        BroadcastState.PREPARED,
-                        BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_NOT_READY),
-                    )
-                    return@runBroadcastOperation
-                }
-                throw exception
+                updateBroadcastState(
+                    BroadcastState.PREPARED,
+                    exception.toBroadcastEvent(BroadcastFailure.REQUEST),
+                )
+            } catch (_: Exception) {
+                updateBroadcastState(
+                    BroadcastState.PREPARED,
+                    BroadcastEvent.Failure(BroadcastFailure.REQUEST),
+                )
             }
         }
     }
@@ -435,15 +436,37 @@ class WebRtcConnection(
     fun stopBroadcast() {
         if (!broadcastState.canStop) return
         runBroadcastOperation {
+            val previousState = broadcastState
             val stoppingState = broadcastState.stoppingState()
             updateBroadcastState(stoppingState)
-            postSessionRequest("stream/stop")
-            updateBroadcastState(BroadcastState.IDLE)
+            try {
+                postSessionRequest("stream/stop")
+                updateBroadcastState(BroadcastState.IDLE)
+            } catch (exception: ServerApiException) {
+                updateBroadcastState(
+                    previousState,
+                    exception.toBroadcastEvent(BroadcastFailure.REQUEST),
+                )
+            } catch (_: Exception) {
+                updateBroadcastState(
+                    previousState,
+                    BroadcastEvent.Failure(BroadcastFailure.REQUEST),
+                )
+            }
         }
     }
 
-    private fun runBroadcastOperation(operation: () -> Unit): Boolean {
+    private fun runBroadcastOperation(
+        onAccepted: () -> Unit = {},
+        operation: () -> Unit,
+    ): Boolean {
         if (!isActive() || !broadcastOperation.compareAndSet(false, true)) return false
+        try {
+            onAccepted()
+        } catch (_: Exception) {
+            broadcastOperation.set(false)
+            return false
+        }
         return executeOnOwner(
             block = {
                 try {

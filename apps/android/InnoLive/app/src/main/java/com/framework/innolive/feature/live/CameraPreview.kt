@@ -1,5 +1,10 @@
 package com.framework.innolive.feature.live
 
+import android.app.Activity
+import android.content.res.Configuration
+import android.hardware.display.DisplayManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Rational
 import android.util.Size
 import android.view.Surface
@@ -21,11 +26,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
@@ -39,10 +46,28 @@ fun CameraPreview(
     cameraLensFacing: CameraLensFacing,
     cameraResolution: CameraResolution?,
     frameAnalyzer: CameraFrameAnalyzer? = null,
+    lockedRotation: Int? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    var displayRotation by remember(context) {
+        mutableIntStateOf((context as? Activity)?.display?.rotation ?: Surface.ROTATION_0)
+    }
+    DisposableEffect(context) {
+        val displayManager = context.getSystemService(DisplayManager::class.java)
+        val listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) = Unit
+            override fun onDisplayRemoved(displayId: Int) = Unit
+            override fun onDisplayChanged(displayId: Int) {
+                val display = (context as? Activity)?.display ?: return
+                if (display.displayId == displayId) displayRotation = display.rotation
+            }
+        }
+        displayManager.registerDisplayListener(listener, Handler(Looper.getMainLooper()))
+        onDispose { displayManager.unregisterDisplayListener(listener) }
+    }
     val previewView = remember(context) {
         PreviewView(context).apply {
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
@@ -63,6 +88,7 @@ fun CameraPreview(
         }
     }
     var hasCameraError by remember { mutableStateOf(false) }
+    val targetRotation = lockedRotation ?: displayRotation
 
     DisposableEffect(
         context,
@@ -71,6 +97,8 @@ fun CameraPreview(
         cameraLensFacing,
         cameraResolution,
         frameAnalyzer,
+        targetRotation,
+        isLandscape,
     ) {
         hasCameraError = false
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -93,6 +121,7 @@ fun CameraPreview(
             .apply {
                 resolutionSelector?.let(::setResolutionSelector)
             }
+            .setTargetRotation(targetRotation)
             .build()
             .apply {
                 surfaceProvider = previewView.surfaceProvider
@@ -102,6 +131,7 @@ fun CameraPreview(
             ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                .setTargetRotation(targetRotation)
                 .apply {
                     resolutionSelector?.let(::setResolutionSelector)
                 }
@@ -133,8 +163,8 @@ fun CameraPreview(
                             }
                             .setViewPort(
                                 ViewPort.Builder(
-                                    Rational(9, 16),
-                                    previewView.display?.rotation ?: Surface.ROTATION_0,
+                                    if (isLandscape) Rational(16, 9) else Rational(9, 16),
+                                    targetRotation,
                                 )
                                     .setScaleType(ViewPort.FILL_CENTER)
                                     .build(),
