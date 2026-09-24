@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -369,14 +370,7 @@ internal fun FaceRegistrationScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 latestBitmap?.let { bitmap ->
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = stringResource(
-                            R.string.content_description_face_registration_preview,
-                        ),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.FillBounds,
-                    )
+                    FaceRegistrationPreviewImage(bitmap, cameraLensFacing)
                 } ?: Text(
                     text = stringResource(R.string.face_camera_preparing),
                     color = Color.White,
@@ -436,6 +430,23 @@ internal fun FaceRegistrationScreen(
             }
         }
     }
+}
+
+@Composable
+internal fun FaceRegistrationPreviewImage(
+    bitmap: Bitmap,
+    cameraLensFacing: CameraLensFacing,
+) {
+    Image(
+        bitmap = bitmap.asImageBitmap(),
+        contentDescription = stringResource(R.string.content_description_face_registration_preview),
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                scaleX = if (cameraLensFacing.shouldMirrorPreview) -1f else 1f
+            },
+        contentScale = ContentScale.FillBounds,
+    )
 }
 
 internal fun ReferenceFaceApiException.toUserMessage(): UiText = when {

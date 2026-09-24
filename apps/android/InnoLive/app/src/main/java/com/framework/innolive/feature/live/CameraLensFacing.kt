@@ -7,6 +7,9 @@ enum class CameraLensFacing(
     FRONT("전면 카메라"),
     ;
 
+    val shouldMirrorPreview: Boolean
+        get() = this == FRONT
+
     companion object {
         fun supported(
             hasBackCamera: Boolean,

@@ -2,6 +2,8 @@ package com.framework.innolive
 
 import com.framework.innolive.feature.live.CameraLensFacing
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CameraLensFacingTest {
@@ -17,5 +19,11 @@ class CameraLensFacingTest {
         )
         assertEquals("후면 카메라", CameraLensFacing.BACK.displayName)
         assertEquals("전면 카메라", CameraLensFacing.FRONT.displayName)
+    }
+
+    @Test
+    fun previewMirroringIsEnabledOnlyForFrontCamera() {
+        assertTrue(CameraLensFacing.FRONT.shouldMirrorPreview)
+        assertFalse(CameraLensFacing.BACK.shouldMirrorPreview)
     }
 }
