@@ -20,16 +20,17 @@ fun LiveVideoPanels(
     cameraLensFacing: CameraLensFacing,
     cameraResolution: CameraResolution?,
     frameAnalyzer: CameraFrameAnalyzer?,
+    lockedRotation: Int?,
     remoteVideoTrack: VideoTrack?,
     eglContext: EglBase.Context?,
     isConnected: Boolean,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
-        val aspectRatio = 9f / 16f
-        val mainWidth = maxWidth
+        val aspectRatio = if (maxWidth > maxHeight) 16f / 9f else 9f / 16f
+        val mainWidth = minOf(maxWidth, maxHeight * aspectRatio)
         val mainHeight = mainWidth / aspectRatio
-        val pipWidth = maxWidth * 0.3f
+        val pipWidth = minOf(maxWidth * 0.3f, maxHeight * 0.42f * aspectRatio)
         val pipHeight = pipWidth / aspectRatio
         val mainModifier = Modifier
             .align(Alignment.Center)
@@ -52,6 +53,7 @@ fun LiveVideoPanels(
                 cameraLensFacing = cameraLensFacing,
                 cameraResolution = cameraResolution,
                 frameAnalyzer = frameAnalyzer,
+                lockedRotation = lockedRotation,
                 modifier = pipModifier,
             )
         } else {
@@ -59,6 +61,7 @@ fun LiveVideoPanels(
                 cameraLensFacing = cameraLensFacing,
                 cameraResolution = cameraResolution,
                 frameAnalyzer = frameAnalyzer,
+                lockedRotation = lockedRotation,
                 modifier = mainModifier,
             )
             WebRtcRemotePreview(

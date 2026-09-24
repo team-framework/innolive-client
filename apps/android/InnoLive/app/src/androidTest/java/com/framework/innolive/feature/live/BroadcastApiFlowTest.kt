@@ -16,6 +16,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 // 제품의 요청 생성·응답 처리·작업 큐를 실행한다. 네트워크와 미디어 연결은 검증하지 않는다.
 class BroadcastApiFlowTest {
@@ -172,8 +173,38 @@ class BroadcastApiFlowTest {
             assertEquals(2, h.requests.count { it.url.encodedPath.endsWith("golive") })
             h.stopStatus = 500
             h.connection.stopBroadcast()
-            h.awaitState(BroadcastState.FAILED)
+            h.awaitState(BroadcastState.LIVE)
             assertFalse(h.states.contains(BroadcastState.IDLE))
+            h.stopStatus = 200
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.IDLE)
+        }
+    }
+
+    @Test fun acceptedGoLiveLocksBeforeItsRequestAndFailureCanRetry() {
+        Harness().use { h ->
+            var acceptedCount = 0
+            assertFalse(h.connection.goLive { acceptedCount++ })
+            assertEquals(0, acceptedCount)
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+
+            h.goLiveStatus = 500
+            assertTrue(h.connection.goLive {
+                acceptedCount++
+                h.goLiveAccepted.set(true)
+                assertFalse(h.connection.goLive { acceptedCount++ })
+            })
+            h.awaitState(BroadcastState.PREPARED)
+            assertTrue(h.acceptedAtGoLiveRequest)
+            assertEquals(1, acceptedCount)
+
+            h.goLiveStatus = 200
+            assertTrue(h.connection.goLive { acceptedCount++ })
+            h.awaitState(BroadcastState.LIVE)
+            assertEquals(2, acceptedCount)
+            assertFalse(h.connection.goLive { acceptedCount++ })
+            assertEquals(2, acceptedCount)
         }
     }
 
@@ -221,6 +252,9 @@ class BroadcastApiFlowTest {
         @Volatile var resumeStatus = 200
         @Volatile var deleteStatus = 204
         @Volatile var goLiveNotReady = false
+        @Volatile var goLiveStatus = 200
+        val goLiveAccepted = AtomicBoolean(false)
+        @Volatile var acceptedAtGoLiveRequest = false
         @Volatile var serverErrorMessage: String? = null
         @Volatile var serverErrorCode: String? = null
         val connection = WebRtcConnection(
@@ -258,6 +292,10 @@ class BroadcastApiFlowTest {
                         goLiveNotReady = false
                         payload = """{"error":{"code":"broadcast_not_ready","message":"not ready"}}"""
                         409
+                    }
+                    request.url.encodedPath.endsWith("golive") -> {
+                        acceptedAtGoLiveRequest = goLiveAccepted.get()
+                        goLiveStatus
                     }
                     request.url.encodedPath.endsWith("stop") -> stopStatus
                     request.url.encodedPath.endsWith("pause") -> pauseStatus
