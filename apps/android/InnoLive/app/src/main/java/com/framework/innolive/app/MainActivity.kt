@@ -838,6 +838,27 @@ fun AppNavigation(
 
                 BroadcastSettingRoute -> {
                     NavEntry(route) {
+                        val saveDisabledReasonRes = when {
+                            webRtcSession.connectionState != WebRtcConnectionState.CONNECTED ->
+                                R.string.broadcast_settings_connection_required
+                            broadcastAudience == "unset" -> R.string.validation_audience
+                            webRtcSession.broadcastState == BroadcastState.SAVING_SETTINGS ->
+                                R.string.broadcast_settings_saving
+                            webRtcSession.broadcastState in setOf(
+                                BroadcastState.PREPARING,
+                                BroadcastState.PREPARED,
+                                BroadcastState.GOING_LIVE,
+                                BroadcastState.LIVE,
+                                BroadcastState.STOPPING,
+                            ) -> R.string.broadcast_settings_save_unavailable
+                            else -> null
+                        }
+                        val connectDisabledReasonRes = when {
+                            session == null -> R.string.youtube_status_sign_in_required
+                            isYouTubeAccountOperationInProgress ->
+                                R.string.youtube_account_action_in_progress
+                            else -> null
+                        }
                         BroadcastSetting(
                             props = BroadcastSettingProps(
                                 onBack = onBack,
@@ -893,21 +914,13 @@ fun AppNavigation(
                                 isYouTubeAccountActionInProgress =
                                     isYouTubeAccountOperationInProgress,
                                 isYouTubeConnectEnabled = session != null,
+                                connectDisabledReasonRes = connectDisabledReasonRes,
                                 onConnectYouTube = connectYouTube,
                                 onSave = {
                                     webRtcSession.saveBroadcastSettings(broadcastSettings)
                                 },
-                                isSaveEnabled =
-                                    webRtcSession.connectionState == WebRtcConnectionState.CONNECTED &&
-                                        broadcastAudience != "unset" &&
-                                        webRtcSession.broadcastState !in setOf(
-                                            BroadcastState.SAVING_SETTINGS,
-                                            BroadcastState.PREPARING,
-                                            BroadcastState.PREPARED,
-                                            BroadcastState.GOING_LIVE,
-                                            BroadcastState.LIVE,
-                                            BroadcastState.STOPPING,
-                                        ),
+                                isSaveEnabled = saveDisabledReasonRes == null,
+                                saveDisabledReasonRes = saveDisabledReasonRes,
                                 statusMessage = if (
                                     webRtcSession.connectionState == WebRtcConnectionState.CONNECTED
                                 ) {

@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.settings.broadcast
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 
 @Immutable
@@ -23,8 +24,10 @@ data class BroadcastSettingProps(
     val isYouTubeReconnectRequired: Boolean,
     val isYouTubeAccountActionInProgress: Boolean,
     val isYouTubeConnectEnabled: Boolean,
+    @param:StringRes val connectDisabledReasonRes: Int?,
     val onConnectYouTube: () -> Unit,
     val onSave: () -> Unit,
     val isSaveEnabled: Boolean,
+    @param:StringRes val saveDisabledReasonRes: Int?,
     val statusMessage: String,
 )

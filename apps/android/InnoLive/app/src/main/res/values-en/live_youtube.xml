@@ -8,4 +8,6 @@
     <string name="anonymization_value_off">off</string>
     <string name="default_youtube_broadcast_title">%1$s InnoLive broadcast</string>
     <string name="google_user">Google user</string>
+    <string name="youtube_account_action_in_progress">A YouTube account operation is in progress.</string>
+    <string name="broadcast_settings_save_unavailable">Broadcast settings cannot be saved in the current broadcast state.</string>
 </resources>
