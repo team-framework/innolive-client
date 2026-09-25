@@ -30,6 +30,7 @@ final class CameraManager {
     private let sessionQueue = DispatchQueue(label: "com.innolive.camera.session")
     private var sessionCameraID: String?
     private var sessionTargetZoomFactor = CameraZoom.defaultFactor
+    private var sessionTargetExposureEV = BroadcastVideoQualitySettings.load().exposureEV
 
     func requestCameraAccess() {
         switch authorizationStatus {
@@ -92,6 +93,7 @@ final class CameraManager {
             updateCurrentCamera(device)
             if session.isRunning {
                 applyZoomOnSessionQueue(sessionTargetZoomFactor, to: device)
+                applyExposureOnSessionQueue(to: device)
             }
             return true
         } catch {
@@ -211,6 +213,9 @@ final class CameraManager {
         // Dual Wide/Triple은 startRunning 때 줌이 0.5로 내려가므로
         // 세션이 돈 뒤에 1x(또는 기억한 배율)를 다시 건다.
         applyZoomOnSessionQueue(sessionTargetZoomFactor)
+        if let device = videoInput?.device {
+            applyExposureOnSessionQueue(to: device)
+        }
     }
 
     @discardableResult
@@ -247,6 +252,21 @@ final class CameraManager {
         sessionQueue.async { [weak self] in
             self?.applyZoomOnSessionQueue(factor)
         }
+    }
+
+    func setExposureEV(_ exposureEV: Float) {
+        let normalized = VideoQualityCapturePolicy.clampedExposureEV(exposureEV, min: -2, max: 2)
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.sessionTargetExposureEV = normalized
+            if let device = self.videoInput?.device {
+                self.applyExposureOnSessionQueue(to: device)
+            }
+        }
+    }
+
+    private func applyExposureOnSessionQueue(to device: AVCaptureDevice) {
+        _ = CameraDeviceExposure.apply(sessionTargetExposureEV, to: device)
     }
 
     // sessionQueue에서 실행
@@ -297,6 +317,7 @@ final class CameraManager {
             if resetZoom {
                 resetZoomOnSessionQueue(device: device)
             }
+            applyExposureOnSessionQueue(to: device)
             return true
         } catch {
             print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
@@ -404,6 +425,27 @@ final class CameraManager {
                 self?.currentZoomFactor = resetFactor
                 self?.zoomRange = minFactor...maxFactor
             }
+        }
+    }
+}
+
+nonisolated enum CameraDeviceExposure {
+    @discardableResult
+    static func apply(_ requestedEV: Float, to device: AVCaptureDevice) -> Float? {
+        guard device.isExposureModeSupported(.continuousAutoExposure) else { return nil }
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            device.exposureMode = .continuousAutoExposure
+            let appliedEV = VideoQualityCapturePolicy.clampedExposureEV(
+                requestedEV,
+                min: device.minExposureTargetBias,
+                max: device.maxExposureTargetBias
+            )
+            device.setExposureTargetBias(appliedEV, completionHandler: nil)
+            return appliedEV
+        } catch {
+            return nil
         }
     }
 }

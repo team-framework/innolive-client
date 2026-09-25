@@ -190,6 +190,10 @@ extension WebRTCVideoUplink {
             }
         }
         if local { relay.setLocalAnonymizationEnabled(credentials?.localAnonymizationEnabled ?? true) }
+        relay.setColor(
+            warmth: videoQualitySettings.warmth,
+            saturation: videoQualitySettings.saturation
+        )
         return relay
     }
 
@@ -305,6 +309,7 @@ extension WebRTCVideoUplink {
                 }
             }
         }
+        applyCaptureAdjustments(capturer: capturer, device: device)
     }
 
     func stopCapture(_ capturer: LKRTCCameraVideoCapturer) async {
@@ -355,6 +360,63 @@ extension WebRTCVideoUplink {
         )
     }
 
+    private func applyCaptureAdjustments(
+        capturer: LKRTCCameraVideoCapturer,
+        device: AVCaptureDevice
+    ) {
+        applyExposureToCamera(device.uniqueID)
+        applyStabilization(to: capturer, device: device)
+    }
+
+    func applyStabilization(to capturer: LKRTCCameraVideoCapturer, device: AVCaptureDevice) {
+        stabilizationObservation = nil
+        let session = capturer.captureSession
+        let connection = videoCaptureConnection(in: session)
+        let requested = requestedStabilizationMode(for: device, connection: connection)
+        if let connection, connection.isVideoStabilizationSupported {
+            session.beginConfiguration()
+            connection.preferredVideoStabilizationMode = requested ?? .off
+            session.commitConfiguration()
+        }
+        publishStabilizationStatus(for: device, connection: connection)
+        guard let connection else { return }
+        stabilizationObservation = connection.observe(\.activeVideoStabilizationMode, options: [.new]) {
+            [weak self] connection, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.cameraCapturer != nil else { return }
+                self.publishStabilizationStatus(for: device, connection: connection)
+            }
+        }
+    }
+
+    private func requestedStabilizationMode(
+        for device: AVCaptureDevice,
+        connection: AVCaptureConnection?
+    ) -> AVCaptureVideoStabilizationMode? {
+        guard connection?.isVideoStabilizationSupported == true else { return nil }
+        let format = device.activeFormat
+        return VideoQualityCapturePolicy.stabilizationMode(
+            enabled: videoQualitySettings.stabilizationEnabled,
+            supportsLowLatency: format.isVideoStabilizationModeSupported(.lowLatency),
+            supportsStandard: format.isVideoStabilizationModeSupported(.standard)
+        )
+    }
+
+    private func publishStabilizationStatus(
+        for device: AVCaptureDevice,
+        connection: AVCaptureConnection?
+    ) {
+        updateStabilizationStatus(VideoQualityCapturePolicy.stabilizationStatus(
+            enabled: videoQualitySettings.stabilizationEnabled,
+            requestedMode: requestedStabilizationMode(for: device, connection: connection),
+            activeMode: connection?.activeVideoStabilizationMode ?? .off
+        ))
+    }
+
+    private func videoCaptureConnection(in session: AVCaptureSession) -> AVCaptureConnection? {
+        session.outputs.compactMap { $0.connection(with: .video) }.first
+    }
+
 }
 
 private struct CameraCaptureSetting {
@@ -375,9 +437,13 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private let route: PrivacyUplinkRoute
     private let analysisQueue = DispatchQueue(label: "com.innolive.webrtc.face-detection")
     private let lock = NSLock()
+    private let previewColorProcessor = VideoColorFrameProcessor()
+    private let uplinkColorProcessor = VideoColorFrameProcessor()
     private var faceFrameHandler: FaceFrameHandler?
     private var cameraPosition: AVCaptureDevice.Position
     private var lockedInterfaceOrientation: BroadcastInterfaceOrientation?
+    private var warmth: Float = 0
+    private var saturation: Float = 1
     private var isAnalysisPending = false
     private var lastDeliveryTime: TimeInterval = 0
 
@@ -403,6 +469,15 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         lock.unlock()
     }
 
+    func setColor(warmth: Float, saturation: Float) {
+        let normalizedWarmth = min(max(warmth.isFinite ? warmth : 0, -1), 1)
+        let normalizedSaturation = min(max(saturation.isFinite ? saturation : 1, 0), 2)
+        lock.lock()
+        self.warmth = normalizedWarmth
+        self.saturation = normalizedSaturation
+        lock.unlock()
+    }
+
     func updateCameraPosition(_ cameraPosition: AVCaptureDevice.Position) {
         processor.reset()
         lock.lock()
@@ -421,6 +496,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         lock.lock()
         let lockedOrientation = lockedInterfaceOrientation
         let currentCameraPosition = cameraPosition
+        let warmth = warmth
+        let saturation = saturation
         lock.unlock()
 
         let outgoing = outgoingFrame(
@@ -428,14 +505,35 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             lockedOrientation: lockedOrientation,
             cameraPosition: currentCameraPosition
         )
-        previewTarget?.capturer(capturer, didCapture: outgoing)
+        let coloredPreview: LKRTCVideoFrame
+        do {
+            coloredPreview = try previewColorProcessor.process(
+                outgoing,
+                warmth: warmth,
+                saturation: saturation
+            )
+        } catch {
+            return
+        }
+        previewTarget?.capturer(capturer, didCapture: coloredPreview)
         if let ticket = route.ticket() {
             if ticket.mode == .onDevice {
-                processor.submit(outgoing) { [target, route] result in
-                    route.deliver(ticket) { target.capturer(capturer, didCapture: result) }
+                let colorProcessor = uplinkColorProcessor
+                processor.submit(outgoing) { [target, route, colorProcessor] result in
+                    let coloredUplink: LKRTCVideoFrame
+                    do {
+                        coloredUplink = try colorProcessor.process(
+                            result,
+                            warmth: warmth,
+                            saturation: saturation
+                        )
+                    } catch {
+                        return
+                    }
+                    route.deliver(ticket) { target.capturer(capturer, didCapture: coloredUplink) }
                 }
             } else {
-                route.deliver(ticket) { target.capturer(capturer, didCapture: outgoing) }
+                route.deliver(ticket) { target.capturer(capturer, didCapture: coloredPreview) }
             }
         }
 
