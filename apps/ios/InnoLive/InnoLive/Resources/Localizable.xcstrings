@@ -8874,28 +8874,20 @@
         "ja": { "stringUnit": { "state": "translated", "value": "プリセット" } }
       }
     },
-    "화사": {
+    "선명하게": {
       "extractionState": "manual",
       "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "화사" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Bright" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "明るい" } }
-      }
-    },
-    "선명": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "선명" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "선명하게" } },
         "en": { "stringUnit": { "state": "translated", "value": "Vivid" } },
         "ja": { "stringUnit": { "state": "translated", "value": "鮮やか" } }
       }
     },
-    "따뜻": {
+    "화사하게": {
       "extractionState": "manual",
       "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "따뜻" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Warm" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "暖かい" } }
+        "ko": { "stringUnit": { "state": "translated", "value": "화사하게" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Bright" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "明るい" } }
       }
     }
   },

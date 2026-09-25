@@ -81,7 +81,9 @@ struct BroadcastVideoControlsView: View {
             uplink.setColor(warmth: look.warmth, saturation: look.saturation)
         } label: {
             Text(look.title)
-                .font(.body.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
@@ -150,17 +152,17 @@ struct BroadcastVideoControlsView: View {
 }
 
 private enum BroadcastVideoLook: CaseIterable, Identifiable {
-    case bright
     case vivid
+    case bright
     case warm
 
     var id: Self { self }
 
     var title: String {
         switch self {
-        case .bright: String(localized: "화사")
-        case .vivid: String(localized: "선명")
-        case .warm: String(localized: "따뜻")
+        case .vivid: String(localized: "선명하게")
+        case .bright: String(localized: "화사하게")
+        case .warm: String(localized: "따뜻하게")
         }
     }
 
