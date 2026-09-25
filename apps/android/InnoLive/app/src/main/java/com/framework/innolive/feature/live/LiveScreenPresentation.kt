@@ -11,6 +11,7 @@ enum class LiveBroadcastAction {
 
 data class LiveScreenPresentation(
     val isConnected: Boolean,
+    val canStartOrResumeBroadcast: Boolean,
     val isConnecting: Boolean,
     val isBroadcastLive: Boolean,
     val isBroadcastPrepared: Boolean,
@@ -32,7 +33,8 @@ fun buildLiveScreenPresentation(
     isBroadcastStatusDefault: Boolean = false,
     isPreparingBroadcast: Boolean = false,
 ): LiveScreenPresentation {
-    val isConnected = connectionState == WebRtcConnectionState.CONNECTED
+    val isConnected = connectionState == WebRtcConnectionState.CONNECTED ||
+        connectionState == WebRtcConnectionState.RECONNECTING
     val isConnecting = connectionState == WebRtcConnectionState.CONNECTING
     val isBroadcastLive = broadcastState == BroadcastState.LIVE || broadcastState == BroadcastState.PAUSED
     val isBroadcastPrepared = broadcastState == BroadcastState.PREPARED
@@ -56,6 +58,7 @@ fun buildLiveScreenPresentation(
 
     return LiveScreenPresentation(
         isConnected = isConnected,
+        canStartOrResumeBroadcast = connectionState == WebRtcConnectionState.CONNECTED,
         isConnecting = isConnecting,
         isBroadcastLive = isBroadcastLive,
         isBroadcastPrepared = isBroadcastPrepared,

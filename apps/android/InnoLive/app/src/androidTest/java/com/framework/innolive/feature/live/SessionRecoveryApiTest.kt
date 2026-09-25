@@ -204,6 +204,7 @@ class SessionRecoveryApiTest {
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
             accessToken = accessToken,
+            refreshAccessToken = { accessToken },
             initialAnonymizationEnabled = false,
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},

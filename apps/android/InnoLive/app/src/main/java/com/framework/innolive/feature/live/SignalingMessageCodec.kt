@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import org.json.JSONObject
+import org.webrtc.IceCandidate
 
 /**
  * Messages received from the authenticated v2 signaling endpoint.
@@ -14,6 +15,7 @@ internal sealed interface ServerMessage {
     data class Answer(
         val sessionId: String,
         val sdp: String,
+        val negotiationId: String? = null,
     ) : ServerMessage
 
     data class Error(
@@ -27,6 +29,13 @@ internal sealed interface ServerMessage {
         val queued: Boolean,
         val iceConnectionState: String,
         val connectionState: String,
+        val negotiationId: String? = null,
+    ) : ServerMessage
+
+    data class RemoteIceCandidate(
+        val sessionId: String,
+        val negotiationId: String?,
+        val candidate: IceCandidate?,
     ) : ServerMessage
 }
 
@@ -47,6 +56,7 @@ internal object SignalingMessageCodec {
                         key = "sdp",
                         message = "서버 answer에 SDP가 없습니다.",
                     ),
+                    negotiationId = response.optionalString("negotiation_id"),
                 )
             }
 
@@ -81,6 +91,27 @@ internal object SignalingMessageCodec {
                     queued = response.requiredBoolean("queued"),
                     iceConnectionState = response.requiredString("ice_connection_state"),
                     connectionState = response.requiredString("connection_state"),
+                    negotiationId = response.optionalString("negotiation_id"),
+                )
+            }
+
+            "ice_candidate" -> {
+                val sessionId = response.requiredNonBlankString(
+                    key = "session_id",
+                    message = "서버 ICE 후보에 세션 ID가 없습니다.",
+                )
+                ensureExpectedSession(expectedSessionId, sessionId)
+                val candidate = response.optionalString("candidate")?.let { sdp ->
+                    IceCandidate(
+                        response.optionalString("sdpMid"),
+                        response.optionalInt("sdpMLineIndex") ?: -1,
+                        sdp,
+                    )
+                }
+                ServerMessage.RemoteIceCandidate(
+                    sessionId = sessionId,
+                    negotiationId = response.optionalString("negotiation_id"),
+                    candidate = candidate,
                 )
             }
 
@@ -107,6 +138,8 @@ internal object SignalingMessageCodec {
         "queued",
         "ice_connection_state",
         "connection_state",
+        "negotiation_id",
+        "ice_restart",
         "error",
     )
 
@@ -142,6 +175,18 @@ private fun JSONObject.requiredBoolean(key: String): Boolean {
     }
     return get(key) as? Boolean
         ?: throw IllegalArgumentException("signaling 응답의 ${key}가 Boolean이 아닙니다.")
+}
+
+private fun JSONObject.optionalString(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    return (get(key) as? String)?.takeIf(String::isNotBlank)
+        ?: throw IllegalArgumentException("signaling 응답의 ${key}가 문자열이 아닙니다.")
+}
+
+private fun JSONObject.optionalInt(key: String): Int? {
+    if (!has(key) || isNull(key)) return null
+    return (get(key) as? Int)?.takeIf { it >= 0 }
+        ?: throw IllegalArgumentException("signaling 응답의 ${key}가 정수가 아닙니다.")
 }
 
 private fun JSONObject.requiredObject(key: String, message: String): JSONObject {

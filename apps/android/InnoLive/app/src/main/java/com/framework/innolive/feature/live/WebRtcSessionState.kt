@@ -24,7 +24,9 @@ internal data class WebRtcSessionState(
 
     fun acceptsCallback(generation: Long): Boolean =
         this.generation == generation &&
-            (connection == WebRtcConnectionState.CONNECTING || connection == WebRtcConnectionState.CONNECTED)
+            (connection == WebRtcConnectionState.CONNECTING ||
+                connection == WebRtcConnectionState.CONNECTED ||
+                connection == WebRtcConnectionState.RECONNECTING)
 
     fun connectionChanged(generation: Long, state: WebRtcConnectionState): WebRtcSessionState {
         if (!acceptsCallback(generation)) return this

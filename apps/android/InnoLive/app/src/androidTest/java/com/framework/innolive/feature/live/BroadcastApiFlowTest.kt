@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import android.util.Base64
+import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -16,12 +17,49 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.atomic.AtomicBoolean
 
 // 제품의 요청 생성·응답 처리·작업 큐를 실행한다. 네트워크와 미디어 연결은 검증하지 않는다.
 class BroadcastApiFlowTest {
     private val settings = BroadcastSettings("검증", "검증 설명", "private", false, "22")
     private val accessToken = accessTokenFor("broadcast-api-user")
+
+    @Test fun disconnectedMediaCannotStartOrResumeBroadcastOnTheServer() {
+        Harness().use { h ->
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+            h.setMediaConnected(false)
+            assertTrue(h.connection.goLive())
+            h.awaitState(BroadcastState.PREPARED)
+            assertFalse(h.requests.any { it.url.encodedPath.endsWith("stream/golive") })
+
+            h.setMediaConnected(true)
+            assertTrue(h.connection.goLive())
+            h.awaitState(BroadcastState.LIVE)
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.setMediaConnected(false)
+            h.connection.resumeBroadcast()
+            assertFalse(h.requests.any { it.url.encodedPath.endsWith("stream/resume") })
+        }
+    }
+
+    @Test fun successfulStopCancelsScheduledRecovery() {
+        Harness().use { h ->
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+            val future = h.installPendingRecovery()
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.IDLE)
+            val deadline = SystemClock.elapsedRealtime() + 5_000
+            while (!future.isCancelled && SystemClock.elapsedRealtime() < deadline) {
+                Thread.sleep(20)
+            }
+            assertTrue("종료 후 복구 작업이 취소되어야 합니다", future.isCancelled)
+        }
+    }
 
     @Test fun offBroadcastCanGoLiveToggleRecoverFromFailureAndStopWithoutDeletingSession() {
         Harness().use { h ->
@@ -261,6 +299,7 @@ class BroadcastApiFlowTest {
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
             accessToken = accessTokenFor("broadcast-api-user"),
+            refreshAccessToken = { accessTokenFor("broadcast-api-user") },
             initialAnonymizationEnabled = false,
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},
@@ -320,10 +359,23 @@ class BroadcastApiFlowTest {
             // 테스트에서만 연결 완료 세션과 HTTP 응답을 주입한다. 실제 DNS나 외부 계정은 사용하지 않는다.
             field("httpClient", client)
             field("session", CreatedSession("test-session", "test-owner", AnonymizationState.DISABLED))
+            field("peerConnectionConnected", true)
+            field("audioInputVerified", true)
         }
 
         private fun field(name: String, value: Any) {
             WebRtcConnection::class.java.getDeclaredField(name).apply { isAccessible = true; set(connection, value) }
+        }
+
+        fun setMediaConnected(connected: Boolean) = field("peerConnectionConnected", connected)
+
+        fun installPendingRecovery(): ScheduledFuture<*> {
+            val window = WebRtcRecoveryWindow(WebRtcRecoveryPolicy())
+            window.begin(SystemClock.elapsedRealtime())
+            field("recoveryWindow", window)
+            val timer = WebRtcConnection::class.java.getDeclaredField("timerExecutor")
+                .apply { isAccessible = true }.get(connection) as ScheduledExecutorService
+            return timer.schedule({}, 30, TimeUnit.SECONDS).also { field("recoveryTask", it) }
         }
 
         fun body(request: Request): String = Buffer().also { request.body?.writeTo(it) }.readUtf8()

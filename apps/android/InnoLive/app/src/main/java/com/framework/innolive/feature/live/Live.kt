@@ -327,7 +327,8 @@ fun LiveScreen(
                     )
                 },
             )
-            if (webRtcSession.connectionState == WebRtcConnectionState.FAILED) {
+            if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
+                webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
                 webRtcSession.connectionStatus?.let { status ->
                     Text(
                         status.asString(),
@@ -459,7 +460,11 @@ internal fun BroadcastActionDialog(
                     )
                 }
                 if (presentation.isBroadcastPrepared) {
-                    BroadcastDialogButton(stringResource(R.string.action_start_broadcast), onGoLive)
+                    BroadcastDialogButton(
+                        stringResource(R.string.action_start_broadcast),
+                        onGoLive,
+                        enabled = presentation.canStartOrResumeBroadcast,
+                    )
                     BroadcastDialogButton(
                         text = stringResource(R.string.action_cancel_preparation),
                         onClick = onCancelPreparation,
@@ -472,6 +477,7 @@ internal fun BroadcastActionDialog(
                             else R.string.action_pause_broadcast,
                         ),
                         onClick = onPauseOrResume,
+                        enabled = !presentation.isBroadcastPaused || presentation.canStartOrResumeBroadcast,
                     )
                     BroadcastDialogButton(
                         stringResource(R.string.action_stop_broadcast),
@@ -522,9 +528,11 @@ private fun BroadcastDialogButton(
     text: String,
     onClick: () -> Unit,
     destructive: Boolean = false,
+    enabled: Boolean = true,
 ) {
     TextButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(

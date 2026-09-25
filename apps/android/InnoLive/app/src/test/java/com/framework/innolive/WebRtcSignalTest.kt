@@ -154,4 +154,23 @@ class WebRtcSignalTest {
             )
         }
     }
+
+    @Test
+    fun recoveryMessagesKeepNegotiationGenerationAndRemoteCandidate() {
+        val negotiationId = "a0cf0271-4332-4c75-bdc2-3a6af76e874b"
+        assertEquals(
+            ServerMessage.Answer("session", "v=0", negotiationId),
+            parseServerMessage(
+                """{"type":"answer","session_id":"session","negotiation_id":"$negotiationId","sdp":"v=0"}""",
+                expectedSessionId = "session",
+            ),
+        )
+        val candidate = parseServerMessage(
+            """{"type":"ice_candidate","session_id":"session","negotiation_id":"$negotiationId","candidate":"candidate:1 1 UDP 1 127.0.0.1 12345 typ host","sdpMid":"0","sdpMLineIndex":0}""",
+            expectedSessionId = "session",
+        ) as ServerMessage.RemoteIceCandidate
+        assertEquals(negotiationId, candidate.negotiationId)
+        assertEquals("0", candidate.candidate?.sdpMid)
+        assertEquals(0, candidate.candidate?.sdpMLineIndex)
+    }
 }

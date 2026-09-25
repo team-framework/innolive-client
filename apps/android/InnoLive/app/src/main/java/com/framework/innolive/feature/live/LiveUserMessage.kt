@@ -50,6 +50,7 @@ internal fun connectionUserMessage(
     WebRtcConnectionState.IDLE -> null
     WebRtcConnectionState.CONNECTED -> UiText.Resource(R.string.preview_connected)
     WebRtcConnectionState.CONNECTING -> UiText.Resource(R.string.preview_connecting)
+    WebRtcConnectionState.RECONNECTING -> UiText.Resource(R.string.preview_reconnecting)
     WebRtcConnectionState.FAILED -> when (failure) {
         ConnectionFailure.TIMEOUT -> UiText.Resource(R.string.error_preview_timeout)
         ConnectionFailure.DISCONNECTED -> UiText.Resource(R.string.error_preview_disconnected)

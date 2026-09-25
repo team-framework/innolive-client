@@ -13,6 +13,8 @@
     "owner_token": { "type": "string", "minLength": 1 },
     "access_token": { "type": "string", "minLength": 1 },
     "sdp": { "type": "string", "minLength": 1 },
+    "negotiation_id": { "type": "string", "format": "uuid" },
+    "ice_restart": { "type": "boolean" },
     "candidate": { "type": ["string", "null"] },
     "sdpMid": { "type": ["string", "null"] },
     "sdpMLineIndex": { "type": ["integer", "null"], "minimum": 0 },
@@ -36,6 +38,16 @@
     {
       "if": { "properties": { "type": { "const": "offer" } }, "required": ["type"] },
       "then": { "required": ["session_id", "owner_token", "access_token", "sdp"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": { "const": "offer" },
+          "ice_restart": { "const": true }
+        },
+        "required": ["type", "ice_restart"]
+      },
+      "then": { "required": ["negotiation_id"] }
     },
     {
       "if": { "properties": { "type": { "const": "answer" } }, "required": ["type"] },

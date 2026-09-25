@@ -87,6 +87,7 @@ class WebRtcSessionViewModel : ViewModel() {
     // 연결 중에는 초기 선택을 바꾸지 않고, 연결된 세션은 변경 API로만 갱신합니다.
     fun selectInitialAnonymization(context: Context, enabled: Boolean): Boolean {
         if (connectionState == WebRtcConnectionState.CONNECTING ||
+            connectionState == WebRtcConnectionState.RECONNECTING ||
             connectionState == WebRtcConnectionState.CONNECTED) return false
         val preference = AnonymizationPreference(context)
         preference.enabled = enabled
@@ -107,6 +108,7 @@ class WebRtcSessionViewModel : ViewModel() {
     ) {
         if (
             connectionState == WebRtcConnectionState.CONNECTING ||
+            connectionState == WebRtcConnectionState.RECONNECTING ||
             connectionState == WebRtcConnectionState.CONNECTED
         ) {
             return
@@ -150,6 +152,7 @@ class WebRtcSessionViewModel : ViewModel() {
                     context = context,
                     serverUrl = BuildConfig.INNOLIVE_SERVER_URL,
                     accessToken = accessToken,
+                    refreshAccessToken = refreshAccessToken,
                     initialAnonymizationEnabled = initialEnabled,
                     preferredAudioInput = selectedAudioInput,
                     onStateChanged = { state, failure ->
@@ -342,6 +345,7 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun goLive(rotation: Int, screenOrientation: Int, onAccepted: () -> Unit): Boolean {
+        if (connectionState != WebRtcConnectionState.CONNECTED) return false
         val activeConnection = connection ?: return false
         val previousRotation = lockedBroadcastRotation
         val previousScreenOrientation = lockedScreenOrientation
@@ -362,6 +366,7 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun resumeBroadcast() {
+        if (connectionState != WebRtcConnectionState.CONNECTED) return
         connection?.resumeBroadcast()
     }
 
