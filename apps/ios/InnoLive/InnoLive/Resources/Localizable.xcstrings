@@ -8797,52 +8797,6 @@
         }
       }
     },
-    "색감 미리보기": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "색감 미리보기"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Color preview"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "色調プレビュー"
-          }
-        }
-      }
-    },
-    "색감 미리보기 · 비식별화 전": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "색감 미리보기 · 비식별화 전"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Color preview · Before anonymization"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "色調プレビュー・匿名化前"
-          }
-        }
-      }
-    },
     "동영상 손떨림 보정": {
       "extractionState": "manual",
       "localizations": {

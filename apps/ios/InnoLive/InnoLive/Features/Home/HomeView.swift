@@ -281,8 +281,7 @@ struct HomeView: View {
             )
         case .webrtcLocal:
             WebRTCColorPreviewFrame(
-                uplink: youtube.videoUplink,
-                isOnDeviceProcessing: youtube.session?.processingMode == .onDevice
+                uplink: youtube.videoUplink
             )
         case .hidden:
             EmptyView()
