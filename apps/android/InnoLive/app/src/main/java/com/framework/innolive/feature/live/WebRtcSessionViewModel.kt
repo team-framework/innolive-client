@@ -156,6 +156,8 @@ class WebRtcSessionViewModel : ViewModel() {
         connection?.setPreferredAudioInput(audioInput)
     }
 
+    fun localFacesChanged() { frameAnalyzer?.resetFaceExceptions() }
+
     fun start(
         context: Context,
         refreshAccessToken: suspend () -> String,

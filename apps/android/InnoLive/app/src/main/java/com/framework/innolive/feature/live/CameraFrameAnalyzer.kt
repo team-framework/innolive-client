@@ -47,6 +47,13 @@ class CameraFrameAnalyzer(
         }
     }
 
+    fun resetFaceExceptions() {
+        synchronized(processorLock) {
+            route.invalidate()
+            localProcessor?.resetFaceExceptions()
+        }
+    }
+
     fun start() {
         if (enabled.compareAndSet(false, true)) {
             capturerObserver.onCapturerStarted(true)

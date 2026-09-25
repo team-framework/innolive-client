@@ -27,6 +27,9 @@ internal object PrivacySegmentation {
 
     data class Detection(val box: Box, val score: Float, val classId: Int, val coefficients: FloatArray)
 
+    fun protectedDetections(objects: List<Detection>, exemptFaces: Set<Int>): List<Detection> =
+        objects.filterIndexed { index, detection -> detection.classId != 0 || index !in exemptFaces }
+
     data class Letterbox(val sourceWidth: Int, val sourceHeight: Int) {
         init { require(sourceWidth > 0 && sourceHeight > 0) }
         private val scale = INPUT_SIZE.toFloat() / max(sourceWidth, sourceHeight)

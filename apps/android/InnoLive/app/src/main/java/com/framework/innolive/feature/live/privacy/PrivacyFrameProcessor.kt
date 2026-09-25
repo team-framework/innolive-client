@@ -9,6 +9,9 @@ import org.webrtc.VideoFrame
 /** Processes each capture synchronously so CameraX drops overdue input instead of queuing raw frames. */
 internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
     private val model = PrivacyOnnxModel(context.applicationContext)
+    private val faces = PrivacyFaceCoordinator(context.applicationContext)
+
+    fun resetFaceExceptions() { faces.reset() }
 
     fun process(frame: VideoFrame): VideoFrame {
         val source = checkNotNull(frame.buffer.toI420()) { "Camera frame could not be converted to I420" }
@@ -19,7 +22,9 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
             val upright = rotate(sensor, rotation)
             if (upright !== sensor) sensor.recycle()
             try {
-                val protected = model.process(upright)
+                val protected = model.process(upright) { objects, layout ->
+                    faces.exceptions(upright, objects, layout, frame.timestampNs)
+                }
                 try {
                     val restored = rotate(protected, (360 - rotation) % 360)
                     if (restored !== protected) protected.recycle()
@@ -40,7 +45,10 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
         }
     }
 
-    override fun close() { model.close() }
+    override fun close() {
+        faces.reset()
+        model.close()
+    }
 
     private fun rotate(bitmap: Bitmap, degrees: Int): Bitmap {
         if (degrees == 0) return bitmap

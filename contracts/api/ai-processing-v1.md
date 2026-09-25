@@ -19,9 +19,9 @@
 `PATCH /anonymization`은 409 `on_device_processing`을 반환한다.
 앱의 비식별화 버튼은 로컬 처리기에 적용한다.
 
-## iOS: 연결을 유지하는 전환
+## iOS·Android: 연결을 유지하는 전환
 
-iOS는 양방향 전환을 위해 서버 AI를 켜고 끌 수 있는 기본 `server` 세션을 만든다.
+iOS와 Android는 양방향 전환을 위해 서버 AI를 켜고 끌 수 있는 기본 `server` 세션을 만든다.
 온디바이스를 처음 선택한 경우에도 기본 세션을 만들고 카메라 연결 전에
 `PATCH /sessions/{id}/anonymization`의 `{"enabled":false}`와 응답 false를 확인한다.
 최상위 응답은 서버의 처리 기능을 나타내고, 앱은 실제 선택을 별도로 보관한다.
@@ -41,7 +41,7 @@ iOS는 양방향 전환을 위해 서버 AI를 켜고 끌 수 있는 기본 `ser
   중복 전환도 막는다.
 
 서버 AI 연결을 열어 두는 비용은 있지만 프레임 추론은 OFF 동안 실행하지 않는다.
-iOS의 연결 유지 경로에서는 고정 `on_device` 세션의 AI 연결 생략 최적화를 사용하지 않는다.
+iOS·Android의 연결 유지 경로에서는 고정 `on_device` 세션의 AI 연결 생략 최적화를 사용하지 않는다.
 
 ## 저장소
 

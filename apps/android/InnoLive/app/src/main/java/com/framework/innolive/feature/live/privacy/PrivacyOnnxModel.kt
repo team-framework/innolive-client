@@ -35,7 +35,10 @@ internal class PrivacyOnnxModel(context: Context) : AutoCloseable {
         }
     }
 
-    fun process(upright: Bitmap): Bitmap {
+    fun process(
+        upright: Bitmap,
+        exemptFaces: (List<PrivacySegmentation.Detection>, PrivacySegmentation.Letterbox) -> Set<Int> = { _, _ -> emptySet() },
+    ): Bitmap {
         val layout = PrivacySegmentation.Letterbox(upright.width, upright.height)
         val modelInput = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
         try {
@@ -64,8 +67,9 @@ internal class PrivacyOnnxModel(context: Context) : AutoCloseable {
                     val predictions = (result["output0"].orElseThrow() as OnnxTensor).floatBuffer
                     val prototypes = (result["output1"].orElseThrow() as OnnxTensor).floatBuffer
                     val objects = PrivacySegmentation.detections(FloatArray(predictions.remaining()).also(predictions::get))
+                    val exempt = exemptFaces(objects, layout)
                     val mask = PrivacySegmentation.unionMask(
-                        objects,
+                        PrivacySegmentation.protectedDetections(objects, exempt),
                         FloatArray(prototypes.remaining()).also(prototypes::get),
                     )
                     return PrivacyMaskRenderer.render(upright, mask, layout)

@@ -24,4 +24,15 @@
     <string name="ai_mode_server">サーバーAI</string>
     <string name="ai_mode_on_device">オンデバイスAI</string>
     <string name="ai_mode_change_failed">AI処理方式を切り替えられませんでした。再度お試しください。</string>
+    <string name="local_face_title">端末内の顔管理</string>
+    <string name="local_face_description">登録した顔のみ端末内処理でぼかしの対象外にできます。写真は保存せず、サーバーにも送信しません。</string>
+    <string name="local_face_model_preparing">顔認識モデルを準備しています…</string>
+    <string name="local_face_model_failed">顔認識モデルを準備できませんでした。</string>
+    <string name="local_face_name">名前</string>
+    <string name="local_face_enroll">カメラで登録</string>
+    <string name="local_face_enrolling">顔の特徴を解析しています…</string>
+    <string name="local_face_enroll_failed">顔を登録できませんでした。1人の顔をはっきり映して再度お試しください。</string>
+    <string name="local_face_store_error">端末内の登録データを読み書きできませんでした。ぼかしの例外を停止しました。</string>
+    <string name="local_face_delete">端末内の顔を削除</string>
+    <string name="local_face_timeout">登録時間が終了しました。再度お試しください。</string>
 </resources>
