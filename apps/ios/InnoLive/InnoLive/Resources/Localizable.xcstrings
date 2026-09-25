@@ -8589,6 +8589,260 @@
           }
         }
       }
+    },
+    "영상 조절": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상 조절"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video controls"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "映像調整"
+          }
+        }
+      }
+    },
+    "노출": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "노출"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exposure"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "露出"
+          }
+        }
+      }
+    },
+    "어둡게": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어둡게"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Darker"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暗く"
+          }
+        }
+      }
+    },
+    "밝게": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "밝게"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Brighter"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "明るく"
+          }
+        }
+      }
+    },
+    "색온도": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "색온도"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color temperature"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "色温度"
+          }
+        }
+      }
+    },
+    "차갑게": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "차갑게"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cooler"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "寒色"
+          }
+        }
+      }
+    },
+    "따뜻하게": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "따뜻하게"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warmer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暖色"
+          }
+        }
+      }
+    },
+    "채도": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채도"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saturation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "彩度"
+          }
+        }
+      }
+    },
+    "초기화": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초기화"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "リセット"
+          }
+        }
+      }
+    },
+    "동영상 손떨림 보정": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동영상 손떨림 보정"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video stabilization"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画手ぶれ補正"
+          }
+        }
+      }
+    },
+    "프리셋": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": { "stringUnit": { "state": "translated", "value": "프리셋" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Presets" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "プリセット" } }
+      }
+    },
+    "선명하게": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": { "stringUnit": { "state": "translated", "value": "선명하게" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Vivid" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "鮮やか" } }
+      }
+    },
+    "화사하게": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": { "stringUnit": { "state": "translated", "value": "화사하게" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Bright" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "明るい" } }
+      }
     }
   },
   "version": "1.0"

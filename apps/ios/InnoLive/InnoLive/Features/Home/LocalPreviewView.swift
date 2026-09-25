@@ -40,6 +40,16 @@ struct OriginalPreviewFrame<Content: View>: View {
     }
 }
 
+struct WebRTCColorPreviewFrame: View {
+    @ObservedObject var uplink: WebRTCVideoUplink
+
+    var body: some View {
+        OriginalPreviewFrame {
+            WebRTCLocalPreviewView(uplink: uplink)
+        }
+    }
+}
+
 #Preview {
     LocalPreviewView(session: AVCaptureSession(), cameraID: nil)
         .frame(

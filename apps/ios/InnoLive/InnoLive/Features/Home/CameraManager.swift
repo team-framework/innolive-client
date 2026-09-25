@@ -20,6 +20,8 @@ final class CameraManager {
     private var videoInput: AVCaptureDeviceInput?
     private var faceVideoOutput: AVCaptureVideoDataOutput?
     private let faceFrameRelay = CameraFrameRelay()
+    private var presetPreviewOutput: AVCaptureVideoDataOutput?
+    private let presetPreviewRelay = PresetPreviewFrameRelay()
     private(set) var currentCameraID: String?
     private(set) var currentCameraName: String?
     private(set) var currentZoomFactor = CameraZoom.defaultFactor
@@ -30,6 +32,7 @@ final class CameraManager {
     private let sessionQueue = DispatchQueue(label: "com.innolive.camera.session")
     private var sessionCameraID: String?
     private var sessionTargetZoomFactor = CameraZoom.defaultFactor
+    private var sessionTargetExposureEV = BroadcastVideoQualitySettings.load().exposureEV
 
     func requestCameraAccess() {
         switch authorizationStatus {
@@ -92,6 +95,7 @@ final class CameraManager {
             updateCurrentCamera(device)
             if session.isRunning {
                 applyZoomOnSessionQueue(sessionTargetZoomFactor, to: device)
+                applyExposureOnSessionQueue(to: device)
             }
             return true
         } catch {
@@ -203,6 +207,41 @@ final class CameraManager {
         }
     }
 
+    func startPresetPreviewFrames(_ handler: @escaping @Sendable (CVPixelBuffer, Int) -> Void) {
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.presetPreviewRelay.update(handler: handler)
+            guard self.presetPreviewOutput == nil, self.videoInput != nil else { return }
+
+            let output = AVCaptureVideoDataOutput()
+            output.alwaysDiscardsLateVideoFrames = true
+            output.setSampleBufferDelegate(
+                self.presetPreviewRelay,
+                queue: DispatchQueue(label: "com.innolive.camera.preset-preview")
+            )
+            self.session.beginConfiguration()
+            defer { self.session.commitConfiguration() }
+            guard self.session.canAddOutput(output) else {
+                self.presetPreviewRelay.update(handler: nil)
+                return
+            }
+            self.session.addOutput(output)
+            self.presetPreviewOutput = output
+        }
+    }
+
+    func stopPresetPreviewFrames() {
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.presetPreviewRelay.update(handler: nil)
+            guard let presetPreviewOutput = self.presetPreviewOutput else { return }
+            self.session.beginConfiguration()
+            self.session.removeOutput(presetPreviewOutput)
+            self.session.commitConfiguration()
+            self.presetPreviewOutput = nil
+        }
+    }
+
     // sessionQueue에서 실행
     private func startSessionOnSessionQueue() {
         if !session.isRunning {
@@ -211,6 +250,9 @@ final class CameraManager {
         // Dual Wide/Triple은 startRunning 때 줌이 0.5로 내려가므로
         // 세션이 돈 뒤에 1x(또는 기억한 배율)를 다시 건다.
         applyZoomOnSessionQueue(sessionTargetZoomFactor)
+        if let device = videoInput?.device {
+            applyExposureOnSessionQueue(to: device)
+        }
     }
 
     @discardableResult
@@ -247,6 +289,21 @@ final class CameraManager {
         sessionQueue.async { [weak self] in
             self?.applyZoomOnSessionQueue(factor)
         }
+    }
+
+    func setExposureEV(_ exposureEV: Float) {
+        let normalized = VideoQualityCapturePolicy.clampedExposureEV(exposureEV, min: -2, max: 2)
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.sessionTargetExposureEV = normalized
+            if let device = self.videoInput?.device {
+                self.applyExposureOnSessionQueue(to: device)
+            }
+        }
+    }
+
+    private func applyExposureOnSessionQueue(to device: AVCaptureDevice) {
+        _ = CameraDeviceExposure.apply(sessionTargetExposureEV, to: device)
     }
 
     // sessionQueue에서 실행
@@ -297,6 +354,7 @@ final class CameraManager {
             if resetZoom {
                 resetZoomOnSessionQueue(device: device)
             }
+            applyExposureOnSessionQueue(to: device)
             return true
         } catch {
             print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
@@ -408,6 +466,27 @@ final class CameraManager {
     }
 }
 
+nonisolated enum CameraDeviceExposure {
+    @discardableResult
+    static func apply(_ requestedEV: Float, to device: AVCaptureDevice) -> Float? {
+        guard device.isExposureModeSupported(.continuousAutoExposure) else { return nil }
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            device.exposureMode = .continuousAutoExposure
+            let appliedEV = VideoQualityCapturePolicy.clampedExposureEV(
+                requestedEV,
+                min: device.minExposureTargetBias,
+                max: device.maxExposureTargetBias
+            )
+            device.setExposureTargetBias(appliedEV, completionHandler: nil)
+            return appliedEV
+        } catch {
+            return nil
+        }
+    }
+}
+
 nonisolated private final class CameraFrameRelay: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     typealias Handler = @Sendable (CMSampleBuffer, AVCaptureDevice.Position) -> Void
 
@@ -432,5 +511,29 @@ nonisolated private final class CameraFrameRelay: NSObject, AVCaptureVideoDataOu
         let cameraPosition = cameraPosition
         lock.unlock()
         handler?(sampleBuffer, cameraPosition)
+    }
+}
+
+nonisolated private final class PresetPreviewFrameRelay: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var handler: (@Sendable (CVPixelBuffer, Int) -> Void)?
+
+    func update(handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
+        lock.lock()
+        self.handler = handler
+        lock.unlock()
+    }
+
+    func captureOutput(
+        _ output: AVCaptureOutput,
+        didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        lock.lock()
+        let handler = handler
+        lock.unlock()
+        guard let handler else { return }
+        guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        handler(buffer, Int(connection.videoRotationAngle.rounded()))
     }
 }

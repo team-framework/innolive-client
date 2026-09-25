@@ -17,6 +17,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     @Published private(set) var requiresMediaPermissionSettings = false
     @Published private(set) var currentZoomFactor = CameraZoom.defaultFactor
     @Published private(set) var zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
+    @Published private(set) var videoQualitySettings = BroadcastVideoQualitySettings.load()
+    @Published private(set) var stabilizationStatus: VideoStabilizationStatus = .inactive
 
     private static let sslInitialized = LKRTCInitializeSSL()
 
@@ -59,6 +61,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     var targetZoomFactor = CameraZoom.defaultFactor
     var pendingZoomFactor: CGFloat?
     private let zoomQueue = DispatchQueue(label: "com.innolive.webrtc.zoom")
+    var stabilizationObservation: NSKeyValueObservation?
+    var unprocessedPreviewHandler: (@Sendable (CVPixelBuffer, Int) -> Void)?
     var onConnectionInterrupted: (() -> Void)?
     private let networkMonitor = NWPathMonitor()
     private let networkMonitorQueue = DispatchQueue(label: "com.framework.innolive.webrtc.network-monitor")
@@ -127,6 +131,60 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     var currentVideoQuality: CameraQualityPreset? {
         activeVideoQuality
+    }
+
+    func setStabilizationEnabled(_ enabled: Bool) {
+        videoQualitySettings.stabilizationEnabled = enabled
+        videoQualitySettings.save()
+        if let cameraCapturer, let activeCameraID,
+           let device = AVCaptureDevice(uniqueID: activeCameraID) {
+            applyStabilization(to: cameraCapturer, device: device)
+        } else {
+            stabilizationStatus = .inactive
+        }
+    }
+
+    func updateStabilizationStatus(_ status: VideoStabilizationStatus) {
+        stabilizationStatus = status
+    }
+
+    func setExposureEV(_ exposureEV: Float) {
+        let normalized = BroadcastVideoQualitySettings(
+            stabilizationEnabled: videoQualitySettings.stabilizationEnabled,
+            exposureEV: exposureEV,
+            warmth: videoQualitySettings.warmth,
+            saturation: videoQualitySettings.saturation
+        )
+        videoQualitySettings = normalized
+        normalized.save()
+        if let activeCameraID {
+            applyExposureToCamera(activeCameraID)
+        }
+    }
+
+    func setColor(warmth: Float, saturation: Float) {
+        let normalized = BroadcastVideoQualitySettings(
+            stabilizationEnabled: videoQualitySettings.stabilizationEnabled,
+            exposureEV: videoQualitySettings.exposureEV,
+            warmth: warmth,
+            saturation: saturation
+        )
+        videoQualitySettings = normalized
+        normalized.save()
+        cameraFrameRelay?.setColor(warmth: normalized.warmth, saturation: normalized.saturation)
+    }
+
+    func setUnprocessedPreviewHandler(_ handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
+        unprocessedPreviewHandler = handler
+        cameraFrameRelay?.setUnprocessedPreviewHandler(handler)
+    }
+
+    func applyExposureToCamera(_ cameraID: String) {
+        let exposureEV = videoQualitySettings.exposureEV
+        zoomQueue.async {
+            guard let device = AVCaptureDevice(uniqueID: cameraID) else { return }
+            _ = CameraDeviceExposure.apply(exposureEV, to: device)
+        }
     }
 
     func adoptZoomFactor(_ factor: CGFloat) {
@@ -336,6 +394,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         peerConnection?.close()
         peerConnection = nil
         let capturer = cameraCapturer
+        stabilizationObservation = nil
+        stabilizationStatus = .inactive
         cameraCapturer = nil
         let fileCapturer = fileVideoCapturer
         fileVideoCapturer = nil

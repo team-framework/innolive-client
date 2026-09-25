@@ -45,6 +45,8 @@ struct CameraAudioSettingsView: View {
                         isChanging: isChangingCamera
                     )
 
+                    VideoStabilizationSettingsRow(uplink: youtube.videoUplink)
+
                     AudioDeviceSelectionRow(
                         selectedAudioID: $selectedAudioID,
                         options: audioOptions,
@@ -245,6 +247,28 @@ struct CameraAudioSettingsView: View {
         } catch {
             audioOptions = []
             deviceErrorMessage = String(localized: "오디오 기기 목록을 불러오지 못했습니다.")
+        }
+    }
+}
+
+private struct VideoStabilizationSettingsRow: View {
+    @ObservedObject var uplink: WebRTCVideoUplink
+
+    private var enabled: Binding<Bool> {
+        Binding(
+            get: { uplink.videoQualitySettings.stabilizationEnabled },
+            set: { uplink.setStabilizationEnabled($0) }
+        )
+    }
+
+    var body: some View {
+        SettingsGlassRow {
+            HStack(spacing: 12) {
+                Image(systemName: "video.badge.waveform")
+                    .frame(width: 24)
+                Toggle(String(localized: "동영상 손떨림 보정"), isOn: enabled)
+                    .font(.body.weight(.semibold))
+            }
         }
     }
 }
