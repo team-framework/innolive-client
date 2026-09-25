@@ -58,6 +58,33 @@ internal fun hasCurrentRecoveryAnswer(
     remoteDescriptionNegotiationId: String?,
 ): Boolean = activeNegotiationId != null && activeNegotiationId == remoteDescriptionNegotiationId
 
+internal class RecoveryVideoVerificationGate {
+    var started = false
+        private set
+
+    fun startIfConnected(peerConnected: Boolean): Boolean {
+        if (!peerConnected || started) return false
+        started = true
+        return true
+    }
+
+    fun reset() {
+        started = false
+    }
+}
+
+internal fun canReuseRecoveredPreviewAfterStop(
+    peerConnected: Boolean,
+    audioVerified: Boolean,
+    recoveryAttemptActive: Boolean,
+    recoveryOfferPending: Boolean,
+    hasCurrentAnswer: Boolean,
+    videoPacketsProgressed: Boolean,
+    serverVideoReady: Boolean,
+): Boolean = peerConnected && audioVerified && !recoveryAttemptActive && !recoveryOfferPending &&
+    hasCurrentAnswer &&
+    videoPacketsProgressed && serverVideoReady
+
 /** A reused PeerConnection may already have sent packets before recovery. Require new progress. */
 internal class OutboundVideoProgress {
     private var previousPackets: Long? = null

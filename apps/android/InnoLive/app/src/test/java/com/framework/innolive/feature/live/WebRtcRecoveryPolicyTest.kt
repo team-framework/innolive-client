@@ -123,6 +123,39 @@ class WebRtcRecoveryPolicyTest {
         assertFalse(hasCurrentRecoveryAnswer("new", "retired"))
     }
 
+    @Test fun videoVerificationWaitsForPeerConnectionBeforeStartingItsOwnDeadline() {
+        val gate = RecoveryVideoVerificationGate()
+        assertFalse(gate.startIfConnected(peerConnected = false))
+        assertFalse(gate.started)
+        assertTrue(gate.startIfConnected(peerConnected = true))
+        assertTrue(gate.started)
+        assertFalse(gate.startIfConnected(peerConnected = true))
+        gate.reset()
+        assertFalse(gate.started)
+        assertTrue(gate.startIfConnected(peerConnected = true))
+    }
+
+    @Test fun stoppingBroadcastCannotReusePeerConnectionUntilVideoRecoveryIsVerified() {
+        fun canReuse(packets: Boolean, serverReady: Boolean) = canReuseRecoveredPreviewAfterStop(
+            peerConnected = true,
+            audioVerified = true,
+            recoveryAttemptActive = false,
+            recoveryOfferPending = false,
+            hasCurrentAnswer = true,
+            videoPacketsProgressed = packets,
+            serverVideoReady = serverReady,
+        )
+
+        assertFalse(canReuse(packets = false, serverReady = false))
+        assertFalse(canReuse(packets = true, serverReady = false))
+        assertFalse(canReuse(packets = false, serverReady = true))
+        assertTrue(canReuse(packets = true, serverReady = true))
+        assertFalse(canReuseRecoveredPreviewAfterStop(true, true, false, false, false, true, true))
+        assertFalse(canReuseRecoveredPreviewAfterStop(true, false, false, false, true, true, true))
+        assertFalse(canReuseRecoveredPreviewAfterStop(true, true, true, false, true, true, true))
+        assertFalse(canReuseRecoveredPreviewAfterStop(true, true, false, true, true, true, true))
+    }
+
     @Test fun reusedVideoSenderRequiresNewOutboundPackets() {
         val progress = OutboundVideoProgress()
         progress.observe(null)

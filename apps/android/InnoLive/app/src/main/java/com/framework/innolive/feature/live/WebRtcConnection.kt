@@ -128,9 +128,11 @@ class WebRtcConnection(
     private var audioRouteVerificationTask: ScheduledFuture<*>? = null
     private var recoveryTask: ScheduledFuture<*>? = null
     private var recoveryVideoStatsTask: ScheduledFuture<*>? = null
+    private var recoveryPeerConnectionTimeoutTask: ScheduledFuture<*>? = null
     private var recoveryVideoTimeoutTask: ScheduledFuture<*>? = null
     private var recoveryVideoStatusJob: Job? = null
     private var recoveryVideoVerificationId: String? = null
+    private val recoveryVideoVerificationGate = RecoveryVideoVerificationGate()
     private var recoveryVideoProgress: OutboundVideoProgress? = null
     private var recoveryServerVideoReady = false
     private var recoveryTokenRefreshJob: Job? = null
@@ -524,13 +526,23 @@ class WebRtcConnection(
                 updateBroadcastState(BroadcastState.IDLE)
                 recoverySuppressedAfterStop = true
                 if (recoveryWindow.deadlineMillis != null) {
-                    if (peerConnection?.connectionState() == PeerConnection.PeerConnectionState.CONNECTED &&
-                        !recoveryAttemptActive && !recoveryOfferPending) {
-                        peerConnectionConnected = true
+                    if (canReuseRecoveredPreviewAfterStop(
+                            peerConnected = peerConnectionConnected &&
+                                peerConnection?.connectionState() == PeerConnection.PeerConnectionState.CONNECTED,
+                            audioVerified = audioInputVerified,
+                            recoveryAttemptActive = recoveryAttemptActive,
+                            recoveryOfferPending = recoveryOfferPending,
+                            hasCurrentAnswer = hasCurrentRecoveryAnswer(
+                                activeNegotiationId,
+                                remoteDescriptionNegotiationId,
+                            ),
+                            videoPacketsProgressed = recoveryVideoProgress?.hasProgress == true,
+                            serverVideoReady = recoveryServerVideoReady,
+                        )) {
                         cancelRecoveryWork()
                         updateState(WebRtcConnectionState.CONNECTED)
                     } else {
-                        // Deliver the successful stop before closing a still-disconnected preview.
+                        // Deliver the successful stop before closing an unverified preview.
                         executeOnOwner { fail(ConnectionFailure.DISCONNECTED) }
                     }
                 }
@@ -1037,7 +1049,7 @@ class WebRtcConnection(
                             pendingRemoteCandidates.clear()
                             if (recoveryWindow.deadlineMillis != null) {
                                 recoveryAttemptActive = false
-                                startRecoveryVideoVerification(negotiationId)
+                                awaitRecoveryPeerConnection(negotiationId)
                                 updateConnectedState()
                             } else {
                                 updateState(WebRtcConnectionState.CONNECTING)
@@ -1122,15 +1134,17 @@ class WebRtcConnection(
 
     private fun updateConnectedState() {
         if (!isActive()) return
-        if (!peerConnectionConnected || !audioInputVerified) return
+        if (!peerConnectionConnected) return
         if (recoveryWindow.deadlineMillis != null) {
             val negotiationId = activeNegotiationId
             if (!hasCurrentRecoveryAnswer(negotiationId, remoteDescriptionNegotiationId)) return
             if (recoveryVideoVerificationId != negotiationId) {
-                startRecoveryVideoVerification(checkNotNull(negotiationId))
+                awaitRecoveryPeerConnection(checkNotNull(negotiationId))
             }
+            startRecoveryVideoVerification(checkNotNull(negotiationId))
             if (recoveryVideoProgress?.hasProgress != true || !recoveryServerVideoReady) return
         }
+        if (!audioInputVerified) return
 
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null
@@ -1142,12 +1156,38 @@ class WebRtcConnection(
         updateState(WebRtcConnectionState.CONNECTED)
     }
 
-    private fun startRecoveryVideoVerification(negotiationId: String) {
+    private fun awaitRecoveryPeerConnection(negotiationId: String) {
         cancelRecoveryVideoVerification()
         recoveryVideoVerificationId = negotiationId
         recoveryVideoProgress = OutboundVideoProgress()
         recoveryTask?.cancel(false)
         recoveryTask = null
+        val timeout = recoveryWindow.remainingMillis(SystemClock.elapsedRealtime())
+            .coerceAtMost(RECOVERY_PEER_CONNECTION_WAIT_MILLIS)
+        if (timeout == 0L) {
+            onNegotiationFailure(negotiationId)
+            return
+        }
+        recoveryPeerConnectionTimeoutTask = timerExecutor.schedule(
+            {
+                executeOnOwner {
+                    if (isCurrentRecoveryVideoVerification(negotiationId) &&
+                        !recoveryVideoVerificationGate.started) {
+                        onNegotiationFailure(negotiationId)
+                    }
+                }
+            },
+            timeout,
+            TimeUnit.MILLISECONDS,
+        )
+    }
+
+    private fun startRecoveryVideoVerification(negotiationId: String) {
+        if (!isCurrentRecoveryVideoVerification(negotiationId) ||
+            !recoveryVideoVerificationGate.startIfConnected(peerConnectionConnected &&
+                peerConnection?.connectionState() == PeerConnection.PeerConnectionState.CONNECTED)) return
+        recoveryPeerConnectionTimeoutTask?.cancel(false)
+        recoveryPeerConnectionTimeoutTask = null
         val timeout = recoveryWindow.remainingMillis(SystemClock.elapsedRealtime())
             .coerceAtMost(RECOVERY_VIDEO_VERIFICATION_MILLIS)
         if (timeout == 0L) {
@@ -1246,8 +1286,11 @@ class WebRtcConnection(
 
     private fun cancelRecoveryVideoVerification() {
         recoveryVideoVerificationId = null
+        recoveryVideoVerificationGate.reset()
         recoveryVideoProgress = null
         recoveryServerVideoReady = false
+        recoveryPeerConnectionTimeoutTask?.cancel(false)
+        recoveryPeerConnectionTimeoutTask = null
         recoveryVideoStatsTask?.cancel(false)
         recoveryVideoStatsTask = null
         recoveryVideoTimeoutTask?.cancel(false)
@@ -1800,6 +1843,7 @@ class WebRtcConnection(
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private const val CONNECTION_TIMEOUT_MILLIS = 30_000L
         private const val AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS = 500L
+        private const val RECOVERY_PEER_CONNECTION_WAIT_MILLIS = 20_000L
         private const val RECOVERY_VIDEO_VERIFICATION_MILLIS = 10_000L
         private const val RECOVERY_VIDEO_STATS_POLL_MILLIS = 250L
         private const val RECOVERY_VIDEO_STATUS_POLL_MILLIS = 1_000L
