@@ -5,6 +5,9 @@ import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.MediaRecorder
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -76,6 +79,7 @@ class WebRtcConnection(
     }
     private val sessionRecoveryScope = sessionRecoveryScope(serverBaseUrl.toString(), accessToken)
     private val audioManager = applicationContext.getSystemService(AudioManager::class.java)
+    private val connectivityManager = applicationContext.getSystemService(ConnectivityManager::class.java)
     private val mainHandler = Handler(Looper.getMainLooper())
     /**
      * The owner for all WebRTC, signaling, audio-route, and teardown work.
@@ -115,10 +119,33 @@ class WebRtcConnection(
     private var hasConnected = false
     private var recoveryOfferPending = false
     private var recoveryAttemptActive = false
+    private var waitingForNetwork = false
+    private var networkCallbackRegistered = false
+    private var recoverySuppressedAfterStop = false
     private var activeNegotiationId: String? = null
     private var remoteDescriptionNegotiationId: String? = null
     private val pendingRemoteCandidates = mutableListOf<Pair<String, IceCandidate>>()
     private var localIceUfrags = emptySet<String>()
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = onNetworkChanged()
+
+        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = onNetworkChanged()
+    }
+
+    private fun onNetworkChanged() {
+        executeOnOwner {
+            if (isActive() && waitingForNetwork && isNetworkAvailable()) {
+                waitingForNetwork = false
+                scheduleRecoveryAttempt(0)
+            }
+        }
+    }
+
+    private fun isNetworkAvailable(): Boolean {
+        val network = connectivityManager.activeNetwork ?: return false
+        return connectivityManager.getNetworkCapabilities(network)
+            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }
 
     @Volatile
     private var eglBase: EglBase? = null
@@ -385,6 +412,7 @@ class WebRtcConnection(
             putBroadcastSettings(settings)
             updateBroadcastState(BroadcastState.PREPARING)
             postSessionRequest("stream/prepare", JSONObject().put("provider", "youtube"))
+            recoverySuppressedAfterStop = false
             updateBroadcastState(BroadcastState.PREPARED)
         }
     }
@@ -392,6 +420,13 @@ class WebRtcConnection(
     fun goLive(onAccepted: () -> Unit = {}): Boolean {
         if (!broadcastState.canGoLive) return false
         return runBroadcastOperation(onAccepted = onAccepted) {
+            if (!peerConnectionConnected || !audioInputVerified) {
+                updateBroadcastState(
+                    BroadcastState.PREPARED,
+                    BroadcastEvent.Failure(BroadcastFailure.REQUEST),
+                )
+                return@runBroadcastOperation
+            }
             updateBroadcastState(BroadcastState.GOING_LIVE)
             try {
                 goLiveWithRetry()
@@ -434,6 +469,7 @@ class WebRtcConnection(
     fun resumeBroadcast() {
         if (!broadcastState.canResume) return
         runBroadcastOperation {
+            if (!peerConnectionConnected || !audioInputVerified) return@runBroadcastOperation
             updateBroadcastState(BroadcastState.RESUMING)
             try {
                 postSessionRequest("stream/resume")
@@ -461,6 +497,18 @@ class WebRtcConnection(
             try {
                 postSessionRequest("stream/stop")
                 updateBroadcastState(BroadcastState.IDLE)
+                recoverySuppressedAfterStop = true
+                if (recoveryWindow.deadlineMillis != null) {
+                    if (peerConnection?.connectionState() == PeerConnection.PeerConnectionState.CONNECTED &&
+                        !recoveryAttemptActive && !recoveryOfferPending) {
+                        peerConnectionConnected = true
+                        cancelRecoveryWork()
+                        updateState(WebRtcConnectionState.CONNECTED)
+                    } else {
+                        // Deliver the successful stop before closing a still-disconnected preview.
+                        executeOnOwner { fail(ConnectionFailure.DISCONNECTED) }
+                    }
+                }
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     previousState,
@@ -1040,18 +1088,27 @@ class WebRtcConnection(
         connectionTimeoutTask = null
         hasConnected = true
         if (recoveryWindow.deadlineMillis != null) {
-            recoveryWindow.clear()
-            recoveryTask?.cancel(false)
-            recoveryTask = null
-            recoveryDeadlineTask?.cancel(false)
-            recoveryDeadlineTask = null
-            answerTimeoutTask?.cancel(false)
-            answerTimeoutTask = null
-            recoveryAttemptActive = false
-            recoveryOfferPending = false
+            cancelRecoveryWork()
             Log.i("LiveConnection", "network_recovery_succeeded")
         }
         updateState(WebRtcConnectionState.CONNECTED)
+    }
+
+    private fun cancelRecoveryWork() {
+        recoveryWindow.clear()
+        recoveryTask?.cancel(false)
+        recoveryTask = null
+        recoveryDeadlineTask?.cancel(false)
+        recoveryDeadlineTask = null
+        answerTimeoutTask?.cancel(false)
+        answerTimeoutTask = null
+        recoveryAttemptActive = false
+        recoveryOfferPending = false
+        waitingForNetwork = false
+        if (networkCallbackRegistered) {
+            runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
+            networkCallbackRegistered = false
+        }
     }
 
     private fun onSignalingFailure() {
@@ -1066,12 +1123,25 @@ class WebRtcConnection(
 
     private fun scheduleRecovery(immediate: Boolean) {
         if (!isActive()) return
+        if (recoverySuppressedAfterStop) {
+            fail(ConnectionFailure.DISCONNECTED)
+            return
+        }
         if (!hasConnected || session == null) {
             fail(ConnectionFailure.DISCONNECTED)
             return
         }
         if (recoveryWindow.deadlineMillis == null) {
             val now = SystemClock.elapsedRealtime()
+            if (!networkCallbackRegistered) {
+                try {
+                    connectivityManager.registerDefaultNetworkCallback(networkCallback)
+                    networkCallbackRegistered = true
+                } catch (_: RuntimeException) {
+                    fail(ConnectionFailure.DISCONNECTED)
+                    return
+                }
+            }
             recoveryWindow.begin(now)
             peerConnectionConnected = false
             updateState(WebRtcConnectionState.RECONNECTING)
@@ -1126,7 +1196,11 @@ class WebRtcConnection(
             return
         }
         recoveryOfferPending = false
-        recoveryWindow.recordAttempt(now)
+        if (!recoveryWindow.recordAttempt(now, isNetworkAvailable())) {
+            waitingForNetwork = true
+            return
+        }
+        waitingForNetwork = false
         recoveryAttemptActive = true
         val negotiationId = UUID.randomUUID().toString()
         activeNegotiationId = negotiationId
@@ -1236,6 +1310,10 @@ class WebRtcConnection(
         if (!resourcesReleased.compareAndSet(false, true)) return
 
         timerExecutor.shutdownNow()
+        if (networkCallbackRegistered) {
+            runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
+            networkCallbackRegistered = false
+        }
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null
         audioRouteVerificationTask?.cancel(false)

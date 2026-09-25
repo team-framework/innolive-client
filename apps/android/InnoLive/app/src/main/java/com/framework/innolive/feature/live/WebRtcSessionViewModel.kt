@@ -344,6 +344,7 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun goLive(rotation: Int, screenOrientation: Int, onAccepted: () -> Unit): Boolean {
+        if (connectionState != WebRtcConnectionState.CONNECTED) return false
         val activeConnection = connection ?: return false
         val previousRotation = lockedBroadcastRotation
         val previousScreenOrientation = lockedScreenOrientation
@@ -364,6 +365,7 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun resumeBroadcast() {
+        if (connectionState != WebRtcConnectionState.CONNECTED) return
         connection?.resumeBroadcast()
     }
 

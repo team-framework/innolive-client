@@ -36,8 +36,8 @@ internal class WebRtcRecoveryWindow(private val policy: WebRtcRecoveryPolicy) {
     fun mayAttempt(nowMillis: Long): Boolean =
         deadlineMillis?.let { nowMillis < it && attempts < policy.maxAttempts } == true
 
-    fun recordAttempt(nowMillis: Long): Boolean {
-        if (!mayAttempt(nowMillis)) return false
+    fun recordAttempt(nowMillis: Long, networkAvailable: Boolean = true): Boolean {
+        if (!networkAvailable || !mayAttempt(nowMillis)) return false
         attempts++
         return true
     }

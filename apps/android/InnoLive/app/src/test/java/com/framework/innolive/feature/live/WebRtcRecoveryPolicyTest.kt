@@ -7,6 +7,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WebRtcRecoveryPolicyTest {
+    @Test fun offlineTimeDoesNotConsumeRecoveryAttempts() {
+        val window = WebRtcRecoveryWindow(WebRtcRecoveryPolicy(maxAttempts = 2))
+        window.begin(1_000)
+
+        repeat(10) { assertFalse(window.recordAttempt(2_000L + it, networkAvailable = false)) }
+        assertEquals(0, window.attempts)
+        assertTrue(window.recordAttempt(20_000, networkAvailable = true))
+        assertEquals(1, window.attempts)
+        assertFalse(window.recordAttempt(51_000, networkAvailable = true))
+    }
+
     @Test fun serverWindowAndAttemptLimitBoundRetries() {
         val policy = parseWebRtcRecoveryPolicy(
             JSONObject("""{"recovery":{"window_ms":50000,"debounce_ms":2000,"max_attempts":2}}"""),

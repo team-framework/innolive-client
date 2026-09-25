@@ -13,6 +13,21 @@ import org.junit.Test
 
 class LiveScreenPresentationTest {
     @Test
+    fun reconnectingKeepsStopAccessibleButBlocksStartAndResume() {
+        for (broadcast in listOf(BroadcastState.PREPARED, BroadcastState.PAUSED, BroadcastState.LIVE)) {
+            val presentation = buildLiveScreenPresentation(
+                WebRtcConnectionState.RECONNECTING, broadcast, "YouTube", "연결 복구 중",
+            )
+            assertTrue(presentation.isBroadcastButtonEnabled)
+            assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, presentation.broadcastAction)
+            assertFalse(presentation.canStartOrResumeBroadcast)
+        }
+        assertTrue(buildLiveScreenPresentation(
+            WebRtcConnectionState.CONNECTED, BroadcastState.PREPARED, "YouTube", "준비 완료",
+        ).canStartOrResumeBroadcast)
+    }
+
+    @Test
     fun liveBroadcastStateControlsButtonAndAction() {
         val presentation = buildLiveScreenPresentation(
             connectionState = WebRtcConnectionState.CONNECTED,
