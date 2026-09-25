@@ -517,12 +517,10 @@ nonisolated private final class CameraFrameRelay: NSObject, AVCaptureVideoDataOu
 nonisolated private final class PresetPreviewFrameRelay: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     private let lock = NSLock()
     private var handler: (@Sendable (CVPixelBuffer, Int) -> Void)?
-    private var lastTime: TimeInterval = 0
 
     func update(handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
         lock.lock()
         self.handler = handler
-        lastTime = 0
         lock.unlock()
     }
 
@@ -533,13 +531,8 @@ nonisolated private final class PresetPreviewFrameRelay: NSObject, AVCaptureVide
     ) {
         lock.lock()
         let handler = handler
-        let now = ProcessInfo.processInfo.systemUptime
-        guard let handler, now - lastTime >= 0.2 else {
-            lock.unlock()
-            return
-        }
-        lastTime = now
         lock.unlock()
+        guard let handler else { return }
         guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         handler(buffer, Int(connection.videoRotationAngle.rounded()))
     }

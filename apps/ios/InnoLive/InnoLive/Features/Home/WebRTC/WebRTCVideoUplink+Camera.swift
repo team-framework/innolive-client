@@ -448,7 +448,6 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private var isAnalysisPending = false
     private var lastDeliveryTime: TimeInterval = 0
     private var unprocessedPreviewHandler: (@Sendable (CVPixelBuffer, Int) -> Void)?
-    private var lastPreviewTime: TimeInterval = 0
 
     init(target: LKRTCVideoCapturerDelegate, cameraPosition: AVCaptureDevice.Position,
          processingMode: AIProcessingMode = .server, previewTarget: LKRTCVideoCapturerDelegate? = nil,
@@ -484,7 +483,6 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     func setUnprocessedPreviewHandler(_ handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
         lock.lock()
         unprocessedPreviewHandler = handler
-        lastPreviewTime = 0
         lock.unlock()
     }
 
@@ -605,13 +603,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private func deliverUnprocessedPreview(_ frame: LKRTCVideoFrame) {
         lock.lock()
         let handler = unprocessedPreviewHandler
-        let now = ProcessInfo.processInfo.systemUptime
-        guard let handler, now - lastPreviewTime >= 0.2 else {
-            lock.unlock()
-            return
-        }
-        lastPreviewTime = now
         lock.unlock()
+        guard let handler else { return }
         guard let buffer = (frame.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer else { return }
         handler(buffer, frame.rotation.rawValue)
     }

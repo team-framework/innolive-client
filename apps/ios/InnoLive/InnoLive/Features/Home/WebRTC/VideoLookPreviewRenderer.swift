@@ -17,6 +17,19 @@ nonisolated final class VideoLookPreviewRenderer: @unchecked Sendable {
         return render(scaled(oriented))
     }
 
+    func makePreviewSet(
+        pixelBuffer: CVPixelBuffer,
+        rotation: Int,
+        adjustments: [(warmth: Float, saturation: Float, relativeExposureEV: Float)]
+    ) -> (base: CGImage, previews: [CGImage?])? {
+        let source = scaled(CIImage(cvPixelBuffer: pixelBuffer).oriented(Self.orientation(rotation)))
+        guard let base = render(source) else { return nil }
+        let previews = adjustments.map { adjustment in
+            render(filtered(source, warmth: adjustment.warmth, saturation: adjustment.saturation, relativeExposureEV: adjustment.relativeExposureEV))
+        }
+        return (base, previews)
+    }
+
     func makePreview(
         from base: CGImage,
         warmth: Float,
@@ -32,11 +45,27 @@ nonisolated final class VideoLookPreviewRenderer: @unchecked Sendable {
         }
 
         var image = CIImage(cgImage: base)
+        image = filtered(image, warmth: warmth, saturation: saturation, relativeExposureEV: relativeExposureEV)
+        let extent = CGRect(x: 0, y: 0, width: base.width, height: base.height)
+        return render(image.cropped(to: extent))
+    }
+
+    private func filtered(
+        _ image: CIImage,
+        warmth: Float,
+        saturation: Float,
+        relativeExposureEV: Float
+    ) -> CIImage {
+        let warmth = min(max(warmth, -1), 1)
+        let saturation = min(max(saturation, 0), 2)
+        let exposure = min(max(relativeExposureEV, -4), 4)
+        guard warmth.isFinite, saturation.isFinite, exposure.isFinite else { return image }
+        var image = image
         if exposure != 0 {
             guard let filter = CIFilter(name: "CIExposureAdjust", parameters: [
                 kCIInputImageKey: image,
                 kCIInputEVKey: exposure
-            ]), let output = filter.outputImage else { return nil }
+            ]), let output = filter.outputImage else { return image }
             image = output
         }
         if warmth != 0 {
@@ -44,18 +73,17 @@ nonisolated final class VideoLookPreviewRenderer: @unchecked Sendable {
                 kCIInputImageKey: image,
                 "inputNeutral": CIVector(x: 6_500, y: 0),
                 "inputTargetNeutral": CIVector(x: 6_500 - CGFloat(warmth) * 2_000, y: 0)
-            ]), let output = filter.outputImage else { return nil }
+            ]), let output = filter.outputImage else { return image }
             image = output
         }
         if saturation != 1 {
             guard let filter = CIFilter(name: "CIColorControls", parameters: [
                 kCIInputImageKey: image,
                 kCIInputSaturationKey: saturation
-            ]), let output = filter.outputImage else { return nil }
+            ]), let output = filter.outputImage else { return image }
             image = output
         }
-        let extent = CGRect(x: 0, y: 0, width: base.width, height: base.height)
-        return render(image.cropped(to: extent))
+        return image
     }
 
     private func scaled(_ image: CIImage) -> CIImage {

@@ -268,11 +268,12 @@ private final class PresetPreviewModel: ObservableObject {
 nonisolated private final class PresetPreviewPump: @unchecked Sendable {
     var onUpdate: (@MainActor ([BroadcastVideoLook: CGImage]) -> Void)?
     private let renderer = VideoLookPreviewRenderer()
-    private let queue = DispatchQueue(label: "com.innolive.preset-preview", qos: .utility)
+    private let queue = DispatchQueue(label: "com.innolive.preset-preview", qos: .userInitiated)
     private let lock = NSLock()
     private var busy = false
     private var exposure: Float = 0
     private var base: CGImage?
+    private var lastSubmitTime: TimeInterval = 0
 
     func setExposure(_ exposure: Float) {
         lock.lock()
@@ -287,11 +288,13 @@ nonisolated private final class PresetPreviewPump: @unchecked Sendable {
 
     func submit(pixelBuffer: CVPixelBuffer, rotation: Int) {
         lock.lock()
-        if busy {
+        let now = ProcessInfo.processInfo.systemUptime
+        if busy || now - lastSubmitTime < 1.0 / 20.0 {
             lock.unlock()
             return
         }
         busy = true
+        lastSubmitTime = now
         let exposure = exposure
         lock.unlock()
         guard let copy = renderer.ownedCopy(of: pixelBuffer) else {
@@ -299,14 +302,32 @@ nonisolated private final class PresetPreviewPump: @unchecked Sendable {
             return
         }
         queue.async { [renderer] in
-            guard let base = renderer.makeBaseImage(pixelBuffer: copy, rotation: rotation) else {
+            let adjustments = BroadcastVideoLook.allCases.map { look in
+                (warmth: look.warmth, saturation: look.saturation, relativeExposureEV: look.exposureEV - exposure)
+            }
+            guard let set = renderer.makePreviewSet(
+                pixelBuffer: copy,
+                rotation: rotation,
+                adjustments: adjustments
+            ) else {
                 self.finish()
                 return
             }
             self.lock.lock()
-            self.base = base
+            self.base = set.base
             self.lock.unlock()
-            self.render(base: base, exposure: exposure, alreadyBusy: true)
+            var rendered: [BroadcastVideoLook: CGImage] = [:]
+            for (look, image) in zip(BroadcastVideoLook.allCases, set.previews) {
+                if let image {
+                    rendered[look] = image
+                }
+            }
+            let output = rendered
+            let update = self.onUpdate
+            Task { @MainActor in
+                update?(output)
+            }
+            self.finish()
         }
     }
 
