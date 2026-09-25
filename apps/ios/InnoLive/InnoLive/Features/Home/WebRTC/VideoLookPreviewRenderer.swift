@@ -1,5 +1,6 @@
 import CoreImage
 import CoreVideo
+import Darwin
 import ImageIO
 
 /// Makes small upright stills from an unprocessed camera buffer.
@@ -9,7 +10,7 @@ nonisolated final class VideoLookPreviewRenderer: @unchecked Sendable {
 
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
-    private let maxPixelSize: CGFloat = 1920
+    private let maxPixelSize: CGFloat = 960
 
     func makeBaseImage(pixelBuffer: CVPixelBuffer, rotation: Int) -> CGImage? {
         let oriented = CIImage(cvPixelBuffer: pixelBuffer).oriented(Self.orientation(rotation))
@@ -75,6 +76,66 @@ nonisolated final class VideoLookPreviewRenderer: @unchecked Sendable {
         let extent = image.extent.integral
         guard extent.width > 1, extent.height > 1 else { return nil }
         return context.createCGImage(image, from: extent, format: .RGBA8, colorSpace: colorSpace)
+    }
+
+    func ownedCopy(of source: CVPixelBuffer) -> CVPixelBuffer? {
+        let width = CVPixelBufferGetWidth(source)
+        let height = CVPixelBufferGetHeight(source)
+        guard width > 0, height > 0 else { return nil }
+        var destination: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            width,
+            height,
+            CVPixelBufferGetPixelFormatType(source),
+            [
+                kCVPixelBufferIOSurfacePropertiesKey: [:],
+                kCVPixelBufferMetalCompatibilityKey: true
+            ] as CFDictionary,
+            &destination
+        )
+        guard status == kCVReturnSuccess, let destination else { return nil }
+        CVPixelBufferLockBaseAddress(source, .readOnly)
+        CVPixelBufferLockBaseAddress(destination, [])
+        defer {
+            CVPixelBufferUnlockBaseAddress(destination, [])
+            CVPixelBufferUnlockBaseAddress(source, .readOnly)
+        }
+        if CVPixelBufferIsPlanar(source) {
+            let planes = CVPixelBufferGetPlaneCount(source)
+            guard CVPixelBufferGetPlaneCount(destination) == planes else { return nil }
+            for plane in 0..<planes {
+                guard let sourceAddress = CVPixelBufferGetBaseAddressOfPlane(source, plane),
+                      let destinationAddress = CVPixelBufferGetBaseAddressOfPlane(destination, plane) else {
+                    return nil
+                }
+                let sourceRow = CVPixelBufferGetBytesPerRowOfPlane(source, plane)
+                let destinationRow = CVPixelBufferGetBytesPerRowOfPlane(destination, plane)
+                let planeHeight = CVPixelBufferGetHeightOfPlane(source, plane)
+                let rowBytes = min(sourceRow, destinationRow)
+                for row in 0..<planeHeight {
+                    memcpy(
+                        destinationAddress.advanced(by: row * destinationRow),
+                        sourceAddress.advanced(by: row * sourceRow),
+                        rowBytes
+                    )
+                }
+            }
+        } else {
+            guard let sourceAddress = CVPixelBufferGetBaseAddress(source),
+                  let destinationAddress = CVPixelBufferGetBaseAddress(destination) else { return nil }
+            let sourceRow = CVPixelBufferGetBytesPerRow(source)
+            let destinationRow = CVPixelBufferGetBytesPerRow(destination)
+            let rowBytes = min(sourceRow, destinationRow)
+            for row in 0..<height {
+                memcpy(
+                    destinationAddress.advanced(by: row * destinationRow),
+                    sourceAddress.advanced(by: row * sourceRow),
+                    rowBytes
+                )
+            }
+        }
+        return destination
     }
 
     private static func orientation(_ rotation: Int) -> CGImagePropertyOrientation {

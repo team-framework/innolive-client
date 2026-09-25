@@ -215,9 +215,6 @@ final class CameraManager {
 
             let output = AVCaptureVideoDataOutput()
             output.alwaysDiscardsLateVideoFrames = true
-            output.videoSettings = [
-                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
-            ]
             output.setSampleBufferDelegate(
                 self.presetPreviewRelay,
                 queue: DispatchQueue(label: "com.innolive.camera.preset-preview")

@@ -128,15 +128,9 @@ struct BroadcastVideoControlsView: View {
     private func startPresetPreviews() {
         stopPresetPreviews()
         previews.updateExposure(uplink.videoQualitySettings.exposureEV)
-        let model = previews
+        let pump = previews.pump
         let deliver: @Sendable (CVPixelBuffer, Int) -> Void = { buffer, rotation in
-            guard let image = VideoLookPreviewRenderer.shared.makeBaseImage(
-                pixelBuffer: buffer,
-                rotation: rotation
-            ) else { return }
-            Task { @MainActor in
-                model.setBaseImage(image)
-            }
+            pump.submit(pixelBuffer: buffer, rotation: rotation)
         }
         if uplink.isCapturingMedia {
             uplink.setUnprocessedPreviewHandler(deliver)
@@ -258,30 +252,70 @@ private enum BroadcastVideoLook: CaseIterable, Identifiable, Sendable {
 @MainActor
 private final class PresetPreviewModel: ObservableObject {
     @Published private(set) var images: [BroadcastVideoLook: CGImage] = [:]
-    private var base: CGImage?
-    private var capturedExposure: Float = 0
-    private var generation: UInt = 0
-    private let renderer = VideoLookPreviewRenderer()
+    let pump = PresetPreviewPump()
+
+    init() {
+        pump.onUpdate = { [weak self] images in
+            self?.images = images
+        }
+    }
 
     func updateExposure(_ exposure: Float) {
-        capturedExposure = exposure
-        render()
+        pump.setExposure(exposure)
+    }
+}
+
+nonisolated private final class PresetPreviewPump: @unchecked Sendable {
+    var onUpdate: (@MainActor ([BroadcastVideoLook: CGImage]) -> Void)?
+    private let renderer = VideoLookPreviewRenderer()
+    private let queue = DispatchQueue(label: "com.innolive.preset-preview", qos: .utility)
+    private let lock = NSLock()
+    private var busy = false
+    private var exposure: Float = 0
+    private var base: CGImage?
+
+    func setExposure(_ exposure: Float) {
+        lock.lock()
+        self.exposure = exposure
+        let base = base
+        let canRender = base != nil && !busy
+        if canRender { busy = true }
+        lock.unlock()
+        guard canRender, let base else { return }
+        render(base: base, exposure: exposure)
     }
 
-    func setBaseImage(_ image: CGImage) {
-        base = image
-        render()
+    func submit(pixelBuffer: CVPixelBuffer, rotation: Int) {
+        lock.lock()
+        if busy {
+            lock.unlock()
+            return
+        }
+        busy = true
+        let exposure = exposure
+        lock.unlock()
+        guard let copy = renderer.ownedCopy(of: pixelBuffer) else {
+            finish()
+            return
+        }
+        queue.async { [renderer] in
+            guard let base = renderer.makeBaseImage(pixelBuffer: copy, rotation: rotation) else {
+                self.finish()
+                return
+            }
+            self.lock.lock()
+            self.base = base
+            self.lock.unlock()
+            self.render(base: base, exposure: exposure, alreadyBusy: true)
+        }
     }
 
-    private func render() {
-        guard let base else { return }
-        generation &+= 1
-        let generation = generation
-        let exposure = capturedExposure
+    private func render(base: CGImage, exposure: Float, alreadyBusy: Bool = false) {
         let looks = BroadcastVideoLook.allCases.map { look in
             (look, look.warmth, look.saturation, look.exposureEV - exposure)
         }
-        DispatchQueue.global(qos: .userInitiated).async { [renderer] in
+        let update = onUpdate
+        let work = { [renderer] in
             var rendered: [BroadcastVideoLook: CGImage] = [:]
             for (look, warmth, saturation, relativeExposure) in looks {
                 if let image = renderer.makePreview(
@@ -295,9 +329,20 @@ private final class PresetPreviewModel: ObservableObject {
             }
             let output = rendered
             Task { @MainActor in
-                guard self.generation == generation else { return }
-                self.images = output
+                update?(output)
             }
+            self.finish()
         }
+        if alreadyBusy {
+            work()
+        } else {
+            queue.async(execute: work)
+        }
+    }
+
+    private func finish() {
+        lock.lock()
+        busy = false
+        lock.unlock()
     }
 }
