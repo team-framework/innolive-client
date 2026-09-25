@@ -96,6 +96,7 @@ fun LiveScreen(
     }
     LaunchedEffect(webRtcSession) {
         webRtcSession.restoreAnonymizationSelection(context)
+        webRtcSession.restoreAIProcessingSelection(context)
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
@@ -124,6 +125,7 @@ fun LiveScreen(
             WebRtcConnectionState.FAILED,
             WebRtcConnectionState.CONNECTED,
         ) && !webRtcSession.isPreparingBroadcast &&
+            !webRtcSession.selectedOnDeviceProcessing &&
             webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
 
     Box(
@@ -155,6 +157,31 @@ fun LiveScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            TextButton(
+                onClick = {
+                    webRtcSession.selectAIProcessing(
+                        context,
+                        !webRtcSession.selectedOnDeviceProcessing,
+                    )
+                },
+                enabled = !webRtcSession.isAIProcessingChanging &&
+                    !webRtcSession.isPreparingBroadcast &&
+                    webRtcSession.anonymizationChange.status != AnonymizationChangeStatus.CHANGING &&
+                    webRtcSession.broadcastState == BroadcastState.IDLE &&
+                    webRtcSession.connectionState in setOf(
+                        WebRtcConnectionState.IDLE,
+                        WebRtcConnectionState.FAILED,
+                        WebRtcConnectionState.CONNECTED,
+                    ),
+            ) {
+                Text(
+                    stringResource(
+                        if (webRtcSession.selectedOnDeviceProcessing) R.string.ai_mode_on_device
+                        else R.string.ai_mode_server,
+                    ),
+                    color = Color.White,
+                )
+            }
             IconButton(
                 onClick = props.onOpenSettings,
                 enabled = !presentation.isConnecting,
@@ -322,6 +349,8 @@ fun LiveScreen(
                             webRtcSession.selectedAnonymizationEnabled,
                             webRtcSession.isAnonymizationSelectionLoaded,
                             webRtcSession.anonymizationChange,
+                            processingModeChanging = webRtcSession.isAIProcessingChanging ||
+                                webRtcSession.aiProcessingChangeFailed,
                         ),
                         onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
                     )
@@ -339,6 +368,15 @@ fun LiveScreen(
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
+            }
+            if (webRtcSession.aiProcessingChangeFailed) {
+                Text(
+                    text = stringResource(R.string.ai_mode_change_failed),
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                )
             }
             webRtcSession.anonymizationChange.errorMessage?.let { error ->
                 Text(

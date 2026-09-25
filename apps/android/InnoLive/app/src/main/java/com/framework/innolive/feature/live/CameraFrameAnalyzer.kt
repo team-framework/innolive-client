@@ -1,7 +1,11 @@
 package com.framework.innolive.feature.live
 
+import android.content.Context
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.framework.innolive.feature.live.privacy.PrivacyFrameMode
+import com.framework.innolive.feature.live.privacy.PrivacyFrameProcessor
+import com.framework.innolive.feature.live.privacy.PrivacyFrameRoute
 import org.webrtc.CapturerObserver
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
@@ -10,8 +14,38 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class CameraFrameAnalyzer(
     private val capturerObserver: CapturerObserver,
+    private val applicationContext: Context? = null,
+    initialOnDevice: Boolean = false,
+    initialAnonymizationEnabled: Boolean = true,
+    private val onProcessingFailure: () -> Unit = {},
+    private val onProtectedFrameSent: () -> Unit = {},
 ) : ImageAnalysis.Analyzer {
     private val enabled = AtomicBoolean(false)
+    private val protectedFrameReported = AtomicBoolean(false)
+    private val processorLock = Any()
+    private var localProcessor: PrivacyFrameProcessor? =
+        if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext)) else null
+    private val route = PrivacyFrameRoute(
+        when {
+            !initialOnDevice -> PrivacyFrameMode.SERVER
+            initialAnonymizationEnabled -> PrivacyFrameMode.LOCAL_PROTECTED
+            else -> PrivacyFrameMode.LOCAL_RAW
+        },
+    )
+
+    fun setProcessingMode(onDevice: Boolean, anonymizationEnabled: Boolean) {
+        synchronized(processorLock) {
+            if (onDevice && localProcessor == null) {
+                localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext))
+            }
+            route.change(when {
+                !onDevice -> PrivacyFrameMode.SERVER
+                anonymizationEnabled -> PrivacyFrameMode.LOCAL_PROTECTED
+                else -> PrivacyFrameMode.LOCAL_RAW
+            })
+            protectedFrameReported.set(false)
+        }
+    }
 
     fun start() {
         if (enabled.compareAndSet(false, true)) {
@@ -20,8 +54,13 @@ class CameraFrameAnalyzer(
     }
 
     fun stop() {
+        route.stop()
         if (enabled.compareAndSet(true, false)) {
             capturerObserver.onCapturerStopped()
+        }
+        synchronized(processorLock) {
+            localProcessor?.close()
+            localProcessor = null
         }
     }
 
@@ -62,7 +101,26 @@ class CameraFrameAnalyzer(
                     image.imageInfo.timestamp,
                 )
                 try {
-                    capturerObserver.onFrameCaptured(frame)
+                    val ticket = route.ticket() ?: return
+                    val outgoing = try {
+                        if (ticket.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
+                            synchronized(processorLock) { checkNotNull(localProcessor).process(frame) }
+                        } else {
+                            frame
+                        }
+                    } catch (_: Exception) {
+                        route.deliver(ticket, onProcessingFailure)
+                        return
+                    }
+                    try {
+                        route.deliver(ticket) {
+                            capturerObserver.onFrameCaptured(outgoing)
+                            if (ticket.mode == PrivacyFrameMode.LOCAL_PROTECTED &&
+                                protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
+                        }
+                    } finally {
+                        if (outgoing !== frame) outgoing.release()
+                    }
                 } finally {
                     frame.release()
                 }

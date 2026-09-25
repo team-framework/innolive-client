@@ -1,0 +1,22 @@
+{
+  "checkpoint_sha256": "307e9b5895654d25d264903451abc4acad9ee30f5e2f2bf64af164a9f46bc115",
+  "onnx_sha256": "8d111ad2dcb5e5fa9d709f3d11606dcd62ea6f1d4833633864b1e4cf47f13be7",
+  "shapes": [
+    [
+      1,
+      38,
+      8400
+    ],
+    [
+      1,
+      32,
+      160,
+      160
+    ]
+  ],
+  "max_absolute_errors": [
+    0.000457763671875,
+    1.0609626770019531e-05
+  ],
+  "limitations": "Synthetic numeric parity only; real-device latency and privacy quality require separate tests."
+}

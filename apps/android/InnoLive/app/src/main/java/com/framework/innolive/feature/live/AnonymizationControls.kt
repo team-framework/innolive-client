@@ -31,6 +31,7 @@ internal fun anonymizationControlsState(
     selected: Boolean,
     loaded: Boolean,
     change: AnonymizationChange,
+    processingModeChanging: Boolean = false,
 ): AnonymizationControlsState {
     val connected = connection == WebRtcConnectionState.CONNECTED
     val connecting = connection == WebRtcConnectionState.CONNECTING ||
@@ -62,7 +63,7 @@ internal fun anonymizationControlsState(
             null -> UiText.Resource(R.string.anonymization_enable)
         },
         selectedEnabled = value,
-        canChange = loaded && !connecting && !changing,
+        canChange = loaded && !connecting && !changing && !processingModeChanging,
     )
 }
 
