@@ -57,9 +57,10 @@ class WebRtcRecoveryPolicyTest {
         assertFalse(extractCandidateUfrag("candidate:2 1 udp 1 127.0.0.1 9 typ host ufrag old456") in current)
     }
 
-    @Test fun refreshedTokenIsUsedForEverySignalInOneRecoveryAndRefreshedAgainNextTime() {
-        val token = RecoveryAccessToken("expired-token")
+    @Test fun existingTokenIsUsedUntilUnauthorizedAndRefreshChangesLaterSignals() {
+        val token = RecoveryAccessToken("current-token")
         assertFalse(token.refreshedForCurrentRecovery)
+        assertEquals("current-token", token.value)
         token.updateForRecovery(" renewed-token ")
         assertEquals("renewed-token", token.value)
         assertTrue(token.refreshedForCurrentRecovery)
@@ -70,22 +71,33 @@ class WebRtcRecoveryPolicyTest {
         assertEquals("renewed-token", token.value)
     }
 
-    @Test fun failedCandidateSendRetriesOnlyTheActiveRecoveryNegotiation() {
+    @Test fun failedCandidateSendRetriesWhileRecoveryWindowIsOpenEvenAfterAnswer() {
         assertEquals(
             SignalingSendFailureAction.FAIL_CONNECTION,
-            signalingSendFailureAction(recoveryWindowOpen = false, recoveryAttemptActive = false, hasConnected = false),
+            signalingSendFailureAction(recoveryWindowOpen = false, hasConnected = false),
         )
         assertEquals(
             SignalingSendFailureAction.RETRY_NEGOTIATION,
-            signalingSendFailureAction(recoveryWindowOpen = true, recoveryAttemptActive = true, hasConnected = true),
-        )
-        assertEquals(
-            SignalingSendFailureAction.IGNORE_STALE_CANDIDATE,
-            signalingSendFailureAction(recoveryWindowOpen = true, recoveryAttemptActive = false, hasConnected = true),
+            signalingSendFailureAction(recoveryWindowOpen = true, hasConnected = true),
         )
         assertEquals(
             SignalingSendFailureAction.START_RECOVERY,
-            signalingSendFailureAction(recoveryWindowOpen = false, recoveryAttemptActive = false, hasConnected = true),
+            signalingSendFailureAction(recoveryWindowOpen = false, hasConnected = true),
+        )
+    }
+
+    @Test fun unauthorizedRefreshesOnlyDuringRecoveryAndOnlyOncePerWindow() {
+        assertEquals(
+            RecoveryUnauthorizedAction.FAIL_CONNECTION,
+            recoveryUnauthorizedAction(recoveryWindowOpen = false, tokenAlreadyRefreshed = false),
+        )
+        assertEquals(
+            RecoveryUnauthorizedAction.REFRESH_AND_RETRY,
+            recoveryUnauthorizedAction(recoveryWindowOpen = true, tokenAlreadyRefreshed = false),
+        )
+        assertEquals(
+            RecoveryUnauthorizedAction.FAIL_CONNECTION,
+            recoveryUnauthorizedAction(recoveryWindowOpen = true, tokenAlreadyRefreshed = true),
         )
     }
 

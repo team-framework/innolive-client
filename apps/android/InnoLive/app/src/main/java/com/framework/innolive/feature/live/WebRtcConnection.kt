@@ -126,6 +126,7 @@ class WebRtcConnection(
     private var audioRouteVerificationTask: ScheduledFuture<*>? = null
     private var recoveryTask: ScheduledFuture<*>? = null
     private var recoveryTokenRefreshJob: Job? = null
+    private var recoveryAuthPending = false
     private var recoveryDeadlineTask: ScheduledFuture<*>? = null
     private var answerTimeoutTask: ScheduledFuture<*>? = null
     private var recoveryPolicy = WebRtcRecoveryPolicy()
@@ -947,13 +948,11 @@ class WebRtcConnection(
             } else if (!socket.send(payload)) {
                 when (signalingSendFailureAction(
                     recoveryWindowOpen = recoveryWindow.deadlineMillis != null,
-                    recoveryAttemptActive = recoveryAttemptActive,
                     hasConnected = hasConnected,
                 )) {
                     SignalingSendFailureAction.RETRY_NEGOTIATION -> onNegotiationFailure(negotiationId)
                     SignalingSendFailureAction.START_RECOVERY -> onSignalingFailure()
                     SignalingSendFailureAction.FAIL_CONNECTION -> fail(ConnectionFailure.GENERIC)
-                    SignalingSendFailureAction.IGNORE_STALE_CANDIDATE -> Unit
                 }
             }
         }
@@ -971,7 +970,15 @@ class WebRtcConnection(
                     }
                 }
                 is ServerMessage.Error -> {
-                    if (message.code in setOf("forbidden", "unauthorized", "not_found", "peer_recovery_attempts_exhausted")) {
+                    if (message.code == "unauthorized") {
+                        when (recoveryUnauthorizedAction(
+                            recoveryWindowOpen = recoveryWindow.deadlineMillis != null,
+                            tokenAlreadyRefreshed = recoveryAccessToken.refreshedForCurrentRecovery,
+                        )) {
+                            RecoveryUnauthorizedAction.REFRESH_AND_RETRY -> onRecoveryUnauthorized()
+                            RecoveryUnauthorizedAction.FAIL_CONNECTION -> fail(ConnectionFailure.DISCONNECTED)
+                        }
+                    } else if (message.code in setOf("forbidden", "not_found", "peer_recovery_attempts_exhausted")) {
                         fail(ConnectionFailure.DISCONNECTED)
                     } else if (recoveryWindow.deadlineMillis != null) {
                         activeNegotiationId?.let(::onNegotiationFailure)
@@ -1121,6 +1128,7 @@ class WebRtcConnection(
         recoveryWindow.clear()
         recoveryTokenRefreshJob?.cancel()
         recoveryTokenRefreshJob = null
+        recoveryAuthPending = false
         recoveryAccessToken.resetRecovery()
         recoveryTask?.cancel(false)
         recoveryTask = null
@@ -1140,7 +1148,7 @@ class WebRtcConnection(
     private fun onSignalingFailure() {
         if (!hasConnected) {
             fail(ConnectionFailure.DISCONNECTED)
-        } else if (recoveryWindow.deadlineMillis != null && recoveryAttemptActive) {
+        } else if (recoveryWindow.deadlineMillis != null && activeNegotiationId != null) {
             activeNegotiationId?.let(::onNegotiationFailure)
         } else {
             scheduleRecovery(immediate = true)
@@ -1190,7 +1198,7 @@ class WebRtcConnection(
             )
             Log.w("LiveConnection", "network_recovery_started")
         }
-        if (recoveryAttemptActive || recoveryOfferPending || recoveryTask != null) return
+        if (recoveryAttemptActive || recoveryAuthPending || recoveryOfferPending || recoveryTask != null) return
         scheduleRecoveryAttempt(if (immediate) 0 else recoveryPolicy.debounceMillis)
     }
 
@@ -1239,28 +1247,7 @@ class WebRtcConnection(
         }
         webSocket?.close(1000, null)
         webSocket = null
-        if (recoveryAccessToken.refreshedForCurrentRecovery) {
-            openRecoverySignalingSocket(negotiationId)
-        } else {
-            recoveryTokenRefreshJob = recoveryScope.launch {
-                val refreshedToken = try {
-                    refreshAccessToken().trim().takeIf { it.isNotEmpty() }
-                        ?: throw IllegalStateException("Refreshed access token is blank.")
-                } catch (_: Exception) {
-                    executeOnOwner {
-                        if (recoveryWindow.deadlineMillis != null) onNegotiationFailure(negotiationId)
-                    }
-                    return@launch
-                }
-                executeOnOwner {
-                    if (!isActive() || recoveryWindow.deadlineMillis == null ||
-                        activeNegotiationId != negotiationId || !recoveryAttemptActive) return@executeOnOwner
-                    recoveryTokenRefreshJob = null
-                    recoveryAccessToken.updateForRecovery(refreshedToken)
-                    openRecoverySignalingSocket(negotiationId)
-                }
-            }
-        }
+        openRecoverySignalingSocket(negotiationId)
     }
 
     private fun openRecoverySignalingSocket(negotiationId: String) {
@@ -1277,17 +1264,43 @@ class WebRtcConnection(
         }
     }
 
-    private fun onNegotiationFailure(negotiationId: String) {
+    private fun onRecoveryUnauthorized() {
+        val negotiationId = activeNegotiationId ?: return fail(ConnectionFailure.DISCONNECTED)
+        if (recoveryAuthPending) return
+        recoveryAuthPending = true
+        onNegotiationFailure(negotiationId, onRetired = ::refreshRecoveryAccessToken)
+    }
+
+    private fun refreshRecoveryAccessToken() {
+        if (!isActive() || recoveryWindow.deadlineMillis == null || !recoveryAuthPending) return
+        recoveryTokenRefreshJob = recoveryScope.launch {
+            val refreshedToken = runCatching {
+                refreshAccessToken().trim().takeIf { it.isNotEmpty() }
+                    ?: throw IllegalStateException("Refreshed access token is blank.")
+            }.getOrNull()
+            executeOnOwner {
+                if (!isActive() || recoveryWindow.deadlineMillis == null ||
+                    !recoveryAuthPending || activeNegotiationId != null) return@executeOnOwner
+                recoveryTokenRefreshJob = null
+                recoveryAuthPending = false
+                if (refreshedToken != null) recoveryAccessToken.updateForRecovery(refreshedToken)
+                scheduleRecoveryAttempt(if (refreshedToken != null) 0 else recoveryPolicy.debounceMillis)
+            }
+        }
+    }
+
+    private fun onNegotiationFailure(negotiationId: String, onRetired: (() -> Unit)? = null) {
         if (!isActive() || activeNegotiationId != negotiationId) return
         if (recoveryWindow.deadlineMillis == null) {
-            fail(ConnectionFailure.GENERIC)
+            if (!hasConnected) fail(ConnectionFailure.GENERIC)
             return
         }
-        if (!recoveryAttemptActive) return
         recoveryAttemptActive = false
         recoveryTokenRefreshJob?.cancel()
         recoveryTokenRefreshJob = null
         activeNegotiationId = null
+        recoveryTask?.cancel(false)
+        recoveryTask = null
         answerTimeoutTask?.cancel(false)
         answerTimeoutTask = null
         webSocket?.close(1000, null)
@@ -1295,7 +1308,9 @@ class WebRtcConnection(
         pendingRemoteCandidates.clear()
         val connection = peerConnection ?: return fail(ConnectionFailure.DISCONNECTED)
         val retry = {
-            if (activeNegotiationId == null) scheduleRecoveryAttempt(recoveryPolicy.debounceMillis)
+            if (isActive() && recoveryWindow.deadlineMillis != null && activeNegotiationId == null) {
+                if (onRetired != null) onRetired() else scheduleRecoveryAttempt(recoveryPolicy.debounceMillis)
+            }
         }
         if (connection.signalingState() == PeerConnection.SignalingState.HAVE_LOCAL_OFFER) {
             connection.setLocalDescription(

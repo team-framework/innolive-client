@@ -29,19 +29,28 @@ internal enum class SignalingSendFailureAction {
     RETRY_NEGOTIATION,
     START_RECOVERY,
     FAIL_CONNECTION,
-    IGNORE_STALE_CANDIDATE,
 }
 
 internal fun signalingSendFailureAction(
     recoveryWindowOpen: Boolean,
-    recoveryAttemptActive: Boolean,
     hasConnected: Boolean,
 ): SignalingSendFailureAction = when {
-    recoveryAttemptActive -> SignalingSendFailureAction.RETRY_NEGOTIATION
-    recoveryWindowOpen -> SignalingSendFailureAction.IGNORE_STALE_CANDIDATE
+    recoveryWindowOpen -> SignalingSendFailureAction.RETRY_NEGOTIATION
     hasConnected -> SignalingSendFailureAction.START_RECOVERY
     else -> SignalingSendFailureAction.FAIL_CONNECTION
 }
+
+internal enum class RecoveryUnauthorizedAction {
+    REFRESH_AND_RETRY,
+    FAIL_CONNECTION,
+}
+
+internal fun recoveryUnauthorizedAction(
+    recoveryWindowOpen: Boolean,
+    tokenAlreadyRefreshed: Boolean,
+): RecoveryUnauthorizedAction =
+    if (recoveryWindowOpen && !tokenAlreadyRefreshed) RecoveryUnauthorizedAction.REFRESH_AND_RETRY
+    else RecoveryUnauthorizedAction.FAIL_CONNECTION
 
 internal fun parseWebRtcRecoveryPolicy(config: JSONObject): WebRtcRecoveryPolicy {
     val recovery = config.optJSONObject("recovery") ?: return WebRtcRecoveryPolicy()
