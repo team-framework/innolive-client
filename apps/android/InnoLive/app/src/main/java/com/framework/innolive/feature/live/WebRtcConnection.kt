@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
@@ -39,6 +40,7 @@ import org.webrtc.MediaStream
 import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
+import org.webrtc.RtpSender
 import org.webrtc.RtpTransceiver
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
@@ -125,6 +127,12 @@ class WebRtcConnection(
     private var connectionTimeoutTask: ScheduledFuture<*>? = null
     private var audioRouteVerificationTask: ScheduledFuture<*>? = null
     private var recoveryTask: ScheduledFuture<*>? = null
+    private var recoveryVideoStatsTask: ScheduledFuture<*>? = null
+    private var recoveryVideoTimeoutTask: ScheduledFuture<*>? = null
+    private var recoveryVideoStatusJob: Job? = null
+    private var recoveryVideoVerificationId: String? = null
+    private var recoveryVideoProgress: OutboundVideoProgress? = null
+    private var recoveryServerVideoReady = false
     private var recoveryTokenRefreshJob: Job? = null
     private var recoveryAuthPending = false
     private var recoveryDeadlineTask: ScheduledFuture<*>? = null
@@ -182,6 +190,8 @@ class WebRtcConnection(
 
     @Volatile
     private var localVideoTrack: org.webrtc.VideoTrack? = null
+
+    private var videoSender: RtpSender? = null
 
     @Volatile
     private var frameAnalyzer: CameraFrameAnalyzer? = null
@@ -693,14 +703,15 @@ class WebRtcConnection(
 
     private fun addVideoTransceiver(connection: PeerConnection) {
         val videoTrack = checkNotNull(this@WebRtcConnection.localVideoTrack)
-        check(
+        val transceiver = checkNotNull(
             connection.addTransceiver(
                 videoTrack,
                 RtpTransceiver.RtpTransceiverInit(
                     RtpTransceiver.RtpTransceiverDirection.SEND_RECV,
                 ),
-            ) != null,
+            ),
         ) { "Unable to add the camera video transceiver." }
+        videoSender = transceiver.sender
     }
 
     private fun loadIceServers(): Pair<List<PeerConnection.IceServer>, WebRtcRecoveryPolicy> {
@@ -1026,7 +1037,7 @@ class WebRtcConnection(
                             pendingRemoteCandidates.clear()
                             if (recoveryWindow.deadlineMillis != null) {
                                 recoveryAttemptActive = false
-                                scheduleRecoveryAttempt(12_000)
+                                startRecoveryVideoVerification(negotiationId)
                                 updateConnectedState()
                             } else {
                                 updateState(WebRtcConnectionState.CONNECTING)
@@ -1110,9 +1121,16 @@ class WebRtcConnection(
     }
 
     private fun updateConnectedState() {
+        if (!isActive()) return
         if (!peerConnectionConnected || !audioInputVerified) return
-        if (recoveryWindow.deadlineMillis != null && recoveryWindow.attempts > 0 &&
-            remoteDescriptionNegotiationId != activeNegotiationId) return
+        if (recoveryWindow.deadlineMillis != null) {
+            val negotiationId = activeNegotiationId
+            if (!hasCurrentRecoveryAnswer(negotiationId, remoteDescriptionNegotiationId)) return
+            if (recoveryVideoVerificationId != negotiationId) {
+                startRecoveryVideoVerification(checkNotNull(negotiationId))
+            }
+            if (recoveryVideoProgress?.hasProgress != true || !recoveryServerVideoReady) return
+        }
 
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null
@@ -1124,8 +1142,123 @@ class WebRtcConnection(
         updateState(WebRtcConnectionState.CONNECTED)
     }
 
+    private fun startRecoveryVideoVerification(negotiationId: String) {
+        cancelRecoveryVideoVerification()
+        recoveryVideoVerificationId = negotiationId
+        recoveryVideoProgress = OutboundVideoProgress()
+        recoveryTask?.cancel(false)
+        recoveryTask = null
+        val timeout = recoveryWindow.remainingMillis(SystemClock.elapsedRealtime())
+            .coerceAtMost(RECOVERY_VIDEO_VERIFICATION_MILLIS)
+        if (timeout == 0L) {
+            onNegotiationFailure(negotiationId)
+            return
+        }
+        recoveryVideoTimeoutTask = timerExecutor.schedule(
+            {
+                executeOnOwner {
+                    if (isCurrentRecoveryVideoVerification(negotiationId)) {
+                        onNegotiationFailure(negotiationId)
+                    }
+                }
+            },
+            timeout,
+            TimeUnit.MILLISECONDS,
+        )
+        collectRecoveryVideoStats(negotiationId)
+        pollRecoveryServerVideoTrack(negotiationId)
+    }
+
+    private fun isCurrentRecoveryVideoVerification(negotiationId: String): Boolean =
+        isActive() && recoveryWindow.deadlineMillis != null &&
+            activeNegotiationId == negotiationId && recoveryVideoVerificationId == negotiationId
+
+    private fun collectRecoveryVideoStats(negotiationId: String) {
+        if (!isCurrentRecoveryVideoVerification(negotiationId)) return
+        val connection = peerConnection ?: return
+        val sender = videoSender ?: return
+        runCatching {
+            connection.getStats(sender) { report ->
+                executeOnOwner {
+                    if (!isCurrentRecoveryVideoVerification(negotiationId)) return@executeOnOwner
+                    recoveryVideoProgress?.observe(outboundVideoPackets(report))
+                    if (recoveryVideoProgress?.hasProgress == true) {
+                        updateConnectedState()
+                    } else {
+                        recoveryVideoStatsTask = timerExecutor.schedule(
+                            { executeOnOwner { collectRecoveryVideoStats(negotiationId) } },
+                            RECOVERY_VIDEO_STATS_POLL_MILLIS,
+                            TimeUnit.MILLISECONDS,
+                        )
+                    }
+                }
+            }
+        }.onFailure {
+            recoveryVideoStatsTask = timerExecutor.schedule(
+                { executeOnOwner { collectRecoveryVideoStats(negotiationId) } },
+                RECOVERY_VIDEO_STATS_POLL_MILLIS,
+                TimeUnit.MILLISECONDS,
+            )
+        }
+    }
+
+    private fun pollRecoveryServerVideoTrack(negotiationId: String) {
+        if (!isCurrentRecoveryVideoVerification(negotiationId)) return
+        val createdSession = session ?: return
+        val endpoint = serverBaseUrl.resolve("/sessions/${createdSession.sessionId}") ?: return
+        val accessToken = recoveryAccessToken.value
+        recoveryVideoStatusJob = recoveryScope.launch {
+            while (isActive()) {
+                val result = runCatching {
+                    val request = Request.Builder()
+                        .url(endpoint)
+                        .header("Authorization", "Bearer $accessToken")
+                        .header("X-Session-Owner-Token", createdSession.ownerToken)
+                        .get()
+                        .build()
+                    executeHttp(request, callTimeoutMillis = RECOVERY_VIDEO_STATUS_HTTP_TIMEOUT_MILLIS).use { response ->
+                        recoveryServerVideoStatus(
+                            response.code,
+                            if (response.code == 200) response.body.string() else null,
+                        )
+                    }
+                }.getOrDefault(RecoveryServerVideoStatus.PENDING)
+                if (result != RecoveryServerVideoStatus.PENDING) {
+                    executeOnOwner {
+                        if (!isCurrentRecoveryVideoVerification(negotiationId)) return@executeOnOwner
+                        recoveryVideoStatusJob = null
+                        when (result) {
+                            RecoveryServerVideoStatus.READY -> {
+                                recoveryServerVideoReady = true
+                                updateConnectedState()
+                            }
+                            RecoveryServerVideoStatus.UNAUTHORIZED -> onRecoveryUnauthorized()
+                            RecoveryServerVideoStatus.TERMINAL -> fail(ConnectionFailure.DISCONNECTED)
+                            RecoveryServerVideoStatus.PENDING -> Unit
+                        }
+                    }
+                    return@launch
+                }
+                delay(RECOVERY_VIDEO_STATUS_POLL_MILLIS)
+            }
+        }
+    }
+
+    private fun cancelRecoveryVideoVerification() {
+        recoveryVideoVerificationId = null
+        recoveryVideoProgress = null
+        recoveryServerVideoReady = false
+        recoveryVideoStatsTask?.cancel(false)
+        recoveryVideoStatsTask = null
+        recoveryVideoTimeoutTask?.cancel(false)
+        recoveryVideoTimeoutTask = null
+        recoveryVideoStatusJob?.cancel()
+        recoveryVideoStatusJob = null
+    }
+
     private fun cancelRecoveryWork() {
         recoveryWindow.clear()
+        cancelRecoveryVideoVerification()
         recoveryTokenRefreshJob?.cancel()
         recoveryTokenRefreshJob = null
         recoveryAuthPending = false
@@ -1198,7 +1331,8 @@ class WebRtcConnection(
             )
             Log.w("LiveConnection", "network_recovery_started")
         }
-        if (recoveryAttemptActive || recoveryAuthPending || recoveryOfferPending || recoveryTask != null) return
+        if (recoveryAttemptActive || recoveryAuthPending || recoveryOfferPending ||
+            recoveryVideoVerificationId != null || recoveryTask != null) return
         scheduleRecoveryAttempt(if (immediate) 0 else recoveryPolicy.debounceMillis)
     }
 
@@ -1215,7 +1349,9 @@ class WebRtcConnection(
     private fun runRecoveryAttempt() {
         if (!isActive() || recoveryWindow.deadlineMillis == null) return
         val connection = peerConnection ?: return fail(ConnectionFailure.DISCONNECTED)
-        if (connection.connectionState() == PeerConnection.PeerConnectionState.CONNECTED) {
+        if (recoveryAttemptActive || recoveryAuthPending) return
+        if (connection.connectionState() == PeerConnection.PeerConnectionState.CONNECTED &&
+            hasCurrentRecoveryAnswer(activeNegotiationId, remoteDescriptionNegotiationId)) {
             peerConnectionConnected = true
             updateConnectedState()
             return
@@ -1265,6 +1401,10 @@ class WebRtcConnection(
     }
 
     private fun onRecoveryUnauthorized() {
+        if (recoveryAccessToken.refreshedForCurrentRecovery) {
+            fail(ConnectionFailure.DISCONNECTED)
+            return
+        }
         val negotiationId = activeNegotiationId ?: return fail(ConnectionFailure.DISCONNECTED)
         if (recoveryAuthPending) return
         recoveryAuthPending = true
@@ -1296,6 +1436,7 @@ class WebRtcConnection(
             return
         }
         recoveryAttemptActive = false
+        cancelRecoveryVideoVerification()
         recoveryTokenRefreshJob?.cancel()
         recoveryTokenRefreshJob = null
         activeNegotiationId = null
@@ -1382,6 +1523,7 @@ class WebRtcConnection(
     private fun releaseResourcesOnOwner() {
         if (!resourcesReleased.compareAndSet(false, true)) return
 
+        cancelRecoveryVideoVerification()
         recoveryScope.cancel()
         timerExecutor.shutdownNow()
         if (networkCallbackRegistered) {
@@ -1418,6 +1560,7 @@ class WebRtcConnection(
         runCatching { peerConnection?.close() }
         runCatching { peerConnection?.dispose() }
         peerConnection = null
+        videoSender = null
 
         val createdSession = takeSession()
         runCatching { localAudioTrack?.dispose() }
@@ -1490,8 +1633,10 @@ class WebRtcConnection(
     private fun executeHttp(
         request: Request,
         allowAfterClose: Boolean = false,
+        callTimeoutMillis: Long? = null,
     ): Response {
         val call = httpClient.newCall(request)
+        if (callTimeoutMillis != null) call.timeout().timeout(callTimeoutMillis, TimeUnit.MILLISECONDS)
         activeHttpCalls += call
         if (closeSignal.isClosed && !allowAfterClose) {
             activeHttpCalls -= call
@@ -1506,6 +1651,7 @@ class WebRtcConnection(
                 request.url.encodedPath.endsWith("/stream/prepare") -> "stream_prepare"
                 request.url.encodedPath.endsWith("/stream/stop") -> "stream_stop"
                 request.url.encodedPath.endsWith("/stream/golive") -> "stream_golive"
+                request.method == "GET" && request.url.encodedPath.startsWith("/sessions/") -> "session_status"
                 request.url.encodedPath.endsWith("/sessions") -> "create_session"
                 request.method == "DELETE" -> "delete_session"
                 else -> "connection_config"
@@ -1610,11 +1756,19 @@ class WebRtcConnection(
                     }
                     PeerConnection.PeerConnectionState.DISCONNECTED -> {
                         peerConnectionConnected = false
-                        if (hasConnected) scheduleRecovery(immediate = false)
+                        if (recoveryVideoVerificationId != null) {
+                            activeNegotiationId?.let(::onNegotiationFailure)
+                        } else if (hasConnected) {
+                            scheduleRecovery(immediate = false)
+                        }
                     }
                     PeerConnection.PeerConnectionState.FAILED -> {
                         peerConnectionConnected = false
-                        scheduleRecovery(immediate = true)
+                        if (recoveryVideoVerificationId != null) {
+                            activeNegotiationId?.let(::onNegotiationFailure)
+                        } else {
+                            scheduleRecovery(immediate = true)
+                        }
                     }
                     PeerConnection.PeerConnectionState.CLOSED -> fail(ConnectionFailure.DISCONNECTED)
                     else -> Unit
@@ -1646,6 +1800,10 @@ class WebRtcConnection(
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private const val CONNECTION_TIMEOUT_MILLIS = 30_000L
         private const val AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS = 500L
+        private const val RECOVERY_VIDEO_VERIFICATION_MILLIS = 10_000L
+        private const val RECOVERY_VIDEO_STATS_POLL_MILLIS = 250L
+        private const val RECOVERY_VIDEO_STATUS_POLL_MILLIS = 1_000L
+        private const val RECOVERY_VIDEO_STATUS_HTTP_TIMEOUT_MILLIS = 3_000L
         private const val GO_LIVE_RETRY_COUNT = 15
         private const val GO_LIVE_RETRY_DELAY_MILLIS = 1_000L
     }

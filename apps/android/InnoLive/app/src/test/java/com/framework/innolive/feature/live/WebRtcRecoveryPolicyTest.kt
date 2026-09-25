@@ -7,6 +7,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import org.webrtc.RTCStats
+import org.webrtc.RTCStatsReport
 
 class WebRtcRecoveryPolicyTest {
     @Test fun offlineTimeDoesNotConsumeRecoveryAttempts() {
@@ -113,5 +115,49 @@ class WebRtcRecoveryPolicyTest {
         assertTrue(hasValidatedInternet { it in validated })
         assertTrue(window.recordAttempt(3_000, hasValidatedInternet { it in validated }))
         assertEquals(1, window.attempts)
+    }
+
+    @Test fun retiredNegotiationCannotCompleteRecoveryEvenIfPeerConnects() {
+        assertTrue(hasCurrentRecoveryAnswer("current", "current"))
+        assertFalse(hasCurrentRecoveryAnswer(null, "retired"))
+        assertFalse(hasCurrentRecoveryAnswer("new", "retired"))
+    }
+
+    @Test fun reusedVideoSenderRequiresNewOutboundPackets() {
+        val progress = OutboundVideoProgress()
+        progress.observe(null)
+        progress.observe(900)
+        progress.observe(900)
+        assertFalse(progress.hasProgress)
+        progress.observe(901)
+        assertTrue(progress.hasProgress)
+
+        val afterCounterReset = OutboundVideoProgress()
+        afterCounterReset.observe(900)
+        afterCounterReset.observe(0)
+        assertFalse(afterCounterReset.hasProgress)
+        afterCounterReset.observe(1)
+        assertTrue(afterCounterReset.hasProgress)
+    }
+
+    @Test fun videoStatsAndServerSnapshotIdentifyLiveVideo() {
+        val report = RTCStatsReport(
+            0L,
+            mapOf(
+                "video" to RTCStats(0L, "outbound-rtp", "video", mapOf("packetsSent" to 42L)),
+                "audio" to RTCStats(0L, "inbound-rtp", "audio", mapOf("packetsReceived" to 100L)),
+            ),
+        )
+        assertEquals(42L, outboundVideoPackets(report))
+        assertFalse(hasLiveServerVideoTrack("""{"media":{"raw_video_track":null}}"""))
+        assertFalse(hasLiveServerVideoTrack("""{"media":{"raw_video_track":{"ready_state":"ended"}}}"""))
+        assertTrue(hasLiveServerVideoTrack("""{"media":{"raw_video_track":{"ready_state":"live"}}}"""))
+        assertEquals(
+            RecoveryServerVideoStatus.READY,
+            recoveryServerVideoStatus(200, """{"media":{"raw_video_track":{"ready_state":"live"}}}"""),
+        )
+        assertEquals(RecoveryServerVideoStatus.PENDING, recoveryServerVideoStatus(200, "{}"))
+        assertEquals(RecoveryServerVideoStatus.UNAUTHORIZED, recoveryServerVideoStatus(401))
+        assertEquals(RecoveryServerVideoStatus.TERMINAL, recoveryServerVideoStatus(404))
     }
 }

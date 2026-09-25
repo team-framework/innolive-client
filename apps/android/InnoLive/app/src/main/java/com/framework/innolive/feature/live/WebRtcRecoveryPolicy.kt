@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import org.json.JSONObject
+import org.webrtc.RTCStatsReport
 
 internal data class WebRtcRecoveryPolicy(
     val windowMillis: Long = 50_000,
@@ -51,6 +52,57 @@ internal fun recoveryUnauthorizedAction(
 ): RecoveryUnauthorizedAction =
     if (recoveryWindowOpen && !tokenAlreadyRefreshed) RecoveryUnauthorizedAction.REFRESH_AND_RETRY
     else RecoveryUnauthorizedAction.FAIL_CONNECTION
+
+internal fun hasCurrentRecoveryAnswer(
+    activeNegotiationId: String?,
+    remoteDescriptionNegotiationId: String?,
+): Boolean = activeNegotiationId != null && activeNegotiationId == remoteDescriptionNegotiationId
+
+/** A reused PeerConnection may already have sent packets before recovery. Require new progress. */
+internal class OutboundVideoProgress {
+    private var previousPackets: Long? = null
+    var hasProgress = false
+        private set
+
+    fun observe(packetsSent: Long?) {
+        if (packetsSent == null) return
+        val previous = previousPackets
+        if (previous != null && packetsSent > previous) hasProgress = true
+        previousPackets = packetsSent
+    }
+}
+
+internal fun hasLiveServerVideoTrack(payload: String): Boolean = runCatching {
+    JSONObject(payload).optJSONObject("media")
+        ?.optJSONObject("raw_video_track")
+        ?.optString("ready_state") == "live"
+}.getOrDefault(false)
+
+internal enum class RecoveryServerVideoStatus {
+    READY,
+    PENDING,
+    UNAUTHORIZED,
+    TERMINAL,
+}
+
+internal fun recoveryServerVideoStatus(statusCode: Int, payload: String? = null): RecoveryServerVideoStatus =
+    when (statusCode) {
+        200 -> if (payload != null && hasLiveServerVideoTrack(payload)) {
+            RecoveryServerVideoStatus.READY
+        } else {
+            RecoveryServerVideoStatus.PENDING
+        }
+        401 -> RecoveryServerVideoStatus.UNAUTHORIZED
+        403, 404 -> RecoveryServerVideoStatus.TERMINAL
+        else -> RecoveryServerVideoStatus.PENDING
+    }
+
+internal fun outboundVideoPackets(report: RTCStatsReport): Long? {
+    val outbound = report.statsMap.values.filter { it.type == "outbound-rtp" }
+    if (outbound.isEmpty()) return null
+    val counts = outbound.mapNotNull { (it.members["packetsSent"] as? Number)?.toLong() }
+    return counts.takeIf { it.isNotEmpty() }?.sum()
+}
 
 internal fun parseWebRtcRecoveryPolicy(config: JSONObject): WebRtcRecoveryPolicy {
     val recovery = config.optJSONObject("recovery") ?: return WebRtcRecoveryPolicy()
