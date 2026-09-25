@@ -9,7 +9,7 @@ nonisolated final class VideoLookPreviewRenderer: @unchecked Sendable {
 
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
-    private let maxPixelSize: CGFloat = 180
+    private let maxPixelSize: CGFloat = 1920
 
     func makeBaseImage(pixelBuffer: CVPixelBuffer, rotation: Int) -> CGImage? {
         let oriented = CIImage(cvPixelBuffer: pixelBuffer).oriented(Self.orientation(rotation))
