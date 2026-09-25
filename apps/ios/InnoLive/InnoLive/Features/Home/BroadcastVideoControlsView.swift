@@ -8,7 +8,17 @@ struct BroadcastVideoControlsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+               VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(String(localized: "프리셋"))
+                            .font(.body.weight(.semibold))
+                        HStack(spacing: 8) {
+                            ForEach(BroadcastVideoLook.allCases) { look in
+                                presetButton(look)
+                            }
+                        }
+                    }
+
                     control(
                         title: String(localized: "노출"),
                         value: String(format: "%+.1f EV", uplink.videoQualitySettings.exposureEV),
@@ -61,6 +71,23 @@ struct BroadcastVideoControlsView: View {
                 }
             }
         }
+    }
+
+    private func presetButton(_ look: BroadcastVideoLook) -> some View {
+        let selected = look.matches(uplink.videoQualitySettings)
+        return Button {
+            uplink.setExposureEV(look.exposureEV)
+            cameraManager.setExposureEV(look.exposureEV)
+            uplink.setColor(warmth: look.warmth, saturation: look.saturation)
+        } label: {
+            Text(look.title)
+                .font(.body.weight(.semibold))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .tint(selected ? Color.accentColor : Color.secondary)
+        .accessibilityLabel(look.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var exposureBinding: Binding<Double> {
@@ -119,5 +146,51 @@ struct BroadcastVideoControlsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+    }
+}
+
+private enum BroadcastVideoLook: CaseIterable, Identifiable {
+    case bright
+    case vivid
+    case warm
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .bright: String(localized: "화사")
+        case .vivid: String(localized: "선명")
+        case .warm: String(localized: "따뜻")
+        }
+    }
+
+    var exposureEV: Float {
+        switch self {
+        case .bright: 0.8
+        case .vivid: 0
+        case .warm: 0.2
+        }
+    }
+
+    var warmth: Float {
+        switch self {
+        case .bright: 0.2
+        case .vivid: -0.2
+        case .warm: 0.6
+        }
+    }
+
+    var saturation: Float {
+        switch self {
+        case .bright: 1.2
+        case .vivid: 1.4
+        case .warm: 1.1
+        }
+    }
+
+    func matches(_ settings: BroadcastVideoQualitySettings) -> Bool {
+        abs(settings.exposureEV - exposureEV) < 0.001
+            && abs(settings.warmth - warmth) < 0.001
+            && abs(settings.saturation - saturation) < 0.001
     }
 }

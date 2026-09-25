@@ -190,7 +190,7 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isShowingVideoControls, onDismiss: restorePreviewCornerAfterVideoControls) {
             BroadcastVideoControlsView(uplink: youtube.videoUplink)
-                .presentationDetents([.height(382), .large])
+                .presentationDetents([.height(454), .large])
                 .presentationDragIndicator(.visible)
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
