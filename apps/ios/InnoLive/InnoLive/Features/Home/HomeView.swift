@@ -16,9 +16,11 @@ struct HomeView: View {
     @State private var isSwitchingCamera = false
     @State private var isStartingServerConnection = false
     @State private var isShowingMediaTransmissionConsent = false
+    @State private var isShowingVideoControls = false
     @State private var cameraSwitchErrorMessage: String?
     @State private var isHomeVisible = false
     @State private var previewCorner: LocalPreviewCorner = .topLeading
+    @State private var previewCornerBeforeVideoControls: LocalPreviewCorner?
     @State private var previewDragOffset: CGSize = .zero
     @State private var topTrailingReserved = CGSize(width: 44, height: 44)
     @State private var bottomReservedHeight: CGFloat = 56
@@ -108,6 +110,23 @@ struct HomeView: View {
                 .disabled(!canSwitchCameraSource)
                 .accessibilityLabel(String(localized: "카메라 전환"))
 
+                Button {
+                    previewCornerBeforeVideoControls = previewCorner
+                    previewDragOffset = .zero
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                        previewCorner = .topLeading
+                    }
+                    isShowingVideoControls = true
+                } label: {
+                    Label(String(localized: "영상 조절"), systemImage: "camera.filters")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.capsule)
+                .accessibilityLabel(String(localized: "영상 조절"))
+
                 if isCameraAccessDenied {
                     Button {
                         isShowingCameraPermissionAlert = true
@@ -169,6 +188,11 @@ struct HomeView: View {
                 guard authentication.acceptMediaTransmission(consent) else { return }
                 requestCameraAccessThenConnect()
             }
+        }
+        .sheet(isPresented: $isShowingVideoControls, onDismiss: restorePreviewCornerAfterVideoControls) {
+            BroadcastVideoControlsView(uplink: youtube.videoUplink)
+                .presentationDetents([.height(360), .large])
+                .presentationDragIndicator(.visible)
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
             if !usesSimulatorVideo,
@@ -257,9 +281,10 @@ struct HomeView: View {
                 cameraID: cameraManager.currentCameraID
             )
         case .webrtcLocal:
-            OriginalPreviewFrame {
-                WebRTCLocalPreviewView(uplink: youtube.videoUplink)
-            }
+            WebRTCColorPreviewFrame(
+                uplink: youtube.videoUplink,
+                isOnDeviceProcessing: youtube.session?.processingMode == .onDevice
+            )
         case .hidden:
             EmptyView()
         }
@@ -276,6 +301,15 @@ struct HomeView: View {
             bottomReservedHeight: bottomReservedHeight,
             cornerSpacing: LocalPreviewSnapLayout.defaultCornerSpacing
         )
+    }
+
+    private func restorePreviewCornerAfterVideoControls() {
+        guard let previousCorner = previewCornerBeforeVideoControls else { return }
+        previewCornerBeforeVideoControls = nil
+        previewDragOffset = .zero
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            previewCorner = previousCorner
+        }
     }
 
     // 앱 설정 화면을 열어 사용자가 카메라 권한을 직접 변경할 수 있게 함

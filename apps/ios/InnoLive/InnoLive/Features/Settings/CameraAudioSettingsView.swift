@@ -45,6 +45,8 @@ struct CameraAudioSettingsView: View {
                         isChanging: isChangingCamera
                     )
 
+                    VideoStabilizationSettingsRow(uplink: youtube.videoUplink)
+
                     AudioDeviceSelectionRow(
                         selectedAudioID: $selectedAudioID,
                         options: audioOptions,
@@ -245,6 +247,56 @@ struct CameraAudioSettingsView: View {
         } catch {
             audioOptions = []
             deviceErrorMessage = String(localized: "오디오 기기 목록을 불러오지 못했습니다.")
+        }
+    }
+}
+
+private struct VideoStabilizationSettingsRow: View {
+    @ObservedObject var uplink: WebRTCVideoUplink
+
+    private var enabled: Binding<Bool> {
+        Binding(
+            get: { uplink.videoQualitySettings.stabilizationEnabled },
+            set: { uplink.setStabilizationEnabled($0) }
+        )
+    }
+
+    private var actualStatus: String {
+        switch uplink.stabilizationStatus {
+        case .active(.lowLatency):
+            return String(localized: "저지연 손떨림 보정 적용 중")
+        case .active(.standard):
+            return String(localized: "표준 손떨림 보정 적용 중")
+        case .active(_):
+            return String(localized: "손떨림 보정 적용 중")
+        case .unsupported:
+            return String(localized: "현재 카메라와 화질에서 지원하지 않음")
+        case .inactive:
+            if !uplink.videoQualitySettings.stabilizationEnabled {
+                return String(localized: "손떨림 보정 꺼짐")
+            }
+            return uplink.isCapturingCamera
+                ? String(localized: "손떨림 보정이 적용되지 않음")
+                : String(localized: "방송 연결 후 적용 상태를 확인할 수 있어요")
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SettingsGlassRow {
+                HStack(spacing: 12) {
+                    Image(systemName: "video.badge.waveform")
+                        .frame(width: 24)
+                    Toggle(String(localized: "동영상 손떨림 보정"), isOn: enabled)
+                        .font(.body.weight(.semibold))
+                }
+            }
+
+            Text(actualStatus)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 4)
+                .accessibilityLabel(actualStatus)
         }
     }
 }
