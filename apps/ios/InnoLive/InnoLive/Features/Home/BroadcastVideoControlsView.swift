@@ -50,7 +50,8 @@ struct BroadcastVideoControlsView: View {
                     .buttonStyle(.bordered)
                 }
                 .padding(.horizontal, 24)
-                .padding(.vertical, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 36)
             }
             .navigationTitle(String(localized: "영상 조절"))
             .navigationBarTitleDisplayMode(.inline)

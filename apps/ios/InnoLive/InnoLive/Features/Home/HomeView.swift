@@ -118,13 +118,12 @@ struct HomeView: View {
                     }
                     isShowingVideoControls = true
                 } label: {
-                    Label(String(localized: "영상 조절"), systemImage: "camera.filters")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                    Image(systemName: "camera.filters")
+                        .font(.title3.weight(.semibold))
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.glass)
-                .buttonBorderShape(.capsule)
+                .buttonBorderShape(.circle)
                 .accessibilityLabel(String(localized: "영상 조절"))
 
                 if isCameraAccessDenied {
@@ -191,7 +190,7 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isShowingVideoControls, onDismiss: restorePreviewCornerAfterVideoControls) {
             BroadcastVideoControlsView(uplink: youtube.videoUplink)
-                .presentationDetents([.height(360), .large])
+                .presentationDetents([.height(430), .large])
                 .presentationDragIndicator(.visible)
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
