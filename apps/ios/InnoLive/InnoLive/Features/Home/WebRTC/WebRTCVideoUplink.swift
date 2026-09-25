@@ -62,6 +62,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     var pendingZoomFactor: CGFloat?
     private let zoomQueue = DispatchQueue(label: "com.innolive.webrtc.zoom")
     var stabilizationObservation: NSKeyValueObservation?
+    var unprocessedPreviewHandler: (@Sendable (CVPixelBuffer, Int) -> Void)?
     var onConnectionInterrupted: (() -> Void)?
     private let networkMonitor = NWPathMonitor()
     private let networkMonitorQueue = DispatchQueue(label: "com.framework.innolive.webrtc.network-monitor")
@@ -171,6 +172,11 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         videoQualitySettings = normalized
         normalized.save()
         cameraFrameRelay?.setColor(warmth: normalized.warmth, saturation: normalized.saturation)
+    }
+
+    func setUnprocessedPreviewHandler(_ handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
+        unprocessedPreviewHandler = handler
+        cameraFrameRelay?.setUnprocessedPreviewHandler(handler)
     }
 
     func applyExposureToCamera(_ cameraID: String) {

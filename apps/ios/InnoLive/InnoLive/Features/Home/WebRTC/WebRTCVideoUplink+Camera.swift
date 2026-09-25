@@ -194,6 +194,7 @@ extension WebRTCVideoUplink {
             warmth: videoQualitySettings.warmth,
             saturation: videoQualitySettings.saturation
         )
+        relay.setUnprocessedPreviewHandler(unprocessedPreviewHandler)
         return relay
     }
 
@@ -446,6 +447,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private var saturation: Float = 1
     private var isAnalysisPending = false
     private var lastDeliveryTime: TimeInterval = 0
+    private var unprocessedPreviewHandler: (@Sendable (CVPixelBuffer, Int) -> Void)?
+    private var lastPreviewTime: TimeInterval = 0
 
     init(target: LKRTCVideoCapturerDelegate, cameraPosition: AVCaptureDevice.Position,
          processingMode: AIProcessingMode = .server, previewTarget: LKRTCVideoCapturerDelegate? = nil,
@@ -478,6 +481,13 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         lock.unlock()
     }
 
+    func setUnprocessedPreviewHandler(_ handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
+        lock.lock()
+        unprocessedPreviewHandler = handler
+        lastPreviewTime = 0
+        lock.unlock()
+    }
+
     func updateCameraPosition(_ cameraPosition: AVCaptureDevice.Position) {
         processor.reset()
         lock.lock()
@@ -505,6 +515,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             lockedOrientation: lockedOrientation,
             cameraPosition: currentCameraPosition
         )
+        deliverUnprocessedPreview(outgoing)
         let coloredPreview: LKRTCVideoFrame
         do {
             coloredPreview = try previewColorProcessor.process(
@@ -589,6 +600,20 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         )
         outgoing.timeStamp = frame.timeStamp
         return outgoing
+    }
+
+    private func deliverUnprocessedPreview(_ frame: LKRTCVideoFrame) {
+        lock.lock()
+        let handler = unprocessedPreviewHandler
+        let now = ProcessInfo.processInfo.systemUptime
+        guard let handler, now - lastPreviewTime >= 0.2 else {
+            lock.unlock()
+            return
+        }
+        lastPreviewTime = now
+        lock.unlock()
+        guard let buffer = (frame.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer else { return }
+        handler(buffer, frame.rotation.rawValue)
     }
 }
 

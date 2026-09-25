@@ -1,9 +1,11 @@
 import SwiftUI
+import Combine
 
 struct BroadcastVideoControlsView: View {
     @ObservedObject var uplink: WebRTCVideoUplink
     @Environment(CameraManager.self) private var cameraManager
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var previews = PresetPreviewModel()
 
     var body: some View {
         NavigationStack {
@@ -14,7 +16,7 @@ struct BroadcastVideoControlsView: View {
                             .font(.body.weight(.semibold))
                         HStack(spacing: 8) {
                             ForEach(BroadcastVideoLook.allCases) { look in
-                                presetButton(look)
+                                presetColumn(look)
                             }
                         }
                     }
@@ -70,26 +72,82 @@ struct BroadcastVideoControlsView: View {
                     Button(String(localized: "닫기")) { dismiss() }
                 }
             }
+            .onAppear(perform: startPresetPreviews)
+            .onDisappear(perform: stopPresetPreviews)
+            .onChange(of: uplink.isCapturingMedia) { _, _ in
+                startPresetPreviews()
+            }
+            .onChange(of: uplink.videoQualitySettings.exposureEV) { _, value in
+                previews.updateExposure(value)
+            }
         }
     }
 
-    private func presetButton(_ look: BroadcastVideoLook) -> some View {
+    private func presetColumn(_ look: BroadcastVideoLook) -> some View {
         let selected = look.matches(uplink.videoQualitySettings)
-        return Button {
-            uplink.setExposureEV(look.exposureEV)
-            cameraManager.setExposureEV(look.exposureEV)
-            uplink.setColor(warmth: look.warmth, saturation: look.saturation)
-        } label: {
-            Text(look.title)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .frame(maxWidth: .infinity)
+        return Button(action: { apply(look) }) {
+            VStack(spacing: 8) {
+                Text(look.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(selected ? Color.accentColor : Color.primary)
+                presetPreview(previews.images[look], selected: selected)
+            }
         }
-        .buttonStyle(.bordered)
-        .tint(selected ? Color.accentColor : Color.secondary)
+        .buttonStyle(.plain)
         .accessibilityLabel(look.title)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func presetPreview(_ image: CGImage?, selected: Bool) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        return Group {
+            if let image {
+                Image(decorative: image, scale: 1)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.white.opacity(0.12)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .aspectRatio(3.0 / 4.0, contentMode: .fit)
+        .clipShape(shape)
+        .overlay {
+            shape.strokeBorder(selected ? Color.white : Color.white.opacity(0.28), lineWidth: selected ? 3 : 1)
+        }
+    }
+
+    private func apply(_ look: BroadcastVideoLook) {
+        uplink.setExposureEV(look.exposureEV)
+        cameraManager.setExposureEV(look.exposureEV)
+        uplink.setColor(warmth: look.warmth, saturation: look.saturation)
+    }
+
+    private func startPresetPreviews() {
+        stopPresetPreviews()
+        previews.updateExposure(uplink.videoQualitySettings.exposureEV)
+        let model = previews
+        let deliver: @Sendable (CVPixelBuffer, Int) -> Void = { buffer, rotation in
+            guard let image = VideoLookPreviewRenderer.shared.makeBaseImage(
+                pixelBuffer: buffer,
+                rotation: rotation
+            ) else { return }
+            Task { @MainActor in
+                model.setBaseImage(image)
+            }
+        }
+        if uplink.isCapturingMedia {
+            uplink.setUnprocessedPreviewHandler(deliver)
+        } else {
+            cameraManager.startPresetPreviewFrames(deliver)
+        }
+    }
+
+    private func stopPresetPreviews() {
+        uplink.setUnprocessedPreviewHandler(nil)
+        cameraManager.stopPresetPreviewFrames()
     }
 
     private var exposureBinding: Binding<Double> {
@@ -151,7 +209,7 @@ struct BroadcastVideoControlsView: View {
     }
 }
 
-private enum BroadcastVideoLook: CaseIterable, Identifiable {
+private enum BroadcastVideoLook: CaseIterable, Identifiable, Sendable {
     case vivid
     case bright
     case warm
@@ -194,5 +252,52 @@ private enum BroadcastVideoLook: CaseIterable, Identifiable {
         abs(settings.exposureEV - exposureEV) < 0.001
             && abs(settings.warmth - warmth) < 0.001
             && abs(settings.saturation - saturation) < 0.001
+    }
+}
+
+@MainActor
+private final class PresetPreviewModel: ObservableObject {
+    @Published private(set) var images: [BroadcastVideoLook: CGImage] = [:]
+    private var base: CGImage?
+    private var capturedExposure: Float = 0
+    private var generation: UInt = 0
+    private let renderer = VideoLookPreviewRenderer()
+
+    func updateExposure(_ exposure: Float) {
+        capturedExposure = exposure
+        render()
+    }
+
+    func setBaseImage(_ image: CGImage) {
+        base = image
+        render()
+    }
+
+    private func render() {
+        guard let base else { return }
+        generation &+= 1
+        let generation = generation
+        let exposure = capturedExposure
+        let looks = BroadcastVideoLook.allCases.map { look in
+            (look, look.warmth, look.saturation, look.exposureEV - exposure)
+        }
+        DispatchQueue.global(qos: .userInitiated).async { [renderer] in
+            var rendered: [BroadcastVideoLook: CGImage] = [:]
+            for (look, warmth, saturation, relativeExposure) in looks {
+                if let image = renderer.makePreview(
+                    from: base,
+                    warmth: warmth,
+                    saturation: saturation,
+                    relativeExposureEV: relativeExposure
+                ) {
+                    rendered[look] = image
+                }
+            }
+            let output = rendered
+            Task { @MainActor in
+                guard self.generation == generation else { return }
+                self.images = output
+            }
+        }
     }
 }

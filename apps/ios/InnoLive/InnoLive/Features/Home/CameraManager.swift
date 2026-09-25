@@ -20,6 +20,8 @@ final class CameraManager {
     private var videoInput: AVCaptureDeviceInput?
     private var faceVideoOutput: AVCaptureVideoDataOutput?
     private let faceFrameRelay = CameraFrameRelay()
+    private var presetPreviewOutput: AVCaptureVideoDataOutput?
+    private let presetPreviewRelay = PresetPreviewFrameRelay()
     private(set) var currentCameraID: String?
     private(set) var currentCameraName: String?
     private(set) var currentZoomFactor = CameraZoom.defaultFactor
@@ -202,6 +204,44 @@ final class CameraManager {
                 }
                 continuation.resume()
             }
+        }
+    }
+
+    func startPresetPreviewFrames(_ handler: @escaping @Sendable (CVPixelBuffer, Int) -> Void) {
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.presetPreviewRelay.update(handler: handler)
+            guard self.presetPreviewOutput == nil, self.videoInput != nil else { return }
+
+            let output = AVCaptureVideoDataOutput()
+            output.alwaysDiscardsLateVideoFrames = true
+            output.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            ]
+            output.setSampleBufferDelegate(
+                self.presetPreviewRelay,
+                queue: DispatchQueue(label: "com.innolive.camera.preset-preview")
+            )
+            self.session.beginConfiguration()
+            defer { self.session.commitConfiguration() }
+            guard self.session.canAddOutput(output) else {
+                self.presetPreviewRelay.update(handler: nil)
+                return
+            }
+            self.session.addOutput(output)
+            self.presetPreviewOutput = output
+        }
+    }
+
+    func stopPresetPreviewFrames() {
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.presetPreviewRelay.update(handler: nil)
+            guard let presetPreviewOutput = self.presetPreviewOutput else { return }
+            self.session.beginConfiguration()
+            self.session.removeOutput(presetPreviewOutput)
+            self.session.commitConfiguration()
+            self.presetPreviewOutput = nil
         }
     }
 
@@ -474,5 +514,36 @@ nonisolated private final class CameraFrameRelay: NSObject, AVCaptureVideoDataOu
         let cameraPosition = cameraPosition
         lock.unlock()
         handler?(sampleBuffer, cameraPosition)
+    }
+}
+
+nonisolated private final class PresetPreviewFrameRelay: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var handler: (@Sendable (CVPixelBuffer, Int) -> Void)?
+    private var lastTime: TimeInterval = 0
+
+    func update(handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
+        lock.lock()
+        self.handler = handler
+        lastTime = 0
+        lock.unlock()
+    }
+
+    func captureOutput(
+        _ output: AVCaptureOutput,
+        didOutput sampleBuffer: CMSampleBuffer,
+        from connection: AVCaptureConnection
+    ) {
+        lock.lock()
+        let handler = handler
+        let now = ProcessInfo.processInfo.systemUptime
+        guard let handler, now - lastTime >= 0.2 else {
+            lock.unlock()
+            return
+        }
+        lastTime = now
+        lock.unlock()
+        guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        handler(buffer, Int(connection.videoRotationAngle.rounded()))
     }
 }
