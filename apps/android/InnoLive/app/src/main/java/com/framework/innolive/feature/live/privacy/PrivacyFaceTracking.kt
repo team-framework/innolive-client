@@ -26,7 +26,7 @@ internal class PrivacyFaceTracking {
     fun update(boxes: Map<Int, PrivacySegmentation.Box>, atSeconds: Double) {
         if (!atSeconds.isFinite()) { reset(); return }
         val previousTime = lastTimeSeconds
-        if (previousTime != null && (atSeconds <= previousTime || atSeconds - previousTime >= .20)) {
+        if (previousTime != null && (atSeconds <= previousTime || atSeconds - previousTime >= 1.0)) {
             tracks = emptyList()
         }
         lastTimeSeconds = atSeconds
@@ -50,7 +50,10 @@ internal class PrivacyFaceTracking {
     }
 
     fun next(atSeconds: Double): Track? {
-        val next = tracks.filter { atSeconds - it.lastScheduledSeconds >= .25 }
+        val next = tracks.filter {
+            atSeconds - it.lastScheduledSeconds >= .25 &&
+                (it.confirmations < 2 || atSeconds >= it.allowedUntilSeconds)
+        }
             .minByOrNull { it.lastScheduledSeconds }
         next?.lastScheduledSeconds = atSeconds
         return next?.copy()
@@ -79,9 +82,23 @@ internal class PrivacyFaceTracking {
         if (track.confirmations >= 2) track.allowedUntilSeconds = capturedAtSeconds + .75
     }
 
-    fun allowed(atSeconds: Double): Set<Int> {
+    /** A lease only selects faces to verify; it never authorizes an unverified video frame. */
+    private fun candidates(atSeconds: Double): List<Track> {
         val qualified = tracks.filter { it.candidate != null && it.confirmations >= 2 && atSeconds < it.allowedUntilSeconds }
         return qualified.filter { candidate -> qualified.count { it.candidate == candidate.candidate } == 1 }
-            .mapTo(mutableSetOf()) { it.index }
+            .map { it.copy() }
+    }
+
+    fun verifyCurrentFrame(atSeconds: Double, verify: (Track) -> Boolean): Set<Int> {
+        val allowed = mutableSetOf<Int>()
+        for (candidate in candidates(atSeconds)) {
+            if (verify(candidate)) {
+                allowed += candidate.index
+                accept(candidate.id, candidate.candidate, atSeconds, atSeconds)
+            } else {
+                accept(candidate.id, null, atSeconds, atSeconds)
+            }
+        }
+        return allowed
     }
 }

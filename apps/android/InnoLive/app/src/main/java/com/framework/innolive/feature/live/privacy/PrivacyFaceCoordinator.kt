@@ -42,24 +42,34 @@ internal class PrivacyFaceCoordinator(context: Context) {
         if (entries.isEmpty()) return emptySet()
         service.prepare()
         if (!service.ready) return emptySet()
+        val verified = tracking.verifyCurrentFrame(time) { candidate ->
+            val crop = recognitionCrop(upright, candidate.box, layout)
+            try {
+                crop != null && service.verifyCurrentFace(crop, checkNotNull(candidate.candidate), entries)
+            } finally { crop?.recycle() }
+        }
         val next = tracking.next(time)
         if (next != null) {
-            val real = toImageBox(next.box, layout, upright.width, upright.height)
-            if (real != null && min(real.width, real.height) >= 24) {
-                // Server's YOLO crop margin is 0.25 on each side.
-                val marginX = real.width * .25f
-                val marginY = real.height * .25f
-                val x0 = max(0, floor(real.left - marginX).toInt())
-                val y0 = max(0, floor(real.top - marginY).toInt())
-                val x1 = min(upright.width, ceil(real.right + marginX).toInt())
-                val y1 = min(upright.height, ceil(real.bottom + marginY).toInt())
-                if (x1 > x0 && y1 > y0) {
-                    val crop = Bitmap.createBitmap(upright, x0, y0, x1 - x0, y1 - y0)
-                    if (!service.submitRecognition(crop, generation, next.id, time)) crop.recycle()
-                }
+            recognitionCrop(upright, next.box, layout)?.let { crop ->
+                if (!service.submitRecognition(crop, generation, next.id, time)) crop.recycle()
             }
         }
-        return tracking.allowed(time)
+        return verified
+    }
+
+    private fun recognitionCrop(upright: Bitmap, box: PrivacySegmentation.Box,
+                                layout: PrivacySegmentation.Letterbox): Bitmap? {
+        val real = toImageBox(box, layout, upright.width, upright.height) ?: return null
+        if (min(real.width, real.height) < 24) return null
+        // Server's YOLO crop margin is 0.25 on each side.
+        val marginX = real.width * .25f
+        val marginY = real.height * .25f
+        val x0 = max(0, floor(real.left - marginX).toInt())
+        val y0 = max(0, floor(real.top - marginY).toInt())
+        val x1 = min(upright.width, ceil(real.right + marginX).toInt())
+        val y1 = min(upright.height, ceil(real.bottom + marginY).toInt())
+        return if (x1 > x0 && y1 > y0) Bitmap.createBitmap(upright, x0, y0, x1 - x0, y1 - y0)
+        else null
     }
 
     private fun toImageBox(box: PrivacySegmentation.Box, layout: PrivacySegmentation.Letterbox,
