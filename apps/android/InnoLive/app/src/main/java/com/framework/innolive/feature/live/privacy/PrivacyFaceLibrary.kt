@@ -154,5 +154,25 @@ internal class PrivacyFaceLibrary(context: Context) {
         private val MAGIC = byteArrayOf('I'.code.toByte(), 'L'.code.toByte(), 'F'.code.toByte(), 1)
         private val revision = AtomicLong()
         private val keyLock = Any()
+
+        /** Does not load or decrypt the file, so damaged stores can still be removed on deletion. */
+        fun clearForAccountDeletion(context: Context) {
+            try {
+                val keyFailure = runCatching {
+                    synchronized(keyLock) {
+                        KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.run {
+                            if (containsAlias(KEY_ALIAS)) deleteEntry(KEY_ALIAS)
+                        }
+                    }
+                }.exceptionOrNull()
+                val base = File(context.applicationContext.noBackupFilesDir, "privacy-local-faces.bin")
+                AtomicFile(base).delete()
+                check(!base.exists() && !File(base.path + ".bak").exists() &&
+                    !File(base.path + ".new").exists()) { "Unable to remove local face data" }
+                if (keyFailure != null) throw keyFailure
+            } finally {
+                revision.incrementAndGet()
+            }
+        }
     }
 }

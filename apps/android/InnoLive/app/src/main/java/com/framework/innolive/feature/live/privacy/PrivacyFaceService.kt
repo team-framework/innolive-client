@@ -25,18 +25,17 @@ internal class PrivacyFaceService private constructor(context: Context) {
     private val context = context.applicationContext
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val preparing = AtomicBoolean(false)
+    private val preparation = PrivacyFacePreparationGate()
     private val recognizing = AtomicBoolean(false)
     private val result = AtomicReference<Result?>()
     private val inferenceLock = ReentrantLock()
     @Volatile private var model: PrivacyFaceModel? = null
-    @Volatile var preparationFailed = false
-        private set
+    val preparationFailed: Boolean get() = preparation.failed
     val ready: Boolean get() = model != null
     val library: PrivacyFaceLibrary? = try { PrivacyFaceLibrary(context) } catch (_: Exception) { null }
 
     fun prepare() {
-        if (ready || !preparing.compareAndSet(false, true)) return
+        if (ready || !preparation.tryBegin()) return
         executor.execute {
             val startedAt = SystemClock.elapsedRealtime()
             try {
@@ -55,15 +54,18 @@ internal class PrivacyFaceService private constructor(context: Context) {
                     candidate.close()
                     throw error
                 }
-                preparationFailed = false
+                preparation.complete(success = true)
                 Log.i("PrivacyFace", "model_prepared_ms=${SystemClock.elapsedRealtime() - startedAt}")
             } catch (error: Exception) {
-                preparationFailed = true
+                preparation.complete(success = false)
                 Log.w("PrivacyFace", "model_prepare_failed type=${error.javaClass.simpleName}")
-            } finally {
-                preparing.set(false)
             }
         }
+    }
+
+    /** A failed model is retried only by the explicit face-management action. */
+    fun retryPreparation() {
+        if (preparation.allowRetry()) prepare()
     }
 
     fun takeResult(): Result? = result.getAndSet(null)
@@ -125,4 +127,17 @@ internal class PrivacyFaceService private constructor(context: Context) {
             instance ?: PrivacyFaceService(context).also { instance = it }
         }
     }
+}
+
+/** Suppresses expensive per-frame reloads after failure while retaining an explicit retry path. */
+internal class PrivacyFacePreparationGate {
+    private enum class State { IDLE, RUNNING, FAILED, READY }
+    private val state = AtomicReference(State.IDLE)
+
+    val failed: Boolean get() = state.get() == State.FAILED
+    fun tryBegin(): Boolean = state.compareAndSet(State.IDLE, State.RUNNING)
+    fun complete(success: Boolean) {
+        check(state.compareAndSet(State.RUNNING, if (success) State.READY else State.FAILED))
+    }
+    fun allowRetry(): Boolean = state.compareAndSet(State.FAILED, State.IDLE)
 }

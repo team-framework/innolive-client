@@ -110,7 +110,7 @@ internal fun LocalFaceManagementScreen(
         if (!ready) {
             if (failed) {
                 Text(stringResource(R.string.local_face_model_failed), color = Color.White)
-                Button(onClick = { service.prepare() }) { Text(stringResource(R.string.action_retry)) }
+                Button(onClick = { service.retryPreparation() }) { Text(stringResource(R.string.action_retry)) }
             } else {
                 CircularProgressIndicator(modifier = Modifier.size(28.dp))
                 Text(stringResource(R.string.local_face_model_preparing), color = Color.White)
