@@ -268,7 +268,7 @@ private final class PresetPreviewModel: ObservableObject {
 nonisolated private final class PresetPreviewPump: @unchecked Sendable {
     var onUpdate: (@MainActor ([BroadcastVideoLook: CGImage]) -> Void)?
     private let renderer = VideoLookPreviewRenderer()
-    private let queue = DispatchQueue(label: "com.innolive.preset-preview", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.innolive.preset-preview", qos: .utility)
     private let lock = NSLock()
     private var busy = false
     private var exposure: Float = 0
@@ -289,7 +289,7 @@ nonisolated private final class PresetPreviewPump: @unchecked Sendable {
     func submit(pixelBuffer: CVPixelBuffer, rotation: Int) {
         lock.lock()
         let now = ProcessInfo.processInfo.systemUptime
-        if busy || now - lastSubmitTime < 1.0 / 20.0 {
+        if busy || now - lastSubmitTime < 1.0 / 8.0 {
             lock.unlock()
             return
         }
