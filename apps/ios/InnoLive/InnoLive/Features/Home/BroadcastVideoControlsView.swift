@@ -44,14 +44,14 @@ struct BroadcastVideoControlsView: View {
                         cameraManager.setExposureEV(0)
                         uplink.setColor(warmth: 0, saturation: 1)
                     } label: {
-                        Label(String(localized: "조절 초기화"), systemImage: "arrow.counterclockwise")
+                        Label(String(localized: "초기화"), systemImage: "arrow.counterclockwise")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
-                .padding(.bottom, 18)
+                .padding(.bottom, 10)
             }
             .navigationTitle(String(localized: "영상 조절"))
             .navigationBarTitleDisplayMode(.inline)

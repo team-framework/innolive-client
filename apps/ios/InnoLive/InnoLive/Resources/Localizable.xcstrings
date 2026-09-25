@@ -8774,25 +8774,25 @@
         }
       }
     },
-    "조절 초기화": {
+    "초기화": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "조절 초기화"
+            "value": "초기화"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Reset adjustments"
+            "value": "Reset"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "調整をリセット"
+            "value": "リセット"
           }
         }
       }
