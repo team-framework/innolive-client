@@ -152,6 +152,7 @@ class WebRtcSessionViewModel : ViewModel() {
                     context = context,
                     serverUrl = BuildConfig.INNOLIVE_SERVER_URL,
                     accessToken = accessToken,
+                    refreshAccessToken = refreshAccessToken,
                     initialAnonymizationEnabled = initialEnabled,
                     preferredAudioInput = selectedAudioInput,
                     onStateChanged = { state, failure ->

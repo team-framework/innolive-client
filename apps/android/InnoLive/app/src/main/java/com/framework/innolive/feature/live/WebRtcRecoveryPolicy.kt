@@ -8,6 +8,41 @@ internal data class WebRtcRecoveryPolicy(
     val maxAttempts: Int = 10,
 )
 
+internal class RecoveryAccessToken(initialToken: String) {
+    var value: String = initialToken.also { require(it.isNotBlank()) }
+        private set
+    var refreshedForCurrentRecovery: Boolean = false
+        private set
+
+    fun updateForRecovery(refreshedToken: String) {
+        require(refreshedToken.isNotBlank())
+        value = refreshedToken.trim()
+        refreshedForCurrentRecovery = true
+    }
+
+    fun resetRecovery() {
+        refreshedForCurrentRecovery = false
+    }
+}
+
+internal enum class SignalingSendFailureAction {
+    RETRY_NEGOTIATION,
+    START_RECOVERY,
+    FAIL_CONNECTION,
+    IGNORE_STALE_CANDIDATE,
+}
+
+internal fun signalingSendFailureAction(
+    recoveryWindowOpen: Boolean,
+    recoveryAttemptActive: Boolean,
+    hasConnected: Boolean,
+): SignalingSendFailureAction = when {
+    recoveryAttemptActive -> SignalingSendFailureAction.RETRY_NEGOTIATION
+    recoveryWindowOpen -> SignalingSendFailureAction.IGNORE_STALE_CANDIDATE
+    hasConnected -> SignalingSendFailureAction.START_RECOVERY
+    else -> SignalingSendFailureAction.FAIL_CONNECTION
+}
+
 internal fun parseWebRtcRecoveryPolicy(config: JSONObject): WebRtcRecoveryPolicy {
     val recovery = config.optJSONObject("recovery") ?: return WebRtcRecoveryPolicy()
     val defaults = WebRtcRecoveryPolicy()

@@ -299,6 +299,7 @@ class BroadcastApiFlowTest {
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
             accessToken = accessTokenFor("broadcast-api-user"),
+            refreshAccessToken = { accessTokenFor("broadcast-api-user") },
             initialAnonymizationEnabled = false,
             preferredAudioInput = null,
             onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},

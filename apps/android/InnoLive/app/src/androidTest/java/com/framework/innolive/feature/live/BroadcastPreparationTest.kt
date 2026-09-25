@@ -102,6 +102,7 @@ class BroadcastPreparationTest {
                 context = compose.activity,
                 serverUrl = "https://example.test",
                 accessToken = accessTokenFor("broadcast-preparation-user"),
+                refreshAccessToken = { accessTokenFor("broadcast-preparation-user") },
                 initialAnonymizationEnabled = true,
                 preferredAudioInput = null,
                 onStateChanged = { _, _ -> },

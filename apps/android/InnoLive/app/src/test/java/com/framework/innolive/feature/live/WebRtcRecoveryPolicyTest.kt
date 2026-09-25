@@ -1,9 +1,11 @@
 package com.framework.innolive.feature.live
 
+import android.net.NetworkCapabilities
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class WebRtcRecoveryPolicyTest {
@@ -53,5 +55,51 @@ class WebRtcRecoveryPolicyTest {
         assertEquals(setOf("new123"), current)
         assertTrue(extractCandidateUfrag("candidate:1 1 udp 1 127.0.0.1 9 typ host ufrag new123") in current)
         assertFalse(extractCandidateUfrag("candidate:2 1 udp 1 127.0.0.1 9 typ host ufrag old456") in current)
+    }
+
+    @Test fun refreshedTokenIsUsedForEverySignalInOneRecoveryAndRefreshedAgainNextTime() {
+        val token = RecoveryAccessToken("expired-token")
+        assertFalse(token.refreshedForCurrentRecovery)
+        token.updateForRecovery(" renewed-token ")
+        assertEquals("renewed-token", token.value)
+        assertTrue(token.refreshedForCurrentRecovery)
+        assertThrows(IllegalArgumentException::class.java) { token.updateForRecovery(" ") }
+        assertEquals("renewed-token", token.value)
+        token.resetRecovery()
+        assertFalse(token.refreshedForCurrentRecovery)
+        assertEquals("renewed-token", token.value)
+    }
+
+    @Test fun failedCandidateSendRetriesOnlyTheActiveRecoveryNegotiation() {
+        assertEquals(
+            SignalingSendFailureAction.FAIL_CONNECTION,
+            signalingSendFailureAction(recoveryWindowOpen = false, recoveryAttemptActive = false, hasConnected = false),
+        )
+        assertEquals(
+            SignalingSendFailureAction.RETRY_NEGOTIATION,
+            signalingSendFailureAction(recoveryWindowOpen = true, recoveryAttemptActive = true, hasConnected = true),
+        )
+        assertEquals(
+            SignalingSendFailureAction.IGNORE_STALE_CANDIDATE,
+            signalingSendFailureAction(recoveryWindowOpen = true, recoveryAttemptActive = false, hasConnected = true),
+        )
+        assertEquals(
+            SignalingSendFailureAction.START_RECOVERY,
+            signalingSendFailureAction(recoveryWindowOpen = false, recoveryAttemptActive = false, hasConnected = true),
+        )
+    }
+
+    @Test fun networkMustBeValidatedBeforeAnAttemptIsRecorded() {
+        val captivePortal = setOf(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val validated = captivePortal + NetworkCapabilities.NET_CAPABILITY_VALIDATED
+        val window = WebRtcRecoveryWindow(WebRtcRecoveryPolicy(maxAttempts = 1))
+        window.begin(1_000)
+
+        assertFalse(hasValidatedInternet { it in captivePortal })
+        assertFalse(window.recordAttempt(2_000, hasValidatedInternet { it in captivePortal }))
+        assertEquals(0, window.attempts)
+        assertTrue(hasValidatedInternet { it in validated })
+        assertTrue(window.recordAttempt(3_000, hasValidatedInternet { it in validated }))
+        assertEquals(1, window.attempts)
     }
 }

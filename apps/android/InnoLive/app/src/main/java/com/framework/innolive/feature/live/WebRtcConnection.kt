@@ -12,6 +12,12 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -58,10 +64,15 @@ enum class WebRtcConnectionState {
     FAILED,
 }
 
+internal fun hasValidatedInternet(hasCapability: (Int) -> Boolean): Boolean =
+    hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+        hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+
 class WebRtcConnection(
     context: Context,
     serverUrl: String,
-    private val accessToken: String,
+    accessToken: String,
+    private val refreshAccessToken: suspend () -> String,
     private val initialAnonymizationEnabled: Boolean,
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, ConnectionFailure?) -> Unit,
@@ -73,6 +84,7 @@ class WebRtcConnection(
     private val broadcastCallbackExecutor: Executor? = null,
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
+    private val recoveryAccessToken = RecoveryAccessToken(accessToken)
     private var sessionRecoveryStore: SessionRecoveryStore = EncryptedSessionRecoveryStore(applicationContext)
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
         if (!url.isHttps) throw ConnectionFailureException(ConnectionFailure.CONFIGURATION)
@@ -88,6 +100,7 @@ class WebRtcConnection(
     private val ownerExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val timerExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor()
+    private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
         .build()
@@ -112,6 +125,7 @@ class WebRtcConnection(
     private var connectionTimeoutTask: ScheduledFuture<*>? = null
     private var audioRouteVerificationTask: ScheduledFuture<*>? = null
     private var recoveryTask: ScheduledFuture<*>? = null
+    private var recoveryTokenRefreshJob: Job? = null
     private var recoveryDeadlineTask: ScheduledFuture<*>? = null
     private var answerTimeoutTask: ScheduledFuture<*>? = null
     private var recoveryPolicy = WebRtcRecoveryPolicy()
@@ -143,8 +157,8 @@ class WebRtcConnection(
 
     private fun isNetworkAvailable(): Boolean {
         val network = connectivityManager.activeNetwork ?: return false
-        return connectivityManager.getNetworkCapabilities(network)
-            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return hasValidatedInternet(capabilities::hasCapability)
     }
 
     @Volatile
@@ -876,7 +890,7 @@ class WebRtcConnection(
             .put("type", "offer")
             .put("session_id", createdSession.sessionId)
             .put("owner_token", createdSession.ownerToken)
-            .put("access_token", accessToken)
+            .put("access_token", recoveryAccessToken.value)
             .put("sdp", sdp)
             .put("negotiation_id", negotiationId)
             .put("ice_restart", iceRestart)
@@ -919,7 +933,7 @@ class WebRtcConnection(
             .put("type", "ice_candidate")
             .put("session_id", createdSession.sessionId)
             .put("owner_token", createdSession.ownerToken)
-            .put("access_token", accessToken)
+            .put("access_token", recoveryAccessToken.value)
             .put("negotiation_id", negotiationId)
             .put("candidate", candidate.sdp)
             .put("sdpMid", candidate.sdpMid)
@@ -931,7 +945,16 @@ class WebRtcConnection(
             if (!offerSent || socket == null) {
                 pendingSignals += payload
             } else if (!socket.send(payload)) {
-                fail(ConnectionFailure.GENERIC)
+                when (signalingSendFailureAction(
+                    recoveryWindowOpen = recoveryWindow.deadlineMillis != null,
+                    recoveryAttemptActive = recoveryAttemptActive,
+                    hasConnected = hasConnected,
+                )) {
+                    SignalingSendFailureAction.RETRY_NEGOTIATION -> onNegotiationFailure(negotiationId)
+                    SignalingSendFailureAction.START_RECOVERY -> onSignalingFailure()
+                    SignalingSendFailureAction.FAIL_CONNECTION -> fail(ConnectionFailure.GENERIC)
+                    SignalingSendFailureAction.IGNORE_STALE_CANDIDATE -> Unit
+                }
             }
         }
     }
@@ -1096,6 +1119,9 @@ class WebRtcConnection(
 
     private fun cancelRecoveryWork() {
         recoveryWindow.clear()
+        recoveryTokenRefreshJob?.cancel()
+        recoveryTokenRefreshJob = null
+        recoveryAccessToken.resetRecovery()
         recoveryTask?.cancel(false)
         recoveryTask = null
         recoveryDeadlineTask?.cancel(false)
@@ -1213,6 +1239,36 @@ class WebRtcConnection(
         }
         webSocket?.close(1000, null)
         webSocket = null
+        if (recoveryAccessToken.refreshedForCurrentRecovery) {
+            openRecoverySignalingSocket(negotiationId)
+        } else {
+            recoveryTokenRefreshJob = recoveryScope.launch {
+                val refreshedToken = try {
+                    refreshAccessToken().trim().takeIf { it.isNotEmpty() }
+                        ?: throw IllegalStateException("Refreshed access token is blank.")
+                } catch (_: Exception) {
+                    executeOnOwner {
+                        if (recoveryWindow.deadlineMillis != null) onNegotiationFailure(negotiationId)
+                    }
+                    return@launch
+                }
+                executeOnOwner {
+                    if (!isActive() || recoveryWindow.deadlineMillis == null ||
+                        activeNegotiationId != negotiationId || !recoveryAttemptActive) return@executeOnOwner
+                    recoveryTokenRefreshJob = null
+                    recoveryAccessToken.updateForRecovery(refreshedToken)
+                    openRecoverySignalingSocket(negotiationId)
+                }
+            }
+        }
+    }
+
+    private fun openRecoverySignalingSocket(negotiationId: String) {
+        if (!isActive() || activeNegotiationId != negotiationId ||
+            recoveryWindow.remainingMillis(SystemClock.elapsedRealtime()) <= 0) {
+            onNegotiationFailure(negotiationId)
+            return
+        }
         try {
             openSignalingSocket(checkNotNull(session), negotiationId, iceRestart = true)
             Log.i("LiveConnection", "network_recovery_attempt count=${recoveryWindow.attempts}")
@@ -1229,6 +1285,8 @@ class WebRtcConnection(
         }
         if (!recoveryAttemptActive) return
         recoveryAttemptActive = false
+        recoveryTokenRefreshJob?.cancel()
+        recoveryTokenRefreshJob = null
         activeNegotiationId = null
         answerTimeoutTask?.cancel(false)
         answerTimeoutTask = null
@@ -1309,6 +1367,7 @@ class WebRtcConnection(
     private fun releaseResourcesOnOwner() {
         if (!resourcesReleased.compareAndSet(false, true)) return
 
+        recoveryScope.cancel()
         timerExecutor.shutdownNow()
         if (networkCallbackRegistered) {
             runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
@@ -1453,7 +1512,7 @@ class WebRtcConnection(
         val endpoint = checkNotNull(serverBaseUrl.resolve(path))
         return Request.Builder()
             .url(endpoint)
-            .header("Authorization", "Bearer $accessToken")
+            .header("Authorization", "Bearer ${recoveryAccessToken.value}")
     }
 
     private fun updateState(
