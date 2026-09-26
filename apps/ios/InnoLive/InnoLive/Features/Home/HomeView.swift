@@ -411,7 +411,8 @@ struct HomeView: View {
             uplink: youtube.videoUplink,
             previewTransition: previewTransition,
             isPreparingSession: youtube.isPreparingSession,
-            isConnectingVideo: youtube.isConnectingVideo
+            isConnectingVideo: youtube.isConnectingVideo,
+            recoveryStatus: youtube.videoRecoveryStatus
         )
         .ignoresSafeArea()
         .contentShape(Rectangle())

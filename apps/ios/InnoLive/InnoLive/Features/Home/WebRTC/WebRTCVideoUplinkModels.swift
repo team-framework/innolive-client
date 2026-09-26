@@ -40,6 +40,31 @@ enum WebRTCVideoUplinkState: Equatable {
     case failed
 }
 
+struct VideoRecoveryStatus: Equatable {
+    let attempt: Int
+    let maximumAttempts: Int
+
+    var title: String {
+        String(localized: "복구 시도 중")
+    }
+
+    var detail: String {
+        String(
+            format: String(localized: "네트워크 연결이 끊겼습니다. %d/%d번째 복구를 시도하고 있습니다."),
+            attempt,
+            maximumAttempts
+        )
+    }
+
+    var buttonTitle: String {
+        String(
+            format: String(localized: "복구 시도 중 (%d/%d)"),
+            attempt,
+            maximumAttempts
+        )
+    }
+}
+
 enum WebRTCVideoUplinkError: LocalizedError {
     case cancelled
     case unauthorized

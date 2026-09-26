@@ -60,6 +60,9 @@ struct YouTubeBroadcastControlLabel: View {
     }
 
     private func buttonTitle(at date: Date) -> String {
+        if let recovery = youtube.videoRecoveryStatus {
+            return recovery.buttonTitle
+        }
         if youtube.broadcastPhase == "prepared" { return String(localized: "방송 시작") }
         if youtube.broadcastPhase == "preparing" { return String(localized: "방송 준비 중") }
         if youtube.broadcastPhase == "going_live" { return String(localized: "방송 시작 중") }
