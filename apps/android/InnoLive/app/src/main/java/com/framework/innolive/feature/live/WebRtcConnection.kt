@@ -84,6 +84,7 @@ class WebRtcConnection(
     private val onBroadcastStateChanged: (BroadcastState, BroadcastEvent?) -> Unit,
     private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
     private val broadcastCallbackExecutor: Executor? = null,
+    private val onLocalVideoTrackChanged: (VideoTrack?) -> Unit = {},
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val recoveryAccessToken = RecoveryAccessToken(accessToken)
@@ -343,6 +344,7 @@ class WebRtcConnection(
         val analyzer = frameAnalyzer ?: return
         val context = eglBase?.eglBaseContext ?: return
         onLocalMediaReady(analyzer, context)
+        onLocalVideoTrackChanged(localVideoTrack)
     }
 
     private fun createPeerConnectionFactory(): PeerConnectionFactory {
@@ -1587,8 +1589,9 @@ class WebRtcConnection(
         pendingRemoteCandidates.clear()
 
         runCatching { clearBluetoothCommunicationRoute() }
+        runCatching { onLocalVideoTrackChanged(null) }
         runCatching { onLocalMediaCleared() }
-        runCatching { frameAnalyzer?.stop() }
+        runCatching { frameAnalyzer?.close() }
         frameAnalyzer = null
         runCatching { audioRouteMonitor.close() }
         audioRecordingStarted = false
