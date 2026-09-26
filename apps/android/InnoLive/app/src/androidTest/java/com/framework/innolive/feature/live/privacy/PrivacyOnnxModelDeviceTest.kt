@@ -15,6 +15,37 @@ import org.webrtc.VideoFrame
 
 @RunWith(AndroidJUnit4::class)
 class PrivacyOnnxModelDeviceTest {
+    @Test fun reusedScratchPreservesEarlierFramesAcrossRotationsAndGeometryChanges() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
+        PrivacyFrameProcessor(context).use { processor ->
+            var earlier: VideoFrame? = null
+            try {
+                for ((sample, rotation) in listOf(0, 90, 180, 270, 0).withIndex()) {
+                    val width = if (sample == 4) 48 else 64
+                    val height = if (sample == 4) 32 else 48
+                    val buffer = JavaI420Buffer.allocate(width, height)
+                    repeat(buffer.dataY.capacity()) { buffer.dataY.put(it, (if (sample == 0) 40 else 180).toByte()) }
+                    repeat(buffer.dataU.capacity()) { buffer.dataU.put(it, 128.toByte()) }
+                    repeat(buffer.dataV.capacity()) { buffer.dataV.put(it, 128.toByte()) }
+                    val frame = VideoFrame(buffer, rotation, 100L + sample)
+                    try {
+                        val output = processor.process(frame)
+                        assertEquals(width, output.buffer.width); assertEquals(height, output.buffer.height)
+                        assertEquals(rotation, output.rotation); assertEquals(100L + sample, output.timestampNs)
+                        val plane = output.buffer.toI420()!!
+                        try { assertTrue(kotlin.math.abs((if (sample == 0) 40 else 180) - (plane.dataY.get(0).toInt() and 255)) <= 2) }
+                        finally { plane.release() }
+                        if (sample == 0) earlier = output else output.release()
+                        earlier!!.buffer.toI420()!!.let { held ->
+                            try { assertTrue(kotlin.math.abs(40 - (held.dataY.get(0).toInt() and 255)) <= 2) }
+                            finally { held.release() }
+                        }
+                    } finally { frame.release() }
+                }
+            } finally { earlier?.release() }
+        }
+    }
     @Test fun pinnedModelLoadsAndProcessesAnAndroidBitmap() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val bitmap = Bitmap.createBitmap(640, 360, Bitmap.Config.ARGB_8888).apply {

@@ -12,13 +12,23 @@ internal object PrivacyMaskRenderer {
     fun expandedMask(mask: ByteArray, radius: Int = 2): ByteArray {
         val size = PrivacySegmentation.MASK_SIZE
         require(mask.size == size * size && radius >= 0)
+        val margin = min(radius, size - 1)
+        val horizontal = ByteArray(mask.size)
         val expanded = ByteArray(mask.size)
-        for (y in 0 until size) for (x in 0 until size) {
-            if (mask[y * size + x].toInt() == 0) continue
-            for (dy in max(0, y - radius)..min(size - 1, y + radius)) {
-                for (dx in max(0, x - radius)..min(size - 1, x + radius)) {
-                    expanded[dy * size + dx] = -1
-                }
+        for (y in 0 until size) {
+            var count = (0..margin).count { mask[y * size + it].toInt() != 0 }
+            for (x in 0 until size) {
+                if (count > 0) horizontal[y * size + x] = -1
+                if (x - margin >= 0 && mask[y * size + x - margin].toInt() != 0) count--
+                if (x + margin + 1 < size && mask[y * size + x + margin + 1].toInt() != 0) count++
+            }
+        }
+        for (x in 0 until size) {
+            var count = (0..margin).count { horizontal[it * size + x].toInt() != 0 }
+            for (y in 0 until size) {
+                if (count > 0) expanded[y * size + x] = -1
+                if (y - margin >= 0 && horizontal[(y - margin) * size + x].toInt() != 0) count--
+                if (y + margin + 1 < size && horizontal[(y + margin + 1) * size + x].toInt() != 0) count++
             }
         }
         return expanded
@@ -34,36 +44,13 @@ internal object PrivacyMaskRenderer {
         if (mask.all { it.toInt() == 0 }) return checkNotNull(upright.copy(Bitmap.Config.ARGB_8888, false))
         val alpha = featheredMask(mask)
         val mosaic = filter(upright)
+        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         try {
-            val originalPixels = IntArray(width * height)
-            val mosaicPixels = IntArray(width * height)
-            upright.getPixels(originalPixels, 0, width, 0, 0, width, height)
-            mosaic.getPixels(mosaicPixels, 0, width, 0, 0, width, height)
-            val maskXs = IntArray(width) { x ->
-                ((layout.left + x * layout.resizedWidth / width) / 4)
-                    .coerceIn(0, PrivacySegmentation.MASK_SIZE - 1)
-            }
-            for (y in 0 until height) {
-                val modelY = layout.top + y * layout.resizedHeight / height
-                val maskY = (modelY / 4).coerceIn(0, PrivacySegmentation.MASK_SIZE - 1)
-                for (x in 0 until width) {
-                    val index = y * width + x
-                    val coverage = alpha[maskY * PrivacySegmentation.MASK_SIZE + maskXs[x]].toInt() and 255
-                    if (coverage == 255) originalPixels[index] = mosaicPixels[index]
-                    else if (coverage > 0) {
-                        val original = originalPixels[index]
-                        val blurred = mosaicPixels[index]
-                        fun blend(shift: Int): Int = ((((original ushr shift) and 255) * (255 - coverage) +
-                            ((blurred ushr shift) and 255) * coverage + 127) / 255)
-                        originalPixels[index] = (blend(24) shl 24) or (blend(16) shl 16) or
-                            (blend(8) shl 8) or blend(0)
-                    }
-                }
-            }
-            return Bitmap.createBitmap(originalPixels, width, height, Bitmap.Config.ARGB_8888)
-        } finally {
-            mosaic.recycle()
-        }
+            PrivacyNativePixels.composite(upright, mosaic, alpha, layout.left, layout.top,
+                layout.resizedWidth, layout.resizedHeight, output)
+            return output
+        } catch (error: Throwable) { output.recycle(); throw error }
+        finally { mosaic.recycle() }
     }
 
     /** iOS: opaque 2px core + max(dilated 4px mask blurred at sigma 1.5, core). */

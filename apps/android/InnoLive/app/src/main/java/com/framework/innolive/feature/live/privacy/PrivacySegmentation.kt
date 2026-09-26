@@ -74,9 +74,10 @@ internal object PrivacySegmentation {
     }
 
     /** Returns an opaque model-space mask for every detected face and plate. */
-    fun unionMask(detections: List<Detection>, prototypes: FloatArray): ByteArray {
+    fun unionMask(detections: List<Detection>, prototypes: FloatArray,
+                  areFinite: (FloatArray) -> Boolean = { it.all(Float::isFinite) }): ByteArray {
         val pixels = MASK_SIZE * MASK_SIZE
-        require(prototypes.size == CHANNELS * pixels && prototypes.all(Float::isFinite))
+        require(prototypes.size == CHANNELS * pixels && areFinite(prototypes))
         val union = ByteArray(pixels)
         for (detection in detections) {
             require(detection.coefficients.size == CHANNELS && detection.coefficients.all(Float::isFinite))

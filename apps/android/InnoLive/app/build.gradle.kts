@@ -14,6 +14,10 @@ if (localPropertiesFile.isFile) {
 
 android {
     namespace = "com.framework.innolive"
+    ndkVersion = "27.0.12077973"
+    externalNativeBuild {
+        cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" }
+    }
     compileSdk {
         version = release(37) {
             minorApiLevel = 1

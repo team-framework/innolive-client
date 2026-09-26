@@ -83,3 +83,67 @@ CPU 대체 경로의 블록 경계 블러, 마스크 중심 불투명성·바깥
 
 - [Android 공식 RenderEffect·HardwareRenderer Bitmap 블러 안내](https://developer.android.com/guide/topics/renderscript/migrate#image-blur)
 - 재현: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.framework.innolive.feature.live.privacy.PrivacyPerformanceDeviceTest --offline`
+
+
+## 프레임 변환·메모리 최적화 (2026-09-26)
+
+Android 미디어 경로만 변경하며 API·시그널링·모델 가중치·매칭 기준은 유지한다.
+iOS의 재사용하는 모델 입력 픽셀 버퍼와 네이티브 이미지 처리 구조를 참고했다.
+
+- I420→RGBA 변환은 NDK C++로 이동했다. ARM에서는 NEON으로 16px씩 처리하고,
+  나머지 픽셀과 다른 ABI는 동일한 BT.601 정수 식을 사용한다. stride·버퍼 크기를
+  검증한 뒤 Bitmap을 잠근다. RGBA→I420은 기존 WebRTC libyuv의 ABGRToI420을 사용한다.
+- 센서·정방향·복원용 Bitmap과 출력 변환용 RGBA 버퍼를 재사용한다. 크기가 바뀌면
+  이전 Bitmap을 해제하고 방송 종료 시 모두 해제한다. 반환하는 VideoFrame은 매번
+  독립된 I420 버퍼를 소유하므로 다음 프레임의 재사용 픽셀에 영향을 받지 않는다.
+- YOLO 입력 Bitmap·Canvas·직접 FloatBuffer·ONNX 입력 Tensor를 모델 수명 동안
+  재사용하고 RGB NCHW 입력 채우기와 prototype 유한값 검사를 네이티브로 수행한다.
+  NaN·Infinity 검사는 빈 보호 목록에도 유지한다.
+- 마스크 확장은 가로·세로 sliding window로 바꾸었다. 기존 사각형 확장과 결과가
+  동일하며, Gaussian 경계와 중심 불투명성을 유지한다. 합성도 네이티브로 수행한다.
+- CameraX KEEP_ONLY_LATEST와 송출 세대 검사는 유지한다. 모델 오류 시 원본을
+  보내지 않고, 현재 프레임의 등록 얼굴 확인도 유지한다. iOS의 비동기 예외 캐시를
+  그대로 적용하면 얼굴 교체 시 예외가 이어지는 위험이 있어 해당 방식은 적용하지 않았다.
+
+SM-S931N·Android 16, 기존과 같은 합성 I420, 90° 회전, 실제 모델, 크기별 4회 처리 중
+첫 표본을 제외한 결과다. 최적화 전 수치는 앞선 두 실행의 범위다. 온도·클럭을
+통제한 장시간 평가가 아니며 카메라·인코더·서버·YouTube 수신 FPS와 구분한다.
+
+| 구간 | 720p 이전 | 720p 최종 | 1080p 이전 | 1080p 최종 |
+| --- | ---: | ---: | ---: | ---: |
+| 전체 프레임, 얼굴 확인·보호 영역 없음 | 252~305ms | 99~103ms | 422~515ms | 115~117ms |
+| 입력 변환·회전 | 84~103ms | 5.3~5.5ms | 189~231ms | 11.5~11.6ms |
+| 출력 변환·회전 | 51~62ms | 4.8~5.9ms | 112~137ms | 11.6~13.7ms |
+
+최종 전체 프레임 중앙값은 720p 99.78ms, 1080p 116.14ms였다. 1080p의 전체 보호
+영역 렌더는 38~43ms(중앙값 39.00ms)였다. 전체 보호 영역 렌더는 별도 테스트이며
+위의 빈 검출 프레임에 단순히 합산한 수치를 실제 송출 FPS로 사용하지 않는다.
+
+### 실행 제공자 비교와 남은 얼굴 인식 비용
+
+기본 CPU, CPU 2·4·8 스레드, spinning 설정, XNNPACK, NNAPI를 비교했다.
+기본 CPU보다 안정적으로 빠른 설정을 확인하지 못해 모델 기본 실행 제공자는 유지한다.
+XNNPACK의 기존 FP16 얼굴 모델은 기본 모델과 코사인 0.999 일치 기준을 통과하지
+못했다. NNAPI는 CPU 허용 여부와 관계없이 `AddNnapiSplit count [0]` 그래프 분할
+오류로 YOLO 세션을 만들지 못했다. 상수·정적 크기를 단순화한 그래프도 같은 오류였다.
+따라서 성공적인 NPU/GPU 모델 추론이나 해당 가속 효과를 주장하지 않는다.
+
+얼굴 모델의 가중치를 바꾸지 않고 FP32 연산으로 변환한 별도 합성 입력 실험은 코사인
+최솟값 0.99994123을 통과했지만, 기본 CPU 반복 추론은 약 335~341ms였고 모델 파일이
+234MB에서 468MB로 늘었다(십진 바이트 기준). 이 모델과 실험용 모델 파일은 제품에
+추가하지 않았다. 일반 ViT optimizer로 추가 Attention/Gelu fusion도 얻지 못했다.
+
+최종 기존 AdaFace 모델의 합성 추론은 약 402~422ms다. 현재 프레임 얼굴 재확인을
+실행하는 구간에는 이 비용과 YuNet·crop·매칭이 추가된다. 이 제한은 남아 있으며
+등록 얼굴이 등장하는 실제 방송의 30fps를 보장하지 않는다. 얼굴 인식 GPU/NPU 경로는
+동일 가중치·전처리·현재 프레임 확인과 출력 일치를 검증할 별도 실행 엔진이 필요하다.
+
+검증: 전체 단위 테스트 169개 통과. SM-S931N에서 네이티브 색상·패딩·홀수 크기·
+SIMD+tail·버퍼 경계·마스크 합성·NaN 검사·비대칭 회전·실제 모델·프레임 생명주기·
+성능 테스트를 실행했다. 최종 변경 후 12개를 통과했고 직전 블러 회귀 테스트 4개도
+통과했다. CMake는 arm64-v8a·armeabi-v7a·x86·x86_64를 빌드하며 arm64 라이브러리의
+16KB ELF LOAD 정렬을 확인했다. 빌드에는 NDK 27.0.12077973, CMake 3.22.1이 필요하다.
+Android 11·다른 ABI의 실기기, 실제 다인 인식·장시간 발열·서버·YouTube는 미검증이다.
+
+- [ONNX Runtime XNNPACK 설정·측정 지침](https://onnxruntime.ai/docs/execution-providers/Xnnpack-ExecutionProvider.html)
+- [ONNX Runtime NNAPI 지원 조건](https://onnxruntime.ai/docs/execution-providers/NNAPI-ExecutionProvider.html)

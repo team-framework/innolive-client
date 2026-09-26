@@ -40,7 +40,8 @@ internal object PrivacyFaceMath {
 }
 
 /** File-backed model loading avoids retaining a second 227 MB model copy in Java memory. */
-internal class PrivacyFaceModel(context: Context) : AutoCloseable {
+internal class PrivacyFaceModel(context: Context,
+                               sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() }) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private val detector = PrivacyYuNetModel(context.applicationContext)
     private val session: OrtSession
@@ -52,7 +53,7 @@ internal class PrivacyFaceModel(context: Context) : AutoCloseable {
             throw error
         }
         session = try {
-            OrtSession.SessionOptions().use { options -> environment.createSession(modelFile.absolutePath, options) }
+            sessionOptions().use { options -> environment.createSession(modelFile.absolutePath, options) }
         } catch (error: Exception) {
             detector.close()
             throw error
