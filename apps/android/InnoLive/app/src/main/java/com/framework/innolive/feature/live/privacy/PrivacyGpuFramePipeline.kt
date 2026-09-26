@@ -4,6 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Rect
 import android.opengl.GLES20.*
+import android.opengl.GLUtils
+import android.util.Log
+import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
@@ -23,7 +26,7 @@ import kotlin.math.max
 
 /** Serial GL graph. Only 640px model input and requested face crops cross back to CPU.
  * Output textures remain owned until every renderer/encoder releases its frame. */
-internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?) : AutoCloseable {
+internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3: Boolean = false) : AutoCloseable {
     private val thread = HandlerThread("privacy-image-gpu").apply { start() }
     private val handler = Handler(thread.looper)
     private lateinit var egl: EglBase
@@ -38,6 +41,10 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?) : AutoCl
     private val outputPool = mutableListOf<Target>()
     private val leased = mutableSetOf<Target>()
     private var closing = false
+    private var nativeModel = 0L
+    private var nativeChecked = false
+    private var nativeValidated = false
+    val nativeInputEnabled: Boolean get() = nativeValidated
     private val closeRequested = AtomicBoolean(false)
     private var width = 0
     private var height = 0
@@ -48,7 +55,11 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?) : AutoCl
     init {
         try {
             onGl {
-                egl = EglBase.create(sharedContext, EglBase.CONFIG_PIXEL_BUFFER)
+                egl = if (useGles3) try {
+                    EglBase.create(sharedContext, EglBase.configBuilder().setOpenGlesVersion(3)
+                        .setSupportsPixelBuffer(true).createConfigAttributes())
+                } catch (_: RuntimeException) { EglBase.create(sharedContext, EglBase.CONFIG_PIXEL_BUFFER) }
+                else EglBase.create(sharedContext, EglBase.CONFIG_PIXEL_BUFFER)
                 egl.createDummyPbufferSurface(); egl.makeCurrent()
                 converter = YuvConverter()
                 glGenTextures(3, planeTextures, 0)
@@ -69,7 +80,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?) : AutoCl
         return checkNotNull(result).getOrThrow()
     }
 
-    fun prepare(source: VideoFrame.I420Buffer, rotation: Int): PrivacySegmentation.Letterbox = onGl {
+    fun prepare(source: VideoFrame.I420Buffer, rotation: Int, readModel: Boolean = true): PrivacySegmentation.Letterbox = onGl {
         check(!closing)
         if (leased.size >= 6) throw PrivacyGpuBackpressureException()
         require(rotation in listOf(0, 90, 180, 270))
@@ -106,8 +117,10 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?) : AutoCl
             glUniform4f(p.getUniformLocation("box"), layout.left / 640f, layout.top / 640f,
                 layout.resizedWidth / 640f, layout.resizedHeight / 640f)
         }
-        readPixels(targets.getValue("model"), modelPixels)
-        modelPixels.rewind(); modelBitmap.copyPixelsFromBuffer(modelPixels)
+        if (readModel) {
+            readPixels(targets.getValue("model"), modelPixels)
+            modelPixels.rewind(); modelBitmap.copyPixelsFromBuffer(modelPixels)
+        }
         layout
     }
 
@@ -126,6 +139,86 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?) : AutoCl
         Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888).also {
             pixels.rewind(); it.copyPixelsFromBuffer(pixels)
         }
+    }
+
+    internal fun createNativeInputModel(path: String) = onGl {
+        check(nativeModel == 0L && !closing)
+        egl.makeCurrent()
+        try { nativeModel = PrivacyNativeGpuModel.create(path) } finally { egl.makeCurrent() }
+    }
+
+    internal fun predictNativeInput(): Pair<FloatArray, FloatArray> = onGl {
+        check(nativeModel != 0L && !closing)
+        egl.makeCurrent()
+        try {
+            val values = PrivacyNativeGpuModel.predict(nativeModel, targets.getValue("model").texture)
+            values[0] to values[1]
+        } finally { egl.makeCurrent() }
+    }
+
+    private fun readModelInput() = onGl {
+        readPixels(targets.getValue("model"), modelPixels)
+        modelPixels.rewind(); modelBitmap.copyPixelsFromBuffer(modelPixels)
+    }
+
+    private fun uploadModelImage(bitmap: Bitmap) = onGl {
+        glBindTexture(GL_TEXTURE_2D, targets.getValue("model").texture)
+        GLUtils.texSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bitmap)
+        GlUtil.checkNoGLES2Error("privacy GPU validation input")
+    }
+
+    /** Calibrate once with the same RGB pixels, including the eliminated readback/tensor copies. */
+    fun validateNativeInput(context: Context, baseline: (FloatArray) -> Pair<FloatArray, FloatArray>) {
+        if (nativeChecked) return
+        nativeChecked = true
+        val original = modelBitmap.copy(Bitmap.Config.ARGB_8888, false)
+        val probe = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
+        val tensor = ByteBuffer.allocateDirect(3 * 640 * 640 * 4).order(ByteOrder.nativeOrder())
+        val input = FloatArray(3 * 640 * 640)
+        try {
+            createNativeInputModel(PrivacyDetectorGpuEngine.verifiedFile(context).absolutePath)
+            val oldTimes = mutableListOf<Long>(); val newTimes = mutableListOf<Long>()
+            for (pattern in 0..2) {
+                val colors = IntArray(640 * 640) { index -> when (pattern) {
+                    0 -> android.graphics.Color.rgb(128,128,128)
+                    1 -> android.graphics.Color.rgb(index % 640 * 255 / 639,128,64)
+                    else -> android.graphics.Color.rgb(index * 13 % 255,index * 7 % 255,index * 19 % 255)
+                } }
+                probe.setPixels(colors,0,640,0,0,640,640)
+                uploadModelImage(probe)
+                PrivacyNativePixels.bitmapToTensor(probe,tensor); tensor.asFloatBuffer().get(input)
+                val expected = baseline(input)
+                val actual = predictNativeInput()
+                fun error(a: FloatArray,b: FloatArray): Float {
+                    check(a.size==b.size && PrivacyNativePixels.finiteFloats(a) && PrivacyNativePixels.finiteFloats(b))
+                    var maximum=0f; for(i in a.indices) maximum=maxOf(maximum,kotlin.math.abs(a[i]-b[i])); return maximum
+                }
+                check(error(actual.first,expected.first)<.05f && error(actual.second,expected.second)<.01f) { "GPU buffer output mismatch" }
+                repeat(3) { sample ->
+                    fun legacy() { val tick=System.nanoTime();readModelInput();PrivacyNativePixels.bitmapToTensor(modelBitmap,tensor);tensor.asFloatBuffer().get(input);baseline(input);oldTimes+=System.nanoTime()-tick }
+                    fun direct() { val tick=System.nanoTime();predictNativeInput();newTimes+=System.nanoTime()-tick }
+                    if(sample%2==0) { legacy();direct() } else { direct();legacy() }
+                }
+            }
+            val old=oldTimes.sorted()[oldTimes.size/2]; val direct=newTimes.sorted()[newTimes.size/2]
+            check(direct<old*.9) { "GPU buffer lacks speed improvement" }
+            nativeValidated=true
+            Log.i("PrivacyDetector","gpu_input_validated legacy_ms=${old/1e6} direct_ms=${direct/1e6}")
+        } catch(error: Exception) {
+            onGl { if(nativeModel!=0L) { PrivacyNativeGpuModel.destroy(nativeModel);nativeModel=0L;egl.makeCurrent() } }
+            Log.i("PrivacyDetector","gpu_input_rejected type=${error.javaClass.simpleName} detail=${error.message?.take(120)}")
+        } finally {
+            uploadModelImage(original)
+            original.copyPixelsToBuffer(modelPixels.apply { clear() });modelPixels.rewind();modelBitmap.copyPixelsFromBuffer(modelPixels)
+            original.recycle();probe.recycle()
+        }
+    }
+
+    /** Restore the current GPU image for the protected fallback, never a previous input bitmap. */
+    fun disableNativeInput() {
+        nativeValidated=false
+        onGl { if(nativeModel!=0L) { PrivacyNativeGpuModel.destroy(nativeModel);nativeModel=0L;egl.makeCurrent() } }
+        readModelInput()
     }
 
     fun finish(mask: ByteArray, layout: PrivacySegmentation.Letterbox,
@@ -249,6 +342,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?) : AutoCl
         onGl {
             if (!closing) {
                 closing = true
+                if (nativeModel != 0L) { PrivacyNativeGpuModel.destroy(nativeModel); nativeModel = 0L; egl.makeCurrent() }
                 targets.values.forEach { it.close() }; targets.clear()
                 glDeleteTextures(3, planeTextures, 0)
                 shaders.values.forEach { it.release() }; shaders.clear()

@@ -33,7 +33,8 @@ internal class PrivacyOnnxModel(private val context: Context,
     private var gpuChecked = false
     private var gpu: PrivacyDetectorGpuEngine? = null
     private var nnapi: PrivacyNnapiDetectorEngine? = null
-    val usesGpu: Boolean get() = gpu != null && nnapi == null
+    private var nativeInputActive = false
+    val usesGpu: Boolean get() = (gpu != null || nativeInputActive) && nnapi == null
     var lastAnalysis: PrivacyFrameAnalysis? = null
         private set
     var lastTimings: PrivacyModelTimings? = null
@@ -85,12 +86,11 @@ internal class PrivacyOnnxModel(private val context: Context,
         timestampNs: Long,
         exemptFaces: (List<PrivacySegmentation.Detection>, PrivacySegmentation.Letterbox) -> Set<Int>,
         renderOnGpu: Boolean = false,
+        gpuGraph: PrivacyGpuFramePipeline? = null,
         render: (ByteArray) -> T,
     ): T {
         require(preparedInput.width == 640 && preparedInput.height == 640)
         val started = System.nanoTime()
-        PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
-        val prepared = System.nanoTime()
         if (!gpuChecked) {
             gpuChecked = true
             gpu = PrivacyDetectorGpuEngine.validated(context, ::reference)
@@ -98,33 +98,23 @@ internal class PrivacyOnnxModel(private val context: Context,
                 gpu?.predict(pixels) ?: reference(pixels).first
             }
         }
-        val (predictions, prototypes) = try {
-            val engine = gpu
-            if (nnapi != null) {
-                inputBytes.asFloatBuffer().get(gpuInput)
-                checkNotNull(nnapi).predict(gpuInput)
-            } else if (engine == null) runOnnx()
-            else {
-                inputBytes.asFloatBuffer().get(gpuInput)
-                engine.predict(gpuInput)
+        if (nnapi == null) gpuGraph?.validateNativeInput(context) { pixels ->
+            gpu?.predict(pixels) ?: reference(pixels).first
+        }
+        nativeInputActive = gpuGraph?.nativeInputEnabled == true
+        if (!nativeInputActive) PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
+        val prepared = System.nanoTime()
+        val (predictions, prototypes) = if (nativeInputActive) try {
+            checkNotNull(gpuGraph).predictNativeInput().also { (first, second) ->
+                check(PrivacyNativePixels.finiteFloats(first) && PrivacyNativePixels.finiteFloats(second))
             }
         } catch (error: Exception) {
-            if (nnapi != null) {
-                nnapi?.close(); nnapi = null
-                Log.w("PrivacyDetector", "nnapi_runtime_fallback type=${error.javaClass.simpleName}")
-                try {
-                    gpu?.predict(gpuInput) ?: runOnnx()
-                } catch (_: Exception) {
-                    runCatching { gpu?.close() }; gpu = null
-                    runOnnx()
-                }
-            } else {
-                if (gpu == null) throw error
-                runCatching { gpu?.close() }; gpu = null
-                Log.w("PrivacyDetector", "gpu_runtime_fallback type=${error.javaClass.simpleName}")
-                runOnnx()
-            }
-        }
+            nativeInputActive = false
+            checkNotNull(gpuGraph).disableNativeInput()
+            PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
+            Log.w("PrivacyDetector", "gpu_input_runtime_fallback type=${error.javaClass.simpleName}")
+            predictLegacy()
+        } else predictLegacy()
         val inferred = System.nanoTime()
         run {
             val objects = PrivacySegmentation.detections(predictions)
@@ -156,6 +146,36 @@ internal class PrivacyOnnxModel(private val context: Context,
     }
 
     fun resetTemporalState() { stabilizer.reset() }
+
+    private fun predictLegacy(): Pair<FloatArray, FloatArray> {
+        return try {
+            val engine = gpu
+            if (nnapi != null) {
+                inputBytes.asFloatBuffer().get(gpuInput)
+                checkNotNull(nnapi).predict(gpuInput)
+            } else if (engine == null) runOnnx()
+            else {
+                inputBytes.asFloatBuffer().get(gpuInput)
+                engine.predict(gpuInput)
+            }
+        } catch (error: Exception) {
+            if (nnapi != null) {
+                nnapi?.close(); nnapi = null
+                Log.w("PrivacyDetector", "nnapi_runtime_fallback type=${error.javaClass.simpleName}")
+                try {
+                    gpu?.predict(gpuInput) ?: runOnnx()
+                } catch (_: Exception) {
+                    runCatching { gpu?.close() }; gpu = null
+                    runOnnx()
+                }
+            } else {
+                if (gpu == null) throw error
+                runCatching { gpu?.close() }; gpu = null
+                Log.w("PrivacyDetector", "gpu_runtime_fallback type=${error.javaClass.simpleName}")
+                runOnnx()
+            }
+        }
+    }
 
     private fun runOnnx(): Pair<FloatArray, FloatArray> =
         session.run(mapOf("images" to inputTensor)).use { result ->

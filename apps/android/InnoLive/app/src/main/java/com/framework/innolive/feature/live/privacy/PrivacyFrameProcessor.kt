@@ -32,7 +32,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     fun process(frame: VideoFrame): VideoFrame {
         if (!imageGpuUnavailable) {
             try {
-                if (imageGpu == null) imageGpu = PrivacyGpuFramePipeline(sharedContext)
+                if (imageGpu == null) imageGpu = PrivacyGpuFramePipeline(sharedContext, useGles3 = true)
                 return processGpu(frame, checkNotNull(imageGpu))
             } catch (error: PrivacyGpuBackpressureException) { throw error }
             catch (error: Exception) {
@@ -50,12 +50,12 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
         try {
             val nextGeometry = Triple(source.width, source.height, frame.rotation)
             if (geometry != nextGeometry) { resetFaceExceptions(); geometry = nextGeometry }
-            val layout = graph.prepare(source, frame.rotation)
+            val layout = graph.prepare(source, frame.rotation, readModel = !graph.nativeInputEnabled)
             val converted = System.nanoTime()
             faces.beginFrame(layout.sourceWidth, layout.sourceHeight, frame.timestampNs, graph::crop)
             val buffer = model.processPrepared(graph.modelBitmap, layout, frame.timestampNs,
                 { objects, box -> faces.exceptions(box.sourceWidth, box.sourceHeight, objects, box, frame.timestampNs) },
-                renderOnGpu = true) { mask -> graph.finish(mask, layout, source.width, source.height) }
+                renderOnGpu = true, gpuGraph = graph) { mask -> graph.finish(mask, layout, source.width, source.height) }
             val completed = System.nanoTime()
             lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
                 checkNotNull(model.lastTimings), 0.0, (completed - started) / 1e6)

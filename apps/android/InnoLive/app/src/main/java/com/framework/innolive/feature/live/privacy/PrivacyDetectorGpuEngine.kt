@@ -110,7 +110,7 @@ internal class PrivacyDetectorGpuEngine private constructor(private val model: C
             return largest
         }
 
-        private fun verifiedFile(context: Context): File {
+        internal fun verifiedFile(context: Context): File {
             val target = File(context.noBackupFilesDir, "privacy-detector-$SHA256.tflite")
             if (target.isFile && sha256(target) == SHA256) return target
             val temp = File.createTempFile("privacy-detector-gpu-", ".tmp", context.noBackupFilesDir)

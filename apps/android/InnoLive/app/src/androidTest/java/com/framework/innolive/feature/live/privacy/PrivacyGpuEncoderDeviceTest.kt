@@ -41,7 +41,7 @@ class PrivacyGpuEncoderDeviceTest {
                     errors.incrementAndGet()
                 encoded.countDown()
             })
-            PrivacyGpuFramePipeline(egl.eglBaseContext).use { graph ->
+            PrivacyGpuFramePipeline(egl.eglBaseContext, useGles3=true).use { graph ->
                 val mask = ByteArray(160 * 160) { -1 }
                 repeat(12) { index ->
                     val layout = graph.prepare(source, 90)
