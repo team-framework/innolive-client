@@ -22,6 +22,9 @@
     <string name="content_description_delete_registered_face">Delete registered face %1$d</string>
     <plurals name="face_capture_ready_count"><item quantity="one">%d face is ready. Capture another face or register it.</item><item quantity="other">%d faces are ready. Capture another face or register them.</item></plurals>
     <string name="ai_mode_server">Server AI</string>
+    <string name="settings_ai_processing">AI processing</string>
+    <string name="ai_mode_change_availability">You can change this before preparing a broadcast or while previewing.</string>
+    <string name="ai_mode_change_in_progress">Changing AI processing…</string>
     <string name="ai_mode_on_device">On-device AI</string>
     <string name="ai_mode_change_failed">Could not switch AI processing. Please try again.</string>
     <string name="local_face_title">On-device faces</string>

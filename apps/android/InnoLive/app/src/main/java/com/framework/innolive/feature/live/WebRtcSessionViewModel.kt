@@ -109,13 +109,20 @@ class WebRtcSessionViewModel : ViewModel() {
         return true
     }
 
+    val canChangeAIProcessing: Boolean
+        get() = !isAIProcessingChanging && !isPreparingBroadcast &&
+            anonymizationChange.status != AnonymizationChangeStatus.CHANGING &&
+            broadcastState == BroadcastState.IDLE && connectionState in setOf(
+                WebRtcConnectionState.IDLE,
+                WebRtcConnectionState.FAILED,
+                WebRtcConnectionState.CONNECTED,
+            )
+
     fun selectAIProcessing(context: Context, onDevice: Boolean): Boolean {
-        if (isAIProcessingChanging || isPreparingBroadcast ||
-            broadcastState != BroadcastState.IDLE) return false
+        if (!canChangeAIProcessing) return false
         if (connectionState != WebRtcConnectionState.CONNECTED) {
             return selectInitialAIProcessing(context, onDevice)
         }
-        if (sessionState.anonymizationChange.status == AnonymizationChangeStatus.CHANGING) return false
         val currentConnection = connection ?: return false
         val generation = sessionState.generation
         isAIProcessingChanging = true

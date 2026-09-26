@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -116,13 +117,7 @@ internal fun LocalFaceManagementScreen(
                 Text(stringResource(R.string.local_face_model_preparing), color = Color.White)
             }
         }
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it.take(40) },
-            label = { Text(stringResource(R.string.local_face_name)) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
+        LocalFaceNameField(value = name, onValueChange = { name = it.take(40) })
         Button(
             onClick = { enrollingName = name.trim() },
             enabled = ready && service.library != null && name.trim().isNotEmpty() && faces.size < 20,
@@ -147,6 +142,28 @@ internal fun LocalFaceManagementScreen(
             }
         }
     }
+}
+
+@Composable
+internal fun LocalFaceNameField(value: String, onValueChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(stringResource(R.string.local_face_name)) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            cursorColor = Color.White,
+            focusedLabelColor = Color.White,
+            unfocusedLabelColor = Color.LightGray,
+            focusedBorderColor = Color.White,
+            unfocusedBorderColor = Color.LightGray,
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+        ),
+    )
 }
 
 @Composable

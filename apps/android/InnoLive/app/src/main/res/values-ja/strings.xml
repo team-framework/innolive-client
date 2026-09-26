@@ -22,6 +22,9 @@
     <string name="content_description_delete_registered_face">登録済みの顔 %1$d を削除</string>
     <plurals name="face_capture_ready_count"><item quantity="other">登録する顔を%d件準備しました。別の顔を撮影するか、登録してください。</item></plurals>
     <string name="ai_mode_server">サーバーAI</string>
+    <string name="settings_ai_processing">AI 処理方式</string>
+    <string name="ai_mode_change_availability">配信準備前またはプレビュー中に変更できます。</string>
+    <string name="ai_mode_change_in_progress">AI 処理方式を変更中…</string>
     <string name="ai_mode_on_device">オンデバイスAI</string>
     <string name="ai_mode_change_failed">AI処理方式を切り替えられませんでした。再度お試しください。</string>
     <string name="local_face_title">端末内の顔管理</string>

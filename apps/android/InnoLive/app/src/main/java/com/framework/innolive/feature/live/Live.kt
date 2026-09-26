@@ -166,31 +166,6 @@ fun LiveScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(
-                onClick = {
-                    webRtcSession.selectAIProcessing(
-                        context,
-                        !webRtcSession.selectedOnDeviceProcessing,
-                    )
-                },
-                enabled = !webRtcSession.isAIProcessingChanging &&
-                    !webRtcSession.isPreparingBroadcast &&
-                    webRtcSession.anonymizationChange.status != AnonymizationChangeStatus.CHANGING &&
-                    webRtcSession.broadcastState == BroadcastState.IDLE &&
-                    webRtcSession.connectionState in setOf(
-                        WebRtcConnectionState.IDLE,
-                        WebRtcConnectionState.FAILED,
-                        WebRtcConnectionState.CONNECTED,
-                    ),
-            ) {
-                Text(
-                    stringResource(
-                        if (webRtcSession.selectedOnDeviceProcessing) R.string.ai_mode_on_device
-                        else R.string.ai_mode_server,
-                    ),
-                    color = Color.White,
-                )
-            }
             IconButton(
                 onClick = props.onOpenSettings,
                 enabled = !presentation.isConnecting,
