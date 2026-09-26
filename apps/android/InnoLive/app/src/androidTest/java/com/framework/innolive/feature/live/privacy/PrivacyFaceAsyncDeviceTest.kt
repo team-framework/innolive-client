@@ -32,10 +32,11 @@ class PrivacyFaceAsyncDeviceTest {
             job = Job(image, Rect(bounds), generation, trackId, capturedAtSeconds)
             return true
         }
-        fun complete(embedding: FloatArray?) {
+        fun complete(embedding: FloatArray?, sampleAvailable: Boolean = true,
+                     imageBox: RectF = RectF(100f, 100f, 150f, 150f)) {
             val pending = checkNotNull(job)
             result = PrivacyFaceService.Result(pending.generation, pending.id, pending.time, embedding,
-                sampleAvailable = true, imageBox = RectF(100f, 100f, 150f, 150f))
+                sampleAvailable = sampleAvailable, imageBox = imageBox)
             pending.image.recycle(); job = null
         }
         override fun close() { job?.image?.recycle(); job = null; result = null }
@@ -52,13 +53,13 @@ class PrivacyFaceAsyncDeviceTest {
             try {
                 coordinator.beginFrame(image, 1_000_000_000L)
                 coordinator.exceptions(image, objects, layout, 1_000_000_000L)
-                coordinator.beginFrame(image, 1_350_000_000L)
+                coordinator.beginFrame(image, 1_100_000_000L)
                 assertEquals(1, worker.submissions)
                 image.eraseColor(Color.BLUE)
                 assertEquals(Color.RED, checkNotNull(worker.job).image.getPixel(0, 0))
                 val start = System.nanoTime()
                 repeat(30) { i ->
-                    val time = 1_350_000_000L + i * 10_000_000L
+                    val time = 1_100_000_000L + i * 10_000_000L
                     coordinator.beginFrame(image, time)
                     assertTrue(coordinator.exceptions(image, objects, layout, time).isEmpty())
                 }
@@ -68,34 +69,87 @@ class PrivacyFaceAsyncDeviceTest {
         }
     }
 
-    @Test fun lateResultWithinLeaseNeverExemptsNewerFrame() {
+    private fun frame(coordinator: PrivacyFaceCoordinator, image: Bitmap, millis: Long): Set<Int> {
+        coordinator.beginFrame(image, millis * 1_000_000)
+        return coordinator.exceptions(image, objects, layout, millis * 1_000_000)
+    }
+
+    private fun confirm(coordinator: PrivacyFaceCoordinator, worker: Worker, image: Bitmap) {
+        assertTrue(frame(coordinator, image, 1000).isEmpty())
+        coordinator.beginFrame(image, 1_100_000_000L); worker.complete(embedding)
+        assertTrue(coordinator.exceptions(image, objects, layout, 1_100_000_000L).isEmpty())
+        assertTrue(frame(coordinator, image, 1200).isEmpty())
+        assertTrue(frame(coordinator, image, 1300).isEmpty())
+        assertTrue(frame(coordinator, image, 1400).isEmpty())
+        worker.complete(embedding)
+        // A result from 1400ms is used on the next frame without blocking capture.
+        assertEquals(setOf(0), frame(coordinator, image, 1500))
+    }
+
+    @Test fun delayedResultsExemptNewerFramesButHeldRecheckCannotExtend750msLease() {
         Worker().use { worker ->
             val coordinator = coordinator(worker)
             val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
             try {
-                coordinator.beginFrame(image, 1_000_000_000L)
-                coordinator.exceptions(image, objects, layout, 1_000_000_000L)
-                coordinator.beginFrame(image, 1_350_000_000L); worker.complete(embedding)
-                assertTrue(coordinator.exceptions(image, objects, layout, 1_450_000_000L).isEmpty())
-                coordinator.beginFrame(image, 1_700_000_000L); worker.complete(embedding)
-                assertTrue(coordinator.exceptions(image, objects, layout, 1_800_000_000L).isEmpty())
+                confirm(coordinator, worker, image)
+                for (time in 1600L..2100L step 100) assertEquals(setOf(0), frame(coordinator, image, time))
+                assertEquals(3, worker.submissions)
+                assertTrue(frame(coordinator, image, 2150).isEmpty())
             } finally { image.recycle() }
         }
     }
 
-    @Test fun currentResultsExemptButReplacementAtSamePositionIsImmediatelyProtected() {
+    @Test fun unknownResultRevokesExistingExceptionAtSamePosition() {
         Worker().use { worker ->
             val coordinator = coordinator(worker)
             val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
             try {
-                coordinator.beginFrame(image, 1_000_000_000L)
-                coordinator.exceptions(image, objects, layout, 1_000_000_000L)
-                coordinator.beginFrame(image, 1_350_000_000L); worker.complete(embedding)
-                assertTrue(coordinator.exceptions(image, objects, layout, 1_350_000_000L).isEmpty())
-                coordinator.beginFrame(image, 1_700_000_000L); worker.complete(embedding)
-                assertEquals(setOf(0), coordinator.exceptions(image, objects, layout, 1_700_000_000L))
-                coordinator.beginFrame(image, 1_800_000_000L); worker.complete(null)
-                assertTrue(coordinator.exceptions(image, objects, layout, 1_800_000_000L).isEmpty())
+                confirm(coordinator, worker, image)
+                assertEquals(setOf(0), frame(coordinator, image, 1600))
+                assertEquals(setOf(0), frame(coordinator, image, 1700))
+                worker.complete(null)
+                assertTrue(frame(coordinator, image, 1800).isEmpty())
+            } finally { image.recycle() }
+        }
+    }
+
+    @Test fun missingLandmarksRetainLeaseWithoutExtendingSourceDeadline() {
+        Worker().use { worker ->
+            val coordinator = coordinator(worker)
+            val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
+            try {
+                confirm(coordinator, worker, image)
+                frame(coordinator, image, 1600); frame(coordinator, image, 1700)
+                worker.complete(null, sampleAvailable = false)
+                for (time in 1800L..2100L step 100) assertEquals(setOf(0), frame(coordinator, image, time))
+                assertTrue(frame(coordinator, image, 2150).isEmpty())
+            } finally { image.recycle() }
+        }
+    }
+
+    @Test fun recognitionFromAnotherLocationRevokesCachedIdentity() {
+        Worker().use { worker ->
+            val coordinator = coordinator(worker)
+            val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
+            try {
+                confirm(coordinator, worker, image)
+                frame(coordinator, image, 1600); frame(coordinator, image, 1700)
+                worker.complete(embedding, imageBox = RectF(200f, 100f, 250f, 150f))
+                assertTrue(frame(coordinator, image, 1800).isEmpty())
+            } finally { image.recycle() }
+        }
+    }
+
+    @Test fun slowFrameGapDiscardsInFlightRecognitionLikeIOS() {
+        Worker().use { worker ->
+            val coordinator = coordinator(worker)
+            val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
+            try {
+                frame(coordinator, image, 1000)
+                coordinator.beginFrame(image, 1_250_000_000L); worker.complete(embedding)
+                assertTrue(coordinator.exceptions(image, objects, layout, 1_250_000_000L).isEmpty())
+                coordinator.beginFrame(image, 1_500_000_000L); worker.complete(embedding)
+                assertTrue(coordinator.exceptions(image, objects, layout, 1_500_000_000L).isEmpty())
             } finally { image.recycle() }
         }
     }
@@ -108,9 +162,9 @@ class PrivacyFaceAsyncDeviceTest {
             try {
                 coordinator.beginFrame(image, 1_000_000_000L)
                 coordinator.exceptions(image, objects, layout, 1_000_000_000L)
-                coordinator.beginFrame(image, 1_350_000_000L)
+                coordinator.beginFrame(image, 1_100_000_000L)
                 coordinator.reset(); worker.complete(embedding)
-                assertTrue(coordinator.exceptions(image, objects, layout, 1_350_000_000L).isEmpty())
+                assertTrue(coordinator.exceptions(image, objects, layout, 1_100_000_000L).isEmpty())
                 coordinator.beginFrame(image, 1_700_000_000L)
                 coordinator.beginFrame(changed, 1_700_000_000L)
                 worker.complete(embedding)

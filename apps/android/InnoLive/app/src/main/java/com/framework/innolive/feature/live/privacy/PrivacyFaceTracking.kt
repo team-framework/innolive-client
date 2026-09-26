@@ -2,7 +2,7 @@ package com.framework.innolive.feature.live.privacy
 
 import java.util.UUID
 
-/** Short-lived identity lease. Geometry never grants an exception by itself. */
+/** Mirrors iOS identity caching while geometry remains unambiguous. */
 internal class PrivacyFaceTracking {
     data class Track(
         val id: String = UUID.randomUUID().toString(),
@@ -26,7 +26,7 @@ internal class PrivacyFaceTracking {
     fun update(boxes: Map<Int, PrivacySegmentation.Box>, atSeconds: Double) {
         if (!atSeconds.isFinite()) { reset(); return }
         val previousTime = lastTimeSeconds
-        if (previousTime != null && (atSeconds <= previousTime || atSeconds - previousTime >= 1.0)) {
+        if (previousTime != null && (atSeconds <= previousTime || atSeconds - previousTime >= MAX_FRAME_GAP_SECONDS)) {
             tracks = emptyList()
         }
         lastTimeSeconds = atSeconds
@@ -49,12 +49,8 @@ internal class PrivacyFaceTracking {
         }
     }
 
-    fun next(atSeconds: Double, currentFrame: Boolean = false): Track? {
-        val next = tracks.filter {
-            if (currentFrame && it.confirmations >= 2 && atSeconds < it.allowedUntilSeconds) true
-            else atSeconds - it.lastScheduledSeconds >= .25 &&
-                (it.confirmations < 2 || atSeconds >= it.allowedUntilSeconds)
-        }
+    fun next(atSeconds: Double): Track? {
+        val next = tracks.filter { atSeconds - it.lastScheduledSeconds >= RECHECK_SECONDS }
             .minByOrNull { it.lastScheduledSeconds }
         next?.lastScheduledSeconds = atSeconds
         return next?.copy()
@@ -65,7 +61,7 @@ internal class PrivacyFaceTracking {
         val track = tracks.firstOrNull { it.id == trackID } ?: return
         if (!sampleAvailable) return
         if (match == null || nowSeconds < capturedAtSeconds ||
-            nowSeconds - capturedAtSeconds >= .75) {
+            nowSeconds - capturedAtSeconds >= CACHE_SECONDS) {
             track.candidate = null
             track.confirmations = 0
             track.allowedUntilSeconds = Double.NEGATIVE_INFINITY
@@ -80,26 +76,25 @@ internal class PrivacyFaceTracking {
             track.allowedUntilSeconds = Double.NEGATIVE_INFINITY
         }
         track.lastConfirmedSeconds = capturedAtSeconds
-        if (track.confirmations >= 2) track.allowedUntilSeconds = capturedAtSeconds + .75
+        if (track.confirmations >= 2) track.allowedUntilSeconds = capturedAtSeconds + CACHE_SECONDS
     }
 
-    /** A lease only selects faces to verify; it never authorizes an unverified video frame. */
-    private fun candidates(atSeconds: Double): List<Track> {
+    fun allowed(atSeconds: Double): Set<Int> {
         val qualified = tracks.filter { it.candidate != null && it.confirmations >= 2 && atSeconds < it.allowedUntilSeconds }
         return qualified.filter { candidate -> qualified.count { it.candidate == candidate.candidate } == 1 }
-            .map { it.copy() }
+            .map { it.index }.toSet()
     }
 
-    /** A recent identity is only usable with a result for these exact captured pixels. */
-    fun verifiedResult(trackID: String, identity: String?, capturedAtSeconds: Double,
-                       currentSeconds: Double, recognizedBox: PrivacySegmentation.Box?): Set<Int> {
-        if (identity == null || capturedAtSeconds != currentSeconds || recognizedBox == null) return emptySet()
-        if (!capturedAtSeconds.isFinite() || !currentSeconds.isFinite() ||
-            listOf(recognizedBox.left, recognizedBox.top, recognizedBox.right, recognizedBox.bottom).any { !it.isFinite() } ||
-            recognizedBox.width <= 0 || recognizedBox.height <= 0) return emptySet()
-        val candidate = candidates(currentSeconds).singleOrNull { it.id == trackID && it.candidate == identity }
-            ?: return emptySet()
-        if (candidate.box.intersects(recognizedBox) < .5f) return emptySet()
-        return setOf(candidate.index)
+    /** Android starts a crop before YOLO; validate which current track its face belongs to. */
+    fun recognitionMatches(trackID: String, box: PrivacySegmentation.Box): Boolean {
+        if (listOf(box.left, box.top, box.right, box.bottom).any { !it.isFinite() } ||
+            box.width <= 0 || box.height <= 0) return false
+        return tracks.singleOrNull { it.id == trackID }?.box?.intersects(box)?.let { it >= .5f } == true
+    }
+
+    companion object {
+        const val CACHE_SECONDS = .75
+        const val RECHECK_SECONDS = .25
+        const val MAX_FRAME_GAP_SECONDS = .20
     }
 }
