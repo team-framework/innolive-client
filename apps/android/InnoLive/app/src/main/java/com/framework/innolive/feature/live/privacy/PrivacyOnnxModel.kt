@@ -12,6 +12,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.util.Log
+import com.framework.innolive.BuildConfig
 import java.security.MessageDigest
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -32,6 +33,8 @@ internal class PrivacyOnnxModel(private val context: Context,
     private var gpuChecked = false
     private var gpu: PrivacyDetectorGpuEngine? = null
     val usesGpu: Boolean get() = gpu != null
+    var lastAnalysis: PrivacyFrameAnalysis? = null
+        private set
     var lastTimings: PrivacyModelTimings? = null
         private set
 
@@ -105,6 +108,12 @@ internal class PrivacyOnnxModel(private val context: Context,
             val masked = System.nanoTime()
             val output = PrivacyMaskRenderer.render(upright, mask, layout, blur::apply)
             val rendered = System.nanoTime()
+            if (BuildConfig.DEBUG) {
+                val maskPixels = mask.count { it.toInt() != 0 }
+                lastAnalysis = PrivacyFrameAnalysis(usesGpu, objects.count { it.classId == 0 },
+                    objects.count { it.classId == 1 }, exempt.size,
+                    maskPixels, maskPixels > 0 && blur.lastUsedGpu)
+            }
             lastTimings = PrivacyModelTimings(
                 (prepared - started) / 1e6, (inferred - prepared) / 1e6,
                 (afterFaces - beforeFaces) / 1e6,
@@ -154,4 +163,10 @@ internal class PrivacyOnnxModel(private val context: Context,
 internal data class PrivacyModelTimings(
     val prepareMs: Double, val inferenceMs: Double, val facesMs: Double,
     val maskMs: Double, val renderMs: Double,
+)
+
+/** Numeric diagnostics only; no face identity or camera pixels. */
+internal data class PrivacyFrameAnalysis(
+    val detectorGpu: Boolean, val faces: Int, val plates: Int, val exemptFaces: Int,
+    val maskPixels: Int, val blurGpu: Boolean,
 )

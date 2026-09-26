@@ -9,6 +9,8 @@ import com.framework.innolive.feature.live.privacy.PrivacyFrameMode
 import com.framework.innolive.feature.live.privacy.PrivacyFrameProcessor
 import com.framework.innolive.feature.live.privacy.PrivacyFrameRoute
 import com.framework.innolive.feature.live.privacy.PrivacyNativePixels
+import com.framework.innolive.feature.live.privacy.PrivacyFrameAnalysis
+import com.framework.innolive.feature.live.privacy.PrivacyFrameTimings
 import org.webrtc.CapturerObserver
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
@@ -40,6 +42,7 @@ class CameraFrameAnalyzer(
     private var lastLogNs = System.nanoTime()
     private var lastCaptureFormat: Pair<Int, Int>? = null
     private var lastStagesLogNs = System.nanoTime()
+    internal var onFrameDiagnostics: ((PrivacyCaptureDiagnostics) -> Unit)? = null
     private val processorLock = Any()
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
@@ -186,12 +189,21 @@ class CameraFrameAnalyzer(
             }
             try {
                 val deliveryStarted = System.nanoTime()
-                route.deliver(ticket) {
+                val wasDelivered = route.deliver(ticket) {
                     capturerObserver.onFrameCaptured(outgoing)
                     delivered.incrementAndGet()
                     if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
                 }
                 val completed = System.nanoTime()
+                if (BuildConfig.DEBUG && wasDelivered) {
+                    localProcessor?.let { processor ->
+                        val timings = processor.lastTimings
+                        val analysis = processor.lastAnalysis
+                        if (timings != null && analysis != null) onFrameDiagnostics?.invoke(
+                            PrivacyCaptureDiagnostics(cameraCopyMs, (completed - deliveryStarted) / 1e6,
+                                timings, analysis))
+                    }
+                }
                 if (BuildConfig.DEBUG && completed - lastStagesLogNs >= 5_000_000_000L) {
                     lastStagesLogNs = completed
                     Log.i("PrivacyPipeline", "camera_copy_ms=$cameraCopyMs " +
@@ -216,6 +228,11 @@ class CameraFrameAnalyzer(
             "busy_dropped=${dropped.getAndSet(0)} delivered=${delivered.getAndSet(0)}")
     }
 }
+
+internal data class PrivacyCaptureDiagnostics(
+    val cameraCopyMs: Double, val deliveryMs: Double,
+    val timings: PrivacyFrameTimings, val analysis: PrivacyFrameAnalysis,
+)
 
 private fun copyPlane(
     plane: ImageProxy.PlaneProxy,

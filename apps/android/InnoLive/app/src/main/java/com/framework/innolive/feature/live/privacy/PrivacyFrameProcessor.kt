@@ -16,6 +16,7 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
     private val faces = PrivacyFaceCoordinator(context.applicationContext)
     var lastTimings: PrivacyFrameTimings? = null
         private set
+    val lastAnalysis: PrivacyFrameAnalysis? get() = model.lastAnalysis
     private var lastLogNs = System.nanoTime()
     private val sensorPixels = BitmapScratch()
     private val uprightPixels = BitmapScratch()
