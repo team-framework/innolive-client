@@ -85,10 +85,9 @@ nonisolated final class PrivacyModel {
             .transformed(by: CGAffineTransform(scaleX: size.width / layout.resized.width,
                                               y: size.height / layout.resized.height))
             .cropped(to: original.extent)
-        let strength = Self.anonymizationExtent(for: size)
         let blurred = original.clampedToExtent()
-            .applyingFilter("CIPixellate", parameters: [kCIInputScaleKey: strength.pixel])
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: strength.blur])
+            .applyingFilter("CIPixellate", parameters: [kCIInputScaleKey: Self.mosaicPixelSize])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: Self.mosaicBlurRadius])
             .cropped(to: original.extent)
         let result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
@@ -102,11 +101,8 @@ nonisolated final class PrivacyModel {
                                                        render: (completed - masked) * 1000), faces.snapshot)
     }
 
-    /// Fixed 24px on 1080p leaves a recognizable face. Scale with the short side.
-    static func anonymizationExtent(for size: CGSize) -> (pixel: CGFloat, blur: CGFloat) {
-        let shortSide = min(size.width, size.height)
-        let pixel = max(64, (shortSide * 0.08).rounded())
-        let blur = max(36, (shortSide * 0.045).rounded())
-        return (pixel, blur)
-    }
+    /// Matches innolive-ai service/mosaic.py defaults: pixel_size 2, blur_radius 24.
+    /// The server downsamples by pixel_size, blurs with sigma blur_radius / pixel_size, then upsamples.
+    static let mosaicPixelSize: CGFloat = 2
+    static let mosaicBlurRadius: CGFloat = 24
 }
