@@ -2,12 +2,14 @@ package com.framework.innolive.feature.live.privacy
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.os.Build
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.google.ai.edge.litert.Accelerator
 import com.google.ai.edge.litert.CompiledModel
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -15,6 +17,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class PrivacyFaceGpuDeviceTest {
     @Test fun compareUnchangedFaceWeightsOnCpuAndGpu() {
+        requireBenchmarkDevice()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val points = floatArrayOf(.34f, .46f, .66f, .46f, .5f, .64f, .37f, .82f, .63f, .82f)
@@ -68,6 +71,7 @@ class PrivacyFaceGpuDeviceTest {
     }
 
     @Test fun productionEngineSelectsGpuAfterParityAndSpeedValidation() {
+        requireBenchmarkDevice()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val points = floatArrayOf(.34f, .46f, .66f, .46f, .5f, .64f, .37f, .82f, .63f, .82f)
         PrivacyFaceModel(context, allowGpu = false).use { cpu ->
@@ -88,5 +92,10 @@ class PrivacyFaceGpuDeviceTest {
             }
         }
     }
+    private fun requireBenchmarkDevice() {
+        // CPU-only/other GPUs are supported by product fallback, not by this hardware benchmark.
+        assumeTrue("GPU benchmark requires the validated SM-S931N", Build.MODEL == "SM-S931N")
+    }
+
     companion object { private const val TAG = "PrivacyFaceGpu" }
 }
