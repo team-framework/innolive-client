@@ -32,7 +32,7 @@ struct SignInView: View {
                         Label(String(localized: "이메일로 계속하기"), systemImage: "envelope.fill")
                             .font(.callout.weight(.semibold)).frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glass)
+                    .innoLiveGlassButtonStyle()
                     .controlSize(.large)
                     .frame(maxWidth: .infinity).frame(height: 52).disabled(authentication.isLoading)
                 }

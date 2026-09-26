@@ -121,7 +121,9 @@ final class BroadcastOrientationController: ObservableObject, BroadcastOrientati
     private func invalidateRotationSupport(from controller: UIViewController?) {
         guard let controller else { return }
         controller.setNeedsUpdateOfSupportedInterfaceOrientations()
-        controller.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        if #available(iOS 26, *) {
+            controller.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        }
         invalidateRotationSupport(from: controller.presentedViewController)
         for child in controller.children {
             invalidateRotationSupport(from: child)
@@ -194,16 +196,22 @@ final class BroadcastOrientationBridgeController: UIViewController {
 
     func refreshOrientationSupport() {
         setNeedsUpdateOfSupportedInterfaceOrientations()
-        setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        if #available(iOS 26, *) {
+            setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        }
         var controller: UIViewController? = parent ?? presentingViewController
         while let current = controller {
             current.setNeedsUpdateOfSupportedInterfaceOrientations()
-            current.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+            if #available(iOS 26, *) {
+                current.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+            }
             controller = current.parent ?? current.presentingViewController
         }
         if let presented = presentedViewController {
             presented.setNeedsUpdateOfSupportedInterfaceOrientations()
-            presented.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+            if #available(iOS 26, *) {
+                presented.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+            }
         }
     }
 }

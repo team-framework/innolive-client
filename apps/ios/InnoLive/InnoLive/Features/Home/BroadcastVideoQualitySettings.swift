@@ -61,7 +61,7 @@ nonisolated enum VideoQualityCapturePolicy {
         supportsStandard: Bool
     ) -> AVCaptureVideoStabilizationMode? {
         guard enabled else { return .off }
-        if supportsLowLatency { return .lowLatency }
+        if #available(iOS 26, *), supportsLowLatency { return .lowLatency }
         if supportsStandard { return .standard }
         return nil
     }

@@ -105,7 +105,7 @@ struct HomeView: View {
                     }
                     .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.glass)
+                .innoLiveGlassButtonStyle()
                 .buttonBorderShape(.circle)
                 .disabled(!canSwitchCameraSource)
                 .accessibilityLabel(String(localized: "카메라 전환"))
@@ -122,7 +122,7 @@ struct HomeView: View {
                         .font(.title3.weight(.semibold))
                         .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.glass)
+                .innoLiveGlassButtonStyle()
                 .buttonBorderShape(.circle)
                 .accessibilityLabel(String(localized: "영상 조절"))
 
@@ -135,7 +135,7 @@ struct HomeView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                     }
-                    .buttonStyle(.glass)
+                    .innoLiveGlassButtonStyle()
                     .buttonBorderShape(.capsule)
                 }
             }

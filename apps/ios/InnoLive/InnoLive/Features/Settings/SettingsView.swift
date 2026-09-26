@@ -11,7 +11,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             // Liquid Glass 효과를 자연스럽게 묶음
-            GlassEffectContainer {
+            InnoLiveGlassContainer {
                 VStack(spacing: 12) {
                     NavigationLink {
                         CameraAudioSettingsView(youtube: youtube)
