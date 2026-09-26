@@ -56,7 +56,7 @@ internal class PrivacyDetectorGpuEngine private constructor(private val model: C
                 val options = CompiledModel.Options(Accelerator.GPU, Accelerator.CPU).apply {
                     cpuOptions = CompiledModel.CpuOptions(numThreads = 4)
                     gpuOptions = CompiledModel.GpuOptions(
-                        precision = CompiledModel.GpuOptions.Precision.FP16_WITH_FP32_ACCUM)
+                        precision = CompiledModel.GpuOptions.Precision.FP32)
                 }
                 candidate = PrivacyDetectorGpuEngine(CompiledModel.create(verifiedFile(context).absolutePath, options))
                 var cpuNs = 0L
@@ -75,22 +75,27 @@ internal class PrivacyDetectorGpuEngine private constructor(private val model: C
                         val started = System.nanoTime()
                         val actual = candidate.predict(pixels)
                         if (sample == 1) gpuNs += System.nanoTime() - started
-                        check(maxError(actual.first, expected.first) < .05f &&
-                            maxError(actual.second, expected.second) < .01f) {
-                            "Detector GPU output differs from pinned ONNX"
+                        val detectionError = maxError(actual.first, expected.first)
+                        val prototypeError = maxError(actual.second, expected.second)
+                        check(detectionError < .05f && prototypeError < .01f) {
+                            "output_mismatch pattern=$pattern detection_error=$detectionError prototype_error=$prototypeError"
                         }
                     }
                 }
-                check(gpuNs < cpuNs * .8) { "Detector GPU is not faster than CPU" }
+                check(gpuNs < cpuNs * .8) {
+                    "insufficient_speed cpu_ms=${cpuNs / 3e6} gpu_ms=${gpuNs / 3e6}"
+                }
                 Log.i(TAG, "gpu_validated cpu_ms=${cpuNs / 3e6} gpu_ms=${gpuNs / 3e6}")
                 return candidate
             } catch (error: Exception) {
                 runCatching { candidate?.close() }
-                Log.i(TAG, "gpu_unavailable type=${error.javaClass.simpleName}")
+                Log.i(TAG, "gpu_unavailable type=${error.javaClass.simpleName} " +
+                    "detail=${error.message?.take(160)}")
                 return null
             } catch (error: LinkageError) {
                 runCatching { candidate?.close() }
-                Log.i(TAG, "gpu_unavailable type=${error.javaClass.simpleName}")
+                Log.i(TAG, "gpu_unavailable type=${error.javaClass.simpleName} " +
+                    "detail=${error.message?.take(160)}")
                 return null
             }
         }

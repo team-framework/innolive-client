@@ -61,7 +61,7 @@ class PrivacyDetectorGpuDeviceTest {
         OrtEnvironment.getEnvironment().createSession(onnxBytes, ai.onnxruntime.OrtSession.SessionOptions()).use { reference ->
             val options = CompiledModel.Options(Accelerator.GPU, Accelerator.CPU).apply {
                 cpuOptions = CompiledModel.CpuOptions(numThreads = 4)
-                gpuOptions = CompiledModel.GpuOptions(precision = CompiledModel.GpuOptions.Precision.FP16_WITH_FP32_ACCUM)
+                gpuOptions = CompiledModel.GpuOptions(precision = CompiledModel.GpuOptions.Precision.FP32)
             }
             CompiledModel.create(context.assets, "privacy-detector.tflite", options).use { model ->
                 val input = model.createInputBuffers()

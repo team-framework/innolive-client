@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdint>
 #include <cmath>
+#include <cstring>
+#include <vector>
 #if defined(__ARM_NEON) || defined(__aarch64__)
 #include <arm_neon.h>
 #endif
@@ -162,14 +164,35 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_composite(
     if (!op.pixels) return;
     const auto* mask = env->GetByteArrayElements(alpha, nullptr);
     if (!mask) return;
+    std::vector<uint8_t> maskX(si.width);
+    for (uint32_t x = 0; x < si.width; ++x) {
+        maskX[x] = static_cast<uint8_t>(std::clamp(
+            static_cast<int>((left + x * resizedWidth / si.width) / 4), 0, 159));
+    }
     for (uint32_t y = 0; y < si.height; ++y) {
         const auto* sr = static_cast<const uint8_t*>(sp.pixels) + y * si.stride;
         const auto* br = static_cast<const uint8_t*>(bp.pixels) + y * bi.stride;
         auto* target = static_cast<uint8_t*>(op.pixels) + y * oi.stride;
         const int my = std::clamp(static_cast<int>((top + y * resizedHeight / si.height) / 4), 0, 159);
+        const auto* maskRow = reinterpret_cast<const uint8_t*>(mask) + my * 160;
+        if (std::all_of(maskRow, maskRow + 160, [](uint8_t value) { return value == 0; })) {
+            std::memcpy(target, sr, si.width * 4);
+            continue;
+        }
+        if (std::all_of(maskRow, maskRow + 160, [](uint8_t value) { return value == 255; })) {
+            std::memcpy(target, br, si.width * 4);
+            continue;
+        }
         for (uint32_t x = 0; x < si.width; ++x) {
-            const int mx = std::clamp(static_cast<int>((left + x * resizedWidth / si.width) / 4), 0, 159);
-            const unsigned coverage = static_cast<uint8_t>(mask[my * 160 + mx]);
+            const unsigned coverage = maskRow[maskX[x]];
+            if (coverage == 0) {
+                std::memcpy(target + 4 * x, sr + 4 * x, 4);
+                continue;
+            }
+            if (coverage == 255) {
+                std::memcpy(target + 4 * x, br + 4 * x, 4);
+                continue;
+            }
             for (int c = 0; c < 4; ++c) {
                 target[4 * x + c] = (sr[4 * x + c] * (255 - coverage) + br[4 * x + c] * coverage + 127) / 255;
             }

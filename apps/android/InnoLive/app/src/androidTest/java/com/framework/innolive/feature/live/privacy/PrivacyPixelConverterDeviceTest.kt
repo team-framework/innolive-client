@@ -115,6 +115,22 @@ class PrivacyPixelConverterDeviceTest {
         } finally { source.recycle(); blurred.recycle(); output.recycle() }
     }
 
+    @Test fun nativeCompositeCopiesUniformMaskRowsWithoutChangingInput() {
+        val source = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.RED) }
+        val blurred = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.CYAN) }
+        val output = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
+        val layout = PrivacySegmentation.Letterbox(8, 8)
+        try {
+            val alpha = ByteArray(160 * 160) { index -> if (index / 160 < 80) -1 else 0 }
+            PrivacyNativePixels.composite(source, blurred, alpha, layout.left, layout.top,
+                layout.resizedWidth, layout.resizedHeight, output)
+            for (y in 0 until 8) for (x in 0 until 8) {
+                assertEquals(if (y < 4) Color.CYAN else Color.RED, output.getPixel(x, y))
+                assertEquals(Color.RED, source.getPixel(x, y))
+            }
+        } finally { source.recycle(); blurred.recycle(); output.recycle() }
+    }
+
     @Test fun scratchRotationKeepsAsymmetricPixelPositionsInEveryDirection() {
         val source = Bitmap.createBitmap(7, 5, Bitmap.Config.ARGB_8888)
         try {

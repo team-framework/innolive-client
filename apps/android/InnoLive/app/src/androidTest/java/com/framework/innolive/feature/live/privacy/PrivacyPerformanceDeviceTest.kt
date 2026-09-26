@@ -48,6 +48,19 @@ class PrivacyPerformanceDeviceTest {
                         output.recycle()
                         Log.i(TAG, "protected_render=${width}x$height sample=$sample ms=${(System.nanoTime() - started) / 1e6}")
                     }
+                    repeat(4) { sample ->
+                        val started = System.nanoTime()
+                        val output = blur.apply(bitmap)
+                        output.recycle()
+                        Log.i(TAG, "blur_only=${width}x$height sample=$sample ms=${(System.nanoTime() - started) / 1e6}")
+                    }
+                    repeat(4) { sample ->
+                        val started = System.nanoTime()
+                        val output = PrivacyMaskRenderer.render(bitmap, ByteArray(160 * 160) { -1 },
+                            PrivacySegmentation.Letterbox(width, height), PrivacyMaskRenderer::pixelatedBlur)
+                        output.recycle()
+                        Log.i(TAG, "protected_render_cpu=${width}x$height sample=$sample ms=${(System.nanoTime() - started) / 1e6}")
+                    }
                 } } finally { bitmap.recycle() }
             }
         }
