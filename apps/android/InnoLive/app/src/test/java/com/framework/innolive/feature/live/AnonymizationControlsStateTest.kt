@@ -43,4 +43,17 @@ class AnonymizationControlsStateTest {
         assertNull(unloaded.selectedEnabled)
     }
 
+    @Test fun processingLocationSwitchDisablesAnonymizationToggle() {
+        val state = anonymizationControlsState(
+            WebRtcConnectionState.CONNECTED,
+            AnonymizationState.ENABLED,
+            selected = true,
+            loaded = true,
+            change = AnonymizationChange(),
+            processingModeChanging = true,
+        )
+        assertEquals(true, state.selectedEnabled)
+        assertFalse(state.canChange)
+    }
+
 }

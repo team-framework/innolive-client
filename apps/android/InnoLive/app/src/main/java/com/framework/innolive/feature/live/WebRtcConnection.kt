@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import android.util.Log
+import com.framework.innolive.BuildConfig
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -76,6 +77,7 @@ class WebRtcConnection(
     accessToken: String,
     private val refreshAccessToken: suspend () -> String,
     private val initialAnonymizationEnabled: Boolean,
+    private val initialOnDeviceProcessing: Boolean = false,
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, ConnectionFailure?) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
@@ -86,6 +88,10 @@ class WebRtcConnection(
     private val broadcastCallbackExecutor: Executor? = null,
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
+    private var onDeviceProcessing = initialOnDeviceProcessing
+    private var processingModeUnconfirmed = false
+    private var localAnonymizationEnabled = initialAnonymizationEnabled
+    private var localVideoReady = !initialOnDeviceProcessing || !initialAnonymizationEnabled
     private val recoveryAccessToken = RecoveryAccessToken(accessToken)
     private var sessionRecoveryStore: SessionRecoveryStore = EncryptedSessionRecoveryStore(applicationContext)
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
@@ -102,6 +108,7 @@ class WebRtcConnection(
     private val ownerExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val timerExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor()
+    private var privacyStatsTask: ScheduledFuture<*>? = null
     private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
@@ -259,15 +266,21 @@ class WebRtcConnection(
                 session = createdSession
                 if (!isActive()) return@executeOnOwner
                 updateState(WebRtcConnectionState.CONNECTING)
-                val confirmed = confirmInitialAnonymization(initialAnonymizationEnabled) {
+                val confirmed = confirmInitialAnonymization(
+                    if (onDeviceProcessing) false else initialAnonymizationEnabled,
+                ) {
                     val payload = executeSessionRequest(
-                        "anonymization", "PATCH", anonymizationPayload(initialAnonymizationEnabled),
+                        "anonymization", "PATCH",
+                        anonymizationPayload(if (onDeviceProcessing) false else initialAnonymizationEnabled),
                     )
                     parseAnonymizationResponse(payload, createdSession.sessionId)
                 }
                 if (!isActive()) return@executeOnOwner
                 mainHandler.post {
-                    if (isActive()) onAnonymizationStateConfirmed(confirmed)
+                    if (isActive()) onAnonymizationStateConfirmed(
+                        if (onDeviceProcessing && initialAnonymizationEnabled) AnonymizationState.ENABLED
+                        else confirmed,
+                    )
                 }
 
                 val connection = createPeerConnection(iceServers)
@@ -336,7 +349,54 @@ class WebRtcConnection(
         val createdVideoSource = factory.createVideoSource(false)
         videoSource = createdVideoSource
         localVideoTrack = factory.createVideoTrack("camera-video", createdVideoSource)
-        frameAnalyzer = CameraFrameAnalyzer(createdVideoSource.capturerObserver)
+        frameAnalyzer = CameraFrameAnalyzer(
+            createdVideoSource.capturerObserver,
+            applicationContext,
+            initialOnDeviceProcessing,
+            initialAnonymizationEnabled,
+            onProcessingFailure = { executeOnOwner { fail(ConnectionFailure.GENERIC) } },
+            onProtectedFrameSent = {
+                executeOnOwner {
+                    if (isActive()) {
+                        localVideoReady = true
+                        updateConnectedState()
+                        startPrivacyStats()
+                    }
+                }
+            },
+            onCaptureFormat = { width, height ->
+                executeOnOwner {
+                    if (isActive()) videoSource?.adaptOutputFormat(width, height, 30)
+                }
+            },
+        )
+    }
+
+    private fun startPrivacyStats() {
+        if (!BuildConfig.DEBUG || privacyStatsTask != null) return
+        privacyStatsTask = timerExecutor.scheduleAtFixedRate(
+            { executeOnOwner { samplePrivacyStats() } }, 5, 5, TimeUnit.SECONDS,
+        )
+    }
+
+    private fun samplePrivacyStats() {
+        if (!isActive() || !onDeviceProcessing) return
+        val connection = peerConnection ?: return
+        val sender = videoSender ?: return
+        runCatching {
+            connection.getStats(sender) { report ->
+                executeOnOwner {
+                    if (!isActive() || !onDeviceProcessing) return@executeOnOwner
+                    val outbound = report.statsMap.values.firstOrNull { it.type == "outbound-rtp" &&
+                        (it.members["kind"] == "video" || it.members["mediaType"] == "video") }
+                    if (outbound != null) {
+                        val fields = listOf("framesEncoded", "framesSent", "packetsSent", "bytesSent")
+                            .joinToString(" ") { key -> "$key=${(outbound.members[key] as? Number)?.toLong() ?: -1}" }
+                        Log.i("PrivacyPipeline", "outbound_video $fields")
+                    }
+                }
+            }
+        }
     }
 
     private fun notifyLocalMediaReadyOnOwner() {
@@ -393,6 +453,17 @@ class WebRtcConnection(
             block = {
                 if (!isActive()) return@executeOnOwner
                 try {
+                    if (processingModeUnconfirmed) {
+                        complete(null, AnonymizationFailure.CONFIRMATION)
+                        return@executeOnOwner
+                    }
+                    if (onDeviceProcessing) {
+                        checkNotNull(frameAnalyzer).setProcessingMode(onDevice = true, anonymizationEnabled = enabled)
+                        localAnonymizationEnabled = enabled
+                        localVideoReady = !enabled
+                        complete(if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED, null)
+                        return@executeOnOwner
+                    }
                     val currentSession = checkNotNull(session) { "WebRTC 세션이 없습니다." }
                     val payload = executeSessionRequest("anonymization", "PATCH", anonymizationPayload(enabled))
                     val confirmed = parseAnonymizationResponse(payload, currentSession.sessionId)
@@ -407,6 +478,78 @@ class WebRtcConnection(
                 }
             },
             onRejected = { complete(null, AnonymizationFailure.REQUEST) },
+        )
+    }
+
+    /** Keep a protected path active throughout a preview-only processing-location switch. */
+    internal fun setAIProcessingMode(
+        onDevice: Boolean,
+        anonymizationEnabled: Boolean,
+        onComplete: (Boolean) -> Unit,
+    ) {
+        fun complete(success: Boolean) { mainHandler.post { onComplete(success) } }
+        executeOnOwner(
+            block = {
+                if (!isActive() || !peerConnectionConnected ||
+                    recoveryWindow.deadlineMillis != null || broadcastState != BroadcastState.IDLE) {
+                    complete(false)
+                    return@executeOnOwner
+                }
+                if (onDeviceProcessing == onDevice && !processingModeUnconfirmed) {
+                    complete(true)
+                    return@executeOnOwner
+                }
+                val currentSession = session
+                val analyzer = frameAnalyzer
+                if (currentSession == null || analyzer == null) {
+                    complete(false)
+                    return@executeOnOwner
+                }
+                if (onDevice) {
+                    // Load and route through the local model before asking the server to stop its AI.
+                    if (!onDeviceProcessing) {
+                        try {
+                            analyzer.setProcessingMode(true, anonymizationEnabled)
+                        } catch (_: Exception) {
+                            complete(false)
+                            return@executeOnOwner
+                        }
+                        localVideoReady = !anonymizationEnabled
+                        onDeviceProcessing = true
+                        localAnonymizationEnabled = anonymizationEnabled
+                    }
+                    try {
+                        val payload = executeSessionRequest("anonymization", "PATCH", anonymizationPayload(false))
+                        check(parseAnonymizationResponse(payload, currentSession.sessionId) == AnonymizationState.DISABLED)
+                    } catch (_: Exception) {
+                        // Keep local protection and let the same selection retry confirmation.
+                        processingModeUnconfirmed = true
+                        complete(false)
+                        return@executeOnOwner
+                    }
+                } else {
+                    // The local route remains protected until the server confirms its state.
+                    try {
+                        val payload = executeSessionRequest("anonymization", "PATCH", anonymizationPayload(anonymizationEnabled))
+                        val expected = if (anonymizationEnabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED
+                        if (parseAnonymizationResponse(payload, currentSession.sessionId) != expected) {
+                            processingModeUnconfirmed = true
+                            complete(false)
+                            return@executeOnOwner
+                        }
+                    } catch (_: Exception) {
+                        processingModeUnconfirmed = true
+                        complete(false)
+                        return@executeOnOwner
+                    }
+                    analyzer.setProcessingMode(false, anonymizationEnabled)
+                    onDeviceProcessing = false
+                    localVideoReady = true
+                }
+                processingModeUnconfirmed = false
+                complete(true)
+            },
+            onRejected = { complete(false) },
         )
     }
 
@@ -428,6 +571,14 @@ class WebRtcConnection(
     fun prepareBroadcast(settings: BroadcastSettings): Boolean {
         if (!broadcastState.canPrepare) return false
         return runBroadcastOperation {
+            if (processingModeUnconfirmed ||
+                (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) {
+                updateBroadcastState(
+                    BroadcastState.IDLE,
+                    BroadcastEvent.Failure(BroadcastFailure.REQUEST),
+                )
+                return@runBroadcastOperation
+            }
             if (settings.madeForKids == null) {
                 updateBroadcastState(
                     BroadcastState.FAILED,
@@ -447,7 +598,8 @@ class WebRtcConnection(
     fun goLive(onAccepted: () -> Unit = {}): Boolean {
         if (!broadcastState.canGoLive) return false
         return runBroadcastOperation(onAccepted = onAccepted) {
-            if (!peerConnectionConnected || !audioInputVerified) {
+            if (!peerConnectionConnected || !audioInputVerified ||
+                (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) {
                 updateBroadcastState(
                     BroadcastState.PREPARED,
                     BroadcastEvent.Failure(BroadcastFailure.REQUEST),
@@ -496,7 +648,8 @@ class WebRtcConnection(
     fun resumeBroadcast() {
         if (!broadcastState.canResume) return
         runBroadcastOperation {
-            if (!peerConnectionConnected || !audioInputVerified) return@runBroadcastOperation
+            if (!peerConnectionConnected || !audioInputVerified ||
+                (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) return@runBroadcastOperation
             updateBroadcastState(BroadcastState.RESUMING)
             try {
                 postSessionRequest("stream/resume")
@@ -1144,7 +1297,7 @@ class WebRtcConnection(
             startRecoveryVideoVerification(checkNotNull(negotiationId))
             if (recoveryVideoProgress?.hasProgress != true || !recoveryServerVideoReady) return
         }
-        if (!audioInputVerified) return
+        if (!audioInputVerified || (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) return
 
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null

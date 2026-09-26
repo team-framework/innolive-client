@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
+import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
@@ -96,6 +97,7 @@ fun LiveScreen(
     }
     LaunchedEffect(webRtcSession) {
         webRtcSession.restoreAnonymizationSelection(context)
+        webRtcSession.restoreAIProcessingSelection(context)
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
@@ -108,13 +110,21 @@ fun LiveScreen(
     }
 
     if (openFaceManagement) {
-        FaceManagementScreen(
-            cameraLensFacing = props.cameraLensFacing,
-            onGetAccessToken = props.onGetAccessToken,
-            onRefreshAccessToken = props.onRefreshAccessToken,
-            onBack = { openFaceManagement = false },
-            profileEmail = props.profileEmail,
-        )
+        if (webRtcSession.selectedOnDeviceProcessing) {
+            LocalFaceManagementScreen(
+                cameraLensFacing = props.cameraLensFacing,
+                onBack = { openFaceManagement = false; webRtcSession.localFacesChanged() },
+                onChanged = webRtcSession::localFacesChanged,
+            )
+        } else {
+            FaceManagementScreen(
+                cameraLensFacing = props.cameraLensFacing,
+                onGetAccessToken = props.onGetAccessToken,
+                onRefreshAccessToken = props.onRefreshAccessToken,
+                onBack = { openFaceManagement = false },
+                profileEmail = props.profileEmail,
+            )
+        }
         return
     }
 
@@ -124,6 +134,7 @@ fun LiveScreen(
             WebRtcConnectionState.FAILED,
             WebRtcConnectionState.CONNECTED,
         ) && !webRtcSession.isPreparingBroadcast &&
+            !webRtcSession.isAIProcessingChanging && !webRtcSession.aiProcessingChangeFailed &&
             webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
 
     Box(
@@ -322,6 +333,8 @@ fun LiveScreen(
                             webRtcSession.selectedAnonymizationEnabled,
                             webRtcSession.isAnonymizationSelectionLoaded,
                             webRtcSession.anonymizationChange,
+                            processingModeChanging = webRtcSession.isAIProcessingChanging ||
+                                webRtcSession.aiProcessingChangeFailed,
                         ),
                         onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
                     )
@@ -339,6 +352,15 @@ fun LiveScreen(
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
+            }
+            if (webRtcSession.aiProcessingChangeFailed) {
+                Text(
+                    text = stringResource(R.string.ai_mode_change_failed),
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                )
             }
             webRtcSession.anonymizationChange.errorMessage?.let { error ->
                 Text(

@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CloudUpload
@@ -19,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -35,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
@@ -77,7 +83,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
     )
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(
             space = 10.dp
         )
@@ -115,7 +121,8 @@ fun SettingsScreen(props: SettingsScreenProps) {
             }
         }
         Column(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 0.dp),
+            modifier = Modifier.weight(1f).fillMaxWidth()
+                .verticalScroll(rememberScrollState()).padding(horizontal = 12.dp),
         ) {
             settingItems.forEach { item ->
                 Button(
@@ -138,6 +145,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
                     }
                 }
             }
+            AIProcessingSettings(props)
             OutlinedButton(
                 onClick = { isDeleteConfirmationVisible = true },
                 enabled = !props.isDeletingAccount,
@@ -204,5 +212,38 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun AIProcessingSettings(props: SettingsScreenProps) {
+    val enabled = props.canChangeAIProcessing && !props.isAIProcessingChanging &&
+        !props.isDeletingAccount && !props.isAccountDeletionPending
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).selectableGroup()) {
+        Text(stringResource(R.string.settings_ai_processing), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.ai_mode_change_availability),
+            style = MaterialTheme.typography.bodySmall)
+        listOf(false to R.string.ai_mode_server, true to R.string.ai_mode_on_device).forEach { (onDevice, label) ->
+            val selected = props.onDeviceProcessing == onDevice
+            Row(
+                modifier = Modifier.fillMaxWidth().selectable(
+                    selected = selected,
+                    enabled = enabled,
+                    role = Role.RadioButton,
+                    onClick = { if (!selected) props.onSelectAIProcessing(onDevice) },
+                ).padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(selected = selected, onClick = null, enabled = enabled)
+                Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
+            }
+        }
+        if (props.isAIProcessingChanging) {
+            Text(stringResource(R.string.ai_mode_change_in_progress),
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        } else if (props.aiProcessingChangeFailed) {
+            Text(stringResource(R.string.ai_mode_change_failed), color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
+        }
     }
 }
