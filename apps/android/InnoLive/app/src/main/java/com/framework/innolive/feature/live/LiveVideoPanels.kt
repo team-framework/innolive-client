@@ -1,8 +1,8 @@
 package com.framework.innolive.feature.live
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +25,9 @@ fun LiveVideoPanels(
     eglContext: EglBase.Context?,
     isConnected: Boolean,
     modifier: Modifier = Modifier,
+    localVideoTrack: VideoTrack? = null,
+    videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
+    onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
 ) {
     BoxWithConstraints(modifier = modifier) {
         val aspectRatio = if (maxWidth > maxHeight) 16f / 9f else 9f / 16f
@@ -49,19 +52,33 @@ fun LiveVideoPanels(
                 cameraLensFacing = cameraLensFacing,
                 modifier = mainModifier,
             )
-            CameraPreview(
-                cameraLensFacing = cameraLensFacing,
-                cameraResolution = cameraResolution,
-                frameAnalyzer = frameAnalyzer,
-                lockedRotation = lockedRotation,
-                modifier = pipModifier,
-            )
+            Box(modifier = pipModifier) {
+                // Keep CameraX bound below the processed local track: it owns capture for WebRTC.
+                CameraPreview(
+                    cameraLensFacing = cameraLensFacing,
+                    cameraResolution = cameraResolution,
+                    frameAnalyzer = frameAnalyzer,
+                    lockedRotation = lockedRotation,
+                    videoQualitySettings = videoQualitySettings,
+                    onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                WebRtcRemotePreview(
+                    remoteVideoTrack = localVideoTrack,
+                    eglContext = eglContext,
+                    cameraLensFacing = cameraLensFacing,
+                    isMediaOverlay = true,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         } else {
             CameraPreview(
                 cameraLensFacing = cameraLensFacing,
                 cameraResolution = cameraResolution,
                 frameAnalyzer = frameAnalyzer,
                 lockedRotation = lockedRotation,
+                videoQualitySettings = videoQualitySettings,
+                onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
                 modifier = mainModifier,
             )
             WebRtcRemotePreview(

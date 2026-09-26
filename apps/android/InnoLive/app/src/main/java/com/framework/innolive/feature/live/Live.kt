@@ -20,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +29,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -60,6 +63,7 @@ fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
 ) {
+    var openVideoControls by remember { mutableStateOf(false) }
     var openFaceManagement by remember { mutableStateOf(false) }
     var openPlatformDialog by remember { mutableStateOf(false) }
     var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
@@ -67,6 +71,16 @@ fun LiveScreen(
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
+    val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
+    val lookPreviews by frameAnalyzer.lookPreviews.collectAsState()
+    DisposableEffect(idleFrameAnalyzer) {
+        onDispose { idleFrameAnalyzer.close() }
+    }
+    DisposableEffect(frameAnalyzer, openVideoControls) {
+        frameAnalyzer.setLookPreviewEnabled(openVideoControls)
+        onDispose { frameAnalyzer.setLookPreviewEnabled(false) }
+    }
     val presentation = buildLiveScreenPresentation(
         connectionState = webRtcSession.connectionState,
         broadcastState = webRtcSession.broadcastState,
@@ -118,6 +132,17 @@ fun LiveScreen(
         return
     }
 
+    if (openVideoControls) {
+        BroadcastVideoControls(
+            settings = props.videoQualitySettings,
+            captureState = props.videoQualityCaptureState,
+            previews = lookPreviews?.previews,
+            onSettingsChanged = props.onVideoQualitySettingsChanged,
+            onDismiss = { openVideoControls = false },
+            mirrorPreviews = props.cameraLensFacing.shouldMirrorPreview,
+        )
+    }
+
     val canManageFace =
         webRtcSession.connectionState in setOf(
             WebRtcConnectionState.IDLE,
@@ -138,9 +163,12 @@ fun LiveScreen(
             LiveVideoPanels(
                 cameraLensFacing = props.cameraLensFacing,
                 cameraResolution = props.cameraResolution,
-                frameAnalyzer = webRtcSession.frameAnalyzer,
+                frameAnalyzer = frameAnalyzer,
                 lockedRotation = webRtcSession.lockedBroadcastRotation,
                 remoteVideoTrack = webRtcSession.remoteVideoTrack,
+                localVideoTrack = webRtcSession.localVideoTrack,
+                videoQualitySettings = props.videoQualitySettings,
+                onVideoQualityCaptureStateChanged = props.onVideoQualityCaptureStateChanged,
                 eglContext = webRtcSession.eglContext,
                 isConnected = presentation.isConnected,
                 modifier = Modifier.fillMaxSize(),
@@ -180,6 +208,13 @@ fun LiveScreen(
                     },
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
+                )
+            }
+            IconButton(onClick = { openVideoControls = true }) {
+                Icon(
+                    imageVector = Icons.Outlined.Tune,
+                    contentDescription = stringResource(R.string.video_controls_title),
+                    tint = Color.White,
                 )
             }
             IconButton(

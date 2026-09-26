@@ -21,6 +21,7 @@ fun WebRtcRemotePreview(
     eglContext: EglBase.Context?,
     cameraLensFacing: CameraLensFacing,
     modifier: Modifier = Modifier,
+    isMediaOverlay: Boolean = false,
 ) {
     Box(
         modifier = modifier.background(Color.Black),
@@ -30,8 +31,9 @@ fun WebRtcRemotePreview(
         }
 
         val context = LocalContext.current
-        val renderer = remember(context, eglContext) {
+        val renderer = remember(context, eglContext, isMediaOverlay) {
             SurfaceViewRenderer(context).apply {
+                setZOrderMediaOverlay(isMediaOverlay)
                 init(eglContext, null)
                 setEnableHardwareScaler(true)
                 setMirror(cameraLensFacing.shouldMirrorPreview)

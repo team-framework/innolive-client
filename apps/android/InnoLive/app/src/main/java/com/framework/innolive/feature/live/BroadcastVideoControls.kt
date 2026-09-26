@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -52,6 +53,7 @@ fun BroadcastVideoControls(
     previews: Map<VideoLookPreset, Bitmap>?,
     onSettingsChanged: (BroadcastVideoQualitySettings) -> Unit,
     onDismiss: () -> Unit,
+    mirrorPreviews: Boolean = false,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -75,7 +77,7 @@ fun BroadcastVideoControls(
                     Icon(Icons.Outlined.Close, stringResource(R.string.action_close))
                 }
             }
-            BroadcastVideoAdjustments(settings, captureState, previews, onSettingsChanged)
+            BroadcastVideoAdjustments(settings, captureState, previews, onSettingsChanged, mirrorPreviews)
         }
     }
 }
@@ -86,6 +88,7 @@ internal fun BroadcastVideoAdjustments(
     captureState: VideoQualityCaptureState,
     previews: Map<VideoLookPreset, Bitmap>?,
     onSettingsChanged: (BroadcastVideoQualitySettings) -> Unit,
+    mirrorPreviews: Boolean = false,
 ) {
     val normalized = settings.normalized()
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -102,6 +105,7 @@ internal fun BroadcastVideoAdjustments(
                     preset = preset,
                     selected = preset.matches(normalized),
                     preview = previews?.get(preset),
+                    mirrorPreview = mirrorPreviews,
                     onClick = { onSettingsChanged(preset.applyTo(normalized)) },
                     modifier = Modifier.weight(1f),
                 )
@@ -169,6 +173,7 @@ private fun VideoPresetCard(
     preset: VideoLookPreset,
     selected: Boolean,
     preview: Bitmap?,
+    mirrorPreview: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -197,7 +202,9 @@ private fun VideoPresetCard(
                     Image(
                         bitmap = preview.asImageBitmap(),
                         contentDescription = null,
-                        modifier = Modifier.matchParentSize(),
+                        modifier = Modifier.matchParentSize().graphicsLayer {
+                            scaleX = if (mirrorPreview) -1f else 1f
+                        },
                         contentScale = ContentScale.Crop,
                     )
                 } else {
