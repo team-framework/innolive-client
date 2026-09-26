@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/button";
+import { FaceRegistrationModal } from "@/components/face-registration-modal";
 import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
@@ -320,6 +321,8 @@ export function TryOutExperience() {
   const { isLogined, isLoading } = useIsLogined();
   const [state, setState] = useState<ExperienceState>("connecting");
   const [status, setStatus] = useState(copy.preparing);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [isFaceRegistrationOpen, setIsFaceRegistrationOpen] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -350,6 +353,8 @@ export function TryOutExperience() {
     sessionRef.current = null;
     ticketIDRef.current = null;
     pendingRemoteCandidatesRef.current = [];
+    setLocalStream(null);
+    setIsFaceRegistrationOpen(false);
     if (timeoutRef.current !== null) {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -423,6 +428,7 @@ export function TryOutExperience() {
       }
 
       localStreamRef.current = localStream;
+      setLocalStream(localStream);
       attachVideo(localVideoRef.current, localStream);
       const peerConnection = new RTCPeerConnection({ iceServers: session.iceServers });
       peerConnectionRef.current = peerConnection;
@@ -555,6 +561,14 @@ export function TryOutExperience() {
     router.replace(href("/try-out"));
   }, [cleanupResources, copy.ended, href, router]);
 
+  const closeFaceRegistration = useCallback(() => {
+    setIsFaceRegistrationOpen(false);
+  }, []);
+
+  const handleFaceRegistered = useCallback(() => {
+    setStatus(copy.faceRegistered);
+  }, [copy.faceRegistered]);
+
   useEffect(() => {
     if (isLoading) return;
     const timer = window.setTimeout(() => void start(), 0);
@@ -616,7 +630,19 @@ export function TryOutExperience() {
             {copy.restart}
           </Button>
         )}
+        {state === "connected" && isLogined && localStream ? (
+          <Button variant="secondary" showChevron={false} onClick={() => setIsFaceRegistrationOpen(true)}>
+            {messages.tryOut.registerFace}
+          </Button>
+        ) : null}
       </div>
+
+      <FaceRegistrationModal
+        isOpen={isFaceRegistrationOpen}
+        stream={localStream}
+        onClose={closeFaceRegistration}
+        onRegistered={handleFaceRegistered}
+      />
     </section>
   );
 }
