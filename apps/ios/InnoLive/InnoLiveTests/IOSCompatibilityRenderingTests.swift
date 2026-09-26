@@ -219,6 +219,21 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         }
     }
 
+    func testScreenModelsDeallocateInsideSynchronousTaskLocalScope() {
+        weak var releasedAuthentication: AuthSession?
+        weak var releasedController: BroadcastOrientationController?
+        RenderingTaskContext.$isRendering.withValue(true) {
+            let fixture = RenderingFixture()
+            let controller = BroadcastOrientationController(appliesSceneUpdates: false)
+            releasedAuthentication = fixture.authentication
+            releasedController = controller
+            fixture.removePreferences()
+            withExtendedLifetime((fixture, controller)) {}
+        }
+        XCTAssertNil(releasedAuthentication)
+        XCTAssertNil(releasedController)
+    }
+
     private var appearances: [UIUserInterfaceStyle] { [.light, .dark] }
 
     private func render<Content: View>(
@@ -313,6 +328,9 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
 
 @MainActor
 private final class RenderingFixture {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     let suiteName = "com.framework.innolive.tests.ios-rendering.\(UUID().uuidString)"
     let defaults: UserDefaults
     let authentication: AuthSession
@@ -340,12 +358,18 @@ private final class RenderingFixture {
 }
 
 private final class RenderingTokenStore: AuthenticationTokenStoring {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     func load() -> AuthenticationTokenPair? { nil }
     func save(_ tokens: AuthenticationTokenPair) throws { XCTFail("Render tests must not sign in") }
     func remove() { XCTFail("Render tests must not sign out") }
 }
 
 private final class RenderingBroadcastSessionStore: BroadcastSessionStoring {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     func load(scope: BroadcastSessionScope) throws -> StoredBroadcastSession? { nil }
     func save(_ session: StoredBroadcastSession, scope: BroadcastSessionScope) throws {
         XCTFail("Render tests must not prepare a broadcast")
@@ -353,4 +377,8 @@ private final class RenderingBroadcastSessionStore: BroadcastSessionStoring {
     func remove(scope: BroadcastSessionScope) throws {
         XCTFail("Render tests must not remove a broadcast")
     }
+}
+
+nonisolated private enum RenderingTaskContext {
+    @TaskLocal static var isRendering = false
 }

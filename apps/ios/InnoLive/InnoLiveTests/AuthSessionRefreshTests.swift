@@ -136,6 +136,9 @@ final class AuthSessionRefreshTests: XCTestCase {
 
 @MainActor
 private final class TestAuthenticationAPI: AuthenticationAPIClient {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var refreshResult: Result<AuthenticationTokenPair, Error> = .failure(TestAuthenticationError.unexpectedCall)
     var refreshGateIsEnabled = false
     private(set) var refreshCallCount = 0
@@ -196,6 +199,9 @@ private final class TestAuthenticationAPI: AuthenticationAPIClient {
 
 @MainActor
 private final class TestAuthenticationTokenStore: AuthenticationTokenStoring {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     private(set) var tokens: AuthenticationTokenPair?
     private(set) var savedTokens: [AuthenticationTokenPair] = []
     private(set) var saveCallCount = 0

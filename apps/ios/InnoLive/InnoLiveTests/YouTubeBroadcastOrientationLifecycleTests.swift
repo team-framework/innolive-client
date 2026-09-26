@@ -430,6 +430,9 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
 
 @MainActor
 private final class FakeBroadcastOrientationLock: BroadcastOrientationLocking {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var current: BroadcastInterfaceOrientation = .portrait
     private(set) var lockedOrientation: BroadcastInterfaceOrientation?
     private(set) var lockCallCount = 0
@@ -458,6 +461,9 @@ private final class FakeBroadcastOrientationLock: BroadcastOrientationLocking {
 }
 
 private final class YouTubeBroadcastOrientationURLProtocol: URLProtocol {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     struct Response {
         let statusCode: Int
         let data: Data

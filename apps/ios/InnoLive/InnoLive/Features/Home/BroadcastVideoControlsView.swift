@@ -251,6 +251,9 @@ private enum BroadcastVideoLook: CaseIterable, Identifiable, Sendable {
 
 @MainActor
 private final class PresetPreviewModel: ObservableObject {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     @Published private(set) var images: [BroadcastVideoLook: CGImage] = [:]
     let pump = PresetPreviewPump()
 

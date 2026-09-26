@@ -21,6 +21,9 @@ struct ConsentAppleSignInButton: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(action: action) }
 
     final class Coordinator: NSObject {
+        // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+        nonisolated deinit {}
+
         var action: () -> Void
         init(action: @escaping () -> Void) { self.action = action }
         @objc func tap() { action() }
@@ -30,6 +33,9 @@ struct ConsentAppleSignInButton: UIViewRepresentable {
 @MainActor
 final class AppleSignInAuthorization: NSObject, ObservableObject,
     ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     private var controller: ASAuthorizationController?
     private var anchor: ASPresentationAnchor?
     private var completion: ((Result<ASAuthorizationAppleIDCredential, Error>) -> Void)?

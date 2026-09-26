@@ -10,6 +10,12 @@
 - 방송 화면 방향 고정: 지원 방향 마스크와 `requestGeometryUpdate`를 사용한다. iOS 26의 추가 방향 고정 갱신 API는 버전 확인 후 호출한다.
 - Core ML 모델을 별도로 번들에 넣는 경우 모델의 최소 배포 버전도 iOS 18 이하여야 한다.
 
+## iOS 18 객체 해제 호환성
+
+Xcode 27로 빌드한 앱을 iOS 18.5에서 검증할 때, `MainActor` 클래스의 자동 생성 `isolated deinit`이 `swift_task_deinitOnExecutorImpl` → `TaskLocal::StopLookupScope` 경로에서 종료됐다. 방향 고정 컨트롤러와 화면 모델의 해제에서 재현했다. [Swift 런타임 이슈 #88036](https://github.com/swiftlang/swift/issues/88036)과 같은 스택이다.
+
+해당 클래스에 비어 있는 `nonisolated deinit {}`을 명시해 이 런타임 경로를 피한다. 클래스의 `MainActor` 격리와 기존 정리 작업이 있는 deinit은 유지한다. 테스트 저장소도 같은 처리를 적용한다. 빈 deinit을 삭제하기 전에는 iOS 18 실기기에서 동기 TaskLocal 범위의 객체 해제와 화면 반복 표시 테스트를 실행해야 한다.
+
 ## 검증 방법
 
 ```sh

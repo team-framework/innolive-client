@@ -38,6 +38,9 @@ protocol BroadcastSessionStoring {
 }
 
 final class BroadcastSessionStore: BroadcastSessionStoring {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     private let service: String
 
     init(service: String = "com.framework.innolive.broadcast-session") {

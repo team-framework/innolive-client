@@ -18,6 +18,9 @@ protocol BroadcastOrientationLocking: AnyObject {
 }
 
 final class InnoLiveAppDelegate: NSObject, UIApplicationDelegate {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     func application(
         _ application: UIApplication,
         supportedInterfaceOrientationsFor window: UIWindow?
@@ -28,6 +31,9 @@ final class InnoLiveAppDelegate: NSObject, UIApplicationDelegate {
 
 @MainActor
 final class BroadcastOrientationController: ObservableObject, BroadcastOrientationLocking {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     static let shared = BroadcastOrientationController()
 
     @Published private(set) var lockedOrientation: BroadcastInterfaceOrientation?
@@ -162,6 +168,9 @@ struct BroadcastOrientationSceneBridge: UIViewControllerRepresentable {
 }
 
 final class BroadcastOrientationBridgeController: UIViewController {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         BroadcastOrientationController.shared.supportedInterfaceOrientations
     }

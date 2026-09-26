@@ -72,6 +72,9 @@ final class AuthenticationAPITests: XCTestCase {
 }
 
 private final class AccountDeletionURLProtocol: URLProtocol {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     nonisolated(unsafe) static var lastRequest: URLRequest?
     nonisolated(unsafe) static var statusCode = 204
     nonisolated(unsafe) static var responseData = Data()

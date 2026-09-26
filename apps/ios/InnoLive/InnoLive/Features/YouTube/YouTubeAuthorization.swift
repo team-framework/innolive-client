@@ -3,6 +3,9 @@ import GoogleSignIn
 import UIKit
 
 final class YouTubeAuthorization {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     func authorize(configuration: YouTubeConfiguration, presenting viewController: UIViewController) async throws -> String {
         guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
               !clientID.isEmpty else {
