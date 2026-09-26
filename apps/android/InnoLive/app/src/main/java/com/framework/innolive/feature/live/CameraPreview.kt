@@ -210,7 +210,12 @@ fun CameraPreview(
         onDispose {
             isDisposed = true
             controller.close()
-            if (qualityController === controller) qualityController = null
+            if (qualityController === controller) {
+                qualityController = null
+                onCaptureStateChanged(VideoQualityCaptureState(
+                    stabilizationStatus = VideoStabilizationStatus.INACTIVE,
+                ))
+            }
             cameraProvider?.unbind(preview)
             imageAnalysis?.let { analysis ->
                 analysis.clearAnalyzer()

@@ -43,6 +43,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.AudioInputDevice
+import com.framework.innolive.feature.live.BroadcastVideoQualitySettings
 import com.framework.innolive.feature.live.BroadcastVideoQualityPreferences
 import com.framework.innolive.feature.live.VideoQualityCaptureState
 import com.framework.innolive.feature.live.VideoStabilizationStatus
@@ -201,7 +202,7 @@ fun AppNavigation(
     var videoQualityCaptureState by remember { mutableStateOf(VideoQualityCaptureState()) }
     val currentVideoQualitySettings = rememberUpdatedState(videoQualitySettings)
     val currentVideoQualityCaptureState = rememberUpdatedState(videoQualityCaptureState)
-    val updateVideoQualitySettings: (com.framework.innolive.feature.live.BroadcastVideoQualitySettings) -> Unit = { value ->
+    val updateVideoQualitySettings: (BroadcastVideoQualitySettings) -> Unit = { value ->
         val normalized = value.normalized()
         if (videoQualitySettings.stabilizationEnabled != normalized.stabilizationEnabled) {
             videoQualityCaptureState = videoQualityCaptureState.copy(stabilizationStatus = VideoStabilizationStatus.PENDING)
