@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_controls_title">영상 조절</string>
+    <string name="video_presets">프리셋</string>
+    <string name="video_preset_vivid">선명하게</string>
+    <string name="video_preset_bright">화사하게</string>
+    <string name="video_preset_warm">따뜻하게</string>
+    <string name="video_preview_pending">카메라를 사용할 수 있으면 프리셋 미리보기가 표시됩니다.</string>
+    <string name="video_exposure">노출</string>
+    <string name="video_exposure_value">%1$s EV</string>
+    <string name="video_exposure_unavailable">현재 카메라에서 노출을 조절할 수 없습니다.</string>
+    <string name="video_darker">어둡게</string>
+    <string name="video_brighter">밝게</string>
+    <string name="video_warmth">색온도</string>
+    <string name="video_cooler">차갑게</string>
+    <string name="video_warmer">따뜻하게</string>
+    <string name="video_saturation">채도</string>
+    <string name="video_percent_value">%1$d%%</string>
+    <string name="video_reset">영상 조절 초기화</string>
+    <string name="video_stabilization">손떨림 보정</string>
+    <string name="video_stabilization_active">현재 카메라에 적용 중</string>
+    <string name="video_stabilization_unsupported">현재 카메라 또는 해상도에서 지원하지 않음</string>
+    <string name="video_stabilization_pending">카메라 적용 상태 확인 중</string>
+    <string name="video_stabilization_inactive">카메라가 켜지면 적용</string>
+    <string name="video_stabilization_off">꺼짐</string>
+</resources>
