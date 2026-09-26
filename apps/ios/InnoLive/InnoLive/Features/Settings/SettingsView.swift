@@ -6,6 +6,7 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 28
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     var body: some View {
@@ -67,10 +68,11 @@ struct SettingsView: View {
                                 HStack(spacing: 12) {
                                     Image(systemName: "doc.text")
                                         .font(.body)
-                                        .frame(width: 28)
+                                        .frame(width: iconWidth)
 
                                     Text(String(localized: "개인정보처리방침"))
                                         .font(.body.weight(.semibold))
+                                        .fixedSize(horizontal: false, vertical: true)
 
                                     Spacer()
 
@@ -97,10 +99,11 @@ struct SettingsView: View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .font(.body)
-                .frame(width: 28)
+                .frame(width: iconWidth)
 
             Text(title)
                 .font(.body.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
 
