@@ -37,7 +37,7 @@ internal class PrivacyFaceCoordinator(
         service.prepare()
         if (!service.canSubmit) return
         val layout = previousLayout ?: return
-        val next = tracking.next(timestampNs / 1_000_000_000.0) ?: return
+        val next = tracking.next(timestampNs / 1_000_000_000.0, currentFrame = true) ?: return
         val bounds = recognitionBounds(upright, next.box, layout) ?: return
         val crop = copyCrop(upright, bounds)
         if (!service.submitRecognition(crop, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) crop.recycle()
@@ -51,8 +51,12 @@ internal class PrivacyFaceCoordinator(
         tracking.update(faces.associateWith { objects[it].box }, time)
         previousLayout = layout
         val entries = entries()
+        var verified = emptySet<Int>()
         service.takeResult()?.let { result ->
             if (result.generation == generation) {
+                val match = result.embedding?.let { PrivacyFaceMath.match(it, entries) }
+                tracking.accept(result.trackId, match, result.capturedAtSeconds, time,
+                    sampleAvailable = result.sampleAvailable)
                 val box = result.imageBox?.let { imageBox ->
                     PrivacySegmentation.Box(
                         layout.left + imageBox.left * layout.resizedWidth / upright.width,
@@ -60,15 +64,11 @@ internal class PrivacyFaceCoordinator(
                         layout.left + imageBox.right * layout.resizedWidth / upright.width,
                         layout.top + imageBox.bottom * layout.resizedHeight / upright.height)
                 }
-                val match = result.embedding?.takeIf {
-                    box != null && tracking.recognitionMatches(result.trackId, box)
-                }?.let { PrivacyFaceMath.match(it, entries) }
-                tracking.accept(result.trackId, match, result.capturedAtSeconds, time,
-                    sampleAvailable = result.sampleAvailable)
+                verified = tracking.verifiedResult(result.trackId, match, result.capturedAtSeconds, time, box)
             }
         }
-        if (entries.isEmpty() || !service.ready) return emptySet()
-        return tracking.allowed(time)
+        if (entries.isEmpty()) return emptySet()
+        return verified
     }
 
     private fun refreshRevision() {
