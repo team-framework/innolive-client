@@ -74,6 +74,14 @@ final class BroadcastFeedbackTests: XCTestCase {
         XCTAssertEqual(controls().feedback?.message, "Retry failure")
     }
 
+    func testRecoveryStatusShowsTheCurrentAttempt() {
+        let status = VideoRecoveryStatus(attempt: 2, maximumAttempts: 3)
+
+        XCTAssertEqual(status.title, "복구 시도 중")
+        XCTAssertEqual(status.detail, "네트워크 연결이 끊겼습니다. 2/3번째 복구를 시도하고 있습니다.")
+        XCTAssertEqual(status.buttonTitle, "복구 시도 중 (2/3)")
+    }
+
     private func controls(isStartingServerConnection: Bool = false) -> BroadcastControllsView {
         BroadcastControllsView(
             isBroadcasting: .constant(false),
