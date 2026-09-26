@@ -87,7 +87,7 @@ struct EmailAuthView: View {
                         .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 32)
                     }
-                    .buttonStyle(.glassProminent)
+                    .innoLiveGlassButtonStyle(prominent: true)
                     .controlSize(.large)
                     .tint(.blue)
                     .disabled(!canSubmit || authentication.isLoading)

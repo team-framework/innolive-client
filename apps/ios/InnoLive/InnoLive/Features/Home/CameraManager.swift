@@ -14,6 +14,9 @@ private enum CameraSettingKey {
 
 @Observable
 final class CameraManager {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     let session = AVCaptureSession()
     // private(set): 읽기는 어디서나 가능, 갑 변경은 이 class 내부에서만 가능
     private(set) var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)

@@ -20,7 +20,7 @@ struct AccountSettingsView: View {
 
     var body: some View {
         ScrollView {
-            GlassEffectContainer {
+            InnoLiveGlassContainer {
                 VStack(spacing: 12) {
                     Button {
                         youtube.reset()

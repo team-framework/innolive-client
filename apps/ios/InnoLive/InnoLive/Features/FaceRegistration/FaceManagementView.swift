@@ -28,7 +28,7 @@ struct FaceManagementView: View {
 
     var body: some View {
         ScrollView {
-            GlassEffectContainer {
+            InnoLiveGlassContainer {
                 VStack(spacing: 14) {
                     introductionCard
                     Text(model.mode == .server ? String(localized: "서버에 등록한 얼굴") : String(localized: "이 기기에만 저장한 얼굴"))
@@ -62,7 +62,7 @@ struct FaceManagementView: View {
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
                     }
-                    .buttonStyle(.glassProminent)
+                    .innoLiveGlassButtonStyle(prominent: true)
                     .tint(.blue)
                     .disabled(
                         !model.canRegister || isCameraTransitioning
@@ -145,7 +145,7 @@ struct FaceManagementView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.regular, in: .rect(cornerRadius: 22))
+        .innoLiveGlassBackground(cornerRadius: 22)
     }
 
     private var statusCard: some View {

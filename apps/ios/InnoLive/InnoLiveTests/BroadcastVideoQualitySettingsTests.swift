@@ -56,18 +56,31 @@ final class BroadcastVideoQualitySettingsTests: XCTestCase {
     }
 
     func testStabilizationPrefersLowLatencyThenStandard() {
-        XCTAssertEqual(
-            VideoQualityCapturePolicy.stabilizationMode(
-                enabled: true, supportsLowLatency: true, supportsStandard: true
-            ),
-            .lowLatency
+        let mode = VideoQualityCapturePolicy.stabilizationMode(
+            enabled: true, supportsLowLatency: true, supportsStandard: true
         )
+        if #available(iOS 26, *) {
+            XCTAssertEqual(mode, .lowLatency)
+        } else {
+            XCTAssertEqual(mode, .standard)
+        }
         XCTAssertEqual(
             VideoQualityCapturePolicy.stabilizationMode(
                 enabled: true, supportsLowLatency: false, supportsStandard: true
             ),
             .standard
         )
+    }
+
+    func testLowLatencyCapabilityDoesNotBypassOSAvailability() {
+        let mode = VideoQualityCapturePolicy.stabilizationMode(
+            enabled: true, supportsLowLatency: true, supportsStandard: false
+        )
+        if #available(iOS 26, *) {
+            XCTAssertEqual(mode, .lowLatency)
+        } else {
+            XCTAssertNil(mode)
+        }
     }
 
     func testStabilizationOffAndUnsupportedDoNotSelectAnUnavailableMode() {
@@ -87,13 +100,13 @@ final class BroadcastVideoQualitySettingsTests: XCTestCase {
     func testStabilizationStatusUsesActiveModeRatherThanRequestedMode() {
         XCTAssertEqual(
             VideoQualityCapturePolicy.stabilizationStatus(
-                enabled: true, requestedMode: .lowLatency, activeMode: .standard
+                enabled: true, requestedMode: .cinematic, activeMode: .standard
             ),
             .active(.standard)
         )
         XCTAssertEqual(
             VideoQualityCapturePolicy.stabilizationStatus(
-                enabled: true, requestedMode: .lowLatency, activeMode: .off
+                enabled: true, requestedMode: .cinematic, activeMode: .off
             ),
             .unsupported
         )

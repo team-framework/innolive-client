@@ -5,6 +5,9 @@ import Security
 
 @MainActor
 final class AuthSession: ObservableObject {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     @Published private(set) var isAuthenticated = false
     @Published private(set) var isLoading = false
     @Published private(set) var isDeletingAccount = false

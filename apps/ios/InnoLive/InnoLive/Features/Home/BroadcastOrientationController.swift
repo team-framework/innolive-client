@@ -18,6 +18,9 @@ protocol BroadcastOrientationLocking: AnyObject {
 }
 
 final class InnoLiveAppDelegate: NSObject, UIApplicationDelegate {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     func application(
         _ application: UIApplication,
         supportedInterfaceOrientationsFor window: UIWindow?
@@ -28,6 +31,9 @@ final class InnoLiveAppDelegate: NSObject, UIApplicationDelegate {
 
 @MainActor
 final class BroadcastOrientationController: ObservableObject, BroadcastOrientationLocking {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     static let shared = BroadcastOrientationController()
 
     @Published private(set) var lockedOrientation: BroadcastInterfaceOrientation?
@@ -121,7 +127,9 @@ final class BroadcastOrientationController: ObservableObject, BroadcastOrientati
     private func invalidateRotationSupport(from controller: UIViewController?) {
         guard let controller else { return }
         controller.setNeedsUpdateOfSupportedInterfaceOrientations()
-        controller.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        if #available(iOS 26, *) {
+            controller.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        }
         invalidateRotationSupport(from: controller.presentedViewController)
         for child in controller.children {
             invalidateRotationSupport(from: child)
@@ -160,6 +168,9 @@ struct BroadcastOrientationSceneBridge: UIViewControllerRepresentable {
 }
 
 final class BroadcastOrientationBridgeController: UIViewController {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         BroadcastOrientationController.shared.supportedInterfaceOrientations
     }
@@ -194,16 +205,22 @@ final class BroadcastOrientationBridgeController: UIViewController {
 
     func refreshOrientationSupport() {
         setNeedsUpdateOfSupportedInterfaceOrientations()
-        setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        if #available(iOS 26, *) {
+            setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+        }
         var controller: UIViewController? = parent ?? presentingViewController
         while let current = controller {
             current.setNeedsUpdateOfSupportedInterfaceOrientations()
-            current.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+            if #available(iOS 26, *) {
+                current.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+            }
             controller = current.parent ?? current.presentingViewController
         }
         if let presented = presentedViewController {
             presented.setNeedsUpdateOfSupportedInterfaceOrientations()
-            presented.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+            if #available(iOS 26, *) {
+                presented.setNeedsUpdateOfPrefersInterfaceOrientationLocked()
+            }
         }
     }
 }

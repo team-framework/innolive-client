@@ -264,6 +264,9 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
 
 @MainActor
 private final class BackgroundPauseOrientationLock: BroadcastOrientationLocking {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var current: BroadcastInterfaceOrientation = .portrait
     private(set) var lockedOrientation: BroadcastInterfaceOrientation?
     private var generation: UInt = 0
@@ -287,6 +290,9 @@ private final class BackgroundPauseOrientationLock: BroadcastOrientationLocking 
 }
 
 private final class YouTubeBackgroundPauseURLProtocol: URLProtocol {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     struct Response {
         let statusCode: Int
         let data: Data

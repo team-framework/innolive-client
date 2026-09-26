@@ -396,9 +396,15 @@ extension WebRTCVideoUplink {
     ) -> AVCaptureVideoStabilizationMode? {
         guard connection?.isVideoStabilizationSupported == true else { return nil }
         let format = device.activeFormat
+        let supportsLowLatency: Bool
+        if #available(iOS 26, *) {
+            supportsLowLatency = format.isVideoStabilizationModeSupported(.lowLatency)
+        } else {
+            supportsLowLatency = false
+        }
         return VideoQualityCapturePolicy.stabilizationMode(
             enabled: videoQualitySettings.stabilizationEnabled,
-            supportsLowLatency: format.isVideoStabilizationModeSupported(.lowLatency),
+            supportsLowLatency: supportsLowLatency,
             supportsStandard: format.isVideoStabilizationModeSupported(.standard)
         )
     }

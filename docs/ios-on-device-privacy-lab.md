@@ -1,7 +1,9 @@
 # iOS 온디바이스 비식별화 테스트
 
-iPhone 16·iOS 27에서 카메라 영상을 Core ML로 처리하는 Debug 전용 화면이다.
+iOS 18 이상에서 카메라 영상을 Core ML로 처리하는 Debug 전용 화면이다.
 로그인, 서버 API, WebRTC, 방송 송출, 마이크를 사용하지 않는다.
+블러 계산은 실험 화면만의 값이 아니다. PrivacyCamera와 온디바이스 송출의
+PrivacyUplinkProcessor가 같은 PrivacyModel을 쓴다.
 초기 MVP는 얼굴·번호판을 모두 블러 처리했다. 현재 로컬 다중 얼굴 등록·삭제와 등록자 예외를
 추가했다. 모델 준비와 검증 범위는 [얼굴 등록 실험](ios-local-face-registration.md)을 따른다.
 경계 안정화에는 인접 프레임의 같은 클래스 bbox를 대응시키는 가벼운 추적을 사용한다.
@@ -33,6 +35,12 @@ Xcode가 빌드하면서 `.mlmodelc`로 컴파일한다. 모델이 없거나 출
 - confidence 0.25, NMS IoU 0.45, mask logit > 0, mask 크기 160×160.
 - 마스크를 2px 확장한 보호 영역을 유지하고, 4px 확장·Gaussian radius 1.5의 부드러운 바깥
   경계를 합친 뒤 원본 좌표로 복원한다. 탐지된 객체의 마스크가 비면 bbox를 사용한다.
+- 보호 영역은 프레임을 2로 줄인 뒤 가우시안을 적용하고 다시 키운다. CIGaussianBlur 반경은 sigma다.
+  서버 mosaic 기본값은 blur_radius 24, pixel_size 2라 원본 해상도 sigma 24다. 그 값만 쓰면 1080p
+  미리보기에서 눈·안경·입이 남는다. 방송 화면의 매끈한 블러에 맞추기 위해 짧은 변의 1/15을 쓴다.
+  1080p는 sigma 72, 720p는 48이고 최소값은 48이다. 기기 모델로 나누지 않는다.
+- 2026-09-26 iPhone XR·iOS 18.5 Debug 빌드(SWIFT_OPTIMIZATION_LEVEL=-O)에서 처리 46ms, 약 21FPS를
+  확인했다. 눈·코·입이 지워지고 머리카락·귀·배경은 남았다. 같은 빌드를 iPhone 16에 다시 설치하지는 않았다.
 
 Core ML Tools는 설치한 Torch 2.14.0을 공식 테스트한 버전이 아니라는 경고를 출력한다.
 변환 성공과 별도로 체크포인트마다 출력 비교를 수행해야 한다. 기준 학습/서버 모델이 사용하는

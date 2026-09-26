@@ -31,7 +31,7 @@ struct CameraAudioSettingsView: View {
 
     var body: some View {
         ScrollView {
-            GlassEffectContainer {
+            InnoLiveGlassContainer {
                 VStack(spacing: 12) {
                     CameraQualitySelectionRow(
                         selectedQualityRaw: $selectedQualityRaw,
