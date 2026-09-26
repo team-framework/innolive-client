@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import android.util.Log
+import com.framework.innolive.BuildConfig
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -107,6 +108,7 @@ class WebRtcConnection(
     private val ownerExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val timerExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor()
+    private var privacyStatsTask: ScheduledFuture<*>? = null
     private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
@@ -358,10 +360,38 @@ class WebRtcConnection(
                     if (isActive()) {
                         localVideoReady = true
                         updateConnectedState()
+                        startPrivacyStats()
                     }
                 }
             },
         )
+    }
+
+    private fun startPrivacyStats() {
+        if (!BuildConfig.DEBUG || privacyStatsTask != null) return
+        privacyStatsTask = timerExecutor.scheduleAtFixedRate(
+            { executeOnOwner { samplePrivacyStats() } }, 5, 5, TimeUnit.SECONDS,
+        )
+    }
+
+    private fun samplePrivacyStats() {
+        if (!isActive() || !onDeviceProcessing) return
+        val connection = peerConnection ?: return
+        val sender = videoSender ?: return
+        runCatching {
+            connection.getStats(sender) { report ->
+                executeOnOwner {
+                    if (!isActive() || !onDeviceProcessing) return@executeOnOwner
+                    val outbound = report.statsMap.values.firstOrNull { it.type == "outbound-rtp" &&
+                        (it.members["kind"] == "video" || it.members["mediaType"] == "video") }
+                    if (outbound != null) {
+                        val fields = listOf("framesEncoded", "framesSent", "packetsSent", "bytesSent")
+                            .joinToString(" ") { key -> "$key=${(outbound.members[key] as? Number)?.toLong() ?: -1}" }
+                        Log.i("PrivacyPipeline", "outbound_video $fields")
+                    }
+                }
+            }
+        }
     }
 
     private fun notifyLocalMediaReadyOnOwner() {

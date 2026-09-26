@@ -11,20 +11,26 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.util.Log
 import java.security.MessageDigest
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.FloatBuffer
 
 /** Owns the pinned YOLO ONNX session. The caller serializes access and never sends raw on error. */
-internal class PrivacyOnnxModel(context: Context,
+internal class PrivacyOnnxModel(private val context: Context,
                                sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() }) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private val session: OrtSession
     private val blur = PrivacyBitmapBlur()
+    private val stabilizer = PrivacyMaskStabilizer()
     private val inputBitmap = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
     private val inputCanvas = Canvas(inputBitmap)
     private val inputBytes = ByteBuffer.allocateDirect(3 * 640 * 640 * 4).order(ByteOrder.nativeOrder())
     private val inputTensor: OnnxTensor
+    private val gpuInput = FloatArray(3 * 640 * 640)
+    private var gpuChecked = false
+    private var gpu: PrivacyDetectorGpuEngine? = null
     var lastTimings: PrivacyModelTimings? = null
         private set
 
@@ -48,6 +54,7 @@ internal class PrivacyOnnxModel(context: Context,
 
     fun process(
         upright: Bitmap,
+        timestampNs: Long = System.nanoTime(),
         exemptFaces: (List<PrivacySegmentation.Detection>, PrivacySegmentation.Letterbox) -> Set<Int> = { _, _ -> emptySet() },
     ): Bitmap {
         val started = System.nanoTime()
@@ -64,19 +71,36 @@ internal class PrivacyOnnxModel(context: Context,
         )
         PrivacyNativePixels.bitmapToTensor(inputBitmap, inputBytes)
         val prepared = System.nanoTime()
-        session.run(mapOf("images" to inputTensor)).use { result ->
-            val inferred = System.nanoTime()
-            val predictions = (result["output0"].orElseThrow() as OnnxTensor).floatBuffer
-            val prototypes = (result["output1"].orElseThrow() as OnnxTensor).floatBuffer
-            val objects = PrivacySegmentation.detections(FloatArray(predictions.remaining()).also(predictions::get))
+        if (!gpuChecked) {
+            gpuChecked = true
+            gpu = PrivacyDetectorGpuEngine.validated(context, ::reference)
+        }
+        val (predictions, prototypes) = try {
+            val engine = gpu
+            if (engine == null) runOnnx()
+            else {
+                inputBytes.asFloatBuffer().get(gpuInput)
+                engine.predict(gpuInput)
+            }
+        } catch (error: Exception) {
+            if (gpu == null) throw error
+            runCatching { gpu?.close() }
+            gpu = null
+            Log.w("PrivacyDetector", "gpu_runtime_fallback type=${error.javaClass.simpleName}")
+            runOnnx()
+        }
+        val inferred = System.nanoTime()
+        run {
+            val objects = PrivacySegmentation.detections(predictions)
             val beforeFaces = System.nanoTime()
             val exempt = exemptFaces(objects, layout)
             val afterFaces = System.nanoTime()
-            val mask = PrivacySegmentation.unionMask(
+            val instances = PrivacySegmentation.instanceMasks(
                 PrivacySegmentation.protectedDetections(objects, exempt),
-                FloatArray(prototypes.remaining()).also(prototypes::get),
+                prototypes,
                 PrivacyNativePixels::finiteFloats,
             )
+            val mask = stabilizer.apply(instances, timestampNs / 1_000_000_000.0)
             val masked = System.nanoTime()
             val output = PrivacyMaskRenderer.render(upright, mask, layout, blur::apply)
             val rendered = System.nanoTime()
@@ -90,7 +114,32 @@ internal class PrivacyOnnxModel(context: Context,
         }
     }
 
-    override fun close() { blur.close(); inputTensor.close(); inputBitmap.recycle(); session.close() }
+    fun resetTemporalState() { stabilizer.reset() }
+
+    private fun runOnnx(): Pair<FloatArray, FloatArray> =
+        session.run(mapOf("images" to inputTensor)).use { result ->
+            val predictions = (result["output0"].orElseThrow() as OnnxTensor).floatBuffer
+            val prototypes = (result["output1"].orElseThrow() as OnnxTensor).floatBuffer
+            FloatArray(predictions.remaining()).also(predictions::get) to
+                FloatArray(prototypes.remaining()).also(prototypes::get)
+        }
+
+    private fun reference(pixels: FloatArray): Pair<Pair<FloatArray, FloatArray>, Long> =
+        OnnxTensor.createTensor(environment, FloatBuffer.wrap(pixels), longArrayOf(1, 3, 640, 640)).use { tensor ->
+            val started = System.nanoTime()
+            val output = session.run(mapOf("images" to tensor)).use { result ->
+                val predictions = (result["output0"].orElseThrow() as OnnxTensor).floatBuffer
+                val prototypes = (result["output1"].orElseThrow() as OnnxTensor).floatBuffer
+                FloatArray(predictions.remaining()).also(predictions::get) to
+                    FloatArray(prototypes.remaining()).also(prototypes::get)
+            }
+            output to (System.nanoTime() - started)
+        }
+
+    override fun close() {
+        gpu?.close(); gpu = null
+        blur.close(); inputTensor.close(); inputBitmap.recycle(); session.close()
+    }
 
     companion object {
         private const val MODEL_ASSET = "privacy-detector.onnx"

@@ -1,8 +1,10 @@
 package com.framework.innolive.feature.live
 
 import android.content.Context
+import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.privacy.PrivacyFrameMode
 import com.framework.innolive.feature.live.privacy.PrivacyFrameProcessor
 import com.framework.innolive.feature.live.privacy.PrivacyFrameRoute
@@ -10,7 +12,9 @@ import org.webrtc.CapturerObserver
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
 import java.nio.ByteBuffer
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 class CameraFrameAnalyzer(
     private val capturerObserver: CapturerObserver,
@@ -22,7 +26,18 @@ class CameraFrameAnalyzer(
 ) : ImageAnalysis.Analyzer {
     private val enabled = AtomicBoolean(false)
     private val protectedFrameReported = AtomicBoolean(false)
+    private val processing = AtomicBoolean(false)
+    private val resetPending = AtomicBoolean(false)
+    private val stopped = AtomicBoolean(false)
+    private val worker = Executors.newSingleThreadExecutor { task ->
+        Thread(task, "privacy-uplink").apply { priority = Thread.NORM_PRIORITY + 1 }
+    }
+    private val received = AtomicLong()
+    private val dropped = AtomicLong()
+    private val delivered = AtomicLong()
+    private var lastLogNs = System.nanoTime()
     private val processorLock = Any()
+    @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
         if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext)) else null
     private val route = PrivacyFrameRoute(
@@ -34,24 +49,25 @@ class CameraFrameAnalyzer(
     )
 
     fun setProcessingMode(onDevice: Boolean, anonymizationEnabled: Boolean) {
-        synchronized(processorLock) {
-            if (onDevice && localProcessor == null) {
-                localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext))
+        if (onDevice && localProcessor == null) {
+            synchronized(processorLock) {
+                if (localProcessor == null) {
+                    localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext))
+                }
             }
-            route.change(when {
-                !onDevice -> PrivacyFrameMode.SERVER
-                anonymizationEnabled -> PrivacyFrameMode.LOCAL_PROTECTED
-                else -> PrivacyFrameMode.LOCAL_RAW
-            })
-            protectedFrameReported.set(false)
         }
+        resetPending.set(true)
+        route.change(when {
+            !onDevice -> PrivacyFrameMode.SERVER
+            anonymizationEnabled -> PrivacyFrameMode.LOCAL_PROTECTED
+            else -> PrivacyFrameMode.LOCAL_RAW
+        })
+        protectedFrameReported.set(false)
     }
 
     fun resetFaceExceptions() {
-        synchronized(processorLock) {
-            route.invalidate()
-            localProcessor?.resetFaceExceptions()
-        }
+        route.invalidate()
+        resetPending.set(true)
     }
 
     fun start() {
@@ -62,19 +78,34 @@ class CameraFrameAnalyzer(
 
     fun stop() {
         route.stop()
+        if (!stopped.compareAndSet(false, true)) return
         if (enabled.compareAndSet(true, false)) {
             capturerObserver.onCapturerStopped()
         }
-        synchronized(processorLock) {
-            localProcessor?.close()
-            localProcessor = null
+        worker.execute {
+            synchronized(processorLock) {
+                localProcessor?.close()
+                localProcessor = null
+            }
         }
+        worker.shutdown()
     }
 
     override fun analyze(image: ImageProxy) {
+        var ticket: PrivacyFrameRoute.Ticket? = null
+        var reserved = false
         try {
             if (!enabled.get()) return
-
+            val currentTicket = route.ticket() ?: return
+            ticket = currentTicket
+            if (currentTicket.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
+                received.incrementAndGet()
+                if (!processing.compareAndSet(false, true)) {
+                    dropped.incrementAndGet()
+                    return
+                }
+                reserved = true
+            }
             val source = JavaI420Buffer.allocate(image.width, image.height)
             try {
                 copyPlane(image.planes[0], image.width, image.height, source.dataY, source.strideY)
@@ -107,36 +138,64 @@ class CameraFrameAnalyzer(
                     image.imageInfo.rotationDegrees,
                     image.imageInfo.timestamp,
                 )
-                try {
-                    val ticket = route.ticket() ?: return
-                    val outgoing = try {
-                        if (ticket.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
-                            synchronized(processorLock) { checkNotNull(localProcessor).process(frame) }
-                        } else {
-                            frame
-                        }
-                    } catch (_: Exception) {
-                        route.deliver(ticket, onProcessingFailure)
-                        return
-                    }
+                if (reserved) {
                     try {
-                        route.deliver(ticket) {
-                            capturerObserver.onFrameCaptured(outgoing)
-                            if (ticket.mode == PrivacyFrameMode.LOCAL_PROTECTED &&
-                                protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
+                        worker.execute { processProtected(frame, currentTicket) }
+                        reserved = false // The worker now owns the frame and the in-flight slot.
+                    } catch (error: Exception) {
+                        frame.release()
+                        throw error
+                    }
+                } else {
+                    try {
+                        route.deliver(currentTicket) {
+                            capturerObserver.onFrameCaptured(frame)
                         }
                     } finally {
-                        if (outgoing !== frame) outgoing.release()
+                        frame.release()
                     }
-                } finally {
-                    frame.release()
                 }
             } finally {
                 source.release()
             }
+        } catch (_: Exception) {
+            ticket?.let { route.deliver(it, onProcessingFailure) }
         } finally {
+            if (reserved) processing.set(false)
             image.close()
         }
+    }
+
+    private fun processProtected(frame: VideoFrame, ticket: PrivacyFrameRoute.Ticket) {
+        try {
+            val outgoing = synchronized(processorLock) {
+                val processor = checkNotNull(localProcessor)
+                if (resetPending.getAndSet(false)) processor.resetFaceExceptions()
+                processor.process(frame)
+            }
+            try {
+                route.deliver(ticket) {
+                    capturerObserver.onFrameCaptured(outgoing)
+                    delivered.incrementAndGet()
+                    if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
+                }
+            } finally { outgoing.release() }
+        } catch (_: Exception) {
+            route.deliver(ticket, onProcessingFailure)
+        } finally {
+            frame.release()
+            processing.set(false)
+            logCounts()
+        }
+    }
+
+    private fun logCounts() {
+        if (!BuildConfig.DEBUG) return
+        val now = System.nanoTime()
+        if (now - lastLogNs < 5_000_000_000L) return
+        lastLogNs = now
+        Log.i("PrivacyPipeline", "capture_received=${received.getAndSet(0)} " +
+            "busy_dropped=${dropped.getAndSet(0)} delivered=${delivered.getAndSet(0)}")
     }
 }
 

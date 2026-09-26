@@ -26,6 +26,7 @@ internal object PrivacySegmentation {
     }
 
     data class Detection(val box: Box, val score: Float, val classId: Int, val coefficients: FloatArray)
+    data class InstanceMask(val detection: Detection, val bytes: ByteArray)
 
     fun protectedDetections(objects: List<Detection>, exemptFaces: Set<Int>): List<Detection> =
         objects.filterIndexed { index, detection -> detection.classId != 0 || index !in exemptFaces }
@@ -74,19 +75,19 @@ internal object PrivacySegmentation {
     }
 
     /** Returns an opaque model-space mask for every detected face and plate. */
-    fun unionMask(detections: List<Detection>, prototypes: FloatArray,
-                  areFinite: (FloatArray) -> Boolean = { it.all(Float::isFinite) }): ByteArray {
+    fun instanceMasks(detections: List<Detection>, prototypes: FloatArray,
+                      areFinite: (FloatArray) -> Boolean = { it.all(Float::isFinite) }): List<InstanceMask> {
         val pixels = MASK_SIZE * MASK_SIZE
         require(prototypes.size == CHANNELS * pixels && areFinite(prototypes))
-        val union = ByteArray(pixels)
-        for (detection in detections) {
+        return detections.map { detection ->
             require(detection.coefficients.size == CHANNELS && detection.coefficients.all(Float::isFinite))
             val box = detection.box
             val x0 = max(0, floor(box.left / 4f).toInt())
             val x1 = min(MASK_SIZE, ceil(box.right / 4f).toInt())
             val y0 = max(0, floor(box.top / 4f).toInt())
             val y1 = min(MASK_SIZE, ceil(box.bottom / 4f).toInt())
-            if (x0 >= x1 || y0 >= y1) continue
+            val bytes = ByteArray(pixels)
+            if (x0 >= x1 || y0 >= y1) return@map InstanceMask(detection, bytes)
             var covered = false
             for (y in y0 until y1) for (x in x0 until x1) {
                 val offset = y * MASK_SIZE + x
@@ -96,15 +97,31 @@ internal object PrivacySegmentation {
                 }
                 require(logit.isFinite())
                 if (logit > 0f) {
-                    union[offset] = -1
+                    bytes[offset] = -1
                     covered = true
                 }
             }
             // A valid box must remain protected even if the model returns an empty instance mask.
             if (!covered) for (y in y0 until y1) for (x in x0 until x1) {
-                union[y * MASK_SIZE + x] = -1
+                bytes[y * MASK_SIZE + x] = -1
+            }
+            InstanceMask(detection, bytes)
+        }
+    }
+
+    fun union(masks: List<InstanceMask>): ByteArray {
+        val pixels = MASK_SIZE * MASK_SIZE
+        val union = ByteArray(pixels)
+        for (instance in masks) {
+            require(instance.bytes.size == pixels)
+            for (i in union.indices) if ((instance.bytes[i].toInt() and 255) > (union[i].toInt() and 255)) {
+                union[i] = instance.bytes[i]
             }
         }
         return union
     }
+
+    fun unionMask(detections: List<Detection>, prototypes: FloatArray,
+                  areFinite: (FloatArray) -> Boolean = { it.all(Float::isFinite) }): ByteArray =
+        union(instanceMasks(detections, prototypes, areFinite))
 }

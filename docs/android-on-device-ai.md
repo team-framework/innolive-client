@@ -160,7 +160,7 @@ Android 11·다른 ABI의 실기기, 실제 다인 인식·장시간 발열·서
 대상은 Android 미디어·기기 얼굴 인식이며 API·시그널링 계약 변경은 없다.
 iOS의 Core ML `.cpuAndGPU` 및 단일 비동기 작업자를 참고해 Android에서는
 LiteRT 2.2.0 `CompiledModel`의 GPU+CPU 경로를 사용한다. Core ML 자체는 Android에서
-사용하지 않는다. 얼굴 검출 YuNet과 보호 영역 검출 YOLO는 기존 ONNX CPU 경로다.
+사용하지 않는다. 얼굴 검출 YuNet은 ONNX CPU 경로다. 보호 영역 YOLO의 후속 LiteRT GPU 선택 경로는 마지막 절을 따른다.
 
 ### 같은 모델의 GPU 변환
 
@@ -278,3 +278,38 @@ iOS의 수정하지 않은 실제 `PrivacyFaceTracking.swift`와 실제 IoU 함�
 검증 범위에 포함하지 않는다.
 
 재현: `./gradlew :app:testDebugUnitTest :app:assembleDebug :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.framework.innolive.feature.live.privacy.PrivacyFaceAsyncDeviceTest,com.framework.innolive.feature.live.privacy.PrivacyFaceCropDeviceTest --offline`
+
+
+## iOS 송출 처리 경로 이식 후속 (2026-09-27)
+
+Android 미디어 처리만 변경하며 서버 API·시그널링·얼굴 등록 저장 형식은 유지한다.
+
+- iOS와 동일한 pinned YOLO 체크포인트를 FP32 LiteRT로 변환했다. Android asset
+  `privacy-detector.tflite`의 SHA-256은
+  `c8c0c6b4e93a974e748cbd41a0120423180499b563812dc65dcdbc1a54b54895`다.
+  두 합성 입력의 호스트 ONNX 대비 detection 최대 절대 오차는 0.000793,
+  prototype은 0.000022 이하였다. FP16 가중치 실험은 detection 오차가
+  0.56 이상으로 커져 제품에 사용하지 않았다.
+- 기기에서 GPU+CPU LiteRT 버퍼 생성, 합성 입력 3종 출력 일치, CPU 대비
+  속도 향상을 검사한 뒤에만 GPU를 선택한다. 생성·검사·실행이 실패하면 그
+  프레임부터 기존 ONNX CPU 경로를 사용한다. 에뮬레이터의 OpenGL delegate는
+  전체 그래프를 위임했지만 GPU 입력 버퍼를 만들지 못했고, 제품 CPU fallback은
+  프레임 테스트를 통과했다. 에뮬레이터의 LiteRT CPU 출력은 ONNX와 일치했다.
+  실제 SM-S931N의 GPU 선택·속도는 이번 변경에서 확인하지 못했다.
+- CameraX는 보호 프레임을 한 번에 하나만 별도 작업자에 넘기고 ImageProxy를
+  즉시 닫는다. 작업 중 도착한 프레임은 복사 전에 버린다. 송출 모드·카메라
+  변경과 종료 시 이전 세대의 결과를 송출하지 않는다. Debug 로그에 5초마다
+  보호 프레임 수신·바쁨으로 폐기·송출 건수를 기록한다. WebRTC의 영상 sender
+  통계에서도 인코딩·송신 프레임, 패킷, 바이트의 누적값을 5초마다 기록해
+  분석 처리량과 인코더·네트워크 구간을 구분할 수 있게 했다.
+- iOS `PrivacyMaskStabilizer`의 객체별 IoU 0.30 매칭, 0.12초 경계 감쇠,
+  0.20초 이상 간격 초기화, 사라진 객체의 즉시 제거를 Android에 적용했다.
+  새 보호 영역은 즉시 적용하며 얼굴 블러 예외 정책에는 영향을 주지 않는다.
+
+Android는 여전히 CameraX YUV→Bitmap→I420 변환과 마스크 CPU 합성을 거친다.
+iOS의 Core Image→CVPixelBuffer 경로와 같은 GPU 종단 처리라고 해석하면 안 된다.
+또 iOS에는 1080p/720p의 30/24fps capture preset 및 WebRTC 출력 형식 설정이
+있지만 Android에는 해상도 선택만 있다. 실제 방송 FPS·인코더·YouTube 수신,
+GPU와 얼굴 인식의 동시 부하 및 발열은 실기기에서 확인해야 한다.
+
+검증: Android 단위 테스트 179개 통과. Pixel_10 에뮬레이터에서 LiteRT CPU/ONNX 출력 비교, GPU 미지원 시 제품 ONNX fallback, 프레임 회전·생명주기·반복 처리, 보호 작업 중 CameraX 입력 즉시 해제·바쁜 프레임 폐기 테스트를 통과했다. GPU 실기기 실행 테스트는 에뮬레이터에서 건너뛰며 SM-S931N 재연결 후 실행해야 한다.
