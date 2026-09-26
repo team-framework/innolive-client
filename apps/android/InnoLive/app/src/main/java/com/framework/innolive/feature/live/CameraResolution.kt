@@ -34,7 +34,7 @@ data class CameraResolution(
     }
 }
 
-@ExperimentalCamera2Interop
+@androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
 internal fun CameraInfo.supportedCameraResolutions(): List<CameraResolution> = runCatching {
     val outputSizes = Camera2CameraInfo.from(this)
         .getCameraCharacteristic(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)

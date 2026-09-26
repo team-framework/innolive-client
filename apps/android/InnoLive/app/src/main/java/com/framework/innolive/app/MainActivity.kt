@@ -35,6 +35,7 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
@@ -43,6 +44,10 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.AudioInputDevice
+import com.framework.innolive.feature.live.BroadcastVideoQualitySettings
+import com.framework.innolive.feature.live.BroadcastVideoQualityPreferences
+import com.framework.innolive.feature.live.VideoQualityCaptureState
+import com.framework.innolive.feature.live.VideoStabilizationStatus
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.CameraLensFacing
@@ -193,6 +198,19 @@ fun AppNavigation(
     val isAccountDeletionPending = accountDeletionState.hasPendingDeletion
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
     val youtubePreferencesStore = remember(context) { YouTubePreferencesStore(context) }
+    val videoQualityPreferences = remember(context) { BroadcastVideoQualityPreferences(context) }
+    var videoQualitySettings by remember(videoQualityPreferences) { mutableStateOf(videoQualityPreferences.load()) }
+    var videoQualityCaptureState by remember { mutableStateOf(VideoQualityCaptureState()) }
+    val currentVideoQualitySettings = rememberUpdatedState(videoQualitySettings)
+    val currentVideoQualityCaptureState = rememberUpdatedState(videoQualityCaptureState)
+    val updateVideoQualitySettings: (BroadcastVideoQualitySettings) -> Unit = { value ->
+        val normalized = value.normalized()
+        if (videoQualitySettings.stabilizationEnabled != normalized.stabilizationEnabled) {
+            videoQualityCaptureState = videoQualityCaptureState.copy(stabilizationStatus = VideoStabilizationStatus.PENDING)
+        }
+        videoQualitySettings = normalized
+        videoQualityPreferences.save(normalized)
+    }
     val restoredYouTubeAccount = remember(youtubePreferencesStore) {
         youtubePreferencesStore.loadConnection()
     }
@@ -545,6 +563,9 @@ fun AppNavigation(
         onDispose { isDisposed = true }
     }
 
+    LaunchedEffect(selectedCameraLensFacing, selectedResolutionKey) {
+        videoQualityCaptureState = VideoQualityCaptureState()
+    }
     LaunchedEffect(supportedCameraResolutions, selectedResolutionKey) {
         if (supportedCameraResolutions.none { resolution ->
                 resolution.key == selectedResolutionKey
@@ -706,6 +727,10 @@ fun AppNavigation(
                 }
             },
             cameraResolution = selectedResolution,
+            videoQualitySettings = videoQualitySettings,
+            onVideoQualitySettingsChanged = updateVideoQualitySettings,
+            videoQualityCaptureState = videoQualityCaptureState,
+            onVideoQualityCaptureStateChanged = { videoQualityCaptureState = it },
             broadcastSettings = broadcastSettings,
             onBroadcastSettingsChanged = ::updateBroadcastSettings,
             youtubeChannelTitle = visibleYouTubeAccount?.channelTitle,
@@ -818,6 +843,9 @@ fun AppNavigation(
                         CameraSetting(
                             props = CameraSettingProps(
                                 onBack = onBack,
+                                videoQualitySettings = currentVideoQualitySettings.value,
+                                onVideoQualitySettingsChanged = updateVideoQualitySettings,
+                                videoQualityCaptureState = currentVideoQualityCaptureState.value,
                                 selectedResolution = selectedResolution?.displayName.orEmpty(),
                                 selectedCameraDevice =
                                     selectedCameraLensFacing.settingDisplayText().asString(),
@@ -935,7 +963,7 @@ fun AppNavigation(
                                 ) {
                                     webRtcSession.broadcastStatus.asString()
                                 } else {
-                                    context.getString(R.string.broadcast_settings_connection_required)
+                                    stringResource(R.string.broadcast_settings_connection_required)
                                 },
                             ),
                         )
