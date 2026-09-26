@@ -17,7 +17,7 @@
 
 얼굴 검출에는 iOS와 같은 YuNet 2023mar (`8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`), embedding에는 ViT-Base KP-RPE WebFace12M (`04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9`)을 사용한다. ONNX 출력 SHA-256은 각각 `4514febaf280cb408b6bfcd240df4463ba5295713e571c1133d743ff4eb1d737`, `812eeaa58ed70794dd67e1efdb1d9f614b0be18e951d2c6bc2c8876c2c34d712`이다. AdaFace FP16 모델은 Git LFS asset이며 약 227MB다. 앱은 처음 사용 시 no-backup 영역에 검증한 모델을 복사한다.
 
-입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android도 픽셀화(24px) → Gaussian 블러(24px) → 마스크 합성을 수행한다. 마스크는 2px 중심을 완전히 불투명하게 유지하고, 4px 확장 후 Gaussian(1.5px)을 적용한 바깥 영역과 최댓값으로 합성한다. Android 12(API 31) 이상에서는 재사용하는 RenderEffect·HardwareRenderer로 GPU 블러를 수행한다. Android 11 또는 GPU 오류 시에는 1/4 크기의 중간 이미지에서 sigma 6의 분리 Gaussian convolution을 수행한다. 이 축소는 필터에만 적용하며 검출 마스크나 송출 크기는 줄이지 않는다. Core Image와 픽셀 단위로 동일한 결과를 보장하지는 않는다. 빈 마스크도 독립된 출력 Bitmap을 반환하며, GPU 이미지·HardwareBuffer를 닫기 전에 CPU 복사본을 확보한다.
+입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android도 픽셀화(24px) → Gaussian 블러(24px) → 마스크 합성을 수행한다. 마스크는 2px 중심을 완전히 불투명하게 유지하고, 4px 확장 후 Gaussian(1.5px)을 적용한 바깥 영역과 최댓값으로 합성한다. 현재 기본 영상 경로는 전용 EGL 작업자의 OpenGL ES 그래프다. YUV→RGB·정방향 회전·letterbox, 픽셀화·Gaussian 블러·마스크 확장과 feather·합성·센서 방향 복원을 GPU에서 수행하고 WebRTC에 공유 EGL RGB 텍스처를 전달한다. 전면·후면 카메라의 원래 rotation 메타데이터와 송출 크기는 유지한다. CPU로 가져오는 이미지는 640×640 모델 입력과 얼굴 재확인이 필요한 crop으로 제한한다. GPU 영상 경로가 실패하면 보호 처리하는 기존 CPU Bitmap 경로를 사용하며 원본으로 우회하지 않는다. CPU 대체 경로에서 API 31 이상의 RenderEffect 블러를 사용할 수 있다. 블러는 1/4 크기에서 sigma 6으로 처리하며 검출 마스크·출력 해상도를 낮추지 않는다. Core Image와 픽셀 단위로 동일한 결과는 보장하지 않는다. 현재 구현과 최신 계측은 마지막 GPU 영상 경로 절을 따른다.
 
 기기 얼굴 관리는 기존 카메라의 500px 중앙 촬영과 3회 안정 검사를 사용한다. 모델 준비가 끝난 뒤 30초 촬영 시간이 시작된다. YuNet은 BGR 0–255 입력과 32배수 padding, stride 8/16/32 decode와 NMS 0.3을 사용한다. 등록은 점수 0.9 이상·최소 40px, 영상 비교는 0.6 이상·최소 24px을 사용한다. 얼굴의 1.5배 정사각형 RGB 112×112 crop과 정규화 landmark를 AdaFace에 전달한다. 원본·좌우반전 norm 가중 결합은 ONNX 모델에 포함된다.
 
@@ -490,3 +490,113 @@ SurfaceViewRenderer에 처리 결과를 표시한다. 별도의 빈 Debug Activi
 확인됐다. YOLO GPU 적용 여부와는 별개로 CPU 입력·출력 변환과 회전,
 GPU 블러 결과 readback 및 CPU 마스크 합성이 남아 있다. 렌더 구간 수치만으로
 GPU 블러와 CPU 합성 각각의 비용을 분리했다고 보고하지 않는다.
+
+
+## GPU 영상 그래프와 WebRTC 텍스처 출력 (2026-09-27)
+
+대상은 Android 카메라·로컬 AI·미디어 경로이며 HTTP·시그널링·저장 계약 변경은 없다.
+기존 이슈 #320 / Draft PR #324에서 이어 구현했다.
+
+### 제거한 전체 영상 CPU 처리
+
+- `PrivacyGpuFramePipeline`: 전용 HandlerThread/EGL context에서 카메라 Y/U/V를 업로드하고
+  YUV→RGB·정방향 회전·640px letterbox를 GPU에서 처리한다. CPU 입력·출력용 전체
+  센서 Bitmap 및 Canvas 회전은 기본 GPU 경로에서 사용하지 않는다.
+- 픽셀화(24px)·분리 Gaussian(sigma 24px)·마스크의 2px opaque core·4px dilation·
+  sigma 1.5 feather·원본과의 mask 합성을 GPU shader로 연결한다. 블러 결과를 CPU
+  Bitmap으로 가져와 네이티브 합성하던 왕복은 제거했다.
+- GPU에서 센서 방향으로 복원한 RGB 텍스처를 WebRTC TextureBufferImpl로 전달한다.
+  영상용 EGL context를 인코더/renderer와 공유하고 쓰기가 끝난 뒤 전달한다.
+  제품 경로의 CPU Bitmap→I420 출력 변환은 제거했다. 소프트웨어 소비자가 I420을
+  요청하면 WebRTC YuvConverter가 GL 작업자에서 변환한다.
+- 640×640 모델 입력의 readback과 RGB→NCHW float tensor 채우기는 남는다. 현재
+  LiteRT Kotlin 2.2 API의 float tensor 입출력 때문에 전체 zero-copy 추론을 주장하지 않는다.
+  YOLO decode/instance mask/stabilizer도 CPU이며 기존 iOS의 정책·수학을 유지한다.
+- 얼굴 coordinator는 Bitmap 전체를 요구하지 않고 좌표와 crop 공급자를 받는다.
+  등록 얼굴과 재확인할 트랙이 있고 얼굴 worker가 받을 수 있을 때만 GPU에서 그
+  crop을 읽는다. crop 크기·랜드마크 좌표·등록자 캐시 정책은 유지했다.
+- 텍스처 출력 pool은 최대 6개의 보유 프레임으로 제한한다. renderer/encoder가
+  놓기 전에는 재사용하지 않으며 모두 보유 중이면 모델 입력 준비·추론 전에 새 입력을 버린다. 종료 후에도
+  보유 프레임의 변환·읽기가 가능하고 마지막 참조 해제 뒤 EGL/converter를 닫는다.
+  입력 plane 텍스처·모델 입력·마스크 업로드 버퍼·crop readback 버퍼는 재사용한다.
+  카메라/모드/회전/해상도/얼굴 목록 변경은 기존 세대 검사를 따른다.
+
+### 추론 가속 차이와 제약
+
+iOS YOLO는 Core ML `.cpuAndNeuralEngine`, AdaFace는 `.cpuAndGPU`를 허용한다.
+Android의 기존 LiteRT FP32 GPU 검증은 유지하며, 실제 NNAPI neural accelerator가
+노출되는 기기에 한해 동일 SHA의 FP32 ONNX 모델을 NNAPI CPU_DISABLED로 비교한다.
+CPU 기준 출력과 detection 최대 오차 <0.05·prototype <0.01, 기존 가장 빠른 경로보다
+반복 시간이 10% 이상 짧은 경우에만 선택한다. 실행 오류는 검증된 GPU/CPU로 돌아간다.
+NNAPI의 부분 그래프가 CPU에서 실행될 수 있으므로 NPU 전체 실행이라고 부르지 않는다.
+
+현재 SM-S931N(Android 16)은 `nnapi_neural_accelerators=0`을 보고했다. NNAPI 선택은
+실행되지 않았고 GPU 추론이 사용됐다. NNAPI 장치 0개는 물리적 NPU가 없다는 의미가 아니다.
+장치가 노출되는 경우의 NNAPI 선택·속도는 이 실기기에서 검증하지 못했다.
+
+[공식 LiteRT Qualcomm 안내](https://developers.google.com/edge/litert/next/qualcomm)와
+[NPU 배포 안내](https://developers.google.com/edge/litert/next/npu)에 따라 LiteRT v2.2.0
+JIT compiler/dispatch와 QAIRT 2.47.0.260601의 v79 HTP 런타임으로 직접 실행도 시험했다.
+공식 SDK 다운로드 HEAD 요청은 403이었으나 GET 다운로드는 성공했다. 라이브러리는
+진단용 앱 비공개 임시 폴더에만 배치했고 APK·Git에는 넣지 않았다.
+
+`PrivacyNpuProbeDeviceTest`에서 같은 FP32 TFLite asset과 세 합성 입력을 사용해
+NPU 실행 및 유한 출력을 확인했다. QNN 로그에서 HTP 그래프 실행 성공과 FP16
+convolution 연산을 확인했다. 출력 읽기까지 포함한 반복 중앙값은 NPU
+23.94/24.06/24.03ms, GPU FP32 16.97/16.87/16.79ms였다. ONNX CPU 대비 NPU의
+detection 최대 절대 오차는 16.57/19.22/3.51, prototype은 0.0882/0.0541/0.0237이었다.
+세 입력 모두 제품의 출력 일치 기준을 통과하지 못했다. 합성 입력의 최대 오차만으로
+실제 얼굴·번호판 검출 정확도가 저하됐다고 단정하지 않는다. 이 경로의 실제 보호
+정확도는 검증되지 않았으며 속도 개선도 확인되지 않아 제품 추론으로 선택하지 않았다.
+이 진단 테스트의 통과는 실행·유한 출력 확인을 뜻하고 `parity_pass=false`를 기록한다.
+공식 HTP의 float16 계산 제약은 [Qualcomm 안내](https://workbench.aihub.qualcomm.com/docs/hub/api.html)도 설명한다.
+
+### 검증과 측정 해석
+
+실기기에서 방향 0/90/180/270의 비대칭 사분면, 정방향 crop의 위치·독립 수명,
+블러 보호 중심과 보호 밖 영역, 보유 텍스처의 후속 프레임/해상도 변경/종료 후
+수명, 6프레임 상한과 해제 후 재개, padded plane·홀수 크기, 픽셀화 경계의 Gaussian 효과를 검증했다. H.264 HardwareVideoEncoderFactory에
+실제 보호 텍스처를 넣고 정상 encoded callback을 받았다. 네트워크·방송 서버·
+YouTube는 만들지 않았다. 기존 모델/프레임/얼굴 비동기·crop과 합쳐 실기기 회귀 테스트 총 24개,
+단위 테스트 179개가 통과했다. 최종 GPU/인코더 8개도 재실행해 통과했다.
+Qualcomm NPU 선택적 진단 1개는 별도이며 제품 정확도 검증 통과로 세지 않는다.
+
+실제 CameraX 카메라에서도 입력 약 30fps, GPU 모델 및 texture output, 검출된
+보호 영역의 GPU 블러, 오류 0을 확인했다. 버퍼 재사용을 포함한 마지막 측정은 다음과 같다.
+
+| 항목 | 1080p | 720p |
+| --- | ---: | ---: |
+| 측정 시간 | 25초 | 25초 |
+| 카메라 입력 / 처리 프레임 | 750 / 389 | 750 / 438 |
+| 처리 FPS | 15.56 | 17.52 |
+| 전체 프레임 처리 p50 / p95 | 39.63 / 53.79ms | 39.39 / 54.62ms |
+| 입력 변환·회전 p50 | 3.11ms | 2.47ms |
+| YOLO 추론 p50 | 23.53ms | 24.60ms |
+| 보호 프레임 수 | 92 | 56 |
+| 보호 프레임 render p50 | 8.69ms | 10.69ms |
+| 보호 프레임 전체 처리 p50 | 48.72ms | 53.44ms |
+| GPU 추론 / texture 출력 | 389 / 389 | 438 / 438 |
+| 처리 오류 | 0 | 0 |
+
+제품 GPU 경로의 CPU 출력 변환 구간은 0ms다. 출력의 GPU 복원과 동기화 비용은
+render 구간에 포함되므로 출력 자체가 무료라는 뜻이 아니다. CameraX plane 복사는
+별도 copy 구간이며 모델 입력 readback, float tensor 입출력과 CPU 후처리도 남아 있다.
+이 기기에서 30fps 처리 또는 장시간 방송·발열 개선이 검증됐다고 주장하지 않는다.
+
+앞선 얼굴 장면의 7.68/9.60fps와 다른 시간·장면이며 열/클럭·보호 대상 개수를
+통제한 비교가 아니다. 특히 빈 마스크와 보호 프레임이 섞인 전체 render 중앙값을
+보호 프레임만의 블러 비용으로 쓰지 않는다. 실기기 진단은 보호 프레임의 render·
+전체 처리 중앙값을 따로 출력한다. 숫자 count와 timing만 보관하고 얼굴 사진·
+이름·embedding·토큰은 저장하거나 로그에 출력하지 않는다. 번호판 분류 count는
+모델 출력이며 번호판 ground truth 검출 정확도 검증으로 사용하지 않는다.
+
+재현: `PrivacyGpuFramePipelineDeviceTest`, `PrivacyGpuEncoderDeviceTest`,
+`PrivacyActualCameraDeviceTest`를 `connectedDebugAndroidTest`의 class 필터로 실행한다.
+실제 카메라 테스트는 잠금이 해제된 foreground 화면이 필요하며 측정 중 KEEP_SCREEN_ON을 적용한다.
+
+Qualcomm 직접 진단은 공식 LiteRT v2.2.0 JIT zip의 v79 compiler/dispatch와 QAIRT
+2.47.0.260601의 `libQnnHtp`, `libQnnIr`, `libQnnSaver`, `libQnnSystem`,
+`libQnnHtpPrepare`, `libQnnHtpV79Stub`, `libQnnHtpV79Skel`을 앱의
+`files/privacy-npu-probe/`에 임시 배치한 뒤 `PrivacyNpuProbeDeviceTest`를 실행한다.
+라이브러리가 없으면 이 선택적 진단은 skip되며 제품 동작에 영향이 없다. 테스트 후
+진단용 폴더를 삭제한다. SDK 바이너리를 저장소에 재배포하지 않는다.

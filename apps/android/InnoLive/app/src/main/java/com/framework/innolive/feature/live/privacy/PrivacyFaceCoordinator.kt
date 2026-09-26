@@ -29,21 +29,28 @@ internal class PrivacyFaceCoordinator(
     }
 
     /** Start one current-frame job before YOLO. The analyzer never waits for recognition. */
-    fun beginFrame(upright: Bitmap, timestampNs: Long) {
+    fun beginFrame(upright: Bitmap, timestampNs: Long) =
+        beginFrame(upright.width, upright.height, timestampNs) { copyCrop(upright, it) }
+
+    fun beginFrame(width: Int, height: Int, timestampNs: Long, crop: (Rect) -> Bitmap) {
         refreshRevision()
-        val dimensions = upright.width to upright.height
+        val dimensions = width to height
         if (geometry != dimensions) { reset(); geometry = dimensions }
         if (entries().isEmpty()) return
         service.prepare()
         if (!service.canSubmit) return
         val layout = previousLayout ?: return
         val next = tracking.next(timestampNs / 1_000_000_000.0) ?: return
-        val bounds = recognitionBounds(upright, next.box, layout) ?: return
-        val crop = copyCrop(upright, bounds)
-        if (!service.submitRecognition(crop, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) crop.recycle()
+        val bounds = recognitionBounds(width, height, next.box, layout) ?: return
+        val image = crop(bounds)
+        if (!service.submitRecognition(image, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) image.recycle()
     }
 
     fun exceptions(upright: Bitmap, objects: List<PrivacySegmentation.Detection>,
+                   layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> =
+        exceptions(upright.width, upright.height, objects, layout, timestampNs)
+
+    fun exceptions(width: Int, height: Int, objects: List<PrivacySegmentation.Detection>,
                    layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> {
         val time = timestampNs / 1_000_000_000.0
         refreshRevision()
@@ -55,10 +62,10 @@ internal class PrivacyFaceCoordinator(
             if (result.generation == generation) {
                 val box = result.imageBox?.let { imageBox ->
                     PrivacySegmentation.Box(
-                        layout.left + imageBox.left * layout.resizedWidth / upright.width,
-                        layout.top + imageBox.top * layout.resizedHeight / upright.height,
-                        layout.left + imageBox.right * layout.resizedWidth / upright.width,
-                        layout.top + imageBox.bottom * layout.resizedHeight / upright.height)
+                        layout.left + imageBox.left * layout.resizedWidth / width,
+                        layout.top + imageBox.top * layout.resizedHeight / height,
+                        layout.left + imageBox.right * layout.resizedWidth / width,
+                        layout.top + imageBox.bottom * layout.resizedHeight / height)
                 }
                 val match = result.embedding?.takeIf {
                     box != null && tracking.recognitionMatches(result.trackId, box)
@@ -86,20 +93,20 @@ internal class PrivacyFaceCoordinator(
     /** The caller owns the returned pixels, including when the crop covers the whole frame. */
     internal fun recognitionCrop(upright: Bitmap, box: PrivacySegmentation.Box,
                                 layout: PrivacySegmentation.Letterbox): Bitmap? {
-        return recognitionBounds(upright, box, layout)?.let { copyCrop(upright, it) }
+        return recognitionBounds(upright.width, upright.height, box, layout)?.let { copyCrop(upright, it) }
     }
 
-    private fun recognitionBounds(upright: Bitmap, box: PrivacySegmentation.Box,
+    private fun recognitionBounds(width: Int, height: Int, box: PrivacySegmentation.Box,
                                   layout: PrivacySegmentation.Letterbox): Rect? {
-        val real = toImageBox(box, layout, upright.width, upright.height) ?: return null
+        val real = toImageBox(box, layout, width, height) ?: return null
         if (min(real.width, real.height) < 24) return null
         // Server's YOLO crop margin is 0.25 on each side.
         val marginX = real.width * .25f
         val marginY = real.height * .25f
         val x0 = max(0, floor(real.left - marginX).toInt())
         val y0 = max(0, floor(real.top - marginY).toInt())
-        val x1 = min(upright.width, ceil(real.right + marginX).toInt())
-        val y1 = min(upright.height, ceil(real.bottom + marginY).toInt())
+        val x1 = min(width, ceil(real.right + marginX).toInt())
+        val y1 = min(height, ceil(real.bottom + marginY).toInt())
         if (x1 <= x0 || y1 <= y0) return null
         return Rect(x0, y0, x1, y1)
     }

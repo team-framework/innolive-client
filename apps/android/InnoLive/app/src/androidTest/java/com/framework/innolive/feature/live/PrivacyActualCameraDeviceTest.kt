@@ -7,6 +7,7 @@ import android.util.Log
 import android.util.Rational
 import android.util.Size
 import android.view.Surface
+import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -57,7 +58,10 @@ class PrivacyActualCameraDeviceTest {
         val provider = ProcessCameraProvider.getInstance(context).get(10, TimeUnit.SECONDS)
         ActivityScenario.launch(ComponentActivity::class.java).use { scenario ->
             var activity: ComponentActivity? = null
-            scenario.onActivity { activity = it }
+            scenario.onActivity {
+                it.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                activity = it
+            }
             val host = checkNotNull(activity)
             for ((width, height) in listOf(1920 to 1080, 1280 to 720)) {
                 val egl = EglBase.create()
@@ -91,15 +95,17 @@ class PrivacyActualCameraDeviceTest {
                 val ready = CountDownLatch(1)
                 val samples = ConcurrentLinkedQueue<PrivacyCaptureDiagnostics>()
                 val observedSize = ConcurrentLinkedQueue<Pair<Int, Int>>()
+                val textureFrames = AtomicInteger()
                 val analyzer = CameraFrameAnalyzer(object : CapturerObserver {
                     override fun onCapturerStarted(success: Boolean) = Unit
                     override fun onCapturerStopped() = Unit
                     override fun onFrameCaptured(frame: VideoFrame) {
                         observedSize.add(frame.buffer.width to frame.buffer.height)
+                        if (collecting.get() && frame.buffer is VideoFrame.TextureBuffer) textureFrames.incrementAndGet()
                         renderer.onFrame(frame)
                         ready.countDown()
                     }
-                }, context, initialOnDevice = true, onProcessingFailure = {
+                }, context, initialOnDevice = true, sharedEglContext = egl.eglBaseContext, onProcessingFailure = {
                     failures.incrementAndGet(); ready.countDown()
                 })
                 analyzer.onFrameDiagnostics = { if (collecting.get()) samples.add(it) }
@@ -134,14 +140,21 @@ class PrivacyActualCameraDeviceTest {
                     collecting.set(false)
                     val seconds = (System.nanoTime() - started) / 1e9
                     val measured = samples.toList()
+                    assertTrue("GPU texture output was not used", textureFrames.get() > 0)
                     assertTrue("No steady AI samples", measured.isNotEmpty())
                     assertEquals(0, failures.get())
                     assertTrue("Requested camera geometry changed: ${observedSize.toSet()}",
                         observedSize.all { it == (width to height) })
-                    assertTrue("Detector GPU was not used", measured.any { it.analysis.detectorGpu })
+                    assertTrue("Detector GPU was not used", measured.any { it.analysis.detectorGpu || it.analysis.detectorNnapi })
                     fun percentile(fraction: Double, select: (PrivacyCaptureDiagnostics) -> Double): Double {
                         val values = measured.map(select).sorted()
                         return values[(values.size * fraction).toInt().coerceAtMost(values.lastIndex)]
+                    }
+                    val protected = measured.filter { it.analysis.maskPixels > 0 }
+                    fun protectedMedian(select: (PrivacyCaptureDiagnostics) -> Double): Double {
+                        if (protected.isEmpty()) return Double.NaN
+                        val values = protected.map(select).sorted()
+                        return values[values.size / 2]
                     }
                     Log.i("PrivacyActualCamera", "size=${width}x$height seconds=$seconds " +
                         "captures=${captures.get()} processed=${measured.size} " +
@@ -152,9 +165,11 @@ class PrivacyActualCameraDeviceTest {
                         "input_p50_ms=${percentile(.5) { it.timings.inputMs }} " +
                         "inference_p50_ms=${percentile(.5) { it.timings.model.inferenceMs }} " +
                         "render_p50_ms=${percentile(.5) { it.timings.model.renderMs }} " +
+                        "protected_render_p50_ms=${protectedMedian { it.timings.model.renderMs }} " +
+                        "protected_frame_p50_ms=${protectedMedian { it.timings.totalMs }} " +
                         "output_p50_ms=${percentile(.5) { it.timings.outputMs }} " +
                         "delivery_p50_ms=${percentile(.5) { it.deliveryMs }} " +
-                        "gpu_frames=${measured.count { it.analysis.detectorGpu }} " +
+                        "gpu_frames=${measured.count { it.analysis.detectorGpu }} texture_frames=${textureFrames.get()} nnapi_frames=${measured.count { it.analysis.detectorNnapi }} " +
                         "face_frames=${measured.count { it.analysis.faces > 0 }} " +
                         "plate_frames=${measured.count { it.analysis.plates > 0 }} " +
                         "protected_frames=${measured.count { it.analysis.maskPixels > 0 }} " +

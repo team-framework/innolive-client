@@ -8,9 +8,13 @@ import android.graphics.Matrix
 import android.util.Log
 import com.framework.innolive.BuildConfig
 import org.webrtc.VideoFrame
+import org.webrtc.EglBase
 
-/** Processes each capture synchronously so CameraX drops overdue input instead of queuing raw frames. */
-internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
+/** Serial AI worker: a GPU image graph and protected texture output, with a protected CPU fallback. */
+internal class PrivacyFrameProcessor(context: Context, private val sharedContext: EglBase.Context? = null,
+                                     private val allowGpuImages: Boolean = true) : AutoCloseable {
+    private var imageGpu: PrivacyGpuFramePipeline? = null
+    private var imageGpuUnavailable = !allowGpuImages
     private val model = PrivacyOnnxModel(context.applicationContext)
     private val pixels = PrivacyPixelConverter()
     private val faces = PrivacyFaceCoordinator(context.applicationContext)
@@ -26,6 +30,44 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
     fun resetFaceExceptions() { faces.reset(); model.resetTemporalState() }
 
     fun process(frame: VideoFrame): VideoFrame {
+        if (!imageGpuUnavailable) {
+            try {
+                if (imageGpu == null) imageGpu = PrivacyGpuFramePipeline(sharedContext)
+                return processGpu(frame, checkNotNull(imageGpu))
+            } catch (error: PrivacyGpuBackpressureException) { throw error }
+            catch (error: Exception) {
+                Log.w("PrivacyPipeline", "image_gpu_fallback type=${error.javaClass.simpleName}")
+                imageGpu?.close(); imageGpu = null; imageGpuUnavailable = true
+                resetFaceExceptions()
+            }
+        }
+        return processCpu(frame)
+    }
+
+    private fun processGpu(frame: VideoFrame, graph: PrivacyGpuFramePipeline): VideoFrame {
+        val started = System.nanoTime()
+        val source = checkNotNull(frame.buffer.toI420())
+        try {
+            val nextGeometry = Triple(source.width, source.height, frame.rotation)
+            if (geometry != nextGeometry) { resetFaceExceptions(); geometry = nextGeometry }
+            val layout = graph.prepare(source, frame.rotation)
+            val converted = System.nanoTime()
+            faces.beginFrame(layout.sourceWidth, layout.sourceHeight, frame.timestampNs, graph::crop)
+            val buffer = model.processPrepared(graph.modelBitmap, layout, frame.timestampNs,
+                { objects, box -> faces.exceptions(box.sourceWidth, box.sourceHeight, objects, box, frame.timestampNs) },
+                renderOnGpu = true) { mask -> graph.finish(mask, layout, source.width, source.height) }
+            val completed = System.nanoTime()
+            lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
+                checkNotNull(model.lastTimings), 0.0, (completed - started) / 1e6)
+            if (BuildConfig.DEBUG && completed - lastLogNs >= 5_000_000_000L) {
+                lastLogNs = completed
+                Log.i("PrivacyPipeline", "image_gpu=true texture_output=true size=${source.width}x${source.height} $lastTimings")
+            }
+            return VideoFrame(buffer, frame.rotation, frame.timestampNs)
+        } finally { source.release() }
+    }
+
+    private fun processCpu(frame: VideoFrame): VideoFrame {
         val started = System.nanoTime()
         val source = checkNotNull(frame.buffer.toI420()) { "Camera frame could not be converted to I420" }
         try {
@@ -65,7 +107,7 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
 
     override fun close() {
         faces.reset()
-        try { model.close() } finally { sensorPixels.close(); uprightPixels.close(); restoredPixels.close() }
+        try { model.close() } finally { imageGpu?.close(); imageGpu = null; sensorPixels.close(); uprightPixels.close(); restoredPixels.close() }
     }
 
     private fun rotate(bitmap: Bitmap, degrees: Int, scratch: BitmapScratch): Bitmap {

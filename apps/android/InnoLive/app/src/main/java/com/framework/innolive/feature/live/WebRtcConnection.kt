@@ -354,6 +354,7 @@ class WebRtcConnection(
             applicationContext,
             initialOnDeviceProcessing,
             initialAnonymizationEnabled,
+            sharedEglContext = checkNotNull(eglBase).eglBaseContext,
             onProcessingFailure = { executeOnOwner { fail(ConnectionFailure.GENERIC) } },
             onProtectedFrameSent = {
                 executeOnOwner {

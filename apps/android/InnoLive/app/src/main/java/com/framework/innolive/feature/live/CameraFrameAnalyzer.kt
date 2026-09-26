@@ -14,6 +14,8 @@ import com.framework.innolive.feature.live.privacy.PrivacyFrameTimings
 import org.webrtc.CapturerObserver
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
+import org.webrtc.EglBase
+import com.framework.innolive.feature.live.privacy.PrivacyGpuBackpressureException
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -27,6 +29,7 @@ class CameraFrameAnalyzer(
     private val onProcessingFailure: () -> Unit = {},
     private val onProtectedFrameSent: () -> Unit = {},
     private val onCaptureFormat: (Int, Int) -> Unit = { _, _ -> },
+    private val sharedEglContext: EglBase.Context? = null,
 ) : ImageAnalysis.Analyzer {
     private val enabled = AtomicBoolean(false)
     private val protectedFrameReported = AtomicBoolean(false)
@@ -46,7 +49,7 @@ class CameraFrameAnalyzer(
     private val processorLock = Any()
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
-        if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext)) else null
+        if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext) else null
     private val route = PrivacyFrameRoute(
         when {
             !initialOnDevice -> PrivacyFrameMode.SERVER
@@ -59,7 +62,7 @@ class CameraFrameAnalyzer(
         if (onDevice && localProcessor == null) {
             synchronized(processorLock) {
                 if (localProcessor == null) {
-                    localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext))
+                    localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext)
                 }
             }
         }
@@ -210,6 +213,8 @@ class CameraFrameAnalyzer(
                         "delivery_ms=${(completed - deliveryStarted) / 1e6}")
                 }
             } finally { outgoing.release() }
+        } catch (_: PrivacyGpuBackpressureException) {
+            dropped.incrementAndGet()
         } catch (_: Exception) {
             route.deliver(ticket, onProcessingFailure)
         } finally {

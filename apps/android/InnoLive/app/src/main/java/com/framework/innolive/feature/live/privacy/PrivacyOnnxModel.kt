@@ -32,7 +32,8 @@ internal class PrivacyOnnxModel(private val context: Context,
     private val gpuInput = FloatArray(3 * 640 * 640)
     private var gpuChecked = false
     private var gpu: PrivacyDetectorGpuEngine? = null
-    val usesGpu: Boolean get() = gpu != null
+    private var nnapi: PrivacyNnapiDetectorEngine? = null
+    val usesGpu: Boolean get() = gpu != null && nnapi == null
     var lastAnalysis: PrivacyFrameAnalysis? = null
         private set
     var lastTimings: PrivacyModelTimings? = null
@@ -61,7 +62,6 @@ internal class PrivacyOnnxModel(private val context: Context,
         timestampNs: Long = System.nanoTime(),
         exemptFaces: (List<PrivacySegmentation.Detection>, PrivacySegmentation.Letterbox) -> Set<Int> = { _, _ -> emptySet() },
     ): Bitmap {
-        val started = System.nanoTime()
         val layout = PrivacySegmentation.Letterbox(upright.width, upright.height)
         val canvas = inputCanvas
         canvas.drawColor(Color.rgb(114, 114, 114))
@@ -73,25 +73,57 @@ internal class PrivacyOnnxModel(private val context: Context,
                 (layout.top + layout.resizedHeight).toFloat()),
             Paint(Paint.FILTER_BITMAP_FLAG),
         )
-        PrivacyNativePixels.bitmapToTensor(inputBitmap, inputBytes)
+        return processPrepared(inputBitmap, layout, timestampNs, exemptFaces) { mask ->
+            PrivacyMaskRenderer.render(upright, mask, layout, blur::apply)
+        }
+    }
+
+    /** The image graph supplies only the fixed model input; no full-frame CPU bitmap is needed. */
+    fun <T> processPrepared(
+        preparedInput: Bitmap,
+        layout: PrivacySegmentation.Letterbox,
+        timestampNs: Long,
+        exemptFaces: (List<PrivacySegmentation.Detection>, PrivacySegmentation.Letterbox) -> Set<Int>,
+        renderOnGpu: Boolean = false,
+        render: (ByteArray) -> T,
+    ): T {
+        require(preparedInput.width == 640 && preparedInput.height == 640)
+        val started = System.nanoTime()
+        PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
         val prepared = System.nanoTime()
         if (!gpuChecked) {
             gpuChecked = true
             gpu = PrivacyDetectorGpuEngine.validated(context, ::reference)
+            nnapi = PrivacyNnapiDetectorEngine.validated(context, { reference(it).first }) { pixels ->
+                gpu?.predict(pixels) ?: reference(pixels).first
+            }
         }
         val (predictions, prototypes) = try {
             val engine = gpu
-            if (engine == null) runOnnx()
+            if (nnapi != null) {
+                inputBytes.asFloatBuffer().get(gpuInput)
+                checkNotNull(nnapi).predict(gpuInput)
+            } else if (engine == null) runOnnx()
             else {
                 inputBytes.asFloatBuffer().get(gpuInput)
                 engine.predict(gpuInput)
             }
         } catch (error: Exception) {
-            if (gpu == null) throw error
-            runCatching { gpu?.close() }
-            gpu = null
-            Log.w("PrivacyDetector", "gpu_runtime_fallback type=${error.javaClass.simpleName}")
-            runOnnx()
+            if (nnapi != null) {
+                nnapi?.close(); nnapi = null
+                Log.w("PrivacyDetector", "nnapi_runtime_fallback type=${error.javaClass.simpleName}")
+                try {
+                    gpu?.predict(gpuInput) ?: runOnnx()
+                } catch (_: Exception) {
+                    runCatching { gpu?.close() }; gpu = null
+                    runOnnx()
+                }
+            } else {
+                if (gpu == null) throw error
+                runCatching { gpu?.close() }; gpu = null
+                Log.w("PrivacyDetector", "gpu_runtime_fallback type=${error.javaClass.simpleName}")
+                runOnnx()
+            }
         }
         val inferred = System.nanoTime()
         run {
@@ -106,13 +138,13 @@ internal class PrivacyOnnxModel(private val context: Context,
             )
             val mask = stabilizer.apply(instances, timestampNs / 1_000_000_000.0)
             val masked = System.nanoTime()
-            val output = PrivacyMaskRenderer.render(upright, mask, layout, blur::apply)
+            val output = render(mask)
             val rendered = System.nanoTime()
             if (BuildConfig.DEBUG) {
                 val maskPixels = mask.count { it.toInt() != 0 }
                 lastAnalysis = PrivacyFrameAnalysis(usesGpu, objects.count { it.classId == 0 },
                     objects.count { it.classId == 1 }, exempt.size,
-                    maskPixels, maskPixels > 0 && blur.lastUsedGpu)
+                    maskPixels, maskPixels > 0 && (renderOnGpu || blur.lastUsedGpu), nnapi != null)
             }
             lastTimings = PrivacyModelTimings(
                 (prepared - started) / 1e6, (inferred - prepared) / 1e6,
@@ -147,6 +179,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         }
 
     override fun close() {
+        nnapi?.close(); nnapi = null
         gpu?.close(); gpu = null
         blur.close(); inputTensor.close(); inputBitmap.recycle(); session.close()
     }
@@ -168,5 +201,5 @@ internal data class PrivacyModelTimings(
 /** Numeric diagnostics only; no face identity or camera pixels. */
 internal data class PrivacyFrameAnalysis(
     val detectorGpu: Boolean, val faces: Int, val plates: Int, val exemptFaces: Int,
-    val maskPixels: Int, val blurGpu: Boolean,
+    val maskPixels: Int, val blurGpu: Boolean, val detectorNnapi: Boolean = false,
 )

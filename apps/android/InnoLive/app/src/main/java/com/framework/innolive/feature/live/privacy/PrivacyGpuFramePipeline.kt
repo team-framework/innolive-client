@@ -1,0 +1,337 @@
+package com.framework.innolive.feature.live.privacy
+
+import android.graphics.Bitmap
+import android.graphics.Matrix
+import android.graphics.Rect
+import android.opengl.GLES20.*
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.Looper
+import org.webrtc.EglBase
+import org.webrtc.GlShader
+import org.webrtc.GlUtil
+import org.webrtc.TextureBufferImpl
+import org.webrtc.ThreadUtils
+import org.webrtc.VideoFrame
+import org.webrtc.YuvConverter
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.ceil
+import kotlin.math.max
+
+/** Serial GL graph. Only 640px model input and requested face crops cross back to CPU.
+ * Output textures remain owned until every renderer/encoder releases its frame. */
+internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?) : AutoCloseable {
+    private val thread = HandlerThread("privacy-image-gpu").apply { start() }
+    private val handler = Handler(thread.looper)
+    private lateinit var egl: EglBase
+    private lateinit var converter: YuvConverter
+    private val shaders = mutableMapOf<String, GlShader>()
+    private val targets = mutableMapOf<String, Target>()
+    private val planeTextures = IntArray(3)
+    private val packedPlanes = arrayOfNulls<ByteBuffer>(3)
+    private val planeSizes = arrayOfNulls<Pair<Int, Int>>(3)
+    private val maskPixels = ByteBuffer.allocateDirect(160 * 160 * 4)
+    private var cropPixels: ByteBuffer? = null
+    private val outputPool = mutableListOf<Target>()
+    private val leased = mutableSetOf<Target>()
+    private var closing = false
+    private val closeRequested = AtomicBoolean(false)
+    private var width = 0
+    private var height = 0
+    private var rotation = 0
+    private val modelPixels = ByteBuffer.allocateDirect(640 * 640 * 4)
+    val modelBitmap: Bitmap = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
+
+    init {
+        try {
+            onGl {
+                egl = EglBase.create(sharedContext, EglBase.CONFIG_PIXEL_BUFFER)
+                egl.createDummyPbufferSurface(); egl.makeCurrent()
+                converter = YuvConverter()
+                glGenTextures(3, planeTextures, 0)
+            }
+        } catch (error: Throwable) {
+            onGl { if (::egl.isInitialized) egl.release() }
+            modelBitmap.recycle(); thread.quitSafely()
+            throw error
+        }
+    }
+
+    private fun <T> onGl(block: () -> T): T {
+        if (Looper.myLooper() == handler.looper) return block()
+        val complete = CountDownLatch(1)
+        var result: Result<T>? = null
+        check(handler.post { result = runCatching(block); complete.countDown() }) { "GPU graph is closed" }
+        ThreadUtils.awaitUninterruptibly(complete)
+        return checkNotNull(result).getOrThrow()
+    }
+
+    fun prepare(source: VideoFrame.I420Buffer, rotation: Int): PrivacySegmentation.Letterbox = onGl {
+        check(!closing)
+        if (leased.size >= 6) throw PrivacyGpuBackpressureException()
+        require(rotation in listOf(0, 90, 180, 270))
+        this.rotation = rotation
+        width = if (rotation % 180 == 0) source.width else source.height
+        height = if (rotation % 180 == 0) source.height else source.width
+        val buffers = arrayOf(source.dataY, source.dataU, source.dataV)
+        val strides = intArrayOf(source.strideY, source.strideU, source.strideV)
+        val sizes = arrayOf(source.width to source.height,
+            (source.width + 1) / 2 to (source.height + 1) / 2,
+            (source.width + 1) / 2 to (source.height + 1) / 2)
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+        for (i in 0..2) {
+            val (w, h) = sizes[i]
+            val pixels = if (strides[i] == w) buffers[i].duplicate().apply { position(0) } else {
+                val packed = packedPlanes[i]?.takeIf { it.capacity() >= w * h }
+                    ?: ByteBuffer.allocateDirect(w * h).also { packedPlanes[i] = it }
+                PrivacyNativePixels.copyPlane(buffers[i].duplicate().apply { position(0) },
+                    strides[i], 1, w, h, packed, w)
+                packed.apply { position(0) }
+            }
+            glActiveTexture(GL_TEXTURE0 + i); glBindTexture(GL_TEXTURE_2D, planeTextures[i])
+            textureParameters(GL_LINEAR)
+            if (planeSizes[i] != (w to h)) {
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, pixels)
+                planeSizes[i] = w to h
+            } else glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_LUMINANCE, GL_UNSIGNED_BYTE, pixels)
+        }
+        draw("yuv", YUV, target("upright", width, height), planeTextures.toList()) { program ->
+            glUniform1i(program.getUniformLocation("rotation"), rotation)
+        }
+        val layout = PrivacySegmentation.Letterbox(width, height)
+        draw("letterbox", LETTERBOX, target("model", 640, 640), listOf(targets.getValue("upright").texture)) { p ->
+            glUniform4f(p.getUniformLocation("box"), layout.left / 640f, layout.top / 640f,
+                layout.resizedWidth / 640f, layout.resizedHeight / 640f)
+        }
+        readPixels(targets.getValue("model"), modelPixels)
+        modelPixels.rewind(); modelBitmap.copyPixelsFromBuffer(modelPixels)
+        layout
+    }
+
+    fun crop(bounds: Rect): Bitmap = onGl {
+        require(bounds.left >= 0 && bounds.top >= 0 && bounds.right <= width && bounds.bottom <= height
+            && bounds.width() > 0 && bounds.height() > 0)
+        val cropped = target("crop", bounds.width(), bounds.height())
+        draw("crop", CROP, cropped, listOf(targets.getValue("upright").texture)) { p ->
+            glUniform4f(p.getUniformLocation("box"), bounds.left.toFloat() / width,
+                bounds.top.toFloat() / height, bounds.width().toFloat() / width, bounds.height().toFloat() / height)
+        }
+        val size = bounds.width() * bounds.height() * 4
+        val pixels = cropPixels?.takeIf { it.capacity() >= size }
+            ?: ByteBuffer.allocateDirect(size).also { cropPixels = it }
+        readPixels(cropped, pixels)
+        Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888).also {
+            pixels.rewind(); it.copyPixelsFromBuffer(pixels)
+        }
+    }
+
+    fun finish(mask: ByteArray, layout: PrivacySegmentation.Letterbox,
+               sensorWidth: Int, sensorHeight: Int): VideoFrame.TextureBuffer = onGl {
+        check(!closing)
+        require(layout.sourceWidth == width && layout.sourceHeight == height && mask.size == 160 * 160)
+        val output = outputPool.firstOrNull { it !in leased && it.width == sensorWidth && it.height == sensorHeight }
+            ?: run {
+                // Geometry changes may retire free targets, never frames retained by WebRTC.
+                outputPool.filter { it !in leased }.toList().forEach { it.close(); outputPool.remove(it) }
+                if (leased.size >= 6) throw PrivacyGpuBackpressureException()
+                Target(sensorWidth, sensorHeight).also { outputPool.add(it) }
+            }
+        val original = targets.getValue("upright")
+        if (mask.any { it.toInt() != 0 }) {
+            val alpha = uploadMask(mask)
+            val quarterW = max(1, ceil(width / 4.0).toInt())
+            val quarterH = max(1, ceil(height / 4.0).toInt())
+            val pixelated = target("pixelated", quarterW, quarterH)
+            draw("pixelate", PIXELATE, pixelated, listOf(original.texture)) { p ->
+                glUniform2f(p.getUniformLocation("imageSize"), width.toFloat(), height.toFloat())
+            }
+            val horizontal = target("blur-x", quarterW, quarterH)
+            val vertical = target("blur-y", quarterW, quarterH)
+            draw("blur", BLUR, horizontal, listOf(pixelated.texture)) { p ->
+                glUniform2f(p.getUniformLocation("stepSize"), 1f / quarterW, 0f)
+            }
+            draw("blur", BLUR, vertical, listOf(horizontal.texture)) { p ->
+                glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / quarterH)
+            }
+            draw("composite", COMPOSITE, output, listOf(original.texture, vertical.texture, alpha.texture)) { p ->
+                glUniform1i(p.getUniformLocation("rotation"), rotation)
+                glUniform4f(p.getUniformLocation("box"), layout.left / 640f, layout.top / 640f,
+                    layout.resizedWidth / 640f, layout.resizedHeight / 640f)
+            }
+        } else {
+            draw("restore", RESTORE, output, listOf(original.texture)) { p ->
+                glUniform1i(p.getUniformLocation("rotation"), rotation)
+            }
+        }
+        GlUtil.checkNoGLES2Error("privacy GPU output")
+        // Synchronize writes before shared EGL contexts sample this immutable output.
+        glFinish()
+        leased.add(output)
+        val matrix = Matrix().apply { preTranslate(0f, 1f); preScale(1f, -1f) }
+        TextureBufferImpl(sensorWidth, sensorHeight, VideoFrame.TextureBuffer.Type.RGB,
+            output.texture, matrix, handler, converter) {
+            handler.post {
+                leased.remove(output)
+                if (closing) { output.close(); outputPool.remove(output); releaseIfIdle() }
+            }
+        }
+    }
+
+    private fun uploadMask(mask: ByteArray): Target {
+        val raw = target("mask-raw", 160, 160)
+        val bytes = maskPixels.apply { clear() }
+        for (value in mask) { bytes.put(value); bytes.put(value); bytes.put(value); bytes.put(-1) }
+        bytes.rewind(); glBindTexture(GL_TEXTURE_2D, raw.texture)
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 160, 160, GL_RGBA, GL_UNSIGNED_BYTE, bytes)
+        // Same 2px opaque core, 4px outer dilation, sigma 1.5 feather as iOS.
+        val core = target("mask-core", 160, 160)
+        val outer = target("mask-outer", 160, 160)
+        val temp = target("mask-temp", 160, 160)
+        val blurred = target("mask-blur", 160, 160)
+        val alpha = target("mask-alpha", 160, 160)
+        for ((radius, output) in listOf(2 to core, 4 to outer)) {
+            draw("dilate-x", DILATE, temp, listOf(raw.texture)) { p ->
+                glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
+                glUniform1i(p.getUniformLocation("radius"), radius)
+            }
+            draw("dilate-y", DILATE, output, listOf(temp.texture)) { p ->
+                glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / 160)
+                glUniform1i(p.getUniformLocation("radius"), radius)
+            }
+        }
+        draw("feather", FEATHER, temp, listOf(outer.texture)) { p ->
+            glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
+        }
+        draw("feather", FEATHER, blurred, listOf(temp.texture)) { p ->
+            glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / 160)
+        }
+        draw("mask-max", MASK_MAX, alpha, listOf(core.texture, blurred.texture))
+        return alpha
+    }
+
+    private fun target(name: String, w: Int, h: Int): Target {
+        val old = targets[name]
+        if (old?.width == w && old.height == h) return old
+        old?.close()
+        return Target(w, h).also { targets[name] = it }
+    }
+
+    private fun draw(name: String, fragment: String, output: Target, textures: List<Int>,
+                     uniforms: (GlShader) -> Unit = {}) {
+        val p = shaders.getOrPut(name) { GlShader(VERTEX, HEADER + fragment) }
+        glBindFramebuffer(GL_FRAMEBUFFER, output.framebuffer)
+        glDisable(GL_BLEND)
+        glDisable(GL_SCISSOR_TEST)
+        glViewport(0, 0, output.width, output.height)
+        p.useProgram()
+        p.setVertexAttribArray("position", 2, VERTICES)
+        for ((i, texture) in textures.withIndex()) {
+            glActiveTexture(GL_TEXTURE0 + i); glBindTexture(GL_TEXTURE_2D, texture)
+            glUniform1i(p.getUniformLocation("tex$i"), i)
+        }
+        uniforms(p)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        GlUtil.checkNoGLES2Error("privacy $name")
+    }
+
+    private fun readPixels(target: Target, pixels: ByteBuffer) {
+        glBindFramebuffer(GL_FRAMEBUFFER, target.framebuffer)
+        pixels.clear()
+        glReadPixels(0, 0, target.width, target.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
+        GlUtil.checkNoGLES2Error("privacy read crop/model")
+    }
+
+    override fun close() {
+        if (!closeRequested.compareAndSet(false, true)) return
+        onGl {
+            if (!closing) {
+                closing = true
+                targets.values.forEach { it.close() }; targets.clear()
+                glDeleteTextures(3, planeTextures, 0)
+                shaders.values.forEach { it.release() }; shaders.clear()
+                modelBitmap.recycle()
+                outputPool.filter { it !in leased }.toList().forEach { it.close(); outputPool.remove(it) }
+                releaseIfIdle()
+            }
+        }
+    }
+
+    private fun releaseIfIdle() {
+        if (closing && leased.isEmpty()) {
+            converter.release(); egl.release(); thread.quitSafely()
+        }
+    }
+
+    private class Target(val width: Int, val height: Int) : AutoCloseable {
+        val texture: Int
+        val framebuffer: Int
+        init {
+            val ids = IntArray(1)
+            glGenTextures(1, ids, 0); texture = ids[0]
+            glBindTexture(GL_TEXTURE_2D, texture); textureParameters(GL_LINEAR)
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, null)
+            glGenFramebuffers(1, ids, 0); framebuffer = ids[0]
+            glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+                close(); error("Incomplete privacy framebuffer")
+            }
+        }
+        override fun close() { glDeleteFramebuffers(1, intArrayOf(framebuffer), 0); glDeleteTextures(1, intArrayOf(texture), 0) }
+    }
+
+    companion object {
+        private fun textureParameters(filter: Int) {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+        }
+        private val VERTICES = ByteBuffer.allocateDirect(8 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer()
+            .apply { put(floatArrayOf(-1f, -1f, 1f, -1f, -1f, 1f, 1f, 1f)); rewind() }
+        private const val VERTEX = "attribute vec2 position; varying vec2 uv; void main(){ uv=(position+1.0)*0.5; gl_Position=vec4(position,0.0,1.0); }"
+        private const val HEADER = "precision highp float; varying vec2 uv;\n"
+        private const val FORWARD = "vec2 upright(vec2 p){ if(rotation==90) return vec2(1.0-p.y,p.x); if(rotation==180) return 1.0-p; if(rotation==270) return vec2(p.y,1.0-p.x); return p; }"
+        private const val YUV = """
+            uniform sampler2D tex0,tex1,tex2; uniform int rotation;
+            vec2 sensor(vec2 p){ if(rotation==90) return vec2(p.y,1.0-p.x); if(rotation==180) return 1.0-p; if(rotation==270) return vec2(1.0-p.y,p.x); return p; }
+            void main(){ vec2 p=sensor(uv); float y=max(0.0,texture2D(tex0,p).r*255.0-16.0)*298.0/256.0;
+              float u=texture2D(tex1,p).r*255.0-128.0; float v=texture2D(tex2,p).r*255.0-128.0;
+              gl_FragColor=vec4(clamp(vec3(y+409.0/256.0*v,y-100.0/256.0*u-208.0/256.0*v,y+516.0/256.0*u)/255.0,0.0,1.0),1.0); }
+        """
+        private const val LETTERBOX = """
+            uniform sampler2D tex0; uniform vec4 box;
+            void main(){ vec2 p=(uv-box.xy)/box.zw; gl_FragColor=(p.x<0.0||p.y<0.0||p.x>1.0||p.y>1.0)?vec4(vec3(114.0/255.0),1.0):texture2D(tex0,p); }
+        """
+        private const val CROP = "uniform sampler2D tex0; uniform vec4 box; void main(){ gl_FragColor=texture2D(tex0,box.xy+uv*box.zw); }"
+        private const val RESTORE = "uniform sampler2D tex0; uniform int rotation; " + FORWARD + "void main(){ gl_FragColor=texture2D(tex0,upright(uv)); }"
+        private const val PIXELATE = """
+            uniform sampler2D tex0; uniform vec2 imageSize;
+            void main(){ vec2 p=(floor(uv*imageSize/24.0)+0.5)*24.0/imageSize; gl_FragColor=texture2D(tex0,clamp(p,0.0,1.0)); }
+        """
+        // Gaussian sigma 6 at quarter resolution = sigma 24 at full resolution.
+        private const val BLUR = """
+            uniform sampler2D tex0; uniform vec2 stepSize;
+            void main(){ vec4 value=vec4(0.0); float sum=0.0;
+              for(int i=-18;i<=18;i++){ float w=exp(-float(i*i)/72.0); value+=texture2D(tex0,uv+float(i)*stepSize)*w; sum+=w; }
+              gl_FragColor=value/sum; }
+        """
+        private const val DILATE = """
+            uniform sampler2D tex0; uniform vec2 stepSize; uniform int radius;
+            void main(){ float a=0.0; for(int i=-4;i<=4;i++){ if(i>=-radius && i<=radius) a=max(a,texture2D(tex0,uv+float(i)*stepSize).r); } gl_FragColor=vec4(vec3(a),1.0); }
+        """
+        private const val FEATHER = """
+            uniform sampler2D tex0; uniform vec2 stepSize;
+            void main(){ float value=0.0; float sum=0.0; for(int i=-5;i<=5;i++){ float w=exp(-float(i*i)/4.5); value+=texture2D(tex0,uv+float(i)*stepSize).r*w; sum+=w; } gl_FragColor=vec4(vec3(value/sum),1.0); }
+        """
+        private const val MASK_MAX = "uniform sampler2D tex0,tex1; void main(){ gl_FragColor=max(texture2D(tex0,uv),texture2D(tex1,uv)); }"
+        private const val COMPOSITE = "uniform sampler2D tex0,tex1,tex2; uniform vec4 box; uniform int rotation; " + FORWARD +
+            "void main(){ vec2 p=upright(uv); float a=texture2D(tex2,box.xy+p*box.zw).r; gl_FragColor=mix(texture2D(tex0,p),texture2D(tex1,p),a); }"
+    }
+}
+
+/** A slow encoder/renderer holds all output slots; drop input instead of overwriting or growing memory. */
+internal class PrivacyGpuBackpressureException : RuntimeException()

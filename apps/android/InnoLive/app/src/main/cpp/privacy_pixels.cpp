@@ -231,3 +231,22 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_composite(
     }
     env->ReleaseByteArrayElements(alpha, const_cast<jbyte*>(mask), JNI_ABORT);
 }
+
+// NNAPI CPU fallback is not an NPU. Probe actual exposed neural accelerators before
+// compiling another copy of the detector; absence is normal on newer Android builds.
+#include <android/NeuralNetworks.h>
+extern "C" JNIEXPORT jint JNICALL
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_neuralAcceleratorCount(
+    JNIEnv*, jobject) {
+    uint32_t count = 0;
+    if (ANeuralNetworks_getDeviceCount(&count) != ANEURALNETWORKS_NO_ERROR) return 0;
+    int accelerators = 0;
+    for (uint32_t i = 0; i < count; ++i) {
+        ANeuralNetworksDevice* device = nullptr;
+        int32_t type = ANEURALNETWORKS_DEVICE_UNKNOWN;
+        if (ANeuralNetworks_getDevice(i, &device) == ANEURALNETWORKS_NO_ERROR &&
+            ANeuralNetworksDevice_getType(device, &type) == ANEURALNETWORKS_NO_ERROR &&
+            type == ANEURALNETWORKS_DEVICE_ACCELERATOR) ++accelerators;
+    }
+    return accelerators;
+}
