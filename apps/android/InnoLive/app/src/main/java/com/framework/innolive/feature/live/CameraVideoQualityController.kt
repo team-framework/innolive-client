@@ -51,6 +51,7 @@ internal class CameraVideoQualityController(
                     return@execute
                 }
                 val actualIndex = result.get(CaptureResult.CONTROL_AE_EXPOSURE_COMPENSATION)
+                    .takeIf { request.get(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION) == exposureIndex }
                 publish(state.copy(
                     appliedExposureEV = actualIndex?.let { it * exposureStep } ?: state.appliedExposureEV,
                     stabilizationStatus = VideoQualityCapturePolicy.stabilizationStatus(
