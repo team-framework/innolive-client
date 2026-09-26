@@ -19,6 +19,8 @@ internal class PrivacyFrameRoute(initial: PrivacyFrameMode) {
         mode = next
     }
 
+    fun invalidate() = synchronized(lock) { generation++ }
+
     fun stop() = synchronized(lock) {
         generation++
         stopped = true

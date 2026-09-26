@@ -100,6 +100,7 @@ fun CameraPreview(
         targetRotation,
         isLandscape,
     ) {
+        frameAnalyzer?.resetFaceExceptions()
         hasCameraError = false
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val resolutionSelector = cameraResolution?.let { resolution ->

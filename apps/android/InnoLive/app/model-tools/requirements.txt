@@ -4,3 +4,4 @@ torchvision==0.29.0
 numpy==2.3.5
 onnx==1.19.1
 onnxruntime==1.23.2
+onnxconverter-common==1.16.0

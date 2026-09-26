@@ -5,12 +5,41 @@ import android.util.Base64
 import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.sessionRecoveryScope
+import com.framework.innolive.feature.live.privacy.PrivacyFaceLibrary
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import java.security.KeyStore
 
 class AccountDeletionCleanupStoreTest {
+    @Test
+    fun accountDeletionRemovesLocalFacesForTheNextAccount() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val library = PrivacyFaceLibrary(context)
+        library.deleteAll()
+        library.add("Previous account", FloatArray(512).apply { this[0] = 1f })
+        val base = File(context.noBackupFilesDir, "privacy-local-faces.bin")
+        assertTrue(base.exists())
+        try {
+            AccountLocalDataCleaner(context).clear(session("previous-account"))
+
+            assertFalse(base.exists())
+            assertFalse(File(base.path + ".bak").exists())
+            assertFalse(File(base.path + ".new").exists())
+            assertFalse(KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+                .containsAlias("innolive_privacy_local_faces_v1"))
+            assertTrue(library.snapshot().isEmpty())
+            assertTrue(PrivacyFaceLibrary(context).snapshot().isEmpty())
+        } finally {
+            PrivacyFaceLibrary.clearForAccountDeletion(context)
+        }
+    }
+
     @Test
     fun deletionPhaseSurvivesRecreationAndRemainsAccountScoped() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext

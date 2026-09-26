@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.webrtc.JavaI420Buffer
@@ -76,5 +77,40 @@ class PrivacyOnnxModelDeviceTest {
             result.recycle()
             bitmap.recycle()
         }
+    }
+
+    @Test fun pinnedFaceRecognizerProducesNormalizedEmbedding() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val bitmap = Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(102, 128, 153))
+        }
+        try {
+            PrivacyFaceModel(context).use { model ->
+                val result = model.predict(bitmap, floatArrayOf(
+                    .34f, .46f, .66f, .46f, .50f, .64f, .37f, .82f, .63f, .82f,
+                ))
+                assertEquals(512, result.size)
+                assertTrue(result.all(Float::isFinite))
+                assertEquals(1f, result.sumOf { (it * it).toDouble() }.toFloat(), .001f)
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    @Test fun repeatedProtectedFramesKeepProducingOutput() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val bitmap = Bitmap.createBitmap(640, 360, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(70, 120, 160))
+        }
+        try {
+            PrivacyOnnxModel(context).use { model ->
+                repeat(5) {
+                    val output = model.process(bitmap)
+                    assertEquals(640, output.width)
+                    output.recycle()
+                }
+            }
+        } finally { bitmap.recycle() }
     }
 }

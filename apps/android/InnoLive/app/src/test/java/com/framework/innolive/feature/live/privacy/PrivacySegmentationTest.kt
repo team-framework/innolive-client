@@ -68,4 +68,13 @@ class PrivacySegmentationTest {
         assertEquals(-1, expanded[82 * 160 + 80].toInt())
         assertEquals(0, expanded[90 * 160 + 90].toInt())
     }
+
+    @Test fun faceExceptionNeverRemovesPlateProtection() {
+        val box = PrivacySegmentation.Box(80f, 80f, 120f, 120f)
+        val objects = listOf(
+            PrivacySegmentation.Detection(box, .9f, 0, FloatArray(32)),
+            PrivacySegmentation.Detection(box, .9f, 1, FloatArray(32)),
+        )
+        assertEquals(listOf(objects[1]), PrivacySegmentation.protectedDetections(objects, setOf(0, 1)))
+    }
 }

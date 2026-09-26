@@ -1,0 +1,10 @@
+{
+  "checkpoint_sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+  "onnx_sha256": "4514febaf280cb408b6bfcd240df4463ba5295713e571c1133d743ff4eb1d737",
+  "max_absolute_error": 0.0,
+  "dynamic_320_shape": [
+    1,
+    1600,
+    1
+  ]
+}

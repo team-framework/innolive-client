@@ -260,4 +260,15 @@
     <string name="ai_mode_server">서버 AI</string>
     <string name="ai_mode_on_device">온디바이스 AI</string>
     <string name="ai_mode_change_failed">AI 처리 방식 전환에 실패했습니다. 다시 시도해 주세요.</string>
+    <string name="local_face_title">기기 얼굴 관리</string>
+    <string name="local_face_description">등록한 얼굴만 온디바이스 방송에서 블러 예외가 됩니다. 사진은 저장하거나 서버로 보내지 않습니다.</string>
+    <string name="local_face_model_preparing">얼굴 인식 모델 준비 중…</string>
+    <string name="local_face_model_failed">얼굴 인식 모델을 준비하지 못했습니다.</string>
+    <string name="local_face_name">이름</string>
+    <string name="local_face_enroll">카메라로 등록</string>
+    <string name="local_face_enrolling">얼굴 특징을 분석하고 있습니다…</string>
+    <string name="local_face_enroll_failed">얼굴을 등록하지 못했습니다. 한 명만 선명하게 보이도록 다시 시도해 주세요.</string>
+    <string name="local_face_store_error">기기 등록 데이터를 읽거나 저장하지 못했습니다. 얼굴 예외를 중지했습니다.</string>
+    <string name="local_face_delete">기기 등록 얼굴 삭제</string>
+    <string name="local_face_timeout">등록 시간이 지났습니다. 다시 시도해 주세요.</string>
 </resources>

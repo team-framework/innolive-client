@@ -24,4 +24,12 @@ class PrivacyFrameRouteTest {
         assertNull(route.ticket())
         assertFalse(route.deliver(pending) { error("stopped frame delivered") })
     }
+
+    @Test fun cameraResetDropsInFlightFaceExceptionFrame() {
+        val route = PrivacyFrameRoute(PrivacyFrameMode.LOCAL_PROTECTED)
+        val beforeReset = route.ticket()!!
+        route.invalidate()
+        assertFalse(route.deliver(beforeReset) { error("old frame delivered") })
+        assertTrue(route.deliver(route.ticket()!!) { })
+    }
 }

@@ -24,4 +24,15 @@
     <string name="ai_mode_server">Server AI</string>
     <string name="ai_mode_on_device">On-device AI</string>
     <string name="ai_mode_change_failed">Could not switch AI processing. Please try again.</string>
+    <string name="local_face_title">On-device faces</string>
+    <string name="local_face_description">Only registered faces can be exempted from blur on-device. Photos stay off disk and are never sent to the server.</string>
+    <string name="local_face_model_preparing">Preparing face recognition model…</string>
+    <string name="local_face_model_failed">Could not prepare the face recognition model.</string>
+    <string name="local_face_name">Name</string>
+    <string name="local_face_enroll">Register with camera</string>
+    <string name="local_face_enrolling">Analyzing face features…</string>
+    <string name="local_face_enroll_failed">Could not register the face. Show one clear face and try again.</string>
+    <string name="local_face_store_error">Could not read or save local faces. Face exemptions are disabled.</string>
+    <string name="local_face_delete">Delete local face</string>
+    <string name="local_face_timeout">Registration timed out. Please try again.</string>
 </resources>
