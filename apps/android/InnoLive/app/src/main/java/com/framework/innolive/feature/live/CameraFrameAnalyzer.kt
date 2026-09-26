@@ -47,6 +47,7 @@ class CameraFrameAnalyzer(
     private var lastStagesLogNs = System.nanoTime()
     internal var onFrameDiagnostics: ((PrivacyCaptureDiagnostics) -> Unit)? = null
     private val processorLock = Any()
+    private val cameraBuffers = PrivacyCameraBufferPool()
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
         if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext) else null
@@ -96,6 +97,7 @@ class CameraFrameAnalyzer(
             synchronized(processorLock) {
                 localProcessor?.close()
                 localProcessor = null
+                cameraBuffers.close()
             }
         }
         worker.shutdown()
@@ -123,7 +125,8 @@ class CameraFrameAnalyzer(
                 reserved = true
             }
             val copyStarted = System.nanoTime()
-            val source = JavaI420Buffer.allocate(image.width, image.height)
+            val source = if (reserved) cameraBuffers.acquire(image.width, image.height)
+                else JavaI420Buffer.allocate(image.width, image.height)
             try {
                 copyPlane(image.planes[0], image.width, image.height, source.dataY, source.strideY)
                 copyPlane(
