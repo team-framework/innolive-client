@@ -11,6 +11,8 @@ import android.view.Surface
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -25,6 +27,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +45,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.framework.innolive.R
 import java.util.concurrent.Executors
 
+@androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
 @Composable
 fun CameraPreview(
     cameraLensFacing: CameraLensFacing,
@@ -48,6 +53,8 @@ fun CameraPreview(
     frameAnalyzer: CameraFrameAnalyzer? = null,
     lockedRotation: Int? = null,
     modifier: Modifier = Modifier,
+    videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
+    onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -89,6 +96,13 @@ fun CameraPreview(
     }
     var hasCameraError by remember { mutableStateOf(false) }
     val targetRotation = lockedRotation ?: displayRotation
+    val currentSettings by rememberUpdatedState(videoQualitySettings)
+    val onCaptureStateChanged by rememberUpdatedState(onVideoQualityCaptureStateChanged)
+    var qualityController by remember { mutableStateOf<CameraVideoQualityController?>(null) }
+    SideEffect {
+        frameAnalyzer?.setVideoQualitySettings(videoQualitySettings)
+        qualityController?.update(videoQualitySettings)
+    }
 
     DisposableEffect(
         context,
@@ -101,6 +115,13 @@ fun CameraPreview(
         isLandscape,
     ) {
         hasCameraError = false
+        onCaptureStateChanged(VideoQualityCaptureState())
+        val controller = CameraVideoQualityController(ContextCompat.getMainExecutor(context)) { state ->
+            frameAnalyzer?.setAppliedExposureEV(state.appliedExposureEV)
+            onCaptureStateChanged(state)
+        }
+        controller.update(currentSettings)
+        qualityController = controller
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         val resolutionSelector = cameraResolution?.let { resolution ->
             ResolutionSelector.Builder()
@@ -117,7 +138,9 @@ fun CameraPreview(
                 )
                 .build()
         }
-        val preview = Preview.Builder()
+        val previewBuilder = Preview.Builder()
+        Camera2Interop.Extender(previewBuilder).setSessionCaptureCallback(controller.captureCallback)
+        val preview = previewBuilder
             .apply {
                 resolutionSelector?.let(::setResolutionSelector)
             }
@@ -170,11 +193,12 @@ fun CameraPreview(
                                     .build(),
                             )
                             .build()
-                        cameraProvider.bindToLifecycle(
+                        val boundCamera = cameraProvider.bindToLifecycle(
                             lifecycleOwner,
                             cameraSelector,
                             useCaseGroup,
                         )
+                        controller.bind(boundCamera)
                     } catch (_: Exception) {
                         hasCameraError = true
                     }
@@ -185,6 +209,8 @@ fun CameraPreview(
 
         onDispose {
             isDisposed = true
+            controller.close()
+            if (qualityController === controller) qualityController = null
             cameraProvider?.unbind(preview)
             imageAnalysis?.let { analysis ->
                 analysis.clearAnalyzer()
