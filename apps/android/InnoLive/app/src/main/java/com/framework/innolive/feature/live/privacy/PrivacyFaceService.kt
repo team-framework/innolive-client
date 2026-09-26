@@ -3,6 +3,8 @@ package com.framework.innolive.feature.live.privacy
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Rect
+import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -13,13 +15,23 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 
 /** One recognizer and one inference queue shared by live video and local enrollment. */
-internal class PrivacyFaceService private constructor(context: Context) {
+internal interface PrivacyFaceRecognitionService {
+    val ready: Boolean
+    val canSubmit: Boolean
+    fun prepare()
+    fun takeResult(): PrivacyFaceService.Result?
+    fun submitRecognition(image: Bitmap, bounds: Rect, generation: Long, trackId: String,
+                          capturedAtSeconds: Double): Boolean
+}
+
+internal class PrivacyFaceService private constructor(context: Context) : PrivacyFaceRecognitionService {
     data class Result(
         val generation: Long,
         val trackId: String,
         val capturedAtSeconds: Double,
         val embedding: FloatArray?,
         val sampleAvailable: Boolean,
+        val imageBox: RectF? = null,
     )
 
     private val context = context.applicationContext
@@ -31,10 +43,11 @@ internal class PrivacyFaceService private constructor(context: Context) {
     private val inferenceLock = ReentrantLock()
     @Volatile private var model: PrivacyFaceModel? = null
     val preparationFailed: Boolean get() = preparation.failed
-    val ready: Boolean get() = model != null
+    override val ready: Boolean get() = model != null
+    override val canSubmit: Boolean get() = ready && result.get() == null && !recognizing.get()
     val library: PrivacyFaceLibrary? = try { PrivacyFaceLibrary(context) } catch (_: Exception) { null }
 
-    fun prepare() {
+    override fun prepare() {
         if (ready || !preparation.tryBegin()) return
         executor.execute {
             val startedAt = SystemClock.elapsedRealtime()
@@ -68,19 +81,20 @@ internal class PrivacyFaceService private constructor(context: Context) {
         if (preparation.allowRetry()) prepare()
     }
 
-    fun takeResult(): Result? = result.getAndSet(null)
+    override fun takeResult(): Result? = result.getAndSet(null)
 
-    fun submitRecognition(image: Bitmap, generation: Long, trackId: String,
+    override fun submitRecognition(image: Bitmap, bounds: Rect, generation: Long, trackId: String,
                           capturedAtSeconds: Double): Boolean {
         if (!ready || result.get() != null || !recognizing.compareAndSet(false, true)) return false
         executor.execute {
             val output = try {
-                val embedding = inferenceLock.run {
+                val recognition = inferenceLock.run {
                     lock()
-                    try { model?.embedding(image, enrollment = false) } finally { unlock() }
+                    try { model?.recognize(image, enrollment = false) } finally { unlock() }
                 }
-                Result(generation, trackId, capturedAtSeconds, embedding,
-                    sampleAvailable = embedding != null)
+                Result(generation, trackId, capturedAtSeconds, recognition?.embedding,
+                    sampleAvailable = recognition != null,
+                    imageBox = recognition?.box?.apply { offset(bounds.left.toFloat(), bounds.top.toFloat()) })
             } catch (_: AmbiguousFaceSampleException) {
                 Result(generation, trackId, capturedAtSeconds, null, sampleAvailable = true)
             } catch (_: Exception) {
@@ -92,20 +106,6 @@ internal class PrivacyFaceService private constructor(context: Context) {
             recognizing.set(false)
         }
         return true
-    }
-
-    /** Return false when another inference is active; an unverified frame stays protected. */
-    fun verifyCurrentFace(image: Bitmap, expectedId: String,
-                          entries: List<PrivacyRegisteredFace>): Boolean {
-        if (!inferenceLock.tryLock()) return false
-        return try {
-            val embedding = model?.embedding(image, enrollment = false) ?: return false
-            PrivacyFaceMath.match(embedding, entries) == expectedId
-        } catch (_: Exception) {
-            false
-        } finally {
-            inferenceLock.unlock()
-        }
     }
 
     fun enroll(image: Bitmap, onComplete: (FloatArray?) -> Unit) {

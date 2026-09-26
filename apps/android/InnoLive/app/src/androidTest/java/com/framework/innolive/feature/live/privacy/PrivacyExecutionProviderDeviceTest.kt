@@ -61,7 +61,7 @@ class PrivacyExecutionProviderDeviceTest {
             for (configuration in listOf(PrivacyOrtConfiguration.DEFAULT)) {
                 try {
                     val loaded = System.nanoTime()
-                    PrivacyFaceModel(context, configuration::options).use { model ->
+                    PrivacyFaceModel(context, configuration::options, allowGpu = false).use { model ->
                         Log.i(TAG, "recognizer=$configuration load_ms=${(System.nanoTime() - loaded) / 1e6}")
                         repeat(5) { sample ->
                             val started = System.nanoTime()

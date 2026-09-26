@@ -20,6 +20,7 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
     private val sensorPixels = BitmapScratch()
     private val uprightPixels = BitmapScratch()
     private val restoredPixels = BitmapScratch()
+    private var geometry: Triple<Int, Int, Int>? = null
 
     fun resetFaceExceptions() { faces.reset() }
 
@@ -29,10 +30,13 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
         try {
             val rotation = frame.rotation
             require(rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270)
+            val nextGeometry = Triple(source.width, source.height, rotation)
+            if (geometry != nextGeometry) { faces.reset(); geometry = nextGeometry }
             val sensor = sensorPixels.get(source.width, source.height)
             pixels.toBitmap(source, sensor)
             val upright = rotate(sensor, rotation, uprightPixels)
             val converted = System.nanoTime()
+            faces.beginFrame(upright, frame.timestampNs)
             val protected = model.process(upright) { objects, layout ->
                 faces.exceptions(upright, objects, layout, frame.timestampNs)
             }

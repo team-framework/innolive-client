@@ -10,6 +10,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.RectF
+import android.util.Log
 import java.io.File
 import java.nio.FloatBuffer
 import java.security.MessageDigest
@@ -41,10 +43,14 @@ internal object PrivacyFaceMath {
 
 /** File-backed model loading avoids retaining a second 227 MB model copy in Java memory. */
 internal class PrivacyFaceModel(context: Context,
-                               sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() }) : AutoCloseable {
+                               private val sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() },
+                               allowGpu: Boolean = true) : AutoCloseable {
+    private val context = context.applicationContext
     private val environment = OrtEnvironment.getEnvironment()
     private val detector = PrivacyYuNetModel(context.applicationContext)
-    private val session: OrtSession
+    private var session: OrtSession? = null
+    private var gpu: PrivacyFaceGpuEngine? = null
+    val usesGpu: Boolean get() = gpu != null
 
     init {
         val modelFile = try { verifiedModelFile(context.applicationContext) }
@@ -59,21 +65,31 @@ internal class PrivacyFaceModel(context: Context,
             throw error
         }
         try {
-            check(session.inputNames == setOf("image", "landmarks"))
-            check((session.inputInfo["image"]?.info as? TensorInfo)?.shape?.contentEquals(longArrayOf(1, 3, 112, 112)) == true)
-            check((session.inputInfo["landmarks"]?.info as? TensorInfo)?.shape?.contentEquals(longArrayOf(1, 5, 2)) == true)
-            check((session.outputInfo["embedding"]?.info as? TensorInfo)?.shape?.contentEquals(longArrayOf(1, 512)) == true)
-            check(session.metadata.customMetadata["innolive.contract"] == "privacy-face-vit-kprpe-v1")
-            check(session.metadata.customMetadata["innolive.checkpoint_sha256"] == CHECKPOINT_SHA256)
+            val cpu = checkNotNull(session)
+            check(cpu.inputNames == setOf("image", "landmarks"))
+            check((cpu.inputInfo["image"]?.info as? TensorInfo)?.shape?.contentEquals(longArrayOf(1, 3, 112, 112)) == true)
+            check((cpu.inputInfo["landmarks"]?.info as? TensorInfo)?.shape?.contentEquals(longArrayOf(1, 5, 2)) == true)
+            check((cpu.outputInfo["embedding"]?.info as? TensorInfo)?.shape?.contentEquals(longArrayOf(1, 512)) == true)
+            check(cpu.metadata.customMetadata["innolive.contract"] == "privacy-face-vit-kprpe-v1")
+            check(cpu.metadata.customMetadata["innolive.checkpoint_sha256"] == CHECKPOINT_SHA256)
+            if (allowGpu) {
+                gpu = PrivacyFaceGpuEngine.validated(context.applicationContext, ::predict)
+                if (gpu != null) { session?.close(); session = null }
+            }
         } catch (error: Exception) {
-            session.close()
+            gpu?.close()
+            session?.close()
             detector.close()
             throw error
         }
     }
 
     /** Null is an untrusted or unusable sample; it must never grant a blur exception. */
-    fun embedding(image: Bitmap, enrollment: Boolean): FloatArray? {
+    fun embedding(image: Bitmap, enrollment: Boolean): FloatArray? = recognize(image, enrollment)?.embedding
+
+    data class Recognition(val embedding: FloatArray, val box: RectF)
+
+    fun recognize(image: Bitmap, enrollment: Boolean): Recognition? {
         val face = detector.oneFace(image, enrollment) ?: return null
         val square = face.square()
         val cropped = Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888)
@@ -86,7 +102,7 @@ internal class PrivacyFaceModel(context: Context,
                 postTranslate(-square.left * scale, -square.top * scale)
             }
             canvas.drawBitmap(image, transform, Paint(Paint.FILTER_BITMAP_FLAG))
-            return predict(cropped, face.normalizedLandmarks())
+            return Recognition(predict(cropped, face.normalizedLandmarks()), RectF(face.box))
         } finally {
             cropped.recycle()
         }
@@ -98,16 +114,19 @@ internal class PrivacyFaceModel(context: Context,
             landmarks.all(Float::isFinite))
         val pixels = IntArray(112 * 112)
         image.getPixels(pixels, 0, 112, 0, 0, 112, 112)
-        val input = FloatArray(3 * pixels.size)
-        for (index in pixels.indices) {
-            val pixel = pixels[index]
-            input[index] = Color.red(pixel) / 127.5f - 1f
-            input[pixels.size + index] = Color.green(pixel) / 127.5f - 1f
-            input[2 * pixels.size + index] = Color.blue(pixel) / 127.5f - 1f
+        val input = PrivacyFaceGpuEngine.normalizedPixels(pixels)
+        gpu?.let { accelerated ->
+            try { return accelerated.predict(input, landmarks) }
+            catch (error: Exception) {
+                disableGpu(accelerated, error)
+            } catch (error: LinkageError) { disableGpu(accelerated, error) }
         }
+        val cpu = session ?: sessionOptions().use { options ->
+            environment.createSession(verifiedModelFile(context).absolutePath, options)
+        }.also { session = it }
         OnnxTensor.createTensor(environment, FloatBuffer.wrap(input), longArrayOf(1, 3, 112, 112)).use { imageTensor ->
             OnnxTensor.createTensor(environment, FloatBuffer.wrap(landmarks), longArrayOf(1, 5, 2)).use { landmarkTensor ->
-                session.run(mapOf("image" to imageTensor, "landmarks" to landmarkTensor)).use { result ->
+                cpu.run(mapOf("image" to imageTensor, "landmarks" to landmarkTensor)).use { result ->
                     val output = (result["embedding"].orElseThrow() as OnnxTensor).floatBuffer
                     val values = FloatArray(output.remaining()).also(output::get)
                     return checkNotNull(PrivacyFaceMath.normalize(values)) { "Invalid face embedding" }
@@ -116,9 +135,17 @@ internal class PrivacyFaceModel(context: Context,
         }
     }
 
+    private fun disableGpu(engine: PrivacyFaceGpuEngine, error: Throwable) {
+        runCatching { engine.close() }
+        gpu = null
+        Log.i("PrivacyFace", "gpu_fallback type=${error.javaClass.simpleName}")
+    }
+
     override fun close() {
-        session.close()
-        detector.close()
+        try { gpu?.close() } finally {
+            gpu = null
+            try { session?.close() } finally { session = null; detector.close() }
+        }
     }
 
     private fun verifiedModelFile(context: Context): File {

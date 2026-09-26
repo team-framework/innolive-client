@@ -1,0 +1,4 @@
+litert-torch==0.9.4
+ai-edge-litert==2.2.0
+ai-edge-quantizer==0.9.0
+torch==2.13.0

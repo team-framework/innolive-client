@@ -49,9 +49,10 @@ internal class PrivacyFaceTracking {
         }
     }
 
-    fun next(atSeconds: Double): Track? {
+    fun next(atSeconds: Double, currentFrame: Boolean = false): Track? {
         val next = tracks.filter {
-            atSeconds - it.lastScheduledSeconds >= .25 &&
+            if (currentFrame && it.confirmations >= 2 && atSeconds < it.allowedUntilSeconds) true
+            else atSeconds - it.lastScheduledSeconds >= .25 &&
                 (it.confirmations < 2 || atSeconds >= it.allowedUntilSeconds)
         }
             .minByOrNull { it.lastScheduledSeconds }
@@ -89,16 +90,16 @@ internal class PrivacyFaceTracking {
             .map { it.copy() }
     }
 
-    fun verifyCurrentFrame(atSeconds: Double, verify: (Track) -> Boolean): Set<Int> {
-        val allowed = mutableSetOf<Int>()
-        for (candidate in candidates(atSeconds)) {
-            if (verify(candidate)) {
-                allowed += candidate.index
-                accept(candidate.id, candidate.candidate, atSeconds, atSeconds)
-            } else {
-                accept(candidate.id, null, atSeconds, atSeconds)
-            }
-        }
-        return allowed
+    /** A recent identity is only usable with a result for these exact captured pixels. */
+    fun verifiedResult(trackID: String, identity: String?, capturedAtSeconds: Double,
+                       currentSeconds: Double, recognizedBox: PrivacySegmentation.Box?): Set<Int> {
+        if (identity == null || capturedAtSeconds != currentSeconds || recognizedBox == null) return emptySet()
+        if (!capturedAtSeconds.isFinite() || !currentSeconds.isFinite() ||
+            listOf(recognizedBox.left, recognizedBox.top, recognizedBox.right, recognizedBox.bottom).any { !it.isFinite() } ||
+            recognizedBox.width <= 0 || recognizedBox.height <= 0) return emptySet()
+        val candidate = candidates(currentSeconds).singleOrNull { it.id == trackID && it.candidate == identity }
+            ?: return emptySet()
+        if (candidate.box.intersects(recognizedBox) < .5f) return emptySet()
+        return setOf(candidate.index)
     }
 }
