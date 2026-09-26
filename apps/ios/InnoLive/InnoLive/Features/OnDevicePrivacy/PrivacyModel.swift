@@ -85,9 +85,10 @@ nonisolated final class PrivacyModel {
             .transformed(by: CGAffineTransform(scaleX: size.width / layout.resized.width,
                                               y: size.height / layout.resized.height))
             .cropped(to: original.extent)
+        let strength = Self.anonymizationExtent(for: size)
         let blurred = original.clampedToExtent()
-            .applyingFilter("CIPixellate", parameters: [kCIInputScaleKey: 24])
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 24])
+            .applyingFilter("CIPixellate", parameters: [kCIInputScaleKey: strength.pixel])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: strength.blur])
             .cropped(to: original.extent)
         let result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
@@ -99,5 +100,13 @@ nonisolated final class PrivacyModel {
                                                        inference: (inferred - prepared) * 1000,
                                                        mask: (masked - inferred) * 1000,
                                                        render: (completed - masked) * 1000), faces.snapshot)
+    }
+
+    /// Fixed 24px on 1080p leaves a recognizable face. Scale with the short side.
+    static func anonymizationExtent(for size: CGSize) -> (pixel: CGFloat, blur: CGFloat) {
+        let shortSide = min(size.width, size.height)
+        let pixel = max(64, (shortSide * 0.08).rounded())
+        let blur = max(36, (shortSide * 0.045).rounded())
+        return (pixel, blur)
     }
 }
