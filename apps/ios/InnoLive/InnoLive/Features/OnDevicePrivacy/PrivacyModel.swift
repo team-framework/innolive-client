@@ -85,7 +85,7 @@ nonisolated final class PrivacyModel {
             .transformed(by: CGAffineTransform(scaleX: size.width / layout.resized.width,
                                               y: size.height / layout.resized.height))
             .cropped(to: original.extent)
-        let blurred = serverStyleBlur(original)
+        let blurred = broadcastStyleBlur(original)
         let result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
         guard let rendered = context.createCGImage(result, from: original.extent) else {
@@ -98,14 +98,23 @@ nonisolated final class PrivacyModel {
                                                        render: (completed - masked) * 1000), faces.snapshot)
     }
 
-    /// innolive-ai service/mosaic.py defaults: pixel_size 2, blur_radius 24.
-    /// The server shrinks the frame, blurs there, then scales it back. Blurring the
-    /// full frame with radius 24 leaves eyes and mouth visible.
+    /// CIGaussianBlur's radius is the Gaussian sigma. The AI server's nominal mosaic
+    /// is sigma 24 at full resolution (pixel_size 2, then sigma 12). On a 1080p
+    /// on-device preview that still leaves eyes, glasses, and the mouth. The broadcast
+    /// screen shows a smooth blur that removes those features, which matches about
+    /// sigma 72 on a 1080-short-side frame. Scale with the short side so 720p and
+    /// 1080p keep the same strength relative to the picture.
     static let mosaicPixelSize: CGFloat = 2
-    static let mosaicBlurRadius: CGFloat = 24
+    static let broadcastBlurSigmaPerShortSide: CGFloat = 1.0 / 15
 
-    private func serverStyleBlur(_ original: CIImage) -> CIImage {
+    static func broadcastBlurSigma(for extent: CGRect) -> CGFloat {
+        let shortSide = min(extent.width, extent.height)
+        return max(48, (shortSide * broadcastBlurSigmaPerShortSide).rounded())
+    }
+
+    private func broadcastStyleBlur(_ original: CIImage) -> CIImage {
         let extent = original.extent
+        let sigma = Self.broadcastBlurSigma(for: extent)
         let reducedWidth = max(1, Int((extent.width / Self.mosaicPixelSize).rounded(.up)))
         let reducedHeight = max(1, Int((extent.height / Self.mosaicPixelSize).rounded(.up)))
         let reducedExtent = CGRect(x: 0, y: 0, width: reducedWidth, height: reducedHeight)
@@ -119,7 +128,7 @@ nonisolated final class PrivacyModel {
         guard let buffer else { return original }
         context.render(reduced, to: buffer, bounds: reducedExtent, colorSpace: colorSpace)
         let blurred = CIImage(cvPixelBuffer: buffer).clampedToExtent()
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: Self.mosaicBlurRadius])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: sigma / Self.mosaicPixelSize])
             .cropped(to: reducedExtent)
         return blurred.transformed(by: CGAffineTransform(
             scaleX: extent.width / reducedExtent.width,
