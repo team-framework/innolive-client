@@ -42,9 +42,9 @@ fun WebRtcRemotePreview(
         }
 
         DisposableEffect(renderer, remoteVideoTrack) {
-            remoteVideoTrack.addSink(renderer)
+            val attached = VideoTrackLifecycle.addSink(remoteVideoTrack, renderer)
             onDispose {
-                remoteVideoTrack.removeSink(renderer)
+                if (attached) VideoTrackLifecycle.removeSink(remoteVideoTrack, renderer)
             }
         }
         DisposableEffect(renderer) {
