@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.settings.camera
 
 import androidx.compose.runtime.Immutable
+import com.framework.innolive.feature.live.BroadcastVideoQualitySettings
+import com.framework.innolive.feature.live.VideoQualityCaptureState
 
 @Immutable
 data class CameraSettingProps(
@@ -11,4 +13,7 @@ data class CameraSettingProps(
     val onOpenResolutionOptions: () -> Unit,
     val onOpenCameraDeviceOptions: () -> Unit,
     val onOpenAudioDeviceOptions: () -> Unit,
+    val videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
+    val onVideoQualitySettingsChanged: (BroadcastVideoQualitySettings) -> Unit = {},
+    val videoQualityCaptureState: VideoQualityCaptureState = VideoQualityCaptureState(),
 )
