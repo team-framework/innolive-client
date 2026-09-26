@@ -131,10 +131,9 @@ internal class PrivacyOnnxModel(private val context: Context,
             val beforeFaces = System.nanoTime()
             val exempt = exemptFaces(objects, layout)
             val afterFaces = System.nanoTime()
-            val instances = PrivacySegmentation.instanceMasks(
+            val instances = PrivacyNativeSegmentation.instanceMasks(
                 PrivacySegmentation.protectedDetections(objects, exempt),
                 prototypes,
-                PrivacyNativePixels::finiteFloats,
             )
             val mask = stabilizer.apply(instances, timestampNs / 1_000_000_000.0)
             val masked = System.nanoTime()

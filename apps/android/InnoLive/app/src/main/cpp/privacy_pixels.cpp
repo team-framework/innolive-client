@@ -250,3 +250,72 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_neuralAccel
     }
     return accelerators;
 }
+
+// Vectorize across adjacent prototype pixels. Separate multiply/add preserves the
+// Kotlin channel accumulation order, including values very close to the zero threshold.
+extern "C" JNIEXPORT jobjectArray JNICALL
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_computeInstanceMasks(
+    JNIEnv* env, jobject, jfloatArray coefficients, jintArray bounds, jfloatArray prototypes) {
+    constexpr int pixels = 160 * 160, channels = 32;
+    const int count = env->GetArrayLength(bounds) / 4;
+    if (count > 100 || env->GetArrayLength(bounds) != count * 4 ||
+        env->GetArrayLength(coefficients) != count * channels ||
+        env->GetArrayLength(prototypes) != pixels * channels) {
+        invalid(env, "Invalid instance mask buffers"); return nullptr;
+    }
+    const auto* proto = env->GetFloatArrayElements(prototypes, nullptr);
+    if (!proto) return nullptr;
+    bool valid = std::all_of(proto, proto + pixels * channels, [](float v) { return std::isfinite(v); });
+    std::vector<float> weights(count * channels);
+    std::vector<jint> boxes(count * 4);
+    if (count) {
+        env->GetFloatArrayRegion(coefficients, 0, count * channels, weights.data());
+        env->GetIntArrayRegion(bounds, 0, count * 4, boxes.data());
+    }
+    valid = valid && std::all_of(weights.begin(), weights.end(), [](float v) { return std::isfinite(v); });
+    auto arrays = valid ? env->NewObjectArray(count, env->FindClass("[B"), nullptr) : nullptr;
+    if (valid && !arrays) { env->ReleaseFloatArrayElements(prototypes, const_cast<float*>(proto), JNI_ABORT); return nullptr; }
+    for (int n = 0; n < count && valid && !env->ExceptionCheck(); ++n) {
+        const int x0 = boxes[n * 4], y0 = boxes[n * 4 + 1];
+        const int x1 = boxes[n * 4 + 2], y1 = boxes[n * 4 + 3];
+        if (x0 < 0 || y0 < 0 || x1 > 160 || y1 > 160 || x0 > 160 || y0 > 160 || x1 < 0 || y1 < 0) {
+            valid = false; break;
+        }
+        std::vector<jbyte> mask(pixels, 0);
+        bool covered = false;
+        for (int y = y0; y < y1 && valid; ++y) {
+            int x = x0;
+#if defined(__ARM_NEON) || defined(__aarch64__)
+            for (; x + 4 <= x1; x += 4) {
+                auto logits = vdupq_n_f32(0.f);
+                for (int c = 0; c < channels; ++c) {
+                    logits = vaddq_f32(logits, vmulq_n_f32(vld1q_f32(proto + c * pixels + y * 160 + x), weights[n * channels + c]));
+                }
+                float values[4]; vst1q_f32(values, logits);
+                for (int lane = 0; lane < 4; ++lane) {
+                    if (!std::isfinite(values[lane])) { valid = false; break; }
+                    if (values[lane] > 0) { mask[y * 160 + x + lane] = -1; covered = true; }
+                }
+            }
+#endif
+            for (; x < x1 && valid; ++x) {
+                float logit = 0;
+                for (int c = 0; c < channels; ++c) logit += weights[n * channels + c] * proto[c * pixels + y * 160 + x];
+                if (!std::isfinite(logit)) { valid = false; break; }
+                if (logit > 0) { mask[y * 160 + x] = -1; covered = true; }
+            }
+        }
+        if (!covered && valid && x0 < x1 && y0 < y1) for (int y = y0; y < y1; ++y)
+            std::fill(mask.begin() + y * 160 + x0, mask.begin() + y * 160 + x1, -1);
+        if (valid) {
+            const auto bytes = env->NewByteArray(pixels);
+            if (!bytes) break;
+            env->SetByteArrayRegion(bytes, 0, pixels, mask.data());
+            env->SetObjectArrayElement(arrays, n, bytes);
+            env->DeleteLocalRef(bytes);
+        }
+    }
+    env->ReleaseFloatArrayElements(prototypes, const_cast<float*>(proto), JNI_ABORT);
+    if (!valid) { invalid(env, "Non-finite instance mask or invalid bounds"); return nullptr; }
+    return arrays;
+}
