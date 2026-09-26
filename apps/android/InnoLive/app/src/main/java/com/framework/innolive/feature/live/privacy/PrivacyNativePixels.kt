@@ -46,6 +46,8 @@ internal object PrivacyNativePixels {
     external fun i420ToBitmap(y: ByteBuffer, yStride: Int, u: ByteBuffer, uStride: Int,
                              v: ByteBuffer, vStride: Int, bitmap: Bitmap)
     external fun bitmapToTensor(bitmap: Bitmap, buffer: ByteBuffer)
+    external fun copyPlane(source: ByteBuffer, rowStride: Int, pixelStride: Int,
+                           width: Int, height: Int, target: ByteBuffer, targetStride: Int)
     external fun finiteFloats(values: FloatArray): Boolean
     external fun composite(source: Bitmap, blurred: Bitmap, alpha: ByteArray, left: Int, top: Int,
                            resizedWidth: Int, resizedHeight: Int, output: Bitmap)

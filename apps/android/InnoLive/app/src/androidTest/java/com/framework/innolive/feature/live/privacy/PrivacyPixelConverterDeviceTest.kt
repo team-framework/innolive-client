@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live.privacy
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
@@ -15,6 +16,36 @@ import java.nio.ByteOrder
 
 @RunWith(AndroidJUnit4::class)
 class PrivacyPixelConverterDeviceTest {
+    @Test fun cameraPlaneCopyMatchesReferenceForStridesOffsetsAndTruncatedLastRow() {
+        for (pixelStride in listOf(1, 2, 3)) for (width in listOf(1, 17, 33, 960)) {
+            val height = if (width == 960) 540 else 3
+            val rowStride = width * pixelStride + 7
+            val prefix = 5
+            val required = (height - 1) * rowStride + (width - 1) * pixelStride + 1
+            val source = ByteBuffer.allocateDirect(prefix + required).apply {
+                repeat(capacity()) { put(it, (it * 13).toByte()) }
+                position(prefix)
+            }
+            val output = ByteBuffer.allocateDirect((width + 4) * height)
+            val expected = ByteBuffer.allocateDirect(output.capacity())
+            val cpuStarted = System.nanoTime()
+            for (y in 0 until height) for (x in 0 until width) {
+                expected.put(y * (width + 4) + x, source.get(prefix + y * rowStride + x * pixelStride))
+            }
+            val cpuMs = (System.nanoTime() - cpuStarted) / 1e6
+            val nativeStarted = System.nanoTime()
+            PrivacyNativePixels.copyPlane(source.slice(), rowStride, pixelStride, width, height, output, width + 4)
+            val nativeMs = (System.nanoTime() - nativeStarted) / 1e6
+            for (i in 0 until output.capacity()) assertEquals("stride=$pixelStride index=$i", expected.get(i), output.get(i))
+            assertEquals(prefix, source.position())
+            if (width == 960) Log.i("PrivacyPerformance", "camera_plane stride=$pixelStride reference_ms=$cpuMs native_ms=$nativeMs")
+            assertThrows(IllegalArgumentException::class.java) {
+                PrivacyNativePixels.copyPlane(source.slice().apply { limit(required - 1) }.slice(), rowStride,
+                    pixelStride, width, height, output, width + 4)
+            }
+        }
+    }
+
     @Before fun initializeWebRtc() {
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(
             InstrumentationRegistry.getInstrumentation().targetContext).createInitializationOptions())

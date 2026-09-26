@@ -8,6 +8,7 @@ import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.privacy.PrivacyFrameMode
 import com.framework.innolive.feature.live.privacy.PrivacyFrameProcessor
 import com.framework.innolive.feature.live.privacy.PrivacyFrameRoute
+import com.framework.innolive.feature.live.privacy.PrivacyNativePixels
 import org.webrtc.CapturerObserver
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
@@ -38,6 +39,7 @@ class CameraFrameAnalyzer(
     private val delivered = AtomicLong()
     private var lastLogNs = System.nanoTime()
     private var lastCaptureFormat: Pair<Int, Int>? = null
+    private var lastStagesLogNs = System.nanoTime()
     private val processorLock = Any()
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
@@ -114,6 +116,7 @@ class CameraFrameAnalyzer(
                 }
                 reserved = true
             }
+            val copyStarted = System.nanoTime()
             val source = JavaI420Buffer.allocate(image.width, image.height)
             try {
                 copyPlane(image.planes[0], image.width, image.height, source.dataY, source.strideY)
@@ -146,8 +149,9 @@ class CameraFrameAnalyzer(
                     image.imageInfo.timestamp,
                 )
                 if (reserved) {
+                    val copyMs = (System.nanoTime() - copyStarted) / 1e6
                     try {
-                        worker.execute { processProtected(frame, currentTicket) }
+                        worker.execute { processProtected(frame, currentTicket, copyMs) }
                         reserved = false // The worker now owns the frame and the in-flight slot.
                     } catch (error: Exception) {
                         frame.release()
@@ -173,7 +177,7 @@ class CameraFrameAnalyzer(
         }
     }
 
-    private fun processProtected(frame: VideoFrame, ticket: PrivacyFrameRoute.Ticket) {
+    private fun processProtected(frame: VideoFrame, ticket: PrivacyFrameRoute.Ticket, cameraCopyMs: Double) {
         try {
             val outgoing = synchronized(processorLock) {
                 val processor = checkNotNull(localProcessor)
@@ -181,10 +185,17 @@ class CameraFrameAnalyzer(
                 processor.process(frame)
             }
             try {
+                val deliveryStarted = System.nanoTime()
                 route.deliver(ticket) {
                     capturerObserver.onFrameCaptured(outgoing)
                     delivered.incrementAndGet()
                     if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
+                }
+                val completed = System.nanoTime()
+                if (BuildConfig.DEBUG && completed - lastStagesLogNs >= 5_000_000_000L) {
+                    lastStagesLogNs = completed
+                    Log.i("PrivacyPipeline", "camera_copy_ms=$cameraCopyMs " +
+                        "delivery_ms=${(completed - deliveryStarted) / 1e6}")
                 }
             } finally { outgoing.release() }
         } catch (_: Exception) {
@@ -215,6 +226,13 @@ private fun copyPlane(
 ) {
     val source = plane.buffer.duplicate()
     val sourceStart = source.position()
+
+    if (source.isDirect && target.isDirect) {
+        PrivacyNativePixels.copyPlane(source.slice(), plane.rowStride, plane.pixelStride,
+            width, height, target.duplicate().apply { clear() }, targetStride)
+        target.position(0)
+        return
+    }
 
     repeat(height) { row ->
         val sourceRow = sourceStart + row * plane.rowStride

@@ -31,6 +31,7 @@ internal class PrivacyOnnxModel(private val context: Context,
     private val gpuInput = FloatArray(3 * 640 * 640)
     private var gpuChecked = false
     private var gpu: PrivacyDetectorGpuEngine? = null
+    val usesGpu: Boolean get() = gpu != null
     var lastTimings: PrivacyModelTimings? = null
         private set
 

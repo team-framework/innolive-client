@@ -107,6 +107,37 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_i420ToBitma
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_copyPlane(
+    JNIEnv* env, jobject, jobject source, jint rowStride, jint pixelStride, jint width,
+    jint height, jobject target, jint targetStride) {
+    const auto* input = static_cast<const uint8_t*>(env->GetDirectBufferAddress(source));
+    auto* output = static_cast<uint8_t*>(env->GetDirectBufferAddress(target));
+    const int64_t rowBytes = (static_cast<int64_t>(width) - 1) * pixelStride + 1;
+    if (!input || !output || width <= 0 || height <= 0 || pixelStride <= 0 ||
+        rowStride < rowBytes || targetStride < width ||
+        env->GetDirectBufferCapacity(source) < static_cast<int64_t>(height - 1) * rowStride + rowBytes ||
+        env->GetDirectBufferCapacity(target) < static_cast<int64_t>(height - 1) * targetStride + width) {
+        invalid(env, "Invalid camera plane bounds"); return;
+    }
+    for (int y = 0; y < height; ++y) {
+        const auto* row = input + y * rowStride;
+        auto* dest = output + y * targetStride;
+        if (pixelStride == 1) {
+            std::memcpy(dest, row, width);
+            continue;
+        }
+        int x = 0;
+#if defined(__ARM_NEON) || defined(__aarch64__)
+        // Leave the final group to scalar code: camera buffers may omit the last padding byte.
+        if (pixelStride == 2) for (; x + 16 < width; x += 16) {
+            vst1q_u8(dest + x, vld2q_u8(row + 2 * x).val[0]);
+        }
+#endif
+        for (; x < width; ++x) dest[x] = row[x * pixelStride];
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_bitmapToTensor(
     JNIEnv* env, jobject, jobject bitmap, jobject buffer) {
     AndroidBitmapInfo info{};
