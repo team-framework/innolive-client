@@ -90,6 +90,10 @@ internal class CameraVideoQualityController(
         if (captureChanged) applyControls()
     }
 
+    fun onCameraOpened() {
+        if (!closed) applyControls()
+    }
+
     private fun applyControls() {
         val camera = camera ?: return
         val operation = ++generation
