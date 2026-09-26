@@ -17,6 +17,9 @@ import java.security.MessageDigest
 internal class PrivacyOnnxModel(context: Context) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private val session: OrtSession
+    private val blur = PrivacyBitmapBlur()
+    var lastTimings: PrivacyModelTimings? = null
+        private set
 
     init {
         val bytes = context.assets.open(MODEL_ASSET).use { it.readBytes() }
@@ -39,6 +42,7 @@ internal class PrivacyOnnxModel(context: Context) : AutoCloseable {
         upright: Bitmap,
         exemptFaces: (List<PrivacySegmentation.Detection>, PrivacySegmentation.Letterbox) -> Set<Int> = { _, _ -> emptySet() },
     ): Bitmap {
+        val started = System.nanoTime()
         val layout = PrivacySegmentation.Letterbox(upright.width, upright.height)
         val modelInput = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
         try {
@@ -62,17 +66,30 @@ internal class PrivacyOnnxModel(context: Context) : AutoCloseable {
                 input[2 * pixels.size + index] = Color.blue(pixel) / 255f
             }
             val tensor = OnnxTensor.createTensor(environment, java.nio.FloatBuffer.wrap(input), longArrayOf(1, 3, 640, 640))
+            val prepared = System.nanoTime()
             try {
                 session.run(mapOf("images" to tensor)).use { result ->
+                    val inferred = System.nanoTime()
                     val predictions = (result["output0"].orElseThrow() as OnnxTensor).floatBuffer
                     val prototypes = (result["output1"].orElseThrow() as OnnxTensor).floatBuffer
                     val objects = PrivacySegmentation.detections(FloatArray(predictions.remaining()).also(predictions::get))
+                    val beforeFaces = System.nanoTime()
                     val exempt = exemptFaces(objects, layout)
+                    val afterFaces = System.nanoTime()
                     val mask = PrivacySegmentation.unionMask(
                         PrivacySegmentation.protectedDetections(objects, exempt),
                         FloatArray(prototypes.remaining()).also(prototypes::get),
                     )
-                    return PrivacyMaskRenderer.render(upright, mask, layout)
+                    val masked = System.nanoTime()
+                    val output = PrivacyMaskRenderer.render(upright, mask, layout, blur::apply)
+                    val rendered = System.nanoTime()
+                    lastTimings = PrivacyModelTimings(
+                        (prepared - started) / 1e6, (inferred - prepared) / 1e6,
+                        (afterFaces - beforeFaces) / 1e6,
+                        (beforeFaces - inferred + masked - afterFaces) / 1e6,
+                        (rendered - masked) / 1e6,
+                    )
+                    return output
                 }
             } finally {
                 tensor.close()
@@ -82,7 +99,7 @@ internal class PrivacyOnnxModel(context: Context) : AutoCloseable {
         }
     }
 
-    override fun close() { session.close() }
+    override fun close() { blur.close(); session.close() }
 
     companion object {
         private const val MODEL_ASSET = "privacy-detector.onnx"
@@ -91,3 +108,9 @@ internal class PrivacyOnnxModel(context: Context) : AutoCloseable {
             .digest(bytes).joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 }
+
+/** Numeric diagnostics only: no image, identity, embedding or endpoint is retained. */
+internal data class PrivacyModelTimings(
+    val prepareMs: Double, val inferenceMs: Double, val facesMs: Double,
+    val maskMs: Double, val renderMs: Double,
+)

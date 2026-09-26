@@ -3,6 +3,8 @@ package com.framework.innolive.feature.live.privacy
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.util.Log
+import com.framework.innolive.BuildConfig
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
 
@@ -10,10 +12,14 @@ import org.webrtc.VideoFrame
 internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
     private val model = PrivacyOnnxModel(context.applicationContext)
     private val faces = PrivacyFaceCoordinator(context.applicationContext)
+    var lastTimings: PrivacyFrameTimings? = null
+        private set
+    private var lastLogNs = System.nanoTime()
 
     fun resetFaceExceptions() { faces.reset() }
 
     fun process(frame: VideoFrame): VideoFrame {
+        val started = System.nanoTime()
         val source = checkNotNull(frame.buffer.toI420()) { "Camera frame could not be converted to I420" }
         try {
             val sensor = i420ToBitmap(source)
@@ -21,16 +27,27 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
             require(rotation == 0 || rotation == 90 || rotation == 180 || rotation == 270)
             val upright = rotate(sensor, rotation)
             if (upright !== sensor) sensor.recycle()
+            val converted = System.nanoTime()
             try {
                 val protected = model.process(upright) { objects, layout ->
                     faces.exceptions(upright, objects, layout, frame.timestampNs)
                 }
+                val processed = System.nanoTime()
                 try {
                     val restored = rotate(protected, (360 - rotation) % 360)
                     if (restored !== protected) protected.recycle()
                     try {
                         check(restored.width == frame.buffer.width && restored.height == frame.buffer.height)
-                        return VideoFrame(bitmapToI420(restored), rotation, frame.timestampNs)
+                        val output = VideoFrame(bitmapToI420(restored), rotation, frame.timestampNs)
+                        val completed = System.nanoTime()
+                        lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
+                            checkNotNull(model.lastTimings), (completed - processed) / 1e6,
+                            (completed - started) / 1e6)
+                        if (BuildConfig.DEBUG && completed - lastLogNs >= 5_000_000_000L) {
+                            lastLogNs = completed
+                            Log.i("PrivacyPipeline", "size=${frame.buffer.width}x${frame.buffer.height} $lastTimings")
+                        }
+                        return output
                     } finally {
                         restored.recycle()
                     }
@@ -115,3 +132,7 @@ internal class PrivacyFrameProcessor(context: Context) : AutoCloseable {
         return output
     }
 }
+
+internal data class PrivacyFrameTimings(
+    val inputMs: Double, val model: PrivacyModelTimings, val outputMs: Double, val totalMs: Double,
+)

@@ -17,7 +17,7 @@
 
 얼굴 검출에는 iOS와 같은 YuNet 2023mar (`8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`), embedding에는 ViT-Base KP-RPE WebFace12M (`04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9`)을 사용한다. ONNX 출력 SHA-256은 각각 `4514febaf280cb408b6bfcd240df4463ba5295713e571c1133d743ff4eb1d737`, `812eeaa58ed70794dd67e1efdb1d9f614b0be18e951d2c6bc2c8876c2c34d712`이다. AdaFace FP16 모델은 Git LFS asset이며 약 227MB다. 앱은 처음 사용 시 no-backup 영역에 검증한 모델을 복사한다.
 
-입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android 합성은 mosaic이며 iOS의 Gaussian 경계 합성과 시각적 결과가 다르다.
+입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android도 픽셀화(24px) → Gaussian 블러(24px) → 마스크 합성을 수행한다. 마스크는 2px 중심을 완전히 불투명하게 유지하고, 4px 확장 후 Gaussian(1.5px)을 적용한 바깥 영역과 최댓값으로 합성한다. Android 12(API 31) 이상에서는 재사용하는 RenderEffect·HardwareRenderer로 GPU 블러를 수행한다. Android 11 또는 GPU 오류 시에는 1/4 크기의 중간 이미지에서 sigma 6의 분리 Gaussian convolution을 수행한다. 이 축소는 필터에만 적용하며 검출 마스크나 송출 크기는 줄이지 않는다. Core Image와 픽셀 단위로 동일한 결과를 보장하지는 않는다. 빈 마스크도 독립된 출력 Bitmap을 반환하며, GPU 이미지·HardwareBuffer를 닫기 전에 CPU 복사본을 확보한다.
 
 기기 얼굴 관리는 기존 카메라의 500px 중앙 촬영과 3회 안정 검사를 사용한다. 모델 준비가 끝난 뒤 30초 촬영 시간이 시작된다. YuNet은 BGR 0–255 입력과 32배수 padding, stride 8/16/32 decode와 NMS 0.3을 사용한다. 등록은 점수 0.9 이상·최소 40px, 영상 비교는 0.6 이상·최소 24px을 사용한다. 얼굴의 1.5배 정사각형 RGB 112×112 crop과 정규화 landmark를 AdaFace에 전달한다. 원본·좌우반전 norm 가중 결합은 ONNX 모델에 포함된다.
 
@@ -33,3 +33,53 @@
 - 실제 두 명 이상 등록·동시 등장·교차·재등장·개별 삭제 후 재등록·비행기 모드에서 등록자만 예외 처리되는지 확인해야 한다. iOS 기준은 `docs/ios-local-face-registration.md`다.
 
 API·시그널링 필드 변경은 없다. 세션과 서버 호환 조건은 `contracts/api/ai-processing-v1.md`를 따른다.
+
+
+## 끊김 원인 계측 (2026-09-26)
+
+사용자가 끊김을 보고한 모드는 온디바이스 AI다. SM-S931N(Android 16)에서 실제
+ONNX 모델과 `PrivacyFrameProcessor`를 호출했다. 얼굴 사진 대신 합성 I420·Bitmap을
+사용했고, 각 크기를 4회 처리한 뒤 첫 표본을 제외했다. 아래 범위는 두 실행에서 나온
+표본이다. 실제 카메라·인코더·네트워크·YouTube까지 포함한 송출 FPS는 아니다.
+
+| 구간 | 720p | 1080p |
+| --- | ---: | ---: |
+| 입력 I420→Bitmap 및 회전 | 84~103ms | 189~231ms |
+| 출력 Bitmap→I420 및 회전 | 51~62ms | 112~137ms |
+| YOLO 추론 | 70~87ms | 70~91ms |
+| 검출 decode·마스크 처리 (빈 검출 합성 입력) | 34~41ms | 34~42ms |
+| 전체 프레임 처리 (등록 얼굴 확인·보호 영역 없음) | 252~305ms | 422~515ms |
+| 픽셀화·Gaussian·전체 보호 마스크 합성, 최종 GPU 경로 | 31~33ms | 49~58ms |
+
+AdaFace 합성 입력 추론은 별도 측정에서 424~456ms였다. 실제 등록 얼굴 확인은
+YuNet·crop·매칭도 포함하므로 이 측정이 얼굴 예외 경로 전체의 시간은 아니다.
+CPU Gaussian 실험의 전체 보호 영역 렌더 중앙값은 720p 69ms, 1080p 141ms였고,
+최종 GPU 경로에서는 각각 31ms, 49ms였다. GPU 경로 테스트는 CPU 대체 경로로
+통과하지 못하도록 실제 GPU 사용도 확인했다. 기기 온도·클럭·순서가 통제된 반복
+성능 평가가 아니므로 실행 간 전체 지연 차이를 Gaussian 변경의 효과로 보지 않는다.
+
+현재 Android는 기본 CPU ONNX 실행, Kotlin의 프레임 전체 YUV↔RGB 변환,
+등록 얼굴 예외 후보의 동기 현재 프레임 재확인을 한 송출 처리 흐름에서 수행한다.
+CameraX KEEP_ONLY_LATEST는 밀린 원본의 누적을 막지만 이 처리 비용을 줄이지 않는다.
+얼굴 확인이 없어도 720p 처리량은 약 3~4fps, 1080p는 약 2fps로 제한될 수 있다.
+따라서 기기 성능만으로 설명하기 전에 이 구현 비용을 개선해야 한다.
+
+iOS는 YOLO에 Core ML CPU·Neural Engine 설정, AdaFace에 CPU·GPU 설정을 사용하고,
+Core Image로 필터·회전·픽셀 버퍼 처리를 수행한다. iOS의 얼굴 인식은 별도 비동기
+worker에서 실행한다. Android의 동기 현재 프레임 확인은 같은 위치에 다른 사람이
+들어올 때 예외가 이어지는 문제를 막기 위한 것이므로, 단순히 예외 캐시를 비동기로
+재사용하는 방식으로 되돌리면 안 된다. 같은 장면·조건의 iOS/Android 비교는 아직 없다.
+
+후속 최적화 순서는 YUV 변환의 네이티브/가속 경로, ONNX 실행 제공자 비교,
+현재 프레임 확인을 보장하는 얼굴 인식·송출 일정 개선이다. 이번 변경은 GPU 블러와
+계측을 추가하며, 기존 변환·추론·인식 일정의 성능 개선은 포함하지 않는다.
+실제 방송 중 Debug 로그의 `PrivacyPipeline`은 5초 간격으로 숫자 처리 시간만 출력한다.
+이미지·이름·embedding·토큰·서버 주소는 기록하지 않는다.
+
+검증: 단위 테스트 168개, SM-S931N 모델·프레임·블러·계측 테스트 10개 통과.
+CPU 대체 경로의 블록 경계 블러, 마스크 중심 불투명성·바깥 경계, 빈 마스크·1px
+입력의 원본 생명주기, GPU 반복 프레임·크기 변경을 확인했다. Android 11 실제 기기,
+실제 다인 장면, 장시간 발열과 YouTube 수신 화면은 미검증이다.
+
+- [Android 공식 RenderEffect·HardwareRenderer Bitmap 블러 안내](https://developer.android.com/guide/topics/renderscript/migrate#image-blur)
+- 재현: `./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.framework.innolive.feature.live.privacy.PrivacyPerformanceDeviceTest --offline`
