@@ -2,6 +2,8 @@ package com.framework.innolive.feature.live.privacy
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -57,7 +59,8 @@ internal class PrivacyFaceCoordinator(context: Context) {
         return verified
     }
 
-    private fun recognitionCrop(upright: Bitmap, box: PrivacySegmentation.Box,
+    /** The caller owns the returned pixels, including when the crop covers the whole frame. */
+    internal fun recognitionCrop(upright: Bitmap, box: PrivacySegmentation.Box,
                                 layout: PrivacySegmentation.Letterbox): Bitmap? {
         val real = toImageBox(box, layout, upright.width, upright.height) ?: return null
         if (min(real.width, real.height) < 24) return null
@@ -68,8 +71,17 @@ internal class PrivacyFaceCoordinator(context: Context) {
         val y0 = max(0, floor(real.top - marginY).toInt())
         val x1 = min(upright.width, ceil(real.right + marginX).toInt())
         val y1 = min(upright.height, ceil(real.bottom + marginY).toInt())
-        return if (x1 > x0 && y1 > y0) Bitmap.createBitmap(upright, x0, y0, x1 - x0, y1 - y0)
-        else null
+        if (x1 <= x0 || y1 <= y0) return null
+        // createBitmap(source, ...) can return source for a full-frame immutable bitmap.
+        val crop = Bitmap.createBitmap(x1 - x0, y1 - y0, Bitmap.Config.ARGB_8888)
+        try {
+            Canvas(crop).drawBitmap(upright, Rect(x0, y0, x1, y1),
+                Rect(0, 0, crop.width, crop.height), null)
+            return crop
+        } catch (error: Throwable) {
+            crop.recycle()
+            throw error
+        }
     }
 
     private fun toImageBox(box: PrivacySegmentation.Box, layout: PrivacySegmentation.Letterbox,
