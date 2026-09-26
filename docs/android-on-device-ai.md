@@ -301,15 +301,16 @@ Android 미디어 처리만 변경하며 서버 API·시그널링·얼굴 등록
   변경과 종료 시 이전 세대의 결과를 송출하지 않는다. Debug 로그에 5초마다
   보호 프레임 수신·바쁨으로 폐기·송출 건수를 기록한다. WebRTC의 영상 sender
   통계에서도 인코딩·송신 프레임, 패킷, 바이트의 누적값을 5초마다 기록해
-  분석 처리량과 인코더·네트워크 구간을 구분할 수 있게 했다.
+  분석 처리량과 인코더·네트워크 구간을 구분할 수 있게 했다. 실제 카메라
+  crop 크기에 맞춰 WebRTC 출력 형식을 최대 30fps로 설정한다.
 - iOS `PrivacyMaskStabilizer`의 객체별 IoU 0.30 매칭, 0.12초 경계 감쇠,
   0.20초 이상 간격 초기화, 사라진 객체의 즉시 제거를 Android에 적용했다.
   새 보호 영역은 즉시 적용하며 얼굴 블러 예외 정책에는 영향을 주지 않는다.
 
 Android는 여전히 CameraX YUV→Bitmap→I420 변환과 마스크 CPU 합성을 거친다.
 iOS의 Core Image→CVPixelBuffer 경로와 같은 GPU 종단 처리라고 해석하면 안 된다.
-또 iOS에는 1080p/720p의 30/24fps capture preset 및 WebRTC 출력 형식 설정이
-있지만 Android에는 해상도 선택만 있다. 실제 방송 FPS·인코더·YouTube 수신,
+iOS에는 1080p/720p의 30/24fps 실제 capture preset이 있지만 Android에는
+해상도 선택과 WebRTC 30fps 출력 상한만 있다. 실제 방송 FPS·인코더·YouTube 수신,
 GPU와 얼굴 인식의 동시 부하 및 발열은 실기기에서 확인해야 한다.
 
 검증: Android 단위 테스트 179개 통과. Pixel_10 에뮬레이터에서 LiteRT CPU/ONNX 출력 비교, GPU 미지원 시 제품 ONNX fallback, 프레임 회전·생명주기·반복 처리, 보호 작업 중 CameraX 입력 즉시 해제·바쁜 프레임 폐기 테스트를 통과했다. GPU 실기기 실행 테스트는 에뮬레이터에서 건너뛰며 SM-S931N 재연결 후 실행해야 한다.

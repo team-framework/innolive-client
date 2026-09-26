@@ -364,6 +364,11 @@ class WebRtcConnection(
                     }
                 }
             },
+            onCaptureFormat = { width, height ->
+                executeOnOwner {
+                    if (isActive()) videoSource?.adaptOutputFormat(width, height, 30)
+                }
+            },
         )
     }
 

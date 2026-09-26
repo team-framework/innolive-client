@@ -23,6 +23,7 @@ class CameraFrameAnalyzer(
     initialAnonymizationEnabled: Boolean = true,
     private val onProcessingFailure: () -> Unit = {},
     private val onProtectedFrameSent: () -> Unit = {},
+    private val onCaptureFormat: (Int, Int) -> Unit = { _, _ -> },
 ) : ImageAnalysis.Analyzer {
     private val enabled = AtomicBoolean(false)
     private val protectedFrameReported = AtomicBoolean(false)
@@ -36,6 +37,7 @@ class CameraFrameAnalyzer(
     private val dropped = AtomicLong()
     private val delivered = AtomicLong()
     private var lastLogNs = System.nanoTime()
+    private var lastCaptureFormat: Pair<Int, Int>? = null
     private val processorLock = Any()
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
@@ -98,6 +100,12 @@ class CameraFrameAnalyzer(
             if (!enabled.get()) return
             val currentTicket = route.ticket() ?: return
             ticket = currentTicket
+            val crop = image.cropRect
+            val format = crop.width() to crop.height()
+            if (lastCaptureFormat != format) {
+                lastCaptureFormat = format
+                onCaptureFormat(format.first, format.second)
+            }
             if (currentTicket.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
                 received.incrementAndGet()
                 if (!processing.compareAndSet(false, true)) {
@@ -124,7 +132,6 @@ class CameraFrameAnalyzer(
                     source.strideV,
                 )
 
-                val crop = image.cropRect
                 val output = source.cropAndScale(
                     crop.left,
                     crop.top,

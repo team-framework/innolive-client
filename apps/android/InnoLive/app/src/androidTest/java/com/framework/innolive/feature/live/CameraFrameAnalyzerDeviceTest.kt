@@ -18,6 +18,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class CameraFrameAnalyzerDeviceTest {
@@ -29,6 +30,7 @@ class CameraFrameAnalyzerDeviceTest {
         val captured = AtomicInteger()
         val delivered = CountDownLatch(1)
         val failed = CountDownLatch(1)
+        val captureFormat = AtomicReference<Pair<Int, Int>>()
         val observer = object : CapturerObserver {
             override fun onCapturerStarted(success: Boolean) = Unit
             override fun onCapturerStopped() = Unit
@@ -39,7 +41,8 @@ class CameraFrameAnalyzerDeviceTest {
             }
         }
         val analyzer = CameraFrameAnalyzer(observer, context, initialOnDevice = true,
-            onProcessingFailure = { failed.countDown() })
+            onProcessingFailure = { failed.countDown() },
+            onCaptureFormat = { width, height -> captureFormat.set(width to height) })
         analyzer.start()
         try {
             val first = image(1_000_000_000L)
@@ -48,6 +51,7 @@ class CameraFrameAnalyzerDeviceTest {
             val elapsedMs = (System.nanoTime() - started) / 1e6
             assertTrue("Camera analysis waited for model inference: $elapsedMs ms", elapsedMs < 500)
             assertTrue(first.second.await(1, TimeUnit.SECONDS))
+            assertEquals(640 to 480, captureFormat.get())
 
             val busy = image(1_010_000_000L)
             analyzer.analyze(busy.first)
