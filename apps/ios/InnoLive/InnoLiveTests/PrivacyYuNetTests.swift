@@ -76,6 +76,19 @@ final class PrivacyYuNetTests: XCTestCase {
         XCTAssertEqual(face.landmarks, [CGPoint(x:8,y:8), CGPoint(x:16,y:8), CGPoint(x:12,y:12), CGPoint(x:8,y:16), CGPoint(x:16,y:16)])
     }
 
+    func testLandmarksUseDistinctRowsColumnsAndAllFiveOffsets() throws {
+        var output = emptyOutputs(width: 64, height: 32)
+        let index = 11 // row 1, column 3 at stride 8
+        output["cls_8"]![index] = 1
+        output["obj_8"]![index] = 1
+        output["kps_8"]!.replaceSubrange(index * 10..<index * 10 + 10,
+            with: [0.25, 0.5, 1.5, 0.75, -0.25, 2, 3, -0.5, 0.5, 1.25])
+        let faces = try PrivacyYuNetDecoding.decode(outputs: output, width: 64, height: 32)
+        XCTAssertEqual(faces.count, 1)
+        XCTAssertEqual(faces.first?.landmarks, [CGPoint(x: 26, y: 12), CGPoint(x: 36, y: 14),
+            CGPoint(x: 22, y: 24), CGPoint(x: 48, y: 4), CGPoint(x: 28, y: 18)])
+    }
+
     func testIntegerBoxNMSRemovesLowerScoringDuplicate() throws {
         var output = emptyOutputs()
         for (index, score, dx) in [(5, Float(0.99), Float(0.5)), (6, Float(0.95), Float(-0.5))] {

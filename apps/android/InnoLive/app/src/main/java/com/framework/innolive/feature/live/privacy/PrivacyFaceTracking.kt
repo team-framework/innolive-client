@@ -2,7 +2,7 @@ package com.framework.innolive.feature.live.privacy
 
 import java.util.UUID
 
-/** Short-lived identity lease. Geometry never grants an exception by itself. */
+/** Two recognition confirmations grant a bounded cache while unambiguous geometry continues. */
 internal class PrivacyFaceTracking {
     data class Track(
         val id: String = UUID.randomUUID().toString(),
@@ -11,6 +11,7 @@ internal class PrivacyFaceTracking {
         var lastScheduledSeconds: Double = Double.NEGATIVE_INFINITY,
         var candidate: String? = null,
         var confirmations: Int = 0,
+        var lastResultSeconds: Double = Double.NEGATIVE_INFINITY,
         var lastConfirmedSeconds: Double = Double.NEGATIVE_INFINITY,
         var allowedUntilSeconds: Double = Double.NEGATIVE_INFINITY,
     )
@@ -26,7 +27,7 @@ internal class PrivacyFaceTracking {
     fun update(boxes: Map<Int, PrivacySegmentation.Box>, atSeconds: Double) {
         if (!atSeconds.isFinite()) { reset(); return }
         val previousTime = lastTimeSeconds
-        if (previousTime != null && (atSeconds <= previousTime || atSeconds - previousTime >= 1.0)) {
+        if (previousTime != null && (atSeconds <= previousTime || atSeconds - previousTime >= CACHE_SECONDS)) {
             tracks = emptyList()
         }
         lastTimeSeconds = atSeconds
@@ -49,12 +50,9 @@ internal class PrivacyFaceTracking {
         }
     }
 
-    fun next(atSeconds: Double, currentFrame: Boolean = false): Track? {
-        val next = tracks.filter {
-            if (currentFrame && it.confirmations >= 2 && atSeconds < it.allowedUntilSeconds) true
-            else atSeconds - it.lastScheduledSeconds >= .25 &&
-                (it.confirmations < 2 || atSeconds >= it.allowedUntilSeconds)
-        }
+    fun next(atSeconds: Double): Track? {
+        if (!atSeconds.isFinite()) return null
+        val next = tracks.filter { atSeconds - it.lastScheduledSeconds >= RECHECK_SECONDS }
             .minByOrNull { it.lastScheduledSeconds }
         next?.lastScheduledSeconds = atSeconds
         return next?.copy()
@@ -63,9 +61,12 @@ internal class PrivacyFaceTracking {
     fun accept(trackID: String, match: String?, capturedAtSeconds: Double,
                nowSeconds: Double, sampleAvailable: Boolean = true) {
         val track = tracks.firstOrNull { it.id == trackID } ?: return
+        if (!capturedAtSeconds.isFinite() || !nowSeconds.isFinite()) { reset(); return }
+        if (capturedAtSeconds <= track.lastResultSeconds) return
+        track.lastResultSeconds = capturedAtSeconds
         if (!sampleAvailable) return
         if (match == null || nowSeconds < capturedAtSeconds ||
-            nowSeconds - capturedAtSeconds >= .75) {
+            nowSeconds - capturedAtSeconds >= CACHE_SECONDS) {
             track.candidate = null
             track.confirmations = 0
             track.allowedUntilSeconds = Double.NEGATIVE_INFINITY
@@ -80,26 +81,26 @@ internal class PrivacyFaceTracking {
             track.allowedUntilSeconds = Double.NEGATIVE_INFINITY
         }
         track.lastConfirmedSeconds = capturedAtSeconds
-        if (track.confirmations >= 2) track.allowedUntilSeconds = capturedAtSeconds + .75
+        if (track.confirmations >= 2) track.allowedUntilSeconds = capturedAtSeconds + CACHE_SECONDS
     }
 
-    /** A lease only selects faces to verify; it never authorizes an unverified video frame. */
-    private fun candidates(atSeconds: Double): List<Track> {
-        val qualified = tracks.filter { it.candidate != null && it.confirmations >= 2 && atSeconds < it.allowedUntilSeconds }
+    fun allowed(atSeconds: Double): Set<Int> {
+        if (!atSeconds.isFinite()) return emptySet()
+        val qualified = tracks.filter { it.candidate != null && it.confirmations >= 2 &&
+            atSeconds >= it.lastConfirmedSeconds && atSeconds < it.allowedUntilSeconds }
         return qualified.filter { candidate -> qualified.count { it.candidate == candidate.candidate } == 1 }
-            .map { it.copy() }
+            .map { it.index }.toSet()
     }
 
-    /** A recent identity is only usable with a result for these exact captured pixels. */
-    fun verifiedResult(trackID: String, identity: String?, capturedAtSeconds: Double,
-                       currentSeconds: Double, recognizedBox: PrivacySegmentation.Box?): Set<Int> {
-        if (identity == null || capturedAtSeconds != currentSeconds || recognizedBox == null) return emptySet()
-        if (!capturedAtSeconds.isFinite() || !currentSeconds.isFinite() ||
-            listOf(recognizedBox.left, recognizedBox.top, recognizedBox.right, recognizedBox.bottom).any { !it.isFinite() } ||
-            recognizedBox.width <= 0 || recognizedBox.height <= 0) return emptySet()
-        val candidate = candidates(currentSeconds).singleOrNull { it.id == trackID && it.candidate == identity }
-            ?: return emptySet()
-        if (candidate.box.intersects(recognizedBox) < .5f) return emptySet()
-        return setOf(candidate.index)
+    /** A crop may contain a different face than the track it was scheduled for. */
+    fun recognitionMatches(trackID: String, box: PrivacySegmentation.Box): Boolean {
+        if (listOf(box.left, box.top, box.right, box.bottom).any { !it.isFinite() } ||
+            box.width <= 0 || box.height <= 0) return false
+        return tracks.singleOrNull { it.id == trackID }?.box?.intersects(box)?.let { it >= .5f } == true
+    }
+
+    companion object {
+        const val CACHE_SECONDS = .5
+        const val RECHECK_SECONDS = .25
     }
 }

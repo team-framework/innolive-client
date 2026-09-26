@@ -3,6 +3,9 @@ import CoreGraphics
 
 /// Short-lived identity cache. Ambiguous geometry, overlap, disappearance and stale results revoke exceptions.
 nonisolated final class PrivacyFaceTracking {
+    static let cacheSeconds = 0.5
+    static let recheckSeconds = 0.25
+
     struct Track {
         let id: UUID
         var index: Int
@@ -10,6 +13,7 @@ nonisolated final class PrivacyFaceTracking {
         var lastScheduled: Double = -.infinity
         var candidate: UUID?
         var confirmations = 0
+        var lastResult = -Double.infinity
         var lastConfirmed = -Double.infinity
         var allowedUntil = -Double.infinity
     }
@@ -19,7 +23,8 @@ nonisolated final class PrivacyFaceTracking {
     func reset() { tracks = []; lastTime = nil }
 
     func update(_ boxes: [Int: CGRect], at time: Double) {
-        if let lastTime, time <= lastTime || time - lastTime >= 0.20 { tracks = [] }
+        guard time.isFinite else { reset(); return }
+        if let lastTime, time <= lastTime || time - lastTime >= Self.cacheSeconds { tracks = [] }
         lastTime = time
         let valid = boxes.filter { _, box in
             box.width.isFinite && box.height.isFinite && box.minX.isFinite && box.minY.isFinite && box.width > 0 && box.height > 0
@@ -41,7 +46,8 @@ nonisolated final class PrivacyFaceTracking {
     }
 
     func next(at time: Double) -> Track? {
-        guard let index = tracks.indices.filter({ time - tracks[$0].lastScheduled >= 0.25 })
+        guard time.isFinite else { return nil }
+        guard let index = tracks.indices.filter({ time - tracks[$0].lastScheduled >= Self.recheckSeconds })
             .min(by: { tracks[$0].lastScheduled < tracks[$1].lastScheduled }) else { return nil }
         tracks[index].lastScheduled = time
         return tracks[index]
@@ -49,10 +55,13 @@ nonisolated final class PrivacyFaceTracking {
 
     func accept(trackID: UUID, match: UUID?, capturedAt: Double, now: Double, sampleAvailable: Bool = true) {
         guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { return }
+        guard capturedAt.isFinite, now.isFinite else { reset(); return }
+        guard capturedAt > tracks[index].lastResult else { return }
+        tracks[index].lastResult = capturedAt
         // A missing landmark sample is not evidence of a different person. Do not renew
-        // the lease, and let its original 750ms deadline and geometry checks still apply.
+        // the lease, and let its original 500ms deadline and geometry checks still apply.
         guard sampleAvailable else { return }
-        guard let match, now >= capturedAt, now - capturedAt < 0.75 else {
+        guard let match, now >= capturedAt, now - capturedAt < Self.cacheSeconds else {
             tracks[index].candidate = nil
             tracks[index].confirmations = 0
             tracks[index].allowedUntil = -.infinity
@@ -66,11 +75,13 @@ nonisolated final class PrivacyFaceTracking {
             tracks[index].allowedUntil = -.infinity
         }
         tracks[index].lastConfirmed = capturedAt
-        if tracks[index].confirmations >= 2 { tracks[index].allowedUntil = capturedAt + 0.75 }
+        if tracks[index].confirmations >= 2 { tracks[index].allowedUntil = capturedAt + Self.cacheSeconds }
     }
 
     func allowed(at time: Double) -> Set<Int> {
-        let qualified = tracks.filter { $0.candidate != nil && $0.confirmations >= 2 && time < $0.allowedUntil }
+        guard time.isFinite else { return [] }
+        let qualified = tracks.filter { $0.candidate != nil && $0.confirmations >= 2 &&
+            time >= $0.lastConfirmed && time < $0.allowedUntil }
         return Set(qualified.filter { candidate in
             qualified.filter { $0.candidate == candidate.candidate }.count == 1
         }.map(\.index))

@@ -58,9 +58,11 @@ nonisolated enum PrivacyYuNetDecoding {
                 let h = exp(bbox[index * 4 + 3]) * Float(stride)
                 guard w.isFinite, h.isFinite, w > 0, h > 0, w < 100_000, h < 100_000,
                       abs(cx) < 100_000, abs(cy) < 100_000 else { continue }
-                let points = (0..<5).map { n in
-                    CGPoint(x: CGFloat((kps[index * 10 + n * 2] + Float(col)) * Float(stride)),
-                            y: CGFloat((kps[index * 10 + n * 2 + 1] + Float(row)) * Float(stride)))
+                let points: [CGPoint] = (0..<5).map { n in
+                    let offset = index * 10 + n * 2
+                    let x: Float = (kps[offset] + Float(col)) * Float(stride)
+                    let y: Float = (kps[offset + 1] + Float(row)) * Float(stride)
+                    return CGPoint(x: CGFloat(x), y: CGFloat(y))
                 }
                 faces.append(.init(box: CGRect(x: CGFloat(cx - w / 2), y: CGFloat(cy - h / 2),
                                                width: CGFloat(w), height: CGFloat(h)), landmarks: points, score: score))

@@ -74,16 +74,17 @@ final class PrivacyFaceTests: XCTestCase {
         XCTAssertTrue(tracker.allowed(at: 1.01).isEmpty)
         tracker.accept(trackID: track.id, match: person, capturedAt: 1.3, now: 1.31)
         XCTAssertEqual(tracker.allowed(at: 1.31), [0])
-        XCTAssertTrue(tracker.allowed(at: 2.06).isEmpty)
+        XCTAssertEqual(tracker.allowed(at: 1.79), [0])
+        XCTAssertTrue(tracker.allowed(at: 1.8).isEmpty)
     }
 
     func testMissingLandmarksKeepOnlyTheOriginalUnexpiredLease() throws {
         let (tracker, track, _) = try allowedTracker()
         tracker.accept(trackID: track, match: nil, capturedAt: 1.3, now: 1.31, sampleAvailable: false)
         XCTAssertEqual(tracker.allowed(at: 1.31), [0])
-        tracker.accept(trackID: track, match: nil, capturedAt: 1.7, now: 1.71, sampleAvailable: false)
-        XCTAssertEqual(tracker.allowed(at: 1.71), [0])
-        XCTAssertTrue(tracker.allowed(at: 1.78).isEmpty)
+        tracker.accept(trackID: track, match: nil, capturedAt: 1.5, now: 1.51, sampleAvailable: false)
+        XCTAssertEqual(tracker.allowed(at: 1.51), [0])
+        XCTAssertTrue(tracker.allowed(at: 1.52).isEmpty)
     }
 
     func testMissingSampleNeverGrantsAnUnknownTrackAnException() throws {
@@ -129,9 +130,9 @@ final class PrivacyFaceTests: XCTestCase {
 
     func testLongFrameGapAndOldAsyncResultCannotRestoreIdentity() throws {
         let (tracker, track, person) = try allowedTracker()
-        tracker.update([0: box], at: 1.4)
-        tracker.accept(trackID: track, match: person, capturedAt: 1.02, now: 1.41)
-        XCTAssertTrue(tracker.allowed(at: 1.41).isEmpty)
+        tracker.update([0: box], at: 1.5)
+        tracker.accept(trackID: track, match: person, capturedAt: 1.3, now: 1.51)
+        XCTAssertTrue(tracker.allowed(at: 1.51).isEmpty)
     }
 
     func testSlowRecognitionAndConflictingIdentityRevokeException() throws {
@@ -157,6 +158,65 @@ final class PrivacyFaceTests: XCTestCase {
             tracker.accept(trackID: track.id, match: person, capturedAt: 1.02, now: 1.03)
         }
         XCTAssertTrue(tracker.allowed(at: 1.03).isEmpty)
+    }
+
+    func testSlowFramesRetainTwoConfirmationsBelow500msGap() throws {
+        let tracker = PrivacyFaceTracking()
+        let person = UUID()
+        tracker.update([0: box], at: 1)
+        let track = try XCTUnwrap(tracker.next(at: 1))
+        tracker.accept(trackID: track.id, match: person, capturedAt: 1, now: 1.1)
+        tracker.update([0: box], at: 1.35)
+        tracker.accept(trackID: track.id, match: person, capturedAt: 1.35, now: 1.45)
+        XCTAssertEqual(tracker.allowed(at: 1.8), [0])
+        XCTAssertTrue(tracker.allowed(at: 1.85).isEmpty)
+    }
+
+    func testReconfirmationRunsAt250msEvenDuringActiveCache() throws {
+        let (tracker, track, _) = try allowedTracker()
+        XCTAssertEqual(tracker.next(at: 1.3)?.id, track)
+        XCTAssertNil(tracker.next(at: 1.5))
+        XCTAssertEqual(tracker.next(at: 1.55)?.id, track)
+    }
+
+    func testDelayedResultUsesCaptureTimeForExpiry() throws {
+        let (tracker, track, person) = try allowedTracker()
+        tracker.accept(trackID: track, match: person, capturedAt: 1.3, now: 1.5)
+        XCTAssertEqual(tracker.allowed(at: 1.79), [0])
+        XCTAssertTrue(tracker.allowed(at: 1.8).isEmpty)
+        tracker.accept(trackID: track, match: person, capturedAt: 1.6, now: 2.1)
+        XCTAssertTrue(tracker.allowed(at: 2.1).isEmpty)
+        tracker.accept(trackID: track, match: person, capturedAt: 2.2, now: 2.2)
+        XCTAssertTrue(tracker.allowed(at: 2.2).isEmpty)
+    }
+
+    func testSamePositionReplacementIsCachedUntilUnknownResultOrExpiry() throws {
+        let (tracker, track, _) = try allowedTracker()
+        tracker.update([0: box], at: 1.1)
+        XCTAssertEqual(tracker.allowed(at: 1.1), [0])
+        tracker.accept(trackID: track, match: nil, capturedAt: 1.1, now: 1.2)
+        XCTAssertTrue(tracker.allowed(at: 1.2).isEmpty)
+    }
+
+    func testDuplicateAndReorderedResultsCannotConfirmOrRestoreRevokedIdentity() throws {
+        let tracker = PrivacyFaceTracking()
+        let person = UUID()
+        tracker.update([0: box], at: 1)
+        let track = try XCTUnwrap(tracker.next(at: 1))
+        for _ in 0..<2 { tracker.accept(trackID: track.id, match: person, capturedAt: 1, now: 1.1) }
+        XCTAssertTrue(tracker.allowed(at: 1.1).isEmpty)
+        tracker.accept(trackID: track.id, match: person, capturedAt: 1.3, now: 1.35)
+        XCTAssertEqual(tracker.allowed(at: 1.35), [0])
+        tracker.accept(trackID: track.id, match: nil, capturedAt: 1.4, now: 1.4)
+        tracker.accept(trackID: track.id, match: person, capturedAt: 1.3, now: 1.45)
+        XCTAssertTrue(tracker.allowed(at: 1.45).isEmpty)
+    }
+
+    func testInvalidClockCannotRetainAnException() throws {
+        let (tracker, _, _) = try allowedTracker()
+        XCTAssertTrue(tracker.allowed(at: .nan).isEmpty)
+        tracker.update([0: box], at: .nan)
+        XCTAssertTrue(tracker.allowed(at: 1.1).isEmpty)
     }
 
     private func allowedTracker() throws -> (PrivacyFaceTracking, UUID, UUID) {
