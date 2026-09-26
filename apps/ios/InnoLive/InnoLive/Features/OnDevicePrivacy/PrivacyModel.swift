@@ -85,10 +85,7 @@ nonisolated final class PrivacyModel {
             .transformed(by: CGAffineTransform(scaleX: size.width / layout.resized.width,
                                               y: size.height / layout.resized.height))
             .cropped(to: original.extent)
-        let blurred = original.clampedToExtent()
-            .applyingFilter("CIPixellate", parameters: [kCIInputScaleKey: Self.mosaicPixelSize])
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: Self.mosaicBlurRadius])
-            .cropped(to: original.extent)
+        let blurred = serverStyleBlur(original)
         let result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
         guard let rendered = context.createCGImage(result, from: original.extent) else {
@@ -101,8 +98,32 @@ nonisolated final class PrivacyModel {
                                                        render: (completed - masked) * 1000), faces.snapshot)
     }
 
-    /// Matches innolive-ai service/mosaic.py defaults: pixel_size 2, blur_radius 24.
-    /// The server downsamples by pixel_size, blurs with sigma blur_radius / pixel_size, then upsamples.
+    /// innolive-ai service/mosaic.py defaults: pixel_size 2, blur_radius 24.
+    /// The server shrinks the frame, blurs there, then scales it back. Blurring the
+    /// full frame with radius 24 leaves eyes and mouth visible.
     static let mosaicPixelSize: CGFloat = 2
     static let mosaicBlurRadius: CGFloat = 24
+
+    private func serverStyleBlur(_ original: CIImage) -> CIImage {
+        let extent = original.extent
+        let reducedWidth = max(1, Int((extent.width / Self.mosaicPixelSize).rounded(.up)))
+        let reducedHeight = max(1, Int((extent.height / Self.mosaicPixelSize).rounded(.up)))
+        let reducedExtent = CGRect(x: 0, y: 0, width: reducedWidth, height: reducedHeight)
+        let reduced = original.transformed(by: CGAffineTransform(
+            scaleX: reducedExtent.width / extent.width,
+            y: reducedExtent.height / extent.height
+        ))
+        var buffer: CVPixelBuffer?
+        CVPixelBufferCreate(kCFAllocatorDefault, reducedWidth, reducedHeight, kCVPixelFormatType_32BGRA,
+                            [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &buffer)
+        guard let buffer else { return original }
+        context.render(reduced, to: buffer, bounds: reducedExtent, colorSpace: colorSpace)
+        let blurred = CIImage(cvPixelBuffer: buffer).clampedToExtent()
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: Self.mosaicBlurRadius])
+            .cropped(to: reducedExtent)
+        return blurred.transformed(by: CGAffineTransform(
+            scaleX: extent.width / reducedExtent.width,
+            y: extent.height / reducedExtent.height
+        )).cropped(to: extent)
+    }
 }
