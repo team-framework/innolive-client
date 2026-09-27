@@ -165,7 +165,7 @@ CPU 대체 경로의 동일 320×180 이미지에서는 Gaussian 출력 배열�
 | 후보 | 변경·판정 |
 |---|---|
 | 07 | LiteRT 출력 지원을 조회하고 GL SSBO 출력/CPU map 소비를 별도 진단 경로로 구현. GPU mask/NMS 전체 이식은 아직 하지 않음. 재측정에서 p50/p95가 악화되어 GL 출력은 기본으로 선택하지 않음 |
-| 17 | 실제 CameraX Image에 HardwareBuffer가 존재함을 확인: 1080p, format=35(YUV), usage=131075. EGL import·카메라 buffer 재사용 fence·입력 parity 검증과 구현은 남음. 현재 borrowed planes upload 유지 |
+| 17 | 실제 CameraX Image에 HardwareBuffer가 존재함을 확인: 1080p, format=35(YUV), usage=131075. 이 값에는 `USAGE_GPU_SAMPLED_IMAGE`(256) 비트가 없어 현재 ImageAnalysis 버퍼를 GPU sampler 입력으로 간주할 수 없다. 이 기기의 현 CameraX 경로에서는 직접 texture import를 기본 적용하지 않고 borrowed planes upload를 유지한다. 별도 카메라 GPU surface를 구성한다면 재사용 fence·입력 parity·성능 검증이 필요하다 |
 | 18 | YUV→회전→모델 letterbox 직접 통합을 시험했으나 회전 입력에서 RGB 차이 최대 4단계, 0°에서도 입력 준비 p50 7.498→7.570ms. 실험 변경을 되돌림 |
 | 34 | SurfaceView PERFORMANCE 실카메라 1080p 28.76fps, 720p 25.52fps. 앞선 COMPATIBLE 29.88/27.04보다 향상되지 않았고 장면/열 조건도 일치하지 않음. PiP clip 제약을 포함해 COMPATIBLE 유지 |
 | 38 | R8 Release 빌드와 JNI keep rule 추가. 실기기에서 WorkManager Room 생성 코드 및 WebRTC org.jni_zero.JniInit 제거에 따른 시작 실패를 재현하여 생성 클래스/JNI SDK를 보존. 별도 minified instrumentation이 호출하는 API는 테스트 옵션에서만 보존하되 본문 최적화를 허용한다. 따라서 이 테스트 variant와 일반 Release는 동일한 keep 구성이 아님. minified 테스트 variant의 GPU 입력 4개·인코더 5개·local RTP 2개 및 실제 카메라 1개 테스트를 나누어 실행해 통과. 이후 일반 Release에서 ML Kit registrar 생성자가 제거되어 얼굴 검출 생성에 실패하는 것도 찾아 세 생성자를 보존했다. 해당 minified 회귀 테스트는 수정 전 실패·수정 후 통과했고, 테스트 규칙이 없는 일반 Release 재설치·재시작 로그에서 registrar 오류가 사라졌다. 일반 Release의 얼굴 검출 처리 및 앱 hot path Baseline Profile은 남음 |
@@ -286,6 +286,6 @@ texture CPU readback은 60/0이었다. 따라서 송신 FPS 향상은 이번 재
 ## 남은 작업
 
 09 얼굴 GPU 이미지 입력은 SDK 입력 호환성과 GPU delegate 연산 지원을 해결한 뒤 재검증해야 한다. 12 얼굴 ROI readback은 기본값을 유지한 채 실얼굴·장시간 경합 A/B가 남는다. 07의 GPU 후처리,
-17의 HardwareBuffer 직접 입력, 38의 일반 Release 얼굴 검출 처리 검증/Baseline Profile도 완료 전이다.
+17의 별도 카메라 GPU surface 입력, 38의 일반 Release 얼굴 검출 처리 검증/Baseline Profile도 완료 전이다.
 40의 추가 QNN 정밀도 튜닝은 기존 실패 경로와 별도 실험이 필요하다. 모든 43개 경로가
 구현/채택됐다고 표시하지 않으며, 실방송 장시간 발열과 지속 30fps도 아직 입증되지 않았다.
