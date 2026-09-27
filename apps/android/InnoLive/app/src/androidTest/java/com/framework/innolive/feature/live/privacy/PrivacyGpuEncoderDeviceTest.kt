@@ -6,6 +6,8 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.webrtc.EglBase
+import org.webrtc.DefaultVideoEncoderFactory
+import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.EncodedImage
 import org.webrtc.HardwareVideoEncoderFactory
 import org.webrtc.JavaI420Buffer
@@ -13,6 +15,18 @@ import org.webrtc.PeerConnectionFactory
 import org.webrtc.VideoCodecStatus
 import org.webrtc.VideoEncoder
 import org.webrtc.VideoFrame
+import android.util.Log
+import org.webrtc.DataChannel
+import org.webrtc.IceCandidate
+import org.webrtc.MediaConstraints
+import org.webrtc.MediaStream
+import org.webrtc.MediaStreamTrack
+import org.webrtc.PeerConnection
+import org.webrtc.RtpReceiver
+import org.webrtc.RtpTransceiver
+import org.webrtc.SdpObserver
+import org.webrtc.SessionDescription
+import com.framework.innolive.feature.live.preferredHardwareVideoCodecs
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,6 +34,65 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Exercises the same shared EGL surface encoder used for broadcasting, without signaling/network. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyGpuEncoderDeviceTest {
+    @Test fun hardwareBaselineH264IsFirstInRealAndroidOffer() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
+        val egl=EglBase.create()
+        val factory=PeerConnectionFactory.builder()
+            .setVideoEncoderFactory(DefaultVideoEncoderFactory(egl.eglBaseContext,true,true))
+            .setVideoDecoderFactory(DefaultVideoDecoderFactory(egl.eglBaseContext))
+            .createPeerConnectionFactory()
+        val connection=checkNotNull(factory.createPeerConnection(PeerConnection.RTCConfiguration(emptyList()),
+            object:PeerConnection.Observer {
+                override fun onSignalingChange(state:PeerConnection.SignalingState)=Unit
+                override fun onIceConnectionChange(state:PeerConnection.IceConnectionState)=Unit
+                override fun onIceConnectionReceivingChange(receiving:Boolean)=Unit
+                override fun onIceGatheringChange(state:PeerConnection.IceGatheringState)=Unit
+                override fun onIceCandidate(candidate:IceCandidate)=Unit
+                override fun onIceCandidatesRemoved(candidates:Array<out IceCandidate>)=Unit
+                override fun onAddStream(stream:MediaStream)=Unit
+                override fun onRemoveStream(stream:MediaStream)=Unit
+                override fun onDataChannel(channel:DataChannel)=Unit
+                override fun onRenegotiationNeeded()=Unit
+            }))
+        try {
+            val transceiver=checkNotNull(connection.addTransceiver(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO,
+                RtpTransceiver.RtpTransceiverInit(RtpTransceiver.RtpTransceiverDirection.SEND_ONLY)))
+            val codecs=factory.getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs
+            val hardware=HardwareVideoEncoderFactory(egl.eglBaseContext,true,true).supportedCodecs.toList()
+            val preferred=checkNotNull(preferredHardwareVideoCodecs(codecs,hardware))
+            assertTrue(transceiver.setCodecPreferences(preferred).isSuccess())
+            val offered=CountDownLatch(1)
+            var sdp:String?=null
+            connection.createOffer(object:SdpObserver {
+                override fun onCreateSuccess(description:SessionDescription) {sdp=description.description;offered.countDown()}
+                override fun onCreateFailure(error:String) {offered.countDown()}
+                override fun onSetSuccess()=Unit
+                override fun onSetFailure(error:String)=Unit
+            },MediaConstraints())
+            assertTrue("No WebRTC offer",offered.await(5,TimeUnit.SECONDS))
+            val description=checkNotNull(sdp)
+            val firstPayload=checkNotNull(description.lineSequence().firstOrNull {it.startsWith("m=video ")})
+                .trim().split(' ')[3]
+            assertTrue("H264 Baseline was not first: $firstPayload",description.contains("a=rtpmap:$firstPayload H264/90000"))
+            assertTrue(description.contains("profile-level-id=42e01f",ignoreCase=true))
+        } finally {connection.dispose();factory.dispose();egl.release()}
+    }
+    @Test fun productionFactoryReportsHardwareForNegotiableCodecs() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
+        val egl=EglBase.create()
+        try {
+            val factory=DefaultVideoEncoderFactory(egl.eglBaseContext,true,true)
+            val codecs=factory.supportedCodecs.filter {it.name.equals("H264",true) || it.name.equals("VP8",true)}
+            assertTrue("No WebRTC video codec is available",codecs.isNotEmpty())
+            for(codec in codecs) {
+                val encoder=checkNotNull(factory.createEncoder(codec))
+                Log.i("PrivacyEncoder","production_codec=${codec.name} params=${codec.params} hardware=${encoder.isHardwareEncoder}")
+                if(encoder.isHardwareEncoder) runCatching {encoder.release()}
+            }
+        } finally {egl.release()}
+    }
     @Test fun protectedTextureEncodesOnHardwareSurfaceWithoutCpuI420Output() = encode(false)
     @Test fun borrowedCameraInputEncodesAfterCameraStorageIsReleased() = encode(true)
     private fun encode(direct:Boolean) {
@@ -44,6 +117,7 @@ class PrivacyGpuEncoderDeviceTest {
                 encoded.countDown()
             })
             PrivacyGpuFramePipeline(egl.eglBaseContext, useGles3=true, useFence=true).use { graph ->
+                val readbacks=PrivacyTextureReadbackCounter.value()
                 val mask = ByteArray(160 * 160) { -1 }
                 repeat(12) { index ->
                     val fixture=if(direct) PrivacyCameraFixture.create(320,320,90,"NV21") else null
@@ -62,6 +136,8 @@ class PrivacyGpuEncoderDeviceTest {
                     Thread.sleep(40)
                 }
                 assertTrue("No hardware encoded frames", encoded.await(5, TimeUnit.SECONDS))
+                if(graph.lastFenceUsed) assertEquals("Hardware encoder requested CPU I420",
+                    readbacks,PrivacyTextureReadbackCounter.value())
                 assertEquals(0, errors.get())
                 assertEquals(VideoCodecStatus.OK, encoder.release())
             }

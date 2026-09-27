@@ -2,6 +2,13 @@ package com.framework.innolive.feature.live.privacy
 
 import android.graphics.Matrix
 import org.webrtc.VideoFrame
+import java.util.concurrent.atomic.AtomicLong
+
+internal object PrivacyTextureReadbackCounter {
+    private val count=AtomicLong()
+    fun value():Long=count.get()
+    fun record() {count.incrementAndGet()}
+}
 
 /** The underlying buffer owns the fence until all derived views and consumers release it. */
 internal class PrivacyFencedTexture(
@@ -19,6 +26,7 @@ internal class PrivacyFencedTexture(
         return buffer.textureId
     }
     override fun toI420(): VideoFrame.I420Buffer? {
+        PrivacyTextureReadbackCounter.record()
         PrivacyNativeGpuFence.awaitReady(fence)
         return buffer.toI420()
     }

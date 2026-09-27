@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import android.util.Log
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.privacy.PrivacyTextureReadbackCounter
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -33,6 +34,7 @@ import org.json.JSONObject
 import org.webrtc.DataChannel
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
+import org.webrtc.HardwareVideoEncoderFactory
 import org.webrtc.EglBase
 import org.webrtc.IceCandidate
 import org.webrtc.MediaStreamTrack
@@ -393,7 +395,11 @@ class WebRtcConnection(
                     if (outbound != null) {
                         val fields = listOf("framesEncoded", "framesSent", "packetsSent", "bytesSent")
                             .joinToString(" ") { key -> "$key=${(outbound.members[key] as? Number)?.toLong() ?: -1}" }
-                        Log.i("PrivacyPipeline", "outbound_video $fields")
+                        val codecId=outbound.members["codecId"] as? String
+                        val mime=codecId?.let {report.statsMap[it]?.members?.get("mimeType")}
+                        val implementation=outbound.members["encoderImplementation"]
+                        Log.i("PrivacyPipeline", "outbound_video $fields mime=$mime encoder=$implementation " +
+                            "texture_to_i420_total=${PrivacyTextureReadbackCounter.value()}")
                     }
                 }
             }
@@ -877,6 +883,16 @@ class WebRtcConnection(
                 ),
             ),
         ) { "Unable to add the camera video transceiver." }
+        val videoCodecs=checkNotNull(peerConnectionFactory)
+            .getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs
+        val hardwareFormats=HardwareVideoEncoderFactory(checkNotNull(eglBase).eglBaseContext,true,true)
+            .supportedCodecs.toList()
+        val preference=preferredHardwareVideoCodecs(videoCodecs,hardwareFormats)
+        if(preference!=null) {
+            val result=transceiver.setCodecPreferences(preference)
+            if(result.isSuccess()) Log.i("PrivacyPipeline","video_codec_preference=hardware_h264_baseline")
+            else Log.w("PrivacyPipeline","video_codec_preference=default")
+        }
         videoSender = transceiver.sender
     }
 
