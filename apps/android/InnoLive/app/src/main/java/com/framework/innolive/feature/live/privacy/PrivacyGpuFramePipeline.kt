@@ -60,6 +60,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         private set
     private val maskPixels = ByteBuffer.allocateDirect(160 * 160 * if(compactMask) 1 else 4)
     private var cropPixels: ByteBuffer? = null
+    private var faceReadbackPool: PrivacyFaceReadbackPool? = null
     private val outputPool = mutableListOf<Target>()
     private val leased = mutableSetOf<Target>()
     private var closing = false
@@ -67,6 +68,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     private var nativeChecked = false
     private var nativeValidated = false
     val nativeInputEnabled: Boolean get() = nativeValidated
+    internal val supportsAsyncCrop: Boolean get() = rowLengthSupported
     internal var nativeInputUsesManagedSync = false
         private set
     private val closeRequested = AtomicBoolean(false)
@@ -259,6 +261,24 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             it.setHasAlpha(false)
             pixels.rewind(); it.copyPixelsFromBuffer(pixels)
         }
+    }
+
+    /** Diagnostic asynchronous crop; all original pixels and crop coordinates are preserved. */
+    internal fun cropAsync(bounds: Rect): PrivacyFaceReadback = onGl {
+        check(!closing && rowLengthSupported)
+        require(bounds.left >= 0 && bounds.top >= 0 && bounds.right <= width && bounds.bottom <= height
+            && bounds.width() > 0 && bounds.height() > 0)
+        val cropped = target("crop", bounds.width(), bounds.height())
+        draw("crop", CROP, cropped, listOf(targets.getValue("upright").texture)) { p ->
+            glUniform4f(p.getUniformLocation("box"), bounds.left.toFloat() / width,
+                bounds.top.toFloat() / height, bounds.width().toFloat() / width, bounds.height().toFloat() / height)
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, cropped.framebuffer)
+        try {
+            val pool = faceReadbackPool ?: PrivacyFaceReadbackPool(egl.eglBaseContext).also { faceReadbackPool = it }
+            PrivacyFaceReadback.issue(pool, bounds.width(), bounds.height())
+        }
+        finally { egl.makeCurrent(); glBindFramebuffer(GL_FRAMEBUFFER, 0) }
     }
 
     /** Owned current pixels for a protected CPU fallback after the camera image has been returned. */
@@ -566,6 +586,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         onGl {
             if (!closing) {
                 closing = true
+                faceReadbackPool?.close(); faceReadbackPool = null; egl.makeCurrent()
                 if (nativeModel != 0L) { PrivacyNativeGpuModel.destroy(nativeModel); nativeModel = 0L; egl.makeCurrent() }
                 targets.values.forEach { it.close() }; targets.clear()
                 glDeleteTextures(3, planeTextures, 0)

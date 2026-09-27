@@ -37,7 +37,11 @@ internal class PrivacyFaceCoordinator(
     fun beginFrame(upright: Bitmap, timestampNs: Long) =
         beginFrame(upright.width, upright.height, timestampNs) { copyCrop(upright, it) }
 
-    fun beginFrame(width: Int, height: Int, timestampNs: Long, crop: (Rect) -> Bitmap) {
+    fun beginFrame(width: Int, height: Int, timestampNs: Long, crop: (Rect) -> Bitmap) =
+        beginFrame(width,height,timestampNs,crop,null)
+
+    private fun beginFrame(width: Int, height: Int, timestampNs: Long, crop: (Rect) -> Bitmap,
+                   readback: ((Rect) -> PrivacyFaceReadback)?) {
         refreshRevision()
         val dimensions = width to height
         if (geometry != dimensions) { reset(); geometry = dimensions }
@@ -48,6 +52,13 @@ internal class PrivacyFaceCoordinator(
         val layout = previousLayout ?: return
         val next = tracking.next(timestampNs / 1_000_000_000.0) ?: return
         val bounds = recognitionBounds(width, height, next.box, layout) ?: return
+        if (readback != null) {
+            val sample = readback(bounds)
+            try {
+                if (!service.submitReadback(sample, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) sample.close()
+            } catch (error: Throwable) { sample.close(); throw error }
+            return
+        }
         val image = crop(bounds)
         if (!service.submitRecognition(image, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) image.recycle()
     }
@@ -58,10 +69,15 @@ internal class PrivacyFaceCoordinator(
 
     /** Select crops from this frame's YOLO tracks; start recognition after detector GPU work. */
     fun currentFrame(width: Int, height: Int, objects: List<PrivacySegmentation.Detection>,
-                     layout: PrivacySegmentation.Letterbox, timestampNs: Long, crop: (Rect) -> Bitmap): Set<Int> {
+                     layout: PrivacySegmentation.Letterbox, timestampNs: Long, crop: (Rect) -> Bitmap): Set<Int> =
+        currentFrame(width,height,objects,layout,timestampNs,crop,null)
+
+    fun currentFrame(width: Int, height: Int, objects: List<PrivacySegmentation.Detection>,
+                     layout: PrivacySegmentation.Letterbox, timestampNs: Long, crop: (Rect) -> Bitmap,
+                     readback: ((Rect) -> PrivacyFaceReadback)?): Set<Int> {
         if (geometry != width to height) { reset(); geometry = width to height }
         val allowed = exceptions(width,height,objects,layout,timestampNs)
-        beginFrame(width,height,timestampNs,crop)
+        beginFrame(width,height,timestampNs,crop,readback)
         return allowed
     }
 

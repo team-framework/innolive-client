@@ -15,7 +15,8 @@ import org.webrtc.EglBase
 internal class PrivacyFrameProcessor(context: Context, private val sharedContext: EglBase.Context? = null,
                                      private val allowGpuImages: Boolean = true, directGpuInput:Boolean=true,
                                      private val nativePostprocessing: Boolean = true,
-                                     private val batchTwoOptimizations: Boolean = true) : AutoCloseable {
+                                     private val batchTwoOptimizations: Boolean = true,
+                                     private val asyncFaceReadback: Boolean = false) : AutoCloseable {
     private var imageGpu: PrivacyGpuFramePipeline? = null
     private var imageGpuUnavailable = !allowGpuImages
     private val gpuRetry = PrivacyGpuRetryPolicy(allowGpuImages)
@@ -156,7 +157,8 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
             if (!batchTwoOptimizations) faces.beginFrame(layout.sourceWidth,layout.sourceHeight,timestampNs,graph::crop)
             val buffer=model.processPrepared(graph.modelBitmap,layout,timestampNs,
                 {objects,box ->
-                    if (batchTwoOptimizations) faces.currentFrame(box.sourceWidth,box.sourceHeight,objects,box,timestampNs,graph::crop)
+                    if (batchTwoOptimizations) faces.currentFrame(box.sourceWidth,box.sourceHeight,objects,box,timestampNs,graph::crop,
+                        if (asyncFaceReadback && graph.supportsAsyncCrop) graph::cropAsync else null)
                     else faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)
                 },
                 renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,model.lastMaskPixels)}

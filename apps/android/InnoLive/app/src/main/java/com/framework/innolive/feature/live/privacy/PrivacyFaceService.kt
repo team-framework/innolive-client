@@ -24,6 +24,15 @@ internal interface PrivacyFaceRecognitionService {
     fun takeResult(): PrivacyFaceService.Result?
     fun submitRecognition(image: Bitmap, bounds: Rect, generation: Long, trackId: String,
                           capturedAtSeconds: Double): Boolean
+    fun submitReadback(sample: PrivacyFaceReadback, bounds: Rect, generation: Long, trackId: String,
+                       capturedAtSeconds: Double): Boolean {
+        val image = sample.read()
+        try {
+            return submitRecognition(image, bounds, generation, trackId, capturedAtSeconds).also {
+                if (!it) image.recycle()
+            }
+        } catch (error: Throwable) { image.recycle(); throw error }
+    }
 }
 
 internal class PrivacyFaceService private constructor(context: Context) : PrivacyFaceRecognitionService {
@@ -111,10 +120,23 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
     override fun takeResult(): Result? = result.getAndSet(null)
 
     override fun submitRecognition(image: Bitmap, bounds: Rect, generation: Long, trackId: String,
-                          capturedAtSeconds: Double): Boolean {
+                          capturedAtSeconds: Double): Boolean =
+        submitSample({ image }, { image.recycle() }, bounds, generation, trackId, capturedAtSeconds)
+
+    override fun submitReadback(sample: PrivacyFaceReadback, bounds: Rect, generation: Long, trackId: String,
+                                capturedAtSeconds: Double): Boolean {
+        var image: Bitmap? = null
+        return submitSample({ sample.read().also { image = it } },
+            { try { image?.recycle() } finally { sample.close() } }, bounds, generation, trackId, capturedAtSeconds)
+    }
+
+    private fun submitSample(read: () -> Bitmap, release: () -> Unit, bounds: Rect, generation: Long,
+                             trackId: String, capturedAtSeconds: Double): Boolean {
         if (!ready || result.get() != null || !recognizing.compareAndSet(false, true)) return false
         executor.execute {
+            var releaseFailed = false
             val output = try {
+                val image = read()
                 val recognition = inferenceLock.run {
                     lock()
                     try { model?.recognize(image, enrollment = false) } finally { unlock() }
@@ -127,9 +149,12 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
             } catch (_: Exception) {
                 Result(generation, trackId, capturedAtSeconds, null, sampleAvailable = true)
             } finally {
-                image.recycle()
+                try { release() } catch (error: Exception) {
+                    releaseFailed = true
+                    Log.w("PrivacyFace", "sample_release_failed type=${error.javaClass.simpleName}")
+                }
             }
-            result.set(output)
+            result.set(if (releaseFailed) Result(generation, trackId, capturedAtSeconds, null, true) else output)
             recognizing.set(false)
         }
         return true
