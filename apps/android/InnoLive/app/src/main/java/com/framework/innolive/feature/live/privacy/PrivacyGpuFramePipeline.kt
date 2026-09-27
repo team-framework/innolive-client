@@ -170,6 +170,18 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         GlUtil.checkNoGLES2Error("privacy GPU validation input")
     }
 
+    /** Re-submit the real camera's YUV/letterbox work so readback timing includes its GPU dependency. */
+    private fun redrawCameraInput() = onGl {
+        draw("yuv",YUV,targets.getValue("upright"),planeTextures.toList()) { p ->
+            glUniform1i(p.getUniformLocation("rotation"),rotation)
+        }
+        val layout=PrivacySegmentation.Letterbox(width,height)
+        draw("letterbox",LETTERBOX,targets.getValue("model"),listOf(targets.getValue("upright").texture)) { p ->
+            glUniform4f(p.getUniformLocation("box"),layout.left/640f,layout.top/640f,
+                layout.resizedWidth/640f,layout.resizedHeight/640f)
+        }
+    }
+
     /** Calibrate once with the same RGB pixels, including the eliminated readback/tensor copies. */
     fun validateNativeInput(context: Context, baseline: (FloatArray) -> Pair<FloatArray, FloatArray>) {
         if (nativeChecked) return
@@ -180,7 +192,6 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         val input = FloatArray(3 * 640 * 640)
         try {
             createNativeInputModel(PrivacyDetectorGpuEngine.verifiedFile(context).absolutePath)
-            val oldTimes = mutableListOf<Long>(); val newTimes = mutableListOf<Long>()
             for (pattern in 0..2) {
                 val colors = IntArray(640 * 640) { index -> when (pattern) {
                     0 -> android.graphics.Color.rgb(128,128,128)
@@ -197,14 +208,26 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                     var maximum=0f; for(i in a.indices) maximum=maxOf(maximum,kotlin.math.abs(a[i]-b[i])); return maximum
                 }
                 check(error(actual.first,expected.first)<.05f && error(actual.second,expected.second)<.01f) { "GPU buffer output mismatch" }
-                repeat(3) { sample ->
-                    fun legacy() { val tick=System.nanoTime();readModelInput();PrivacyNativePixels.bitmapToTensor(modelBitmap,tensor);tensor.asFloatBuffer().get(input);baseline(input);oldTimes+=System.nanoTime()-tick }
-                    fun direct() { val tick=System.nanoTime();predictNativeInput();newTimes+=System.nanoTime()-tick }
-                    if(sample%2==0) { legacy();direct() } else { direct();legacy() }
-                }
             }
+            val oldTimes=mutableListOf<Long>();val newTimes=mutableListOf<Long>()
+            fun legacy() {
+                val tick=System.nanoTime();redrawCameraInput();readModelInput()
+                PrivacyNativePixels.bitmapToTensor(modelBitmap,tensor);tensor.asFloatBuffer().get(input)
+                baseline(input);oldTimes+=System.nanoTime()-tick
+            }
+            fun direct() {
+                val tick=System.nanoTime();redrawCameraInput()
+                val output=predictNativeInput()
+                check(PrivacyNativePixels.finiteFloats(output.first) && PrivacyNativePixels.finiteFloats(output.second))
+                newTimes+=System.nanoTime()-tick
+            }
+            repeat(3) {legacy();direct()};oldTimes.clear();newTimes.clear()
+            repeat(12) {sample -> if(sample%2==0) {legacy();direct()} else {direct();legacy()} }
             val old=oldTimes.sorted()[oldTimes.size/2]; val direct=newTimes.sorted()[newTimes.size/2]
-            check(direct<old*.9) { "GPU buffer lacks speed improvement" }
+            val wins=oldTimes.indices.count {newTimes[it]<oldTimes[it]}
+            check(direct<old*.95 && wins>=9) {
+                "GPU buffer lacks stable improvement legacy_ms=${old/1e6} direct_ms=${direct/1e6} wins=$wins/12"
+            }
             nativeValidated=true
             Log.i("PrivacyDetector","gpu_input_validated legacy_ms=${old/1e6} direct_ms=${direct/1e6}")
         } catch(error: Exception) {
