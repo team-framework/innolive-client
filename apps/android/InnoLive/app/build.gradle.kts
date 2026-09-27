@@ -7,12 +7,15 @@ plugins {
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
+// Opt-in minified instrumentation uses the local debug certificate, never release signing.
+val privacyReleaseTest = providers.gradleProperty("privacyReleaseTest").orNull == "true"
 
 if (localPropertiesFile.isFile) {
     localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
 android {
+    if (privacyReleaseTest) testBuildType = "release"
     namespace = "com.framework.innolive"
     ndkVersion = "27.0.12077973"
     externalNativeBuild {
@@ -32,6 +35,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("boolean", "PRIVACY_PERF_DIAGNOSTICS", privacyReleaseTest.toString())
         buildConfigField(
             "String",
             "INNOLIVE_SERVER_URL",
@@ -47,7 +51,12 @@ android {
     buildTypes {
         release {
             optimization {
-                enable = false
+                enable = true
+            }
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (privacyReleaseTest) {
+                signingConfig = signingConfigs.getByName("debug")
+                proguardFiles("privacy-instrumentation-rules.pro")
             }
         }
     }
@@ -94,6 +103,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    if (privacyReleaseTest) implementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

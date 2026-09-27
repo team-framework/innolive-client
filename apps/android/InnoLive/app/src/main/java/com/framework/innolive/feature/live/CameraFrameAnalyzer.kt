@@ -286,7 +286,7 @@ class CameraFrameAnalyzer(
                     if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
                 }
                 val completed = System.nanoTime()
-                if (BuildConfig.DEBUG && wasDelivered) {
+                if ((BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) && wasDelivered) {
                     localProcessor?.let { processor ->
                         val timings = processor.lastTimings
                         val analysis = processor.lastAnalysis

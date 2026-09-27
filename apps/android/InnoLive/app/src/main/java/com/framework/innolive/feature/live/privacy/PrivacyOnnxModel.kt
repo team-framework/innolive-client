@@ -167,7 +167,7 @@ internal class PrivacyOnnxModel(private val context: Context,
             val masked = System.nanoTime()
             val output = render(mask)
             val rendered = System.nanoTime()
-            if (BuildConfig.DEBUG) {
+            if (BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) {
                 val maskPixels = if (lastMaskPixels >= 0) lastMaskPixels else mask.count { it.toInt() != 0 }
                 lastAnalysis = PrivacyFrameAnalysis(usesGpu, objects.count { it.classId == 0 },
                     objects.count { it.classId == 1 }, exempt.size,
