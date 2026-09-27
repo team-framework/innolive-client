@@ -50,7 +50,8 @@ internal object PrivacyNativePixels {
                            width: Int, height: Int, target: ByteBuffer, targetStride: Int)
     external fun neuralAcceleratorCount(): Int
     external fun finiteFloats(values: FloatArray): Boolean
-    external fun computeInstanceMasks(coefficients: FloatArray, bounds: IntArray, prototypes: FloatArray): Array<ByteArray>
+    external fun computeInstanceMasks(coefficients: FloatArray, bounds: IntArray, prototypes: FloatArray,
+                                     prototypesValidated: Boolean = false): Array<ByteArray>
     external fun composite(source: Bitmap, blurred: Bitmap, alpha: ByteArray, left: Int, top: Int,
                            resizedWidth: Int, resizedHeight: Int, output: Bitmap)
 }

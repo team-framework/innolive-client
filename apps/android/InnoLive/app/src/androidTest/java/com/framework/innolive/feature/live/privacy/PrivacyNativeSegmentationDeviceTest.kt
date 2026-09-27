@@ -48,6 +48,34 @@ class PrivacyNativeSegmentationDeviceTest {
         proto.fill(1f)
         val objects=listOf(detection(PrivacySegmentation.Box(0f,0f,640f,640f),FloatArray(32) { Float.MAX_VALUE }))
         assertThrows(IllegalArgumentException::class.java) { PrivacyNativeSegmentation.instanceMasks(objects,proto) }
+        for(value in listOf(Float.NaN,Float.POSITIVE_INFINITY,Float.NEGATIVE_INFINITY)) {
+            proto[proto.lastIndex]=value
+            assertThrows(IllegalArgumentException::class.java) { PrivacyValidatedPrototypes.validate(proto) }
+        }
+    }
+
+    @Test fun singleValidationPreservesMasksAndRemovesDuplicateScan() {
+        val random=Random(325)
+        val proto=FloatArray(32*160*160) {random.nextFloat()*2-1}
+        for(count in listOf(0,1,8)) {
+            val objects=(0 until count).map {i -> detection(PrivacySegmentation.Box(i*40f,40f,i*40f+100f,240f),FloatArray(32){random.nextFloat()*2-1})}
+            val old=mutableListOf<Double>();val next=mutableListOf<Double>()
+            fun duplicate():List<PrivacySegmentation.InstanceMask> {
+                val tick=System.nanoTime();assertTrue(PrivacyNativePixels.finiteFloats(proto))
+                return PrivacyNativeSegmentation.instanceMasks(objects,proto).also {old+=(System.nanoTime()-tick)/1e6}
+            }
+            fun once():List<PrivacySegmentation.InstanceMask> {
+                val tick=System.nanoTime();val checked=PrivacyValidatedPrototypes.validate(proto)
+                return PrivacyNativeSegmentation.instanceMasks(objects,checked).also {next+=(System.nanoTime()-tick)/1e6}
+            }
+            repeat(5) {duplicate();once()};old.clear();next.clear()
+            repeat(30) { iteration ->
+                val first:List<PrivacySegmentation.InstanceMask>;val second:List<PrivacySegmentation.InstanceMask>
+                if(iteration%2==0) {first=duplicate();second=once()} else {second=once();first=duplicate()}
+                first.indices.forEach {assertArrayEquals(first[it].bytes,second[it].bytes)}
+            }
+            Log.i("PrivacyStages","stage=finite_scan count=$count duplicate_p50_ms=${old.sorted()[15]} single_p50_ms=${next.sorted()[15]} identical=true")
+        }
     }
 
     @Test fun compareSameMasksAndLatencyWithoutCameraOrModelVariance() {

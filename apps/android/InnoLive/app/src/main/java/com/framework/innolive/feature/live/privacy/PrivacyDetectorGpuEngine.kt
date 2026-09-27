@@ -26,7 +26,7 @@ internal class PrivacyDetectorGpuEngine private constructor(private val model: C
         }
     }
 
-    fun predict(pixels: FloatArray): Pair<FloatArray, FloatArray> {
+    fun predict(pixels: FloatArray, validateOutput: Boolean = true): Pair<FloatArray, FloatArray> {
         check(Thread.currentThread() === owner)
         require(pixels.size == 3 * 640 * 640)
         inputs.single().writeFloat(pixels)
@@ -34,7 +34,7 @@ internal class PrivacyDetectorGpuEngine private constructor(private val model: C
         val first = outputs[0].readFloat()
         val second = outputs[1].readFloat()
         check(first.size == 38 * 8400 && second.size == 32 * 160 * 160)
-        check(PrivacyNativePixels.finiteFloats(first) && PrivacyNativePixels.finiteFloats(second))
+        check(!validateOutput || (PrivacyNativePixels.finiteFloats(first) && PrivacyNativePixels.finiteFloats(second)))
         return first to second
     }
 

@@ -255,7 +255,7 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_neuralAccel
 // Kotlin channel accumulation order, including values very close to the zero threshold.
 extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_computeInstanceMasks(
-    JNIEnv* env, jobject, jfloatArray coefficients, jintArray bounds, jfloatArray prototypes) {
+    JNIEnv* env, jobject, jfloatArray coefficients, jintArray bounds, jfloatArray prototypes, jboolean prototypesValidated) {
     constexpr int pixels = 160 * 160, channels = 32;
     const int count = env->GetArrayLength(bounds) / 4;
     if (count > 100 || env->GetArrayLength(bounds) != count * 4 ||
@@ -265,7 +265,7 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_computeInst
     }
     const auto* proto = env->GetFloatArrayElements(prototypes, nullptr);
     if (!proto) return nullptr;
-    bool valid = std::all_of(proto, proto + pixels * channels, [](float v) { return std::isfinite(v); });
+    bool valid = prototypesValidated || std::all_of(proto, proto + pixels * channels, [](float v) { return std::isfinite(v); });
     std::vector<float> weights(count * channels);
     std::vector<jint> boxes(count * 4);
     if (count) {

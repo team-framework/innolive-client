@@ -105,9 +105,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         if (!nativeInputActive) PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
         val prepared = System.nanoTime()
         val (predictions, prototypes) = if (nativeInputActive) try {
-            checkNotNull(gpuGraph).predictNativeInput().also { (first, second) ->
-                check(PrivacyNativePixels.finiteFloats(first) && PrivacyNativePixels.finiteFloats(second))
-            }
+            checkedOutput(checkNotNull(gpuGraph).predictNativeInput())
         } catch (error: Exception) {
             nativeInputActive = false
             checkNotNull(gpuGraph).disableNativeInput()
@@ -147,32 +145,38 @@ internal class PrivacyOnnxModel(private val context: Context,
 
     fun resetTemporalState() { stabilizer.reset() }
 
-    private fun predictLegacy(): Pair<FloatArray, FloatArray> {
+    private fun checkedOutput(output: Pair<FloatArray,FloatArray>): Pair<FloatArray,PrivacyValidatedPrototypes> {
+        check(PrivacyNativePixels.finiteFloats(output.first))
+        return output.first to PrivacyValidatedPrototypes.validate(output.second)
+    }
+
+    private fun predictLegacy(): Pair<FloatArray, PrivacyValidatedPrototypes> {
         return try {
             val engine = gpu
-            if (nnapi != null) {
+            val output = if (nnapi != null) {
                 inputBytes.asFloatBuffer().get(gpuInput)
                 checkNotNull(nnapi).predict(gpuInput)
             } else if (engine == null) runOnnx()
             else {
                 inputBytes.asFloatBuffer().get(gpuInput)
-                engine.predict(gpuInput)
+                engine.predict(gpuInput,validateOutput=false)
             }
+            checkedOutput(output)
         } catch (error: Exception) {
             if (nnapi != null) {
                 nnapi?.close(); nnapi = null
                 Log.w("PrivacyDetector", "nnapi_runtime_fallback type=${error.javaClass.simpleName}")
                 try {
-                    gpu?.predict(gpuInput) ?: runOnnx()
+                    checkedOutput(gpu?.predict(gpuInput,validateOutput=false) ?: runOnnx())
                 } catch (_: Exception) {
                     runCatching { gpu?.close() }; gpu = null
-                    runOnnx()
+                    checkedOutput(runOnnx())
                 }
             } else {
                 if (gpu == null) throw error
                 runCatching { gpu?.close() }; gpu = null
                 Log.w("PrivacyDetector", "gpu_runtime_fallback type=${error.javaClass.simpleName}")
-                runOnnx()
+                checkedOutput(runOnnx())
             }
         }
     }
