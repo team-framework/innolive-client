@@ -6,6 +6,8 @@ import android.graphics.Rect
 import android.opengl.GLES20.*
 import android.opengl.GLUtils
 import android.opengl.GLES30.GL_UNPACK_ROW_LENGTH
+import android.opengl.GLES30.GL_R8
+import android.opengl.GLES30.GL_RED
 import android.util.Log
 import android.content.Context
 import android.os.Handler
@@ -29,7 +31,12 @@ import kotlin.math.max
  * Output textures remain owned until every renderer/encoder releases its frame. */
 internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3: Boolean = false,
     private val useFence: Boolean = true, private val compactMask: Boolean = true,
-    private val cacheBindings: Boolean = true) : AutoCloseable {
+    private val cacheBindings: Boolean = true,
+    private val optimizedRenderer: Boolean = true,
+    private val compactIntermediates:Boolean=optimizedRenderer,
+    private val pairedKernels:Boolean=optimizedRenderer,
+    private val fusedComposite:Boolean=optimizedRenderer,
+    private val roiBlur:Boolean=false) : AutoCloseable {
     internal var lastFenceUsed = false
         private set
     private val thread = HandlerThread("privacy-image-gpu").apply { start() }
@@ -45,6 +52,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     private val planeSizes = arrayOfNulls<Pair<Int, Int>>(3)
     private val planeFormats = IntArray(3)
     private var rowLengthSupported = false
+    private val maskTargetsCompact:Boolean get() = compactIntermediates && rowLengthSupported
     private var chromaMode = 0
     private val cameraLastPair=ByteBuffer.allocateDirect(2)
     private var cameraLayoutLogged=false
@@ -390,22 +398,23 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             }
         val original = targets.getValue("upright")
         if (if (maskPixels >= 0) maskPixels > 0 else mask.any { it.toInt() != 0 }) {
-            val alpha = uploadMask(mask)
+            val layers = uploadMask(mask)
             val quarterW = max(1, ceil(width / 4.0).toInt())
             val quarterH = max(1, ceil(height / 4.0).toInt())
             val pixelated = target("pixelated", quarterW, quarterH)
-            draw("pixelate", PIXELATE, pixelated, listOf(original.texture)) { p ->
+            val blurRegion=if(roiBlur) blurScissor(mask,layout,maskPixels,quarterW,quarterH) else null
+            draw("pixelate", PIXELATE, pixelated, listOf(original.texture),scissor=blurRegion) { p ->
                 glUniform2f(p.getUniformLocation("imageSize"), width.toFloat(), height.toFloat())
             }
             val horizontal = target("blur-x", quarterW, quarterH)
             val vertical = target("blur-y", quarterW, quarterH)
-            draw("blur", BLUR, horizontal, listOf(pixelated.texture)) { p ->
+            draw(if(pairedKernels) "blur-fast" else "blur", if(pairedKernels) BLUR_FAST else BLUR, horizontal, listOf(pixelated.texture),scissor=blurRegion) { p ->
                 glUniform2f(p.getUniformLocation("stepSize"), 1f / quarterW, 0f)
             }
-            draw("blur", BLUR, vertical, listOf(horizontal.texture)) { p ->
+            draw(if(pairedKernels) "blur-fast" else "blur", if(pairedKernels) BLUR_FAST else BLUR, vertical, listOf(horizontal.texture),scissor=blurRegion) { p ->
                 glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / quarterH)
             }
-            draw("composite", COMPOSITE, output, listOf(original.texture, vertical.texture, alpha.texture)) { p ->
+            draw("composite",COMPOSITE,output,listOf(original.texture,vertical.texture,layers.alpha.texture)) { p ->
                 glUniform1i(p.getUniformLocation("rotation"), rotation)
                 glUniform4f(p.getUniformLocation("box"), layout.left / 640f, layout.top / 640f,
                     layout.resizedWidth / 640f, layout.resizedHeight / 640f)
@@ -432,7 +441,35 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         if (fence == 0L) buffer else PrivacyFencedTexture(buffer, fence)
     }
 
-    private fun uploadMask(mask: ByteArray): Target {
+    /** Expand sparse mask bounds by dilation, feather, two Gaussian axes and pixelation footprint. */
+    private fun blurScissor(mask:ByteArray,layout:PrivacySegmentation.Letterbox,count:Int,
+                            targetWidth:Int,targetHeight:Int):Rect? {
+        if(count==mask.size) return null
+        var left=160;var top=160;var right=-1;var bottom=-1
+        for(index in mask.indices) if(mask[index].toInt()!=0) {
+            val x=index%160;val y=index/160
+            left=minOf(left,x);top=minOf(top,y);right=maxOf(right,x);bottom=maxOf(bottom,y)
+        }
+        if(right<left) return null
+        val scaleX=layout.sourceWidth.toFloat()/layout.resizedWidth
+        val scaleY=layout.sourceHeight.toFloat()/layout.resizedHeight
+        // 10 model-mask cells cover 4px dilation + 5px feather + bilinear edge.
+        // An additional 192 upright pixels cover both blur axes (18 quarter pixels)
+        // and the 24px pixelation sample footprint even at odd dimensions.
+        val x0=(((left-10)*4-layout.left)*scaleX-192).toInt().coerceAtLeast(0)
+        val y0=(((top-10)*4-layout.top)*scaleY-192).toInt().coerceAtLeast(0)
+        val x1=(((right+11)*4-layout.left)*scaleX+192).toInt().coerceAtMost(width)
+        val y1=(((bottom+11)*4-layout.top)*scaleY+192).toInt().coerceAtMost(height)
+        val region=Rect((x0.toLong()*targetWidth/width).toInt(),
+            (y0.toLong()*targetHeight/height).toInt(),
+            ((x1.toLong()*targetWidth+width-1)/width).toInt().coerceAtMost(targetWidth),
+            ((y1.toLong()*targetHeight+height-1)/height).toInt().coerceAtMost(targetHeight))
+        return region.takeIf {it.width()>0 && it.height()>0 &&
+            (it.width()<targetWidth || it.height()<targetHeight)}
+    }
+
+    private data class MaskLayers(val core:Target,val feather:Target,val alpha:Target)
+    private fun uploadMask(mask: ByteArray): MaskLayers {
         val bytes = maskPixels.apply { clear() }
         val rawTexture = if(compactMask) {
             bytes.put(mask);bytes.rewind()
@@ -452,11 +489,11 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             raw.texture
         }
         // Same 2px opaque core, 4px outer dilation, sigma 1.5 feather as iOS.
-        val core = target("mask-core", 160, 160)
-        val outer = target("mask-outer", 160, 160)
-        val temp = target("mask-temp", 160, 160)
-        val blurred = target("mask-blur", 160, 160)
-        val alpha = target("mask-alpha", 160, 160)
+        val core = target("mask-core", 160, 160, maskTargetsCompact)
+        val outer = target("mask-outer", 160, 160, maskTargetsCompact)
+        val temp = target("mask-temp", 160, 160, maskTargetsCompact)
+        val blurred = target("mask-blur", 160, 160, maskTargetsCompact)
+        val alpha = target("mask-alpha",160,160,maskTargetsCompact)
         for ((radius, output) in listOf(2 to core, 4 to outer)) {
             draw("dilate-x", DILATE, temp, listOf(rawTexture)) { p ->
                 glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
@@ -467,29 +504,38 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 glUniform1i(p.getUniformLocation("radius"), radius)
             }
         }
-        draw("feather", FEATHER, temp, listOf(outer.texture)) { p ->
+        draw(if(pairedKernels) "feather-fast" else "feather", if(pairedKernels) FEATHER_FAST else FEATHER, temp, listOf(outer.texture)) { p ->
             glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
         }
-        draw("feather", FEATHER, blurred, listOf(temp.texture)) { p ->
+        val vertical=if(fusedComposite) alpha else blurred
+        val verticalShader=when {
+            fusedComposite && pairedKernels -> FEATHER_FAST_MAX
+            fusedComposite -> FEATHER_MAX
+            pairedKernels -> FEATHER_FAST
+            else -> FEATHER
+        }
+        draw(if(fusedComposite) "feather-max" else if(pairedKernels) "feather-fast" else "feather",
+            verticalShader,vertical,if(fusedComposite) listOf(temp.texture,core.texture) else listOf(temp.texture)) { p ->
             glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / 160)
         }
-        draw("mask-max", MASK_MAX, alpha, listOf(core.texture, blurred.texture))
-        return alpha
+        if(!fusedComposite) draw("mask-max", MASK_MAX, alpha, listOf(core.texture, blurred.texture))
+        return MaskLayers(core,blurred,alpha)
     }
 
-    private fun target(name: String, w: Int, h: Int): Target {
+    private fun target(name: String, w: Int, h: Int, singleChannel:Boolean=false): Target {
         val old = targets[name]
         if (old?.width == w && old.height == h) return old
         old?.close()
-        return Target(w, h).also { targets[name] = it }
+        return Target(w, h, singleChannel).also { targets[name] = it }
     }
 
     private fun draw(name: String, fragment: String, output: Target, textures: List<Int>,
-                     uniforms: (Program) -> Unit = {}) {
+                     scissor:Rect?=null, uniforms: (Program) -> Unit = {}) {
         val p = shaders.getOrPut(name) { Program(GlShader(VERTEX, HEADER + fragment), cacheBindings) }
         glBindFramebuffer(GL_FRAMEBUFFER, output.framebuffer)
         glDisable(GL_BLEND)
-        glDisable(GL_SCISSOR_TEST)
+        if(scissor==null) glDisable(GL_SCISSOR_TEST)
+        else {glEnable(GL_SCISSOR_TEST);glScissor(scissor.left,scissor.top,scissor.width(),scissor.height())}
         glViewport(0, 0, output.width, output.height)
         p.useProgram()
         p.setVertexAttribArray("position", 2, VERTICES)
@@ -532,14 +578,15 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         }
     }
 
-    private class Target(val width: Int, val height: Int) : AutoCloseable {
+    private class Target(val width: Int, val height: Int, val singleChannel:Boolean=false) : AutoCloseable {
         val texture: Int
         val framebuffer: Int
         init {
             val ids = IntArray(1)
             glGenTextures(1, ids, 0); texture = ids[0]
             glBindTexture(GL_TEXTURE_2D, texture); textureParameters(GL_LINEAR)
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, null)
+            glTexImage2D(GL_TEXTURE_2D, 0, if(singleChannel) GL_R8 else GL_RGBA,
+                width,height,0,if(singleChannel) GL_RED else GL_RGBA,GL_UNSIGNED_BYTE,null)
             glGenFramebuffers(1, ids, 0); framebuffer = ids[0]
             glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0)
@@ -599,6 +646,28 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
               for(int i=-18;i<=18;i++){ float w=exp(-float(i*i)/72.0); value+=texture2D(tex0,uv+float(i)*stepSize)*w; sum+=w; }
               gl_FragColor=value/sum; }
         """
+        private fun pairedGaussian(radius:Int,sigma:Double,maxCore:Boolean=false):String {
+            fun number(value:Double)=java.lang.String.format(java.util.Locale.US,"%.9f",value)
+            val weights=(0..radius).map {kotlin.math.exp(-it*it/(2*sigma*sigma))}
+            val total=weights[0]+2*(1..radius).sumOf {weights[it]}
+            val code=StringBuilder("uniform sampler2D tex0${if(maxCore) ",tex1" else ""}; uniform vec2 stepSize; void main(){ vec4 value=texture2D(tex0,uv)*${number(weights[0])};")
+            var offset=1
+            while(offset<=radius) {
+                val right=if(offset+1<=radius)offset+1 else offset
+                val weight=if(right==offset)weights[offset] else weights[offset]+weights[right]
+                val position=if(right==offset)offset.toDouble() else
+                    (offset*weights[offset]+right*weights[right])/weight
+                code.append("value+=(texture2D(tex0,uv+${number(position)}*stepSize)+texture2D(tex0,uv-${number(position)}*stepSize))*${number(weight)};")
+                offset=right+1
+            }
+            code.append("vec4 blurred=value*${number(1/total)}; gl_FragColor=${if(maxCore) "max(blurred,texture2D(tex1,uv))" else "blurred"};}")
+            return code.toString()
+        }
+        private val BLUR_FAST=pairedGaussian(18,6.0)
+        private val FEATHER_FAST=pairedGaussian(5,1.5)
+        private val FEATHER_FAST_MAX=pairedGaussian(5,1.5,true)
+        private val FEATHER_MAX=FEATHER.replace("uniform sampler2D tex0;","uniform sampler2D tex0,tex1;")
+            .replace("gl_FragColor=vec4(vec3(value/sum),1.0);","gl_FragColor=max(vec4(vec3(value/sum),1.0),texture2D(tex1,uv));")
         private const val DILATE = """
             uniform sampler2D tex0; uniform vec2 stepSize; uniform int radius;
             void main(){ float a=0.0; for(int i=-4;i<=4;i++){ if(i>=-radius && i<=radius) a=max(a,texture2D(tex0,uv+float(i)*stepSize).r); } gl_FragColor=vec4(vec3(a),1.0); }

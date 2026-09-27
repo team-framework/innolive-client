@@ -6,17 +6,32 @@ import kotlin.math.roundToInt
 
 /** Separable Gaussian convolution, with clamped edges and a normalized fixed-point kernel. */
 internal object PrivacyGaussianBlur {
-    fun apply(pixels: IntArray, width: Int, height: Int, sigma: Double): IntArray {
-        require(width > 0 && height > 0 && pixels.size == width * height && sigma > 0 && sigma.isFinite())
+    private val maskKernel by lazy { kernel(1.5) }
+    private val imageKernel by lazy { kernel(6.0) }
+    private val horizontalScratch = ThreadLocal<IntArray>()
+
+    private fun kernel(sigma: Double): IntArray {
         val radius = ceil(3 * sigma).toInt()
         val weights = DoubleArray(radius * 2 + 1) { index ->
             val offset = index - radius
             exp(-offset.toDouble() * offset / (2 * sigma * sigma))
         }
         val sum = weights.sum()
-        val kernel = IntArray(weights.size) { (weights[it] / sum * 65536).roundToInt() }
-        kernel[radius] += 65536 - kernel.sum()
-        val horizontal = IntArray(pixels.size)
+        return IntArray(weights.size) { (weights[it] / sum * 65536).roundToInt() }.apply {
+            this[radius] += 65536 - this.sum()
+        }
+    }
+
+    fun apply(pixels: IntArray, width: Int, height: Int, sigma: Double): IntArray {
+        require(width > 0 && height > 0 && pixels.size == width * height && sigma > 0 && sigma.isFinite())
+        val radius = ceil(3 * sigma).toInt()
+        val kernel = when (sigma) {
+            1.5 -> maskKernel
+            6.0 -> imageKernel
+            else -> kernel(sigma)
+        }
+        val horizontal = horizontalScratch.get()?.takeIf { it.size >= pixels.size }
+            ?: IntArray(pixels.size).also(horizontalScratch::set)
         val output = IntArray(pixels.size)
         for (vertical in listOf(false, true)) {
             val source = if (vertical) horizontal else pixels

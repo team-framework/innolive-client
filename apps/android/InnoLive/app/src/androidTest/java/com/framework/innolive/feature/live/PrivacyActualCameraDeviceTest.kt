@@ -14,7 +14,6 @@ import androidx.activity.ComponentActivity
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
-import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
@@ -49,6 +48,8 @@ class PrivacyActualCameraDeviceTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val optimized=InstrumentationRegistry.getArguments().getString("privacyOptimized","true").toBoolean()
         val batchOne=InstrumentationRegistry.getArguments().getString("privacyBatchOne","true").toBoolean()
+        val pendingLatest=InstrumentationRegistry.getArguments().getString("privacyPendingLatest","true").toBoolean()
+        val performancePreview=InstrumentationRegistry.getArguments().getString("privacyPreviewPerformance","false").toBoolean()
         val context = instrumentation.targetContext
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             instrumentation.uiAutomation.grantRuntimePermission(context.packageName, Manifest.permission.CAMERA)
@@ -80,7 +81,8 @@ class PrivacyActualCameraDeviceTest {
                         textSize = 16f
                     })
                     previewView = PreviewView(host).apply {
-                        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                        implementationMode = if(performancePreview) PreviewView.ImplementationMode.PERFORMANCE
+                            else PreviewView.ImplementationMode.COMPATIBLE
                         scaleType = PreviewView.ScaleType.FIT_CENTER
                     }
                     root.addView(previewView, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -110,7 +112,8 @@ class PrivacyActualCameraDeviceTest {
                 }, context, initialOnDevice = true, sharedEglContext = egl.eglBaseContext, onProcessingFailure = {
                     failures.incrementAndGet(); ready.countDown()
                 },directCameraInput=optimized,directGpuInput=optimized,nativePostprocessing=batchOne,batchTwoOptimizations=
-                    InstrumentationRegistry.getArguments().getString("privacyBatchTwo", "true").toBoolean())
+                    InstrumentationRegistry.getArguments().getString("privacyBatchTwo", "true").toBoolean(),
+                    keepLatestProtectedFrame=pendingLatest)
                 analyzer.onFrameDiagnostics = { if (collecting.get()) samples.add(it) }
                 val executor = Executors.newSingleThreadExecutor()
                 val selector = ResolutionSelector.Builder().setResolutionStrategy(
@@ -129,10 +132,11 @@ class PrivacyActualCameraDeviceTest {
                             if (collecting.get()) captures.incrementAndGet()
                             analyzer.analyze(image)
                         }
-                        val group = UseCaseGroup.Builder().addUseCase(preview).addUseCase(analysis)
-                            .setViewPort(ViewPort.Builder(Rational(9, 16), Surface.ROTATION_0)
-                                .setScaleType(ViewPort.FILL_CENTER).build()).build()
-                        provider.bindToLifecycle(host, CameraSelector.DEFAULT_FRONT_CAMERA, group)
+                        val viewPort=ViewPort.Builder(Rational(9, 16), Surface.ROTATION_0)
+                            .setScaleType(ViewPort.FILL_CENTER).build()
+                        val fixed30=CameraFrameRateBinding.bind(provider,host,
+                            CameraSelector.DEFAULT_FRONT_CAMERA,listOf(preview,analysis),viewPort)
+                        Log.i("PrivacyActualCamera","size=${width}x$height fixed_capture_30=$fixed30")
                     }
                     assertTrue("No protected camera frame arrived", ready.await(20, TimeUnit.SECONDS))
                     assertEquals("AI frame processing failed", 0, failures.get())
@@ -159,14 +163,17 @@ class PrivacyActualCameraDeviceTest {
                         assertTrue("Runtime input interop sync was not active",measured.all {it.analysis.inputInteropSync})
                     }
                     val protected = measured.filter { it.analysis.maskPixels > 0 }
+                    val ageMs=measured.map {it.frameAgeMs}.filter(Double::isFinite).sorted()
+                    val ageP95=ageMs.getOrNull((ageMs.size*.95).toInt().coerceAtMost(ageMs.lastIndex)) ?: Double.NaN
                     fun protectedMedian(select: (PrivacyCaptureDiagnostics) -> Double): Double {
                         if (protected.isEmpty()) return Double.NaN
                         val values = protected.map(select).sorted()
                         return values[values.size / 2]
                     }
-                    Log.i("PrivacyActualCamera", "optimized=$optimized batch_one=$batchOne size=${width}x$height seconds=$seconds " +
+                    Log.i("PrivacyActualCamera", "optimized=$optimized batch_one=$batchOne pending_latest=$pendingLatest performance_preview=$performancePreview size=${width}x$height seconds=$seconds " +
                         "captures=${captures.get()} processed=${measured.size} " +
                         "capture_fps=${captures.get() / seconds} processed_fps=${measured.size / seconds} " +
+                        "analysis_age_p95_ms=$ageP95 " +
                         "copy_p50_ms=${percentile(.5) { it.cameraCopyMs }} " +
                         "frame_p50_ms=${percentile(.5) { it.timings.totalMs }} " +
                         "frame_p95_ms=${percentile(.95) { it.timings.totalMs }} " +

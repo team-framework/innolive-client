@@ -95,6 +95,23 @@ class PrivacyPixelConverterDeviceTest {
         }
     }
 
+    @Test fun outputPoolNeverOverwritesFrameHeldByConsumer() {
+        PrivacyPixelConverter().use {converter ->
+            val red=Bitmap.createBitmap(8,8,Bitmap.Config.ARGB_8888).apply {eraseColor(Color.RED)}
+            val blue=Bitmap.createBitmap(8,8,Bitmap.Config.ARGB_8888).apply {eraseColor(Color.BLUE)}
+            try {
+                val first=converter.toI420(red)
+                try {
+                    val original=first.dataY.get(0)
+                    val second=converter.toI420(blue)
+                    try {assertEquals(original,first.dataY.get(0))}
+                    finally {second.release()}
+                    assertEquals(original,first.dataY.get(0))
+                } finally {first.release()}
+            } finally {red.recycle();blue.recycle()}
+        }
+    }
+
     @Test fun reusedNativeTensorUsesRgbChannelsAndRejectsNonFinitePrototypes() {
         val bitmap = Bitmap.createBitmap(2, 1, Bitmap.Config.ARGB_8888)
         val bytes = ByteBuffer.allocateDirect(2 * 3 * 4).order(ByteOrder.nativeOrder())

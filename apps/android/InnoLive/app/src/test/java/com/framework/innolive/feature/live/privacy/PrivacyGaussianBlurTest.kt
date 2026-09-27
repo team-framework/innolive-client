@@ -19,4 +19,13 @@ class PrivacyGaussianBlurTest {
         assertEquals(255, blurred[4 * 33 + 32] and 255)
         assertTrue(blurred.all { it ushr 24 == 255 })
     }
+
+    @Test fun scratchReuseDoesNotChangeEarlierOutputAcrossDifferentFrameSizes() {
+        val first = IntArray(19*13) {0xff000000.toInt() or ((it*37%256) shl 16) or (it*13%256)}
+        val expected = PrivacyGaussianBlur.apply(first,19,13,1.5)
+        val held = expected.copyOf()
+        PrivacyGaussianBlur.apply(IntArray(4*7) {if(it%2==0) -1 else 0xff000000.toInt()},4,7,6.0)
+        assertArrayEquals(held,expected)
+        assertArrayEquals(held,PrivacyGaussianBlur.apply(first,19,13,1.5))
+    }
 }

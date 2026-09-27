@@ -18,6 +18,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                                      private val batchTwoOptimizations: Boolean = true) : AutoCloseable {
     private var imageGpu: PrivacyGpuFramePipeline? = null
     private var imageGpuUnavailable = !allowGpuImages
+    private val gpuRetry = PrivacyGpuRetryPolicy(allowGpuImages)
     private val model = PrivacyOnnxModel(context.applicationContext,directGpuInput=directGpuInput,
         nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations)
     private val pixels = PrivacyPixelConverter()
@@ -59,15 +60,20 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
 
     fun process(frame: VideoFrame): VideoFrame {
         lastCameraCopiedPlanes = 3
+        if (imageGpuUnavailable && gpuRetry.shouldAttempt(System.nanoTime())) imageGpuUnavailable = false
         if (!imageGpuUnavailable) {
             try {
                 if (imageGpu == null) imageGpu = PrivacyGpuFramePipeline(sharedContext, useGles3 = true, cacheBindings=nativePostprocessing)
                 val graph = checkNotNull(imageGpu)
-                return if (batchTwoOptimizations) graph.runFrame { processGpu(frame, graph) } else processGpu(frame, graph)
+                val output = if (batchTwoOptimizations) graph.runFrame { processGpu(frame, graph) } else processGpu(frame, graph)
+                gpuRetry.succeeded()
+                return output
             } catch (error: PrivacyGpuBackpressureException) { throw error }
             catch (error: Exception) {
                 Log.w("PrivacyPipeline", "image_gpu_fallback type=${error.javaClass.simpleName}")
                 releaseAccelerators(); imageGpu?.close(); imageGpu = null; imageGpuUnavailable = true
+                if(error is UnsupportedOperationException || error is IllegalArgumentException) gpuRetry.disable()
+                else gpuRetry.failed(System.nanoTime())
                 resetFaceExceptions()
             }
         }
@@ -75,6 +81,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     }
 
     fun process(camera: PrivacyCameraInput): VideoFrame {
+        if(imageGpuUnavailable && gpuRetry.shouldAttempt(System.nanoTime())) imageGpuUnavailable=false
         if(!imageGpuUnavailable) try {
             if(imageGpu==null) imageGpu=PrivacyGpuFramePipeline(sharedContext,useGles3=true,cacheBindings=nativePostprocessing)
             val graph=checkNotNull(imageGpu)
@@ -87,7 +94,9 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                 return processGpuPrepared(graph,layout,camera.width,camera.height,camera.rotation,
                     camera.timestampNs,started,System.nanoTime())
             }
-            return if (batchTwoOptimizations) graph.runFrame { processInput() } else processInput()
+            val output=if (batchTwoOptimizations) graph.runFrame { processInput() } else processInput()
+            gpuRetry.succeeded()
+            return output
 
         } catch(error:PrivacyGpuBackpressureException) {throw error}
         catch(error:Exception) {
@@ -96,6 +105,8 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                 if(camera.isClosed) checkNotNull(imageGpu).copyUpright() else null
             } finally {
                 releaseAccelerators();imageGpu?.close();imageGpu=null;imageGpuUnavailable=true;resetFaceExceptions()
+                if(error is UnsupportedOperationException || error is IllegalArgumentException) gpuRetry.disable()
+                else gpuRetry.failed(System.nanoTime())
             }
             if(upright!=null) try {
                 lastCameraCopiedPlanes=3
@@ -200,7 +211,12 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
 
     override fun close() {
         faces.close()
-        try { val graph=imageGpu; if (graph != null && batchTwoOptimizations) graph.runFrame { model.close() } else model.close() } finally { imageGpu?.close(); imageGpu = null; sensorPixels.close(); uprightPixels.close(); restoredPixels.close() }
+        try { val graph=imageGpu; if (graph != null && batchTwoOptimizations) graph.runFrame { model.close() } else model.close() }
+        finally {
+            try {imageGpu?.close()} finally {
+                imageGpu=null;pixels.close();sensorPixels.close();uprightPixels.close();restoredPixels.close()
+            }
+        }
     }
 
     fun deactivateFaces() { faces.close() }
@@ -237,6 +253,21 @@ private class BitmapScratch : AutoCloseable {
 internal data class PrivacyFrameTimings(
     val inputMs: Double, val model: PrivacyModelTimings, val outputMs: Double, val totalMs: Double,
 )
+
+/** Keeps a failed GPU graph on the protected CPU path until a bounded retry is due. */
+internal class PrivacyGpuRetryPolicy(private val enabled:Boolean) {
+    private var failures=0
+    private var retryAtNs=Long.MAX_VALUE
+    private var permanentlyUnavailable=false
+    fun shouldAttempt(nowNs:Long):Boolean=enabled && !permanentlyUnavailable && failures>0 && nowNs>=retryAtNs
+    fun failed(nowNs:Long) {
+        if(!enabled || permanentlyUnavailable)return
+        failures=(failures+1).coerceAtMost(4)
+        retryAtNs=nowNs+((5L shl (failures-1))*1_000_000_000L)
+    }
+    fun succeeded() {failures=0;retryAtNs=Long.MAX_VALUE}
+    fun disable() {permanentlyUnavailable=true;retryAtNs=Long.MAX_VALUE}
+}
 
 internal object PrivacyBitmapRotation {
     fun draw(bitmap: Bitmap, degrees: Int, output: Bitmap) {

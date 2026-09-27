@@ -2,13 +2,14 @@ package com.framework.innolive.feature.live.privacy
 
 import android.graphics.Bitmap
 import java.nio.ByteBuffer
-import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
 import org.webrtc.YuvHelper
+import com.framework.innolive.feature.live.PrivacyCameraBufferPool
 
 /** Serially owned scratch buffer; native conversion never retains a camera buffer. */
-internal class PrivacyPixelConverter {
+internal class PrivacyPixelConverter : AutoCloseable {
     private var rgba: ByteBuffer? = null
+    private val outputPool=PrivacyCameraBufferPool()
 
     fun toBitmap(source: VideoFrame.I420Buffer): Bitmap {
         val bitmap = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
@@ -24,14 +25,14 @@ internal class PrivacyPixelConverter {
             source.dataU.slice(), source.strideU, source.dataV.slice(), source.strideV, target)
     }
 
-    fun toI420(bitmap: Bitmap): JavaI420Buffer {
+    fun toI420(bitmap: Bitmap): VideoFrame.I420Buffer {
         require(bitmap.config == Bitmap.Config.ARGB_8888)
         val size = bitmap.rowBytes * bitmap.height
         val buffer = rgba?.takeIf { it.capacity() >= size } ?: ByteBuffer.allocateDirect(size).also { rgba = it }
         buffer.clear()
         bitmap.copyPixelsToBuffer(buffer)
         buffer.rewind()
-        val output = JavaI420Buffer.allocate(bitmap.width, bitmap.height)
+        val output = outputPool.acquire(bitmap.width, bitmap.height)
         try {
             // Android RGBA byte order corresponds to libyuv ABGR on little-endian Android.
             YuvHelper.ABGRToI420(buffer, bitmap.rowBytes, output.dataY, output.strideY,
@@ -39,6 +40,8 @@ internal class PrivacyPixelConverter {
             return output
         } catch (error: Throwable) { output.release(); throw error }
     }
+
+    override fun close() {outputPool.close();rgba=null}
 }
 
 internal object PrivacyNativePixels {

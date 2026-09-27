@@ -65,6 +65,30 @@ class CameraFrameAnalyzerDeviceTest {
         } finally { analyzer.stop() }
     }
 
+    @Test fun rawFullFrameUsesPoolWithoutReusingHeldConsumerPixels() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
+        val frames=java.util.concurrent.CopyOnWriteArrayList<VideoFrame>()
+        val analyzer=CameraFrameAnalyzer(object:CapturerObserver {
+            override fun onCapturerStarted(success:Boolean)=Unit
+            override fun onCapturerStopped()=Unit
+            override fun onFrameCaptured(frame:VideoFrame) {frame.retain();frames.add(frame)}
+        },context)
+        analyzer.start()
+        try {
+            for(value in listOf(35,180,90)) {
+                val fixture=image(value.toLong()*1_000_000L,yValue=value)
+                analyzer.analyze(fixture.first)
+                assertTrue(fixture.second.await(1,TimeUnit.SECONDS))
+            }
+            assertEquals(3,frames.size)
+            for((i,value) in listOf(35,180,90).withIndex()) {
+                val buffer=checkNotNull(frames[i].buffer.toI420())
+                try {assertEquals(value,buffer.dataY.get(0).toInt() and 255)} finally {buffer.release()}
+            }
+        } finally {frames.forEach {it.release()};analyzer.stop()}
+    }
+
     @Test fun rawCameraFrameCopiesInterleavedChromaWithBufferOffset() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(
@@ -97,20 +121,21 @@ class CameraFrameAnalyzerDeviceTest {
         } finally { analyzer.stop() }
     }
 
-    @Test fun protectedInferenceReleasesCameraInputBeforeItFinishesAndDropsBusyFrame() {
+    @Test fun protectedInferenceReleasesCameraInputAndDeliversWaitingFrame() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions(),
         )
         val captured = AtomicInteger()
-        val delivered = CountDownLatch(1)
+        val delivered = CountDownLatch(2)
+        val timestamps = java.util.concurrent.ConcurrentLinkedQueue<Long>()
         val failed = CountDownLatch(1)
         val captureFormat = AtomicReference<Pair<Int, Int>>()
         val observer = object : CapturerObserver {
             override fun onCapturerStarted(success: Boolean) = Unit
             override fun onCapturerStopped() = Unit
             override fun onFrameCaptured(frame: VideoFrame) {
-                assertEquals(1_000_000_000L, frame.timestampNs)
+                timestamps.add(frame.timestampNs)
                 captured.incrementAndGet()
                 delivered.countDown()
             }
@@ -134,17 +159,17 @@ class CameraFrameAnalyzerDeviceTest {
 
             val busy = image(1_010_000_000L)
             analyzer.analyze(busy.first)
+            assertTrue("Protected frames were not delivered", delivered.await(20, TimeUnit.SECONDS))
             assertTrue(busy.second.await(1, TimeUnit.SECONDS))
-            assertTrue("Protected frame was not delivered", delivered.await(15, TimeUnit.SECONDS))
-            Thread.sleep(500)
-            assertEquals("A busy camera frame was queued", 1, captured.get())
+            assertEquals(listOf(1_000_000_000L,1_010_000_000L),timestamps.toList())
+            assertEquals(2, captured.get())
             assertFalse("Protected inference failed", failed.await(0, TimeUnit.MILLISECONDS))
         } finally { analyzer.stop() }
     }
 
     private fun image(timestampNs: Long, chromaPixelStride: Int = 1,
                       bufferOffset: Int = 0, width: Int = 640, height: Int = 480,
-                      rotation: Int = 0): Pair<ImageProxy, CountDownLatch> {
+                      rotation: Int = 0, yValue:Int=114): Pair<ImageProxy, CountDownLatch> {
         val closed = CountDownLatch(1)
         fun plane(data: ByteBuffer, rowStride: Int, pixelStride: Int = 1): ImageProxy.PlaneProxy =
             Proxy.newProxyInstance(ImageProxy.PlaneProxy::class.java.classLoader,
@@ -158,7 +183,7 @@ class CameraFrameAnalyzerDeviceTest {
             } as ImageProxy.PlaneProxy
         val planes = arrayOf(
             plane(ByteBuffer.allocateDirect(width * height).apply {
-                repeat(width * height) { put(114.toByte()) }; flip()
+                repeat(width * height) { put(yValue.toByte()) }; flip()
             }, width),
             plane(ByteBuffer.allocateDirect(bufferOffset + width * height / 4 * chromaPixelStride).apply {
                 repeat(capacity()) { put(128.toByte()) }; flip(); position(bufferOffset)
