@@ -41,6 +41,14 @@ class PrivacyGpuInputDeviceTest {
                         assertArrayEquals(first,restored)
                         assertTrue("Validated GL input was rejected",graph.nativeInputEnabled)
                         assertTrue(graph.nativeInputUsesManagedSync)
+                        val before = graph.predictNativeInput()
+                        val predictions = ByteBuffer.allocateDirect(38*8400*4).order(ByteOrder.nativeOrder())
+                        val prototypes = ByteBuffer.allocateDirect(32*160*160*4).order(ByteOrder.nativeOrder())
+                        graph.predictNativeInputInto(predictions,prototypes)
+                        val directPredictions=FloatArray(38*8400).also {predictions.asFloatBuffer().get(it)}
+                        val directPrototypes=FloatArray(32*160*160).also {prototypes.asFloatBuffer().get(it)}
+                        assertArrayEquals(before.first,directPredictions,.00001f)
+                        assertArrayEquals(before.second,directPrototypes,.00001f)
                         Log.i("PrivacyStages","stage=gpu_input production_enabled=${graph.nativeInputEnabled}")
                         repeat(source.dataY.capacity()) { source.dataY.put(it,200.toByte()) }
                         graph.prepare(source,0,readModel=false)

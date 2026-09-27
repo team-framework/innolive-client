@@ -35,6 +35,7 @@ internal object PrivacyNativeSegmentation {
 /** Only this class can create the validated input used to skip a second prototype scan.
  * The array is consumed on the serial AI thread and is never exposed or mutated afterwards. */
 internal class PrivacyValidatedPrototypes private constructor(private val values: FloatArray) {
+    fun copyInto(buffer: java.nio.ByteBuffer) { buffer.asFloatBuffer().put(values) }
     fun masks(coefficients: FloatArray,bounds: IntArray): Array<ByteArray> =
         PrivacyNativePixels.computeInstanceMasks(coefficients,bounds,values,prototypesValidated=true)
     companion object {

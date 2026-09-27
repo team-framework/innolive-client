@@ -12,15 +12,19 @@ import kotlin.math.min
 /** Owned by the serial camera analyzer; the worker returns through a single result mailbox. */
 internal class PrivacyFaceCoordinator(
     private val service: PrivacyFaceRecognitionService,
+    private val optimized: Boolean = true,
+    private val revisionSource: () -> Long = { PrivacyFaceLibrary.currentRevision },
     private val registeredFaces: () -> List<PrivacyRegisteredFace>,
 ) {
-    constructor(context: Context) : this(PrivacyFaceService.get(context),
+    constructor(context: Context, optimized: Boolean = true) : this(PrivacyFaceService.get(context), optimized,
+        { PrivacyFaceLibrary.currentRevision },
         { PrivacyFaceService.get(context).library?.snapshot().orEmpty() })
     private val tracking = PrivacyFaceTracking()
-    private var revision = PrivacyFaceLibrary.currentRevision
+    private var revision = revisionSource()
     private var generation = 0L
     private var previousLayout: PrivacySegmentation.Letterbox? = null
     private var geometry: Pair<Int, Int>? = null
+    private var cachedEntries: List<PrivacyRegisteredFace>? = null
 
     fun reset() {
         generation++
@@ -69,7 +73,7 @@ internal class PrivacyFaceCoordinator(
                 }
                 val match = result.embedding?.takeIf {
                     box != null && tracking.recognitionMatches(result.trackId, box)
-                }?.let { PrivacyFaceMath.match(it, entries) }
+                }?.let { if (optimized) PrivacyFaceMath.match(it, entries) else PrivacyFaceMath.matchReference(it, entries) }
                 tracking.accept(result.trackId, match, result.capturedAtSeconds, time,
                     sampleAvailable = result.sampleAvailable)
             }
@@ -79,13 +83,18 @@ internal class PrivacyFaceCoordinator(
     }
 
     private fun refreshRevision() {
-        if (revision != PrivacyFaceLibrary.currentRevision) {
-            revision = PrivacyFaceLibrary.currentRevision
+        if (revision != revisionSource()) {
+            revision = revisionSource()
+            cachedEntries = null
             reset()
         }
     }
 
-    private fun entries(): List<PrivacyRegisteredFace> = try { registeredFaces() } catch (_: Exception) {
+    private fun entries(): List<PrivacyRegisteredFace> = try {
+        if (optimized) cachedEntries ?: registeredFaces().also { cachedEntries = it }
+        else registeredFaces()
+    } catch (_: Exception) {
+        cachedEntries = null
         reset()
         emptyList()
     }

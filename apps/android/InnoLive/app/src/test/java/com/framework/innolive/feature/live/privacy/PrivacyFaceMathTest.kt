@@ -25,4 +25,23 @@ class PrivacyFaceMathTest {
         assertNull(PrivacyFaceMath.match(vector(Float.NaN), listOf(entry)))
         assertNull(PrivacyFaceMath.match(FloatArray(10), listOf(entry)))
     }
+
+    @Test fun optimizedTopTwoSelectionMatchesReferenceForTwentyScaledAndInvalidEmbeddings() {
+        val random=kotlin.random.Random(328)
+        repeat(80) {sample ->
+            val query=FloatArray(512) {random.nextFloat()*2-1}
+            val entries=(0 until 20).map {index ->
+                val embedding=when(index) {
+                    0 -> FloatArray(512) {query[it]*(sample%7+1)}
+                    1 -> if(sample%2==0)query.copyOf() else FloatArray(512) {random.nextFloat()*2-1}
+                    2 -> FloatArray(512)
+                    3 -> FloatArray(512) {Float.NaN}
+                    else -> FloatArray(512) {random.nextFloat()*2-1}
+                }
+                PrivacyRegisteredFace(index.toString(),"fixture",embedding,0)
+            }
+            assertEquals("sample=$sample",PrivacyFaceMath.matchReference(query,entries),PrivacyFaceMath.match(query,entries))
+        }
+        assertNull(PrivacyFaceMath.match(vector(1f),emptyList()))
+    }
 }

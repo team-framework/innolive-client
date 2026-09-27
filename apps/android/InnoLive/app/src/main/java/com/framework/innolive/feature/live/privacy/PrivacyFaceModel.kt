@@ -18,10 +18,15 @@ import java.security.MessageDigest
 import kotlin.math.sqrt
 
 internal object PrivacyFaceMath {
-    fun normalize(values: FloatArray): FloatArray? {
+    private fun norm(values: FloatArray): Float? {
         if (values.size != 512 || values.any { !it.isFinite() }) return null
         val norm = sqrt(values.sumOf { (it * it).toDouble() }).toFloat()
         if (!norm.isFinite() || norm < 0.00001f) return null
+        return norm
+    }
+
+    fun normalize(values: FloatArray): FloatArray? {
+        val norm = norm(values) ?: return null
         return FloatArray(values.size) { values[it] / norm }
     }
 
@@ -32,9 +37,24 @@ internal object PrivacyFaceMath {
     }
 
     fun match(embedding: FloatArray, entries: List<PrivacyRegisteredFace>): String? {
+        val query = normalize(embedding) ?: return null
+        var bestId: String? = null
+        var best = Float.NEGATIVE_INFINITY
+        var second = Float.NEGATIVE_INFINITY
+        for (entry in entries) {
+            val length = norm(entry.embedding)
+            val score = if (length == null) -1f else query.indices
+                .sumOf { (query[it] * (entry.embedding[it] / length)).toDouble() }.toFloat()
+            if (score > best) { second = best; best = score; bestId = entry.id }
+            else if (score > second) second = score
+        }
+        if (best < .60f || (entries.size > 1 && best - second < .08f)) return null
+        return bestId
+    }
+
+    internal fun matchReference(embedding: FloatArray, entries: List<PrivacyRegisteredFace>): String? {
         if (normalize(embedding) == null) return null
-        val ranked = entries.map { it.id to cosine(embedding, it.embedding) }
-            .sortedByDescending { it.second }
+        val ranked = entries.map { it.id to cosine(embedding, it.embedding) }.sortedByDescending { it.second }
         val first = ranked.firstOrNull() ?: return null
         if (first.second < .60f || (ranked.size > 1 && first.second - ranked[1].second < .08f)) return null
         return first.first

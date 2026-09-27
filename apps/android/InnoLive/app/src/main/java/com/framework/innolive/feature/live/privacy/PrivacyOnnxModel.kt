@@ -21,11 +21,15 @@ import java.nio.FloatBuffer
 /** Owns the pinned YOLO ONNX session. The caller serializes access and never sends raw on error. */
 internal class PrivacyOnnxModel(private val context: Context,
                                 private val directGpuInput:Boolean=true,
-                               sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() }) : AutoCloseable {
+                               sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() },
+                               private val nativePostprocessing: Boolean = true) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private val session: OrtSession
     private val blur = PrivacyBitmapBlur()
     private val stabilizer = PrivacyMaskStabilizer()
+    private val postprocessor by lazy { PrivacyNativePostprocessor() }
+    var lastMaskPixels: Int = -1
+        private set
     private val inputBitmap = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
     private val inputCanvas = Canvas(inputBitmap)
     private val inputBytes = ByteBuffer.allocateDirect(3 * 640 * 640 * 4).order(ByteOrder.nativeOrder())
@@ -105,8 +109,15 @@ internal class PrivacyOnnxModel(private val context: Context,
         nativeInputActive = gpuGraph?.nativeInputEnabled == true
         if (!nativeInputActive) PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
         val prepared = System.nanoTime()
-        val (predictions, prototypes) = if (nativeInputActive) try {
-            checkedOutput(checkNotNull(gpuGraph).predictNativeInput())
+        var nativeOutputs = false
+        var nativeDetections: List<PrivacySegmentation.Detection>? = null
+        val legacyOutputs = if (nativeInputActive) try {
+            if (nativePostprocessing) {
+                checkNotNull(gpuGraph).predictNativeInputInto(postprocessor.predictions, postprocessor.prototypes)
+                nativeDetections = postprocessor.decode()
+                nativeOutputs = true
+                null
+            } else checkedOutput(checkNotNull(gpuGraph).predictNativeInput())
         } catch (error: Exception) {
             nativeInputActive = false
             checkNotNull(gpuGraph).disableNativeInput()
@@ -116,20 +127,30 @@ internal class PrivacyOnnxModel(private val context: Context,
         } else predictLegacy()
         val inferred = System.nanoTime()
         run {
-            val objects = PrivacySegmentation.detections(predictions)
+            val objects = if (nativePostprocessing) {
+                if (!nativeOutputs) {
+                    val values = checkNotNull(legacyOutputs)
+                    postprocessor.predictions.asFloatBuffer().put(values.first)
+                    // The legacy path has already validated this immutable array.
+                    values.second.copyInto(postprocessor.prototypes)
+                }
+                if (nativeOutputs) checkNotNull(nativeDetections) else postprocessor.decode()
+            } else PrivacySegmentation.detections(checkNotNull(legacyOutputs).first)
             val beforeFaces = System.nanoTime()
             val exempt = exemptFaces(objects, layout)
             val afterFaces = System.nanoTime()
-            val instances = PrivacyNativeSegmentation.instanceMasks(
-                PrivacySegmentation.protectedDetections(objects, exempt),
-                prototypes,
-            )
-            val mask = stabilizer.apply(instances, timestampNs / 1_000_000_000.0)
+            val mask = if (nativePostprocessing) {
+                postprocessor.mask(exempt, timestampNs / 1_000_000_000.0).also { lastMaskPixels = postprocessor.maskPixels }
+            } else {
+                val instances = PrivacyNativeSegmentation.instanceMasks(
+                    PrivacySegmentation.protectedDetections(objects, exempt), checkNotNull(legacyOutputs).second)
+                stabilizer.apply(instances, timestampNs / 1_000_000_000.0).also { lastMaskPixels = -1 }
+            }
             val masked = System.nanoTime()
             val output = render(mask)
             val rendered = System.nanoTime()
             if (BuildConfig.DEBUG) {
-                val maskPixels = mask.count { it.toInt() != 0 }
+                val maskPixels = if (lastMaskPixels >= 0) lastMaskPixels else mask.count { it.toInt() != 0 }
                 lastAnalysis = PrivacyFrameAnalysis(usesGpu, objects.count { it.classId == 0 },
                     objects.count { it.classId == 1 }, exempt.size,
                     maskPixels, maskPixels > 0 && (renderOnGpu || blur.lastUsedGpu), nnapi != null,
@@ -145,7 +166,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         }
     }
 
-    fun resetTemporalState() { stabilizer.reset() }
+    fun resetTemporalState() { stabilizer.reset(); if (nativePostprocessing) postprocessor.reset() }
 
     private fun checkedOutput(output: Pair<FloatArray,FloatArray>): Pair<FloatArray,PrivacyValidatedPrototypes> {
         check(PrivacyNativePixels.finiteFloats(output.first))
@@ -204,6 +225,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         }
 
     override fun close() {
+        if (nativePostprocessing) postprocessor.close()
         nnapi?.close(); nnapi = null
         gpu?.close(); gpu = null
         blur.close(); inputTensor.close(); inputBitmap.recycle(); session.close()

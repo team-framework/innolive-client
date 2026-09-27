@@ -28,14 +28,15 @@ import kotlin.math.max
 /** Serial GL graph. Only 640px model input and requested face crops cross back to CPU.
  * Output textures remain owned until every renderer/encoder releases its frame. */
 internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3: Boolean = false,
-    private val useFence: Boolean = true, private val compactMask: Boolean = true) : AutoCloseable {
+    private val useFence: Boolean = true, private val compactMask: Boolean = true,
+    private val cacheBindings: Boolean = true) : AutoCloseable {
     internal var lastFenceUsed = false
         private set
     private val thread = HandlerThread("privacy-image-gpu").apply { start() }
     private val handler = Handler(thread.looper)
     private lateinit var egl: EglBase
     private lateinit var converter: YuvConverter
-    private val shaders = mutableMapOf<String, GlShader>()
+    private val shaders = mutableMapOf<String, Program>()
     private val targets = mutableMapOf<String, Target>()
     private val planeTextures = IntArray(3)
     private val maskTexture = IntArray(1)
@@ -80,6 +81,9 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 rowLengthSupported = glGetString(GL_VERSION)?.contains("OpenGL ES 3") == true
                 glGenTextures(3, planeTextures, 0)
                 glGenTextures(1, maskTexture, 0)
+                if (cacheBindings) for (texture in planeTextures + maskTexture) {
+                    glBindTexture(GL_TEXTURE_2D, texture); textureParameters(GL_LINEAR)
+                }
             }
         } catch (error: Throwable) {
             onGl { if (::egl.isInitialized) egl.release() }
@@ -121,7 +125,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 packed.apply { position(0) }
             }
             glActiveTexture(GL_TEXTURE0 + i); glBindTexture(GL_TEXTURE_2D, planeTextures[i])
-            textureParameters(GL_LINEAR)
+            if (!cacheBindings) textureParameters(GL_LINEAR)
             if (planeSizes[i] != (w to h) || planeFormats[i] != GL_LUMINANCE) {
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, pixels)
                 planeSizes[i] = w to h
@@ -203,7 +207,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         if(rowLengthSupported) glPixelStorei(GL_UNPACK_ROW_LENGTH,if(direct) plane.rowStride/components else 0)
         try {
-            glActiveTexture(GL_TEXTURE0+index);glBindTexture(GL_TEXTURE_2D,planeTextures[index]);textureParameters(GL_LINEAR)
+            glActiveTexture(GL_TEXTURE0+index);glBindTexture(GL_TEXTURE_2D,planeTextures[index])
+            if (!cacheBindings) textureParameters(GL_LINEAR)
             val allocate=planeSizes[index]!=(plane.width to plane.height) || planeFormats[index]!=format
             if(allocate) {
                 glTexImage2D(GL_TEXTURE_2D,0,format,plane.width,plane.height,0,format,GL_UNSIGNED_BYTE,
@@ -262,6 +267,15 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             val values = PrivacyNativeGpuModel.predict(nativeModel, targets.getValue("model").texture,useFence)
             nativeInputUsesManagedSync=PrivacyNativeGpuModel.usesManagedInputSync(nativeModel)
             values[0] to values[1]
+        } finally { egl.makeCurrent() }
+    }
+
+    internal fun predictNativeInputInto(predictions: ByteBuffer, prototypes: ByteBuffer) = onGl {
+        check(nativeModel != 0L && !closing)
+        egl.makeCurrent()
+        try {
+            PrivacyNativeGpuModel.predictInto(nativeModel, targets.getValue("model").texture, predictions, prototypes)
+            nativeInputUsesManagedSync = PrivacyNativeGpuModel.usesManagedInputSync(nativeModel)
         } finally { egl.makeCurrent() }
     }
 
@@ -354,7 +368,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     }
 
     fun finish(mask: ByteArray, layout: PrivacySegmentation.Letterbox,
-               sensorWidth: Int, sensorHeight: Int): VideoFrame.TextureBuffer = onGl {
+               sensorWidth: Int, sensorHeight: Int, maskPixels: Int = -1): VideoFrame.TextureBuffer = onGl {
         check(!closing)
         require(layout.sourceWidth == width && layout.sourceHeight == height && mask.size == 160 * 160)
         val output = outputPool.firstOrNull { it !in leased && it.width == sensorWidth && it.height == sensorHeight }
@@ -365,7 +379,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 Target(sensorWidth, sensorHeight).also { outputPool.add(it) }
             }
         val original = targets.getValue("upright")
-        if (mask.any { it.toInt() != 0 }) {
+        if (if (maskPixels >= 0) maskPixels > 0 else mask.any { it.toInt() != 0 }) {
             val alpha = uploadMask(mask)
             val quarterW = max(1, ceil(width / 4.0).toInt())
             val quarterH = max(1, ceil(height / 4.0).toInt())
@@ -412,7 +426,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         val bytes = maskPixels.apply { clear() }
         val rawTexture = if(compactMask) {
             bytes.put(mask);bytes.rewind()
-            glBindTexture(GL_TEXTURE_2D,maskTexture[0]);textureParameters(GL_LINEAR)
+            glBindTexture(GL_TEXTURE_2D,maskTexture[0])
+            if (!cacheBindings) textureParameters(GL_LINEAR)
             glPixelStorei(GL_UNPACK_ALIGNMENT,1)
             if(!maskTextureReady) {
                 glTexImage2D(GL_TEXTURE_2D,0,GL_LUMINANCE,160,160,0,GL_LUMINANCE,GL_UNSIGNED_BYTE,bytes)
@@ -460,8 +475,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     }
 
     private fun draw(name: String, fragment: String, output: Target, textures: List<Int>,
-                     uniforms: (GlShader) -> Unit = {}) {
-        val p = shaders.getOrPut(name) { GlShader(VERTEX, HEADER + fragment) }
+                     uniforms: (Program) -> Unit = {}) {
+        val p = shaders.getOrPut(name) { Program(GlShader(VERTEX, HEADER + fragment), cacheBindings) }
         glBindFramebuffer(GL_FRAMEBUFFER, output.framebuffer)
         glDisable(GL_BLEND)
         glDisable(GL_SCISSOR_TEST)
@@ -470,7 +485,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         p.setVertexAttribArray("position", 2, VERTICES)
         for ((i, texture) in textures.withIndex()) {
             glActiveTexture(GL_TEXTURE0 + i); glBindTexture(GL_TEXTURE_2D, texture)
-            glUniform1i(p.getUniformLocation("tex$i"), i)
+            glUniform1i(p.getUniformLocation(SAMPLERS[i]), i)
         }
         uniforms(p)
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
@@ -525,7 +540,18 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         override fun close() { glDeleteFramebuffers(1, intArrayOf(framebuffer), 0); glDeleteTextures(1, intArrayOf(texture), 0) }
     }
 
+    private class Program(private val shader: GlShader, private val cache: Boolean) {
+        private val locations = mutableMapOf<String, Int>()
+        fun getUniformLocation(name: String): Int = if (cache)
+            locations.getOrPut(name) { shader.getUniformLocation(name) } else shader.getUniformLocation(name)
+        fun useProgram() = shader.useProgram()
+        fun setVertexAttribArray(name: String, dimension: Int, buffer: java.nio.FloatBuffer) =
+            shader.setVertexAttribArray(name, dimension, buffer)
+        fun release() = shader.release()
+    }
+
     companion object {
+        private val SAMPLERS = arrayOf("tex0", "tex1", "tex2")
         private fun textureParameters(filter: Int) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)

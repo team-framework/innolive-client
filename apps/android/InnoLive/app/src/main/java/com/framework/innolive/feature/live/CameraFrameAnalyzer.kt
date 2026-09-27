@@ -33,6 +33,7 @@ class CameraFrameAnalyzer(
     private val sharedEglContext: EglBase.Context? = null,
     private val directCameraInput: Boolean = true,
     private val directGpuInput: Boolean = true,
+    private val nativePostprocessing: Boolean = true,
 ) : ImageAnalysis.Analyzer {
     private val enabled = AtomicBoolean(false)
     private val protectedFrameReported = AtomicBoolean(false)
@@ -53,7 +54,8 @@ class CameraFrameAnalyzer(
     private val cameraBuffers = PrivacyCameraBufferPool()
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
-        if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput) else null
+        if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
+            nativePostprocessing=nativePostprocessing) else null
     private val route = PrivacyFrameRoute(
         when {
             !initialOnDevice -> PrivacyFrameMode.SERVER
@@ -66,7 +68,8 @@ class CameraFrameAnalyzer(
         if (onDevice && localProcessor == null) {
             synchronized(processorLock) {
                 if (localProcessor == null) {
-                    localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput)
+                    localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
+                        nativePostprocessing=nativePostprocessing)
                 }
             }
         }

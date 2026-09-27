@@ -12,12 +12,14 @@ import org.webrtc.EglBase
 
 /** Serial AI worker: a GPU image graph and protected texture output, with a protected CPU fallback. */
 internal class PrivacyFrameProcessor(context: Context, private val sharedContext: EglBase.Context? = null,
-                                     private val allowGpuImages: Boolean = true, directGpuInput:Boolean=true) : AutoCloseable {
+                                     private val allowGpuImages: Boolean = true, directGpuInput:Boolean=true,
+                                     private val nativePostprocessing: Boolean = true) : AutoCloseable {
     private var imageGpu: PrivacyGpuFramePipeline? = null
     private var imageGpuUnavailable = !allowGpuImages
-    private val model = PrivacyOnnxModel(context.applicationContext,directGpuInput=directGpuInput)
+    private val model = PrivacyOnnxModel(context.applicationContext,directGpuInput=directGpuInput,
+        nativePostprocessing=nativePostprocessing)
     private val pixels = PrivacyPixelConverter()
-    private val faces = PrivacyFaceCoordinator(context.applicationContext)
+    private val faces = PrivacyFaceCoordinator(context.applicationContext, optimized=nativePostprocessing)
     var lastTimings: PrivacyFrameTimings? = null
         private set
     val lastAnalysis: PrivacyFrameAnalysis? get() = model.lastAnalysis
@@ -35,7 +37,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
         lastCameraCopiedPlanes = 3
         if (!imageGpuUnavailable) {
             try {
-                if (imageGpu == null) imageGpu = PrivacyGpuFramePipeline(sharedContext, useGles3 = true)
+                if (imageGpu == null) imageGpu = PrivacyGpuFramePipeline(sharedContext, useGles3 = true, cacheBindings=nativePostprocessing)
                 return processGpu(frame, checkNotNull(imageGpu))
             } catch (error: PrivacyGpuBackpressureException) { throw error }
             catch (error: Exception) {
@@ -49,7 +51,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
 
     fun process(camera: PrivacyCameraInput): VideoFrame {
         if(!imageGpuUnavailable) try {
-            if(imageGpu==null) imageGpu=PrivacyGpuFramePipeline(sharedContext,useGles3=true)
+            if(imageGpu==null) imageGpu=PrivacyGpuFramePipeline(sharedContext,useGles3=true,cacheBindings=nativePostprocessing)
             val graph=checkNotNull(imageGpu)
             val started=System.nanoTime()
             val layout=graph.prepare(camera,readModel=!graph.nativeInputEnabled)
@@ -113,7 +115,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
             faces.beginFrame(layout.sourceWidth,layout.sourceHeight,timestampNs,graph::crop)
             val buffer=model.processPrepared(graph.modelBitmap,layout,timestampNs,
                 {objects,box -> faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)},
-                renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight)}
+                renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,model.lastMaskPixels)}
             val completed = System.nanoTime()
             lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
                 checkNotNull(model.lastTimings), 0.0, (completed - started) / 1e6)

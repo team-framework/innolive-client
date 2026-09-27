@@ -48,6 +48,7 @@ class PrivacyActualCameraDeviceTest {
         assumeFalse(android.os.Build.MODEL.startsWith("sdk_") || android.os.Build.HARDWARE.contains("ranchu"))
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val optimized=InstrumentationRegistry.getArguments().getString("privacyOptimized","true").toBoolean()
+        val batchOne=InstrumentationRegistry.getArguments().getString("privacyBatchOne","true").toBoolean()
         val context = instrumentation.targetContext
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             instrumentation.uiAutomation.grantRuntimePermission(context.packageName, Manifest.permission.CAMERA)
@@ -108,7 +109,7 @@ class PrivacyActualCameraDeviceTest {
                     }
                 }, context, initialOnDevice = true, sharedEglContext = egl.eglBaseContext, onProcessingFailure = {
                     failures.incrementAndGet(); ready.countDown()
-                },directCameraInput=optimized,directGpuInput=optimized)
+                },directCameraInput=optimized,directGpuInput=optimized,nativePostprocessing=batchOne)
                 analyzer.onFrameDiagnostics = { if (collecting.get()) samples.add(it) }
                 val executor = Executors.newSingleThreadExecutor()
                 val selector = ResolutionSelector.Builder().setResolutionStrategy(
@@ -162,7 +163,7 @@ class PrivacyActualCameraDeviceTest {
                         val values = protected.map(select).sorted()
                         return values[values.size / 2]
                     }
-                    Log.i("PrivacyActualCamera", "optimized=$optimized size=${width}x$height seconds=$seconds " +
+                    Log.i("PrivacyActualCamera", "optimized=$optimized batch_one=$batchOne size=${width}x$height seconds=$seconds " +
                         "captures=${captures.get()} processed=${measured.size} " +
                         "capture_fps=${captures.get() / seconds} processed_fps=${measured.size / seconds} " +
                         "copy_p50_ms=${percentile(.5) { it.cameraCopyMs }} " +

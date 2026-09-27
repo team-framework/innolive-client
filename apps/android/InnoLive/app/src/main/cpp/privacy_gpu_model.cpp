@@ -133,7 +133,7 @@ struct Model {
         GLint ok=0; glGetProgramiv(program,GL_LINK_STATUS,&ok);
         if(!ok || glGetError()!=GL_NO_ERROR) throw std::runtime_error("GPU input program unavailable");
     }
-    jobjectArray predict(JNIEnv* env, GLuint texture,bool useFence) {
+    void run(GLuint texture,bool useFence) {
         glUseProgram(program); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,texture);
         glUniform1i(glGetUniformLocation(program,"image"),0); glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,buffer);
         glDispatchCompute(40,40,1); glMemoryBarrier(GL_ALL_BARRIER_BITS);
@@ -146,6 +146,10 @@ struct Model {
         if(useFence) glFlush(); else glFinish(); // Explicit baseline for device A/B.
         if(glGetError()!=GL_NO_ERROR) throw std::runtime_error("GPU input dispatch failed");
         check(a.LiteRtRunCompiledModel(compiled,0,1,&input,2,outputs),"run");
+    }
+    jobjectArray predict(JNIEnv* env, GLuint texture,bool useFence) {
+        run(texture,useFence);
+        auto& a=api();
         auto result=env->NewObjectArray(2,env->FindClass("[F"),nullptr);
         if(!result) return nullptr;
         const int sizes[2]={38*8400,32*160*160};
@@ -161,6 +165,28 @@ struct Model {
         }
         return result;
     }
+    void predictInto(JNIEnv* env,GLuint texture,jobject predictions,jobject prototypes,bool useFence) {
+        jobject destinations[2]={predictions,prototypes};
+        const int sizes[2]={38*8400,32*160*160};
+        void* target[2]{};
+        for(int i=0;i<2;++i) {
+            target[i]=env->GetDirectBufferAddress(destinations[i]);
+            if(!target[i] || env->GetDirectBufferCapacity(destinations[i])<sizes[i]*static_cast<int64_t>(sizeof(float)))
+                throw std::runtime_error("Invalid direct output buffer");
+        }
+        run(texture,useFence);
+        auto& a=api();
+        for(int i=0;i<2;++i) {
+            void* address=nullptr;
+            check(a.LiteRtLockTensorBuffer(outputs[i],&address,kLiteRtTensorBufferLockModeRead),"output read");
+            if(!address) {
+                a.LiteRtUnlockTensorBuffer(outputs[i]);
+                throw std::runtime_error("Output address unavailable");
+            }
+            std::memcpy(target[i],address,sizes[i]*sizeof(float));
+            check(a.LiteRtUnlockTensorBuffer(outputs[i]),"output unlock");
+        }
+    }
 };
 void fail(JNIEnv* env,const std::exception& error) { env->ThrowNew(env->FindClass("java/lang/IllegalStateException"),error.what()); }
 }
@@ -174,6 +200,11 @@ extern "C" JNIEXPORT jobjectArray JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuModel_predict(JNIEnv* env,jobject,jlong handle,jint texture,jboolean useFence) {
     try { if(!handle || texture<=0) throw std::runtime_error("Invalid GPU model/input"); return reinterpret_cast<Model*>(handle)->predict(env,texture,useFence); }
     catch(const std::exception& error){ fail(env,error); return nullptr; }
+}
+extern "C" JNIEXPORT void JNICALL
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuModel_predictInto(JNIEnv* env,jobject,jlong handle,jint texture,jobject predictions,jobject prototypes,jboolean useFence) {
+    try { if(!handle || texture<=0) throw std::runtime_error("Invalid GPU model/input"); reinterpret_cast<Model*>(handle)->predictInto(env,texture,predictions,prototypes,useFence); }
+    catch(const std::exception& error){ fail(env,error); }
 }
 extern "C" JNIEXPORT jboolean JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuModel_usesManagedInputSync(JNIEnv*,jobject,jlong handle) {

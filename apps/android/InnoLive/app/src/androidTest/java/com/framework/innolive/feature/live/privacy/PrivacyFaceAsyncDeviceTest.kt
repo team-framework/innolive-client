@@ -46,6 +46,25 @@ class PrivacyFaceAsyncDeviceTest {
         listOf(PrivacyRegisteredFace("registered", "test", embedding, 0))
     }
 
+    @Test fun cachedLibraryIsReadOnceAndDeletionRevisionImmediatelyRevokesExceptions() {
+        Worker().use { worker ->
+            var revision=0L
+            var reads=0
+            var entries=listOf(PrivacyRegisteredFace("registered","test",embedding,0))
+            val coordinator=PrivacyFaceCoordinator(worker,revisionSource={revision}) {reads++;entries}
+            val image=Bitmap.createBitmap(640,640,Bitmap.Config.ARGB_8888)
+            try {
+                confirm(coordinator,worker,image)
+                assertEquals(1,reads)
+                entries=emptyList();revision++
+                assertTrue(frame(coordinator,image,1510).isEmpty())
+                assertEquals(2,reads)
+                repeat(20) {assertTrue(frame(coordinator,image,1520L+it).isEmpty())}
+                assertEquals(2,reads)
+            } finally {image.recycle()}
+        }
+    }
+
     @Test fun stalledRecognitionDoesNotWaitOrGrowQueueAndOwnsCopiedPixels() {
         Worker().use { worker ->
             val coordinator = coordinator(worker)
