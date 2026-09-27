@@ -27,7 +27,7 @@ import kotlin.math.max
 /** Serial GL graph. Only 640px model input and requested face crops cross back to CPU.
  * Output textures remain owned until every renderer/encoder releases its frame. */
 internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3: Boolean = false,
-    private val useFence: Boolean = true) : AutoCloseable {
+    private val useFence: Boolean = true, private val compactMask: Boolean = true) : AutoCloseable {
     internal var lastFenceUsed = false
         private set
     private val thread = HandlerThread("privacy-image-gpu").apply { start() }
@@ -37,9 +37,11 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     private val shaders = mutableMapOf<String, GlShader>()
     private val targets = mutableMapOf<String, Target>()
     private val planeTextures = IntArray(3)
+    private val maskTexture = IntArray(1)
+    private var maskTextureReady = false
     private val packedPlanes = arrayOfNulls<ByteBuffer>(3)
     private val planeSizes = arrayOfNulls<Pair<Int, Int>>(3)
-    private val maskPixels = ByteBuffer.allocateDirect(160 * 160 * 4)
+    private val maskPixels = ByteBuffer.allocateDirect(160 * 160 * if(compactMask) 1 else 4)
     private var cropPixels: ByteBuffer? = null
     private val outputPool = mutableListOf<Target>()
     private val leased = mutableSetOf<Target>()
@@ -66,6 +68,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 egl.createDummyPbufferSurface(); egl.makeCurrent()
                 converter = YuvConverter()
                 glGenTextures(3, planeTextures, 0)
+                glGenTextures(1, maskTexture, 0)
             }
         } catch (error: Throwable) {
             onGl { if (::egl.isInitialized) egl.release() }
@@ -303,11 +306,23 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     }
 
     private fun uploadMask(mask: ByteArray): Target {
-        val raw = target("mask-raw", 160, 160)
         val bytes = maskPixels.apply { clear() }
-        for (value in mask) { bytes.put(value); bytes.put(value); bytes.put(value); bytes.put(-1) }
-        bytes.rewind(); glBindTexture(GL_TEXTURE_2D, raw.texture)
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 160, 160, GL_RGBA, GL_UNSIGNED_BYTE, bytes)
+        val rawTexture = if(compactMask) {
+            bytes.put(mask);bytes.rewind()
+            glBindTexture(GL_TEXTURE_2D,maskTexture[0]);textureParameters(GL_LINEAR)
+            glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+            if(!maskTextureReady) {
+                glTexImage2D(GL_TEXTURE_2D,0,GL_LUMINANCE,160,160,0,GL_LUMINANCE,GL_UNSIGNED_BYTE,bytes)
+                maskTextureReady=true
+            } else glTexSubImage2D(GL_TEXTURE_2D,0,0,0,160,160,GL_LUMINANCE,GL_UNSIGNED_BYTE,bytes)
+            maskTexture[0]
+        } else {
+            val raw=target("mask-raw",160,160)
+            for(value in mask) {bytes.put(value);bytes.put(value);bytes.put(value);bytes.put(-1)}
+            bytes.rewind();glBindTexture(GL_TEXTURE_2D,raw.texture)
+            glTexSubImage2D(GL_TEXTURE_2D,0,0,0,160,160,GL_RGBA,GL_UNSIGNED_BYTE,bytes)
+            raw.texture
+        }
         // Same 2px opaque core, 4px outer dilation, sigma 1.5 feather as iOS.
         val core = target("mask-core", 160, 160)
         val outer = target("mask-outer", 160, 160)
@@ -315,7 +330,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         val blurred = target("mask-blur", 160, 160)
         val alpha = target("mask-alpha", 160, 160)
         for ((radius, output) in listOf(2 to core, 4 to outer)) {
-            draw("dilate-x", DILATE, temp, listOf(raw.texture)) { p ->
+            draw("dilate-x", DILATE, temp, listOf(rawTexture)) { p ->
                 glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
                 glUniform1i(p.getUniformLocation("radius"), radius)
             }
@@ -374,6 +389,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 if (nativeModel != 0L) { PrivacyNativeGpuModel.destroy(nativeModel); nativeModel = 0L; egl.makeCurrent() }
                 targets.values.forEach { it.close() }; targets.clear()
                 glDeleteTextures(3, planeTextures, 0)
+                glDeleteTextures(1, maskTexture, 0)
                 shaders.values.forEach { it.release() }; shaders.clear()
                 modelBitmap.recycle()
                 outputPool.filter { it !in leased }.toList().forEach { it.close(); outputPool.remove(it) }
