@@ -21,6 +21,11 @@ import org.junit.Test
 
 class FaceImageProcessorTest {
     @Test
+    fun initializesFaceDetectorFromRegisteredMlKitComponents() {
+        FaceDetectionPipeline().use { }
+    }
+
+    @Test
     fun rejectsSourceWhoseShorterEdgeIs499Pixels() {
         val image = imageProxy(width = 700, height = 499)
 

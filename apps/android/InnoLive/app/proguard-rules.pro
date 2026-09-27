@@ -9,3 +9,7 @@
 # WebRTC registers Java callbacks by name, including the SDK's new JNI bootstrap.
 -keep class org.jni_zero.** { *; }
 -keep class org.webrtc.** { *; }
+# ML Kit discovers these registrar names from the merged manifest and constructs them by reflection.
+-keep class com.google.mlkit.vision.face.internal.FaceRegistrar { <init>(); }
+-keep class com.google.mlkit.common.internal.CommonComponentRegistrar { <init>(); }
+-keep class com.google.mlkit.vision.common.internal.VisionCommonRegistrar { <init>(); }
