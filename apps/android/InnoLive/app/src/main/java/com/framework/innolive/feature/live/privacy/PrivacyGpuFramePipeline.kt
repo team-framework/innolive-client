@@ -270,10 +270,16 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         }
     }
 
-    internal fun createNativeInputModel(path: String) = onGl {
+    internal fun createNativeInputModel(path: String,glOutputs:Boolean=false) = onGl {
         check(nativeModel == 0L && !closing)
         egl.makeCurrent()
-        try { nativeModel = PrivacyNativeGpuModel.create(path) } finally { egl.makeCurrent() }
+        try { nativeModel = if(glOutputs)PrivacyNativeGpuModel.createVariant(path,true)
+            else PrivacyNativeGpuModel.create(path) } finally { egl.makeCurrent() }
+    }
+
+    internal fun nativeOutputBufferTypes():Array<IntArray> = onGl {
+        check(nativeModel != 0L && !closing)
+        PrivacyNativeGpuModel.outputBufferTypes(nativeModel)
     }
 
     internal fun predictNativeInput(useFence:Boolean=true): Pair<FloatArray, FloatArray> = onGl {

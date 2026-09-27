@@ -19,11 +19,14 @@ OUTPUT_SHAPES = {(1, 38, 8400), (1, 32, 160, 160)}
 
 
 class Detector(torch.nn.Module):
-    def __init__(self, model):
+    def __init__(self, model, input_layout="nchw"):
         super().__init__()
         self.model = model
+        self.input_layout = input_layout
 
     def forward(self, pixels):
+        if self.input_layout == "nhwc":
+            pixels = pixels.permute(0, 3, 1, 2)
         return self.model(pixels)
 
 
@@ -36,6 +39,8 @@ def main():
     parser.add_argument("--checkpoint", required=True, type=Path)
     parser.add_argument("--reference-onnx", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--input-layout", choices=("nchw", "nhwc"), default="nchw")
+    parser.add_argument("--fp16-stem", action="store_true", help="Experimental: only the first two Conv weights use FP16 storage; computation/output stay FP32")
     args = parser.parse_args()
     if args.output.exists():
         parser.error("Output already exists; do not overwrite a validated model.")
@@ -49,22 +54,40 @@ def main():
     network.model[-1].end2end = False
     network.model[-1].export = True
     network.model[-1].format = "tflite"
-    wrapper = Detector(network).eval()
+    wrapper = Detector(network, args.input_layout).eval()
     sample = torch.rand((1, 3, 640, 640), generator=torch.Generator().manual_seed(320))
+    if args.input_layout == "nhwc":
+        sample = sample.permute(0, 2, 3, 1).contiguous()
     with torch.inference_mode():
         outputs = wrapper(sample)
         if {tuple(value.shape) for value in outputs} != OUTPUT_SHAPES:
             raise ValueError("Unexpected PyTorch output shapes")
         converted = litert_torch.convert(wrapper, (sample,), enable_x64=False)
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        converted.export(str(args.output))
+        if args.fp16_stem:
+            intermediate = args.output.with_name(args.output.stem + "-fp32.tflite")
+            if intermediate.exists():
+                parser.error("FP32 intermediate already exists")
+            converted.export(str(intermediate))
+            from ai_edge_quantizer import quantizer, qtyping
+            weights = quantizer.Quantizer(str(intermediate))
+            weights.add_weight_only_config(
+                r".*SegmentationModel_[^/]+/ultralytics\.nn\.modules\.conv\.Conv_[01]/.*",
+                qtyping.TFLOperationName.CONV_2D, 16, algorithm_key="float_casting")
+            weights.quantize().export_model(str(args.output))
+        else:
+            converted.export(str(args.output))
 
     reference = ort.InferenceSession(str(args.reference_onnx), providers=["CPUExecutionProvider"])
     interpreter = Interpreter(model_path=str(args.output), num_threads=4)
     interpreter.allocate_tensors()
+    fp16_tensors = sum(detail["dtype"] == np.float16 for detail in interpreter.get_tensor_details())
+    if args.fp16_stem and fp16_tensors == 0:
+        raise ValueError("FP16 recipe did not select any weight tensors")
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
-    if len(input_details) != 1 or tuple(input_details[0]["shape"]) != (1, 3, 640, 640):
+    expected_input = (1, 640, 640, 3) if args.input_layout == "nhwc" else (1, 3, 640, 640)
+    if len(input_details) != 1 or tuple(input_details[0]["shape"]) != expected_input:
         raise ValueError("Unexpected LiteRT input")
     if {tuple(output["shape"]) for output in output_details} != OUTPUT_SHAPES:
         raise ValueError("Unexpected LiteRT outputs")
@@ -72,7 +95,8 @@ def main():
     for seed in (3, 320):
         pixels = np.random.default_rng(seed).random((1, 3, 640, 640), dtype=np.float32)
         wanted = reference.run(None, {reference.get_inputs()[0].name: pixels})
-        interpreter.set_tensor(input_details[0]["index"], pixels)
+        model_pixels = np.transpose(pixels, (0, 2, 3, 1)).copy() if args.input_layout == "nhwc" else pixels
+        interpreter.set_tensor(input_details[0]["index"], model_pixels)
         interpreter.invoke()
         actual = [interpreter.get_tensor(item["index"]) for item in output_details]
         compared = []
@@ -87,7 +111,9 @@ def main():
     report = {"checkpoint_sha256": CHECKPOINT_SHA256,
               "reference_onnx_sha256": sha256(args.reference_onnx),
               "litert_sha256": sha256(args.output), "output_shapes": sorted(OUTPUT_SHAPES),
-              "max_absolute_errors": errors,
+              "max_absolute_errors": errors, "input_layout": args.input_layout,
+              "weight_storage": "FP16 first two Conv weights; FP32 remainder" if args.fp16_stem else "FP32",
+              "fp16_tensor_count": fp16_tensors,
               "limitations": "Host numeric parity only; Android GPU availability and speed are checked at runtime."}
     args.output.with_suffix(".manifest.json").write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))

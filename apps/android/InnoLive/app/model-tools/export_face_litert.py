@@ -36,9 +36,12 @@ def gpu_attention(self, inputs, context, bucket_ids):
     query, key, value = [part.reshape(batch, tokens, self.num_heads, -1).permute(0, 2, 1, 3)
                          for part in self.qkv(inputs).chunk(3, dim=-1)]
     attention = (query * self.scale) @ key.transpose(-2, -1)
-    lookup = self._gpu_lookup.to(context.dtype)
-    rows = context.permute(2, 0, 1, 3).reshape(tokens, batch * self.num_heads, context.shape[-1])
-    bias = (rows @ lookup).permute(1, 0, 2).reshape(batch, self.num_heads, tokens, tokens)
+    if hasattr(self, "_gpu_gather_indices"):
+        bias = context.flatten(2).index_select(2, self._gpu_gather_indices).reshape(batch, self.num_heads, tokens, tokens)
+    else:
+        lookup = self._gpu_lookup.to(context.dtype)
+        rows = context.permute(2, 0, 1, 3).reshape(tokens, batch * self.num_heads, context.shape[-1])
+        bias = (rows @ lookup).permute(1, 0, 2).reshape(batch, self.num_heads, tokens, tokens)
     attention = self.attn_drop((attention + bias).softmax(dim=-1))
     output = (attention @ value).transpose(1, 2).reshape(batch, tokens, dimensions)
     return self.proj_drop(self.proj(output))
@@ -58,9 +61,12 @@ def main():
     parser.add_argument("--checkpoint", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--from-fp32", type=Path, help="Reuse an existing FP32 export; still validate against unchanged PyTorch")
+    parser.add_argument("--lookup", choices=("one-hot", "gather"), default="one-hot")
     args = parser.parse_args()
     if args.output.exists():
         parser.error("Output already exists")
+    if args.lookup == "gather" and args.from_fp32:
+        parser.error("Gather requires a new FP32 graph; an existing export cannot be reused")
     if hashlib.sha256(args.checkpoint.read_bytes()).hexdigest() != CHECKPOINT_SHA256:
         parser.error("Checkpoint differs from the iOS face recognizer")
     source = args.ai_repo / "service/adaface_backbones.py"
@@ -72,7 +78,12 @@ def main():
     backbone.load_state_dict(module.checkpoint_backbone_state("vit_base_kprpe", state.get("state_dict", state)), strict=True)
     lookup = torch.nn.functional.one_hot(backbone._rpe_bucket_ids, 49).permute(0, 2, 1).float()
     for block in backbone.blocks:
-        block.attn.register_buffer("_gpu_lookup", lookup, persistent=False)
+        if args.lookup == "gather":
+            tokens = backbone._rpe_bucket_ids.shape[0]
+            indices = (torch.arange(tokens).reshape(-1, 1) * 49 + backbone._rpe_bucket_ids).flatten()
+            block.attn.register_buffer("_gpu_gather_indices", indices, persistent=False)
+        else:
+            block.attn.register_buffer("_gpu_lookup", lookup, persistent=False)
         block.attn.forward = types.MethodType(gpu_attention, block.attn)
     backbone._keypoint_contexts = types.MethodType(gpu_contexts, backbone)
     model = Recognizer(backbone).eval()
@@ -121,7 +132,7 @@ def main():
               "model_sha256": hashlib.sha256(args.output.read_bytes()).hexdigest(),
               "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
               "torch": torch.__version__, "conversion_checks": checks,
-              "graph_changes": "Equivalent keypoint lookup via one-hot matmul; rank<=4 attention; int32 indices; unchanged weights",
+              "graph_changes": f"Equivalent keypoint lookup via {args.lookup}; rank<=4 attention; int32 indices; unchanged weights",
               "weight_storage": "FP16 Conv/FC weights, no training; FP32 runtime or FP16 with FP32 accumulation",
               "litert_torch": "0.9.4", "litert": "2.2.0", "ai_edge_quantizer": "0.9.0",
               "inputs": [{"name": d["name"], "shape": d["shape"].tolist()} for d in details],

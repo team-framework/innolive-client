@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Real camera + production protection + local renderer. No PeerConnection, HTTP or saved images. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyActualCameraDeviceTest {
+    @androidx.camera.core.ExperimentalGetImage
     @Test fun measureActualCameraLocallyAt1080pAnd720p() {
         assumeFalse(android.os.Build.MODEL.startsWith("sdk_") || android.os.Build.HARDWARE.contains("ranchu"))
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -100,6 +101,7 @@ class PrivacyActualCameraDeviceTest {
                 val samples = ConcurrentLinkedQueue<PrivacyCaptureDiagnostics>()
                 val observedSize = ConcurrentLinkedQueue<Pair<Int, Int>>()
                 val textureFrames = AtomicInteger()
+                val hardwareBufferInspected = AtomicBoolean(false)
                 val analyzer = CameraFrameAnalyzer(object : CapturerObserver {
                     override fun onCapturerStarted(success: Boolean) = Unit
                     override fun onCapturerStopped() = Unit
@@ -129,6 +131,12 @@ class PrivacyActualCameraDeviceTest {
                     instrumentation.runOnMainSync {
                         preview.surfaceProvider = previewView.surfaceProvider
                         analysis.setAnalyzer(executor) { image ->
+                            if(hardwareBufferInspected.compareAndSet(false,true)) {
+                                image.image?.hardwareBuffer.use { buffer ->
+                                    Log.i("PrivacyActualCamera","camera_hardware_buffer size=${width}x$height available=${buffer!=null} " +
+                                        "format=${buffer?.format} usage=${buffer?.usage} dimensions=${buffer?.width}x${buffer?.height}")
+                                }
+                            }
                             if (collecting.get()) captures.incrementAndGet()
                             analyzer.analyze(image)
                         }
@@ -170,7 +178,7 @@ class PrivacyActualCameraDeviceTest {
                         val values = protected.map(select).sorted()
                         return values[values.size / 2]
                     }
-                    Log.i("PrivacyActualCamera", "optimized=$optimized batch_one=$batchOne pending_latest=$pendingLatest performance_preview=$performancePreview size=${width}x$height seconds=$seconds " +
+                    val metrics="optimized=$optimized batch_one=$batchOne pending_latest=$pendingLatest performance_preview=$performancePreview size=${width}x$height seconds=$seconds " +
                         "captures=${captures.get()} processed=${measured.size} " +
                         "capture_fps=${captures.get() / seconds} processed_fps=${measured.size / seconds} " +
                         "analysis_age_p95_ms=$ageP95 " +
@@ -190,7 +198,10 @@ class PrivacyActualCameraDeviceTest {
                         "plate_frames=${measured.count { it.analysis.plates > 0 }} " +
                         "protected_frames=${measured.count { it.analysis.maskPixels > 0 }} " +
                         "blur_gpu_frames=${measured.count { it.analysis.maskPixels > 0 && it.analysis.blurGpu }} " +
-                        "exempt_frames=${measured.count { it.analysis.exemptFaces > 0 }} errors=${failures.get()}")
+                        "exempt_frames=${measured.count { it.analysis.exemptFaces > 0 }} errors=${failures.get()}"
+                    Log.i("PrivacyActualCamera",metrics)
+                    // Preserve measurements in the host runner output even if USB disconnects later.
+                    instrumentation.sendStatus(2,android.os.Bundle().apply {putString("privacy_camera_metrics",metrics)})
                 } finally {
                     instrumentation.runOnMainSync {
                         analysis.clearAnalyzer()

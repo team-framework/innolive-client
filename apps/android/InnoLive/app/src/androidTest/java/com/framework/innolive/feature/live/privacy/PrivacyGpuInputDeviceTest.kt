@@ -17,6 +17,20 @@ import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class PrivacyGpuInputDeviceTest {
+    @Test fun inspectSupportedNativeOutputBuffers() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
+        PrivacyGpuFramePipeline(null,useGles3=true).use { graph ->
+            graph.createNativeInputModel(PrivacyDetectorGpuEngine.verifiedFile(context).absolutePath)
+            val outputs=graph.nativeOutputBufferTypes()
+            assertEquals(2,outputs.size)
+            outputs.forEachIndexed { index,types ->
+                assertTrue("Runtime did not expose supported output buffers",types.size>1)
+                assertTrue("Managed output is not supported",types.drop(1).contains(types[0]))
+                Log.i("PrivacyStages","stage=gpu_output_buffers output=$index selected=${types[0]} supported=${types.drop(1)}")
+            }
+        }
+    }
     @Test fun validationRestoresFirstFrameAndFallbackReadsCurrentFrame() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
