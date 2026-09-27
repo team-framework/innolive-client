@@ -17,7 +17,7 @@
 
 얼굴 검출에는 iOS와 같은 YuNet 2023mar (`8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`), embedding에는 ViT-Base KP-RPE WebFace12M (`04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9`)을 사용한다. ONNX 출력 SHA-256은 각각 `4514febaf280cb408b6bfcd240df4463ba5295713e571c1133d743ff4eb1d737`, `812eeaa58ed70794dd67e1efdb1d9f614b0be18e951d2c6bc2c8876c2c34d712`이다. AdaFace FP16 모델은 Git LFS asset이며 약 227MB다. 앱은 처음 사용 시 no-backup 영역에 검증한 모델을 복사한다.
 
-입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android도 픽셀화(24px) → Gaussian 블러(24px) → 마스크 합성을 수행한다. 마스크는 2px 중심을 완전히 불투명하게 유지하고, 4px 확장 후 Gaussian(1.5px)을 적용한 바깥 영역과 최댓값으로 합성한다. 현재 기본 영상 경로는 전용 EGL 작업자의 OpenGL ES 그래프다. YUV→RGB·정방향 회전·letterbox, 픽셀화·Gaussian 블러·마스크 확장과 feather·합성·센서 방향 복원을 GPU에서 수행하고 WebRTC에 공유 EGL RGB 텍스처를 전달한다. 전면·후면 카메라의 원래 rotation 메타데이터와 송출 크기는 유지한다. CPU로 가져오는 이미지는 640×640 모델 입력과 얼굴 재확인이 필요한 crop으로 제한한다. GPU 영상 경로가 실패하면 보호 처리하는 기존 CPU Bitmap 경로를 사용하며 원본으로 우회하지 않는다. CPU 대체 경로에서 API 31 이상의 RenderEffect 블러를 사용할 수 있다. 블러는 1/4 크기에서 sigma 6으로 처리하며 검출 마스크·출력 해상도를 낮추지 않는다. Core Image와 픽셀 단위로 동일한 결과는 보장하지 않는다. 현재 구현과 최신 계측은 마지막 GPU 영상 경로 절을 따른다.
+입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android도 픽셀화(24px) → Gaussian 블러(24px) → 마스크 합성을 수행한다. 마스크는 2px 중심을 완전히 불투명하게 유지하고, 4px 확장 후 Gaussian(1.5px)을 적용한 바깥 영역과 최댓값으로 합성한다. 현재 기본 영상 경로는 전용 EGL 작업자의 OpenGL ES 그래프다. YUV→RGB·정방향 회전·letterbox, 픽셀화·Gaussian 블러·마스크 확장과 feather·합성·센서 방향 복원을 GPU에서 수행하고 WebRTC에 공유 EGL RGB 텍스처를 전달한다. 전면·후면 카메라의 원래 rotation 메타데이터와 송출 크기는 유지한다. 모델 입력은 기기별 검증을 통과하면 GPU SSBO로 LiteRT에 직접 전달한다. 기존 입력 경로에서는 640×640 모델 입력을 읽고, 얼굴 재확인이 필요한 crop은 두 경로 모두 CPU로 읽는다. GPU 영상 경로가 실패하면 보호 처리하는 기존 CPU Bitmap 경로를 사용하며 원본으로 우회하지 않는다. CPU 대체 경로에서 API 31 이상의 RenderEffect 블러를 사용할 수 있다. 블러는 1/4 크기에서 sigma 6으로 처리하며 검출 마스크·출력 해상도를 낮추지 않는다. Core Image와 픽셀 단위로 동일한 결과는 보장하지 않는다. 현재 구현과 최신 계측은 마지막 GPU 영상 경로 절을 따른다.
 
 기기 얼굴 관리는 기존 카메라의 500px 중앙 촬영과 3회 안정 검사를 사용한다. 모델 준비가 끝난 뒤 30초 촬영 시간이 시작된다. YuNet은 BGR 0–255 입력과 32배수 padding, stride 8/16/32 decode와 NMS 0.3을 사용한다. 등록은 점수 0.9 이상·최소 40px, 영상 비교는 0.6 이상·최소 24px을 사용한다. 얼굴의 1.5배 정사각형 RGB 112×112 crop과 정규화 landmark를 AdaFace에 전달한다. 원본·좌우반전 norm 가중 결합은 ONNX 모델에 포함된다.
 
@@ -600,3 +600,83 @@ Qualcomm 직접 진단은 공식 LiteRT v2.2.0 JIT zip의 v79 compiler/dispatch�
 `files/privacy-npu-probe/`에 임시 배치한 뒤 `PrivacyNpuProbeDeviceTest`를 실행한다.
 라이브러리가 없으면 이 선택적 진단은 skip되며 제품 동작에 영향이 없다. 테스트 후
 진단용 폴더를 삭제한다. SDK 바이너리를 저장소에 재배포하지 않는다.
+
+
+## 단계별 추가 최적화와 실제 카메라 비교 (2026-09-27)
+
+Android의 카메라·로컬 AI·WebRTC 영상 경로만 변경한다. 서버 API·시그널링·모델
+가중치·보호 정책에는 변경이 없다. iOS의 Accelerate 행렬 계산, GPU 모델 입력,
+픽셀 버퍼 재사용, GPU 완료 동기화, 단일 채널 마스크를 참고했다.
+
+각 후보는 동일 입력을 번갈아 처리해 출력과 중앙값을 비교했다. 아래 시간은 구간별
+측정이며 합산해 전체 프레임 지연이나 FPS로 환산하지 않는다.
+
+| 순서 | 후보와 판단 | 동일 입력의 변경 전 → 후 중앙값 |
+| --- | --- | --- |
+| 1 | prototype × coefficients를 C++/NEON으로 이동. 채널 누적 순서와 >0 경계를 유지하고 채택 | 객체 1개 1.01 → 0.53ms, 8개 4.37 → 1.04ms |
+| 2 | 공식 LiteRT C API의 GL SSBO 입력. 출력·속도 검증 통과 시 선택 | 모델 전처리·입력·추론 25.02~26.12 → 18.51~19.32ms |
+| 3 | 카메라 I420 버퍼 풀. 마지막 crop/view 해제 후 재사용, idle 상한 1개. 1080p 이득으로 채택 | 모든 plane 복사 포함 1080p 1.10 → 0.15ms. 720p 0.051 → 0.051ms로 개선 없음 |
+| 4 | 출력 EGL fence + glFlush. 소비자 GL 큐가 기다리고 CPU 변환은 완료를 기다림. 지원 없으면 glFinish | 1080p 보호 영상 인계 14.19 → 4.87ms. GPU 완료까지의 시간 감소를 뜻하지 않음 |
+| 5 | 검사한 prototype만 별도 타입으로 전달해 두 번째 전체 검사를 제거. GPU/CPU 오류 시 보호 fallback 유지 | 객체 0/1/8개: 1.42/1.47/1.83 → 0.64/0.69/1.04ms |
+| 6 | iOS의 8bit grayscale mask처럼 단일 채널 업로드. RGBA 4회 쓰기를 bulk copy로 대체 | 불투명/감쇠 mask render 2.70/2.64 → 0.56/0.52ms |
+
+마스크·출력 I420 픽셀은 비교 입력에서 byte 단위로 동일했다. SIMD tail, 영점 누적,
+빈 instance의 bbox 보호, NaN/Infinity/overflow, crop·회전·보유 프레임 수명,
+6프레임 상한, shared EGL H.264 하드웨어 인코딩을 검증했다. 단위 테스트 179개와
+단계별 실기기 테스트가 통과했다. 단일 채널 최종 GPU/입력/인코더 회귀 11개도 통과했다.
+
+LiteRT JNI는 Maven 2.2.0에 포함된 런타임의 공개 C API를 사용한다. 같은 FP32 asset,
+출력 shape와 유한값 검사를 유지한다. Kotlin 비공개 native handle을 사용하지 않는다.
+동봉한 C 헤더의 출처는 `src/main/cpp/vendor/litert/README.md`에 기록했다.
+별도 런타임 바이너리는 추가하지 않았다. GPU 직접 입력 실패 시 현재 모델 텍스처를
+읽어서 보호 경로로 처리하고 이후 프레임마다 재준비하지 않는다.
+
+### 실제 입력 경로 선택의 차이
+
+초기 속도 판정은 이미 GPU 처리가 끝난 texture의 readback을 비교하고 있었다.
+수정 후 실제 카메라의 YUV·회전·letterbox 작업도 다시 제출하고 3회 warmup 후
+12회 순서를 교대로 비교한다. 정확도 검증과 중앙값 5% 이상 개선,
+12회 중 9회 이상 개선을 모두 통과해야 직접 입력을 선택한다.
+
+독립 벤치마크에서는 직접 입력이 개선됐지만 실제 카메라에서 항상 선택되지는 않았다.
+최종 1080p 판정은 21.57 → 19.94ms이나 6/12회 개선, 720p는
+19.23 → 18.42ms와 8/12회 개선으로 보수적인 반복 기준을 통과하지 못했다.
+두 해상도 모두 기존 **GPU FP32** 입력 경로를 선택했다. CPU 추론으로 돌아간 것이 아니다.
+앞선 별도 카메라 실행에서는 720p 직접 입력이 선택되어 22.64fps를 기록했으나
+보호 대상 검출이 없었던 실행이므로 보호 장면의 성능으로 사용하지 않는다.
+
+### 최적화 전후 카메라 측정
+
+SM-S931N·Android 16, 입력 약 30fps, foreground CameraX + GPU 처리 + 로컬 renderer,
+해상도마다 초기 준비 후 25초 수집했다. 이전 커밋 `76cf5ce`의 앱을 임시 폴더에서
+빌드해 먼저 측정하고 최종 앱 `e6af9cc`로 복원해 측정했다. 방송·서버·YouTube는
+사용하지 않았으며 영상·얼굴 이름·embedding은 저장하지 않았다.
+
+| 항목 | 1080p 이전 → 최종 | 720p 이전 → 최종 |
+| --- | ---: | ---: |
+| 처리 FPS | 15.92 → 17.72 | 17.12 → 15.96 |
+| 전체 처리 p50 / p95 | 39.84 / 55.78 → 36.72 / 42.65ms | 39.58 / 46.57 → 43.26 / 58.12ms |
+| 보호 프레임 처리 p50 | 49.17 → 37.87ms | 52.31 → 40.34ms |
+| 보호 render p50 | 8.77 → 1.68ms | 8.82 → 1.54ms |
+| YOLO inference p50 | 23.48 → 24.70ms | 25.30 → 29.16ms |
+| 카메라 plane 복사 p50 | 3.40 → 1.11ms | 0.59 → 0.49ms |
+| 처리 / 보호 프레임 수 | 398 / 134 → 443 / 51 | 428 / 15 → 399 / 134 |
+| GPU 추론·texture 출력 | 전체 처리 프레임 | 전체 처리 프레임 |
+| 처리 오류 | 0 → 0 | 0 → 0 |
+
+보호 처리 지연은 두 해상도에서 감소했지만 실제 FPS 개선은 일관되지 않았다.
+특히 720p는 보호 대상 빈도와 추론 시간이 달랐다. 온도·GPU 클럭·얼굴 위치/개수를
+통제하지 않은 연속 실행이므로 720p FPS 차이의 원인을 최적화 또는 발열로 단정하지
+않는다. 동일 입력 구간별 개선과 실제 카메라 결과를 구분한다. 30fps 유지,
+장시간 방송·발열·YouTube 수신 FPS 개선은 이번 결과로 주장하지 않는다.
+
+카메라의 원본 plane 복사와 GPU 출력의 CPU 후처리, 조건부 모델 입력 readback은
+여전히 존재한다. 전체 카메라 texture 입력으로의 전환과 GPU 추론의 장시간 일정은
+별도 측정이 필요하다. Core ML·Core Image API 자체를 Android에 복사한 것은 아니다.
+
+재현: `PrivacyNativeSegmentationDeviceTest`, `PrivacyGpuInputDeviceTest`,
+`PrivacyCameraBufferPoolDeviceTest`, `CameraFrameAnalyzerDeviceTest`,
+`PrivacyGpuFenceDeviceTest`, `PrivacyCompactMaskDeviceTest`,
+`PrivacyGpuFramePipelineDeviceTest`, `PrivacyGpuEncoderDeviceTest`,
+`PrivacyOnnxModelDeviceTest`, `PrivacyActualCameraDeviceTest`.
+EGL 동기화는 [Khronos EGL_KHR_wait_sync](https://registry.khronos.org/EGL/extensions/KHR/EGL_KHR_wait_sync.txt)를 따른다.
