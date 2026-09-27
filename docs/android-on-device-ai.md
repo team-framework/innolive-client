@@ -604,6 +604,9 @@ Qualcomm 직접 진단은 공식 LiteRT v2.2.0 JIT zip의 v79 compiler/dispatch�
 
 ## 단계별 추가 최적화와 실제 카메라 비교 (2026-09-27)
 
+이 절은 카메라 직접 입력 후속 적용 전의 측정 기록이다. 현재 구현과 최종 비교는
+다음 절의 “카메라 직접 입력과 LiteRT 입력 동기화”를 따른다.
+
 Android의 카메라·로컬 AI·WebRTC 영상 경로만 변경한다. 서버 API·시그널링·모델
 가중치·보호 정책에는 변경이 없다. iOS의 Accelerate 행렬 계산, GPU 모델 입력,
 픽셀 버퍼 재사용, GPU 완료 동기화, 단일 채널 마스크를 참고했다.
@@ -670,8 +673,8 @@ SM-S931N·Android 16, 입력 약 30fps, foreground CameraX + GPU 처리 + 로컬
 않는다. 동일 입력 구간별 개선과 실제 카메라 결과를 구분한다. 30fps 유지,
 장시간 방송·발열·YouTube 수신 FPS 개선은 이번 결과로 주장하지 않는다.
 
-카메라의 원본 plane 복사와 GPU 출력의 CPU 후처리, 조건부 모델 입력 readback은
-여전히 존재한다. 전체 카메라 texture 입력으로의 전환과 GPU 추론의 장시간 일정은
+이 측정 시점에는 카메라의 원본 plane 복사와 GPU 출력의 CPU 후처리, 조건부 모델 입력 readback이
+남아 있었다. 전체 카메라 texture 입력으로의 전환과 GPU 추론의 장시간 일정은
 별도 측정이 필요하다. Core ML·Core Image API 자체를 Android에 복사한 것은 아니다.
 
 재현: `PrivacyNativeSegmentationDeviceTest`, `PrivacyGpuInputDeviceTest`,
@@ -680,3 +683,95 @@ SM-S931N·Android 16, 입력 약 30fps, foreground CameraX + GPU 처리 + 로컬
 `PrivacyGpuFramePipelineDeviceTest`, `PrivacyGpuEncoderDeviceTest`,
 `PrivacyOnnxModelDeviceTest`, `PrivacyActualCameraDeviceTest`.
 EGL 동기화는 [Khronos EGL_KHR_wait_sync](https://registry.khronos.org/EGL/extensions/KHR/EGL_KHR_wait_sync.txt)를 따른다.
+
+
+## 카메라 직접 입력과 LiteRT 입력 동기화 (2026-09-27)
+
+Android 카메라·로컬 AI·WebRTC 영상 처리의 후속 변경이다. HTTP·시그널링·모델
+가중치·얼굴 보호 정책의 계약 변경은 없다. 아래 네 항목을 제품 경로에 적용했다.
+
+| 항목 | 현재 구현과 지원 조건 |
+| --- | --- |
+| mask 행렬 계산 | C++/ARM NEON. Kotlin과 누적 순서·영점 경계·출력 일치 유지 |
+| GPU 모델 입력 | GPU letterbox texture → compute shader → GL SSBO → LiteRT FP32. 지원·출력 검증 후 선택. 초기 12회 속도 비교는 진단이며 더 이상 영구 선택 거부 조건이 아님 |
+| 카메라 입력 | ImageProxy의 Y/UV를 직접 GPU texture에 업로드. GLES3 row length와 NV12/NV21 공유 평면 지원. 검증한 SM-S931N에서 전체 평면 복사·I420 입력 할당 0회 |
+| GPU 동기화 | 출력은 공유 EGL fence, 입력은 LiteRT GL/CL interop 내부 동기화. 정상 제품 경로의 입력 glFinish 제거 |
+
+CameraX 평면의 buffer position, crop, 홀수 크기, row/pixel stride, NV12/NV21 순서를
+검증한다. 실제 SM-S931N은 UV base view의 마지막 불필요한 바이트를 노출하지 않았다.
+전체 UV를 재포장하는 대신 범위 안의 행과 마지막 행 일부를 업로드하고 마지막 2byte만
+각 평면의 유효한 view에서 조합한다. 이 처리는 전체 plane 복사가 아니다.
+클라이언트 메모리의 GPU 업로드 자체를 없앤 AHardwareBuffer zero-copy 구현은 아니다.
+별도의 stride-2 UV 저장소나 미지원 GL 형식은 필요한 평면만 재포장하며, GPU 영상 오류는
+현재 프레임의 보호 CPU fallback 또는 송출 실패로 처리한다. 원본을 우회 송출하지 않는다.
+
+카메라 이미지는 GPU 업로드가 픽셀을 소유한 직후 반환한다. 모델 검증·추론·인코딩이
+ImageProxy를 빌리지 않는다. CPU fallback도 owned I420을 만든 뒤 이미지를 반환한다.
+방송 종료·모드 변경·카메라 변경으로 무효화된 작업은 입력을 닫고 결과를 전달하지 않는다.
+출력 texture와 얼굴 crop은 독립된 수명을 가진다.
+
+입력 동기화는 공식 [LiteRT v2.2.0 OpenCL backend](https://github.com/google-ai-edge/LiteRT/blob/v2.2.0/ml_drift_delegate/delegate/gpu_backend_opencl_litert.cc)의
+`GlInteropFabricLiteRt::Start`를 사용한다. 런타임이 EGL fence를 만들고, 지원 시
+CL queue의 dependency로 바꾸며, 미지원 시 해당 fence를 CPU에서 기다린다.
+외부 EGLSyncFence tensor event는 이 backend에서 거부한다. Android bridge는
+GL 작업을 flush한 뒤 동기 Run을 호출하고 출력 완료 후 SSBO를 재사용한다.
+Adreno에서 지원되지 않는 async Run이나 비공개 CL context에 의존하지 않는다.
+`inputInteropSync` 진단 값은 이 런타임 인계 경로가 선택됐다는 뜻이며 모든 기기에서
+CPU 대기가 전혀 없다는 뜻은 아니다.
+
+### 동일 입력 단계별 벤치마크
+
+SM-S931N·Android 16, 합성 입력을 번갈아 처리해 비교했다. 구간별 시간은 합산하지 않는다.
+GPU 모델 출력 최대 차이는 prediction 0.00055, prototype 0.000009 이하였다.
+
+| 구간 | 이전 → 후속 p50 | 판단 |
+| --- | ---: | --- |
+| mask, 객체 1개 / 8개 | 1.01 / 4.36 → 0.70 / 1.21ms | 개선, 마스크 동일 |
+| 입력·모델 추론, 3개 패턴 | 22.56~25.75 → 18.54~19.14ms | 개선, 같은 FP32 출력 |
+| 입력 glFinish → 런타임 interop sync | 20.71 → 19.79ms | 작은 개선, 24회 교대 입력 출력 비교 |
+| 잘린 NV21, 1080p 카메라 복사·업로드 제출 | 2.62 → 2.52ms | 작은 개선 |
+| 잘린 NV21, 720p 카메라 복사·업로드 제출 | 1.11 → 1.17ms | 단독 속도 개선 없음. 전체 평면 CPU 복사·입력 할당은 제거 |
+
+카메라 구간은 GPU 작업 제출 시간이며 GPU 완료 시간이나 전체 프레임 지연이 아니다.
+단일 채널 마스크와 출력 fence의 기존 측정·출력 일치 검증도 유지했다.
+
+### 실제 카메라 비교
+
+같은 앱의 `privacyOptimized=false`는 이전 pooled I420 + Bitmap/float GPU 입력을,
+`true`는 새 카메라 직접 입력 + GL SSBO + 런타임 입력 동기화를 사용한다.
+양쪽 모두 기존 NEON mask·단일 채널 mask·출력 fence를 사용하므로 이번 비교는
+마지막 세 경로의 후속 적용 효과다. 각 해상도에서 준비와 초기 노출을 제외하고
+25초씩 foreground CameraX + 제품 AI 처리 + 로컬 renderer를 측정했다.
+방송·서버·YouTube·영상 저장은 사용하지 않았다.
+
+| 항목 | 1080p 이전 → 후속 | 720p 이전 → 후속 |
+| --- | ---: | ---: |
+| 캡처 FPS | 약 30 → 약 30 | 약 30 → 약 30 |
+| 처리 FPS | 17.32 → 17.72 | 17.80 → 18.68 |
+| 전체 처리 p50 / p95 | 35.83 / 46.88 → 36.60 / 42.25ms | 35.79 / 43.26 → 35.39 / 41.59ms |
+| 보호 프레임 처리 p50 | 42.69 → 36.60ms | 37.92 → 35.39ms |
+| 보호 render p50 | 1.60 → 1.59ms | 1.65 → 1.55ms |
+| YOLO inference p50 | 23.64 → 25.23ms | 24.24 → 23.73ms |
+| 별도 I420 camera 복사 p50 | 0.98 → 0ms | 0.58 → 0ms |
+| 처리 / 보호 프레임 | 433 / 71 → 443 / 443 | 445 / 175 → 467 / 467 |
+| 직접 모델 입력·평면 전체 복사 0·입력 interop sync | 0 → 443프레임 전부 | 0 → 467프레임 전부 |
+| GPU 추론·texture 출력 / 오류 | 전체 프레임 / 0 → 0 | 전체 프레임 / 0 → 0 |
+
+후속 경로가 모든 측정 프레임에서 활성화됐고 두 해상도의 보호 프레임 지연은 줄었다.
+FPS 개선은 작았으며 얼굴 위치·검출 빈도·온도·GPU 클럭을 통제하지 않은 순차 실행이다.
+이 차이를 각 최적화의 인과 효과나 30fps 유지의 증거로 사용하지 않는다.
+검출 출력·prototype은 CPU에서 해석하고 mask·얼굴 인식 일부도 CPU를 사용한다.
+이번 네 항목 적용이 모든 Android 병목을 제거했다거나 Core ML과 같은 실행 시간을
+보장한다는 뜻은 아니다. 실제 서버 송출·YouTube 수신·장시간 발열은 별도 검증 범위다.
+
+재현은 앱과 androidTest APK를 `adb install -r -t`로 설치하고
+`am instrument --user 0 -w -r -e privacyOptimized false/true -e class
+com.framework.innolive.feature.live.PrivacyActualCameraDeviceTest
+com.framework.innolive.test/androidx.test.runner.AndroidJUnitRunner`를 각각 실행한다.
+`false/true`는 실행별 한 값을 선택한다. 카메라 검증은 잠금 해제와 foreground 화면이
+필요하며 KEEP_SCREEN_ON을 적용한다. 수치 count·timing만 기록한다.
+최종 검증: Debug 앱·androidTest 빌드 성공, 단위 테스트 179개 통과,
+실기기 회귀 26개 통과, 이전/후속 실제 카메라 비교 각 1개 통과.
+추가 회귀: `PrivacyCameraInputDeviceTest`의 잘린 UV·crop·회전·원본 해제 이후 출력,
+`PrivacyGpuInputDeviceTest`의 GPU 출력 일치·현재 프레임 fallback·24회 입력 동기화,
+`PrivacyGpuEncoderDeviceTest`의 카메라 버퍼 해제 후 shared EGL H.264 인코딩.

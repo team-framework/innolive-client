@@ -47,6 +47,7 @@ class PrivacyActualCameraDeviceTest {
     @Test fun measureActualCameraLocallyAt1080pAnd720p() {
         assumeFalse(android.os.Build.MODEL.startsWith("sdk_") || android.os.Build.HARDWARE.contains("ranchu"))
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val optimized=InstrumentationRegistry.getArguments().getString("privacyOptimized","true").toBoolean()
         val context = instrumentation.targetContext
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             instrumentation.uiAutomation.grantRuntimePermission(context.packageName, Manifest.permission.CAMERA)
@@ -107,7 +108,7 @@ class PrivacyActualCameraDeviceTest {
                     }
                 }, context, initialOnDevice = true, sharedEglContext = egl.eglBaseContext, onProcessingFailure = {
                     failures.incrementAndGet(); ready.countDown()
-                })
+                },directCameraInput=optimized,directGpuInput=optimized)
                 analyzer.onFrameDiagnostics = { if (collecting.get()) samples.add(it) }
                 val executor = Executors.newSingleThreadExecutor()
                 val selector = ResolutionSelector.Builder().setResolutionStrategy(
@@ -150,13 +151,18 @@ class PrivacyActualCameraDeviceTest {
                         val values = measured.map(select).sorted()
                         return values[(values.size * fraction).toInt().coerceAtMost(values.lastIndex)]
                     }
+                    if(optimized) {
+                        assertTrue("Camera planes were repacked",measured.all {it.cameraCopiedPlanes==0})
+                        assertTrue("Direct model input was not active",measured.all {it.analysis.directGpuInput})
+                        assertTrue("Runtime input interop sync was not active",measured.all {it.analysis.inputInteropSync})
+                    }
                     val protected = measured.filter { it.analysis.maskPixels > 0 }
                     fun protectedMedian(select: (PrivacyCaptureDiagnostics) -> Double): Double {
                         if (protected.isEmpty()) return Double.NaN
                         val values = protected.map(select).sorted()
                         return values[values.size / 2]
                     }
-                    Log.i("PrivacyActualCamera", "size=${width}x$height seconds=$seconds " +
+                    Log.i("PrivacyActualCamera", "optimized=$optimized size=${width}x$height seconds=$seconds " +
                         "captures=${captures.get()} processed=${measured.size} " +
                         "capture_fps=${captures.get() / seconds} processed_fps=${measured.size / seconds} " +
                         "copy_p50_ms=${percentile(.5) { it.cameraCopyMs }} " +
@@ -169,6 +175,7 @@ class PrivacyActualCameraDeviceTest {
                         "protected_frame_p50_ms=${protectedMedian { it.timings.totalMs }} " +
                         "output_p50_ms=${percentile(.5) { it.timings.outputMs }} " +
                         "delivery_p50_ms=${percentile(.5) { it.deliveryMs }} " +
+                        "zero_copy_planes_frames=${measured.count {it.cameraCopiedPlanes==0}} direct_input_frames=${measured.count {it.analysis.directGpuInput}} input_sync_frames=${measured.count {it.analysis.inputInteropSync}} " +
                         "gpu_frames=${measured.count { it.analysis.detectorGpu }} texture_frames=${textureFrames.get()} nnapi_frames=${measured.count { it.analysis.detectorNnapi }} " +
                         "face_frames=${measured.count { it.analysis.faces > 0 }} " +
                         "plate_frames=${measured.count { it.analysis.plates > 0 }} " +

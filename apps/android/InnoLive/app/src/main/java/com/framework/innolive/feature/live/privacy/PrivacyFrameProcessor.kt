@@ -12,15 +12,17 @@ import org.webrtc.EglBase
 
 /** Serial AI worker: a GPU image graph and protected texture output, with a protected CPU fallback. */
 internal class PrivacyFrameProcessor(context: Context, private val sharedContext: EglBase.Context? = null,
-                                     private val allowGpuImages: Boolean = true) : AutoCloseable {
+                                     private val allowGpuImages: Boolean = true, directGpuInput:Boolean=true) : AutoCloseable {
     private var imageGpu: PrivacyGpuFramePipeline? = null
     private var imageGpuUnavailable = !allowGpuImages
-    private val model = PrivacyOnnxModel(context.applicationContext)
+    private val model = PrivacyOnnxModel(context.applicationContext,directGpuInput=directGpuInput)
     private val pixels = PrivacyPixelConverter()
     private val faces = PrivacyFaceCoordinator(context.applicationContext)
     var lastTimings: PrivacyFrameTimings? = null
         private set
     val lastAnalysis: PrivacyFrameAnalysis? get() = model.lastAnalysis
+    var lastCameraCopiedPlanes: Int = 3
+        private set
     private var lastLogNs = System.nanoTime()
     private val sensorPixels = BitmapScratch()
     private val uprightPixels = BitmapScratch()
@@ -30,6 +32,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     fun resetFaceExceptions() { faces.reset(); model.resetTemporalState() }
 
     fun process(frame: VideoFrame): VideoFrame {
+        lastCameraCopiedPlanes = 3
         if (!imageGpuUnavailable) {
             try {
                 if (imageGpu == null) imageGpu = PrivacyGpuFramePipeline(sharedContext, useGles3 = true)
@@ -44,27 +47,81 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
         return processCpu(frame)
     }
 
+    fun process(camera: PrivacyCameraInput): VideoFrame {
+        if(!imageGpuUnavailable) try {
+            if(imageGpu==null) imageGpu=PrivacyGpuFramePipeline(sharedContext,useGles3=true)
+            val graph=checkNotNull(imageGpu)
+            val started=System.nanoTime()
+            val layout=graph.prepare(camera,readModel=!graph.nativeInputEnabled)
+            lastCameraCopiedPlanes=graph.lastCameraCopiedPlanes
+            // Client-memory texture uploads have captured all pixels; inference no longer borrows the image.
+            camera.close()
+            return processGpuPrepared(graph,layout,camera.width,camera.height,camera.rotation,
+                camera.timestampNs,started,System.nanoTime())
+        } catch(error:PrivacyGpuBackpressureException) {throw error}
+        catch(error:Exception) {
+            Log.w("PrivacyPipeline","camera_gpu_fallback type=${error.javaClass.simpleName}")
+            val upright=try {
+                if(camera.isClosed) checkNotNull(imageGpu).copyUpright() else null
+            } finally {
+                imageGpu?.close();imageGpu=null;imageGpuUnavailable=true;resetFaceExceptions()
+            }
+            if(upright!=null) try {
+                lastCameraCopiedPlanes=3
+                return processCpuUpright(upright,camera.width,camera.height,camera.rotation,camera.timestampNs)
+            } finally {upright.recycle()}
+        }
+        lastCameraCopiedPlanes=3
+        val frame=VideoFrame(camera.copyI420(),camera.rotation,camera.timestampNs)
+        camera.close()
+        try {return processCpu(frame)} finally {frame.release()}
+    }
+
+    private fun processCpuUpright(upright:Bitmap,width:Int,height:Int,rotation:Int,timestampNs:Long):VideoFrame {
+        val started=System.nanoTime()
+        faces.beginFrame(upright,timestampNs)
+        val protected=model.process(upright,timestampNs) {objects,layout ->
+            faces.exceptions(upright,objects,layout,timestampNs)
+        }
+        val processed=System.nanoTime()
+        try {
+            val restored=rotate(protected,(360-rotation)%360,restoredPixels)
+            check(restored.width==width && restored.height==height)
+            val output=VideoFrame(pixels.toI420(restored),rotation,timestampNs)
+            val completed=System.nanoTime()
+            lastTimings=PrivacyFrameTimings(0.0,checkNotNull(model.lastTimings),
+                (completed-processed)/1e6,(completed-started)/1e6)
+            return output
+        } finally {protected.recycle()}
+    }
+
     private fun processGpu(frame: VideoFrame, graph: PrivacyGpuFramePipeline): VideoFrame {
         val started = System.nanoTime()
         val source = checkNotNull(frame.buffer.toI420())
         try {
-            val nextGeometry = Triple(source.width, source.height, frame.rotation)
-            if (geometry != nextGeometry) { resetFaceExceptions(); geometry = nextGeometry }
             val layout = graph.prepare(source, frame.rotation, readModel = !graph.nativeInputEnabled)
             val converted = System.nanoTime()
-            faces.beginFrame(layout.sourceWidth, layout.sourceHeight, frame.timestampNs, graph::crop)
-            val buffer = model.processPrepared(graph.modelBitmap, layout, frame.timestampNs,
-                { objects, box -> faces.exceptions(box.sourceWidth, box.sourceHeight, objects, box, frame.timestampNs) },
-                renderOnGpu = true, gpuGraph = graph) { mask -> graph.finish(mask, layout, source.width, source.height) }
+            return processGpuPrepared(graph,layout,source.width,source.height,frame.rotation,
+                frame.timestampNs,started,converted)
+        } finally { source.release() }
+    }
+
+    private fun processGpuPrepared(graph:PrivacyGpuFramePipeline,layout:PrivacySegmentation.Letterbox,
+        sensorWidth:Int,sensorHeight:Int,rotation:Int,timestampNs:Long,started:Long,converted:Long):VideoFrame {
+            val nextGeometry=Triple(sensorWidth,sensorHeight,rotation)
+            if(geometry!=nextGeometry) {resetFaceExceptions();geometry=nextGeometry}
+            faces.beginFrame(layout.sourceWidth,layout.sourceHeight,timestampNs,graph::crop)
+            val buffer=model.processPrepared(graph.modelBitmap,layout,timestampNs,
+                {objects,box -> faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)},
+                renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight)}
             val completed = System.nanoTime()
             lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
                 checkNotNull(model.lastTimings), 0.0, (completed - started) / 1e6)
             if (BuildConfig.DEBUG && completed - lastLogNs >= 5_000_000_000L) {
                 lastLogNs = completed
-                Log.i("PrivacyPipeline", "image_gpu=true texture_output=true size=${source.width}x${source.height} $lastTimings")
+                Log.i("PrivacyPipeline", "image_gpu=true texture_output=true size=${sensorWidth}x${sensorHeight} camera_copied_planes=$lastCameraCopiedPlanes $lastTimings")
             }
-            return VideoFrame(buffer, frame.rotation, frame.timestampNs)
-        } finally { source.release() }
+            return VideoFrame(buffer,rotation,timestampNs)
     }
 
     private fun processCpu(frame: VideoFrame): VideoFrame {

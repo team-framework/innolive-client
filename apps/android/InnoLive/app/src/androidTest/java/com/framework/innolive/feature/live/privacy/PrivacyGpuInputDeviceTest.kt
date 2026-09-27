@@ -39,6 +39,8 @@ class PrivacyGpuInputDeviceTest {
                         }
                         val restored=IntArray(first.size).also { graph.modelBitmap.getPixels(it,0,640,0,0,640,640) }
                         assertArrayEquals(first,restored)
+                        assertTrue("Validated GL input was rejected",graph.nativeInputEnabled)
+                        assertTrue(graph.nativeInputUsesManagedSync)
                         Log.i("PrivacyStages","stage=gpu_input production_enabled=${graph.nativeInputEnabled}")
                         repeat(source.dataY.capacity()) { source.dataY.put(it,200.toByte()) }
                         graph.prepare(source,0,readModel=false)
@@ -53,6 +55,34 @@ class PrivacyGpuInputDeviceTest {
             }
         } finally {source.release()}
     }
+    @Test fun managedInteropMatchesGlFinishAcrossChangingFrames() {
+        val context=InstrumentationRegistry.getInstrumentation().targetContext
+        PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
+        val source=JavaI420Buffer.allocate(640,480)
+        try {
+            repeat(source.dataU.capacity()) {source.dataU.put(it,128.toByte());source.dataV.put(it,128.toByte())}
+            PrivacyGpuFramePipeline(null,useGles3=true).use {graph ->
+                graph.createNativeInputModel(PrivacyDetectorGpuEngine.verifiedFile(context).absolutePath)
+                val blocking=mutableListOf<Double>();val managed=mutableListOf<Double>()
+                repeat(24) {index ->
+                    repeat(source.dataY.capacity()) {source.dataY.put(it,(if(index%2==0)32 else 200).toByte())}
+                    fun run(fence:Boolean):Pair<FloatArray,FloatArray> {
+                        val tick=System.nanoTime();graph.prepare(source,0,readModel=false)
+                        val result=graph.predictNativeInput(fence)
+                        assertEquals(fence,graph.nativeInputUsesManagedSync)
+                        (if(fence)managed else blocking).add((System.nanoTime()-tick)/1e6)
+                        return result
+                    }
+                    val first=run(index%2==0);val second=run(index%2!=0)
+                    val predictionError=first.first.indices.maxOf {abs(first.first[it]-second.first[it])}
+                    val maskError=first.second.indices.maxOf {abs(first.second[it]-second.second[it])}
+                    assertTrue("Input synchronization mismatch $predictionError/$maskError",predictionError<.05f && maskError<.01f)
+                }
+                Log.i("PrivacyStages","stage=input_sync gl_finish_p50_ms=${blocking.drop(4).sorted()[10]} managed_interop_p50_ms=${managed.drop(4).sorted()[10]} changing_frames=24")
+            }
+        } finally {source.release()}
+    }
+
     @Test fun compareNativeGpuInputWithBitmapFloatInput() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())

@@ -16,6 +16,7 @@ import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
 import org.webrtc.EglBase
 import com.framework.innolive.feature.live.privacy.PrivacyGpuBackpressureException
+import com.framework.innolive.feature.live.privacy.PrivacyCameraInput
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -30,6 +31,8 @@ class CameraFrameAnalyzer(
     private val onProtectedFrameSent: () -> Unit = {},
     private val onCaptureFormat: (Int, Int) -> Unit = { _, _ -> },
     private val sharedEglContext: EglBase.Context? = null,
+    private val directCameraInput: Boolean = true,
+    private val directGpuInput: Boolean = true,
 ) : ImageAnalysis.Analyzer {
     private val enabled = AtomicBoolean(false)
     private val protectedFrameReported = AtomicBoolean(false)
@@ -50,7 +53,7 @@ class CameraFrameAnalyzer(
     private val cameraBuffers = PrivacyCameraBufferPool()
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
-        if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext) else null
+        if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput) else null
     private val route = PrivacyFrameRoute(
         when {
             !initialOnDevice -> PrivacyFrameMode.SERVER
@@ -63,7 +66,7 @@ class CameraFrameAnalyzer(
         if (onDevice && localProcessor == null) {
             synchronized(processorLock) {
                 if (localProcessor == null) {
-                    localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext)
+                    localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput)
                 }
             }
         }
@@ -106,6 +109,7 @@ class CameraFrameAnalyzer(
     override fun analyze(image: ImageProxy) {
         var ticket: PrivacyFrameRoute.Ticket? = null
         var reserved = false
+        var transferredImage = false
         try {
             if (!enabled.get()) return
             val currentTicket = route.ticket() ?: return
@@ -123,6 +127,13 @@ class CameraFrameAnalyzer(
                     return
                 }
                 reserved = true
+                if(directCameraInput) {
+                    val camera=PrivacyCameraInput(image)
+                    worker.execute {processProtectedCamera(camera,currentTicket)}
+                    transferredImage=true
+                    reserved=false
+                    return
+                }
             }
             val copyStarted = System.nanoTime()
             val source = if (reserved) cameraBuffers.acquire(image.width, image.height)
@@ -182,16 +193,26 @@ class CameraFrameAnalyzer(
             ticket?.let { route.deliver(it, onProcessingFailure) }
         } finally {
             if (reserved) processing.set(false)
-            image.close()
+            if(!transferredImage) image.close()
         }
     }
 
     private fun processProtected(frame: VideoFrame, ticket: PrivacyFrameRoute.Ticket, cameraCopyMs: Double) {
+        processProtected(ticket,cameraCopyMs,{it.process(frame)},{frame.release()})
+    }
+
+    private fun processProtectedCamera(camera:PrivacyCameraInput,ticket:PrivacyFrameRoute.Ticket) {
+        processProtected(ticket,0.0,{it.process(camera)},{camera.close()})
+    }
+
+    private fun processProtected(ticket:PrivacyFrameRoute.Ticket,cameraCopyMs:Double,
+        transform:(PrivacyFrameProcessor)->VideoFrame,releaseInput:()->Unit) {
         try {
+            if(!route.deliver(ticket) {}) return
             val outgoing = synchronized(processorLock) {
                 val processor = checkNotNull(localProcessor)
                 if (resetPending.getAndSet(false)) processor.resetFaceExceptions()
-                processor.process(frame)
+                transform(processor)
             }
             try {
                 val deliveryStarted = System.nanoTime()
@@ -207,7 +228,7 @@ class CameraFrameAnalyzer(
                         val analysis = processor.lastAnalysis
                         if (timings != null && analysis != null) onFrameDiagnostics?.invoke(
                             PrivacyCaptureDiagnostics(cameraCopyMs, (completed - deliveryStarted) / 1e6,
-                                timings, analysis))
+                                timings, analysis, processor.lastCameraCopiedPlanes))
                     }
                 }
                 if (BuildConfig.DEBUG && completed - lastStagesLogNs >= 5_000_000_000L) {
@@ -221,7 +242,7 @@ class CameraFrameAnalyzer(
         } catch (_: Exception) {
             route.deliver(ticket, onProcessingFailure)
         } finally {
-            frame.release()
+            releaseInput()
             processing.set(false)
             logCounts()
         }
@@ -240,6 +261,7 @@ class CameraFrameAnalyzer(
 internal data class PrivacyCaptureDiagnostics(
     val cameraCopyMs: Double, val deliveryMs: Double,
     val timings: PrivacyFrameTimings, val analysis: PrivacyFrameAnalysis,
+    val cameraCopiedPlanes:Int = 3,
 )
 
 private fun copyPlane(

@@ -9,3 +9,11 @@ closure of the C API used by privacy inference is included, without vendor binar
 CMake generates `litert/build_common/build_config.h` from the original template.
 Runtime symbols are resolved from the same pinned Maven `libLiteRt.so` already
 packaged in the APK; no Kotlin internal handles are accessed.
+
+GL input synchronization follows the pinned backend's
+[GlInteropFabricLiteRt::Start](https://github.com/google-ai-edge/LiteRT/blob/v2.2.0/ml_drift_delegate/delegate/gpu_backend_opencl_litert.cc):
+it creates the EGL fence internally, converts it into a CL queue dependency when
+supported, and otherwise waits on that fence. External EGLSyncFence tensor events
+are explicitly rejected by this backend. The bridge flushes GL and calls the
+synchronous C API; completed output reads precede SSBO reuse. No asynchronous
+Adreno execution or private CL context access is assumed.

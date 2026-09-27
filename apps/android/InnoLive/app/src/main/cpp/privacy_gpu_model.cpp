@@ -60,6 +60,7 @@ struct Model {
     LiteRtCompiledModel compiled=nullptr;
     LiteRtTensorBuffer input=nullptr, outputs[2]{};
     GLuint buffer=0, program=0;
+    bool inputInteropSync=false;
     ~Model() {
         auto& a=api();
         if(input) a.LiteRtDestroyTensorBuffer(input);
@@ -132,15 +133,19 @@ struct Model {
         GLint ok=0; glGetProgramiv(program,GL_LINK_STATUS,&ok);
         if(!ok || glGetError()!=GL_NO_ERROR) throw std::runtime_error("GPU input program unavailable");
     }
-    jobjectArray predict(JNIEnv* env, GLuint texture) {
+    jobjectArray predict(JNIEnv* env, GLuint texture,bool useFence) {
         glUseProgram(program); glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D,texture);
         glUniform1i(glGetUniformLocation(program,"image"),0); glBindBufferBase(GL_SHADER_STORAGE_BUFFER,0,buffer);
-        glDispatchCompute(40,40,1); glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        // The delegate's OpenCL queue consumes the shared GL buffer. Finish is required here
-        // until a validated CL/GL fence handoff is available; input still avoids CPU readback/copies.
-        glFinish();
+        glDispatchCompute(40,40,1); glMemoryBarrier(GL_ALL_BARRIER_BITS);
+        auto& a=api();
+        // LiteRT 2.2 OpenCL's GlInteropFabricLiteRt::Start creates the EGL fence,
+        // imports it to the CL queue when supported, then acquires the GL buffer.
+        // Do not attach a separate EGL input event: that backend rejects it.
+        // Run is synchronous at output completion, allowing this SSBO to be reused.
+        inputInteropSync=useFence;
+        if(useFence) glFlush(); else glFinish(); // Explicit baseline for device A/B.
         if(glGetError()!=GL_NO_ERROR) throw std::runtime_error("GPU input dispatch failed");
-        auto& a=api(); check(a.LiteRtRunCompiledModel(compiled,0,1,&input,2,outputs),"run");
+        check(a.LiteRtRunCompiledModel(compiled,0,1,&input,2,outputs),"run");
         auto result=env->NewObjectArray(2,env->FindClass("[F"),nullptr);
         if(!result) return nullptr;
         const int sizes[2]={38*8400,32*160*160};
@@ -166,9 +171,13 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuModel_create(JN
     catch(const std::exception& error){ env->ReleaseStringUTFChars(path,file); fail(env,error); return 0; }
 }
 extern "C" JNIEXPORT jobjectArray JNICALL
-Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuModel_predict(JNIEnv* env,jobject,jlong handle,jint texture) {
-    try { if(!handle || texture<=0) throw std::runtime_error("Invalid GPU model/input"); return reinterpret_cast<Model*>(handle)->predict(env,texture); }
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuModel_predict(JNIEnv* env,jobject,jlong handle,jint texture,jboolean useFence) {
+    try { if(!handle || texture<=0) throw std::runtime_error("Invalid GPU model/input"); return reinterpret_cast<Model*>(handle)->predict(env,texture,useFence); }
     catch(const std::exception& error){ fail(env,error); return nullptr; }
+}
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuModel_usesManagedInputSync(JNIEnv*,jobject,jlong handle) {
+    return handle && reinterpret_cast<Model*>(handle)->inputInteropSync;
 }
 extern "C" JNIEXPORT void JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuModel_destroy(JNIEnv*,jobject,jlong handle) { delete reinterpret_cast<Model*>(handle); }

@@ -20,6 +20,7 @@ import java.nio.FloatBuffer
 
 /** Owns the pinned YOLO ONNX session. The caller serializes access and never sends raw on error. */
 internal class PrivacyOnnxModel(private val context: Context,
+                                private val directGpuInput:Boolean=true,
                                sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() }) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private val session: OrtSession
@@ -98,7 +99,7 @@ internal class PrivacyOnnxModel(private val context: Context,
                 gpu?.predict(pixels) ?: reference(pixels).first
             }
         }
-        if (nnapi == null) gpuGraph?.validateNativeInput(context) { pixels ->
+        if (nnapi == null && directGpuInput) gpuGraph?.validateNativeInput(context) { pixels ->
             gpu?.predict(pixels) ?: reference(pixels).first
         }
         nativeInputActive = gpuGraph?.nativeInputEnabled == true
@@ -131,7 +132,8 @@ internal class PrivacyOnnxModel(private val context: Context,
                 val maskPixels = mask.count { it.toInt() != 0 }
                 lastAnalysis = PrivacyFrameAnalysis(usesGpu, objects.count { it.classId == 0 },
                     objects.count { it.classId == 1 }, exempt.size,
-                    maskPixels, maskPixels > 0 && (renderOnGpu || blur.lastUsedGpu), nnapi != null)
+                    maskPixels, maskPixels > 0 && (renderOnGpu || blur.lastUsedGpu), nnapi != null,
+                    nativeInputActive, nativeInputActive && gpuGraph?.nativeInputUsesManagedSync == true)
             }
             lastTimings = PrivacyModelTimings(
                 (prepared - started) / 1e6, (inferred - prepared) / 1e6,
@@ -225,4 +227,5 @@ internal data class PrivacyModelTimings(
 internal data class PrivacyFrameAnalysis(
     val detectorGpu: Boolean, val faces: Int, val plates: Int, val exemptFaces: Int,
     val maskPixels: Int, val blurGpu: Boolean, val detectorNnapi: Boolean = false,
+    val directGpuInput: Boolean = false, val inputInteropSync: Boolean = false,
 )

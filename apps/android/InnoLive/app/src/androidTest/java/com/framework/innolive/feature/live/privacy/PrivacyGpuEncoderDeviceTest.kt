@@ -20,7 +20,9 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Exercises the same shared EGL surface encoder used for broadcasting, without signaling/network. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyGpuEncoderDeviceTest {
-    @Test fun protectedTextureEncodesOnHardwareSurfaceWithoutCpuI420Output() {
+    @Test fun protectedTextureEncodesOnHardwareSurfaceWithoutCpuI420Output() = encode(false)
+    @Test fun borrowedCameraInputEncodesAfterCameraStorageIsReleased() = encode(true)
+    private fun encode(direct:Boolean) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
         val egl = EglBase.create()
@@ -44,7 +46,13 @@ class PrivacyGpuEncoderDeviceTest {
             PrivacyGpuFramePipeline(egl.eglBaseContext, useGles3=true, useFence=true).use { graph ->
                 val mask = ByteArray(160 * 160) { -1 }
                 repeat(12) { index ->
-                    val layout = graph.prepare(source, 90)
+                    val fixture=if(direct) PrivacyCameraFixture.create(320,320,90,"NV21") else null
+                    val layout=if(fixture!=null) {
+                        graph.prepare(fixture.camera,readModel=false).also {
+                            assertEquals(0,graph.lastCameraCopiedPlanes)
+                            fixture.camera.close();fixture.poison()
+                        }
+                    } else graph.prepare(source,90)
                     val texture = graph.finish(mask, layout, 320, 320)
                     val frame = VideoFrame(texture, 90, System.nanoTime())
                     try {

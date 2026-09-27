@@ -319,3 +319,17 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_computeInst
     if (!valid) { invalid(env, "Non-finite instance mask or invalid bounds"); return nullptr; }
     return arrays;
 }
+
+// Recognize adjacent NV12/NV21 camera views without reading or copying their pixels.
+extern "C" JNIEXPORT jint JNICALL
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_cameraChromaLayout(
+    JNIEnv* env,jobject,jobject u,jobject v,jint uStride,jint vStride,jint width,jint height) {
+    if(width<=0 || height<=0 || uStride!=vStride || uStride<width*2 || uStride%2) return 0;
+    const auto up=reinterpret_cast<uintptr_t>(env->GetDirectBufferAddress(u));
+    const auto vp=reinterpret_cast<uintptr_t>(env->GetDirectBufferAddress(v));
+    if(!up || !vp) return 0;
+    const int64_t required=(height-1LL)*uStride+width*2LL;
+    if(vp==up+1 && env->GetDirectBufferCapacity(u)>=required-1) return 1;
+    if(up==vp+1 && env->GetDirectBufferCapacity(v)>=required-1) return 2;
+    return 0;
+}
