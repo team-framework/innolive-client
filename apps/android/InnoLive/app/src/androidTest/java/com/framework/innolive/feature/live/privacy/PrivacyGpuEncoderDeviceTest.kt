@@ -95,7 +95,8 @@ class PrivacyGpuEncoderDeviceTest {
     }
     @Test fun protectedTextureEncodesOnHardwareSurfaceWithoutCpuI420Output() = encode(false)
     @Test fun borrowedCameraInputEncodesAfterCameraStorageIsReleased() = encode(true)
-    private fun encode(direct:Boolean) {
+    @Test fun protected1080pTextureEncodesOnHardwareWithoutCpuReadback() = encode(false,1920,1080)
+    private fun encode(direct:Boolean,width:Int=320,height:Int=320) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
         val egl = EglBase.create()
@@ -105,14 +106,15 @@ class PrivacyGpuEncoderDeviceTest {
         assertTrue(encoder.isHardwareEncoder)
         val encoded = CountDownLatch(3)
         val errors = AtomicInteger()
-        val source = JavaI420Buffer.allocate(320, 320)
+        val source = JavaI420Buffer.allocate(width,height)
+        val rotation=if(width==height)90 else 0
         repeat(source.dataY.capacity()) { source.dataY.put(it, (if (it % 2 == 0) 16 else 235).toByte()) }
         repeat(source.dataU.capacity()) { source.dataU.put(it, 128.toByte()) }
         repeat(source.dataV.capacity()) { source.dataV.put(it, 128.toByte()) }
         try {
             assertEquals(VideoCodecStatus.OK, encoder.initEncode(
-                VideoEncoder.Settings(4, 320, 320, 500, 30, 1, false, VideoEncoder.Capabilities(false))) { image, _ ->
-                if (image.encodedWidth != 320 || image.encodedHeight != 320 || image.buffer.remaining() == 0)
+                VideoEncoder.Settings(4,width,height,if(width>320)6000 else 500,30,1,false,VideoEncoder.Capabilities(false))) { image, _ ->
+                if (image.encodedWidth != width || image.encodedHeight != height || image.buffer.remaining() == 0)
                     errors.incrementAndGet()
                 encoded.countDown()
             })
@@ -120,15 +122,15 @@ class PrivacyGpuEncoderDeviceTest {
                 val readbacks=PrivacyTextureReadbackCounter.value()
                 val mask = ByteArray(160 * 160) { -1 }
                 repeat(12) { index ->
-                    val fixture=if(direct) PrivacyCameraFixture.create(320,320,90,"NV21") else null
+                    val fixture=if(direct) PrivacyCameraFixture.create(width,height,rotation,"NV21") else null
                     val layout=if(fixture!=null) {
                         graph.prepare(fixture.camera,readModel=false).also {
                             assertEquals(0,graph.lastCameraCopiedPlanes)
                             fixture.camera.close();fixture.poison()
                         }
-                    } else graph.prepare(source,90)
-                    val texture = graph.finish(mask, layout, 320, 320)
-                    val frame = VideoFrame(texture, 90, System.nanoTime())
+                    } else graph.prepare(source,rotation)
+                    val texture = graph.finish(mask,layout,width,height)
+                    val frame = VideoFrame(texture,rotation,System.nanoTime())
                     try {
                         assertEquals(VideoCodecStatus.OK, encoder.encode(frame, VideoEncoder.EncodeInfo(arrayOf(
                             if (index == 0) EncodedImage.FrameType.VideoFrameKey else EncodedImage.FrameType.VideoFrameDelta))))

@@ -16,13 +16,14 @@ import java.util.concurrent.TimeUnit
 class PrivacyLocalPeerEncoderDeviceTest {
     @Test fun preferredHardwareH264DeliversProtectedTextureToLocalPeer() { runPeer(true) }
     @Test fun compareDefaultCodecWithHardwarePreference() {
-        val baseline=runPeer(false);val preferred=runPeer(true)
+        val baseline=runPeer(false,1920,1080,true);val preferred=runPeer(true,1920,1080,true)
         Log.i("PrivacyEncoder","codec_comparison baseline_codec=${baseline.codec} candidate_codec=${preferred.codec} " +
             "baseline_encode_mean_ms=${baseline.encodeMeanMs} candidate_encode_mean_ms=${preferred.encodeMeanMs} " +
-            "baseline_cpu_readbacks=${baseline.readbacks} candidate_cpu_readbacks=${preferred.readbacks}")
+            "baseline_cpu_readbacks=${baseline.readbacks} candidate_cpu_readbacks=${preferred.readbacks} " +
+            "baseline_encoded_fps=${baseline.encodedFps} candidate_encoded_fps=${preferred.encodedFps} size=1920x1080 detector=true")
     }
-    private data class Metrics(val codec:String?,val encodeMeanMs:Double,val readbacks:Long)
-    private fun runPeer(preferHardware:Boolean):Metrics {
+    private data class Metrics(val codec:String?,val encodeMeanMs:Double,val readbacks:Long,val encodedFps:Double)
+    private fun runPeer(preferHardware:Boolean,width:Int=320,height:Int=320,inference:Boolean=false):Metrics {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
         val egl=EglBase.create()
@@ -35,8 +36,8 @@ class PrivacyLocalPeerEncoderDeviceTest {
         val track=factory.createVideoTrack("local-protected-video",source)
         val send=Peer(factory,null)
         val receive=Peer(factory,received)
-        val fixture=JavaI420Buffer.allocate(320,320)
-        repeat(fixture.dataY.capacity()) { fixture.dataY.put(it,(if(it%320<160)32 else 220).toByte()) }
+        val fixture=JavaI420Buffer.allocate(width,height)
+        repeat(fixture.dataY.capacity()) { fixture.dataY.put(it,(16+(it%width*13+it/width*31)%220).toByte()) }
         repeat(fixture.dataU.capacity()) { fixture.dataU.put(it,128.toByte());fixture.dataV.put(it,128.toByte()) }
         try {
             val transceiver=checkNotNull(send.connection.addTransceiver(track,
@@ -55,20 +56,29 @@ class PrivacyLocalPeerEncoderDeviceTest {
             send.remote(checkNotNull(receive.connection.localDescription))
             assertTrue("Local sender did not connect",send.connected.await(8,TimeUnit.SECONDS))
             assertTrue("Local receiver did not connect",receive.connected.await(8,TimeUnit.SECONDS))
+            if(width>320) assertTrue(send.connection.setBitrate(3_000_000,6_000_000,6_000_000))
             source.capturerObserver.onCapturerStarted(true)
             PrivacyGpuFramePipeline(egl.eglBaseContext,useGles3=true,useFence=true).use { graph ->
+                if(inference)graph.createNativeInputModel(PrivacyDetectorGpuEngine.verifiedFile(context).absolutePath)
+                val predictions=java.nio.ByteBuffer.allocateDirect(38*8400*4)
+                val prototypes=java.nio.ByteBuffer.allocateDirect(32*160*160*4)
                 val readbacks=PrivacyTextureReadbackCounter.value()
+                val started=System.nanoTime()
                 repeat(60) { index ->
                     val layout=graph.prepare(fixture,0,readModel=false)
-                    val texture=graph.finish(ByteArray(160*160) {-1},layout,320,320)
+                    if(inference)graph.predictNativeInputInto(predictions,prototypes)
+                    val texture=graph.finish(ByteArray(160*160) {-1},layout,width,height)
                     val frame=VideoFrame(texture,0,System.nanoTime())
                     try {source.capturerObserver.onFrameCaptured(frame)} finally {frame.release()}
-                    Thread.sleep(33)
+                    val remaining=started+(index+1)*33_333_333L-System.nanoTime()
+                    if(remaining>0)Thread.sleep(remaining/1_000_000L,(remaining%1_000_000L).toInt())
                 }
+                val seconds=(System.nanoTime()-started)/1e9
                 assertTrue("No decoded protected frames",received.await(5,TimeUnit.SECONDS))
                 val ready=CountDownLatch(1)
                 var codec:String?=null;var implementation:String?=null;var packets=0L
                 var encodeMs=Double.NaN
+                var encodedFrames=0.0
                 send.connection.getStats { report ->
                     val outbound=report.statsMap.values.firstOrNull {
                         it.type=="outbound-rtp" && (it.members["kind"]=="video" || it.members["mediaType"]=="video")
@@ -78,6 +88,7 @@ class PrivacyLocalPeerEncoderDeviceTest {
                         packets=(it.members["packetsSent"] as? Number)?.toLong() ?: 0
                         codec=report.statsMap[it.members["codecId"]]?.members?.get("mimeType") as? String
                         val frames=(it.members["framesEncoded"] as? Number)?.toDouble() ?: 0.0
+                        encodedFrames=frames
                         val seconds=(it.members["totalEncodeTime"] as? Number)?.toDouble()
                         if(frames>0 && seconds!=null)encodeMs=seconds*1000/frames
                     }
@@ -96,7 +107,7 @@ class PrivacyLocalPeerEncoderDeviceTest {
                 }
                 Log.i("PrivacyEncoder","local_peer codec=$codec implementation=$implementation packets=$packets " +
                     "decoded_frames_min=3 texture_readbacks=${PrivacyTextureReadbackCounter.value()-readbacks}")
-                return Metrics(codec,encodeMs,PrivacyTextureReadbackCounter.value()-readbacks)
+                return Metrics(codec,encodeMs,PrivacyTextureReadbackCounter.value()-readbacks,encodedFrames/seconds)
             }
         } finally {
             source.capturerObserver.onCapturerStopped()
