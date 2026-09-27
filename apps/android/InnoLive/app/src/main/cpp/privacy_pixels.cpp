@@ -333,3 +333,50 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_cameraChrom
     if(up==vp+1 && env->GetDirectBufferCapacity(v)>=required-1) return 2;
     return 0;
 }
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_bitmapToBgrTensor(
+    JNIEnv* env,jobject,jobject bitmap,jobject buffer,jint width,jint height) {
+    AndroidBitmapInfo info{};
+    if(!bitmapInfo(env,bitmap,info)) return;
+    auto* output=static_cast<float*>(env->GetDirectBufferAddress(buffer));
+    if(width<=0 || height<=0 || width>2048 || height>2048 || info.width>static_cast<uint32_t>(width) ||
+        info.height>static_cast<uint32_t>(height) || !output || env->GetDirectBufferCapacity(buffer)<int64_t(width)*height*3*4) {
+        invalid(env,"Invalid BGR tensor bounds");return;
+    }
+    LockedBitmap source(env,bitmap); if(!source.pixels) return;
+    const int area=width*height;
+    std::fill(output,output+3*area,0.f);
+    for(uint32_t y=0;y<info.height;++y) {
+        const auto* row=static_cast<const uint8_t*>(source.pixels)+y*info.stride;
+        uint32_t x=0;
+#if defined(__ARM_NEON) || defined(__aarch64__)
+        for(;x+8<=info.width;x+=8) {
+            const auto rgba=vld4_u8(row+x*4);
+            for(int channel=0;channel<3;++channel) {
+                const auto words=vmovl_u8(rgba.val[2-channel]);
+                auto* dest=output+channel*area+y*width+x;
+                vst1q_f32(dest,vcvtq_f32_u32(vmovl_u16(vget_low_u16(words))));
+                vst1q_f32(dest+4,vcvtq_f32_u32(vmovl_u16(vget_high_u16(words))));
+            }
+        }
+#endif
+        for(;x<info.width;++x) for(int c=0;c<3;++c) output[c*area+y*width+x]=row[4*x+2-c];
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_framework_innolive_feature_live_privacy_PrivacyNativePixels_bitmapToFaceTensor(
+    JNIEnv* env,jobject,jobject bitmap,jobject buffer) {
+    AndroidBitmapInfo info{};
+    if(!bitmapInfo(env,bitmap,info)) return;
+    auto* output=static_cast<float*>(env->GetDirectBufferAddress(buffer));
+    if(info.width!=112 || info.height!=112 || !output || env->GetDirectBufferCapacity(buffer)<112*112*3*4) {
+        invalid(env,"Invalid face tensor bounds");return;
+    }
+    LockedBitmap source(env,bitmap);if(!source.pixels)return;
+    for(uint32_t y=0;y<112;++y) {
+        const auto* row=static_cast<const uint8_t*>(source.pixels)+y*info.stride;
+        for(uint32_t x=0;x<112;++x) for(int c=0;c<3;++c) output[c*112*112+y*112+x]=row[x*4+c]/127.5f-1.f;
+    }
+}

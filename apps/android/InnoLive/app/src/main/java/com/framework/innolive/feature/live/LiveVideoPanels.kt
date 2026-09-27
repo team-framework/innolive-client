@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
 
@@ -42,34 +43,19 @@ fun LiveVideoPanels(
             .size(pipWidth, pipHeight)
             .clip(shape = RoundedCornerShape(8.dp))
 
-        if (isConnected) {
-            WebRtcRemotePreview(
-                remoteVideoTrack = remoteVideoTrack,
-                eglContext = eglContext,
-                cameraLensFacing = cameraLensFacing,
-                modifier = mainModifier,
-            )
-            CameraPreview(
-                cameraLensFacing = cameraLensFacing,
-                cameraResolution = cameraResolution,
-                frameAnalyzer = frameAnalyzer,
-                lockedRotation = lockedRotation,
-                modifier = pipModifier,
-            )
-        } else {
-            CameraPreview(
-                cameraLensFacing = cameraLensFacing,
-                cameraResolution = cameraResolution,
-                frameAnalyzer = frameAnalyzer,
-                lockedRotation = lockedRotation,
-                modifier = mainModifier,
-            )
-            WebRtcRemotePreview(
-                remoteVideoTrack = null,
-                eglContext = eglContext,
-                cameraLensFacing = cameraLensFacing,
-                modifier = pipModifier,
-            )
-        }
+        // Stable call sites keep the same camera use cases while connection changes the layout.
+        WebRtcRemotePreview(
+            remoteVideoTrack = if (isConnected) remoteVideoTrack else null,
+            eglContext = eglContext,
+            cameraLensFacing = cameraLensFacing,
+            modifier = (if (isConnected) mainModifier else pipModifier).zIndex(if (isConnected) 0f else 1f),
+        )
+        CameraPreview(
+            cameraLensFacing = cameraLensFacing,
+            cameraResolution = cameraResolution,
+            frameAnalyzer = frameAnalyzer,
+            lockedRotation = lockedRotation,
+            modifier = (if (isConnected) pipModifier else mainModifier).zIndex(if (isConnected) 1f else 0f),
+        )
     }
 }

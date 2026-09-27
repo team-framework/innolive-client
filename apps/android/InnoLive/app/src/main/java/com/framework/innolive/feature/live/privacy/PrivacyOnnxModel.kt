@@ -21,20 +21,24 @@ import java.nio.FloatBuffer
 /** Owns the pinned YOLO ONNX session. The caller serializes access and never sends raw on error. */
 internal class PrivacyOnnxModel(private val context: Context,
                                 private val directGpuInput:Boolean=true,
-                               sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() },
-                               private val nativePostprocessing: Boolean = true) : AutoCloseable {
+                               private val sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() },
+                               private val nativePostprocessing: Boolean = true,
+                               private val batchTwoOptimizations: Boolean = true) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
-    private val session: OrtSession
+    private var session: OrtSession? = null
     private val blur = PrivacyBitmapBlur()
     private val stabilizer = PrivacyMaskStabilizer()
-    private val postprocessor by lazy { PrivacyNativePostprocessor() }
+    private val postprocessorDelegate = lazy { PrivacyNativePostprocessor() }
+    private val postprocessor by postprocessorDelegate
     var lastMaskPixels: Int = -1
         private set
-    private val inputBitmap = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
-    private val inputCanvas = Canvas(inputBitmap)
-    private val inputBytes = ByteBuffer.allocateDirect(3 * 640 * 640 * 4).order(ByteOrder.nativeOrder())
-    private val inputTensor: OnnxTensor
-    private val gpuInput = FloatArray(3 * 640 * 640)
+    private val inputBitmapDelegate = lazy { Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888) }
+    private val inputBitmap by inputBitmapDelegate
+    private val inputCanvas by lazy { Canvas(inputBitmap) }
+    private val inputBytes by lazy { ByteBuffer.allocateDirect(3 * 640 * 640 * 4).order(ByteOrder.nativeOrder()) }
+    private val inputTensorDelegate = lazy { OnnxTensor.createTensor(environment, inputBytes.asFloatBuffer(), longArrayOf(1, 3, 640, 640)) }
+    private val inputTensor by inputTensorDelegate
+    private val gpuInput by lazy { FloatArray(3 * 640 * 640) }
     private var gpuChecked = false
     private var gpu: PrivacyDetectorGpuEngine? = null
     private var nnapi: PrivacyNnapiDetectorEngine? = null
@@ -46,22 +50,27 @@ internal class PrivacyOnnxModel(private val context: Context,
         private set
 
     init {
+        cpuSession()
+        if (!batchTwoOptimizations) { inputTensor; inputBitmap; gpuInput }
+    }
+
+    private fun cpuSession(): OrtSession {
+        session?.let { return it }
         val bytes = context.assets.open(MODEL_ASSET).use { it.readBytes() }
         check(sha256(bytes) == MODEL_SHA256) { "Privacy model checksum mismatch" }
-        val options = sessionOptions()
-        session = try { environment.createSession(bytes, options) } finally { options.close() }
+        val candidate = sessionOptions().use { environment.createSession(bytes, it) }
         try {
-            check(session.inputNames == setOf("images"))
-            check((session.outputInfo["output0"]?.info as? TensorInfo)?.shape
+            check(candidate.inputNames == setOf("images"))
+            check((candidate.outputInfo["output0"]?.info as? TensorInfo)?.shape
                 ?.contentEquals(longArrayOf(1, 38, 8400)) == true)
-            check((session.outputInfo["output1"]?.info as? TensorInfo)?.shape
+            check((candidate.outputInfo["output1"]?.info as? TensorInfo)?.shape
                 ?.contentEquals(longArrayOf(1, 32, 160, 160)) == true)
-            inputTensor = OnnxTensor.createTensor(environment, inputBytes.asFloatBuffer(), longArrayOf(1, 3, 640, 640))
-        } catch (error: Exception) {
-            session.close()
-            throw error
-        }
+            session = candidate
+            return candidate
+        } catch (error: Exception) { candidate.close(); throw error }
     }
+
+    internal val retainsCpuSession: Boolean get() = session != null
 
     fun process(
         upright: Bitmap,
@@ -98,13 +107,22 @@ internal class PrivacyOnnxModel(private val context: Context,
         val started = System.nanoTime()
         if (!gpuChecked) {
             gpuChecked = true
-            gpu = PrivacyDetectorGpuEngine.validated(context, ::reference)
-            nnapi = PrivacyNnapiDetectorEngine.validated(context, { reference(it).first }) { pixels ->
-                gpu?.predict(pixels) ?: reference(pixels).first
+            if (batchTwoOptimizations && directGpuInput && gpuGraph != null) {
+                gpuGraph.validateNativeInput(context, diagnosticBenchmark = false) { reference(it).first }
+            }
+            if (gpuGraph?.nativeInputEnabled != true) {
+                gpu = PrivacyDetectorGpuEngine.validated(context, ::reference)
+                nnapi = PrivacyNnapiDetectorEngine.validated(context, { reference(it).first }) { pixels ->
+                    gpu?.predict(pixels) ?: reference(pixels).first
+                }
             }
         }
-        if (nnapi == null && directGpuInput) gpuGraph?.validateNativeInput(context) { pixels ->
+        if (nnapi == null && directGpuInput) gpuGraph?.validateNativeInput(context,
+            diagnosticBenchmark = !batchTwoOptimizations) { pixels ->
             gpu?.predict(pixels) ?: reference(pixels).first
+        }
+        if (batchTwoOptimizations && gpuGraph?.nativeInputEnabled == true) {
+            session?.close(); session = null
         }
         nativeInputActive = gpuGraph?.nativeInputEnabled == true
         if (!nativeInputActive) PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
@@ -166,7 +184,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         }
     }
 
-    fun resetTemporalState() { stabilizer.reset(); if (nativePostprocessing) postprocessor.reset() }
+    fun resetTemporalState() { stabilizer.reset(); if (postprocessorDelegate.isInitialized()) postprocessor.reset() }
 
     private fun checkedOutput(output: Pair<FloatArray,FloatArray>): Pair<FloatArray,PrivacyValidatedPrototypes> {
         check(PrivacyNativePixels.finiteFloats(output.first))
@@ -205,7 +223,7 @@ internal class PrivacyOnnxModel(private val context: Context,
     }
 
     private fun runOnnx(): Pair<FloatArray, FloatArray> =
-        session.run(mapOf("images" to inputTensor)).use { result ->
+        cpuSession().run(mapOf("images" to inputTensor)).use { result ->
             val predictions = (result["output0"].orElseThrow() as OnnxTensor).floatBuffer
             val prototypes = (result["output1"].orElseThrow() as OnnxTensor).floatBuffer
             FloatArray(predictions.remaining()).also(predictions::get) to
@@ -215,7 +233,7 @@ internal class PrivacyOnnxModel(private val context: Context,
     private fun reference(pixels: FloatArray): Pair<Pair<FloatArray, FloatArray>, Long> =
         OnnxTensor.createTensor(environment, FloatBuffer.wrap(pixels), longArrayOf(1, 3, 640, 640)).use { tensor ->
             val started = System.nanoTime()
-            val output = session.run(mapOf("images" to tensor)).use { result ->
+            val output = cpuSession().run(mapOf("images" to tensor)).use { result ->
                 val predictions = (result["output0"].orElseThrow() as OnnxTensor).floatBuffer
                 val prototypes = (result["output1"].orElseThrow() as OnnxTensor).floatBuffer
                 FloatArray(predictions.remaining()).also(predictions::get) to
@@ -225,10 +243,18 @@ internal class PrivacyOnnxModel(private val context: Context,
         }
 
     override fun close() {
-        if (nativePostprocessing) postprocessor.close()
+        if (postprocessorDelegate.isInitialized()) postprocessor.close()
+        releaseAccelerators()
+        blur.close()
+        if (inputTensorDelegate.isInitialized()) inputTensor.close()
+        if (inputBitmapDelegate.isInitialized()) inputBitmap.recycle()
+        session?.close(); session = null
+    }
+
+    internal fun releaseAccelerators() {
         nnapi?.close(); nnapi = null
         gpu?.close(); gpu = null
-        blur.close(); inputTensor.close(); inputBitmap.recycle(); session.close()
+        nativeInputActive = false
     }
 
     companion object {

@@ -15,7 +15,7 @@ internal class PrivacyFaceCoordinator(
     private val optimized: Boolean = true,
     private val revisionSource: () -> Long = { PrivacyFaceLibrary.currentRevision },
     private val registeredFaces: () -> List<PrivacyRegisteredFace>,
-) {
+) : AutoCloseable {
     constructor(context: Context, optimized: Boolean = true) : this(PrivacyFaceService.get(context), optimized,
         { PrivacyFaceLibrary.currentRevision },
         { PrivacyFaceService.get(context).library?.snapshot().orEmpty() })
@@ -24,6 +24,7 @@ internal class PrivacyFaceCoordinator(
     private var generation = 0L
     private var previousLayout: PrivacySegmentation.Letterbox? = null
     private var geometry: Pair<Int, Int>? = null
+    private var leased = false
     private var cachedEntries: List<PrivacyRegisteredFace>? = null
 
     fun reset() {
@@ -32,7 +33,7 @@ internal class PrivacyFaceCoordinator(
         previousLayout = null
     }
 
-    /** Start one current-frame job before YOLO. The analyzer never waits for recognition. */
+    /** Start at most one independent recognition job. The analyzer never waits for its result. */
     fun beginFrame(upright: Bitmap, timestampNs: Long) =
         beginFrame(upright.width, upright.height, timestampNs) { copyCrop(upright, it) }
 
@@ -40,7 +41,8 @@ internal class PrivacyFaceCoordinator(
         refreshRevision()
         val dimensions = width to height
         if (geometry != dimensions) { reset(); geometry = dimensions }
-        if (entries().isEmpty()) return
+        if (entries().isEmpty()) { releaseLease(); return }
+        if (!leased) { service.retain(); leased = true }
         service.prepare()
         if (!service.canSubmit) return
         val layout = previousLayout ?: return
@@ -49,6 +51,22 @@ internal class PrivacyFaceCoordinator(
         val image = crop(bounds)
         if (!service.submitRecognition(image, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) image.recycle()
     }
+
+    fun currentFrame(upright: Bitmap, objects: List<PrivacySegmentation.Detection>,
+                     layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> =
+        currentFrame(upright.width,upright.height,objects,layout,timestampNs) { copyCrop(upright,it) }
+
+    /** Select crops from this frame's YOLO tracks; start recognition after detector GPU work. */
+    fun currentFrame(width: Int, height: Int, objects: List<PrivacySegmentation.Detection>,
+                     layout: PrivacySegmentation.Letterbox, timestampNs: Long, crop: (Rect) -> Bitmap): Set<Int> {
+        if (geometry != width to height) { reset(); geometry = width to height }
+        val allowed = exceptions(width,height,objects,layout,timestampNs)
+        beginFrame(width,height,timestampNs,crop)
+        return allowed
+    }
+
+    private fun releaseLease() { if (leased) { service.release(); leased=false } }
+    override fun close() { reset(); releaseLease() }
 
     fun exceptions(upright: Bitmap, objects: List<PrivacySegmentation.Detection>,
                    layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> =

@@ -12,7 +12,7 @@ import org.webrtc.VideoFrame
 
 /** Alternating A/B: real YOLO, identical pixels, fixed full protection, complete GPU consumption. */
 @RunWith(AndroidJUnit4::class)
-class PrivacyBatchOnePerformanceDeviceTest {
+class PrivacyBatchTwoPerformanceDeviceTest {
     @Test fun compareBundleWithFixedPixelsAndProtectionWorkload() {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
@@ -22,20 +22,24 @@ class PrivacyBatchOnePerformanceDeviceTest {
             repeat(source.dataU.capacity()) {source.dataU.put(it,128.toByte());source.dataV.put(it,128.toByte())}
             val full=ByteArray(160*160) {-1}
             try {
-                PrivacyGpuFramePipeline(null,useGles3=true,cacheBindings=false).use {oldGraph ->
+                PrivacyGpuFramePipeline(null,useGles3=true,cacheBindings=true).use {oldGraph ->
                     PrivacyGpuFramePipeline(null,useGles3=true,cacheBindings=true).use {newGraph ->
-                        PrivacyOnnxModel(context,nativePostprocessing=false,batchTwoOptimizations=false).use {old ->
-                            PrivacyOnnxModel(context,nativePostprocessing=true,batchTwoOptimizations=false).use {new ->
+                        PrivacyOnnxModel(context,nativePostprocessing=true,batchTwoOptimizations=false).use {old ->
+                            PrivacyOnnxModel(context,nativePostprocessing=true,batchTwoOptimizations=true).use {new ->
                                 val before=ArrayList<Double>();val after=ArrayList<Double>()
                                 val oldSubmit=ArrayList<Double>();val newSubmit=ArrayList<Double>()
                                 fun run(graph:PrivacyGpuFramePipeline,model:PrivacyOnnxModel,index:Int,optimized:Boolean):VideoFrame.I420Buffer {
                                     val start=System.nanoTime()
-                                    val layout=graph.prepare(source,90,readModel=!graph.nativeInputEnabled)
-                                    val texture=model.processPrepared(graph.modelBitmap,layout,1_000_000_000L+index*33_000_000L,
-                                        {_,_->emptySet()},renderOnGpu=true,gpuGraph=graph) {
-                                        graph.finish(full,layout,width,height,full.size)
+                                    fun submitFrame():VideoFrame.TextureBuffer {
+                                        val layout=graph.prepare(source,90,readModel=!graph.nativeInputEnabled)
+                                        return model.processPrepared(graph.modelBitmap,layout,1_000_000_000L+index*33_000_000L,
+                                            {_,_->emptySet()},renderOnGpu=true,gpuGraph=graph) {
+                                            graph.finish(full,layout,width,height,full.size)
+                                        }
                                     }
+                                    val texture=if (optimized) graph.runFrame { submitFrame() } else submitFrame()
                                     val submit=(System.nanoTime()-start)/1e6
+                                    if(index==0) Log.i("PrivacyBatch","batch=2 stage=startup size=${width}x$height optimized=$optimized ms=$submit cpu_retained=${model.retainsCpuSession}")
                                     val output=try {checkNotNull(texture.toI420())} finally {texture.release()}
                                     if(index>=5) {
                                         (if(optimized)after else before).add((System.nanoTime()-start)/1e6)
@@ -43,6 +47,7 @@ class PrivacyBatchOnePerformanceDeviceTest {
                                     }
                                     assertTrue(graph.nativeInputEnabled)
                                     assertTrue(model.usesGpu)
+                                    assertEquals(!optimized,model.retainsCpuSession)
                                     return output
                                 }
                                 repeat(45) {index ->
@@ -60,7 +65,7 @@ class PrivacyBatchOnePerformanceDeviceTest {
                                     } finally {a.release();b.release()}
                                 }
                                 fun percentile(values:List<Double>,fraction:Double)=values.sorted()[(values.size*fraction).toInt().coerceAtMost(values.lastIndex)]
-                                Log.i("PrivacyBatch","batch=1 stage=fixed_frame size=${width}x$height samples=${before.size} " +
+                                Log.i("PrivacyBatch","batch=2 stage=fixed_frame size=${width}x$height samples=${before.size} " +
                                     "baseline_p50_ms=${percentile(before,.5)} optimized_p50_ms=${percentile(after,.5)} " +
                                     "baseline_p95_ms=${percentile(before,.95)} optimized_p95_ms=${percentile(after,.95)} " +
                                     "baseline_submit_p50_ms=${percentile(oldSubmit,.5)} optimized_submit_p50_ms=${percentile(newSubmit,.5)} " +

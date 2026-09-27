@@ -44,6 +44,7 @@ class CameraFrameAnalyzerDeviceTest {
             failed.incrementAndGet(); delivered.get().countDown()
         })
         analyzer.start()
+        assertTrue(analyzer.awaitProtectedPreparation())
         try {
             repeat(12) { sample ->
                 val input = image(3_000_000_000L + sample * 100_000_000L,
@@ -118,6 +119,10 @@ class CameraFrameAnalyzerDeviceTest {
             onProcessingFailure = { failed.countDown() },
             onCaptureFormat = { width, height -> captureFormat.set(width to height) })
         analyzer.start()
+        val warming=image(999_000_000L)
+        analyzer.analyze(warming.first)
+        assertTrue(warming.second.await(1,TimeUnit.SECONDS))
+        assertTrue(analyzer.awaitProtectedPreparation())
         try {
             val first = image(1_000_000_000L)
             val started = System.nanoTime()

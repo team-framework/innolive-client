@@ -85,7 +85,7 @@ internal class PrivacyFaceTracking {
             .map { it.index }.toSet()
     }
 
-    /** Android starts a crop before YOLO; validate which current track its face belongs to. */
+    /** Validate that a delayed recognition still belongs to the current track. */
     fun recognitionMatches(trackID: String, box: PrivacySegmentation.Box): Boolean {
         if (listOf(box.left, box.top, box.right, box.bottom).any { !it.isFinite() } ||
             box.width <= 0 || box.height <= 0) return false

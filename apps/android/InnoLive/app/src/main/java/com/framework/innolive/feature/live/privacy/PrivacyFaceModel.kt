@@ -64,12 +64,26 @@ internal object PrivacyFaceMath {
 /** File-backed model loading avoids retaining a second 227 MB model copy in Java memory. */
 internal class PrivacyFaceModel(context: Context,
                                private val sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() },
-                               allowGpu: Boolean = true) : AutoCloseable {
+                               allowGpu: Boolean = true,
+                               private val reuseInputs: Boolean = true) : AutoCloseable {
     private val context = context.applicationContext
     private val environment = OrtEnvironment.getEnvironment()
-    private val detector = PrivacyYuNetModel(context.applicationContext)
+    private val detector = PrivacyYuNetModel(context.applicationContext, reuseInputs)
     private var session: OrtSession? = null
     private var gpu: PrivacyFaceGpuEngine? = null
+    private val cropScratch by lazy { Bitmap.createBitmap(112,112,Bitmap.Config.ARGB_8888) }
+    private val cropCanvas by lazy { Canvas(cropScratch) }
+    private val cropTransform = Matrix()
+    private val cropPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val inputStorage = java.nio.ByteBuffer.allocateDirect(3*112*112*4).order(java.nio.ByteOrder.nativeOrder())
+    private val pixelScratch = IntArray(112*112)
+    private val inputScratch = FloatArray(3*112*112)
+    private val imageTensor by lazy { OnnxTensor.createTensor(environment,inputStorage.asFloatBuffer(),longArrayOf(1,3,112,112)) }
+    private var imageTensorUsed = false
+    private val landmarkStorage = java.nio.ByteBuffer.allocateDirect(10*4).order(java.nio.ByteOrder.nativeOrder())
+    private val landmarkTensor by lazy { OnnxTensor.createTensor(environment,landmarkStorage.asFloatBuffer(),longArrayOf(1,5,2)) }
+    private var landmarkTensorUsed = false
+    private var cropUsed = false
     val usesGpu: Boolean get() = gpu != null
 
     init {
@@ -112,19 +126,20 @@ internal class PrivacyFaceModel(context: Context,
     fun recognize(image: Bitmap, enrollment: Boolean): Recognition? {
         val face = detector.oneFace(image, enrollment) ?: return null
         val square = face.square()
-        val cropped = Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888)
+        val cropped = if (reuseInputs) cropScratch.also { cropUsed=true } else Bitmap.createBitmap(112, 112, Bitmap.Config.ARGB_8888)
         try {
-            val canvas = Canvas(cropped)
+            cropped.setHasAlpha(false)
+            val canvas = if (reuseInputs) cropCanvas else Canvas(cropped)
             canvas.drawColor(Color.BLACK)
             val scale = 112f / square.width()
-            val transform = Matrix().apply {
+            val transform = (if (reuseInputs) cropTransform else Matrix()).apply {
                 setScale(scale, scale)
                 postTranslate(-square.left * scale, -square.top * scale)
             }
-            canvas.drawBitmap(image, transform, Paint(Paint.FILTER_BITMAP_FLAG))
+            canvas.drawBitmap(image, transform, cropPaint)
             return Recognition(predict(cropped, face.normalizedLandmarks()), RectF(face.box))
         } finally {
-            cropped.recycle()
+            if (!reuseInputs) cropped.recycle()
         }
     }
 
@@ -132,9 +147,21 @@ internal class PrivacyFaceModel(context: Context,
     fun predict(image: Bitmap, landmarks: FloatArray): FloatArray {
         require(image.width == 112 && image.height == 112 && landmarks.size == 10 &&
             landmarks.all(Float::isFinite))
-        val pixels = IntArray(112 * 112)
-        image.getPixels(pixels, 0, 112, 0, 0, 112, 112)
-        val input = PrivacyFaceGpuEngine.normalizedPixels(pixels)
+        val input = if (reuseInputs) {
+            if (image.hasAlpha() || image.config!=Bitmap.Config.ARGB_8888) {
+                image.getPixels(pixelScratch,0,112,0,0,112,112)
+                PrivacyFaceGpuEngine.normalizedPixelsInto(pixelScratch,inputScratch)
+                inputStorage.asFloatBuffer().put(inputScratch)
+            } else {
+                PrivacyNativePixels.bitmapToFaceTensor(image,inputStorage)
+                inputStorage.asFloatBuffer().get(inputScratch)
+            }
+            inputScratch
+        } else {
+            val pixels = IntArray(112*112)
+            image.getPixels(pixels,0,112,0,0,112,112)
+            PrivacyFaceGpuEngine.normalizedPixels(pixels)
+        }
         gpu?.let { accelerated ->
             try { return accelerated.predict(input, landmarks) }
             catch (error: Exception) {
@@ -144,13 +171,21 @@ internal class PrivacyFaceModel(context: Context,
         val cpu = session ?: sessionOptions().use { options ->
             environment.createSession(verifiedModelFile(context).absolutePath, options)
         }.also { session = it }
-        OnnxTensor.createTensor(environment, FloatBuffer.wrap(input), longArrayOf(1, 3, 112, 112)).use { imageTensor ->
-            OnnxTensor.createTensor(environment, FloatBuffer.wrap(landmarks), longArrayOf(1, 5, 2)).use { landmarkTensor ->
-                cpu.run(mapOf("image" to imageTensor, "landmarks" to landmarkTensor)).use { result ->
-                    val output = (result["embedding"].orElseThrow() as OnnxTensor).floatBuffer
-                    val values = FloatArray(output.remaining()).also(output::get)
-                    return checkNotNull(PrivacyFaceMath.normalize(values)) { "Invalid face embedding" }
-                }
+        fun run(imageInput:OnnxTensor,landmarkInput:OnnxTensor):FloatArray {
+            cpu.run(mapOf("image" to imageInput,"landmarks" to landmarkInput)).use { result ->
+                val output = (result["embedding"].orElseThrow() as OnnxTensor).floatBuffer
+                val values = FloatArray(output.remaining()).also(output::get)
+                return checkNotNull(PrivacyFaceMath.normalize(values)) { "Invalid face embedding" }
+            }
+        }
+        if (reuseInputs) {
+            landmarkStorage.asFloatBuffer().put(landmarks)
+            imageTensorUsed=true; landmarkTensorUsed=true
+            return run(imageTensor,landmarkTensor)
+        }
+        OnnxTensor.createTensor(environment,FloatBuffer.wrap(input),longArrayOf(1,3,112,112)).use { imageInput ->
+            OnnxTensor.createTensor(environment,FloatBuffer.wrap(landmarks),longArrayOf(1,5,2)).use { landmarkInput ->
+                return run(imageInput,landmarkInput)
             }
         }
     }
@@ -162,6 +197,9 @@ internal class PrivacyFaceModel(context: Context,
     }
 
     override fun close() {
+        if (imageTensorUsed) imageTensor.close()
+        if (landmarkTensorUsed) landmarkTensor.close()
+        if (cropUsed) cropScratch.recycle()
         try { gpu?.close() } finally {
             gpu = null
             try { session?.close() } finally { session = null; detector.close() }

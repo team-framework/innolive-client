@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,10 @@ internal fun LocalFaceManagementScreen(
 ) {
     val context = LocalContext.current
     val service = remember(context) { PrivacyFaceService.get(context) }
+    DisposableEffect(service) {
+        service.retain()
+        onDispose { service.release() }
+    }
     var name by remember { mutableStateOf("") }
     var enrollingName by remember { mutableStateOf<String?>(null) }
     var faces by remember { mutableStateOf<List<PrivacyRegisteredFace>>(emptyList()) }

@@ -8,16 +8,18 @@ import android.graphics.Matrix
 import android.util.Log
 import com.framework.innolive.BuildConfig
 import org.webrtc.VideoFrame
+import org.webrtc.JavaI420Buffer
 import org.webrtc.EglBase
 
 /** Serial AI worker: a GPU image graph and protected texture output, with a protected CPU fallback. */
 internal class PrivacyFrameProcessor(context: Context, private val sharedContext: EglBase.Context? = null,
                                      private val allowGpuImages: Boolean = true, directGpuInput:Boolean=true,
-                                     private val nativePostprocessing: Boolean = true) : AutoCloseable {
+                                     private val nativePostprocessing: Boolean = true,
+                                     private val batchTwoOptimizations: Boolean = true) : AutoCloseable {
     private var imageGpu: PrivacyGpuFramePipeline? = null
     private var imageGpuUnavailable = !allowGpuImages
     private val model = PrivacyOnnxModel(context.applicationContext,directGpuInput=directGpuInput,
-        nativePostprocessing=nativePostprocessing)
+        nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations)
     private val pixels = PrivacyPixelConverter()
     private val faces = PrivacyFaceCoordinator(context.applicationContext, optimized=nativePostprocessing)
     var lastTimings: PrivacyFrameTimings? = null
@@ -31,6 +33,28 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     private val restoredPixels = BitmapScratch()
     private var geometry: Triple<Int, Int, Int>? = null
 
+    /** Compile and validate the protected path before accepting real camera images. */
+    fun prepare() {
+        val neutral=JavaI420Buffer.allocate(640,360)
+        try {
+            for(i in 0 until neutral.dataY.capacity()) neutral.dataY.put(i,114.toByte())
+            for(i in 0 until neutral.dataU.capacity()) {neutral.dataU.put(i,128.toByte()); neutral.dataV.put(i,128.toByte())}
+            neutral.retain()
+            val frame=VideoFrame(neutral,0,System.nanoTime())
+            try {process(frame).release()} finally {frame.release()}
+            // Exercise the protected branch even when the neutral image has no detections.
+            imageGpu?.let { graph ->
+                val full=ByteArray(160*160) {-1}
+                graph.runFrame {
+                    val layout=graph.prepare(neutral,0,readModel=false)
+                    val output=graph.finish(full,layout,640,360,full.size)
+                    try {output.toI420()?.release()} finally {output.release()}
+                }
+            }
+            resetFaceExceptions();geometry=null
+        } finally {neutral.release()}
+    }
+
     fun resetFaceExceptions() { faces.reset(); model.resetTemporalState() }
 
     fun process(frame: VideoFrame): VideoFrame {
@@ -38,11 +62,12 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
         if (!imageGpuUnavailable) {
             try {
                 if (imageGpu == null) imageGpu = PrivacyGpuFramePipeline(sharedContext, useGles3 = true, cacheBindings=nativePostprocessing)
-                return processGpu(frame, checkNotNull(imageGpu))
+                val graph = checkNotNull(imageGpu)
+                return if (batchTwoOptimizations) graph.runFrame { processGpu(frame, graph) } else processGpu(frame, graph)
             } catch (error: PrivacyGpuBackpressureException) { throw error }
             catch (error: Exception) {
                 Log.w("PrivacyPipeline", "image_gpu_fallback type=${error.javaClass.simpleName}")
-                imageGpu?.close(); imageGpu = null; imageGpuUnavailable = true
+                releaseAccelerators(); imageGpu?.close(); imageGpu = null; imageGpuUnavailable = true
                 resetFaceExceptions()
             }
         }
@@ -53,20 +78,24 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
         if(!imageGpuUnavailable) try {
             if(imageGpu==null) imageGpu=PrivacyGpuFramePipeline(sharedContext,useGles3=true,cacheBindings=nativePostprocessing)
             val graph=checkNotNull(imageGpu)
-            val started=System.nanoTime()
-            val layout=graph.prepare(camera,readModel=!graph.nativeInputEnabled)
-            lastCameraCopiedPlanes=graph.lastCameraCopiedPlanes
-            // Client-memory texture uploads have captured all pixels; inference no longer borrows the image.
-            camera.close()
-            return processGpuPrepared(graph,layout,camera.width,camera.height,camera.rotation,
-                camera.timestampNs,started,System.nanoTime())
+            fun processInput(): VideoFrame {
+                val started=System.nanoTime()
+                val layout=graph.prepare(camera,readModel=!graph.nativeInputEnabled)
+                lastCameraCopiedPlanes=graph.lastCameraCopiedPlanes
+                // Upload has captured the pixels; never borrow the camera during inference.
+                camera.close()
+                return processGpuPrepared(graph,layout,camera.width,camera.height,camera.rotation,
+                    camera.timestampNs,started,System.nanoTime())
+            }
+            return if (batchTwoOptimizations) graph.runFrame { processInput() } else processInput()
+
         } catch(error:PrivacyGpuBackpressureException) {throw error}
         catch(error:Exception) {
             Log.w("PrivacyPipeline","camera_gpu_fallback type=${error.javaClass.simpleName}")
             val upright=try {
                 if(camera.isClosed) checkNotNull(imageGpu).copyUpright() else null
             } finally {
-                imageGpu?.close();imageGpu=null;imageGpuUnavailable=true;resetFaceExceptions()
+                releaseAccelerators();imageGpu?.close();imageGpu=null;imageGpuUnavailable=true;resetFaceExceptions()
             }
             if(upright!=null) try {
                 lastCameraCopiedPlanes=3
@@ -81,9 +110,10 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
 
     private fun processCpuUpright(upright:Bitmap,width:Int,height:Int,rotation:Int,timestampNs:Long):VideoFrame {
         val started=System.nanoTime()
-        faces.beginFrame(upright,timestampNs)
+        if (!batchTwoOptimizations) faces.beginFrame(upright,timestampNs)
         val protected=model.process(upright,timestampNs) {objects,layout ->
-            faces.exceptions(upright,objects,layout,timestampNs)
+            if (batchTwoOptimizations) faces.currentFrame(upright,objects,layout,timestampNs)
+            else faces.exceptions(upright,objects,layout,timestampNs)
         }
         val processed=System.nanoTime()
         try {
@@ -112,9 +142,12 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
         sensorWidth:Int,sensorHeight:Int,rotation:Int,timestampNs:Long,started:Long,converted:Long):VideoFrame {
             val nextGeometry=Triple(sensorWidth,sensorHeight,rotation)
             if(geometry!=nextGeometry) {resetFaceExceptions();geometry=nextGeometry}
-            faces.beginFrame(layout.sourceWidth,layout.sourceHeight,timestampNs,graph::crop)
+            if (!batchTwoOptimizations) faces.beginFrame(layout.sourceWidth,layout.sourceHeight,timestampNs,graph::crop)
             val buffer=model.processPrepared(graph.modelBitmap,layout,timestampNs,
-                {objects,box -> faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)},
+                {objects,box ->
+                    if (batchTwoOptimizations) faces.currentFrame(box.sourceWidth,box.sourceHeight,objects,box,timestampNs,graph::crop)
+                    else faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)
+                },
                 renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,model.lastMaskPixels)}
             val completed = System.nanoTime()
             lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
@@ -138,9 +171,10 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
             pixels.toBitmap(source, sensor)
             val upright = rotate(sensor, rotation, uprightPixels)
             val converted = System.nanoTime()
-            faces.beginFrame(upright, frame.timestampNs)
+            if (!batchTwoOptimizations) faces.beginFrame(upright, frame.timestampNs)
             val protected = model.process(upright, frame.timestampNs) { objects, layout ->
-                faces.exceptions(upright, objects, layout, frame.timestampNs)
+                if (batchTwoOptimizations) faces.currentFrame(upright, objects, layout, frame.timestampNs)
+                else faces.exceptions(upright, objects, layout, frame.timestampNs)
             }
             val processed = System.nanoTime()
             try {
@@ -165,8 +199,16 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     }
 
     override fun close() {
-        faces.reset()
-        try { model.close() } finally { imageGpu?.close(); imageGpu = null; sensorPixels.close(); uprightPixels.close(); restoredPixels.close() }
+        faces.close()
+        try { val graph=imageGpu; if (graph != null && batchTwoOptimizations) graph.runFrame { model.close() } else model.close() } finally { imageGpu?.close(); imageGpu = null; sensorPixels.close(); uprightPixels.close(); restoredPixels.close() }
+    }
+
+    fun deactivateFaces() { faces.close() }
+
+    private fun releaseAccelerators() {
+        val graph=imageGpu
+        if (batchTwoOptimizations && graph!=null) graph.runFrame { model.releaseAccelerators() }
+        else model.releaseAccelerators()
     }
 
     private fun rotate(bitmap: Bitmap, degrees: Int, scratch: BitmapScratch): Bitmap {

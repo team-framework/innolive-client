@@ -101,6 +101,13 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         return checkNotNull(result).getOrThrow()
     }
 
+    /** Keep preprocessing, inference, postprocessing and render on the owning GL queue. */
+    internal fun <T> runFrame(block: () -> T): T = onGl {
+        check(!closing)
+        egl.makeCurrent()
+        try { block() } finally { egl.makeCurrent() }
+    }
+
     fun prepare(source: VideoFrame.I420Buffer, rotation: Int, readModel: Boolean = true): PrivacySegmentation.Letterbox = onGl {
         check(!closing)
         if (leased.size >= 6) throw PrivacyGpuBackpressureException()
@@ -241,6 +248,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             ?: ByteBuffer.allocateDirect(size).also { cropPixels = it }
         readPixels(cropped, pixels)
         Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888).also {
+            it.setHasAlpha(false)
             pixels.rewind(); it.copyPixelsFromBuffer(pixels)
         }
     }
@@ -304,7 +312,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     }
 
     /** Calibrate once with the same RGB pixels, including the eliminated readback/tensor copies. */
-    fun validateNativeInput(context: Context, baseline: (FloatArray) -> Pair<FloatArray, FloatArray>) {
+    fun validateNativeInput(context: Context, diagnosticBenchmark: Boolean = true, baseline: (FloatArray) -> Pair<FloatArray, FloatArray>) {
         if (nativeChecked) return
         nativeChecked = true
         val original = modelBitmap.copy(Bitmap.Config.ARGB_8888, false)
@@ -330,6 +338,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 }
                 check(error(actual.first,expected.first)<.05f && error(actual.second,expected.second)<.01f) { "GPU buffer output mismatch" }
             }
+            nativeValidated=true
+            if (diagnosticBenchmark) {
             val oldTimes=mutableListOf<Long>();val newTimes=mutableListOf<Long>()
             fun legacy() {
                 val tick=System.nanoTime();redrawCameraInput();readModelInput()
@@ -348,8 +358,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             val wins=oldTimes.indices.count {newTimes[it]<oldTimes[it]}
             // Prefer the supported, output-validated zero-readback path. Startup DVFS samples are
             // diagnostics, not a permanent veto of the camera's steady-state input path.
-            nativeValidated=true
             Log.i("PrivacyDetector","gpu_input_validated legacy_ms=${old/1e6} direct_ms=${direct/1e6} wins=$wins/12 managed_input_sync=$nativeInputUsesManagedSync")
+            } else Log.i("PrivacyDetector", "gpu_input_validated patterns=3 managed_input_sync=$nativeInputUsesManagedSync")
         } catch(error: Exception) {
             onGl { if(nativeModel!=0L) { PrivacyNativeGpuModel.destroy(nativeModel);nativeModel=0L;egl.makeCurrent() } }
             Log.i("PrivacyDetector","gpu_input_rejected type=${error.javaClass.simpleName} detail=${error.message?.take(120)}")

@@ -91,9 +91,68 @@ internal object PrivacyYuNetDecoding {
     }
 }
 
-internal class PrivacyYuNetModel(context: Context) : AutoCloseable {
+internal class PrivacyYuNetModel(context: Context, private val reuseInputs: Boolean = true) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private val session: OrtSession
+    private var cachedTensor: OnnxTensor? = null
+    private var cachedInput: java.nio.ByteBuffer? = null
+    private var pixelScratch = IntArray(0)
+    private var floatScratch = FloatArray(0)
+    private var cachedShape: Pair<Int,Int>? = null
+    private var resizedScratch: Bitmap? = null
+    private var resizedCanvas: android.graphics.Canvas? = null
+    private val resizedPaint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+    private val resizeTransform = android.graphics.Matrix()
+    private val outputsScratch = mutableMapOf<String,FloatArray>()
+
+    internal fun inputFor(image:Bitmap,width:Int,height:Int):OnnxTensor {
+        if (cachedShape != width to height) {
+            cachedTensor?.close()
+            cachedInput=java.nio.ByteBuffer.allocateDirect(width*height*3*4).order(java.nio.ByteOrder.nativeOrder())
+            cachedTensor=OnnxTensor.createTensor(environment,checkNotNull(cachedInput).asFloatBuffer(),longArrayOf(1,3,height.toLong(),width.toLong()))
+            cachedShape=width to height
+            outputsScratch.clear()
+            pixelScratch=IntArray(0); floatScratch=FloatArray(0)
+        }
+        if (image.hasAlpha() || image.config!=Bitmap.Config.ARGB_8888) {
+            val area=width*height
+            if (pixelScratch.size!=image.width*image.height) pixelScratch=IntArray(image.width*image.height)
+            if (floatScratch.size!=area*3) floatScratch=FloatArray(area*3)
+            floatScratch.fill(0f)
+            image.getPixels(pixelScratch,0,image.width,0,0,image.width,image.height)
+            for (y in 0 until image.height) for (x in 0 until image.width) {
+                val pixel=pixelScratch[y*image.width+x]; val index=y*width+x
+                floatScratch[index]=Color.blue(pixel).toFloat()
+                floatScratch[area+index]=Color.green(pixel).toFloat()
+                floatScratch[2*area+index]=Color.red(pixel).toFloat()
+            }
+            checkNotNull(cachedInput).asFloatBuffer().put(floatScratch)
+        } else PrivacyNativePixels.bitmapToBgrTensor(image,checkNotNull(cachedInput),width,height)
+        return checkNotNull(cachedTensor)
+    }
+
+    internal fun resized(image:Bitmap,width:Int,height:Int):Bitmap {
+        if (image.width==width && image.height==height) return image
+        // Keep Android's color-space/config conversion for uncommon enrollment formats.
+        if (image.config!=Bitmap.Config.ARGB_8888 || image.colorSpace?.isSrgb!=true)
+            return Bitmap.createScaledBitmap(image,width,height,true)
+        if (resizedScratch?.width!=width || resizedScratch?.height!=height) {
+            resizedScratch?.recycle()
+            resizedScratch=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888)
+            resizedCanvas=android.graphics.Canvas(checkNotNull(resizedScratch))
+        }
+        checkNotNull(resizedScratch).setHasAlpha(image.hasAlpha())
+        checkNotNull(resizedScratch).eraseColor(Color.TRANSPARENT)
+        val canvas=checkNotNull(resizedCanvas)
+        resizeTransform.setScale(width.toFloat()/image.width,height.toFloat()/image.height)
+        val save=canvas.save()
+        try {
+            canvas.concat(resizeTransform)
+            canvas.drawBitmap(image,android.graphics.Rect(0,0,image.width,image.height),
+                android.graphics.RectF(0f,0f,image.width.toFloat(),image.height.toFloat()),resizedPaint)
+        } finally {canvas.restoreToCount(save)}
+        return checkNotNull(resizedScratch)
+    }
 
     init {
         val bytes = context.assets.open("privacy-yunet.onnx").use { it.readBytes() }
@@ -121,8 +180,9 @@ internal class PrivacyYuNetModel(context: Context) : AutoCloseable {
         val width = ceil(resizedWidth / 32f).toInt() * 32
         val height = ceil(resizedHeight / 32f).toInt() * 32
         require(width <= 2048 && height <= 2048)
-        val resized = Bitmap.createScaledBitmap(image, resizedWidth, resizedHeight, true)
+        val resized = if (reuseInputs) resized(image,resizedWidth,resizedHeight) else Bitmap.createScaledBitmap(image, resizedWidth, resizedHeight, true)
         try {
+            val tensor = if (reuseInputs) inputFor(resized,width,height) else {
             val pixels = IntArray(resizedWidth * resizedHeight)
             resized.getPixels(pixels, 0, resizedWidth, 0, 0, resizedWidth, resizedHeight)
             val plane = width * height
@@ -134,11 +194,15 @@ internal class PrivacyYuNetModel(context: Context) : AutoCloseable {
                 input[plane + index] = Color.green(pixel).toFloat()
                 input[2 * plane + index] = Color.red(pixel).toFloat()
             }
-            OnnxTensor.createTensor(environment, FloatBuffer.wrap(input), longArrayOf(1, 3, height.toLong(), width.toLong())).use { tensor ->
+                OnnxTensor.createTensor(environment,FloatBuffer.wrap(input),longArrayOf(1,3,height.toLong(),width.toLong()))
+            }
+            try {
                 session.run(mapOf("input" to tensor)).use { result ->
                     val outputs = session.outputNames.associateWith { name ->
                         val buffer = (result[name].orElseThrow() as OnnxTensor).floatBuffer
-                        FloatArray(buffer.remaining()).also(buffer::get)
+                        (if (reuseInputs) outputsScratch[name]?.takeIf { it.size==buffer.remaining() }
+                            ?: FloatArray(buffer.remaining()).also { outputsScratch[name]=it }
+                        else FloatArray(buffer.remaining())).also(buffer::get)
                     }
                     val faces = PrivacyYuNetDecoding.decode(outputs, width, height)
                         .filter { it.score >= if (enrollment) 0.9f else 0.6f }
@@ -153,11 +217,11 @@ internal class PrivacyYuNetModel(context: Context) : AutoCloseable {
                     if (min(restored.box.width(), restored.box.height()) < if (enrollment) 40f else 24f) return null
                     return restored
                 }
-            }
+            } finally { if (!reuseInputs) tensor.close() }
         } finally {
-            if (resized !== image) resized.recycle()
+            if (resized !== image && (!reuseInputs || resized !== resizedScratch)) resized.recycle()
         }
     }
 
-    override fun close() { session.close() }
+    override fun close() { cachedTensor?.close(); cachedTensor=null; resizedScratch?.recycle(); resizedScratch=null; outputsScratch.clear(); session.close() }
 }

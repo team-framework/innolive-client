@@ -19,6 +19,8 @@ import com.framework.innolive.feature.live.privacy.PrivacyGpuBackpressureExcepti
 import com.framework.innolive.feature.live.privacy.PrivacyCameraInput
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -34,10 +36,16 @@ class CameraFrameAnalyzer(
     private val directCameraInput: Boolean = true,
     private val directGpuInput: Boolean = true,
     private val nativePostprocessing: Boolean = true,
+    private val batchTwoOptimizations: Boolean = true,
 ) : ImageAnalysis.Analyzer {
     private val enabled = AtomicBoolean(false)
     private val protectedFrameReported = AtomicBoolean(false)
     private val processing = AtomicBoolean(false)
+    @Volatile private var protectedPrepared = !batchTwoOptimizations
+    private val preparationQueued=AtomicBoolean(false)
+    private val preparationLatch=CountDownLatch(1)
+    internal fun awaitProtectedPreparation(timeoutSeconds:Long=30):Boolean =
+        preparationLatch.await(timeoutSeconds,TimeUnit.SECONDS) && protectedPrepared
     private val resetPending = AtomicBoolean(false)
     private val stopped = AtomicBoolean(false)
     private val worker = Executors.newSingleThreadExecutor { task ->
@@ -54,8 +62,8 @@ class CameraFrameAnalyzer(
     private val cameraBuffers = PrivacyCameraBufferPool()
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
-        if (initialOnDevice) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
-            nativePostprocessing=nativePostprocessing) else null
+        if (initialOnDevice && !batchTwoOptimizations) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
+            nativePostprocessing=nativePostprocessing,batchTwoOptimizations=false) else null
     private val route = PrivacyFrameRoute(
         when {
             !initialOnDevice -> PrivacyFrameMode.SERVER
@@ -64,14 +72,33 @@ class CameraFrameAnalyzer(
         },
     )
 
-    fun setProcessingMode(onDevice: Boolean, anonymizationEnabled: Boolean) {
-        if (onDevice && localProcessor == null) {
-            synchronized(processorLock) {
-                if (localProcessor == null) {
-                    localProcessor = PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
-                        nativePostprocessing=nativePostprocessing)
+    private fun processor():PrivacyFrameProcessor = localProcessor ?: PrivacyFrameProcessor(
+        checkNotNull(applicationContext),sharedEglContext,directGpuInput=directGpuInput,
+        nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations,
+    ).also {localProcessor=it}
+
+    private fun schedulePreparation() {
+        if (!batchTwoOptimizations || protectedPrepared || stopped.get() ||
+            !preparationQueued.compareAndSet(false,true)) return
+        worker.execute {
+            try {
+                synchronized(processorLock) {processor().prepare()}
+                if (!stopped.get()) protectedPrepared=true
+            } catch(error:Exception) {
+                Log.w("PrivacyPipeline","prepare_failed type=${error.javaClass.simpleName}")
+                route.ticket()?.takeIf {it.mode==PrivacyFrameMode.LOCAL_PROTECTED}?.let {
+                    route.deliver(it,onProcessingFailure)
                 }
+            } finally {
+                preparationQueued.set(false)
+                preparationLatch.countDown()
             }
+        }
+    }
+
+    fun setProcessingMode(onDevice: Boolean, anonymizationEnabled: Boolean) {
+        if (onDevice && localProcessor == null && !batchTwoOptimizations) {
+            synchronized(processorLock) {if(localProcessor==null) processor()}
         }
         resetPending.set(true)
         route.change(when {
@@ -80,6 +107,10 @@ class CameraFrameAnalyzer(
             else -> PrivacyFrameMode.LOCAL_RAW
         })
         protectedFrameReported.set(false)
+        if (batchTwoOptimizations && !stopped.get()) {
+            if (onDevice && anonymizationEnabled && enabled.get()) schedulePreparation()
+            else worker.execute { synchronized(processorLock) {localProcessor?.deactivateFaces()} }
+        }
     }
 
     fun resetFaceExceptions() {
@@ -90,6 +121,7 @@ class CameraFrameAnalyzer(
     fun start() {
         if (enabled.compareAndSet(false, true)) {
             capturerObserver.onCapturerStarted(true)
+            if (route.ticket()?.mode==PrivacyFrameMode.LOCAL_PROTECTED) schedulePreparation()
         }
     }
 
@@ -125,6 +157,7 @@ class CameraFrameAnalyzer(
             }
             if (currentTicket.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
                 received.incrementAndGet()
+                if (!protectedPrepared) {dropped.incrementAndGet(); return}
                 if (!processing.compareAndSet(false, true)) {
                     dropped.incrementAndGet()
                     return
@@ -213,7 +246,7 @@ class CameraFrameAnalyzer(
         try {
             if(!route.deliver(ticket) {}) return
             val outgoing = synchronized(processorLock) {
-                val processor = checkNotNull(localProcessor)
+                val processor = processor()
                 if (resetPending.getAndSet(false)) processor.resetFaceExceptions()
                 transform(processor)
             }

@@ -93,6 +93,16 @@ internal class PrivacyFaceGpuEngine private constructor(private val model: Compi
             (when (i / pixels.size) { 0 -> Color.red(p); 1 -> Color.green(p); else -> Color.blue(p) }) / 127.5f - 1f
         }
 
+        internal fun normalizedPixelsInto(pixels:IntArray, output:FloatArray) {
+            require(output.size==3*pixels.size)
+            for(i in pixels.indices) {
+                val pixel=pixels[i]
+                output[i]=Color.red(pixel)/127.5f-1f
+                output[pixels.size+i]=Color.green(pixel)/127.5f-1f
+                output[2*pixels.size+i]=Color.blue(pixel)/127.5f-1f
+            }
+        }
+
         internal fun syntheticPixels(pattern: Int): IntArray = IntArray(112 * 112) { index ->
             val x = index % 112; val y = index / 112
             when (pattern) {

@@ -46,6 +46,8 @@ internal object PrivacyNativePixels {
     external fun i420ToBitmap(y: ByteBuffer, yStride: Int, u: ByteBuffer, uStride: Int,
                              v: ByteBuffer, vStride: Int, bitmap: Bitmap)
     external fun bitmapToTensor(bitmap: Bitmap, buffer: ByteBuffer)
+    external fun bitmapToBgrTensor(bitmap: Bitmap, buffer: ByteBuffer, width: Int, height: Int)
+    external fun bitmapToFaceTensor(bitmap: Bitmap, buffer: ByteBuffer)
     external fun copyPlane(source: ByteBuffer, rowStride: Int, pixelStride: Int,
                            width: Int, height: Int, target: ByteBuffer, targetStride: Int)
     external fun neuralAcceleratorCount(): Int

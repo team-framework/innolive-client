@@ -5,6 +5,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PrivacyFacePreparationGateTest {
+    @Test fun idleReleaseAllowsReloadButNeverClearsFailedOrRunningState() {
+        val gate=PrivacyFacePreparationGate()
+        assertFalse(gate.releaseReady())
+        assertTrue(gate.tryBegin())
+        assertFalse(gate.releaseReady())
+        gate.complete(false)
+        assertFalse(gate.releaseReady())
+        assertTrue(gate.failed)
+        assertTrue(gate.allowRetry())
+        assertTrue(gate.tryBegin())
+        gate.complete(true)
+        assertTrue(gate.releaseReady())
+        assertTrue(gate.tryBegin())
+    }
+
     @Test fun failedLoadIsNotRetriedByLaterFramesUntilExplicitRetry() {
         val gate = PrivacyFacePreparationGate()
         assertTrue(gate.tryBegin())

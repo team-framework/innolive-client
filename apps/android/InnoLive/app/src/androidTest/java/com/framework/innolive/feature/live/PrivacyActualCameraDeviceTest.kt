@@ -109,7 +109,8 @@ class PrivacyActualCameraDeviceTest {
                     }
                 }, context, initialOnDevice = true, sharedEglContext = egl.eglBaseContext, onProcessingFailure = {
                     failures.incrementAndGet(); ready.countDown()
-                },directCameraInput=optimized,directGpuInput=optimized,nativePostprocessing=batchOne)
+                },directCameraInput=optimized,directGpuInput=optimized,nativePostprocessing=batchOne,batchTwoOptimizations=
+                    InstrumentationRegistry.getArguments().getString("privacyBatchTwo", "true").toBoolean())
                 analyzer.onFrameDiagnostics = { if (collecting.get()) samples.add(it) }
                 val executor = Executors.newSingleThreadExecutor()
                 val selector = ResolutionSelector.Builder().setResolutionStrategy(
