@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(innolive_privacy LANGUAGES CXX)
-add_library(innolive_privacy SHARED privacy_pixels.cpp privacy_gpu_model.cpp)
+add_library(innolive_privacy SHARED privacy_pixels.cpp privacy_gpu_model.cpp privacy_gpu_fence.cpp)
 configure_file(vendor/litert/litert/build_common/build_config.h.in
     ${CMAKE_CURRENT_BINARY_DIR}/include/litert/build_common/build_config.h)
 target_include_directories(innolive_privacy PRIVATE vendor/litert ${CMAKE_CURRENT_BINARY_DIR}/include)

@@ -26,7 +26,10 @@ import kotlin.math.max
 
 /** Serial GL graph. Only 640px model input and requested face crops cross back to CPU.
  * Output textures remain owned until every renderer/encoder releases its frame. */
-internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3: Boolean = false) : AutoCloseable {
+internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3: Boolean = false,
+    private val useFence: Boolean = true) : AutoCloseable {
+    internal var lastFenceUsed = false
+        private set
     private val thread = HandlerThread("privacy-image-gpu").apply { start() }
     private val handler = Handler(thread.looper)
     private lateinit var egl: EglBase
@@ -260,17 +263,20 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             }
         }
         GlUtil.checkNoGLES2Error("privacy GPU output")
-        // Synchronize writes before shared EGL contexts sample this immutable output.
-        glFinish()
+        val fence = if (useFence) PrivacyNativeGpuFence.create() else 0L
+        lastFenceUsed = fence != 0L
+        if (fence == 0L) glFinish()
         leased.add(output)
         val matrix = Matrix().apply { preTranslate(0f, 1f); preScale(1f, -1f) }
-        TextureBufferImpl(sensorWidth, sensorHeight, VideoFrame.TextureBuffer.Type.RGB,
+        val buffer = TextureBufferImpl(sensorWidth, sensorHeight, VideoFrame.TextureBuffer.Type.RGB,
             output.texture, matrix, handler, converter) {
             handler.post {
+                if (fence != 0L) PrivacyNativeGpuFence.destroy(fence)
                 leased.remove(output)
                 if (closing) { output.close(); outputPool.remove(output); releaseIfIdle() }
             }
         }
+        if (fence == 0L) buffer else PrivacyFencedTexture(buffer, fence)
     }
 
     private fun uploadMask(mask: ByteArray): Target {
