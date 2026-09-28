@@ -8,12 +8,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -175,63 +175,41 @@ fun LiveScreen(
             )
         }
 
-        Row(
+        Text(
+            text = broadcastDurationText,
             modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopStart)
-                .padding(start = 16.dp, end = 16.dp, top = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = props.onOpenSettings,
-                enabled = !presentation.isConnecting,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.settings),
-                    contentDescription = stringResource(R.string.content_description_settings),
-                    modifier = Modifier
-                        .padding(1.dp)
-                        .width(28.dp)
-                        .height(28.dp),
-                    tint = Color.White
-                )
-            }
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = broadcastDurationText,
-                    modifier = Modifier.semantics {
-                        contentDescription = broadcastDurationDescription
-                    },
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
-                )
-            }
-            IconButton(onClick = { openVideoControls = true }) {
-                Icon(
-                    imageVector = Icons.Outlined.Tune,
-                    contentDescription = stringResource(R.string.video_controls_title),
-                    tint = Color.White,
-                )
-            }
-            IconButton(
-                enabled = props.canSwitchCamera && !presentation.isConnecting,
-                onClick = props.onSwitchCamera,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.change_camera),
-                    contentDescription = stringResource(R.string.content_description_switch_camera),
-                    modifier = Modifier
-                        .padding(1.dp)
-                        .width(28.dp)
-                        .height(28.dp),
-                    tint = Color.White,
-                )
-            }
-        }
+                .align(Alignment.TopCenter)
+                .padding(top = 10.dp)
+                .semantics { contentDescription = broadcastDurationDescription },
+            style = MaterialTheme.typography.headlineSmall,
+            color = Color.White,
+        )
+
+        LiveSideControls(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp),
+            canOpenSettings = !presentation.isConnecting,
+            canSwitchCamera = props.canSwitchCamera && !presentation.isConnecting,
+            canManageFace = canManageFace,
+            onOpenSettings = props.onOpenSettings,
+            onOpenVideoControls = { openVideoControls = true },
+            onSwitchCamera = props.onSwitchCamera,
+            onOpenFaceManagement = {
+                if (webRtcSession.connectionState != WebRtcConnectionState.CONNECTED) {
+                    webRtcSession.close()
+                }
+                openFaceManagement = true
+            },
+            anonymizationState = anonymizationControlsState(
+                webRtcSession.connectionState,
+                webRtcSession.anonymizationState,
+                webRtcSession.selectedAnonymizationEnabled,
+                webRtcSession.isAnonymizationSelectionLoaded,
+                webRtcSession.anonymizationChange,
+            ),
+            onAnonymizationSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
+        )
 
         Column(
             modifier = Modifier
@@ -247,27 +225,6 @@ fun LiveScreen(
                         LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
                         LiveBroadcastAction.PREPARE_BROADCAST -> openYouTubeSettingsDialog = true
                         LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
-                    }
-                },
-                leading = {
-                    IconButton(
-                        enabled = canManageFace,
-                        onClick = {
-                            if (webRtcSession.connectionState != WebRtcConnectionState.CONNECTED) {
-                                webRtcSession.close()
-                            }
-                            openFaceManagement = true
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Face,
-                            contentDescription = stringResource(R.string.face_management),
-                            modifier = Modifier
-                                .padding(1.dp)
-                                .width(32.dp)
-                                .height(32.dp),
-                            tint = Color.White,
-                        )
                     }
                 },
                 centerOverlay = {
@@ -349,18 +306,6 @@ fun LiveScreen(
                         )
                     }
                 },
-                trailing = {
-                    AnonymizationControls(
-                        state = anonymizationControlsState(
-                            webRtcSession.connectionState,
-                            webRtcSession.anonymizationState,
-                            webRtcSession.selectedAnonymizationEnabled,
-                            webRtcSession.isAnonymizationSelectionLoaded,
-                            webRtcSession.anonymizationChange,
-                        ),
-                        onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
-                    )
-                },
             )
             if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
                 webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
@@ -397,6 +342,64 @@ fun LiveScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+internal fun LiveSideControls(
+    modifier: Modifier = Modifier,
+    canOpenSettings: Boolean,
+    canSwitchCamera: Boolean,
+    canManageFace: Boolean,
+    onOpenSettings: () -> Unit,
+    onOpenVideoControls: () -> Unit,
+    onSwitchCamera: () -> Unit,
+    onOpenFaceManagement: () -> Unit,
+    anonymizationState: AnonymizationControlsState,
+    onAnonymizationSelect: (Boolean) -> Unit,
+) {
+    Column(
+        modifier = modifier.verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        IconButton(onClick = onOpenSettings, enabled = canOpenSettings, modifier = Modifier.size(48.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.settings),
+                contentDescription = stringResource(R.string.content_description_settings),
+                modifier = Modifier.size(28.dp),
+                tint = Color.White,
+            )
+        }
+        IconButton(onClick = onOpenVideoControls, modifier = Modifier.size(48.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.Tune,
+                contentDescription = stringResource(R.string.video_controls_title),
+                tint = Color.White,
+            )
+        }
+        IconButton(onClick = onSwitchCamera, enabled = canSwitchCamera, modifier = Modifier.size(48.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.change_camera),
+                contentDescription = stringResource(R.string.content_description_switch_camera),
+                modifier = Modifier.size(28.dp),
+                tint = Color.White,
+            )
+        }
+        IconButton(onClick = onOpenFaceManagement, enabled = canManageFace, modifier = Modifier.size(48.dp)) {
+            Icon(
+                imageVector = Icons.Default.Face,
+                contentDescription = stringResource(R.string.face_management),
+                modifier = Modifier.size(32.dp),
+                tint = Color.White,
+            )
+        }
+        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            AnonymizationControls(
+                state = anonymizationState,
+                onSelect = onAnonymizationSelect,
+            )
         }
     }
 }
@@ -441,24 +444,16 @@ internal fun StableBroadcastFeedback(
 internal fun BroadcastActionControls(
     presentation: LiveScreenPresentation,
     onBroadcastAction: () -> Unit,
-    leading: @Composable () -> Unit,
     centerOverlay: @Composable () -> Unit = {},
-    trailing: @Composable () -> Unit,
 ) {
-    BalancedLiveControls(
-        leading = leading,
-        center = {
-            Box(contentAlignment = Alignment.Center) {
-                centerOverlay()
-                VerticalHeroButton(
-                    text = stringResource(presentation.broadcastButtonTextRes),
-                    enabled = presentation.isBroadcastButtonEnabled,
-                    onClick = onBroadcastAction,
-                )
-            }
-        },
-        trailing = trailing,
-    )
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        centerOverlay()
+        VerticalHeroButton(
+            text = stringResource(presentation.broadcastButtonTextRes),
+            enabled = presentation.isBroadcastButtonEnabled,
+            onClick = onBroadcastAction,
+        )
+    }
 }
 
 @Composable
@@ -574,37 +569,5 @@ private fun BroadcastDialogButton(
             text = text,
             color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         )
-    }
-}
-
-@Composable
-internal fun BalancedLiveControls(
-    modifier: Modifier = Modifier,
-    leading: @Composable () -> Unit,
-    center: @Composable () -> Unit,
-    trailing: @Composable () -> Unit,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.Center,
-        ) {
-            leading()
-        }
-        Box(
-            modifier = Modifier.weight(5f),
-            contentAlignment = Alignment.Center,
-        ) {
-            center()
-        }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.Center,
-        ) {
-            trailing()
-        }
     }
 }
