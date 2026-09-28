@@ -6,7 +6,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -77,6 +76,8 @@ fun EmailAuthScreen(
     var passwordConfirmation by remember { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordConfirmationVisible by rememberSaveable { mutableStateOf(false) }
+    var hasAcceptedConsent by remember { mutableStateOf(false) }
+    var showConsentDialog by remember { mutableStateOf(startWithSignUp) }
 
     val isSignIn = mode == EmailAuthMode.SIGN_IN
     val backBlocked = isSubmitting && !isSignIn
@@ -96,6 +97,8 @@ fun EmailAuthScreen(
         passwordConfirmation = ""
         passwordVisible = false
         passwordConfirmationVisible = false
+        hasAcceptedConsent = false
+        showConsentDialog = nextMode == EmailAuthMode.SIGN_UP
     }
 
     val handleBack = {
@@ -226,6 +229,8 @@ fun EmailAuthScreen(
                 onClick = {
                     if (isSignIn) {
                         onSignIn?.invoke(normalizedEmail, password)
+                    } else if (!hasAcceptedConsent) {
+                        showConsentDialog = true
                     } else {
                         onSignUp?.invoke(normalizedEmail, password)
                     }
@@ -285,6 +290,15 @@ fun EmailAuthScreen(
                 }
             }
         }
+    }
+    if (showConsentDialog) {
+        AccountConsentDialog(
+            onAccept = {
+                hasAcceptedConsent = true
+                showConsentDialog = false
+            },
+            onDismiss = { changeMode(EmailAuthMode.SIGN_IN) },
+        )
     }
 }
 
