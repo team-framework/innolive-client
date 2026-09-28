@@ -33,11 +33,12 @@ class CameraVideoQualityDeviceTest {
         val analyzer = CameraFrameAnalyzer()
         val settings = mutableStateOf(BroadcastVideoQualitySettings())
         val visible = mutableStateOf(true)
+        val panelVisible = mutableStateOf(true)
         val captureState = AtomicReference(VideoQualityCaptureState())
         compose.setContent {
             if (visible.value) {
-                DisposableEffect(analyzer) {
-                    analyzer.setLookPreviewEnabled(true)
+                DisposableEffect(analyzer, panelVisible.value) {
+                    analyzer.setLookPreviewEnabled(panelVisible.value)
                     onDispose { analyzer.setLookPreviewEnabled(false) }
                 }
                 CameraPreview(
@@ -58,6 +59,14 @@ class CameraVideoQualityDeviceTest {
             compose.runOnIdle { settings.value = adjusted }
             compose.waitUntil(15_000) { analyzer.lookPreviews.value?.settings == adjusted }
             assertValidPreviews(analyzer.lookPreviews.value)
+            VideoLookPreset.entries.forEach { preset ->
+                assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
+            }
+
+            compose.runOnIdle { panelVisible.value = false }
+            compose.waitUntil(5_000) { analyzer.lookPreviews.value == null }
+            compose.runOnIdle { panelVisible.value = true }
+            compose.waitUntil(5_000) { analyzer.lookPreviews.value?.settings == adjusted }
             VideoLookPreset.entries.forEach { preset ->
                 assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
             }

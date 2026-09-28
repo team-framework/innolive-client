@@ -24,6 +24,14 @@ internal class VideoLookPreviewGate {
     }
 
     @Synchronized
+    fun reset(clear: () -> Unit) {
+        if (closed) return
+        generation++
+        lastStartedNs = null
+        clear()
+    }
+
+    @Synchronized
     fun tryStart(nowNs: Long): Long? {
         if (!enabled || closed || inFlight) return null
         if (lastStartedNs?.let { nowNs - it < 125_000_000L } == true) return null

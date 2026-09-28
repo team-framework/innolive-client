@@ -45,6 +45,19 @@ class VideoLookPreviewPolicyTest {
         assertNotNull(gate.tryStart(1))
     }
 
+    @Test fun cameraRebindRejectsAnOldFrameStillRendering() {
+        val gate = VideoLookPreviewGate()
+        gate.setEnabled(true) {}
+        val ticket = requireNotNull(gate.tryStart(0))
+        var cleared = false
+        gate.reset { cleared = true }
+        var published = false
+        gate.finish(ticket) { published = true }
+        assertTrue(cleared)
+        assertFalse(published)
+        assertNotNull(gate.tryStart(1))
+    }
+
     @Test fun closedRendererCannotPublishOrRestart() {
         val gate = VideoLookPreviewGate()
         gate.setEnabled(true) {}

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicReference
 
 data class VideoLookPreviews(
     val settings: BroadcastVideoQualitySettings,
@@ -20,6 +21,7 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
     }
     private val gate = VideoLookPreviewGate()
     private val mutablePreviews = MutableStateFlow<VideoLookPreviews?>(null)
+    private val cachedPresetImages = AtomicReference<Map<VideoLookPreset, Bitmap>?>(null)
     val previews: StateFlow<VideoLookPreviews?> = mutablePreviews.asStateFlow()
     val isEnabled: Boolean get() = gate.isEnabled
 
@@ -27,14 +29,23 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
         gate.setEnabled(enabled) { mutablePreviews.value = null }
     }
 
+    fun resetSample() {
+        gate.reset {
+            cachedPresetImages.set(null)
+            mutablePreviews.value = null
+        }
+    }
+
     /** Only copy camera-owned bytes here; conversion, resizing and rendering run off capture. */
     fun offer(image: ImageProxy, settings: BroadcastVideoQualitySettings, appliedExposureEV: Float) {
         val generation = gate.tryStart(System.nanoTime()) ?: return
-        // Keep the preset sample stable while this panel is open. Camera exposure changes
+        // Keep the same camera sample across sheet reopenings. Camera exposure changes
         // the source pixels and clipped highlights cannot be recovered by inverse EV.
-        mutablePreviews.value?.let { current ->
+        cachedPresetImages.get()?.let { images ->
             gate.finish(generation) {
-                if (current.settings != settings) mutablePreviews.value = current.copy(settings = settings)
+                if (mutablePreviews.value?.settings != settings || mutablePreviews.value?.previews !== images) {
+                    mutablePreviews.value = VideoLookPreviews(settings, images)
+                }
             }
             return
         }
@@ -48,7 +59,10 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
             executor.execute {
                 try {
                     val rendered = render(source, settings, appliedExposureEV)
-                    gate.finish(generation) { mutablePreviews.value = rendered }
+                    gate.finish(generation) {
+                        cachedPresetImages.set(rendered.previews)
+                        mutablePreviews.value = rendered
+                    }
                 } catch (_: Exception) {
                     // A thumbnail failure never substitutes a raw image or affects video capture.
                     gate.finish(generation) {}
@@ -60,7 +74,10 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
     }
 
     override fun close() {
-        gate.close { mutablePreviews.value = null }
+        gate.close {
+            cachedPresetImages.set(null)
+            mutablePreviews.value = null
+        }
         executor.shutdown()
     }
 

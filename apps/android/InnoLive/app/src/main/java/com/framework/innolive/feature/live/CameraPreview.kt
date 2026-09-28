@@ -118,6 +118,7 @@ fun CameraPreview(
         isLandscape,
     ) {
         hasCameraError = false
+        frameAnalyzer?.resetLookPreviewSample()
         onCaptureStateChanged(VideoQualityCaptureState())
         val controller = CameraVideoQualityController(ContextCompat.getMainExecutor(context)) { state ->
             frameAnalyzer?.setAppliedExposureEV(state.appliedExposureEV)

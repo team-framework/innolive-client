@@ -35,6 +35,10 @@ class CameraFrameAnalyzer(
         previewRenderer.setEnabled(value)
     }
 
+    fun resetLookPreviewSample() {
+        previewRenderer.resetSample()
+    }
+
     fun start() = synchronized(captureLock) {
         if (!enabled && !closed && capturerObserver != null) {
             enabled = true
