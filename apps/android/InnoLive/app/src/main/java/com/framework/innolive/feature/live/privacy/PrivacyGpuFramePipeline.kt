@@ -19,7 +19,6 @@ import org.webrtc.GlUtil
 import org.webrtc.TextureBufferImpl
 import org.webrtc.ThreadUtils
 import org.webrtc.VideoFrame
-import org.webrtc.YuvConverter
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
@@ -27,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlin.math.max
 
-/** Serial GL graph. Only 640px model input and requested face crops cross back to CPU.
+/** Serial AI/compositing graph. CPU encoders convert textures on a separate shared EGL queue.
  * Output textures remain owned until every renderer/encoder releases its frame. */
 internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3: Boolean = false,
     private val useFence: Boolean = true, private val compactMask: Boolean = true,
@@ -42,7 +41,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     private val thread = HandlerThread("privacy-image-gpu").apply { start() }
     private val handler = Handler(thread.looper)
     private lateinit var egl: EglBase
-    private lateinit var converter: YuvConverter
+    private lateinit var readback: PrivacyTextureReadback
     private val shaders = mutableMapOf<String, Program>()
     private val targets = mutableMapOf<String, Target>()
     private val planeTextures = IntArray(3)
@@ -87,7 +86,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 } catch (_: RuntimeException) { EglBase.create(sharedContext, EglBase.CONFIG_PIXEL_BUFFER) }
                 else EglBase.create(sharedContext, EglBase.CONFIG_PIXEL_BUFFER)
                 egl.createDummyPbufferSurface(); egl.makeCurrent()
-                converter = YuvConverter()
+                readback = PrivacyTextureReadback(egl.eglBaseContext)
                 rowLengthSupported = glGetString(GL_VERSION)?.contains("OpenGL ES 3") == true
                 glGenTextures(3, planeTextures, 0)
                 glGenTextures(1, maskTexture, 0)
@@ -96,7 +95,10 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 }
             }
         } catch (error: Throwable) {
-            onGl { if (::egl.isInitialized) egl.release() }
+            onGl {
+                if (::readback.isInitialized) readback.close()
+                if (::egl.isInitialized) egl.release()
+            }
             modelBitmap.recycle(); thread.quitSafely()
             throw error
         }
@@ -461,7 +463,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         leased.add(output)
         val matrix = Matrix().apply { preTranslate(0f, 1f); preScale(1f, -1f) }
         val buffer = TextureBufferImpl(outputWidth, outputHeight, VideoFrame.TextureBuffer.Type.RGB,
-            output.texture, matrix, handler, converter) {
+            output.texture, matrix, readback.handler, readback.converter) {
             handler.post {
                 if (fence != 0L) PrivacyNativeGpuFence.destroy(fence)
                 leased.remove(output)
@@ -605,7 +607,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
 
     private fun releaseIfIdle() {
         if (closing && leased.isEmpty()) {
-            converter.release(); egl.release(); thread.quitSafely()
+            readback.close(); egl.release(); thread.quitSafely()
         }
     }
 

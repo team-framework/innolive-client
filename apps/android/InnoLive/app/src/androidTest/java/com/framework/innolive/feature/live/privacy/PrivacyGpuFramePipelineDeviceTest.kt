@@ -24,6 +24,49 @@ class PrivacyGpuFramePipelineDeviceTest {
         }
     }
 
+    @Test fun textureReadbackDoesNotWaitForNextInferenceQueue() {
+        val source = source(320, 240)
+        val graph = PrivacyGpuFramePipeline(null, useGles3 = true)
+        val layout = graph.prepare(source, 0)
+        val texture = graph.finish(ByteArray(160 * 160), layout, 320, 240)
+        val busy = java.util.concurrent.CountDownLatch(1)
+        val releaseInference = java.util.concurrent.CountDownLatch(1)
+        val converted = java.util.concurrent.CountDownLatch(1)
+        val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+        val inference = Thread {
+            graph.runFrame {
+                busy.countDown()
+                releaseInference.await(5, java.util.concurrent.TimeUnit.SECONDS)
+            }
+        }
+        val encoder = Thread {
+            try {
+                val i420 = checkNotNull(texture.toI420())
+                try {
+                    assertEquals(320, i420.width)
+                    assertEquals(240, i420.height)
+                    assertEquals(40.0, (i420.dataY.get(20 * i420.strideY + 20).toInt() and 255).toDouble(), 2.0)
+                } finally { i420.release() }
+            } catch (error: Throwable) { failure.set(error) }
+            finally { converted.countDown() }
+        }
+        try {
+            inference.start()
+            assertTrue(busy.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            encoder.start()
+            assertTrue("CPU encoding waited for unrelated AI work",
+                converted.await(1, java.util.concurrent.TimeUnit.SECONDS))
+            failure.get()?.let { throw it }
+        } finally {
+            releaseInference.countDown()
+            inference.join(5000)
+            if (encoder.isAlive) encoder.join(5000)
+            texture.release()
+            source.release()
+            graph.close()
+        }
+    }
+
     @Test fun emptyMaskPreservesSensorQuadrantsThroughEveryRotation() {
         val source = source()
         try {

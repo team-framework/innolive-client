@@ -775,3 +775,25 @@ com.framework.innolive.test/androidx.test.runner.AndroidJUnitRunner`를 각각 �
 추가 회귀: `PrivacyCameraInputDeviceTest`의 잘린 UV·crop·회전·원본 해제 이후 출력,
 `PrivacyGpuInputDeviceTest`의 GPU 출력 일치·현재 프레임 fallback·24회 입력 동기화,
 `PrivacyGpuEncoderDeviceTest`의 카메라 버퍼 해제 후 shared EGL H.264 인코딩.
+
+
+### 실제 서버 반환 경로의 코덱 선택 (2026-09-28)
+
+Android도 iOS처럼 VP8을 첫 번째로 협상한다. VP8이 없는 기기는 기본 협상 순서를
+유지한다. 온디바이스 AI와 서버 AI는 같은 협상 경로를 사용한다. 기본 카메라 입력은
+1080p이며 WebRTC는 네트워크 및 CPU 부하에 따라 실제 인코딩 해상도를 적응할 수 있다.
+
+SM-S931N 실제 서버 방송 준비에서 H264 하드웨어 송신은 약 30fps였지만 반환 영상은
+패킷 손실 없이 약 3fps였다. VP8 우선 비교에서는 반환 디코딩이 약 28fps로 개선됐다.
+로컬 PeerConnection 테스트의 빠른 인코딩만으로 서버 왕복 품질을 보장할 수 없다.
+측정 구간·제약은 `apps/android/InnoLive/app/performance/ios-path-batches.md`에 기록한다.
+
+GPU 모델 추론과 보호 합성은 유지한다. 기기가 VP8 하드웨어 인코더를 제공하지 않으면
+WebRTC 소프트웨어 인코더가 보호 texture를 I420으로 읽는다. 이 변환은 AI 큐와
+분리한 공유 EGL 큐에서 수행한다. 출력 fence를 기다리고, 모든 texture 참조가
+해제된 뒤 변환 큐와 EGL 자원을 종료한다. 원본 보호 우회는 허용하지 않는다.
+
+최종 변환 큐 분리 후 실제 서버 195초 구간에서 송신 중앙값 29.79fps,
+반환 디코드 평균 29.26fps·패킷 손실 0을 확인했다. CPU 적응으로 일시적으로
+720p를 사용한 뒤 1080p 송출로 복귀했다. 카메라→서버→화면 전체 지연과
+장시간 발열은 이 결과만으로 보장하지 않는다.

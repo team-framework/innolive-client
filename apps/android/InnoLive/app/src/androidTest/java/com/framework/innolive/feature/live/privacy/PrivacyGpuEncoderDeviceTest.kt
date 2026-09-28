@@ -27,6 +27,7 @@ import org.webrtc.RtpTransceiver
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import com.framework.innolive.feature.live.preferredHardwareVideoCodecs
+import com.framework.innolive.feature.live.preferredServerVideoCodecs
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -34,7 +35,9 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Exercises the same shared EGL surface encoder used for broadcasting, without signaling/network. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyGpuEncoderDeviceTest {
-    @Test fun hardwareBaselineH264IsFirstInRealAndroidOffer() {
+    @Test fun serverVp8IsFirstInRealAndroidOffer() = codecFirstInRealAndroidOffer(true)
+    @Test fun hardwareBaselineH264IsFirstInRealAndroidOffer() = codecFirstInRealAndroidOffer(false)
+    private fun codecFirstInRealAndroidOffer(serverPath: Boolean) {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
         val egl=EglBase.create()
@@ -60,7 +63,8 @@ class PrivacyGpuEncoderDeviceTest {
                 RtpTransceiver.RtpTransceiverInit(RtpTransceiver.RtpTransceiverDirection.SEND_ONLY)))
             val codecs=factory.getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs
             val hardware=HardwareVideoEncoderFactory(egl.eglBaseContext,true,true).supportedCodecs.toList()
-            val preferred=checkNotNull(preferredHardwareVideoCodecs(codecs,hardware))
+            val preferred = checkNotNull(if (serverPath) preferredServerVideoCodecs(codecs)
+                else preferredHardwareVideoCodecs(codecs, hardware))
             assertTrue(transceiver.setCodecPreferences(preferred).isSuccess())
             val offered=CountDownLatch(1)
             var sdp:String?=null
@@ -74,8 +78,10 @@ class PrivacyGpuEncoderDeviceTest {
             val description=checkNotNull(sdp)
             val firstPayload=checkNotNull(description.lineSequence().firstOrNull {it.startsWith("m=video ")})
                 .trim().split(' ')[3]
-            assertTrue("H264 Baseline was not first: $firstPayload",description.contains("a=rtpmap:$firstPayload H264/90000"))
-            assertTrue(description.contains("profile-level-id=42e01f",ignoreCase=true))
+            val expectedCodec = if (serverPath) "VP8" else "H264"
+            assertTrue("$expectedCodec was not first: $firstPayload",
+                description.contains("a=rtpmap:$firstPayload $expectedCodec/90000"))
+            if (!serverPath) assertTrue(description.contains("profile-level-id=42e01f",ignoreCase=true))
         } finally {connection.dispose();factory.dispose();egl.release()}
     }
     @Test fun productionFactoryReportsHardwareForNegotiableCodecs() {

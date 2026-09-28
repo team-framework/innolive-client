@@ -34,7 +34,6 @@ import org.json.JSONObject
 import org.webrtc.DataChannel
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
-import org.webrtc.HardwareVideoEncoderFactory
 import org.webrtc.EglBase
 import org.webrtc.IceCandidate
 import org.webrtc.MediaStreamTrack
@@ -415,7 +414,9 @@ class WebRtcConnection(
                             val fields = listOf("packetsReceived", "packetsLost", "bytesReceived",
                                 "framesReceived", "framesDecoded", "framesDropped", "keyFramesDecoded",
                                 "freezeCount", "nackCount", "pliCount", "firCount", "jitter",
-                                "decoderImplementation")
+                                "decoderImplementation", "frameWidth", "frameHeight",
+                                "totalDecodeTime", "totalProcessingDelay", "totalAssemblyTime",
+                                "jitterBufferDelay", "jitterBufferEmittedCount")
                             Log.i("PrivacyPipeline", "inbound_video index=$index " +
                                 fields.joinToString(" ") { "$it=${stream.members[it]}" })
                         }
@@ -911,15 +912,13 @@ class WebRtcConnection(
                 ),
             ),
         ) { "Unable to add the camera video transceiver." }
-        val videoCodecs=checkNotNull(peerConnectionFactory)
+        val videoCodecs = checkNotNull(peerConnectionFactory)
             .getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs
-        val hardwareFormats=HardwareVideoEncoderFactory(checkNotNull(eglBase).eglBaseContext,true,true)
-            .supportedCodecs.toList()
-        val preference=preferredHardwareVideoCodecs(videoCodecs,hardwareFormats)
-        if(preference!=null) {
-            val result=transceiver.setCodecPreferences(preference)
-            if(result.isSuccess()) Log.i("PrivacyPipeline","video_codec_preference=hardware_h264_baseline")
-            else Log.w("PrivacyPipeline","video_codec_preference=default")
+        val preference = preferredServerVideoCodecs(videoCodecs)
+        if (preference != null) {
+            val result = transceiver.setCodecPreferences(preference)
+            if (result.isSuccess()) Log.i("PrivacyPipeline", "video_codec_preference=server_vp8")
+            else Log.w("PrivacyPipeline", "video_codec_preference=default")
         }
         videoSender = transceiver.sender
     }
