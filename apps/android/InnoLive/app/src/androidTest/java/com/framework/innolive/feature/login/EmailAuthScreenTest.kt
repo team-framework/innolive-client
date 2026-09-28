@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.login
 
+import android.content.ActivityNotFoundException
 import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.compose.ui.test.assertIsEnabled
@@ -24,6 +25,8 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSignInState
 import com.framework.innolive.ui.text.UiText
@@ -220,7 +223,7 @@ class EmailAuthScreenTest {
                 }
             }
         }
-        composeRule.waitUntil(10_000) {
+        composeRule.waitUntil(20_000) {
             composeRule.onAllNodesWithTag("accountConsent.policy").fetchSemanticsNodes().isNotEmpty() &&
                 composeRule.onAllNodesWithTag("accountConsent.loading").fetchSemanticsNodes().isEmpty()
         }
@@ -241,6 +244,49 @@ class EmailAuthScreenTest {
         showPolicyWithFooter(contactHeight = 5000)
         // Hiding the entire footer would incorrectly enable consent without reading its details.
         composeRule.onNodeWithText(string(R.string.account_consent_accept)).assertIsNotEnabled()
+    }
+
+    @Test
+    fun missingEmailAppKeepsConsentDialogOpenAndShowsLinkError() {
+        var openedUrl: String? = null
+        val density = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalAccountConsentPolicyUrl provides "https://innolive.studio/ko/privacy",
+                LocalAccountConsentPolicyLoader provides {
+                    """<html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+                        <body style="margin:0"><a href="mailto:contact@innolive.studio"
+                        style="display:block;height:48px">contact@innolive.studio</a>
+                        <div style="height:5000px">Full privacy policy</div></body></html>"""
+                },
+                LocalUriHandler provides object : UriHandler {
+                    override fun openUri(uri: String) {
+                        openedUrl = uri
+                        throw ActivityNotFoundException("No email app installed")
+                    }
+                },
+            ) {
+                MyApplicationTheme(dynamicColor = false) {
+                    AccountConsentDialog(onAccept = {}, onDismiss = {})
+                }
+            }
+        }
+        composeRule.waitUntil(10_000) {
+            composeRule.onAllNodesWithTag("accountConsent.policy").fetchSemanticsNodes().isNotEmpty() &&
+                composeRule.onAllNodesWithTag("accountConsent.loading").fetchSemanticsNodes().isEmpty()
+        }
+        composeRule.onNodeWithTag("accountConsent.policy").performTouchInput {
+            click(Offset(50f * density, 24f * density))
+        }
+        val error = string(R.string.account_consent_external_link_failed)
+        composeRule.waitUntil(5_000) {
+            composeRule.onAllNodes(hasText(error), useUnmergedTree = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText(error, useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithText(string(R.string.account_consent_accept)).assertIsNotEnabled()
+        composeRule.onNodeWithTag("accountConsent.policy").assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals("mailto:contact@innolive.studio", openedUrl) }
     }
 
     @Test

@@ -3,6 +3,7 @@
     <string name="account_consent_refusal">同意を拒否できます。同意しない場合、アカウント作成またはGoogleログインを続行できません。個人情報に関するお問い合わせや同意の撤回は、プライバシーポリシー記載の連絡先にご依頼ください。</string>
     <string name="account_consent_scroll_hint">個人情報取扱方針の全文を最後までスクロールすると同意できます。</string>
     <string name="account_consent_load_failed">個人情報取扱方針の全文を読み込めませんでした。接続を確認して再試行してください。</string>
+    <string name="account_consent_external_link_failed">リンクを開けませんでした。対応するアプリをインストールするか、設定を確認して再試行してください。</string>
     <string name="account_consent_accept">同意して続ける</string>
     <string name="account_consent_cancel">キャンセル</string>
     <string name="app_name">InnoLive</string>

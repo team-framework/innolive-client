@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.login
 
+import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.net.http.SslError
 import android.webkit.SslErrorHandler
@@ -63,6 +64,7 @@ internal fun AccountConsentDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
     var isLoaded by remember(policyUrl, loadAttempt) { mutableStateOf(false) }
     var hasReadToEnd by remember(policyUrl, loadAttempt) { mutableStateOf(false) }
     var hasLoadFailed by remember(policyUrl, loadAttempt) { mutableStateOf(false) }
+    var externalLinkFailed by remember(policyUrl) { mutableStateOf(false) }
     var policyHtml by remember(policyUrl, loadAttempt) { mutableStateOf<String?>(null) }
     LaunchedEffect(policyUrl, loadAttempt) {
         try {
@@ -91,6 +93,13 @@ internal fun AccountConsentDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.semantics { heading() },
                 )
+                if (externalLinkFailed) {
+                    Text(
+                        text = stringResource(R.string.account_consent_external_link_failed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     if (hasLoadFailed) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -132,8 +141,15 @@ internal fun AccountConsentDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
                                                         policyUrl = target
                                                         return true
                                                     }
-                                                    if (request.isForMainFrame && request.url.scheme in setOf("https", "mailto")) {
-                                                        uriHandler.openUri(target)
+                                                    if (request.url.scheme in setOf("https", "mailto")) {
+                                                        try {
+                                                            uriHandler.openUri(target)
+                                                            externalLinkFailed = false
+                                                        } catch (_: ActivityNotFoundException) {
+                                                            externalLinkFailed = true
+                                                        } catch (_: SecurityException) {
+                                                            externalLinkFailed = true
+                                                        }
                                                     }
                                                     return true
                                                 }

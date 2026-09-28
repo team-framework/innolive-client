@@ -3,6 +3,7 @@
     <string name="account_consent_refusal">You may refuse consent. Without consent, you cannot create an account or continue with Google sign-in. For privacy questions or to withdraw consent, use the contact listed in the Privacy Policy.</string>
     <string name="account_consent_scroll_hint">Scroll to the end of the full Privacy Policy to enable consent.</string>
     <string name="account_consent_load_failed">Could not load the full Privacy Policy. Check your connection and try again.</string>
+    <string name="account_consent_external_link_failed">Could not open this link. Install a compatible app or check your settings and try again.</string>
     <string name="account_consent_accept">Agree and continue</string>
     <string name="account_consent_cancel">Cancel</string>
     <string name="app_name">InnoLive</string>
