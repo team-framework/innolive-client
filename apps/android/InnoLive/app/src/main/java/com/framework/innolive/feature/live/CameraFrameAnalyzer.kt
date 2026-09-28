@@ -29,7 +29,7 @@ class CameraFrameAnalyzer(
         settings.set(value.normalized())
     }
 
-    internal fun beginPreviewExposure() {
+    internal fun beginPreviewExposure() = synchronized(captureLock) {
         previewExposure.begin()
         previewRenderer.invalidatePendingSample()
     }
@@ -41,7 +41,9 @@ class CameraFrameAnalyzer(
         previewRenderer.setEnabled(value)
     }
 
-    fun resetLookPreviewSample() {
+    fun resetLookPreviewSample() = synchronized(captureLock) {
+        // Rebind must reject old camera frames before they can obtain a fresh preview ticket.
+        previewExposure.begin()
         previewRenderer.resetSample()
     }
 
