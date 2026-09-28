@@ -45,6 +45,39 @@ class PrivacyGpuFramePipelineDeviceTest {
         } finally { source.release() }
     }
 
+    @Test fun uprightOutputAppliesCameraRotationOnGpuWithoutChangingQuadrants() {
+        val source = source()
+        try {
+            PrivacyGpuFramePipeline(null).use { graph ->
+                for (rotation in listOf(0, 90, 180, 270)) {
+                    val layout = graph.prepare(source, rotation)
+                    val texture = graph.finish(ByteArray(160 * 160), layout,
+                        source.width, source.height, outputUpright = true)
+                    val expectedWidth = if (rotation % 180 == 0) source.width else source.height
+                    val expectedHeight = if (rotation % 180 == 0) source.height else source.width
+                    assertEquals(expectedWidth, texture.width)
+                    assertEquals(expectedHeight, texture.height)
+                    val output = checkNotNull(texture.toI420())
+                    try {
+                        for (y in listOf(expectedHeight / 4, expectedHeight * 3 / 4)) {
+                            for (x in listOf(expectedWidth / 4, expectedWidth * 3 / 4)) {
+                                val (sensorX, sensorY) = when (rotation) {
+                                    90 -> y to (source.height - 1 - x)
+                                    180 -> (source.width - 1 - x) to (source.height - 1 - y)
+                                    270 -> (source.width - 1 - y) to x
+                                    else -> x to y
+                                }
+                                val expected = source.dataY.get(sensorY * source.strideY + sensorX).toInt() and 255
+                                val actual = output.dataY.get(y * output.strideY + x).toInt() and 255
+                                assertEquals("rotation=$rotation x=$x y=$y", expected.toDouble(), actual.toDouble(), 3.0)
+                            }
+                        }
+                    } finally { output.release(); texture.release() }
+                }
+            }
+        } finally { source.release() }
+    }
+
     @Test fun gpuCropUsesUprightCoordinatesAndOwnsItsPixels() {
         val source = source()
         try {

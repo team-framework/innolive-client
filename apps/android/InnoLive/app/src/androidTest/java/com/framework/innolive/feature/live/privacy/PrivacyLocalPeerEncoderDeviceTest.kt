@@ -22,8 +22,13 @@ class PrivacyLocalPeerEncoderDeviceTest {
             "baseline_cpu_readbacks=${baseline.readbacks} candidate_cpu_readbacks=${preferred.readbacks} " +
             "baseline_encoded_fps=${baseline.encodedFps} candidate_encoded_fps=${preferred.encodedFps} size=1920x1080 detector=true")
     }
+    @Test fun uprightRotatedProtectedTextureStaysOnGpuWithProductionSourceAdaptation() {
+        val rotated=runPeer(true,1920,1080,false,adaptOutput=true,rotation=90,outputUpright=true)
+        assertEquals("Local RTP converted rotated protected frames to I420",0L,rotated.readbacks)
+    }
     private data class Metrics(val codec:String?,val encodeMeanMs:Double,val readbacks:Long,val encodedFps:Double)
-    private fun runPeer(preferHardware:Boolean,width:Int=320,height:Int=320,inference:Boolean=false):Metrics {
+    private fun runPeer(preferHardware:Boolean,width:Int=320,height:Int=320,inference:Boolean=false,
+                        adaptOutput:Boolean=false,rotation:Int=0,outputUpright:Boolean=false):Metrics {
         val context=InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
         val egl=EglBase.create()
@@ -33,6 +38,7 @@ class PrivacyLocalPeerEncoderDeviceTest {
             .createPeerConnectionFactory()
         val received=CountDownLatch(3)
         val source=factory.createVideoSource(false)
+        if(adaptOutput) source.adaptOutputFormat(width,height,30)
         val track=factory.createVideoTrack("local-protected-video",source)
         val send=Peer(factory,null)
         val receive=Peer(factory,received)
@@ -65,10 +71,11 @@ class PrivacyLocalPeerEncoderDeviceTest {
                 val readbacks=PrivacyTextureReadbackCounter.value()
                 val started=System.nanoTime()
                 repeat(60) { index ->
-                    val layout=graph.prepare(fixture,0,readModel=false)
+                    val layout=graph.prepare(fixture,rotation,readModel=false)
                     if(inference)graph.predictNativeInputInto(predictions,prototypes)
-                    val texture=graph.finish(ByteArray(160*160) {-1},layout,width,height)
-                    val frame=VideoFrame(texture,0,System.nanoTime())
+                    val texture=graph.finish(ByteArray(160*160) {-1},layout,width,height,
+                        outputUpright=outputUpright)
+                    val frame=VideoFrame(texture,if(outputUpright) 0 else rotation,System.nanoTime())
                     try {source.capturerObserver.onFrameCaptured(frame)} finally {frame.release()}
                     val remaining=started+(index+1)*33_333_333L-System.nanoTime()
                     if(remaining>0)Thread.sleep(remaining/1_000_000L,(remaining%1_000_000L).toInt())

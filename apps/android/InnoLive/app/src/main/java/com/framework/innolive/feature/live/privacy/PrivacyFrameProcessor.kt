@@ -164,7 +164,8 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                         if (asyncFaceReadback && graph.supportsAsyncCrop) graph::cropAsync else null)
                     else faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)
                 },
-                renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,model.lastMaskPixels)}
+                renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,
+                    model.lastMaskPixels,outputUpright=true)}
             val completed = System.nanoTime()
             lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
                 checkNotNull(model.lastTimings), 0.0, (completed - started) / 1e6)
@@ -172,7 +173,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                 lastLogNs = completed
                 Log.i("PrivacyPipeline", "image_gpu=true texture_output=true size=${sensorWidth}x${sensorHeight} camera_copied_planes=$lastCameraCopiedPlanes $lastTimings")
             }
-            return VideoFrame(buffer,rotation,timestampNs)
+            return VideoFrame(buffer,0,timestampNs)
     }
 
     private fun processCpu(frame: VideoFrame): VideoFrame {

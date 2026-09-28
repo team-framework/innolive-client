@@ -412,15 +412,19 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     }
 
     fun finish(mask: ByteArray, layout: PrivacySegmentation.Letterbox,
-               sensorWidth: Int, sensorHeight: Int, maskPixels: Int = -1): VideoFrame.TextureBuffer = onGl {
+               sensorWidth: Int, sensorHeight: Int, maskPixels: Int = -1,
+               outputUpright: Boolean = false): VideoFrame.TextureBuffer = onGl {
         check(!closing)
         require(layout.sourceWidth == width && layout.sourceHeight == height && mask.size == 160 * 160)
-        val output = outputPool.firstOrNull { it !in leased && it.width == sensorWidth && it.height == sensorHeight }
+        val outputWidth = if (outputUpright) width else sensorWidth
+        val outputHeight = if (outputUpright) height else sensorHeight
+        val outputRotation = if (outputUpright) 0 else rotation
+        val output = outputPool.firstOrNull { it !in leased && it.width == outputWidth && it.height == outputHeight }
             ?: run {
                 // Geometry changes may retire free targets, never frames retained by WebRTC.
                 outputPool.filter { it !in leased }.toList().forEach { it.close(); outputPool.remove(it) }
                 if (leased.size >= 6) throw PrivacyGpuBackpressureException()
-                Target(sensorWidth, sensorHeight).also { outputPool.add(it) }
+                Target(outputWidth, outputHeight).also { outputPool.add(it) }
             }
         val original = targets.getValue("upright")
         if (if (maskPixels >= 0) maskPixels > 0 else mask.any { it.toInt() != 0 }) {
@@ -441,13 +445,13 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / quarterH)
             }
             draw("composite",COMPOSITE,output,listOf(original.texture,vertical.texture,layers.alpha.texture)) { p ->
-                glUniform1i(p.getUniformLocation("rotation"), rotation)
+                glUniform1i(p.getUniformLocation("rotation"), outputRotation)
                 glUniform4f(p.getUniformLocation("box"), layout.left / 640f, layout.top / 640f,
                     layout.resizedWidth / 640f, layout.resizedHeight / 640f)
             }
         } else {
             draw("restore", RESTORE, output, listOf(original.texture)) { p ->
-                glUniform1i(p.getUniformLocation("rotation"), rotation)
+                glUniform1i(p.getUniformLocation("rotation"), outputRotation)
             }
         }
         GlUtil.checkNoGLES2Error("privacy GPU output")
@@ -456,7 +460,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         if (fence == 0L) glFinish()
         leased.add(output)
         val matrix = Matrix().apply { preTranslate(0f, 1f); preScale(1f, -1f) }
-        val buffer = TextureBufferImpl(sensorWidth, sensorHeight, VideoFrame.TextureBuffer.Type.RGB,
+        val buffer = TextureBufferImpl(outputWidth, outputHeight, VideoFrame.TextureBuffer.Type.RGB,
             output.texture, matrix, handler, converter) {
             handler.post {
                 if (fence != 0L) PrivacyNativeGpuFence.destroy(fence)
