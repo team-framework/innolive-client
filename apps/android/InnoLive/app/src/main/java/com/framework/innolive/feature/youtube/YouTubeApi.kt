@@ -87,7 +87,9 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
     private fun <T> execute(request: Request, operation: String, parse: (String) -> T): T = try {
         httpClient.newCall(request).execute().use { response ->
             val body = response.body.string()
-            Log.i("InnoLiveYouTube", "operation=$operation status=${response.code}")
+            val errorCode = if (response.isSuccessful) "none"
+                else safeServerErrorCode(parseYouTubeApiErrorCode(body))
+            Log.i("InnoLiveYouTube", "operation=$operation status=${response.code} code=$errorCode")
             if (!response.isSuccessful) {
                 throw YouTubeApiException(
                     statusCode = response.code,
@@ -101,6 +103,7 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
     } catch (exception: YouTubeApiException) {
         throw exception
     } catch (exception: IOException) {
+        Log.w("InnoLiveYouTube", "operation=$operation transport_failure=${exception.javaClass.simpleName}")
         throw YouTubeApiException(statusCode = null, operation = operation, cause = exception)
     }
 
