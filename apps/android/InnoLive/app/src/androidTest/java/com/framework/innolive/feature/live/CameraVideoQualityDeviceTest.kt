@@ -63,12 +63,27 @@ class CameraVideoQualityDeviceTest {
                 assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
             }
 
+            val bright = VideoLookPreset.BRIGHT.applyTo(adjusted)
+            compose.runOnIdle { settings.value = bright }
+            compose.waitUntil(15_000) {
+                analyzer.lookPreviews.value?.settings == bright &&
+                    analyzer.lookPreviews.value?.previews?.get(VideoLookPreset.BRIGHT) !== firstPreviews[VideoLookPreset.BRIGHT]
+            }
+            val selectedPreviews = checkNotNull(analyzer.lookPreviews.value).previews
+            assertSame(firstPreviews.getValue(VideoLookPreset.VIVID), selectedPreviews[VideoLookPreset.VIVID])
+            assertSame(firstPreviews.getValue(VideoLookPreset.WARM), selectedPreviews[VideoLookPreset.WARM])
+            compose.runOnIdle { settings.value = adjusted }
+            compose.waitUntil(15_000) { analyzer.lookPreviews.value?.settings == adjusted }
+            val frozenPreviews = checkNotNull(analyzer.lookPreviews.value).previews
+            assertSame(firstPreviews[VideoLookPreset.VIVID], frozenPreviews[VideoLookPreset.VIVID])
+            assertSame(firstPreviews[VideoLookPreset.WARM], frozenPreviews[VideoLookPreset.WARM])
+
             compose.runOnIdle { panelVisible.value = false }
             compose.waitUntil(5_000) { analyzer.lookPreviews.value == null }
             compose.runOnIdle { panelVisible.value = true }
             compose.waitUntil(5_000) { analyzer.lookPreviews.value?.settings == adjusted }
             VideoLookPreset.entries.forEach { preset ->
-                assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
+                assertSame(frozenPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
             }
 
             compose.runOnIdle { visible.value = false }

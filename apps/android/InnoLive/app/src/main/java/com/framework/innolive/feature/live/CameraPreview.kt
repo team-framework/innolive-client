@@ -58,6 +58,7 @@ fun CameraPreview(
     modifier: Modifier = Modifier,
     videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
     onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
+    showAdjustedColorPreview: Boolean = true,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -105,6 +106,10 @@ fun CameraPreview(
     SideEffect {
         frameAnalyzer?.setVideoQualitySettings(videoQualitySettings)
         qualityController?.update(videoQualitySettings)
+    }
+    DisposableEffect(previewContainer, showAdjustedColorPreview, videoQualitySettings.warmth, videoQualitySettings.saturation) {
+        applyCameraPreviewColor(previewContainer, videoQualitySettings.takeIf { showAdjustedColorPreview })
+        onDispose { applyCameraPreviewColor(previewContainer, null) }
     }
 
     DisposableEffect(

@@ -61,6 +61,7 @@ fun LiveVideoPanels(
                     lockedRotation = lockedRotation,
                     videoQualitySettings = videoQualitySettings,
                     onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
+                    showAdjustedColorPreview = localVideoTrack == null,
                     modifier = Modifier.fillMaxSize(),
                 )
                 WebRtcRemotePreview(

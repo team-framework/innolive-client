@@ -59,8 +59,8 @@ internal class VideoColorTransform(private val warmth: Float, private val satura
     }
 
     val isNeutral = warmth == 0f && saturation == 1f
-    val u = table(-18f * warmth)
-    val v = table(18f * warmth)
+    val u = table(-VIDEO_WARMTH_CHROMA_OFFSET * warmth)
+    val v = table(VIDEO_WARMTH_CHROMA_OFFSET * warmth)
 
     fun matches(warmth: Float, saturation: Float) = this.warmth == warmth && this.saturation == saturation
 
@@ -88,6 +88,8 @@ internal class VideoColorTransform(private val warmth: Float, private val satura
         }
     }
 }
+
+internal const val VIDEO_WARMTH_CHROMA_OFFSET = 18f
 
 internal fun copyVideoPlane(
     source: ByteBuffer,
