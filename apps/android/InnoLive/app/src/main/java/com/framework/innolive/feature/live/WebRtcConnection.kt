@@ -84,6 +84,7 @@ class WebRtcConnection(
     private val onBroadcastStateChanged: (BroadcastState, BroadcastEvent?) -> Unit,
     private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
     private val broadcastCallbackExecutor: Executor? = null,
+    private val onLocalVideoTrackChanged: (VideoTrack?) -> Unit = {},
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val recoveryAccessToken = RecoveryAccessToken(accessToken)
@@ -343,19 +344,14 @@ class WebRtcConnection(
         val analyzer = frameAnalyzer ?: return
         val context = eglBase?.eglBaseContext ?: return
         onLocalMediaReady(analyzer, context)
+        onLocalVideoTrackChanged(localVideoTrack)
     }
 
     private fun createPeerConnectionFactory(): PeerConnectionFactory {
         val eglContext = checkNotNull(this@WebRtcConnection.eglBase).eglBaseContext
         val createdAudioDeviceModule =
             checkNotNull(this@WebRtcConnection.audioDeviceModule)
-        if (factoryInitialized.compareAndSet(false, true)) {
-            PeerConnectionFactory.initialize(
-                PeerConnectionFactory.InitializationOptions
-                    .builder(applicationContext)
-                    .createInitializationOptions(),
-            )
-        }
+        WebRtcNativeRuntime.initialize(applicationContext)
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(createdAudioDeviceModule)
             .setVideoEncoderFactory(
@@ -1587,8 +1583,9 @@ class WebRtcConnection(
         pendingRemoteCandidates.clear()
 
         runCatching { clearBluetoothCommunicationRoute() }
+        runCatching { onLocalVideoTrackChanged(null) }
         runCatching { onLocalMediaCleared() }
-        runCatching { frameAnalyzer?.stop() }
+        runCatching { frameAnalyzer?.close() }
         frameAnalyzer = null
         runCatching { audioRouteMonitor.close() }
         audioRecordingStarted = false
@@ -1601,7 +1598,7 @@ class WebRtcConnection(
         runCatching { webSocket?.close(1000, null) }
         webSocket = null
         runCatching { peerConnection?.close() }
-        runCatching { peerConnection?.dispose() }
+        runCatching { VideoTrackLifecycle.dispose { peerConnection?.dispose() } }
         peerConnection = null
         videoSender = null
 
@@ -1610,7 +1607,7 @@ class WebRtcConnection(
         localAudioTrack = null
         runCatching { audioSource?.dispose() }
         audioSource = null
-        runCatching { localVideoTrack?.dispose() }
+        runCatching { VideoTrackLifecycle.dispose { localVideoTrack?.dispose() } }
         localVideoTrack = null
         runCatching { videoSource?.dispose() }
         videoSource = null
@@ -1839,7 +1836,6 @@ class WebRtcConnection(
     }
 
     companion object {
-        private val factoryInitialized = AtomicBoolean(false)
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private const val CONNECTION_TIMEOUT_MILLIS = 30_000L
         private const val AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS = 500L

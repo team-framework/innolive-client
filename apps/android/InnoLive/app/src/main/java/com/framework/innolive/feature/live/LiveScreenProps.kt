@@ -21,4 +21,8 @@ data class LiveScreenProps(
     val profileEmail: String = "",
     val canSwitchCamera: Boolean = false,
     val onSwitchCamera: () -> Unit = {},
+    val videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
+    val onVideoQualitySettingsChanged: (BroadcastVideoQualitySettings) -> Unit = {},
+    val videoQualityCaptureState: VideoQualityCaptureState = VideoQualityCaptureState(),
+    val onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
 )

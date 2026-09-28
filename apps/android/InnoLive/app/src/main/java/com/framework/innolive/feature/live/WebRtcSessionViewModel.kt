@@ -44,6 +44,8 @@ class WebRtcSessionViewModel : ViewModel() {
         private set
     var remoteVideoTrack by mutableStateOf<VideoTrack?>(null)
         private set
+    var localVideoTrack by mutableStateOf<VideoTrack?>(null)
+        private set
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
     var broadcastStatus by mutableStateOf(broadcastStateMessage(BroadcastState.IDLE).text)
@@ -129,6 +131,7 @@ class WebRtcSessionViewModel : ViewModel() {
         closingConnection = previousConnection
         connection = null
         remoteVideoTrack = null
+        localVideoTrack = null
         frameAnalyzer = null
         eglContext = null
         if (previousConnection != null) {
@@ -178,6 +181,11 @@ class WebRtcSessionViewModel : ViewModel() {
                     },
                     onRemoteTrackChanged = { track ->
                         if (isCurrentGeneration(generation)) remoteVideoTrack = track
+                    },
+                    onLocalVideoTrackChanged = { track ->
+                        mainHandler.post {
+                            if (isCurrentGeneration(generation)) localVideoTrack = track
+                        }
                     },
                     onLocalMediaReady = { analyzer, context ->
                         mainHandler.post {
@@ -387,6 +395,7 @@ class WebRtcSessionViewModel : ViewModel() {
         closingConnection = currentConnection ?: closingConnection
         connection = null
         remoteVideoTrack = null
+        localVideoTrack = null
         frameAnalyzer = null
         eglContext = null
         currentConnection?.close()
