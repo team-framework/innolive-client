@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.live
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
@@ -8,6 +10,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -29,6 +33,56 @@ import org.junit.Test
 
 class BroadcastVideoControlsTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun openingControlsDoesNotTintTheVisibleCameraPreview() {
+        val controlsVisible = mutableStateOf(false)
+        compose.setContent {
+            MaterialTheme {
+                Box(Modifier.fillMaxSize().background(Color(0xFFC88C28))) {
+                    if (controlsVisible.value) {
+                        BroadcastVideoControls(
+                            settings = BroadcastVideoQualitySettings(),
+                            captureState = VideoQualityCaptureState(
+                                exposureSupported = true, minExposureEV = -2f, maxExposureEV = 2f,
+                            ),
+                            previews = null,
+                            onSettingsChanged = {},
+                            onDismiss = { controlsVisible.value = false },
+                        )
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val before = checkNotNull(automation.takeScreenshot())
+        val content = compose.activity.findViewById<android.view.View>(android.R.id.content)
+        val location = IntArray(2)
+        compose.runOnIdle { content.getLocationOnScreen(location) }
+        val x = location[0] + content.width / 2
+        val y = location[1] + content.height / 20
+        val expected = before.getPixel(x, y)
+        assertEquals(android.graphics.Color.rgb(200, 140, 40), expected)
+        before.recycle()
+        compose.runOnIdle { controlsVisible.value = true }
+        compose.onNodeWithText(compose.activity.getString(R.string.video_controls_title)).assertExists()
+        compose.waitForIdle()
+        // Semantics can be ready before the separate sheet window has been composited.
+        compose.waitUntil(5_000) {
+            val displayed = checkNotNull(automation.takeScreenshot())
+            try {
+                displayed.getPixel(x, location[1] + content.height * 3 / 4) != expected
+            } finally {
+                displayed.recycle()
+            }
+        }
+        val after = checkNotNull(automation.takeScreenshot())
+        try {
+            assertEquals("Opening controls must preserve the visible preview's color", expected, after.getPixel(x, y))
+        } finally {
+            after.recycle()
+        }
+    }
 
     @Test fun presetAndResetPreserveStabilizationPreference() {
         val settings = mutableStateOf(BroadcastVideoQualitySettings(stabilizationEnabled = false))

@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import org.webrtc.CapturerObserver
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
+import org.webrtc.VideoSink
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicReference
 
@@ -17,6 +18,7 @@ class CameraFrameAnalyzer(
     private var enabled = false
     private var closed = false
     private var reportedColorFailure = false
+    private var previewSink: VideoSink? = null
     private val settings = AtomicReference(BroadcastVideoQualitySettings())
     private val appliedExposureEV = AtomicReference(0f)
     private val colorProcessor = VideoColorFrameProcessor()
@@ -39,6 +41,10 @@ class CameraFrameAnalyzer(
         previewRenderer.resetSample()
     }
 
+    fun setProcessedPreviewSink(sink: VideoSink?) = synchronized(captureLock) {
+        if (!closed) previewSink = sink
+    }
+
     fun start() = synchronized(captureLock) {
         if (!enabled && !closed && capturerObserver != null) {
             enabled = true
@@ -55,6 +61,7 @@ class CameraFrameAnalyzer(
 
     override fun close() = synchronized(captureLock) {
         closed = true
+        previewSink = null
         stop()
         previewRenderer.close()
     }
@@ -62,13 +69,11 @@ class CameraFrameAnalyzer(
     override fun analyze(image: ImageProxy) {
         try {
             synchronized(captureLock) {
-                if (closed || (!enabled && !previewRenderer.isEnabled)) return
+                if (closed || (!enabled && !previewRenderer.isEnabled && previewSink == null)) return
                 val currentSettings = settings.get()
                 previewRenderer.offer(image, currentSettings, appliedExposureEV.get())
-                val observer = capturerObserver
-                if (!enabled || observer == null) return
-
-                capture(image, currentSettings, observer)
+                if (!enabled && previewSink == null) return
+                capture(image, currentSettings)
                 reportedColorFailure = false
             }
         } catch (exception: Exception) {
@@ -85,7 +90,6 @@ class CameraFrameAnalyzer(
     private fun capture(
         image: ImageProxy,
         currentSettings: BroadcastVideoQualitySettings,
-        observer: CapturerObserver,
     ) {
         val source = JavaI420Buffer.allocate(image.width, image.height)
         try {
@@ -120,7 +124,10 @@ class CameraFrameAnalyzer(
                 image.imageInfo.timestamp,
             )
             try {
-                relayColorFrame(frame, currentSettings, colorProcessor::process, observer::onFrameCaptured)
+                relayColorFrame(frame, currentSettings, colorProcessor::process) { output ->
+                    previewSink?.onFrame(output)
+                    if (enabled) capturerObserver?.onFrameCaptured(output)
+                }
             } finally {
                 frame.release()
             }

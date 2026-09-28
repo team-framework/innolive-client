@@ -351,13 +351,7 @@ class WebRtcConnection(
         val eglContext = checkNotNull(this@WebRtcConnection.eglBase).eglBaseContext
         val createdAudioDeviceModule =
             checkNotNull(this@WebRtcConnection.audioDeviceModule)
-        if (factoryInitialized.compareAndSet(false, true)) {
-            PeerConnectionFactory.initialize(
-                PeerConnectionFactory.InitializationOptions
-                    .builder(applicationContext)
-                    .createInitializationOptions(),
-            )
-        }
+        WebRtcNativeRuntime.initialize(applicationContext)
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(createdAudioDeviceModule)
             .setVideoEncoderFactory(
@@ -1842,7 +1836,6 @@ class WebRtcConnection(
     }
 
     companion object {
-        private val factoryInitialized = AtomicBoolean(false)
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
         private const val CONNECTION_TIMEOUT_MILLIS = 30_000L
         private const val AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS = 500L

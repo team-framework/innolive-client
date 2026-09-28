@@ -107,10 +107,6 @@ fun CameraPreview(
         frameAnalyzer?.setVideoQualitySettings(videoQualitySettings)
         qualityController?.update(videoQualitySettings)
     }
-    DisposableEffect(previewContainer, showAdjustedColorPreview, videoQualitySettings.warmth, videoQualitySettings.saturation) {
-        applyCameraPreviewColor(previewContainer, videoQualitySettings.takeIf { showAdjustedColorPreview })
-        onDispose { applyCameraPreviewColor(previewContainer, null) }
-    }
 
     DisposableEffect(
         context,
@@ -246,6 +242,14 @@ fun CameraPreview(
             factory = { previewContainer },
             modifier = Modifier.fillMaxSize(),
         )
+
+        if (showAdjustedColorPreview && frameAnalyzer != null) {
+            CameraProcessedPreview(
+                analyzer = frameAnalyzer,
+                cameraLensFacing = cameraLensFacing,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         if (hasCameraError) {
             Text(

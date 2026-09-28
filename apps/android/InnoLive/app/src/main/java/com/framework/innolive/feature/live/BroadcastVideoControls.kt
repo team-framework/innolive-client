@@ -1,6 +1,5 @@
 package com.framework.innolive.feature.live
 
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -33,10 +32,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -60,6 +59,8 @@ fun BroadcastVideoControls(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        // Dimming only the camera makes its colors look different from the preset cards.
+        scrimColor = Color.Transparent,
     ) {
         Column(
             modifier = Modifier
@@ -179,10 +180,6 @@ private fun VideoPresetCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val orientation = LocalConfiguration.current.orientation
-    val previewAspectRatio = preview?.let { it.width.toFloat() / it.height } ?: if (
-        orientation == Configuration.ORIENTATION_LANDSCAPE
-    ) 16f / 9f else 9f / 16f
     val title = stringResource(when (preset) {
         VideoLookPreset.VIVID -> R.string.video_preset_vivid
         VideoLookPreset.BRIGHT -> R.string.video_preset_bright
@@ -203,7 +200,7 @@ private fun VideoPresetCard(
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp),
             )
-            Box(modifier = Modifier.fillMaxWidth().aspectRatio(previewAspectRatio), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxWidth().aspectRatio(3f / 4f), contentAlignment = Alignment.Center) {
                 if (preview != null) {
                     Image(
                         bitmap = preview.asImageBitmap(),
@@ -211,7 +208,7 @@ private fun VideoPresetCard(
                         modifier = Modifier.matchParentSize().graphicsLayer {
                             scaleX = if (mirrorPreview) -1f else 1f
                         },
-                        contentScale = ContentScale.Fit,
+                        contentScale = ContentScale.Crop,
                     )
                 } else {
                     Icon(Icons.Outlined.Videocam, contentDescription = null)

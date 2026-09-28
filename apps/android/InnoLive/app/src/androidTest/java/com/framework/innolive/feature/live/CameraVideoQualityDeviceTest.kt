@@ -23,10 +23,48 @@ import org.junit.Rule
 import org.junit.Test
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicInteger
+import org.webrtc.CapturerObserver
+import org.webrtc.VideoFrame
+import org.webrtc.VideoSink
 
 /** Uses CameraX's real capture callback and ImageProxy planes; no account or WebRTC session. */
 class CameraVideoQualityDeviceTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun realCameraPreviewAndSenderReceiveTheSameProcessedFrame() {
+        grantCameraPermission()
+        WebRtcNativeRuntime.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
+        val previewFrame = AtomicReference<VideoFrame?>()
+        val sharedFrames = AtomicInteger()
+        val mismatches = AtomicInteger()
+        val analyzer = CameraFrameAnalyzer(object : CapturerObserver {
+            override fun onCapturerStarted(success: Boolean) = Unit
+            override fun onCapturerStopped() = Unit
+            override fun onFrameCaptured(frame: VideoFrame) {
+                if (previewFrame.get() === frame) sharedFrames.incrementAndGet() else mismatches.incrementAndGet()
+            }
+        })
+        analyzer.setProcessedPreviewSink(VideoSink { previewFrame.set(it) })
+        analyzer.start()
+        compose.setContent {
+            CameraPreview(
+                cameraLensFacing = CameraLensFacing.BACK,
+                cameraResolution = null,
+                frameAnalyzer = analyzer,
+                videoQualitySettings = VideoLookPreset.WARM.applyTo(BroadcastVideoQualitySettings()),
+                showAdjustedColorPreview = false,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        try {
+            compose.waitUntil(20_000) { sharedFrames.get() >= 5 }
+            assertEquals(0, mismatches.get())
+        } finally {
+            analyzer.setProcessedPreviewSink(null)
+            analyzer.close()
+        }
+    }
 
     @Test fun offlineCameraProducesPresetsAfterSettingsChangeAndRebind() {
         grantCameraPermission()
@@ -63,27 +101,12 @@ class CameraVideoQualityDeviceTest {
                 assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
             }
 
-            val bright = VideoLookPreset.BRIGHT.applyTo(adjusted)
-            compose.runOnIdle { settings.value = bright }
-            compose.waitUntil(15_000) {
-                analyzer.lookPreviews.value?.settings == bright &&
-                    analyzer.lookPreviews.value?.previews?.get(VideoLookPreset.BRIGHT) !== firstPreviews[VideoLookPreset.BRIGHT]
-            }
-            val selectedPreviews = checkNotNull(analyzer.lookPreviews.value).previews
-            assertSame(firstPreviews.getValue(VideoLookPreset.VIVID), selectedPreviews[VideoLookPreset.VIVID])
-            assertSame(firstPreviews.getValue(VideoLookPreset.WARM), selectedPreviews[VideoLookPreset.WARM])
-            compose.runOnIdle { settings.value = adjusted }
-            compose.waitUntil(15_000) { analyzer.lookPreviews.value?.settings == adjusted }
-            val frozenPreviews = checkNotNull(analyzer.lookPreviews.value).previews
-            assertSame(firstPreviews[VideoLookPreset.VIVID], frozenPreviews[VideoLookPreset.VIVID])
-            assertSame(firstPreviews[VideoLookPreset.WARM], frozenPreviews[VideoLookPreset.WARM])
-
             compose.runOnIdle { panelVisible.value = false }
             compose.waitUntil(5_000) { analyzer.lookPreviews.value == null }
             compose.runOnIdle { panelVisible.value = true }
             compose.waitUntil(5_000) { analyzer.lookPreviews.value?.settings == adjusted }
             VideoLookPreset.entries.forEach { preset ->
-                assertSame(frozenPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
+                assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
             }
 
             compose.runOnIdle { visible.value = false }
