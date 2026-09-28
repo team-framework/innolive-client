@@ -400,7 +400,7 @@ class WebRtcConnection(
                         val current = PrivacyVideoStats.from(outbound.members, now)
                         val previous = previousPrivacyVideoStats
                         previousPrivacyVideoStats = current
-                        val inbound = report.statsMap.values.firstOrNull { it.type == "inbound-rtp" &&
+                        val inbound = report.statsMap.values.filter { it.type == "inbound-rtp" &&
                             (it.members["kind"] == "video" || it.members["mediaType"] == "video") }
                         val codecId = outbound.members["codecId"] as? String
                         val mime = codecId?.let { report.statsMap[it]?.members?.get("mimeType") }
@@ -408,9 +408,26 @@ class WebRtcConnection(
                             "mime=$mime encoder=${outbound.members["encoderImplementation"]} " +
                             "quality_limitation=${outbound.members["qualityLimitationReason"]} " +
                             "encoded_size=${outbound.members["frameWidth"]}x${outbound.members["frameHeight"]} " +
-                            "inbound_decoded=${inbound?.members?.get("framesDecoded")} " +
-                            "inbound_dropped=${inbound?.members?.get("framesDropped")} " +
+                            "inbound_decoded=${inbound.sumOf { (it.members["framesDecoded"] as? Number)?.toLong() ?: 0L }} " +
+                            "inbound_dropped=${inbound.sumOf { (it.members["framesDropped"] as? Number)?.toLong() ?: 0L }} " +
                             "texture_to_i420_total=${PrivacyTextureReadbackCounter.value()}")
+                        inbound.forEachIndexed { index, stream ->
+                            val fields = listOf("packetsReceived", "packetsLost", "bytesReceived",
+                                "framesReceived", "framesDecoded", "framesDropped", "keyFramesDecoded",
+                                "freezeCount", "nackCount", "pliCount", "firCount", "jitter",
+                                "decoderImplementation")
+                            Log.i("PrivacyPipeline", "inbound_video index=$index " +
+                                fields.joinToString(" ") { "$it=${stream.members[it]}" })
+                        }
+                        report.statsMap.values.filter { it.type == "candidate-pair" &&
+                            it.members["nominated"] == true
+                        }.forEach { pair ->
+                            val fields = listOf("state", "nominated", "currentRoundTripTime",
+                                "availableOutgoingBitrate", "availableIncomingBitrate",
+                                "bytesSent", "bytesReceived")
+                            Log.i("PrivacyPipeline", "transport " +
+                                fields.joinToString(" ") { "$it=${pair.members[it]}" })
+                        }
                     }
                 }
             }
