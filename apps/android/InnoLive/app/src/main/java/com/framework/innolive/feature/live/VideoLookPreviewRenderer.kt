@@ -30,6 +30,14 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
     /** Only copy camera-owned bytes here; conversion, resizing and rendering run off capture. */
     fun offer(image: ImageProxy, settings: BroadcastVideoQualitySettings, appliedExposureEV: Float) {
         val generation = gate.tryStart(System.nanoTime()) ?: return
+        // Keep the preset sample stable while this panel is open. Camera exposure changes
+        // the source pixels and clipped highlights cannot be recovered by inverse EV.
+        mutablePreviews.value?.let { current ->
+            gate.finish(generation) {
+                if (current.settings != settings) mutablePreviews.value = current.copy(settings = settings)
+            }
+            return
+        }
         val source = try {
             PreviewYuvSnapshot.copy(image)
         } catch (_: Exception) {
@@ -66,9 +74,8 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
         val outputWidth = if (rotated) height else width
         val outputHeight = if (rotated) width else height
         val previews = VideoLookPreset.entries.associateWith { preset ->
-            val look = preset.applyTo(settings)
-            val transform = VideoColorTransform(look.warmth, look.saturation)
-            val exposure = previewExposureLookup(look.exposureEV, appliedExposureEV)
+            val transform = VideoColorTransform(preset.warmth, preset.saturation)
+            val exposure = previewExposureLookup(preset.exposureEV, appliedExposureEV)
             val pixels = IntArray(width * height)
             repeat(height) { y ->
                 val sourceY = source.cropTop + y * source.cropHeight / height

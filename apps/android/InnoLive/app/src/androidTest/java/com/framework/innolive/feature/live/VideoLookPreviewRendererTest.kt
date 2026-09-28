@@ -11,7 +11,7 @@ class VideoLookPreviewRendererTest {
         val originalU = source.u.copyOf()
         val originalV = source.v.copyOf()
         VideoLookPreviewRenderer().use { renderer ->
-            val settings = BroadcastVideoQualitySettings(warmth = -1f, saturation = 0f)
+            val settings = BroadcastVideoQualitySettings(exposureEV = -1.5f, warmth = -1f, saturation = 0f)
             val previews = renderer.render(source, settings, 0f)
             val neutralCurrent = renderer.render(source, BroadcastVideoQualitySettings(), 0f)
             assertEquals(VideoLookPreset.entries.toSet(), previews.previews.keys)

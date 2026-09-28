@@ -16,6 +16,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -51,10 +53,14 @@ class CameraVideoQualityDeviceTest {
         try {
             waitForCamera(analyzer, captureState)
             assertValidPreviews(analyzer.lookPreviews.value)
-            val adjusted = VideoLookPreset.WARM.applyTo(settings.value)
+            val firstPreviews = checkNotNull(analyzer.lookPreviews.value).previews
+            val adjusted = BroadcastVideoQualitySettings(exposureEV = -1.5f, warmth = -0.7f, saturation = 0.4f)
             compose.runOnIdle { settings.value = adjusted }
             compose.waitUntil(15_000) { analyzer.lookPreviews.value?.settings == adjusted }
             assertValidPreviews(analyzer.lookPreviews.value)
+            VideoLookPreset.entries.forEach { preset ->
+                assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
+            }
 
             compose.runOnIdle { visible.value = false }
             compose.waitUntil(5_000) { analyzer.lookPreviews.value == null }
@@ -62,6 +68,9 @@ class CameraVideoQualityDeviceTest {
             compose.runOnIdle { visible.value = true }
             waitForCamera(analyzer, captureState)
             assertEquals(adjusted, analyzer.lookPreviews.value?.settings)
+            VideoLookPreset.entries.forEach { preset ->
+                assertNotSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
+            }
             val state = captureState.get()
             assertTrue(state.appliedExposureEV in -2f..2f)
             assertTrue(state.minExposureEV <= state.maxExposureEV)
