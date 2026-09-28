@@ -16,6 +16,48 @@ import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicInteger
 
 class VideoColorNativeFrameTest {
+    @Test fun brightPreviewAppliesLinearExposureBeforeTheSenderColorAdjustment() {
+        // An encoded RGB midtone of 128 becomes 165 at +0.8 EV in linear sRGB,
+        // represented by limited-range Y=158. Multiplying display bytes gives 223 instead.
+        val source = PreviewYuvSnapshot(8, 8,
+            ByteArray(64) { 126.toByte() }, ByteArray(16) { 128.toByte() }, ByteArray(16) { 128.toByte() })
+        val settings = VideoLookPreset.BRIGHT.applyTo(BroadcastVideoQualitySettings())
+        val egl = EglBase.create(null, EglBase.CONFIG_RGBA)
+        egl.createPbufferSurface(8, 8)
+        egl.makeCurrent()
+        val drawer = GlRectDrawer()
+        val frameDrawer = VideoFrameDrawer()
+        try {
+            VideoLookPreviewRenderer().use { renderer ->
+                val card = renderer.render(source, settings, 0f).previews.getValue(VideoLookPreset.BRIGHT)
+                val exposed = JavaI420Buffer.allocate(8, 8)
+                repeat(64) { exposed.dataY.put(it, 158.toByte()) }
+                repeat(16) { exposed.dataU.put(it, 128.toByte()); exposed.dataV.put(it, 128.toByte()) }
+                val input = VideoFrame(exposed, 0, 1L)
+                val actual = VideoColorFrameProcessor().process(input, settings)
+                try {
+                    frameDrawer.drawFrame(actual, drawer, null, 0, 0, 8, 8)
+                    val pixels = ByteBuffer.allocateDirect(8 * 8 * 4)
+                    GLES20.glReadPixels(0, 0, 8, 8, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, pixels)
+                    assertEquals(GLES20.GL_NO_ERROR, GLES20.glGetError())
+                    val expected = card.getPixel(4, 4)
+                    for ((channel, value) in listOf(Color.red(expected), Color.green(expected), Color.blue(expected)).withIndex()) {
+                        val gpu = pixels.get((4 * 8 + 4) * 4 + channel).toInt() and 0xff
+                        assertTrue("+0.8 EV channel=$channel card=$value GPU=$gpu",
+                            kotlin.math.abs(value - gpu) <= 2)
+                    }
+                } finally {
+                    actual.release()
+                    input.release()
+                }
+            }
+        } finally {
+            frameDrawer.release()
+            drawer.release()
+            egl.release()
+        }
+    }
+
     @Test fun presetColorsMatchActualWebRtcGpuOutputForTheSameSource() {
         val egl = EglBase.create(null, EglBase.CONFIG_RGBA)
         egl.createPbufferSurface(8, 8)

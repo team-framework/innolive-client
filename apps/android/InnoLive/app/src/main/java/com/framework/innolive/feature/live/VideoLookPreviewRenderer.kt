@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.roundToInt
 
 data class VideoLookPreviews(
     val settings: BroadcastVideoQualitySettings,
@@ -22,7 +21,11 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
     }
     private val gate = VideoLookPreviewGate()
     private val mutablePreviews = MutableStateFlow<VideoLookPreviews?>(null)
-    private val cachedPresetImages = AtomicReference<Map<VideoLookPreset, Bitmap>?>(null)
+    private data class CachedPresets(
+        val images: Map<VideoLookPreset, Bitmap>,
+        val confirmed: Set<VideoLookPreset>,
+    )
+    private val cachedPresets = AtomicReference<CachedPresets?>(null)
     val previews: StateFlow<VideoLookPreviews?> = mutablePreviews.asStateFlow()
     val isEnabled: Boolean get() = gate.isEnabled
 
@@ -30,9 +33,11 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
         gate.setEnabled(enabled) { mutablePreviews.value = null }
     }
 
+    fun invalidatePendingSample() = gate.reset {}
+
     fun resetSample() {
         gate.reset {
-            cachedPresetImages.set(null)
+            cachedPresets.set(null)
             mutablePreviews.value = null
         }
     }
@@ -40,12 +45,14 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
     /** Only copy camera-owned bytes here; conversion, resizing and rendering run off capture. */
     fun offer(image: ImageProxy, settings: BroadcastVideoQualitySettings, appliedExposureEV: Float) {
         val generation = gate.tryStart(System.nanoTime()) ?: return
-        // Keep the same camera sample across sheet reopenings. Camera exposure changes
-        // the source pixels and clipped highlights cannot be recovered by inverse EV.
-        cachedPresetImages.get()?.let { images ->
+        val selected = VideoLookPreset.entries.firstOrNull { it.matches(settings) }
+        val cached = cachedPresets.get()
+        // A selected preset is confirmed once using its settled hardware exposure, then frozen.
+        // Custom changes and reopening the sheet never regenerate confirmed images.
+        if (cached != null && (selected == null || selected in cached.confirmed)) {
             gate.finish(generation) {
-                if (mutablePreviews.value?.settings != settings || mutablePreviews.value?.previews !== images) {
-                    mutablePreviews.value = VideoLookPreviews(settings, images)
+                if (mutablePreviews.value?.settings != settings || mutablePreviews.value?.previews !== cached.images) {
+                    mutablePreviews.value = VideoLookPreviews(settings, cached.images)
                 }
             }
             return
@@ -59,10 +66,14 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
         try {
             executor.execute {
                 try {
-                    val rendered = render(source, settings, appliedExposureEV)
+                    val images = cached?.images ?: render(source, settings, appliedExposureEV).previews
+                    val confirmedImages = if (selected != null) {
+                        // No simulated EV: this raw camera frame already has the selected exposure.
+                        images + (selected to renderPixels(source, selected.applyTo(settings), appliedExposureEV, appliedExposureEV))
+                    } else images
                     gate.finish(generation) {
-                        cachedPresetImages.set(rendered.previews)
-                        mutablePreviews.value = rendered
+                        cachedPresets.set(CachedPresets(confirmedImages, cached?.confirmed.orEmpty() + listOfNotNull(selected)))
+                        mutablePreviews.value = VideoLookPreviews(settings, confirmedImages)
                     }
                 } catch (_: Exception) {
                     // A thumbnail failure never substitutes a raw image or affects video capture.
@@ -76,7 +87,7 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
 
     override fun close() {
         gate.close {
-            cachedPresetImages.set(null)
+            cachedPresets.set(null)
             mutablePreviews.value = null
         }
         executor.shutdown()
@@ -102,28 +113,25 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
         val rotated = source.rotation == 90 || source.rotation == 270
         val outputWidth = if (rotated) height else width
         val outputHeight = if (rotated) width else height
-        val transform = VideoColorTransform(settings.warmth, settings.saturation)
-        val exposure = previewExposureLookup(targetExposureEV, appliedExposureEV)
+        val transform = VideoLookPreviewPixelTransform(
+            settings.warmth, settings.saturation, targetExposureEV, appliedExposureEV,
+        )
         val pixels = IntArray(width * height)
         repeat(height) { y ->
             val sourceY = source.cropTop + y * source.cropHeight / height
             repeat(width) { x ->
                 val sourceX = source.cropLeft + x * source.cropWidth / width
-                val luma = (source.y[sourceY * source.width + sourceX].toInt() and 0xff) * 1.16438f
+                val luma = source.y[sourceY * source.width + sourceX].toInt() and 0xff
                 val chromaIndex = (sourceY / 2) * source.chromaWidth + sourceX / 2
-                val u = transform.u[source.u[chromaIndex].toInt() and 0xff]
-                val v = transform.v[source.v[chromaIndex].toInt() and 0xff]
-                // Match the shipped WebRTC GlGenericDrawer's YUV shader, including offsets.
-                val r = exposure[(luma + 1.59603f * v - 0.874202f * 255f).roundToInt().coerceIn(0, 255)]
-                val g = exposure[(luma - 0.391762f * u - 0.812968f * v + 0.531668f * 255f).roundToInt().coerceIn(0, 255)]
-                val b = exposure[(luma + 2.01723f * u - 1.08563f * 255f).roundToInt().coerceIn(0, 255)]
+                val u = source.u[chromaIndex].toInt() and 0xff
+                val v = source.v[chromaIndex].toInt() and 0xff
                 val index = when (source.rotation) {
                     90 -> x * height + height - 1 - y
                     180 -> (height - 1 - y) * width + width - 1 - x
                     270 -> (width - 1 - x) * height + y
                     else -> y * width + x
                 }
-                pixels[index] = (0xff shl 24) or (r shl 16) or (g shl 8) or b
+                pixels[index] = transform.pixel(luma, u, v)
             }
         }
         return Bitmap.createBitmap(pixels, outputWidth, outputHeight, Bitmap.Config.ARGB_8888)

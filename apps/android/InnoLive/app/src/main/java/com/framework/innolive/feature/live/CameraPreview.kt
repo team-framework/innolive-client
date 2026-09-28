@@ -104,8 +104,8 @@ fun CameraPreview(
     val onCaptureStateChanged by rememberUpdatedState(onVideoQualityCaptureStateChanged)
     var qualityController by remember { mutableStateOf<CameraVideoQualityController?>(null) }
     SideEffect {
-        frameAnalyzer?.setVideoQualitySettings(videoQualitySettings)
         qualityController?.update(videoQualitySettings)
+        frameAnalyzer?.setVideoQualitySettings(videoQualitySettings)
     }
 
     DisposableEffect(
@@ -120,9 +120,15 @@ fun CameraPreview(
     ) {
         hasCameraError = false
         frameAnalyzer?.resetLookPreviewSample()
+        frameAnalyzer?.beginPreviewExposure()
         onCaptureStateChanged(VideoQualityCaptureState())
-        val controller = CameraVideoQualityController(ContextCompat.getMainExecutor(context)) { state ->
-            frameAnalyzer?.setAppliedExposureEV(state.appliedExposureEV)
+        val controller = CameraVideoQualityController(
+            mainExecutor = ContextCompat.getMainExecutor(context),
+            onExposurePending = { frameAnalyzer?.beginPreviewExposure() },
+            onFrameExposure = { timestamp, exposureEV, settled ->
+                frameAnalyzer?.recordPreviewExposure(timestamp, exposureEV, settled)
+            },
+        ) { state ->
             onCaptureStateChanged(state)
         }
         controller.update(currentSettings)

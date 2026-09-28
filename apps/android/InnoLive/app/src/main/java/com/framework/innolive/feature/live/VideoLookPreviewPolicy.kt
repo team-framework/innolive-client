@@ -64,5 +64,13 @@ internal fun videoLookPreviewDimensions(width: Int, height: Int): Pair<Int, Int>
 internal fun previewExposureLookup(targetEV: Float, appliedEV: Float): IntArray {
     val delta = (targetEV - appliedEV).takeIf(Float::isFinite)?.coerceIn(-4f, 4f) ?: 0f
     val factor = 2.0.pow(delta.toDouble())
-    return IntArray(256) { (it * factor).roundToInt().coerceIn(0, 255) }
+    // EV scales light, not gamma-encoded display bytes. Preserve an exact identity at 0 EV.
+    if (delta == 0f) return IntArray(256) { it }
+    return IntArray(256) {
+        val encoded = it / 255.0
+        val linear = if (encoded <= 0.04045) encoded / 12.92 else ((encoded + 0.055) / 1.055).pow(2.4)
+        val exposed = (linear * factor).coerceIn(0.0, 1.0)
+        val output = if (exposed <= 0.0031308) exposed * 12.92 else 1.055 * exposed.pow(1.0 / 2.4) - 0.055
+        (output * 255.0).roundToInt().coerceIn(0, 255)
+    }
 }

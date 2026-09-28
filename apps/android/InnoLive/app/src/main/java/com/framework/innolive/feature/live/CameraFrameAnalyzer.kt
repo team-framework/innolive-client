@@ -20,7 +20,7 @@ class CameraFrameAnalyzer(
     private var reportedColorFailure = false
     private var previewSink: VideoSink? = null
     private val settings = AtomicReference(BroadcastVideoQualitySettings())
-    private val appliedExposureEV = AtomicReference(0f)
+    private val previewExposure = PreviewExposureFrameGate()
     private val colorProcessor = VideoColorFrameProcessor()
     private val previewRenderer = VideoLookPreviewRenderer()
     val lookPreviews: StateFlow<VideoLookPreviews?> = previewRenderer.previews
@@ -29,9 +29,13 @@ class CameraFrameAnalyzer(
         settings.set(value.normalized())
     }
 
-    fun setAppliedExposureEV(value: Float) {
-        appliedExposureEV.set(value.takeIf(Float::isFinite) ?: 0f)
+    internal fun beginPreviewExposure() {
+        previewExposure.begin()
+        previewRenderer.invalidatePendingSample()
     }
+
+    internal fun recordPreviewExposure(timestamp: Long, exposureEV: Float, settled: Boolean) =
+        previewExposure.record(timestamp, exposureEV, settled)
 
     fun setLookPreviewEnabled(value: Boolean) {
         previewRenderer.setEnabled(value)
@@ -71,7 +75,9 @@ class CameraFrameAnalyzer(
             synchronized(captureLock) {
                 if (closed || (!enabled && !previewRenderer.isEnabled && previewSink == null)) return
                 val currentSettings = settings.get()
-                previewRenderer.offer(image, currentSettings, appliedExposureEV.get())
+                previewExposure.exposureForFrame(image.imageInfo.timestamp)?.let { exposureEV ->
+                    previewRenderer.offer(image, currentSettings, exposureEV)
+                }
                 if (!enabled && previewSink == null) return
                 capture(image, currentSettings)
                 reportedColorFailure = false

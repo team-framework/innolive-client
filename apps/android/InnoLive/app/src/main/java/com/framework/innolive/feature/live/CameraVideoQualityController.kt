@@ -17,6 +17,8 @@ import java.util.concurrent.Executor
 @androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
 internal class CameraVideoQualityController(
     private val mainExecutor: Executor,
+    private val onExposurePending: () -> Unit,
+    private val onFrameExposure: (Long, Float, Boolean) -> Unit,
     private val onStateChanged: (VideoQualityCaptureState) -> Unit,
 ) : AutoCloseable {
     private var camera: Camera? = null
@@ -24,8 +26,8 @@ internal class CameraVideoQualityController(
     private var state = VideoQualityCaptureState()
     private var modes = emptySet<Int>()
     private var requestedMode = VideoQualityCapturePolicy.STABILIZATION_OFF
-    private var exposureIndex = 0
-    private var exposureStep = 0f
+    @Volatile private var exposureIndex = 0
+    @Volatile private var exposureStep = 0f
     private var standardFallback = false
     private var generation = 0
     @Volatile private var closed = false
@@ -37,6 +39,15 @@ internal class CameraVideoQualityController(
             result: TotalCaptureResult,
         ) {
             if (closed) return
+            result.get(CaptureResult.SENSOR_TIMESTAMP)?.let { timestamp ->
+                val requestedIndex = request.get(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION) ?: 0
+                val actualIndex = result.get(CaptureResult.CONTROL_AE_EXPOSURE_COMPENSATION) ?: requestedIndex
+                val aeSettled = result.get(CaptureResult.CONTROL_AE_STATE) != CaptureResult.CONTROL_AE_STATE_SEARCHING &&
+                    result.get(CaptureResult.CONTROL_AE_STATE) != CaptureResult.CONTROL_AE_STATE_PRECAPTURE
+                val awbSettled = result.get(CaptureResult.CONTROL_AWB_STATE) != CaptureResult.CONTROL_AWB_STATE_SEARCHING
+                onFrameExposure(timestamp, actualIndex * exposureStep,
+                    requestedIndex == exposureIndex && actualIndex == exposureIndex && aeSettled && awbSettled)
+            }
             mainExecutor.execute {
                 if (closed || camera == null) return@execute
                 // Late results from a previous slider/toggle request cannot overwrite current state.
@@ -98,6 +109,14 @@ internal class CameraVideoQualityController(
     private fun applyControls() {
         val camera = camera ?: return
         val operation = ++generation
+        if (state.exposureSupported) {
+            val exposure = camera.cameraInfo.exposureState
+            exposureIndex = VideoQualityCapturePolicy.exposureIndex(
+                settings.exposureEV, exposure.exposureCompensationRange.lower,
+                exposure.exposureCompensationRange.upper, exposureStep,
+            )
+        }
+        onExposurePending()
         requestedMode = VideoQualityCapturePolicy.stabilizationMode(
             settings.stabilizationEnabled, modes,
             supportsPreview = Build.VERSION.SDK_INT >= 33 && !standardFallback,
@@ -126,11 +145,6 @@ internal class CameraVideoQualityController(
             }
         }, mainExecutor)
         if (state.exposureSupported) {
-            val exposure = camera.cameraInfo.exposureState
-            exposureIndex = VideoQualityCapturePolicy.exposureIndex(
-                settings.exposureEV, exposure.exposureCompensationRange.lower,
-                exposure.exposureCompensationRange.upper, exposureStep,
-            )
             val adjustment = camera.cameraControl.setExposureCompensationIndex(exposureIndex)
             adjustment.addListener({
                 if (!closed && operation == generation) {

@@ -6,10 +6,17 @@ import org.junit.Test
 class VideoLookPreviewPolicyTest {
     @Test fun exposureIsRelativeToWhatTheCameraActuallyApplied() {
         assertArrayEquals(IntArray(256) { it }, previewExposureLookup(0.8f, 0.8f))
-        assertEquals(100, previewExposureLookup(1f, 0f)[50])
-        assertEquals(50, previewExposureLookup(0f, 1f)[100])
+        assertEquals(71, previewExposureLookup(1f, 0f)[50])
+        assertEquals(71, previewExposureLookup(0f, 1f)[100])
         assertEquals(255, previewExposureLookup(2f, -2f)[100])
         assertEquals(100, previewExposureLookup(Float.NaN, 0f)[100])
+    }
+
+    @Test fun brightExposureDoesNotMultiplyGammaEncodedBytesOrClipMidtones() {
+        val lookup = previewExposureLookup(0.8f, 0f)
+        assertEquals(165, lookup[128])
+        assertEquals(230, lookup[180])
+        assertTrue(lookup[180] < 255)
     }
 
     @Test fun previewsRequireAnOpenPanelAndNeverQueueMoreThanOneJob() {
