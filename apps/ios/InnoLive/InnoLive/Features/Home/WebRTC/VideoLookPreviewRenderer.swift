@@ -6,59 +6,30 @@ import ImageIO
 /// Makes small upright stills from an unprocessed camera buffer.
 /// Capture callbacks must finish using the source buffer before returning.
 nonisolated final class VideoLookPreviewRenderer: @unchecked Sendable {
-    static let shared = VideoLookPreviewRenderer()
-
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
     private let maxPixelSize: CGFloat = 960
 
-    func makeBaseImage(pixelBuffer: CVPixelBuffer, rotation: Int) -> CGImage? {
-        let oriented = CIImage(cvPixelBuffer: pixelBuffer).oriented(Self.orientation(rotation))
-        return render(scaled(oriented))
-    }
-
     func makePreviewSet(
         pixelBuffer: CVPixelBuffer,
         rotation: Int,
-        adjustments: [(warmth: Float, saturation: Float, relativeExposureEV: Float)]
-    ) -> (base: CGImage, previews: [CGImage?])? {
+        adjustments: [(warmth: Float, saturation: Float, exposureEV: Float)]
+    ) -> [CGImage?] {
         let source = scaled(CIImage(cvPixelBuffer: pixelBuffer).oriented(Self.orientation(rotation)))
-        guard let base = render(source) else { return nil }
-        let previews = adjustments.map { adjustment in
-            render(filtered(source, warmth: adjustment.warmth, saturation: adjustment.saturation, relativeExposureEV: adjustment.relativeExposureEV))
+        return adjustments.map { adjustment in
+            render(filtered(source, warmth: adjustment.warmth, saturation: adjustment.saturation, exposureEV: adjustment.exposureEV))
         }
-        return (base, previews)
-    }
-
-    func makePreview(
-        from base: CGImage,
-        warmth: Float,
-        saturation: Float,
-        relativeExposureEV: Float
-    ) -> CGImage? {
-        let warmth = min(max(warmth, -1), 1)
-        let saturation = min(max(saturation, 0), 2)
-        let exposure = min(max(relativeExposureEV, -4), 4)
-        guard warmth.isFinite, saturation.isFinite, exposure.isFinite else { return nil }
-        if warmth == 0, saturation == 1, exposure == 0 {
-            return base
-        }
-
-        var image = CIImage(cgImage: base)
-        image = filtered(image, warmth: warmth, saturation: saturation, relativeExposureEV: relativeExposureEV)
-        let extent = CGRect(x: 0, y: 0, width: base.width, height: base.height)
-        return render(image.cropped(to: extent))
     }
 
     private func filtered(
         _ image: CIImage,
         warmth: Float,
         saturation: Float,
-        relativeExposureEV: Float
+        exposureEV: Float
     ) -> CIImage {
         let warmth = min(max(warmth, -1), 1)
         let saturation = min(max(saturation, 0), 2)
-        let exposure = min(max(relativeExposureEV, -4), 4)
+        let exposure = min(max(exposureEV, -2), 2)
         guard warmth.isFinite, saturation.isFinite, exposure.isFinite else { return image }
         var image = image
         if exposure != 0 {
