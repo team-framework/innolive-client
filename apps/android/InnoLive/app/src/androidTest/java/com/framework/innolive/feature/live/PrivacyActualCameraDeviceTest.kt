@@ -28,6 +28,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeFalse
 import org.junit.Test
 import org.junit.runner.RunWith
+import com.framework.innolive.feature.live.privacy.PrivacyCameraPeer
+import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
+import com.framework.innolive.feature.live.privacy.PrivacyFaceService
+import com.framework.innolive.feature.live.privacy.PrivacyRegisteredFace
+import com.framework.innolive.feature.live.privacy.PrivacyTextureReadbackCounter
+import org.webrtc.*
 import org.webrtc.CapturerObserver
 import org.webrtc.EglBase
 import org.webrtc.PeerConnectionFactory
@@ -40,7 +46,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Real camera + production protection + local renderer. No PeerConnection, HTTP or saved images. */
+/** Real camera + production AI. Optional host ICE encode/decode; no HTTP or saved images. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyActualCameraDeviceTest {
     @androidx.camera.core.ExperimentalGetImage
@@ -51,6 +57,11 @@ class PrivacyActualCameraDeviceTest {
         val batchOne=InstrumentationRegistry.getArguments().getString("privacyBatchOne","true").toBoolean()
         val pendingLatest=InstrumentationRegistry.getArguments().getString("privacyPendingLatest","true").toBoolean()
         val performancePreview=InstrumentationRegistry.getArguments().getString("privacyPreviewPerformance","false").toBoolean()
+        val localPeer = InstrumentationRegistry.getArguments().getString("privacyLocalPeer", "false").toBoolean()
+        val recognizeFace = InstrumentationRegistry.getArguments().getString("privacyRecognizeFace", "false").toBoolean()
+        val preferHardware = InstrumentationRegistry.getArguments().getString("privacyHardwareCodec", "true").toBoolean()
+        val durationMs = InstrumentationRegistry.getArguments().getString("privacyDurationMs", "25000").toLong()
+        val onlyHeight = InstrumentationRegistry.getArguments().getString("privacyHeight")?.toInt()
         val context = instrumentation.targetContext
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             instrumentation.uiAutomation.grantRuntimePermission(context.packageName, Manifest.permission.CAMERA)
@@ -67,7 +78,7 @@ class PrivacyActualCameraDeviceTest {
                 activity = it
             }
             val host = checkNotNull(activity)
-            for ((width, height) in listOf(1920 to 1080, 1280 to 720)) {
+            for ((width, height) in listOf(1920 to 1080, 1280 to 720).filter { onlyHeight == null || it.second == onlyHeight }) {
                 val egl = EglBase.create()
                 lateinit var previewView: PreviewView
                 lateinit var renderer: SurfaceViewRenderer
@@ -102,20 +113,80 @@ class PrivacyActualCameraDeviceTest {
                 val observedSize = ConcurrentLinkedQueue<Pair<Int, Int>>()
                 val textureFrames = AtomicInteger()
                 val hardwareBufferInspected = AtomicBoolean(false)
+                val decoded = AtomicInteger()
+                val decodedGaps = ConcurrentLinkedQueue<Double>()
+                var lastDecodedNs = 0L
+                val factory = if (localPeer) PeerConnectionFactory.builder()
+                    .setVideoEncoderFactory(DefaultVideoEncoderFactory(egl.eglBaseContext,true,true))
+                    .setVideoDecoderFactory(DefaultVideoDecoderFactory(egl.eglBaseContext))
+                    .createPeerConnectionFactory() else null
+                val source = factory?.createVideoSource(false)
+                val track = factory?.createVideoTrack("camera-protected",checkNotNull(source))
+                val sender = factory?.let { PrivacyCameraPeer(it) {} }
+                val receiver = factory?.let { PrivacyCameraPeer(it) { frame ->
+                    renderer.onFrame(frame)
+                    if (collecting.get()) {
+                        val now = System.nanoTime()
+                        if (lastDecodedNs != 0L) decodedGaps.add((now-lastDecodedNs)/1e6)
+                        lastDecodedNs = now
+                        decoded.incrementAndGet()
+                    }
+                } }
+                if (sender != null && receiver != null) {
+                    val transceiver = checkNotNull(sender.connection.addTransceiver(checkNotNull(track),
+                        RtpTransceiver.RtpTransceiverInit(RtpTransceiver.RtpTransceiverDirection.SEND_ONLY)))
+                    if (preferHardware) {
+                        val codecs = checkNotNull(preferredHardwareVideoCodecs(
+                            checkNotNull(factory).getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs,
+                            HardwareVideoEncoderFactory(egl.eglBaseContext,true,true).supportedCodecs.toList()))
+                        assertTrue(transceiver.setCodecPreferences(codecs).isSuccess())
+                    }
+                    sender.local(sender.create(true))
+                    assertTrue(sender.gathered.await(5,TimeUnit.SECONDS))
+                    receiver.remote(checkNotNull(sender.connection.localDescription))
+                    receiver.local(receiver.create(false))
+                    assertTrue(receiver.gathered.await(5,TimeUnit.SECONDS))
+                    sender.remote(checkNotNull(receiver.connection.localDescription))
+                    assertTrue(sender.connected.await(8,TimeUnit.SECONDS))
+                    assertTrue(receiver.connected.await(8,TimeUnit.SECONDS))
+                }
+                fun stats(): Map<String,Any> {
+                    val pc = sender?.connection ?: return emptyMap()
+                    val done = CountDownLatch(1)
+                    var values: Map<String,Any> = emptyMap()
+                    pc.getStats { report ->
+                        val outbound=report.statsMap.values.firstOrNull { it.type=="outbound-rtp" &&
+                            (it.members["kind"]=="video" || it.members["mediaType"]=="video") }
+                        outbound?.let { values = it.members.toMutableMap().apply {
+                            put("mimeType", report.statsMap[it.members["codecId"]]?.members?.get("mimeType") ?: "unknown")
+                        } }
+                        done.countDown()
+                    }
+                    assertTrue(done.await(5,TimeUnit.SECONDS))
+                    return values
+                }
                 val analyzer = CameraFrameAnalyzer(object : CapturerObserver {
-                    override fun onCapturerStarted(success: Boolean) = Unit
-                    override fun onCapturerStopped() = Unit
+                    override fun onCapturerStarted(success: Boolean) { source?.capturerObserver?.onCapturerStarted(success) }
+                    override fun onCapturerStopped() { source?.capturerObserver?.onCapturerStopped() }
                     override fun onFrameCaptured(frame: VideoFrame) {
                         observedSize.add(frame.buffer.width to frame.buffer.height)
                         if (collecting.get() && frame.buffer is VideoFrame.TextureBuffer) textureFrames.incrementAndGet()
-                        renderer.onFrame(frame)
+                        if (source != null) source.capturerObserver.onFrameCaptured(frame) else renderer.onFrame(frame)
                         ready.countDown()
                     }
                 }, context, initialOnDevice = true, sharedEglContext = egl.eglBaseContext, onProcessingFailure = {
                     failures.incrementAndGet(); ready.countDown()
                 },directCameraInput=optimized,directGpuInput=optimized,nativePostprocessing=batchOne,batchTwoOptimizations=
                     InstrumentationRegistry.getArguments().getString("privacyBatchTwo", "true").toBoolean(),
-                    keepLatestProtectedFrame=pendingLatest)
+                    keepLatestProtectedFrame=pendingLatest).apply {
+                    faceCoordinatorFactory=if (recognizeFace) ({
+                        PrivacyFaceCoordinator(PrivacyFaceService.get(context),
+                            revisionSource = { 0L }) {
+                            listOf(PrivacyRegisteredFace("fps-fixture", "fps-fixture",
+                                FloatArray(512).apply {this[0]=1f}, 0L))
+                        }
+                    }) else null
+                }
                 analyzer.onFrameDiagnostics = { if (collecting.get()) samples.add(it) }
                 val executor = Executors.newSingleThreadExecutor()
                 val selector = ResolutionSelector.Builder().setResolutionStrategy(
@@ -146,15 +217,27 @@ class PrivacyActualCameraDeviceTest {
                             CameraSelector.DEFAULT_FRONT_CAMERA,listOf(preview,analysis),viewPort)
                         Log.i("PrivacyActualCamera","size=${width}x$height fixed_capture_30=$fixed30")
                     }
-                    assertTrue("No protected camera frame arrived", ready.await(20, TimeUnit.SECONDS))
+                    assertTrue("No protected camera frame arrived", ready.await(30, TimeUnit.SECONDS))
+                    if (recognizeFace) assertTrue(
+                        "Face model was still warming while protected frames entered WebRTC",
+                        PrivacyFaceService.get(context).ready,
+                    )
                     assertEquals("AI frame processing failed", 0, failures.get())
                     Thread.sleep(3000) // Exclude compilation and initial exposure settling.
+                    val initialStats = stats()
+                    val readbacks = PrivacyTextureReadbackCounter.value()
                     val started = System.nanoTime()
                     collecting.set(true)
-                    Thread.sleep(25_000)
+                    Thread.sleep(durationMs)
                     collecting.set(false)
                     val seconds = (System.nanoTime() - started) / 1e9
                     val measured = samples.toList()
+                    val finalStats = stats()
+                    fun delta(key:String) = ((finalStats[key] as? Number)?.toDouble() ?: 0.0) -
+                        ((initialStats[key] as? Number)?.toDouble() ?: 0.0)
+                    val encoded = delta("framesEncoded")
+                    val decodeGaps = decodedGaps.sorted()
+                    if (localPeer) assertTrue("No protected frames decoded over RTP", decoded.get() > 0)
                     assertTrue("GPU texture output was not used", textureFrames.get() > 0)
                     assertTrue("No steady AI samples", measured.isNotEmpty())
                     assertEquals(0, failures.get())
@@ -178,7 +261,13 @@ class PrivacyActualCameraDeviceTest {
                         val values = protected.map(select).sorted()
                         return values[values.size / 2]
                     }
-                    val metrics="optimized=$optimized batch_one=$batchOne pending_latest=$pendingLatest performance_preview=$performancePreview size=${width}x$height seconds=$seconds " +
+                    val metrics="local_peer=$localPeer recognize_face=$recognizeFace hardware_preferred=$preferHardware codec=${finalStats["mimeType"]} " +
+                        "encoder=${finalStats["encoderImplementation"]} encoded_fps=${encoded/seconds} decoded_fps=${decoded.get()/seconds} " +
+                        "encode_mean_ms=${if(encoded>0) delta("totalEncodeTime")*1000/encoded else Double.NaN} " +
+                        "decoded_gap_p95_ms=${decodeGaps.getOrNull((decodeGaps.size*.95).toInt().coerceAtMost(decodeGaps.lastIndex))} " +
+                        "decoded_gap_max_ms=${decodeGaps.lastOrNull()} texture_readbacks=${PrivacyTextureReadbackCounter.value()-readbacks} " +
+                        "quality_limitation=${finalStats["qualityLimitationReason"]} " +
+                        "optimized=$optimized batch_one=$batchOne pending_latest=$pendingLatest performance_preview=$performancePreview size=${width}x$height seconds=$seconds " +
                         "captures=${captures.get()} processed=${measured.size} " +
                         "capture_fps=${captures.get() / seconds} processed_fps=${measured.size / seconds} " +
                         "analysis_age_p95_ms=$ageP95 " +
@@ -210,6 +299,8 @@ class PrivacyActualCameraDeviceTest {
                         renderer.release()
                     }
                     executor.shutdownNow()
+                    sender?.connection?.dispose(); receiver?.connection?.dispose()
+                    track?.dispose(); source?.dispose(); factory?.dispose()
                     egl.release()
                 }
             }

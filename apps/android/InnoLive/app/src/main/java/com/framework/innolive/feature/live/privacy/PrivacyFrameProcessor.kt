@@ -16,14 +16,16 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                                      private val allowGpuImages: Boolean = true, directGpuInput:Boolean=true,
                                      private val nativePostprocessing: Boolean = true,
                                      private val batchTwoOptimizations: Boolean = true,
-                                     private val asyncFaceReadback: Boolean = false) : AutoCloseable {
+                                     private val asyncFaceReadback: Boolean = false,
+                                     faceCoordinatorFactory: (() -> PrivacyFaceCoordinator)? = null) : AutoCloseable {
     private var imageGpu: PrivacyGpuFramePipeline? = null
     private var imageGpuUnavailable = !allowGpuImages
     private val gpuRetry = PrivacyGpuRetryPolicy(allowGpuImages)
     private val model = PrivacyOnnxModel(context.applicationContext,directGpuInput=directGpuInput,
         nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations)
     private val pixels = PrivacyPixelConverter()
-    private val faces = PrivacyFaceCoordinator(context.applicationContext, optimized=nativePostprocessing)
+    private val faces = faceCoordinatorFactory?.invoke() ?:
+        PrivacyFaceCoordinator(context.applicationContext, optimized=nativePostprocessing)
     var lastTimings: PrivacyFrameTimings? = null
         private set
     val lastAnalysis: PrivacyFrameAnalysis? get() = model.lastAnalysis
@@ -54,6 +56,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                 }
             }
             resetFaceExceptions();geometry=null
+            faces.prewarmForUplink()
         } finally {neutral.release()}
     }
 

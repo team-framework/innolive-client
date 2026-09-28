@@ -111,6 +111,7 @@ class WebRtcConnection(
     private val timerExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor()
     private var privacyStatsTask: ScheduledFuture<*>? = null
+    private var previousPrivacyVideoStats: PrivacyVideoStats? = null
     private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
@@ -383,22 +384,32 @@ class WebRtcConnection(
     }
 
     private fun samplePrivacyStats() {
-        if (!isActive() || !onDeviceProcessing) return
+        if (!isActive() || !onDeviceProcessing) {
+            previousPrivacyVideoStats = null
+            return
+        }
         val connection = peerConnection ?: return
-        val sender = videoSender ?: return
         runCatching {
-            connection.getStats(sender) { report ->
+            connection.getStats { report ->
                 executeOnOwner {
                     if (!isActive() || !onDeviceProcessing) return@executeOnOwner
                     val outbound = report.statsMap.values.firstOrNull { it.type == "outbound-rtp" &&
                         (it.members["kind"] == "video" || it.members["mediaType"] == "video") }
                     if (outbound != null) {
-                        val fields = listOf("framesEncoded", "framesSent", "packetsSent", "bytesSent")
-                            .joinToString(" ") { key -> "$key=${(outbound.members[key] as? Number)?.toLong() ?: -1}" }
-                        val codecId=outbound.members["codecId"] as? String
-                        val mime=codecId?.let {report.statsMap[it]?.members?.get("mimeType")}
-                        val implementation=outbound.members["encoderImplementation"]
-                        Log.i("PrivacyPipeline", "outbound_video $fields mime=$mime encoder=$implementation " +
+                        val now = System.nanoTime()
+                        val current = PrivacyVideoStats.from(outbound.members, now)
+                        val previous = previousPrivacyVideoStats
+                        previousPrivacyVideoStats = current
+                        val inbound = report.statsMap.values.firstOrNull { it.type == "inbound-rtp" &&
+                            (it.members["kind"] == "video" || it.members["mediaType"] == "video") }
+                        val codecId = outbound.members["codecId"] as? String
+                        val mime = codecId?.let { report.statsMap[it]?.members?.get("mimeType") }
+                        Log.i("PrivacyPipeline", "outbound_video ${current.interval(previous)} " +
+                            "mime=$mime encoder=${outbound.members["encoderImplementation"]} " +
+                            "quality_limitation=${outbound.members["qualityLimitationReason"]} " +
+                            "encoded_size=${outbound.members["frameWidth"]}x${outbound.members["frameHeight"]} " +
+                            "inbound_decoded=${inbound?.members?.get("framesDecoded")} " +
+                            "inbound_dropped=${inbound?.members?.get("framesDropped")} " +
                             "texture_to_i420_total=${PrivacyTextureReadbackCounter.value()}")
                     }
                 }

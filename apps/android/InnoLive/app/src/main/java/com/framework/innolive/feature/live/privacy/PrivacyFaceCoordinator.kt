@@ -33,6 +33,17 @@ internal class PrivacyFaceCoordinator(
         previousLayout = null
     }
 
+    /** Finish the expensive face model validation before protected frames can enter WebRTC. */
+    fun prewarmForUplink() {
+        refreshRevision()
+        if (entries().isEmpty()) { releaseLease(); return }
+        if (!leased) { service.retain(); leased = true }
+        service.prepare()
+        if (!service.awaitPreparation(20_000)) {
+            android.util.Log.w("PrivacyFace", "prewarm_unavailable_blur_all=true")
+        }
+    }
+
     /** Start at most one independent recognition job. The analyzer never waits for its result. */
     fun beginFrame(upright: Bitmap, timestampNs: Long) =
         beginFrame(upright.width, upright.height, timestampNs) { copyCrop(upright, it) }

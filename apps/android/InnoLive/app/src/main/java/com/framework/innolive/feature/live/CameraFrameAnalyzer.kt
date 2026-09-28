@@ -39,6 +39,7 @@ class CameraFrameAnalyzer(
     private val batchTwoOptimizations: Boolean = true,
     private val keepLatestProtectedFrame:Boolean = true,
 ) : ImageAnalysis.Analyzer {
+    internal var faceCoordinatorFactory: (() -> com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator)? = null
     private val enabled = AtomicBoolean(false)
     private val protectedFrameReported = AtomicBoolean(false)
     private val processing = AtomicBoolean(false)
@@ -65,7 +66,8 @@ class CameraFrameAnalyzer(
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
         if (initialOnDevice && !batchTwoOptimizations) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
-            nativePostprocessing=nativePostprocessing,batchTwoOptimizations=false) else null
+            nativePostprocessing=nativePostprocessing,batchTwoOptimizations=false,
+            faceCoordinatorFactory=faceCoordinatorFactory) else null
     private val route = PrivacyFrameRoute(
         when {
             !initialOnDevice -> PrivacyFrameMode.SERVER
@@ -77,6 +79,7 @@ class CameraFrameAnalyzer(
     private fun processor():PrivacyFrameProcessor = localProcessor ?: PrivacyFrameProcessor(
         checkNotNull(applicationContext),sharedEglContext,directGpuInput=directGpuInput,
         nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations,
+        faceCoordinatorFactory=faceCoordinatorFactory,
     ).also {localProcessor=it}
 
     private fun schedulePreparation() {
@@ -102,12 +105,17 @@ class CameraFrameAnalyzer(
         if (onDevice && localProcessor == null && !batchTwoOptimizations) {
             synchronized(processorLock) {if(localProcessor==null) processor()}
         }
-        resetPending.set(true)
-        route.change(when {
+        val nextMode = when {
             !onDevice -> PrivacyFrameMode.SERVER
             anonymizationEnabled -> PrivacyFrameMode.LOCAL_PROTECTED
             else -> PrivacyFrameMode.LOCAL_RAW
-        })
+        }
+        if (nextMode == PrivacyFrameMode.LOCAL_PROTECTED &&
+            route.ticket()?.mode != PrivacyFrameMode.LOCAL_PROTECTED) {
+            protectedPrepared = false
+        }
+        resetPending.set(true)
+        route.change(nextMode)
         pendingProtectedCamera.clearPending()?.close()
         protectedFrameReported.set(false)
         if (batchTwoOptimizations && !stopped.get()) {

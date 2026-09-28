@@ -1,11 +1,16 @@
 package com.framework.innolive.feature.live
 
 import android.graphics.Rect
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.camera.core.ImageInfo
 import androidx.camera.core.ImageProxy
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
+import com.framework.innolive.feature.live.privacy.PrivacyFaceRecognitionService
+import com.framework.innolive.feature.live.privacy.PrivacyFaceService
+import com.framework.innolive.feature.live.privacy.PrivacyRegisteredFace
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -23,6 +28,55 @@ import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(AndroidJUnit4::class)
 class CameraFrameAnalyzerDeviceTest {
+    @Test fun returningToProtectedModeWaitsForFacePreparationAgain() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        PeerConnectionFactory.initialize(
+            PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
+        val secondPreparation = CountDownLatch(1)
+        val preparationCount = AtomicInteger()
+        val service = object : PrivacyFaceRecognitionService {
+            override val ready = true
+            override val canSubmit = false
+            override fun prepare() = Unit
+            override fun awaitPreparation(timeoutMillis: Long): Boolean {
+                if (preparationCount.incrementAndGet() > 1) {
+                    return secondPreparation.await(timeoutMillis, TimeUnit.MILLISECONDS)
+                }
+                return true
+            }
+            override fun takeResult(): PrivacyFaceService.Result? = null
+            override fun submitRecognition(image: Bitmap, bounds: Rect, generation: Long,
+                trackId: String, capturedAtSeconds: Double) = false
+        }
+        val analyzer = CameraFrameAnalyzer(object : CapturerObserver {
+            override fun onCapturerStarted(success: Boolean) = Unit
+            override fun onCapturerStopped() = Unit
+            override fun onFrameCaptured(frame: VideoFrame) = Unit
+        }, context, initialOnDevice = true).apply {
+            faceCoordinatorFactory = {
+                PrivacyFaceCoordinator(service) {
+                    listOf(PrivacyRegisteredFace("fixture", "fixture",
+                        FloatArray(512).apply { this[0] = 1f }, 0L))
+                }
+            }
+        }
+        analyzer.start()
+        try {
+            assertTrue(analyzer.awaitProtectedPreparation())
+            analyzer.setProcessingMode(onDevice = false, anonymizationEnabled = true)
+            analyzer.setProcessingMode(onDevice = true, anonymizationEnabled = true)
+            assertFalse("Protected uplink resumed before face preparation count=${preparationCount.get()}",
+                analyzer.awaitProtectedPreparation(0))
+            secondPreparation.countDown()
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15)
+            while (!analyzer.awaitProtectedPreparation(0) && System.nanoTime() < deadline) Thread.sleep(10)
+            assertTrue("Protected uplink did not resume", analyzer.awaitProtectedPreparation(0))
+        } finally {
+            secondPreparation.countDown()
+            analyzer.stop()
+        }
+    }
+
     @Test fun measure1080pCameraCopyThroughProtectedDelivery() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(

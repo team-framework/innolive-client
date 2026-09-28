@@ -19,6 +19,7 @@ internal interface PrivacyFaceRecognitionService {
     val ready: Boolean
     val canSubmit: Boolean
     fun prepare()
+    fun awaitPreparation(timeoutMillis: Long): Boolean = ready
     fun retain() = Unit
     fun release() = Unit
     fun takeResult(): PrivacyFaceService.Result?
@@ -109,6 +110,21 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
                 preparation.complete(success = false)
                 Log.w("PrivacyFace", "model_prepare_failed type=${error.javaClass.simpleName}")
             }
+        }
+    }
+
+    override fun awaitPreparation(timeoutMillis: Long): Boolean {
+        // The preparation job runs before this barrier on the same executor.
+        val barrier = executor.submit<Boolean> { ready }
+        return try {
+            barrier.get(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS)
+        } catch (_: InterruptedException) {
+            barrier.cancel(false)
+            Thread.currentThread().interrupt()
+            false
+        } catch (_: Exception) {
+            barrier.cancel(false)
+            false
         }
     }
 

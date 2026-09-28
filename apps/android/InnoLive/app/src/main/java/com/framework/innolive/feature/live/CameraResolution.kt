@@ -13,6 +13,16 @@ internal fun isWithinCameraResolutionLimit(width: Int, height: Int): Boolean =
     maxOf(width, height) <= MAX_CAMERA_LONG_EDGE &&
         minOf(width, height) <= MAX_CAMERA_SHORT_EDGE
 
+/** On-device AI and an encoder share the GPU; start at HD unless the user chooses otherwise. */
+internal fun defaultCameraResolution(options: List<CameraResolution>, onDevice: Boolean): CameraResolution? =
+    if (onDevice) options.firstOrNull { it.width.toLong() * it.height <= 1280L * 720L }
+        ?: options.firstOrNull()
+    else options.firstOrNull()
+
+internal fun selectedCameraResolution(options: List<CameraResolution>, explicitKey: String?,
+                                      onDevice: Boolean): CameraResolution? =
+    options.firstOrNull { it.key == explicitKey } ?: defaultCameraResolution(options, onDevice)
+
 data class CameraResolution(
     val width: Int,
     val height: Int,

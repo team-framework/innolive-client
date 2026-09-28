@@ -53,6 +53,7 @@ import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
+import com.framework.innolive.feature.live.selectedCameraResolution
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
@@ -432,6 +433,7 @@ fun AppNavigation(
     var selectedResolutionKey by rememberSaveable {
         mutableStateOf<String?>(null)
     }
+    var resolutionManuallySelected by rememberSaveable { mutableStateOf(false) }
     var selectedCameraLensFacing by rememberSaveable {
         mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
     }
@@ -523,6 +525,7 @@ fun AppNavigation(
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         supportedCameraResolutions = emptyList()
         selectedResolutionKey = null
+        resolutionManuallySelected = false
         cameraProviderFuture.addListener(
             {
                 if (!isDisposed) {
@@ -545,18 +548,17 @@ fun AppNavigation(
         onDispose { isDisposed = true }
     }
 
-    LaunchedEffect(supportedCameraResolutions, selectedResolutionKey) {
-        if (supportedCameraResolutions.none { resolution ->
-                resolution.key == selectedResolutionKey
-            }
-        ) {
-            selectedResolutionKey = supportedCameraResolutions.firstOrNull()?.key
+    LaunchedEffect(supportedCameraResolutions, selectedResolutionKey, resolutionManuallySelected) {
+        if (resolutionManuallySelected && supportedCameraResolutions.isNotEmpty() &&
+            supportedCameraResolutions.none { it.key == selectedResolutionKey }) {
+            selectedResolutionKey = null
+            resolutionManuallySelected = false
         }
     }
 
-    val selectedResolution = supportedCameraResolutions.firstOrNull { resolution ->
-        resolution.key == selectedResolutionKey
-    }
+    val selectedResolution = selectedCameraResolution(supportedCameraResolutions,
+        selectedResolutionKey.takeIf { resolutionManuallySelected },
+        webRtcSession.selectedOnDeviceProcessing)
     val selectedAudioInput = audioInputDevices.firstOrNull { device ->
         device.id == selectedAudioDeviceId
     } ?: audioInputDevices.firstOrNull()
@@ -959,8 +961,11 @@ fun AppNavigation(
                                     label = UiText.Dynamic(resolution.displayName),
                                 )
                             },
-                            selectedKey = selectedResolutionKey.orEmpty(),
-                            onOptionSelected = { key -> selectedResolutionKey = key },
+                            selectedKey = selectedResolution?.key.orEmpty(),
+                            onOptionSelected = { key ->
+                                selectedResolutionKey = key
+                                resolutionManuallySelected = true
+                            },
                         )
 
                         SettingOptionType.CAMERA_DEVICE -> OptionSelectionConfig(
