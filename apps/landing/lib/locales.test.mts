@@ -4,6 +4,7 @@ import {
   interpolate,
   isLocale,
   localePath,
+  shouldRememberLocale,
   stripLocalePrefix,
   switchLocalePath,
 } from "./locales.ts";
@@ -26,4 +27,12 @@ test("지원 로케일과 경로 접두사", () => {
   assert.equal(switchLocalePath("/ko/pricing", "en"), "/en/pricing");
   assert.equal(switchLocalePath("/en", "ja", "", "#faq"), "/ja/#faq");
   assert.equal(interpolate("{name} 링크는 아직 없습니다", { name: "GitHub" }), "GitHub 링크는 아직 없습니다");
+});
+
+test("언어 페이지 미리 불러오기는 언어 선택 쿠키를 바꾸지 않는다", () => {
+  assert.equal(shouldRememberLocale(new Headers()), true);
+  assert.equal(shouldRememberLocale(new Headers({ "sec-fetch-dest": "document" })), true);
+  assert.equal(shouldRememberLocale(new Headers({ "sec-fetch-dest": "empty" })), false);
+  assert.equal(shouldRememberLocale(new Headers({ purpose: "prefetch" })), false);
+  assert.equal(shouldRememberLocale(new Headers({ "sec-purpose": "prefetch" })), false);
 });
