@@ -19,6 +19,10 @@ export function LanguageSwitch({ className }: { className?: string }) {
           <Link
             key={code}
             href={localizePath(code)}
+            prefetch={false}
+            onNavigate={() => {
+              document.cookie = `NEXT_LOCALE=${code}; Path=/; SameSite=Lax`;
+            }}
             hrefLang={code}
             lang={code}
             aria-current={current ? "page" : undefined}

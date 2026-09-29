@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,8 @@ import com.framework.innolive.ui.text.asString
 @Composable
 fun LoginScreen(props: LoginScreenProps) {
     var showEmailAuthentication by rememberSaveable { mutableStateOf(false) }
+    var hasAcceptedGoogleConsent by remember { mutableStateOf(false) }
+    var showGoogleConsent by remember { mutableStateOf(false) }
     val isGoogleLoginInProgress = props.googleSignInState is GoogleSignInState.InProgress
     val googleLoginError = (props.googleSignInState as? GoogleSignInState.Failed)?.error
 
@@ -97,7 +100,7 @@ fun LoginScreen(props: LoginScreenProps) {
                 ),
                 enabled = !isGoogleLoginInProgress,
                 onClick = {
-                    props.onGoogleLogin()
+                    if (hasAcceptedGoogleConsent) props.onGoogleLogin() else showGoogleConsent = true
                 }
             ) {
                 Row(
@@ -161,5 +164,15 @@ fun LoginScreen(props: LoginScreenProps) {
                 }
             }
         }
+    }
+    if (showGoogleConsent) {
+        AccountConsentDialog(
+            onAccept = {
+                hasAcceptedGoogleConsent = true
+                showGoogleConsent = false
+                props.onGoogleLogin()
+            },
+            onDismiss = { showGoogleConsent = false },
+        )
     }
 }

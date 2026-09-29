@@ -27,7 +27,7 @@ struct BroadcastSettingsView: View {
 
     var body: some View {
         ScrollView {
-            GlassEffectContainer {
+            InnoLiveGlassContainer {
                 VStack(spacing: 12) {
                     NavigationLink {
                         BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
@@ -116,7 +116,7 @@ struct BroadcastSettingsView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 46)
                     }
-                    .buttonStyle(.glassProminent)
+                    .innoLiveGlassButtonStyle(prominent: true)
                     .tint(.blue)
                     .disabled(isPrimaryActionDisabled)
                 }
@@ -272,7 +272,7 @@ struct BroadcastSettingsView: View {
         content()
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular, in: .rect(cornerRadius: 16))
+            .innoLiveGlassBackground(cornerRadius: 16)
     }
 
     private func settingsRow(title: String) -> some View {

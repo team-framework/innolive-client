@@ -26,7 +26,7 @@ struct BroadcastControllsView: View {
                 }
             }
 
-            GlassEffectContainer {
+            InnoLiveGlassContainer {
                 VStack(spacing: 8) {
                     HStack(spacing: 10) {
                         NavigationLink {
@@ -34,7 +34,7 @@ struct BroadcastControllsView: View {
                         } label: {
                             SettingsControlLabel()
                         }
-                        .buttonStyle(.glass)
+                        .innoLiveGlassButtonStyle()
                         .buttonBorderShape(.circle)
                         .accessibilityLabel(String(localized: "설정"))
 
@@ -48,7 +48,7 @@ struct BroadcastControllsView: View {
                                 ServerConnectionControlLabel(isLoading: isPreparingConnection)
                             }
                         }
-                        .buttonStyle(.glassProminent)
+                        .innoLiveGlassButtonStyle(prominent: true)
                         .buttonBorderShape(.capsule)
                         .tint(primaryButtonTint)
                         .frame(maxWidth: .infinity)
@@ -68,7 +68,7 @@ struct BroadcastControllsView: View {
                                 isLoading: youtube.isTogglingAnonymization
                             )
                         }
-                        .buttonStyle(.glass)
+                        .innoLiveGlassButtonStyle()
                         .buttonBorderShape(.circle)
                         .tint(youtube.isAnonymizationEnabled ? .purple : nil)
                         .disabled(!isBroadcasting || youtube.isTogglingAnonymization)

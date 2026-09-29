@@ -11,7 +11,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 private val jsonMediaType = "application/json".toMediaType()
 
@@ -20,6 +22,7 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
         require(url.isHttps) { "INNOLIVE_SERVER_URL must use HTTPS." }
     }
     private val httpClient = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS).build()
+    private val closeStarted = AtomicBoolean(false)
 
     suspend fun configuration(): YouTubeConfiguration = withContext(Dispatchers.IO) {
         execute(requestBuilder("/auth/youtube/config").get().build(), "YouTube configuration") { body ->
@@ -72,8 +75,20 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
     }
 
     override fun close() {
-        httpClient.connectionPool.evictAll()
-        httpClient.dispatcher.executorService.shutdown()
+        if (!closeStarted.compareAndSet(false, true)) return
+
+        val cleanup = Runnable {
+            try {
+                httpClient.connectionPool.evictAll()
+            } finally {
+                httpClient.dispatcher.executorService.shutdown()
+            }
+        }
+        try {
+            httpClient.dispatcher.executorService.execute(cleanup)
+        } catch (_: RejectedExecutionException) {
+            Thread(cleanup, "youtube-api-close").start()
+        }
     }
 
     private fun requestBuilder(path: String): Request.Builder =

@@ -115,7 +115,7 @@ struct FaceRegistrationCaptureView: View {
         .padding(.horizontal, 18)
         .frame(maxWidth: .infinity)
         .frame(minHeight: 62)
-        .glassEffect(.regular, in: .rect(cornerRadius: 20))
+        .innoLiveGlassBackground(cornerRadius: 20)
         .accessibilityElement(children: .combine)
     }
 
@@ -155,7 +155,7 @@ struct FaceRegistrationCaptureView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
             }
-            .buttonStyle(.glassProminent)
+            .innoLiveGlassButtonStyle(prominent: true)
             .tint(.blue)
         default:
             EmptyView()

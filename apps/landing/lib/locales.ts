@@ -14,6 +14,15 @@ export function isLocale(value: string): value is Locale {
   return (locales as readonly string[]).includes(value);
 }
 
+export function shouldRememberLocale(headers: Headers): boolean {
+  const destination = headers.get("sec-fetch-dest");
+  if (destination && destination !== "document") return false;
+
+  return !["purpose", "sec-purpose"].some((name) =>
+    headers.get(name)?.toLowerCase().includes("prefetch"),
+  );
+}
+
 export function localePath(locale: Locale, path: string): string {
   const hashIndex = path.indexOf("#");
   const hash = hashIndex >= 0 ? path.slice(hashIndex) : "";

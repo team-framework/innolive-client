@@ -151,6 +151,6 @@ struct BroadcastFeedbackBanner: View {
             }
         }
         .padding(10)
-        .glassEffect(.regular, in: .rect(cornerRadius: 14))
+        .innoLiveGlassBackground(cornerRadius: 14)
     }
 }

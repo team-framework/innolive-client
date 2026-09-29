@@ -141,6 +141,9 @@ final class AuthSessionAccountDeletionTests: XCTestCase {
 
 @MainActor
 private final class AccountDeletionAuthenticationAPI: AuthenticationAPIClient {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var deleteResults: [Result<Void, Error>] = []
     var deleteGateIsEnabled = false
     var refreshResult: Result<AuthenticationTokenPair, Error> = .failure(AccountDeletionAuthenticationError.unexpectedCall)
@@ -216,6 +219,9 @@ private final class AccountDeletionAuthenticationAPI: AuthenticationAPIClient {
 
 @MainActor
 private final class AccountDeletionTokenStore: AuthenticationTokenStoring {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     private(set) var tokens: AuthenticationTokenPair?
 
     init(tokens: AuthenticationTokenPair?) {

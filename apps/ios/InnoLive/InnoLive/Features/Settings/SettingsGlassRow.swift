@@ -16,9 +16,10 @@ struct SettingsGlassRow<Content: View>: View {
     var body: some View {
         content
             .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
-            .frame(height: 56)
+            .frame(minHeight: 56)
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .glassEffect(.regular, in: .rect(cornerRadius: 16))
+            .innoLiveGlassBackground(cornerRadius: 16)
     }
 }

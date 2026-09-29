@@ -43,6 +43,13 @@
     <string name="new_to_innolive">InnoLive가 처음이신가요?</string>
     <string name="already_have_account">이미 계정이 있으신가요?</string>
     <string name="action_sign_up">회원가입</string>
+    <string name="account_consent_title">개인정보 수집·이용 동의</string>
+    <string name="account_consent_refusal">동의를 거부할 수 있습니다. 동의하지 않으면 회원가입 또는 Google 로그인을 진행할 수 없습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다.</string>
+    <string name="account_consent_scroll_hint">개인정보처리방침 전문을 끝까지 스크롤하면 동의할 수 있습니다.</string>
+    <string name="account_consent_load_failed">개인정보처리방침 전문을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.</string>
+    <string name="account_consent_external_link_failed">링크를 열지 못했습니다. 필요한 앱을 설치하거나 설정을 확인한 뒤 다시 시도해 주세요.</string>
+    <string name="account_consent_accept">동의하고 계속</string>
+    <string name="account_consent_cancel">취소</string>
     <string name="verification_title">이메일을 확인해 주세요</string>
     <string name="verification_complete_title">이메일 인증 완료</string>
     <string name="verification_description">위 주소로 보낸 6자리 인증 코드를 입력해 주세요.</string>

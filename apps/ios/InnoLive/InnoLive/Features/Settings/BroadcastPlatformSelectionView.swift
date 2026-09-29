@@ -23,7 +23,7 @@ struct BroadcastPlatformSelectionView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                GlassEffectContainer {
+                InnoLiveGlassContainer {
                     VStack(spacing: 12) {
                         ForEach(visiblePlatforms) { platform in
                             platformRow(platform)
@@ -65,7 +65,7 @@ struct BroadcastPlatformSelectionView: View {
                     Button(String(localized: "OAuth 연결")) {
                         isShowingCHZZKUnavailableAlert = true
                     }
-                    .buttonStyle(.glassProminent)
+                    .innoLiveGlassButtonStyle(prominent: true)
                     .tint(.blue)
                 }
             }
@@ -93,7 +93,7 @@ struct BroadcastPlatformSelectionView: View {
                                     Text(String(localized: "계정 연결"))
                                 }
                             }
-                            .buttonStyle(.glassProminent)
+                            .innoLiveGlassButtonStyle(prominent: true)
                             .tint(.blue)
                             .disabled(youtube.isYouTubeAccountChangeBlocked)
                         }
@@ -147,7 +147,7 @@ struct BroadcastPlatformSelectionView: View {
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+        .innoLiveGlassBackground(cornerRadius: 16)
     }
 
     private func youTubeConnectedAccountActions(requiresReconnection: Bool) -> some View {

@@ -156,6 +156,9 @@ struct WebRTCLocalPreviewView: UIViewRepresentable {
     }
 
     final class Coordinator {
+        // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+        nonisolated deinit {}
+
         var uplink: WebRTCVideoUplink
 
         init(uplink: WebRTCVideoUplink) {
@@ -193,6 +196,9 @@ private struct WebRTCRemoteVideoView: UIViewRepresentable {
 }
 
 private final class NativeWebRTCVideoView: UIView {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     let remoteVideoView = LKRTCMTLVideoView(frame: .zero)
     weak var uplink: WebRTCVideoUplink?
 

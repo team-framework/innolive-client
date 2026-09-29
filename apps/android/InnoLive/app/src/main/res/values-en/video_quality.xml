@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_controls_title">Video adjustments</string>
+    <string name="video_presets">Presets</string>
+    <string name="video_preset_vivid">Vivid</string>
+    <string name="video_preset_bright">Bright</string>
+    <string name="video_preset_warm">Warm</string>
+    <string name="video_preview_pending">Preset previews appear when the camera is available.</string>
+    <string name="video_exposure">Exposure</string>
+    <string name="video_exposure_value">%1$s EV</string>
+    <string name="video_exposure_unavailable">Exposure adjustment is unavailable for the current camera.</string>
+    <string name="video_darker">Darker</string>
+    <string name="video_brighter">Brighter</string>
+    <string name="video_warmth">Warmth</string>
+    <string name="video_cooler">Cooler</string>
+    <string name="video_warmer">Warmer</string>
+    <string name="video_saturation">Saturation</string>
+    <string name="video_percent_value">%1$d%%</string>
+    <string name="video_reset">Reset adjustments</string>
+    <string name="video_stabilization">Video stabilization</string>
+    <string name="video_stabilization_active">Active on the current camera</string>
+    <string name="video_stabilization_unsupported">Unavailable for the current camera or resolution</string>
+    <string name="video_stabilization_pending">Checking camera stabilization</string>
+    <string name="video_stabilization_inactive">Applies when the camera starts</string>
+    <string name="video_stabilization_off">Off</string>
+</resources>

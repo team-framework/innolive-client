@@ -1,0 +1,247 @@
+package com.framework.innolive.feature.live
+
+import android.Manifest
+import android.graphics.Bitmap
+import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import com.framework.innolive.ui.theme.MyApplicationTheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import java.io.File
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicInteger
+import org.webrtc.CapturerObserver
+import org.webrtc.VideoFrame
+import org.webrtc.VideoSink
+
+/** Uses CameraX's real capture callback and ImageProxy planes; no account or WebRTC session. */
+class CameraVideoQualityDeviceTest {
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun realCameraPreviewAndSenderReceiveTheSameProcessedFrame() {
+        grantCameraPermission()
+        WebRtcNativeRuntime.initialize(InstrumentationRegistry.getInstrumentation().targetContext)
+        val previewFrame = AtomicReference<VideoFrame?>()
+        val sharedFrames = AtomicInteger()
+        val mismatches = AtomicInteger()
+        val analyzer = CameraFrameAnalyzer(object : CapturerObserver {
+            override fun onCapturerStarted(success: Boolean) = Unit
+            override fun onCapturerStopped() = Unit
+            override fun onFrameCaptured(frame: VideoFrame) {
+                if (previewFrame.get() === frame) sharedFrames.incrementAndGet() else mismatches.incrementAndGet()
+            }
+        })
+        analyzer.setProcessedPreviewSink(VideoSink { previewFrame.set(it) })
+        analyzer.start()
+        compose.setContent {
+            CameraPreview(
+                cameraLensFacing = CameraLensFacing.BACK,
+                cameraResolution = null,
+                frameAnalyzer = analyzer,
+                videoQualitySettings = VideoLookPreset.WARM.applyTo(BroadcastVideoQualitySettings()),
+                showAdjustedColorPreview = false,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        try {
+            compose.waitUntil(20_000) { sharedFrames.get() >= 5 }
+            assertEquals(0, mismatches.get())
+        } finally {
+            analyzer.setProcessedPreviewSink(null)
+            analyzer.close()
+        }
+    }
+
+    @Test fun offlineCameraProducesPresetsAfterSettingsChangeAndRebind() {
+        grantCameraPermission()
+        val analyzer = CameraFrameAnalyzer()
+        val settings = mutableStateOf(BroadcastVideoQualitySettings())
+        val visible = mutableStateOf(true)
+        val panelVisible = mutableStateOf(true)
+        val captureState = AtomicReference(VideoQualityCaptureState())
+        compose.setContent {
+            if (visible.value) {
+                DisposableEffect(analyzer, panelVisible.value) {
+                    analyzer.setLookPreviewEnabled(panelVisible.value)
+                    onDispose { analyzer.setLookPreviewEnabled(false) }
+                }
+                CameraPreview(
+                    cameraLensFacing = CameraLensFacing.BACK,
+                    cameraResolution = null,
+                    frameAnalyzer = analyzer,
+                    videoQualitySettings = settings.value,
+                    onVideoQualityCaptureStateChanged = captureState::set,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+        try {
+            waitForCamera(analyzer, captureState)
+            assertValidPreviews(analyzer.lookPreviews.value)
+            val firstPreviews = checkNotNull(analyzer.lookPreviews.value).previews
+            val adjusted = BroadcastVideoQualitySettings(exposureEV = -1.5f, warmth = -0.7f, saturation = 0.4f)
+            compose.runOnIdle { settings.value = adjusted }
+            compose.waitUntil(15_000) { analyzer.lookPreviews.value?.settings == adjusted }
+            assertValidPreviews(analyzer.lookPreviews.value)
+            VideoLookPreset.entries.forEach { preset ->
+                assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
+            }
+
+            compose.runOnIdle { panelVisible.value = false }
+            compose.waitUntil(5_000) { analyzer.lookPreviews.value == null }
+            compose.runOnIdle { panelVisible.value = true }
+            compose.waitUntil(5_000) { analyzer.lookPreviews.value?.settings == adjusted }
+            VideoLookPreset.entries.forEach { preset ->
+                assertSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
+            }
+
+            compose.runOnIdle { visible.value = false }
+            compose.waitUntil(5_000) { analyzer.lookPreviews.value == null }
+            captureState.set(VideoQualityCaptureState())
+            compose.runOnIdle { visible.value = true }
+            waitForCamera(analyzer, captureState)
+            assertEquals(adjusted, analyzer.lookPreviews.value?.settings)
+            VideoLookPreset.entries.forEach { preset ->
+                assertNotSame(firstPreviews.getValue(preset), analyzer.lookPreviews.value?.previews?.get(preset))
+            }
+            val state = captureState.get()
+            assertTrue(state.appliedExposureEV in -2f..2f)
+            assertTrue(state.minExposureEV <= state.maxExposureEV)
+        } finally {
+            compose.runOnIdle { visible.value = false }
+            analyzer.close()
+            assertNull(analyzer.lookPreviews.value)
+        }
+    }
+
+    @Test fun selectedPresetIsConfirmedOnceAndRemainsFixedAfterCustomChanges() {
+        grantCameraPermission()
+        val analyzer = CameraFrameAnalyzer()
+        val settings = mutableStateOf(BroadcastVideoQualitySettings())
+        val captureState = AtomicReference(VideoQualityCaptureState())
+        compose.setContent {
+            DisposableEffect(analyzer) {
+                analyzer.setLookPreviewEnabled(true)
+                onDispose { analyzer.setLookPreviewEnabled(false) }
+            }
+            CameraPreview(
+                cameraLensFacing = CameraLensFacing.BACK,
+                cameraResolution = null,
+                frameAnalyzer = analyzer,
+                videoQualitySettings = settings.value,
+                onVideoQualityCaptureStateChanged = captureState::set,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        try {
+            waitForCamera(analyzer, captureState)
+            val initial = checkNotNull(analyzer.lookPreviews.value).previews
+            val bright = VideoLookPreset.BRIGHT.applyTo(settings.value)
+            compose.runOnIdle { settings.value = bright }
+            compose.waitUntil(20_000) {
+                analyzer.lookPreviews.value?.settings == bright &&
+                    analyzer.lookPreviews.value?.previews?.get(VideoLookPreset.BRIGHT) !== initial[VideoLookPreset.BRIGHT]
+            }
+            val confirmed = checkNotNull(analyzer.lookPreviews.value).previews
+            assertSame(initial[VideoLookPreset.VIVID], confirmed[VideoLookPreset.VIVID])
+            assertSame(initial[VideoLookPreset.WARM], confirmed[VideoLookPreset.WARM])
+            val custom = bright.copy(exposureEV = -1f, warmth = -0.5f)
+            compose.runOnIdle { settings.value = custom }
+            compose.waitUntil(20_000) { analyzer.lookPreviews.value?.settings == custom }
+            VideoLookPreset.entries.forEach { assertSame(confirmed[it], analyzer.lookPreviews.value?.previews?.get(it)) }
+            compose.runOnIdle { analyzer.setLookPreviewEnabled(false); analyzer.setLookPreviewEnabled(true) }
+            compose.waitUntil(5_000) { analyzer.lookPreviews.value != null }
+            VideoLookPreset.entries.forEach { assertSame(confirmed[it], analyzer.lookPreviews.value?.previews?.get(it)) }
+            compose.runOnIdle { settings.value = bright }
+            compose.waitUntil(20_000) { analyzer.lookPreviews.value?.settings == bright }
+            VideoLookPreset.entries.forEach { assertSame(confirmed[it], analyzer.lookPreviews.value?.previews?.get(it)) }
+        } finally {
+            analyzer.close()
+        }
+    }
+
+    @Test fun captureVideoAdjustmentSheetWithRealCameraPreviews() {
+        grantCameraPermission()
+        val analyzer = CameraFrameAnalyzer()
+        val settings = mutableStateOf(VideoLookPreset.BRIGHT.applyTo(BroadcastVideoQualitySettings()))
+        val captureState = mutableStateOf(VideoQualityCaptureState())
+        compose.setContent {
+            val previews by analyzer.lookPreviews.collectAsState()
+            DisposableEffect(analyzer) {
+                analyzer.setLookPreviewEnabled(true)
+                onDispose { analyzer.setLookPreviewEnabled(false) }
+            }
+            MyApplicationTheme {
+                Box(Modifier.fillMaxSize()) {
+                    CameraPreview(
+                        cameraLensFacing = CameraLensFacing.BACK,
+                        cameraResolution = null,
+                        frameAnalyzer = analyzer,
+                        videoQualitySettings = settings.value,
+                        onVideoQualityCaptureStateChanged = { captureState.value = it },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    BroadcastVideoControls(
+                        settings = settings.value,
+                        captureState = captureState.value,
+                        previews = previews?.previews,
+                        onSettingsChanged = { settings.value = it },
+                        onDismiss = {},
+                    )
+                }
+            }
+        }
+        try {
+            compose.waitUntil(20_000) { analyzer.lookPreviews.value?.previews?.size == VideoLookPreset.entries.size }
+            compose.waitForIdle()
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val orientation = instrumentation.targetContext.resources.configuration.orientation
+            val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+            val output = File(instrumentation.targetContext.getExternalFilesDir(null), "video-adjustments-$orientation.png")
+            output.outputStream().use { assertTrue(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+        } finally {
+            analyzer.close()
+        }
+    }
+
+    private fun waitForCamera(analyzer: CameraFrameAnalyzer, state: AtomicReference<VideoQualityCaptureState>) {
+        compose.waitUntil(20_000) {
+            analyzer.lookPreviews.value?.previews?.size == VideoLookPreset.entries.size &&
+                state.get().stabilizationStatus != VideoStabilizationStatus.PENDING
+        }
+    }
+
+    private fun assertValidPreviews(value: VideoLookPreviews?) {
+        assertNotNull(value)
+        val previews = checkNotNull(value).previews
+        assertEquals(VideoLookPreset.entries.toSet(), previews.keys)
+        previews.values.forEach { bitmap ->
+            assertTrue(bitmap.width > 0)
+            assertTrue(bitmap.height > 0)
+            assertTrue(maxOf(bitmap.width, bitmap.height) <= 480)
+            assertTrue(!bitmap.isRecycled)
+        }
+    }
+
+    private fun grantCameraPermission() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            Manifest.permission.CAMERA,
+        )
+    }
+}

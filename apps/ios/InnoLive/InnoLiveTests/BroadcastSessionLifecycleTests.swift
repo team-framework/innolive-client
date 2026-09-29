@@ -362,6 +362,9 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
 
 @MainActor
 private final class MemoryBroadcastSessionStore: BroadcastSessionStoring {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var records: [String: StoredBroadcastSession] = [:]
     var failSave = false
     var failLoad = false
@@ -381,6 +384,9 @@ private final class MemoryBroadcastSessionStore: BroadcastSessionStoring {
 }
 
 private final class SessionLifecycleURLProtocol: URLProtocol {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     struct Response {
         let status: Int
         let body: String

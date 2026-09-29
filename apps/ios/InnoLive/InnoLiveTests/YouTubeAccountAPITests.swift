@@ -228,6 +228,9 @@ final class YouTubeAccountAPITests: XCTestCase {
 }
 
 private final class AccountManagementURLProtocol: URLProtocol {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     struct Response {
         let statusCode: Int
         let data: Data

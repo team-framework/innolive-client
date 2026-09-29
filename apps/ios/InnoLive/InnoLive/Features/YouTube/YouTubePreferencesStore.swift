@@ -1,6 +1,9 @@
 import Foundation
 
 final class YouTubePreferencesStore {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     private enum Key {
         static let connection = "com.framework.innolive.youtube.connection"
         static let broadcastSettings = "com.framework.innolive.youtube.broadcast-settings.v1"

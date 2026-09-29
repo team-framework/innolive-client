@@ -66,12 +66,13 @@ final class PrivacySegmentationTests: XCTestCase {
         for y in 20..<30 { for x in 10..<20 { bytes[y * 160 + x] = 255 } }
         let image = try PrivacyMask.modelImage(bytes: bytes)
         let context = CIContext(options: [.useSoftwareRenderer: true])
-        var sample = [UInt8](repeating: 0, count: 1)
-        context.render(image, toBitmap: &sample, rowBytes: 1,
+        // iOS 18 Core Image는 한 픽셀을 읽을 때도 행 바이트 수가 4의 배수여야 한다.
+        var sample = [UInt8](repeating: 0, count: 4)
+        context.render(image, toBitmap: &sample, rowBytes: 4,
                        bounds: CGRect(x: 15, y: 135, width: 1, height: 1), format: .L8,
                        colorSpace: CGColorSpaceCreateDeviceGray())
         XCTAssertEqual(sample[0], 255)
-        context.render(image, toBitmap: &sample, rowBytes: 1,
+        context.render(image, toBitmap: &sample, rowBytes: 4,
                        bounds: CGRect(x: 15, y: 25, width: 1, height: 1), format: .L8,
                        colorSpace: CGColorSpaceCreateDeviceGray())
         XCTAssertEqual(sample[0], 0)

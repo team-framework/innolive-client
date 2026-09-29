@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { defaultLocale, isLocale } from "@/lib/locales";
+import { defaultLocale, isLocale, shouldRememberLocale } from "@/lib/locales";
 
 const publicFile = /\.[^/]+$/;
 
@@ -18,10 +18,12 @@ export function proxy(request: NextRequest) {
 
   if (isLocale(firstSegment)) {
     const response = NextResponse.next();
-    response.cookies.set("NEXT_LOCALE", firstSegment, {
-      path: "/",
-      sameSite: "lax",
-    });
+    if (shouldRememberLocale(request.headers)) {
+      response.cookies.set("NEXT_LOCALE", firstSegment, {
+        path: "/",
+        sameSite: "lax",
+      });
+    }
     return response;
   }
 

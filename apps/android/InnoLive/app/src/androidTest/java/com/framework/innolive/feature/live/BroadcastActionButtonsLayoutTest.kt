@@ -1,20 +1,15 @@
 package com.framework.innolive.feature.live
 
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
@@ -66,7 +61,7 @@ class BroadcastActionButtonsLayoutTest {
     }
 
     @Test
-    fun preparedInformationButtonOpensStartAndCancelActions() {
+    fun preparedInformationButtonStaysCentered() {
         compose.setContent {
             MaterialTheme {
                 BroadcastActionControls(
@@ -77,8 +72,6 @@ class BroadcastActionButtonsLayoutTest {
                         broadcastStatus = "방송 준비 완료",
                     ),
                     onBroadcastAction = {},
-                    leading = { Box(Modifier.size(48.dp).testTag("face-control")) },
-                    trailing = { Box(Modifier.size(48.dp).testTag("anonymization-control")) },
                 )
             }
         }
@@ -86,15 +79,9 @@ class BroadcastActionButtonsLayoutTest {
         val infoBounds = compose.onNodeWithText(
             compose.activity.getString(R.string.broadcast_state_prepared),
         ).getUnclippedBoundsInRoot()
-        val faceBounds = compose.onNodeWithTag("face-control").getUnclippedBoundsInRoot()
-        val anonymizationBounds = compose.onNodeWithTag("anonymization-control").getUnclippedBoundsInRoot()
-
-        val startCenterY = (infoBounds.top.value + infoBounds.bottom.value) / 2f
-        val faceCenterY = (faceBounds.top.value + faceBounds.bottom.value) / 2f
-        val anonymizationCenterY = (anonymizationBounds.top.value + anonymizationBounds.bottom.value) / 2f
-
-        assertEquals(startCenterY, faceCenterY, 0.5f)
-        assertEquals(startCenterY, anonymizationCenterY, 0.5f)
+        val screenWidth = compose.activity.resources.displayMetrics.widthPixels /
+            compose.activity.resources.displayMetrics.density
+        assertEquals(screenWidth / 2f, (infoBounds.left.value + infoBounds.right.value) / 2f, 0.5f)
     }
 
     @Test
@@ -111,8 +98,6 @@ class BroadcastActionButtonsLayoutTest {
                 BroadcastActionControls(
                     presentation = presentation,
                     onBroadcastAction = { open = true },
-                    leading = {},
-                    trailing = {},
                 )
                 if (open) {
                     BroadcastActionDialog(
@@ -149,8 +134,6 @@ class BroadcastActionButtonsLayoutTest {
                 BroadcastActionControls(
                     presentation = presentation,
                     onBroadcastAction = { open = true },
-                    leading = {},
-                    trailing = {},
                 )
                 if (open) {
                     BroadcastActionDialog(

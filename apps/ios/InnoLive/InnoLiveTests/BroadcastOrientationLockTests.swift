@@ -166,6 +166,9 @@ final class BroadcastOrientationLockTests: XCTestCase {
 
 @MainActor
 private final class OrientationSample {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var value: BroadcastInterfaceOrientation
 
     init(_ value: BroadcastInterfaceOrientation) {
@@ -174,5 +177,8 @@ private final class OrientationSample {
 }
 
 private final class GeometryErrorBox: @unchecked Sendable {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var value: Error?
 }

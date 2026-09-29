@@ -179,6 +179,9 @@ final class SignupConsentTests: XCTestCase {
 }
 
 private final class ConsentTestAPI: AuthenticationAPIClient {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var signupCalls = 0
     var googleCalls = 0
     var emailSignInCalls = 0
@@ -206,6 +209,9 @@ private final class ConsentTestAPI: AuthenticationAPIClient {
 }
 
 private final class ConsentTokenStore: AuthenticationTokenStoring {
+    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     var tokens: AuthenticationTokenPair?
     func load() -> AuthenticationTokenPair? { tokens }
     func save(_ tokens: AuthenticationTokenPair) throws { self.tokens = tokens }

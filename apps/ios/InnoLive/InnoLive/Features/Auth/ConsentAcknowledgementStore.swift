@@ -1,6 +1,9 @@
 import Foundation
 
 final class ConsentAcknowledgementStore {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     private enum Key {
         static let mediaTransmission = "com.framework.innolive.consent.media-transmission.v1"
         static let youtubeTransmission = "com.framework.innolive.consent.youtube-transmission.v1"

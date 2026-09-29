@@ -53,7 +53,7 @@ struct SignupConsentView: View {
                         onAccept(consent)
                         dismiss()
                     }
-                    .buttonStyle(.glassProminent)
+                    .innoLiveGlassButtonStyle(prominent: true)
                     .controlSize(.large)
                     .frame(maxWidth: .infinity)
                     .disabled(!consent.hasReadToEnd)

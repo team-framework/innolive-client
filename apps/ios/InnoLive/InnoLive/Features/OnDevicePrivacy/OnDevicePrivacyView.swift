@@ -5,6 +5,9 @@ import SwiftUI
 
 @MainActor
 final class OnDevicePrivacyController: ObservableObject {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     @Published var image: CGImage?
     @Published var status = "카메라를 준비합니다."
     @Published var running = false

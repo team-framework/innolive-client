@@ -59,6 +59,9 @@ private struct AnonymizationRequest: Encodable {
 
 @MainActor
 final class YouTubeAPI {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     private let urlSession: URLSession
     private let serverURLProvider: @MainActor @Sendable (String) -> URL?
     private var accessTokenProvider: (() -> String?)?

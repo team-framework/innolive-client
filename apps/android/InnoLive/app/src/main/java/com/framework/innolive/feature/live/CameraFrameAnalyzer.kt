@@ -14,6 +14,9 @@ import com.framework.innolive.feature.live.privacy.PrivacyFrameTimings
 import org.webrtc.CapturerObserver
 import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
+import org.webrtc.VideoSink
+import kotlinx.coroutines.flow.StateFlow
+import java.util.concurrent.atomic.AtomicReference
 import org.webrtc.EglBase
 import com.framework.innolive.feature.live.privacy.PrivacyGpuBackpressureException
 import com.framework.innolive.feature.live.privacy.PrivacyCameraInput
@@ -25,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 class CameraFrameAnalyzer(
-    private val capturerObserver: CapturerObserver,
+    private val capturerObserver: CapturerObserver? = null,
     private val applicationContext: Context? = null,
     initialOnDevice: Boolean = false,
     initialAnonymizationEnabled: Boolean = true,
@@ -38,7 +41,16 @@ class CameraFrameAnalyzer(
     private val nativePostprocessing: Boolean = true,
     private val batchTwoOptimizations: Boolean = true,
     private val keepLatestProtectedFrame:Boolean = true,
-) : ImageAnalysis.Analyzer {
+) : ImageAnalysis.Analyzer, AutoCloseable {
+    private val captureLock = Any()
+    private val settings = AtomicReference(BroadcastVideoQualitySettings())
+    private val previewExposure = PreviewExposureFrameGate()
+    private val colorProcessor = VideoColorFrameProcessor()
+    private val previewRenderer = VideoLookPreviewRenderer()
+    val lookPreviews: StateFlow<VideoLookPreviews?> = previewRenderer.previews
+    @Volatile private var previewSink: VideoSink? = null
+    private var reportedColorFailure = false
+
     internal var faceCoordinatorFactory: (() -> com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator)? = null
     private val enabled = AtomicBoolean(false)
     private val protectedFrameReported = AtomicBoolean(false)
@@ -124,6 +136,31 @@ class CameraFrameAnalyzer(
         }
     }
 
+    fun setVideoQualitySettings(value: BroadcastVideoQualitySettings) {
+        settings.set(value.normalized())
+    }
+
+    internal fun beginPreviewExposure() = synchronized(captureLock) {
+        previewExposure.begin()
+        previewRenderer.invalidatePendingSample()
+    }
+
+    internal fun recordPreviewExposure(timestamp: Long, exposureEV: Float, settled: Boolean) =
+        previewExposure.record(timestamp, exposureEV, settled)
+
+    fun setLookPreviewEnabled(value: Boolean) = synchronized(captureLock) {
+        previewRenderer.setEnabled(value)
+    }
+
+    fun resetLookPreviewSample() = synchronized(captureLock) {
+        previewExposure.begin()
+        previewRenderer.resetSample()
+    }
+
+    fun setProcessedPreviewSink(sink: VideoSink?) = synchronized(captureLock) {
+        if (!stopped.get()) previewSink = sink
+    }
+
     fun resetFaceExceptions() {
         route.invalidate()
         pendingProtectedCamera.clearPending()?.close()
@@ -132,7 +169,7 @@ class CameraFrameAnalyzer(
 
     fun start() {
         if (enabled.compareAndSet(false, true)) {
-            capturerObserver.onCapturerStarted(true)
+            capturerObserver?.onCapturerStarted(true)
             if (route.ticket()?.mode==PrivacyFrameMode.LOCAL_PROTECTED) schedulePreparation()
         }
     }
@@ -142,7 +179,7 @@ class CameraFrameAnalyzer(
         pendingProtectedCamera.clearPending()?.close()
         if (!stopped.compareAndSet(false, true)) return
         if (enabled.compareAndSet(true, false)) {
-            capturerObserver.onCapturerStopped()
+            capturerObserver?.onCapturerStopped()
         }
         worker.execute {
             synchronized(processorLock) {
@@ -154,12 +191,28 @@ class CameraFrameAnalyzer(
         worker.shutdown()
     }
 
+    override fun close() {
+        synchronized(captureLock) {
+            previewSink = null
+            previewRenderer.close()
+        }
+        stop()
+    }
+
     override fun analyze(image: ImageProxy) {
         var ticket: PrivacyFrameRoute.Ticket? = null
         var reserved = false
         var transferredImage = false
         try {
-            if (!enabled.get()) return
+            synchronized(captureLock) {
+                if (!stopped.get() && (enabled.get() || previewRenderer.isEnabled || previewSink != null)) {
+                    val currentSettings = settings.get()
+                    previewExposure.exposureForFrame(image.imageInfo.timestamp)?.let { exposureEV ->
+                        previewRenderer.offer(image, currentSettings, exposureEV)
+                    }
+                }
+            }
+            if (!enabled.get() && previewSink == null) return
             val currentTicket = route.ticket() ?: return
             ticket = currentTicket
             val receivedAtNs=System.nanoTime()
@@ -239,7 +292,10 @@ class CameraFrameAnalyzer(
                 } else {
                     try {
                         route.deliver(currentTicket) {
-                            capturerObserver.onFrameCaptured(frame)
+                            relayAdjustedFrame(frame) { adjusted ->
+                                previewSink?.onFrame(adjusted)
+                                capturerObserver?.onFrameCaptured(adjusted)
+                            }
                         }
                     } finally {
                         frame.release()
@@ -248,8 +304,11 @@ class CameraFrameAnalyzer(
             } finally {
                 source.release()
             }
-        } catch (_: Exception) {
-            ticket?.let { route.deliver(it, onProcessingFailure) }
+        } catch (error: Exception) {
+            reportVideoAdjustmentFailure(error)
+            if (ticket?.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
+                ticket?.let { route.deliver(it, onProcessingFailure) }
+            }
         } finally {
             if (reserved) processing.set(false)
             if(!transferredImage) image.close()
@@ -289,9 +348,12 @@ class CameraFrameAnalyzer(
             try {
                 val deliveryStarted = System.nanoTime()
                 val wasDelivered = route.deliver(ticket) {
-                    capturerObserver.onFrameCaptured(outgoing)
-                    delivered.incrementAndGet()
-                    if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
+                    relayAdjustedFrame(outgoing) { adjusted ->
+                        previewSink?.onFrame(adjusted)
+                        capturerObserver?.onFrameCaptured(adjusted)
+                        delivered.incrementAndGet()
+                        if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
+                    }
                 }
                 val completed = System.nanoTime()
                 if ((BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) && wasDelivered) {
@@ -318,6 +380,18 @@ class CameraFrameAnalyzer(
             releaseInput()
             if(releaseSlot) processing.set(false)
             logCounts()
+        }
+    }
+
+    private fun relayAdjustedFrame(frame: VideoFrame, deliver: (VideoFrame) -> Unit) {
+        relayColorFrame(frame, settings.get(), colorProcessor::process, deliver)
+        reportedColorFailure = false
+    }
+
+    private fun reportVideoAdjustmentFailure(error: Exception) {
+        if (!reportedColorFailure) {
+            reportedColorFailure = true
+            Log.w("CameraFrameAnalyzer", "video_adjustment_frame_dropped type=${error.javaClass.simpleName}")
         }
     }
 

@@ -2,6 +2,9 @@ import Foundation
 
 @MainActor
 final class ReferenceFaceAPI {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
     private let authentication: AuthSession
 
     init(authentication: AuthSession) {
