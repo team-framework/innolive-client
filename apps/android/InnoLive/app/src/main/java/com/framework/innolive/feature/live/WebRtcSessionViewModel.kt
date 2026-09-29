@@ -27,6 +27,7 @@ import kotlin.coroutines.resume
 
 class WebRtcSessionViewModel : ViewModel() {
     private var startJob: Job? = null
+    private var lastRefreshAccessToken: (suspend () -> String)? = null
     private var prepareJob: Job? = null
     var isPreparingBroadcast by mutableStateOf(false)
         private set
@@ -125,19 +126,13 @@ class WebRtcSessionViewModel : ViewModel() {
         if (connectionState != WebRtcConnectionState.CONNECTED) {
             return selectInitialAIProcessing(context, onDevice)
         }
-        val currentConnection = connection ?: return false
-        val generation = sessionState.generation
-        isAIProcessingChanging = true
-        aiProcessingChangeFailed = false
-        currentConnection.setAIProcessingMode(onDevice, selectedAnonymizationEnabled) { success ->
-            if (!isCurrentGeneration(generation)) return@setAIProcessingMode
-            isAIProcessingChanging = false
-            aiProcessingChangeFailed = !success
-            if (success) {
-                AIProcessingPreference(context).also { it.onDevice = onDevice; aiProcessingPreference = it }
-                selectedOnDeviceProcessing = onDevice
-            }
-        }
+        if (selectedOnDeviceProcessing == onDevice) return true
+        // Codec preferences are part of the offer. A connected preview cannot keep its old
+        // PeerConnection when moving between the two AI locations.
+        val refresh = lastRefreshAccessToken ?: return false
+        close()
+        check(selectInitialAIProcessing(context, onDevice))
+        start(context, refresh)
         return true
     }
 
@@ -179,6 +174,7 @@ class WebRtcSessionViewModel : ViewModel() {
             return
         }
 
+        lastRefreshAccessToken = refreshAccessToken
         val preference = AnonymizationPreference(context)
         anonymizationPreference = preference
         selectedAnonymizationEnabled = preference.enabled
@@ -453,6 +449,7 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun close() {
+        lastRefreshAccessToken = null
         isAIProcessingChanging = false
         aiProcessingChangeFailed = false
         lockedBroadcastRotation = null

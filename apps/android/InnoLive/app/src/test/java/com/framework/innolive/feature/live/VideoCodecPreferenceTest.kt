@@ -33,6 +33,23 @@ class VideoCodecPreferenceTest {
         assertNull(preferredServerVideoCodecs(emptyList()))
     }
 
+    @Test
+    fun aiLocationChoosesItsOwnNegotiatedCodecWithoutChangingFallbackOrder() {
+        val baseline = mapOf("profile-level-id" to "42e01f", "packetization-mode" to "1")
+        val h264 = codec("H264").apply { parameters = baseline }
+        val vp8 = codec("VP8")
+        val av1 = codec("AV1")
+        val hardware = listOf(VideoCodecInfo("H264", baseline, emptyList()))
+        val capabilities = listOf(h264, vp8, av1)
+
+        assertEquals(listOf(vp8, h264, av1),
+            preferredVideoCodecsForAI(true, capabilities, hardware))
+        assertEquals(listOf(h264, vp8, av1),
+            preferredVideoCodecsForAI(false, capabilities, hardware))
+        assertNull(preferredVideoCodecsForAI(false, capabilities, emptyList()))
+        assertNull(preferredVideoCodecsForAI(true, listOf(h264), hardware))
+    }
+
     private fun codec(name: String) = RtpCapabilities.CodecCapability().apply {
         this.name = name
         this.parameters = emptyMap()

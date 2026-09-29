@@ -9,7 +9,7 @@ internal fun isServerCompatibleH264Baseline(name:String,params:Map<String,String
         params["profile-level-id"]?.equals("42e01f",ignoreCase=true)==true &&
         params["packetization-mode"]=="1"
 
-/** Hardware capability benchmark preference; production server negotiation uses VP8. */
+/** The original server-AI path prefers the verified hardware H264 Baseline profile. */
 internal fun preferredHardwareVideoCodecs(capabilities:List<RtpCapabilities.CodecCapability>,
     hardwareFormats:List<VideoCodecInfo>):List<RtpCapabilities.CodecCapability>? {
     if(hardwareFormats.none {isServerCompatibleH264Baseline(it.name,it.params)})return null
@@ -18,11 +18,22 @@ internal fun preferredHardwareVideoCodecs(capabilities:List<RtpCapabilities.Code
     return baseline+capabilities.filterNot {it in baseline}
 }
 
-/** Match iOS's production server path before choosing an encoder implementation. */
+/** Match iOS's on-device path before choosing an encoder implementation. */
 internal fun preferredServerVideoCodecs(
     capabilities: List<RtpCapabilities.CodecCapability>,
 ): List<RtpCapabilities.CodecCapability>? {
     val vp8 = capabilities.filter { it.name.equals("VP8", ignoreCase = true) }
     if (vp8.isEmpty()) return null
     return vp8 + capabilities.filterNot { it.name.equals("VP8", ignoreCase = true) }
+}
+
+/** The location of AI processing is fixed when a PeerConnection offer is created. */
+internal fun preferredVideoCodecsForAI(
+    onDevice: Boolean,
+    capabilities: List<RtpCapabilities.CodecCapability>,
+    hardwareFormats: List<VideoCodecInfo>,
+): List<RtpCapabilities.CodecCapability>? = if (onDevice) {
+    preferredServerVideoCodecs(capabilities)
+} else {
+    preferredHardwareVideoCodecs(capabilities, hardwareFormats)
 }

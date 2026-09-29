@@ -36,6 +36,7 @@ import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
 import org.webrtc.IceCandidate
+import org.webrtc.HardwareVideoEncoderFactory
 import org.webrtc.MediaStreamTrack
 import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
@@ -254,11 +255,6 @@ class WebRtcConnection(
                 updateBluetoothCommunicationRoute(preferredAudioInput)
                 audioRouteMonitor.start()
                 updateState(WebRtcConnectionState.CONNECTING)
-                connectionTimeoutTask = timerExecutor.schedule(
-                    { fail(ConnectionFailure.TIMEOUT) },
-                    CONNECTION_TIMEOUT_MILLIS,
-                    TimeUnit.MILLISECONDS,
-                )
 
                 val (iceServers, policy) = loadIceServers()
                 recoveryPolicy = policy
@@ -297,6 +293,13 @@ class WebRtcConnection(
                 checkNotNull(frameAnalyzer).start()
                 val negotiationId = UUID.randomUUID().toString()
                 activeNegotiationId = negotiationId
+                // HTTP setup and model/camera preparation each have their own failure path.
+                // Give signaling and ICE a full connection window after those steps finish.
+                connectionTimeoutTask = timerExecutor.schedule(
+                    { fail(ConnectionFailure.TIMEOUT) },
+                    CONNECTION_TIMEOUT_MILLIS,
+                    TimeUnit.MILLISECONDS,
+                )
                 openSignalingSocket(createdSession, negotiationId, iceRestart = false)
             } catch (exception: Exception) {
                 Log.w("LiveConnection", "start_failed type=${exception.javaClass.simpleName} cause=${exception.cause?.javaClass?.simpleName}")
@@ -910,10 +913,14 @@ class WebRtcConnection(
         ) { "Unable to add the camera video transceiver." }
         val videoCodecs = checkNotNull(peerConnectionFactory)
             .getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs
-        val preference = preferredServerVideoCodecs(videoCodecs)
+        val hardwareFormats = HardwareVideoEncoderFactory(
+            checkNotNull(eglBase).eglBaseContext, true, true,
+        ).supportedCodecs.toList()
+        val preference = preferredVideoCodecsForAI(onDeviceProcessing, videoCodecs, hardwareFormats)
         if (preference != null) {
             val result = transceiver.setCodecPreferences(preference)
-            if (result.isSuccess()) Log.i("PrivacyPipeline", "video_codec_preference=server_vp8")
+            if (result.isSuccess()) Log.i("PrivacyPipeline",
+                "video_codec_preference=${if (onDeviceProcessing) "on_device_vp8" else "server_h264_baseline"}")
             else Log.w("PrivacyPipeline", "video_codec_preference=default")
         }
         videoSender = transceiver.sender
