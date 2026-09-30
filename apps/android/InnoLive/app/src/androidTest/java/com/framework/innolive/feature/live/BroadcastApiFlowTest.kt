@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.live
 
 import android.util.Base64
+import com.framework.innolive.ui.text.serverErrorGuidance
+import com.framework.innolive.ui.text.ServerErrorAction
 import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import okhttp3.OkHttpClient
@@ -119,7 +121,7 @@ class BroadcastApiFlowTest {
             h.connection.pauseBroadcast()
             h.awaitState(BroadcastState.LIVE)
             assertEquals(
-                BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_RECONNECT),
+                BroadcastEvent.ApiFailure(serverErrorGuidance("streaming_reconnect_required")!!),
                 h.outcomes.last().second,
             )
 
@@ -130,7 +132,7 @@ class BroadcastApiFlowTest {
             h.connection.resumeBroadcast()
             h.awaitState(BroadcastState.PAUSED)
             assertEquals(
-                BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_RECONNECT),
+                BroadcastEvent.ApiFailure(serverErrorGuidance("streaming_reconnect_required")!!),
                 h.outcomes.last().second,
             )
         }
@@ -394,6 +396,8 @@ class BroadcastApiFlowTest {
                 h.startPolling()
                 assertEquals(ConnectionFailure.DISCONNECTED, h.connectionFailures.poll(5, TimeUnit.SECONDS))
                 assertEquals(if (status == 401) 1 else 0, h.refreshCount.get())
+                if (status == 401) assertEquals(ServerErrorAction.LOGIN, h.serverGuidance.poll(5, TimeUnit.SECONDS)?.action)
+                else assertTrue(h.serverGuidance.isEmpty())
             }
         }
     }
@@ -405,6 +409,74 @@ class BroadcastApiFlowTest {
             h.awaitSnapshot { it.targets?.singleOrNull()?.broadcastPhase == "future_phase" }
             assertFalse(h.states.contains(BroadcastState.PREPARED))
             assertFalse(h.connection.goLive())
+        }
+    }
+
+    @Test fun concurrentLiveIsNotRetriedUntilExplicitConsentAndOnlyThenSendsTheFlag() {
+        Harness().use { h ->
+            h.prepareStatus = 409
+            h.serverErrorCode = "channel_already_live"
+            h.connection.prepareBroadcast(settings)
+            h.awaitState(BroadcastState.FAILED)
+            assertEquals(ServerErrorAction.CONFIRM_CONCURRENT,
+                (h.outcomes.last().second as BroadcastEvent.ApiFailure).guidance.action)
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("prepare") })
+            val original = h.requests.single { it.url.encodedPath.endsWith("prepare") }
+            assertFalse(JSONObject(h.body(original)).has("allow_concurrent"))
+            h.prepareStatus = 200
+            assertTrue(h.connection.prepareBroadcast(settings, allowConcurrent = true))
+            h.awaitState(BroadcastState.PREPARED)
+            val accepted = h.requests.last { it.url.encodedPath.endsWith("prepare") }
+            assertTrue(JSONObject(h.body(accepted)).getBoolean("allow_concurrent"))
+            assertEquals(2, h.requests.count { it.url.encodedPath.endsWith("prepare") })
+        }
+    }
+
+    @Test fun unauthorizedMutationRefreshesOnceAndSecond401StillProducesLoginGuidance() {
+        for (retryStatus in listOf(200, 401)) Harness().use { h ->
+            h.mutationReplies.add(401 to "{}")
+            h.mutationReplies.add(retryStatus to "{}")
+            h.connection.saveBroadcastSettings(settings)
+            h.awaitState(if (retryStatus == 200) BroadcastState.IDLE else BroadcastState.FAILED)
+            assertEquals(1, h.refreshCount.get())
+            val requests = h.requests.filter { it.method == "PUT" }
+            assertEquals(2, requests.size)
+            assertEquals("Bearer $accessToken.refreshed", requests.last().header("Authorization"))
+            assertEquals("test-owner", requests.last().header("X-Session-Owner-Token"))
+            if (retryStatus == 401) assertEquals(ServerErrorAction.LOGIN,
+                (h.outcomes.last().second as BroadcastEvent.ApiFailure).guidance.action)
+        }
+    }
+
+    @Test fun busyErrorsWaitForPollingWithoutModalOrAutomaticMutationRetry() {
+        Harness().use { h ->
+            h.prepareStatus = 409
+            h.serverErrorCode = "broadcast_busy"
+            h.connection.prepareBroadcast(settings)
+            h.awaitState(BroadcastState.PREPARING)
+            val deadline = SystemClock.elapsedRealtime() + 5_000
+            while (h.outcomes.size < 3 && SystemClock.elapsedRealtime() < deadline) Thread.sleep(20)
+            assertEquals(3, h.outcomes.size)
+            assertNull(h.outcomes.last().second)
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("prepare") })
+            h.getPayload = snapshot("prepared", "idle")
+            h.startPolling()
+            h.awaitState(BroadcastState.PREPARED)
+        }
+    }
+
+    @Test fun staleNegotiationDoesNotFailTheCurrentConnection() {
+        Harness().use { h ->
+            h.connection.prepareBroadcast(settings)
+            h.awaitState(BroadcastState.PREPARED)
+            val before = h.states.toList()
+            WebRtcConnection::class.java.getDeclaredMethod("handleServerMessage", String::class.java)
+                .apply { isAccessible = true }.invoke(h.connection,
+                    """{"type":"error","error":{"code":"stale_negotiation","message":"old offer"}}""")
+            assertEquals(before, h.states.toList())
+            assertTrue(h.connectionFailures.isEmpty())
+            assertTrue(h.connection.goLive())
+            h.awaitState(BroadcastState.LIVE)
         }
     }
 
@@ -421,7 +493,9 @@ class BroadcastApiFlowTest {
         private val snapshotEvents = LinkedBlockingQueue<SessionSnapshot>()
         val payloads = java.util.concurrent.ConcurrentHashMap<String, String>()
         val getReplies = LinkedBlockingQueue<Pair<Int, String>>()
+        val mutationReplies = LinkedBlockingQueue<Pair<Int, String>>()
         val connectionFailures = LinkedBlockingQueue<ConnectionFailure>()
+        val serverGuidance = java.util.concurrent.LinkedBlockingQueue<com.framework.innolive.ui.text.ServerErrorGuidance>()
         val refreshCount = java.util.concurrent.atomic.AtomicInteger()
         @Volatile var refreshFails = false
         @Volatile var getPayload = "{}"
@@ -436,6 +510,7 @@ class BroadcastApiFlowTest {
         private val events = LinkedBlockingQueue<BroadcastState>()
         @Volatile var patchStatus = 200
         @Volatile var settingsStatus = 200
+        @Volatile var prepareStatus = 200
         @Volatile var stopStatus = 200
         @Volatile var pauseStatus = 200
         @Volatile var resumeStatus = 200
@@ -473,6 +548,7 @@ class BroadcastApiFlowTest {
                 snapshotEvents.add(snapshot)
             },
             broadcastCallbackExecutor = broadcastCallbackExecutor,
+            onServerError = { serverGuidance.add(it) },
         )
 
         init {
@@ -480,7 +556,9 @@ class BroadcastApiFlowTest {
                 val request = chain.request()
                 requests.add(request)
                 var payload = "{}"
+                val mutationReply = if (request.method != "GET" && request.method != "DELETE") mutationReplies.poll() else null
                 val status = when {
+                    mutationReply != null -> { payload = mutationReply.second; mutationReply.first }
                     request.method == "GET" -> {
                         val reply = getReplies.poll() ?: (getStatus to getPayload)
                         payload = reply.second
@@ -504,6 +582,7 @@ class BroadcastApiFlowTest {
                         acceptedAtGoLiveRequest = goLiveAccepted.get()
                         goLiveStatus
                     }
+                    request.url.encodedPath.endsWith("prepare") -> prepareStatus
                     request.url.encodedPath.endsWith("stop") -> stopStatus
                     request.url.encodedPath.endsWith("pause") -> pauseStatus
                     request.url.encodedPath.endsWith("resume") -> resumeStatus

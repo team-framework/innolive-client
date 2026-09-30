@@ -111,6 +111,9 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
                     operation = operation,
                     errorCode = parseYouTubeApiErrorCode(body),
                     serverMessage = parseYouTubeApiErrorMessage(body),
+                    helpUrl = parseYouTubeApiErrorDetail(body, "help_url"),
+                    field = parseYouTubeApiErrorDetail(body, "field"),
+                    reason = parseYouTubeApiErrorDetail(body, "reason"),
                 )
             }
             parse(body)

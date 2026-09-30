@@ -12,7 +12,9 @@ class YouTubeAccountCoordinator(
     private var api: YouTubeApi? = null
 
     suspend fun loadAccount(refreshAccessToken: suspend () -> String): StreamingAccount? =
-        findYouTubeAccount(api().listAccounts(refreshAccessToken()))
+        retryYouTubeUnauthorized(refreshAccessToken(), refreshAccessToken) { token ->
+            findYouTubeAccount(api().listAccounts(token))
+        }
 
     suspend fun beginAuthorization(
         onAuthorizationRequired: (PendingIntent) -> Unit,
@@ -32,9 +34,13 @@ class YouTubeAccountCoordinator(
         serverAuthCode: String,
         refreshAccessToken: suspend () -> String,
     ): StreamingAccount? {
-        val accessToken = refreshAccessToken()
-        api().connect(serverAuthCode, accessToken)
-        return findYouTubeAccount(api().listAccounts(accessToken))
+        var accessToken = refreshAccessToken()
+        val refresh = suspend { refreshAccessToken().also { accessToken = it } }
+        retryYouTubeUnauthorized(accessToken, refresh) { token -> api().connect(serverAuthCode, token) }
+        // 연결 후 목록 조회가 실패해도 일회용 OAuth 코드를 다시 보내지 않습니다.
+        return retryYouTubeUnauthorized(accessToken, refresh) { token ->
+            findYouTubeAccount(api().listAccounts(token))
+        }
     }
 
     fun serverAuthCodeFromIntent(data: Intent): String =
@@ -53,3 +59,14 @@ class YouTubeAccountCoordinator(
 
 internal fun findYouTubeAccount(accounts: List<StreamingAccount>): StreamingAccount? =
     accounts.firstOrNull { account -> account.provider.equals("youtube", ignoreCase = true) }
+
+internal suspend fun <T> retryYouTubeUnauthorized(
+    accessToken: String,
+    refreshAccessToken: suspend () -> String,
+    request: suspend (String) -> T,
+): T = try {
+    request(accessToken)
+} catch (exception: YouTubeApiException) {
+    if (exception.statusCode != 401) throw exception
+    request(refreshAccessToken())
+}
