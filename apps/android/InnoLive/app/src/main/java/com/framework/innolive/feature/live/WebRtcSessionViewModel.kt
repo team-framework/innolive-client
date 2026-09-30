@@ -45,6 +45,8 @@ class WebRtcSessionViewModel : ViewModel() {
         private set
     var localVideoTrack by mutableStateOf<VideoTrack?>(null)
         private set
+    var sessionSnapshot by mutableStateOf<SessionSnapshot?>(null)
+        private set
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
     var broadcastStatus by mutableStateOf(broadcastStateMessage(BroadcastState.IDLE).text)
@@ -167,6 +169,7 @@ class WebRtcSessionViewModel : ViewModel() {
         restoreAIProcessingSelection(context)
         val initialOnDevice = selectedOnDeviceProcessing
         sessionState = sessionState.beginConnection()
+        sessionSnapshot = null
         signalingStartedGeneration = null
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
@@ -210,6 +213,7 @@ class WebRtcSessionViewModel : ViewModel() {
                             sessionState = sessionState.connectionChanged(generation, state)
                             connectionStatus = connectionUserMessage(state, failure)
                             if (state == WebRtcConnectionState.FAILED) {
+                                sessionSnapshot = null
                                 lockedBroadcastRotation = null
                                 lockedScreenOrientation = null
                             }
@@ -253,8 +257,11 @@ class WebRtcSessionViewModel : ViewModel() {
                     onInitialSignalingStarted = {
                         if (isCurrentGeneration(generation)) signalingStartedGeneration = generation
                     },
+                    onSessionSnapshotChanged = { snapshot ->
+                        if (sessionState.acceptsCallback(generation)) sessionSnapshot = snapshot
+                    },
                     onBroadcastStateChanged = { state, event ->
-                        if (sessionState.acceptsCallback(generation)) {
+                        if (sessionState.acceptsCallback(generation) && (state != broadcastState || event != null)) {
                             lockedBroadcastRotation = nextBroadcastRotation(
                                 lockedBroadcastRotation,
                                 state,
@@ -443,6 +450,7 @@ class WebRtcSessionViewModel : ViewModel() {
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
         sessionState = sessionState.endConnection()
+        sessionSnapshot = null
         signalingStartedGeneration = null
         prepareJob?.cancel()
         prepareJob = null

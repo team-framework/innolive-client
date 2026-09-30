@@ -10,14 +10,19 @@ internal data class WebRtcRecoveryPolicy(
 )
 
 internal class RecoveryAccessToken(initialToken: String) {
+    @Volatile
     var value: String = initialToken.also { require(it.isNotBlank()) }
         private set
     var refreshedForCurrentRecovery: Boolean = false
         private set
 
-    fun updateForRecovery(refreshedToken: String) {
+    fun update(refreshedToken: String) {
         require(refreshedToken.isNotBlank())
         value = refreshedToken.trim()
+    }
+
+    fun updateForRecovery(refreshedToken: String) {
+        update(refreshedToken)
         refreshedForCurrentRecovery = true
     }
 

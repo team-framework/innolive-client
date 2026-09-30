@@ -275,10 +275,161 @@ class BroadcastApiFlowTest {
         assertFalse(h.connection.prepareBroadcast(settings))
     }
 
+    @Test fun partialResponsesPreserveSessionFieldsAndServerStateWinsOverHttpSuccess() {
+        Harness().use { h ->
+            h.payloads["prepare"] = snapshot("prepared", "idle")
+            h.payloads["golive"] = """{"status":"stopped","broadcast_phase":"idle","targets":[]}"""
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+            val prepared = h.awaitSnapshot { it.remainingTime == BroadcastRemainingTime.Seconds(120) }
+            assertEquals("broadcast_limit_30m", prepared.notices!!.single().code)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.IDLE)
+            val stopped = h.awaitSnapshot { it.targets?.isEmpty() == true }
+            assertEquals(prepared.notices, stopped.notices)
+            assertEquals(prepared.remainingTime, stopped.remainingTime)
+        }
+    }
+
+    @Test fun delayedGetCannotUndoSuccessfulPauseAndPollingStopsOnClose() {
+        val h = Harness()
+        try {
+            h.payloads["prepare"] = snapshot("prepared", "idle")
+            h.payloads["golive"] = snapshot("live", "streaming")
+            h.payloads["pause"] = """{"status":"paused","broadcast_phase":"live"}"""
+            h.connection.prepareBroadcast(settings)
+            h.awaitState(BroadcastState.PREPARED)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            h.awaitSnapshot { it.broadcastState() == BroadcastState.LIVE }
+            h.getPayload = snapshot("live", "streaming")
+            h.blockGet = true
+            h.startPolling()
+            assertTrue(h.getEntered.await(5, TimeUnit.SECONDS))
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.getPayload = snapshot("live", "paused")
+            h.blockGet = false
+            h.releaseGet.countDown()
+            h.awaitSnapshot { it.broadcastState() == BroadcastState.PAUSED }
+            // 다음 GET까지 기다려 이전 live 응답이 일시정지 결과를 되돌리지 않았는지 확인합니다.
+            h.awaitGetCount(2)
+            assertEquals(BroadcastState.PAUSED, h.states.last())
+            assertEquals(BroadcastState.PAUSED, h.snapshots.last().broadcastState())
+        } finally {
+            h.releaseGet.countDown()
+            h.close()
+        }
+        assertTrue(h.pollingJob!!.isCancelled)
+    }
+
+    @Test fun pollingReportsServerStopAndTransientFailureKeepsLastSnapshot() {
+        Harness().use { h ->
+            h.payloads["prepare"] = snapshot("prepared", "idle")
+            h.payloads["golive"] = snapshot("live", "streaming")
+            h.connection.prepareBroadcast(settings)
+            h.awaitState(BroadcastState.PREPARED)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            h.awaitSnapshot { it.broadcastState() == BroadcastState.LIVE }
+            h.getStatus = 503
+            h.startPolling()
+            h.awaitGetCount(1)
+            assertEquals(BroadcastState.LIVE, h.snapshots.last().broadcastState())
+            h.getPayload = snapshot("idle", "stopped")
+            h.getStatus = 200
+            h.awaitState(BroadcastState.IDLE)
+            assertTrue(h.awaitSnapshot { it.broadcastState() == BroadcastState.IDLE }.visibleTargets.isEmpty())
+        }
+    }
+
+    @Test fun skippedQueuedPollCallbackIsPublishedAgainOnNextPoll() {
+        val queued = LinkedBlockingQueue<Runnable>()
+        val holdCallbacks = AtomicBoolean(false)
+        val executor = Executor { callback ->
+            if (holdCallbacks.get()) queued.add(callback) else callback.run()
+        }
+        Harness(broadcastCallbackExecutor = executor).use { h ->
+            h.payloads["prepare"] = snapshot("prepared", "idle")
+            h.payloads["golive"] = snapshot("live", "streaming")
+            h.connection.prepareBroadcast(settings)
+            h.awaitState(BroadcastState.PREPARED)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            holdCallbacks.set(true)
+            h.getPayload = snapshot("idle", "stopped")
+            h.startPolling()
+            val oldSnapshotCallback = checkNotNull(queued.poll(5, TimeUnit.SECONDS))
+            val oldStateCallback = checkNotNull(queued.poll(5, TimeUnit.SECONDS))
+            h.patch(false, AnonymizationState.DISABLED)
+            oldSnapshotCallback.run()
+            oldStateCallback.run()
+            assertEquals(BroadcastState.LIVE, h.states.last())
+            holdCallbacks.set(false)
+            while (true) (queued.poll() ?: break).run()
+            h.awaitState(BroadcastState.IDLE)
+        }
+    }
+
+    @Test fun unauthorizedPollRefreshesOnceAndPublishesRetriedResponse() {
+        Harness().use { h ->
+            h.getReplies.add(401 to "{}")
+            h.getReplies.add(200 to snapshot("prepared", "idle"))
+            h.startPolling()
+            h.awaitState(BroadcastState.PREPARED)
+            assertEquals(1, h.refreshCount.get())
+            val requests = h.requests.filter { it.method == "GET" }
+            assertEquals(2, requests.size)
+            assertEquals("Bearer $accessToken", requests[0].header("Authorization"))
+            assertEquals("Bearer $accessToken.refreshed", requests[1].header("Authorization"))
+            assertEquals("test-owner", requests[1].header("X-Session-Owner-Token"))
+        }
+    }
+
+    @Test fun missingSessionOrFailedRefreshEndsPollingThroughExistingFailurePath() {
+        for (status in listOf(404, 401)) {
+            Harness().use { h ->
+                h.getReplies.add(status to "{}")
+                h.refreshFails = status == 401
+                h.startPolling()
+                assertEquals(ConnectionFailure.DISCONNECTED, h.connectionFailures.poll(5, TimeUnit.SECONDS))
+                assertEquals(if (status == 401) 1 else 0, h.refreshCount.get())
+            }
+        }
+    }
+
+    @Test fun unknownServerPhaseDoesNotClaimSuccessfulPreparation() {
+        Harness().use { h ->
+            h.payloads["prepare"] = snapshot("future_phase", "future_status")
+            h.connection.prepareBroadcast(settings)
+            h.awaitSnapshot { it.targets?.singleOrNull()?.broadcastPhase == "future_phase" }
+            assertFalse(h.states.contains(BroadcastState.PREPARED))
+            assertFalse(h.connection.goLive())
+        }
+    }
+
+    private fun snapshot(phase: String, status: String) = """{"session_id":"test-session","provider":"youtube",
+        "targets":[{"provider":"youtube","stream":{"status":"$status","broadcast_phase":"$phase"}}],
+        "notices":[{"code":"broadcast_limit_30m","at":"2026-09-30T00:00:00Z"}],
+        "broadcast_remaining_seconds":120}"""
+
     private class Harness(
         private val broadcastCallbackExecutor: Executor? = null,
         private val onBroadcastState: (BroadcastState) -> Unit = {},
     ) : AutoCloseable {
+        val snapshots = CopyOnWriteArrayList<SessionSnapshot>()
+        private val snapshotEvents = LinkedBlockingQueue<SessionSnapshot>()
+        val payloads = java.util.concurrent.ConcurrentHashMap<String, String>()
+        val getReplies = LinkedBlockingQueue<Pair<Int, String>>()
+        val connectionFailures = LinkedBlockingQueue<ConnectionFailure>()
+        val refreshCount = java.util.concurrent.atomic.AtomicInteger()
+        @Volatile var refreshFails = false
+        @Volatile var getPayload = "{}"
+        @Volatile var getStatus = 200
+        @Volatile var blockGet = false
+        val getEntered = CountDownLatch(1)
+        val releaseGet = CountDownLatch(1)
+        var pollingJob: kotlinx.coroutines.Job? = null
         val requests = CopyOnWriteArrayList<Request>()
         val states = CopyOnWriteArrayList<BroadcastState>()
         val outcomes = CopyOnWriteArrayList<Pair<BroadcastState, BroadcastEvent?>>()
@@ -299,10 +450,16 @@ class BroadcastApiFlowTest {
             context = InstrumentationRegistry.getInstrumentation().targetContext,
             serverUrl = "https://example.test",
             accessToken = accessTokenFor("broadcast-api-user"),
-            refreshAccessToken = { accessTokenFor("broadcast-api-user") },
+            refreshAccessToken = {
+                refreshCount.incrementAndGet()
+                if (refreshFails) throw java.io.IOException("fixture refresh failed")
+                accessTokenFor("broadcast-api-user") + ".refreshed"
+            },
             initialAnonymizationEnabled = false,
             preferredAudioInput = null,
-            onStateChanged = { _, _ -> }, onRemoteTrackChanged = {},
+            onStateChanged = { state, failure ->
+                if (state == WebRtcConnectionState.FAILED && failure != null) connectionFailures.add(failure)
+            }, onRemoteTrackChanged = {},
             onLocalMediaReady = { _, _ -> }, onLocalMediaCleared = {},
             onBroadcastStateChanged = { state, event ->
                 states.add(state)
@@ -311,6 +468,10 @@ class BroadcastApiFlowTest {
                 onBroadcastState(state)
             },
             onAnonymizationStateConfirmed = {},
+            onSessionSnapshotChanged = { snapshot ->
+                snapshots.add(snapshot)
+                snapshotEvents.add(snapshot)
+            },
             broadcastCallbackExecutor = broadcastCallbackExecutor,
         )
 
@@ -320,6 +481,13 @@ class BroadcastApiFlowTest {
                 requests.add(request)
                 var payload = "{}"
                 val status = when {
+                    request.method == "GET" -> {
+                        val reply = getReplies.poll() ?: (getStatus to getPayload)
+                        payload = reply.second
+                        getEntered.countDown()
+                        if (blockGet) check(releaseGet.await(5, TimeUnit.SECONDS))
+                        reply.first
+                    }
                     request.method == "DELETE" -> deleteStatus
                     request.method == "PUT" -> settingsStatus
                     request.method == "PATCH" -> {
@@ -340,6 +508,9 @@ class BroadcastApiFlowTest {
                     request.url.encodedPath.endsWith("pause") -> pauseStatus
                     request.url.encodedPath.endsWith("resume") -> resumeStatus
                     else -> 200
+                }
+                if (status < 400 && request.method != "GET") {
+                    payload = payloads[request.url.pathSegments.last()] ?: payload
                 }
                 if (status >= 400 && payload == "{}" &&
                     (serverErrorCode != null || serverErrorMessage != null)
@@ -365,6 +536,31 @@ class BroadcastApiFlowTest {
 
         private fun field(name: String, value: Any) {
             WebRtcConnection::class.java.getDeclaredField(name).apply { isAccessible = true; set(connection, value) }
+        }
+
+        fun startPolling() {
+            WebRtcConnection::class.java.getDeclaredMethod("startSessionPolling", CreatedSession::class.java)
+                .apply { isAccessible = true }.invoke(connection,
+                    CreatedSession("test-session", "test-owner", AnonymizationState.DISABLED))
+            pollingJob = WebRtcConnection::class.java.getDeclaredField("sessionStatusJob")
+                .apply { isAccessible = true }.get(connection) as kotlinx.coroutines.Job
+        }
+
+        fun awaitSnapshot(matches: (SessionSnapshot) -> Boolean): SessionSnapshot {
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+            while (true) {
+                val remaining = deadline - System.nanoTime()
+                check(remaining > 0) { "세션 상태 대기 시간 초과" }
+                val snapshot = snapshotEvents.poll(remaining, TimeUnit.NANOSECONDS)
+                    ?: error("세션 상태 콜백 없음")
+                if (matches(snapshot)) return snapshot
+            }
+        }
+
+        fun awaitGetCount(count: Int) {
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+            while (requests.count { it.method == "GET" } < count && System.nanoTime() < deadline) Thread.sleep(20)
+            assertTrue(requests.count { it.method == "GET" } >= count)
         }
 
         fun setMediaConnected(connected: Boolean) = field("peerConnectionConnected", connected)
