@@ -60,6 +60,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import java.util.UUID
 
 enum class WebRtcConnectionState {
@@ -91,6 +92,7 @@ class WebRtcConnection(
     private val broadcastCallbackExecutor: Executor? = null,
     private val onLocalVideoTrackChanged: (VideoTrack?) -> Unit = {},
     private val onInitialSignalingStarted: () -> Unit = {},
+    private val onSessionSnapshotChanged: (SessionSnapshot) -> Unit = {},
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val onDeviceProcessing = initialOnDeviceProcessing
@@ -122,6 +124,11 @@ class WebRtcConnection(
     private val closed = AtomicBoolean(false)
     private val terminal = AtomicBoolean(false)
     private val broadcastOperation = AtomicBoolean(false)
+    private val sessionRequestRevision = AtomicLong()
+    private var sessionSnapshot: SessionSnapshot? = null
+    private var sessionStatusJob: Job? = null
+    private var confirmedResponseState: BroadcastState? = null
+    private var responseContainsBroadcastState = false
     // 완료 콜백은 다음 제어 요청을 받을 수 있도록 작업 잠금을 해제한 뒤 전달합니다.
     private var pendingBroadcastCompletion: Pair<BroadcastState, BroadcastEvent?>? = null
     private val closeSignal = CloseSignal()
@@ -265,6 +272,7 @@ class WebRtcConnection(
                 val createdSession = createSession()
                 session = createdSession
                 if (!isActive()) return@executeOnOwner
+                sessionSnapshot?.let(::dispatchSessionSnapshot)
                 updateState(WebRtcConnectionState.CONNECTING)
                 val confirmed = confirmInitialAnonymization(
                     if (onDeviceProcessing) false else initialAnonymizationEnabled,
@@ -302,6 +310,7 @@ class WebRtcConnection(
                     TimeUnit.MILLISECONDS,
                 )
                 openSignalingSocket(createdSession, negotiationId, iceRestart = false)
+                startSessionPolling(createdSession)
             } catch (exception: Exception) {
                 Log.w("LiveConnection", "start_failed type=${exception.javaClass.simpleName} cause=${exception.cause?.javaClass?.simpleName}")
                 fail(exception.toConnectionFailure())
@@ -554,7 +563,7 @@ class WebRtcConnection(
             updateBroadcastState(BroadcastState.PREPARING)
             postSessionRequest("stream/prepare", JSONObject().put("provider", "youtube"))
             recoverySuppressedAfterStop = false
-            updateBroadcastState(BroadcastState.PREPARED)
+            updateBroadcastState(stateAfterSessionResponse(BroadcastState.PREPARED))
         }
     }
 
@@ -572,7 +581,7 @@ class WebRtcConnection(
             updateBroadcastState(BroadcastState.GOING_LIVE)
             try {
                 goLiveWithRetry()
-                updateBroadcastState(BroadcastState.LIVE)
+                updateBroadcastState(stateAfterSessionResponse(BroadcastState.LIVE))
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     BroadcastState.PREPARED,
@@ -593,7 +602,7 @@ class WebRtcConnection(
             updateBroadcastState(BroadcastState.PAUSING)
             try {
                 postSessionRequest("stream/pause")
-                updateBroadcastState(BroadcastState.PAUSED)
+                updateBroadcastState(stateAfterSessionResponse(BroadcastState.PAUSED))
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     BroadcastState.LIVE,
@@ -616,7 +625,7 @@ class WebRtcConnection(
             updateBroadcastState(BroadcastState.RESUMING)
             try {
                 postSessionRequest("stream/resume")
-                updateBroadcastState(BroadcastState.LIVE)
+                updateBroadcastState(stateAfterSessionResponse(BroadcastState.LIVE))
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     BroadcastState.PAUSED,
@@ -639,9 +648,9 @@ class WebRtcConnection(
             updateBroadcastState(stoppingState)
             try {
                 postSessionRequest("stream/stop")
-                updateBroadcastState(BroadcastState.IDLE)
-                recoverySuppressedAfterStop = true
-                if (recoveryWindow.deadlineMillis != null) {
+                updateBroadcastState(stateAfterSessionResponse(BroadcastState.IDLE))
+                recoverySuppressedAfterStop = broadcastState == BroadcastState.IDLE
+                if (broadcastState == BroadcastState.IDLE && recoveryWindow.deadlineMillis != null) {
                     if (canReuseRecoveredPreviewAfterStop(
                             peerConnected = peerConnectionConnected &&
                                 peerConnection?.connectionState() == PeerConnection.PeerConnectionState.CONNECTED,
@@ -681,6 +690,7 @@ class WebRtcConnection(
         operation: () -> Unit,
     ): Boolean {
         if (!isActive() || !broadcastOperation.compareAndSet(false, true)) return false
+        sessionRequestRevision.incrementAndGet()
         try {
             onAccepted()
         } catch (_: Exception) {
@@ -720,6 +730,9 @@ class WebRtcConnection(
     }
 
     private fun executeSessionRequest(path: String, method: String, body: JSONObject): String {
+        sessionRequestRevision.incrementAndGet()
+        confirmedResponseState = null
+        responseContainsBroadcastState = false
         val createdSession = checkNotNull(session) { "WebRTC 세션이 없습니다." }
         val request = authenticatedRequest("/sessions/${createdSession.sessionId}/$path")
             .header("X-Session-Owner-Token", createdSession.ownerToken)
@@ -728,8 +741,101 @@ class WebRtcConnection(
         return executeHttp(request).use { response ->
             val payload = response.body.string()
             if (!response.isSuccessful) throw parseServerApiException(payload)
+            applySessionSnapshot(payload, createdSession)
             payload
         }
+    }
+
+    private fun stateAfterSessionResponse(fallback: BroadcastState): BroadcastState =
+        if (responseContainsBroadcastState) confirmedResponseState ?: broadcastState else fallback
+
+    private fun applySessionSnapshot(payload: String, createdSession: CreatedSession, revision: Long? = null) {
+        if (!isActive() || session?.sessionId != createdSession.sessionId) return
+        val previous = sessionSnapshot ?: SessionSnapshot(createdSession.sessionId)
+        val next = runCatching { parseSessionSnapshot(payload, createdSession.sessionId, previous) }
+            .getOrElse {
+                responseContainsBroadcastState = true
+                Log.w("LiveConnection", "session_snapshot_invalid")
+                return
+            }
+        // 필드가 없는 부분 응답을 마지막 방송 상태의 새 확인으로 해석하지 않습니다.
+        val response = JSONObject(payload)
+        responseContainsBroadcastState = response.has("targets") || response.has("stream") || response.has("broadcast_phase")
+        if (responseContainsBroadcastState) {
+            confirmedResponseState = next.broadcastState()
+        }
+        sessionSnapshot = next
+        dispatchSessionSnapshot(next, revision)
+    }
+
+    private fun dispatchSessionSnapshot(snapshot: SessionSnapshot, revision: Long? = null) {
+        val callback = Runnable {
+            if (isActive() && session?.sessionId == snapshot.sessionId &&
+                (revision == null || (sessionRequestRevision.get() == revision && !broadcastOperation.get()))) {
+                onSessionSnapshotChanged(snapshot)
+            }
+        }
+        if (broadcastCallbackExecutor != null) broadcastCallbackExecutor.execute(callback)
+        else mainHandler.post(callback)
+    }
+
+    private fun startSessionPolling(createdSession: CreatedSession) {
+        sessionStatusJob?.cancel()
+        sessionStatusJob = recoveryScope.launch {
+            while (this@WebRtcConnection.isActive()) {
+                delay(SESSION_STATUS_POLL_MILLIS)
+                if (broadcastOperation.get()) continue
+                val revision = sessionRequestRevision.get()
+                try {
+                    val payload = readSessionStatus(createdSession)
+                    executeOnOwner {
+                        // 제어 요청 전의 GET이 늦게 도착해 최신 성공 결과를 덮어쓰지 않게 합니다.
+                        if (!isActive() || session?.sessionId != createdSession.sessionId ||
+                            sessionRequestRevision.get() != revision || broadcastOperation.get()) return@executeOnOwner
+                        confirmedResponseState = null
+                        applySessionSnapshot(payload, createdSession, revision)
+                        confirmedResponseState?.let { state ->
+                            broadcastState = state
+                            dispatchBroadcastState(state, null, revision)
+                        }
+                    }
+                } catch (exception: kotlinx.coroutines.CancellationException) {
+                    throw exception
+                } catch (_: Exception) {
+                    // 조회 실패는 마지막 확인값을 보존하며 다음 주기에 다시 확인합니다.
+                    if (this@WebRtcConnection.isActive()) Log.w("LiveConnection", "session_status_unavailable")
+                }
+            }
+        }
+    }
+
+    private suspend fun readSessionStatus(createdSession: CreatedSession): String {
+        repeat(2) { attempt ->
+            val request = authenticatedRequest("/sessions/${createdSession.sessionId}")
+                .header("X-Session-Owner-Token", createdSession.ownerToken).get().build()
+            val status = executeHttp(request, callTimeoutMillis = SESSION_STATUS_HTTP_TIMEOUT_MILLIS).use { response ->
+                if (response.isSuccessful) return response.body.string()
+                response.code
+            }
+            when {
+                status == 401 && attempt == 0 -> {
+                    try {
+                        recoveryAccessToken.update(refreshAccessToken())
+                    } catch (exception: kotlinx.coroutines.CancellationException) {
+                        throw exception
+                    } catch (exception: Exception) {
+                        fail(ConnectionFailure.DISCONNECTED)
+                        throw exception
+                    }
+                }
+                status == 401 || status == 403 || status == 404 || status == 410 -> {
+                    fail(ConnectionFailure.DISCONNECTED)
+                    throw IOException("세션 상태를 확인할 수 없습니다.")
+                }
+                else -> throw IOException("세션 상태 조회 실패")
+            }
+        }
+        throw IOException("세션 상태 조회 실패")
     }
 
     private fun goLiveWithRetry() {
@@ -901,7 +1007,10 @@ class WebRtcConnection(
                 }
                 throw IOException("WebRTC 세션 생성 실패: HTTP ${response.code}")
             }
-            parseCreatedSession(response.body.string())
+            val payload = response.body.string()
+            parseCreatedSession(payload).also { created ->
+                sessionSnapshot = runCatching { parseSessionSnapshot(payload, created.sessionId) }.getOrNull()
+            }
         }
     }
 
@@ -1695,6 +1804,8 @@ class WebRtcConnection(
         if (!resourcesReleased.compareAndSet(false, true)) return
 
         cancelRecoveryVideoVerification()
+        sessionStatusJob?.cancel()
+        sessionStatusJob = null
         recoveryScope.cancel()
         timerExecutor.shutdownNow()
         if (networkCallbackRegistered) {
@@ -1875,9 +1986,12 @@ class WebRtcConnection(
         }
     }
 
-    private fun dispatchBroadcastState(state: BroadcastState, event: BroadcastEvent?) {
+    private fun dispatchBroadcastState(state: BroadcastState, event: BroadcastEvent?, revision: Long? = null) {
         val callback = Runnable {
-            if (!closed.get()) onBroadcastStateChanged(state, event)
+            if (!closed.get() && (revision == null ||
+                    (isActive() && sessionRequestRevision.get() == revision && !broadcastOperation.get()))) {
+                onBroadcastStateChanged(state, event)
+            }
         }
         if (broadcastCallbackExecutor != null) {
             broadcastCallbackExecutor.execute(callback)
@@ -1973,6 +2087,8 @@ class WebRtcConnection(
         private const val RECOVERY_PEER_CONNECTION_WAIT_MILLIS = 20_000L
         private const val RECOVERY_VIDEO_VERIFICATION_MILLIS = 10_000L
         private const val RECOVERY_VIDEO_STATS_POLL_MILLIS = 250L
+        private const val SESSION_STATUS_POLL_MILLIS = 2_000L
+        private const val SESSION_STATUS_HTTP_TIMEOUT_MILLIS = 3_000L
         private const val RECOVERY_VIDEO_STATUS_POLL_MILLIS = 1_000L
         private const val RECOVERY_VIDEO_STATUS_HTTP_TIMEOUT_MILLIS = 3_000L
         private const val GO_LIVE_RETRY_COUNT = 15
