@@ -1,6 +1,1225 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "%@ 계정 연결이 만료됐습니다. 다시 연결하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 계정 연결이 만료됐습니다. 다시 연결하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your %@ account connection has expired. Reconnect your account."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@アカウントの接続が期限切れです。再接続してください。"
+          }
+        }
+      }
+    },
+    "%@ 계정을 먼저 연결하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 계정을 먼저 연결하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect your %@ account first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先に%@アカウントを接続してください。"
+          }
+        }
+      }
+    },
+    "%@ 스튜디오에서 방송이 종료되어 송출을 멈췄습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 스튜디오에서 방송이 종료되어 송출을 멈췄습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast ended in %@ Studio, so streaming to that platform stopped."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@のスタジオで配信が終了したため、そのプラットフォームへの送信を停止しました。"
+          }
+        }
+      }
+    },
+    "%@ 연결이 끊겨 송출이 종료됐습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 연결이 끊겨 송출이 종료됐습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming stopped because the connection to %@ was lost."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@との接続が切れたため、配信を終了しました。"
+          }
+        }
+      }
+    },
+    "%@에서 요청을 처리하지 못했습니다. 다시 시도하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@에서 요청을 처리하지 못했습니다. 다시 시도하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ could not process the request. Try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@でリクエストを処理できませんでした。もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "%d분": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d분"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d分"
+          }
+        }
+      }
+    },
+    "1회 방송 한도": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1회 방송 한도"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Per-broadcast limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1回の配信上限"
+          }
+        }
+      }
+    },
+    "720p 단독 송출": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p 단독 송출"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p single-platform streaming"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p単独配信"
+          }
+        }
+      }
+    },
+    "720p 동시 송출": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p 동시 송출"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p simulcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p同時配信"
+          }
+        }
+      }
+    },
+    "FHD 단독 송출": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD 단독 송출"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD single-platform streaming"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD単独配信"
+          }
+        }
+      }
+    },
+    "FHD 동시 송출": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD 동시 송출"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD simulcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD同時配信"
+          }
+        }
+      }
+    },
+    "YouTube 채널이 이미 다른 도구로 방송 중입니다. 계속하면 라이브가 하나 더 열려 시청자가 나뉠 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube 채널이 이미 다른 도구로 방송 중입니다. 계속하면 라이브가 하나 더 열려 시청자가 나뉠 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your YouTube channel is already live through another tool. Continuing will open another live broadcast and may split your audience."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeチャンネルは別のツールで配信中です。続行すると新たなライブ配信が始まり、視聴者が分散する可能性があります。"
+          }
+        }
+      }
+    },
+    "계속": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계속"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "続行"
+          }
+        }
+      }
+    },
+    "계정 삭제가 진행 중입니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "계정 삭제가 진행 중입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account deletion is in progress."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アカウントを削除しています。"
+          }
+        }
+      }
+    },
+    "무제한": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "무제한"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlimited"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "無制限"
+          }
+        }
+      }
+    },
+    "방송 안내": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast notice"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信のお知らせ"
+          }
+        }
+      }
+    },
+    "방송 중에는 바꿀 수 없는 항목입니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 중에는 바꿀 수 없는 항목입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This field cannot be changed while live."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信中はこの項目を変更できません。"
+          }
+        }
+      }
+    },
+    "방송 처리 중": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 처리 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing broadcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を処理中"
+          }
+        }
+      }
+    },
+    "방송 최대 시간에 도달해 송출을 종료했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 최대 시간에 도달해 송출을 종료했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming stopped because this broadcast reached its time limit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信時間の上限に達したため、送信を停止しました。"
+          }
+        }
+      }
+    },
+    "사용 가능한 방식": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용 가능한 방식"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available modes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用可能な配信方式"
+          }
+        }
+      }
+    },
+    "알림 닫기": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알림 닫기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dismiss notice"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "お知らせを閉じる"
+          }
+        }
+      }
+    },
+    "영상 입력이 복구되지 않아 송출이 종료됐습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상 입력이 복구되지 않아 송출이 종료됐습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming stopped because the video input did not recover."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "映像入力が復旧しなかったため、配信を終了しました。"
+          }
+        }
+      }
+    },
+    "영상 입력이 없어 송출을 종료했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상 입력이 없어 송출을 종료했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming stopped because there was no video input."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "映像入力がないため、配信を終了しました。"
+          }
+        }
+      }
+    },
+    "오늘 YouTube 연동 사용량이 많아 방식 변경이나 새 방송이 실패할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘 YouTube 연동 사용량이 많아 방식 변경이나 새 방송이 실패할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube integration usage is high today. Changing modes or starting a new broadcast may fail."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日のYouTube連携の使用量が多いため、方式の変更や新しい配信の開始に失敗する可能性があります。"
+          }
+        }
+      }
+    },
+    "오늘 YouTube 연동 한도를 모두 사용했습니다. 한국 시간 오후 4시, 겨울에는 오후 5시에 초기화됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘 YouTube 연동 한도를 모두 사용했습니다. 한국 시간 오후 4시, 겨울에는 오후 5시에 초기화됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today’s YouTube integration quota has been exhausted. It resets at 4 PM Korea time, or 5 PM in winter."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日のYouTube連携の上限に達しました。韓国時間の午後4時、冬季は午後5時にリセットされます。"
+          }
+        }
+      }
+    },
+    "월 방송 한도": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "월 방송 한도"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly broadcast limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月間配信上限"
+          }
+        }
+      }
+    },
+    "이 플랫폼으로 방송 중에는 연결을 해제할 수 없습니다. 방송을 먼저 종료하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 플랫폼으로 방송 중에는 연결을 해제할 수 없습니다. 방송을 먼저 종료하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You cannot disconnect this platform while streaming to it. End the broadcast first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このプラットフォームへの配信中は接続を解除できません。先に配信を終了してください。"
+          }
+        }
+      }
+    },
+    "이번 달 방송 시간을 100% 사용했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 달 방송 시간을 100% 사용했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have used 100% of this month’s broadcast time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今月の配信時間を100%使用しました。"
+          }
+        }
+      }
+    },
+    "이번 달 방송 시간을 80% 사용했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 달 방송 시간을 80% 사용했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have used 80% of this month’s broadcast time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今月の配信時間を80%使用しました。"
+          }
+        }
+      }
+    },
+    "이번 달 방송 시간을 모두 사용해 송출을 종료했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 달 방송 시간을 모두 사용해 송출을 종료했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming stopped because this month’s broadcast time has been exhausted."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今月の配信時間をすべて使用したため、配信を終了しました。"
+          }
+        }
+      }
+    },
+    "이번 달 방송 시간을 모두 사용했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 달 방송 시간을 모두 사용했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have used all of this month’s broadcast time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今月の配信時間をすべて使用しました。"
+          }
+        }
+      }
+    },
+    "이번 방송 가능 시간이 10분 남았습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 방송 가능 시간이 10분 남았습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This broadcast has 10 minutes remaining."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この配信の残り時間は10分です。"
+          }
+        }
+      }
+    },
+    "이번 방송 가능 시간이 30분 남았습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 방송 가능 시간이 30분 남았습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This broadcast has 30 minutes remaining."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この配信の残り時間は30分です。"
+          }
+        }
+      }
+    },
+    "이번 방송의 최대 시간에 도달했습니다. 새 방송을 시작하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 방송의 최대 시간에 도달했습니다. 새 방송을 시작하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This broadcast has reached its maximum duration. Start a new broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この配信は最大時間に達しました。新しい配信を開始してください。"
+          }
+        }
+      }
+    },
+    "입력 길이를 줄여 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "입력 길이를 줄여 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shorten the input."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力を短くしてください。"
+          }
+        }
+      }
+    },
+    "입력한 설정을 확인하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "입력한 설정을 확인하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the settings you entered."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力した設定を確認してください。"
+          }
+        }
+      }
+    },
+    "전환이 취소되어 %@ 방송을 열지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전환이 취소되어 %@ 방송을 열지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The switch was canceled, so the %@ broadcast could not start."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切り替えがキャンセルされたため、%@の配信を開始できませんでした。"
+          }
+        }
+      }
+    },
+    "지금은 송출 자리가 없습니다. 잠시 후 다시 시도하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "지금은 송출 자리가 없습니다. 잠시 후 다시 시도하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No streaming slots are available. Try again shortly."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在、配信枠に空きがありません。しばらくしてからお試しください。"
+          }
+        }
+      }
+    },
+    "채널의 라이브 스트리밍이 아직 활성화되지 않았습니다. 활성화에는 최대 24시간이 걸릴 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채널의 라이브 스트리밍이 아직 활성화되지 않았습니다. 활성화에는 최대 24시간이 걸릴 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live streaming is not enabled for this channel yet. Activation can take up to 24 hours."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このチャンネルのライブ配信はまだ有効になっていません。有効化には最大24時間かかる場合があります。"
+          }
+        }
+      }
+    },
+    "치지직": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK"
+          }
+        }
+      }
+    },
+    "치지직 채널이 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 종료하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 채널이 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 종료하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK rejected the stream because the channel is live through another tool. End that broadcast first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKチャンネルが別のツールで配信中のため、送信が拒否されました。先に別のツールの配信を終了してください。"
+          }
+        }
+      }
+    },
+    "플랜 안내": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랜 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan details"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラン情報"
+          }
+        }
+      }
+    },
+    "플랜 정보를 불러오지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랜 정보를 불러오지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not load plan information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラン情報を読み込めませんでした。"
+          }
+        }
+      }
+    },
+    "플랫폼": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platform"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォーム"
+          }
+        }
+      }
+    },
+    "플랫폼 스튜디오에서 방송이 종료되어 해당 플랫폼 송출을 멈췄습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼 스튜디오에서 방송이 종료되어 해당 플랫폼 송출을 멈췄습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast ended in the platform’s studio, so streaming to that platform stopped."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームのスタジオで配信が終了したため、そのプラットフォームへの送信を停止しました。"
+          }
+        }
+      }
+    },
+    "플랫폼 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The platform’s request limit has been reached. Try again shortly."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームのリクエスト上限に達しました。しばらくしてからお試しください。"
+          }
+        }
+      }
+    },
+    "필수 항목을 입력하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "필수 항목을 입력하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the required field."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "必須項目を入力してください。"
+          }
+        }
+      }
+    },
+    "해상도를 바꾸지 못했습니다. %@ 방송을 다시 시작하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "해상도를 바꾸지 못했습니다. %@ 방송을 다시 시작하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not change resolution. Restart the %@ broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解像度を変更できませんでした。%@の配信を再開してください。"
+          }
+        }
+      }
+    },
+    "현재 플랜": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 플랜"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current plan"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプラン"
+          }
+        }
+      }
+    },
+    "현재 플랜에서는 FHD를 사용할 수 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 플랜에서는 FHD를 사용할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD is not available on your current plan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランではFHDを利用できません。"
+          }
+        }
+      }
+    },
+    "현재 플랜에서는 동시 송출을 사용할 수 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 플랜에서는 동시 송출을 사용할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulcast is not available on your current plan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランでは同時配信を利用できません。"
+          }
+        }
+      }
+    },
+    "현재 플랜에서는 서버 송출을 사용할 수 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 플랜에서는 서버 송출을 사용할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server streaming is not available on your current plan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランではサーバー配信を利用できません。"
+          }
+        }
+      }
+    },
+    "활성화 안내": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "활성화 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Activation help"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効化の案内"
+          }
+        }
+      }
+    },
     "복구 시도 중": {
       "extractionState": "manual",
       "localizations": {

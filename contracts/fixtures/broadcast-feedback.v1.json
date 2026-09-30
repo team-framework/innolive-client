@@ -1,0 +1,78 @@
+{
+  "description": "Synthetic compatibility and feedback examples; no credentials or production endpoints.",
+  "error": {
+    "http_status": 400,
+    "error": {
+      "code": "bad_request",
+      "message": "Invalid broadcast settings request.",
+      "details": {
+        "provider": "youtube",
+        "field": "title",
+        "reason": "required"
+      }
+    }
+  },
+  "session": {
+    "session_id": "fixture-session",
+    "stream": {
+      "status": "stopped",
+      "publisher_active": false,
+      "reconnect_attempts": 3,
+      "broadcast_phase": "idle",
+      "stop_reason": "platform_ended"
+    },
+    "media": {
+      "raw_video_track": null,
+      "anonymization_enabled": false
+    },
+    "targets": [
+      {
+        "provider": "youtube",
+        "stream": {
+          "status": "stopped",
+          "publisher_active": false,
+          "reconnect_attempts": 3,
+          "broadcast_phase": "idle",
+          "stop_reason": "platform_ended"
+        }
+      },
+      {
+        "provider": "chzzk",
+        "stream": {
+          "status": "streaming",
+          "publisher_active": false,
+          "reconnect_attempts": 3,
+          "broadcast_phase": "live",
+          "stop_reason": null
+        }
+      }
+    ],
+    "notices": [
+      {
+        "code": "platform_broadcast_ended",
+        "at": "2026-09-30T00:00:00Z"
+      }
+    ],
+    "warnings": [
+      {
+        "code": "youtube_quota_low",
+        "message": "Quota is low."
+      }
+    ],
+    "resolution_switch": {
+      "status": "done",
+      "failed_targets": [
+        {
+          "provider": "youtube",
+          "code": "resolution_change_failed"
+        }
+      ],
+      "resolution": "fhd",
+      "targets": [
+        "youtube",
+        "chzzk"
+      ],
+      "started_at": "2026-09-30T00:00:00Z"
+    }
+  }
+}

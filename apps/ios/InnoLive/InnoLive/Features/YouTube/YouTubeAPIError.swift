@@ -13,6 +13,7 @@ enum YouTubeAPIError: Error, Equatable {
     case configuration
     case transport
     case response
+    case server(BroadcastProblem)
     case api(code: String?, fallback: String, helpURL: URL?)
 
     static func == (lhs: YouTubeAPIError, rhs: YouTubeAPIError) -> Bool {
@@ -28,18 +29,28 @@ enum YouTubeAPIError: Error, Equatable {
             return true
         case let (.api(lhsCode, _, _), .api(rhsCode, _, _)):
             return lhsCode == rhsCode
+        case let (.server(lhs), .server(rhs)):
+            return lhs == rhs
         default:
             return false
         }
     }
 
+    var code: String? {
+        if case let .server(problem) = self { return problem.code }
+        if case let .api(code, _, _) = self { return code }
+        return nil
+    }
+
     var helpURL: URL? {
+        if case let .server(problem) = self { return problem.helpURL }
         if case let .api(_, _, helpURL) = self { return helpURL }
         return nil
     }
 
     var userMessage: String {
         switch self {
+        case let .server(problem): return problem.userMessage
         case .featureUnavailable: return String(localized: "이 서버에는 YouTube 연결 기능이 아직 구성되지 않았습니다.")
         case .unauthorized: return String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
         case .streamingNotConnected: return String(localized: "YouTube 계정을 먼저 연결해 주세요.")

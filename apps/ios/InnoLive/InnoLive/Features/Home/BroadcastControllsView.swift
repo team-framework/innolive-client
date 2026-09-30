@@ -20,6 +20,10 @@ struct BroadcastControllsView: View {
 
     var body: some View {
         VStack(spacing: 10) {
+            if !isShowingBroadcastSettings { BroadcastNoticeList(youtube: youtube) }
+            if youtube.isServerBroadcastBusy {
+                HStack { ProgressView(); Text(String(localized: "방송 처리 중")) }.font(.caption)
+            }
             BroadcastSessionStatusView(youtube: youtube)
             if !isShowingBroadcastSettings, let feedback {
                 BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
@@ -72,7 +76,7 @@ struct BroadcastControllsView: View {
                         .innoLiveGlassButtonStyle()
                         .buttonBorderShape(.circle)
                         .tint(youtube.isAnonymizationEnabled ? .purple : nil)
-                        .disabled(!isBroadcasting || youtube.isTogglingAnonymization)
+                        .disabled(!isBroadcasting || youtube.isTogglingAnonymization || youtube.isServerBroadcastBusy)
                         .accessibilityLabel(
                             youtube.isAnonymizationEnabled ? String(localized: "비식별화 켜짐") : String(localized: "비식별화 꺼짐")
                         )
@@ -81,6 +85,10 @@ struct BroadcastControllsView: View {
                 }
             }
         }
+        .onChange(of: youtube.broadcastPhase) { _, phase in
+            if phase == "prepared" { isShowingBroadcastSettings = false }
+        }
+        .modifier(BroadcastProblemPresenter(authentication: authentication, youtube: youtube, enabled: !isShowingBroadcastSettings, onRetry: retryBroadcastOperation))
         .sheet(isPresented: $isShowingBroadcastSettings) {
             NavigationStack {
                 BroadcastSettingsView(
@@ -112,6 +120,7 @@ struct BroadcastControllsView: View {
             )
             .disabled(!youtube.canChangeYouTubePauseState)
             Button(String(localized: "방송 종료"), role: .destructive, action: stopYouTubeStream)
+                .disabled(youtube.isChangingStreamState || youtube.isServerBroadcastBusy)
             Button(String(localized: "취소"), role: .cancel) { }
         } message: {
             Text(String(localized: "방송 플랫폼에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
@@ -135,6 +144,7 @@ struct BroadcastControllsView: View {
         isPreparingConnection
             || youtube.videoUplink.isSwitchingCamera
             || youtube.isChangingStreamState
+            || youtube.isServerBroadcastBusy
             || previewTransition == .stopping
             || ["preparing", "going_live"].contains(youtube.broadcastPhase)
             || (isBroadcasting && !youtube.isFeatureAvailable)
@@ -172,10 +182,18 @@ struct BroadcastControllsView: View {
     var feedback: BroadcastFeedback? {
         // 연결/복구가 끝난 뒤 Integration이 확정한 오류만 표시한다.
         // 업링크의 임시 오류를 먼저 표시하면 복구 후 같은 배너가 다시 나타난다.
-        guard !isPreparingConnection, let errorMessage = youtube.errorMessage else {
+        guard youtube.problem == nil, !isPreparingConnection, let errorMessage = youtube.errorMessage else {
             return nil
         }
         return BroadcastFeedback(message: errorMessage, isError: true)
+    }
+
+    private func retryBroadcastOperation() {
+        if youtube.broadcastPhase == "prepared" {
+            Task { await youtube.goLiveYouTubeStream(accessToken: authentication.currentAccessToken()) }
+        } else if youtube.canChangeYouTubePauseState {
+            toggleYouTubePause()
+        } else { isShowingBroadcastSettings = true }
     }
 
     private func performPrimaryAction() {
