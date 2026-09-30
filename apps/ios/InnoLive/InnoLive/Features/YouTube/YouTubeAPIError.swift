@@ -55,6 +55,7 @@ enum YouTubeAPIError: Error, Equatable {
         case let .api(code, _, _):
             switch code {
             case "unauthorized": return String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
+            case "session_already_exists": return String(localized: "이전 방송 세션을 정리하지 못했습니다. 이전 방송을 종료한 뒤 다시 시도해 주세요.")
             case "bad_request": return String(localized: "YouTube 방송 설정을 확인한 뒤 다시 시도해 주세요.")
             case "invalid_auth_code": return String(localized: "YouTube 인가 코드가 만료됐습니다. 계정 연결부터 다시 시도해 주세요.")
             case "youtube_channel_missing": return String(localized: "이 Google 계정에 YouTube 채널이 없습니다. 채널을 먼저 만들어 주세요.")

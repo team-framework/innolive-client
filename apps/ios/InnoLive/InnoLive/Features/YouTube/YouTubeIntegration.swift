@@ -11,6 +11,7 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var session: YouTubeBroadcastSession?
     @Published private(set) var stream: YouTubeStreamState?
     @Published private(set) var videoTrack: YouTubeVideoTrackState?
+    @Published private(set) var responseState = BroadcastSessionSnapshot()
     @Published private(set) var isFeatureAvailable = true
     @Published private(set) var isConnecting = false
     @Published private(set) var isRefreshingConnection = false
@@ -55,6 +56,8 @@ final class YouTubeIntegration: ObservableObject {
     private var connectionOperationGeneration: UInt = 0
     private var pollingTask: Task<Void, Never>?
     private var pollingGeneration = 0
+    private var responseRevision: UInt = 0
+    private let pollingInterval: Duration
     // stream.started_at은 prepare에서 egress가 시작된 시각이므로 공개 방송 타이머에 사용하지 않는다.
     private var liveStartedAt: Date?
     private var reconnectTask: Task<Void, Never>?
@@ -80,6 +83,7 @@ final class YouTubeIntegration: ObservableObject {
         orientationLock: (any BroadcastOrientationLocking)? = nil,
         consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore(),
         sessionStore: (any BroadcastSessionStoring)? = nil,
+        pollingInterval: Duration = .seconds(2),
         aiModeProvider: @escaping () -> AIProcessingMode = { .selected },
         localModelsAvailable: @escaping () -> Bool = { AIProcessingMode.localModelsAvailable },
         persistAIProcessingMode: @escaping (AIProcessingMode) -> Void = {
@@ -91,6 +95,7 @@ final class YouTubeIntegration: ObservableObject {
         self.persistAIProcessingMode = persistAIProcessingMode
         self.api = api ?? YouTubeAPI()
         self.sessionStore = sessionStore ?? BroadcastSessionStore()
+        self.pollingInterval = pollingInterval
         self.preferencesStore = preferencesStore
         self.consentStore = consentStore
         self.orientationLock = orientationLock ?? BroadcastOrientationController.shared
@@ -145,9 +150,14 @@ final class YouTubeIntegration: ObservableObject {
     private var statePolicy: YouTubeBroadcastStatePolicy {
         YouTubeBroadcastStatePolicy(
             stream: stream,
-            isChangingStreamState: isChangingStreamState
+            isChangingStreamState: isChangingStreamState,
+            targets: responseState.details.targets
         )
     }
+
+    var visibleBroadcastTargets: [BroadcastTargetState] { statePolicy.visibleTargets }
+    var broadcastRemainingTime: BroadcastRemainingTime { responseState.details.remainingTime }
+    var broadcastResolution: String? { responseState.details.broadcastResolution }
 
     var broadcastPhase: String {
         statePolicy.broadcastPhase.rawValue
@@ -350,10 +360,9 @@ final class YouTubeIntegration: ObservableObject {
                     }
                 }
                 sessionScope = scope
-                session = created
+                applyCreatedSessionState(created, accessToken: accessToken)
                 isAIProcessingUnconfirmed = false
                 if requestedMode == .onDevice { isAnonymizationEnabled = true }
-                stream = created.stream
                 return true
             } catch {
                 if sessionOperationGeneration == generation {
@@ -546,7 +555,7 @@ final class YouTubeIntegration: ObservableObject {
         let generation = sessionOperationGeneration
         let requestedAnonymization = isAnonymizationEnabled
         isChangingAIProcessing = true
-        defer { isChangingAIProcessing = false }
+        defer { if generation == sessionOperationGeneration { isChangingAIProcessing = false } }
         do {
             if mode == .onDevice {
                 try await videoUplink.prepareLocalProcessing()
@@ -562,6 +571,7 @@ final class YouTubeIntegration: ObservableObject {
             let confirmed = try await api.toggleAnonymization(session: current, accessToken: accessToken, enabled: serverEnabled)
             guard generation == sessionOperationGeneration, session?.sessionID == current.sessionID else { return false }
             guard confirmed.media.anonymizationEnabled == serverEnabled else { throw YouTubeAPIError.response }
+            applySessionResponse(confirmed, sessionID: current.sessionID, generation: generation)
             videoUplink.setAIProcessingMode(mode, anonymizationEnabled: requestedAnonymization)
             session?.clientProcessingMode = mode
             isAnonymizationEnabled = requestedAnonymization
@@ -595,7 +605,7 @@ final class YouTubeIntegration: ObservableObject {
         await deleteCurrentSession(accessToken: accessToken)
         session = nil
         sessionScope = nil
-        stream = nil
+        clearSessionResponseState()
         liveStartedAt = nil
         videoTrack = nil
         isAnonymizationEnabled = false
@@ -625,7 +635,7 @@ final class YouTubeIntegration: ObservableObject {
         await deleteCurrentSession(accessToken: accessToken)
         session = nil
         sessionScope = nil
-        stream = nil
+        clearSessionResponseState()
         liveStartedAt = nil
         videoTrack = nil
         errorMessage = failureMessage
@@ -669,24 +679,24 @@ final class YouTubeIntegration: ObservableObject {
         }
         broadcastSettings = settings
 
+        let generation = sessionOperationGeneration
         isChangingStreamState = true
-        defer { isChangingStreamState = false }
+        defer { if generation == sessionOperationGeneration { isChangingStreamState = false } }
         do {
             let savedSnapshot = try await api.saveBroadcastSettings(
                 session: session,
                 accessToken: accessToken,
                 settings: settings
             )
-            stream = savedSnapshot.stream
-            videoTrack = savedSnapshot.media.rawVideoTrack
+            guard applySessionResponse(savedSnapshot, sessionID: session.sessionID, generation: generation) else { return }
 
             let preparedSnapshot = try await api.prepareStream(
                 session: session,
                 accessToken: accessToken
             )
-            stream = preparedSnapshot.stream
-            videoTrack = preparedSnapshot.media.rawVideoTrack
+            guard applySessionResponse(preparedSnapshot, sessionID: session.sessionID, generation: generation, clearsWarnings: true) else { return }
         } catch {
+            guard generation == sessionOperationGeneration else { return }
             handle(error)
         }
     }
@@ -712,6 +722,7 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         let operationGeneration = beginBroadcastOperation()
+        let sessionGeneration = sessionOperationGeneration
         let lockGeneration = lockBroadcastOrientationIfNeeded()
         isChangingStreamState = true
         defer {
@@ -720,14 +731,14 @@ final class YouTubeIntegration: ObservableObject {
             }
         }
         do {
-            let liveStream = try await goLiveWithRetry(
+            let liveResponse = try await goLiveWithRetry(
                 session: session,
                 accessToken: accessToken,
                 operationGeneration: operationGeneration
             )
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
-            liveStartedAt = Date()
-            stream = liveStream
+            guard applySessionResponse(liveResponse, sessionID: session.sessionID, generation: sessionGeneration) else { return }
+            if isYouTubeBroadcastActive { liveStartedAt = liveStartedAt ?? Date() }
             beginPolling(accessToken: accessToken)
         } catch {
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
@@ -747,6 +758,7 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         let operationGeneration = beginBroadcastOperation()
+        let sessionGeneration = sessionOperationGeneration
         isChangingStreamState = true
         defer {
             if isCurrentBroadcastOperation(operationGeneration) {
@@ -754,15 +766,17 @@ final class YouTubeIntegration: ObservableObject {
             }
         }
         do {
-            let stoppedStream = try await api.stopStream(session: session, accessToken: accessToken)
-            guard isCurrentBroadcastOperation(operationGeneration) else { return }
-            // YouTube 종료 반영에는 시간이 걸릴 수 있다. API 요청이 성공한 순간부터
-            // 앱에서는 송출을 종료로 처리해 타이머와 비식별화 제어 상태를 즉시 복구한다.
-            stream = stoppedStream.markedStoppedByUser()
-            liveStartedAt = nil
+            for provider in targetProviders(for: .stop) {
+                let stoppedResponse = try await api.streamAction(.stop, session: session, accessToken: accessToken, provider: provider)
+                guard isCurrentBroadcastOperation(operationGeneration) else { return }
+                let normalized = stoppedResponse.isFullSnapshot ? stoppedResponse : YouTubeSessionResponse(
+                    stream: stoppedResponse.stream.markedStoppedByUser(), media: stoppedResponse.media,
+                    details: stoppedResponse.details, isFullSnapshot: false, hasMedia: stoppedResponse.hasMedia
+                )
+                applySessionResponse(normalized, sessionID: session.sessionID, generation: sessionGeneration, provider: provider)
+            }
             clearBackgroundYouTubePauseState()
-            stopPolling()
-            if let generation = ownedOrientationLockGeneration {
+            if !isYouTubeBroadcastActive, let generation = ownedOrientationLockGeneration {
                 releaseBroadcastOrientationLock(generation: generation)
             }
         } catch {
@@ -837,17 +851,17 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         isTogglingAnonymization = true
-        defer { isTogglingAnonymization = false }
+        let generation = sessionOperationGeneration
+        defer { if generation == sessionOperationGeneration { isTogglingAnonymization = false } }
         do {
             let response = try await api.toggleAnonymization(
                 session: session,
                 accessToken: accessToken,
                 enabled: !isAnonymizationEnabled
             )
-            isAnonymizationEnabled = response.media.anonymizationEnabled ?? false
-            stream = response.stream
-            videoTrack = response.media.rawVideoTrack
+            applySessionResponse(response, sessionID: session.sessionID, generation: generation)
         } catch {
+            guard generation == sessionOperationGeneration else { return }
             handle(error)
         }
     }
@@ -866,7 +880,7 @@ final class YouTubeIntegration: ObservableObject {
         videoConnectionConfiguration = nil
         connection = nil
         session = nil
-        stream = nil
+        clearSessionResponseState()
         liveStartedAt = nil
         videoTrack = nil
         isAnonymizationEnabled = false
@@ -893,7 +907,7 @@ final class YouTubeIntegration: ObservableObject {
         session: YouTubeBroadcastSession,
         accessToken: String,
         operationGeneration: UInt
-    ) async throws -> YouTubeStreamState {
+    ) async throws -> YouTubeSessionResponse {
         let sessionID = session.sessionID
         for attempt in 1...maximumGoLiveAttempts {
             try ensureCurrentGoLiveAttempt(
@@ -901,7 +915,7 @@ final class YouTubeIntegration: ObservableObject {
                 sessionID: sessionID
             )
             do {
-                let liveStream = try await api.goLive(session: session, accessToken: accessToken)
+                let liveStream = try await api.streamAction(.goLive, session: session, accessToken: accessToken)
                 try ensureCurrentGoLiveAttempt(
                     operationGeneration: operationGeneration,
                     sessionID: sessionID
@@ -937,41 +951,99 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
+    private func applyCreatedSessionState(_ created: YouTubeBroadcastSession, accessToken: String) {
+        session = created
+        responseState = BroadcastSessionSnapshot()
+        applySessionResponse(
+            YouTubeSessionResponse(
+                stream: created.stream,
+                media: created.media ?? YouTubeSessionMedia(anonymizationEnabled: nil, rawVideoTrack: nil),
+                details: created.details,
+                hasMedia: created.media != nil
+            ),
+            sessionID: created.sessionID,
+            generation: sessionOperationGeneration
+        )
+        beginPolling(accessToken: accessToken)
+    }
+
+    @discardableResult
+    private func applySessionResponse(
+        _ response: YouTubeSessionResponse,
+        sessionID: String,
+        generation: UInt,
+        provider: String? = nil,
+        clearsWarnings: Bool = false
+    ) -> Bool {
+        guard generation == sessionOperationGeneration, session?.sessionID == sessionID, !Task.isCancelled else {
+            return false
+        }
+        responseState.apply(response, provider: provider, clearsWarnings: clearsWarnings)
+        responseRevision &+= 1
+        stream = responseState.stream
+        videoTrack = responseState.media?.rawVideoTrack
+        if session?.processingMode == .server, let enabled = responseState.media?.anonymizationEnabled {
+            isAnonymizationEnabled = enabled
+        }
+        if !isYouTubeBroadcastActive {
+            liveStartedAt = nil
+            if let generation = ownedOrientationLockGeneration {
+                releaseBroadcastOrientationLock(generation: generation)
+            }
+        }
+        return true
+    }
+
+    private func clearSessionResponseState() {
+        responseState = BroadcastSessionSnapshot()
+        stream = nil
+        isChangingAIProcessing = false
+        isTogglingAnonymization = false
+    }
+
+    private func targetProviders(for action: YouTubeAPI.StreamAction) -> [String?] {
+        guard let targets = responseState.details.targets else { return [nil] }
+        return targets.filter { target in
+            guard target.provider == "youtube" || target.provider == "chzzk" else { return false }
+            let policy = YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false)
+            switch action {
+            case .goLive: return policy.broadcastPhase == .prepared
+            case .stop: return policy.isBroadcastActive
+            case .pause: return policy.canPauseBroadcast
+            case .resume: return policy.canResumeBroadcast
+            }
+        }.map { Optional($0.provider) }
+    }
+
     private func beginPolling(accessToken: String) {
         stopPolling()
         let generation = pollingGeneration
+        let sessionGeneration = sessionOperationGeneration
+        let interval = pollingInterval
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
                 do {
-                    try await Task.sleep(for: .seconds(3))
+                    try await Task.sleep(for: interval)
                 } catch {
                     break
                 }
                 guard let self,
                       let session = self.session,
-                      self.isYouTubeBroadcastActive,
                       !Task.isCancelled,
+                      self.sessionOperationGeneration == sessionGeneration,
                       self.pollingGeneration == generation else {
                     break
                 }
                 do {
+                    let revision = self.responseRevision
                     let snapshot = try await self.api.sessionStatus(session: session, accessToken: accessToken)
                     guard !Task.isCancelled,
                           self.pollingGeneration == generation,
+                          self.responseRevision == revision,
                           self.session?.sessionID == session.sessionID else {
-                        break
+                        continue
                     }
-                    self.stream = snapshot.stream
-                    self.videoTrack = snapshot.media.rawVideoTrack
-                    if session.processingMode == .server, let anonymization = snapshot.media.anonymizationEnabled {
-                        self.isAnonymizationEnabled = anonymization
-                    }
-                    if snapshot.stream.statusValue == .stopped {
-                        self.liveStartedAt = nil
-                        if let generation = self.ownedOrientationLockGeneration {
-                            self.releaseBroadcastOrientationLock(generation: generation)
-                        }
-                    }
+                    self.applySessionResponse(snapshot, sessionID: session.sessionID, generation: sessionGeneration)
                 } catch {
                     guard !Task.isCancelled, self.pollingGeneration == generation else {
                         break
@@ -989,6 +1061,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func waitForVideoTrack(session: YouTubeBroadcastSession, accessToken: String) async throws -> Bool {
+        let generation = sessionOperationGeneration
         for _ in 0..<15 {
             guard videoUplink.state == .connected else {
                 throw WebRTCVideoUplinkError.failed(
@@ -996,10 +1069,8 @@ final class YouTubeIntegration: ObservableObject {
                 )
             }
             let snapshot = try await api.sessionStatus(session: session, accessToken: accessToken)
-            stream = snapshot.stream
-            videoTrack = snapshot.media.rawVideoTrack
-            if session.processingMode == .server, let anonymization = snapshot.media.anonymizationEnabled {
-                isAnonymizationEnabled = anonymization
+            guard applySessionResponse(snapshot, sessionID: session.sessionID, generation: generation) else {
+                throw CancellationError()
             }
             if snapshot.media.rawVideoTrack?.readyStateValue == .live {
                 guard videoUplink.state == .connected else {
@@ -1125,11 +1196,13 @@ final class YouTubeIntegration: ObservableObject {
 
         await withBackgroundTaskNamed("youtube-background-pause") {
             do {
-                let paused = try await api.pauseStream(session: session, accessToken: accessToken)
-                guard pauseGeneration == backgroundPauseGeneration,
-                      sessionGeneration == sessionOperationGeneration else { return }
-                stream = paused
-                didPauseYouTubeForBackground = true
+                for provider in targetProviders(for: .pause) {
+                    let paused = try await api.streamAction(.pause, session: session, accessToken: accessToken, provider: provider)
+                    guard pauseGeneration == backgroundPauseGeneration,
+                          sessionGeneration == sessionOperationGeneration else { return }
+                    applySessionResponse(paused, sessionID: session.sessionID, generation: sessionGeneration, provider: provider)
+                    didPauseYouTubeForBackground = true
+                }
                 beginPolling(accessToken: accessToken)
             } catch {
                 // 홈 이탈로 보낸 자동 일시 중지는 배너를 띄우지 않는다.
@@ -1175,14 +1248,18 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         isChangingStreamState = true
-        defer { isChangingStreamState = false }
+        let generation = sessionOperationGeneration
+        defer { if generation == sessionOperationGeneration { isChangingStreamState = false } }
         do {
-            stream = try await (shouldPause
-                ? api.pauseStream(session: session, accessToken: accessToken)
-                : api.resumeStream(session: session, accessToken: accessToken))
+            let action: YouTubeAPI.StreamAction = shouldPause ? .pause : .resume
+            for provider in targetProviders(for: action) {
+                let response = try await api.streamAction(action, session: session, accessToken: accessToken, provider: provider)
+                guard applySessionResponse(response, sessionID: session.sessionID, generation: generation, provider: provider) else { return }
+            }
             // 일시 중지와 재개는 RTMP egress만 전환한다. WebRTC 업링크와 세션은 유지한다.
             beginPolling(accessToken: accessToken)
         } catch {
+            guard generation == sessionOperationGeneration else { return }
             handle(error)
         }
     }

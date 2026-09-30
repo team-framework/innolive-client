@@ -88,7 +88,8 @@ final class YouTubeAPI {
     }
 
     func currentAccessToken(fallback: String) -> String {
-        accessTokenProvider?() ?? fallback
+        guard let accessTokenProvider else { return fallback }
+        return accessTokenProvider() ?? ""
     }
 
     func refreshAuthentication() async -> AuthenticationRefreshResult {
@@ -166,8 +167,12 @@ final class YouTubeAPI {
     }
 
     func broadcastSessionScope(accessToken: String) throws -> BroadcastSessionScope {
+        try capturedBroadcastSessionScope(accessToken: currentAccessToken(fallback: accessToken))
+    }
+
+    func capturedBroadcastSessionScope(accessToken: String) throws -> BroadcastSessionScope {
         guard let server = serverURLProvider("/") else { throw YouTubeAPIError.configuration }
-        return try BroadcastSessionScope(server: server, accessToken: currentAccessToken(fallback: accessToken))
+        return try BroadcastSessionScope(server: server, accessToken: accessToken)
     }
 
     func deleteSession(_ session: StoredBroadcastSession, accessToken: String) async throws {
@@ -227,42 +232,39 @@ final class YouTubeAPI {
         session: YouTubeBroadcastSession,
         accessToken: String
     ) async throws -> YouTubeStreamState {
-        try await request(
-            path: "/sessions/\(session.sessionID)/stream/golive",
-            method: "POST",
-            accessToken: accessToken,
-            ownerToken: session.ownerToken,
-            body: Optional<YouTubeEmptyRequest>.none
-        )
+        try await streamAction(.goLive, session: session, accessToken: accessToken).stream
     }
 
     func stopStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
-        try await request(
-            path: "/sessions/\(session.sessionID)/stream/stop",
-            method: "POST",
-            accessToken: accessToken,
-            ownerToken: session.ownerToken,
-            body: Optional<YouTubeEmptyRequest>.none
-        )
+        try await streamAction(.stop, session: session, accessToken: accessToken).stream
     }
 
     func pauseStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
-        try await request(
-            path: "/sessions/\(session.sessionID)/stream/pause",
-            method: "POST",
-            accessToken: accessToken,
-            ownerToken: session.ownerToken,
-            body: Optional<YouTubeEmptyRequest>.none
-        )
+        try await streamAction(.pause, session: session, accessToken: accessToken).stream
     }
 
     func resumeStream(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeStreamState {
-        try await request(
-            path: "/sessions/\(session.sessionID)/stream/resume",
+        try await streamAction(.resume, session: session, accessToken: accessToken).stream
+    }
+
+    enum StreamAction: String {
+        case goLive = "golive"
+        case stop, pause, resume
+    }
+
+    func streamAction(
+        _ action: StreamAction,
+        session: YouTubeBroadcastSession,
+        accessToken: String,
+        provider: String? = nil
+    ) async throws -> YouTubeSessionResponse {
+        return try await request(
+            path: "/sessions/\(session.sessionID)/stream/\(action.rawValue)",
             method: "POST",
             accessToken: accessToken,
             ownerToken: session.ownerToken,
-            body: Optional<YouTubeEmptyRequest>.none
+            body: Optional<YouTubeEmptyRequest>.none,
+            queryItems: provider.map { [URLQueryItem(name: "provider", value: $0)] } ?? []
         )
     }
 
@@ -292,11 +294,15 @@ final class YouTubeAPI {
         accessToken: String,
         ownerToken: String? = nil,
         body: Body? = nil,
-        preserveCreatedSession: Bool = false
+        preserveCreatedSession: Bool = false,
+        queryItems: [URLQueryItem] = []
     ) async throws -> Response {
-        guard let url = serverURLProvider(path) else {
+        guard let baseURL = serverURLProvider(path),
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw YouTubeAPIError.configuration
         }
+        if !queryItems.isEmpty { components.queryItems = queryItems }
+        guard let url = components.url else { throw YouTubeAPIError.configuration }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -321,12 +327,14 @@ final class YouTubeAPI {
         let requestGeneration = authenticationRequestGeneration
         let initialScope = try? broadcastSessionScope(accessToken: accessToken)
         var request = request
-        request.setValue("Bearer \(currentAccessToken(fallback: accessToken))", forHTTPHeaderField: "Authorization")
+        let initialToken = currentAccessToken(fallback: accessToken)
+        guard !initialToken.isEmpty else { throw YouTubeAPIError.unauthorized }
+        request.setValue("Bearer \(initialToken)", forHTTPHeaderField: "Authorization")
 
         var (data, response) = try await perform(request)
         // 생성 후 초기화됐더라도 owner token은 정리용으로 보관해야 한다.
         // 상태 복원 여부는 호출자의 세대 검사에서 결정한다. 인증 재시도는 하지 않는다.
-        if preserveCreatedSession, requestGeneration != authenticationRequestGeneration,
+        if preserveCreatedSession,
            let http = response as? HTTPURLResponse, http.statusCode == 201 {
             return (data, http)
         }
@@ -348,7 +356,9 @@ final class YouTubeAPI {
             }
             switch refreshResult {
             case .refreshed:
-                request.setValue("Bearer \(currentAccessToken(fallback: accessToken))", forHTTPHeaderField: "Authorization")
+                let refreshedToken = currentAccessToken(fallback: accessToken)
+                guard !refreshedToken.isEmpty else { throw YouTubeAPIError.unauthorized }
+                request.setValue("Bearer \(refreshedToken)", forHTTPHeaderField: "Authorization")
                 (data, response) = try await perform(request)
             case .invalid:
                 onInvalidRefresh?()
@@ -356,11 +366,17 @@ final class YouTubeAPI {
                 break
             }
         }
-        if preserveCreatedSession, requestGeneration != authenticationRequestGeneration,
+        if preserveCreatedSession,
            let http = response as? HTTPURLResponse, http.statusCode == 201 {
             return (data, http)
         }
         guard requestGeneration == authenticationRequestGeneration else {
+            throw YouTubeAPIRequestInvalidated()
+        }
+        guard !currentAccessToken(fallback: accessToken).isEmpty else {
+            throw YouTubeAPIRequestInvalidated()
+        }
+        if let initialScope, (try? broadcastSessionScope(accessToken: accessToken)) != initialScope {
             throw YouTubeAPIRequestInvalidated()
         }
         guard let httpResponse = response as? HTTPURLResponse else {
