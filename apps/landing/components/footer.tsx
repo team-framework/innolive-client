@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useLocale } from "@/components/locale-provider";
-import { interpolate } from "@/lib/locales";
 import { socialLinks } from "@/lib/site";
 
 export function Footer() {
@@ -76,32 +75,17 @@ export function Footer() {
                   />
                 );
 
-                if (social.href) {
-                  return (
-                    <li key={social.name}>
-                      <a
-                        href={social.href}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={social.name}
-                        className="block size-8"
-                      >
-                        {icon}
-                      </a>
-                    </li>
-                  );
-                }
-
                 return (
                   <li key={social.name}>
-                    <span
-                      aria-label={interpolate(messages.footer.socialMissing, {
-                        name: social.name,
-                      })}
+                    <a
+                      href={social.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={social.name}
                       className="block size-8"
                     >
                       {icon}
-                    </span>
+                    </a>
                   </li>
                 );
               })}
