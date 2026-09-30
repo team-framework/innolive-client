@@ -51,16 +51,25 @@ function drawVisibleCrop(
 
   canvas.width = cropSideLength;
   canvas.height = cropSideLength;
-  // Match object-cover and enclose the Figma guide (60, 59, 285, 316)
-  // in a square without stretching the face in the uploaded JPEG.
-  const scale = Math.max(405 / sourceWidth, 720 / sourceHeight);
-  const croppedX = (sourceWidth * scale - 405) / 2;
-  const croppedY = (sourceHeight * scale - 720) / 2;
-  const guideSide = 316 / scale;
+  const { width: previewWidth, height: previewHeight } = video.getBoundingClientRect();
+  if (previewWidth <= 0 || previewHeight <= 0) {
+    throw new FaceRegistrationError(imageCreateMessage);
+  }
+  // Map the enlarged guide through the displayed object-cover crop. Keep the
+  // upload square and within the source image without stretching the face.
+  const scale = Math.max(previewWidth / sourceWidth, previewHeight / sourceHeight);
+  const croppedX = (sourceWidth * scale - previewWidth) / 2;
+  const croppedY = (sourceHeight * scale - previewHeight) / 2;
+  const guideSide = Math.min(sourceSide, Math.max(
+    previewWidth * 313.5 / 405,
+    previewHeight * 347.6 / 720,
+  ) / scale);
+  const centerX = (croppedX + previewWidth / 2) / scale;
+  const centerY = (croppedY + previewHeight * 217 / 720) / scale;
   context.drawImage(
     video,
-    (croppedX + (405 - 316) / 2) / scale,
-    (croppedY + 59) / scale,
+    Math.max(0, Math.min(sourceWidth - guideSide, centerX - guideSide / 2)),
+    Math.max(0, Math.min(sourceHeight - guideSide, centerY - guideSide / 2)),
     guideSide,
     guideSide,
     0,
@@ -280,7 +289,7 @@ export function FaceRegistrationModal({
           <Image src="/try-out/face-divider.svg" alt="" width={720} height={1} unoptimized className="absolute left-0 top-0 h-auto w-[100cqh] max-w-none origin-top-left rotate-90" />
         </div>
         <div className="flex min-h-0 w-full flex-1 items-center justify-center [container-type:size] min-[48rem]:w-[25.3125rem] min-[48rem]:flex-none">
-          <div className="relative aspect-[405/720] w-[min(100cqw,56.25cqh)] overflow-hidden bg-black">
+          <div className="relative size-full overflow-hidden bg-black">
             <video
               ref={videoRef}
               autoPlay
@@ -289,7 +298,7 @@ export function FaceRegistrationModal({
               className="absolute inset-0 size-full scale-x-[-1] object-cover"
               aria-label={copy.previewLabel}
             />
-            <Image src="/try-out/face-guide.svg" alt="" width={405} height={720} unoptimized className="pointer-events-none absolute inset-0 h-auto w-full" />
+            <Image src="/try-out/face-guide.svg" alt="" width={405} height={720} unoptimized className="pointer-events-none absolute inset-0 size-full" />
             <div className="absolute inset-x-[13.086%] bottom-[6.528%] flex flex-col items-center gap-2 text-center text-white">
               <p className="w-full text-base font-semibold leading-none min-[48rem]:text-xl" role="status" aria-live="polite">{status}</p>
               {state === "failed" ? (
