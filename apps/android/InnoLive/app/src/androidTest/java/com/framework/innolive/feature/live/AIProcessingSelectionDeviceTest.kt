@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -46,11 +47,13 @@ class AIProcessingSelectionDeviceTest {
         val original = preference.onDevice
         val session = WebRtcSessionViewModel()
         val refresh = CompletableDeferred<Unit>()
+        val retryRefresh = CompletableDeferred<Unit>()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         for (permission in listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) {
             instrumentation.uiAutomation.grantRuntimePermission(context.packageName, permission)
         }
         try {
+            preference.onDevice = false
             compose.runOnIdle {
                 @Suppress("UNCHECKED_CAST")
                 val state = WebRtcSessionViewModel::class.java
@@ -59,7 +62,7 @@ class AIProcessingSelectionDeviceTest {
                     .get(session) as MutableState<WebRtcSessionState>
                 state.value = WebRtcSessionState(connection = WebRtcConnectionState.CONNECTED)
 
-                assertTrue(session.selectAIProcessing(context, !original))
+                assertTrue(session.selectAIProcessing(context, true))
                 assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
                 assertTrue(session.prepareBroadcast(
                     context,
@@ -69,13 +72,29 @@ class AIProcessingSelectionDeviceTest {
                     error("검증용 인증 실패")
                 })
                 assertEquals(WebRtcConnectionState.CONNECTING, session.connectionState)
+                assertFalse(session.canChangeAIProcessing)
                 refresh.complete(Unit)
             }
             compose.waitUntil(10_000) { !session.isPreparingBroadcast }
             compose.runOnIdle {
                 assertEquals(WebRtcConnectionState.FAILED, session.connectionState)
                 assertEquals(BroadcastState.FAILED, session.broadcastState)
+                assertTrue("Failed preparation must allow changing AI mode", session.canChangeAIProcessing)
+                assertTrue(session.selectAIProcessing(context, false))
+                assertFalse(session.selectedOnDeviceProcessing)
+                assertFalse(preference.onDevice)
+                assertTrue("Server AI must be retryable after on-device failure", session.prepareBroadcast(
+                    context,
+                    BroadcastSettings("서버 AI 재시도", "방송 준비 검증", "private", false, "22"),
+                ) {
+                    retryRefresh.await()
+                    error("검증용 재시도 인증 실패")
+                })
+                assertEquals(WebRtcConnectionState.CONNECTING, session.connectionState)
+                retryRefresh.complete(Unit)
             }
+            compose.waitUntil(10_000) { !session.isPreparingBroadcast }
+            compose.runOnIdle { assertEquals(BroadcastState.FAILED, session.broadcastState) }
         } finally {
             compose.runOnIdle { session.close(); preference.onDevice = original }
         }

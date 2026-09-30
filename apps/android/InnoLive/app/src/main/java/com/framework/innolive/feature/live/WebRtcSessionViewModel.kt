@@ -105,7 +105,7 @@ class WebRtcSessionViewModel : ViewModel() {
     val canChangeAIProcessing: Boolean
         get() = !isPreparingBroadcast &&
             anonymizationChange.status != AnonymizationChangeStatus.CHANGING &&
-            broadcastState == BroadcastState.IDLE && connectionState in setOf(
+            broadcastState.canPrepare && connectionState in setOf(
                 WebRtcConnectionState.IDLE,
                 WebRtcConnectionState.FAILED,
                 WebRtcConnectionState.CONNECTED,
