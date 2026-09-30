@@ -1,6 +1,30 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "복구 시도 중": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": { "stringUnit": { "state": "translated", "value": "복구 시도 중" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Reconnecting" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "再接続中" } }
+      }
+    },
+    "네트워크 연결이 끊겼습니다. %d/%d번째 복구를 시도하고 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": { "stringUnit": { "state": "translated", "value": "네트워크 연결이 끊겼습니다. %d/%d번째 복구를 시도하고 있습니다." } },
+        "en": { "stringUnit": { "state": "translated", "value": "The network connection was lost. Reconnection attempt %d of %d is in progress." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ネットワーク接続が切断されました。再接続を試みています（%d/%d回目）。" } }
+      }
+    },
+    "복구 시도 중 (%d/%d)": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": { "stringUnit": { "state": "translated", "value": "복구 시도 중 (%d/%d)" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Reconnecting (%d/%d)" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "再接続中（%d/%d）" } }
+      }
+    },
     "YouTube 전송 안내": {
       "extractionState": "manual",
       "localizations": {

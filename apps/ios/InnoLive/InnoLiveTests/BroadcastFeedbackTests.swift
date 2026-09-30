@@ -74,12 +74,31 @@ final class BroadcastFeedbackTests: XCTestCase {
         XCTAssertEqual(controls().feedback?.message, "Retry failure")
     }
 
-    func testRecoveryStatusShowsTheCurrentAttempt() {
+    func testRecoveryStatusShowsTheCurrentAttempt() throws {
         let status = VideoRecoveryStatus(attempt: 2, maximumAttempts: 3)
+        let expectedByLanguage = [
+            "ko": (
+                "복구 시도 중",
+                "네트워크 연결이 끊겼습니다. 2/3번째 복구를 시도하고 있습니다.",
+                "복구 시도 중 (2/3)"
+            ),
+            "en": (
+                "Reconnecting",
+                "The network connection was lost. Reconnection attempt 2 of 3 is in progress.",
+                "Reconnecting (2/3)"
+            ),
+            "ja": (
+                "再接続中",
+                "ネットワーク接続が切断されました。再接続を試みています（2/3回目）。",
+                "再接続中（2/3）"
+            )
+        ]
+        let language = Bundle.main.preferredLocalizations.first ?? "ko"
+        let expected = try XCTUnwrap(expectedByLanguage[language])
 
-        XCTAssertEqual(status.title, "복구 시도 중")
-        XCTAssertEqual(status.detail, "네트워크 연결이 끊겼습니다. 2/3번째 복구를 시도하고 있습니다.")
-        XCTAssertEqual(status.buttonTitle, "복구 시도 중 (2/3)")
+        XCTAssertEqual(status.title, expected.0)
+        XCTAssertEqual(status.detail, expected.1)
+        XCTAssertEqual(status.buttonTitle, expected.2)
     }
 
     private func controls(isStartingServerConnection: Bool = false) -> BroadcastControllsView {
