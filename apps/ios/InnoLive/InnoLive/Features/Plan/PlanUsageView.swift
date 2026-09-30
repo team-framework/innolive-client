@@ -55,12 +55,12 @@ struct PlanUsageContent: View {
             }
             if let snapshot {
                 Text(snapshot.plan.plan.capitalized).font(.title3.bold())
-                LabeledContent(String(localized: "월 방송 한도"), value: PlanTimeText.duration(
+                timeRow(String(localized: "월 방송 한도"), value: PlanTimeText.duration(
                     snapshot.plan.monthlyBroadcastSeconds == 0 ? nil : snapshot.plan.monthlyBroadcastSeconds))
-                LabeledContent(String(localized: "1회 방송 한도"), value: PlanTimeText.duration(
+                timeRow(String(localized: "1회 방송 한도"), value: PlanTimeText.duration(
                     snapshot.plan.maxPerBroadcastSeconds == 0 ? nil : snapshot.plan.maxPerBroadcastSeconds))
-                LabeledContent(String(localized: "이번 달 차감 시간"), value: usedTime(snapshot.usage.usedSeconds))
-                LabeledContent(String(localized: "이번 달 남은 시간"), value: PlanTimeText.duration(snapshot.usage.remainingSeconds))
+                timeRow(String(localized: "이번 달 차감 시간"), value: usedTime(snapshot.usage.usedSeconds))
+                timeRow(String(localized: "이번 달 남은 시간"), value: PlanTimeText.duration(snapshot.usage.remainingSeconds))
                 Text(String(localized: "현재 방송 방식: \(currentMode.title)"))
                     .font(.subheadline.weight(.semibold))
                 ForEach(BroadcastPlanMode.allCases) { mode in
@@ -108,6 +108,19 @@ struct PlanUsageContent: View {
                     Button(String(localized: "닫기")) { showsPlanGuide = false }
                 } }
             }
+        }
+    }
+
+    private func timeRow(_ title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Text(value)
+                .font(.subheadline.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .fixedSize()
         }
     }
 
