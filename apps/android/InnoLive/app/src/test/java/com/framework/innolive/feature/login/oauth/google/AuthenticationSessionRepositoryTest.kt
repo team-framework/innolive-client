@@ -3,6 +3,7 @@ package com.framework.innolive.feature.login.oauth.google
 import java.io.IOException
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -84,6 +85,41 @@ class AuthenticationSessionRepositoryTest {
             repository.close()
             scope.cancel()
         }
+    }
+
+    @Test
+    fun failedPersistenceKeepsOldSessionAndAllowsExplicitRetry() = runBlocking {
+        val oldSession = session("old-access", "old-refresh")
+        val newSession = session("new-access", "new-refresh")
+        val failSave = AtomicBoolean(true)
+        val store = object : AuthenticationSessionStore {
+            var persisted: GoogleSessionStore.Session? = oldSession
+            override fun load() = persisted
+            override fun save(session: GoogleSessionStore.Session) {
+                if (failSave.get()) throw IOException("storage unavailable")
+                persisted = session
+            }
+            override fun clear() { persisted = null }
+        }
+        var requests = 0
+        val repository = AuthenticationSessionRepository(store, object : AuthenticationApi {
+            override suspend fun refresh(currentSession: GoogleSessionStore.Session): GoogleSessionStore.Session {
+                assertEquals(oldSession, currentSession)
+                requests++
+                return newSession
+            }
+        })
+        try {
+            try { repository.refresh(); fail("Persist failure must reject the refresh") }
+            catch (_: IOException) { }
+            assertEquals(oldSession, store.persisted)
+            assertEquals(oldSession, repository.session.value)
+            failSave.set(false)
+            assertEquals(newSession, repository.refresh())
+            assertEquals(newSession, store.persisted)
+            assertEquals(newSession, repository.session.value)
+            assertEquals(2, requests)
+        } finally { repository.close() }
     }
 
     @Test

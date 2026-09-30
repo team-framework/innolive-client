@@ -173,11 +173,29 @@ class WebRtcRecoveryPolicyTest {
         assertTrue(afterCounterReset.hasProgress)
     }
 
+    @Test fun audioPacketsCannotSatisfyRecoveredVideoProgress() {
+        val report = RTCStatsReport(
+            0L,
+            mapOf(
+                "audio" to RTCStats(0L, "outbound-rtp", "audio", mapOf(
+                    "kind" to "audio", "packetsSent" to 900L,
+                )),
+                "video" to RTCStats(0L, "outbound-rtp", "video", mapOf(
+                    "kind" to "video", "packetsSent" to 0L,
+                )),
+            ),
+        )
+
+        assertEquals(0L, outboundVideoPackets(report))
+    }
+
     @Test fun videoStatsAndServerSnapshotIdentifyLiveVideo() {
         val report = RTCStatsReport(
             0L,
             mapOf(
-                "video" to RTCStats(0L, "outbound-rtp", "video", mapOf("packetsSent" to 42L)),
+                "video" to RTCStats(0L, "outbound-rtp", "video", mapOf(
+                    "kind" to "video", "packetsSent" to 42L,
+                )),
                 "audio" to RTCStats(0L, "inbound-rtp", "audio", mapOf("packetsReceived" to 100L)),
             ),
         )

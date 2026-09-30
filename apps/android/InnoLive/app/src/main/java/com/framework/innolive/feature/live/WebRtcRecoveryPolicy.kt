@@ -125,7 +125,10 @@ internal fun recoveryServerVideoStatus(statusCode: Int, payload: String? = null)
     }
 
 internal fun outboundVideoPackets(report: RTCStatsReport): Long? {
-    val outbound = report.statsMap.values.filter { it.type == "outbound-rtp" }
+    val outbound = report.statsMap.values.filter {
+        it.type == "outbound-rtp" &&
+            (it.members["kind"] == "video" || it.members["mediaType"] == "video")
+    }
     if (outbound.isEmpty()) return null
     val counts = outbound.mapNotNull { (it.members["packetsSent"] as? Number)?.toLong() }
     return counts.takeIf { it.isNotEmpty() }?.sum()

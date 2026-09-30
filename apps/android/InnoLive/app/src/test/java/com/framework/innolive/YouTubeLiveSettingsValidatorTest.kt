@@ -52,6 +52,21 @@ class YouTubeLiveSettingsValidatorTest {
     }
 
     @Test
+    fun titleAndDescriptionBeyondTheirMaximumAreRejected() {
+        val overlongTitle = validateYouTubeLiveSettings(
+            settings("제".repeat(MAX_YOUTUBE_TITLE_LENGTH + 1), "설명", false),
+        )
+        assertTrue(overlongTitle.titleError)
+        assertFalse(overlongTitle.isValid)
+
+        val overlongDescription = validateYouTubeLiveSettings(
+            settings("제목", "설".repeat(MAX_YOUTUBE_DESCRIPTION_LENGTH + 1), false),
+        )
+        assertTrue(overlongDescription.descriptionError)
+        assertFalse(overlongDescription.isValid)
+    }
+
+    @Test
     fun validInputClearsEachPreviouslyReportedError() {
         val validation = validateYouTubeLiveSettings(
             settings(title = "방송 제목", description = "방송 설명", madeForKids = true),
