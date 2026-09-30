@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { FaceDetector } from "@mediapipe/tasks-vision";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/button";
@@ -50,12 +51,18 @@ function drawVisibleCrop(
 
   canvas.width = cropSideLength;
   canvas.height = cropSideLength;
+  // Match object-cover and enclose the Figma guide (60, 59, 285, 316)
+  // in a square without stretching the face in the uploaded JPEG.
+  const scale = Math.max(405 / sourceWidth, 720 / sourceHeight);
+  const croppedX = (sourceWidth * scale - 405) / 2;
+  const croppedY = (sourceHeight * scale - 720) / 2;
+  const guideSide = 316 / scale;
   context.drawImage(
     video,
-    (sourceWidth - sourceSide) / 2,
-    (sourceHeight - sourceSide) / 2,
-    sourceSide,
-    sourceSide,
+    (croppedX + (405 - 316) / 2) / scale,
+    (croppedY + 59) / scale,
+    guideSide,
+    guideSide,
     0,
     0,
     cropSideLength,
@@ -260,39 +267,39 @@ export function FaceRegistrationModal({
 
   return (
     <Dialog open={isOpen} onClose={onClose} label={copy.dialogLabel}>
-      <div className="flex w-[min(calc(100vw-3rem),40.4375rem)] max-w-[40.4375rem] flex-col overflow-clip rounded-[12px] bg-background-secondary p-6 text-text-primary min-[48rem]:p-8">
-        <div className="flex flex-col gap-2.5">
-          <p className="text-sm font-medium text-text-secondary">{messages.face.preview}</p>
-          <h2 className="text-[2.25rem] font-medium leading-none">{messages.face.title}</h2>
-          <p className="text-2xl font-normal leading-[1.2] text-text-secondary">{messages.face.subtitle}</p>
+      <div className="flex w-[min(calc(100vw-3rem),40.4375rem)] max-w-[40.4375rem] flex-col overflow-clip rounded-[12px] bg-background-secondary text-text-primary min-[48rem]:flex-row">
+        <div className="flex w-full flex-col items-start justify-between gap-8 p-8 min-[48rem]:w-[15.125rem] min-[48rem]:shrink-0">
+          <div className="flex flex-col gap-2.5">
+            <h2 className="text-[2.25rem] font-medium leading-none">{messages.face.title}</h2>
+            <p className="text-2xl font-normal leading-[1.2] text-text-secondary">{messages.face.subtitle}</p>
+          </div>
+          <p className="w-full text-center text-xs leading-[1.3] text-text-secondary">{messages.face.termsNote}</p>
         </div>
 
-        <div className="relative mx-auto mt-8 aspect-square w-[min(100%,24rem)] overflow-hidden rounded-full bg-black">
+        <div className="relative hidden w-0 self-stretch min-[48rem]:block" aria-hidden="true">
+          <Image src="/try-out/face-divider.svg" alt="" width={720} height={1} unoptimized className="absolute left-0 top-0 max-w-none origin-top-left rotate-90" />
+        </div>
+        <div className="relative aspect-[405/720] w-full overflow-hidden bg-black min-[48rem]:w-[25.3125rem] min-[48rem]:shrink-0">
           <video
             ref={videoRef}
             autoPlay
             muted
             playsInline
-            className="size-full scale-x-[-1] object-cover"
+            className="absolute inset-0 size-full scale-x-[-1] object-cover"
             aria-label={copy.previewLabel}
           />
-          <div className="pointer-events-none absolute inset-[10%] rounded-full border-2 border-white/80" aria-hidden="true" />
-          {state !== "ready" ? (
-            <div className="absolute inset-0 grid place-items-center bg-black/45 px-8 text-center text-sm text-white">
-              {state === "registering" ? copy.status.registering : status}
-            </div>
-          ) : null}
+          <Image src="/try-out/face-guide.svg" alt="" width={405} height={720} unoptimized className="pointer-events-none absolute inset-0 h-auto w-full" />
+          <div className="absolute inset-x-[13.086%] bottom-[6.528%] flex flex-col items-center gap-2 text-center text-white">
+            <p className="w-full text-base font-semibold leading-none min-[48rem]:text-xl" role="status" aria-live="polite">{status}</p>
+            {state === "failed" ? (
+              <Button showChevron={false} onClick={() => setRetryCount((count) => count + 1)}>
+                {copy.retry}
+              </Button>
+            ) : (
+              <p className="w-full text-sm font-medium leading-[1.3] text-[#fbfbfb] min-[48rem]:text-base">{messages.face.guide}</p>
+            )}
+          </div>
         </div>
-
-        <p className="mt-4 text-center text-sm text-text-secondary" role="status" aria-live="polite">
-          {status}
-        </p>
-        {state === "failed" ? (
-          <Button className="mx-auto mt-4" showChevron={false} onClick={() => setRetryCount((count) => count + 1)}>
-            {copy.retry}
-          </Button>
-        ) : null}
-        <p className="mt-5 text-center text-xs leading-[1.3] text-text-secondary">{messages.face.termsNote}</p>
         <canvas ref={canvasRef} className="sr-only" aria-hidden="true" />
       </div>
     </Dialog>
