@@ -8,8 +8,8 @@ import { useLocale } from "@/components/locale-provider";
 import { interpolate } from "@/lib/locales";
 
 const INTRO_COMPLETE_EVENT = "innolive:intro-complete";
-// 마지막 문구가 완전히 나타난 뒤 유지할 시간(ms).
 const FINAL_SCENE_MINIMUM_DISPLAY_MS = 1_000;
+const WHEEL_QUIET_MS = 240;
 
 function markIntroComplete() {
   document.documentElement.dataset.introComplete = "true";
@@ -58,13 +58,13 @@ export function IntroScroll() {
     root.dataset.active = "true";
     const skipButton = root.querySelector<HTMLButtonElement>("button");
     let index = 0;
-    let busy = false;
+    let started = false;
     let leaving = false;
     let wheelDistance = 0;
     let lastWheel = 0;
     let touchY = 0;
-    let finalSceneAvailableAt = 0;
-    let tween: gsap.core.Tween | undefined;
+    let release: gsap.core.Tween | undefined;
+    let tween: gsap.core.Timeline | undefined;
 
     const unlock = () => {
       document.body.style.overflow = overflow;
@@ -73,59 +73,58 @@ export function IntroScroll() {
     const finish = () => {
       if (leaving) return;
       leaving = true;
-      window.scrollTo({ top: 0, behavior: "auto" });
       tween?.kill();
-      tween = gsap.to(root, {
-        opacity: 0, duration: reduce.matches ? 0 : 0.65,
+      tween = gsap.timeline().to(root, {
+        opacity: 0, duration: reduce.matches ? 0 : 0.35,
         onComplete: () => {
-          unlock();
-          setFinished(true);
-          markIntroComplete();
+          // Consume the tail of the gesture before enabling document scrolling.
+          const releaseWhenQuiet = () => {
+            if (performance.now() - lastWheel < WHEEL_QUIET_MS) {
+              release = gsap.delayedCall(WHEEL_QUIET_MS / 1000, releaseWhenQuiet);
+              return;
+            }
+            window.scrollTo({ top: 0, behavior: "instant" });
+            unlock();
+            setFinished(true);
+            markIntroComplete();
+            document.getElementById("main")?.focus({ preventScroll: true });
+          };
+          releaseWhenQuiet();
         },
       });
     };
     finishRef.current = finish;
-    const step = (direction: number) => {
-      if (busy || leaving) return;
-      if (
-        index === layers.length - 1
-        && direction > 0
-        && performance.now() < finalSceneAvailableAt
-      ) return;
-      const next = Math.max(0, index + direction);
-      if (next >= layers.length) { finish(); return; }
-      if (next === index) return;
-      busy = true;
-      const previous = layers[index];
-      const target = layers[next];
-      layers.forEach((layer) => { layer.style.zIndex = "0"; });
-      previous.style.zIndex = "1";
-      gsap.set(target, { autoAlpha: 0, zIndex: 2 });
-      previous.setAttribute("aria-hidden", "true");
-      target.removeAttribute("aria-hidden");
-      index = next;
-      root.dataset.sceneIndex = String(index);
-      tween = gsap.to(target, { autoAlpha: 1, duration: 0.5, onComplete: () => {
-        gsap.set(previous, { autoAlpha: 0 });
-        if (index === layers.length - 1) {
-          finalSceneAvailableAt = performance.now() + FINAL_SCENE_MINIMUM_DISPLAY_MS;
-        }
-        busy = false;
-      } });
+    const start = () => {
+      if (started || leaving) return;
+      started = true;
+      tween = gsap.timeline({ onComplete: finish });
+      layers.slice(1).forEach((target, offset) => {
+        const previous = layers[offset];
+        tween!.call(() => {
+          index = offset + 1;
+          root.dataset.sceneIndex = String(index);
+          previous.setAttribute("aria-hidden", "true");
+          target.removeAttribute("aria-hidden");
+          gsap.set(target, { zIndex: index });
+        }, undefined, offset * 0.22);
+        tween!.to(target, { autoAlpha: 1, duration: 0.16 }, offset * 0.22);
+      });
+      tween.to({}, { duration: FINAL_SCENE_MINIMUM_DISPLAY_MS / 1000 });
     };
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      if (busy || leaving) { wheelDistance = 0; lastWheel = event.timeStamp; return; }
-      if (event.timeStamp - lastWheel > 180) wheelDistance = 0;
-      lastWheel = event.timeStamp;
+      event.stopImmediatePropagation();
+      const now = performance.now();
+      if (now - lastWheel > WHEEL_QUIET_MS) wheelDistance = 0;
+      lastWheel = now;
       wheelDistance += event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
-      if (Math.abs(wheelDistance) >= 80) { step(Math.sign(wheelDistance)); wheelDistance = 0; }
+      if (wheelDistance >= 40) start();
     };
     const onTouchStart = (event: TouchEvent) => { touchY = event.touches[0].clientY; };
     const onTouchMove = (event: TouchEvent) => { event.preventDefault(); };
     const onTouchEnd = (event: TouchEvent) => {
       const distance = touchY - event.changedTouches[0].clientY;
-      if (Math.abs(distance) > 35) step(Math.sign(distance));
+      if (distance > 35) start();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Tab") { event.preventDefault(); skipButton?.focus(); }
@@ -133,12 +132,12 @@ export function IntroScroll() {
         if (event.key === " " && event.target === skipButton) return;
         event.preventDefault();
         if (event.key === "End" || event.key === "Escape") finish();
-        else step(["ArrowUp", "PageUp", "Home"].includes(event.key) ? -1 : 1);
+        else if (!["ArrowUp", "PageUp", "Home"].includes(event.key)) start();
       }
     };
     const onReduce = () => { if (reduce.matches) finish(); };
     const onMobile = () => { if (mobile.matches) finish(); };
-    root.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("wheel", onWheel, { passive: false, capture: true });
     root.addEventListener("touchstart", onTouchStart, { passive: true });
     root.addEventListener("touchmove", onTouchMove, { passive: false });
     root.addEventListener("touchend", onTouchEnd);
@@ -147,8 +146,9 @@ export function IntroScroll() {
     mobile.addEventListener("change", onMobile);
     return () => {
       tween?.kill();
+      release?.kill();
       unlock();
-      root.removeEventListener("wheel", onWheel);
+      window.removeEventListener("wheel", onWheel, true);
       root.removeEventListener("touchstart", onTouchStart);
       root.removeEventListener("touchmove", onTouchMove);
       root.removeEventListener("touchend", onTouchEnd);
