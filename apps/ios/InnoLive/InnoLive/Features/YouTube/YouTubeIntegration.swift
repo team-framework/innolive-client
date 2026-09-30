@@ -26,6 +26,12 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var isChangingAIProcessing = false
     @Published private(set) var isAIProcessingUnconfirmed = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var problem: BroadcastProblem?
+    @Published private(set) var isServerBroadcastBusy = false
+    @Published private(set) var noticeBanners: [BroadcastNoticeBanner] = []
+    private var noticeCenter = BroadcastNoticeCenter()
+    private var pendingConcurrentSessionID: String?
+    private var pendingConcurrentSettings: YouTubeBroadcastSettings?
     @Published private(set) var helpURL: URL?
     @Published private(set) var hasAcknowledgedYouTubeTransmission = false
     @Published var broadcastSettings: YouTubeBroadcastSettings {
@@ -163,7 +169,7 @@ final class YouTubeIntegration: ObservableObject {
         statePolicy.broadcastPhase.rawValue
     }
 
-    var isBroadcastSettingsLocked: Bool { statePolicy.isBroadcastSettingsLocked }
+    var isBroadcastSettingsLocked: Bool { statePolicy.isBroadcastSettingsLocked || isServerBroadcastBusy }
 
     var isYouTubeBroadcastActive: Bool { statePolicy.isBroadcastActive }
 
@@ -179,7 +185,7 @@ final class YouTubeIntegration: ObservableObject {
 
     var canResumeYouTubeBroadcast: Bool { statePolicy.canResumeBroadcast }
 
-    var canChangeYouTubePauseState: Bool { statePolicy.canChangePauseState }
+    var canChangeYouTubePauseState: Bool { statePolicy.canChangePauseState && !isServerBroadcastBusy }
 
     var streamStatusText: String { statePolicy.streamStatusText }
 
@@ -603,6 +609,7 @@ final class YouTubeIntegration: ObservableObject {
         videoConnectionConfiguration = nil
         stopPolling()
         await deleteCurrentSession(accessToken: accessToken)
+        resetBroadcastFeedback()
         session = nil
         sessionScope = nil
         clearSessionResponseState()
@@ -633,6 +640,7 @@ final class YouTubeIntegration: ObservableObject {
         videoConnectionConfiguration = nil
         stopPolling()
         await deleteCurrentSession(accessToken: accessToken)
+        resetBroadcastFeedback()
         session = nil
         sessionScope = nil
         clearSessionResponseState()
@@ -645,12 +653,14 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func prepareYouTubeStream(accessToken: String?) async {
+        pendingConcurrentSessionID = nil
+        pendingConcurrentSettings = nil
         guard !isAIProcessingUnconfirmed else {
             errorMessage = String(localized: "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요.")
             return
         }
         clearError()
-        guard !isChangingStreamState, !isChangingAIProcessing, !isAIProcessingUnconfirmed,
+        guard !isServerBroadcastBusy, !isChangingStreamState, !isChangingAIProcessing, !isAIProcessingUnconfirmed,
               !isYouTubeConnectionOperationInProgress else { return }
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
@@ -696,14 +706,19 @@ final class YouTubeIntegration: ObservableObject {
             )
             guard applySessionResponse(preparedSnapshot, sessionID: session.sessionID, generation: generation, clearsWarnings: true) else { return }
         } catch {
-            guard generation == sessionOperationGeneration else { return }
+            guard generation == sessionOperationGeneration, self.session?.sessionID == session.sessionID else { return }
+            if (error as? YouTubeAPIError)?.code == "channel_already_live" {
+                pendingConcurrentSessionID = session.sessionID
+                pendingConcurrentSettings = settings
+            }
             handle(error)
+            if isServerBroadcastBusy { beginPolling(accessToken: accessToken) }
         }
     }
 
     func goLiveYouTubeStream(accessToken: String?) async {
         clearError()
-        guard !isChangingStreamState else { return }
+        guard !isChangingStreamState, !isServerBroadcastBusy else { return }
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
             return
@@ -751,7 +766,7 @@ final class YouTubeIntegration: ObservableObject {
 
     func stopYouTubeStream(accessToken: String?) async {
         clearError()
-        guard !isChangingStreamState else { return }
+        guard !isChangingStreamState, !isServerBroadcastBusy else { return }
         guard let accessToken, !accessToken.isEmpty,
               let session else {
             return
@@ -867,6 +882,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        resetBroadcastFeedback()
         sessionOperationGeneration &+= 1
         sessionScope = nil
         invalidateConnectionOperation()
@@ -922,8 +938,7 @@ final class YouTubeIntegration: ObservableObject {
                 )
                 return liveStream
             } catch let error as YouTubeAPIError {
-                guard case let .api(code, _, _) = error,
-                      code == "broadcast_not_ready",
+                guard error.code == "broadcast_not_ready",
                       attempt < maximumGoLiveAttempts else {
                     throw error
                 }
@@ -980,6 +995,7 @@ final class YouTubeIntegration: ObservableObject {
         }
         responseState.apply(response, provider: provider, clearsWarnings: clearsWarnings)
         responseRevision &+= 1
+        updateBroadcastFeedback(sessionID: sessionID)
         stream = responseState.stream
         videoTrack = responseState.media?.rawVideoTrack
         if session?.processingMode == .server, let enabled = responseState.media?.anonymizationEnabled {
@@ -1182,6 +1198,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func clearError() {
+        problem = nil
         errorMessage = nil
         helpURL = nil
         videoUplink.dismissError()
@@ -1234,7 +1251,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private func changePausedState(accessToken: String?, shouldPause: Bool) async {
         clearError()
-        guard !isChangingStreamState else { return }
+        guard !isChangingStreamState, !isServerBroadcastBusy else { return }
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
             return
@@ -1277,9 +1294,93 @@ final class YouTubeIntegration: ObservableObject {
         errorMessage = String(localized: "YouTube 연결을 완료하지 못했습니다. 다시 시도해 주세요.")
     }
 
+    func showBroadcastProblem(_ value: BroadcastProblem) {
+        problem = value
+        helpURL = value.helpURL
+        switch value.presentation {
+        case .busy:
+            isServerBroadcastBusy = true
+            errorMessage = nil
+        case .silent:
+            problem = nil
+            errorMessage = nil
+        case .inline, .confirmation, .alert:
+            errorMessage = value.userMessage
+        }
+    }
+
     private func showError(_ error: YouTubeAPIError) {
+        if case let .server(value) = error { showBroadcastProblem(value); return }
+        if error == .streamingNotConnected {
+            showBroadcastProblem(BroadcastProblem(status: 409, code: "streaming_not_connected", message: "", provider: "youtube", field: nil, reason: nil, helpURL: nil))
+            return
+        }
         errorMessage = error.userMessage
         helpURL = error.helpURL
+    }
+
+    func cancelConcurrentPreparation() {
+        pendingConcurrentSessionID = nil
+        pendingConcurrentSettings = nil
+        clearError()
+    }
+
+    func confirmConcurrentPreparation(accessToken: String?) async {
+        guard let id = pendingConcurrentSessionID, let settings = pendingConcurrentSettings else { return }
+        // Consume authorization once. A canceled, stale or edited draft cannot reuse it.
+        pendingConcurrentSessionID = nil
+        pendingConcurrentSettings = nil
+        clearError()
+        guard let session, session.sessionID == id, broadcastSettings.normalized == settings,
+              let accessToken, !accessToken.isEmpty, !isChangingStreamState, !isServerBroadcastBusy else { return }
+        let generation = sessionOperationGeneration
+        isChangingStreamState = true
+        defer { if generation == sessionOperationGeneration { isChangingStreamState = false } }
+        do {
+            let snapshot = try await api.prepareStream(session: session, accessToken: accessToken, allowConcurrent: true)
+            guard generation == sessionOperationGeneration, self.session?.sessionID == id else { return }
+            applySessionResponse(snapshot, sessionID: id, generation: generation, clearsWarnings: true)
+            beginPolling(accessToken: accessToken)
+        } catch {
+            guard generation == sessionOperationGeneration, self.session?.sessionID == id else { return }
+            handle(error)
+            if isServerBroadcastBusy { beginPolling(accessToken: accessToken) }
+        }
+    }
+
+    func broadcastPlanInformation(accessToken: String?) async throws -> BroadcastPlanInformation {
+        guard let accessToken else { throw YouTubeAPIError.unauthorized }
+        return try await api.broadcastPlanInformation(accessToken: accessToken)
+    }
+
+    func dismissNotice(_ id: String) {
+        noticeCenter.dismiss(id)
+        noticeBanners = noticeCenter.banners
+    }
+
+    func applyBroadcastSnapshot(_ snapshot: YouTubeSessionResponse, sessionID: String) {
+        applySessionResponse(snapshot, sessionID: sessionID, generation: sessionOperationGeneration)
+    }
+
+    private func updateBroadcastFeedback(sessionID: String) {
+        let details = responseState.details
+        let targets = details.targets ?? responseState.stream.map { [BroadcastTargetState(provider: "youtube", stream: $0)] } ?? []
+        let busy = details.resolutionSwitch?.status == "switching"
+            || targets.contains { ["preparing", "going_live"].contains($0.stream.broadcastPhase ?? "") }
+        isServerBroadcastBusy = busy
+        if !busy, problem?.presentation == .busy { problem = nil }
+        noticeCenter.consume(sessionID: sessionID, notices: details.notices, warnings: details.warnings,
+                             targets: targets, failures: details.resolutionSwitch?.status == "switching" ? details.failedTargets : details.failedTargets + (details.resolutionSwitch?.failedTargets ?? []))
+        noticeBanners = noticeCenter.banners
+    }
+
+    private func resetBroadcastFeedback() {
+        problem = nil
+        isServerBroadcastBusy = false
+        noticeCenter.reset()
+        noticeBanners = []
+        pendingConcurrentSessionID = nil
+        pendingConcurrentSettings = nil
     }
 
     private func persistConnection() {

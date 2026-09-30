@@ -130,7 +130,7 @@ struct PrivateBroadcastValidationView: View {
                     live = stream.broadcastPhaseValue == .live
                     if live { break }
                 } catch let error as YouTubeAPIError {
-                    if case let .api(code, _, _) = error, code == "broadcast_not_ready" {
+                    if error.code == "broadcast_not_ready" {
                         try await Task.sleep(for: .seconds(2))
                         continue
                     }

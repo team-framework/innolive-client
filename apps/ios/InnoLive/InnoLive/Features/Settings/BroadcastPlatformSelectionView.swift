@@ -31,7 +31,7 @@ struct BroadcastPlatformSelectionView: View {
                     }
                 }
 
-                if let errorMessage = youtube.errorMessage {
+                if youtube.problem == nil, let errorMessage = youtube.errorMessage {
                     Text(errorMessage)
                         .font(.caption)
                         .foregroundStyle(.red)
@@ -39,6 +39,7 @@ struct BroadcastPlatformSelectionView: View {
             }
             .padding(24)
         }
+        .modifier(BroadcastProblemPresenter(authentication: authentication, youtube: youtube, onRetry: {}))
         .navigationTitle(String(localized: "방송할 플랫폼"))
         .navigationBarTitleDisplayMode(.inline)
         .alert(String(localized: "현재 준비 중인 기능입니다."), isPresented: $isShowingCHZZKUnavailableAlert) {

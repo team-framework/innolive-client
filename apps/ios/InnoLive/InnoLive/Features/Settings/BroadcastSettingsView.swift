@@ -40,6 +40,7 @@ struct BroadcastSettingsView: View {
 
                     broadcastTitleSection
                     broadcastDescriptionSection
+                    BroadcastNoticeList(youtube: youtube)
 
                     SettingsGlassRow {
                         HStack {
@@ -56,6 +57,7 @@ struct BroadcastSettingsView: View {
                         }
                     }
                     .disabled(youtube.isBroadcastSettingsLocked)
+                    BroadcastFieldError(problem: youtube.problem, field: "privacy")
 
                     SettingsGlassRow {
                         HStack {
@@ -73,6 +75,8 @@ struct BroadcastSettingsView: View {
                         }
                     }
                     .disabled(youtube.isBroadcastSettingsLocked)
+
+                    BroadcastFieldError(problem: youtube.problem, field: "made_for_kids")
 
                     if youtube.isBroadcastSettingsLocked {
                         Text(String(localized: "방송을 준비하거나 송출하는 동안에는 YouTube 방송 정보를 변경할 수 없습니다."))
@@ -96,7 +100,11 @@ struct BroadcastSettingsView: View {
                             .padding(.horizontal, 4)
                     }
 
-                    if let errorMessage = youtube.errorMessage {
+                    if let problem = youtube.problem, problem.presentation == .inline,
+                       !["title", "description", "privacy", "made_for_kids"].contains(problem.field ?? "") {
+                        Text(problem.userMessage).font(.caption).foregroundStyle(.red)
+                    }
+                    if youtube.problem == nil, let errorMessage = youtube.errorMessage {
                         BroadcastFeedbackBanner(
                             feedback: BroadcastFeedback(message: errorMessage, isError: true),
                             youtube: youtube,
@@ -106,7 +114,7 @@ struct BroadcastSettingsView: View {
 
                     Button(action: performPrimaryAction) {
                         HStack(spacing: 8) {
-                            if isPreparingBroadcast && youtube.isChangingStreamState {
+                            if isPreparingBroadcast && (youtube.isChangingStreamState || youtube.isServerBroadcastBusy) {
                                 ProgressView()
                                     .controlSize(.small)
                             }
@@ -123,6 +131,9 @@ struct BroadcastSettingsView: View {
             }
             .padding(24)
         }
+        .modifier(BroadcastProblemPresenter(authentication: authentication, youtube: youtube, onRetry: {
+            onPrepare?()
+        }))
         .navigationTitle(String(localized: "방송 설정"))
         .navigationBarTitleDisplayMode(.inline)
         .alert(String(localized: "방송 설정 저장 완료"), isPresented: $isSaveConfirmationPresented) {
@@ -158,6 +169,7 @@ struct BroadcastSettingsView: View {
                     .submitLabel(.done)
                     .disabled(youtube.isBroadcastSettingsLocked)
             }
+            BroadcastFieldError(problem: youtube.problem, field: "title")
         }
     }
 
@@ -187,6 +199,7 @@ struct BroadcastSettingsView: View {
                         .disabled(youtube.isBroadcastSettingsLocked)
                 }
             }
+            BroadcastFieldError(problem: youtube.problem, field: "description")
         }
     }
 
@@ -194,6 +207,7 @@ struct BroadcastSettingsView: View {
         Binding(
             get: { draftSettings.title },
             set: {
+                if youtube.problem?.field == "title" { youtube.dismissError() }
                 draftSettings.title = String($0.prefix(YouTubeBroadcastSettings.maxTitleLength))
             }
         )
@@ -203,6 +217,7 @@ struct BroadcastSettingsView: View {
         Binding(
             get: { draftSettings.description },
             set: {
+                if youtube.problem?.field == "description" { youtube.dismissError() }
                 draftSettings.description = String(
                     $0.prefix(YouTubeBroadcastSettings.maxDescriptionLength)
                 )
@@ -229,7 +244,7 @@ struct BroadcastSettingsView: View {
     }
 
     private var primaryActionTitle: String {
-        if isPreparingBroadcast && youtube.isChangingStreamState {
+        if isPreparingBroadcast && (youtube.isChangingStreamState || youtube.isServerBroadcastBusy) {
             return String(localized: "방송 준비 중")
         }
         return isPreparingBroadcast ? String(localized: "방송 준비") : String(localized: "저장")

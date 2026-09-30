@@ -49,6 +49,8 @@ private struct YouTubeBroadcastSettingsRequest: Encodable {
 
 private struct YouTubePrepareStreamRequest: Encodable {
     let provider = "youtube"
+    let allowConcurrent: Bool?
+    enum CodingKeys: String, CodingKey { case provider; case allowConcurrent = "allow_concurrent" }
 }
 
 private struct YouTubeEmptyRequest: Encodable {}
@@ -150,10 +152,14 @@ final class YouTubeAPI {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         let (data, response) = try await authenticatedData(for: request, accessToken: accessToken)
-        try validate(response, data: data)
+        try validate(response, data: data, provider: provider)
         guard response.statusCode == 204 else {
             throw YouTubeAPIError.response
         }
+    }
+
+    func broadcastPlanInformation(accessToken: String) async throws -> BroadcastPlanInformation {
+        try await request(path: "/users/me/plan", method: "GET", accessToken: accessToken, body: Optional<YouTubeEmptyRequest>.none)
     }
 
     func createSession(accessToken: String, mode: AIProcessingMode = .server) async throws -> YouTubeBroadcastSession {
@@ -217,14 +223,15 @@ final class YouTubeAPI {
 
     func prepareStream(
         session: YouTubeBroadcastSession,
-        accessToken: String
+        accessToken: String,
+        allowConcurrent: Bool = false
     ) async throws -> YouTubeSessionResponse {
         try await request(
             path: "/sessions/\(session.sessionID)/stream/prepare",
             method: "POST",
             accessToken: accessToken,
             ownerToken: session.ownerToken,
-            body: YouTubePrepareStreamRequest()
+            body: YouTubePrepareStreamRequest(allowConcurrent: allowConcurrent ? true : nil)
         )
     }
 
@@ -315,7 +322,9 @@ final class YouTubeAPI {
         let (data, httpResponse) = try await authenticatedData(
             for: request, accessToken: accessToken, preserveCreatedSession: preserveCreatedSession
         )
-        try validate(httpResponse, data: data)
+        let provider = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "provider" })?.value
+            ?? (path.contains("/chzzk") ? "chzzk" : "youtube")
+        try validate(httpResponse, data: data, provider: provider)
         return try decode(Response.self, from: data)
     }
 
@@ -393,14 +402,16 @@ final class YouTubeAPI {
         }
     }
 
-    private func validate(_ response: HTTPURLResponse, data: Data) throws {
+    private func validate(_ response: HTTPURLResponse, data: Data, provider: String = "youtube") throws {
         guard !(200..<300).contains(response.statusCode) else { return }
         let envelope = try? JSONDecoder().decode(YouTubeAPIErrorEnvelope.self, from: data)
-        throw YouTubeAPIError.api(
-            code: envelope?.error.code,
-            fallback: String(localized: "YouTube 요청을 처리하지 못했습니다."),
-            helpURL: envelope?.error.details?.helpURL
-        )
+        let details = envelope?.error.details
+        throw YouTubeAPIError.server(BroadcastProblem(
+            status: response.statusCode, code: envelope?.error.code,
+            message: envelope?.error.message ?? String(localized: "YouTube 요청을 처리하지 못했습니다."),
+            provider: details?.provider ?? envelope?.error.provider ?? provider,
+            field: details?.field, reason: details?.reason, helpURL: details?.helpURL
+        ))
     }
 
     private func decode<Response: Decodable>(_ type: Response.Type, from data: Data) throws -> Response {
@@ -416,8 +427,15 @@ private struct YouTubeAPIRequestInvalidated: Error {}
 
 private struct YouTubeAPIErrorEnvelope: Decodable {
     struct ErrorBody: Decodable {
-        struct Details: Decodable { let helpURL: URL?; enum CodingKeys: String, CodingKey { case helpURL = "help_url" } }
+        struct Details: Decodable {
+            let helpURL: URL?
+            let provider: String?
+            let field: String?
+            let reason: String?
+            enum CodingKeys: String, CodingKey { case provider, field, reason; case helpURL = "help_url" }
+        }
         let code: String?
+        let provider: String?
         let message: String?
         let details: Details?
     }
