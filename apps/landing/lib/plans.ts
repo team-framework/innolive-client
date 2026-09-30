@@ -44,80 +44,41 @@ function featureList(
 export function getPersonalPlans(messages: Messages, locale: Locale): Plan[] {
   const copy = messages.plans.personal;
   const month = messages.plans.periodMonth;
-  const once = messages.plans.periodOnce;
   const signup = localePath(locale, "/signup");
-  return [
-    {
-      id: "free",
-      name: "Free",
-      nameTone: "plain",
-      description: copy.free.description,
-      price: { amount: "0", period: month },
-      cta: { label: copy.free.cta, current: true },
-      features: featureList(
-        ["check", "check", "check", "check", "check"],
-        copy.free.features,
-      ),
-    },
-    {
-      id: "streamer",
-      name: "Streamer",
-      nameTone: "streamer",
-      description: copy.streamer.description,
-      originalPrice: { amount: "18,000", period: month },
-      price: { amount: "0", period: month, emphasize: true },
-      cta: { label: copy.streamer.cta, href: signup },
-      features: featureList(
-        ["sparkles", "check", "check", "check", "check"],
-        copy.streamer.features,
-      ),
-      ribbon: messages.plans.ribbon,
-    },
-    {
-      id: "pro",
-      name: "Pro",
-      nameTone: "plain",
-      description: copy.pro.description,
-      originalPrice: { amount: "34,000", period: month },
-      price: { amount: "0", period: month, emphasize: true },
-      cta: { label: copy.pro.cta, href: signup },
-      features: featureList(
-        ["sparkles", "check", "check", "check"],
-        copy.pro.features,
-      ),
-      ribbon: messages.plans.ribbon,
-    },
-    {
-      id: "on-device",
-      name: "On Device",
-      nameTone: "plain",
-      description: copy.onDevice.description,
-      originalPrice: { amount: "120,000", period: once },
-      price: { amount: "0", period: once, emphasize: true },
-      cta: { label: copy.onDevice.cta, href: signup },
-      features: featureList(
-        ["check", "check", "check", "check", "check", "check"],
-        copy.onDevice.features,
-      ),
-      ribbon: messages.plans.ribbon,
-      footnotes: [...copy.onDevice.footnotes],
-      helpLabel: copy.onDevice.helpLabel,
-    },
-  ];
+  const definitions = [
+    { id: "spark", name: "Spark", amount: "0", copy: copy.spark },
+    { id: "glow", name: "Glow", amount: "9,900", copy: copy.glow },
+    { id: "beam", name: "Beam", amount: "19,900", copy: copy.beam },
+    { id: "plasma", name: "Plasma", amount: "39,000", copy: copy.plasma },
+  ] as const;
+  return definitions.map((definition): Plan => ({
+    id: definition.id,
+    name: definition.name,
+    nameTone: definition.id === "beam" ? "streamer" : "plain",
+    description: definition.copy.description,
+    originalPrice: definition.id === "spark" ? undefined : { amount: definition.amount, period: month },
+    price: { amount: "0", period: month, emphasize: definition.id !== "spark" },
+    cta: definition.id === "spark"
+      ? { label: definition.copy.cta, current: true }
+      : { label: definition.copy.cta, href: signup },
+    features: featureList([], definition.copy.features),
+    ribbon: definition.id === "spark" ? undefined : messages.plans.ribbon,
+    footnotes: definition.id === "glow" ? [...copy.glow.footnotes] : undefined,
+    helpLabel: definition.id === "glow" ? copy.glow.helpLabel : undefined,
+  }));
 }
 
 export function getBusinessPlans(messages: Messages, locale: Locale): Plan[] {
   const copy = messages.plans.business;
-  const month = messages.plans.periodMonth;
-  const signup = localePath(locale, "/signup");
+  const support = localePath(locale, "/support");
   return [
     {
       id: "crew",
       name: "Crew",
       nameTone: "plain",
       description: copy.crew.description,
-      price: { amount: copy.crew.amount, period: month },
-      cta: { label: copy.crew.cta, href: signup },
+      price: { amount: copy.crew.amount, period: "" },
+      cta: { label: copy.crew.cta, href: support },
       features: featureList(["check", "sparkles"], copy.crew.features),
     },
     {
@@ -125,8 +86,8 @@ export function getBusinessPlans(messages: Messages, locale: Locale): Plan[] {
       name: "Business",
       nameTone: "plain",
       description: copy.business.description,
-      price: { amount: copy.business.amount, period: month },
-      cta: { label: copy.business.cta, href: signup },
+      price: { amount: copy.business.amount, period: "" },
+      cta: { label: copy.business.cta, href: support },
       features: featureList(["check", "check"], copy.business.features),
     },
   ];
