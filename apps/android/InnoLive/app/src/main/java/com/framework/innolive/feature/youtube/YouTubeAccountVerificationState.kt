@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.CancellationException
 import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.feature.live.BroadcastState
+import com.framework.innolive.feature.live.canPrepare
 
 internal enum class YouTubeAccountVerificationState {
     UNVERIFIED,
@@ -49,6 +51,15 @@ internal fun hasVerifiedYouTubeAccount(
     verificationState == YouTubeAccountVerificationState.VERIFIED &&
     currentProfileEmail != null &&
     verifiedProfileEmail == currentProfileEmail
+
+internal fun canChangeYouTubeAccount(
+    hasSignedInUser: Boolean,
+    broadcastState: BroadcastState,
+    isPreparingBroadcast: Boolean,
+    isDeletingAccount: Boolean,
+    isAccountDeletionPending: Boolean,
+): Boolean = hasSignedInUser && broadcastState.canPrepare && !isPreparingBroadcast &&
+    !isDeletingAccount && !isAccountDeletionPending
 
 internal fun acceptServerVerifiedYouTubeAccount(
     account: StreamingAccount?,

@@ -76,6 +76,7 @@ import com.framework.innolive.feature.youtube.YouTubeAccountVerificationState
 import com.framework.innolive.feature.youtube.YouTubePreferencesStore
 import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
+import com.framework.innolive.feature.youtube.canChangeYouTubeAccount
 import com.framework.innolive.feature.youtube.defaultYouTubeBroadcastTitle
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.rememberYouTubeVerificationMemory
@@ -337,13 +338,48 @@ fun AppNavigation(
         youtubeAccountStatus = youtubeConnectionFailureMessage(exception)
     }
 
+    fun canChangeYouTubeAccountNow(): Boolean = canChangeYouTubeAccount(
+        hasSignedInUser = session != null,
+        broadcastState = webRtcSession.broadcastState,
+        isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
+        isDeletingAccount = isDeletingAccount,
+        isAccountDeletionPending = isAccountDeletionPending,
+    )
+
+    fun cancelYouTubeAccountChange(operation: Long) {
+        if (!isCurrentYouTubeOperation(operation)) return
+        youtubeOperationGeneration.invalidate()
+        youtubeAuthorizationOperation = null
+        isYouTubeAuthorizationLaunched = false
+        val cancellationState = cancelYouTubeAuthorization(
+            accountStatusBeforeAuthorization =
+                youtubeAccountStatusBeforeAuthorization ?: youtubeAccountStatus,
+            verificationState = youtubeAccountVerificationState,
+        )
+        youtubeAccountStatus = cancellationState.accountStatus
+        youtubeAccountVerificationState = cancellationState.verificationState
+        suppressYouTubeAccountRefreshOnce = !cancellationState.shouldRefreshAccount
+        isYouTubeAccountActionInProgress = cancellationState.isActionInProgress
+        youtubeAccountStatusBeforeAuthorization = null
+    }
+
     fun completeYouTubeConnection(operation: Long, serverAuthCode: String) {
         if (!isCurrentYouTubeOperation(operation) || !isYouTubeAccountActionInProgress) return
+        if (!canChangeYouTubeAccountNow()) {
+            cancelYouTubeAccountChange(operation)
+            return
+        }
         youtubeAuthorizationOperation = null
         isYouTubeAuthorizationLaunched = false
         coroutineScope.launch {
             try {
-                val account = youtubeCoordinator.connect(serverAuthCode, ::refreshCurrentAccessToken)
+                val accessToken = refreshCurrentAccessToken()
+                if (!isCurrentYouTubeOperation(operation)) return@launch
+                if (!canChangeYouTubeAccountNow()) {
+                    cancelYouTubeAccountChange(operation)
+                    return@launch
+                }
+                val account = youtubeCoordinator.connect(serverAuthCode, accessToken)
                 if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
             } catch (exception: CancellationException) {
                 throw exception
@@ -376,17 +412,7 @@ fun AppNavigation(
                     }
                     .onFailure { exception -> showYouTubeAccountFailure(operation, exception, "google_result") }
             } else {
-                isYouTubeAuthorizationLaunched = false
-                val cancellationState = cancelYouTubeAuthorization(
-                    accountStatusBeforeAuthorization =
-                        youtubeAccountStatusBeforeAuthorization ?: youtubeAccountStatus,
-                    verificationState = youtubeAccountVerificationState,
-                )
-                youtubeAccountStatus = cancellationState.accountStatus
-                youtubeAccountVerificationState = cancellationState.verificationState
-                suppressYouTubeAccountRefreshOnce = !cancellationState.shouldRefreshAccount
-                isYouTubeAccountActionInProgress = cancellationState.isActionInProgress
-                youtubeAccountStatusBeforeAuthorization = null
+                cancelYouTubeAccountChange(operation)
             }
         }
     }
@@ -633,10 +659,9 @@ fun AppNavigation(
 
     val connectYouTube: () -> Unit = connectYouTube@{
         if (
-            isDeletingAccount ||
+            !canChangeYouTubeAccountNow() ||
             isYouTubeAccountActionInProgress ||
-            youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING ||
-            session == null
+            youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING
         ) {
             return@connectYouTube
         }
@@ -655,6 +680,10 @@ fun AppNavigation(
                         if (isCurrentYouTubeOperation(operation) &&
                             isYouTubeAccountActionInProgress
                         ) {
+                            if (!canChangeYouTubeAccountNow()) {
+                                cancelYouTubeAccountChange(operation)
+                                return@beginAuthorization
+                            }
                             youtubeAuthorizationOperation = operation
                             isYouTubeAuthorizationLaunched = true
                             try {
@@ -672,6 +701,10 @@ fun AppNavigation(
                         if (isCurrentYouTubeOperation(operation) &&
                             isYouTubeAccountActionInProgress
                         ) {
+                            if (!canChangeYouTubeAccountNow()) {
+                                cancelYouTubeAccountChange(operation)
+                                return@beginAuthorization
+                            }
                             youtubeAuthorizationOperation = null
                             isYouTubeAuthorizationLaunched = false
                             completeYouTubeConnection(operation, serverAuthCode)
@@ -717,6 +750,7 @@ fun AppNavigation(
     )
     val isYouTubeAccountOperationInProgress = isYouTubeAccountActionInProgress ||
         youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING
+    val isYouTubeAccountChangeEnabled = canChangeYouTubeAccountNow()
     val liveScreenProps = rememberUpdatedState(
         LiveScreenProps(
             cameraLensFacing = selectedCameraLensFacing,
@@ -744,7 +778,7 @@ fun AppNavigation(
             youtubeAccountStatus = youtubeAccountStatus.asString(),
             isYouTubeReconnectRequired = visibleYouTubeAccount?.reconnectRequired == true,
             isYouTubeAccountActionInProgress = isYouTubeAccountOperationInProgress,
-            isYouTubeConnectEnabled = session != null,
+            isYouTubeConnectEnabled = isYouTubeAccountChangeEnabled,
             onConnectYouTube = connectYouTube,
             onRefreshAccessToken = ::refreshCurrentAccessToken,
             onGetAccessToken = { authenticationSession.session.value?.accessToken },
@@ -905,6 +939,8 @@ fun AppNavigation(
                             session == null -> R.string.youtube_status_sign_in_required
                             isYouTubeAccountOperationInProgress ->
                                 R.string.youtube_account_action_in_progress
+                            !isYouTubeAccountChangeEnabled ->
+                                R.string.youtube_account_change_unavailable
                             else -> null
                         }
                         BroadcastSetting(
@@ -961,7 +997,7 @@ fun AppNavigation(
                                     visibleYouTubeAccount?.reconnectRequired == true,
                                 isYouTubeAccountActionInProgress =
                                     isYouTubeAccountOperationInProgress,
-                                isYouTubeConnectEnabled = session != null,
+                                isYouTubeConnectEnabled = isYouTubeAccountChangeEnabled,
                                 connectDisabledReasonRes = connectDisabledReasonRes,
                                 onConnectYouTube = connectYouTube,
                                 onSave = {

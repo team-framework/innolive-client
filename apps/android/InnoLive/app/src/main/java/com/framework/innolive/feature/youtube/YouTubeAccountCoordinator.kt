@@ -30,12 +30,8 @@ class YouTubeAccountCoordinator(
 
     suspend fun connect(
         serverAuthCode: String,
-        refreshAccessToken: suspend () -> String,
-    ): StreamingAccount? {
-        val accessToken = refreshAccessToken()
-        api().connect(serverAuthCode, accessToken)
-        return findYouTubeAccount(api().listAccounts(accessToken))
-    }
+        accessToken: String,
+    ): StreamingAccount = api().connect(serverAuthCode, accessToken)
 
     fun serverAuthCodeFromIntent(data: Intent): String =
         authorization.serverAuthCodeFromIntent(requireActivity(), data)

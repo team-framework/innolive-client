@@ -1,11 +1,27 @@
 package com.framework.innolive.feature.youtube
 
+import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class YouTubeAccountVerificationStateTest {
+    @Test
+    fun linkedAccountCanChangeOnlyOutsideBroadcastPreparationAndDelivery() {
+        for (state in listOf(BroadcastState.IDLE, BroadcastState.FAILED)) {
+            assertTrue(canChangeYouTubeAccount(true, state, false, false, false))
+        }
+        for (state in BroadcastState.entries.filterNot { it == BroadcastState.IDLE || it == BroadcastState.FAILED }) {
+            assertFalse(canChangeYouTubeAccount(true, state, false, false, false))
+        }
+        assertFalse(canChangeYouTubeAccount(true, BroadcastState.IDLE, true, false, false))
+        assertFalse(canChangeYouTubeAccount(false, BroadcastState.IDLE, false, false, false))
+        assertFalse(canChangeYouTubeAccount(true, BroadcastState.IDLE, false, true, false))
+        assertFalse(canChangeYouTubeAccount(true, BroadcastState.IDLE, false, false, true))
+    }
+
     @Test
     fun cancellingAuthorizationRestoresPreviousStatusAndEnablesRetryImmediately() {
         val result = cancelYouTubeAuthorization(

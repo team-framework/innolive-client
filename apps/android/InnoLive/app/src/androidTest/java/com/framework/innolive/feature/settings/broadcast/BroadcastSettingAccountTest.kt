@@ -51,6 +51,35 @@ class BroadcastSettingAccountTest {
         composeRule.onNodeWithText(
             composeRule.activity.getString(R.string.action_reconnect),
         ).assertDoesNotExist()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(R.string.action_change_youtube_account),
+        ).assertIsEnabled().performClick()
+        composeRule.runOnIdle { assertEquals(2, reconnectClicks) }
+    }
+
+    @Test
+    fun verifiedAccountChangeIsDisabledWhileBroadcastIsActive() {
+        val changeAllowed = mutableStateOf(false)
+        var clicks = 0
+        composeRule.setContent {
+            MaterialTheme {
+                BroadcastSetting(
+                    testProps(
+                        channelTitle = "연결된 채널",
+                        hasVerifiedAccount = true,
+                        isChecking = false,
+                        onConnect = { clicks++ },
+                        canChange = changeAllowed.value,
+                    ),
+                )
+            }
+        }
+
+        val changeLabel = composeRule.activity.getString(R.string.action_change_youtube_account)
+        composeRule.onNodeWithText(changeLabel).assertIsNotEnabled()
+        composeRule.runOnIdle { changeAllowed.value = true }
+        composeRule.onNodeWithText(changeLabel).assertIsEnabled().performClick()
+        composeRule.runOnIdle { assertEquals(1, clicks) }
     }
 
     private fun testProps(
@@ -58,6 +87,7 @@ class BroadcastSettingAccountTest {
         hasVerifiedAccount: Boolean,
         isChecking: Boolean,
         onConnect: () -> Unit,
+        canChange: Boolean = true,
     ) = BroadcastSettingProps(
         onBack = {},
         selectedPlatform = "YouTube",
@@ -77,8 +107,12 @@ class BroadcastSettingAccountTest {
         hasVerifiedYouTubeAccount = hasVerifiedAccount,
         isYouTubeReconnectRequired = false,
         isYouTubeAccountActionInProgress = isChecking,
-        isYouTubeConnectEnabled = true,
-        connectDisabledReasonRes = if (isChecking) R.string.youtube_account_action_in_progress else null,
+        isYouTubeConnectEnabled = canChange,
+        connectDisabledReasonRes = when {
+            isChecking -> R.string.youtube_account_action_in_progress
+            !canChange -> R.string.youtube_account_change_unavailable
+            else -> null
+        },
         onConnectYouTube = onConnect,
         onSave = {},
         isSaveEnabled = false,
