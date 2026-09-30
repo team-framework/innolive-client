@@ -110,7 +110,11 @@ final class BroadcastSessionPollingTests: XCTestCase {
         let api = makeAPI()
         let session = try JSONDecoder().decode(YouTubeBroadcastSession.self, from: Data(SessionStateFixture.json().utf8))
         for body in [SessionStateFixture.stream(), SessionStateFixture.json(remaining: "120")] {
-            SessionStateURLProtocol.handler = { _ in (200, body) }
+            SessionStateURLProtocol.handler = { request in
+                XCTAssertEqual(request.url?.path, "/sessions/state-session/stream/pause")
+                XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value, "chzzk")
+                return (200, body)
+            }
             let result = try await api.streamAction(.pause, session: session, accessToken: "test-token", provider: "chzzk")
             XCTAssertEqual(result.stream.statusValue, .streaming)
         }
@@ -196,7 +200,12 @@ final class BroadcastSessionPollingTests: XCTestCase {
     private func makeAPI() -> YouTubeAPI {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SessionStateURLProtocol.self]
-        return YouTubeAPI(urlSession: URLSession(configuration: configuration), serverURLProvider: { URL(string: "https://example.invalid\($0)") })
+        return YouTubeAPI(urlSession: URLSession(configuration: configuration), serverURLProvider: { path in
+            var components = URLComponents(string: "https://example.invalid")!
+            components.path = path
+            components.query = nil
+            return components.url
+        })
     }
 
     private func makeIntegration() -> YouTubeIntegration {

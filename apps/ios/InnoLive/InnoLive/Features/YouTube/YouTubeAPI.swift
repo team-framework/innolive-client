@@ -258,13 +258,13 @@ final class YouTubeAPI {
         accessToken: String,
         provider: String? = nil
     ) async throws -> YouTubeSessionResponse {
-        let suffix = provider.map { "?provider=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
         return try await request(
-            path: "/sessions/\(session.sessionID)/stream/\(action.rawValue)\(suffix)",
+            path: "/sessions/\(session.sessionID)/stream/\(action.rawValue)",
             method: "POST",
             accessToken: accessToken,
             ownerToken: session.ownerToken,
-            body: Optional<YouTubeEmptyRequest>.none
+            body: Optional<YouTubeEmptyRequest>.none,
+            queryItems: provider.map { [URLQueryItem(name: "provider", value: $0)] } ?? []
         )
     }
 
@@ -294,11 +294,15 @@ final class YouTubeAPI {
         accessToken: String,
         ownerToken: String? = nil,
         body: Body? = nil,
-        preserveCreatedSession: Bool = false
+        preserveCreatedSession: Bool = false,
+        queryItems: [URLQueryItem] = []
     ) async throws -> Response {
-        guard let url = serverURLProvider(path) else {
+        guard let baseURL = serverURLProvider(path),
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
             throw YouTubeAPIError.configuration
         }
+        if !queryItems.isEmpty { components.queryItems = queryItems }
+        guard let url = components.url else { throw YouTubeAPIError.configuration }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
