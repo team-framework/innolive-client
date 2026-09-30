@@ -55,6 +55,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var startContinuation: CheckedContinuation<Void, Error>?
     private var startTimeoutTask: Task<Void, Never>?
     var outboundVerificationTask: Task<Void, Never>?
+    var qualityPollTask: Task<Void, Never>?
+    let diagnostics = UplinkDiagnosticsMonitor()
     private var pendingCameraStopTask: Task<Void, Never>?
     var cameraOperationGeneration: UInt = 0
     var isStopping = false
@@ -81,10 +83,15 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             decoderFactory: decoderFactory
         )
         super.init()
+        diagnostics.start(
+            inBackground: UIApplication.shared.applicationState == .background,
+            deviceLocked: !UIApplication.shared.isProtectedDataAvailable
+        )
         networkMonitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.isNetworkAvailable = path.status == .satisfied
+                self.diagnostics.notePath(path)
                 self.resumePendingReconnectIfPossible()
             }
         }
@@ -383,6 +390,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         startTimeoutTask = nil
         outboundVerificationTask?.cancel()
         outboundVerificationTask = nil
+        qualityPollTask?.cancel()
+        qualityPollTask = nil
+        diagnostics.resetQualityTracker()
 
         if let startContinuation {
             self.startContinuation = nil
@@ -460,6 +470,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     func markPublisherReady() {
         guard state == .connected else { return }
         updateState(.connected, String(localized: "카메라 영상이 서버에 연결되었습니다."))
+        diagnostics.noteConnected()
+        startQualityPollingIfNeeded()
     }
 
     func dismissError() {
@@ -537,13 +549,14 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         updateState(.failed, message)
     }
 
-    func handlePeerConnectionInterruption() {
+    func handlePeerConnectionInterruption(trigger: String) {
         guard !isStopping else { return }
         guard !isReconnectPending, !isReconnectInProgress else { return }
         guard state == .connected else {
             fail(String(localized: "WebRTC 영상 연결이 끊겼습니다."))
             return
         }
+        diagnostics.noteDisconnect(trigger: trigger)
         isReconnectPending = true
         updateState(.connecting, String(localized: "네트워크 연결을 복구하는 중…"))
         resumePendingReconnectIfPossible()
