@@ -90,6 +90,7 @@ class WebRtcConnection(
     private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
     private val broadcastCallbackExecutor: Executor? = null,
     private val onLocalVideoTrackChanged: (VideoTrack?) -> Unit = {},
+    private val onInitialSignalingStarted: () -> Unit = {},
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val onDeviceProcessing = initialOnDeviceProcessing
@@ -293,11 +294,11 @@ class WebRtcConnection(
                 checkNotNull(frameAnalyzer).start()
                 val negotiationId = UUID.randomUUID().toString()
                 activeNegotiationId = negotiationId
-                // HTTP setup and model/camera preparation each have their own failure path.
-                // Give signaling and ICE a full connection window after those steps finish.
+                // Start the signaling window after the HTTP and native connection setup.
+                mainHandler.post { if (isActive()) onInitialSignalingStarted() }
                 connectionTimeoutTask = timerExecutor.schedule(
                     { fail(ConnectionFailure.TIMEOUT) },
-                    CONNECTION_TIMEOUT_MILLIS,
+                    INITIAL_SIGNALING_TIMEOUT_MILLIS,
                     TimeUnit.MILLISECONDS,
                 )
                 openSignalingSocket(createdSession, negotiationId, iceRestart = false)
@@ -1968,7 +1969,6 @@ class WebRtcConnection(
 
     companion object {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
-        private const val CONNECTION_TIMEOUT_MILLIS = 30_000L
         private const val AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS = 500L
         private const val RECOVERY_PEER_CONNECTION_WAIT_MILLIS = 20_000L
         private const val RECOVERY_VIDEO_VERIFICATION_MILLIS = 10_000L

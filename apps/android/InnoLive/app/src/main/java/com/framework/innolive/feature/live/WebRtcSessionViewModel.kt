@@ -17,10 +17,8 @@ import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeout
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
 import kotlin.coroutines.resume
@@ -32,6 +30,7 @@ class WebRtcSessionViewModel : ViewModel() {
         private set
     private var selectedAudioInput: AudioDeviceInfo? = null
     private var sessionState by mutableStateOf(WebRtcSessionState())
+    private var signalingStartedGeneration by mutableStateOf<Long?>(null)
     private val mainHandler = Handler(Looper.getMainLooper())
 
     val connectionState: WebRtcConnectionState
@@ -168,6 +167,7 @@ class WebRtcSessionViewModel : ViewModel() {
         restoreAIProcessingSelection(context)
         val initialOnDevice = selectedOnDeviceProcessing
         sessionState = sessionState.beginConnection()
+        signalingStartedGeneration = null
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
         val generation = sessionState.generation
@@ -249,6 +249,9 @@ class WebRtcSessionViewModel : ViewModel() {
                                 eglContext = null
                             }
                         }
+                    },
+                    onInitialSignalingStarted = {
+                        if (isCurrentGeneration(generation)) signalingStartedGeneration = generation
                     },
                     onBroadcastStateChanged = { state, event ->
                         if (sessionState.acceptsCallback(generation)) {
@@ -355,11 +358,18 @@ class WebRtcSessionViewModel : ViewModel() {
         val generation = sessionState.generation
         prepareJob = viewModelScope.launch {
             try {
-                withTimeout(45_000) {
-                    snapshotFlow { sessionState }.first {
-                        it.generation != generation || it.connection != WebRtcConnectionState.CONNECTING
-                    }
-                }
+                awaitInitialConnection(
+                    states = snapshotFlow {
+                        InitialConnectionWaitState(
+                            sessionState.generation,
+                            sessionState.connection,
+                            signalingStartedGeneration == sessionState.generation,
+                        )
+                    },
+                    generation = generation,
+                    setupTimeoutMillis = INITIAL_CONNECTION_SETUP_TIMEOUT_MILLIS,
+                    signalingTimeoutMillis = INITIAL_SIGNALING_TIMEOUT_MILLIS + SIGNALING_CALLBACK_GRACE_MILLIS,
+                )
                 if (!isCurrentGeneration(generation)) return@launch
                 val activeConnection = connection
                 if (connectionState != WebRtcConnectionState.CONNECTED || activeConnection == null) {
@@ -433,6 +443,7 @@ class WebRtcSessionViewModel : ViewModel() {
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
         sessionState = sessionState.endConnection()
+        signalingStartedGeneration = null
         prepareJob?.cancel()
         prepareJob = null
         isPreparingBroadcast = false
@@ -472,5 +483,11 @@ class WebRtcSessionViewModel : ViewModel() {
                 if (continuation.isActive) continuation.resume(Unit)
             }
         }
+    }
+
+    private companion object {
+        // Recovery cleanup and initial setup may issue several individually bounded HTTP calls.
+        const val INITIAL_CONNECTION_SETUP_TIMEOUT_MILLIS = 120_000L
+        const val SIGNALING_CALLBACK_GRACE_MILLIS = 5_000L
     }
 }
