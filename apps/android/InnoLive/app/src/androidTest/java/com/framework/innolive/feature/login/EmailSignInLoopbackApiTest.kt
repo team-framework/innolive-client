@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.login
 
+import android.security.NetworkSecurityPolicy
 import com.framework.innolive.R
 import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.runBlocking
@@ -14,11 +15,18 @@ import java.io.BufferedInputStream
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /** Sends real loopback HTTP requests through the app's OkHttp API without a remote account. */
 class EmailSignInLoopbackApiTest {
+    @Test fun debugAppPermitsOnlyLoopbackCleartext() {
+        val policy = NetworkSecurityPolicy.getInstance()
+        assertEquals(true, policy.isCleartextTrafficPermitted("127.0.0.1"))
+        assertFalse(policy.isCleartextTrafficPermitted("example.com"))
+    }
+
     @Test fun successRequestNormalizesEmailAndPersistsOnlyTheValidatedResponse() {
         val request = withServer(
             200,
@@ -73,7 +81,7 @@ class EmailSignInLoopbackApiTest {
     @Test fun malformedSuccessBodyCannotCreateASession() {
         val request = withServer(200, "{}") { endpoint ->
             var saved = false
-            assertThrows(IllegalStateException::class.java) {
+            assertMalformedBodyFailure {
                 runBlocking {
                     withTimeout(5_000) {
                         authenticateAndSaveEmailSession(
@@ -86,6 +94,19 @@ class EmailSignInLoopbackApiTest {
             assertFalse(saved)
         }
         assertEquals("POST /auth/sign-in HTTP/1.1", request.line)
+    }
+
+    @Test fun malformedBodyAssertionRejectsCancellation() {
+        val failure = assertThrows(AssertionError::class.java) {
+            assertMalformedBodyFailure { throw CancellationException("simulated timeout") }
+        }
+        assertEquals("Timed out before the response body was validated", failure.message)
+    }
+
+    private fun assertMalformedBodyFailure(action: () -> Unit) {
+        val error = assertThrows(IllegalStateException::class.java, action)
+        assertFalse("Timed out before the response body was validated", error is CancellationException)
+        assertEquals("인증 응답의 토큰이 올바르지 않습니다.", error.message)
     }
 
     private data class CapturedRequest(
