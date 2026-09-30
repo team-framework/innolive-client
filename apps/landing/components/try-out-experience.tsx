@@ -616,6 +616,11 @@ export function TryOutExperience() {
       </div>
 
       <div className="flex flex-wrap justify-center gap-3">
+        {state === "connected" && isLogined && localStream ? (
+          <Button showChevron={false} onClick={() => setIsFaceRegistrationOpen(true)}>
+            {messages.tryOut.registerFace}
+          </Button>
+        ) : null}
         {state === "failed" ? (
           <Button showChevron={false} onClick={() => void start()}>
             {copy.retry}
@@ -630,11 +635,6 @@ export function TryOutExperience() {
             {copy.restart}
           </Button>
         )}
-        {state === "connected" && isLogined && localStream ? (
-          <Button variant="secondary" showChevron={false} onClick={() => setIsFaceRegistrationOpen(true)}>
-            {messages.tryOut.registerFace}
-          </Button>
-        ) : null}
       </div>
 
       <FaceRegistrationModal
