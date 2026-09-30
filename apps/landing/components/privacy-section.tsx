@@ -52,7 +52,7 @@ export function PrivacySection() {
         else window.scrollTo({ top, behavior: "instant" });
       };
       const show = (next: number) => {
-        gsap.set(slideNodes, { autoAlpha: 0, yPercent: 100 });
+        gsap.set(slideNodes, { display: "flex", autoAlpha: 0, yPercent: 100 });
         gsap.set(slideNodes[next], { autoAlpha: 1, yPercent: 0 });
         index = next;
         section.dataset.privacyIndex = String(index);
@@ -137,22 +137,27 @@ export function PrivacySection() {
     });
     media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
       const context = gsap.context(() => {
-        gsap.from(section, {
-          autoAlpha: 0,
-          duration: 0.8,
-          ease: "power2.out",
+        gsap.set(slideNodes, { display: "flex", autoAlpha: 0, yPercent: 100 });
+        gsap.set(slideNodes[0], { autoAlpha: 1, yPercent: 0 });
+        const timeline = gsap.timeline({
           scrollTrigger: {
-            start: "top 70%",
-            toggleActions: "restart none restart reverse",
+            anticipatePin: 1,
+            end: () => `+=${window.innerHeight * (slideNodes.length - 1)}`,
+            invalidateOnRefresh: true,
+            pin: true,
+            scrub: 0.4,
+            // Keep the entire phone visible when the stacked layout exceeds the viewport.
+            start: () => section.offsetHeight > window.innerHeight ? "bottom bottom" : "top top",
             trigger: section,
           },
-          y: 48,
+        });
+        slideNodes.slice(1).forEach((slide, index) => {
+          timeline.to(slideNodes[index], { autoAlpha: 0, duration: 1, yPercent: -100 });
+          timeline.to(slide, { autoAlpha: 1, duration: 1, yPercent: 0 }, "<");
         });
       }, section);
-
       return () => context.revert();
     });
-
     return () => media.revert();
   }, [slides.length]);
 
@@ -188,7 +193,7 @@ export function PrivacySection() {
             width={1359}
             height={2736}
             sizes={phoneSizes}
-            className="absolute inset-0 size-full max-w-none z-1"
+            className="pointer-events-none absolute inset-0 size-full max-w-none z-1"
           />
           <div className="absolute inset-[3.2%_5.5%] z-0 overflow-hidden rounded-[3rem] bg-background-secondary">
             {slides.length ? (
@@ -196,7 +201,7 @@ export function PrivacySection() {
                 <div
                   key={`${slide.label}-${index}`}
                   data-privacy-slide
-                  className="absolute inset-0 hidden items-center justify-center bg-gradient-to-br from-[#eef2ff] to-[#dbeafe] p-4 text-center first:flex lg:flex motion-reduce:hidden motion-reduce:first:flex lg:motion-reduce:hidden lg:motion-reduce:first:flex"
+                  className="absolute inset-0 hidden items-center justify-center bg-gradient-to-br from-[#eef2ff] to-[#dbeafe] p-4 text-center first:flex"
                 >
                   {slide.src ? (
                     <Image

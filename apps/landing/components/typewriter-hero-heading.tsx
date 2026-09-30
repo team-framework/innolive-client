@@ -33,7 +33,7 @@ export function TypewriterHeroHeading() {
 
           return current + 1;
         });
-      }, 90);
+      }, 30);
     };
 
     if (document.documentElement.dataset.introComplete === "true") start();
@@ -59,9 +59,15 @@ export function TypewriterHeroHeading() {
     <h1
       id="hero-heading"
       aria-label={heading}
-      className="w-full break-words text-[length:var(--text-display)] font-bold leading-[calc(100/84)] tracking-tight text-text-primary"
+      className="relative w-full break-words text-[length:var(--text-display)] font-bold leading-[calc(100/84)] tracking-tight text-text-primary"
     >
-      <span aria-hidden="true">
+      {/* Reserve the final layout so typing does not shift the pinned sections. */}
+      <span aria-hidden="true" className="invisible">
+        {firstLine}
+        <br />
+        {secondPrefix}{blurText}
+      </span>
+      <span aria-hidden="true" className="absolute inset-0">
         {firstLine.slice(0, firstLineLength)}
         <br />
         {secondPrefix.slice(0, secondPrefixLength)}

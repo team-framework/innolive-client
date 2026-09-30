@@ -121,6 +121,12 @@
     font-size: clamp(11.2px, calc(9.02px + 0.682vw), 16px);
   }
 
+  html:has([data-page="home"]),
+  body:has([data-page="home"]) {
+    background: var(--color-background-primary);
+    overscroll-behavior-y: none;
+  }
+
   body {
     min-height: 100dvh;
     margin: 0;

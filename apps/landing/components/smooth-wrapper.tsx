@@ -60,8 +60,8 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
   }, []);
 
   return (
-    <div ref={wrapperRef} id="smooth-wrapper">
-      <div ref={contentRef} id="smooth-content">
+    <div ref={wrapperRef} id="smooth-wrapper" className="bg-background-primary">
+      <div ref={contentRef} id="smooth-content" className="bg-background-primary">
         {children}
       </div>
     </div>
