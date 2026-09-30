@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_live_activation">このチャンネルではライブ配信がまだ有効になっていません。有効化には最大24時間かかる場合があります。</string>
+    <string name="error_channel_already_live">このYouTubeチャンネルは別のツールで配信中です。続行すると別の配信が作成され、視聴者が分散する場合があります。</string>
+    <string name="error_plan_resolution">現在のプランではFHD配信を利用できません。</string>
+    <string name="error_plan_simulcast">現在のプランでは同時配信を利用できません。</string>
+    <string name="error_plan_server_streaming">現在のプランではサーバー配信を利用できません。</string>
+    <string name="error_monthly_limit">今月の配信時間をすべて使用しました。</string>
+    <string name="error_broadcast_limit">この配信の最大時間に達しました。新しい配信を開始してください。</string>
+    <string name="error_stream_capacity">現在、配信に利用できる枠がありません。しばらくしてから再試行してください。</string>
+    <string name="error_streaming_quota">本日のYouTube連携の利用上限に達しました。韓国時間の午後4時（冬は午後5時）にリセットされます。</string>
+    <string name="error_streaming_rate_limit">プラットフォームへのリクエスト上限に達しました。しばらくしてから再試行してください。</string>
+    <string name="error_streaming_account_in_use">このプラットフォームで配信中は連携を解除できません。先に配信を終了してください。</string>
+    <string name="error_streaming_operation">YouTubeでリクエストを処理できませんでした。再試行してください。</string>
+    <string name="error_withdrawal_in_progress">アカウントの削除を処理中です。</string>
+    <string name="error_previous_session_cleanup">前の配信を終了処理中です。しばらくしてから再試行してください。</string>
+    <string name="error_authentication_expired">ログインの有効期限が切れました。再度ログインしてください。</string>
+    <string name="error_field_required">必須項目を入力してください。</string>
+    <string name="error_field_invalid">入力した値を確認してください。</string>
+    <string name="error_field_not_changeable_live">配信中はこの項目を変更できません。</string>
+    <string name="error_guidance_title">お知らせ</string>
+    <string name="action_continue_broadcast">続行</string>
+    <string name="action_open_help">ヘルプを開く</string>
+    <string name="error_help_unavailable">ヘルプを開けません。</string>
+</resources>

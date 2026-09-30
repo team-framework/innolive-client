@@ -53,6 +53,8 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.ui.text.ServerErrorAction
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
@@ -108,6 +110,12 @@ fun LiveScreen(
     val requestMissingMediaPermissions = {
         if (missingMediaPermissions.isNotEmpty()) {
             mediaPermissionLauncher.launch(missingMediaPermissions.toTypedArray())
+        }
+    }
+    LaunchedEffect(webRtcSession.serverError) {
+        if (webRtcSession.serverError?.action == ServerErrorAction.EDIT_SETTINGS) {
+            openBroadcastActions = false
+            openYouTubeSettingsDialog = true
         }
     }
     LaunchedEffect(webRtcSession) {
@@ -263,9 +271,18 @@ fun LiveScreen(
                             isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
                             isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
                             isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
-                            onSettingsChanged = props.onBroadcastSettingsChanged,
+                            serverError = webRtcSession.serverError?.takeIf {
+                                it.action == ServerErrorAction.EDIT_SETTINGS
+                            },
+                            onSettingsChanged = {
+                                webRtcSession.dismissServerError()
+                                props.onBroadcastSettingsChanged(it)
+                            },
                             onConnectYouTube = props.onConnectYouTube,
-                            onDismissRequest = { openYouTubeSettingsDialog = false },
+                            onDismissRequest = {
+                                openYouTubeSettingsDialog = false
+                                webRtcSession.dismissServerError()
+                            },
                             onPrepare = {
                                 if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
                                     mediaPermissions.refresh()
@@ -357,6 +374,28 @@ fun LiveScreen(
                 }
             }
         }
+    }
+    webRtcSession.serverError?.takeIf { it.action != ServerErrorAction.EDIT_SETTINGS }?.let { guidance ->
+        ServerErrorDialog(
+            guidance = guidance,
+            onDismiss = webRtcSession::dismissServerError,
+            onAction = {
+                when (guidance.action) {
+                    ServerErrorAction.CONFIRM_CONCURRENT -> webRtcSession.confirmConcurrentBroadcast()
+                    ServerErrorAction.RETRY -> webRtcSession.retryBroadcast()
+                    ServerErrorAction.CONNECT, ServerErrorAction.RECONNECT -> {
+                        webRtcSession.dismissServerError()
+                        openYouTubeSettingsDialog = true
+                        props.onConnectYouTube()
+                    }
+                    ServerErrorAction.LOGIN -> {
+                        webRtcSession.dismissServerError()
+                        props.onAuthenticationExpired()
+                    }
+                    else -> webRtcSession.dismissServerError()
+                }
+            },
+        )
     }
 }
 

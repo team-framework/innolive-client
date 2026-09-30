@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import com.framework.innolive.R
 import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.ServerErrorGuidance
 
 enum class ConnectionFailure {
     TIMEOUT,
@@ -29,6 +30,8 @@ enum class BroadcastFailure {
 
 sealed interface BroadcastEvent {
     data class Failure(val failure: BroadcastFailure) : BroadcastEvent
+
+    data class ApiFailure(val guidance: ServerErrorGuidance) : BroadcastEvent
 
     /** A server-provided message that is intentionally displayed verbatim. */
     data class ServerMessage(val value: String) : BroadcastEvent
@@ -72,6 +75,7 @@ internal fun broadcastUserMessage(
     event: BroadcastEvent? = null,
 ): BroadcastUserMessage = when (event) {
     is BroadcastEvent.Failure -> broadcastError(event.failure)
+    is BroadcastEvent.ApiFailure -> BroadcastUserMessage(event.guidance.message, false)
     is BroadcastEvent.ServerMessage -> BroadcastUserMessage(
         text = UiText.Dynamic(event.value),
         isStateDescription = false,

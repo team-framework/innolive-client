@@ -22,6 +22,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import com.framework.innolive.ui.text.ServerErrorGuidance
+import com.framework.innolive.ui.text.serverErrorGuidance
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -93,6 +96,7 @@ class WebRtcConnection(
     private val onLocalVideoTrackChanged: (VideoTrack?) -> Unit = {},
     private val onInitialSignalingStarted: () -> Unit = {},
     private val onSessionSnapshotChanged: (SessionSnapshot) -> Unit = {},
+    private val onServerError: (ServerErrorGuidance) -> Unit = {},
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val onDeviceProcessing = initialOnDeviceProcessing
@@ -313,6 +317,11 @@ class WebRtcConnection(
                 startSessionPolling(createdSession)
             } catch (exception: Exception) {
                 Log.w("LiveConnection", "start_failed type=${exception.javaClass.simpleName} cause=${exception.cause?.javaClass?.simpleName}")
+                val guidance = (exception as? ServerApiException)?.guidance()
+                    ?: if ((exception as? ConnectionFailureException)?.failure == ConnectionFailure.EXISTING_BROADCAST) {
+                        serverErrorGuidance("session_already_exists")
+                    } else null
+                guidance?.let(::dispatchServerError)
                 fail(exception.toConnectionFailure())
             }
         }
@@ -541,7 +550,7 @@ class WebRtcConnection(
         }
     }
 
-    fun prepareBroadcast(settings: BroadcastSettings): Boolean {
+    fun prepareBroadcast(settings: BroadcastSettings, allowConcurrent: Boolean = false): Boolean {
         if (!broadcastState.canPrepare) return false
         return runBroadcastOperation {
             if (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady) {
@@ -561,7 +570,9 @@ class WebRtcConnection(
             updateBroadcastState(BroadcastState.SAVING_SETTINGS)
             putBroadcastSettings(settings)
             updateBroadcastState(BroadcastState.PREPARING)
-            postSessionRequest("stream/prepare", JSONObject().put("provider", "youtube"))
+            val request = JSONObject().put("provider", "youtube")
+            if (allowConcurrent) request.put("allow_concurrent", true)
+            postSessionRequest("stream/prepare", request)
             recoverySuppressedAfterStop = false
             updateBroadcastState(stateAfterSessionResponse(BroadcastState.PREPARED))
         }
@@ -584,7 +595,7 @@ class WebRtcConnection(
                 updateBroadcastState(stateAfterSessionResponse(BroadcastState.LIVE))
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
-                    BroadcastState.PREPARED,
+                    broadcastStateAfterServerError(exception.code, BroadcastState.PREPARED, broadcastState),
                     exception.toBroadcastEvent(BroadcastFailure.REQUEST),
                 )
             } catch (_: Exception) {
@@ -605,7 +616,7 @@ class WebRtcConnection(
                 updateBroadcastState(stateAfterSessionResponse(BroadcastState.PAUSED))
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
-                    BroadcastState.LIVE,
+                    broadcastStateAfterServerError(exception.code, BroadcastState.LIVE, broadcastState),
                     exception.toBroadcastEvent(BroadcastFailure.YOUTUBE_PAUSE),
                 )
             } catch (_: Exception) {
@@ -628,7 +639,7 @@ class WebRtcConnection(
                 updateBroadcastState(stateAfterSessionResponse(BroadcastState.LIVE))
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
-                    BroadcastState.PAUSED,
+                    broadcastStateAfterServerError(exception.code, BroadcastState.PAUSED, broadcastState),
                     exception.toBroadcastEvent(BroadcastFailure.YOUTUBE_RESUME),
                 )
             } catch (_: Exception) {
@@ -673,7 +684,7 @@ class WebRtcConnection(
                 }
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
-                    previousState,
+                    broadcastStateAfterServerError(exception.code, previousState, broadcastState),
                     exception.toBroadcastEvent(BroadcastFailure.REQUEST),
                 )
             } catch (_: Exception) {
@@ -705,8 +716,9 @@ class WebRtcConnection(
                     operation()
                 } catch (exception: Exception) {
                     updateBroadcastState(
-                        BroadcastState.FAILED,
-                        BroadcastEvent.Failure(exception.toBroadcastFailure()),
+                        broadcastStateAfterServerError((exception as? ServerApiException)?.code, BroadcastState.FAILED, broadcastState),
+                        if (exception is ServerApiException) exception.toBroadcastEvent(BroadcastFailure.REQUEST, preserveServerMessage = false)
+                        else BroadcastEvent.Failure(BroadcastFailure.REQUEST),
                     )
                 } finally {
                     val completion = pendingBroadcastCompletion
@@ -738,9 +750,9 @@ class WebRtcConnection(
             .header("X-Session-Owner-Token", createdSession.ownerToken)
             .method(method, body.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
-        return executeHttp(request).use { response ->
+        return executeAuthenticatedHttp(request).use { response ->
             val payload = response.body.string()
-            if (!response.isSuccessful) throw parseServerApiException(payload)
+            if (!response.isSuccessful) throw parseServerApiException(payload, response.code)
             applySessionSnapshot(payload, createdSession)
             payload
         }
@@ -829,6 +841,7 @@ class WebRtcConnection(
                     }
                 }
                 status == 401 || status == 403 || status == 404 || status == 410 -> {
+                    if (status == 401) serverErrorGuidance("unauthorized")?.let(::dispatchServerError)
                     fail(ConnectionFailure.DISCONNECTED)
                     throw IOException("세션 상태를 확인할 수 없습니다.")
                 }
@@ -962,9 +975,9 @@ class WebRtcConnection(
 
     private fun loadIceServers(): Pair<List<PeerConnection.IceServer>, WebRtcRecoveryPolicy> {
         val request = authenticatedRequest("/webrtc/config").get().build()
-        return executeHttp(request).use { response ->
-            requireSuccessful(response, "ICE 서버 설정 조회")
+        return executeAuthenticatedHttp(request).use { response ->
             val payload = response.body.string()
+            if (!response.isSuccessful) throw parseServerApiException(payload, response.code)
             parseIceServers(payload) to parseWebRtcRecoveryPolicy(JSONObject(payload))
         }
     }
@@ -999,15 +1012,13 @@ class WebRtcConnection(
             .post(requestBody)
             .build()
 
-        return executeHttp(request).use { response ->
-            if (!response.isSuccessful) {
-                val code = runCatching { JSONObject(response.body.string()).optJSONObject("error")?.optString("code") }.getOrNull()
-                if (response.code == 409 && code == "session_already_exists") {
-                    return@use null
-                }
-                throw IOException("WebRTC 세션 생성 실패: HTTP ${response.code}")
-            }
+        return executeAuthenticatedHttp(request).use { response ->
             val payload = response.body.string()
+            if (!response.isSuccessful) {
+                val error = parseServerApiException(payload, response.code)
+                if (response.code == 409 && error.code == "session_already_exists") return@use null
+                throw error
+            }
             parseCreatedSession(payload).also { created ->
                 sessionSnapshot = runCatching { parseSessionSnapshot(payload, created.sessionId) }.getOrNull()
             }
@@ -1230,13 +1241,18 @@ class WebRtcConnection(
                     }
                 }
                 is ServerMessage.Error -> {
+                    if (message.code == "stale_negotiation") return
+                    if (message.code != "unauthorized") serverErrorGuidance(message.code)?.let(::dispatchServerError)
                     if (message.code == "unauthorized") {
                         when (recoveryUnauthorizedAction(
                             recoveryWindowOpen = recoveryWindow.deadlineMillis != null,
                             tokenAlreadyRefreshed = recoveryAccessToken.refreshedForCurrentRecovery,
                         )) {
                             RecoveryUnauthorizedAction.REFRESH_AND_RETRY -> onRecoveryUnauthorized()
-                            RecoveryUnauthorizedAction.FAIL_CONNECTION -> fail(ConnectionFailure.DISCONNECTED)
+                            RecoveryUnauthorizedAction.FAIL_CONNECTION -> {
+                                serverErrorGuidance("unauthorized")?.let(::dispatchServerError)
+                                fail(ConnectionFailure.DISCONNECTED)
+                            }
                         }
                     } else if (message.code in setOf("forbidden", "not_found", "peer_recovery_attempts_exhausted")) {
                         fail(ConnectionFailure.DISCONNECTED)
@@ -1746,6 +1762,26 @@ class WebRtcConnection(
         }
     }
 
+    private fun dispatchServerError(guidance: ServerErrorGuidance) {
+        val callback = Runnable { onServerError(guidance) }
+        if (broadcastCallbackExecutor != null) broadcastCallbackExecutor.execute(callback)
+        else mainHandler.post(callback)
+    }
+
+    // 이 HTTP 호출은 owner executor에서 실행됩니다. 401일 때만 기존 갱신 경로로 한 번 재시도합니다.
+    private fun executeAuthenticatedHttp(request: Request): Response {
+        val response = executeHttp(request)
+        if (response.code != 401) return response
+        response.close()
+        try {
+            recoveryAccessToken.update(runBlocking { refreshAccessToken() })
+        } catch (exception: Exception) {
+            throw ServerApiException("unauthorized", statusCode = 401, cause = exception)
+        }
+        return executeHttp(request.newBuilder()
+            .header("Authorization", "Bearer ${recoveryAccessToken.value}").build())
+    }
+
     private fun fail(failure: ConnectionFailure) {
         val shouldStartShutdown = synchronized(shutdownLock) {
             if (closed.get() || terminal.get()) {
@@ -2096,10 +2132,17 @@ class WebRtcConnection(
     }
 }
 
-private class ServerApiException(
+internal class ServerApiException(
     val code: String?,
     val serverMessage: String? = null,
-) : IOException("Server API request failed")
+    val statusCode: Int? = null,
+    val helpUrl: String? = null,
+    val field: String? = null,
+    val reason: String? = null,
+    cause: Throwable? = null,
+) : IOException("Server API request failed", cause) {
+    fun guidance(): ServerErrorGuidance? = serverErrorGuidance(code, statusCode, helpUrl, field, reason)
+}
 
 internal class ConnectionFailureException(
     val failure: ConnectionFailure,
@@ -2118,12 +2161,12 @@ private fun ServerApiException.toKnownBroadcastFailure(): BroadcastFailure? = wh
 
 private fun ServerApiException.toBroadcastEvent(
     fallback: BroadcastFailure,
-): BroadcastEvent = toKnownBroadcastFailure()?.let(BroadcastEvent::Failure)
-    ?: serverMessage?.takeIf(String::isNotBlank)?.let(BroadcastEvent::ServerMessage)
+    preserveServerMessage: Boolean = true,
+): BroadcastEvent? = if (code in BUSY_SERVER_CODES) null
+    else guidance()?.let(BroadcastEvent::ApiFailure)
+    ?: toKnownBroadcastFailure()?.let(BroadcastEvent::Failure)
+    ?: serverMessage?.takeIf { preserveServerMessage && it.isNotBlank() }?.let(BroadcastEvent::ServerMessage)
     ?: BroadcastEvent.Failure(fallback)
-
-private fun Throwable.toBroadcastFailure(): BroadcastFailure =
-    (this as? ServerApiException)?.toKnownBroadcastFailure() ?: BroadcastFailure.REQUEST
 
 private fun connectionFailureForServerCode(code: String): ConnectionFailure = when (code) {
     "session_already_exists" -> ConnectionFailure.EXISTING_BROADCAST
@@ -2200,11 +2243,24 @@ private fun requireSuccessful(response: Response, operation: String) {
     }
 }
 
-private fun parseServerApiException(payload: String): ServerApiException {
+internal fun parseServerApiException(payload: String, statusCode: Int? = null): ServerApiException {
     val error = runCatching { JSONObject(payload).optJSONObject("error") }.getOrNull()
-    val code = error?.optString("code")?.takeIf { it.isNotBlank() }
-    val serverMessage = error?.optString("message")?.takeIf { it.isNotBlank() }
-    return ServerApiException(code, serverMessage)
+    val details = error?.optJSONObject("details")
+    fun JSONObject?.string(key: String): String? = (this?.opt(key) as? String)?.takeIf { it.isNotBlank() }
+    return ServerApiException(error.string("code"), error.string("message"), statusCode,
+        details.string("help_url"), details.string("field"), details.string("reason"))
+}
+
+private val BUSY_SERVER_CODES = setOf("resolution_switch_in_progress", "broadcast_busy", "broadcast_going_live")
+
+internal fun broadcastStateAfterServerError(
+    code: String?,
+    fallback: BroadcastState,
+    inProgress: BroadcastState = BroadcastState.PREPARING,
+): BroadcastState = when (code) {
+    "broadcast_going_live" -> BroadcastState.GOING_LIVE
+    "broadcast_busy", "resolution_switch_in_progress" -> inProgress
+    else -> fallback
 }
 
 internal fun buildBroadcastSettingsPayload(settings: BroadcastSettings): JSONObject = JSONObject()
