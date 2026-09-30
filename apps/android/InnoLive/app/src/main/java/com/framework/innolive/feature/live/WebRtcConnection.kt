@@ -836,6 +836,7 @@ class WebRtcConnection(
                     } catch (exception: kotlinx.coroutines.CancellationException) {
                         throw exception
                     } catch (exception: Exception) {
+                        serverErrorGuidance("unauthorized")?.let(::dispatchServerError)
                         fail(ConnectionFailure.DISCONNECTED)
                         throw exception
                     }
