@@ -123,10 +123,14 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
+        let accessToken = authentication.currentAccessToken()
+        let authenticatedScope = accessToken.flatMap { try? api.capturedBroadcastSessionScope(accessToken: $0) }
         if let sessionScope,
-           authentication.currentAccessToken().flatMap({ try? api.capturedBroadcastSessionScope(accessToken: $0) }) != sessionScope {
+           authenticatedScope != sessionScope {
             reset()
         }
+        let shouldRestartPolling = session != nil && sessionScope != nil
+            && sessionScope == authenticatedScope && !isEndingSession
         sessionOperationGeneration &+= 1
         sessionPreparationTask = nil
         sessionPreparationScope = nil
@@ -146,6 +150,9 @@ final class YouTubeIntegration: ObservableObject {
                 authentication?.expireSession()
             }
         )
+        if shouldRestartPolling, let accessToken {
+            beginPolling(accessToken: accessToken)
+        }
     }
 
     var isConnected: Bool { connection != nil }

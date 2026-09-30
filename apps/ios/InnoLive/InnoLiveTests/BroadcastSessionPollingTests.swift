@@ -69,6 +69,52 @@ final class BroadcastSessionPollingTests: XCTestCase {
         integration.reset()
     }
 
+    func testSameAccountAuthenticationReconfigurationKeepsSessionPolling() async {
+        let initialPoll = expectation(description: "initial session poll")
+        let resumedPolls = expectation(description: "polls after authentication reconfiguration")
+        resumedPolls.expectedFulfillmentCount = 2
+        var sawInitialPoll = false
+        var afterReconfiguration = false
+        var resumedCount = 0
+        var postCount = 0
+        var deleteCount = 0
+        var resumedAuthorizations: [String?] = []
+        SessionStateURLProtocol.handler = { request in
+            if request.httpMethod == "POST" { postCount += 1 }
+            if request.httpMethod == "DELETE" { deleteCount += 1 }
+            if request.httpMethod == "GET" {
+                if afterReconfiguration {
+                    resumedCount += 1
+                    resumedAuthorizations.append(request.value(forHTTPHeaderField: "Authorization"))
+                    if resumedCount <= 2 { resumedPolls.fulfill() }
+                } else if !sawInitialPoll {
+                    sawInitialPoll = true
+                    initialPoll.fulfill()
+                }
+            }
+            return (request.httpMethod == "POST" ? 201 : 200, SessionStateFixture.json(providers: ["chzzk"]))
+        }
+        let integration = makeIntegration()
+        let token = SessionStateFixture.token("user")
+        let prepared = await integration.prepareSession(accessToken: token)
+        XCTAssertTrue(prepared)
+        await fulfillment(of: [initialPoll], timeout: 2)
+        let refreshedToken = SessionStateFixture.token("user", version: 1)
+        let authentication = AuthSession(tokenStore: PollingAuthenticationTokenStore(accessToken: refreshedToken))
+        authentication.restore()
+
+        integration.configureAuthentication(authentication)
+        afterReconfiguration = true
+        await fulfillment(of: [resumedPolls], timeout: 2)
+
+        XCTAssertEqual(integration.session?.sessionID, "state-session")
+        XCTAssertEqual(integration.visibleBroadcastTargets.map(\.provider), ["chzzk"])
+        XCTAssertEqual(postCount, 1)
+        XCTAssertEqual(deleteCount, 0)
+        XCTAssertTrue(resumedAuthorizations.allSatisfy { $0 == "Bearer \(refreshedToken)" })
+        integration.reset()
+    }
+
     func testLatePollDoesNotRestoreResetState() async {
         let poll = expectation(description: "poll started")
         var integration: YouTubeIntegration!
@@ -219,6 +265,21 @@ private final class SessionStateStore: BroadcastSessionStoring {
     func load(scope: BroadcastSessionScope) throws -> StoredBroadcastSession? { record }
     func save(_ session: StoredBroadcastSession, scope: BroadcastSessionScope) throws { record = session }
     func remove(scope: BroadcastSessionScope) throws { record = nil }
+}
+
+@MainActor
+private final class PollingAuthenticationTokenStore: AuthenticationTokenStoring {
+    nonisolated deinit {}
+
+    private let accessToken: String
+
+    init(accessToken: String) { self.accessToken = accessToken }
+
+    func save(_ tokens: AuthenticationTokenPair) {}
+    func load() -> AuthenticationTokenPair? {
+        AuthenticationTokenPair(accessToken: accessToken, refreshToken: "refresh")
+    }
+    func remove() {}
 }
 
 private final class SessionStateURLProtocol: URLProtocol {
