@@ -164,8 +164,8 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                             previewTransition: .constant(.none),
                             authentication: fixture.authentication,
                             youtube: fixture.youtube,
-                            isStartingServerConnection: false,
-                            onRetryConnection: { XCTFail("Render tests must not connect media") }
+                            onPrepareBroadcast: { _ in XCTFail("Render tests must not connect media") },
+                            onCancelPreparation: {}
                         )
                         .padding(.horizontal, 24)
                         .padding(.bottom, 12)
