@@ -35,8 +35,9 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Opt-in real-time camera/return-stream measurement against the configured backend.
- * Requires productionProbe=true and a pre-existing login. Does not start RTMP broadcasting.
- * Optional switchTo=server|on_device checks that a connected preview reoffers the other codec.
+ * Requires productionProbe=true and a pre-existing login. Does not go live.
+ * Optional switchTo=server|on_device also requires a linked YouTube account: it prepares a
+ * private broadcast after the mode selection, verifies the replacement session, then cancels it.
  * Connection/codec assertions are not a performance acceptance gate; analyze recorded stats.
  */
 class ProductionVideoReturnDeviceTest {
@@ -259,48 +260,70 @@ class ProductionVideoReturnDeviceTest {
                     require(nextMode in setOf("on_device", "server"))
                     val nextOnDevice = nextMode == "on_device"
                     require(nextOnDevice != onDevice)
-                    onMain { assertTrue("Preview mode switch", session.selectAIProcessing(context, nextOnDevice)) }
-                    waitUntil(90_000) {
-                        session.connectionState == WebRtcConnectionState.CONNECTED ||
-                            session.connectionState == WebRtcConnectionState.FAILED
+                    onMain {
+                        assertTrue("Preview mode switch", session.selectAIProcessing(context, nextOnDevice))
+                        assertEquals("Settings must defer the new connection", WebRtcConnectionState.IDLE, session.connectionState)
+                        assertNull("Old return track must be released", session.remoteVideoTrack)
+                        assertTrue("Next broadcast preparation starts the new connection", session.prepareBroadcast(
+                            activity,
+                            BroadcastSettings("InnoLive 모드 전환 검증", "비공개 준비 및 취소 검증", "private", false, "22"),
+                            auth::refreshAccessToken,
+                        ))
                     }
-                    assertEquals("Mode switch connection", WebRtcConnectionState.CONNECTED, session.connectionState)
-                    waitUntil(30_000) { session.remoteVideoTrack != null }
-                    val switchedConnection = field(session, "connection") as WebRtcConnection
-                    assertNotSame("Mode switch must recreate PeerConnection", connection, switchedConnection)
-                    val switchedSession = field(switchedConnection, "session") as CreatedSession
-                    assertNotEquals("Mode switch must recreate server session", created.sessionId, switchedSession.sessionId)
-                    assertEquals(nextOnDevice, session.selectedOnDeviceProcessing)
-                    val switchedPeer = field(switchedConnection, "peerConnection") as PeerConnection
-                    val targetCodec = if (nextOnDevice) "video/VP8" else "video/H264"
-                    waitUntil(30_000) {
-                        val latch = CountDownLatch(1)
-                        var report: RTCStatsReport? = null
-                        switchedPeer.getStats { report = it; latch.countDown() }
-                        if (!latch.await(5, TimeUnit.SECONDS)) return@waitUntil false
-                        report?.statsMap?.values?.any { stat ->
-                            stat.type == "outbound-rtp" &&
-                                (stat.members["kind"] == "video" || stat.members["mediaType"] == "video") &&
-                                (stat.members["codecId"] as? String)?.let { codecId ->
-                                    report?.statsMap?.get(codecId)?.members?.get("mimeType") == targetCodec
-                                } == true
-                        } == true
+                    try {
+                        waitUntil(120_000) {
+                            session.broadcastState == BroadcastState.PREPARED ||
+                                session.broadcastState == BroadcastState.FAILED
+                        }
+                        assertEquals("New broadcast preparation: ${session.broadcastStatus.resolve(activity)}",
+                            BroadcastState.PREPARED, session.broadcastState)
+                        assertEquals("Mode switch connection", WebRtcConnectionState.CONNECTED, session.connectionState)
+                        waitUntil(30_000) { session.remoteVideoTrack != null }
+                        val switchedConnection = field(session, "connection") as WebRtcConnection
+                        assertNotSame("Mode switch must recreate PeerConnection", connection, switchedConnection)
+                        val switchedSession = field(switchedConnection, "session") as CreatedSession
+                        assertNotEquals("Mode switch must recreate server session", created.sessionId, switchedSession.sessionId)
+                        assertEquals(nextOnDevice, session.selectedOnDeviceProcessing)
+                        val switchedPeer = field(switchedConnection, "peerConnection") as PeerConnection
+                        val targetCodec = if (nextOnDevice) "video/VP8" else "video/H264"
+                        waitUntil(30_000) {
+                            val latch = CountDownLatch(1)
+                            var report: RTCStatsReport? = null
+                            switchedPeer.getStats { report = it; latch.countDown() }
+                            if (!latch.await(5, TimeUnit.SECONDS)) return@waitUntil false
+                            report?.statsMap?.values?.any { stat ->
+                                stat.type == "outbound-rtp" &&
+                                    (stat.members["kind"] == "video" || stat.members["mediaType"] == "video") &&
+                                    (stat.members["codecId"] as? String)?.let { codecId ->
+                                        report?.statsMap?.get(codecId)?.members?.get("mimeType") == targetCodec
+                                    } == true
+                            } == true
+                        }
+                        val token = requireNotNull(auth.session.value).accessToken
+                        val request = Request.Builder()
+                            .url(BuildConfig.INNOLIVE_SERVER_URL.trimEnd('/') + "/sessions/" + switchedSession.sessionId)
+                            .header("Authorization", "Bearer $token")
+                            .header("X-Session-Owner-Token", switchedSession.ownerToken)
+                            .build()
+                        client.newCall(request).execute().use { response ->
+                            assertEquals("Switched session API", 200, response.code)
+                            val enabled = JSONObject(response.body.string())
+                                .getJSONObject("media").getBoolean("anonymization_enabled")
+                            assertEquals("Switched server protection", !nextOnDevice, enabled)
+                        }
+                        Log.i("ProductionVideoProbe", "mode_switch " + JSONObject()
+                            .put("from", mode).put("to", nextMode).put("codec", targetCodec)
+                            .put("session_recreated", true))
+                    } finally {
+                        if (session.broadcastState == BroadcastState.PREPARED) {
+                            onMain { session.stopBroadcast() }
+                            waitUntil(30_000) {
+                                session.broadcastState == BroadcastState.IDLE ||
+                                    session.broadcastState == BroadcastState.FAILED
+                            }
+                            assertEquals("Private broadcast cancellation", BroadcastState.IDLE, session.broadcastState)
+                        }
                     }
-                    val token = requireNotNull(auth.session.value).accessToken
-                    val request = Request.Builder()
-                        .url(BuildConfig.INNOLIVE_SERVER_URL.trimEnd('/') + "/sessions/" + switchedSession.sessionId)
-                        .header("Authorization", "Bearer $token")
-                        .header("X-Session-Owner-Token", switchedSession.ownerToken)
-                        .build()
-                    client.newCall(request).execute().use { response ->
-                        assertEquals("Switched session API", 200, response.code)
-                        val enabled = JSONObject(response.body.string())
-                            .getJSONObject("media").getBoolean("anonymization_enabled")
-                        assertEquals("Switched server protection", !nextOnDevice, enabled)
-                    }
-                    Log.i("ProductionVideoProbe", "mode_switch " + JSONObject()
-                        .put("from", mode).put("to", nextMode).put("codec", targetCodec)
-                        .put("session_recreated", true))
                 }
             } finally {
                 session.frameAnalyzer?.onFrameDiagnostics = null
