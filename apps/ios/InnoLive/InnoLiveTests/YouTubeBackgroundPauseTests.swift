@@ -44,6 +44,8 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
         XCTAssertEqual(requestCount(suffix: "/stream/pause"), 1)
         XCTAssertTrue(integration.isYouTubeBroadcastPaused)
         XCTAssertNil(integration.errorMessage)
+        XCTAssertEqual(integration.session?.sessionID, "session-123")
+        XCTAssertFalse(YouTubeBackgroundPauseURLProtocol.requests.contains { $0.httpMethod == "DELETE" })
     }
 
     func testForegroundAfterBackgroundPauseResumesYouTubeStream() async throws {

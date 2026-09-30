@@ -22,6 +22,15 @@ final class BroadcastSessionStoreTests: XCTestCase {
         try restored.remove(scope: scopes[0])
         XCTAssertNil(try first.load(scope: scopes[0]))
         XCTAssertNotNil(try first.load(scope: scopes[1]))
+        XCTAssertEqual(try first.load(scope: scopes[2])?.sessionID, "session-2")
+    }
+
+    func testTokenRefreshForSameSubjectUsesSameJournal() throws {
+        let original = try scope("user", "one.invalid")
+        let refreshedPayload = Data("{\"sub\":\"user\",\"iat\":12345}".utf8).base64EncodedString()
+        let refreshed = try BroadcastSessionScope(server: XCTUnwrap(URL(string: "https://one.invalid/")), accessToken: "header.\(refreshedPayload).new-signature")
+        XCTAssertEqual(original, refreshed)
+        XCTAssertEqual(original.storageKey, refreshed.storageKey)
     }
 
     func testMalformedOrMissingSubjectIsRejected() throws {
