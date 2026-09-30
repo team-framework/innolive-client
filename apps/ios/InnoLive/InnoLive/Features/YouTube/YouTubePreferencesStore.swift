@@ -30,6 +30,9 @@ final class YouTubePreferencesStore {
     }
 
     func removeAccountData() {
+        for key in userDefaults.dictionaryRepresentation().keys where key.hasPrefix("com.framework.innolive.broadcast-settings.v2:") {
+            userDefaults.removeObject(forKey: key)
+        }
         removeConnection()
         userDefaults.removeObject(forKey: Key.broadcastSettings)
         userDefaults.removeObject(forKey: YouTubeBroadcastAudience.storageKey)
@@ -60,6 +63,27 @@ final class YouTubePreferencesStore {
         } else {
             userDefaults.removeObject(forKey: YouTubeBroadcastAudience.storageKey)
         }
+    }
+
+    func loadScopedYouTubeSettings(key: String) -> YouTubeBroadcastSettings {
+        loadScoped(key: key) ?? .defaultValue
+    }
+    func loadScopedCHZZKSettings(key: String) -> CHZZKBroadcastSettings {
+        loadScoped(key: key) ?? CHZZKBroadcastSettings()
+    }
+    func saveScopedYouTubeSettings(_ settings: YouTubeBroadcastSettings, key: String) {
+        saveScoped(settings, key: key)
+    }
+    func saveScopedCHZZKSettings(_ settings: CHZZKBroadcastSettings, key: String) {
+        saveScoped(settings, key: key)
+    }
+    private func loadScoped<T: Decodable>(key: String) -> T? {
+        userDefaults.data(forKey: "com.framework.innolive.broadcast-settings.v2:" + key)
+            .flatMap { try? JSONDecoder().decode(T.self, from: $0) }
+    }
+    private func saveScoped<T: Encodable>(_ value: T, key: String) {
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        userDefaults.set(data, forKey: "com.framework.innolive.broadcast-settings.v2:" + key)
     }
 
     private func loadSavedAudience() -> YouTubeBroadcastAudience? {

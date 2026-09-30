@@ -197,9 +197,9 @@ struct BroadcastControllsView: View {
         }
     }
 
-    private func prepareYouTubeStream() {
+    private func prepareYouTubeStream(_ provider: BroadcastSettingsProvider) {
         Task {
-            await youtube.prepareYouTubeStream(accessToken: authentication.currentAccessToken())
+            await youtube.prepareYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider, useEditor: true)
             if youtube.broadcastPhase == "prepared" {
                 isShowingBroadcastSettings = false
             }

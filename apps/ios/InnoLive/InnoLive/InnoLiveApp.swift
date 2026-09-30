@@ -25,7 +25,9 @@ struct InnoLiveApp: App {
     @ViewBuilder
     private var rootView: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--private-on-device-broadcast-test") || ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") {
+        if ProcessInfo.processInfo.arguments.contains("--broadcast-settings-preview") {
+            BroadcastSettingsValidationView()
+        } else if ProcessInfo.processInfo.arguments.contains("--private-on-device-broadcast-test") || ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") {
             PrivateBroadcastValidationView()
         } else if ProcessInfo.processInfo.arguments.contains("--face-model-benchmark") {
             PrivacyFaceBenchmarkView()
