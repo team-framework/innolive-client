@@ -34,8 +34,12 @@ struct RemoteStreamView: View {
     let previewTransition: BroadcastPreviewTransition
     let isPreparingSession: Bool
     let isConnectingVideo: Bool
+    var recoveryStatus: VideoRecoveryStatus? = nil
 
     private var connectionPhase: BroadcastConnectionPhase? {
+        if let recoveryStatus {
+            return .recovering(recoveryStatus)
+        }
         if isPreparingSession {
             return .preparingSession
         }
@@ -80,6 +84,7 @@ private enum BroadcastConnectionPhase {
     case connectingCamera
     case waitingForProcessedVideo
     case restoringPreview
+    case recovering(VideoRecoveryStatus)
 
     var title: String {
         switch self {
@@ -87,6 +92,7 @@ private enum BroadcastConnectionPhase {
         case .connectingCamera: return String(localized: "서버에 카메라 영상을 연결하는 중")
         case .waitingForProcessedVideo: return String(localized: "비식별화 영상을 준비하는 중")
         case .restoringPreview: return String(localized: "카메라 미리보기를 복구하는 중")
+        case .recovering(let status): return status.title
         }
     }
 
@@ -96,6 +102,7 @@ private enum BroadcastConnectionPhase {
         case .connectingCamera: return String(localized: "카메라와 마이크를 서버에 연결하고 있습니다.")
         case .waitingForProcessedVideo: return String(localized: "서버 처리 영상이 곧 표시됩니다.")
         case .restoringPreview: return String(localized: "카메라를 다시 준비하고 있습니다.")
+        case .recovering(let status): return status.detail
         }
     }
 }

@@ -19,6 +19,7 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var isConnectingVideo = false
     @Published private(set) var isChangingStreamState = false
     @Published private(set) var isRecoveringVideoFailure = false
+    @Published private(set) var videoRecoveryStatus: VideoRecoveryStatus?
     @Published private(set) var isAnonymizationEnabled = false
     @Published private(set) var isTogglingAnonymization = false
     @Published private(set) var isChangingAIProcessing = false
@@ -860,6 +861,7 @@ final class YouTubeIntegration: ObservableObject {
         stopPolling()
         reconnectTask?.cancel()
         reconnectTask = nil
+        videoRecoveryStatus = nil
         videoUplink.stop()
         videoConnectionConfiguration = nil
         connection = nil
@@ -1028,6 +1030,7 @@ final class YouTubeIntegration: ObservableObject {
             defer {
                 self.isReconnectingVideo = false
                 self.reconnectTask = nil
+                self.videoRecoveryStatus = nil
             }
 
             var attempt = 1
@@ -1035,6 +1038,10 @@ final class YouTubeIntegration: ObservableObject {
             var didRefreshAfterSignalingUnauthorized = false
 
             while attempt <= self.maximumVideoReconnectAttempts {
+                self.videoRecoveryStatus = VideoRecoveryStatus(
+                    attempt: attempt,
+                    maximumAttempts: self.maximumVideoReconnectAttempts
+                )
                 guard !Task.isCancelled else { return }
                 if shouldDelayBeforeAttempt {
                     do {

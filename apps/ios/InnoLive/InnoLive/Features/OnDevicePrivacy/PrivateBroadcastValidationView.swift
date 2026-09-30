@@ -23,7 +23,8 @@ struct PrivateBroadcastValidationView: View {
     var body: some View {
         VStack {
             RemoteStreamView(uplink: youtube.videoUplink, previewTransition: .none,
-                             isPreparingSession: youtube.isPreparingSession, isConnectingVideo: youtube.isConnectingVideo)
+                             isPreparingSession: youtube.isPreparingSession, isConnectingVideo: youtube.isConnectingVideo,
+                             recoveryStatus: youtube.videoRecoveryStatus)
             ScrollView { Text(report).font(.caption.monospaced()).padding() }.frame(maxHeight: 220)
         }.task {
             guard !started else { return }
