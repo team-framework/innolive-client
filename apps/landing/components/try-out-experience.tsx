@@ -322,6 +322,7 @@ export function TryOutExperience() {
   const [state, setState] = useState<ExperienceState>("connecting");
   const [status, setStatus] = useState(copy.preparing);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [activeSession, setActiveSession] = useState<ServerSession | null>(null);
   const [isFaceRegistrationOpen, setIsFaceRegistrationOpen] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -352,6 +353,7 @@ export function TryOutExperience() {
     remoteStreamRef.current = null;
     sessionRef.current = null;
     ticketIDRef.current = null;
+    setActiveSession(null);
     pendingRemoteCandidatesRef.current = [];
     setLocalStream(null);
     setIsFaceRegistrationOpen(false);
@@ -419,6 +421,7 @@ export function TryOutExperience() {
       }
 
       sessionRef.current = session;
+      setActiveSession(session);
       if (session.ticketID) ticketIDRef.current = session.ticketID;
       setStatus(copy.checkingMedia);
       const localStream = await navigator.mediaDevices.getUserMedia({
@@ -623,7 +626,7 @@ export function TryOutExperience() {
       </div>
 
       <div className="flex flex-wrap justify-center gap-3">
-        {state === "connected" && isLogined && localStream ? (
+        {state === "connected" && localStream ? (
           <Button showChevron={false} onClick={() => setIsFaceRegistrationOpen(true)}>
             {messages.tryOut.registerFace}
           </Button>
@@ -646,6 +649,7 @@ export function TryOutExperience() {
 
       <FaceRegistrationModal
         isOpen={isFaceRegistrationOpen}
+        session={activeSession}
         stream={localStream}
         onClose={closeFaceRegistration}
         onRegistered={handleFaceRegistered}

@@ -5,11 +5,19 @@ import type { FaceDetector } from "@mediapipe/tasks-vision";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/button";
 import { Dialog } from "@/components/dialog";
+import { getInnoLiveServerUrl } from "@/lib/auth-config";
 import { useLocale } from "@/components/locale-provider";
 import type { Messages } from "@/lib/messages";
 
+type FaceRegistrationSession = {
+  role: "member" | "guest";
+  sessionID: string;
+  ownerToken: string;
+};
+
 type FaceRegistrationModalProps = {
   isOpen: boolean;
+  session: FaceRegistrationSession | null;
   stream: MediaStream | null;
   onClose: () => void;
   onRegistered: () => void;
@@ -109,14 +117,21 @@ async function createFaceDetector(detectorMessage: string) {
   }
 }
 
-async function registerReferenceFace(image: Blob, copy: FaceRegistrationCopy) {
+async function registerReferenceFace(image: Blob, copy: FaceRegistrationCopy, session: FaceRegistrationSession | null) {
   const formData = new FormData();
   formData.append("image", image, "reference-face.jpg");
 
+  if (!session) throw new FaceRegistrationError(copy.errors.sessionExpired);
+  const isGuest = session.role === "guest";
+  const endpoint = isGuest
+    ? `${getInnoLiveServerUrl()}/guest/sessions/${encodeURIComponent(session.sessionID)}/reference-face`
+    : "/api/reference-face";
+
   let response: Response;
   try {
-    response = await fetch("/api/reference-face", {
+    response = await fetch(endpoint, {
       method: "POST",
+      headers: isGuest ? { "X-Session-Owner-Token": session.ownerToken } : undefined,
       body: formData,
       cache: "no-store",
       credentials: "include",
@@ -160,6 +175,7 @@ export function FaceRegistrationModal({
   stream,
   onClose,
   onRegistered,
+  session,
 }: FaceRegistrationModalProps) {
   const { messages } = useLocale();
   const copy = messages.faceRegistration;
@@ -223,7 +239,7 @@ export function FaceRegistrationModal({
         setState("registering");
         setStatus(copy.status.registering);
         const image = await toJPEG(canvas, copy.errors.jpegConversion);
-        await registerReferenceFace(image, copy);
+        await registerReferenceFace(image, copy, session);
         if (!active) return;
         onRegistered();
         onClose();
@@ -272,7 +288,7 @@ export function FaceRegistrationModal({
       isRegisteringRef.current = false;
       stopPreview();
     };
-  }, [copy, isOpen, onClose, onRegistered, retryCount, stream]);
+  }, [copy, isOpen, onClose, onRegistered, retryCount, session, stream]);
 
   return (
     <Dialog open={isOpen} onClose={onClose} label={copy.dialogLabel} className="zoom-[0.77]">
