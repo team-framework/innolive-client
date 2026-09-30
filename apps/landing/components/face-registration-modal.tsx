@@ -266,7 +266,7 @@ export function FaceRegistrationModal({
   }, [copy, isOpen, onClose, onRegistered, retryCount, stream]);
 
   return (
-    <Dialog open={isOpen} onClose={onClose} label={copy.dialogLabel}>
+    <Dialog open={isOpen} onClose={onClose} label={copy.dialogLabel} className="zoom-[0.7]">
       <div className="flex h-[calc(90dvh-4rem)] w-[min(calc(100vw-3rem),40.4375rem)] max-w-[40.4375rem] flex-col overflow-clip rounded-[12px] bg-background-secondary text-text-primary min-[48rem]:h-[45rem] min-[48rem]:flex-row">
         <div className="flex w-full shrink-0 flex-col items-start justify-between gap-4 p-4 min-[48rem]:gap-8 min-[48rem]:p-8 min-[48rem]:w-[15.125rem] min-[48rem]:shrink-0">
           <div className="flex flex-col gap-2.5">
