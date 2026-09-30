@@ -120,7 +120,19 @@ final class YouTubeIntegration: ObservableObject {
         hasAcknowledgedYouTubeTransmission = false
     }
 
+    let planStore = PlanStore()
+    @Published private(set) var isRemainingTimeStale = false
+
+    var currentPlanMode: BroadcastPlanMode {
+        .current(resolution: broadcastResolution, targetCount: visibleBroadcastTargets.count)
+    }
+
+    func refreshPlan(accessToken: String?) async {
+        await planStore.refresh(api: api, accessToken: accessToken)
+    }
+
     func configureAuthentication(_ authentication: AuthSession) {
+        planStore.reset()
         sessionOperationGeneration &+= 1
         invalidateConnectionOperation()
         api.configureAuthentication(
@@ -668,6 +680,12 @@ final class YouTubeIntegration: ObservableObject {
             showError(.sessionRequired)
             return
         }
+        if let snapshot = planStore.snapshot, !snapshot.canPrepare(currentPlanMode) {
+            errorMessage = snapshot.isAllowed(currentPlanMode)
+                ? String(localized: "이번 달 방송 시간을 모두 사용했습니다.")
+                : String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
+            return
+        }
         let settings = broadcastSettings.normalized
         guard !settings.title.isEmpty else {
             showError(.broadcastTitleRequired)
@@ -867,6 +885,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        planStore.reset()
         sessionOperationGeneration &+= 1
         sessionScope = nil
         invalidateConnectionOperation()
@@ -953,6 +972,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private func applyCreatedSessionState(_ created: YouTubeBroadcastSession, accessToken: String) {
         session = created
+        isRemainingTimeStale = false
         responseState = BroadcastSessionSnapshot()
         applySessionResponse(
             YouTubeSessionResponse(
@@ -978,6 +998,7 @@ final class YouTubeIntegration: ObservableObject {
         guard generation == sessionOperationGeneration, session?.sessionID == sessionID, !Task.isCancelled else {
             return false
         }
+        isRemainingTimeStale = false
         responseState.apply(response, provider: provider, clearsWarnings: clearsWarnings)
         responseRevision &+= 1
         stream = responseState.stream
@@ -995,6 +1016,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func clearSessionResponseState() {
+        isRemainingTimeStale = false
         responseState = BroadcastSessionSnapshot()
         stream = nil
         isChangingAIProcessing = false
@@ -1048,6 +1070,7 @@ final class YouTubeIntegration: ObservableObject {
                     guard !Task.isCancelled, self.pollingGeneration == generation else {
                         break
                     }
+                    self.isRemainingTimeStale = true
                     // 폴링 실패는 이미 시작된 송출 상태를 지우지 않는다. 다음 주기에 재시도한다.
                 }
             }

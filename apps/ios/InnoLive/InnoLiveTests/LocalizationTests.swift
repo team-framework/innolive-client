@@ -62,6 +62,17 @@ final class LocalizationTests: XCTestCase {
         )
     }
 
+    func testPlanUsageLabelsAreTranslatedInSupportedLanguages() throws {
+        for language in ["ko", "en", "ja"] {
+            let bundle = try localizedBundle(language)
+            for key in ["요금제 및 사용량", "월 방송 한도", "1회 방송 한도", "소진", "잠김", "마지막 조회값 · 재시도 중"] {
+                let label = bundle.localizedString(forKey: key, value: "MISSING", table: nil)
+                XCTAssertNotEqual(label, "MISSING")
+                if language != "ko" { XCTAssertNil(label.range(of: "[가-힣]", options: .regularExpression)) }
+            }
+        }
+    }
+
     func testPrivacyPolicyLinkUsesAppLanguage() {
         let language = Bundle.main.preferredLocalizations.first ?? "ko"
         XCTAssertEqual(InnoLiveLinks.privacyPolicyURL?.path, "/\(language)/privacy")

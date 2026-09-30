@@ -8,6 +8,7 @@ import SwiftUI
 struct BroadcastSettingsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    @ObservedObject private var planStore: PlanStore
     @State private var draftSettings: YouTubeBroadcastSettings
     @State private var isSaveConfirmationPresented = false
     @State private var isShowingYouTubeTransmissionNotice = false
@@ -21,6 +22,7 @@ struct BroadcastSettingsView: View {
     ) {
         self.authentication = authentication
         self.youtube = youtube
+        self.planStore = youtube.planStore
         self.onPrepare = onPrepare
         _draftSettings = State(initialValue: youtube.broadcastSettings)
     }
@@ -37,6 +39,8 @@ struct BroadcastSettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
+
+                    PlanUsageSection(authentication: authentication, youtube: youtube)
 
                     broadcastTitleSection
                     broadcastDescriptionSection
@@ -236,7 +240,8 @@ struct BroadcastSettingsView: View {
     }
 
     private var isPrimaryActionDisabled: Bool {
-        youtube.isBroadcastSettingsLocked
+        (isPreparingBroadcast && planStore.snapshot.map { !$0.canPrepare(youtube.currentPlanMode) } == true)
+            || youtube.isBroadcastSettingsLocked
             || draftSettings.normalized.title.isEmpty
             || (isPreparingBroadcast && draftSettings.audience == nil)
             || (isPreparingBroadcast && !youtube.isConnected)

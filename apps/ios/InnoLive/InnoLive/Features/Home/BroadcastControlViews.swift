@@ -48,10 +48,20 @@ struct YouTubeBroadcastControlLabel: View {
                         .frame(width: 9, height: 9)
                 }
 
-                Text(buttonTitle(at: context.date))
-                    .font(.headline.weight(.bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                VStack(spacing: 2) {
+                    Text(buttonTitle(at: context.date))
+                        .font(.headline.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    if youtube.isYouTubeBroadcastActive {
+                        Text(String(localized: "남은 시간 \(PlanTimeText.remaining(youtube.broadcastRemainingTime))"))
+                            .font(.caption2)
+                        if youtube.isRemainingTimeStale {
+                            Text(String(localized: "마지막 조회값 · 재시도 중"))
+                                .font(.caption2).foregroundStyle(.orange)
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity)
             .frame(height: BroadcastControlLayout.height)
@@ -74,7 +84,7 @@ struct YouTubeBroadcastControlLabel: View {
         if youtube.stream?.status == "reconnecting" {
             return String(localized: "재연결 중 (\(duration))")
         }
-        return String(localized: "방송 중 (\(duration))")
+        return String(localized: "방송 중 · 경과 \(duration)")
     }
 
     private func formattedDuration(since startDate: Date?, now: Date) -> String {
