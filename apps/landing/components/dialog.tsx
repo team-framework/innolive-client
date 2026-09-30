@@ -9,9 +9,10 @@ type DialogProps = {
   onClose: () => void;
   label: string;
   children: ReactNode;
+  className?: string;
 };
 
-export function Dialog({ open, onClose, label, children }: DialogProps) {
+export function Dialog({ open, onClose, label, children, className = "" }: DialogProps) {
   const { messages } = useLocale();
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -44,7 +45,7 @@ export function Dialog({ open, onClose, label, children }: DialogProps) {
     <dialog
       ref={ref}
       aria-label={label}
-      className="m-auto max-h-[90dvh] w-max max-w-[calc(100%-2rem)] border-0 bg-transparent p-0 text-inherit open:flex open:flex-col [&::backdrop]:bg-black/40"
+      className={`m-auto max-h-[90dvh] w-max max-w-[calc(100%-2rem)] border-0 bg-transparent p-0 text-inherit open:flex open:flex-col [&::backdrop]:bg-black/40 ${className}`}
       onCancel={(event) => {
         event.preventDefault();
         onClose();
