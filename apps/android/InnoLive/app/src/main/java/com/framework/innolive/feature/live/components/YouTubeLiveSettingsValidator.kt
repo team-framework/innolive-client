@@ -17,7 +17,8 @@ data class YouTubeLiveSettingsValidation(
 fun validateYouTubeLiveSettings(
     settings: BroadcastSettings,
 ): YouTubeLiveSettingsValidation = YouTubeLiveSettingsValidation(
-    titleError = settings.title.isBlank(),
-    descriptionError = settings.description.isBlank(),
+    titleError = settings.title.isBlank() || settings.title.length > MAX_YOUTUBE_TITLE_LENGTH,
+    descriptionError = settings.description.isBlank() ||
+        settings.description.length > MAX_YOUTUBE_DESCRIPTION_LENGTH,
     audienceError = settings.madeForKids == null,
 )
