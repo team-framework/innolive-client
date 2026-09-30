@@ -3,6 +3,7 @@ import SwiftUI
 struct BroadcastSettingsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    @ObservedObject private var planStore: PlanStore
     @ObservedObject private var editor: BroadcastSettingsEditor
     @State private var query = ""
     @State private var isSaved = false
@@ -14,6 +15,7 @@ struct BroadcastSettingsView: View {
          onPrepare: ((BroadcastSettingsProvider) -> Void)? = nil) {
         self.authentication = authentication
         self.youtube = youtube
+        self.planStore = youtube.planStore
         self.onPrepare = onPrepare
         _editor = ObservedObject(wrappedValue: youtube.settingsEditor)
     }
@@ -37,6 +39,8 @@ struct BroadcastSettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .disabled(youtube.isBroadcastSettingsLocked)
+
+                PlanUsageSection(authentication: authentication, youtube: youtube)
 
                 defaultsSection
                 if editor.provider == .youtube { youtubeForm } else { chzzkForm }
@@ -67,7 +71,7 @@ struct BroadcastSettingsView: View {
                 }
                 .innoLiveGlassButtonStyle(prominent: true)
                 .tint(.blue)
-                .disabled(youtube.isBroadcastSettingsLocked ||
+                .disabled((onPrepare != nil && planStore.snapshot.map { !$0.canPrepare(youtube.currentPlanMode) } == true) || youtube.isBroadcastSettingsLocked ||
                           (onPrepare != nil && (!youtube.isSettingsAccountConnected(editor.provider) || !youtube.isVideoConnected)))
             }
             .padding(24)

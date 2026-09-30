@@ -1,0 +1,13 @@
+{
+  "plan": "beam",
+  "used_seconds": 0,
+  "remaining_seconds": 7200,
+  "available_by_mode": [
+    {
+      "mode": "720p_single",
+      "allowed": true,
+      "seconds": 7200,
+      "multiplier": 1
+    }
+  ]
+}

@@ -61,7 +61,7 @@ private struct AnonymizationRequest: Encodable {
 }
 
 @MainActor
-final class YouTubeAPI {
+final class YouTubeAPI: PlanAPIClient {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
     nonisolated deinit {}
 
@@ -106,6 +106,16 @@ final class YouTubeAPI {
 
     func invalidateAuthenticationRequests() {
         authenticationRequestGeneration &+= 1
+    }
+
+    func userPlan(accessToken: String) async throws -> UserPlan {
+        try await request(path: "/users/me/plan", method: "GET", accessToken: accessToken,
+                          body: Optional<YouTubeEmptyRequest>.none)
+    }
+
+    func userUsage(accessToken: String) async throws -> UserUsage {
+        try await request(path: "/users/me/usage", method: "GET", accessToken: accessToken,
+                          body: Optional<YouTubeEmptyRequest>.none)
     }
 
     func configuration() async throws -> YouTubeConfiguration {
