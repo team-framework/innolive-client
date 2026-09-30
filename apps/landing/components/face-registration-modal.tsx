@@ -266,8 +266,8 @@ export function FaceRegistrationModal({
   }, [copy, isOpen, onClose, onRegistered, retryCount, stream]);
 
   return (
-    <Dialog open={isOpen} onClose={onClose} label={copy.dialogLabel} className="zoom-[0.7]">
-      <div className="flex h-[calc(90dvh-4rem)] w-[min(calc(100vw-3rem),40.4375rem)] max-w-[40.4375rem] flex-col overflow-clip rounded-[12px] bg-background-secondary text-text-primary min-[48rem]:h-[45rem] min-[48rem]:flex-row">
+    <Dialog open={isOpen} onClose={onClose} label={copy.dialogLabel} className="zoom-[0.77]">
+      <div className="flex h-[calc(90dvh-4rem)] w-[min(calc(100vw-3rem),40.4375rem)] max-w-[40.4375rem] flex-col overflow-clip rounded-[12px] bg-background-secondary text-text-primary min-[48rem]:h-[min(45rem,calc(90dvh-4rem))] min-[48rem]:flex-row">
         <div className="flex w-full shrink-0 flex-col items-start justify-between gap-4 p-4 min-[48rem]:gap-8 min-[48rem]:p-8 min-[48rem]:w-[15.125rem] min-[48rem]:shrink-0">
           <div className="flex flex-col gap-2.5">
             <h2 className="text-[2rem] font-medium leading-none min-[48rem]:text-[2.25rem]">{messages.face.title}</h2>
@@ -276,8 +276,8 @@ export function FaceRegistrationModal({
           <p className="w-full text-center text-xs leading-[1.3] text-text-secondary">{messages.face.termsNote}</p>
         </div>
 
-        <div className="relative hidden w-0 self-stretch min-[48rem]:block" aria-hidden="true">
-          <Image src="/try-out/face-divider.svg" alt="" width={720} height={1} unoptimized className="absolute left-0 top-0 max-w-none origin-top-left rotate-90" />
+        <div className="relative hidden w-0 self-stretch [container-type:size] min-[48rem]:block" aria-hidden="true">
+          <Image src="/try-out/face-divider.svg" alt="" width={720} height={1} unoptimized className="absolute left-0 top-0 h-auto w-[100cqh] max-w-none origin-top-left rotate-90" />
         </div>
         <div className="flex min-h-0 w-full flex-1 items-center justify-center [container-type:size] min-[48rem]:w-[25.3125rem] min-[48rem]:flex-none">
           <div className="relative aspect-[405/720] w-[min(100cqw,56.25cqh)] overflow-hidden bg-black">
