@@ -2,6 +2,7 @@
 
 This directory is the source of truth for behavior shared by all clients.
 
+- `api/broadcast-settings-v1.md`: provider-specific settings, categories, defaults and draft isolation
 - `api/`: HTTP API schemas and versioning notes
 - `signaling/`: WebRTC signaling schemas
 - `fixtures/`: valid and invalid payload examples

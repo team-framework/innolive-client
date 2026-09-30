@@ -154,6 +154,7 @@ struct YouTubeBroadcastSettings: Codable, Equatable {
     var description: String
     var privacy: YouTubeBroadcastPrivacy
     var audience: YouTubeBroadcastAudience?
+    var categoryID: String? = nil
 
     static var defaultValue: Self {
         Self(

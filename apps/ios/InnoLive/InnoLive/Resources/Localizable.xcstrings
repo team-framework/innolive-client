@@ -4,25 +4,70 @@
     "복구 시도 중": {
       "extractionState": "manual",
       "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "복구 시도 중" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Reconnecting" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "再接続中" } }
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "복구 시도 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再接続中"
+          }
+        }
       }
     },
     "네트워크 연결이 끊겼습니다. %d/%d번째 복구를 시도하고 있습니다.": {
       "extractionState": "manual",
       "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "네트워크 연결이 끊겼습니다. %d/%d번째 복구를 시도하고 있습니다." } },
-        "en": { "stringUnit": { "state": "translated", "value": "The network connection was lost. Reconnection attempt %d of %d is in progress." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "ネットワーク接続が切断されました。再接続を試みています（%d/%d回目）。" } }
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "네트워크 연결이 끊겼습니다. %d/%d번째 복구를 시도하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The network connection was lost. Reconnection attempt %d of %d is in progress."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ネットワーク接続が切断されました。再接続を試みています（%d/%d回目）。"
+          }
+        }
       }
     },
     "복구 시도 중 (%d/%d)": {
       "extractionState": "manual",
       "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "복구 시도 중 (%d/%d)" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Reconnecting (%d/%d)" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "再接続中（%d/%d）" } }
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "복구 시도 중 (%d/%d)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting (%d/%d)"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再接続中（%d/%d）"
+          }
+        }
       }
     },
     "YouTube 전송 안내": {
@@ -8847,25 +8892,796 @@
     "프리셋": {
       "extractionState": "manual",
       "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "프리셋" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Presets" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "プリセット" } }
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "프리셋"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Presets"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プリセット"
+          }
+        }
       }
     },
     "선명하게": {
       "extractionState": "manual",
       "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "선명하게" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Vivid" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "鮮やか" } }
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선명하게"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vivid"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "鮮やか"
+          }
+        }
       }
     },
     "화사하게": {
       "extractionState": "manual",
       "localizations": {
-        "ko": { "stringUnit": { "state": "translated", "value": "화사하게" } },
-        "en": { "stringUnit": { "state": "translated", "value": "Bright" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "明るい" } }
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화사하게"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bright"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "明るい"
+          }
+        }
+      }
+    },
+    "직전 방송 값 사용": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직전 방송 값 사용"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use previous broadcast settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の配信設定を使用"
+          }
+        }
+      }
+    },
+    "%lld/100": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld/100"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld/100"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld/100"
+          }
+        }
+      }
+    },
+    "직전 방송 값 불러오는 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직전 방송 값 불러오는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading previous broadcast settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の配信設定を読み込み中"
+          }
+        }
+      }
+    },
+    "카테고리 검색어": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카테고리 검색어"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search categories"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カテゴリの検索語"
+          }
+        }
+      }
+    },
+    "치지직 카테고리": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 카테고리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK category"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKカテゴリ"
+          }
+        }
+      }
+    },
+    "기기에 저장했습니다. 방송 준비 시 서버에 적용합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기에 저장했습니다. 방송 준비 시 서버에 적용합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved on this device. Settings will be sent to the server when preparing the broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末に保存しました。配信準備時にサーバーへ適用します。"
+          }
+        }
+      }
+    },
+    "최대 5개 · 각 15자 · 한글, 영문, 숫자": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최대 5개 · 각 15자 · 한글, 영문, 숫자"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up to 5 tags · 15 characters each · letters and numbers"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最大5個・各15文字・文字と数字"
+          }
+        }
+      }
+    },
+    "서버에 연결하면 직전 방송 값을 불러옵니다. 지금 직접 입력할 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에 연결하면 직전 방송 값을 불러옵니다. 지금 직접 입력할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to the server to load previous broadcast settings. You can enter settings now."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに接続すると前回の配信設定を読み込みます。今すぐ手入力もできます。"
+          }
+        }
+      }
+    },
+    "입력값을 확인해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "입력값을 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check this field."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入力内容を確認してください。"
+          }
+        }
+      }
+    },
+    "방송 제목을 1~100자로 입력해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 제목을 1~100자로 입력해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a broadcast title of 1–100 characters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信タイトルを1〜100文字で入力してください。"
+          }
+        }
+      }
+    },
+    "직전 방송 값을 불러오지 못했습니다. 직접 입력하거나 다시 시도해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직전 방송 값을 불러오지 못했습니다. 직접 입력하거나 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not load previous broadcast settings. Enter them manually or try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の配信設定を読み込めませんでした。手入力するか、再試行してください。"
+          }
+        }
+      }
+    },
+    "시청자층을 선택해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시청자층을 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select an audience."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "視聴者層を選択してください。"
+          }
+        }
+      }
+    },
+    "플랫폼 계정 연결": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼 계정 연결"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect platform accounts"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームのアカウント連携"
+          }
+        }
+      }
+    },
+    "카테고리 목록 새로고침": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카테고리 목록 새로고침"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh categories"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カテゴリ一覧を更新"
+          }
+        }
+      }
+    },
+    "검색": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索"
+          }
+        }
+      }
+    },
+    "검색 결과에서 카테고리를 선택해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색 결과에서 카테고리를 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a category from the search results."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索結果からカテゴリを選択してください。"
+          }
+        }
+      }
+    },
+    "목록에서 카테고리를 선택해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "목록에서 카테고리를 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a category from the list."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一覧からカテゴリを選択してください。"
+          }
+        }
+      }
+    },
+    "카테고리": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카테고리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カテゴリ"
+          }
+        }
+      }
+    },
+    "쉼표로 구분해 입력": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "쉼표로 구분해 입력"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Separate with commas"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カンマで区切って入力"
+          }
+        }
+      }
+    },
+    "검색어를 입력해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색어를 입력해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a search term."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索語を入力してください。"
+          }
+        }
+      }
+    },
+    "검색 결과가 없습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "검색 결과가 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No results found."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検索結果がありません。"
+          }
+        }
+      }
+    },
+    "방송 제목": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 제목"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast title"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信タイトル"
+          }
+        }
+      }
+    },
+    "서버에 방송 설정을 저장했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에 방송 설정을 저장했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast settings saved on the server."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに配信設定を保存しました。"
+          }
+        }
+      }
+    },
+    "방송을 준비하거나 송출하는 동안에는 방송 정보를 변경할 수 없습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 준비하거나 송출하는 동안에는 방송 정보를 변경할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast information cannot be changed while preparing or streaming."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信準備中または配信中は配信情報を変更できません。"
+          }
+        }
+      }
+    },
+    "방송 설명은 5,000자까지 입력해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 설명은 5,000자까지 입력해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The description can contain up to 5,000 characters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信の説明は5,000文字以内で入力してください。"
+          }
+        }
+      }
+    },
+    "치지직 태그": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 태그"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK tags"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKタグ"
+          }
+        }
+      }
+    },
+    "태그는 최대 5개, 각각 15자까지 한글·영문·숫자로 입력해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "태그는 최대 5개, 각각 15자까지 한글·영문·숫자로 입력해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter up to 5 tags, each up to 15 characters using letters and numbers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タグは最大5個、各15文字以内で文字と数字を入力してください。"
+          }
+        }
+      }
+    },
+    "기본 카테고리": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본 카테고리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Default category"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "既定のカテゴリ"
+          }
+        }
+      }
+    },
+    "선택한 플랫폼의 계정을 먼저 연결해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 플랫폼의 계정을 먼저 연결해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect an account for the selected platform first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択したプラットフォームのアカウントを先に連携してください。"
+          }
+        }
+      }
+    },
+    "카테고리가 없습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카테고리가 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No categories available."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カテゴリがありません。"
+          }
+        }
+      }
+    },
+    "카테고리를 불러오지 못했습니다. 다시 시도해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카테고리를 불러오지 못했습니다. 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not load categories. Try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カテゴリを読み込めませんでした。再試行してください。"
+          }
+        }
+      }
+    },
+    "다시 불러오기": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 불러오기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reload"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再読み込み"
+          }
+        }
+      }
+    },
+    "카테고리 없음": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카테고리 없음"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No category"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カテゴリなし"
+          }
+        }
       }
     },
     "%@ · 남은 시간 %@ · %lld배 차감" : {

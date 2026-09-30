@@ -36,6 +36,27 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
+    let settingsEditor: BroadcastSettingsEditor
+    @Published private(set) var streamingAccounts: [YouTubeStreamingAccountSummary] = []
+
+    func configureSettingsEditor(accessToken: String?) {
+        let scope = accessToken.flatMap { try? api.broadcastSessionScope(accessToken: $0) }
+        var channels = Dictionary(streamingAccounts.map { ($0.provider, $0.channelID) }, uniquingKeysWith: { _, last in last })
+        if let connection { channels["youtube"] = connection.channel.id }
+        settingsEditor.configure(scope: scope, channels: channels)
+    }
+
+    func settingsScopeKey(accessToken: String?) -> String {
+        let scope = accessToken.flatMap { try? api.broadcastSessionScope(accessToken: $0) }
+        return (scope?.storageKey ?? "") + ":" + streamingAccounts.map { $0.provider + ":" + $0.channelID }.sorted().joined(separator: ":")
+            + ":" + (connection?.channel.id ?? "")
+    }
+
+    func isSettingsAccountConnected(_ provider: BroadcastSettingsProvider) -> Bool {
+        if provider == .youtube { return connection != nil && connection?.requiresReconnection == false }
+        return streamingAccounts.contains { $0.provider == provider.rawValue && !$0.reconnectRequired }
+    }
+
     let videoUplink = WebRTCVideoUplink()
 
     private let aiModeProvider: () -> AIProcessingMode
@@ -93,7 +114,9 @@ final class YouTubeIntegration: ObservableObject {
         self.aiModeProvider = aiModeProvider
         self.localModelsAvailable = localModelsAvailable
         self.persistAIProcessingMode = persistAIProcessingMode
-        self.api = api ?? YouTubeAPI()
+        let resolvedAPI = api ?? YouTubeAPI()
+        self.api = resolvedAPI
+        settingsEditor = BroadcastSettingsEditor(api: resolvedAPI, preferences: preferencesStore)
         self.sessionStore = sessionStore ?? BroadcastSessionStore()
         self.pollingInterval = pollingInterval
         self.preferencesStore = preferencesStore
@@ -133,6 +156,8 @@ final class YouTubeIntegration: ObservableObject {
 
     func configureAuthentication(_ authentication: AuthSession) {
         planStore.reset()
+        settingsEditor.reset()
+        streamingAccounts = []
         sessionOperationGeneration &+= 1
         invalidateConnectionOperation()
         api.configureAuthentication(
@@ -238,6 +263,7 @@ final class YouTubeIntegration: ObservableObject {
             let accounts = try await api.streamingAccounts(accessToken: accessToken)
             guard isCurrentConnectionOperation(generation) else { return }
 
+            streamingAccounts = accounts
             if let connection = accounts.first(where: { $0.provider == "youtube" })?.youtubeConnection {
                 self.connection = connection
                 persistConnection()
@@ -656,7 +682,41 @@ final class YouTubeIntegration: ObservableObject {
 
     }
 
-    func prepareYouTubeStream(accessToken: String?) async {
+    func saveEditorSettings(accessToken: String) async -> Bool {
+        guard !isBroadcastSettingsLocked else { return false }
+        clearError()
+        let provider = settingsEditor.provider
+        settingsEditor.showValidation()
+        guard settingsEditor.validation.isEmpty else { return false }
+        guard let session else {
+            settingsEditor.persist(provider: provider)
+            return true
+        }
+        settingsEditor.cancelDefaults(provider: provider)
+        let editorGeneration = settingsEditor.contextGeneration
+        let generation = sessionOperationGeneration
+        isChangingStreamState = true
+        defer { if generation == sessionOperationGeneration { isChangingStreamState = false } }
+        do {
+            let snapshot: YouTubeSessionResponse
+            if provider == .youtube {
+                snapshot = try await api.saveBroadcastSettings(session: session, accessToken: accessToken, settings: settingsEditor.youtube)
+            } else {
+                snapshot = try await api.saveCHZZKBroadcastSettings(session: session, accessToken: accessToken, settings: settingsEditor.chzzk)
+            }
+            guard settingsEditor.contextGeneration == editorGeneration else { return false }
+            guard applySessionResponse(snapshot, sessionID: session.sessionID, generation: generation, provider: provider.rawValue) else { return false }
+            settingsEditor.persist(provider: provider)
+            return true
+        } catch {
+            guard generation == sessionOperationGeneration, settingsEditor.contextGeneration == editorGeneration else { return false }
+            if let field = error as? BroadcastSettingsFieldError { settingsEditor.showFieldError(field) }
+            else { handleSettingsError(error, provider: provider) }
+            return false
+        }
+    }
+
+    func prepareYouTubeStream(accessToken: String?, provider: BroadcastSettingsProvider = .youtube, useEditor: Bool = false) async {
         guard !isAIProcessingUnconfirmed else {
             errorMessage = String(localized: "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요.")
             return
@@ -668,8 +728,8 @@ final class YouTubeIntegration: ObservableObject {
             showError(.unauthorized)
             return
         }
-        guard connection != nil else {
-            showError(.streamingNotConnected)
+        guard provider == .youtube ? connection != nil : isSettingsAccountConnected(provider) else {
+            errorMessage = String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요.")
             return
         }
         guard isVideoConnected else {
@@ -686,36 +746,43 @@ final class YouTubeIntegration: ObservableObject {
                 : String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
             return
         }
-        let settings = broadcastSettings.normalized
-        guard !settings.title.isEmpty else {
-            showError(.broadcastTitleRequired)
+        let settings = useEditor ? settingsEditor.youtube : broadcastSettings.normalized
+        let chzzkSettings = settingsEditor.chzzk
+        let validation = provider == .youtube ? settings.validation : chzzkSettings.validation
+        guard validation.isEmpty else {
+            if useEditor { settingsEditor.showValidation() }
+            errorMessage = validation.sorted { $0.key < $1.key }.first?.value
             return
         }
-        guard settings.audience != nil else {
-            showError(.broadcastAudienceRequired)
-            return
-        }
-        broadcastSettings = settings
+        if provider == .youtube { broadcastSettings = settings }
 
+        settingsEditor.cancelDefaults(provider: provider)
+        let editorGeneration = settingsEditor.contextGeneration
         let generation = sessionOperationGeneration
         isChangingStreamState = true
         defer { if generation == sessionOperationGeneration { isChangingStreamState = false } }
         do {
-            let savedSnapshot = try await api.saveBroadcastSettings(
-                session: session,
-                accessToken: accessToken,
-                settings: settings
-            )
-            guard applySessionResponse(savedSnapshot, sessionID: session.sessionID, generation: generation) else { return }
+            let savedSnapshot: YouTubeSessionResponse
+            if provider == .youtube {
+                savedSnapshot = try await api.saveBroadcastSettings(session: session, accessToken: accessToken, settings: settings)
+            } else {
+                savedSnapshot = try await api.saveCHZZKBroadcastSettings(session: session, accessToken: accessToken, settings: chzzkSettings)
+            }
+            guard !useEditor || settingsEditor.contextGeneration == editorGeneration else { return }
+            guard applySessionResponse(savedSnapshot, sessionID: session.sessionID, generation: generation, provider: provider.rawValue) else { return }
+            if useEditor { settingsEditor.persist(provider: provider) }
 
             let preparedSnapshot = try await api.prepareStream(
                 session: session,
-                accessToken: accessToken
+                accessToken: accessToken,
+                provider: provider
             )
-            guard applySessionResponse(preparedSnapshot, sessionID: session.sessionID, generation: generation, clearsWarnings: true) else { return }
+            guard !useEditor || settingsEditor.contextGeneration == editorGeneration else { return }
+            guard applySessionResponse(preparedSnapshot, sessionID: session.sessionID, generation: generation, provider: provider.rawValue, clearsWarnings: true) else { return }
         } catch {
-            guard generation == sessionOperationGeneration else { return }
-            handle(error)
+            guard generation == sessionOperationGeneration, !useEditor || settingsEditor.contextGeneration == editorGeneration else { return }
+            if let fieldError = error as? BroadcastSettingsFieldError { settingsEditor.showFieldError(fieldError) }
+            else { handleSettingsError(error, provider: provider) }
         }
     }
 
@@ -886,6 +953,8 @@ final class YouTubeIntegration: ObservableObject {
 
     func reset() {
         planStore.reset()
+        settingsEditor.reset()
+        streamingAccounts = []
         sessionOperationGeneration &+= 1
         sessionScope = nil
         invalidateConnectionOperation()
@@ -1283,6 +1352,15 @@ final class YouTubeIntegration: ObservableObject {
             beginPolling(accessToken: accessToken)
         } catch {
             guard generation == sessionOperationGeneration else { return }
+            handle(error)
+        }
+    }
+
+    private func handleSettingsError(_ error: Error, provider: BroadcastSettingsProvider) {
+        if provider == .chzzk, let error = error as? YouTubeAPIError {
+            errorMessage = error.userMessage.replacingOccurrences(of: "YouTube", with: provider.title)
+            helpURL = error.helpURL
+        } else {
             handle(error)
         }
     }
