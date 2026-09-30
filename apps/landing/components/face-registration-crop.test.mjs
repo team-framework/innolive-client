@@ -12,23 +12,32 @@ const drawVisibleCrop = runInNewContext(`${transpileModule(crop, {}).outputText}
   FaceRegistrationError: Error,
 });
 
-test('가로·세로·정사각형 영상의 등록 영역이 Figma 가이드를 왜곡 없이 포함한다', () => {
-  for (const [videoWidth, videoHeight] of [[1280, 720], [720, 1280], [1024, 1024]]) {
-    let drawn;
-    const video = { videoWidth, videoHeight };
-    const canvas = { getContext: () => ({ drawImage: (...args) => { drawn = args; } }) };
-    drawVisibleCrop(video, canvas, 'low resolution', 'no canvas');
-    const [, x, y, width, height, dx, dy, dw, dh] = drawn;
-    assert.equal(width, height);
-    assert.ok(x >= 0 && y >= 0 && x + width <= videoWidth && y + height <= videoHeight);
-    assert.deepEqual([canvas.width, canvas.height, dx, dy, dw, dh], [500, 500, 0, 0, 500, 500]);
-    const scale = Math.max(405 / videoWidth, 720 / videoHeight);
-    const screenX = x * scale - (videoWidth * scale - 405) / 2;
-    const screenY = y * scale - (videoHeight * scale - 720) / 2;
-    assert.ok(Math.abs(screenX - 44.5) < 1e-9);
-    assert.ok(Math.abs(screenY - 59) < 1e-9);
-    assert.ok(Math.abs(width * scale - 316) < 1e-9);
+test('영상과 레이아웃 비율이 달라도 확대된 가이드를 정사각형 크롭에 포함한다', () => {
+  for (const [videoWidth, videoHeight] of [[1280, 720], [720, 1280], [720, 720]]) {
+    for (const [previewWidth, previewHeight] of [[405, 720], [405, 584], [340, 460]]) {
+      let drawn;
+      const video = { videoWidth, videoHeight, getBoundingClientRect: () => ({ width: previewWidth, height: previewHeight }) };
+      const canvas = { getContext: () => ({ drawImage: (...args) => { drawn = args; } }) };
+      drawVisibleCrop(video, canvas, 'low resolution', 'no canvas');
+      const [, x, y, width, height, dx, dy, dw, dh] = drawn;
+      assert.equal(width, height);
+      assert.ok(x >= 0 && y >= 0 && x + width <= videoWidth && y + height <= videoHeight);
+      assert.deepEqual([canvas.width, canvas.height, dx, dy, dw, dh], [500, 500, 0, 0, 500, 500]);
+      const scale = Math.max(previewWidth / videoWidth, previewHeight / videoHeight);
+      const screenX = x * scale - (videoWidth * scale - previewWidth) / 2;
+      const screenY = y * scale - (videoHeight * scale - previewHeight) / 2;
+      const epsilon = 1e-9;
+      assert.ok(screenX <= previewWidth * 45.75 / 405 + epsilon);
+      assert.ok(screenY <= previewHeight * 43.2 / 720 + epsilon);
+      assert.ok(screenX + width * scale >= previewWidth * 359.25 / 405 - epsilon);
+      assert.ok(screenY + height * scale >= previewHeight * 390.8 / 720 - epsilon);
+    }
   }
+});
+
+test('영상을 표시하지 않는 레이아웃에서는 크롭을 거부한다', () => {
+  const video = { videoWidth: 720, videoHeight: 720, getBoundingClientRect: () => ({ width: 0, height: 0 }) };
+  assert.throws(() => drawVisibleCrop(video, { getContext: () => ({}) }, 'low resolution', 'no canvas'), /no canvas/);
 });
 
 test('낮은 입력 해상도와 없는 canvas context를 거부한다', () => {
