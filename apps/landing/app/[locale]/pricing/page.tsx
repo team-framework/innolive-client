@@ -164,6 +164,9 @@ export default function PricingPage() {
             scrollLeft={messages.pricing.scrollLeft}
             scrollRight={messages.pricing.scrollRight}
           />
+          <p className="max-w-[60rem] text-center text-base leading-relaxed text-text-secondary">
+            {messages.pricing.usageNote}
+          </p>
           <TermsNote />
         </div>
       </section>

@@ -69,9 +69,18 @@
     "body2": "행인의 초상권과 당신의 방송을 동시에 보호하세요.",
     "empty": "비식별화 데모 준비 중",
     "slides": [
-      { "alt": "방송 준비 화면", "label": "방송 준비 화면" },
-      { "alt": "얼굴 등록 화면", "label": "얼굴 등록 화면" },
-      { "alt": "방송 설정 화면", "label": "방송 설정 화면" }
+      {
+        "alt": "방송 준비 화면",
+        "label": "방송 준비 화면"
+      },
+      {
+        "alt": "얼굴 등록 화면",
+        "label": "얼굴 등록 화면"
+      },
+      {
+        "alt": "방송 설정 화면",
+        "label": "방송 설정 화면"
+      }
     ]
   },
   "features": {
@@ -122,80 +131,84 @@
     "headingBrand": "InnoLive",
     "headingMid": "의 ",
     "headingAccent": "잠재력 해제",
-    "body1": "합리적인 가격으로 InnoLive의 모든 기능을 잠금 해제하세요.",
-    "body2": "실시간 얼굴 대체, 더 높은 사용량 등이 플랜에 포함됩니다.",
+    "body1": "송출 방식과 방송 시간에 맞는 플랜을 선택하세요.",
+    "body2": "베타 기간에는 모든 개인 플랜을 월 0원으로 제공합니다.",
     "subscribeBrand": "InnoLive",
     "subscribe": "플랜 구독하기",
     "personalLabel": "개인 요금제",
     "businessTitle": "크루와 기업을 위한 플랜",
-    "businessBody": "Crew, Business 플랜으로 보다 편리하고 저렴하게 방송을 운영하세요.",
+    "businessBody": "Crew와 Business의 가격과 방송 시간은 도입 문의로 확인하세요.",
     "businessLabel": "기업 요금제",
     "termsNote": "관련 약관이 적용됩니다.",
     "termsLink": "자세히 보기",
     "loginCta": "로그인해서 무료 플랜 사용하기",
     "scrollLeft": "왼쪽으로 스크롤",
-    "scrollRight": "오른쪽으로 스크롤"
+    "scrollRight": "오른쪽으로 스크롤",
+    "usageNote": "720p 단독은 1배, FHD 단독·720p 동시는 2배, FHD 동시는 3배로 월 방송 시간을 차감합니다. 1회 한도는 실제 방송 시간 기준입니다."
   },
   "plans": {
     "periodMonth": "월",
     "periodOnce": "일회성 결제",
     "ribbon": "베타 테스터",
     "personal": {
-      "free": {
+      "spark": {
         "description": "보호에 필요한 필수 기능",
         "cta": "현재 플랜",
         "features": [
-          "모든 행인을 정확하게 비식별화",
-          "상위 모델 제한적 사용",
-          "X시간 연속 방송",
+          "얼굴 윤곽·번호판 비식별화",
+          "월 5시간 · 720p 단독 송출",
+          "1회 최대 2시간 연속 방송",
           "최대 2명 얼굴 등록",
-          "Android, iOS 어플리케이션"
+          "Android, iOS 앱"
         ]
       },
-      "streamer": {
-        "description": "Segmentation 및 더 많은 사용량",
-        "cta": "Streamer 요금제 구독",
+      "glow": {
+        "description": "내 기기에서, 시간 제한 없이",
+        "cta": "Glow 요금제 구독",
         "features": [
-          "무료 플랜의 모든 기능",
-          "Segmentation 기반의 향상된 비식별화",
-          "2배 사용량 제공",
-          "XX시간 연속 방송",
+          "얼굴 윤곽·번호판 비식별화",
+          "월 방송 시간·1회 시간 무제한",
+          "기기에서 처리 후 한 곳에 송출",
+          "서버 혼잡과 관계없이 방송",
+          "최대 2명 얼굴 등록",
+          "Android, iOS 앱"
+        ],
+        "helpLabel": "Glow 온디바이스 안내",
+        "footnotes": [
+          "*기기 성능에 따라 처리 속도가 달라질 수 있습니다."
+        ]
+      },
+      "beam": {
+        "description": "고화질 또는 두 플랫폼 동시 송출",
+        "cta": "Beam 요금제 구독",
+        "features": [
+          "Spark의 비식별화 기능",
+          "월 120시간 · 720p 단독 송출",
+          "FHD 단독 또는 720p 동시: 월 60시간",
+          "1회 최대 8시간 연속 방송",
+          "전용 방송 자리 제공",
           "최대 5명 얼굴 등록"
         ]
       },
-      "pro": {
-        "description": "얼굴 대체 및 최고 성능",
-        "cta": "Pro 요금제 구독",
+      "plasma": {
+        "description": "FHD 동시 송출과 더 많은 방송 시간",
+        "cta": "Plasma 요금제 구독",
         "features": [
-          "Streamer 플랜의 모든 기능",
-          "실시간 얼굴 대체로 더욱 자연스러운 방송",
-          "3배 사용량 제공",
-          "실험적 모델 접근"
-        ]
-      },
-      "onDevice": {
-        "description": "무제한 사용량, 극한의 보안성",
-        "cta": "On Device 결제",
-        "helpLabel": "On Device 안내",
-        "features": [
-          "모든 행인을 정확하게 비식별화",
-          "한 번 결제로 영구적 사용",
-          "모든 한도 해제",
-          "Android, iOS 어플리케이션",
-          "기기에서 비식별화 후 송출",
-          "무지연 송출"
-        ],
-        "footnotes": [
-          "*프로모션 종료 시 플랜이 취소될 수 있습니다.",
-          "*기기 성능에 따라 비식별화 성능에 편차가 있을 수 있습니다."
+          "Beam의 비식별화 기능",
+          "월 240시간 · 720p 단독 송출",
+          "FHD 단독 또는 720p 동시: 월 120시간",
+          "FHD 동시 송출: 월 80시간",
+          "1회 최대 12시간 연속 방송",
+          "우선 방송 자리 제공",
+          "최대 10명 얼굴 등록"
         ]
       }
     },
     "business": {
       "crew": {
         "description": "하나의 플랜으로 저렴하게",
-        "amount": "30,000 ~ ₩93,500",
-        "cta": "Crew 요금제 구독",
+        "amount": "가격 문의",
+        "cta": "도입 문의",
         "features": ["최대 3계정 공유", "선택한 플랜의 모든 기능"]
       },
       "business": {
@@ -208,10 +221,10 @@
   },
   "onDevice": {
     "subtitle": "모든걸 기기 내부에서",
-    "pay": "On Device 결제",
+    "pay": "Glow 요금제 구독",
     "termsNote": "*관련 약관이 적용됩니다.",
     "termsLink": "자세히 보기",
-    "body": "본문 준비 중"
+    "body": "Glow는 기기에서 얼굴과 번호판을 비식별화한 뒤 송출합니다. 월 9,900원이며 베타 기간에는 월 0원입니다. 방송 시간은 무제한이며, 기기 성능에 따라 처리 속도가 달라질 수 있습니다."
   },
   "tryOut": {
     "ariaLabel": "보이는 순간, 보호는 시작",

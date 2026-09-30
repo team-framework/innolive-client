@@ -11,7 +11,7 @@ export function OnDeviceOverlay() {
       <div className="flex w-full flex-col items-start justify-between gap-8 p-8 min-[48rem]:h-full min-[48rem]:w-[16.5625rem] min-[48rem]:shrink-0">
         <div className="flex flex-col items-start gap-2.5">
           <p className="text-[2.25rem] font-medium leading-none text-text-primary">
-            On Device
+            Glow
           </p>
           <p className="break-keep text-2xl font-normal leading-[1.2] text-text-secondary">
             {messages.onDevice.subtitle}
