@@ -23,13 +23,17 @@ internal data class PrivacyRegisteredFace(
 )
 
 /** App-install-scoped, encrypted embeddings. Face images are never persisted. */
-internal class PrivacyFaceLibrary(context: Context) {
-    private val file = AtomicFile(File(context.applicationContext.noBackupFilesDir, "privacy-local-faces.bin"))
+internal class PrivacyFaceLibrary(context: Context, accountScope: String) {
+    private val file = AtomicFile(fileForAccount(context, accountScope))
     private var entries = emptyList<PrivacyRegisteredFace>()
     private var observedRevision = -1L
     private var healthy = true
 
-    init { reload() }
+    init {
+        // The old installation-wide file has no owner, so it cannot be assigned to an account.
+        deleteLegacyFile(context)
+        reload()
+    }
 
     @Synchronized fun snapshot(): List<PrivacyRegisteredFace> {
         if (observedRevision != revision.get()) reload()
@@ -156,20 +160,22 @@ internal class PrivacyFaceLibrary(context: Context) {
         private val keyLock = Any()
 
         /** Does not load or decrypt the file, so damaged stores can still be removed on deletion. */
-        fun clearForAccountDeletion(context: Context) {
+        internal fun fileForAccount(context: Context, accountScope: String): File {
+            require(accountScope.matches(Regex("[0-9a-f]{64}"))) { "Invalid face account scope" }
+            return File(context.applicationContext.noBackupFilesDir, "privacy-local-faces-$accountScope.bin")
+        }
+
+        private fun deleteLegacyFile(context: Context) {
+            AtomicFile(File(context.applicationContext.noBackupFilesDir, "privacy-local-faces.bin")).delete()
+        }
+
+        fun clearForAccountDeletion(context: Context, accountScope: String) {
             try {
-                val keyFailure = runCatching {
-                    synchronized(keyLock) {
-                        KeyStore.getInstance("AndroidKeyStore").apply { load(null) }.run {
-                            if (containsAlias(KEY_ALIAS)) deleteEntry(KEY_ALIAS)
-                        }
-                    }
-                }.exceptionOrNull()
-                val base = File(context.applicationContext.noBackupFilesDir, "privacy-local-faces.bin")
+                val base = fileForAccount(context, accountScope)
                 AtomicFile(base).delete()
                 check(!base.exists() && !File(base.path + ".bak").exists() &&
                     !File(base.path + ".new").exists()) { "Unable to remove local face data" }
-                if (keyFailure != null) throw keyFailure
+                deleteLegacyFile(context)
             } finally {
                 revision.incrementAndGet()
             }

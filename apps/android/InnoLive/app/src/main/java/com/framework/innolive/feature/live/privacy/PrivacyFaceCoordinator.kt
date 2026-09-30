@@ -9,6 +9,13 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
+private fun registeredFacesForAccount(context: Context, accountScope: String?): () -> List<PrivacyRegisteredFace> {
+    val library = accountScope?.let { scope ->
+        runCatching { PrivacyFaceLibrary(context, scope) }.getOrNull()
+    }
+    return { library?.snapshot().orEmpty() }
+}
+
 /** Owned by the serial camera analyzer; the worker returns through a single result mailbox. */
 internal class PrivacyFaceCoordinator(
     private val service: PrivacyFaceRecognitionService,
@@ -16,9 +23,11 @@ internal class PrivacyFaceCoordinator(
     private val revisionSource: () -> Long = { PrivacyFaceLibrary.currentRevision },
     private val registeredFaces: () -> List<PrivacyRegisteredFace>,
 ) : AutoCloseable {
-    constructor(context: Context, optimized: Boolean = true) : this(PrivacyFaceService.get(context), optimized,
+    constructor(context: Context, accountScope: String? = null, optimized: Boolean = true) : this(
+        PrivacyFaceService.get(context), optimized,
         { PrivacyFaceLibrary.currentRevision },
-        { PrivacyFaceService.get(context).library?.snapshot().orEmpty() })
+        registeredFacesForAccount(context, accountScope),
+    )
     private val tracking = PrivacyFaceTracking()
     private var revision = revisionSource()
     private var generation = 0L

@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.privacy.PrivacyFaceService
+import com.framework.innolive.feature.live.privacy.PrivacyFaceLibrary
 import com.framework.innolive.feature.live.privacy.PrivacyRegisteredFace
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -53,29 +54,33 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun LocalFaceManagementScreen(
     cameraLensFacing: CameraLensFacing,
+    accountScope: String?,
     onBack: () -> Unit,
     onChanged: () -> Unit,
 ) {
     val context = LocalContext.current
     val service = remember(context) { PrivacyFaceService.get(context) }
+    val library = remember(context, accountScope) {
+        accountScope?.let { runCatching { PrivacyFaceLibrary(context, it) }.getOrNull() }
+    }
     DisposableEffect(service) {
         service.retain()
         onDispose { service.release() }
     }
-    var name by remember { mutableStateOf("") }
-    var enrollingName by remember { mutableStateOf<String?>(null) }
-    var faces by remember { mutableStateOf<List<PrivacyRegisteredFace>>(emptyList()) }
+    var name by remember(accountScope) { mutableStateOf("") }
+    var enrollingName by remember(accountScope) { mutableStateOf<String?>(null) }
+    var faces by remember(accountScope) { mutableStateOf<List<PrivacyRegisteredFace>>(emptyList()) }
     var ready by remember { mutableStateOf(service.ready) }
     var failed by remember { mutableStateOf(service.preparationFailed) }
-    var message by remember { mutableStateOf<String?>(null) }
+    var message by remember(accountScope) { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(service) {
+    LaunchedEffect(service, library) {
         service.prepare()
         while (true) {
             ready = service.ready
             failed = service.preparationFailed
-            if (service.library == null) message = context.getString(R.string.local_face_store_error)
-            faces = try { service.library?.snapshot().orEmpty() } catch (_: Exception) {
+            if (library == null) message = context.getString(R.string.local_face_store_error)
+            faces = try { library?.snapshot().orEmpty() } catch (_: Exception) {
                 message = context.getString(R.string.local_face_store_error)
                 emptyList()
             }
@@ -88,6 +93,7 @@ internal fun LocalFaceManagementScreen(
             cameraLensFacing = cameraLensFacing,
             name = selectedName,
             service = service,
+            library = library,
             onBack = { enrollingName = null },
             onRegistered = {
                 name = ""
@@ -125,7 +131,7 @@ internal fun LocalFaceManagementScreen(
         LocalFaceNameField(value = name, onValueChange = { name = it.take(40) })
         Button(
             onClick = { enrollingName = name.trim() },
-            enabled = ready && service.library != null && name.trim().isNotEmpty() && faces.size < 20,
+            enabled = ready && library != null && name.trim().isNotEmpty() && faces.size < 20,
         ) { Text(stringResource(R.string.local_face_enroll)) }
         message?.let { Text(it, color = Color.White) }
         if (faces.isEmpty()) Text(stringResource(R.string.no_registered_faces), color = Color.White)
@@ -135,7 +141,7 @@ internal fun LocalFaceManagementScreen(
                 Text(face.name, color = Color.White)
                 IconButton(onClick = {
                     try {
-                        service.library?.delete(face.id)
+                        library?.delete(face.id)
                         onChanged()
                     } catch (_: Exception) {
                         message = context.getString(R.string.local_face_store_error)
@@ -176,6 +182,7 @@ private fun LocalFaceRegistrationScreen(
     cameraLensFacing: CameraLensFacing,
     name: String,
     service: PrivacyFaceService,
+    library: PrivacyFaceLibrary?,
     onBack: () -> Unit,
     onRegistered: () -> Unit,
 ) {
@@ -236,7 +243,7 @@ private fun LocalFaceRegistrationScreen(
                                 if (currentGeneration != generation || !active) return@enroll
                                 try {
                                     checkNotNull(embedding)
-                                    checkNotNull(service.library).add(name, embedding)
+                                    checkNotNull(library).add(name, embedding)
                                     onRegistered()
                                 } catch (_: Exception) {
                                     message = context.getString(R.string.local_face_enroll_failed)

@@ -27,7 +27,6 @@ import kotlin.coroutines.resume
 
 class WebRtcSessionViewModel : ViewModel() {
     private var startJob: Job? = null
-    private var lastRefreshAccessToken: (suspend () -> String)? = null
     private var prepareJob: Job? = null
     var isPreparingBroadcast by mutableStateOf(false)
         private set
@@ -68,14 +67,9 @@ class WebRtcSessionViewModel : ViewModel() {
     private var connection: WebRtcConnection? = null
     private var closingConnection: WebRtcConnection? = null
     private var anonymizationPreference: AnonymizationPreference? = null
-    private var aiProcessingPreference: AIProcessingPreference? = null
     var selectedOnDeviceProcessing by mutableStateOf(false)
         private set
     var isAIProcessingSelectionLoaded by mutableStateOf(false)
-        private set
-    var isAIProcessingChanging by mutableStateOf(false)
-        private set
-    var aiProcessingChangeFailed by mutableStateOf(false)
         private set
     var selectedAnonymizationEnabled by mutableStateOf(true)
         private set
@@ -93,9 +87,7 @@ class WebRtcSessionViewModel : ViewModel() {
 
     fun restoreAIProcessingSelection(context: Context) {
         if (isAIProcessingSelectionLoaded) return
-        aiProcessingPreference = AIProcessingPreference(context).also {
-            selectedOnDeviceProcessing = it.onDevice
-        }
+        selectedOnDeviceProcessing = AIProcessingPreference(context).onDevice
         isAIProcessingSelectionLoaded = true
     }
 
@@ -105,15 +97,13 @@ class WebRtcSessionViewModel : ViewModel() {
             connectionState == WebRtcConnectionState.CONNECTED) return false
         val preference = AIProcessingPreference(context)
         preference.onDevice = onDevice
-        aiProcessingPreference = preference
         selectedOnDeviceProcessing = onDevice
-        aiProcessingChangeFailed = false
         isAIProcessingSelectionLoaded = true
         return true
     }
 
     val canChangeAIProcessing: Boolean
-        get() = !isAIProcessingChanging && !isPreparingBroadcast &&
+        get() = !isPreparingBroadcast &&
             anonymizationChange.status != AnonymizationChangeStatus.CHANGING &&
             broadcastState == BroadcastState.IDLE && connectionState in setOf(
                 WebRtcConnectionState.IDLE,
@@ -127,19 +117,15 @@ class WebRtcSessionViewModel : ViewModel() {
             return selectInitialAIProcessing(context, onDevice)
         }
         if (selectedOnDeviceProcessing == onDevice) return true
-        // Codec preferences are part of the offer. A connected preview cannot keep its old
-        // PeerConnection when moving between the two AI locations.
-        val refresh = lastRefreshAccessToken ?: return false
+        // The settings screen has no CameraPreview. Reconnect only when the next broadcast
+        // preparation binds a camera and can produce the protected frames needed for CONNECTED.
         close()
-        check(selectInitialAIProcessing(context, onDevice))
-        start(context, refresh)
-        return true
+        return selectInitialAIProcessing(context, onDevice)
     }
 
     // 클릭 시점의 실제 연결 상태로 분기하여 오래된 화면 상태로 요청하지 않습니다.
     fun selectAnonymization(context: Context, enabled: Boolean): Boolean =
-        if (isAIProcessingChanging || aiProcessingChangeFailed) false
-        else if (connectionState == WebRtcConnectionState.CONNECTED) setAnonymizationEnabled(enabled)
+        if (connectionState == WebRtcConnectionState.CONNECTED) setAnonymizationEnabled(enabled)
         else selectInitialAnonymization(context, enabled)
 
     // 연결 중에는 초기 선택을 바꾸지 않고, 연결된 세션은 변경 API로만 갱신합니다.
@@ -174,7 +160,6 @@ class WebRtcSessionViewModel : ViewModel() {
             return
         }
 
-        lastRefreshAccessToken = refreshAccessToken
         val preference = AnonymizationPreference(context)
         anonymizationPreference = preference
         selectedAnonymizationEnabled = preference.enabled
@@ -183,8 +168,6 @@ class WebRtcSessionViewModel : ViewModel() {
         restoreAIProcessingSelection(context)
         val initialOnDevice = selectedOnDeviceProcessing
         sessionState = sessionState.beginConnection()
-        isAIProcessingChanging = false
-        aiProcessingChangeFailed = false
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
         val generation = sessionState.generation
@@ -227,7 +210,6 @@ class WebRtcSessionViewModel : ViewModel() {
                             sessionState = sessionState.connectionChanged(generation, state)
                             connectionStatus = connectionUserMessage(state, failure)
                             if (state == WebRtcConnectionState.FAILED) {
-                                isAIProcessingChanging = false
                                 lockedBroadcastRotation = null
                                 lockedScreenOrientation = null
                             }
@@ -352,8 +334,7 @@ class WebRtcSessionViewModel : ViewModel() {
         settings: BroadcastSettings,
         refreshAccessToken: suspend () -> String,
     ): Boolean {
-        if (isPreparingBroadcast || isAIProcessingChanging || aiProcessingChangeFailed ||
-            !broadcastState.canPrepare) return false
+        if (isPreparingBroadcast || !broadcastState.canPrepare) return false
         if (!validateYouTubeLiveSettings(settings).isValid) {
             broadcastState = BroadcastState.FAILED
             broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_validation)
@@ -449,9 +430,6 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun close() {
-        lastRefreshAccessToken = null
-        isAIProcessingChanging = false
-        aiProcessingChangeFailed = false
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
         sessionState = sessionState.endConnection()

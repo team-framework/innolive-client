@@ -841,8 +841,6 @@ fun AppNavigation(
                                 accountDeletionError = accountDeletionState.error,
                                 onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
                                 canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
-                                isAIProcessingChanging = webRtcSession.isAIProcessingChanging,
-                                aiProcessingChangeFailed = webRtcSession.aiProcessingChangeFailed,
                                 onSelectAIProcessing = { onDevice ->
                                     webRtcSession.selectAIProcessing(context, onDevice)
                                 },

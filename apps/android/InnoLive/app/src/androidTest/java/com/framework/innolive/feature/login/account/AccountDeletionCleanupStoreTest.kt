@@ -14,29 +14,36 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
-import java.security.KeyStore
 
 class AccountDeletionCleanupStoreTest {
     @Test
     fun accountDeletionRemovesLocalFacesForTheNextAccount() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val library = PrivacyFaceLibrary(context)
+        val account = session("previous-account")
+        val scope = sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, account.accessToken).storageKey
+        val otherScope = sessionRecoveryScope(
+            BuildConfig.INNOLIVE_SERVER_URL, session("other-account").accessToken,
+        ).storageKey
+        val library = PrivacyFaceLibrary(context, scope)
+        val otherLibrary = PrivacyFaceLibrary(context, otherScope)
         library.deleteAll()
+        otherLibrary.deleteAll()
         library.add("Previous account", FloatArray(512).apply { this[0] = 1f })
-        val base = File(context.noBackupFilesDir, "privacy-local-faces.bin")
+        otherLibrary.add("Other account", FloatArray(512).apply { this[1] = 1f })
+        val base = PrivacyFaceLibrary.fileForAccount(context, scope)
         assertTrue(base.exists())
         try {
-            AccountLocalDataCleaner(context).clear(session("previous-account"))
+            AccountLocalDataCleaner(context).clear(account)
 
             assertFalse(base.exists())
             assertFalse(File(base.path + ".bak").exists())
             assertFalse(File(base.path + ".new").exists())
-            assertFalse(KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-                .containsAlias("innolive_privacy_local_faces_v1"))
             assertTrue(library.snapshot().isEmpty())
-            assertTrue(PrivacyFaceLibrary(context).snapshot().isEmpty())
+            assertTrue(PrivacyFaceLibrary(context, scope).snapshot().isEmpty())
+            assertEquals("Other account", PrivacyFaceLibrary(context, otherScope).snapshot().single().name)
         } finally {
-            PrivacyFaceLibrary.clearForAccountDeletion(context)
+            PrivacyFaceLibrary.clearForAccountDeletion(context, scope)
+            PrivacyFaceLibrary.clearForAccountDeletion(context, otherScope)
         }
     }
 

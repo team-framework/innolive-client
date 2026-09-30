@@ -24,7 +24,7 @@ internal class AccountLocalDataCleaner(context: Context) {
             clearLegacy()
         }
         ReferenceFaceImageStore(applicationContext).deleteAll(session.profileEmail)
-        PrivacyFaceLibrary.clearForAccountDeletion(applicationContext)
+        PrivacyFaceLibrary.clearForAccountDeletion(applicationContext, recoveryScope.storageKey)
         YouTubePreferencesStore(applicationContext).clearAccountData()
     }
 }

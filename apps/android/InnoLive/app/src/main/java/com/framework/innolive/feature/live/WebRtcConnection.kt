@@ -3,6 +3,7 @@ package com.framework.innolive.feature.live
 import android.util.Log
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.privacy.PrivacyTextureReadbackCounter
+import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -91,8 +92,7 @@ class WebRtcConnection(
     private val onLocalVideoTrackChanged: (VideoTrack?) -> Unit = {},
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
-    private var onDeviceProcessing = initialOnDeviceProcessing
-    private var processingModeUnconfirmed = false
+    private val onDeviceProcessing = initialOnDeviceProcessing
     private var localAnonymizationEnabled = initialAnonymizationEnabled
     private var localVideoReady = !initialOnDeviceProcessing || !initialAnonymizationEnabled
     private val recoveryAccessToken = RecoveryAccessToken(accessToken)
@@ -376,7 +376,11 @@ class WebRtcConnection(
                     if (isActive()) videoSource?.adaptOutputFormat(width, height, 30)
                 }
             },
-        )
+        ).also { analyzer ->
+            analyzer.faceCoordinatorFactory = {
+                PrivacyFaceCoordinator(applicationContext, sessionRecoveryScope.storageKey)
+            }
+        }
     }
 
     private fun startPrivacyStats() {
@@ -488,10 +492,6 @@ class WebRtcConnection(
             block = {
                 if (!isActive()) return@executeOnOwner
                 try {
-                    if (processingModeUnconfirmed) {
-                        complete(null, AnonymizationFailure.CONFIRMATION)
-                        return@executeOnOwner
-                    }
                     if (onDeviceProcessing) {
                         checkNotNull(frameAnalyzer).setProcessingMode(onDevice = true, anonymizationEnabled = enabled)
                         localAnonymizationEnabled = enabled
@@ -516,78 +516,6 @@ class WebRtcConnection(
         )
     }
 
-    /** Keep a protected path active throughout a preview-only processing-location switch. */
-    internal fun setAIProcessingMode(
-        onDevice: Boolean,
-        anonymizationEnabled: Boolean,
-        onComplete: (Boolean) -> Unit,
-    ) {
-        fun complete(success: Boolean) { mainHandler.post { onComplete(success) } }
-        executeOnOwner(
-            block = {
-                if (!isActive() || !peerConnectionConnected ||
-                    recoveryWindow.deadlineMillis != null || broadcastState != BroadcastState.IDLE) {
-                    complete(false)
-                    return@executeOnOwner
-                }
-                if (onDeviceProcessing == onDevice && !processingModeUnconfirmed) {
-                    complete(true)
-                    return@executeOnOwner
-                }
-                val currentSession = session
-                val analyzer = frameAnalyzer
-                if (currentSession == null || analyzer == null) {
-                    complete(false)
-                    return@executeOnOwner
-                }
-                if (onDevice) {
-                    // Load and route through the local model before asking the server to stop its AI.
-                    if (!onDeviceProcessing) {
-                        try {
-                            analyzer.setProcessingMode(true, anonymizationEnabled)
-                        } catch (_: Exception) {
-                            complete(false)
-                            return@executeOnOwner
-                        }
-                        localVideoReady = !anonymizationEnabled
-                        onDeviceProcessing = true
-                        localAnonymizationEnabled = anonymizationEnabled
-                    }
-                    try {
-                        val payload = executeSessionRequest("anonymization", "PATCH", anonymizationPayload(false))
-                        check(parseAnonymizationResponse(payload, currentSession.sessionId) == AnonymizationState.DISABLED)
-                    } catch (_: Exception) {
-                        // Keep local protection and let the same selection retry confirmation.
-                        processingModeUnconfirmed = true
-                        complete(false)
-                        return@executeOnOwner
-                    }
-                } else {
-                    // The local route remains protected until the server confirms its state.
-                    try {
-                        val payload = executeSessionRequest("anonymization", "PATCH", anonymizationPayload(anonymizationEnabled))
-                        val expected = if (anonymizationEnabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED
-                        if (parseAnonymizationResponse(payload, currentSession.sessionId) != expected) {
-                            processingModeUnconfirmed = true
-                            complete(false)
-                            return@executeOnOwner
-                        }
-                    } catch (_: Exception) {
-                        processingModeUnconfirmed = true
-                        complete(false)
-                        return@executeOnOwner
-                    }
-                    analyzer.setProcessingMode(false, anonymizationEnabled)
-                    onDeviceProcessing = false
-                    localVideoReady = true
-                }
-                processingModeUnconfirmed = false
-                complete(true)
-            },
-            onRejected = { complete(false) },
-        )
-    }
-
     fun saveBroadcastSettings(settings: BroadcastSettings) {
         runBroadcastOperation {
             if (settings.madeForKids == null) {
@@ -606,8 +534,7 @@ class WebRtcConnection(
     fun prepareBroadcast(settings: BroadcastSettings): Boolean {
         if (!broadcastState.canPrepare) return false
         return runBroadcastOperation {
-            if (processingModeUnconfirmed ||
-                (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) {
+            if (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady) {
                 updateBroadcastState(
                     BroadcastState.IDLE,
                     BroadcastEvent.Failure(BroadcastFailure.REQUEST),

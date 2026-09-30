@@ -81,7 +81,6 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
     val preparationFailed: Boolean get() = preparation.failed
     override val ready: Boolean get() = model != null
     override val canSubmit: Boolean get() = ready && result.get() == null && !recognizing.get()
-    val library: PrivacyFaceLibrary? = try { PrivacyFaceLibrary(context) } catch (_: Exception) { null }
 
     override fun prepare() {
         if (ready || !preparation.tryBegin()) return

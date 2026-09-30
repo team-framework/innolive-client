@@ -217,8 +217,8 @@ fun SettingsScreen(props: SettingsScreenProps) {
 
 @Composable
 private fun AIProcessingSettings(props: SettingsScreenProps) {
-    val enabled = props.canChangeAIProcessing && !props.isAIProcessingChanging &&
-        !props.isDeletingAccount && !props.isAccountDeletionPending
+    val enabled = props.canChangeAIProcessing && !props.isDeletingAccount &&
+        !props.isAccountDeletionPending
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).selectableGroup()) {
         Text(stringResource(R.string.settings_ai_processing), style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.ai_mode_change_availability),
@@ -237,13 +237,6 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
                 RadioButton(selected = selected, onClick = null, enabled = enabled)
                 Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
             }
-        }
-        if (props.isAIProcessingChanging) {
-            Text(stringResource(R.string.ai_mode_change_in_progress),
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
-        } else if (props.aiProcessingChangeFailed) {
-            Text(stringResource(R.string.ai_mode_change_failed), color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive })
         }
     }
 }
