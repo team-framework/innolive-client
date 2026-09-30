@@ -63,17 +63,17 @@ function drawVisibleCrop(
   if (previewWidth <= 0 || previewHeight <= 0) {
     throw new FaceRegistrationError(imageCreateMessage);
   }
-  // Map the enlarged guide through the displayed object-cover crop. Keep the
-  // upload square and within the source image without stretching the face.
+  // Keep a square crop 10% larger than the guide and map it through the
+  // displayed object-cover crop without stretching the face.
   const scale = Math.max(previewWidth / sourceWidth, previewHeight / sourceHeight);
   const croppedX = (sourceWidth * scale - previewWidth) / 2;
   const croppedY = (sourceHeight * scale - previewHeight) / 2;
   const guideSide = Math.min(sourceSide, Math.max(
-    previewWidth * 313.5 / 405,
-    previewHeight * 347.6 / 720,
+    previewWidth * (309 * 1.1) / 405,
+    previewHeight * (342 * 1.1) / 720,
   ) / scale);
   const centerX = (croppedX + previewWidth / 2) / scale;
-  const centerY = (croppedY + previewHeight * 217 / 720) / scale;
+  const centerY = (croppedY + previewHeight * 326 / 720) / scale;
   context.drawImage(
     video,
     Math.max(0, Math.min(sourceWidth - guideSide, centerX - guideSide / 2)),
