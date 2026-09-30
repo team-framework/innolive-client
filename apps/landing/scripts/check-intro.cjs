@@ -46,17 +46,15 @@ assert.deepEqual(nestBox({ t: 10, r: 20, b: 30, l: 40 }, { t: 25, r: 50, b: 75, 
   l: 40,
 });
 
-const p6 = introScenes[5];
-const p7 = introScenes[6];
-const oldMask = "/intro/masks/s6-g7.svg";
-const newMask = "/intro/masks/s7-g7.svg";
-const fifthPerson = p6.overlays.find(({ mask }) => mask === oldMask);
-const preservedFifthPerson = p7.overlays.find(({ mask }) => mask === oldMask);
-const newPerson = p7.overlays.find(({ mask }) => mask === newMask);
-
-assert.ok(fifthPerson, "p6 must blur the fifth person");
-assert.deepEqual(preservedFifthPerson, fifthPerson, "p7 must preserve the fifth-person blur");
-assert.deepEqual(newPerson?.clipPath, "inset(55% 75% 0 0)");
-assert.equal(p7.overlays.some(({ mask }) => mask === "/intro/masks/s7-v4.svg"), false);
+for (const [index, scene] of introScenes.entries()) {
+  assert.equal(scene.overlays.length, index);
+  assert.deepEqual(scene.overlays.slice(0, -1), index ? introScenes[index - 1].overlays : []);
+  for (const { box, mask } of scene.overlays) {
+    assert.ok(100 - box.t - box.b < 12, "mask must stay within the face height");
+    assert.ok(100 - box.l - box.r < 6, "mask must stay within the face width");
+    assert.equal(mask, "/intro/masks/face.svg");
+    assert.ok(!(box.l < 74 && 100 - box.r > 70 && box.t < 36 && 100 - box.b > 26), "presenter must remain visible");
+  }
+}
 
 console.log("intro scenes: OK");
