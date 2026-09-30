@@ -1,0 +1,6 @@
+ultralytics==8.4.104
+torch==2.13.0
+litert-torch==0.9.4
+ai-edge-litert==2.2.0
+onnxruntime==1.23.2
+numpy==2.3.5

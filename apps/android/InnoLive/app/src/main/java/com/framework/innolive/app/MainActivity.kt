@@ -80,6 +80,7 @@ import com.framework.innolive.feature.youtube.defaultYouTubeBroadcastTitle
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.rememberYouTubeVerificationMemory
 import com.framework.innolive.feature.youtube.youtubeConnectionFailureMessage
+import com.framework.innolive.feature.youtube.youtubeFailureDiagnostic
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.UiTextSaver
 import com.framework.innolive.ui.text.NullableUiTextSaver
@@ -321,8 +322,13 @@ fun AppNavigation(
         youtubeOperationGeneration.isCurrent(operation) &&
             session != null && youtubeOperationProfileEmail == session?.profileEmail
 
-    fun showYouTubeAccountFailure(operation: Long, exception: Throwable? = null) {
+    fun showYouTubeAccountFailure(
+        operation: Long,
+        exception: Throwable? = null,
+        stage: String = "connection_completion",
+    ) {
         if (!isCurrentYouTubeOperation(operation)) return
+        Log.w("InnoLiveYouTube", "failure_stage=$stage ${youtubeFailureDiagnostic(exception)}")
         youtubeAuthorizationOperation = null
         isYouTubeAuthorizationLaunched = false
         suppressYouTubeAccountRefreshOnce = true
@@ -368,7 +374,7 @@ fun AppNavigation(
                     .onSuccess { serverAuthCode ->
                         completeYouTubeConnection(operation, serverAuthCode)
                     }
-                    .onFailure { exception -> showYouTubeAccountFailure(operation, exception) }
+                    .onFailure { exception -> showYouTubeAccountFailure(operation, exception, "google_result") }
             } else {
                 isYouTubeAuthorizationLaunched = false
                 val cancellationState = cancelYouTubeAuthorization(
@@ -655,10 +661,10 @@ fun AppNavigation(
                                 authorizationLauncher.launch(
                                     IntentSenderRequest.Builder(pendingIntent).build(),
                                 )
-                            } catch (_: Exception) {
+                            } catch (exception: Exception) {
                                 youtubeAuthorizationOperation = null
                                 isYouTubeAuthorizationLaunched = false
-                                showYouTubeAccountFailure(operation)
+                                showYouTubeAccountFailure(operation, exception, "google_launch")
                             }
                         }
                     },
@@ -674,14 +680,14 @@ fun AppNavigation(
                     onFailure = { exception ->
                         if (isCurrentYouTubeOperation(operation)) {
                             isYouTubeAuthorizationLaunched = false
-                            showYouTubeAccountFailure(operation, exception)
+                            showYouTubeAccountFailure(operation, exception, "google_authorize")
                         }
                     },
                 )
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                showYouTubeAccountFailure(operation, exception)
+                showYouTubeAccountFailure(operation, exception, "authorization_setup")
             }
         }
     }
@@ -833,6 +839,11 @@ fun AppNavigation(
                                 isAccountDeletionCleanupPending =
                                     accountDeletionState.localCleanupPending,
                                 accountDeletionError = accountDeletionState.error,
+                                onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
+                                canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
+                                onSelectAIProcessing = { onDevice ->
+                                    webRtcSession.selectAIProcessing(context, onDevice)
+                                },
                             ),
                         )
                     }

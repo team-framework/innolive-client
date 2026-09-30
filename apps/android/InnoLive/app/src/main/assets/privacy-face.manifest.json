@@ -1,0 +1,11 @@
+{
+  "checkpoint_sha256": "04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9",
+  "onnx_sha256": "812eeaa58ed70794dd67e1efdb1d9f614b0be18e951d2c6bc2c8876c2c34d712",
+  "embedding_shape": [
+    1,
+    512
+  ],
+  "cosine": 0.9999983310699463,
+  "max_absolute_error": 0.00028503313660621643,
+  "limitations": "Synthetic parity only; recognition accuracy and Android latency require device tests."
+}

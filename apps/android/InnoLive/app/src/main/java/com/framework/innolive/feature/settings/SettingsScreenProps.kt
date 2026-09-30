@@ -16,4 +16,7 @@ data class SettingsScreenProps(
     val isAccountDeletionPending: Boolean = false,
     val isAccountDeletionCleanupPending: Boolean = false,
     val accountDeletionError: UiText? = null,
+    val onDeviceProcessing: Boolean = false,
+    val canChangeAIProcessing: Boolean = false,
+    val onSelectAIProcessing: (Boolean) -> Unit = {},
 )

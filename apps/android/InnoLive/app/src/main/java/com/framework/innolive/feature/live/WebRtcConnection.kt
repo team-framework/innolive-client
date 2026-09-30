@@ -1,6 +1,9 @@
 package com.framework.innolive.feature.live
 
 import android.util.Log
+import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.privacy.PrivacyTextureReadbackCounter
+import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -34,6 +37,7 @@ import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
 import org.webrtc.EglBase
 import org.webrtc.IceCandidate
+import org.webrtc.HardwareVideoEncoderFactory
 import org.webrtc.MediaStreamTrack
 import org.webrtc.MediaConstraints
 import org.webrtc.MediaStream
@@ -76,6 +80,7 @@ class WebRtcConnection(
     accessToken: String,
     private val refreshAccessToken: suspend () -> String,
     private val initialAnonymizationEnabled: Boolean,
+    private val initialOnDeviceProcessing: Boolean = false,
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, ConnectionFailure?) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
@@ -85,8 +90,12 @@ class WebRtcConnection(
     private val onAnonymizationStateConfirmed: (AnonymizationState) -> Unit,
     private val broadcastCallbackExecutor: Executor? = null,
     private val onLocalVideoTrackChanged: (VideoTrack?) -> Unit = {},
+    private val onInitialSignalingStarted: () -> Unit = {},
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
+    private val onDeviceProcessing = initialOnDeviceProcessing
+    private var localAnonymizationEnabled = initialAnonymizationEnabled
+    private var localVideoReady = !initialOnDeviceProcessing || !initialAnonymizationEnabled
     private val recoveryAccessToken = RecoveryAccessToken(accessToken)
     private var sessionRecoveryStore: SessionRecoveryStore = EncryptedSessionRecoveryStore(applicationContext)
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
@@ -103,6 +112,8 @@ class WebRtcConnection(
     private val ownerExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val timerExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor()
+    private var privacyStatsTask: ScheduledFuture<*>? = null
+    private var previousPrivacyVideoStats: PrivacyVideoStats? = null
     private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
@@ -245,11 +256,6 @@ class WebRtcConnection(
                 updateBluetoothCommunicationRoute(preferredAudioInput)
                 audioRouteMonitor.start()
                 updateState(WebRtcConnectionState.CONNECTING)
-                connectionTimeoutTask = timerExecutor.schedule(
-                    { fail(ConnectionFailure.TIMEOUT) },
-                    CONNECTION_TIMEOUT_MILLIS,
-                    TimeUnit.MILLISECONDS,
-                )
 
                 val (iceServers, policy) = loadIceServers()
                 recoveryPolicy = policy
@@ -260,15 +266,21 @@ class WebRtcConnection(
                 session = createdSession
                 if (!isActive()) return@executeOnOwner
                 updateState(WebRtcConnectionState.CONNECTING)
-                val confirmed = confirmInitialAnonymization(initialAnonymizationEnabled) {
+                val confirmed = confirmInitialAnonymization(
+                    if (onDeviceProcessing) false else initialAnonymizationEnabled,
+                ) {
                     val payload = executeSessionRequest(
-                        "anonymization", "PATCH", anonymizationPayload(initialAnonymizationEnabled),
+                        "anonymization", "PATCH",
+                        anonymizationPayload(if (onDeviceProcessing) false else initialAnonymizationEnabled),
                     )
                     parseAnonymizationResponse(payload, createdSession.sessionId)
                 }
                 if (!isActive()) return@executeOnOwner
                 mainHandler.post {
-                    if (isActive()) onAnonymizationStateConfirmed(confirmed)
+                    if (isActive()) onAnonymizationStateConfirmed(
+                        if (onDeviceProcessing && initialAnonymizationEnabled) AnonymizationState.ENABLED
+                        else confirmed,
+                    )
                 }
 
                 val connection = createPeerConnection(iceServers)
@@ -282,6 +294,13 @@ class WebRtcConnection(
                 checkNotNull(frameAnalyzer).start()
                 val negotiationId = UUID.randomUUID().toString()
                 activeNegotiationId = negotiationId
+                // Start the signaling window after the HTTP and native connection setup.
+                mainHandler.post { if (isActive()) onInitialSignalingStarted() }
+                connectionTimeoutTask = timerExecutor.schedule(
+                    { fail(ConnectionFailure.TIMEOUT) },
+                    INITIAL_SIGNALING_TIMEOUT_MILLIS,
+                    TimeUnit.MILLISECONDS,
+                )
                 openSignalingSocket(createdSession, negotiationId, iceRestart = false)
             } catch (exception: Exception) {
                 Log.w("LiveConnection", "start_failed type=${exception.javaClass.simpleName} cause=${exception.cause?.javaClass?.simpleName}")
@@ -337,7 +356,92 @@ class WebRtcConnection(
         val createdVideoSource = factory.createVideoSource(false)
         videoSource = createdVideoSource
         localVideoTrack = factory.createVideoTrack("camera-video", createdVideoSource)
-        frameAnalyzer = CameraFrameAnalyzer(createdVideoSource.capturerObserver)
+        frameAnalyzer = CameraFrameAnalyzer(
+            createdVideoSource.capturerObserver,
+            applicationContext,
+            initialOnDeviceProcessing,
+            initialAnonymizationEnabled,
+            sharedEglContext = checkNotNull(eglBase).eglBaseContext,
+            onProcessingFailure = { executeOnOwner { fail(ConnectionFailure.GENERIC) } },
+            onProtectedFrameSent = {
+                executeOnOwner {
+                    if (isActive()) {
+                        localVideoReady = true
+                        updateConnectedState()
+                        startPrivacyStats()
+                    }
+                }
+            },
+            onCaptureFormat = { width, height ->
+                executeOnOwner {
+                    if (isActive()) videoSource?.adaptOutputFormat(width, height, 30)
+                }
+            },
+        ).also { analyzer ->
+            analyzer.faceCoordinatorFactory = {
+                PrivacyFaceCoordinator(applicationContext, sessionRecoveryScope.storageKey)
+            }
+        }
+    }
+
+    private fun startPrivacyStats() {
+        if (!BuildConfig.DEBUG || privacyStatsTask != null) return
+        privacyStatsTask = timerExecutor.scheduleAtFixedRate(
+            { executeOnOwner { samplePrivacyStats() } }, 5, 5, TimeUnit.SECONDS,
+        )
+    }
+
+    private fun samplePrivacyStats() {
+        if (!isActive() || !onDeviceProcessing) {
+            previousPrivacyVideoStats = null
+            return
+        }
+        val connection = peerConnection ?: return
+        runCatching {
+            connection.getStats { report ->
+                executeOnOwner {
+                    if (!isActive() || !onDeviceProcessing) return@executeOnOwner
+                    val outbound = report.statsMap.values.firstOrNull { it.type == "outbound-rtp" &&
+                        (it.members["kind"] == "video" || it.members["mediaType"] == "video") }
+                    if (outbound != null) {
+                        val now = System.nanoTime()
+                        val current = PrivacyVideoStats.from(outbound.members, now)
+                        val previous = previousPrivacyVideoStats
+                        previousPrivacyVideoStats = current
+                        val inbound = report.statsMap.values.filter { it.type == "inbound-rtp" &&
+                            (it.members["kind"] == "video" || it.members["mediaType"] == "video") }
+                        val codecId = outbound.members["codecId"] as? String
+                        val mime = codecId?.let { report.statsMap[it]?.members?.get("mimeType") }
+                        Log.i("PrivacyPipeline", "outbound_video ${current.interval(previous)} " +
+                            "mime=$mime encoder=${outbound.members["encoderImplementation"]} " +
+                            "quality_limitation=${outbound.members["qualityLimitationReason"]} " +
+                            "encoded_size=${outbound.members["frameWidth"]}x${outbound.members["frameHeight"]} " +
+                            "inbound_decoded=${inbound.sumOf { (it.members["framesDecoded"] as? Number)?.toLong() ?: 0L }} " +
+                            "inbound_dropped=${inbound.sumOf { (it.members["framesDropped"] as? Number)?.toLong() ?: 0L }} " +
+                            "texture_to_i420_total=${PrivacyTextureReadbackCounter.value()}")
+                        inbound.forEachIndexed { index, stream ->
+                            val fields = listOf("packetsReceived", "packetsLost", "bytesReceived",
+                                "framesReceived", "framesDecoded", "framesDropped", "keyFramesDecoded",
+                                "freezeCount", "nackCount", "pliCount", "firCount", "jitter",
+                                "decoderImplementation", "frameWidth", "frameHeight",
+                                "totalDecodeTime", "totalProcessingDelay", "totalAssemblyTime",
+                                "jitterBufferDelay", "jitterBufferEmittedCount")
+                            Log.i("PrivacyPipeline", "inbound_video index=$index " +
+                                fields.joinToString(" ") { "$it=${stream.members[it]}" })
+                        }
+                        report.statsMap.values.filter { it.type == "candidate-pair" &&
+                            it.members["nominated"] == true
+                        }.forEach { pair ->
+                            val fields = listOf("state", "nominated", "currentRoundTripTime",
+                                "availableOutgoingBitrate", "availableIncomingBitrate",
+                                "bytesSent", "bytesReceived")
+                            Log.i("PrivacyPipeline", "transport " +
+                                fields.joinToString(" ") { "$it=${pair.members[it]}" })
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun notifyLocalMediaReadyOnOwner() {
@@ -389,6 +493,13 @@ class WebRtcConnection(
             block = {
                 if (!isActive()) return@executeOnOwner
                 try {
+                    if (onDeviceProcessing) {
+                        checkNotNull(frameAnalyzer).setProcessingMode(onDevice = true, anonymizationEnabled = enabled)
+                        localAnonymizationEnabled = enabled
+                        localVideoReady = !enabled
+                        complete(if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED, null)
+                        return@executeOnOwner
+                    }
                     val currentSession = checkNotNull(session) { "WebRTC 세션이 없습니다." }
                     val payload = executeSessionRequest("anonymization", "PATCH", anonymizationPayload(enabled))
                     val confirmed = parseAnonymizationResponse(payload, currentSession.sessionId)
@@ -424,6 +535,13 @@ class WebRtcConnection(
     fun prepareBroadcast(settings: BroadcastSettings): Boolean {
         if (!broadcastState.canPrepare) return false
         return runBroadcastOperation {
+            if (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady) {
+                updateBroadcastState(
+                    BroadcastState.IDLE,
+                    BroadcastEvent.Failure(BroadcastFailure.REQUEST),
+                )
+                return@runBroadcastOperation
+            }
             if (settings.madeForKids == null) {
                 updateBroadcastState(
                     BroadcastState.FAILED,
@@ -443,7 +561,8 @@ class WebRtcConnection(
     fun goLive(onAccepted: () -> Unit = {}): Boolean {
         if (!broadcastState.canGoLive) return false
         return runBroadcastOperation(onAccepted = onAccepted) {
-            if (!peerConnectionConnected || !audioInputVerified) {
+            if (!peerConnectionConnected || !audioInputVerified ||
+                (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) {
                 updateBroadcastState(
                     BroadcastState.PREPARED,
                     BroadcastEvent.Failure(BroadcastFailure.REQUEST),
@@ -492,7 +611,8 @@ class WebRtcConnection(
     fun resumeBroadcast() {
         if (!broadcastState.canResume) return
         runBroadcastOperation {
-            if (!peerConnectionConnected || !audioInputVerified) return@runBroadcastOperation
+            if (!peerConnectionConnected || !audioInputVerified ||
+                (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) return@runBroadcastOperation
             updateBroadcastState(BroadcastState.RESUMING)
             try {
                 postSessionRequest("stream/resume")
@@ -719,6 +839,18 @@ class WebRtcConnection(
                 ),
             ),
         ) { "Unable to add the camera video transceiver." }
+        val videoCodecs = checkNotNull(peerConnectionFactory)
+            .getRtpSenderCapabilities(MediaStreamTrack.MediaType.MEDIA_TYPE_VIDEO).codecs
+        val hardwareFormats = HardwareVideoEncoderFactory(
+            checkNotNull(eglBase).eglBaseContext, true, true,
+        ).supportedCodecs.toList()
+        val preference = preferredVideoCodecsForAI(onDeviceProcessing, videoCodecs, hardwareFormats)
+        if (preference != null) {
+            val result = transceiver.setCodecPreferences(preference)
+            if (result.isSuccess()) Log.i("PrivacyPipeline",
+                "video_codec_preference=${if (onDeviceProcessing) "on_device_vp8" else "server_h264_baseline"}")
+            else Log.w("PrivacyPipeline", "video_codec_preference=default")
+        }
         videoSender = transceiver.sender
     }
 
@@ -1140,7 +1272,7 @@ class WebRtcConnection(
             startRecoveryVideoVerification(checkNotNull(negotiationId))
             if (recoveryVideoProgress?.hasProgress != true || !recoveryServerVideoReady) return
         }
-        if (!audioInputVerified) return
+        if (!audioInputVerified || (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) return
 
         connectionTimeoutTask?.cancel(false)
         connectionTimeoutTask = null
@@ -1837,7 +1969,6 @@ class WebRtcConnection(
 
     companion object {
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
-        private const val CONNECTION_TIMEOUT_MILLIS = 30_000L
         private const val AUDIO_ROUTE_VERIFICATION_DELAY_MILLIS = 500L
         private const val RECOVERY_PEER_CONNECTION_WAIT_MILLIS = 20_000L
         private const val RECOVERY_VIDEO_VERIFICATION_MILLIS = 10_000L

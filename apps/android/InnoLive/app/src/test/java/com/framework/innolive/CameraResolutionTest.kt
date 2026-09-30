@@ -27,4 +27,13 @@ class CameraResolutionTest {
             CameraResolution.fromOutputSizes(listOf(1080 to 1920, 3840 to 2160)),
         )
     }
+
+    @Test
+    fun highestSupportedResolutionIsFirstForDefaultSelection() {
+        val resolutions = CameraResolution.fromOutputSizes(
+            listOf(1280 to 720, 1920 to 1080, 960 to 540),
+        )
+
+        assertEquals(CameraResolution(1920, 1080), resolutions.firstOrNull())
+    }
 }

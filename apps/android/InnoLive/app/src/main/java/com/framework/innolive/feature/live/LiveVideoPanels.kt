@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
 
@@ -45,25 +46,26 @@ fun LiveVideoPanels(
             .size(pipWidth, pipHeight)
             .clip(shape = RoundedCornerShape(8.dp))
 
-        if (isConnected) {
-            WebRtcRemotePreview(
-                remoteVideoTrack = remoteVideoTrack,
-                eglContext = eglContext,
+        WebRtcRemotePreview(
+            remoteVideoTrack = if (isConnected) remoteVideoTrack else null,
+            eglContext = eglContext,
+            cameraLensFacing = cameraLensFacing,
+            modifier = (if (isConnected) mainModifier else pipModifier)
+                .zIndex(if (isConnected) 0f else 1f),
+        )
+        Box(modifier = (if (isConnected) pipModifier else mainModifier)
+            .zIndex(if (isConnected) 1f else 0f)) {
+            CameraPreview(
                 cameraLensFacing = cameraLensFacing,
-                modifier = mainModifier,
+                cameraResolution = cameraResolution,
+                frameAnalyzer = frameAnalyzer,
+                lockedRotation = lockedRotation,
+                videoQualitySettings = videoQualitySettings,
+                onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
+                showAdjustedColorPreview = localVideoTrack == null,
+                modifier = Modifier.fillMaxSize(),
             )
-            Box(modifier = pipModifier) {
-                // Keep CameraX bound below the processed local track: it owns capture for WebRTC.
-                CameraPreview(
-                    cameraLensFacing = cameraLensFacing,
-                    cameraResolution = cameraResolution,
-                    frameAnalyzer = frameAnalyzer,
-                    lockedRotation = lockedRotation,
-                    videoQualitySettings = videoQualitySettings,
-                    onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
-                    showAdjustedColorPreview = localVideoTrack == null,
-                    modifier = Modifier.fillMaxSize(),
-                )
+            if (isConnected && localVideoTrack != null) {
                 WebRtcRemotePreview(
                     remoteVideoTrack = localVideoTrack,
                     eglContext = eglContext,
@@ -72,22 +74,6 @@ fun LiveVideoPanels(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-        } else {
-            CameraPreview(
-                cameraLensFacing = cameraLensFacing,
-                cameraResolution = cameraResolution,
-                frameAnalyzer = frameAnalyzer,
-                lockedRotation = lockedRotation,
-                videoQualitySettings = videoQualitySettings,
-                onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
-                modifier = mainModifier,
-            )
-            WebRtcRemotePreview(
-                remoteVideoTrack = null,
-                eglContext = eglContext,
-                cameraLensFacing = cameraLensFacing,
-                modifier = pipModifier,
-            )
         }
     }
 }

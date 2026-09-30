@@ -6,7 +6,9 @@ import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Rational
+import android.util.Range
 import android.util.Size
+import android.util.Log
 import android.view.Surface
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -18,6 +20,8 @@ import androidx.camera.core.CameraState
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.SessionConfig
+import androidx.camera.core.UseCase
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.ViewPort
 import androidx.camera.core.resolutionselector.ResolutionSelector
@@ -45,6 +49,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleOwner
 import com.framework.innolive.R
 import java.util.concurrent.Executors
 
@@ -118,6 +123,7 @@ fun CameraPreview(
         targetRotation,
         isLandscape,
     ) {
+        frameAnalyzer?.resetFaceExceptions()
         hasCameraError = false
         frameAnalyzer?.resetLookPreviewSample()
         frameAnalyzer?.beginPreviewExposure()
@@ -194,28 +200,18 @@ fun CameraPreview(
                         check(cameraProvider.hasCamera(cameraSelector)) {
                             "선택한 카메라를 사용할 수 없습니다."
                         }
-                        val useCaseGroup = UseCaseGroup.Builder()
-                            .addUseCase(preview)
-                            .apply {
-                                imageAnalysis?.let(::addUseCase)
-                            }
-                            .setViewPort(
-                                ViewPort.Builder(
-                                    if (isLandscape) Rational(16, 9) else Rational(9, 16),
-                                    targetRotation,
-                                )
-                                    .setScaleType(ViewPort.FILL_CENTER)
-                                    .build(),
-                            )
-                            .build()
-                        val boundCamera = cameraProvider.bindToLifecycle(
-                            lifecycleOwner,
-                            cameraSelector,
-                            useCaseGroup,
-                        )
-                        controller.bind(boundCamera)
-                        observedCamera = boundCamera
-                        boundCamera.cameraInfo.cameraState.observe(lifecycleOwner, cameraStateObserver)
+                        val viewPort = ViewPort.Builder(
+                            if (isLandscape) Rational(16, 9) else Rational(9, 16),
+                            targetRotation,
+                        ).setScaleType(ViewPort.FILL_CENTER).build()
+                        CameraFrameRateBinding.bind(
+                            cameraProvider, lifecycleOwner, cameraSelector,
+                            listOfNotNull(preview, imageAnalysis), viewPort,
+                        ) { boundCamera ->
+                            controller.bind(boundCamera)
+                            observedCamera = boundCamera
+                            boundCamera.cameraInfo.cameraState.observe(lifecycleOwner, cameraStateObserver)
+                        }
                     } catch (_: Exception) {
                         hasCameraError = true
                     }
@@ -263,5 +259,34 @@ fun CameraPreview(
                 modifier = Modifier.align(Alignment.Center),
             )
         }
+    }
+}
+
+/** CameraX's supported range is specific to the combined preview and analysis session. */
+internal object CameraFrameRateBinding {
+    fun bind(provider:ProcessCameraProvider, owner:LifecycleOwner, selector:CameraSelector,
+             useCases:List<UseCase>, viewPort:ViewPort, onBound:(Camera)->Unit = {}):Boolean {
+        val exact30=Range(30,30)
+        val proposed=SessionConfig.Builder(useCases).setViewPort(viewPort)
+        val supported=runCatching {
+            val info=provider.getCameraInfo(selector)
+            info.getSupportedFrameRateRanges(proposed.build()).contains(exact30) &&
+                info.isSessionConfigSupported(proposed.setFrameRateRange(exact30).build())
+        }.getOrDefault(false)
+        if(supported) {
+            try {
+                onBound(provider.bindToLifecycle(owner,selector,proposed.build()))
+                Log.i("PrivacyCamera","capture_range=30-30")
+                return true
+            } catch(error:Exception) {
+                provider.unbind(*useCases.toTypedArray())
+                Log.w("PrivacyCamera","capture_range_fallback type=${error.javaClass.simpleName}")
+            }
+        }
+        val group=UseCaseGroup.Builder().apply {useCases.forEach(::addUseCase)}
+            .setViewPort(viewPort).build()
+        onBound(provider.bindToLifecycle(owner,selector,group))
+        Log.i("PrivacyCamera","capture_range=default")
+        return false
     }
 }

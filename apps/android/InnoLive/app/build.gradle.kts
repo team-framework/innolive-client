@@ -7,13 +7,20 @@ plugins {
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
+// Opt-in minified instrumentation uses the local debug certificate, never release signing.
+val privacyReleaseTest = providers.gradleProperty("privacyReleaseTest").orNull == "true"
 
 if (localPropertiesFile.isFile) {
     localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
 android {
+    if (privacyReleaseTest) testBuildType = "release"
     namespace = "com.framework.innolive"
+    ndkVersion = "27.0.12077973"
+    externalNativeBuild {
+        cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" }
+    }
     compileSdk {
         version = release(37) {
             minorApiLevel = 1
@@ -28,6 +35,7 @@ android {
         versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("boolean", "PRIVACY_PERF_DIAGNOSTICS", privacyReleaseTest.toString())
         buildConfigField(
             "String",
             "INNOLIVE_SERVER_URL",
@@ -43,7 +51,12 @@ android {
     buildTypes {
         release {
             optimization {
-                enable = false
+                enable = true
+            }
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (privacyReleaseTest) {
+                signingConfig = signingConfigs.getByName("debug")
+                proguardFiles("privacy-instrumentation-rules.pro")
             }
         }
     }
@@ -67,6 +80,8 @@ dependencies {
     implementation("androidx.credentials:credentials-play-services-auth:1.7.0-alpha02")
     implementation("com.google.android.gms:play-services-auth:22.0.0")
     implementation("com.google.mlkit:face-detection:16.1.7")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
+    implementation("com.google.ai.edge.litert:litert:2.2.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.squareup.okhttp3:okhttp:5.3.0")
     implementation("io.github.webrtc-sdk:android:144.7559.09")
@@ -88,6 +103,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    if (privacyReleaseTest) implementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
