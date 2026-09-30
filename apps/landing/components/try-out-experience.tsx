@@ -421,7 +421,14 @@ export function TryOutExperience() {
       sessionRef.current = session;
       if (session.ticketID) ticketIDRef.current = session.ticketID;
       setStatus(copy.checkingMedia);
-      const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      const localStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 720, min: 500 },
+          height: { ideal: 720, min: 500 },
+          aspectRatio: { ideal: 1 },
+        },
+        audio: false,
+      });
       if (generationRef.current !== generation) {
         stopStream(localStream);
         return;
