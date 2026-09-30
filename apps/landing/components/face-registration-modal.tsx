@@ -267,11 +267,11 @@ export function FaceRegistrationModal({
 
   return (
     <Dialog open={isOpen} onClose={onClose} label={copy.dialogLabel}>
-      <div className="flex w-[min(calc(100vw-3rem),40.4375rem)] max-w-[40.4375rem] flex-col overflow-clip rounded-[12px] bg-background-secondary text-text-primary min-[48rem]:flex-row">
-        <div className="flex w-full flex-col items-start justify-between gap-8 p-8 min-[48rem]:w-[15.125rem] min-[48rem]:shrink-0">
+      <div className="flex h-[calc(90dvh-4rem)] w-[min(calc(100vw-3rem),40.4375rem)] max-w-[40.4375rem] flex-col overflow-clip rounded-[12px] bg-background-secondary text-text-primary min-[48rem]:h-[45rem] min-[48rem]:flex-row">
+        <div className="flex w-full shrink-0 flex-col items-start justify-between gap-4 p-4 min-[48rem]:gap-8 min-[48rem]:p-8 min-[48rem]:w-[15.125rem] min-[48rem]:shrink-0">
           <div className="flex flex-col gap-2.5">
-            <h2 className="text-[2.25rem] font-medium leading-none">{messages.face.title}</h2>
-            <p className="text-2xl font-normal leading-[1.2] text-text-secondary">{messages.face.subtitle}</p>
+            <h2 className="text-[2rem] font-medium leading-none min-[48rem]:text-[2.25rem]">{messages.face.title}</h2>
+            <p className="text-lg font-normal leading-[1.2] text-text-secondary min-[48rem]:text-2xl">{messages.face.subtitle}</p>
           </div>
           <p className="w-full text-center text-xs leading-[1.3] text-text-secondary">{messages.face.termsNote}</p>
         </div>
@@ -279,25 +279,27 @@ export function FaceRegistrationModal({
         <div className="relative hidden w-0 self-stretch min-[48rem]:block" aria-hidden="true">
           <Image src="/try-out/face-divider.svg" alt="" width={720} height={1} unoptimized className="absolute left-0 top-0 max-w-none origin-top-left rotate-90" />
         </div>
-        <div className="relative aspect-[405/720] w-full overflow-hidden bg-black min-[48rem]:w-[25.3125rem] min-[48rem]:shrink-0">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="absolute inset-0 size-full scale-x-[-1] object-cover"
-            aria-label={copy.previewLabel}
-          />
-          <Image src="/try-out/face-guide.svg" alt="" width={405} height={720} unoptimized className="pointer-events-none absolute inset-0 h-auto w-full" />
-          <div className="absolute inset-x-[13.086%] bottom-[6.528%] flex flex-col items-center gap-2 text-center text-white">
-            <p className="w-full text-base font-semibold leading-none min-[48rem]:text-xl" role="status" aria-live="polite">{status}</p>
-            {state === "failed" ? (
-              <Button showChevron={false} onClick={() => setRetryCount((count) => count + 1)}>
-                {copy.retry}
-              </Button>
-            ) : (
-              <p className="w-full text-sm font-medium leading-[1.3] text-[#fbfbfb] min-[48rem]:text-base">{messages.face.guide}</p>
-            )}
+        <div className="flex min-h-0 w-full flex-1 items-center justify-center [container-type:size] min-[48rem]:w-[25.3125rem] min-[48rem]:flex-none">
+          <div className="relative aspect-[405/720] w-[min(100cqw,56.25cqh)] overflow-hidden bg-black">
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="absolute inset-0 size-full scale-x-[-1] object-cover"
+              aria-label={copy.previewLabel}
+            />
+            <Image src="/try-out/face-guide.svg" alt="" width={405} height={720} unoptimized className="pointer-events-none absolute inset-0 h-auto w-full" />
+            <div className="absolute inset-x-[13.086%] bottom-[6.528%] flex flex-col items-center gap-2 text-center text-white">
+              <p className="w-full text-base font-semibold leading-none min-[48rem]:text-xl" role="status" aria-live="polite">{status}</p>
+              {state === "failed" ? (
+                <Button showChevron={false} onClick={() => setRetryCount((count) => count + 1)}>
+                  {copy.retry}
+                </Button>
+              ) : (
+                <p className="w-full text-sm font-medium leading-[1.3] text-[#fbfbfb] min-[48rem]:text-base">{messages.face.guide}</p>
+              )}
+            </div>
           </div>
         </div>
         <canvas ref={canvasRef} className="sr-only" aria-hidden="true" />
