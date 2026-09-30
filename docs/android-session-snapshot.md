@@ -51,7 +51,34 @@ ViewModel은 상태가 그대로인 조회로 기존 오류 안내를 지우지 
 `BroadcastApiFlowTest`를 사용한다. API 테스트는 외부 네트워크·계정·미디어를 사용하지 않는다.
 늦은 GET, 부분 응답, 서버 종료, 일시 오류, 인증 재시도, 세션 소멸, 종료 후 취소를 확인한다.
 
-현재 실행 환경에는 프로젝트 요구 NDK와 CMake가 없어 기본 빌드는 설정 단계에서 실패했다.
-저장소 설정을 바꾸지 않고 임시 Gradle init script에서 CMake 경로를 제외해 Kotlin 컴파일,
-단위 테스트, Debug·instrumentation APK 생성 및 에뮬레이터 API 테스트를 수행했다.
-따라서 프로젝트 C++ 라이브러리를 포함한 정식 APK 빌드와 실제 카메라·송출 E2E는 미검증이다.
+2026-09-30 초기 검증에서는 NDK·CMake가 없어 임시 Gradle init script로 CMake 경로를
+제외했다. 이후 NDK 27.0.12077973과 CMake 3.22.1이 설치된 환경에서 init script 없이
+`assembleDebug`와 `assembleDebugAndroidTest`를 성공했다. 프로젝트 C++ 라이브러리를
+포함한 APK로 Samsung SM-G981N 실기기 검증을 수행했다.
+
+- `BroadcastLiveDeviceTest`: 실제 로그인·카메라와 비공개 YouTube 방송을 사용했다.
+  준비 → 시작 → 서버 API에서 직접 일시정지 → 앱 주기 조회로 PAUSED 반영 → 앱 재개 →
+  비식별화 On/Off → 종료 → 재연결을 통과했다. 준비·라이브·일시정지·종료에서 앱 snapshot의
+  대상 상태·종료 사유·재접속 횟수·알림·남은 시간을 실제 GET 응답과 대조했다.
+- `ProductionVideoReturnDeviceTest`: 서버 AI 처리 모드에서 실제 카메라의 H.264 업링크·반환
+  코덱과 반환 프레임 수신을 통과했다. 약 30초에 879프레임, 평균 29.26fps였으며
+  250ms 초과 프레임 간격은 1회(최대 약 359ms)였다. 성능 보장이나 장시간 안정성 검증은 아니다.
+
+위 테스트는 실제 서버를 사용하는 실기기 instrumentation이다. 앱의 전체 화면 버튼 탐색,
+외부 YouTube 시청자 화면 재생, 한도 알림 발생, 실제 잔여 한도 소진·자동 종료는 검증하지 않았다.
+인증 실패·경합·알 수 없는 상태 등은 별도 mock API 및 단위 테스트 근거를 사용한다.
+
+재현할 때 기존 앱 로그인과 연결된 YouTube 계정이 필요하다. 로컬 설정을 준비하고 APK를
+데이터 보존 방식으로 설치한 후 다음 명령을 실행한다. 첫 테스트는 실제 비공개 방송을
+생성·시작·종료하므로 테스트 계정에서만 명시적으로 실행한다.
+
+```sh
+adb shell am instrument -w -r \
+  -e class com.framework.innolive.feature.live.BroadcastLiveDeviceTest \
+  -e liveBroadcastLifecycle true \
+  com.framework.innolive.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument -w -r \
+  -e class com.framework.innolive.feature.live.ProductionVideoReturnDeviceTest \
+  -e productionProbe true -e onDevice false -e expectedCodec H264 -e durationSeconds 30 \
+  com.framework.innolive.test/androidx.test.runner.AndroidJUnitRunner
+```
