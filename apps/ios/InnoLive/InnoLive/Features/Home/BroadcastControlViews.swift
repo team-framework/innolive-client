@@ -99,7 +99,8 @@ struct YouTubeBroadcastControlLabel: View {
     }
 }
 
-struct ServerConnectionControlLabel: View {
+struct BroadcastPreparationControlLabel: View {
+    let status: BroadcastPreparationStatus?
     let isLoading: Bool
 
     var body: some View {
@@ -107,16 +108,21 @@ struct ServerConnectionControlLabel: View {
             if isLoading {
                 ProgressView()
                     .controlSize(.small)
-            } else {
-                Image(systemName: "arrow.clockwise")
-                    .font(.body.weight(.semibold))
             }
-            Text(isLoading ? String(localized: "서버 연결 중") : String(localized: "연결 재시도"))
+            Text(title)
                 .font(.headline.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity)
         .frame(height: BroadcastControlLayout.height)
         .contentShape(Rectangle())
+    }
+
+    private var title: String {
+        guard let status else { return String(localized: "방송 준비") }
+        if status.isFailed { return String(localized: "다시 시도") }
+        return status.phase.title
     }
 }
 

@@ -55,7 +55,7 @@ final class BroadcastFeedbackTests: XCTestCase {
         XCTAssertFalse(prepared)
         XCTAssertNotNil(youtube.errorMessage)
 
-        XCTAssertNil(controls(isStartingServerConnection: true).feedback)
+        XCTAssertNil(controls(previewTransition: .starting).feedback)
         XCTAssertEqual(controls().feedback?.message, youtube.errorMessage)
 
         youtube.dismissError()
@@ -101,14 +101,14 @@ final class BroadcastFeedbackTests: XCTestCase {
         XCTAssertEqual(status.buttonTitle, expected.2)
     }
 
-    private func controls(isStartingServerConnection: Bool = false) -> BroadcastControllsView {
+    private func controls(previewTransition: BroadcastPreviewTransition = .none) -> BroadcastControllsView {
         BroadcastControllsView(
             isBroadcasting: .constant(false),
-            previewTransition: .constant(.none),
+            previewTransition: .constant(previewTransition),
             authentication: AuthSession(),
             youtube: youtube,
-            isStartingServerConnection: isStartingServerConnection,
-            onRetryConnection: {}
+            onPrepareBroadcast: { _ in },
+            onCancelPreparation: {}
         )
     }
 }

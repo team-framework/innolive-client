@@ -8,15 +8,19 @@ struct BroadcastSettingsView: View {
     @State private var query = ""
     @State private var isSaved = false
     @State private var isShowingTransmissionNotice = false
+    @State private var isShowingMediaConsent = false
     @State private var transmissionNotice = YouTubeTransmissionNotice()
     private let onPrepare: ((BroadcastSettingsProvider) -> Void)?
+    private let onCancelPreparation: (() -> Void)?
 
     init(authentication: AuthSession, youtube: YouTubeIntegration,
-         onPrepare: ((BroadcastSettingsProvider) -> Void)? = nil) {
+         onPrepare: ((BroadcastSettingsProvider) -> Void)? = nil,
+         onCancelPreparation: (() -> Void)? = nil) {
         self.authentication = authentication
         self.youtube = youtube
         self.planStore = youtube.planStore
         self.onPrepare = onPrepare
+        self.onCancelPreparation = onCancelPreparation
         _editor = ObservedObject(wrappedValue: youtube.settingsEditor)
     }
 
@@ -53,9 +57,17 @@ struct BroadcastSettingsView: View {
                     Text(String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요."))
                         .font(.footnote).foregroundStyle(.orange)
                 }
-                if onPrepare != nil, !youtube.isVideoConnected {
-                    Text(String(localized: "서버 영상 연결을 확인해 주세요."))
-                        .font(.footnote).foregroundStyle(.orange)
+                if let status = youtube.preparationStatus {
+                    Text(status.isFailed ? (status.failedPhase?.failureMessage ?? status.phase.failureMessage) : status.phase.title)
+                        .font(.footnote.weight(.semibold))
+                    Text(status.message ?? status.phase.detail)
+                        .font(.footnote).foregroundStyle(.secondary)
+                    if onCancelPreparation != nil {
+                        Button(status.phase == .cancelling ? String(localized: "준비 취소 중") : String(localized: "준비 취소"), role: .destructive) {
+                            onCancelPreparation?()
+                        }
+                        .disabled(status.phase == .cancelling)
+                    }
                 }
                 if let message = youtube.errorMessage {
                     BroadcastFeedbackBanner(feedback: BroadcastFeedback(message: message, isError: true),
@@ -64,15 +76,14 @@ struct BroadcastSettingsView: View {
                 Button(action: primaryAction) {
                     HStack {
                         if youtube.isChangingStreamState { ProgressView() }
-                        Text(onPrepare == nil ? String(localized: "저장") : String(localized: "방송 준비"))
+                        Text(prepareButtonTitle)
                             .font(.body.weight(.semibold))
                     }
                     .frame(maxWidth: .infinity, minHeight: 46)
                 }
                 .innoLiveGlassButtonStyle(prominent: true)
                 .tint(.blue)
-                .disabled((onPrepare != nil && planStore.snapshot.map { !$0.canPrepare(youtube.currentPlanMode) } == true) || youtube.isBroadcastSettingsLocked ||
-                          (onPrepare != nil && (!youtube.isSettingsAccountConnected(editor.provider) || !youtube.isVideoConnected)))
+                .disabled(isPrepareButtonDisabled)
             }
             .padding(24)
         }
@@ -91,12 +102,34 @@ struct BroadcastSettingsView: View {
         } message: {
             Text(youtube.session == nil ? String(localized: "기기에 저장했습니다. 방송 준비 시 서버에 적용합니다.") : String(localized: "서버에 방송 설정을 저장했습니다."))
         }
+        .sheet(isPresented: $isShowingMediaConsent) {
+            MediaTransmissionConsentView { consent in
+                guard authentication.acceptMediaTransmission(consent) else { return }
+                continuePrepare()
+            }
+        }
         .sheet(isPresented: $isShowingTransmissionNotice) {
             YouTubeTransmissionNoticeView { consent in
                 guard youtube.acknowledgeYouTubeTransmission(consent) else { return }
-                onPrepare?(.youtube)
+                onPrepare?(editor.provider)
             }
         }
+    }
+
+    private var prepareButtonTitle: String {
+        if onPrepare == nil { return String(localized: "저장") }
+        if youtube.preparationStatus?.isFailed == true { return String(localized: "다시 시도") }
+        return String(localized: "방송 준비")
+    }
+
+    private var isPrepareButtonDisabled: Bool {
+        if onPrepare == nil { return youtube.isBroadcastSettingsLocked }
+        if youtube.preparationStatus?.isRunning == true || youtube.preparationStatus?.phase == .cancelling {
+            return true
+        }
+        if planStore.snapshot.map({ !$0.canPrepare(youtube.currentPlanMode) }) == true { return true }
+        if !youtube.isSettingsAccountConnected(editor.provider) { return true }
+        return youtube.isBroadcastSettingsLocked && youtube.preparationStatus?.isFailed != true
     }
 
     private var defaultsSection: some View {
@@ -234,13 +267,24 @@ struct BroadcastSettingsView: View {
     private func primaryAction() {
         editor.showValidation()
         guard editor.validation.isEmpty else { return }
-        if let onPrepare {
-            if editor.provider == .youtube, !youtube.hasAcknowledgedYouTubeTransmission {
-                transmissionNotice.reset()
-                isShowingTransmissionNotice = true
-            } else { onPrepare(editor.provider) }
-        } else {
+        guard onPrepare != nil else {
             Task { isSaved = await youtube.saveEditorSettings(accessToken: token) }
+            return
+        }
+        guard youtube.isSettingsAccountConnected(editor.provider) else { return }
+        guard authentication.hasAcceptedMediaTransmission else {
+            isShowingMediaConsent = true
+            return
+        }
+        continuePrepare()
+    }
+
+    private func continuePrepare() {
+        if editor.provider == .youtube, !youtube.hasAcknowledgedYouTubeTransmission {
+            transmissionNotice.reset()
+            isShowingTransmissionNotice = true
+        } else {
+            onPrepare?(editor.provider)
         }
     }
 }
