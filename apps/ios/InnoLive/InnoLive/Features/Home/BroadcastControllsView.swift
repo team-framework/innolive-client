@@ -20,6 +20,7 @@ struct BroadcastControllsView: View {
 
     var body: some View {
         VStack(spacing: 10) {
+            BroadcastSessionStatusView(youtube: youtube)
             if !isShowingBroadcastSettings, let feedback {
                 BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
                     youtube.dismissError()
@@ -113,7 +114,7 @@ struct BroadcastControllsView: View {
             Button(String(localized: "방송 종료"), role: .destructive, action: stopYouTubeStream)
             Button(String(localized: "취소"), role: .cancel) { }
         } message: {
-            Text(String(localized: "YouTube에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
+            Text(String(localized: "방송 플랫폼에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
         }
     }
 

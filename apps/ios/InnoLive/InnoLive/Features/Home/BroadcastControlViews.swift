@@ -110,6 +110,50 @@ struct ServerConnectionControlLabel: View {
     }
 }
 
+struct BroadcastSessionStatusView: View {
+    @ObservedObject var youtube: YouTubeIntegration
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(youtube.visibleBroadcastTargets) { target in
+                let policy = YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false)
+                Text(policy.streamStatusText.replacingOccurrences(of: "YouTube", with: target.title))
+            }
+            if youtube.isYouTubeBroadcastActive {
+                HStack {
+                    if let resolution = youtube.broadcastResolution {
+                        Text(resolution.uppercased())
+                    }
+                    if youtube.hasStartedYouTubeBroadcast {
+                        switch youtube.broadcastRemainingTime {
+                        case .seconds(let seconds):
+                            Text(String(localized: "남은 방송 시간 \(max(0, seconds) / 60)분"))
+                        case .unlimitedOrInactive:
+                            Text(String(localized: "방송 시간 제한 없음"))
+                        case .missing:
+                            EmptyView()
+                        }
+                    }
+                }
+            }
+            if youtube.responseState.details.resolutionSwitch?.status == "switching" {
+                Text(String(localized: "방송 화질을 전환하고 있습니다."))
+            }
+            if !(youtube.responseState.details.resolutionSwitch?.failedTargets ?? []).isEmpty {
+                Text(String(localized: "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."))
+            }
+            if !youtube.responseState.details.failedTargets.isEmpty {
+                Text(String(localized: "일부 방송 플랫폼의 라이브 시작에 실패했습니다."))
+            }
+            if !youtube.responseState.details.warnings.isEmpty {
+                Text(String(localized: "방송은 준비되었지만 일부 설정을 적용하지 못했습니다."))
+            }
+        }
+        .font(.caption)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct BroadcastFeedback {
     let message: String
     let isError: Bool
