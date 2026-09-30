@@ -77,25 +77,28 @@ class CameraFrameAnalyzerDeviceTest {
         }
     }
 
-    @Test fun measure1080pCameraCopyThroughProtectedDelivery() {
+    @Test fun measure1080pUprightGpuProtectedDelivery() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions())
         val delivered = AtomicReference<CountDownLatch>()
         val failed = AtomicInteger()
         val finishedNs = java.util.concurrent.atomic.AtomicLong()
+        val outputGeometry = AtomicReference<Triple<Int, Int, Int>>()
+        val outputTimestampNs = java.util.concurrent.atomic.AtomicLong()
+        val outputIsTexture = AtomicReference<Boolean>()
         val analyzer = CameraFrameAnalyzer(object : CapturerObserver {
             override fun onCapturerStarted(success: Boolean) = Unit
             override fun onCapturerStopped() = Unit
             override fun onFrameCaptured(frame: VideoFrame) {
-                assertEquals(1920, frame.buffer.width)
-                assertEquals(1080, frame.buffer.height)
-                assertEquals(90, frame.rotation)
+                outputGeometry.set(Triple(frame.buffer.width, frame.buffer.height, frame.rotation))
+                outputTimestampNs.set(frame.timestampNs)
+                outputIsTexture.set(frame.buffer is VideoFrame.TextureBuffer)
                 finishedNs.set(System.nanoTime())
-                delivered.get().countDown()
+                delivered.get()?.countDown()
             }
         }, context, initialOnDevice = true, onProcessingFailure = {
-            failed.incrementAndGet(); delivered.get().countDown()
+            failed.incrementAndGet(); delivered.get()?.countDown()
         })
         analyzer.start()
         assertTrue(analyzer.awaitProtectedPreparation())
@@ -110,6 +113,9 @@ class CameraFrameAnalyzerDeviceTest {
                 val copyMs = (System.nanoTime() - started) / 1e6
                 assertTrue(latch.await(20, TimeUnit.SECONDS))
                 assertEquals(0, failed.get())
+                assertEquals(Triple(1080, 1920, 0), outputGeometry.get())
+                assertEquals(3_000_000_000L + sample * 100_000_000L, outputTimestampNs.get())
+                assertTrue("Protected GPU output must remain a texture", outputIsTexture.get() == true)
                 assertTrue(input.second.await(1, TimeUnit.SECONDS))
                 Log.i("PrivacyPerformance", "camera_full sample=$sample copy_ms=$copyMs " +
                     "total_ms=${(finishedNs.get() - started) / 1e6}")

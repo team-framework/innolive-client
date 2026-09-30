@@ -131,7 +131,12 @@ class PrivacyPerformanceDeviceTest {
                 try {
                     repeat(4) { sample ->
                         val output = processor.process(frame)
-                        try { assertEquals(width, output.buffer.width); assertEquals(height, output.buffer.height) }
+                        try {
+                            assertTrue("Protected GPU output must remain a texture", output.buffer is VideoFrame.TextureBuffer)
+                            assertEquals(height, output.buffer.width)
+                            assertEquals(width, output.buffer.height)
+                            assertEquals(0, output.rotation)
+                        }
                         finally { output.release() }
                         Log.i(TAG, "frame=${width}x$height sample=$sample ${processor.lastTimings}")
                     }

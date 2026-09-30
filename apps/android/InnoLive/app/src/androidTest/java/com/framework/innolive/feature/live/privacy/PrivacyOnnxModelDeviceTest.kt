@@ -31,15 +31,25 @@ class PrivacyOnnxModelDeviceTest {
                     val frame = VideoFrame(buffer, rotation, 100L + sample)
                     try {
                         val output = processor.process(frame)
-                        assertEquals(width, output.buffer.width); assertEquals(height, output.buffer.height)
-                        assertEquals(rotation, output.rotation); assertEquals(100L + sample, output.timestampNs)
-                        val plane = output.buffer.toI420()!!
-                        try { assertTrue(kotlin.math.abs((if (sample == 0) 40 else 180) - (plane.dataY.get(0).toInt() and 255)) <= 2) }
-                        finally { plane.release() }
-                        if (sample == 0) earlier = output else output.release()
-                        earlier!!.buffer.toI420()!!.let { held ->
-                            try { assertTrue(kotlin.math.abs(40 - (held.dataY.get(0).toInt() and 255)) <= 2) }
-                            finally { held.release() }
+                        var keptAsEarlier = false
+                        try {
+                            val uprightWidth = if (rotation % 180 == 0) width else height
+                            val uprightHeight = if (rotation % 180 == 0) height else width
+                            assertTrue("Protected GPU output must remain a texture", output.buffer is VideoFrame.TextureBuffer)
+                            assertEquals(uprightWidth, output.buffer.width)
+                            assertEquals(uprightHeight, output.buffer.height)
+                            assertEquals(0, output.rotation)
+                            assertEquals(100L + sample, output.timestampNs)
+                            val plane = output.buffer.toI420()!!
+                            try { assertTrue(kotlin.math.abs((if (sample == 0) 40 else 180) - (plane.dataY.get(0).toInt() and 255)) <= 2) }
+                            finally { plane.release() }
+                            if (sample == 0) { earlier = output; keptAsEarlier = true }
+                            earlier!!.buffer.toI420()!!.let { held ->
+                                try { assertTrue(kotlin.math.abs(40 - (held.dataY.get(0).toInt() and 255)) <= 2) }
+                                finally { held.release() }
+                            }
+                        } finally {
+                            if (!keptAsEarlier) output.release()
                         }
                     } finally { frame.release() }
                 }
@@ -63,7 +73,7 @@ class PrivacyOnnxModelDeviceTest {
         bitmap.recycle()
     }
 
-    @Test fun processedFramePreservesSensorGeometryRotationAndTimestamp() {
+    @Test fun processedGpuFrameUsesUprightGeometryAndPreservesTimestamp() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         PeerConnectionFactory.initialize(
             PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions(),
@@ -80,9 +90,10 @@ class PrivacyOnnxModelDeviceTest {
             PrivacyFrameProcessor(context).use { processor ->
                 val result = processor.process(source)
                 try {
-                    assertEquals(64, result.buffer.width)
-                    assertEquals(48, result.buffer.height)
-                    assertEquals(90, result.rotation)
+                    assertTrue("Protected GPU output must remain a texture", result.buffer is VideoFrame.TextureBuffer)
+                    assertEquals(48, result.buffer.width)
+                    assertEquals(64, result.buffer.height)
+                    assertEquals(0, result.rotation)
                     assertEquals(123_456L, result.timestampNs)
                 } finally {
                     result.release()
@@ -91,6 +102,30 @@ class PrivacyOnnxModelDeviceTest {
         } finally {
             source.release()
         }
+    }
+
+    @Test fun cpuFallbackPreservesSensorGeometryRotationAndTimestamp() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        PeerConnectionFactory.initialize(
+            PeerConnectionFactory.InitializationOptions.builder(context).createInitializationOptions(),
+        )
+        val buffer = JavaI420Buffer.allocate(64, 48).apply {
+            repeat(dataY.capacity()) { dataY.put(it, 114.toByte()) }
+            repeat(dataU.capacity()) { dataU.put(it, 128.toByte()) }
+            repeat(dataV.capacity()) { dataV.put(it, 128.toByte()) }
+        }
+        val source = VideoFrame(buffer, 90, 123_456L)
+        try {
+            PrivacyFrameProcessor(context, allowGpuImages = false).use { processor ->
+                val result = processor.process(source)
+                try {
+                    assertEquals(64, result.buffer.width)
+                    assertEquals(48, result.buffer.height)
+                    assertEquals(90, result.rotation)
+                    assertEquals(123_456L, result.timestampNs)
+                } finally { result.release() }
+            }
+        } finally { source.release() }
     }
 
     @Test fun protectedMaskChangesOnlyTheProtectedImageRegion() {
