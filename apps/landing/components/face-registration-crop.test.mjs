@@ -12,7 +12,15 @@ const drawVisibleCrop = runInNewContext(`${transpileModule(crop, {}).outputText}
   FaceRegistrationError: Error,
 });
 
-test('영상과 레이아웃 비율이 달라도 확대된 가이드를 정사각형 크롭에 포함한다', () => {
+test('영상 비율이 달라도 인식 크롭은 새 가이드보다 10% 큰 영역을 포함한다', () => {
+  const recognitionWidth = 309 * 1.1;
+  const recognitionHeight = 342 * 1.1;
+  const halfWidth = recognitionWidth / 2;
+  const halfHeight = recognitionHeight / 2;
+  const left = 202.5 - halfWidth;
+  const right = 202.5 + halfWidth;
+  const top = 326 - halfHeight;
+  const bottom = 326 + halfHeight;
   for (const [videoWidth, videoHeight] of [[1280, 720], [720, 1280], [720, 720]]) {
     for (const [previewWidth, previewHeight] of [[405, 720], [405, 584], [340, 460]]) {
       let drawn;
@@ -27,10 +35,15 @@ test('영상과 레이아웃 비율이 달라도 확대된 가이드를 정사�
       const screenX = x * scale - (videoWidth * scale - previewWidth) / 2;
       const screenY = y * scale - (videoHeight * scale - previewHeight) / 2;
       const epsilon = 1e-9;
-      assert.ok(screenX <= previewWidth * 45.75 / 405 + epsilon);
-      assert.ok(screenY <= previewHeight * 43.2 / 720 + epsilon);
-      assert.ok(screenX + width * scale >= previewWidth * 359.25 / 405 - epsilon);
-      assert.ok(screenY + height * scale >= previewHeight * 390.8 / 720 - epsilon);
+      const expectedSide = Math.max(
+        previewWidth * recognitionWidth / 405,
+        previewHeight * recognitionHeight / 720,
+      );
+      assert.ok(Math.abs(width * scale - expectedSide) <= epsilon);
+      assert.ok(screenX <= previewWidth * left / 405 + epsilon);
+      assert.ok(screenY <= previewHeight * top / 720 + epsilon);
+      assert.ok(screenX + width * scale >= previewWidth * right / 405 - epsilon);
+      assert.ok(screenY + height * scale >= previewHeight * bottom / 720 - epsilon);
     }
   }
 });
