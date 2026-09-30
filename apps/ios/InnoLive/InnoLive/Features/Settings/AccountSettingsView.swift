@@ -4,6 +4,7 @@ struct AccountSettingsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @State private var isShowingDeleteConfirmation = false
+    @State private var isSigningOut = false
 
     private var isYouTubeBusy: Bool {
         youtube.isConnecting
@@ -15,7 +16,7 @@ struct AccountSettingsView: View {
     }
 
     private var isDeletionBlocked: Bool {
-        authentication.isDeletingAccount || isYouTubeBusy
+        authentication.isDeletingAccount || isYouTubeBusy || isSigningOut
     }
 
     var body: some View {
@@ -23,8 +24,11 @@ struct AccountSettingsView: View {
             InnoLiveGlassContainer {
                 VStack(spacing: 12) {
                     Button {
-                        youtube.reset()
-                        authentication.signOut()
+                        isSigningOut = true
+                        Task { @MainActor in
+                            await youtube.signOut(authentication: authentication)
+                            isSigningOut = false
+                        }
                     } label: {
                         SettingsGlassRow {
                             HStack(spacing: 12) {
@@ -38,7 +42,7 @@ struct AccountSettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .disabled(authentication.isDeletingAccount)
+                    .disabled(authentication.isDeletingAccount || isSigningOut)
 
                     Button(role: .destructive) {
                         isShowingDeleteConfirmation = true
