@@ -78,10 +78,10 @@ export function FeatureSection() {
         const timeline = gsap.timeline({
           scrollTrigger: {
             anticipatePin: 1,
-            end: () => `+=${window.innerHeight * (rows.length + 1)}`,
+            end: () => `+=${Math.min(640, window.innerHeight * 0.75)}`,
             invalidateOnRefresh: true,
             pin: true,
-            scrub: 0.35,
+            scrub: 0.2,
             start: () => `top ${headerHeight()+60}px`,
             trigger: section,
           },
