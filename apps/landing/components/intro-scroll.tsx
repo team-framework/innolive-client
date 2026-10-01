@@ -10,7 +10,7 @@ import { interpolate } from "@/lib/locales";
 
 const INTRO_COMPLETE_EVENT = "innolive:intro-complete";
 const INTRO_SCROLL_SPEED = 1.3;
-const INTRO_FOCUS_SCROLL_RANGE = 1;
+const INTRO_FOCUS_SCROLL_RANGE = 1.8;
 const INTRO_EXIT_SCROLL_LOCK_MS = 400;
 
 function markIntroComplete() {
