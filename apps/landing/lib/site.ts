@@ -56,7 +56,7 @@ export const socialLinks = [
   {
     name: "LinkedIn",
     src: "/social/linkedin.png",
-    href: null as string | null,
+    href: "https://www.linkedin.com/company/team-framework",
   },
   {
     name: "GitHub",
@@ -66,6 +66,6 @@ export const socialLinks = [
   {
     name: "YouTube",
     src: "/social/youtube.png",
-    href: null as string | null,
+    href: "https://www.youtube.com/@Team-Framework",
   },
 ] as const;

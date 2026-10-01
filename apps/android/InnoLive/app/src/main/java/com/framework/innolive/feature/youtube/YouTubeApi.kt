@@ -35,7 +35,7 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
         }
     }
 
-    suspend fun connect(serverAuthCode: String, accessToken: String): Unit = withContext(Dispatchers.IO) {
+    suspend fun connect(serverAuthCode: String, accessToken: String): StreamingAccount = withContext(Dispatchers.IO) {
         require(serverAuthCode.isNotBlank()) { "YouTube server authorization code must not be blank." }
         execute(
             requestBuilder("/auth/youtube/connect")
@@ -52,6 +52,13 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
         ) { body ->
             val response = JSONObject(body)
             check(response.optBoolean("connected") && response.optString("provider") == "youtube")
+            val channel = response.getJSONObject("channel")
+            StreamingAccount(
+                provider = "youtube",
+                channelId = channel.requiredString("id"),
+                channelTitle = channel.optString("title").trim(),
+                reconnectRequired = false,
+            )
         }
     }
 
@@ -111,6 +118,9 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
                     operation = operation,
                     errorCode = parseYouTubeApiErrorCode(body),
                     serverMessage = parseYouTubeApiErrorMessage(body),
+                    helpUrl = parseYouTubeApiErrorDetail(body, "help_url"),
+                    field = parseYouTubeApiErrorDetail(body, "field"),
+                    reason = parseYouTubeApiErrorDetail(body, "reason"),
                 )
             }
             parse(body)

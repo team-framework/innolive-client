@@ -1,0 +1,1 @@
+{"error":{"code":"bad_request","message":"Invalid broadcast settings.","details":{"field":"category_id","reason":"category_type and category_id must be set together"}}}

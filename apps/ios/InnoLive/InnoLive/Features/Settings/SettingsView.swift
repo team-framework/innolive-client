@@ -51,6 +51,15 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
 
                     NavigationLink {
+                        PlanUsageView(authentication: authentication, youtube: youtube)
+                    } label: {
+                        SettingsGlassRow {
+                            settingsRowContent(title: String(localized: "요금제 및 사용량"), systemImage: "clock")
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    NavigationLink {
                         AccountSettingsView(authentication: authentication, youtube: youtube)
                     } label: {
                         SettingsGlassRow {

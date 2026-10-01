@@ -38,7 +38,7 @@
     "ceo": "Framework CEO: Chae Geun-yeong",
     "dpo": "Privacy Officer: Kwon Dae-hyeong",
     "phone": "Phone: 010-2732-9514",
-    "address": "Address: 93 Changni-ro 11-gil, Guji-myeon, Dalseong-gun, Daegu, Republic of Korea",
+    "address": "Address: 93 Changni-ro 11-gil, Guji-eup, Dalseong-gun, Daegu, Republic of Korea",
     "copyright": "Copyright © 2026 Framework",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
@@ -69,9 +69,18 @@
     "body2": "bystanders' portrait rights and your broadcast at the same time.",
     "empty": "De-identification demo coming soon",
     "slides": [
-      { "alt": "Broadcast setup screen", "label": "Broadcast setup screen" },
-      { "alt": "Face registration screen", "label": "Face registration screen" },
-      { "alt": "Broadcast settings screen", "label": "Broadcast settings screen" }
+      {
+        "alt": "Broadcast setup screen",
+        "label": "Broadcast setup screen"
+      },
+      {
+        "alt": "Face registration screen",
+        "label": "Face registration screen"
+      },
+      {
+        "alt": "Broadcast settings screen",
+        "label": "Broadcast settings screen"
+      }
     ]
   },
   "features": {
@@ -122,80 +131,84 @@
     "headingBrand": "InnoLive",
     "headingMid": "'s ",
     "headingAccent": "potential, unlocked",
-    "body1": "Unlock every InnoLive feature at a reasonable price.",
-    "body2": "Plans include real-time face replacement and higher usage.",
+    "body1": "Choose a plan for your streaming mode and broadcast time.",
+    "body2": "All personal plans cost ₩0/month during the beta.",
     "subscribeBrand": "InnoLive",
     "subscribe": "Subscribe to a plan",
     "personalLabel": "Personal plans",
     "businessTitle": "Plans for crews and businesses",
-    "businessBody": "Run streams more easily and affordably with Crew and Business.",
+    "businessBody": "Contact us for Crew and Business pricing and broadcast-time allowances.",
     "businessLabel": "Business plans",
     "termsNote": "Terms apply.",
     "termsLink": "Learn more",
     "loginCta": "Log in to use the free plan",
     "scrollLeft": "Scroll left",
-    "scrollRight": "Scroll right"
+    "scrollRight": "Scroll right",
+    "usageNote": "Monthly time is deducted at 1× for 720p single, 2× for FHD single or 720p simulcast, and 3× for FHD simulcast. Per-broadcast limits use actual elapsed time."
   },
   "plans": {
     "periodMonth": "month",
     "periodOnce": "one-time",
     "ribbon": "Beta tester",
     "personal": {
-      "free": {
-        "description": "Essential protection",
+      "spark": {
+        "description": "Essential privacy protection",
         "cta": "Current plan",
         "features": [
-          "Accurate de-identification for every bystander",
-          "Limited use of higher-tier models",
-          "X hours of continuous streaming",
+          "Face-outline and license-plate anonymization",
+          "5 h/month · 720p to one platform",
+          "Up to 2 h per broadcast",
           "Register up to 2 faces",
           "Android and iOS apps"
         ]
       },
-      "streamer": {
-        "description": "Segmentation and more usage",
-        "cta": "Subscribe to Streamer",
+      "glow": {
+        "description": "On your device, without time limits",
+        "cta": "Subscribe to Glow",
         "features": [
-          "Everything in Free",
-          "Improved de-identification with segmentation",
-          "2× usage",
-          "XX hours of continuous streaming",
+          "Face-outline and license-plate anonymization",
+          "Unlimited monthly and per-broadcast time",
+          "Process on your device, stream to one platform",
+          "Broadcast regardless of server congestion",
+          "Register up to 2 faces",
+          "Android and iOS apps"
+        ],
+        "helpLabel": "Glow on-device details",
+        "footnotes": [
+          "*Processing speed depends on your device."
+        ]
+      },
+      "beam": {
+        "description": "FHD or two platforms at once",
+        "cta": "Subscribe to Beam",
+        "features": [
+          "Spark anonymization features",
+          "120 h/month · 720p to one platform",
+          "FHD single or 720p simulcast: 60 h/month",
+          "Up to 8 h per broadcast",
+          "Dedicated broadcast capacity",
           "Register up to 5 faces"
         ]
       },
-      "pro": {
-        "description": "Face replacement and top performance",
-        "cta": "Subscribe to Pro",
+      "plasma": {
+        "description": "FHD simulcast and more broadcast time",
+        "cta": "Subscribe to Plasma",
         "features": [
-          "Everything in Streamer",
-          "More natural streams with real-time face replacement",
-          "3× usage",
-          "Access to experimental models"
-        ]
-      },
-      "onDevice": {
-        "description": "Unlimited usage and maximum privacy",
-        "cta": "Pay for On Device",
-        "helpLabel": "On Device details",
-        "features": [
-          "Accurate de-identification for every bystander",
-          "Pay once, use permanently",
-          "All limits removed",
-          "Android and iOS apps",
-          "De-identify on device, then stream",
-          "No added streaming delay"
-        ],
-        "footnotes": [
-          "*The plan may be cancelled when the promotion ends.",
-          "*De-identification quality can vary with device performance."
+          "Beam anonymization features",
+          "240 h/month · 720p to one platform",
+          "FHD single or 720p simulcast: 120 h/month",
+          "FHD simulcast: 80 h/month",
+          "Up to 12 h per broadcast",
+          "Priority broadcast capacity",
+          "Register up to 10 faces"
         ]
       }
     },
     "business": {
       "crew": {
         "description": "One plan, lower cost",
-        "amount": "30,000 ~ ₩93,500",
-        "cta": "Subscribe to Crew",
+        "amount": "Contact us",
+        "cta": "Contact us",
         "features": ["Share up to 3 accounts", "Every feature of the selected plan"]
       },
       "business": {
@@ -208,10 +221,10 @@
   },
   "onDevice": {
     "subtitle": "Everything stays on the device",
-    "pay": "Pay for On Device",
+    "pay": "Subscribe to Glow",
     "termsNote": "*Terms apply.",
     "termsLink": "Learn more",
-    "body": "Content coming soon"
+    "body": "Glow anonymizes faces and license plates on your device before streaming. It costs ₩9,900/month, or ₩0/month during the beta. Broadcast time is unlimited; processing speed depends on your device."
   },
   "tryOut": {
     "ariaLabel": "The moment it appears, protection starts",
@@ -246,6 +259,33 @@
     "registered": "Your face has been registered.",
     "guide": "Place your face inside the circle and wait a moment."
   },
+  "faceRegistration": {
+    "dialogLabel": "Face registration",
+    "previewLabel": "Face registration camera preview",
+    "retry": "Try again",
+    "status": {
+      "preparing": "Preparing face registration.",
+      "finding": "Looking for a face.",
+      "multiple": "Place only one face inside the circle.",
+      "hold": "Please stay still for a moment.",
+      "registering": "Registering your face."
+    },
+    "errors": {
+      "previewStart": "Could not start the camera preview.",
+      "cameraPermission": "Please allow camera access.",
+      "cameraNotFound": "No camera was found.",
+      "lowResolution": "The camera resolution is too low. Please use a higher-resolution camera.",
+      "imageCreate": "Could not create the face image.",
+      "jpegConversion": "Could not convert the face image.",
+      "detectorStart": "Could not prepare face detection.",
+      "serverConnection": "Could not connect to the face registration server.",
+      "faceNotDetected": "No face was detected. Please try again.",
+      "sessionExpired": "Your session has expired. Please log in again.",
+      "serverRequest": "Face registration failed. Please try again.",
+      "serverIncomplete": "Could not confirm the face registration result.",
+      "unknown": "Something went wrong during face registration. Please try again."
+    }
+  },
   "experience": {
     "title": "Real-time de-identification demo",
     "preparing": "Preparing the experience connection.",
@@ -260,6 +300,7 @@
     "retry": "Try again",
     "end": "End experience",
     "restart": "Start again",
+    "faceRegistered": "Face registration completed.",
     "errors": {
       "permission": "Please allow camera access.",
       "notFound": "No camera was found.",

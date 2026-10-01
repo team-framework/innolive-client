@@ -27,7 +27,7 @@ export function OnDeviceHelp({ label }: { label: string }) {
           className="size-7"
         />
       </button>
-      <Dialog open={open} onClose={() => setOpen(false)} label="On Device">
+      <Dialog open={open} onClose={() => setOpen(false)} label="Glow">
         <OnDeviceOverlay />
       </Dialog>
     </>

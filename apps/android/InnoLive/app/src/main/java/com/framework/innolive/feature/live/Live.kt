@@ -53,6 +53,10 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
+import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
+import com.framework.innolive.ui.text.ServerErrorAction
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
@@ -72,6 +76,21 @@ fun LiveScreen(
     var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
+    var testUsageWarningOverride by remember { mutableStateOf(false) }
+    var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
+    val sessionSnapshot = webRtcSession.sessionSnapshot
+    val sessionId = webRtcSession.sessionSnapshot?.sessionId
+    val activeNoticeCode = if (testUsageWarningOverride) {
+        "monthly_usage_80"
+    } else {
+        sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
+            notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
+        }?.code
+    }
+    LaunchedEffect(sessionId) {
+        dismissedNoticeCodes = emptySet()
+        testUsageWarningOverride = false
+    }
     val context = LocalContext.current
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
@@ -108,6 +127,12 @@ fun LiveScreen(
     val requestMissingMediaPermissions = {
         if (missingMediaPermissions.isNotEmpty()) {
             mediaPermissionLauncher.launch(missingMediaPermissions.toTypedArray())
+        }
+    }
+    LaunchedEffect(webRtcSession.serverError) {
+        if (webRtcSession.serverError?.action == ServerErrorAction.EDIT_SETTINGS) {
+            openBroadcastActions = false
+            openYouTubeSettingsDialog = true
         }
     }
     LaunchedEffect(webRtcSession) {
@@ -199,6 +224,17 @@ fun LiveScreen(
             color = Color.White,
         )
 
+        SessionUsageWarningBanner(
+            noticeCode = activeNoticeCode,
+            onDismissRequest = { code ->
+                dismissedNoticeCodes = dismissedNoticeCodes + code
+                if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
+            },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(start = 10.dp, top = 56.dp, end = 10.dp),
+        )
+
         LiveSideControls(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -232,6 +268,18 @@ fun LiveScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (BuildConfig.DEBUG) {
+                TextButton(onClick = {
+                    testUsageWarningOverride = !testUsageWarningOverride
+                }) {
+                    Text(
+                        stringResource(
+                            if (testUsageWarningOverride) R.string.session_usage_warning_test_hide
+                            else R.string.session_usage_warning_test_show,
+                        ),
+                    )
+                }
+            }
             BroadcastActionControls(
                 presentation = presentation,
                 onBroadcastAction = {
@@ -263,9 +311,18 @@ fun LiveScreen(
                             isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
                             isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
                             isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
-                            onSettingsChanged = props.onBroadcastSettingsChanged,
+                            serverError = webRtcSession.serverError?.takeIf {
+                                it.action == ServerErrorAction.EDIT_SETTINGS
+                            },
+                            onSettingsChanged = {
+                                webRtcSession.dismissServerError()
+                                props.onBroadcastSettingsChanged(it)
+                            },
                             onConnectYouTube = props.onConnectYouTube,
-                            onDismissRequest = { openYouTubeSettingsDialog = false },
+                            onDismissRequest = {
+                                openYouTubeSettingsDialog = false
+                                webRtcSession.dismissServerError()
+                            },
                             onPrepare = {
                                 if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
                                     mediaPermissions.refresh()
@@ -357,6 +414,28 @@ fun LiveScreen(
                 }
             }
         }
+    }
+    webRtcSession.serverError?.takeIf { it.action != ServerErrorAction.EDIT_SETTINGS }?.let { guidance ->
+        ServerErrorDialog(
+            guidance = guidance,
+            onDismiss = webRtcSession::dismissServerError,
+            onAction = {
+                when (guidance.action) {
+                    ServerErrorAction.CONFIRM_CONCURRENT -> webRtcSession.confirmConcurrentBroadcast()
+                    ServerErrorAction.RETRY -> webRtcSession.retryBroadcast()
+                    ServerErrorAction.CONNECT, ServerErrorAction.RECONNECT -> {
+                        webRtcSession.dismissServerError()
+                        openYouTubeSettingsDialog = true
+                        props.onConnectYouTube()
+                    }
+                    ServerErrorAction.LOGIN -> {
+                        webRtcSession.dismissServerError()
+                        props.onAuthenticationExpired()
+                    }
+                    else -> webRtcSession.dismissServerError()
+                }
+            },
+        )
     }
 }
 

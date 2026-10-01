@@ -12,14 +12,15 @@ struct BroadcastControllsView: View {
     @Binding var previewTransition: BroadcastPreviewTransition
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
-    let isStartingServerConnection: Bool
-    let onRetryConnection: () -> Void
+    let onPrepareBroadcast: (BroadcastSettingsProvider) async -> Void
+    let onCancelPreparation: () async -> Void
 
     @State private var isShowingBroadcastSettings = false
     @State private var isShowingBroadcastActions = false
 
     var body: some View {
         VStack(spacing: 10) {
+            BroadcastSessionStatusView(authentication: authentication, youtube: youtube)
             if !isShowingBroadcastSettings, let feedback {
                 BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
                     youtube.dismissError()
@@ -45,7 +46,10 @@ struct BroadcastControllsView: View {
                                     isLoading: youtube.isChangingStreamState
                                 )
                             } else {
-                                ServerConnectionControlLabel(isLoading: isPreparingConnection)
+                                BroadcastPreparationControlLabel(
+                                    status: youtube.preparationStatus,
+                                    isLoading: isPreparingConnection
+                                )
                             }
                         }
                         .innoLiveGlassButtonStyle(prominent: true)
@@ -56,8 +60,8 @@ struct BroadcastControllsView: View {
                         .layoutPriority(1)
                         .accessibilityHint(primaryActionHint)
                         .contextMenu {
-                            if youtube.broadcastPhase == "prepared" {
-                                Button(role: .destructive, action: cancelYouTubePreparation) {
+                            if canCancelPreparation {
+                                Button(role: .destructive, action: cancelPreparation) {
                                     Label(String(localized: "방송 준비 취소"), systemImage: "xmark.circle.fill")
                                 }
                             }
@@ -77,6 +81,17 @@ struct BroadcastControllsView: View {
                         )
                         .accessibilityHint(String(localized: "서버 영상 연결을 유지한 채 AI 비식별화 처리를 켜거나 끕니다."))
                     }
+
+                    if canCancelPreparation {
+                        Button(role: .destructive, action: cancelPreparation) {
+                            Text(youtube.preparationStatus?.phase == .cancelling
+                                 ? String(localized: "준비 취소 중")
+                                 : String(localized: "준비 취소"))
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity, minHeight: 36)
+                        }
+                        .disabled(youtube.preparationStatus?.phase == .cancelling)
+                    }
                 }
             }
         }
@@ -85,20 +100,21 @@ struct BroadcastControllsView: View {
                 BroadcastSettingsView(
                     authentication: authentication,
                     youtube: youtube,
-                    onPrepare: prepareYouTubeStream
+                    onPrepare: prepareYouTubeStream,
+                    onCancelPreparation: cancelPreparation
                 )
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button(String(localized: "닫기")) {
                             isShowingBroadcastSettings = false
                         }
-                        .disabled(youtube.isChangingStreamState)
+                        .disabled(isPreparationSheetLocked)
                     }
                 }
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            .interactiveDismissDisabled(youtube.isChangingStreamState)
+            .interactiveDismissDisabled(isPreparationSheetLocked)
         }
         .confirmationDialog(
             String(localized: "방송 제어"),
@@ -113,17 +129,31 @@ struct BroadcastControllsView: View {
             Button(String(localized: "방송 종료"), role: .destructive, action: stopYouTubeStream)
             Button(String(localized: "취소"), role: .cancel) { }
         } message: {
-            Text(String(localized: "YouTube에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
+            Text(String(localized: "방송 플랫폼에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
         }
     }
 
     private var isPreparingConnection: Bool {
-        isStartingServerConnection
-            || previewTransition != .none
+        previewTransition != .none
             || youtube.isPreparingSession
             || youtube.isConnectingVideo
             || youtube.isRecoveringVideoFailure
             || youtube.videoUplink.isConnecting
+            || youtube.preparationStatus?.isRunning == true
+            || youtube.preparationStatus?.phase == .cancelling
+    }
+
+    private var isPreparationSheetLocked: Bool {
+        youtube.isChangingStreamState
+            || youtube.preparationStatus?.isRunning == true
+            || youtube.preparationStatus?.phase == .cancelling
+    }
+
+    private var canCancelPreparation: Bool {
+        if youtube.hasStartedYouTubeBroadcast { return false }
+        if youtube.broadcastPhase == "live" || youtube.broadcastPhase == "going_live" { return false }
+        if youtube.preparationStatus != nil { return true }
+        return youtube.broadcastPhase == "prepared" || youtube.isVideoConnected
     }
 
     private var isYouTubeStreaming: Bool {
@@ -131,7 +161,8 @@ struct BroadcastControllsView: View {
     }
 
     private var isPrimaryActionDisabled: Bool {
-        isPreparingConnection
+        let preparationFailed = youtube.preparationStatus?.isFailed == true
+        return (!preparationFailed && isPreparingConnection)
             || youtube.videoUplink.isSwitchingCamera
             || youtube.isChangingStreamState
             || previewTransition == .stopping
@@ -157,7 +188,10 @@ struct BroadcastControllsView: View {
 
     private var primaryActionHint: String {
         if !isBroadcasting {
-            return String(localized: "카메라와 마이크를 서버에 다시 연결합니다.")
+            if youtube.preparationStatus?.isFailed == true {
+                return String(localized: "실패한 준비 단계부터 다시 시도합니다.")
+            }
+            return String(localized: "방송 설정을 확인하고 세션과 서버 연결을 시작합니다.")
         }
         if isYouTubeStreaming {
             return String(localized: "현재 방송 시간을 표시합니다. 누르면 방송 종료를 확인합니다.")
@@ -180,8 +214,13 @@ struct BroadcastControllsView: View {
     private func performPrimaryAction() {
         youtube.dismissError()
 
+        if youtube.preparationStatus?.isFailed == true, let provider = youtube.lastPreparationProvider {
+            prepareYouTubeStream(provider)
+            return
+        }
+
         guard isBroadcasting else {
-            onRetryConnection()
+            isShowingBroadcastSettings = true
             return
         }
 
@@ -196,10 +235,10 @@ struct BroadcastControllsView: View {
         }
     }
 
-    private func prepareYouTubeStream() {
+    private func prepareYouTubeStream(_ provider: BroadcastSettingsProvider) {
         Task {
-            await youtube.prepareYouTubeStream(accessToken: authentication.currentAccessToken())
-            if youtube.broadcastPhase == "prepared" {
+            await onPrepareBroadcast(provider)
+            if youtube.preparationStatus?.isFailed != true, youtube.broadcastPhase == "prepared" {
                 isShowingBroadcastSettings = false
             }
         }
@@ -227,9 +266,12 @@ struct BroadcastControllsView: View {
         }
     }
 
-    private func cancelYouTubePreparation() {
+    private func cancelPreparation() {
         Task {
-            await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken())
+            await onCancelPreparation()
+            if youtube.session == nil {
+                isShowingBroadcastSettings = false
+            }
         }
     }
 }

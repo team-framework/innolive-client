@@ -49,13 +49,6 @@ export function FaceOverlay({ overlay }: { overlay: FaceOverlaySpec }) {
           style={photoStyle}
         />
       </div>
-      <Image
-        src={mask.replace("/intro/masks/", "/intro/overlays/")}
-        alt=""
-        fill
-        unoptimized
-        className="object-fill"
-      />
     </div>
   );
 }
