@@ -28,6 +28,37 @@ class BroadcastApiFlowTest {
     private val settings = BroadcastSettings("검증", "검증 설명", "private", false, "22")
     private val accessToken = accessTokenFor("broadcast-api-user")
 
+    @Test fun chzzkPreparationDoesNotGoLiveOrSendYouTubeFields() {
+        Harness(provider = BroadcastProvider.CHZZK).use { h ->
+            assertTrue(h.connection.prepareBroadcast(ChzzkBroadcastSettings("치지직", "GAME", "GTA5", listOf("게임"))))
+            h.awaitState(BroadcastState.PREPARED)
+            val save = h.requests.first { it.method == "PUT" }
+            assertEquals("chzzk", save.url.queryParameter("provider"))
+            val body = JSONObject(h.body(save))
+            assertEquals("GAME", body.getString("category_type"))
+            assertFalse(body.has("made_for_kids"))
+            assertFalse(body.has("description"))
+            assertFalse(h.requests.any { it.url.encodedPath.endsWith("stream/golive") })
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.connection.resumeBroadcast()
+            h.awaitState(BroadcastState.LIVE)
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.IDLE)
+        }
+    }
+
+    @Test fun chzzkSaveMismatchCannotAdvanceToPrepare() {
+        Harness(provider = BroadcastProvider.CHZZK).use { h ->
+            h.chzzkSaveMismatch = true
+            assertTrue(h.connection.prepareBroadcast(ChzzkBroadcastSettings("치지직", "GAME", "GTA5")))
+            h.awaitState(BroadcastState.FAILED)
+            assertFalse(h.requests.any { it.url.encodedPath.endsWith("stream/prepare") })
+        }
+    }
+
     @Test fun disconnectedMediaCannotStartOrResumeBroadcastOnTheServer() {
         Harness().use { h ->
             assertTrue(h.connection.prepareBroadcast(settings))
@@ -487,6 +518,7 @@ class BroadcastApiFlowTest {
 
     private class Harness(
         private val broadcastCallbackExecutor: Executor? = null,
+        private val provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
         private val onBroadcastState: (BroadcastState) -> Unit = {},
     ) : AutoCloseable {
         val snapshots = CopyOnWriteArrayList<SessionSnapshot>()
@@ -517,6 +549,7 @@ class BroadcastApiFlowTest {
         @Volatile var deleteStatus = 204
         @Volatile var goLiveNotReady = false
         @Volatile var goLiveStatus = 200
+        @Volatile var chzzkSaveMismatch = false
         val goLiveAccepted = AtomicBoolean(false)
         @Volatile var acceptedAtGoLiveRequest = false
         @Volatile var serverErrorMessage: String? = null
@@ -531,6 +564,7 @@ class BroadcastApiFlowTest {
                 accessTokenFor("broadcast-api-user") + ".refreshed"
             },
             initialAnonymizationEnabled = false,
+            provider = provider,
             preferredAudioInput = null,
             onStateChanged = { state, failure ->
                 if (state == WebRtcConnectionState.FAILED && failure != null) connectionFailures.add(failure)
@@ -567,7 +601,12 @@ class BroadcastApiFlowTest {
                         reply.first
                     }
                     request.method == "DELETE" -> deleteStatus
-                    request.method == "PUT" -> settingsStatus
+                    request.method == "PUT" -> {
+                        if (provider == BroadcastProvider.CHZZK) {
+                            payload = """{"chzzk_broadcast":{"title":"${if (chzzkSaveMismatch) "다른 방송" else "치지직"}","category_type":"GAME","category_id":"GTA5","tags":["게임"]}}"""
+                        }
+                        settingsStatus
+                    }
                     request.method == "PATCH" -> {
                         val enabled = JSONObject(body(request)).getBoolean("enabled")
                         payload = """{"session_id":"test-session","media":{"anonymization_enabled":$enabled}}"""
@@ -580,12 +619,25 @@ class BroadcastApiFlowTest {
                     }
                     request.url.encodedPath.endsWith("golive") -> {
                         acceptedAtGoLiveRequest = goLiveAccepted.get()
+                        payload = """{"broadcast_phase":"live","status":"streaming"}"""
                         goLiveStatus
                     }
-                    request.url.encodedPath.endsWith("prepare") -> prepareStatus
-                    request.url.encodedPath.endsWith("stop") -> stopStatus
-                    request.url.encodedPath.endsWith("pause") -> pauseStatus
-                    request.url.encodedPath.endsWith("resume") -> resumeStatus
+                    request.url.encodedPath.endsWith("stop") -> {
+                        payload = """{"broadcast_phase":"idle","status":"idle"}"""
+                        stopStatus
+                    }
+                    request.url.encodedPath.endsWith("pause") -> {
+                        payload = """{"broadcast_phase":"live","status":"paused"}"""
+                        pauseStatus
+                    }
+                    request.url.encodedPath.endsWith("resume") -> {
+                        payload = """{"broadcast_phase":"live","status":"streaming"}"""
+                        resumeStatus
+                    }
+                    request.url.encodedPath.endsWith("prepare") -> {
+                        payload = """{"stream":{"broadcast_phase":"prepared","status":"idle"},"targets":[{"provider":"${provider.wireValue}","stream":{"broadcast_phase":"prepared","status":"idle"}}]}"""
+                        prepareStatus
+                    }
                     else -> 200
                 }
                 if (status < 400 && request.method != "GET") {
@@ -608,7 +660,7 @@ class BroadcastApiFlowTest {
             }.build()
             // 테스트에서만 연결 완료 세션과 HTTP 응답을 주입한다. 실제 DNS나 외부 계정은 사용하지 않는다.
             field("httpClient", client)
-            field("session", CreatedSession("test-session", "test-owner", AnonymizationState.DISABLED))
+            field("session", CreatedSession("test-session", "test-owner", AnonymizationState.DISABLED, provider))
             field("peerConnectionConnected", true)
             field("audioInputVerified", true)
         }
