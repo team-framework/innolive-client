@@ -181,10 +181,15 @@ final class BroadcastSettingsEditor: ObservableObject {
     }
 
     var validation: [String: String] { provider == .youtube ? youtube.validation : chzzk.validation }
-    func showValidation() { fieldErrors = validation }
+    var liveValidation: [String: String] {
+        validation.filter { $0.key != "made_for_kids" }
+    }
+    func showValidation(live: Bool = false) { fieldErrors = live ? liveValidation : validation }
     func showFieldError(_ error: BroadcastSettingsFieldError) {
-        let field = error.field.hasPrefix("tags") ? "tags" : error.field
-        fieldErrors[field] = error.message
+        for value in error.fields.isEmpty ? [error.field] : error.fields {
+            let field = value.hasPrefix("tags") ? "tags" : value
+            fieldErrors[field] = error.message
+        }
     }
     func persist(provider: BroadcastSettingsProvider) {
         guard let key = keys[provider] else { return }

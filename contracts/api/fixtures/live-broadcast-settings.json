@@ -1,0 +1,9 @@
+{
+  "youtube_request": {"title": "검증 방송", "description": "설명", "category_id": "20"},
+  "youtube_keep_category_request": {"title": "검증 방송", "description": "설명"},
+  "chzzk_request": {"title": "검증 방송", "category_type": "GAME", "category_id": "fixture-game", "tags": ["개발"]},
+  "chzzk_clear_request": {"title": "검증 방송", "category_type": "", "category_id": "", "tags": []},
+  "bad_request": {"error": {"code": "bad_request", "details": {"field": "title", "reason": "must not be empty"}}},
+  "locked_fields": {"error": {"code": "field_not_changeable_live", "details": {"fields": ["privacy", "made_for_kids", "thumbnail"], "provider": "youtube"}}},
+  "not_live": {"error": {"code": "broadcast_not_live", "details": {"provider": "youtube"}}}
+}

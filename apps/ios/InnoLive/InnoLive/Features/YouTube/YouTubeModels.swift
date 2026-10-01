@@ -376,6 +376,10 @@ struct YouTubeConnectionResponse: Decodable {
 
 struct YouTubeBroadcastVisibility: Decodable {
     let privacy: String
+    var title: String? = nil
+    var description: String? = nil
+    var categoryID: String? = nil
+    enum CodingKeys: String, CodingKey { case privacy, title, description; case categoryID = "category_id" }
 }
 
 struct YouTubeSessionResponse: Decodable {

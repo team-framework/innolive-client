@@ -127,6 +127,7 @@ struct BroadcastPreparationControlLabel: View {
 }
 
 struct BroadcastSessionStatusView: View {
+    @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
 
     var body: some View {
@@ -134,6 +135,15 @@ struct BroadcastSessionStatusView: View {
             ForEach(youtube.visibleBroadcastTargets) { target in
                 let policy = YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false)
                 Text(policy.streamStatusText.replacingOccurrences(of: "YouTube", with: target.title))
+            }
+            ForEach(youtube.liveEditingTargets) { provider in
+                NavigationLink {
+                    BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
+                } label: {
+                    Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
+                }
+                .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
+                .accessibilityIdentifier("live-edit-" + provider.rawValue)
             }
             if youtube.isYouTubeBroadcastActive {
                 HStack {
