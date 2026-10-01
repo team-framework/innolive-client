@@ -1,6 +1,7 @@
 "use client";
 
 import gsap from "gsap";
+import { ScrollSmoother } from "gsap/ScrollSmoother";
 import { useLayoutEffect, useRef, useState } from "react";
 import { IntroScene } from "@/components/intro-scene";
 import { introScenes } from "@/components/intro-scenes";
@@ -9,6 +10,8 @@ import { interpolate } from "@/lib/locales";
 
 const INTRO_COMPLETE_EVENT = "innolive:intro-complete";
 const INTRO_SCROLL_SPEED = 1.3;
+const INTRO_FOCUS_SCROLL_RANGE = 1;
+const INTRO_EXIT_SCROLL_LOCK_MS = 400;
 
 function markIntroComplete() {
   document.documentElement.dataset.introComplete = "true";
@@ -60,6 +63,7 @@ export function IntroScroll() {
     let leaving = false;
     let touchY = 0;
     let tween: gsap.core.Tween | undefined;
+    let exitTimer: gsap.core.Tween | undefined;
     const timeline = gsap.timeline({ paused: true, defaults: { duration: 1, ease: "none" } });
     layers.forEach((layer, index) => {
       gsap.set(layer, { autoAlpha: index === 0 ? 1 : 0, zIndex: index });
@@ -67,7 +71,8 @@ export function IntroScroll() {
         timeline.to(layer, { autoAlpha: 1 }).set(layers[index - 1], { autoAlpha: 0 });
       }
     });
-    timeline.to(root, { opacity: 0 });
+    timeline.to(root, { opacity: 0 }, `+=${INTRO_FOCUS_SCROLL_RANGE}`);
+    const scrollRange = timeline.duration();
 
     const unlock = () => {
       document.body.style.overflow = overflow;
@@ -76,29 +81,37 @@ export function IntroScroll() {
     const finish = (duration = 0.65) => {
       if (leaving) return;
       leaving = true;
+      timeline.kill();
+      const smoother = ScrollSmoother.get();
+      if (smoother) {
+        const wasPaused = smoother.paused();
+        smoother.paused(true).scrollTop(0).paused(wasPaused);
+      }
       window.scrollTo({ top: 0, behavior: "auto" });
       tween?.kill();
       tween = gsap.to(root, {
         opacity: 0, duration: reduce.matches ? 0 : duration,
         onComplete: () => {
-          unlock();
-          setFinished(true);
-          markIntroComplete();
+          exitTimer = gsap.delayedCall(INTRO_EXIT_SCROLL_LOCK_MS / 1000, () => {
+            unlock();
+            setFinished(true);
+            markIntroComplete();
+          });
         },
       });
     };
     finishRef.current = finish;
     const advance = (distance: number) => {
       if (leaving) return;
-      progress = Math.max(0, Math.min(layers.length, progress + distance));
-      timeline.progress(progress / layers.length);
+      progress = Math.max(0, Math.min(scrollRange, progress + distance));
+      timeline.progress(progress / scrollRange);
       const index = Math.min(layers.length - 1, Math.floor(progress));
       root.dataset.sceneIndex = String(index);
       layers.forEach((layer, i) => {
         if (i === index) layer.removeAttribute("aria-hidden");
         else layer.setAttribute("aria-hidden", "true");
       });
-      if (progress === layers.length) finish(0);
+      if (progress === scrollRange) finish(0);
     };
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
@@ -133,6 +146,7 @@ export function IntroScroll() {
     mobile.addEventListener("change", onMobile);
     return () => {
       tween?.kill();
+      exitTimer?.kill();
       timeline.kill();
       unlock();
       root.removeEventListener("wheel", onWheel);
