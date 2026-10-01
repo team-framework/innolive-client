@@ -33,7 +33,7 @@ export function TypewriterHeroHeading() {
 
           return current + 1;
         });
-      }, 30);
+      }, 40);
     };
 
     if (document.documentElement.dataset.introComplete === "true") start();
