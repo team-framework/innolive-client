@@ -369,22 +369,20 @@ fun YouTubeLiveSettingsDialog(
                             text = accountLabel,
                             modifier = Modifier.weight(1f),
                         )
-                        if (!hasYouTubeAccount || isYouTubeReconnectRequired) {
-                            Button(
-                                onClick = onConnectYouTube,
-                                enabled = isYouTubeConnectEnabled && !isYouTubeAccountActionInProgress,
-                            ) {
-                                Text(
-                                    text = stringResource(
-                                        if (isYouTubeReconnectRequired) {
-                                            R.string.action_reconnect
-                                        } else {
-                                            R.string.action_connect
-                                        },
-                                    ),
-                                    maxLines = 1,
-                                )
-                            }
+                        Button(
+                            onClick = onConnectYouTube,
+                            enabled = isYouTubeConnectEnabled && !isYouTubeAccountActionInProgress,
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    when {
+                                        isYouTubeReconnectRequired -> R.string.action_reconnect
+                                        hasYouTubeAccount -> R.string.action_change_youtube_account
+                                        else -> R.string.action_connect
+                                    },
+                                ),
+                                maxLines = 1,
+                            )
                         }
                     }
                 }

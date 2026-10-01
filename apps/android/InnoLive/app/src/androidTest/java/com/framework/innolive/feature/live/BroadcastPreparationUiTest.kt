@@ -75,6 +75,8 @@ class BroadcastPreparationUiTest {
     }
 
     @Test fun savedProviderCanBeChangedInBothDirectionsWithoutConnecting() {
+        compose.onNodeWithText(label(R.string.session_usage_warning_test_show)).performClick()
+        compose.onNodeWithText(label(R.string.session_notice_monthly_usage_80)).assertIsDisplayed()
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
         compose.onNodeWithText("YouTube").performClick()
         compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
@@ -88,6 +90,10 @@ class BroadcastPreparationUiTest {
         compose.onNodeWithText("플랫폼 변경").performClick()
         compose.onNodeWithText("YouTube").performClick()
         compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.action_change_youtube_account)).assertIsEnabled()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.session_notice_monthly_usage_80)).assertIsDisplayed()
         compose.runOnIdle {
             assertEquals(BroadcastProvider.YOUTUBE, session.selectedProvider)
             assertEquals(WebRtcConnectionState.IDLE, session.connectionState)

@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import android.util.Base64
+import com.framework.innolive.feature.youtube.canChangeYouTubeAccount
 import com.framework.innolive.ui.text.serverErrorGuidance
 import com.framework.innolive.ui.text.ServerErrorAction
 import android.os.SystemClock
@@ -27,6 +28,51 @@ import java.util.concurrent.atomic.AtomicBoolean
 class BroadcastApiFlowTest {
     private val settings = BroadcastSettings("검증", "검증 설명", "private", false, "22")
     private val accessToken = accessTokenFor("broadcast-api-user")
+
+    @Test fun lostPrepareResponseBlocksAccountChangeUntilPreparationIsCancelled() {
+        Harness().use { h ->
+            h.prepareResponseToLose = snapshot("prepared", "idle")
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.FAILED)
+            assertEquals(snapshot("prepared", "idle"), h.getPayload)
+            assertFalse(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+
+            h.startPolling()
+            h.awaitState(BroadcastState.PREPARED)
+            assertFalse(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+            h.stopStatus = 500
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.PREPARED)
+            assertFalse(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+
+            h.stopStatus = 200
+            h.payloads["stop"] = snapshot("idle", "stopped")
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.IDLE)
+            h.getPayload = snapshot("idle", "stopped")
+            assertTrue(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("stream/prepare") })
+            assertEquals(2, h.requests.count { it.url.encodedPath.endsWith("stream/stop") })
+        }
+    }
+
+    @Test fun failedPreparationStaysBlockedWhenPollingFailsAndUnlocksOnServerIdle() {
+        Harness().use { h ->
+            h.prepareResponseToLose = snapshot("prepared", "idle")
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.FAILED)
+            h.getStatus = 503
+            h.startPolling()
+            h.awaitGetCount(1)
+            assertEquals(BroadcastState.FAILED, h.states.last())
+            assertFalse(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+
+            h.getPayload = snapshot("idle", "stopped")
+            h.getStatus = 200
+            h.awaitState(BroadcastState.IDLE)
+            assertTrue(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+        }
+    }
 
     @Test fun connectionStatusRefreshDoesNotBlockStopOrRestoreStaleLiveState() {
         Harness().use { h ->
@@ -567,6 +613,7 @@ class BroadcastApiFlowTest {
         @Volatile var patchStatus = 200
         @Volatile var settingsStatus = 200
         @Volatile var prepareStatus = 200
+        @Volatile var prepareResponseToLose: String? = null
         @Volatile var stopStatus = 200
         @Volatile var pauseStatus = 200
         @Volatile var resumeStatus = 200
@@ -659,6 +706,10 @@ class BroadcastApiFlowTest {
                         resumeStatus
                     }
                     request.url.encodedPath.endsWith("prepare") -> {
+                        prepareResponseToLose?.let { appliedServerState ->
+                            getPayload = appliedServerState
+                            throw java.io.IOException("Prepare response lost after server applied it")
+                        }
                         payload = """{"stream":{"broadcast_phase":"prepared","status":"idle"},"targets":[{"provider":"${provider.wireValue}","stream":{"broadcast_phase":"prepared","status":"idle"}}]}"""
                         prepareStatus
                     }

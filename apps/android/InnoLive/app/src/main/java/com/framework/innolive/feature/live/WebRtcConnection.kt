@@ -806,7 +806,11 @@ class WebRtcConnection(
         return executeAuthenticatedHttp(request).use { response ->
             val payload = response.body.string()
             if (!response.isSuccessful) throw parseServerApiException(payload, response.code)
-            applySessionSnapshot(payload, createdSession)
+            applySessionSnapshot(
+                payload,
+                createdSession,
+                clearWarningsWhenMissing = path == "stream/prepare",
+            )
             payload
         }
     }
@@ -814,10 +818,17 @@ class WebRtcConnection(
     private fun stateAfterSessionResponse(fallback: BroadcastState): BroadcastState =
         if (responseContainsBroadcastState) confirmedResponseState ?: broadcastState else fallback
 
-    private fun applySessionSnapshot(payload: String, createdSession: CreatedSession, revision: Long? = null) {
+    private fun applySessionSnapshot(
+        payload: String,
+        createdSession: CreatedSession,
+        revision: Long? = null,
+        clearWarningsWhenMissing: Boolean = false,
+    ) {
         if (!isActive() || session?.sessionId != createdSession.sessionId) return
         val previous = sessionSnapshot ?: SessionSnapshot(createdSession.sessionId)
-        val next = runCatching { parseSessionSnapshot(payload, createdSession.sessionId, previous) }
+        val next = runCatching {
+            parseSessionSnapshot(payload, createdSession.sessionId, previous, clearWarningsWhenMissing)
+        }
             .getOrElse {
                 responseContainsBroadcastState = true
                 Log.w("LiveConnection", "session_snapshot_invalid")
