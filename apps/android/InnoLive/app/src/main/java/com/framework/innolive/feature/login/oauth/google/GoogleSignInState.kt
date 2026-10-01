@@ -1,7 +1,8 @@
 package com.framework.innolive.feature.login.oauth.google
 
 import android.content.Context
-import androidx.credentials.exceptions.GetCredentialCancellationException
+import android.util.Log
+import androidx.credentials.exceptions.GetCredentialException
 import com.framework.innolive.R
 import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CancellationException
@@ -41,12 +42,18 @@ internal class GoogleSignInController(
             try {
                 authenticate(context)
                 _state.value = GoogleSignInState.Succeeded
-            } catch (_: GetCredentialCancellationException) {
-                _state.value = GoogleSignInState.Idle
             } catch (exception: CancellationException) {
                 _state.value = GoogleSignInState.Idle
                 throw exception
-            } catch (_: Exception) {
+            } catch (exception: Exception) {
+                // Provider cancellations can also represent account authentication failures.
+                // Log only the error category: provider messages may contain account/token data.
+                val category = if (exception is GetCredentialException) {
+                    exception.type
+                } else {
+                    exception.javaClass.simpleName
+                }
+                Log.w("GoogleSignIn", "Authentication did not complete ($category).")
                 _state.value = GoogleSignInState.Failed(
                     UiText.Resource(R.string.google_login_failed),
                 )
