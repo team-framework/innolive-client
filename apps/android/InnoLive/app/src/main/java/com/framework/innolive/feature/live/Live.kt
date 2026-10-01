@@ -235,7 +235,7 @@ fun LiveScreen(
                         ),
                     )
                     Text(
-                        text = stringResource(R.string.session_usage_warning_message),
+                        text = stringResource(R.string.session_usage_warning_message, 10),
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = 18.sp,
                             lineHeight = 22.sp,
