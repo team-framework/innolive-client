@@ -279,4 +279,6 @@
     <string name="local_face_store_error">기기 등록 데이터를 읽거나 저장하지 못했습니다. 얼굴 예외를 중지했습니다.</string>
     <string name="local_face_delete">기기 등록 얼굴 삭제</string>
     <string name="local_face_timeout">등록 시간이 지났습니다. 다시 시도해 주세요.</string>
+    <string name="session_usage_warning_title">사용량 부족</string>
+    <string name="session_usage_warning_message">현재 요금제의 사용량이 10% 이하입니다.\n방송이 예고 없이 종료될 수 있습니다.</string>
 </resources>

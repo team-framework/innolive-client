@@ -37,6 +37,16 @@ class SessionSnapshotTest {
         }
     }
 
+    @Test fun timeLimitWarningFollowsServerNotice() {
+        val warning = parseSessionSnapshot(
+            """{"notices":[{"code":"time_limit_warning","at":"2026-09-30T00:00:00Z"}]}""",
+            "s",
+        )
+        assertTrue(warning.hasTimeLimitWarning)
+        assertFalse(parseSessionSnapshot("""{"notices":[]}""", "s", warning).hasTimeLimitWarning)
+        assertFalse(parseSessionSnapshot("{}", "s").hasTimeLimitWarning)
+    }
+
     @Test fun partialStreamResponseDoesNotEraseOtherTargetsNoticesOrTime() {
         val initial = parseSessionSnapshot("""{"session_id":"s","provider":"youtube",
             "targets":[{"provider":"youtube","stream":{"status":"streaming","broadcast_phase":"live"}},

@@ -43,4 +43,6 @@
     <string name="local_face_store_error">Could not read or save local faces. Face exemptions are disabled.</string>
     <string name="local_face_delete">Delete local face</string>
     <string name="local_face_timeout">Registration timed out. Please try again.</string>
+    <string name="session_usage_warning_title">Low plan usage</string>
+    <string name="session_usage_warning_message">10% or less of your current plan’s usage remains.\nYour broadcast may end without notice.</string>
 </resources>

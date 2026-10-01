@@ -29,6 +29,9 @@ data class SessionSnapshot(
     val visibleTargets: List<SessionTarget>
         get() = targets.orEmpty().filter { it.broadcastPhase != "idle" }
 
+    val hasTimeLimitWarning: Boolean
+        get() = notices?.any { it.code == "time_limit_warning" } == true
+
     // 기존 방송 버튼은 기본 대상만 제어합니다. 다른 대상의 상태를 합산하지 않습니다.
     internal fun broadcastState(): BroadcastState? {
         val knownTargets = targets ?: return null

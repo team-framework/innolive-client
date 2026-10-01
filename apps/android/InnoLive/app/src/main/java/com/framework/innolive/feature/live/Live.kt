@@ -47,7 +47,9 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
@@ -206,6 +208,43 @@ fun LiveScreen(
             style = MaterialTheme.typography.headlineSmall,
             color = Color.White,
         )
+
+        if (webRtcSession.sessionSnapshot?.hasTimeLimitWarning == true) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(start = 10.dp, top = 100.dp, end = 10.dp)
+                    .fillMaxWidth()
+                    .heightIn(min = 116.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White.copy(alpha = 0.9f),
+                contentColor = Color.Black,
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.session_usage_warning_title),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontSize = 24.sp,
+                            lineHeight = 28.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.sp,
+                        ),
+                    )
+                    Text(
+                        text = stringResource(R.string.session_usage_warning_message),
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 18.sp,
+                            lineHeight = 22.sp,
+                            letterSpacing = 0.sp,
+                        ),
+                    )
+                }
+            }
+        }
 
         LiveSideControls(
             modifier = Modifier
