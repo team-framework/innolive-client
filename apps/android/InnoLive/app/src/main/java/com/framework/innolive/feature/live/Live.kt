@@ -76,6 +76,9 @@ fun LiveScreen(
     var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
+    var testUsageWarningOverride by remember { mutableStateOf<Boolean?>(null) }
+    val hasServerUsageWarning = webRtcSession.sessionSnapshot?.hasTimeLimitWarning == true
+    val showUsageWarning = testUsageWarningOverride ?: hasServerUsageWarning
     val context = LocalContext.current
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
@@ -209,7 +212,7 @@ fun LiveScreen(
             color = Color.White,
         )
 
-        if (webRtcSession.sessionSnapshot?.hasTimeLimitWarning == true) {
+        if (showUsageWarning) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -279,6 +282,16 @@ fun LiveScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (BuildConfig.DEBUG) {
+                TextButton(onClick = { testUsageWarningOverride = !showUsageWarning }) {
+                    Text(
+                        stringResource(
+                            if (showUsageWarning) R.string.session_usage_warning_test_hide
+                            else R.string.session_usage_warning_test_show,
+                        ),
+                    )
+                }
+            }
             BroadcastActionControls(
                 presentation = presentation,
                 onBroadcastAction = {

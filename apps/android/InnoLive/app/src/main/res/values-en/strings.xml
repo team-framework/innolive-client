@@ -45,4 +45,6 @@
     <string name="local_face_timeout">Registration timed out. Please try again.</string>
     <string name="session_usage_warning_title">Low plan usage</string>
     <string name="session_usage_warning_message">Your current plan’s remaining usage is no more than %1$d%%.\nYour broadcast may end without notice.</string>
+    <string name="session_usage_warning_test_show">Show test banner</string>
+    <string name="session_usage_warning_test_hide">Hide test banner</string>
 </resources>

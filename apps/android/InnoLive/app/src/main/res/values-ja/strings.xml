@@ -45,4 +45,6 @@
     <string name="local_face_timeout">登録時間が終了しました。再度お試しください。</string>
     <string name="session_usage_warning_title">利用量が不足しています</string>
     <string name="session_usage_warning_message">現在のプランの利用量が%1$d%%以下です。\n配信が予告なく終了することがあります。</string>
+    <string name="session_usage_warning_test_show">テストバナーを表示</string>
+    <string name="session_usage_warning_test_hide">テストバナーを非表示</string>
 </resources>

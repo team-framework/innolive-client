@@ -281,4 +281,6 @@
     <string name="local_face_timeout">등록 시간이 지났습니다. 다시 시도해 주세요.</string>
     <string name="session_usage_warning_title">사용량 부족</string>
     <string name="session_usage_warning_message">현재 요금제의 사용량이 %1$d%% 이하입니다.\n방송이 예고 없이 종료될 수 있습니다.</string>
+    <string name="session_usage_warning_test_show">테스트 배너 표시</string>
+    <string name="session_usage_warning_test_hide">테스트 배너 숨기기</string>
 </resources>
