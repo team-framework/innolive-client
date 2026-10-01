@@ -10,46 +10,75 @@ struct BroadcastSettingsView: View {
     @State private var isShowingTransmissionNotice = false
     @State private var isShowingMediaConsent = false
     @State private var transmissionNotice = YouTubeTransmissionNotice()
+    private let liveProvider: BroadcastSettingsProvider?
     private let onPrepare: ((BroadcastSettingsProvider) -> Void)?
     private let onCancelPreparation: (() -> Void)?
 
     init(authentication: AuthSession, youtube: YouTubeIntegration,
+         liveProvider: BroadcastSettingsProvider? = nil,
          onPrepare: ((BroadcastSettingsProvider) -> Void)? = nil,
          onCancelPreparation: (() -> Void)? = nil) {
         self.authentication = authentication
         self.youtube = youtube
         self.planStore = youtube.planStore
+        self.liveProvider = liveProvider
         self.onPrepare = onPrepare
         self.onCancelPreparation = onCancelPreparation
-        _editor = ObservedObject(wrappedValue: youtube.settingsEditor)
+        _editor = ObservedObject(wrappedValue: liveProvider == nil ? youtube.settingsEditor : youtube.liveSettingsEditor)
     }
 
     private var token: String { authentication.currentAccessToken() ?? "" }
     private var contextKey: String {
-        youtube.settingsScopeKey(accessToken: token) + ":" + editor.provider.rawValue + ":" + (youtube.session?.sessionID ?? "")
+        youtube.settingsScopeKey(accessToken: token) + ":" + (liveProvider ?? editor.provider).rawValue + ":" + (youtube.session?.sessionID ?? "")
+    }
+
+    private var isLiveEditing: Bool { liveProvider != nil }
+    private var isFormLocked: Bool {
+        if let liveProvider { return youtube.isSavingLiveSettings || !youtube.canEditLiveBroadcast(liveProvider) }
+        return youtube.isBroadcastSettingsLocked
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                NavigationLink {
-                    BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
-                } label: {
-                    Label(String(localized: "플랫폼 계정 연결"), systemImage: "person.crop.circle")
-                }
-                Picker(String(localized: "방송할 플랫폼"), selection: Binding(
-                    get: { editor.provider }, set: { editor.select($0); query = "" })) {
-                    ForEach(BroadcastSettingsProvider.allCases) { Text($0.title).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .disabled(youtube.isBroadcastSettingsLocked)
+                if !isLiveEditing {
+                    NavigationLink {
+                        BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
+                    } label: {
+                        Label(String(localized: "플랫폼 계정 연결"), systemImage: "person.crop.circle")
+                    }
+                    Picker(String(localized: "방송할 플랫폼"), selection: Binding(
+                        get: { editor.provider }, set: { editor.select($0); query = "" })) {
+                        ForEach(BroadcastSettingsProvider.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(youtube.isBroadcastSettingsLocked)
 
-                PlanUsageSection(authentication: authentication, youtube: youtube)
+                    PlanUsageSection(authentication: authentication, youtube: youtube)
 
-                defaultsSection
+                    defaultsSection
+                    ForEach(youtube.liveEditingTargets) { provider in
+                        NavigationLink {
+                            BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
+                        } label: {
+                            Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
+                        }
+                        .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
+                    }
+                }
                 if editor.provider == .youtube { youtubeForm } else { chzzkForm }
 
-                if youtube.isBroadcastSettingsLocked {
+                if isLiveEditing {
+                    Text(String(localized: "송출을 유지한 채 제목·카테고리를 수정합니다. 공개 범위·시청자층·썸네일은 방송 중 변경할 수 없습니다."))
+                        .font(.footnote).foregroundStyle(.secondary)
+                    if let liveProvider, !youtube.canEditLiveBroadcast(liveProvider) {
+                        Text(String(localized: "현재 이 플랫폼의 방송 정보를 수정할 수 없습니다."))
+                            .font(.footnote).foregroundStyle(.orange)
+                    }
+                    if let message = youtube.liveSettingsError {
+                        Text(message).font(.footnote).foregroundStyle(.red)
+                    }
+                } else if youtube.isBroadcastSettingsLocked {
                     Text(String(localized: "방송을 준비하거나 송출하는 동안에는 방송 정보를 변경할 수 없습니다."))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
@@ -57,7 +86,7 @@ struct BroadcastSettingsView: View {
                     Text(String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요."))
                         .font(.footnote).foregroundStyle(.orange)
                 }
-                if let status = youtube.preparationStatus {
+                if !isLiveEditing, let status = youtube.preparationStatus {
                     Text(status.isFailed ? (status.failedPhase?.failureMessage ?? status.phase.failureMessage) : status.phase.title)
                         .font(.footnote.weight(.semibold))
                     Text(status.message ?? status.phase.detail)
@@ -69,13 +98,14 @@ struct BroadcastSettingsView: View {
                         .disabled(status.phase == .cancelling)
                     }
                 }
-                if let message = youtube.errorMessage {
+                if !isLiveEditing, let message = youtube.errorMessage {
                     BroadcastFeedbackBanner(feedback: BroadcastFeedback(message: message, isError: true),
                                             youtube: youtube, onDismiss: youtube.dismissError)
                 }
+                if isLiveEditing { fieldError("thumbnail") }
                 Button(action: primaryAction) {
                     HStack {
-                        if youtube.isChangingStreamState { ProgressView() }
+                        if youtube.isChangingStreamState || youtube.isSavingLiveSettings { ProgressView() }
                         Text(prepareButtonTitle)
                             .font(.body.weight(.semibold))
                     }
@@ -87,20 +117,24 @@ struct BroadcastSettingsView: View {
             }
             .padding(24)
         }
-        .navigationTitle(String(localized: "방송 설정"))
+        .navigationTitle(isLiveEditing ? String(localized: "방송 정보 수정") : String(localized: "방송 설정"))
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: query) { _, _ in editor.invalidateCategorySearch() }
-        .task { if !token.isEmpty { await youtube.refreshConnection(accessToken: token) } }
+        .task { if !isLiveEditing, !token.isEmpty { await youtube.refreshConnection(accessToken: token) } }
         .task(id: contextKey) {
-            youtube.configureSettingsEditor(accessToken: token)
+            if let liveProvider {
+                youtube.beginLiveEditing(liveProvider, accessToken: token)
+            } else {
+                youtube.configureSettingsEditor(accessToken: token)
+                await editor.loadDefaults(session: youtube.session, accessToken: token, provider: editor.provider)
+            }
             let provider = editor.provider
-            await editor.loadDefaults(session: youtube.session, accessToken: token, provider: provider)
             if provider == .youtube, !token.isEmpty { await editor.searchCategories(query: "", accessToken: token) }
         }
         .alert(String(localized: "방송 설정 저장 완료"), isPresented: $isSaved) {
             Button(String(localized: "확인"), role: .cancel) {}
         } message: {
-            Text(youtube.session == nil ? String(localized: "기기에 저장했습니다. 방송 준비 시 서버에 적용합니다.") : String(localized: "서버에 방송 설정을 저장했습니다."))
+            Text(isLiveEditing ? String(localized: "송출을 유지한 채 방송 정보를 반영했습니다.") : (youtube.session == nil ? String(localized: "기기에 저장했습니다. 방송 준비 시 서버에 적용합니다.") : String(localized: "서버에 방송 설정을 저장했습니다.")))
         }
         .sheet(isPresented: $isShowingMediaConsent) {
             MediaTransmissionConsentView { consent in
@@ -117,12 +151,14 @@ struct BroadcastSettingsView: View {
     }
 
     private var prepareButtonTitle: String {
+        if isLiveEditing { return youtube.isSavingLiveSettings ? String(localized: "저장 중") : String(localized: "저장") }
         if onPrepare == nil { return String(localized: "저장") }
         if youtube.preparationStatus?.isFailed == true { return String(localized: "다시 시도") }
         return String(localized: "방송 준비")
     }
 
     private var isPrepareButtonDisabled: Bool {
+        if isLiveEditing { return isFormLocked }
         if onPrepare == nil { return youtube.isBroadcastSettingsLocked }
         if youtube.preparationStatus?.isRunning == true || youtube.preparationStatus?.phase == .cancelling {
             return true
@@ -149,7 +185,7 @@ struct BroadcastSettingsView: View {
                 Text(message).font(.footnote).foregroundStyle(.secondary)
                 Button(String(localized: "다시 불러오기")) {
                     Task { await editor.loadDefaults(session: youtube.session, accessToken: token, provider: editor.provider) }
-                }.disabled(youtube.isBroadcastSettingsLocked)
+                }.disabled(isFormLocked)
             }
         }
     }
@@ -170,7 +206,8 @@ struct BroadcastSettingsView: View {
                     Text(String(localized: "공개 범위")).font(.body.weight(.semibold))
                     Picker(String(localized: "공개 범위"), selection: Binding(get: { editor.youtube.privacy }, set: { value in editor.editYouTube { $0.privacy = value } })) {
                         ForEach(YouTubeBroadcastPrivacy.allCases) { Text($0.title).tag($0) }
-                    }.labelsHidden()
+                    }.labelsHidden().disabled(isLiveEditing)
+                    fieldError("privacy")
                 }
             }
             card {
@@ -180,6 +217,7 @@ struct BroadcastSettingsView: View {
                         Text(String(localized: "선택 필요")).tag(Optional<YouTubeBroadcastAudience>.none)
                         ForEach(YouTubeBroadcastAudience.allCases) { Text($0.title).tag(Optional($0)) }
                     }
+                    .disabled(isLiveEditing)
                     fieldError("made_for_kids")
                 }
             }
@@ -200,7 +238,7 @@ struct BroadcastSettingsView: View {
                     }.disabled(editor.isSearching)
                 }
             }
-        }.disabled(youtube.isBroadcastSettingsLocked)
+        }.disabled(isFormLocked)
     }
 
     private var chzzkForm: some View {
@@ -240,7 +278,7 @@ struct BroadcastSettingsView: View {
                     fieldError("tags")
                 }
             }
-        }.disabled(youtube.isBroadcastSettingsLocked)
+        }.disabled(isFormLocked)
     }
 
     private func titleField(text: Binding<String>) -> some View {
@@ -265,6 +303,10 @@ struct BroadcastSettingsView: View {
     }
     private func searchCHZZK() { Task { await editor.searchCategories(query: query, accessToken: token) } }
     private func primaryAction() {
+        if isLiveEditing {
+            Task { isSaved = await youtube.saveLiveSettings(accessToken: token) }
+            return
+        }
         editor.showValidation()
         guard editor.validation.isEmpty else { return }
         guard onPrepare != nil else {

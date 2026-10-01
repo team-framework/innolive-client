@@ -1,5 +1,12 @@
 import Foundation
 
+private struct YouTubeLiveBroadcastRequest: Encodable {
+    let title: String
+    let description: String
+    let categoryID: String?
+    enum CodingKeys: String, CodingKey { case title, description; case categoryID = "category_id" }
+}
+
 private struct WebRTCConfigurationResponse: Decodable {
     let iceServers: [WebRTCIceServer]
 
@@ -236,6 +243,23 @@ final class YouTubeAPI: PlanAPIClient {
                           queryItems: [URLQueryItem(name: "provider", value: "chzzk")])
     }
 
+    func updateLiveBroadcast(session: YouTubeBroadcastSession, accessToken: String,
+                             provider: BroadcastSettingsProvider, youtube: YouTubeBroadcastSettings,
+                             chzzk: CHZZKBroadcastSettings) async throws -> YouTubeSessionResponse {
+        if provider == .chzzk {
+            var settings = chzzk
+            settings.title = settings.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            return try await request(path: "/sessions/\(session.sessionID)/broadcast/live", method: "PATCH",
+                                     accessToken: accessToken, ownerToken: session.ownerToken, body: settings,
+                                     queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+        }
+        return try await request(path: "/sessions/\(session.sessionID)/broadcast/live", method: "PATCH",
+                                 accessToken: accessToken, ownerToken: session.ownerToken,
+                                 body: YouTubeLiveBroadcastRequest(title: youtube.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                                                  description: youtube.description, categoryID: youtube.categoryID),
+                                 queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+    }
+
     func broadcastDefaults(session: YouTubeBroadcastSession, accessToken: String,
                            provider: BroadcastSettingsProvider) async throws -> BroadcastSettingsDefaults {
         try await request(path: "/sessions/\(session.sessionID)/broadcast/defaults", method: "GET",
@@ -360,7 +384,7 @@ final class YouTubeAPI: PlanAPIClient {
         let (data, httpResponse) = try await authenticatedData(
             for: request, accessToken: accessToken, preserveCreatedSession: preserveCreatedSession
         )
-        try validate(httpResponse, data: data, extractFieldErrors: path.hasSuffix("/broadcast"))
+        try validate(httpResponse, data: data, extractFieldErrors: path.hasSuffix("/broadcast") || path.hasSuffix("/broadcast/live"))
         return try decode(Response.self, from: data)
     }
 
@@ -441,6 +465,10 @@ final class YouTubeAPI: PlanAPIClient {
     private func validate(_ response: HTTPURLResponse, data: Data, extractFieldErrors: Bool = false) throws {
         guard !(200..<300).contains(response.statusCode) else { return }
         let envelope = try? JSONDecoder().decode(YouTubeAPIErrorEnvelope.self, from: data)
+        if extractFieldErrors, envelope?.error.code == "field_not_changeable_live",
+           let fields = envelope?.error.details?.fields, let first = fields.first {
+            throw BroadcastSettingsFieldError(field: first, reason: "", fields: fields, isNotChangeableLive: true)
+        }
         if extractFieldErrors, envelope?.error.code == "bad_request", let field = envelope?.error.details?.field {
             throw BroadcastSettingsFieldError(field: field, reason: envelope?.error.details?.reason ?? "")
         }
@@ -464,7 +492,7 @@ private struct YouTubeAPIRequestInvalidated: Error {}
 
 private struct YouTubeAPIErrorEnvelope: Decodable {
     struct ErrorBody: Decodable {
-        struct Details: Decodable { let helpURL: URL?; let field: String?; let reason: String?; enum CodingKeys: String, CodingKey { case helpURL = "help_url"; case field, reason } }
+        struct Details: Decodable { let helpURL: URL?; let field: String?; let fields: [String]?; let reason: String?; enum CodingKeys: String, CodingKey { case helpURL = "help_url"; case field, fields, reason } }
         let code: String?
         let message: String?
         let details: Details?

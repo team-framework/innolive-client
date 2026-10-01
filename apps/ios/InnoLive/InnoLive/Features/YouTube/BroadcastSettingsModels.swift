@@ -9,7 +9,11 @@ enum BroadcastSettingsProvider: String, CaseIterable, Codable, Identifiable {
 struct BroadcastSettingsFieldError: Error, Equatable {
     let field: String
     let reason: String
-    var message: String { String(localized: "입력값을 확인해 주세요.") }
+    var fields: [String] = []
+    var isNotChangeableLive = false
+    var message: String {
+        isNotChangeableLive ? String(localized: "방송 중에는 바꿀 수 없는 항목입니다.") : String(localized: "입력값을 확인해 주세요.")
+    }
 }
 
 struct CHZZKBroadcastSettings: Codable, Equatable {
