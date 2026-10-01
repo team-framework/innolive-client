@@ -32,15 +32,10 @@ class YouTubeAccountCoordinator(
 
     suspend fun connect(
         serverAuthCode: String,
+        accessToken: String,
         refreshAccessToken: suspend () -> String,
-    ): StreamingAccount? {
-        var accessToken = refreshAccessToken()
-        val refresh = suspend { refreshAccessToken().also { accessToken = it } }
-        retryYouTubeUnauthorized(accessToken, refresh) { token -> api().connect(serverAuthCode, token) }
-        // 연결 후 목록 조회가 실패해도 일회용 OAuth 코드를 다시 보내지 않습니다.
-        return retryYouTubeUnauthorized(accessToken, refresh) { token ->
-            findYouTubeAccount(api().listAccounts(token))
-        }
+    ): StreamingAccount = retryYouTubeUnauthorized(accessToken, refreshAccessToken) { token ->
+        api().connect(serverAuthCode, token)
     }
 
     fun serverAuthCodeFromIntent(data: Intent): String =
