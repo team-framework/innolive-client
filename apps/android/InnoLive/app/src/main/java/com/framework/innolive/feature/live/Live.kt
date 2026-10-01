@@ -54,6 +54,8 @@ import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
+import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
 import com.framework.innolive.ui.text.ServerErrorAction
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
@@ -74,6 +76,21 @@ fun LiveScreen(
     var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
+    var testUsageWarningOverride by remember { mutableStateOf(false) }
+    var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
+    val sessionSnapshot = webRtcSession.sessionSnapshot
+    val sessionId = webRtcSession.sessionSnapshot?.sessionId
+    val activeNoticeCode = if (testUsageWarningOverride) {
+        "monthly_usage_80"
+    } else {
+        sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
+            notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
+        }?.code
+    }
+    LaunchedEffect(sessionId) {
+        dismissedNoticeCodes = emptySet()
+        testUsageWarningOverride = false
+    }
     val context = LocalContext.current
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
@@ -207,6 +224,17 @@ fun LiveScreen(
             color = Color.White,
         )
 
+        SessionUsageWarningBanner(
+            noticeCode = activeNoticeCode,
+            onDismissRequest = { code ->
+                dismissedNoticeCodes = dismissedNoticeCodes + code
+                if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
+            },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(start = 10.dp, top = 56.dp, end = 10.dp),
+        )
+
         LiveSideControls(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -240,6 +268,18 @@ fun LiveScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (BuildConfig.DEBUG) {
+                TextButton(onClick = {
+                    testUsageWarningOverride = !testUsageWarningOverride
+                }) {
+                    Text(
+                        stringResource(
+                            if (testUsageWarningOverride) R.string.session_usage_warning_test_hide
+                            else R.string.session_usage_warning_test_show,
+                        ),
+                    )
+                }
+            }
             BroadcastActionControls(
                 presentation = presentation,
                 onBroadcastAction = {
