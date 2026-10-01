@@ -113,10 +113,6 @@ fun LiveScreen(
     val broadcastDurationText = rememberBroadcastDurationText(
         webRtcSession.broadcastStartedAtElapsedRealtimeMillis,
     )
-    val broadcastDurationDescription = stringResource(
-        R.string.content_description_broadcast_duration,
-        broadcastDurationText,
-    )
     val mediaPermissions = rememberMediaPermissionController(context)
     val mediaPermissionState = mediaPermissions.state
     val missingMediaPermissions = mediaPermissionState.missingPermissions
@@ -214,14 +210,17 @@ fun LiveScreen(
             )
         }
 
-        Text(
-            text = broadcastDurationText,
+        BroadcastTimeDisplay(
+            uptime = broadcastDurationText,
+            remaining = displayedRemainingTime(
+                webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null, sessionSnapshot, props.planUsage,
+            ),
+            isStale = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null &&
+                sessionSnapshot?.isRemainingTimeStale == true,
+            onOpenPlan = props.onOpenPlan,
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 10.dp)
-                .semantics { contentDescription = broadcastDurationDescription },
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White,
+                .align(Alignment.TopEnd)
+                .padding(end = 16.dp),
         )
 
         SessionUsageWarningBanner(
@@ -431,6 +430,10 @@ fun LiveScreen(
                     ServerErrorAction.LOGIN -> {
                         webRtcSession.dismissServerError()
                         props.onAuthenticationExpired()
+                    }
+                    ServerErrorAction.PLAN -> {
+                        webRtcSession.dismissServerError()
+                        props.onOpenPlan()
                     }
                     else -> webRtcSession.dismissServerError()
                 }

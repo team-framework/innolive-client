@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.settings.PlanUsage
+import kotlinx.coroutines.CancellationException
 
 class YouTubeAccountCoordinator(
     private val activity: Activity?,
@@ -15,6 +17,17 @@ class YouTubeAccountCoordinator(
         retryYouTubeUnauthorized(refreshAccessToken(), refreshAccessToken) { token ->
             findYouTubeAccount(api().listAccounts(token))
         }
+
+    suspend fun loadPlanUsage(accessToken: String, refreshAccessToken: suspend () -> String): PlanUsage =
+        retryYouTubeUnauthorized(accessToken, {
+            try {
+                refreshAccessToken()
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                throw YouTubeApiException(401, "plan authentication", cause = exception)
+            }
+        }) { api().planUsage(it) }
 
     suspend fun beginAuthorization(
         onAuthorizationRequired: (PendingIntent) -> Unit,

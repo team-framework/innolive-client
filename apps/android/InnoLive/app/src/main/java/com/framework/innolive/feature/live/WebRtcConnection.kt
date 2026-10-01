@@ -826,7 +826,16 @@ class WebRtcConnection(
                     throw exception
                 } catch (_: Exception) {
                     // 조회 실패는 마지막 확인값을 보존하며 다음 주기에 다시 확인합니다.
-                    if (this@WebRtcConnection.isActive()) Log.w("LiveConnection", "session_status_unavailable")
+                    if (this@WebRtcConnection.isActive()) {
+                        Log.w("LiveConnection", "session_status_unavailable")
+                        executeOnOwner {
+                            if (isActive() && session?.sessionId == createdSession.sessionId &&
+                                sessionRequestRevision.get() == revision && !broadcastOperation.get()) {
+                                sessionSnapshot = sessionSnapshot?.copy(isRemainingTimeStale = true)
+                                sessionSnapshot?.let { dispatchSessionSnapshot(it, revision) }
+                            }
+                        }
+                    }
                 }
             }
         }

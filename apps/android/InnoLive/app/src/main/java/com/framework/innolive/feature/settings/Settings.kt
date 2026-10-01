@@ -145,6 +145,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
                     }
                 }
             }
+            PlanUsageSettings(props)
             AIProcessingSettings(props)
             OutlinedButton(
                 onClick = { isDeleteConfirmationVisible = true },

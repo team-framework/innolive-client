@@ -383,11 +383,14 @@ class BroadcastApiFlowTest {
             h.getStatus = 503
             h.startPolling()
             h.awaitGetCount(1)
+            assertEquals(BroadcastRemainingTime.Seconds(120), h.awaitSnapshot { it.isRemainingTimeStale }.remainingTime)
             assertEquals(BroadcastState.LIVE, h.snapshots.last().broadcastState())
             h.getPayload = snapshot("idle", "stopped")
             h.getStatus = 200
             h.awaitState(BroadcastState.IDLE)
-            assertTrue(h.awaitSnapshot { it.broadcastState() == BroadcastState.IDLE }.visibleTargets.isEmpty())
+            val stopped = h.awaitSnapshot { it.broadcastState() == BroadcastState.IDLE }
+            assertTrue(stopped.visibleTargets.isEmpty())
+            assertFalse(stopped.isRemainingTimeStale)
         }
     }
 

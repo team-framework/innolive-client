@@ -1,6 +1,6 @@
 # Plan and usage v1
 
-The iOS client reads the existing authenticated `GET /users/me/plan` and
+The iOS and Android clients read the existing authenticated `GET /users/me/plan` and
 `GET /users/me/usage` endpoints. Requests use the account Bearer token, without
 a session owner token. Existing authentication refresh and account-generation
 checks apply. No request or signaling fields change.
@@ -32,6 +32,6 @@ Only an active broadcast displays null as unlimited. A failed poll retains its
 last value and marks it stale until the next successful poll.
 
 Compatibility: additive client consumption of already deployed server fields.
-No server or other platform changes are required. Fixtures cover allowed,
+No server changes are required. Fixtures cover allowed,
 locked, exhausted, and unlimited usage. Authentication, transport and account
-reset behavior use the existing iOS API client.
+reset behavior use each platform's existing API client.

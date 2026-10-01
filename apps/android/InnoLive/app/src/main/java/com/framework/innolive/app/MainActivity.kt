@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.framework.innolive.R
+import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.AudioInputDevice
 import com.framework.innolive.feature.live.BroadcastVideoQualitySettings
 import com.framework.innolive.feature.live.BroadcastVideoQualityPreferences
@@ -63,6 +64,9 @@ import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
+import com.framework.innolive.feature.settings.PlanUsage
+import com.framework.innolive.feature.live.sessionRecoveryScope
+import com.framework.innolive.feature.youtube.YouTubeApiException
 import com.framework.innolive.feature.settings.broadcast.BroadcastSetting
 import com.framework.innolive.feature.settings.broadcast.BroadcastSettingProps
 import com.framework.innolive.feature.settings.camera.CameraSetting
@@ -94,6 +98,8 @@ import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 
 sealed interface AppRoute : Serializable
 data object LoginRoute : AppRoute
@@ -471,6 +477,36 @@ fun AppNavigation(
             },
         )
     }
+    val planAccount = session?.let {
+        runCatching { sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, it.accessToken).storageKey }
+            .getOrNull()
+    }
+    var planUsage by remember(planAccount) { mutableStateOf<PlanUsage?>(null) }
+    var planError by remember(planAccount) { mutableStateOf<UiText?>(null) }
+    var isPlanLoading by remember(planAccount) { mutableStateOf(false) }
+    var planRefresh by remember(planAccount) { mutableIntStateOf(0) }
+    LaunchedEffect(planAccount, backStack.lastOrNull(), planRefresh) {
+        if (planAccount == null || backStack.lastOrNull() !in setOf(LiveRoute, SettingsRoute)) return@LaunchedEffect
+        isPlanLoading = true
+        planError = null
+        try {
+            val token = checkNotNull(authenticationSession.session.value).accessToken
+            val snapshot = youtubeCoordinator.loadPlanUsage(token, ::refreshCurrentAccessToken)
+            coroutineContext.ensureActive()
+            planUsage = snapshot
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Exception) {
+            coroutineContext.ensureActive()
+            planError = UiText.Resource(R.string.plan_load_failed)
+            if ((exception as? YouTubeApiException)?.statusCode == 401) {
+                webRtcSession.close()
+                authenticationSession.clear()
+            }
+        } finally {
+            isPlanLoading = false
+        }
+    }
     LaunchedEffect(
         backStack.lastOrNull(),
         session?.profileEmail,
@@ -813,6 +849,7 @@ fun AppNavigation(
             },
             onGetAccessToken = { authenticationSession.session.value?.accessToken },
             profileEmail = session?.profileEmail.orEmpty(),
+            planUsage = planUsage,
             onOpenSettings = {
                 backStack.add(SettingsRoute)
             },
@@ -873,6 +910,10 @@ fun AppNavigation(
                                 },
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
+                                planUsage = planUsage,
+                                planError = planError,
+                                isPlanLoading = isPlanLoading,
+                                onRefreshPlan = { planRefresh++ },
                                 onLogout = {
                                     if (
                                         !isDeletingAccount &&
