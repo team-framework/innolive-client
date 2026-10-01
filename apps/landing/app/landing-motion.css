@@ -14,14 +14,14 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .hero-support-reveal {
-    animation: hero-support-rise 650ms ease-out 1.6s both paused;
+    animation: hero-support-rise 217ms ease-out 533ms both paused;
   }
 
   html[data-intro-complete="true"] .hero-support-reveal {
     animation-play-state: running;
   }
 
-  .hero-support-actions { animation-delay: 1.8s; }
+  .hero-support-actions { animation-delay: 600ms; }
 
   .pricing-support-reveal {
     animation: hero-support-rise 650ms ease-out 1s both;
