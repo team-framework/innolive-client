@@ -25,6 +25,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +66,8 @@ import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionVi
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.feature.settings.PlanUsage
+import com.framework.innolive.feature.settings.PlanMode
+import com.framework.innolive.feature.settings.rememberPlanChargeMillis
 import com.framework.innolive.feature.live.sessionRecoveryScope
 import com.framework.innolive.feature.youtube.YouTubeApiException
 import com.framework.innolive.feature.settings.broadcast.BroadcastSetting
@@ -98,6 +101,7 @@ import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 
@@ -485,29 +489,45 @@ fun AppNavigation(
     var planError by remember(planAccount) { mutableStateOf<UiText?>(null) }
     var isPlanLoading by remember(planAccount) { mutableStateOf(false) }
     var planRefresh by remember(planAccount) { mutableIntStateOf(0) }
+    var planUsageChargeMillis by remember(planAccount) { mutableLongStateOf(0L) }
     val isBroadcastActive = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null
+    val planMode = PlanMode.current(webRtcSession.sessionSnapshot?.broadcastResolution,
+        webRtcSession.sessionSnapshot?.visibleTargets?.size ?: 1)
+    val planChargeMillis = rememberPlanChargeMillis(
+        account = planAccount,
+        charging = isBroadcastActive && webRtcSession.broadcastState == BroadcastState.LIVE,
+        multiplier = planUsage?.availability(planMode)?.multiplier ?: 0L,
+    )
+    val currentPlanChargeMillis by rememberUpdatedState(planChargeMillis)
+    val displayedPlanUsage = planUsage?.afterChargedSeconds(
+        (planChargeMillis - planUsageChargeMillis).coerceAtLeast(0L) / 1_000L)
     LaunchedEffect(planAccount, backStack.lastOrNull(), planRefresh, isBroadcastActive) {
         if (planAccount == null || backStack.lastOrNull() !in setOf(LiveRoute, SettingsRoute)) return@LaunchedEffect
         if (backStack.lastOrNull() == LiveRoute && isBroadcastActive) return@LaunchedEffect
-        isPlanLoading = true
-        planError = null
-        try {
-            val token = checkNotNull(authenticationSession.session.value).accessToken
-            val snapshot = youtubeCoordinator.loadPlanUsage(token, ::refreshCurrentAccessToken)
-            coroutineContext.ensureActive()
-            planUsage = snapshot
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (exception: Exception) {
-            coroutineContext.ensureActive()
-            planError = UiText.Resource(R.string.plan_load_failed)
-            if ((exception as? YouTubeApiException)?.statusCode == 401) {
-                webRtcSession.close()
-                authenticationSession.clear()
+        do {
+            isPlanLoading = true
+            planError = null
+            try {
+                val token = checkNotNull(authenticationSession.session.value).accessToken
+                val snapshot = youtubeCoordinator.loadPlanUsage(token, ::refreshCurrentAccessToken)
+                coroutineContext.ensureActive()
+                planUsage = snapshot
+                planUsageChargeMillis = currentPlanChargeMillis
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                coroutineContext.ensureActive()
+                planError = UiText.Resource(R.string.plan_load_failed)
+                if ((exception as? YouTubeApiException)?.statusCode == 401) {
+                    webRtcSession.close()
+                    authenticationSession.clear()
+                }
+            } finally {
+                isPlanLoading = false
             }
-        } finally {
-            isPlanLoading = false
-        }
+            if (backStack.lastOrNull() != SettingsRoute || !isBroadcastActive) break
+            delay(15_000L)
+        } while (true)
     }
     LaunchedEffect(
         backStack.lastOrNull(),
@@ -851,7 +871,7 @@ fun AppNavigation(
             },
             onGetAccessToken = { authenticationSession.session.value?.accessToken },
             profileEmail = session?.profileEmail.orEmpty(),
-            planUsage = planUsage,
+            planUsage = displayedPlanUsage,
             onOpenSettings = {
                 backStack.add(SettingsRoute)
             },
@@ -912,7 +932,7 @@ fun AppNavigation(
                                 },
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
-                                planUsage = planUsage,
+                                planUsage = displayedPlanUsage,
                                 planError = planError,
                                 isPlanLoading = isPlanLoading,
                                 onRefreshPlan = { planRefresh++ },

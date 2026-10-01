@@ -28,6 +28,7 @@ import com.framework.innolive.feature.live.BroadcastTimeDisplay
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
@@ -60,6 +61,39 @@ class PlanUsageScreenTest {
         composeRule.onNodeWithText(context.getString(R.string.plan_refresh)).performScrollTo().performClick()
         composeRule.onNodeWithText(context.getString(R.string.plan_load_failed)).assertDoesNotExist()
         composeRule.onNodeWithText(context.getString(R.string.plan_current, "Beam")).assertExists()
+    }
+
+    @Test fun settingsCountdownTicksPausesAndResetsToNewServerUsage() {
+        var charging by mutableStateOf(true)
+        var snapshot by mutableStateOf(usage)
+        var anchor by mutableStateOf(0L)
+        var chargeMillis = 0L
+        var displayed = usage
+        composeRule.setContent {
+            chargeMillis = rememberPlanChargeMillis("account", charging, 2)
+            displayed = snapshot.afterChargedSeconds((chargeMillis - anchor).coerceAtLeast(0) / 1000)
+            MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = displayed)) } }
+        }
+        composeRule.waitUntil(5_000) { displayed.usedSeconds >= usage.usedSeconds + 2 }
+        composeRule.onNodeWithText(context.getString(R.string.plan_remaining,
+            formatPlanDuration(displayed.remainingSeconds!!))).performScrollTo().assertExists()
+        composeRule.runOnIdle { charging = false }
+        composeRule.waitForIdle()
+        val frozen = displayed
+        Thread.sleep(1_100)
+        composeRule.mainClock.advanceTimeBy(1_100)
+        composeRule.runOnIdle { assertEquals(frozen, displayed) }
+        composeRule.runOnIdle {
+            snapshot = usage.copy(usedSeconds = 4000, remainingSeconds = 428000)
+            anchor = chargeMillis
+        }
+        composeRule.runOnIdle { assertEquals(4000L, displayed.usedSeconds) }
+        composeRule.runOnIdle { charging = true }
+        composeRule.waitUntil(5_000) { displayed.usedSeconds >= 4002 }
+        composeRule.runOnIdle {
+            assertTrue(displayed.remainingSeconds!! <= 427998)
+            charging = false
+        }
     }
 
     @Test fun broadcastTimeUpdatesSeparatelyAndOpensSettings() {

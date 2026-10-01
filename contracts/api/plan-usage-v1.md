@@ -28,7 +28,13 @@ While broadcasting, use the existing session `broadcast_remaining_seconds`,
 not monthly usage or the elapsed clock. Polling remains every 2 seconds; the
 server computes its remaining value approximately every 15 seconds. Preserve
 missing/null/zero semantics from [session state](broadcast-session-state-v1.md).
-Only an active broadcast displays null as unlimited. A failed poll retains its
+Android also checks plan limits before displaying active null as unlimited: a
+prepared/inactive null can survive the initial go-live response. Until a numeric
+session time arrives, finite plans use the mode preview and per-broadcast cap.
+Settings interpolate charged usage each second while live, pause this estimate
+when paused, and reconcile with authenticated usage every 15 seconds. This is
+display-only; the server remains authoritative for billing and broadcast limits.
+A failed poll retains its
 last value and marks it stale until the next successful poll.
 
 Compatibility: additive client consumption of already deployed server fields.

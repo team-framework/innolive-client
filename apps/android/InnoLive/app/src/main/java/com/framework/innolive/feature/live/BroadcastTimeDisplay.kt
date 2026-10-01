@@ -22,10 +22,13 @@ import com.framework.innolive.feature.settings.PlanMode
 import com.framework.innolive.feature.settings.PlanUsage
 
 internal fun displayedRemainingTime(active: Boolean, snapshot: SessionSnapshot?, usage: PlanUsage?): BroadcastRemainingTime {
-    if (active) return snapshot?.remainingTime ?: BroadcastRemainingTime.Unknown
+    if (active && snapshot?.remainingTime is BroadcastRemainingTime.Seconds) return snapshot.remainingTime
     val mode = PlanMode.current(snapshot?.broadcastResolution, snapshot?.visibleTargets?.size ?: 1)
     if (usage == null || !usage.isAllowed(mode)) return BroadcastRemainingTime.Unknown
-    return usage.previewRemaining(mode)?.let(BroadcastRemainingTime::Seconds) ?: BroadcastRemainingTime.UnlimitedOrInactive
+    return usage.previewRemaining(mode)?.let(BroadcastRemainingTime::Seconds)
+        ?: if (!active || snapshot?.remainingTime == BroadcastRemainingTime.UnlimitedOrInactive) {
+            BroadcastRemainingTime.UnlimitedOrInactive
+        } else BroadcastRemainingTime.Unknown
 }
 
 internal fun compactRemainingSeconds(seconds: Long): String =

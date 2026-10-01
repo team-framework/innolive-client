@@ -32,6 +32,19 @@ data class PlanUsage(
         val cap = maxBroadcastSeconds.takeIf { it > 0 }
         return if (monthly == null) cap else if (cap == null) monthly else minOf(monthly, cap)
     }
+
+    internal fun afterChargedSeconds(charged: Long): PlanUsage {
+        if (charged <= 0) return this
+        val remaining = remainingSeconds?.let { (it - charged).coerceAtLeast(0) }
+        return copy(
+            usedSeconds = usedSeconds + minOf(charged, Long.MAX_VALUE - usedSeconds),
+            remainingSeconds = remaining,
+            modes = modes.map { entry ->
+                entry.copy(seconds = if (entry.seconds == null) null else remaining?.div(entry.multiplier)
+                    ?: (entry.seconds - charged / entry.multiplier).coerceAtLeast(0))
+            },
+        )
+    }
 }
 
 internal fun parsePlanUsage(planPayload: String, usagePayload: String): PlanUsage {

@@ -45,15 +45,41 @@ class PlanUsageTest {
         assertThrows(Exception::class.java) { parsePlanUsage(plan, usage.replace("beam", "spark")) }
     }
 
-    @Test fun activeSessionAlwaysOverridesMonthlyUsageAndNullOnlyMeansUnlimitedWhenKnown() {
+    @Test fun startupNullUsesFinitePlanUntilSessionTimeArrives() {
         val usage = parsePlanUsage(plan, fixture("allowed"))
         assertEquals(BroadcastRemainingTime.Seconds(3600), displayedRemainingTime(false, null, usage))
-        assertEquals(BroadcastRemainingTime.Unknown, displayedRemainingTime(true, null, usage))
+        assertEquals(BroadcastRemainingTime.Seconds(3600), displayedRemainingTime(true, null, usage))
         val session = SessionSnapshot("s", remainingTime = BroadcastRemainingTime.Seconds(720))
         assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(true, session, usage))
-        assertEquals(BroadcastRemainingTime.UnlimitedOrInactive,
+        assertEquals(BroadcastRemainingTime.Seconds(3600),
             displayedRemainingTime(true, session.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive), usage))
+        val unlimited = parsePlanUsage(plan, fixture("unlimited")).copy(maxBroadcastSeconds = 0)
+        assertEquals(BroadcastRemainingTime.UnlimitedOrInactive,
+            displayedRemainingTime(true, session.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive), unlimited))
+        assertEquals(BroadcastRemainingTime.Unknown, displayedRemainingTime(true, null, unlimited))
         assertEquals(BroadcastRemainingTime.Unknown, displayedRemainingTime(false, null, usage.copy(allowedModes = emptyList())))
+    }
+
+    @Test fun countdownUsesChargedUnitsAndPreservesCapsUnlimitedAndExhaustion() {
+        val usage = parsePlanUsage(plan, fixture("allowed")).copy(modes = listOf(
+            ModeAvailability("720p_single", true, 7200, 1),
+            ModeAvailability("fhd_single", true, 3600, 2),
+            ModeAvailability("fhd_multi", false, 2400, 3),
+        ))
+        val ticked = usage.afterChargedSeconds(3)
+        assertEquals(usage.usedSeconds + 3, ticked.usedSeconds)
+        assertEquals(7197L, ticked.remainingSeconds)
+        assertEquals(listOf(7197L, 3598L, 2399L), ticked.modes.map { it.seconds })
+        assertEquals(usage.monthlySeconds, ticked.monthlySeconds)
+        assertEquals(usage.maxBroadcastSeconds, ticked.maxBroadcastSeconds)
+        assertEquals(usage, usage.afterChargedSeconds(0))
+        assertEquals(usage, usage.afterChargedSeconds(-1))
+        assertEquals(0L, usage.afterChargedSeconds(Long.MAX_VALUE).remainingSeconds)
+        assertEquals(Long.MAX_VALUE, usage.afterChargedSeconds(Long.MAX_VALUE).usedSeconds)
+        assertTrue(usage.afterChargedSeconds(Long.MAX_VALUE).modes.all { it.seconds == 0L })
+        val unlimited = parsePlanUsage(plan, fixture("unlimited")).afterChargedSeconds(2)
+        assertNull(unlimited.remainingSeconds)
+        assertTrue(unlimited.modes.all { it.seconds == null })
     }
 
     @Test fun snapshotRetainsResolutionAndStaleValueUntilRemainingTimeIsConfirmed() {
