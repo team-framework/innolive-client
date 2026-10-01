@@ -58,4 +58,6 @@ pnpm start
 
 ## Privacy 데모 슬라이드
 
+`components/privacy-section.tsx`의 `PRIVACY_ANIMATION_DELAY_MS`로 도착 후 대기 시간을 ms 단위로 조절합니다(기본 400). 데스크톱은 첫 도착 시 첫 슬라이드와 스크롤 위치를 고정하고, 지정 시간이 지나면 스크롤에 따른 전환을 허용합니다. 대기 중 입력이 들어와도 시간이 연장되지 않습니다. 모바일은 같은 시간만큼 대기한 뒤 등장 애니메이션을 시작합니다.
+
 `lib/privacy-slides.ts`의 `privacySlides` 배열에서 항목을 추가하거나 삭제합니다. 각 항목의 `src`에 `/landing/example.gif`처럼 `public` 기준 경로를 넣으면 최적화하지 않은 원본 이미지 또는 GIF를 표시합니다. `src`가 비어 있으면 `label`을 자리표시 카드로 표시합니다.
