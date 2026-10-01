@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live.components
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -7,8 +8,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
@@ -49,10 +48,11 @@ import kotlin.math.roundToInt
 
 @Composable
 fun SessionUsageWarningBanner(
-    visible: Boolean,
-    onDismissRequest: () -> Unit,
+    noticeCode: String?,
+    onDismissRequest: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val messageResource = noticeCode?.let(::sessionNoticeMessageResource)
     val density = LocalDensity.current
     val swipeDismissThresholdPx = with(density) { 48.dp.toPx() }
     val fastSwipeThresholdPx = with(density) { 800.dp.toPx() }
@@ -65,15 +65,15 @@ fun SessionUsageWarningBanner(
         dragOffsetPx = (dragOffsetPx + delta).coerceIn(-bannerHeightPx, bannerHeightPx)
     }
 
-    LaunchedEffect(visible) {
-        if (visible) {
+    LaunchedEffect(noticeCode) {
+        if (noticeCode != null) {
             settleJob?.cancel()
             dragOffsetPx = 0f
         }
     }
 
     AnimatedVisibility(
-        visible = visible,
+        visible = messageResource != null,
         modifier = modifier,
         enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
         exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
@@ -90,7 +90,7 @@ fun SessionUsageWarningBanner(
                     onDragStarted = { settleJob?.cancel() },
                     onDragStopped = { velocity ->
                         if (dragOffsetPx <= -swipeDismissThresholdPx || velocity <= -fastSwipeThresholdPx) {
-                            currentOnDismissRequest.value()
+                            noticeCode?.let(currentOnDismissRequest.value)
                         } else {
                             val releaseOffset = dragOffsetPx
                             settleJob = scope.launch {
@@ -104,7 +104,7 @@ fun SessionUsageWarningBanner(
                 .semantics {
                     liveRegion = LiveRegionMode.Polite
                     dismiss {
-                        onDismissRequest()
+                        noticeCode?.let(onDismissRequest)
                         true
                     }
                 },
@@ -112,28 +112,31 @@ fun SessionUsageWarningBanner(
             color = Color.White.copy(alpha = 0.9f),
             contentColor = Color.Black,
         ) {
-            Column(
+            Text(
+                text = stringResource(checkNotNull(messageResource)),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.session_usage_warning_title),
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = 24.sp,
-                        lineHeight = 28.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.sp,
-                    ),
-                )
-                Text(
-                    text = stringResource(R.string.session_usage_warning_message, 10),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 18.sp,
-                        lineHeight = 22.sp,
-                        letterSpacing = 0.sp,
-                    ),
-                )
-            }
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 18.sp,
+                    lineHeight = 22.sp,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = 0.sp,
+                ),
+            )
         }
     }
+}
+
+@StringRes
+internal fun sessionNoticeMessageResource(code: String): Int? = when (code) {
+    "broadcast_limit_30m" -> R.string.session_notice_broadcast_limit_30m
+    "broadcast_limit_10m" -> R.string.session_notice_broadcast_limit_10m
+    "broadcast_limit_reached" -> R.string.session_notice_broadcast_limit_reached
+    "monthly_usage_80" -> R.string.session_notice_monthly_usage_80
+    "monthly_usage_100" -> R.string.session_notice_monthly_usage_100
+    "monthly_limit_reached" -> R.string.session_notice_monthly_limit_reached
+    "no_input_stopped" -> R.string.session_notice_no_input_stopped
+    "channel_live_elsewhere" -> R.string.session_notice_channel_live_elsewhere
+    "platform_broadcast_ended" -> R.string.session_notice_platform_broadcast_ended
+    "youtube_quota_low" -> R.string.session_notice_youtube_quota_low
+    else -> null
 }

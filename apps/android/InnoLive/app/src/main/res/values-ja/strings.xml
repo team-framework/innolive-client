@@ -43,8 +43,16 @@
     <string name="local_face_store_error">端末内の登録データを読み書きできませんでした。ぼかしの例外を停止しました。</string>
     <string name="local_face_delete">端末内の顔を削除</string>
     <string name="local_face_timeout">登録時間が終了しました。再度お試しください。</string>
-    <string name="session_usage_warning_title">利用量が不足しています</string>
-    <string name="session_usage_warning_message">現在のプランの利用量が%1$d%%以下です。\n配信が予告なく終了することがあります。</string>
+    <string name="session_notice_broadcast_limit_30m">この配信で利用できる時間は残り30分です。</string>
+    <string name="session_notice_broadcast_limit_10m">この配信で利用できる時間は残り10分です。</string>
+    <string name="session_notice_broadcast_limit_reached">配信の最大時間に達したため、配信を終了しました。</string>
+    <string name="session_notice_monthly_usage_80">今月の配信時間を80%使用しました。</string>
+    <string name="session_notice_monthly_usage_100">今月の配信時間を100%使用しました。</string>
+    <string name="session_notice_monthly_limit_reached">今月の配信時間をすべて使用したため、配信を終了しました。</string>
+    <string name="session_notice_no_input_stopped">映像入力がなかったため、配信を終了しました。</string>
+    <string name="session_notice_channel_live_elsewhere">このCHZZKチャンネルは別のツールですでに配信中のため、配信を拒否されました。別のツールの配信を先に終了してください。</string>
+    <string name="session_notice_platform_broadcast_ended">プラットフォームのスタジオで配信が終了したため、送信を停止しました。</string>
+    <string name="session_notice_youtube_quota_low">本日のYouTube API使用量が多く、配信方式の変更や新しい配信に失敗する場合があります。</string>
     <string name="session_usage_warning_test_show">テストバナーを表示</string>
     <string name="session_usage_warning_test_hide">テストバナーを非表示</string>
 </resources>

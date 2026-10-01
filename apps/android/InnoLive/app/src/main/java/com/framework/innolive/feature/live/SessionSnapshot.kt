@@ -25,12 +25,13 @@ data class SessionSnapshot(
     val targets: List<SessionTarget>? = null,
     val notices: List<SessionNotice>? = null,
     val remainingTime: BroadcastRemainingTime = BroadcastRemainingTime.Unknown,
+    val warnings: List<SessionNotice>? = null,
 ) {
     val visibleTargets: List<SessionTarget>
         get() = targets.orEmpty().filter { it.broadcastPhase != "idle" }
 
-    val hasTimeLimitWarning: Boolean
-        get() = notices?.any { it.code == "time_limit_warning" } == true
+    val bannerNotices: List<SessionNotice>
+        get() = (notices.orEmpty() + warnings.orEmpty()).distinctBy { it.code }
 
     // 기존 방송 버튼은 기본 대상만 제어합니다. 다른 대상의 상태를 합산하지 않습니다.
     internal fun broadcastState(): BroadcastState? {
@@ -58,6 +59,7 @@ internal fun parseSessionSnapshot(
     payload: String,
     sessionId: String,
     previous: SessionSnapshot = SessionSnapshot(sessionId),
+    clearWarningsWhenMissing: Boolean = false,
 ): SessionSnapshot {
     val response = JSONObject(payload)
     require(previous.sessionId == sessionId)
@@ -95,7 +97,18 @@ internal fun parseSessionSnapshot(
         else -> response.nonNegativeInteger("broadcast_remaining_seconds")
             ?.let(BroadcastRemainingTime::Seconds) ?: previous.remainingTime
     }
-    return SessionSnapshot(sessionId, provider, targets, notices, remaining)
+    val warnings = when {
+        response.has("warnings") -> if (response.isNull("warnings")) emptyList() else {
+            response.optJSONArray("warnings")?.objects()?.map { warning ->
+                val code = (warning.opt("code") as? String)?.takeIf { it.isNotBlank() }
+                    ?: throw IllegalArgumentException("알림 코드가 없습니다.")
+                SessionNotice(code, null)
+            } ?: previous.warnings
+        }
+        clearWarningsWhenMissing -> emptyList()
+        else -> previous.warnings
+    }
+    return SessionSnapshot(sessionId, provider, targets, notices, remaining, warnings)
 }
 
 private fun parseSessionTarget(stream: JSONObject, provider: String, previous: SessionTarget?): SessionTarget =

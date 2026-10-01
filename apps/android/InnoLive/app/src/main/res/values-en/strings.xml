@@ -43,8 +43,16 @@
     <string name="local_face_store_error">Could not read or save local faces. Face exemptions are disabled.</string>
     <string name="local_face_delete">Delete local face</string>
     <string name="local_face_timeout">Registration timed out. Please try again.</string>
-    <string name="session_usage_warning_title">Low plan usage</string>
-    <string name="session_usage_warning_message">Your current plan’s remaining usage is no more than %1$d%%.\nYour broadcast may end without notice.</string>
+    <string name="session_notice_broadcast_limit_30m">30 minutes remain in this broadcast\'s available time.</string>
+    <string name="session_notice_broadcast_limit_10m">10 minutes remain in this broadcast\'s available time.</string>
+    <string name="session_notice_broadcast_limit_reached">The maximum broadcast time has been reached. Streaming has ended.</string>
+    <string name="session_notice_monthly_usage_80">You have used 80 percent of this month\'s broadcast time.</string>
+    <string name="session_notice_monthly_usage_100">You have used 100 percent of this month\'s broadcast time.</string>
+    <string name="session_notice_monthly_limit_reached">You have used all of this month\'s broadcast time. Streaming has ended.</string>
+    <string name="session_notice_no_input_stopped">Streaming has ended because there was no video input.</string>
+    <string name="session_notice_channel_live_elsewhere">This CHZZK channel is already live with another tool, so streaming was rejected. End the other tool\'s broadcast first.</string>
+    <string name="session_notice_platform_broadcast_ended">The broadcast ended in the platform studio, so streaming has stopped.</string>
+    <string name="session_notice_youtube_quota_low">Today\'s YouTube API usage is high. Changing broadcast modes or starting a new broadcast may fail.</string>
     <string name="session_usage_warning_test_show">Show test banner</string>
     <string name="session_usage_warning_test_hide">Hide test banner</string>
 </resources>

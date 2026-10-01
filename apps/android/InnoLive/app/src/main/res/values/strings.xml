@@ -279,8 +279,16 @@
     <string name="local_face_store_error">기기 등록 데이터를 읽거나 저장하지 못했습니다. 얼굴 예외를 중지했습니다.</string>
     <string name="local_face_delete">기기 등록 얼굴 삭제</string>
     <string name="local_face_timeout">등록 시간이 지났습니다. 다시 시도해 주세요.</string>
-    <string name="session_usage_warning_title">사용량 부족</string>
-    <string name="session_usage_warning_message">현재 요금제의 사용량이 %1$d%% 이하입니다.\n방송이 예고 없이 종료될 수 있습니다.</string>
+    <string name="session_notice_broadcast_limit_30m">이번 방송 가능 시간이 30분 남았습니다.</string>
+    <string name="session_notice_broadcast_limit_10m">이번 방송 가능 시간이 10분 남았습니다.</string>
+    <string name="session_notice_broadcast_limit_reached">방송 최대 시간에 도달해 송출을 종료했습니다.</string>
+    <string name="session_notice_monthly_usage_80">이번 달 방송 시간을 80% 사용했습니다.</string>
+    <string name="session_notice_monthly_usage_100">이번 달 방송 시간을 100% 사용했습니다.</string>
+    <string name="session_notice_monthly_limit_reached">이번 달 방송 시간을 모두 사용해 송출을 종료했습니다.</string>
+    <string name="session_notice_no_input_stopped">영상 입력이 없어 송출을 종료했습니다.</string>
+    <string name="session_notice_channel_live_elsewhere">치지직 채널이 이미 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 끝내세요.</string>
+    <string name="session_notice_platform_broadcast_ended">플랫폼 스튜디오에서 방송이 종료되어 송출을 멈췄습니다.</string>
+    <string name="session_notice_youtube_quota_low">오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다.</string>
     <string name="session_usage_warning_test_show">테스트 배너 표시</string>
     <string name="session_usage_warning_test_hide">테스트 배너 숨기기</string>
 </resources>
