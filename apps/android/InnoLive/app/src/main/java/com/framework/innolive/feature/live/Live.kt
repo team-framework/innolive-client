@@ -322,6 +322,10 @@ fun LiveScreen(
                     if (openChzzkSettingsDialog) {
                         ChzzkSettingsDialog(
                             settings = chzzkSettings,
+                            onChangePlatform = {
+                                openChzzkSettingsDialog = false
+                                openPlatformDialog = true
+                            },
                             accountLabel = chzzkMessage ?: when {
                                 !chzzkAccountVerified -> "계정 상태 확인 중"
                                 chzzkAccount == null -> "치지직 계정을 연결하세요."
@@ -409,6 +413,10 @@ fun LiveScreen(
                     if (openYouTubeSettingsDialog) {
                         YouTubeLiveSettingsDialog(
                             settings = props.broadcastSettings,
+                            onChangePlatform = {
+                                openYouTubeSettingsDialog = false
+                                openPlatformDialog = true
+                            },
                             youtubeChannelTitle = props.youtubeChannelTitle,
                             hasYouTubeAccount = props.hasYouTubeAccount,
                             youtubeAccountStatus = props.youtubeAccountStatus,

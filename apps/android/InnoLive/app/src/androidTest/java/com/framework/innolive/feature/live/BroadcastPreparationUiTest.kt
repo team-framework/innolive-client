@@ -12,6 +12,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.R
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.*
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -26,9 +27,13 @@ class BroadcastPreparationUiTest {
     private val accountBusy = mutableStateOf(false)
     private val refresh = CompletableDeferred<Unit>()
     private var authenticationCalls = 0
+    private var savedProvider: String? = null
 
     @Before fun showLiveScreen() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val preferences = instrumentation.targetContext.getSharedPreferences("innolive_broadcast_provider", 0)
+        savedProvider = preferences.getString("selected", null)
+        preferences.edit().remove("selected").commit()
         for (permission in listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) {
             instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName, permission)
         }
@@ -60,6 +65,33 @@ class BroadcastPreparationUiTest {
                     session,
                 )
             }
+        }
+    }
+
+    @After fun restoreProviderPreference() {
+        InstrumentationRegistry.getInstrumentation().targetContext
+            .getSharedPreferences("innolive_broadcast_provider", 0)
+            .edit().putString("selected", savedProvider).commit()
+    }
+
+    @Test fun savedProviderCanBeChangedInBothDirectionsWithoutConnecting() {
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
+        compose.onNodeWithText("YouTube").performClick()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
+        compose.onNodeWithText("플랫폼 변경").performClick()
+        compose.onNodeWithText("CHZZK").performClick()
+        compose.onNodeWithText("치지직 방송 설정").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(BroadcastProvider.CHZZK, session.selectedProvider) }
+        compose.onNodeWithText("플랫폼 변경").performClick()
+        compose.onNodeWithText("YouTube").performClick()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(BroadcastProvider.YOUTUBE, session.selectedProvider)
+            assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
+            assertEquals(0, authenticationCalls)
         }
     }
 

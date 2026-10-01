@@ -104,6 +104,7 @@ internal fun ChzzkSettingsDialog(
     onSearch: suspend (String) -> List<ChzzkCategory>,
     onPrepare: () -> Unit,
     onDismiss: () -> Unit,
+    onChangePlatform: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
     var categories by remember { mutableStateOf(emptyList<ChzzkCategory>()) }
@@ -114,6 +115,7 @@ internal fun ChzzkSettingsDialog(
             Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("치지직 방송 설정")
+                TextButton(onClick = onChangePlatform, enabled = !isBusy) { Text("플랫폼 변경") }
                 Text(accountLabel)
                 Row {
                     Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text("연결 / 재연결") }
