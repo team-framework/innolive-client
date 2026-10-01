@@ -1,0 +1,23 @@
+1:"$Sreact.fragment"
+2:I[4648,["426","static/chunks/52109c2a-ca92cefb3e748474.js","1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","75","static/chunks/75-08f25a6b2d92c4c7.js","713","static/chunks/713-26b80a807b6e7f0b.js","465","static/chunks/app/%5Blocale%5D/page-4d22c6230a2de895.js"],"IntroScroll"]
+3:I[1824,["426","static/chunks/52109c2a-ca92cefb3e748474.js","1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","75","static/chunks/75-08f25a6b2d92c4c7.js","713","static/chunks/713-26b80a807b6e7f0b.js","465","static/chunks/app/%5Blocale%5D/page-4d22c6230a2de895.js"],"Header"]
+4:I[4653,["426","static/chunks/52109c2a-ca92cefb3e748474.js","1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","75","static/chunks/75-08f25a6b2d92c4c7.js","713","static/chunks/713-26b80a807b6e7f0b.js","465","static/chunks/app/%5Blocale%5D/page-4d22c6230a2de895.js"],"SmoothScroll"]
+5:I[1607,["426","static/chunks/52109c2a-ca92cefb3e748474.js","1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","75","static/chunks/75-08f25a6b2d92c4c7.js","713","static/chunks/713-26b80a807b6e7f0b.js","465","static/chunks/app/%5Blocale%5D/page-4d22c6230a2de895.js"],"Hero"]
+6:I[8965,["426","static/chunks/52109c2a-ca92cefb3e748474.js","1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","75","static/chunks/75-08f25a6b2d92c4c7.js","713","static/chunks/713-26b80a807b6e7f0b.js","465","static/chunks/app/%5Blocale%5D/page-4d22c6230a2de895.js"],"PrivacySection"]
+7:I[3119,["426","static/chunks/52109c2a-ca92cefb3e748474.js","1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","75","static/chunks/75-08f25a6b2d92c4c7.js","713","static/chunks/713-26b80a807b6e7f0b.js","465","static/chunks/app/%5Blocale%5D/page-4d22c6230a2de895.js"],"FeatureSection"]
+8:I[81,["426","static/chunks/52109c2a-ca92cefb3e748474.js","1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","75","static/chunks/75-08f25a6b2d92c4c7.js","713","static/chunks/713-26b80a807b6e7f0b.js","465","static/chunks/app/%5Blocale%5D/page-4d22c6230a2de895.js"],"FAQSection"]
+9:I[5956,["426","static/chunks/52109c2a-ca92cefb3e748474.js","1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","75","static/chunks/75-08f25a6b2d92c4c7.js","713","static/chunks/713-26b80a807b6e7f0b.js","465","static/chunks/app/%5Blocale%5D/page-4d22c6230a2de895.js"],"Footer"]
+a:I[7221,[],"OutletBoundary"]
+b:"$Sreact.suspense"
+f:I[7221,[],"ViewportBoundary"]
+10:I[7221,[],"MetadataBoundary"]
+11:I[4016,[],"IconMark"]
+e:X
+0:{"buildId":"Z350PgrqBDZvaYydEYCPC","data":[{"rsc":["$","$1","c",{"children":[[["$","$L2",null,{}],["$","$L3",null,{}],["$","main",null,{"id":"main","tabIndex":-1,"data-page":"home","className":"bg-background-primary","children":["$","$L4",null,{"children":[["$","$L5",null,{}],["$","$L6",null,{}],["$","$L7",null,{}],["$","$L8",null,{}],["$","$L9",null,{}]]}]}]],null,["$","$La",null,{"children":["$","$b",null,{"name":"Next.MetadataOutlet","children":"$@c"}]}]]}],"isPartial":"$@d","staleTime":"$e","varyParams":null},{"rsc":["$","$1","h",{"children":[null,["$","$Lf",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L10",null,{"children":["$","$b",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"InnoLive"}],["$","meta","1",{"name":"description","content":"リアルタイムAI非識別化ライブ配信ソリューション"}],["$","link","2",{"rel":"icon","href":"/team-framework/innolive-client/fix%2Flanding-scroll-preview%2F%23383/section-stops/favicon.ico?67e19db6edd4b9c4","type":"image/x-icon","sizes":"256x256"}],["$","$L11","3",{}]]}]}]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"isPartial":"$@12","staleTime":"$e","varyParams":null}],"isUpgradeableISRFallback":false,"a":"$@13","rootVaryParams":null,"needsRuntimeRequest":"$@14"}
+c:null
+14:true
+e:300
+e:C
+13:0
+12:"$undefined"
+d:"$undefined"

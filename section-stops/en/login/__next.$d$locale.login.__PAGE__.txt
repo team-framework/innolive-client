@@ -1,0 +1,22 @@
+1:"$Sreact.fragment"
+2:I[2910,["1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","495","static/chunks/app/%5Blocale%5D/login/page-73a558611c4b9996.js"],"AuthShell"]
+3:I[4983,["1","static/chunks/1-98e689abae487b96.js","50","static/chunks/50-433ca1624258cc80.js","495","static/chunks/app/%5Blocale%5D/login/page-73a558611c4b9996.js"],"LoginForm"]
+4:I[7221,[],"OutletBoundary"]
+5:"$Sreact.suspense"
+9:I[7221,[],"ViewportBoundary"]
+a:I[7221,[],"MetadataBoundary"]
+b:I[4016,[],"IconMark"]
+d:I[1403,[],""]
+e:I[3150,[],""]
+8:X
+10:X
+10:C
+0:{"buildId":"Z350PgrqBDZvaYydEYCPC","data":[{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"children":["$","$L3",null,{}]}],null,["$","$L4",null,{"children":["$","$5",null,{"name":"Next.MetadataOutlet","children":"$@6"}]}]]}],"isPartial":"$@7","staleTime":"$8","varyParams":null},{"rsc":["$","$1","h",{"children":[null,["$","$L9",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$La",null,{"children":["$","$5",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Log in | InnoLive"}],["$","meta","1",{"name":"description","content":"Real-time AI de-identification for live streaming"}],["$","link","2",{"rel":"icon","href":"/team-framework/innolive-client/fix%2Flanding-scroll-preview%2F%23383/section-stops/favicon.ico?67e19db6edd4b9c4","type":"image/x-icon","sizes":"256x256"}],["$","$Lb","3",{}]]}]}]}],["$","meta",null,{"name":"next-size-adjust","content":""}]]}],"isPartial":"$@c","staleTime":"$8","varyParams":null},{"rsc":["$","$1","c",{"children":[null,["$","$Ld",null,{"parallelRouterKey":"children","template":["$","$Le",null,{}]}]]}],"isPartial":"$@f","staleTime":"$8","varyParams":"$10"}],"isUpgradeableISRFallback":false,"a":"$@11","rootVaryParams":null,"needsRuntimeRequest":"$@12"}
+6:null
+12:true
+8:300
+8:C
+11:0
+c:"$undefined"
+f:"$undefined"
+7:"$undefined"
