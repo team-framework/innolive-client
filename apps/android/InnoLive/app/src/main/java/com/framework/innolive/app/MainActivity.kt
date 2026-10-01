@@ -332,12 +332,13 @@ fun AppNavigation(
         operation: Long,
         exception: Throwable? = null,
         stage: String = "connection_completion",
+        suppressAccountRefresh: Boolean = true,
     ) {
         if (!isCurrentYouTubeOperation(operation)) return
         Log.w("InnoLiveYouTube", "failure_stage=$stage ${youtubeFailureDiagnostic(exception)}")
         youtubeAuthorizationOperation = null
         isYouTubeAuthorizationLaunched = false
-        suppressYouTubeAccountRefreshOnce = true
+        suppressYouTubeAccountRefreshOnce = suppressAccountRefresh
         isYouTubeAccountActionInProgress = false
         youtubeAccountStatusBeforeAuthorization = null
         youtubeAccountStatus = youtubeConnectionFailureMessage(exception)
@@ -390,21 +391,28 @@ fun AppNavigation(
                     }
                     return accessToken
                 }
-                val account = youtubeCoordinator.connect(
-                    serverAuthCode = serverAuthCode,
-                    accessToken = refreshConnectionAccessToken(),
-                    refreshAccessToken = ::refreshConnectionAccessToken,
-                )
-                if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
+                val accessToken = refreshConnectionAccessToken()
+                youtubeVerification.connectAccount {
+                    val account = youtubeCoordinator.connect(
+                        serverAuthCode = serverAuthCode,
+                        accessToken = accessToken,
+                        refreshAccessToken = ::refreshConnectionAccessToken,
+                    )
+                    if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                showYouTubeAccountFailure(operation, exception)
+                showYouTubeAccountFailure(
+                    operation,
+                    exception,
+                    suppressAccountRefresh =
+                        youtubeAccountVerificationState == YouTubeAccountVerificationState.VERIFIED,
+                )
             } finally {
                 if (isCurrentYouTubeOperation(operation)) {
                     youtubeAuthorizationOperation = null
                     isYouTubeAuthorizationLaunched = false
-                    suppressYouTubeAccountRefreshOnce = true
                     isYouTubeAccountActionInProgress = false
                     youtubeAccountStatusBeforeAuthorization = null
                 }

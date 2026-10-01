@@ -18,6 +18,17 @@ internal class YouTubeVerificationMemory {
     val state = mutableStateOf(YouTubeAccountVerificationState.UNVERIFIED)
     val verifiedProfileEmail = mutableStateOf<String?>(null)
     val suppressRefreshOnce = mutableStateOf(false)
+
+    internal suspend fun connectAccount(connectAndVerify: suspend () -> Unit) {
+        // The server may replace the channel even if its response never reaches this screen.
+        state.value = YouTubeAccountVerificationState.UNVERIFIED
+        verifiedProfileEmail.value = null
+        try {
+            connectAndVerify()
+        } finally {
+            suppressRefreshOnce.value = state.value == YouTubeAccountVerificationState.VERIFIED
+        }
+    }
 }
 
 @Composable
