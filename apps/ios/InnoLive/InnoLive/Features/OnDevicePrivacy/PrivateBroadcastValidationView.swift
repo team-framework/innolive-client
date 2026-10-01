@@ -15,7 +15,7 @@ struct PrivateBroadcastValidationView: View {
         self.api = api
         _youtube = StateObject(wrappedValue: YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(), api: api,
-            aiModeProvider: { ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") ? .server : .onDevice },
+            aiModeProvider: { (ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") || ProcessInfo.processInfo.arguments.contains("--live-broadcast-edit-test")) ? .server : .onDevice },
             persistAIProcessingMode: { _ in }
         ))
     }
@@ -30,6 +30,7 @@ struct PrivateBroadcastValidationView: View {
             guard !started else { return }
             started = true
             if ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") { await runSwitchTest() }
+            else if ProcessInfo.processInfo.arguments.contains("--live-broadcast-edit-test") { await runLiveEditTest() }
             else { await run() }
         }
     }
@@ -40,6 +41,62 @@ struct PrivateBroadcastValidationView: View {
         if let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             try? report.write(to: documents.appendingPathComponent("private-broadcast-validation.txt"), atomically: true, encoding: .utf8)
         }
+    }
+
+    private func runLiveEditTest() async {
+        youtube.configureAuthentication(authentication)
+        authentication.restore()
+        guard authentication.isAuthenticated else { record("BLOCKED: 앱 로그인이 필요합니다."); return }
+        await youtube.refreshConnection(accessToken: authentication.currentAccessToken())
+        guard youtube.isConnected else { record("BLOCKED: YouTube 연결이 필요합니다."); return }
+        guard let audience = youtube.broadcastSettings.audience else { record("BLOCKED: 시청자층 설정이 필요합니다."); return }
+        let originalSettings = youtube.settingsEditor.youtube
+        defer {
+            youtube.settingsEditor.editYouTube { $0 = originalSettings }
+            youtube.settingsEditor.persist(provider: .youtube)
+        }
+        var prepared = false
+        do {
+            guard await youtube.prepareSession(accessToken: authentication.currentAccessToken()), let session = youtube.session,
+                  await youtube.connectVideo(accessToken: authentication.currentAccessToken(), preferredCameraID: nil,
+                                             preferredAudioID: nil, preferredVideoQuality: .hd30),
+                  let token = authentication.currentAccessToken() else { throw PrivacyFaceError.message("세션·영상 연결 실패") }
+            let settings = YouTubeBroadcastSettings(title: "InnoLive 비공개 방송 수정 검증", description: "라이브 편집 검증", privacy: .private, audience: audience, categoryID: "22")
+            youtube.settingsEditor.editYouTube { $0 = settings }
+            prepared = true
+            guard await youtube.prepareYouTubeStream(accessToken: token, useEditor: true) else { throw PrivacyFaceError.message("방송 준비 실패") }
+            await youtube.goLiveYouTubeStream(accessToken: token)
+            guard youtube.canEditLiveBroadcast(.youtube) else { throw PrivacyFaceError.message("라이브 전환 실패") }
+            let peer = youtube.videoUplink.peerConnection
+            let before = try await api.sessionStatus(session: session, accessToken: token)
+            guard before.broadcast?.privacy == "private" else { throw PrivacyFaceError.message("비공개 설정 확인 실패") }
+            youtube.beginLiveEditing(.youtube, accessToken: token)
+            youtube.liveSettingsEditor.editYouTube { $0.title = "InnoLive 비공개 방송 수정 완료"; $0.description = "송출 유지 중 PATCH 검증"; $0.categoryID = "20" }
+            guard await youtube.saveLiveSettings(accessToken: token) else { throw PrivacyFaceError.message(youtube.liveSettingsError ?? "라이브 편집 실패") }
+            let after = try await api.sessionStatus(session: session, accessToken: token)
+            guard after.broadcast?.title == "InnoLive 비공개 방송 수정 완료", after.broadcast?.description == "송출 유지 중 PATCH 검증",
+                  after.broadcast?.categoryID == "20", after.broadcast?.privacy == "private", after.stream.broadcastPhaseValue == .live,
+                  after.stream.publisherActive, after.stream.startedAt == before.stream.startedAt,
+                  youtube.session?.sessionID == session.sessionID, youtube.videoUplink.peerConnection === peer else {
+                throw PrivacyFaceError.message("수정값·세션·송출 유지 확인 실패")
+            }
+            record("PASS: real_server_PATCH; title_description_category=true; private=true; same_session_peer_start=true; publisher_active=true")
+            try await Task.sleep(for: .seconds(10))
+            let final = try await api.sessionStatus(session: session, accessToken: token)
+            guard final.stream.broadcastPhaseValue == .live, final.stream.publisherActive else { throw PrivacyFaceError.message("수정 후 송출 유지 실패") }
+            record("PASS: live_after_edit_10s=true; external_viewer_audio_video=unverified")
+        } catch { record("FAILED: 방송 수정 검증을 완료하지 못했습니다.") }
+        if prepared {
+            await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken())
+            if let session = youtube.session, let token = authentication.currentAccessToken(),
+               let stopped = try? await api.sessionStatus(session: session, accessToken: token),
+               stopped.stream.broadcastPhaseValue != .live {
+                record("PASS: test_broadcast_stopped=true")
+            } else { record("FAILED: 테스트 방송 종료 상태를 확인하지 못했습니다.") }
+        }
+        await youtube.endBroadcast(accessToken: authentication.currentAccessToken())
+        record(youtube.session == nil ? "PASS: session_closed=true" : "FAILED: 세션 종료를 확인하지 못했습니다.")
+        record("live_edit_validation_finished")
     }
 
     private func runSwitchTest() async {

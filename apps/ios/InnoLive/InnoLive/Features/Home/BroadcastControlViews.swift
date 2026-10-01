@@ -48,10 +48,20 @@ struct YouTubeBroadcastControlLabel: View {
                         .frame(width: 9, height: 9)
                 }
 
-                Text(buttonTitle(at: context.date))
-                    .font(.headline.weight(.bold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                VStack(spacing: 2) {
+                    Text(buttonTitle(at: context.date))
+                        .font(.headline.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                    if youtube.isYouTubeBroadcastActive {
+                        Text(String(localized: "남은 시간 \(PlanTimeText.remaining(youtube.broadcastRemainingTime))"))
+                            .font(.caption2)
+                        if youtube.isRemainingTimeStale {
+                            Text(String(localized: "마지막 조회값 · 재시도 중"))
+                                .font(.caption2).foregroundStyle(.orange)
+                        }
+                    }
+                }
             }
             .frame(maxWidth: .infinity)
             .frame(height: BroadcastControlLayout.height)
@@ -74,7 +84,7 @@ struct YouTubeBroadcastControlLabel: View {
         if youtube.stream?.status == "reconnecting" {
             return String(localized: "재연결 중 (\(duration))")
         }
-        return String(localized: "방송 중 (\(duration))")
+        return String(localized: "방송 중 · 경과 \(duration)")
     }
 
     private func formattedDuration(since startDate: Date?, now: Date) -> String {
@@ -89,7 +99,8 @@ struct YouTubeBroadcastControlLabel: View {
     }
 }
 
-struct ServerConnectionControlLabel: View {
+struct BroadcastPreparationControlLabel: View {
+    let status: BroadcastPreparationStatus?
     let isLoading: Bool
 
     var body: some View {
@@ -97,20 +108,26 @@ struct ServerConnectionControlLabel: View {
             if isLoading {
                 ProgressView()
                     .controlSize(.small)
-            } else {
-                Image(systemName: "arrow.clockwise")
-                    .font(.body.weight(.semibold))
             }
-            Text(isLoading ? String(localized: "서버 연결 중") : String(localized: "연결 재시도"))
+            Text(title)
                 .font(.headline.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity)
         .frame(height: BroadcastControlLayout.height)
         .contentShape(Rectangle())
     }
+
+    private var title: String {
+        guard let status else { return String(localized: "방송 준비") }
+        if status.isFailed { return String(localized: "다시 시도") }
+        return status.phase.title
+    }
 }
 
 struct BroadcastSessionStatusView: View {
+    @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
 
     var body: some View {
@@ -118,6 +135,15 @@ struct BroadcastSessionStatusView: View {
             ForEach(youtube.visibleBroadcastTargets) { target in
                 let policy = YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false)
                 Text(policy.streamStatusText.replacingOccurrences(of: "YouTube", with: target.title))
+            }
+            ForEach(youtube.liveEditingTargets) { provider in
+                NavigationLink {
+                    BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
+                } label: {
+                    Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
+                }
+                .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
+                .accessibilityIdentifier("live-edit-" + provider.rawValue)
             }
             if youtube.isYouTubeBroadcastActive {
                 HStack {

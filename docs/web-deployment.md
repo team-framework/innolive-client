@@ -14,7 +14,7 @@ git archive --format=tar $GITHUB_SHA apps/landing | gzip -n
 
 ## 호스트 설정
 
-root가 `/etc/innolive/web-deploy.env`를 만들고 다음 여덟 변수를 설정한다.
+root가 `/etc/innolive/web-deploy.env`를 만들고 다음 아홉 변수를 설정한다.
 값은 저장소에 기록하지 않는다.
 
 ```text
@@ -26,6 +26,7 @@ INNOLIVE_WEB_DB_CONTAINER
 INNOLIVE_WEB_PROXY_CONTAINER
 NEXT_PUBLIC_INNOLIVE_SERVER_URL
 NEXT_PUBLIC_IOS_DOWNLOAD_URL
+NEXT_PUBLIC_ANDROID_DOWNLOAD_URL
 ```
 
 현재 운영 경로와 이름은 각각 `/opt/innolive/web-src`,
@@ -33,6 +34,8 @@ NEXT_PUBLIC_IOS_DOWNLOAD_URL
 `innolive-web-db-1`, `innolive-caddy`를 사용한다.
 `NEXT_PUBLIC_INNOLIVE_SERVER_URL`에 `https://api.innolive.studio`를 사용한다.
 `NEXT_PUBLIC_IOS_DOWNLOAD_URL`에는 iOS App Store 페이지 URL을 설정한다.
+`NEXT_PUBLIC_ANDROID_DOWNLOAD_URL`에는 Android ONE store의 공식 앱 페이지 URL을 설정한다.
+다운로드 URL은 공개 빌드 설정이며, 값을 바꾸면 landing을 다시 빌드·배포한다.
 배포 스크립트는
 `web-src/.env`, `docker-compose.yml`, `docker-compose.server.yml`,
 `docker-compose.gpu.yml`이 이미 존재하는지 확인한다. 이 파일과 Caddy 설정,
@@ -60,7 +63,7 @@ port forwarding, X11 forwarding, PTY를 끈다. 기존 Go 배포 key와 스크�
 
 배포 대상 전환은 다음 순서로 적용한다.
 
-1. `/etc/innolive/web-deploy.env`에 `NEXT_PUBLIC_INNOLIVE_SERVER_URL`과 `NEXT_PUBLIC_IOS_DOWNLOAD_URL`을 추가한다.
+1. `/etc/innolive/web-deploy.env`에 `NEXT_PUBLIC_INNOLIVE_SERVER_URL`, `NEXT_PUBLIC_IOS_DOWNLOAD_URL`, `NEXT_PUBLIC_ANDROID_DOWNLOAD_URL`을 추가한다.
 2. 새 `deploy-innolive-web.sh`를 설치하고 권한 및 sudoers 규칙을 확인한다.
 3. 운영 Compose 구성을 출력해 landing이 DB 환경과 내부 네트워크를 상속하지 않는지 확인한다.
 4. 이 변경을 `main`에 병합한다.
@@ -72,7 +75,7 @@ Compose `ps web`이 비어 있고 `{project}-web-1` 이름의 수동 컨테이�
 ## 교체와 확인
 
 배포는 flock으로 직렬화한다. 새 release에 landing build context와
-`INNOLIVE_WEB_REVISION`, `NEXT_PUBLIC_INNOLIVE_SERVER_URL`, `NEXT_PUBLIC_IOS_DOWNLOAD_URL` build arg, SHA가
+`INNOLIVE_WEB_REVISION`, `NEXT_PUBLIC_INNOLIVE_SERVER_URL`, `NEXT_PUBLIC_IOS_DOWNLOAD_URL`, `NEXT_PUBLIC_ANDROID_DOWNLOAD_URL` build arg, SHA가
 포함된 image tag만 담은 Compose override를 만든다. 기존 web image를
 rollback용 tag로 저장한 뒤 다음 두 동작만 수행한다.
 

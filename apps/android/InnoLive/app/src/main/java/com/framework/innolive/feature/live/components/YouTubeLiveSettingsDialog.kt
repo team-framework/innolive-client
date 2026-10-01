@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
+import com.framework.innolive.ui.text.ServerErrorGuidance
+import com.framework.innolive.ui.text.asString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +68,7 @@ fun YouTubeLiveSettingsDialog(
     onConnectYouTube: () -> Unit,
     onDismissRequest: () -> Unit,
     onPrepare: (() -> Unit)? = null,
+    serverError: ServerErrorGuidance? = null,
 ) {
     var isPrivacyMenuExpanded by remember { mutableStateOf(false) }
     var isAudienceMenuExpanded by remember { mutableStateOf(false) }
@@ -76,6 +79,7 @@ fun YouTubeLiveSettingsDialog(
     val dialogMaxHeight = configuration.screenHeightDp.dp * 0.9f
 
     var validation by remember { mutableStateOf(YouTubeLiveSettingsValidation()) }
+    fun fieldError(field: String) = serverError?.takeIf { it.field == field }?.message
 
     val privacyLabel = when (settings.privacy) {
         "unlisted" -> stringResource(R.string.privacy_unlisted)
@@ -145,6 +149,10 @@ fun YouTubeLiveSettingsDialog(
                     }
                 }
 
+                if (serverError != null && serverError.field !in setOf("title", "description", "privacy", "made_for_kids")) {
+                    Text(serverError.message.asString(), color = MaterialTheme.colorScheme.error)
+                }
+
                 OutlinedTextField(
                     value = settings.title,
                     onValueChange = { value ->
@@ -158,11 +166,11 @@ fun YouTubeLiveSettingsDialog(
                         )
                     },
                     singleLine = true,
-                    isError = validation.titleError,
-                    supportingText = if (validation.titleError) {
+                    isError = validation.titleError || fieldError("title") != null,
+                    supportingText = if (validation.titleError || fieldError("title") != null) {
                         {
                             Text(
-                                stringResource(R.string.validation_broadcast_title),
+                                fieldError("title")?.asString() ?: stringResource(R.string.validation_broadcast_title),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
@@ -188,11 +196,11 @@ fun YouTubeLiveSettingsDialog(
                     },
                     minLines = 3,
                     maxLines = 5,
-                    isError = validation.descriptionError,
-                    supportingText = if (validation.descriptionError) {
+                    isError = validation.descriptionError || fieldError("description") != null,
+                    supportingText = if (validation.descriptionError || fieldError("description") != null) {
                         {
                             Text(
-                                stringResource(R.string.validation_broadcast_description),
+                                fieldError("description")?.asString() ?: stringResource(R.string.validation_broadcast_description),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
@@ -209,6 +217,8 @@ fun YouTubeLiveSettingsDialog(
                     OutlinedTextField(
                         value = privacyLabel,
                         onValueChange = {},
+                        isError = fieldError("privacy") != null,
+                        supportingText = fieldError("privacy")?.let { message -> { Text(message.asString()) } },
                         readOnly = true,
                         label = {
                             Text(
@@ -276,17 +286,17 @@ fun YouTubeLiveSettingsDialog(
                         value = audienceLabel,
                         onValueChange = {},
                         readOnly = true,
-                        isError = validation.audienceError,
+                        isError = validation.audienceError || fieldError("made_for_kids") != null,
                         label = {
                             Text(
                                 stringResource(R.string.label_made_for_kids),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                         },
-                        supportingText = if (validation.audienceError) {
+                        supportingText = if (validation.audienceError || fieldError("made_for_kids") != null) {
                             {
                                 Text(
-                                    stringResource(R.string.validation_audience),
+                                    fieldError("made_for_kids")?.asString() ?: stringResource(R.string.validation_audience),
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }

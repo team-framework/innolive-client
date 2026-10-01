@@ -154,6 +154,7 @@ struct YouTubeBroadcastSettings: Codable, Equatable {
     var description: String
     var privacy: YouTubeBroadcastPrivacy
     var audience: YouTubeBroadcastAudience?
+    var categoryID: String? = nil
 
     static var defaultValue: Self {
         Self(
@@ -375,6 +376,10 @@ struct YouTubeConnectionResponse: Decodable {
 
 struct YouTubeBroadcastVisibility: Decodable {
     let privacy: String
+    var title: String? = nil
+    var description: String? = nil
+    var categoryID: String? = nil
+    enum CodingKeys: String, CodingKey { case privacy, title, description; case categoryID = "category_id" }
 }
 
 struct YouTubeSessionResponse: Decodable {

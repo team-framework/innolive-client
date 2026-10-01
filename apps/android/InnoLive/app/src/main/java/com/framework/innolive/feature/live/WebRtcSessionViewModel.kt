@@ -14,6 +14,8 @@ import androidx.lifecycle.viewModelScope
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
 import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.ServerErrorGuidance
+import com.framework.innolive.ui.text.ServerErrorAction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
@@ -26,6 +28,28 @@ import kotlin.coroutines.resume
 class WebRtcSessionViewModel : ViewModel() {
     private var startJob: Job? = null
     private var prepareJob: Job? = null
+    var serverError by mutableStateOf<ServerErrorGuidance?>(null)
+        private set
+    private var preparationSettings: BroadcastSettings? = null
+    private var retryBroadcastRequest: (() -> Unit)? = null
+
+    fun dismissServerError() { serverError = null }
+
+    fun confirmConcurrentBroadcast(): Boolean {
+        if (serverError?.action != ServerErrorAction.CONFIRM_CONCURRENT ||
+            connectionState != WebRtcConnectionState.CONNECTED) return false
+        val settings = preparationSettings ?: return false
+        val activeConnection = connection ?: return false
+        serverError = null
+        return requestBroadcastPreparation(activeConnection, settings, allowConcurrent = true)
+    }
+
+    fun retryBroadcast() {
+        if (serverError?.action != ServerErrorAction.RETRY) return
+        val request = retryBroadcastRequest ?: return
+        serverError = null
+        request()
+    }
     var isPreparingBroadcast by mutableStateOf(false)
         private set
     private var selectedAudioInput: AudioDeviceInfo? = null
@@ -44,6 +68,8 @@ class WebRtcSessionViewModel : ViewModel() {
     var remoteVideoTrack by mutableStateOf<VideoTrack?>(null)
         private set
     var localVideoTrack by mutableStateOf<VideoTrack?>(null)
+        private set
+    var sessionSnapshot by mutableStateOf<SessionSnapshot?>(null)
         private set
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
@@ -166,7 +192,11 @@ class WebRtcSessionViewModel : ViewModel() {
         val initialEnabled = selectedAnonymizationEnabled
         restoreAIProcessingSelection(context)
         val initialOnDevice = selectedOnDeviceProcessing
+        serverError = null
+        preparationSettings = null
+        retryBroadcastRequest = null
         sessionState = sessionState.beginConnection()
+        sessionSnapshot = null
         signalingStartedGeneration = null
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
@@ -208,8 +238,11 @@ class WebRtcSessionViewModel : ViewModel() {
                     onStateChanged = { state, failure ->
                         if (sessionState.acceptsCallback(generation)) {
                             sessionState = sessionState.connectionChanged(generation, state)
-                            connectionStatus = connectionUserMessage(state, failure)
+                            connectionStatus = if (state == WebRtcConnectionState.FAILED && serverError != null) {
+                                serverError?.message
+                            } else connectionUserMessage(state, failure)
                             if (state == WebRtcConnectionState.FAILED) {
+                                sessionSnapshot = null
                                 lockedBroadcastRotation = null
                                 lockedScreenOrientation = null
                             }
@@ -253,8 +286,14 @@ class WebRtcSessionViewModel : ViewModel() {
                     onInitialSignalingStarted = {
                         if (isCurrentGeneration(generation)) signalingStartedGeneration = generation
                     },
+                    onServerError = { guidance ->
+                        if (isCurrentGeneration(generation)) serverError = guidance
+                    },
+                    onSessionSnapshotChanged = { snapshot ->
+                        if (sessionState.acceptsCallback(generation)) sessionSnapshot = snapshot
+                    },
                     onBroadcastStateChanged = { state, event ->
-                        if (sessionState.acceptsCallback(generation)) {
+                        if (sessionState.acceptsCallback(generation) && (state != broadcastState || event != null)) {
                             lockedBroadcastRotation = nextBroadcastRotation(
                                 lockedBroadcastRotation,
                                 state,
@@ -266,6 +305,7 @@ class WebRtcSessionViewModel : ViewModel() {
                                 nowMillis = SystemClock.elapsedRealtime(),
                             )
                             broadcastState = state
+                            if (event is BroadcastEvent.ApiFailure) serverError = event.guidance
                             val feedback = broadcastUserMessage(state, event)
                             broadcastStatus = feedback.text
                             isBroadcastStatusDefault = feedback.isStateDescription
@@ -323,6 +363,8 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
+        serverError = null
+        retryBroadcastRequest = { saveBroadcastSettings(settings) }
         connection?.saveBroadcastSettings(settings)
             ?: run {
                 broadcastState = BroadcastState.FAILED
@@ -397,11 +439,17 @@ class WebRtcSessionViewModel : ViewModel() {
     internal fun requestBroadcastPreparation(
         activeConnection: WebRtcConnection,
         settings: BroadcastSettings,
+        allowConcurrent: Boolean = false,
     ): Boolean {
+        serverError = null
+        preparationSettings = settings
+        retryBroadcastRequest = {
+            connection?.let { requestBroadcastPreparation(it, settings, allowConcurrent) }
+        }
         broadcastState = BroadcastState.SAVING_SETTINGS
         broadcastStatus = broadcastStateMessage(BroadcastState.SAVING_SETTINGS).text
         isBroadcastStatusDefault = true
-        if (activeConnection.prepareBroadcast(settings)) return true
+        if (activeConnection.prepareBroadcast(settings, allowConcurrent)) return true
 
         broadcastState = BroadcastState.FAILED
         broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_request)
@@ -412,6 +460,8 @@ class WebRtcSessionViewModel : ViewModel() {
     fun goLive(rotation: Int, screenOrientation: Int, onAccepted: () -> Unit): Boolean {
         if (connectionState != WebRtcConnectionState.CONNECTED) return false
         val activeConnection = connection ?: return false
+        serverError = null
+        retryBroadcastRequest = { goLive(rotation, screenOrientation, onAccepted) }
         val previousRotation = lockedBroadcastRotation
         val previousScreenOrientation = lockedScreenOrientation
         val accepted = activeConnection.goLive {
@@ -427,22 +477,32 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun pauseBroadcast() {
+        serverError = null
+        retryBroadcastRequest = { pauseBroadcast() }
         connection?.pauseBroadcast()
     }
 
     fun resumeBroadcast() {
         if (connectionState != WebRtcConnectionState.CONNECTED) return
+        serverError = null
+        retryBroadcastRequest = { resumeBroadcast() }
         connection?.resumeBroadcast()
     }
 
     fun stopBroadcast() {
+        serverError = null
+        retryBroadcastRequest = { stopBroadcast() }
         connection?.stopBroadcast()
     }
 
     fun close() {
+        serverError = null
+        preparationSettings = null
+        retryBroadcastRequest = null
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
         sessionState = sessionState.endConnection()
+        sessionSnapshot = null
         signalingStartedGeneration = null
         prepareJob?.cancel()
         prepareJob = null

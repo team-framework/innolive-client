@@ -17,6 +17,7 @@ data class LiveScreenProps(
     val onConnectYouTube: () -> Unit,
     val onRefreshAccessToken: suspend () -> String,
     val onOpenSettings: () -> Unit,
+    val onAuthenticationExpired: () -> Unit = {},
     val onGetAccessToken: () -> String? = { null },
     val profileEmail: String = "",
     val canSwitchCamera: Boolean = false,

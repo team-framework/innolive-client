@@ -1,5 +1,12 @@
 import Foundation
 
+private struct YouTubeLiveBroadcastRequest: Encodable {
+    let title: String
+    let description: String
+    let categoryID: String?
+    enum CodingKeys: String, CodingKey { case title, description; case categoryID = "category_id" }
+}
+
 private struct WebRTCConfigurationResponse: Decodable {
     let iceServers: [WebRTCIceServer]
 
@@ -30,12 +37,14 @@ private struct YouTubeBroadcastSettingsRequest: Encodable {
     let description: String
     let privacy: String
     let madeForKids: Bool?
+    let categoryID: String?
 
     enum CodingKeys: String, CodingKey {
         case title
         case description
         case privacy
         case madeForKids = "made_for_kids"
+        case categoryID = "category_id"
     }
 
     init(settings: YouTubeBroadcastSettings) {
@@ -43,12 +52,13 @@ private struct YouTubeBroadcastSettingsRequest: Encodable {
         title = settings.title
         description = settings.description
         privacy = settings.privacy.rawValue
+        categoryID = settings.categoryID
         madeForKids = settings.audience?.madeForKidsValue
     }
 }
 
 private struct YouTubePrepareStreamRequest: Encodable {
-    let provider = "youtube"
+    var provider = "youtube"
 }
 
 private struct YouTubeEmptyRequest: Encodable {}
@@ -58,7 +68,7 @@ private struct AnonymizationRequest: Encodable {
 }
 
 @MainActor
-final class YouTubeAPI {
+final class YouTubeAPI: PlanAPIClient {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
     nonisolated deinit {}
 
@@ -103,6 +113,16 @@ final class YouTubeAPI {
 
     func invalidateAuthenticationRequests() {
         authenticationRequestGeneration &+= 1
+    }
+
+    func userPlan(accessToken: String) async throws -> UserPlan {
+        try await request(path: "/users/me/plan", method: "GET", accessToken: accessToken,
+                          body: Optional<YouTubeEmptyRequest>.none)
+    }
+
+    func userUsage(accessToken: String) async throws -> UserUsage {
+        try await request(path: "/users/me/usage", method: "GET", accessToken: accessToken,
+                          body: Optional<YouTubeEmptyRequest>.none)
     }
 
     func configuration() async throws -> YouTubeConfiguration {
@@ -211,20 +231,69 @@ final class YouTubeAPI {
             method: "PUT",
             accessToken: accessToken,
             ownerToken: session.ownerToken,
-            body: YouTubeBroadcastSettingsRequest(settings: settings)
+            body: YouTubeBroadcastSettingsRequest(settings: settings),
+            queryItems: [URLQueryItem(name: "provider", value: "youtube")]
         )
+    }
+
+    func saveCHZZKBroadcastSettings(session: YouTubeBroadcastSession, accessToken: String,
+                                    settings: CHZZKBroadcastSettings) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/broadcast", method: "PUT",
+                          accessToken: accessToken, ownerToken: session.ownerToken, body: settings,
+                          queryItems: [URLQueryItem(name: "provider", value: "chzzk")])
+    }
+
+    func updateLiveBroadcast(session: YouTubeBroadcastSession, accessToken: String,
+                             provider: BroadcastSettingsProvider, youtube: YouTubeBroadcastSettings,
+                             chzzk: CHZZKBroadcastSettings) async throws -> YouTubeSessionResponse {
+        if provider == .chzzk {
+            var settings = chzzk
+            settings.title = settings.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            return try await request(path: "/sessions/\(session.sessionID)/broadcast/live", method: "PATCH",
+                                     accessToken: accessToken, ownerToken: session.ownerToken, body: settings,
+                                     queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+        }
+        return try await request(path: "/sessions/\(session.sessionID)/broadcast/live", method: "PATCH",
+                                 accessToken: accessToken, ownerToken: session.ownerToken,
+                                 body: YouTubeLiveBroadcastRequest(title: youtube.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                                                                  description: youtube.description, categoryID: youtube.categoryID),
+                                 queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+    }
+
+    func broadcastDefaults(session: YouTubeBroadcastSession, accessToken: String,
+                           provider: BroadcastSettingsProvider) async throws -> BroadcastSettingsDefaults {
+        try await request(path: "/sessions/\(session.sessionID)/broadcast/defaults", method: "GET",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: Optional<YouTubeEmptyRequest>.none,
+                          queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+    }
+
+    func youtubeCategories(accessToken: String) async throws -> [YouTubeBroadcastCategory] {
+        let response: YouTubeCategoryResponse = try await request(
+            path: "/auth/youtube/categories", method: "GET", accessToken: accessToken,
+            body: Optional<YouTubeEmptyRequest>.none)
+        return response.categories
+    }
+
+    func chzzkCategories(query: String, accessToken: String) async throws -> [CHZZKBroadcastCategory] {
+        let response: CHZZKCategoryResponse = try await request(
+            path: "/auth/chzzk/categories", method: "GET", accessToken: accessToken,
+            body: Optional<YouTubeEmptyRequest>.none,
+            queryItems: [URLQueryItem(name: "query", value: query)])
+        return response.categories
     }
 
     func prepareStream(
         session: YouTubeBroadcastSession,
-        accessToken: String
+        accessToken: String,
+        provider: BroadcastSettingsProvider = .youtube
     ) async throws -> YouTubeSessionResponse {
         try await request(
             path: "/sessions/\(session.sessionID)/stream/prepare",
             method: "POST",
             accessToken: accessToken,
             ownerToken: session.ownerToken,
-            body: YouTubePrepareStreamRequest()
+            body: YouTubePrepareStreamRequest(provider: provider.rawValue)
         )
     }
 
@@ -315,7 +384,7 @@ final class YouTubeAPI {
         let (data, httpResponse) = try await authenticatedData(
             for: request, accessToken: accessToken, preserveCreatedSession: preserveCreatedSession
         )
-        try validate(httpResponse, data: data)
+        try validate(httpResponse, data: data, extractFieldErrors: path.hasSuffix("/broadcast") || path.hasSuffix("/broadcast/live"))
         return try decode(Response.self, from: data)
     }
 
@@ -393,9 +462,16 @@ final class YouTubeAPI {
         }
     }
 
-    private func validate(_ response: HTTPURLResponse, data: Data) throws {
+    private func validate(_ response: HTTPURLResponse, data: Data, extractFieldErrors: Bool = false) throws {
         guard !(200..<300).contains(response.statusCode) else { return }
         let envelope = try? JSONDecoder().decode(YouTubeAPIErrorEnvelope.self, from: data)
+        if extractFieldErrors, envelope?.error.code == "field_not_changeable_live",
+           let fields = envelope?.error.details?.fields, let first = fields.first {
+            throw BroadcastSettingsFieldError(field: first, reason: "", fields: fields, isNotChangeableLive: true)
+        }
+        if extractFieldErrors, envelope?.error.code == "bad_request", let field = envelope?.error.details?.field {
+            throw BroadcastSettingsFieldError(field: field, reason: envelope?.error.details?.reason ?? "")
+        }
         throw YouTubeAPIError.api(
             code: envelope?.error.code,
             fallback: String(localized: "YouTube 요청을 처리하지 못했습니다."),
@@ -416,7 +492,7 @@ private struct YouTubeAPIRequestInvalidated: Error {}
 
 private struct YouTubeAPIErrorEnvelope: Decodable {
     struct ErrorBody: Decodable {
-        struct Details: Decodable { let helpURL: URL?; enum CodingKeys: String, CodingKey { case helpURL = "help_url" } }
+        struct Details: Decodable { let helpURL: URL?; let field: String?; let fields: [String]?; let reason: String?; enum CodingKeys: String, CodingKey { case helpURL = "help_url"; case field, fields, reason } }
         let code: String?
         let message: String?
         let details: Details?

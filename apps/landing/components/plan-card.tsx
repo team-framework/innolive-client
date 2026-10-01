@@ -58,7 +58,7 @@ function PriceLine({
               : "text-[2rem]",
         )}
       >
-        ₩{amount}
+        {/^[0-9]/.test(amount) ? `₩${amount}` : amount}
       </p>
       <p
         className={cn(
@@ -66,8 +66,7 @@ function PriceLine({
           original ? "text-base" : emphasize ? "text-[1.375rem]" : "text-xl",
         )}
       >
-        <span>/</span>
-        <span>{period}</span>
+        {period ? <><span>/</span><span>{period}</span></> : null}
       </p>
     </div>
   );
@@ -88,7 +87,7 @@ export function PlanCard({
   return (
     <article
       className={cn(
-        "relative flex h-auto w-full flex-col gap-8 rounded-[20px] bg-gradient-to-b from-white to-[#efefefef] px-8 pb-7 pt-9 shadow-[2px_2px_12px_0_#0000000d] min-[64rem]:h-[46.25rem]",
+        "relative flex h-full w-full flex-col gap-8 rounded-[20px] bg-gradient-to-b from-white to-[#efefefef] px-8 pb-7 pt-9 shadow-[2px_2px_12px_0_#0000000d] min-[64rem]:min-h-[46.25rem]",
         plan.ribbon ? "overflow-visible" : "overflow-clip",
       )}
     >

@@ -2,6 +2,7 @@
 
 This directory is the source of truth for behavior shared by all clients.
 
+- `api/broadcast-settings-v1.md`: provider-specific settings, categories, defaults and draft isolation
 - `api/`: HTTP API schemas and versioning notes
 - `signaling/`: WebRTC signaling schemas
 - `fixtures/`: valid and invalid payload examples
@@ -11,6 +12,7 @@ is included in the same task.
 
 - `signaling/v1.schema.json`: legacy signaling payloads without session ownership
 - `signaling/v2.schema.json`: authenticated signaling payloads with access and owner tokens
+- `api/plan-usage-v1.md`: authenticated plan/usage reads and time-limit semantics
 - `api/reference-face-v1.md`: authenticated reference-face registration, status, and deletion
 - `api/account-deletion-v1.md`: authenticated account deletion and client cleanup boundary
 - `fixtures/account-deletion-conflict.v1.json`: concurrent account deletion HTTP error

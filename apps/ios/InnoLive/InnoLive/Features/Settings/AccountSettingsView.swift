@@ -9,6 +9,7 @@ struct AccountSettingsView: View {
         youtube.isConnecting
             || youtube.isPreparingSession
             || youtube.isConnectingVideo
+            || youtube.preparationStatus != nil
             || youtube.isChangingStreamState
             || youtube.isRecoveringVideoFailure
             || youtube.isTogglingAnonymization
