@@ -9,17 +9,29 @@ import org.junit.Test
 
 class YouTubeAccountVerificationStateTest {
     @Test
-    fun linkedAccountCanChangeOnlyOutsideBroadcastPreparationAndDelivery() {
-        for (state in listOf(BroadcastState.IDLE, BroadcastState.FAILED)) {
-            assertTrue(canChangeYouTubeAccount(true, state, false, false, false))
-        }
-        for (state in BroadcastState.entries.filterNot { it == BroadcastState.IDLE || it == BroadcastState.FAILED }) {
+    fun linkedAccountCanChangeOnlyWhileIdle() {
+        assertTrue(canChangeYouTubeAccount(true, BroadcastState.IDLE, false, false, false))
+        for (state in BroadcastState.entries.filterNot { it == BroadcastState.IDLE }) {
             assertFalse(canChangeYouTubeAccount(true, state, false, false, false))
         }
         assertFalse(canChangeYouTubeAccount(true, BroadcastState.IDLE, true, false, false))
         assertFalse(canChangeYouTubeAccount(false, BroadcastState.IDLE, false, false, false))
         assertFalse(canChangeYouTubeAccount(true, BroadcastState.IDLE, false, true, false))
         assertFalse(canChangeYouTubeAccount(true, BroadcastState.IDLE, false, false, true))
+    }
+
+    @Test
+    fun failedPreparationCannotChangeAccountUntilIdleIsConfirmed() {
+        val unresolvedStates = listOf(
+            BroadcastState.FAILED,
+            BroadcastState.PREPARED,
+            BroadcastState.CANCELLING_PREPARATION,
+            BroadcastState.FAILED,
+        )
+        unresolvedStates.forEach { state ->
+            assertFalse(canChangeYouTubeAccount(true, state, false, false, false))
+        }
+        assertTrue(canChangeYouTubeAccount(true, BroadcastState.IDLE, false, false, false))
     }
 
     @Test
