@@ -47,15 +47,14 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
 import com.framework.innolive.ui.text.ServerErrorAction
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
@@ -77,8 +76,13 @@ fun LiveScreen(
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
     var testUsageWarningOverride by remember { mutableStateOf<Boolean?>(null) }
+    var usageWarningDismissed by remember { mutableStateOf(false) }
     val hasServerUsageWarning = webRtcSession.sessionSnapshot?.hasTimeLimitWarning == true
-    val showUsageWarning = testUsageWarningOverride ?: hasServerUsageWarning
+    val sessionId = webRtcSession.sessionSnapshot?.sessionId
+    val showUsageWarning = (testUsageWarningOverride ?: hasServerUsageWarning) && !usageWarningDismissed
+    LaunchedEffect(sessionId, hasServerUsageWarning) {
+        usageWarningDismissed = false
+    }
     val context = LocalContext.current
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
@@ -212,42 +216,13 @@ fun LiveScreen(
             color = Color.White,
         )
 
-        if (showUsageWarning) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(start = 10.dp, top = 100.dp, end = 10.dp)
-                    .fillMaxWidth()
-                    .heightIn(min = 116.dp)
-                    .semantics { liveRegion = LiveRegionMode.Polite },
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White.copy(alpha = 0.9f),
-                contentColor = Color.Black,
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.session_usage_warning_title),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = 24.sp,
-                            lineHeight = 28.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.sp,
-                        ),
-                    )
-                    Text(
-                        text = stringResource(R.string.session_usage_warning_message, 10),
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = 18.sp,
-                            lineHeight = 22.sp,
-                            letterSpacing = 0.sp,
-                        ),
-                    )
-                }
-            }
-        }
+        SessionUsageWarningBanner(
+            visible = showUsageWarning,
+            onDismissRequest = { usageWarningDismissed = true },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(start = 10.dp, top = 56.dp, end = 10.dp),
+        )
 
         LiveSideControls(
             modifier = Modifier
@@ -283,7 +258,10 @@ fun LiveScreen(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (BuildConfig.DEBUG) {
-                TextButton(onClick = { testUsageWarningOverride = !showUsageWarning }) {
+                TextButton(onClick = {
+                    usageWarningDismissed = false
+                    testUsageWarningOverride = !showUsageWarning
+                }) {
                     Text(
                         stringResource(
                             if (showUsageWarning) R.string.session_usage_warning_test_hide
