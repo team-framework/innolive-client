@@ -38,6 +38,15 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
+    let liveSettingsEditor: BroadcastSettingsEditor
+    @Published private(set) var isSavingLiveSettings = false
+    @Published private(set) var liveSettingsError: String?
+    private var liveSettingsRequest = UUID()
+    private var liveSettingsSessionID: String?
+    private var liveSettingsGeneration: UInt = 0
+    private var liveSettingsScope = ""
+    private var unavailableLiveProviders: Set<BroadcastSettingsProvider> = []
+
     let settingsEditor: BroadcastSettingsEditor
     @Published private(set) var streamingAccounts: [YouTubeStreamingAccountSummary] = []
 
@@ -121,6 +130,7 @@ final class YouTubeIntegration: ObservableObject {
         let resolvedAPI = api ?? YouTubeAPI()
         self.api = resolvedAPI
         settingsEditor = BroadcastSettingsEditor(api: resolvedAPI, preferences: preferencesStore)
+        liveSettingsEditor = BroadcastSettingsEditor(api: resolvedAPI, preferences: preferencesStore)
         self.sessionStore = sessionStore ?? BroadcastSessionStore()
         self.pollingInterval = pollingInterval
         self.preferencesStore = preferencesStore
@@ -161,6 +171,7 @@ final class YouTubeIntegration: ObservableObject {
     func configureAuthentication(_ authentication: AuthSession) {
         planStore.reset()
         settingsEditor.reset()
+        resetLiveEditing()
         streamingAccounts = []
         sessionOperationGeneration &+= 1
         invalidateConnectionOperation()
@@ -194,6 +205,107 @@ final class YouTubeIntegration: ObservableObject {
             isChangingStreamState: isChangingStreamState,
             targets: responseState.details.targets
         )
+    }
+
+    var liveEditingTargets: [BroadcastSettingsProvider] {
+        if let targets = responseState.details.targets {
+            return targets.filter { $0.stream.broadcastPhaseValue == .live && $0.stream.statusValue != .stopped }
+                .compactMap { BroadcastSettingsProvider(rawValue: $0.provider) }
+        }
+        return stream?.broadcastPhaseValue == .live && stream?.statusValue != .stopped ? [.youtube] : []
+    }
+
+    func canEditLiveBroadcast(_ provider: BroadcastSettingsProvider) -> Bool {
+        session != nil && liveEditingTargets.contains(provider) && !unavailableLiveProviders.contains(provider) && !isChangingStreamState
+            && responseState.details.resolutionSwitch?.status != "switching"
+            && !isEndingSession
+    }
+
+    func beginLiveEditing(_ provider: BroadcastSettingsProvider, accessToken: String?) {
+        guard !isSavingLiveSettings, canEditLiveBroadcast(provider) else { return }
+        liveSettingsEditor.reset()
+        liveSettingsEditor.select(provider)
+        liveSettingsEditor.editYouTube { $0 = settingsEditor.youtube }
+        liveSettingsEditor.editCHZZK { $0 = settingsEditor.chzzk }
+        liveSettingsError = nil
+        liveSettingsSessionID = session?.sessionID
+        liveSettingsGeneration = sessionOperationGeneration
+        liveSettingsScope = settingsScopeKey(accessToken: accessToken)
+    }
+
+    @discardableResult
+    func saveLiveSettings(accessToken: String?) async -> Bool {
+        let editor = liveSettingsEditor
+        let provider = editor.provider
+        guard !isSavingLiveSettings, canEditLiveBroadcast(provider), let session,
+              session.sessionID == liveSettingsSessionID, sessionOperationGeneration == liveSettingsGeneration,
+              settingsScopeKey(accessToken: accessToken) == liveSettingsScope,
+              let accessToken, !accessToken.isEmpty else { return false }
+        editor.showValidation(live: true)
+        guard editor.liveValidation.isEmpty else { return false }
+        let generation = sessionOperationGeneration
+        let editorGeneration = editor.contextGeneration
+        let revision = responseRevision
+        let request = UUID()
+        liveSettingsRequest = request
+        isSavingLiveSettings = true
+        liveSettingsError = nil
+        let youtubeSettings = editor.youtube
+        let chzzkSettings = editor.chzzk
+        defer { if liveSettingsRequest == request { isSavingLiveSettings = false } }
+        func isCurrent() -> Bool {
+            generation == sessionOperationGeneration && self.session?.sessionID == session.sessionID
+                && editorGeneration == editor.contextGeneration && liveSettingsRequest == request
+                && settingsScopeKey(accessToken: accessToken) == liveSettingsScope && !Task.isCancelled
+        }
+        do {
+            let snapshot = try await api.updateLiveBroadcast(session: session, accessToken: accessToken,
+                provider: provider, youtube: youtubeSettings, chzzk: chzzkSettings)
+            guard isCurrent(), canEditLiveBroadcast(provider) else { return false }
+            // 편집 응답이 늦으면 그동안 조회한 종료·다른 대상 상태를 유지한다.
+            if revision == responseRevision {
+                _ = applySessionResponse(snapshot, sessionID: session.sessionID, generation: generation, provider: provider.rawValue)
+            }
+            guard canEditLiveBroadcast(provider) else { return false }
+            if provider == .youtube {
+                settingsEditor.editYouTube {
+                    $0.title = youtubeSettings.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    $0.description = youtubeSettings.description
+                    $0.categoryID = youtubeSettings.categoryID
+                }
+                editor.editYouTube { $0.title = youtubeSettings.title.trimmingCharacters(in: .whitespacesAndNewlines) }
+            } else {
+                settingsEditor.editCHZZK { $0 = chzzkSettings; $0.title = chzzkSettings.title.trimmingCharacters(in: .whitespacesAndNewlines) }
+                editor.editCHZZK { $0.title = chzzkSettings.title.trimmingCharacters(in: .whitespacesAndNewlines) }
+            }
+            settingsEditor.persist(provider: provider)
+            return true
+        } catch {
+            guard isCurrent() else { return false }
+            if let field = error as? BroadcastSettingsFieldError { editor.showFieldError(field) }
+            else if let error = error as? YouTubeAPIError {
+                if case let .api(code, _, _) = error, code == "broadcast_not_live" {
+                    unavailableLiveProviders.insert(provider)
+                    liveSettingsError = String(localized: "방송이 종료되어 정보를 수정할 수 없습니다.")
+                    // 최신 서버 상태로 버튼을 잠근다. 입력은 편집기에 유지한다.
+                    if let status = try? await api.sessionStatus(session: session, accessToken: accessToken), isCurrent() {
+                        _ = applySessionResponse(status, sessionID: session.sessionID, generation: generation)
+                    }
+                } else {
+                    liveSettingsError = String(localized: "방송 정보를 저장하지 못했습니다. 입력값을 유지했습니다. 다시 시도해 주세요.")
+                }
+            } else { liveSettingsError = String(localized: "방송 정보를 저장하지 못했습니다. 입력값을 유지했습니다. 다시 시도해 주세요.") }
+            return false
+        }
+    }
+
+    private func resetLiveEditing() {
+        liveSettingsRequest = UUID()
+        isSavingLiveSettings = false
+        liveSettingsError = nil
+        liveSettingsSessionID = nil
+        unavailableLiveProviders = []
+        liveSettingsEditor.reset()
     }
 
     var visibleBroadcastTargets: [BroadcastTargetState] { statePolicy.visibleTargets }
@@ -1295,6 +1407,7 @@ final class YouTubeIntegration: ObservableObject {
     func reset() {
         planStore.reset()
         settingsEditor.reset()
+        resetLiveEditing()
         streamingAccounts = []
         preparationGeneration &+= 1
         preparationStatus = nil
@@ -1412,9 +1525,11 @@ final class YouTubeIntegration: ObservableObject {
         }
         let confirmedLiveTrack = videoTrack?.readyStateValue == .live ? videoTrack : nil
         isRemainingTimeStale = false
+        let previouslyLive = Set(liveEditingTargets)
         responseState.apply(response, provider: provider, clearsWarnings: clearsWarnings)
         responseRevision &+= 1
         stream = responseState.stream
+        unavailableLiveProviders.subtract(Set(liveEditingTargets).subtracting(previouslyLive))
         // 준비·저장 스냅샷은 트랙을 빠뜨릴 수 있다. 이미 확인한 라이브 입력은 유지한다.
         if let track = responseState.media?.rawVideoTrack {
             videoTrack = track
@@ -1436,6 +1551,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func clearSessionResponseState() {
+        resetLiveEditing()
         isRemainingTimeStale = false
         responseState = BroadcastSessionSnapshot()
         stream = nil
@@ -1745,6 +1861,11 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     #if DEBUG
+    func applyLiveEditingSnapshotForTesting(_ snapshot: YouTubeSessionResponse) {
+        guard let session else { return }
+        _ = applySessionResponse(snapshot, sessionID: session.sessionID, generation: sessionOperationGeneration)
+    }
+
     func markServerVideoReadyForTesting() {
         videoUplink.updateState(.connected, "connected")
         videoTrack = YouTubeVideoTrackState(id: "video", kind: "video", readyState: "live")
@@ -1758,6 +1879,8 @@ final class YouTubeIntegration: ObservableObject {
         self.connection = connection
         self.session = session
         self.stream = session.stream
+        self.responseState.stream = session.stream
+        self.responseState.details = session.details
         self.videoTrack = videoTrack
         videoUplink.updateState(.connected, "connected")
     }

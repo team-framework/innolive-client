@@ -20,7 +20,7 @@ struct BroadcastControllsView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            BroadcastSessionStatusView(youtube: youtube)
+            BroadcastSessionStatusView(authentication: authentication, youtube: youtube)
             if !isShowingBroadcastSettings, let feedback {
                 BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
                     youtube.dismissError()
