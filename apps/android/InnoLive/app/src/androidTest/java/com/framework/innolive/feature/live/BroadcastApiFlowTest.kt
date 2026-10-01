@@ -28,6 +28,30 @@ class BroadcastApiFlowTest {
     private val settings = BroadcastSettings("검증", "검증 설명", "private", false, "22")
     private val accessToken = accessTokenFor("broadcast-api-user")
 
+    @Test fun connectionStatusRefreshDoesNotBlockStopOrRestoreStaleLiveState() {
+        Harness().use { h ->
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            h.blockGet = true
+            h.getPayload = """{"broadcast_phase":"live","status":"streaming"}"""
+            h.refreshOnOwner()
+            assertTrue(h.getEntered.await(2, TimeUnit.SECONDS))
+            try {
+                h.connection.stopBroadcast()
+                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
+                while (BroadcastState.IDLE !in h.states && System.nanoTime() < deadline) Thread.sleep(10)
+                assertTrue("status GET must not delay stop", BroadcastState.IDLE in h.states)
+            } finally {
+                h.releaseGet.countDown()
+            }
+            h.awaitRefreshCompletion()
+            assertEquals(BroadcastState.IDLE, h.states.last())
+            assertEquals(BroadcastState.IDLE, h.currentBroadcastState())
+        }
+    }
+
     @Test fun chzzkPreparationDoesNotGoLiveOrSendYouTubeFields() {
         Harness(provider = BroadcastProvider.CHZZK).use { h ->
             assertTrue(h.connection.prepareBroadcast(ChzzkBroadcastSettings("치지직", "GAME", "GTA5", listOf("게임"))))
@@ -643,7 +667,7 @@ class BroadcastApiFlowTest {
                 if (status < 400 && request.method != "GET") {
                     payload = payloads[request.url.pathSegments.last()] ?: payload
                 }
-                if (status >= 400 && payload == "{}" &&
+                if (status >= 400 && mutationReply == null && !JSONObject(payload).has("error") &&
                     (serverErrorCode != null || serverErrorMessage != null)
                 ) {
                     payload = JSONObject()
@@ -661,6 +685,7 @@ class BroadcastApiFlowTest {
             // 테스트에서만 연결 완료 세션과 HTTP 응답을 주입한다. 실제 DNS나 외부 계정은 사용하지 않는다.
             field("httpClient", client)
             field("session", CreatedSession("test-session", "test-owner", AnonymizationState.DISABLED, provider))
+            field("sessionSnapshot", SessionSnapshot("test-session", provider.wireValue))
             field("peerConnectionConnected", true)
             field("audioInputVerified", true)
         }
@@ -668,6 +693,27 @@ class BroadcastApiFlowTest {
         private fun field(name: String, value: Any) {
             WebRtcConnection::class.java.getDeclaredField(name).apply { isAccessible = true; set(connection, value) }
         }
+
+        fun refreshOnOwner() {
+            val owner = WebRtcConnection::class.java.getDeclaredField("ownerExecutor")
+                .apply { isAccessible = true }.get(connection) as java.util.concurrent.ExecutorService
+            owner.execute {
+                WebRtcConnection::class.java.getDeclaredMethod("refreshBroadcastStatus")
+                    .apply { isAccessible = true }.invoke(connection)
+            }
+        }
+
+        fun awaitRefreshCompletion() {
+            val job = WebRtcConnection::class.java.getDeclaredField("broadcastStatusRefreshJob")
+                .apply { isAccessible = true }.get(connection) as kotlinx.coroutines.Job
+            kotlinx.coroutines.runBlocking { kotlinx.coroutines.withTimeout(3000) { job.join() } }
+            val owner = WebRtcConnection::class.java.getDeclaredField("ownerExecutor")
+                .apply { isAccessible = true }.get(connection) as java.util.concurrent.ExecutorService
+            owner.submit {}.get(3, TimeUnit.SECONDS)
+        }
+
+        fun currentBroadcastState(): BroadcastState = WebRtcConnection::class.java.getDeclaredField("broadcastState")
+            .apply { isAccessible = true }.get(connection) as BroadcastState
 
         fun startPolling() {
             WebRtcConnection::class.java.getDeclaredMethod("startSessionPolling", CreatedSession::class.java)

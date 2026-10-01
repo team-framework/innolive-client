@@ -32,6 +32,13 @@ class ChzzkBroadcastContractTest {
         assertEquals(BroadcastState.PAUSED, parseBroadcastState("""{"broadcast_phase":"live","status":"paused"}""", BroadcastProvider.CHZZK))
     }
 
+    @Test fun emptyTargetsConfirmIdleEvenWithAnOlderTopLevelStream() {
+        val payload = """{"stream":{"broadcast_phase":"live","status":"streaming"},"targets":[]}"""
+        for (provider in BroadcastProvider.entries) {
+            assertEquals(BroadcastState.IDLE, parseBroadcastState(payload, provider))
+        }
+    }
+
     @Test fun callbackRequiresExactRedirectAndMatchingState() {
         val redirect = "https://innolive.studio/auth/chzzk/callback"
         assertEquals("abc", parseChzzkCallback("$redirect?code=abc&state=expected", redirect, "expected"))

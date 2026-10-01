@@ -910,7 +910,7 @@ class WebRtcConnection(
             check(isActive()) { "WebRTC 연결이 종료되었습니다." }
             try {
                 val response = postSessionRequest("stream/golive")
-                check(parseBroadcastState(response, provider) == BroadcastState.LIVE)
+                check(parseBroadcastState(response, provider) != null)
                 return
             } catch (exception: ServerApiException) {
                 if (exception.code != "broadcast_not_ready") throw exception
@@ -1467,23 +1467,34 @@ class WebRtcConnection(
         if (!broadcastOperation.get()) refreshBroadcastStatus()
     }
 
+    private var broadcastStatusRefreshJob: Job? = null
+
     private fun refreshBroadcastStatus() {
         val created = session ?: return
-        val request = authenticatedRequest("/sessions/${created.sessionId}")
-            .header("X-Session-Owner-Token", created.ownerToken).get().build()
-        runCatching {
-            executeHttp(request).use { response ->
-                if (!response.isSuccessful) return@use
-                val state = parseBroadcastState(response.body.string(), provider) ?: return@use
-                if (state != broadcastState && state in setOf(BroadcastState.IDLE,
-                        BroadcastState.PREPARED, BroadcastState.LIVE, BroadcastState.PAUSED)) {
-                    updateBroadcastState(state)
-                    val completion = pendingBroadcastCompletion
-                    pendingBroadcastCompletion = null
-                    completion?.let { (confirmed, event) -> dispatchBroadcastState(confirmed, event) }
+        if (broadcastStatusRefreshJob?.isActive == true) return
+        val revision = sessionRequestRevision.get()
+        broadcastStatusRefreshJob = recoveryScope.launch {
+            try {
+                val payload = readSessionStatus(created)
+                val state = parseBroadcastState(payload, provider) ?: return@launch
+                executeOnOwner {
+                    // A control request or session change invalidates an older status response.
+                    if (!isActive() || session?.sessionId != created.sessionId ||
+                        sessionRequestRevision.get() != revision || broadcastOperation.get()) return@executeOnOwner
+                    if (state != broadcastState && state in setOf(BroadcastState.IDLE,
+                            BroadcastState.PREPARED, BroadcastState.LIVE, BroadcastState.PAUSED)) {
+                        updateBroadcastState(state)
+                        val completion = pendingBroadcastCompletion
+                        pendingBroadcastCompletion = null
+                        completion?.let { (confirmed, event) -> dispatchBroadcastState(confirmed, event, revision) }
+                    }
                 }
+            } catch (exception: kotlinx.coroutines.CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                if (isActive()) Log.w("LiveConnection", "session_status_refresh_failed type=${exception.javaClass.simpleName}")
             }
-        }.onFailure { Log.w("LiveConnection", "session_status_refresh_failed type=${it.javaClass.simpleName}") }
+        }
     }
 
     private fun awaitRecoveryPeerConnection(negotiationId: String) {
@@ -2389,6 +2400,7 @@ internal fun parseBroadcastState(payload: String, provider: BroadcastProvider): 
     val targets = json.optJSONArray("targets")
     var stream = json.optJSONObject("stream")
     if (targets != null) {
+        if (targets.length() == 0) return BroadcastState.IDLE
         stream = null
         for (index in 0 until targets.length()) {
             val target = targets.getJSONObject(index)
