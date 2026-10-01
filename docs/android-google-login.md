@@ -11,7 +11,7 @@
 - `GoogleSignIn_flowRunner`: `[16] Account reauth failed`.
 - 앱 프로세스의 `CredManProvService`: `GetCredentialResponse error returned from framework`.
 
-Google 토큰 획득 단계가 실패한 것이므로 이 시도의 InnoLive `POST /auth/google` 성공이나 서버 장애를 주장할 수 없다. 서버 로그 접근은 없었으며 서버 응답·로그 검증은 수행하지 않았다. 계정 및 토큰 원문은 문서에 기록하지 않는다.
+Google 토큰 획득 단계가 실패한 것이므로 이 시도의 InnoLive `POST /auth/google` 성공이나 서버 장애를 주장할 수 없다. 서버 로그 접근은 없었다. 이후 서버 경로의 제한된 검증은 아래에 구분해 기록한다. 계정 및 토큰 원문은 문서에 기록하지 않는다.
 
 앱은 `GetCredentialCancellationException`을 사용자 취소로 간주하고 `Idle`로 되돌렸다. Google의 계정 재인증 실패도 취소 오류로 반환될 수 있어 이 처리로 실패 안내가 사라졌다. 로그인 진행 중에도 화면에 진행 표시가 없었다.
 
@@ -35,17 +35,27 @@ Android 16의 `ActivityManagerService.startInstrumentation()`은 테스트 APK�
 
 ## 필요한 OAuth 설정
 
-현재 `GOOGLE_WEB_CLIENT_ID`를 발급한 Google Cloud 프로젝트의 Android OAuth 클라이언트에 다음 조합을 등록해야 한다.
+현재 `GOOGLE_WEB_CLIENT_ID`를 발급한 Google Cloud 프로젝트의 Android OAuth 클라이언트에 다음 조합을 확인하고 누락·불일치를 수정해야 한다. Google의 거부 응답으로 이 조합이 현재 인증 요청에 허용되지 않는 것은 확인했지만, 콘솔의 항목이 누락됐는지 다른 서명이 등록됐는지는 관리 조회가 필요하다.
 
 | 항목 | 값 |
 | --- | --- |
 | 클라이언트 유형 | Android |
+| Google Cloud 프로젝트 번호 | `243768920567` |
 | 패키지명 | `com.framework.innolive` |
 | 인증서 SHA-1 | `1E:24:74:3F:44:1E:4F:7B:03:BA:8A:66:66:B4:D4:55:E0:39:6F:20` |
 
 기존 Debug 클라이언트를 덮어쓰지 말고 릴리스 서명의 Android 클라이언트를 추가하거나 해당 릴리스 항목을 수정한다. 기존 Web Client ID는 그대로 사용한다. Google Play App Signing을 사용하는 배포에서는 AAB 업로드 인증서 대신 실제 설치 APK의 앱 서명 인증서를 별도로 확인하여 등록한다.
 
 이 오류는 Google 인증 서버 설정에 의해 발생하므로 앱의 오류 문구 변경만으로 로그인 성공이 보장되지 않는다. 설정 반영 후 원래 1.1.1 설치본에서 계정 선택 → 방송 화면 진입 → 재실행 후 로그인 유지를 다시 확인해야 한다.
+
+## Web Client ID와 서버 경로 추가 확인 (2026-10-01)
+
+- 두 첨부 AAB의 DEX에 각각 Web Client ID 하나가 있으며 서로 같다. 현행 로컬 빌드 설정과도 일치한다.
+- 프로젝트 번호는 `243768920567`이며 위키 `지식베이스/연동/05_GCP_프로젝트_2종_분리.md`의 2026-09-11 운영 구성에 기록된 Web Client ID와 정확히 같다. 위키의 과거 기록만으로 현재 운영값을 단정하지 않고 아래 API로 추가 대조했다.
+- 실제 `GET /auth/youtube/config`는 HTTP 200 JSON을 반환했고, 응답의 `web_client_id`가 AAB의 값과 정확히 같다.
+- 실제 `POST /auth/google`에 유효하지 않은 진단 토큰을 보내 HTTP 401 JSON의 `invalid_google_token`을 확인했다. 유효한 계정·Google 토큰은 보내지 않았다. 이는 주소·라우팅·무효 토큰 거부 검증이며, 실제 Google 로그인 성공이나 서버 전체의 정상 동작 검증은 아니다. 서버 로그는 읽지 못했다.
+- 따라서 Web Client ID 오타·앱과 현행 서버 설정의 프로젝트 불일치는 확인된 실패 원인을 설명하지 않는다. 실제 기기 로그가 지목한 것은 Android OAuth의 package·설치 APK 서명 조합이다.
+- 관리 상태를 조회하기 위해 기존 Google Cloud CLI 인증으로 해당 프로젝트를 조회했으나 처음에는 인증 갱신이 `Reauthentication failed`로 거부됐다. 사용자 재로그인 후에는 인증 자체가 복구됐지만 해당 프로젝트 조회가 `PERMISSION_DENIED`로 거부됐다. 읽기 전용 `testIamPermissions`에서 프로젝트 조회 및 OAuth 클라이언트 조회·목록 권한이 모두 비어 있음을 확인했다. 프로젝트 권한이 있는 계정 또는 해당 계정에 OAuth 조회 권한 부여가 필요하다. 콘솔 등록 상태는 아직 읽지 못했다.
 
 ## 앱 수정과 검증
 
