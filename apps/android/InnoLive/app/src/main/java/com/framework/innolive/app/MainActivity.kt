@@ -485,8 +485,10 @@ fun AppNavigation(
     var planError by remember(planAccount) { mutableStateOf<UiText?>(null) }
     var isPlanLoading by remember(planAccount) { mutableStateOf(false) }
     var planRefresh by remember(planAccount) { mutableIntStateOf(0) }
-    LaunchedEffect(planAccount, backStack.lastOrNull(), planRefresh) {
+    val isBroadcastActive = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null
+    LaunchedEffect(planAccount, backStack.lastOrNull(), planRefresh, isBroadcastActive) {
         if (planAccount == null || backStack.lastOrNull() !in setOf(LiveRoute, SettingsRoute)) return@LaunchedEffect
+        if (backStack.lastOrNull() == LiveRoute && isBroadcastActive) return@LaunchedEffect
         isPlanLoading = true
         planError = null
         try {
