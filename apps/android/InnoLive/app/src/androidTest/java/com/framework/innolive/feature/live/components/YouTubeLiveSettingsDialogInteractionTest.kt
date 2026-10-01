@@ -14,6 +14,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasClickAction
@@ -33,6 +34,7 @@ import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.LiveScreenProps
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -97,6 +99,35 @@ class YouTubeLiveSettingsDialogInteractionTest {
         composeRule.onNodeWithText(text(R.string.error_youtube_connection))
             .assertIsDisplayed()
         composeRule.onNodeWithText("검증 채널").assertDoesNotExist()
+    }
+
+    @Test
+    fun verifiedAccountCanOpenAccountChooserFromPreparationDialog() {
+        val canChange = mutableStateOf(false)
+        var chooserOpens = 0
+        composeRule.setContent {
+            MaterialTheme {
+                YouTubeLiveSettingsDialog(
+                    settings = BroadcastSettings("검증 방송", "검증 설명", "private", false, "22"),
+                    youtubeChannelTitle = "연결된 채널",
+                    hasYouTubeAccount = true,
+                    youtubeAccountStatus = text(R.string.youtube_status_channel, "연결된 채널"),
+                    isYouTubeReconnectRequired = false,
+                    isYouTubeAccountActionInProgress = false,
+                    isYouTubeConnectEnabled = canChange.value,
+                    onSettingsChanged = {},
+                    onConnectYouTube = { chooserOpens++ },
+                    onDismissRequest = {},
+                    onPrepare = {},
+                )
+            }
+        }
+
+        val changeButton = composeRule.onNodeWithText(text(R.string.action_change_youtube_account))
+        changeButton.assertIsNotEnabled()
+        composeRule.runOnIdle { canChange.value = true }
+        changeButton.assertIsEnabled().performClick()
+        composeRule.runOnIdle { assertEquals(1, chooserOpens) }
     }
 
     @Test
