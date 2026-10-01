@@ -25,7 +25,11 @@ Google 토큰 획득 단계가 실패한 것이므로 이 시도의 InnoLive `PO
 | 배포용 1.1.1 AAB 및 실제 오류 설치본 | `1E:24:74:3F:44:1E:4F:7B:03:BA:8A:66:66:B4:D4:55:E0:39:6F:20` | Google OAuth 미등록 오류를 실제 관찰 |
 | 보관된 Debug/테스트 APK | `A4:E8:D2:BA:0F:59:74:9B:21:46:D4:4A:93:2D:FE:27:C1:30:74:30` | 배포 서명과 다름 |
 
-기기에서 이전에 관찰한 1.1.0 로그인 성공 및 Debug 계측 테스트 성공은 배포용 1.1.0 AAB 검증과 구분한다. 당시 기기의 APK·서명은 교체 전에 보관하지 않았으므로 정확한 기존 설치본 서명을 사후 확정할 수 없다. 남아 있는 Debug/테스트 APK는 다른 서명을 사용한다. 따라서 1.1.0 성공의 유력한 설명은 설치/서명 환경 차이지만, 이전 설치본의 정확한 서명 자체는 추론이다.
+이전 성공 설치본의 서명은 당시 테스트 실행 기록으로 역추적할 수 있다. 당시 Galaxy S25의 앱은 1.1.0 (versionCode 4, lastUpdateTime 2026-10-01 16:36:53)이었다. 실제 로그아웃 → Google 로그인 → 방송 화면 진입 → 재시작 후 로그인 유지를 관찰한 뒤, 본 앱을 교체하지 않고 `app-debug-androidTest.apk`만 설치하여 `com.framework.innolive.test/androidx.test.runner.AndroidJUnitRunner`를 실행했다. 17:03:52 KST의 기록에서 테스트 8개가 통과했다. 테스트 APK의 targetPackage는 `com.framework.innolive`이며 서명은 위 표의 Debug SHA-1이다.
+
+Android 16의 `ActivityManagerService.startInstrumentation()`은 테스트 APK와 targetPackage의 서명을 검사하고, 맞지 않으면 실행을 거부한다. 예외는 디버그 OS에서 root로 실행하는 경우이며 당시 명령은 일반 `adb shell am instrument`이고 서명 검사 우회 명령은 사용하지 않았다. 따라서 기록은 당시 설치본이 Debug 인증서와 서명이 호환되었다는 근거이며, 릴리스 서명의 첨부 AAB를 그대로 설치한 결과로 취급할 수 없다. 이전 APK 파일 자체를 보관한 직접 인증서 검증은 아니지만, 단순히 파일명이나 버전명만으로 추정한 것이 아니라 Android의 서명 검사와 실제 테스트 실행 결과를 연결한 결론이다.
+
+첨부 AAB의 서명과 설치 APK의 서명은 구분해야 한다. AAB를 APK로 변환할 때 사용하는 키가 실제 설치본의 서명을 결정한다. 두 AAB는 릴리스 인증서로 서명되어 있지만, 앞서 성공한 설치 환경은 Debug 인증서와 호환되는 환경이었다. 기존 성공을 배포용 1.1.0 정상 동작의 근거로 확장한 것은 검증 오류였다.
 
 현재 인증 설정에서 같은 package·릴리스 서명·Web Client ID를 사용하는 배포용 1.1.0도 동일한 OAuth 등록 문제의 영향을 받을 것으로 예상한다. 배포 서명을 유지한 1.1.0의 실제 로그인 재실행은 하지 않았다. 사용자 데이터 보존을 위해 실제 기기의 앱 삭제/다운그레이드는 수행하지 않았다.
 
@@ -56,3 +60,4 @@ Google 토큰 획득 단계가 실패한 것이므로 이 시도의 InnoLive `PO
 
 - [Google 클라이언트 인증](https://developers.google.com/android/guides/client-auth): Android OAuth는 package와 실제 서명 인증서 SHA-1을 확인한다. Play App Signing 인증서는 업로드 인증서와 다를 수 있다.
 - [Credential Manager 오류 안내](https://developer.android.com/identity/sign-in/credential-manager-troubleshooting-guide): 일부 동기화/인증 오류가 취소 오류로 반환될 수 있다.
+- [Android 16 ActivityManagerService](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android16-release/services/core/java/com/android/server/am/ActivityManagerService.java): `startInstrumentation()`은 테스트 패키지와 대상 패키지의 서명을 확인하며, 일반 shell 실행에서 서명 불일치를 허용하지 않는다.
