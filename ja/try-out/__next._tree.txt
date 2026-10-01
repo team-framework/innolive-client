@@ -1,0 +1,3 @@
+:HL["/innolive-client/_next/static/media/8786b21404e33456-s.p.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/innolive-client/_next/static/css/524dba705fd5460f.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":4176,"slots":{"children":{"name":"locale","param":{"type":"d","key":"ja","siblings":["_not-found","_global-error","favicon.ico"]},"prefetchHints":4144,"slots":{"children":{"name":"try-out","param":null,"prefetchHints":4160,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":4256,"slots":null}}}}}}},"staleTime":300,"buildId":"UzhUsMkSuLdOx4pgLK8mU"}
