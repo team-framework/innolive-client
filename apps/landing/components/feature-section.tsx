@@ -5,6 +5,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
 import { useLayoutEffect, useRef } from "react";
 import { useLocale } from "@/components/locale-provider";
+import { createScrollSection } from "@/lib/scroll-section";
 
 const cardClass = "overflow-clip rounded-[12px]";
 
@@ -60,65 +61,58 @@ export function FeatureSection() {
 
     gsap.registerPlugin(ScrollTrigger);
     const media = gsap.matchMedia();
-    media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
+    media.add("(prefers-reduced-motion: no-preference)", () => {
+      let timeline: gsap.core.Timeline;
+      let cleanup: () => void;
       const context = gsap.context(() => {
         const contentsByRow = rows.map((row) =>
           Array.from(row.querySelectorAll<HTMLElement>("[data-feature-content]")),
         );
         const contents = contentsByRow.flat();
-        gsap.set(contents, { autoAlpha: 0, y: 48 });
-        const headerHeight = () =>
-          Math.max(
-            0,
-            ...Array.from(document.querySelectorAll<HTMLElement>("header")).map(
-              (header) => header.offsetHeight,
-            ),
-          );
-
-        const timeline = gsap.timeline({
-          scrollTrigger: {
-            anticipatePin: 1,
-            end: () => `+=${Math.min(640, window.innerHeight * 0.75)}`,
-            invalidateOnRefresh: true,
-            pin: true,
-            scrub: 0.2,
-            start: () => `top ${headerHeight()+60}px`,
-            trigger: section,
-          },
-        });
-
+        timeline = gsap.timeline({ paused: true });
         contentsByRow.forEach((contentsInRow) => {
-          timeline.to(contentsInRow, {
+          timeline.fromTo(contentsInRow, { autoAlpha: 0, y: 48 }, {
             autoAlpha: 1,
             duration: 0.7,
             ease: "power2.out",
             stagger: 0.12,
             y: 0,
+            immediateRender: false,
           });
         });
-
-      }, section);
-
-      return () => context.revert();
-    });
-    media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
-      const context = gsap.context(() => {
-        section.querySelectorAll<HTMLElement>("[data-feature-card]").forEach((card) => {
-          gsap.from(card, {
-            autoAlpha: 0,
-            duration: 0.8,
-            ease: "power2.out",
-            scrollTrigger: {
-              start: "top 70%",
-              toggleActions: "restart none restart reverse",
-              trigger: card,
-            },
-            y: 48,
-          });
+        cleanup = createScrollSection({
+          section,
+          start: () => {
+            const headerBottom = Math.max(0, ...Array.from(
+              document.querySelectorAll<HTMLElement>("[data-fixed-header] > div"),
+              (header) => header.getBoundingClientRect().bottom,
+            ));
+            return `top ${headerBottom}px`;
+          },
+          lastStep: 1,
+          show: (step) => {
+            timeline.pause(step ? timeline.duration() : 0);
+            gsap.set(contents, { autoAlpha: step ? 1 : 0, y: step ? 0 : 48 });
+          },
+          animate: (previous, next, done) => {
+            if (next > previous) {
+              timeline.eventCallback("onComplete", done);
+              timeline.play(0);
+            } else {
+              timeline.eventCallback("onReverseComplete", done);
+              timeline.reverse();
+            }
+          },
         });
       }, section);
-
-      return () => context.revert();
+      return () => {
+        cleanup();
+        timeline.kill();
+        context.revert();
+        gsap.set(section.querySelectorAll("[data-feature-content]"), {
+          clearProps: "opacity,visibility,transform",
+        });
+      };
     });
 
     return () => media.revert();
