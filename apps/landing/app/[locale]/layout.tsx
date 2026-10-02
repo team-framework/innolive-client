@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { LocaleProvider } from "@/components/locale-provider";
-import { isLocale, locales } from "@/lib/locales";
+import { defaultLocale, isLocale, locales } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
+import { seoCopy } from "@/lib/seo-copy";
+import { siteOrigin } from "@/lib/seo";
 import { wantedSans } from "../fonts";
 import "../globals.css";
 
@@ -23,10 +25,9 @@ export async function generateMetadata({
   params,
 }: LocaleLayoutProps): Promise<Metadata> {
   const { locale } = await params;
-  const messages = getMessages(locale);
   return {
-    title: messages.metadata.title,
-    description: messages.metadata.description,
+    metadataBase: new URL(siteOrigin),
+    ...seoCopy[isLocale(locale) ? locale : defaultLocale].home,
   };
 }
 
