@@ -23,6 +23,8 @@ struct BroadcastPlatformSelectionView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
+                BroadcastTargetSelectionView(youtube: youtube)
+
                 InnoLiveGlassContainer {
                     VStack(spacing: 12) {
                         ForEach(visiblePlatforms) { platform in
@@ -302,5 +304,34 @@ struct BroadcastPlatformSelectionView: View {
             .compactMap { ($0 as? UIWindowScene)?.keyWindow }
             .first?
             .rootViewController
+    }
+}
+
+struct BroadcastTargetSelectionView: View {
+    @ObservedObject var youtube: YouTubeIntegration
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "송출할 플랫폼", table: "Simulcast")).font(.headline)
+            ForEach(BroadcastSettingsProvider.allCases) { provider in
+                Toggle(isOn: Binding(
+                    get: { youtube.selectedBroadcastProviders.contains(provider) },
+                    set: { selected in
+                        if selected { youtube.selectedBroadcastProviders.insert(provider) }
+                        else if youtube.selectedBroadcastProviders.count > 1 { youtube.selectedBroadcastProviders.remove(provider) }
+                    }
+                )) {
+                    VStack(alignment: .leading) {
+                        Text(provider.title)
+                        if !youtube.isSettingsAccountConnected(provider) {
+                            Text(String(localized: "계정 연결 필요", table: "Simulcast")).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .disabled(youtube.isBroadcastSettingsLocked
+                          || (!youtube.isSettingsAccountConnected(provider) && !youtube.selectedBroadcastProviders.contains(provider)))
+                .accessibilityIdentifier("broadcast-target-" + provider.rawValue)
+            }
+        }
     }
 }

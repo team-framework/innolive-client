@@ -101,7 +101,8 @@ struct BroadcastControllsView: View {
                     authentication: authentication,
                     youtube: youtube,
                     onPrepare: prepareYouTubeStream,
-                    onCancelPreparation: cancelPreparation
+                    onCancelPreparation: cancelPreparation,
+                    onContinuePreparation: { isShowingBroadcastSettings = false }
                 )
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -126,7 +127,24 @@ struct BroadcastControllsView: View {
                 action: toggleYouTubePause
             )
             .disabled(!youtube.canChangeYouTubePauseState)
-            Button(String(localized: "방송 종료"), role: .destructive, action: stopYouTubeStream)
+            ForEach(BroadcastSettingsProvider.allCases) { provider in
+                if youtube.targetPolicy(provider).isBroadcastActive {
+                    if youtube.targetPolicy(provider).canPauseBroadcast {
+                        Button("\(provider.title) · \(String(localized: "일시 중지", table: "Simulcast"))") {
+                            Task { await youtube.pauseYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider) }
+                        }
+                    }
+                    if youtube.targetPolicy(provider).canResumeBroadcast {
+                        Button("\(provider.title) · \(String(localized: "재개", table: "Simulcast"))") {
+                            Task { await youtube.resumeYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider) }
+                        }
+                    }
+                    Button("\(provider.title) · \(String(localized: "송출 종료", table: "Simulcast"))", role: .destructive) {
+                        Task { await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider) }
+                    }
+                }
+            }
+            Button(String(localized: "전체 방송 종료", table: "Simulcast"), role: .destructive, action: stopYouTubeStream)
             Button(String(localized: "취소"), role: .cancel) { }
         } message: {
             Text(String(localized: "방송 플랫폼에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
@@ -197,7 +215,7 @@ struct BroadcastControllsView: View {
             return String(localized: "현재 방송 시간을 표시합니다. 누르면 방송 종료를 확인합니다.")
         }
         if youtube.broadcastPhase == "prepared" {
-            return String(localized: "준비된 YouTube 방송을 시청자에게 공개합니다.")
+            return String(localized: "준비된 플랫폼의 방송을 시청자에게 공개합니다.", table: "Simulcast")
         }
         return String(localized: "방송 설정 시트를 엽니다.")
     }
