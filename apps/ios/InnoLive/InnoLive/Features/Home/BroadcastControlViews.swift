@@ -168,8 +168,16 @@ struct BroadcastSessionStatusView: View {
             if !(youtube.responseState.details.resolutionSwitch?.failedTargets ?? []).isEmpty {
                 Text(String(localized: "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."))
             }
-            if !youtube.responseState.details.failedTargets.isEmpty {
-                Text(String(localized: "일부 방송 플랫폼의 라이브 시작에 실패했습니다."))
+            ForEach(youtube.liveStartFailures, id: \.provider) { failure in
+                let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
+                Text("\(title) · \(String(localized: "라이브 시작 실패", table: "Simulcast"))").foregroundStyle(.orange)
+            }
+            if youtube.hasStartedYouTubeBroadcast,
+               youtube.visibleBroadcastTargets.contains(where: { $0.stream.broadcastPhaseValue == .prepared && $0.stream.statusValue != .stopped }) {
+                Button(String(localized: "준비된 대상 다시 시작", table: "Simulcast")) {
+                    Task { await youtube.goLiveYouTubeStream(accessToken: authentication.currentAccessToken()) }
+                }
+                .disabled(youtube.isChangingStreamState)
             }
             if !youtube.responseState.details.warnings.isEmpty {
                 Text(String(localized: "방송은 준비되었지만 일부 설정을 적용하지 못했습니다."))
