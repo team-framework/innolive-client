@@ -7,7 +7,7 @@
 - 대상: iOS의 플랫폼 선택·설정 UI, 기존 방송 API 소비, 방송 제어·앱 수명주기
 - HTTP·WebRTC signaling 계약 변경 없음. 서버·다른 플랫폼·영상 처리 변경 없음
 - PR #403의 실계정 검증 체크와 본문·Issue #391·문서의 미검증 기록 불일치 유지
-- 사용자 추가 지시: 구현·자동 검증 후 Draft PR 직전에 실기기 검증이 필요하면 종료. 실계정 선행 검증·동시 송출 완료로 처리하지 않음
+- 2026-10-02 사용자 실기기 검증 완료 확인 및 PR 생성 요청. 자동 검증은 결과 bundle, 실기기 결과는 사용자 확인을 근거로 구분
 
 ## 선택과 준비
 
@@ -109,7 +109,7 @@ xcodebuild build -project apps/ios/InnoLive/InnoLive.xcodeproj -scheme InnoLive 
 `PlanUsageTests`, `LocalizationTests`, `BroadcastFeedbackTests`, `YouTubeModelsTests`.
 모의 API·SwiftUI 렌더링은 실계정 인증이나 실제 수신 영상·오디오를 입증하지 않는다.
 
-## Draft PR 전 실기기 검증
+## 실기기 검증 항목과 결과
 
 최신 서명 앱으로 아래 순서대로 수행하고, 공급자 시청 화면과 시간 차감 기록을 남긴다.
 계정 code·토큰·스트림 키·실제 API 주소는 검증 기록에 넣지 않는다.
@@ -127,7 +127,9 @@ xcodebuild build -project apps/ios/InnoLive/InnoLive.xcodeproj -scheme InnoLive 
 11. 단독·동시 시작/종료 전후 `/users/me/usage` 기록 → 서버가 제공한 해당 방식 배수와 실제 차감 비교
 12. 전체 방송 stop 후 세션 조회 유지, 준비 취소에서만 DELETE 확인
 
-실제 영상·오디오·시간 차감 및 위 장애 상황은 아직 미검증이다. 현재 실계정 시청 화면의 검증 결과가 없으며, 이 검증 전에는 Push·Draft PR 생성과 실제 동시 송출 완료 표시를 보류한다.
+2026-10-02 사용자가 실기기 검증 항목 전체 완료를 알리고 PR 생성을 요청했다.
+실계정 연결, 단독·동시 영상·오디오 수신, 시간 차감, 부분 실패·대상별 제어·재연결·백그라운드 복귀·방송 정보 수정은 사용자 확인 기준으로 완료 기록한다.
+에이전트가 실제 송출을 관찰한 결과는 아니며 기기·계정 정보, 차감 수치, 시청 화면과 장애별 로그는 별도로 제공되지 않았다. 자동 검증 결과와 사용자 확인을 구분하여 기록한다.
 
 ## 변경 파일
 
