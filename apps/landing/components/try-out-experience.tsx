@@ -426,9 +426,9 @@ export function TryOutExperience() {
       setStatus(copy.checkingMedia);
       const localStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 720, min: 500 },
+          width: { ideal: 1280, min: 500 },
           height: { ideal: 720, min: 500 },
-          aspectRatio: { ideal: 1 },
+          aspectRatio: { ideal: 16 / 9 },
         },
         audio: false,
       });
@@ -610,7 +610,7 @@ export function TryOutExperience() {
 
       <div className="flex w-full max-w-[100rem] flex-col gap-3 lg:flex-row">
         <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-contain" aria-label={copy.remoteLabel} />
+          <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-cover" aria-label={copy.remoteLabel} />
           {state !== "connected" ? (
             <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
               {copy.remotePlaceholder}
@@ -618,7 +618,7 @@ export function TryOutExperience() {
           ) : null}
         </div>
         <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-contain" aria-label={copy.localLabel} />
+          <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-cover" aria-label={copy.localLabel} />
           <p className="absolute bottom-3 left-3 rounded-pill bg-background-primary/80 px-3 py-1 text-sm text-text-primary">
             {copy.localBadge}
           </p>
