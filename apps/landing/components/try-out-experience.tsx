@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/button";
+import { TryOutVideoPanels } from "@/components/try-out-video-panels";
 import { FaceRegistrationModal } from "@/components/face-registration-modal";
 import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
@@ -608,22 +609,21 @@ export function TryOutExperience() {
         </p>
       </div>
 
-      <div className="flex w-full max-w-[100rem] flex-col gap-3 lg:flex-row">
-        <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-cover" aria-label={copy.remoteLabel} />
-          {state !== "connected" ? (
-            <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
-              {copy.remotePlaceholder}
-            </p>
-          ) : null}
-        </div>
-        <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
+      <TryOutVideoPanels
+        local={
           <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-cover" aria-label={copy.localLabel} />
-          <p className="absolute bottom-3 left-3 rounded-pill bg-background-primary/80 px-3 py-1 text-sm text-text-primary">
-            {copy.localBadge}
-          </p>
-        </div>
-      </div>
+        }
+        processed={
+          <>
+            <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-cover" aria-label={copy.remoteLabel} />
+            {state !== "connected" ? (
+              <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
+                {copy.remotePlaceholder}
+              </p>
+            ) : null}
+          </>
+        }
+      />
 
       <div className="flex flex-wrap justify-center gap-3">
         {state === "connected" && localStream ? (
