@@ -22,6 +22,11 @@ private struct WebRTCConfigurationResponse: Decodable {
             ?? []
     }
 }
+private struct CHZZKConnectRequest: Encodable {
+    let code: String
+    let state: String
+}
+
 private struct YouTubeConnectRequest: Encodable {
     let serverAuthCode: String
     let codeSource = "native"
@@ -150,6 +155,32 @@ final class YouTubeAPI: PlanAPIClient {
             accessToken: accessToken,
             body: YouTubeConnectRequest(serverAuthCode: serverAuthCode)
         )
+    }
+
+    func chzzkConfiguration(state: String) async throws -> CHZZKConfiguration {
+        guard !state.isEmpty, let baseURL = serverURLProvider("/auth/chzzk/config"),
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            throw CHZZKAuthorizationError.configuration
+        }
+        components.queryItems = [URLQueryItem(name: "state", value: state)]
+        guard let url = components.url else { throw CHZZKAuthorizationError.configuration }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await perform(request)
+        guard let response = response as? HTTPURLResponse else { throw YouTubeAPIError.response }
+        try validate(response, data: data)
+        return try decode(CHZZKConfiguration.self, from: data)
+    }
+
+    func connectCHZZK(authorization: CHZZKAuthorizationCode, accessToken: String) async throws -> CHZZKConnectionResponse {
+        let response: CHZZKConnectionResponse = try await request(
+            path: "/auth/chzzk/connect", method: "POST", accessToken: accessToken,
+            body: CHZZKConnectRequest(code: authorization.code, state: authorization.state)
+        )
+        guard response.connected, response.provider == "chzzk", !response.channel.id.isEmpty else {
+            throw YouTubeAPIError.response
+        }
+        return response
     }
 
     func streamingAccounts(accessToken: String) async throws -> [YouTubeStreamingAccountSummary] {
