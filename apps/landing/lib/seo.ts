@@ -3,7 +3,7 @@ import { defaultLocale, isLocale, localePath, locales } from "@/lib/locales";
 
 export const siteOrigin = "https://innolive.studio";
 
-export const sitemapPaths = ["/", "/pricing", "/try-out", "/support", "/privacy", "/terms"] as const;
+export const sitemapPaths = ["/", "/pricing", "/try-out", "/support", "/privacy", "/terms", "/guides/live-face-blur"] as const;
 
 export function pageAlternates(locale: string, path: string) {
   const resolvedLocale = isLocale(locale) ? locale : defaultLocale;
