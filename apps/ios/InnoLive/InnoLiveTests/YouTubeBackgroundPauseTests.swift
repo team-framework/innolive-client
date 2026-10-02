@@ -234,8 +234,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
     func testGoLivePartialFailureNamesOnlyFailedTargetAndKeepsOtherLive() async throws {
         let integration = try makePreparedIntegration()
         integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"], phase: "prepared", status: "idle"))
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let data = try Data(contentsOf: root.appendingPathComponent("contracts/fixtures/broadcast-session-state-golive-partial.v1.json"))
+        let data = try ContractTestFixtures.data(named: "broadcast-session-state-golive-partial.v1")
         YouTubeBackgroundPauseURLProtocol.responses = [.init(statusCode: 200, data: data)]
         await integration.goLiveYouTubeStream(accessToken: "access-token")
         XCTAssertEqual(requestCount(suffix: "/stream/golive"), 1)

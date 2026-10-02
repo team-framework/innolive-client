@@ -214,17 +214,14 @@ final class CHZZKAccountTests: XCTestCase {
     }
 
     func testContractFixturesDecodeMixedProvidersAndCamelCaseChannel() throws {
-        var root = URL(fileURLWithPath: #filePath)
-        for _ in 0..<5 { root.deleteLastPathComponent() }
-        let fixture = root.appendingPathComponent("contracts/fixtures")
         let accounts = try JSONDecoder().decode([StreamingAccountSummary].self,
-            from: Data(contentsOf: fixture.appendingPathComponent("streaming-accounts.v1.json")))
+            from: ContractTestFixtures.data(named: "streaming-accounts.v1"))
         XCTAssertEqual(accounts.map(\.provider), ["youtube", "chzzk"])
         XCTAssertNotNil(accounts[0].youtubeConnection)
         XCTAssertNil(accounts[1].youtubeConnection)
         XCTAssertTrue(accounts[1].reconnectRequired)
         let connected = try JSONDecoder().decode(CHZZKConnectionResponse.self,
-            from: Data(contentsOf: fixture.appendingPathComponent("chzzk-connect.v1.json")))
+            from: ContractTestFixtures.data(named: "chzzk-connect.v1"))
         XCTAssertEqual(connected.account.channelID, "chzzk-example")
     }
 
