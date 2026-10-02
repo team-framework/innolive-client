@@ -27,6 +27,9 @@ export async function generateMetadata({
   const { locale } = await params;
   return {
     metadataBase: new URL(siteOrigin),
+    verification: {
+      other: { "naver-site-verification": "cbbd23aaf2e26c9acc29f017f3809f4b5badf6bc" },
+    },
     ...seoCopy[isLocale(locale) ? locale : defaultLocale].home,
   };
 }

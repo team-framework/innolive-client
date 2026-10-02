@@ -51,3 +51,16 @@ hreflang은 없었고 robots.txt·sitemap.xml은 404였다. Lighthouse SEO는 10
 - HTTP·HTML 결과는 `output/seo-2026-10-02/local-after-verification.json`,
   화면은 같은 폴더의 `local-faq.png`, `local-faq-mobile.png`에 기록.
 - 운영 배포·검색엔진 색인·검색어별 노출은 미검증. API·signaling 계약 영향 없음.
+
+## 라이브 블러 안내와 네이버 등록
+
+- `/ko/guides/live-face-blur` 및 영어·일본어 대응 페이지에서 라이브 모자이크와 블러의 차이, 얼굴 등록·방송 준비·웹 체험 안내 제공
+- 현재 효과는 Gaussian blur 방식이며 픽셀 모자이크 선택 기능으로 설명하지 않음
+- 홈 FAQ의 안내 링크, 각 안내 페이지의 체험·고객지원 링크 추가
+- 한국어 홈·요금제·체험 설명을 80자 이내로 조정, 홈 제목에 이노라이브 표기 추가
+- 사이트맵 21개 URL, 각 페이지 self canonical과 4개 언어 alternate 유지
+- 네이버 계정에서 발급한 공개 소유확인 메타 태그 적용. 실제 소유확인·사이트맵 제출 상태는 Search Advisor에서 별도 확인 필요
+
+2026-10-02 검색 관측: Google 브랜드 검색에서 공식 사이트가 첫 번째 웹 검색 결과와 AI 개요에 노출. Naver는 `innolive`를 `innolife`로 자동 교정하며 원래 검색어로 조회해도 첫 페이지에 공식 사이트 미노출. `라이브 모자이크`, `라이브 블러`, `방송 모자이크`의 두 검색 엔진 첫 페이지에서도 공식 사이트 미노출. Google 맞춤설정 제외 결과를 확인했으며 지역·시점에 따라 검색 결과가 달라질 수 있음. 검색 화면 관측은 Search Console·Search Advisor의 노출수·클릭수 측정과 구분.
+
+서비스 정의 근거: Framework Wiki `innolive.md`의 화이트리스트 얼굴 비식별화 정의(2026-08-15, partial), 현재 AI `service/mosaic.py`의 GaussianBlur 처리 및 랜딩 고객지원의 얼굴 등록·웹 체험 안내. 위키의 전체 기능·정확도·지연 시간 검증을 의미하지 않음.

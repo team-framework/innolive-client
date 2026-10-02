@@ -5,6 +5,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
 import Link from "next/link";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { liveFaceBlurGuide } from "@/lib/live-face-blur-guide";
 import { useLocale } from "@/components/locale-provider";
 
 export function FAQSection({
@@ -12,7 +13,7 @@ export function FAQSection({
 }: {
   searchQuestions?: { question: string; answer: string }[];
 }) {
-  const { href, messages } = useLocale();
+  const { href, messages, locale } = useLocale();
   const items: { question: string; answer: ReactNode }[] = [
     ...messages.faq.items,
     ...searchQuestions,
@@ -88,6 +89,10 @@ export function FAQSection({
             {messages.faq.subtitle}
           </p>
         </div>
+
+        <Link href={href("/guides/live-face-blur")} className="text-lg text-text-primary underline [text-underline-position:from-font]">
+          {liveFaceBlurGuide[locale].title}
+        </Link>
 
         <div className="flex w-full flex-col gap-3">
           {items.map((item) => (
