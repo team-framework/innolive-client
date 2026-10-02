@@ -68,6 +68,11 @@ private struct YouTubePrepareStreamRequest: Encodable {
 
 private struct YouTubeEmptyRequest: Encodable {}
 
+private struct BroadcastModeRequest: Encodable {
+    let resolution: String
+    let targets: [String]
+}
+
 private struct AnonymizationRequest: Encodable {
     let enabled: Bool
 }
@@ -289,6 +294,13 @@ final class YouTubeAPI: PlanAPIClient {
                                  body: YouTubeLiveBroadcastRequest(title: youtube.title.trimmingCharacters(in: .whitespacesAndNewlines),
                                                                   description: youtube.description, categoryID: youtube.categoryID),
                                  queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+    }
+
+    func changeBroadcastMode(session: YouTubeBroadcastSession, accessToken: String,
+                             resolution: String, targets: Set<BroadcastSettingsProvider>) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/broadcast-mode", method: "PUT",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: BroadcastModeRequest(resolution: resolution, targets: targets.map(\.rawValue).sorted()))
     }
 
     func broadcastDefaults(session: YouTubeBroadcastSession, accessToken: String,

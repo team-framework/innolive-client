@@ -136,13 +136,22 @@ struct BroadcastSessionStatusView: View {
                 let policy = YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false)
                 Text(policy.streamStatusText.replacingOccurrences(of: "YouTube", with: target.title))
             }
+            if youtube.hasStartedYouTubeBroadcast {
+                NavigationLink {
+                    BroadcastModeView(authentication: authentication, youtube: youtube)
+                } label: {
+                    Label(String(localized: "방송 방식 변경", table: "BroadcastMode"), systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(!youtube.canChangeBroadcastMode || youtube.isSavingLiveSettings)
+                .accessibilityIdentifier("broadcast-mode-entry")
+            }
             ForEach(youtube.liveEditingTargets) { provider in
                 NavigationLink {
                     BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
                 } label: {
                     Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
                 }
-                .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
+                .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode)
                 .accessibilityIdentifier("live-edit-" + provider.rawValue)
             }
             if youtube.isYouTubeBroadcastActive {

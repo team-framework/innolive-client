@@ -72,6 +72,228 @@ final class YouTubeIntegration: ObservableObject {
     private var liveSettingsScope = ""
     private var unavailableLiveProviders: Set<BroadcastSettingsProvider> = []
 
+    @Published private(set) var isChangingBroadcastMode = false
+    @Published private(set) var broadcastModeError: String?
+    @Published private(set) var broadcastModeFailures: [BroadcastTargetFailure] = []
+    private var broadcastModeRequest = UUID()
+    private var broadcastModeRequestInFlight = false
+    private var broadcastModeQualityTask: Task<Void, Never>?
+    private var broadcastModeQualityRequest = UUID()
+    private var observedModeCompletion: BroadcastResolutionSwitch?
+
+    var canChangeBroadcastMode: Bool {
+        session != nil && !liveEditingTargets.isEmpty && !isChangingBroadcastMode
+            && !isSavingLiveSettings && !isChangingStreamState && !isEndingSession
+            && !isPreparingSession && !isConnectingVideo && !isRecoveringVideoFailure
+            && !isYouTubeConnectionOperationInProgress && !videoUplink.isSwitchingCamera
+    }
+
+    @discardableResult
+    func saveBroadcastModeSettings(provider: BroadcastSettingsProvider, accessToken: String?) async -> Bool {
+        guard canChangeBroadcastMode, let current = session, let accessToken, !accessToken.isEmpty,
+              isSettingsAccountConnected(provider), !liveEditingTargets.contains(provider),
+              provider != .youtube || hasAcknowledgedYouTubeTransmission else { return false }
+        settingsEditor.select(provider)
+        settingsEditor.showValidation()
+        guard settingsEditor.validation.isEmpty else { return false }
+        settingsEditor.cancelDefaults(provider: provider)
+        let generation = sessionOperationGeneration
+        let editorGeneration = settingsEditor.contextGeneration
+        let scope = settingsScopeKey(accessToken: accessToken)
+        let request = UUID()
+        broadcastModeRequest = request
+        broadcastModeRequestInFlight = true
+        isChangingBroadcastMode = true
+        broadcastModeError = nil
+        stopPolling()
+        func isCurrent() -> Bool {
+            generation == sessionOperationGeneration && session?.sessionID == current.sessionID
+                && broadcastModeRequest == request && settingsEditor.contextGeneration == editorGeneration
+                && settingsScopeKey(accessToken: accessToken) == scope && !Task.isCancelled
+        }
+        defer {
+            if broadcastModeRequest == request {
+                broadcastModeRequestInFlight = false
+                reconcileBroadcastModeState()
+                if generation == sessionOperationGeneration, session?.sessionID == current.sessionID {
+                    beginPolling(accessToken: accessToken)
+                }
+            }
+        }
+        do {
+            let snapshot: YouTubeSessionResponse
+            if provider == .youtube {
+                snapshot = try await api.saveBroadcastSettings(session: current, accessToken: accessToken, settings: settingsEditor.youtube)
+            } else {
+                snapshot = try await api.saveCHZZKBroadcastSettings(session: current, accessToken: accessToken, settings: settingsEditor.chzzk)
+            }
+            guard isCurrent() else { return false }
+            _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation, provider: provider.rawValue)
+            settingsEditor.persist(provider: provider)
+            return true
+        } catch {
+            guard isCurrent() else { return false }
+            if let field = error as? BroadcastSettingsFieldError { settingsEditor.showFieldError(field) }
+            broadcastModeError = String(localized: "추가할 플랫폼의 방송 정보를 저장하지 못했습니다. 입력값을 확인한 뒤 다시 시도해 주세요.", table: "BroadcastMode")
+            return false
+        }
+    }
+
+    // 추가 대상은 UI에서 설정을 편집한 뒤 이 메서드를 호출한다. 저장 성공 후에만 전환한다.
+    @discardableResult
+    func changeBroadcastMode(resolution: String, targets: Set<BroadcastSettingsProvider>, accessToken: String?) async -> Bool {
+        guard canChangeBroadcastMode, let current = session, let accessToken, !accessToken.isEmpty,
+              ["720p", "fhd"].contains(resolution), !targets.isEmpty else { return false }
+        if let snapshot = planStore.snapshot, !snapshot.canPrepare(.current(resolution: resolution, targetCount: targets.count)) {
+            broadcastModeError = String(localized: "현재 요금제와 남은 시간으로 선택한 송출 방식을 사용할 수 없습니다.", table: "BroadcastMode")
+            return false
+        }
+        let added = targets.subtracting(Set(liveEditingTargets)).sorted { $0.rawValue < $1.rawValue }
+        if added.contains(.youtube), !hasAcknowledgedYouTubeTransmission {
+            broadcastModeError = String(localized: "YouTube 전송 안내에 동의해 주세요.", table: "BroadcastMode")
+            return false
+        }
+        for provider in added {
+            guard isSettingsAccountConnected(provider) else {
+                broadcastModeError = String(localized: "추가할 플랫폼의 계정을 연결해 주세요.", table: "BroadcastMode")
+                return false
+            }
+            let validation = provider == .youtube ? settingsEditor.youtube.validation : settingsEditor.chzzk.validation
+            guard validation.isEmpty else {
+                settingsEditor.select(provider)
+                settingsEditor.showValidation()
+                broadcastModeError = String(localized: "추가할 플랫폼의 방송 정보를 입력해 주세요.", table: "BroadcastMode")
+                return false
+            }
+        }
+        let request = UUID()
+        let generation = sessionOperationGeneration
+        let editorGeneration = settingsEditor.contextGeneration
+        let scope = settingsScopeKey(accessToken: accessToken)
+        broadcastModeRequest = request
+        broadcastModeRequestInFlight = true
+        isChangingBroadcastMode = true
+        broadcastModeError = nil
+        broadcastModeFailures = []
+        stopPolling()
+        func isCurrent() -> Bool {
+            broadcastModeRequest == request && generation == sessionOperationGeneration
+                && session?.sessionID == current.sessionID && settingsEditor.contextGeneration == editorGeneration
+                && settingsScopeKey(accessToken: accessToken) == scope && !Task.isCancelled
+        }
+        defer {
+            if broadcastModeRequest == request {
+                broadcastModeRequestInFlight = false
+                reconcileBroadcastModeState()
+                if generation == sessionOperationGeneration, session?.sessionID == current.sessionID {
+                    beginPolling(accessToken: accessToken)
+                }
+            }
+        }
+        do {
+            for provider in added {
+                settingsEditor.cancelDefaults(provider: provider)
+                let snapshot: YouTubeSessionResponse
+                if provider == .youtube {
+                    snapshot = try await api.saveBroadcastSettings(session: current, accessToken: accessToken, settings: settingsEditor.youtube)
+                } else {
+                    snapshot = try await api.saveCHZZKBroadcastSettings(session: current, accessToken: accessToken, settings: settingsEditor.chzzk)
+                }
+                guard isCurrent() else { return false }
+                _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation, provider: provider.rawValue)
+                settingsEditor.persist(provider: provider)
+            }
+            guard isCurrent() else { return false }
+            let snapshot = try await api.changeBroadcastMode(session: current, accessToken: accessToken,
+                                                             resolution: resolution, targets: targets)
+            guard isCurrent() else {
+                if broadcastModeRequest == request, generation == sessionOperationGeneration,
+                   session?.sessionID == current.sessionID { broadcastModeAwaitingStatus = true }
+                return false
+            }
+            _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            return true
+        } catch {
+            guard isCurrent() else {
+                if broadcastModeRequest == request, generation == sessionOperationGeneration,
+                   session?.sessionID == current.sessionID { broadcastModeAwaitingStatus = true }
+                return false
+            }
+            if let field = error as? BroadcastSettingsFieldError { settingsEditor.showFieldError(field) }
+            broadcastModeError = String(localized: "송출 방식을 변경하지 못했습니다. 현재 방송 상태를 확인한 뒤 다시 시도해 주세요.", table: "BroadcastMode")
+            // 응답이 유실돼도 서버에서 전환을 시작했을 수 있다. 조회할 때까지 편집을 잠근다.
+            if let snapshot = try? await api.sessionStatus(session: current, accessToken: accessToken), isCurrent() {
+                _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            } else if isCurrent() {
+                broadcastModeAwaitingStatus = true
+            }
+            return false
+        }
+    }
+
+    private var broadcastModeAwaitingStatus = false
+
+    private func reconcileBroadcastModeState() {
+        let switching = responseState.details.resolutionSwitch?.status == "switching"
+        isChangingBroadcastMode = broadcastModeRequestInFlight || broadcastModeAwaitingStatus
+            || switching || broadcastModeQualityTask != nil
+        if let state = responseState.details.resolutionSwitch, state.status != "switching",
+           state != observedModeCompletion {
+            observedModeCompletion = state
+            broadcastModeFailures = state.failedTargets ?? []
+            if !broadcastModeFailures.isEmpty {
+                let providers = broadcastModeFailures.map { $0.provider == "youtube" ? "YouTube" : "CHZZK" }.joined(separator: ", ")
+                broadcastModeError = providers + String(localized: " 송출을 전환하지 못했습니다. 대상 상태를 확인해 주세요.", table: "BroadcastMode")
+            }
+            if state.status == "failed" || state.status == "canceled" {
+                broadcastModeError = String(localized: "송출 방식 전환을 완료하지 못했습니다. 현재 방송 상태를 확인해 주세요.", table: "BroadcastMode")
+            }
+        }
+    }
+
+    private func resetBroadcastMode() {
+        broadcastModeRequest = UUID()
+        broadcastModeRequestInFlight = false
+        broadcastModeAwaitingStatus = false
+        broadcastModeQualityRequest = UUID()
+        broadcastModeQualityTask?.cancel()
+        broadcastModeQualityTask = nil
+        observedModeCompletion = nil
+        isChangingBroadcastMode = false
+        broadcastModeError = nil
+        broadcastModeFailures = []
+    }
+
+    private func synchronizeBroadcastModeQuality() {
+        guard broadcastModeQualityTask == nil, let current = session,
+              let active = videoUplink.activeVideoQuality, let resolution = broadcastResolution,
+              ["720p", "fhd"].contains(resolution) else { return }
+        let quality: CameraQualityPreset = resolution == "fhd"
+            ? (active.framesPerSecond == 24 ? .fullHD24 : .fullHD30)
+            : (active.framesPerSecond == 24 ? .hd24 : .hd30)
+        guard active != quality else { return }
+        let generation = sessionOperationGeneration
+        let request = UUID()
+        broadcastModeQualityRequest = request
+        broadcastModeQualityTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if broadcastModeQualityRequest == request {
+                    broadcastModeQualityTask = nil
+                    reconcileBroadcastModeState()
+                }
+            }
+            do {
+                try await videoUplink.switchVideoQuality(to: quality)
+            } catch {
+                guard !Task.isCancelled, generation == sessionOperationGeneration,
+                      session?.sessionID == current.sessionID, broadcastModeQualityRequest == request else { return }
+                broadcastModeError = String(localized: "서버 해상도에 맞춰 카메라 화질을 변경하지 못했습니다. 카메라 상태를 확인해 주세요.", table: "BroadcastMode")
+            }
+        }
+        reconcileBroadcastModeState()
+    }
+
     let settingsEditor: BroadcastSettingsEditor
     @Published private(set) var streamingAccounts: [YouTubeStreamingAccountSummary] = []
 
@@ -203,6 +425,7 @@ final class YouTubeIntegration: ObservableObject {
         planStore.reset()
         settingsEditor.reset()
         resetLiveEditing()
+        resetBroadcastMode()
         streamingAccounts = []
         chzzkAccountMessage = nil
         sessionOperationGeneration &+= 1
@@ -234,7 +457,7 @@ final class YouTubeIntegration: ObservableObject {
     private var statePolicy: YouTubeBroadcastStatePolicy {
         YouTubeBroadcastStatePolicy(
             stream: stream,
-            isChangingStreamState: isChangingStreamState,
+            isChangingStreamState: isChangingStreamState || isChangingBroadcastMode,
             targets: responseState.details.targets
         )
     }
@@ -249,7 +472,7 @@ final class YouTubeIntegration: ObservableObject {
 
     func canEditLiveBroadcast(_ provider: BroadcastSettingsProvider) -> Bool {
         session != nil && liveEditingTargets.contains(provider) && !unavailableLiveProviders.contains(provider) && !isChangingStreamState
-            && responseState.details.resolutionSwitch?.status != "switching"
+            && !isChangingBroadcastMode && responseState.details.resolutionSwitch?.status != "switching"
             && !isEndingSession
     }
 
@@ -364,11 +587,11 @@ final class YouTubeIntegration: ObservableObject {
 
     var isYouTubeBroadcastPaused: Bool { statePolicy.isBroadcastPaused }
 
-    var canPauseYouTubeBroadcast: Bool { statePolicy.canPauseBroadcast }
+    var canPauseYouTubeBroadcast: Bool { !isChangingBroadcastMode && statePolicy.canPauseBroadcast }
 
-    var canResumeYouTubeBroadcast: Bool { statePolicy.canResumeBroadcast }
+    var canResumeYouTubeBroadcast: Bool { !isChangingBroadcastMode && statePolicy.canResumeBroadcast }
 
-    var canChangeYouTubePauseState: Bool { statePolicy.canChangePauseState }
+    var canChangeYouTubePauseState: Bool { !isChangingBroadcastMode && statePolicy.canChangePauseState }
 
     var streamStatusText: String { statePolicy.streamStatusText }
 
@@ -377,7 +600,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var isYouTubeAccountChangeBlocked: Bool {
-        isBroadcastSettingsLocked
+        isBroadcastSettingsLocked || isChangingBroadcastMode
             || isYouTubeConnectionOperationInProgress
     }
 
@@ -390,7 +613,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var isCHZZKAccountChangeBlocked: Bool {
-        isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
+        isChangingBroadcastMode || isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
             || isEndingSession || preparationStatus?.isRunning == true
             || preparationStatus?.phase == .cancelling
             || StreamingAccountPolicy.isInUse("chzzk", snapshot: responseState)
@@ -813,6 +1036,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func switchVideoQuality(to quality: CameraQualityPreset) async -> Bool {
+        guard !hasStartedYouTubeBroadcast, !isChangingBroadcastMode else { return false }
         clearError()
         do {
             try await videoUplink.switchVideoQuality(to: quality)
@@ -825,7 +1049,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func changeAIProcessingMode(_ mode: AIProcessingMode, accessToken: String?) async -> Bool {
-        guard !isYouTubeBroadcastActive, !isChangingStreamState, !isPreparingSession,
+        guard !isYouTubeBroadcastActive, !isChangingBroadcastMode, !isChangingStreamState, !isPreparingSession,
               !isConnectingVideo, !isEndingSession, !isChangingAIProcessing,
               !isTogglingAnonymization else { return false }
         clearError()
@@ -1372,6 +1596,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func goLiveYouTubeStream(accessToken: String?) async {
+        guard !isChangingBroadcastMode else { return }
         clearError()
         guard !isChangingStreamState else { return }
         guard let accessToken, !accessToken.isEmpty else {
@@ -1529,6 +1754,7 @@ final class YouTubeIntegration: ObservableObject {
         planStore.reset()
         settingsEditor.reset()
         resetLiveEditing()
+        resetBroadcastMode()
         streamingAccounts = []
         preparationGeneration &+= 1
         preparationStatus = nil
@@ -1655,6 +1881,9 @@ final class YouTubeIntegration: ObservableObject {
         let previouslyLive = Set(liveEditingTargets)
         responseState.apply(response, provider: provider, clearsWarnings: clearsWarnings)
         responseRevision &+= 1
+        broadcastModeAwaitingStatus = false
+        reconcileBroadcastModeState()
+        synchronizeBroadcastModeQuality()
         stream = responseState.stream
         unavailableLiveProviders.subtract(Set(liveEditingTargets).subtracting(previouslyLive))
         // 준비·저장 스냅샷은 트랙을 빠뜨릴 수 있다. 이미 확인한 라이브 입력은 유지한다.
@@ -1668,7 +1897,7 @@ final class YouTubeIntegration: ObservableObject {
         if session?.processingMode == .server, let enabled = responseState.media?.anonymizationEnabled {
             isAnonymizationEnabled = enabled
         }
-        if !isYouTubeBroadcastActive {
+        if !isYouTubeBroadcastActive && !isChangingBroadcastMode {
             liveStartedAt = nil
             if let generation = ownedOrientationLockGeneration {
                 releaseBroadcastOrientationLock(generation: generation)
@@ -1679,6 +1908,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private func clearSessionResponseState() {
         resetLiveEditing()
+        resetBroadcastMode()
         targetActionErrors = [:]
         liveStartFailures = []
         preparationFailures = [:]
@@ -1690,6 +1920,9 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func targetProviders(for action: YouTubeAPI.StreamAction) -> [String?] {
+        if action == .stop, let switching = responseState.details.resolutionSwitch, switching.status == "switching" {
+            return switching.targets.filter { BroadcastSettingsProvider(rawValue: $0) != nil }.map { Optional($0) }
+        }
         guard let targets = responseState.details.targets else { return [nil] }
         return targets.filter { target in
             guard target.provider == "youtube" || target.provider == "chzzk" else { return false }
@@ -1936,7 +2169,8 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, providers: [String?]) async {
-        guard !isChangingStreamState, backgroundPauseTask == nil else { return }
+        guard !isChangingStreamState, (!isChangingBroadcastMode || action == .stop),
+              !broadcastModeRequestInFlight, backgroundPauseTask == nil else { return }
         clearError()
         guard let accessToken, !accessToken.isEmpty else { showError(.unauthorized); return }
         guard let session, !providers.isEmpty else { return }

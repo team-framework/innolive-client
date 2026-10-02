@@ -126,9 +126,8 @@ final class BroadcastSessionStateTests: XCTestCase {
 
 enum SessionStateFixture {
     static func committed(_ name: String) throws -> YouTubeSessionResponse {
-        let directory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-        let url = directory.appendingPathComponent("../../../../contracts/fixtures/broadcast-session-state-\(name).v1.json").standardizedFileURL
-        return try JSONDecoder().decode(YouTubeSessionResponse.self, from: Data(contentsOf: url))
+        return try JSONDecoder().decode(YouTubeSessionResponse.self,
+            from: ContractTestFixtures.data(named: "broadcast-session-state-\(name).v1"))
     }
     static func stream(phase: String = "live", status: String = "streaming") -> String {
         """

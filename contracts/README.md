@@ -4,6 +4,7 @@ This directory is the source of truth for behavior shared by all clients.
 
 - `api/streaming-accounts-v1.md`: CHZZK OAuth and shared account listing/disconnection semantics
 - `api/broadcast-settings-v1.md`: provider-specific settings, categories, defaults and draft isolation
+- `api/broadcast-mode-v1.md`: live resolution/target switching, asynchronous completion and edit ordering
 - `api/`: HTTP API schemas and versioning notes
 - `signaling/`: WebRTC signaling schemas
 - `fixtures/`: valid and invalid payload examples
