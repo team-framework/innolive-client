@@ -16,6 +16,9 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var isConnecting = false
     @Published private(set) var isRefreshingConnection = false
     @Published private(set) var isDisconnecting = false
+    @Published private(set) var isConnectingCHZZK = false
+    @Published private(set) var isDisconnectingCHZZK = false
+    @Published private(set) var chzzkAccountMessage: String?
     @Published private(set) var isPreparingSession = false
     @Published private(set) var isConnectingVideo = false
     @Published private(set) var preparationStatus: BroadcastPreparationStatus?
@@ -83,6 +86,7 @@ final class YouTubeIntegration: ObservableObject {
     private var isEndingSession = false
     private var unsavedSessions: [String: StoredBroadcastSession] = [:]
     private let authorization = YouTubeAuthorization()
+    private let chzzkAuthorization: any CHZZKAuthorizing
     private let preferencesStore: YouTubePreferencesStore
     private let consentStore: ConsentAcknowledgementStore
     private let orientationLock: any BroadcastOrientationLocking
@@ -114,6 +118,7 @@ final class YouTubeIntegration: ObservableObject {
     init(
         preferencesStore: YouTubePreferencesStore,
         api: YouTubeAPI? = nil,
+        chzzkAuthorization: (any CHZZKAuthorizing)? = nil,
         orientationLock: (any BroadcastOrientationLocking)? = nil,
         consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore(),
         sessionStore: (any BroadcastSessionStoring)? = nil,
@@ -129,6 +134,7 @@ final class YouTubeIntegration: ObservableObject {
         self.persistAIProcessingMode = persistAIProcessingMode
         let resolvedAPI = api ?? YouTubeAPI()
         self.api = resolvedAPI
+        self.chzzkAuthorization = chzzkAuthorization ?? CHZZKAuthorization()
         settingsEditor = BroadcastSettingsEditor(api: resolvedAPI, preferences: preferencesStore)
         liveSettingsEditor = BroadcastSettingsEditor(api: resolvedAPI, preferences: preferencesStore)
         self.sessionStore = sessionStore ?? BroadcastSessionStore()
@@ -173,6 +179,7 @@ final class YouTubeIntegration: ObservableObject {
         settingsEditor.reset()
         resetLiveEditing()
         streamingAccounts = []
+        chzzkAccountMessage = nil
         sessionOperationGeneration &+= 1
         invalidateConnectionOperation()
         api.configureAuthentication(
@@ -341,7 +348,7 @@ final class YouTubeIntegration: ObservableObject {
     var streamStatusText: String { statePolicy.streamStatusText }
 
     var isYouTubeConnectionOperationInProgress: Bool {
-        isConnecting || isRefreshingConnection || isDisconnecting
+        isConnecting || isRefreshingConnection || isDisconnecting || isConnectingCHZZK || isDisconnectingCHZZK
     }
 
     var isYouTubeAccountChangeBlocked: Bool {
@@ -351,6 +358,113 @@ final class YouTubeIntegration: ObservableObject {
 
     var canDisconnectYouTubeAccount: Bool {
         connection != nil && !isYouTubeAccountChangeBlocked
+    }
+
+    var chzzkAccount: StreamingAccountSummary? {
+        streamingAccounts.first { $0.provider == "chzzk" }
+    }
+
+    var isCHZZKAccountChangeBlocked: Bool {
+        isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
+            || isEndingSession || preparationStatus?.isRunning == true
+            || preparationStatus?.phase == .cancelling
+            || StreamingAccountPolicy.isInUse("chzzk", snapshot: responseState)
+    }
+
+    var canDisconnectCHZZKAccount: Bool { chzzkAccount != nil && !isCHZZKAccountChangeBlocked }
+
+    func connectCHZZK(presenting viewController: UIViewController, accessToken: String?) async {
+        guard !isCHZZKAccountChangeBlocked else { return }
+        chzzkAccountMessage = nil
+        guard let accessToken, !accessToken.isEmpty else {
+            chzzkAccountMessage = YouTubeAPIError.unauthorized.userMessage
+            return
+        }
+        let generation = beginConnectionOperation()
+        isConnectingCHZZK = true
+        defer { if isCurrentConnectionOperation(generation) { isConnectingCHZZK = false } }
+        do {
+            let attempt = try CHZZKAuthorizationAttempt.random()
+            let configuration = try await api.chzzkConfiguration(state: attempt.state)
+            guard isCurrentConnectionOperation(generation) else { return }
+            let authorization = try await chzzkAuthorization.authorize(
+                configuration: configuration, attempt: attempt, presenting: viewController
+            )
+            guard isCurrentConnectionOperation(generation), !Task.isCancelled else { return }
+            _ = try attempt.remaining()
+            guard authorization.state == attempt.state else { throw CHZZKAuthorizationError.stateMismatch }
+            let response = try await api.connectCHZZK(authorization: authorization, accessToken: accessToken)
+            guard isCurrentConnectionOperation(generation) else { return }
+            streamingAccounts.removeAll { $0.provider == "chzzk" }
+            streamingAccounts.append(response.account)
+            // 서버 응답을 반영한 뒤 전체 목록을 다시 읽어 YouTube도 함께 동기화한다.
+            await synchronizeAccountsAfterCHZZKChange(accessToken: accessToken, generation: generation)
+        } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            chzzkAccountMessage = chzzkMessage(for: error)
+        }
+    }
+
+    func disconnectCHZZKAccount(accessToken: String?) async {
+        guard canDisconnectCHZZKAccount else { return }
+        chzzkAccountMessage = nil
+        guard let accessToken, !accessToken.isEmpty else {
+            chzzkAccountMessage = YouTubeAPIError.unauthorized.userMessage
+            return
+        }
+        let generation = beginConnectionOperation()
+        isDisconnectingCHZZK = true
+        defer { if isCurrentConnectionOperation(generation) { isDisconnectingCHZZK = false } }
+        do {
+            try await api.disconnectStreamingAccount(accessToken: accessToken, provider: "chzzk")
+            guard isCurrentConnectionOperation(generation) else { return }
+            streamingAccounts.removeAll { $0.provider == "chzzk" }
+            await synchronizeAccountsAfterCHZZKChange(accessToken: accessToken, generation: generation)
+        } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            chzzkAccountMessage = chzzkMessage(for: error)
+        }
+    }
+
+    private func synchronizeAccountsAfterCHZZKChange(accessToken: String, generation: UInt) async {
+        do {
+            let accounts = try await api.streamingAccounts(accessToken: accessToken)
+            guard isCurrentConnectionOperation(generation) else { return }
+            applyStreamingAccounts(accounts)
+        } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            chzzkAccountMessage = chzzkMessage(for: error)
+        }
+    }
+
+    private func applyStreamingAccounts(_ accounts: [StreamingAccountSummary]) {
+        streamingAccounts = accounts
+        if let connection = accounts.first(where: { $0.provider == "youtube" })?.youtubeConnection {
+            self.connection = connection
+            persistConnection()
+        } else {
+            connection = nil
+            clearPersistedYouTubeConnection()
+        }
+    }
+
+    private func chzzkMessage(for error: Error) -> String {
+        if let error = error as? CHZZKAuthorizationError { return error.userMessage }
+        if let error = error as? YouTubeAPIError {
+            if error == .unauthorized { return error.userMessage }
+            if case let .api(code, _, _) = error {
+                switch code {
+                case "unauthorized": return YouTubeAPIError.unauthorized.userMessage
+                case "invalid_auth_code": return String(localized: "치지직 인가 코드가 만료되었거나 유효하지 않습니다. 다시 연결해 주세요.", table: "CHZZK")
+                case "streaming_account_in_use": return String(localized: "치지직 방송을 종료한 뒤 연결을 해제해 주세요.", table: "CHZZK")
+                case "chzzk_scope_missing": return String(localized: "치지직 연결에 필요한 권한을 모두 허용해 주세요.", table: "CHZZK")
+                case "chzzk_channel_missing": return String(localized: "이 치지직 계정에 채널이 없습니다. 채널을 먼저 만들어 주세요.", table: "CHZZK")
+                case "streaming_reconnect_required": return String(localized: "치지직 계정을 다시 연결해 주세요.", table: "CHZZK")
+                default: break
+                }
+            }
+        }
+        return String(localized: "치지직 계정 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.", table: "CHZZK")
     }
 
     func refreshAvailability() async {
@@ -365,7 +479,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func refreshConnection(accessToken: String?) async {
-        guard !isYouTubeAccountChangeBlocked,
+        guard !isYouTubeConnectionOperationInProgress,
               let accessToken,
               !accessToken.isEmpty else {
             return
@@ -383,15 +497,7 @@ final class YouTubeIntegration: ObservableObject {
             let accounts = try await api.streamingAccounts(accessToken: accessToken)
             guard isCurrentConnectionOperation(generation) else { return }
 
-            streamingAccounts = accounts
-            if let connection = accounts.first(where: { $0.provider == "youtube" })?.youtubeConnection {
-                self.connection = connection
-                persistConnection()
-            } else {
-                // An authenticated empty list is authoritative for this user.
-                connection = nil
-                clearPersistedYouTubeConnection()
-            }
+            applyStreamingAccounts(accounts)
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
             // Keep the last known connection when the refresh is unavailable.
@@ -452,6 +558,7 @@ final class YouTubeIntegration: ObservableObject {
             try await api.disconnectStreamingAccount(accessToken: accessToken)
             guard isCurrentConnectionOperation(generation) else { return }
             connection = nil
+            streamingAccounts.removeAll { $0.provider == "youtube" }
             clearPersistedYouTubeConnection()
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
@@ -927,6 +1034,7 @@ final class YouTubeIntegration: ObservableObject {
         if let task = broadcastPreparationTask {
             return await task.value
         }
+        guard !isYouTubeConnectionOperationInProgress else { return false }
         let task = Task { @MainActor in
             await self.performBroadcastPreparation(
                 accessToken: accessToken,
@@ -1414,6 +1522,7 @@ final class YouTubeIntegration: ObservableObject {
         sessionOperationGeneration &+= 1
         sessionScope = nil
         invalidateConnectionOperation()
+        chzzkAccountMessage = nil
         invalidateBroadcastOperation()
         clearBackgroundYouTubePauseState()
         stopPolling()
@@ -1954,6 +2063,9 @@ final class YouTubeIntegration: ObservableObject {
         isConnecting = false
         isRefreshingConnection = false
         isDisconnecting = false
+        isConnectingCHZZK = false
+        isDisconnectingCHZZK = false
+        chzzkAuthorization.cancel()
     }
 }
 
