@@ -32,10 +32,20 @@
 - 집중 suite: BroadcastModeTests, BroadcastModeRenderingTests, LiveBroadcastEditingTests, BroadcastPreparationFlowTests, BroadcastSessionPollingTests, YouTubeBackgroundPauseTests, YouTubeBroadcastOrientationLifecycleTests, BroadcastSettingsTests, PlanUsageTests.
 - 설정 저장 실패에서 PUT 미호출, 설정 선저장, 전환 요청 직후 PATCH 차단·정보 저장 중 PUT 차단, 202 진행 잠금·부분 실패 복구, 응답 유실 뒤 조회까지 잠금 유지, 로그아웃 뒤 늦은 응답 차단, idle 전환 구간의 방향 잠금·시작 시각 유지, 전환 중 stop 확인.
 - 밝은 화면과 accessibility3 큰 글씨·어두운 화면을 모의 세션으로 렌더링하고 PNG 2개 확인. 한국어·영어·일본어 24개 신규 문구와 가상 JSON fixture 3개 파싱 확인.
-- 시뮬레이터 테스트 빌드 및 기기용 Debug 서명 빌드 성공. 생성 앱의 codesign --verify --deep --strict 통과. 기기에 설치하거나 실제 방송을 실행하지 않음.
+- 시뮬레이터 테스트 빌드 및 기기용 Debug 서명 빌드 성공. 생성 앱의 codesign --verify --deep --strict 통과.
 - 결과 bundle: `/tmp/innolive-ios-mode-426-final.xcresult`. 기존 Swift actor 관련 경고 및 GoogleSignIn 리소스 로딩 경고는 남아 있음. 테스트 실패는 없음.
 
-서버 소스 계약 확인은 완료했다. 운영 배포, 실계정 송출, 실기기 동작은 아직 검증하지 않았다. 모의 상태·요청 테스트와 사용자 확인 모달의 코드 검토를 실제 송출 성공으로 기록하지 않는다.
+## 2026-10-02~03 실기기 검증 기록
+
+- iPhone 16·iOS 27.0에 서명 앱을 설치하고 실행했다. 기존 로그인·Plasma 요금제 조회 및 YouTube 비공개 설정을 확인했다. 사용자 전송 허용 후 실제 계정에서 방송 준비·시작 요청을 실행했다.
+- 앱 화면에서 해상도 변경 확인 취소 후 720p 유지, 720p→FHD 전환 진행·완료, 전환 중 수정 진입 차단·완료 후 재활성화, 방송 정보 저장 완료 안내를 확인했다. FHD 적용 후 카메라 설정은 1080p·30fps로 표시됐다.
+- 전체 일시정지 후 FHD→720p 전환을 실행했고, 완료 후 일시정지·경과 시각을 유지했다. 전체 방송 종료와 준비 취소 후 홈 대기 화면을 확인했다.
+- 실기기 집중 XCTest 120개에서 119개 통과·1개 파일 경로 오류가 발생했다. 계약 fixture를 테스트 번들에 포함하고 Mac 경로 조회를 교체했다. 실패 1개 및 같은 조회를 사용하는 추가 2개를 재실행해 3개 모두 통과했다. 자동 테스트는 mock API를 사용하며 플랫폼 송출 성공을 증명하지 않는다.
+- 결과 bundle: `/tmp/innolive-ios-mode-426-physical-tests-results.xcresult`, `/tmp/innolive-ios-mode-426-physical-fixture-retest.xcresult`.
+- 원격 기기 화면에서 원본 프리뷰와 서버 수신 영상이 검게 보였다. 전면 카메라 선택 후에도 같았으며, 같은 원격 화면에서 기본 Camera 앱의 전면·후면 영상도 검게 보였다. 본체 영상·외부 시청 화면 확인이 필요하다.
+- 임시 DEBUG 진단에서 카메라 권한 허용, 전면 장치 탐색·선택, 입력 1개·캡처 세션 실행을 확인했다. 준비 중 WebRTC 첫 프레임은 1920×1080이었다. 송신 통계는 초기 대역폭 제한 270×480 뒤 제한 없음·720×1280·30fps로 바뀌었다. 실제 송신 프레임을 확인했지만 외부 영상 내용·수신 품질은 확인하지 못했다. 진단 코드를 제거하고 기존 서명 앱을 다시 설치했다.
+
+실제 세션 상태 변화와 앱 화면을 확인했다. 외부 YouTube 시청 영상·음성·수신 해상도·새 시청 링크와 CHZZK 대상 추가/제거는 아직 검증하지 않았다. 모의 테스트나 앱의 송출 중 표시를 실제 영상 수신 성공으로 기록하지 않는다.
 
 ## 실기기 확인 경로
 
