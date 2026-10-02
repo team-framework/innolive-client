@@ -7,10 +7,15 @@ import Link from "next/link";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { useLocale } from "@/components/locale-provider";
 
-export function FAQSection() {
+export function FAQSection({
+  searchQuestions = [],
+}: {
+  searchQuestions?: { question: string; answer: string }[];
+}) {
   const { href, messages } = useLocale();
   const items: { question: string; answer: ReactNode }[] = [
     ...messages.faq.items,
+    ...searchQuestions,
     {
       question: messages.faq.privacyQuestion,
       answer: (
