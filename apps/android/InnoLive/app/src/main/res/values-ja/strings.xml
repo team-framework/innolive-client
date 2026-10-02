@@ -55,4 +55,7 @@
     <string name="session_notice_youtube_quota_low">本日のYouTube API使用量が多く、配信方式の変更や新しい配信に失敗する場合があります。</string>
     <string name="session_usage_warning_test_show">テストバナーを表示</string>
     <string name="session_usage_warning_test_hide">テストバナーを非表示</string>
+    <string name="settings_section_camera">カメラ</string>
+    <string name="settings_section_audio">オーディオ</string>
+    <string name="settings_section_live">ライブ</string>
 </resources>

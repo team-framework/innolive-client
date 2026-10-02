@@ -827,8 +827,7 @@ fun AppNavigation(
         authenticationSession.deleteAccount(webRtcSession::close)
     }
 
-    // NavDisplay keeps the LiveRoute NavEntry while the back stack is unchanged.
-    // Keep its props up to date independently of NavEntry recreation.
+    // Keep navigation callbacks current while the studio remains composed below settings.
     val visibleYouTubeAccount = youtubeAccount.takeIf {
         session != null && previousProfileEmail == session?.profileEmail
     }
@@ -884,8 +883,9 @@ fun AppNavigation(
         ),
     )
 
+    val navigation: @Composable () -> Unit = {
     NavDisplay(
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         backStack = backStack,
         onBack = onBack,
         entryProvider = { route ->
@@ -917,13 +917,7 @@ fun AppNavigation(
                 }
 
                 LiveRoute -> {
-                    NavEntry(route) {
-                        LiveScreen(
-                            webRtcSession = webRtcSession,
-                            props = liveScreenProps.value,
-                            tutorial = broadcastTutorial,
-                        )
-                    }
+                    NavEntry(route) {}
                 }
 
                 SettingsRoute -> {
@@ -936,6 +930,20 @@ fun AppNavigation(
                                 },
                                 onOpenBroadcastSettings = {
                                     backStack.add(BroadcastSettingRoute)
+                                },
+                                selectedResolution = selectedResolution?.displayName.orEmpty(),
+                                selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
+                                selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
+                                selectedPlatform = selectedBroadcastPlatform,
+                                broadcastAccount = visibleYouTubeAccount?.channelTitle ?: youtubeAccountStatus.asString(),
+                                onOpenResolutionOptions = {
+                                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
+                                },
+                                onOpenCameraDeviceOptions = {
+                                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_DEVICE))
+                                },
+                                onOpenAudioDeviceOptions = {
+                                    backStack.add(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
                                 },
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
@@ -1203,6 +1211,19 @@ fun AppNavigation(
                 }
             }
         },
+    )
+    }
+    val showStudio = LiveRoute in backStack && session != null && !isAccountDeletionPending
+    StudioSettingsLayer(
+        showStudio = showStudio,
+        showSettings = showStudio && backStack.lastOrNull() != LiveRoute,
+        onDismissSettings = onBack,
+        modifier = modifier,
+        studio = {
+            LiveScreen(webRtcSession = webRtcSession, props = liveScreenProps.value,
+                tutorial = broadcastTutorial)
+        },
+        navigation = navigation,
     )
     youtubeAccountGuidance?.let { guidance ->
         ServerErrorDialog(

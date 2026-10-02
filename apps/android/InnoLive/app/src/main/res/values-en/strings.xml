@@ -55,4 +55,7 @@
     <string name="session_notice_youtube_quota_low">Today\'s YouTube API usage is high. Changing broadcast modes or starting a new broadcast may fail.</string>
     <string name="session_usage_warning_test_show">Show test banner</string>
     <string name="session_usage_warning_test_hide">Hide test banner</string>
+    <string name="settings_section_camera">Camera</string>
+    <string name="settings_section_audio">Audio</string>
+    <string name="settings_section_live">Live</string>
 </resources>
