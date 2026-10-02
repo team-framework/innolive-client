@@ -39,7 +39,7 @@ export function LoginForm() {
     setIsSubmitting(true);
     try {
       await signIn(trimmedEmail, password);
-      router.push(href("/"));
+      router.push(href("/#main"));
       router.refresh();
     } catch (error) {
       setNotice(authErrorMessage(error, copy.errors));
