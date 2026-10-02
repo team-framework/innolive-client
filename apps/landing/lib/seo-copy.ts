@@ -10,16 +10,16 @@ type SearchCopy = {
 export const seoCopy: Record<Locale, SearchCopy> = {
   ko: {
     home: {
-      title: "InnoLive | 라이브 방송 실시간 블러·AI 비식별화",
-      description: "InnoLive는 라이브 방송에서 등록되지 않은 사람의 얼굴을 실시간 블러로 가리는 AI 비식별화 서비스입니다. 실시간 방송 블러와 얼굴 보호 기능을 웹에서 체험해 보세요.",
+      title: "InnoLive 이노라이브 | 라이브 블러·실시간 비식별화",
+      description: "라이브 방송에서 등록한 출연자는 보여주고 다른 얼굴은 실시간 블러로 가립니다. InnoLive 이노라이브의 AI 비식별화를 웹에서 체험하세요.",
     },
     pricing: {
       title: "실시간 방송 블러·비식별화 요금제 | InnoLive",
-      description: "라이브 방송 얼굴 비식별화를 위한 InnoLive 요금제를 비교하세요. 무료 웹 체험부터 방송 시간과 얼굴 등록 수에 맞는 플랜을 확인할 수 있습니다.",
+      description: "라이브 방송 얼굴 비식별화 요금제를 비교하세요. 무료 웹 체험과 방송 시간·얼굴 등록 수에 맞는 InnoLive 플랜을 확인하세요.",
     },
     tryOut: {
       title: "실시간 블러·얼굴 비식별화 체험 | InnoLive",
-      description: "카메라로 InnoLive의 실시간 블러를 체험하세요. 라이브 방송에서 공개 대상자로 등록한 얼굴은 남기고 다른 사람의 얼굴을 가리는 AI 비식별화를 확인할 수 있습니다.",
+      description: "카메라로 InnoLive의 실시간 블러를 체험하세요. 등록한 출연자는 보여주고 다른 얼굴을 가리는 라이브 방송 비식별화를 확인하세요.",
     },
     faq: [
       {

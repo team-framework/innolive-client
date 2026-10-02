@@ -1783,12 +1783,13 @@ final class YouTubeIntegration: ObservableObject {
         isAIProcessingUnconfirmed = false
         errorMessage = nil
         helpURL = nil
-        clearPersistedYouTubeConnection()
+        preferencesStore.removeConnection()
         forceReleaseBroadcastOrientationLock()
     }
 
     func resetForAccountDeletion() {
         reset()
+        clearPersistedYouTubeConnection()
         suppressBroadcastSettingsPersistence = true
         broadcastSettings = .defaultValue
         suppressBroadcastSettingsPersistence = false
