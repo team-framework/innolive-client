@@ -11,6 +11,7 @@ struct BroadcastSettingsView: View {
     @State private var isShowingMediaConsent = false
     @State private var transmissionNotice = YouTubeTransmissionNotice()
     private let modeProvider: BroadcastSettingsProvider?
+    private let upgradeSettings: Bool
     private let onModeSettingsSaved: (() -> Void)?
     private let liveProvider: BroadcastSettingsProvider?
     private let onPrepare: ((BroadcastSettingsProvider) -> Void)?
@@ -20,6 +21,7 @@ struct BroadcastSettingsView: View {
     init(authentication: AuthSession, youtube: YouTubeIntegration,
          liveProvider: BroadcastSettingsProvider? = nil,
          modeProvider: BroadcastSettingsProvider? = nil,
+         upgradeSettings: Bool = false,
          onModeSettingsSaved: (() -> Void)? = nil,
          onPrepare: ((BroadcastSettingsProvider) -> Void)? = nil,
          onCancelPreparation: (() -> Void)? = nil,
@@ -28,6 +30,7 @@ struct BroadcastSettingsView: View {
         self.youtube = youtube
         self.planStore = youtube.planStore
         self.modeProvider = modeProvider
+        self.upgradeSettings = upgradeSettings
         self.onModeSettingsSaved = onModeSettingsSaved
         self.liveProvider = liveProvider
         self.onPrepare = onPrepare
@@ -47,6 +50,7 @@ struct BroadcastSettingsView: View {
         if let modeProvider {
             return !youtube.canChangeBroadcastMode || !youtube.isSettingsAccountConnected(modeProvider)
                 || youtube.liveEditingTargets.contains(modeProvider)
+                || (upgradeSettings && (youtube.upgradeOffer?.isExpired() != false || !youtube.upgradeSettingsProviders.contains(modeProvider)))
         }
         return youtube.isBroadcastSettingsLocked
     }
@@ -54,6 +58,15 @@ struct BroadcastSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if upgradeSettings, let offer = youtube.upgradeOffer, let expiration = offer.expirationDate {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(String(localized: "설정 저장까지 남은 시간 \(max(0, Int(ceil(expiration.timeIntervalSince(context.date)))))초", table: "UpgradeOffer"))
+                            .font(.footnote).monospacedDigit()
+                    }
+                    if let message = youtube.upgradeOfferError {
+                        Text(message).font(.footnote).foregroundStyle(.red)
+                    }
+                }
                 if !isLiveEditing && modeProvider == nil {
                     NavigationLink {
                         BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
@@ -174,6 +187,7 @@ struct BroadcastSettingsView: View {
     }
 
     private var prepareButtonTitle: String {
+        if upgradeSettings { return String(localized: "저장 후 전환", table: "UpgradeOffer") }
         if isLiveEditing { return youtube.isSavingLiveSettings ? String(localized: "저장 중") : String(localized: "저장") }
         if onPrepare == nil { return String(localized: "저장") }
         if youtube.preparationStatus?.isFailed == true { return String(localized: "다시 시도") }
@@ -394,8 +408,13 @@ struct BroadcastSettingsView: View {
     private func saveModeSettings() {
         guard let modeProvider, !isFormLocked else { return }
         Task {
-            isSaved = await youtube.saveBroadcastModeSettings(provider: modeProvider, accessToken: token)
-            if isSaved { onModeSettingsSaved?() }
+            if upgradeSettings {
+                let saved = await youtube.saveUpgradeOfferSettings(provider: modeProvider, accessToken: token)
+                if saved { onModeSettingsSaved?() }
+            } else {
+                isSaved = await youtube.saveBroadcastModeSettings(provider: modeProvider, accessToken: token)
+                if isSaved { onModeSettingsSaved?() }
+            }
         }
     }
 
