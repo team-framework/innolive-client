@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { Button } from "@/components/button";
+import { TryOutVideoPanels } from "@/components/try-out-video-panels";
 import { Dialog } from "@/components/dialog";
 import { FaceRegistrationOverlay } from "@/components/face-registration-overlay";
 import { WaitingOverlay } from "@/components/waiting-overlay";
@@ -28,11 +29,11 @@ export function TryOutView() {
 
   return (
     <section
-      className="flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pt-24 min-[106.5rem]:pb-[5.25rem] min-[106.5rem]:pt-[9.5rem]"
+      className="flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pt-24"
       aria-labelledby="try-out-heading"
     >
-      <div className="flex w-full max-w-[100rem] flex-col items-center gap-[4.125rem]">
-        <div className="flex flex-col items-center gap-8 text-center text-text-primary">
+      <div className="flex w-full max-w-[100rem] flex-col items-center gap-10">
+        <div className="flex flex-col items-center gap-4 text-center text-text-primary">
           <SequentialHeroHeading
             segments={[
               {
@@ -49,20 +50,18 @@ export function TryOutView() {
         </div>
 
         <div className="flex w-full flex-col items-center gap-[0.5625rem]">
-          {preview === "active" ? (
-            <div className="flex w-full flex-col gap-2.5 lg:flex-row">
-              <div className="aspect-[795/447] min-h-[14.0625rem] w-full rounded-[12px] bg-background-secondary lg:max-h-[27.95rem]" />
-              <div className="aspect-[795/447] min-h-[14.0625rem] w-full rounded-[12px] bg-background-secondary lg:max-h-[27.95rem]" />
-            </div>
-          ) : (
-            <div className="relative flex aspect-[16/9] w-full items-center justify-center overflow-clip rounded-[12px] bg-background-secondary">
-              {preview === "guest" ? (
-                <p className="px-4 text-center text-[clamp(1.5rem,1rem+2vw,3rem)] font-normal leading-none text-text-primary">
-                  {messages.tryOut.cameraPermission}
-                </p>
-              ) : null}
-            </div>
-          )}
+          <TryOutVideoPanels
+            local={preview === "guest" ? (
+              <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
+                {messages.tryOut.cameraPermission}
+              </p>
+            ) : null}
+            processed={
+              <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
+                {messages.experience.remotePlaceholder}
+              </p>
+            }
+          />
 
           <div className="flex w-full max-w-[32.3125rem] flex-col items-center">
             <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 p-2.5">

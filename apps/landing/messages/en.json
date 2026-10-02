@@ -144,7 +144,7 @@
     "loginCta": "Log in to use the free plan",
     "scrollLeft": "Scroll left",
     "scrollRight": "Scroll right",
-    "usageNote": "Monthly time is deducted at 1× for 720p single, 2× for FHD single or 720p simulcast, and 3× for FHD simulcast. Per-broadcast limits use actual elapsed time."
+    "usageNote": "* Monthly time is deducted at 1× for 720p single, 2× for FHD single or 720p simulcast, and 3× for FHD simulcast. Per-broadcast limits use actual elapsed time."
   },
   "plans": {
     "periodMonth": "month",
@@ -183,8 +183,9 @@
         "cta": "Subscribe to Beam",
         "features": [
           "Spark anonymization features",
-          "120 h/month · 720p to one platform",
-          "FHD single or 720p simulcast: 60 h/month",
+          "120 broadcast hours/month*",
+          "Up to FHD quality*",
+          "720p simulcast to two platforms*",
           "Up to 8 h per broadcast",
           "Dedicated broadcast capacity",
           "Register up to 5 faces"
@@ -195,9 +196,9 @@
         "cta": "Subscribe to Plasma",
         "features": [
           "Beam anonymization features",
-          "240 h/month · 720p to one platform",
-          "FHD single or 720p simulcast: 120 h/month",
-          "FHD simulcast: 80 h/month",
+          "240 broadcast hours/month*",
+          "Up to FHD quality*",
+          "FHD simulcast to two platforms*",
           "Up to 12 h per broadcast",
           "Priority broadcast capacity",
           "Register up to 10 faces"
@@ -296,7 +297,8 @@
     "remoteLabel": "Processed remote video",
     "remotePlaceholder": "Processed video appears when the connection is ready.",
     "localLabel": "Your camera preview",
-    "localBadge": "Your preview",
+    "localBadge": "Current view",
+    "remoteBadge": "Anonymized view",
     "retry": "Try again",
     "end": "End experience",
     "restart": "Start again",
