@@ -20,7 +20,6 @@ export default async function SupportPage({ params }: PageProps) {
   return (
     <DocumentPage
       locale={locale}
-      slug="support"
       Content={documentContent.support[locale]}
     />
   );

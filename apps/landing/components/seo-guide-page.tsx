@@ -10,7 +10,7 @@ import { getPersonalPlans } from "@/lib/plans";
 export function SeoGuidePage({ guide }: { guide: SeoGuide }) {
   const plans = guide.showPersonalPlans ? getPersonalPlans(getMessages("ko"), "ko") : [];
   return (
-    <main id="main" tabIndex={-1} className="min-h-dvh bg-background-primary px-[var(--page-gutter)] pb-20 pt-40 md:pt-56">
+    <main id="main" tabIndex={-1} className="page-top-spacing min-h-dvh bg-background-primary px-[var(--page-gutter)] pb-20">
       <StructuredData data={guideStructuredData(guide)} />
       <article className="mx-auto flex max-w-[72rem] min-w-0 flex-col gap-12 break-keep">
         <nav aria-label="현재 위치" className="flex flex-wrap gap-3 text-base leading-relaxed text-text-secondary">

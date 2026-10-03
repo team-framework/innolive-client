@@ -17,7 +17,7 @@ export default async function LiveFaceBlurGuide({ params }: PageProps) {
   if (!isLocale(locale)) notFound();
   const guide = liveFaceBlurGuide[locale];
   return (
-    <main id="main" className="bg-background-primary px-[var(--page-gutter)] py-16 lg:py-24">
+    <main id="main" tabIndex={-1} className="page-top-spacing bg-background-primary px-[var(--page-gutter)] pb-16 lg:pb-24">
       <article className="mx-auto max-w-[72rem] text-text-primary">
         <h1 className="break-keep text-3xl font-bold leading-snug lg:text-5xl">{guide.heading}</h1>
         <p className="mt-8 text-lg leading-relaxed">{guide.intro}</p>
