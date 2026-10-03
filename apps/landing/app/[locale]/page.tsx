@@ -10,6 +10,8 @@ import { notFound } from "next/navigation";
 import { defaultLocale, isLocale } from "@/lib/locales";
 import { pageMetadata } from "@/lib/seo";
 import { seoCopy } from "@/lib/seo-copy";
+import { StructuredData } from "@/components/structured-data";
+import { homeStructuredData } from "@/lib/structured-data";
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -23,6 +25,7 @@ export default async function Home({ params }: PageProps) {
   if (!isLocale(locale)) notFound();
   return (
     <>
+      <StructuredData data={homeStructuredData(locale)} />
       <IntroScroll />
       <Header />
       <main
@@ -35,7 +38,7 @@ export default async function Home({ params }: PageProps) {
           <Hero />
           <PrivacySection />
           <FeatureSection />
-          <FAQSection searchQuestions={seoCopy[locale].faq} />
+          <FAQSection />
           <Footer />
         </SmoothScroll>
       </main>

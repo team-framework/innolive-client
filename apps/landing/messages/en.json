@@ -44,7 +44,8 @@
     "terms": "Terms of Service",
     "support": "Support",
     "faq": "FAQ",
-    "socialMissing": "{name} link is not available yet"
+    "socialMissing": "{name} link is not available yet",
+    "guide": "User guide"
   },
   "intro": {
     "dialogLabel": "InnoLive introduction",
@@ -118,7 +119,7 @@
       },
       {
         "question": "Q. Can I register more than one face?",
-        "answer": "Yes. You can register each co-host as an allowed person. Free allows up to 2 faces, and Streamer and above allow up to 5."
+        "answer": "You can register each co-host as an allowed person. Spark and Glow allow up to 2 faces, Beam allows up to 5, and Plasma allows up to 10."
       }
     ],
     "privacyQuestion": "Q. How do you handle signup information and registered faces?",

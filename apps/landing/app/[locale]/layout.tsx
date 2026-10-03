@@ -29,6 +29,7 @@ export async function generateMetadata({
   return {
     metadataBase: new URL(siteOrigin),
     verification: {
+      google: "J-BWZsWvCgeHZuOUFzYDyXDBIqTkKECI0MxWfgG1Uzo",
       other: { "naver-site-verification": "cbbd23aaf2e26c9acc29f017f3809f4b5badf6bc" },
     },
     ...seoCopy[isLocale(locale) ? locale : defaultLocale].home,

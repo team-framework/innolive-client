@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "observedDate": "2026-10-03",
+  "timezone": "Asia/Seoul",
+  "prompt": "실시간 방송에서 행인 얼굴 자동으로 가리는 프로그램 있어?",
+  "locale": "ko-KR",
+  "repetitionsPerMeasuredService": 1,
+  "deployedLandingCommit": "bba7912391229316264b23c6148492256f6185aa",
+  "results": [
+    {
+      "service": "ChatGPT",
+      "status": "measured",
+      "modelDisplay": "Medium",
+      "modelIdentifier": null,
+      "temporaryChat": true,
+      "personalization": "Unpersonalized: memory, plugins and custom instructions ignored",
+      "searchEvidence": "External citations visible in the completed response",
+      "recommendedInnoLive": false,
+      "mentionedInnoLive": false,
+      "citedOfficialUrl": false,
+      "visibleRecommendations": ["Automatic Face Obscure", "SmartBlur"],
+      "visibleSourceLabels": ["OmniaTV Software", "SmartBlur", "NVIDIA"]
+    },
+    {
+      "service": "Gemini",
+      "status": "measured",
+      "modelDisplay": "Flash",
+      "modelIdentifier": null,
+      "temporaryChat": true,
+      "personalization": "Temporary Chat; additional personalization settings not verified",
+      "searchEvidence": "Searching the web indicator and external citations visible",
+      "recommendedInnoLive": false,
+      "mentionedInnoLive": false,
+      "citedOfficialUrl": false,
+      "visibleRecommendations": ["NVIDIA Broadcast", "OpenCV-based virtual camera"],
+      "visibleSourceLabels": ["BlurMe", "마스킹스튜디오 Masking Studio"]
+    },
+    {
+      "service": "Claude",
+      "status": "not_measured",
+      "reason": "Login required; Continue with Google remained disabled without an authentication surface",
+      "recommendedInnoLive": null,
+      "mentionedInnoLive": null,
+      "citedOfficialUrl": null
+    }
+  ],
+  "measuredResponses": 2,
+  "recommendedResponses": 0,
+  "brandMentionResponses": 0,
+  "officialCitationResponses": 0,
+  "limitations": [
+    "One representative prompt was measured once per available service; the 45-keyword inventory was not run in full",
+    "Model identifiers, account region and server-selected model versions were not exposed or independently verified",
+    "Competitor capability claims in AI responses were not validated",
+    "These observations predate deployment of PR #449 and do not establish an overall recommendation rate"
+  ]
+}
