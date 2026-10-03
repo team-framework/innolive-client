@@ -1,22 +1,46 @@
 # iOS 서버 연결 피드백
 
-로그인 후 홈 화면에 진입하면, 이 기기에 [방송 영상·음성 전송 동의](ios-consent-flow.md)가 없을 때만 시트를 열고, 동의한 뒤에 서버 세션과 카메라 업링크를 연결한다. HTTP와 WebRTC 계약은 변경하지 않는다.
+로그인, 홈 진입, 방송 설정 화면 이동은 로컬 카메라 미리보기와 계정·설정 조회만 수행한다. `POST /sessions`와 WebRTC는 사용자가 `방송 준비`를 누른 뒤에 시작한다. HTTP 필드와 signaling 필드는 유지한다.
 
-- 연결 진행 상태는 큰 검은 원격 영상 영역의 원래 로딩 표시와 텍스트, 그리고 하단 `서버 연결 중` 버튼에 표시한다. 원래 `ProgressView`, 단계별 제목·설명, 흰 글자, 간격, 접근성 문구는 유지하고 유리 효과 박스는 표시하지 않는다.
-- 서버 영상이 도착하면 기존 원격 영상 영역에 표시한다. 연결 단계가 아니고 원격 영상도 없으면 원래 `ContentUnavailableView` 대기 안내를 표시한다. 로컬 미리보기와 연결 재시도 버튼은 유지한다.
+## 방송 준비 시점의 연결
+
+방송 설정에서 제목, 시청자층, 선택 플랫폼, 계정 연결, 허용 방식을 확인한다. 허용 방식은 항상 설정된 값이다. `방송 준비`는 [방송 영상·음성 전송 동의](ios-consent-flow.md)와 카메라·마이크 권한을 확인한 뒤 아래 순서로 진행한다.
+
+1. `POST /sessions`
+2. 세션이 생긴 뒤, 직전 방송 값을 쓰는 경우에만 `GET /sessions/{id}/broadcast/defaults`
+3. 로컬 카메라를 놓고 WebRTC로 서버에 연결
+4. 서버 영상 입력 확인
+5. 대상별 `PUT /sessions/{id}/broadcast`
+6. `POST /sessions/{id}/stream/prepare`
+
+준비 완료는 `prepared`로 남는다. 사용자가 `방송 시작`을 눌러야 `POST /sessions/{id}/stream/golive`를 호출한다. 방송 중 백그라운드 이동·복귀, 회전 잠금, 카메라 전환은 유지한다.
+
+동의 거절, 카메라·마이크 거절, 제목·시청자층·계정·요금제 오류에서는 세션과 영상 연결을 시작하지 않는다. 서버 영상 연결 여부는 방송 준비 버튼의 사전 조건이 아니다. 진행 중 요청은 하나로 합쳐 중복 세션을 만들지 않는다.
+
+진행 상태는 세션 생성, 서버 연결, 영상 확인, 설정 저장, 송출 준비로 표시한다. 실패하면 그 단계와 다시 시도, 준비 취소를 보여 준다.
+
+준비 취소는 진행 중 요청을 무효화한다. 준비된 대상에는 `POST /sessions/{id}/stream/stop`을 보내고, WebRTC와 세션을 정리한 뒤 로컬 미리보기로 돌아간다. 늦게 도착한 응답은 준비 상태를 복원하지 않는다. 일부 대상만 준비된 경우 재시도는 계정에 연결된 실패 대상만 다시 준비하고, 취소는 준비된 대상만 중지한 뒤 세션을 삭제한다. `DELETE /sessions/{id}`가 실패하면 Keychain 기록을 남겨 다음 방송 준비에서 정리한다.
+
+Android는 준비 취소 뒤 서버 연결을 유지해 다시 준비할 수 있다. iOS는 취소할 때 WebRTC와 세션을 정리한다. 플랫폼 차이는 [platform matrix](platform-matrix.md)의 연결 시점을 본다.
+
+- 연결 진행 상태는 큰 검은 원격 영상 영역의 원래 로딩 표시와 텍스트, 그리고 하단 방송 준비 버튼에 표시한다. 원래 `ProgressView`, 단계별 제목·설명, 흰 글자, 간격, 접근성 문구는 유지하고 유리 효과 박스는 표시하지 않는다.
+- 서버 영상이 도착하면 기존 원격 영상 영역에 표시한다. 연결 단계가 아니고 원격 영상도 없으면 원래 `ContentUnavailableView` 대기 안내를 표시한다. 서버에 연결하기 전에는 로컬 카메라 미리보기를 표시한다.
 - 홈 오류 배너는 연결 또는 복구가 끝난 뒤 `YouTubeIntegration.errorMessage`에 확정된 오류를 한 번 표시한다.
 - 홈 화면은 업링크 상태 publisher를 직접 구독해 연결 실패 시 복구를 실행한다.
+- 네트워크가 끊겨 같은 방송 세션을 다시 연결하는 동안에는 영상 영역에 복구 시도 중과 현재 시도/최대 시도를 표시한다. 방송 버튼도 같은 시도 횟수를 보여 준다. 복구가 끝나거나 실패로 확정되면 이 표시를 지우고, 실패 문구는 기존 오류 배너에 남긴다.
 - 방송 설정 시트가 열려 있으면 시트 안에서 오류를 표시하고 홈 배너는 숨긴다. 오류를 닫으면 기존 공통 오류 초기화 경로로 상태를 지운다.
 
-## YouTube 송출 중 홈 이탈
+## 플랫폼 송출 중 홈 이탈
 
-YouTube가 `live`이고 `streaming` 또는 `reconfiguring`일 때 홈으로 나가 `.background`가 되면 `POST /sessions/{id}/stream/pause`를 보낸다. 시청자에게는 취소 슬레이트와 무음이 나가고, WebRTC 세션과 업링크는 유지한다. 이 일시 중지만 앱이 다시 `.active`가 되면 `POST /sessions/{id}/stream/resume`으로 재개한다.
+플랫폼이 `live`이고 `streaming` 또는 `reconfiguring`일 때 홈으로 나가 `.background`가 되면
+각 대상에 provider를 넣어 `POST /sessions/{id}/stream/pause`를 보낸다. WebRTC 세션과 업링크는 유지한다.
+앱이 `.active`가 되면 자동 pause 성공 대상 중 resume 가능한 대상만 재개한다.
+수동 중지 대상은 자동 재개하지 않는다. 요청이 끝나기 전에 복귀하면 pause를 기다린다.
+재연결 중인 자동 중지 대상은 폴링으로 재개 가능 상태가 확인된 후 resume한다.
 
-- 사용자가 직접 일시 중지한 뒤에는 홈을 나갔다 돌아와도 resume하지 않는다.
-- 서버 연결만 된 상태, 방송 준비, 송출 전에는 pause를 보내지 않고 오류 배너도 띄우지 않는다.
-- 제어센터처럼 `.inactive`만인 전환은 무시한다.
-- pause 요청이 끝나기 전에 복귀하면 그 요청을 기다린 뒤 resume한다.
-- 일반 백그라운드 전환은 방송 세션을 삭제하지 않는다. 세션 삭제는 완전 종료 후 재실행 경로와 구분한다.
+서버 연결만 된 상태·방송 준비·송출 전에는 pause를 보내지 않고, `.inactive`만인 전환도 무시한다.
+일반 백그라운드에서 세션을 DELETE하지 않는다. 대상별 실패·종료·재시도와 실제 검증 범위는
+[iOS 복수 대상 방송](ios-simulcast.md)을 따른다.
 
 ## 앱 재실행과 방송 세션 정리
 
@@ -24,7 +48,7 @@ YouTube가 `live`이고 `streaming` 또는 `reconfiguring`일 때 홈으로 나�
 
 - `POST /sessions` 응답의 `session_id`와 `owner_token`을 Keychain에 저장한 뒤 업링크를 연결한다. 서버 URL과 access token의 `sub`로 저장 항목을 구분한다. `sub` 해석은 로컬 기록 구분에만 쓰며 인증·소유권은 서버가 검증한다.
 - 재실행 후 현재 실행의 세션이 없으면 저장된 세션에 `DELETE /sessions/{id}`를 보낸다. 기존 access token 갱신을 재사용하며 `X-Session-Owner-Token`도 전달한다.
-- `204` 또는 세션 부재를 나타내는 `404 / not_found`일 때만 기록을 지우고 새 세션을 만든다. 일반 404 응답이나 네트워크·인증·서버 오류에서는 기록을 남기고 생성을 중단한다. 기존 연결 재시도 버튼으로 다시 시도한다.
+- `204` 또는 세션 부재를 나타내는 `404 / not_found`일 때만 기록을 지우고 새 세션을 만든다. 일반 404 응답이나 네트워크·인증·서버 오류에서는 기록을 남기고 생성을 중단한다. 다음 `방송 준비`에서 다시 시도한다.
 - 명시적 세션 종료와 업링크 최종 실패에서도 세션 삭제를 시도한다. 삭제에 실패한 기록은 메모리 초기화 후에도 보존한다. 방송 일시 중지와 같은 세션을 사용하는 재연결에는 이 정리를 적용하지 않는다.
 - 동시 준비 요청은 하나로 합친다. 초기화 중 도착한 생성 성공 응답은 정리용으로 저장하되 현재 세션 상태를 복원하지 않는다. 토큰 갱신 도중 계정이 바뀌면 이전 요청을 새 계정으로 재시도하지 않는다.
 - Keychain 저장 실패 시 업링크 연결을 중단하고 생성된 세션 삭제를 시도한다. 삭제까지 실패하면 현재 프로세스의 메모리에 정리 대상을 남겨 재시도한다.
@@ -65,3 +89,16 @@ xcodebuild test -project apps/ios/InnoLive/InnoLive.xcodeproj \
 - 저장된 로그인으로 앱을 실행하면 활성 세션 오류 배너가 하나만 나타나고, 재시도하면 배너가 사라진다.
 - 연결 중 큰 검은 영상 영역에 스피너와 `서버에 카메라 영상을 연결하는 중` 제목·설명이 유리 박스 없이 표시되고, 하단 버튼은 로딩을 보여 준다. 연결이 끝나면 중앙 로더는 사라지고 버튼은 `방송 준비`가 된다.
 - 새 로그인 입력 과정, 실기기, 방송 설정 시트 오류, YouTube 실제 송출은 수동 검증하지 않음.
+
+2026-09-30 검증: iPhone 17 시뮬레이터에서 방송 준비 시점 연결의 집중 테스트 68개가 통과했다. `BroadcastPreparationFlowTests`는 계정 조회만으로 세션을 만들지 않는 경우, 동의·권한·설정 거절, 세션 생성 후 직전 값 조회, 영상 연결, 설정 저장, prepare 순서, golive 미호출, 중복 탭, 생성 중 초기화·취소, prepare 실패 후 재시도, 일부 대상 재시도·취소, 삭제 실패 시 Keychain 유지를 확인한다. 로그인 후 미연결 화면, 준비 중 표시, 실제 YouTube 시청 화면은 이 단위 테스트로 확인하지 않았다.
+
+```sh
+xcodebuild test -project apps/ios/InnoLive/InnoLive.xcodeproj \
+  -scheme InnoLive -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:InnoLiveTests/BroadcastPreparationFlowTests \
+  -only-testing:InnoLiveTests/BroadcastSessionLifecycleTests \
+  -only-testing:InnoLiveTests/BroadcastSettingsTests \
+  -only-testing:InnoLiveTests/BroadcastFeedbackTests \
+  -only-testing:InnoLiveTests/YouTubeBackgroundPauseTests \
+  -parallel-testing-enabled NO
+```

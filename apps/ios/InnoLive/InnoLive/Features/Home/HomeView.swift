@@ -14,9 +14,9 @@ struct HomeView: View {
     @State private var previewTransition: BroadcastPreviewTransition = .none
     @State private var isShowingCameraPermissionAlert = false
     @State private var isSwitchingCamera = false
-    @State private var isStartingServerConnection = false
-    @State private var isShowingMediaTransmissionConsent = false
     @State private var isShowingVideoControls = false
+    @State private var isShowingMicrophonePermissionAlert = false
+    @State private var pendingPreparationProvider: BroadcastSettingsProvider?
     @State private var cameraSwitchErrorMessage: String?
     @State private var isHomeVisible = false
     @State private var previewCorner: LocalPreviewCorner = .topLeading
@@ -157,8 +157,8 @@ struct HomeView: View {
                 previewTransition: $previewTransition,
                 authentication: authentication,
                 youtube: youtube,
-                isStartingServerConnection: isStartingServerConnection,
-                onRetryConnection: retryServerConnection
+                onPrepareBroadcast: beginBroadcastPreparation,
+                onCancelPreparation: cancelBroadcastPreparation
             )
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.height
@@ -177,16 +177,10 @@ struct HomeView: View {
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
         .onAppear {
             isHomeVisible = true
-            beginCameraConnectionIfNeeded()
+            beginLocalPreviewIfNeeded()
         }
         .onDisappear {
             isHomeVisible = false
-        }
-        .sheet(isPresented: $isShowingMediaTransmissionConsent) {
-            MediaTransmissionConsentView { consent in
-                guard authentication.acceptMediaTransmission(consent) else { return }
-                requestCameraAccessThenConnect()
-            }
         }
         .sheet(isPresented: $isShowingVideoControls, onDismiss: restorePreviewCornerAfterVideoControls) {
             BroadcastVideoControlsView(uplink: youtube.videoUplink)
@@ -194,15 +188,18 @@ struct HomeView: View {
                 .presentationDragIndicator(.visible)
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
-            if !usesSimulatorVideo,
-               status == .authorized,
-               authentication.hasAcceptedMediaTransmission,
-               !youtube.videoUplink.isCapturingMedia {
+            guard !usesSimulatorVideo else { return }
+            if status == .authorized {
                 Task {
-                    await startCameraAndConnect()
+                    if let provider = pendingPreparationProvider {
+                        pendingPreparationProvider = nil
+                        await beginBroadcastPreparation(provider)
+                    } else if !youtube.videoUplink.isCapturingMedia {
+                        await startLocalPreview()
+                    }
                 }
-            } else if !usesSimulatorVideo,
-                      status == .denied || status == .restricted {
+            } else if status == .denied || status == .restricted {
+                pendingPreparationProvider = nil
                 isShowingCameraPermissionAlert = true
             }
         }
@@ -247,6 +244,14 @@ struct HomeView: View {
             Button(String(localized: "취소"), role: .cancel) { }
         } message: {
             Text(String(localized: "카메라를 사용하려면 설정에서 카메라 접근을 허용해 주세요."))
+        }
+        .alert(String(localized: "마이크 권한이 필요합니다"), isPresented: $isShowingMicrophonePermissionAlert) {
+            Button(String(localized: "설정 열기")) {
+                openCameraSettings()
+            }
+            Button(String(localized: "취소"), role: .cancel) { }
+        } message: {
+            Text(String(localized: "방송을 준비하려면 설정에서 마이크 접근을 허용해 주세요."))
         }
         .alert(
             String(localized: "카메라를 전환하지 못했습니다"),
@@ -319,26 +324,13 @@ struct HomeView: View {
         openURL(settingsURL)
     }
 
-    private func retryServerConnection() {
-        beginCameraConnectionIfNeeded()
-    }
-
-    private func beginCameraConnectionIfNeeded() {
-        if youtube.isVideoConnected {
-            isBroadcasting = true
+    private func beginLocalPreviewIfNeeded() {
+        guard !youtube.videoUplink.isCapturingMedia else {
+            isBroadcasting = youtube.isVideoConnected
             return
         }
-        guard !youtube.videoUplink.isCapturingMedia else { return }
-        guard authentication.hasAcceptedMediaTransmission else {
-            isShowingMediaTransmissionConsent = true
-            return
-        }
-        requestCameraAccessThenConnect()
-    }
-
-    private func requestCameraAccessThenConnect() {
         if usesSimulatorVideo || cameraManager.authorizationStatus == .authorized {
-            Task { await startCameraAndConnect() }
+            Task { await startLocalPreview() }
             return
         }
         switch cameraManager.authorizationStatus {
@@ -351,58 +343,111 @@ struct HomeView: View {
         }
     }
 
-    private func startCameraAndConnect() async {
-        guard authentication.hasAcceptedMediaTransmission else {
-            isShowingMediaTransmissionConsent = true
-            return
-        }
-        guard usesSimulatorVideo || cameraManager.authorizationStatus == .authorized else {
-            isShowingCameraPermissionAlert = true
-            return
-        }
-        if youtube.isVideoConnected {
-            isBroadcasting = true
-            return
-        }
-        guard !isStartingServerConnection,
-              !youtube.isPreparingSession,
-              !youtube.isConnectingVideo,
-              !youtube.videoUplink.isConnecting else {
-            return
-        }
-
-        isStartingServerConnection = true
-        defer { isStartingServerConnection = false }
-
-        if !usesSimulatorVideo, !youtube.videoUplink.isCapturingCamera {
+    private func startLocalPreview() async {
+        guard !youtube.videoUplink.isCapturingMedia else { return }
+        guard usesSimulatorVideo || cameraManager.authorizationStatus == .authorized else { return }
+        if !usesSimulatorVideo {
             await cameraManager.startDefaultCamera()
         }
-        guard await youtube.prepareSession(accessToken: authentication.currentAccessToken()) else {
-            return
+    }
+
+    private func beginBroadcastPreparation(_ provider: BroadcastSettingsProvider) async {
+        guard authentication.hasAcceptedMediaTransmission else { return }
+        if !usesSimulatorVideo {
+            switch cameraManager.authorizationStatus {
+            case .authorized:
+                break
+            case .notDetermined:
+                pendingPreparationProvider = provider
+                cameraManager.requestCameraAccess()
+                return
+            default:
+                pendingPreparationProvider = nil
+                isShowingCameraPermissionAlert = true
+                return
+            }
+            guard await requestMicrophoneAccess() else {
+                isShowingMicrophonePermissionAlert = true
+                return
+            }
         }
+        await runBroadcastPreparation(provider)
+    }
 
-        previewTransition = .starting
-        defer { previewTransition = .none }
+    private func runBroadcastPreparation(_ provider: BroadcastSettingsProvider) async {
         let zoomToKeep = cameraManager.currentZoomFactor
-        await cameraManager.stopSession()
-        youtube.videoUplink.adoptZoomFactor(zoomToKeep)
-
-        if await youtube.connectVideo(
+        let quality = CameraQualityPreset(
+            rawValue: UserDefaults.standard.string(forKey: "selectedResolution") ?? ""
+        ) ?? .defaultValue
+        _ = await youtube.startBroadcastPreparation(
             accessToken: authentication.currentAccessToken(),
+            provider: provider,
+            providers: youtube.preparationStatus?.isFailed == true ? youtube.lastPreparationProviders
+                : BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains),
+            permissions: BroadcastPreparationPermissions(
+                hasMediaTransmissionConsent: authentication.hasAcceptedMediaTransmission,
+                cameraAuthorized: usesSimulatorVideo || cameraManager.authorizationStatus == .authorized,
+                microphoneAuthorized: true
+            ),
             preferredCameraID: usesSimulatorVideo ? nil : cameraManager.currentCameraID,
             preferredAudioID: UserDefaults.standard.string(forKey: "selectedAudioID"),
-            preferredVideoQuality: CameraQualityPreset(
-                rawValue: UserDefaults.standard.string(forKey: "selectedResolution") ?? ""
-            ) ?? .defaultValue
-        ) {
-            if !usesSimulatorVideo,
-               let activeCameraID = youtube.videoUplink.currentCameraID {
+            preferredVideoQuality: quality,
+            handoffCamera: {
+                previewTransition = .starting
+                await cameraManager.stopSession()
+                youtube.videoUplink.adoptZoomFactor(zoomToKeep)
+            },
+            restoreLocalPreview: {
+                previewTransition = .none
+                isBroadcasting = false
+                await restoreLocalCameraPreview()
+            }
+        )
+        previewTransition = .none
+        if youtube.isVideoConnected {
+            if !usesSimulatorVideo, let activeCameraID = youtube.videoUplink.currentCameraID {
                 _ = await cameraManager.switchCamera(to: activeCameraID)
             }
             isBroadcasting = true
-        } else if !usesSimulatorVideo {
-            cameraManager.adoptZoomFactor(youtube.videoUplink.currentZoomFactor)
-            await cameraManager.startDefaultCamera()
+        } else {
+            isBroadcasting = false
+            if !youtube.videoUplink.isCapturingMedia {
+                await restoreLocalCameraPreview()
+            }
+        }
+    }
+
+    private func cancelBroadcastPreparation() async {
+        previewTransition = .stopping
+        await youtube.cancelBroadcastPreparation(accessToken: authentication.currentAccessToken())
+        previewTransition = .none
+        isBroadcasting = youtube.isVideoConnected
+        if !isBroadcasting {
+            await restoreLocalCameraPreview()
+        }
+    }
+
+    private func restoreLocalCameraPreview() async {
+        guard !usesSimulatorVideo, cameraManager.authorizationStatus == .authorized else { return }
+        guard !youtube.videoUplink.isCapturingMedia else { return }
+        cameraManager.adoptZoomFactor(youtube.videoUplink.currentZoomFactor)
+        await cameraManager.startDefaultCamera()
+    }
+
+    private func requestMicrophoneAccess() async -> Bool {
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
+            return true
+        case .denied:
+            return false
+        case .undetermined:
+            return await withCheckedContinuation { continuation in
+                AVAudioApplication.requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            }
+        @unknown default:
+            return false
         }
     }
 
@@ -411,7 +456,9 @@ struct HomeView: View {
             uplink: youtube.videoUplink,
             previewTransition: previewTransition,
             isPreparingSession: youtube.isPreparingSession,
-            isConnectingVideo: youtube.isConnectingVideo
+            isConnectingVideo: youtube.isConnectingVideo,
+            preparationStatus: youtube.preparationStatus,
+            recoveryStatus: youtube.videoRecoveryStatus
         )
         .ignoresSafeArea()
         .contentShape(Rectangle())
@@ -429,7 +476,8 @@ struct HomeView: View {
     private var canSwitchCameraSource: Bool {
         cameraManager.authorizationStatus == .authorized
             && !usesSimulatorVideo
-            && !isStartingServerConnection
+            && youtube.preparationStatus?.isRunning != true
+            && youtube.preparationStatus?.phase != .cancelling
             && !youtube.isPreparingSession
             && !youtube.isConnectingVideo
             && !youtube.videoUplink.isConnecting

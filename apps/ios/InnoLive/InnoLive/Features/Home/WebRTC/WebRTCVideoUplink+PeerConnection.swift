@@ -126,6 +126,8 @@ extension WebRTCVideoUplink {
                 )
                 if packetsSent > 0 {
                     self.updateState(.connected, String(localized: "카메라 영상 연결됨 · 서버 수신 확인 중"))
+                    self.diagnostics.noteConnected()
+                    self.startQualityPollingIfNeeded()
                     self.completeStartIfNeeded()
                     self.outboundVerificationTask = nil
                     return
@@ -178,7 +180,7 @@ extension WebRTCVideoUplink: LKRTCPeerConnectionDelegate {
             guard let self else { return }
             switch newState {
             case .disconnected, .failed:
-                self.handlePeerConnectionInterruption()
+                self.handlePeerConnectionInterruption(trigger: "ice")
             case .closed:
                 if !self.isStopping, !self.isReconnectInProgress {
                     self.fail(String(localized: "WebRTC 영상 연결이 종료되었습니다."))
@@ -227,7 +229,7 @@ extension WebRTCVideoUplink: LKRTCPeerConnectionDelegate {
                 self.updateState(.connecting, String(localized: "영상 패킷 전송을 확인하는 중…"))
                 self.verifyOutboundVideo()
             case .disconnected, .failed:
-                self.handlePeerConnectionInterruption()
+                self.handlePeerConnectionInterruption(trigger: "peer")
             case .closed:
                 if !self.isStopping, !self.isReconnectInProgress {
                     self.fail(String(localized: "WebRTC 영상 연결이 종료되었습니다."))

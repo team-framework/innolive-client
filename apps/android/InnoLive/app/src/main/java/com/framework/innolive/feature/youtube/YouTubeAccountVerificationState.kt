@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.CancellationException
 import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.feature.live.BroadcastState
 
 internal enum class YouTubeAccountVerificationState {
     UNVERIFIED,
@@ -17,6 +18,17 @@ internal class YouTubeVerificationMemory {
     val state = mutableStateOf(YouTubeAccountVerificationState.UNVERIFIED)
     val verifiedProfileEmail = mutableStateOf<String?>(null)
     val suppressRefreshOnce = mutableStateOf(false)
+
+    internal suspend fun connectAccount(connectAndVerify: suspend () -> Unit) {
+        // The server may replace the channel even if its response never reaches this screen.
+        state.value = YouTubeAccountVerificationState.UNVERIFIED
+        verifiedProfileEmail.value = null
+        try {
+            connectAndVerify()
+        } finally {
+            suppressRefreshOnce.value = state.value == YouTubeAccountVerificationState.VERIFIED
+        }
+    }
 }
 
 @Composable
@@ -49,6 +61,16 @@ internal fun hasVerifiedYouTubeAccount(
     verificationState == YouTubeAccountVerificationState.VERIFIED &&
     currentProfileEmail != null &&
     verifiedProfileEmail == currentProfileEmail
+
+// FAILED may mean only the response was lost; server polling or cancellation must return to IDLE.
+internal fun canChangeYouTubeAccount(
+    hasSignedInUser: Boolean,
+    broadcastState: BroadcastState,
+    isPreparingBroadcast: Boolean,
+    isDeletingAccount: Boolean,
+    isAccountDeletionPending: Boolean,
+): Boolean = hasSignedInUser && broadcastState == BroadcastState.IDLE && !isPreparingBroadcast &&
+    !isDeletingAccount && !isAccountDeletionPending
 
 internal fun acceptServerVerifiedYouTubeAccount(
     account: StreamingAccount?,

@@ -33,7 +33,7 @@ export function TypewriterHeroHeading() {
 
           return current + 1;
         });
-      }, 90);
+      }, 40);
     };
 
     if (document.documentElement.dataset.introComplete === "true") start();
@@ -58,9 +58,9 @@ export function TypewriterHeroHeading() {
   return (
     <h1
       id="hero-heading"
-      aria-label={heading}
       className="w-full break-words text-[length:var(--text-display)] font-bold leading-[calc(100/84)] tracking-tight text-text-primary"
     >
+      <span className="sr-only">{heading}</span>
       <span aria-hidden="true">
         {firstLine.slice(0, firstLineLength)}
         <br />

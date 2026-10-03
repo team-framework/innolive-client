@@ -154,6 +154,7 @@ struct YouTubeBroadcastSettings: Codable, Equatable {
     var description: String
     var privacy: YouTubeBroadcastPrivacy
     var audience: YouTubeBroadcastAudience?
+    var categoryID: String? = nil
 
     static var defaultValue: Self {
         Self(
@@ -219,34 +220,6 @@ struct YouTubeChannel: Codable, Equatable {
     let title: String
 }
 
-struct YouTubeStreamingAccountSummary: Decodable, Equatable {
-    let provider: String
-    let channelID: String
-    let channelTitle: String
-    let connectedAt: String?
-    let reconnectRequired: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case provider
-        case channelID = "channel_id"
-        case channelTitle = "channel_title"
-        case connectedAt = "connected_at"
-        case reconnectRequired = "reconnect_required"
-    }
-
-    var youtubeConnection: YouTubeConnection? {
-        guard provider == "youtube" else { return nil }
-        return YouTubeConnection(
-            provider: provider,
-            channel: YouTubeChannel(
-                id: channelID,
-                title: channelTitle.isEmpty ? channelID : channelTitle
-            ),
-            requiresReconnection: reconnectRequired
-        )
-    }
-}
-
 struct YouTubeBroadcastSession: Decodable, Equatable {
     var aiProcessing: String? = nil
     // Server capability stays fixed; the client can move inference without replacing this session.
@@ -255,12 +228,27 @@ struct YouTubeBroadcastSession: Decodable, Equatable {
     let sessionID: String
     let ownerToken: String
     let stream: YouTubeStreamState
+    var details = BroadcastSessionDetails()
+    var media: YouTubeSessionMedia? = nil
 
     enum CodingKeys: String, CodingKey {
         case aiProcessing = "ai_processing"
         case sessionID = "session_id"
         case ownerToken = "owner_token"
         case stream
+        case media
+    }
+}
+
+extension YouTubeBroadcastSession {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        aiProcessing = try container.decodeIfPresent(String.self, forKey: .aiProcessing)
+        sessionID = try container.decode(String.self, forKey: .sessionID)
+        ownerToken = try container.decode(String.self, forKey: .ownerToken)
+        stream = try container.decode(YouTubeStreamState.self, forKey: .stream)
+        media = try container.decodeIfPresent(YouTubeSessionMedia.self, forKey: .media)
+        details = try BroadcastSessionDetails(from: decoder)
     }
 }
 
@@ -360,20 +348,239 @@ struct YouTubeConnectionResponse: Decodable {
 
 struct YouTubeBroadcastVisibility: Decodable {
     let privacy: String
+    var title: String? = nil
+    var description: String? = nil
+    var categoryID: String? = nil
+    enum CodingKeys: String, CodingKey { case privacy, title, description; case categoryID = "category_id" }
 }
 
 struct YouTubeSessionResponse: Decodable {
     var broadcast: YouTubeBroadcastVisibility? = nil
     let stream: YouTubeStreamState
     let media: YouTubeSessionMedia
+    var details = BroadcastSessionDetails()
+    var isFullSnapshot = true
+    var hasMedia = true
 }
 
-struct YouTubeSessionMedia: Decodable {
+extension YouTubeSessionResponse {
+    private enum CodingKeys: String, CodingKey { case broadcast, stream, media }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isFullSnapshot = container.contains(.stream)
+        stream = isFullSnapshot
+            ? try container.decode(YouTubeStreamState.self, forKey: .stream)
+            : try YouTubeStreamState(from: decoder)
+        broadcast = try container.decodeIfPresent(YouTubeBroadcastVisibility.self, forKey: .broadcast)
+        hasMedia = container.contains(.media)
+        media = try container.decodeIfPresent(YouTubeSessionMedia.self, forKey: .media)
+            ?? YouTubeSessionMedia(anonymizationEnabled: nil, rawVideoTrack: nil)
+        details = try BroadcastSessionDetails(from: decoder)
+    }
+}
+
+struct YouTubeSessionMedia: Decodable, Equatable {
     let anonymizationEnabled: Bool?
     let rawVideoTrack: YouTubeVideoTrackState?
 
     enum CodingKeys: String, CodingKey {
         case anonymizationEnabled = "anonymization_enabled"
         case rawVideoTrack = "raw_video_track"
+    }
+}
+
+enum BroadcastRemainingTime: Equatable {
+    case missing
+    case unlimitedOrInactive
+    case seconds(Int)
+}
+
+struct BroadcastTargetState: Decodable, Equatable, Identifiable {
+    let provider: String
+    var stream: YouTubeStreamState
+    var id: String { provider }
+    var title: String {
+        switch provider {
+        case "youtube": return "YouTube"
+        case "chzzk": return "CHZZK"
+        default: return provider
+        }
+    }
+}
+
+struct BroadcastNotice: Decodable, Equatable {
+    let code: String
+    let at: String
+}
+
+struct BroadcastPrepareWarning: Decodable, Equatable {
+    let code: String
+    let message: String
+}
+
+struct BroadcastTargetFailure: Decodable, Equatable {
+    let provider: String
+    let code: String
+    let message: String?
+}
+
+struct BroadcastResolutionSwitch: Decodable, Equatable {
+    let status: String
+    let resolution: String
+    let targets: [String]
+    let failedTargets: [BroadcastTargetFailure]?
+    let startedAt: String
+    let finishedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case status, resolution, targets
+        case failedTargets = "failed_targets"
+        case startedAt = "started_at"
+        case finishedAt = "finished_at"
+    }
+}
+
+struct BroadcastRestartEffect: Decodable, Equatable {
+    let provider: String
+    let sameLink: Bool
+    let gapSeconds: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case provider
+        case sameLink = "same_link"
+        case gapSeconds = "gap_seconds"
+    }
+}
+
+struct BroadcastUpgradeOption: Decodable, Equatable {
+    let mode: String
+    let resolution: String
+    let targets: [String]
+    let unitsTo: Int
+    let remainingSecondsAfter: BroadcastRemainingTime
+    let needsSettings: Bool
+    let restartsBroadcast: Bool
+    let restartEffects: [BroadcastRestartEffect]
+
+    enum CodingKeys: String, CodingKey {
+        case mode, resolution, targets
+        case unitsTo = "units_to"
+        case remainingSecondsAfter = "remaining_seconds_after"
+        case needsSettings = "needs_settings"
+        case restartsBroadcast = "restarts_broadcast"
+        case restartEffects = "restart_effects"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mode = try container.decode(String.self, forKey: .mode)
+        resolution = try container.decode(String.self, forKey: .resolution)
+        targets = try container.decode([String].self, forKey: .targets)
+        unitsTo = try container.decode(Int.self, forKey: .unitsTo)
+        remainingSecondsAfter = try container.remainingTime(forKey: .remainingSecondsAfter)
+        needsSettings = try container.decode(Bool.self, forKey: .needsSettings)
+        restartsBroadcast = try container.decode(Bool.self, forKey: .restartsBroadcast)
+        restartEffects = try container.decodeIfPresent([BroadcastRestartEffect].self, forKey: .restartEffects) ?? []
+    }
+}
+
+struct BroadcastUpgradeOffer: Decodable, Equatable {
+    let resolution: String
+    let mode: String?
+    let unitsFrom: Int
+    let unitsTo: Int
+    let remainingSecondsAfter: BroadcastRemainingTime
+    let options: [BroadcastUpgradeOption]?
+    let selected: String?
+    let expiresAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case resolution, mode, options, selected
+        case unitsFrom = "units_from"
+        case unitsTo = "units_to"
+        case remainingSecondsAfter = "remaining_seconds_after"
+        case expiresAt = "expires_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        resolution = try container.decode(String.self, forKey: .resolution)
+        mode = try container.decodeIfPresent(String.self, forKey: .mode)
+        unitsFrom = try container.decode(Int.self, forKey: .unitsFrom)
+        unitsTo = try container.decode(Int.self, forKey: .unitsTo)
+        remainingSecondsAfter = try container.remainingTime(forKey: .remainingSecondsAfter)
+        options = try container.decodeIfPresent([BroadcastUpgradeOption].self, forKey: .options)
+        selected = try container.decodeIfPresent(String.self, forKey: .selected)
+        expiresAt = try container.decode(String.self, forKey: .expiresAt)
+    }
+}
+
+private extension KeyedDecodingContainer {
+    func remainingTime(forKey key: Key) throws -> BroadcastRemainingTime {
+        guard contains(key) else { return .missing }
+        return try decodeIfPresent(Int.self, forKey: key).map(BroadcastRemainingTime.seconds) ?? .unlimitedOrInactive
+    }
+}
+
+struct BroadcastSessionDetails: Decodable, Equatable {
+    var provider: String? = nil
+    var broadcastResolution: String? = nil
+    var targets: [BroadcastTargetState]? = nil
+    var notices: [BroadcastNotice] = []
+    var remainingTime: BroadcastRemainingTime = .missing
+    var resolutionSwitch: BroadcastResolutionSwitch? = nil
+    var upgradeOffer: BroadcastUpgradeOffer? = nil
+    var warnings: [BroadcastPrepareWarning] = []
+    var failedTargets: [BroadcastTargetFailure] = []
+
+    enum CodingKeys: String, CodingKey {
+        case provider, targets, notices, warnings
+        case failedTargets = "failed_targets"
+        case broadcastResolution = "broadcast_resolution"
+        case remainingTime = "broadcast_remaining_seconds"
+        case resolutionSwitch = "resolution_switch"
+        case upgradeOffer = "upgrade_offer"
+    }
+}
+
+extension BroadcastSessionDetails {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        provider = try container.decodeIfPresent(String.self, forKey: .provider)
+        broadcastResolution = try container.decodeIfPresent(String.self, forKey: .broadcastResolution)
+        targets = try container.decodeIfPresent([BroadcastTargetState].self, forKey: .targets)
+        notices = try container.decodeIfPresent([BroadcastNotice].self, forKey: .notices) ?? []
+        remainingTime = try container.remainingTime(forKey: .remainingTime)
+        resolutionSwitch = try container.decodeIfPresent(BroadcastResolutionSwitch.self, forKey: .resolutionSwitch)
+        upgradeOffer = try container.decodeIfPresent(BroadcastUpgradeOffer.self, forKey: .upgradeOffer)
+        warnings = try container.decodeIfPresent([BroadcastPrepareWarning].self, forKey: .warnings) ?? []
+        failedTargets = try container.decodeIfPresent([BroadcastTargetFailure].self, forKey: .failedTargets) ?? []
+    }
+}
+
+struct BroadcastSessionSnapshot: Equatable {
+    var stream: YouTubeStreamState? = nil
+    var media: YouTubeSessionMedia? = nil
+    var details = BroadcastSessionDetails()
+
+    mutating func apply(_ response: YouTubeSessionResponse, provider: String? = nil, clearsWarnings: Bool = false) {
+        if response.isFullSnapshot {
+            stream = response.stream
+            let previousWarnings = details.warnings
+            details = response.details
+            if !clearsWarnings && details.warnings.isEmpty { details.warnings = previousWarnings }
+        } else {
+            if let targets = response.details.targets { details.targets = targets }
+            details.failedTargets = response.details.failedTargets
+            let targetProvider = provider ?? details.provider ?? "youtube"
+            if let index = details.targets?.firstIndex(where: { $0.provider == targetProvider }) {
+                details.targets?[index].stream = response.stream
+            }
+            if details.targets == nil || targetProvider == (details.provider ?? "youtube") {
+                stream = response.stream
+            }
+        }
+        if response.hasMedia { media = response.media }
     }
 }

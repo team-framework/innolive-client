@@ -10,14 +10,19 @@ internal data class WebRtcRecoveryPolicy(
 )
 
 internal class RecoveryAccessToken(initialToken: String) {
+    @Volatile
     var value: String = initialToken.also { require(it.isNotBlank()) }
         private set
     var refreshedForCurrentRecovery: Boolean = false
         private set
 
-    fun updateForRecovery(refreshedToken: String) {
+    fun update(refreshedToken: String) {
         require(refreshedToken.isNotBlank())
         value = refreshedToken.trim()
+    }
+
+    fun updateForRecovery(refreshedToken: String) {
+        update(refreshedToken)
         refreshedForCurrentRecovery = true
     }
 
@@ -125,7 +130,10 @@ internal fun recoveryServerVideoStatus(statusCode: Int, payload: String? = null)
     }
 
 internal fun outboundVideoPackets(report: RTCStatsReport): Long? {
-    val outbound = report.statsMap.values.filter { it.type == "outbound-rtp" }
+    val outbound = report.statsMap.values.filter {
+        it.type == "outbound-rtp" &&
+            (it.members["kind"] == "video" || it.members["mediaType"] == "video")
+    }
     if (outbound.isEmpty()) return null
     val counts = outbound.mapNotNull { (it.members["packetsSent"] as? Number)?.toLong() }
     return counts.takeIf { it.isNotEmpty() }?.sum()

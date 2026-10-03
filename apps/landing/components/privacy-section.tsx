@@ -2,12 +2,14 @@
 
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { ScrollSmoother } from "gsap/ScrollSmoother";
 import Image from "next/image";
 import { useLayoutEffect, useRef } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { privacySlideSources } from "@/lib/privacy-slides";
 
 const phoneSizes = "(min-width: 106.5rem) 438px, (min-width: 64rem) 40vw, 80vw";
+const PRIVACY_ANIMATION_DELAY_MS = 400;
 
 const aiAccentStyle = {
   backgroundImage:
@@ -37,6 +39,9 @@ export function PrivacySection() {
     gsap.registerPlugin(ScrollTrigger);
     const media = gsap.matchMedia();
     media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
+      let entered = false;
+      let delayTimer: gsap.core.Tween | undefined;
+      let releaseScroll: (() => void) | undefined;
       const context = gsap.context(() => {
         gsap.set(slideNodes, { autoAlpha: 0, yPercent: 100 });
         gsap.set(slideNodes[0], { autoAlpha: 1, yPercent: 0 });
@@ -45,6 +50,21 @@ export function PrivacySection() {
             anticipatePin: 1,
             end: () => `+=${window.innerHeight * (slideNodes.length - 1)}`,
             invalidateOnRefresh: true,
+            onEnter: (trigger) => {
+              if (entered) return;
+              entered = true;
+              const smoother = ScrollSmoother.get();
+              const wasPaused = smoother?.paused() ?? false;
+              trigger.disable(false);
+              smoother?.paused(true).scrollTop(trigger.start);
+              trigger.animation?.progress(0);
+              releaseScroll = () => {
+                trigger.enable(false, false);
+                smoother?.paused(wasPaused);
+                releaseScroll = undefined;
+              };
+              delayTimer = gsap.delayedCall(PRIVACY_ANIMATION_DELAY_MS / 1000, releaseScroll);
+            },
             pin: true,
             scrub: 0.4,
             start: "top top",
@@ -58,12 +78,17 @@ export function PrivacySection() {
         });
       }, section);
 
-      return () => context.revert();
+      return () => {
+        delayTimer?.kill();
+        releaseScroll?.();
+        context.revert();
+      };
     });
     media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
       const context = gsap.context(() => {
         gsap.from(section, {
           autoAlpha: 0,
+          delay: PRIVACY_ANIMATION_DELAY_MS / 1000,
           duration: 0.8,
           ease: "power2.out",
           scrollTrigger: {

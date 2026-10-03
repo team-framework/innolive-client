@@ -22,15 +22,16 @@ Mobile and Web clients may use focused, responsive workflows rather than
 replicating the macOS desktop layout. Feature parity should be explicit in a
 task specification, not assumed from visual similarity.
 
-### Connection timing (2026-09-15)
+### Connection timing (2026-09-30)
 
-Android starts WebRTC after the user confirms broadcast preparation in the
-settings dialog, then saves settings and prepares the broadcast. App launch
-alone does not connect. See [Android broadcast preparation](android-broadcast-preparation.md)
-for implementation scope and verification limits. The existing
-[iOS connection flow](ios-connection-feedback.md) connects on home entry;
-the proposed deferred connection flow must not be assumed to be implemented
-on iOS merely because Android uses it.
+Android and iOS both wait until the user confirms broadcast preparation before
+creating a session or starting WebRTC. Launch, home entry, and opening settings
+do not connect. Android keeps the server connection when preparation is
+cancelled. iOS stops prepared targets, tears down WebRTC and the session, and
+returns to the local camera preview. A failed session delete stays in the
+Keychain for the next preparation. See
+[iOS connection flow](ios-connection-feedback.md) and
+[Android broadcast preparation](android-broadcast-preparation.md).
 
 ### Android broadcast orientation (2026-09-25)
 

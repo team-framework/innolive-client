@@ -1,0 +1,48 @@
+{
+  "checkpoint_sha256": "04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9",
+  "model_sha256": "4051fa9cac8b11cc9d3949bc66401e796598f3958e4e0e9fafaaddbae5c42776",
+  "source_sha256": "2c7887a2190892fbfce3a3ee5e23d7c7f145f77b26bc30f758ae32f866b23a5e",
+  "torch": "2.13.0",
+  "conversion_checks": [
+    {
+      "sample": 0,
+      "cosine": 0.9999997019767761,
+      "max_abs": 0.00013232091441750526
+    },
+    {
+      "sample": 1,
+      "cosine": 0.9999997615814209,
+      "max_abs": 9.756255894899368e-05
+    },
+    {
+      "sample": 2,
+      "cosine": 0.9999998807907104,
+      "max_abs": 9.379349648952484e-05
+    }
+  ],
+  "graph_changes": "Equivalent keypoint lookup via one-hot matmul; rank<=4 attention; int32 indices; unchanged weights",
+  "weight_storage": "FP16 Conv/FC weights, no training; FP32 runtime or FP16 with FP32 accumulation",
+  "litert_torch": "0.9.4",
+  "litert": "2.2.0",
+  "ai_edge_quantizer": "0.9.0",
+  "inputs": [
+    {
+      "name": "serving_default_args_0",
+      "shape": [
+        1,
+        3,
+        112,
+        112
+      ]
+    },
+    {
+      "name": "serving_default_args_1",
+      "shape": [
+        1,
+        5,
+        2
+      ]
+    }
+  ],
+  "limitations": "CPU conversion parity only. Android GPU correctness and latency require device tests."
+}

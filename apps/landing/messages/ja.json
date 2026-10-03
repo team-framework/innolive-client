@@ -38,7 +38,7 @@
     "ceo": "Framework 代表: チェ・グニョン（채근영）",
     "dpo": "個人情報保護責任者: クォン・デヒョン（권대형）",
     "phone": "電話番号: 010-2732-9514",
-    "address": "住所: 大邱広域市達城郡求智面昌里路11ギル 93",
+    "address": "住所: 大邱広域市達城郡求智邑昌里路11ギル 93",
     "copyright": "Copyright © 2026 Framework",
     "privacy": "個人情報取扱方針",
     "terms": "サービス利用規約",
@@ -69,9 +69,18 @@
     "body2": "通行人の肖像権とあなたの配信を同時に守ります。",
     "empty": "非識別化デモを準備中",
     "slides": [
-      { "alt": "配信準備画面", "label": "配信準備画面" },
-      { "alt": "顔登録画面", "label": "顔登録画面" },
-      { "alt": "配信設定画面", "label": "配信設定画面" }
+      {
+        "alt": "配信準備画面",
+        "label": "配信準備画面"
+      },
+      {
+        "alt": "顔登録画面",
+        "label": "顔登録画面"
+      },
+      {
+        "alt": "配信設定画面",
+        "label": "配信設定画面"
+      }
     ]
   },
   "features": {
@@ -122,80 +131,85 @@
     "headingBrand": "InnoLive",
     "headingMid": "の",
     "headingAccent": "可能性を解放",
-    "body1": "妥当な価格で InnoLive のすべての機能を解放しましょう。",
-    "body2": "リアルタイム顔置換やより多い使用量などがプランに含まれます。",
+    "body1": "配信方式と配信時間に合うプランを選んでください。",
+    "body2": "ベータ期間はすべての個人プランを月額₩0で提供します。",
     "subscribeBrand": "InnoLive",
     "subscribe": "プランを購読する",
     "personalLabel": "個人プラン",
     "businessTitle": "クルーと企業のためのプラン",
-    "businessBody": "Crew、Business プランで、より便利に安く配信を運営できます。",
+    "businessBody": "Crew・Businessの料金と配信時間はお問い合わせください。",
     "businessLabel": "法人プラン",
     "termsNote": "関連規約が適用されます。",
     "termsLink": "詳しく見る",
     "loginCta": "ログインして無料プランを使う",
     "scrollLeft": "左にスクロール",
-    "scrollRight": "右にスクロール"
+    "scrollRight": "右にスクロール",
+    "usageNote": "* 月間時間は720p単独で1倍、FHD単独・720p同時で2倍、FHD同時で3倍消費します。1回の上限は実際の配信時間です。"
   },
   "plans": {
     "periodMonth": "月",
     "periodOnce": "一回払い",
     "ribbon": "ベータテスター",
     "personal": {
-      "free": {
+      "spark": {
         "description": "保護に必要な基本機能",
         "cta": "現在のプラン",
         "features": [
-          "すべての通行人を正確に非識別化",
-          "上位モデルの限定利用",
-          "X時間の連続配信",
-          "最大2人の顔登録",
-          "Android、iOS アプリ"
+          "顔の輪郭・ナンバープレートの匿名化",
+          "月5時間 · 720pで1か所に配信",
+          "1回最大2時間の配信",
+          "最大2人の顔を登録",
+          "Android・iOSアプリ"
         ]
       },
-      "streamer": {
-        "description": "Segmentation とより多い使用量",
-        "cta": "Streamer プランを購読",
+      "glow": {
+        "description": "端末で処理、時間制限なし",
+        "cta": "Glowを購読",
         "features": [
-          "無料プランのすべての機能",
-          "Segmentation による強化された非識別化",
-          "2倍の使用量",
-          "XX時間の連続配信",
-          "最大5人の顔登録"
-        ]
-      },
-      "pro": {
-        "description": "顔置換と最高性能",
-        "cta": "Pro プランを購読",
-        "features": [
-          "Streamer プランのすべての機能",
-          "リアルタイム顔置換でより自然な配信",
-          "3倍の使用量",
-          "実験的モデルへのアクセス"
-        ]
-      },
-      "onDevice": {
-        "description": "無制限の使用量と極限の安全性",
-        "cta": "On Device を購入",
-        "helpLabel": "On Device 案内",
-        "features": [
-          "すべての通行人を正確に非識別化",
-          "一度の支払いで永続利用",
-          "すべての上限を解除",
-          "Android、iOS アプリ",
-          "端末で非識別化してから送出",
-          "追加遅延なしの送出"
+          "顔の輪郭・ナンバープレートの匿名化",
+          "月間・1回の配信時間は無制限",
+          "端末で処理して1か所に配信",
+          "サーバーの混雑に関係なく配信",
+          "最大2人の顔を登録",
+          "Android・iOSアプリ"
         ],
+        "helpLabel": "Glowオンデバイスの説明",
         "footnotes": [
-          "*プロモーション終了時にプランが取り消される場合があります。",
-          "*端末性能により非識別化の品質に差が出る場合があります。"
+          "*処理速度は端末の性能によって変わります。"
+        ]
+      },
+      "beam": {
+        "description": "高画質または2か所への同時配信",
+        "cta": "Beamを購読",
+        "features": [
+          "Sparkの匿名化機能",
+          "配信時間120時間/月*",
+          "最大FHD画質*",
+          "720pで2か所に同時配信*",
+          "1回最大8時間の配信",
+          "専用の配信枠",
+          "最大5人の顔を登録"
+        ]
+      },
+      "plasma": {
+        "description": "FHD同時配信とより長い配信時間",
+        "cta": "Plasmaを購読",
+        "features": [
+          "Beamの匿名化機能",
+          "配信時間240時間/月*",
+          "最大FHD画質*",
+          "FHDで2か所に同時配信*",
+          "1回最大12時間の配信",
+          "優先的な配信枠",
+          "最大10人の顔を登録"
         ]
       }
     },
     "business": {
       "crew": {
         "description": "一つのプランでお得に",
-        "amount": "30,000 ~ ₩93,500",
-        "cta": "Crew プランを購読",
+        "amount": "お問い合わせ",
+        "cta": "導入について問い合わせ",
         "features": ["最大3アカウント共有", "選択したプランのすべての機能"]
       },
       "business": {
@@ -208,10 +222,10 @@
   },
   "onDevice": {
     "subtitle": "すべてを端末の中で",
-    "pay": "On Device を購入",
+    "pay": "Glowを購読",
     "termsNote": "*関連規約が適用されます。",
     "termsLink": "詳しく見る",
-    "body": "本文を準備中"
+    "body": "Glowは端末で顔とナンバープレートを匿名化してから配信します。月額₩9,900、ベータ期間は月額₩0です。配信時間は無制限で、処理速度は端末の性能によって変わります。"
   },
   "tryOut": {
     "ariaLabel": "映った瞬間、保護が始まる",
@@ -246,6 +260,33 @@
     "registered": "顔が登録されました。",
     "guide": "顔を円の中に入れて、しばらくお待ちください。"
   },
+  "faceRegistration": {
+    "dialogLabel": "顔登録",
+    "previewLabel": "顔登録カメラのプレビュー",
+    "retry": "再試行",
+    "status": {
+      "preparing": "顔登録を準備しています。",
+      "finding": "顔を探しています。",
+      "multiple": "円の中に顔を一つだけ合わせてください。",
+      "hold": "しばらくそのままお待ちください。",
+      "registering": "顔を登録しています。"
+    },
+    "errors": {
+      "previewStart": "カメラのプレビューを開始できませんでした。",
+      "cameraPermission": "カメラの権限を許可してください。",
+      "cameraNotFound": "利用できるカメラが見つかりませんでした。",
+      "lowResolution": "カメラの解像度が低すぎます。より高解像度のカメラを使用してください。",
+      "imageCreate": "顔画像を作成できませんでした。",
+      "jpegConversion": "顔画像を変換できませんでした。",
+      "detectorStart": "顔認識を準備できませんでした。",
+      "serverConnection": "顔登録サーバーに接続できませんでした。",
+      "faceNotDetected": "顔を認識できませんでした。もう一度お試しください。",
+      "sessionExpired": "ログインの有効期限が切れました。もう一度ログインしてください。",
+      "serverRequest": "顔登録に失敗しました。もう一度お試しください。",
+      "serverIncomplete": "顔登録の結果を確認できませんでした。",
+      "unknown": "顔登録中に問題が発生しました。もう一度お試しください。"
+    }
+  },
   "experience": {
     "title": "リアルタイム非識別化デモ",
     "preparing": "体験接続を準備しています。",
@@ -256,10 +297,12 @@
     "remoteLabel": "処理済みのリモート映像",
     "remotePlaceholder": "接続が完了すると、処理済み映像が表示されます。",
     "localLabel": "自分のカメラプレビュー",
-    "localBadge": "自分のプレビュー",
+    "localBadge": "現在の映像",
+    "remoteBadge": "匿名化した映像",
     "retry": "再試行",
     "end": "体験を終了",
     "restart": "再開する",
+    "faceRegistered": "顔登録が完了しました。",
     "errors": {
       "permission": "カメラの権限を許可してください。",
       "notFound": "利用できるカメラが見つかりませんでした。",

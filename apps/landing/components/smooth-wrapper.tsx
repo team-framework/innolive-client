@@ -25,30 +25,37 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
-    const smoother = ScrollSmoother.create({
-      wrapper: wrapperRef.current,
-      content: contentRef.current,
-      smooth: 1,
-      smoothTouch: 0.1,
-      effects: true,
-      normalizeScroll: true,
-    });
+    let smoother: ScrollSmoother | undefined;
+    const start = () => {
+      if (smoother) return;
+      smoother = ScrollSmoother.create({
+        wrapper: wrapperRef.current,
+        content: contentRef.current,
+        smooth: 1,
+        smoothTouch: 0.1,
+        effects: true,
+        normalizeScroll: false,
+      });
+      scheduleHashScroll();
+    };
     let hashFrame: number | undefined;
     const scheduleHashScroll = () => {
       if (hashFrame !== undefined) window.cancelAnimationFrame(hashFrame);
       hashFrame = window.requestAnimationFrame(() => {
         hashFrame = undefined;
-        scrollToHash(smoother);
+        if (smoother) scrollToHash(smoother);
       });
     };
-    scheduleHashScroll();
+    if (document.documentElement.dataset.introComplete === "true") start();
+    else window.addEventListener("innolive:intro-complete", start);
     const onHashChange = scheduleHashScroll;
     window.addEventListener("hashchange", onHashChange);
 
     return () => {
       if (hashFrame !== undefined) window.cancelAnimationFrame(hashFrame);
       window.removeEventListener("hashchange", onHashChange);
-      smoother.kill();
+      window.removeEventListener("innolive:intro-complete", start);
+      smoother?.kill();
     };
   }, []);
 

@@ -1,0 +1,9 @@
+{
+  "connected": true,
+  "provider": "chzzk",
+  "channel": {
+    "channelId": "chzzk-example",
+    "channelName": "예시 치지직 채널",
+    "nickname": "예시 사용자"
+  }
+}

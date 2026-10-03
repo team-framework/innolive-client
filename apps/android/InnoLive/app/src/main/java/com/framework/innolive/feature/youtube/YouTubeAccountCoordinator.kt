@@ -12,7 +12,9 @@ class YouTubeAccountCoordinator(
     private var api: YouTubeApi? = null
 
     suspend fun loadAccount(refreshAccessToken: suspend () -> String): StreamingAccount? =
-        findYouTubeAccount(api().listAccounts(refreshAccessToken()))
+        retryYouTubeUnauthorized(refreshAccessToken(), refreshAccessToken) { token ->
+            findYouTubeAccount(api().listAccounts(token))
+        }
 
     suspend fun beginAuthorization(
         onAuthorizationRequired: (PendingIntent) -> Unit,
@@ -30,11 +32,10 @@ class YouTubeAccountCoordinator(
 
     suspend fun connect(
         serverAuthCode: String,
+        accessToken: String,
         refreshAccessToken: suspend () -> String,
-    ): StreamingAccount? {
-        val accessToken = refreshAccessToken()
-        api().connect(serverAuthCode, accessToken)
-        return findYouTubeAccount(api().listAccounts(accessToken))
+    ): StreamingAccount = retryYouTubeUnauthorized(accessToken, refreshAccessToken) { token ->
+        api().connect(serverAuthCode, token)
     }
 
     fun serverAuthCodeFromIntent(data: Intent): String =
@@ -53,3 +54,14 @@ class YouTubeAccountCoordinator(
 
 internal fun findYouTubeAccount(accounts: List<StreamingAccount>): StreamingAccount? =
     accounts.firstOrNull { account -> account.provider.equals("youtube", ignoreCase = true) }
+
+internal suspend fun <T> retryYouTubeUnauthorized(
+    accessToken: String,
+    refreshAccessToken: suspend () -> String,
+    request: suspend (String) -> T,
+): T = try {
+    request(accessToken)
+} catch (exception: YouTubeApiException) {
+    if (exception.statusCode != 401) throw exception
+    request(refreshAccessToken())
+}

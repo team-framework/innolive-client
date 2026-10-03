@@ -1,9 +1,12 @@
 package com.framework.innolive.feature.login
 
+import android.net.Uri
 import androidx.activity.OnBackPressedDispatcher
 import androidx.annotation.StringRes
 import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -19,6 +22,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import com.framework.innolive.R
 import com.framework.innolive.ui.text.UiText
@@ -31,6 +35,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
+private const val TEST_POLICY_URL = "data:text/html,%3Chtml%3E%3Cbody%3E%3Ch1%3EPrivacy%20Policy%3C%2Fh1%3E%3C%2Fbody%3E%3C%2Fhtml%3E"
+
 class EmailSignUpScreenTest {
     @get:Rule
     val rule = createComposeRule()
@@ -38,8 +44,26 @@ class EmailSignUpScreenTest {
     private fun string(@StringRes id: Int): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 
+    private fun setTestContent(content: @Composable () -> Unit) {
+        rule.setContent {
+            CompositionLocalProvider(LocalAccountConsentPolicyUrl provides TEST_POLICY_URL,
+                LocalAccountConsentPolicyLoader provides { url -> Uri.decode(url.substringAfter(",")) }) {
+                content()
+            }
+        }
+    }
+
+    private fun acceptConsent() {
+        rule.waitUntil(10_000) {
+            rule.onAllNodes(hasText(string(R.string.account_consent_accept)) and isEnabled())
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithText(string(R.string.account_consent_accept)).assertIsEnabled().performClick()
+    }
+
     private fun fillSignup(waitForVerification: Boolean = true) {
         rule.onNodeWithText(string(R.string.action_sign_up)).performScrollTo().performClick()
+        acceptConsent()
         rule.onAllNodes(hasSetTextAction())[0].performTextInput("member@example.com")
         rule.onAllNodes(hasSetTextAction())[1].performTextInput("password123")
         rule.onAllNodes(hasSetTextAction())[2].performTextInput("password123")
@@ -62,6 +86,36 @@ class EmailSignUpScreenTest {
     }
 
     @Test
+    fun signupShowsConsentBeforeInputAndCancelNeverSubmits() {
+        var signups = 0
+        setTestContent {
+            MyApplicationTheme(dynamicColor = false) {
+                EmailAuthScreen(onBack = {}, onSignUp = { _, _ -> signups++ })
+            }
+        }
+        rule.onNodeWithText(string(R.string.action_sign_up)).performClick()
+        rule.onNodeWithText(string(R.string.account_consent_cancel)).performClick()
+        rule.onNodeWithText(string(R.string.email_sign_in_title)).assertIsDisplayed()
+        rule.runOnIdle { assertEquals(0, signups) }
+        rule.onNodeWithText(string(R.string.action_sign_up)).performClick()
+        acceptConsent()
+        rule.onAllNodes(hasSetTextAction())[0].performTextInput("member@example.com")
+        rule.onAllNodes(hasSetTextAction())[1].performTextInput("password123")
+        rule.onAllNodes(hasSetTextAction())[2].performTextInput("password123")
+        rule.onNodeWithText(string(R.string.action_send_verification_email)).performScrollTo().performClick()
+        rule.runOnIdle { assertEquals(1, signups) }
+        rule.onNodeWithText(string(R.string.account_consent_accept)).assertDoesNotExist()
+        // A failed request may be retried within the same form without another dialog.
+        rule.onNodeWithText(string(R.string.action_send_verification_email)).performClick()
+        rule.runOnIdle { assertEquals(2, signups) }
+        // Leaving the signup flow clears the in-memory acceptance.
+        rule.onNodeWithText(string(R.string.action_sign_in)).performScrollTo().performClick()
+        rule.onNodeWithText(string(R.string.action_sign_up)).performScrollTo().performClick()
+        rule.onNodeWithText(string(R.string.account_consent_cancel)).assertIsDisplayed()
+        rule.runOnIdle { assertEquals(2, signups) }
+    }
+
+    @Test
     fun verifiedSignupAuthenticatesAndNavigatesWithoutReenteringCredentials() {
         val signupFinished = CompletableDeferred<Unit>()
         val verificationFinished = CompletableDeferred<Unit>()
@@ -69,7 +123,7 @@ class EmailSignUpScreenTest {
         var verifications = 0
         var navigations = 0
         val showingLiveScreen = mutableStateOf(false)
-        rule.setContent {
+        setTestContent {
             MyApplicationTheme(dynamicColor = false) {
                 if (showingLiveScreen.value) {
                     Text("라이브 화면")
@@ -106,7 +160,7 @@ class EmailSignUpScreenTest {
     @Test
     fun resendStaysOnVerificationAndClearsOnlyTheCode() {
         var resends = 0
-        rule.setContent {
+        setTestContent {
             MyApplicationTheme(dynamicColor = false) {
                 EmailLoginScreen(
                     onBack = {},
@@ -148,7 +202,7 @@ class EmailSignUpScreenTest {
             UiText.Resource(R.string.error_request_connection_failed),
         )
         var resendAttempts = 0
-        rule.setContent {
+        setTestContent {
             MyApplicationTheme(dynamicColor = false) {
                 EmailLoginScreen(
                     onBack = {},
@@ -200,7 +254,7 @@ class EmailSignUpScreenTest {
     @Test
     fun verificationBackCancelsPendingSignupAndRestoresSignupForm() {
         var cancellations = 0
-        rule.setContent {
+        setTestContent {
             MyApplicationTheme(dynamicColor = false) {
                 EmailLoginScreen(
                     onBack = {},
@@ -216,6 +270,7 @@ class EmailSignUpScreenTest {
 
         fillSignup()
         rule.onNodeWithContentDescription(string(R.string.action_back)).performClick()
+        acceptConsent()
 
         rule.onNodeWithText(string(R.string.email_sign_up_title)).assertIsDisplayed()
         rule.onNodeWithText("member@example.com").assertIsDisplayed()
@@ -228,7 +283,7 @@ class EmailSignUpScreenTest {
         val finish = CompletableDeferred<Unit>()
         val showingLiveScreen = mutableStateOf(false)
         var navigations = 0
-        rule.setContent {
+        setTestContent {
             MyApplicationTheme(dynamicColor = false) {
                 if (showingLiveScreen.value) {
                     Text("라이브 화면")
@@ -264,7 +319,7 @@ class EmailSignUpScreenTest {
         var signups = 0
         var cancellations = 0
         var backDispatcher: OnBackPressedDispatcher? = null
-        rule.setContent {
+        setTestContent {
             MyApplicationTheme(dynamicColor = false) {
                 backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
                 EmailLoginScreen(
@@ -292,16 +347,19 @@ class EmailSignUpScreenTest {
         val restoration = StateRestorationTester(rule)
         var hasPendingSignup = false
         restoration.setContent {
-            MyApplicationTheme(dynamicColor = false) {
-                EmailLoginScreen(
-                    onBack = {},
-                    onLogin = {},
-                    signIn = { _, _ -> },
-                    signUp = { _, _ -> hasPendingSignup = true },
-                    verifyEmail = {},
-                    resendSignup = {},
-                    hasPendingSignup = { hasPendingSignup },
-                )
+            CompositionLocalProvider(LocalAccountConsentPolicyUrl provides TEST_POLICY_URL,
+                LocalAccountConsentPolicyLoader provides { url -> Uri.decode(url.substringAfter(",")) }) {
+                MyApplicationTheme(dynamicColor = false) {
+                    EmailLoginScreen(
+                        onBack = {},
+                        onLogin = {},
+                        signIn = { _, _ -> },
+                        signUp = { _, _ -> hasPendingSignup = true },
+                        verifyEmail = {},
+                        resendSignup = {},
+                        hasPendingSignup = { hasPendingSignup },
+                    )
+                }
             }
         }
 
@@ -309,6 +367,7 @@ class EmailSignUpScreenTest {
         rule.onNodeWithText(string(R.string.verification_title)).assertIsDisplayed()
         rule.runOnIdle { hasPendingSignup = false }
         restoration.emulateSavedInstanceStateRestore()
+        acceptConsent()
 
         rule.onNodeWithText(string(R.string.email_sign_up_title)).assertIsDisplayed()
         rule.onNodeWithText(string(R.string.verification_title)).assertDoesNotExist()
@@ -321,7 +380,7 @@ class EmailSignUpScreenTest {
         var logins = 0
         var resends = 0
         val showingLiveScreen = mutableStateOf(false)
-        rule.setContent {
+        setTestContent {
             MyApplicationTheme(dynamicColor = false) {
                 if (showingLiveScreen.value) {
                     Text("라이브 화면")

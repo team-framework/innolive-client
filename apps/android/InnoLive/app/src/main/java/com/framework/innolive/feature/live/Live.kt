@@ -8,18 +8,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +29,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -48,6 +51,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
+import com.framework.innolive.feature.face.LocalFaceManagementScreen
+import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
+import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
+import com.framework.innolive.ui.text.ServerErrorAction
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
@@ -60,13 +69,39 @@ fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
 ) {
+    var openVideoControls by remember { mutableStateOf(false) }
     var openFaceManagement by remember { mutableStateOf(false) }
     var openPlatformDialog by remember { mutableStateOf(false) }
     var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var selectedPlatform by remember { mutableStateOf<String?>(null) }
+    var testUsageWarningOverride by remember { mutableStateOf(false) }
+    var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
+    val sessionSnapshot = webRtcSession.sessionSnapshot
+    val sessionId = webRtcSession.sessionSnapshot?.sessionId
+    val activeNoticeCode = if (testUsageWarningOverride) {
+        "monthly_usage_80"
+    } else {
+        sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
+            notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
+        }?.code
+    }
+    LaunchedEffect(sessionId) {
+        dismissedNoticeCodes = emptySet()
+        testUsageWarningOverride = false
+    }
     val context = LocalContext.current
+    val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
+    val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
+    val lookPreviews by frameAnalyzer.lookPreviews.collectAsState()
+    DisposableEffect(idleFrameAnalyzer) {
+        onDispose { idleFrameAnalyzer.close() }
+    }
+    DisposableEffect(frameAnalyzer, openVideoControls) {
+        frameAnalyzer.setLookPreviewEnabled(openVideoControls)
+        onDispose { frameAnalyzer.setLookPreviewEnabled(false) }
+    }
     val presentation = buildLiveScreenPresentation(
         connectionState = webRtcSession.connectionState,
         broadcastState = webRtcSession.broadcastState,
@@ -94,8 +129,15 @@ fun LiveScreen(
             mediaPermissionLauncher.launch(missingMediaPermissions.toTypedArray())
         }
     }
+    LaunchedEffect(webRtcSession.serverError) {
+        if (webRtcSession.serverError?.action == ServerErrorAction.EDIT_SETTINGS) {
+            openBroadcastActions = false
+            openYouTubeSettingsDialog = true
+        }
+    }
     LaunchedEffect(webRtcSession) {
         webRtcSession.restoreAnonymizationSelection(context)
+        webRtcSession.restoreAIProcessingSelection(context)
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
@@ -108,14 +150,36 @@ fun LiveScreen(
     }
 
     if (openFaceManagement) {
-        FaceManagementScreen(
-            cameraLensFacing = props.cameraLensFacing,
-            onGetAccessToken = props.onGetAccessToken,
-            onRefreshAccessToken = props.onRefreshAccessToken,
-            onBack = { openFaceManagement = false },
-            profileEmail = props.profileEmail,
-        )
+        if (webRtcSession.selectedOnDeviceProcessing) {
+            LocalFaceManagementScreen(
+                cameraLensFacing = props.cameraLensFacing,
+                accountScope = props.onGetAccessToken()?.let { token ->
+                    runCatching { sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, token).storageKey }.getOrNull()
+                },
+                onBack = { openFaceManagement = false; webRtcSession.localFacesChanged() },
+                onChanged = webRtcSession::localFacesChanged,
+            )
+        } else {
+            FaceManagementScreen(
+                cameraLensFacing = props.cameraLensFacing,
+                onGetAccessToken = props.onGetAccessToken,
+                onRefreshAccessToken = props.onRefreshAccessToken,
+                onBack = { openFaceManagement = false },
+                profileEmail = props.profileEmail,
+            )
+        }
         return
+    }
+
+    if (openVideoControls) {
+        BroadcastVideoControls(
+            settings = props.videoQualitySettings,
+            captureState = props.videoQualityCaptureState,
+            previews = lookPreviews?.previews,
+            onSettingsChanged = props.onVideoQualitySettingsChanged,
+            onDismiss = { openVideoControls = false },
+            mirrorPreviews = props.cameraLensFacing.shouldMirrorPreview,
+        )
     }
 
     val canManageFace =
@@ -138,65 +202,64 @@ fun LiveScreen(
             LiveVideoPanels(
                 cameraLensFacing = props.cameraLensFacing,
                 cameraResolution = props.cameraResolution,
-                frameAnalyzer = webRtcSession.frameAnalyzer,
+                frameAnalyzer = frameAnalyzer,
                 lockedRotation = webRtcSession.lockedBroadcastRotation,
                 remoteVideoTrack = webRtcSession.remoteVideoTrack,
+                localVideoTrack = webRtcSession.localVideoTrack,
+                videoQualitySettings = props.videoQualitySettings,
+                onVideoQualityCaptureStateChanged = props.onVideoQualityCaptureStateChanged,
                 eglContext = webRtcSession.eglContext,
                 isConnected = presentation.isConnected,
                 modifier = Modifier.fillMaxSize(),
             )
         }
 
-        Row(
+        Text(
+            text = broadcastDurationText,
             modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopStart)
-                .padding(start = 16.dp, end = 16.dp, top = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = props.onOpenSettings,
-                enabled = !presentation.isConnecting,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.settings),
-                    contentDescription = stringResource(R.string.content_description_settings),
-                    modifier = Modifier
-                        .padding(1.dp)
-                        .width(28.dp)
-                        .height(28.dp),
-                    tint = Color.White
-                )
-            }
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = broadcastDurationText,
-                    modifier = Modifier.semantics {
-                        contentDescription = broadcastDurationDescription
-                    },
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
-                )
-            }
-            IconButton(
-                enabled = props.canSwitchCamera && !presentation.isConnecting,
-                onClick = props.onSwitchCamera,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.change_camera),
-                    contentDescription = stringResource(R.string.content_description_switch_camera),
-                    modifier = Modifier
-                        .padding(1.dp)
-                        .width(28.dp)
-                        .height(28.dp),
-                    tint = Color.White,
-                )
-            }
-        }
+                .align(Alignment.TopCenter)
+                .padding(top = 10.dp)
+                .semantics { contentDescription = broadcastDurationDescription },
+            style = MaterialTheme.typography.headlineSmall,
+            color = Color.White,
+        )
+
+        SessionUsageWarningBanner(
+            noticeCode = activeNoticeCode,
+            onDismissRequest = { code ->
+                dismissedNoticeCodes = dismissedNoticeCodes + code
+                if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
+            },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(start = 10.dp, top = 56.dp, end = 10.dp),
+        )
+
+        LiveSideControls(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp),
+            canOpenSettings = !presentation.isConnecting,
+            canSwitchCamera = props.canSwitchCamera && !presentation.isConnecting,
+            canManageFace = canManageFace,
+            onOpenSettings = props.onOpenSettings,
+            onOpenVideoControls = { openVideoControls = true },
+            onSwitchCamera = props.onSwitchCamera,
+            onOpenFaceManagement = {
+                if (webRtcSession.connectionState != WebRtcConnectionState.CONNECTED) {
+                    webRtcSession.close()
+                }
+                openFaceManagement = true
+            },
+            anonymizationState = anonymizationControlsState(
+                webRtcSession.connectionState,
+                webRtcSession.anonymizationState,
+                webRtcSession.selectedAnonymizationEnabled,
+                webRtcSession.isAnonymizationSelectionLoaded,
+                webRtcSession.anonymizationChange,
+            ),
+            onAnonymizationSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
+        )
 
         Column(
             modifier = Modifier
@@ -205,6 +268,18 @@ fun LiveScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (BuildConfig.DEBUG) {
+                TextButton(onClick = {
+                    testUsageWarningOverride = !testUsageWarningOverride
+                }) {
+                    Text(
+                        stringResource(
+                            if (testUsageWarningOverride) R.string.session_usage_warning_test_hide
+                            else R.string.session_usage_warning_test_show,
+                        ),
+                    )
+                }
+            }
             BroadcastActionControls(
                 presentation = presentation,
                 onBroadcastAction = {
@@ -212,27 +287,6 @@ fun LiveScreen(
                         LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
                         LiveBroadcastAction.PREPARE_BROADCAST -> openYouTubeSettingsDialog = true
                         LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
-                    }
-                },
-                leading = {
-                    IconButton(
-                        enabled = canManageFace,
-                        onClick = {
-                            if (webRtcSession.connectionState != WebRtcConnectionState.CONNECTED) {
-                                webRtcSession.close()
-                            }
-                            openFaceManagement = true
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Face,
-                            contentDescription = stringResource(R.string.face_management),
-                            modifier = Modifier
-                                .padding(1.dp)
-                                .width(32.dp)
-                                .height(32.dp),
-                            tint = Color.White,
-                        )
                     }
                 },
                 centerOverlay = {
@@ -257,9 +311,18 @@ fun LiveScreen(
                             isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
                             isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
                             isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
-                            onSettingsChanged = props.onBroadcastSettingsChanged,
+                            serverError = webRtcSession.serverError?.takeIf {
+                                it.action == ServerErrorAction.EDIT_SETTINGS
+                            },
+                            onSettingsChanged = {
+                                webRtcSession.dismissServerError()
+                                props.onBroadcastSettingsChanged(it)
+                            },
                             onConnectYouTube = props.onConnectYouTube,
-                            onDismissRequest = { openYouTubeSettingsDialog = false },
+                            onDismissRequest = {
+                                openYouTubeSettingsDialog = false
+                                webRtcSession.dismissServerError()
+                            },
                             onPrepare = {
                                 if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
                                     mediaPermissions.refresh()
@@ -314,18 +377,6 @@ fun LiveScreen(
                         )
                     }
                 },
-                trailing = {
-                    AnonymizationControls(
-                        state = anonymizationControlsState(
-                            webRtcSession.connectionState,
-                            webRtcSession.anonymizationState,
-                            webRtcSession.selectedAnonymizationEnabled,
-                            webRtcSession.isAnonymizationSelectionLoaded,
-                            webRtcSession.anonymizationChange,
-                        ),
-                        onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
-                    )
-                },
             )
             if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
                 webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
@@ -362,6 +413,86 @@ fun LiveScreen(
                     )
                 }
             }
+        }
+    }
+    webRtcSession.serverError?.takeIf { it.action != ServerErrorAction.EDIT_SETTINGS }?.let { guidance ->
+        ServerErrorDialog(
+            guidance = guidance,
+            onDismiss = webRtcSession::dismissServerError,
+            onAction = {
+                when (guidance.action) {
+                    ServerErrorAction.CONFIRM_CONCURRENT -> webRtcSession.confirmConcurrentBroadcast()
+                    ServerErrorAction.RETRY -> webRtcSession.retryBroadcast()
+                    ServerErrorAction.CONNECT, ServerErrorAction.RECONNECT -> {
+                        webRtcSession.dismissServerError()
+                        openYouTubeSettingsDialog = true
+                        props.onConnectYouTube()
+                    }
+                    ServerErrorAction.LOGIN -> {
+                        webRtcSession.dismissServerError()
+                        props.onAuthenticationExpired()
+                    }
+                    else -> webRtcSession.dismissServerError()
+                }
+            },
+        )
+    }
+}
+
+@Composable
+internal fun LiveSideControls(
+    modifier: Modifier = Modifier,
+    canOpenSettings: Boolean,
+    canSwitchCamera: Boolean,
+    canManageFace: Boolean,
+    onOpenSettings: () -> Unit,
+    onOpenVideoControls: () -> Unit,
+    onSwitchCamera: () -> Unit,
+    onOpenFaceManagement: () -> Unit,
+    anonymizationState: AnonymizationControlsState,
+    onAnonymizationSelect: (Boolean) -> Unit,
+) {
+    Column(
+        modifier = modifier.verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        IconButton(onClick = onOpenSettings, enabled = canOpenSettings, modifier = Modifier.size(48.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.settings),
+                contentDescription = stringResource(R.string.content_description_settings),
+                modifier = Modifier.size(28.dp),
+                tint = Color.White,
+            )
+        }
+        IconButton(onClick = onOpenVideoControls, modifier = Modifier.size(48.dp)) {
+            Icon(
+                imageVector = Icons.Outlined.Tune,
+                contentDescription = stringResource(R.string.video_controls_title),
+                tint = Color.White,
+            )
+        }
+        IconButton(onClick = onSwitchCamera, enabled = canSwitchCamera, modifier = Modifier.size(48.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.change_camera),
+                contentDescription = stringResource(R.string.content_description_switch_camera),
+                modifier = Modifier.size(28.dp),
+                tint = Color.White,
+            )
+        }
+        IconButton(onClick = onOpenFaceManagement, enabled = canManageFace, modifier = Modifier.size(48.dp)) {
+            Icon(
+                imageVector = Icons.Default.Face,
+                contentDescription = stringResource(R.string.face_management),
+                modifier = Modifier.size(32.dp),
+                tint = Color.White,
+            )
+        }
+        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            AnonymizationControls(
+                state = anonymizationState,
+                onSelect = onAnonymizationSelect,
+            )
         }
     }
 }
@@ -406,24 +537,16 @@ internal fun StableBroadcastFeedback(
 internal fun BroadcastActionControls(
     presentation: LiveScreenPresentation,
     onBroadcastAction: () -> Unit,
-    leading: @Composable () -> Unit,
     centerOverlay: @Composable () -> Unit = {},
-    trailing: @Composable () -> Unit,
 ) {
-    BalancedLiveControls(
-        leading = leading,
-        center = {
-            Box(contentAlignment = Alignment.Center) {
-                centerOverlay()
-                VerticalHeroButton(
-                    text = stringResource(presentation.broadcastButtonTextRes),
-                    enabled = presentation.isBroadcastButtonEnabled,
-                    onClick = onBroadcastAction,
-                )
-            }
-        },
-        trailing = trailing,
-    )
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        centerOverlay()
+        VerticalHeroButton(
+            text = stringResource(presentation.broadcastButtonTextRes),
+            enabled = presentation.isBroadcastButtonEnabled,
+            onClick = onBroadcastAction,
+        )
+    }
 }
 
 @Composable
@@ -539,37 +662,5 @@ private fun BroadcastDialogButton(
             text = text,
             color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         )
-    }
-}
-
-@Composable
-internal fun BalancedLiveControls(
-    modifier: Modifier = Modifier,
-    leading: @Composable () -> Unit,
-    center: @Composable () -> Unit,
-    trailing: @Composable () -> Unit,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.Center,
-        ) {
-            leading()
-        }
-        Box(
-            modifier = Modifier.weight(5f),
-            contentAlignment = Alignment.Center,
-        ) {
-            center()
-        }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.Center,
-        ) {
-            trailing()
-        }
     }
 }

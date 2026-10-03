@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_live_activation">Live streaming is not enabled for this channel yet. Activation may take up to 24 hours.</string>
+    <string name="error_channel_already_live">This YouTube channel is already live with another tool. Continuing may open another broadcast and split your audience.</string>
+    <string name="error_plan_resolution">Your current plan does not support FHD streaming.</string>
+    <string name="error_plan_simulcast">Your current plan does not support simultaneous streaming.</string>
+    <string name="error_plan_server_streaming">Your current plan does not support server streaming.</string>
+    <string name="error_monthly_limit">You have used all your streaming time for this month.</string>
+    <string name="error_broadcast_limit">This broadcast has reached its time limit. Please start a new broadcast.</string>
+    <string name="error_stream_capacity">No streaming capacity is available right now. Please try again later.</string>
+    <string name="error_streaming_quota">The daily YouTube integration quota has been used up. It resets at 4 PM Korea time (5 PM in winter).</string>
+    <string name="error_streaming_rate_limit">The platform request limit has been reached. Please try again later.</string>
+    <string name="error_streaming_account_in_use">You cannot disconnect this platform while streaming. Please stop the broadcast first.</string>
+    <string name="error_streaming_operation">YouTube could not process the request. Please try again.</string>
+    <string name="error_withdrawal_in_progress">Account deletion is in progress.</string>
+    <string name="error_previous_session_cleanup">The previous broadcast is being cleared. Please try again later.</string>
+    <string name="error_authentication_expired">Your sign-in has expired. Please sign in again.</string>
+    <string name="error_field_required">Please complete this required field.</string>
+    <string name="error_field_invalid">Please check the value you entered.</string>
+    <string name="error_field_not_changeable_live">This field cannot be changed while live.</string>
+    <string name="error_guidance_title">Notice</string>
+    <string name="action_continue_broadcast">Continue</string>
+    <string name="action_open_help">Open help</string>
+    <string name="error_help_unavailable">Unable to open help.</string>
+</resources>

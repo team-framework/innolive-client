@@ -17,8 +17,13 @@ data class LiveScreenProps(
     val onConnectYouTube: () -> Unit,
     val onRefreshAccessToken: suspend () -> String,
     val onOpenSettings: () -> Unit,
+    val onAuthenticationExpired: () -> Unit = {},
     val onGetAccessToken: () -> String? = { null },
     val profileEmail: String = "",
     val canSwitchCamera: Boolean = false,
     val onSwitchCamera: () -> Unit = {},
+    val videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
+    val onVideoQualitySettingsChanged: (BroadcastVideoQualitySettings) -> Unit = {},
+    val videoQualityCaptureState: VideoQualityCaptureState = VideoQualityCaptureState(),
+    val onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
 )

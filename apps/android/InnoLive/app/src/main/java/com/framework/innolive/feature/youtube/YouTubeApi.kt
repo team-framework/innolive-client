@@ -11,7 +11,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 private val jsonMediaType = "application/json".toMediaType()
 
@@ -20,6 +22,7 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
         require(url.isHttps) { "INNOLIVE_SERVER_URL must use HTTPS." }
     }
     private val httpClient = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS).build()
+    private val closeStarted = AtomicBoolean(false)
 
     suspend fun configuration(): YouTubeConfiguration = withContext(Dispatchers.IO) {
         execute(requestBuilder("/auth/youtube/config").get().build(), "YouTube configuration") { body ->
@@ -32,7 +35,7 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
         }
     }
 
-    suspend fun connect(serverAuthCode: String, accessToken: String): Unit = withContext(Dispatchers.IO) {
+    suspend fun connect(serverAuthCode: String, accessToken: String): StreamingAccount = withContext(Dispatchers.IO) {
         require(serverAuthCode.isNotBlank()) { "YouTube server authorization code must not be blank." }
         execute(
             requestBuilder("/auth/youtube/connect")
@@ -49,6 +52,13 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
         ) { body ->
             val response = JSONObject(body)
             check(response.optBoolean("connected") && response.optString("provider") == "youtube")
+            val channel = response.getJSONObject("channel")
+            StreamingAccount(
+                provider = "youtube",
+                channelId = channel.requiredString("id"),
+                channelTitle = channel.optString("title").trim(),
+                reconnectRequired = false,
+            )
         }
     }
 
@@ -72,8 +82,20 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
     }
 
     override fun close() {
-        httpClient.connectionPool.evictAll()
-        httpClient.dispatcher.executorService.shutdown()
+        if (!closeStarted.compareAndSet(false, true)) return
+
+        val cleanup = Runnable {
+            try {
+                httpClient.connectionPool.evictAll()
+            } finally {
+                httpClient.dispatcher.executorService.shutdown()
+            }
+        }
+        try {
+            httpClient.dispatcher.executorService.execute(cleanup)
+        } catch (_: RejectedExecutionException) {
+            Thread(cleanup, "youtube-api-close").start()
+        }
     }
 
     private fun requestBuilder(path: String): Request.Builder =
@@ -87,13 +109,18 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
     private fun <T> execute(request: Request, operation: String, parse: (String) -> T): T = try {
         httpClient.newCall(request).execute().use { response ->
             val body = response.body.string()
-            Log.i("InnoLiveYouTube", "operation=$operation status=${response.code}")
+            val errorCode = if (response.isSuccessful) "none"
+                else safeServerErrorCode(parseYouTubeApiErrorCode(body))
+            Log.i("InnoLiveYouTube", "operation=$operation status=${response.code} code=$errorCode")
             if (!response.isSuccessful) {
                 throw YouTubeApiException(
                     statusCode = response.code,
                     operation = operation,
                     errorCode = parseYouTubeApiErrorCode(body),
                     serverMessage = parseYouTubeApiErrorMessage(body),
+                    helpUrl = parseYouTubeApiErrorDetail(body, "help_url"),
+                    field = parseYouTubeApiErrorDetail(body, "field"),
+                    reason = parseYouTubeApiErrorDetail(body, "reason"),
                 )
             }
             parse(body)
@@ -101,6 +128,7 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
     } catch (exception: YouTubeApiException) {
         throw exception
     } catch (exception: IOException) {
+        Log.w("InnoLiveYouTube", "operation=$operation transport_failure=${exception.javaClass.simpleName}")
         throw YouTubeApiException(statusCode = null, operation = operation, cause = exception)
     }
 

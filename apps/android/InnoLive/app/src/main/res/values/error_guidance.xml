@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_live_activation">채널의 라이브 스트리밍이 아직 활성화되지 않았습니다. 활성화까지 최대 24시간이 걸릴 수 있습니다.</string>
+    <string name="error_channel_already_live">YouTube 채널이 이미 다른 도구로 방송 중입니다. 계속하면 라이브가 하나 더 열려 시청자가 나뉠 수 있습니다.</string>
+    <string name="error_plan_resolution">현재 플랜에서는 FHD 송출을 사용할 수 없습니다.</string>
+    <string name="error_plan_simulcast">현재 플랜에서는 동시 송출을 사용할 수 없습니다.</string>
+    <string name="error_plan_server_streaming">현재 플랜에서는 서버 송출을 사용할 수 없습니다.</string>
+    <string name="error_monthly_limit">이번 달 방송 시간을 모두 사용했습니다.</string>
+    <string name="error_broadcast_limit">이번 방송의 최대 시간에 도달했습니다. 새 방송을 시작해 주세요.</string>
+    <string name="error_stream_capacity">지금은 송출 자리가 없습니다. 잠시 후 다시 시도해 주세요.</string>
+    <string name="error_streaming_quota">오늘 YouTube 연동 한도를 모두 사용했습니다. 한국 시간 오후 4시(겨울에는 오후 5시)에 초기화됩니다.</string>
+    <string name="error_streaming_rate_limit">플랫폼 요청 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.</string>
+    <string name="error_streaming_account_in_use">이 플랫폼으로 방송 중에는 연결을 해제할 수 없습니다. 방송을 먼저 종료해 주세요.</string>
+    <string name="error_streaming_operation">YouTube에서 요청을 처리하지 못했습니다. 다시 시도해 주세요.</string>
+    <string name="error_withdrawal_in_progress">계정 삭제가 진행 중입니다.</string>
+    <string name="error_previous_session_cleanup">이전 방송을 정리하는 중입니다. 잠시 후 다시 시도해 주세요.</string>
+    <string name="error_authentication_expired">로그인이 만료되었습니다. 다시 로그인해 주세요.</string>
+    <string name="error_field_required">필수 항목을 입력해 주세요.</string>
+    <string name="error_field_invalid">입력한 값을 확인해 주세요.</string>
+    <string name="error_field_not_changeable_live">방송 중에는 바꿀 수 없는 항목입니다.</string>
+    <string name="error_guidance_title">안내</string>
+    <string name="action_continue_broadcast">계속</string>
+    <string name="action_open_help">도움말 열기</string>
+    <string name="error_help_unavailable">도움말을 열 수 없습니다.</string>
+</resources>

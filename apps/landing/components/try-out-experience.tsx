@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/button";
+import { TryOutVideoPanels } from "@/components/try-out-video-panels";
+import { FaceRegistrationModal } from "@/components/face-registration-modal";
 import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
@@ -320,6 +322,9 @@ export function TryOutExperience() {
   const { isLogined, isLoading } = useIsLogined();
   const [state, setState] = useState<ExperienceState>("connecting");
   const [status, setStatus] = useState(copy.preparing);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [activeSession, setActiveSession] = useState<ServerSession | null>(null);
+  const [isFaceRegistrationOpen, setIsFaceRegistrationOpen] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -349,7 +354,10 @@ export function TryOutExperience() {
     remoteStreamRef.current = null;
     sessionRef.current = null;
     ticketIDRef.current = null;
+    setActiveSession(null);
     pendingRemoteCandidatesRef.current = [];
+    setLocalStream(null);
+    setIsFaceRegistrationOpen(false);
     if (timeoutRef.current !== null) {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -414,15 +422,24 @@ export function TryOutExperience() {
       }
 
       sessionRef.current = session;
+      setActiveSession(session);
       if (session.ticketID) ticketIDRef.current = session.ticketID;
       setStatus(copy.checkingMedia);
-      const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      const localStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280, min: 500 },
+          height: { ideal: 720, min: 500 },
+          aspectRatio: { ideal: 16 / 9 },
+        },
+        audio: false,
+      });
       if (generationRef.current !== generation) {
         stopStream(localStream);
         return;
       }
 
       localStreamRef.current = localStream;
+      setLocalStream(localStream);
       attachVideo(localVideoRef.current, localStream);
       const peerConnection = new RTCPeerConnection({ iceServers: session.iceServers });
       peerConnectionRef.current = peerConnection;
@@ -555,6 +572,14 @@ export function TryOutExperience() {
     router.replace(href("/try-out"));
   }, [cleanupResources, copy.ended, href, router]);
 
+  const closeFaceRegistration = useCallback(() => {
+    setIsFaceRegistrationOpen(false);
+  }, []);
+
+  const handleFaceRegistered = useCallback(() => {
+    setStatus(copy.faceRegistered);
+  }, [copy.faceRegistered]);
+
   useEffect(() => {
     if (isLoading) return;
     const timer = window.setTimeout(() => void start(), 0);
@@ -584,24 +609,28 @@ export function TryOutExperience() {
         </p>
       </div>
 
-      <div className="flex w-full max-w-[100rem] flex-col gap-3 lg:flex-row">
-        <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-contain" aria-label={copy.remoteLabel} />
-          {state !== "connected" ? (
-            <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
-              {copy.remotePlaceholder}
-            </p>
-          ) : null}
-        </div>
-        <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-contain" aria-label={copy.localLabel} />
-          <p className="absolute bottom-3 left-3 rounded-pill bg-background-primary/80 px-3 py-1 text-sm text-text-primary">
-            {copy.localBadge}
-          </p>
-        </div>
-      </div>
+      <TryOutVideoPanels
+        local={
+          <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-cover" aria-label={copy.localLabel} />
+        }
+        processed={
+          <>
+            <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-cover" aria-label={copy.remoteLabel} />
+            {state !== "connected" ? (
+              <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
+                {copy.remotePlaceholder}
+              </p>
+            ) : null}
+          </>
+        }
+      />
 
       <div className="flex flex-wrap justify-center gap-3">
+        {state === "connected" && localStream ? (
+          <Button showChevron={false} onClick={() => setIsFaceRegistrationOpen(true)}>
+            {messages.tryOut.registerFace}
+          </Button>
+        ) : null}
         {state === "failed" ? (
           <Button showChevron={false} onClick={() => void start()}>
             {copy.retry}
@@ -617,6 +646,14 @@ export function TryOutExperience() {
           </Button>
         )}
       </div>
+
+      <FaceRegistrationModal
+        isOpen={isFaceRegistrationOpen}
+        session={activeSession}
+        stream={localStream}
+        onClose={closeFaceRegistration}
+        onRegistered={handleFaceRegistered}
+      />
     </section>
   );
 }

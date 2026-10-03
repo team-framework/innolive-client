@@ -3,26 +3,55 @@ import Foundation
 struct YouTubeBroadcastStatePolicy {
     let stream: YouTubeStreamState?
     let isChangingStreamState: Bool
+    var targets: [BroadcastTargetState]? = nil
+
+    var visibleTargets: [BroadcastTargetState] {
+        (targets ?? []).filter { $0.stream.broadcastPhaseValue != .idle }
+    }
+
+    private var targetPolicies: [Self]? {
+        targets.map { $0.map { Self(stream: $0.stream, isChangingStreamState: isChangingStreamState) } }
+    }
 
     var broadcastPhase: YouTubeBroadcastPhase {
-        stream?.broadcastPhaseValue ?? .idle
+        if let targetPolicies {
+            if targetPolicies.contains(where: \.hasStartedBroadcast) { return .live }
+            for phase: YouTubeBroadcastPhase in [.goingLive, .preparing, .prepared] {
+                if targetPolicies.contains(where: { $0.broadcastPhase == phase && $0.streamStatus != .stopped }) {
+                    return phase
+                }
+            }
+            return targetPolicies.first(where: {
+                if case .unknown = $0.broadcastPhase { return true }
+                return false
+            })?.broadcastPhase ?? .idle
+        }
+        return stream?.broadcastPhaseValue ?? .idle
     }
 
     var streamStatus: YouTubeStreamStatus? {
-        stream.map(\.statusValue)
+        if let targetPolicies {
+            return targetPolicies.first(where: { $0.isBroadcastActive && !$0.isBroadcastPaused })?.streamStatus
+                ?? targetPolicies.first(where: \.isBroadcastActive)?.streamStatus
+                ?? targetPolicies.first?.streamStatus
+        }
+        return stream.map(\.statusValue)
     }
 
     var isBroadcastSettingsLocked: Bool {
-        isChangingStreamState
+        if let targetPolicies { return isChangingStreamState || targetPolicies.contains(where: \.isBroadcastSettingsLocked) }
+        return isChangingStreamState
             || (streamStatus != .some(.stopped) && isActivePhase)
     }
 
     var isBroadcastActive: Bool {
-        isActivePhase && streamStatus != .some(.stopped)
+        if let targetPolicies { return targetPolicies.contains(where: \.isBroadcastActive) }
+        return isActivePhase && streamStatus != .some(.stopped)
     }
 
     var hasStartedBroadcast: Bool {
-        broadcastPhase == .live && streamStatus != .some(.stopped)
+        if let targetPolicies { return targetPolicies.contains(where: \.hasStartedBroadcast) }
+        return broadcastPhase == .live && streamStatus != .some(.stopped)
     }
 
     var isWaitingForBroadcastStart: Bool {
@@ -35,6 +64,10 @@ struct YouTubeBroadcastStatePolicy {
     }
 
     var isBroadcastPaused: Bool {
+        if let targetPolicies {
+            let active = targetPolicies.filter(\.hasStartedBroadcast)
+            return !active.isEmpty && active.allSatisfy(\.isBroadcastPaused)
+        }
         switch streamStatus {
         case .some(.paused), .some(.pausedReconfiguring), .some(.pausedReconnecting):
             return true
@@ -44,6 +77,7 @@ struct YouTubeBroadcastStatePolicy {
     }
 
     var canPauseBroadcast: Bool {
+        if let targetPolicies { return targetPolicies.contains(where: \.canPauseBroadcast) }
         guard broadcastPhase == .live else { return false }
         switch streamStatus {
         case .some(.streaming), .some(.reconfiguring):
@@ -54,7 +88,8 @@ struct YouTubeBroadcastStatePolicy {
     }
 
     var canResumeBroadcast: Bool {
-        broadcastPhase == .live && streamStatus == .some(.paused)
+        if let targetPolicies { return targetPolicies.contains(where: \.canResumeBroadcast) }
+        return broadcastPhase == .live && streamStatus == .some(.paused)
     }
 
     var canChangePauseState: Bool {

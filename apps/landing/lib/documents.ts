@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { isLocale, localePath, locales, type Locale } from "@/lib/locales";
+import { pageMetadata } from "@/lib/seo";
 
 export type DocumentLocale = Locale;
 export type DocumentSlug = "privacy" | "terms" | "support";
@@ -92,10 +93,10 @@ export function documentMetadata(
   slug: DocumentSlug,
   locale: DocumentLocale,
 ): Metadata {
-  return {
+  return pageMetadata(locale, `/${slug}`, {
     title: documentTitles[slug][locale],
     description: documentDescriptions[slug][locale],
-  };
+  });
 }
 
 function hrefPath(href: string): string {

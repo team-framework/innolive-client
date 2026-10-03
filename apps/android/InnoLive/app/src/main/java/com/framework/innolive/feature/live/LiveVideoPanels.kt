@@ -1,8 +1,8 @@
 package com.framework.innolive.feature.live
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
 
@@ -25,6 +26,9 @@ fun LiveVideoPanels(
     eglContext: EglBase.Context?,
     isConnected: Boolean,
     modifier: Modifier = Modifier,
+    localVideoTrack: VideoTrack? = null,
+    videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
+    onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
 ) {
     BoxWithConstraints(modifier = modifier) {
         val aspectRatio = if (maxWidth > maxHeight) 16f / 9f else 9f / 16f
@@ -42,34 +46,34 @@ fun LiveVideoPanels(
             .size(pipWidth, pipHeight)
             .clip(shape = RoundedCornerShape(8.dp))
 
-        if (isConnected) {
-            WebRtcRemotePreview(
-                remoteVideoTrack = remoteVideoTrack,
-                eglContext = eglContext,
-                cameraLensFacing = cameraLensFacing,
-                modifier = mainModifier,
-            )
+        WebRtcRemotePreview(
+            remoteVideoTrack = if (isConnected) remoteVideoTrack else null,
+            eglContext = eglContext,
+            cameraLensFacing = cameraLensFacing,
+            modifier = (if (isConnected) mainModifier else pipModifier)
+                .zIndex(if (isConnected) 0f else 1f),
+        )
+        Box(modifier = (if (isConnected) pipModifier else mainModifier)
+            .zIndex(if (isConnected) 1f else 0f)) {
             CameraPreview(
                 cameraLensFacing = cameraLensFacing,
                 cameraResolution = cameraResolution,
                 frameAnalyzer = frameAnalyzer,
                 lockedRotation = lockedRotation,
-                modifier = pipModifier,
+                videoQualitySettings = videoQualitySettings,
+                onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
+                showAdjustedColorPreview = localVideoTrack == null,
+                modifier = Modifier.fillMaxSize(),
             )
-        } else {
-            CameraPreview(
-                cameraLensFacing = cameraLensFacing,
-                cameraResolution = cameraResolution,
-                frameAnalyzer = frameAnalyzer,
-                lockedRotation = lockedRotation,
-                modifier = mainModifier,
-            )
-            WebRtcRemotePreview(
-                remoteVideoTrack = null,
-                eglContext = eglContext,
-                cameraLensFacing = cameraLensFacing,
-                modifier = pipModifier,
-            )
+            if (isConnected && localVideoTrack != null) {
+                WebRtcRemotePreview(
+                    remoteVideoTrack = localVideoTrack,
+                    eglContext = eglContext,
+                    cameraLensFacing = cameraLensFacing,
+                    isMediaOverlay = true,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }

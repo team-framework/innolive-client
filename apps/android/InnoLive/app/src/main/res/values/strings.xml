@@ -43,6 +43,13 @@
     <string name="new_to_innolive">InnoLive가 처음이신가요?</string>
     <string name="already_have_account">이미 계정이 있으신가요?</string>
     <string name="action_sign_up">회원가입</string>
+    <string name="account_consent_title">개인정보 수집·이용 동의</string>
+    <string name="account_consent_refusal">동의를 거부할 수 있습니다. 동의하지 않으면 회원가입 또는 Google 로그인을 진행할 수 없습니다. 개인정보 관련 문의와 동의 철회는 개인정보처리방침의 연락처로 요청할 수 있습니다.</string>
+    <string name="account_consent_scroll_hint">개인정보처리방침 전문을 끝까지 스크롤하면 동의할 수 있습니다.</string>
+    <string name="account_consent_load_failed">개인정보처리방침 전문을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.</string>
+    <string name="account_consent_external_link_failed">링크를 열지 못했습니다. 필요한 앱을 설치하거나 설정을 확인한 뒤 다시 시도해 주세요.</string>
+    <string name="account_consent_accept">동의하고 계속</string>
+    <string name="account_consent_cancel">취소</string>
     <string name="verification_title">이메일을 확인해 주세요</string>
     <string name="verification_complete_title">이메일 인증 완료</string>
     <string name="verification_description">위 주소로 보낸 6자리 인증 코드를 입력해 주세요.</string>
@@ -87,7 +94,7 @@
     <string name="label_youtube_category">YouTube 카테고리 ID (선택)</string>
     <string name="label_broadcast_account">방송 계정</string>
     <string name="action_connect">연동</string>
-    <string name="action_reconnect">재연동</string>
+    <string name="action_reconnect">재연동</string><string name="action_change_youtube_account">계정 변경</string><string name="youtube_account_change_unavailable">방송 준비 또는 진행 중에는 YouTube 계정을 변경할 수 없습니다.</string>
     <string name="action_save_broadcast_settings">방송 설정 저장</string>
     <string name="privacy_public">공개</string>
     <string name="privacy_unlisted">일부 공개</string>
@@ -257,4 +264,31 @@
     <string name="privacy_policy">개인정보처리방침</string>
     <string name="action_view_privacy_policy">개인정보처리방침 전문 보기</string>
     <string name="youtube_transmission_notice">이 안내를 확인하지 않으면 방송 준비를 진행하지 않습니다. 개인정보 관련 문의는 개인정보처리방침의 연락처로 요청할 수 있습니다.</string>
+    <string name="ai_mode_server">서버 AI</string>
+    <string name="settings_ai_processing">AI 처리 방식</string>
+    <string name="ai_mode_change_availability">방송 준비 전 또는 미리보기 상태에서 변경할 수 있습니다. 다음 방송 준비에서 새 방식으로 연결합니다.</string>
+    <string name="ai_mode_on_device">온디바이스 AI</string>
+    <string name="local_face_title">기기 얼굴 관리</string>
+    <string name="local_face_description">등록한 얼굴만 온디바이스 방송에서 블러 예외가 됩니다. 사진은 저장하거나 서버로 보내지 않습니다.</string>
+    <string name="local_face_model_preparing">얼굴 인식 모델 준비 중…</string>
+    <string name="local_face_model_failed">얼굴 인식 모델을 준비하지 못했습니다.</string>
+    <string name="local_face_name">이름</string>
+    <string name="local_face_enroll">카메라로 등록</string>
+    <string name="local_face_enrolling">얼굴 특징을 분석하고 있습니다…</string>
+    <string name="local_face_enroll_failed">얼굴을 등록하지 못했습니다. 한 명만 선명하게 보이도록 다시 시도해 주세요.</string>
+    <string name="local_face_store_error">기기 등록 데이터를 읽거나 저장하지 못했습니다. 얼굴 예외를 중지했습니다.</string>
+    <string name="local_face_delete">기기 등록 얼굴 삭제</string>
+    <string name="local_face_timeout">등록 시간이 지났습니다. 다시 시도해 주세요.</string>
+    <string name="session_notice_broadcast_limit_30m">이번 방송 가능 시간이 30분 남았습니다.</string>
+    <string name="session_notice_broadcast_limit_10m">이번 방송 가능 시간이 10분 남았습니다.</string>
+    <string name="session_notice_broadcast_limit_reached">방송 최대 시간에 도달해 송출을 종료했습니다.</string>
+    <string name="session_notice_monthly_usage_80">이번 달 방송 시간을 80% 사용했습니다.</string>
+    <string name="session_notice_monthly_usage_100">이번 달 방송 시간을 100% 사용했습니다.</string>
+    <string name="session_notice_monthly_limit_reached">이번 달 방송 시간을 모두 사용해 송출을 종료했습니다.</string>
+    <string name="session_notice_no_input_stopped">영상 입력이 없어 송출을 종료했습니다.</string>
+    <string name="session_notice_channel_live_elsewhere">치지직 채널이 이미 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 끝내세요.</string>
+    <string name="session_notice_platform_broadcast_ended">플랫폼 스튜디오에서 방송이 종료되어 송출을 멈췄습니다.</string>
+    <string name="session_notice_youtube_quota_low">오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다.</string>
+    <string name="session_usage_warning_test_show">테스트 배너 표시</string>
+    <string name="session_usage_warning_test_hide">테스트 배너 숨기기</string>
 </resources>
