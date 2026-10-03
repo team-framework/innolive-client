@@ -55,11 +55,11 @@
     "sceneFocus": "인트로 {n}. 당신에게만 집중."
   },
   "hero": {
-    "line1": "주인공이 아니라면",
-    "line2Prefix": "과감하게 ",
-    "line2Blur": "가리기.",
-    "support1": "야외 방송에 노출된 행인의 얼굴을 아직도 일일이 지우고 계신가요?",
-    "support2": "InnoLive와 함께 더욱 안전한 방송을 만들어 보세요.",
+    "line1": "라이브 방송에서",
+    "line2Prefix": "행인 얼굴을 자동으로 ",
+    "line2Blur": "가리세요",
+    "support1": "InnoLive는 라이브 방송에서 얼굴을 실시간으로 감지하고, 미등록 얼굴을 블러로 가립니다.",
+    "support2": "공개할 얼굴을 등록하고 송출 전에 행인 얼굴 가리기 결과를 확인하세요.",
     "tryOut": "Try Out"
   },
   "privacy": {
@@ -91,7 +91,7 @@
     "platforms": "다양한 플랫폼에 직접 송출",
     "lettering": "AI 비식별화 라이브",
     "letteringAria": "AI 비식별화 라이브",
-    "chzzkAlt": "치지직",
+    "chzzkAlt": "치지직(CHZZK)",
     "resolution": "고해상도 라이브",
     "free": "무료 요금제로 LITE하게**",
     "note1": "*서버-AI간 지연시간 측정 자료, 네트워크 환경 및 기기에 따라 변동 가능",
@@ -110,7 +110,7 @@
       },
       {
         "question": "Q. 어떤 방송 플랫폼에서 사용할 수 있나요?",
-        "answer": "InnoLive는 현재 YouTube, CHZZK을 지원하고 있습니다."
+        "answer": "InnoLive는 현재 유튜브와 치지직(CHZZK)을 지원합니다."
       },
       {
         "question": "Q. 제 얼굴이 방송에서 가려져요.",

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { FAQSection } from "@/components/faq-section";
 import { FeatureSection } from "@/components/feature-section";
 import { Footer } from "@/components/footer";
@@ -8,7 +9,7 @@ import { PrivacySection } from "@/components/privacy-section";
 import {SmoothScroll} from "@/components/smooth-wrapper";
 import { notFound } from "next/navigation";
 import { defaultLocale, isLocale } from "@/lib/locales";
-import { pageMetadata } from "@/lib/seo";
+import { siteOrigin, pageMetadata } from "@/lib/seo";
 import { seoCopy } from "@/lib/seo-copy";
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -23,6 +24,13 @@ export default async function Home({ params }: PageProps) {
   if (!isLocale(locale)) notFound();
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "Organization", "@id": `${siteOrigin}/#organization`, name: "InnoLive", url: siteOrigin, logo: `${siteOrigin}/brand/logo-header.svg` },
+          { "@type": "WebSite", name: "InnoLive", url: siteOrigin, inLanguage: locale, publisher: { "@id": `${siteOrigin}/#organization` } },
+        ],
+      }).replace(/</g, "\\u003c") }} />
       <IntroScroll />
       <Header />
       <main
@@ -35,6 +43,17 @@ export default async function Home({ params }: PageProps) {
           <Hero />
           <PrivacySection />
           <FeatureSection />
+          {locale === "ko" && (
+            <section aria-labelledby="mosaic-guides-heading" className="mx-auto flex max-w-[72rem] flex-col gap-6 px-[var(--page-gutter)] py-16">
+              <h2 id="mosaic-guides-heading" className="text-heading">라이브 모자이크와 얼굴 비식별화</h2>
+              <p className="text-body leading-relaxed">실시간 모자이크와 자동 모자이크를 찾는 방송자를 위해 얼굴 자동 모자이크의 동작과 현재 블러 방식을 안내합니다. 행인 얼굴 모자이크가 필요한 야외 방송에서 라이브 방송 개인정보 보호를 준비하세요.</p>
+              <div className="flex flex-wrap gap-x-8 gap-y-4 text-body leading-relaxed">
+                <Link href="/ko/live-mosaic" className="underline">실시간 자동 모자이크 자세히 보기</Link>
+                <Link href="/ko/face-mosaic" className="underline">얼굴 자동 모자이크 기능 확인</Link>
+                <Link href="/ko/blog/live-face-blur" className="underline">라이브 방송에서 행인 얼굴 가리는 방법</Link>
+              </div>
+            </section>
+          )}
           <FAQSection searchQuestions={seoCopy[locale].faq} />
           <Footer />
         </SmoothScroll>
