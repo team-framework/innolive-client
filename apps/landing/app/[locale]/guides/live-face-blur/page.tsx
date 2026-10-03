@@ -29,6 +29,7 @@ export default async function LiveFaceBlurGuide({ params }: PageProps) {
           </section>
         ))}
         <nav className="mt-12 flex flex-wrap gap-6 text-lg">
+          {locale === "ko" && <Link href="/ko/live-mosaic" className="underline">실시간 얼굴 가리기 가이드</Link>}
           <Link href={localePath(locale, "/try-out")} className="underline">{guide.demo}</Link>
           <Link href={localePath(locale, "/support")} className="underline">{guide.support}</Link>
         </nav>

@@ -43,7 +43,7 @@ export function SeoGuidePage({ guide }: { guide: SeoGuide }) {
             <h2 id="plan-summary-heading" className="text-2xl font-semibold md:text-3xl">개인 요금제의 현재 가격</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-base leading-relaxed">
-                <caption className="sr-only">Spark·Glow·Beam·Plasma의 월 정가와 현재 표시 가격</caption>
+                <caption className="sr-only">Spark·Glow·Beam·Plasma의 월 정가와 베타 기간 가격</caption>
                 <thead><tr>
                   <th scope="col" className="px-3 py-3">요금제</th>
                   <th scope="col" className="px-3 py-3">월 정가</th>
@@ -58,7 +58,7 @@ export function SeoGuidePage({ guide }: { guide: SeoGuide }) {
                 ))}</tbody>
               </table>
             </div>
-            <p className="text-base leading-relaxed text-text-secondary">최신 가격·이용 한도·송출 조건은 <Link href="/ko/pricing" className="underline">가격 안내</Link>에서 확인하세요.</p>
+            <p className="text-base leading-relaxed text-text-secondary">요금제별 방송 시간·얼굴 등록 수·송출 조건은 <Link href="/ko/pricing" className="underline">가격 안내</Link>에서 확인하세요.</p>
           </section>
         )}
         {guide.faq && (

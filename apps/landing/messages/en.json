@@ -44,7 +44,8 @@
     "terms": "Terms of Service",
     "support": "Support",
     "faq": "FAQ",
-    "socialMissing": "{name} link is not available yet"
+    "socialMissing": "{name} link is not available yet",
+    "guide": "User guide"
   },
   "intro": {
     "dialogLabel": "InnoLive introduction",
@@ -58,8 +59,8 @@
     "line1": "If you're not the star,",
     "line2Prefix": "cover them ",
     "line2Blur": "boldly.",
-    "support1": "InnoLive detects faces in live video and blurs unregistered faces in real time.",
-    "support2": "Register participants who should stay visible, then check the face blur before broadcasting.",
+    "support1": "Are you still editing out bystanders' faces one by one after an outdoor stream?",
+    "support2": "Make safer broadcasts with InnoLive.",
     "tryOut": "Try Out"
   },
   "privacy": {

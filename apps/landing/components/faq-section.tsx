@@ -4,12 +4,11 @@ import Image from "next/image";
 import { observeSectionAnimation } from "@/lib/landing-animation";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { liveFaceBlurGuide } from "@/lib/live-face-blur-guide";
 import { useLocale } from "@/components/locale-provider";
 import { getHomeFaq } from "@/lib/faq";
 
 export function FAQSection() {
-  const { href, messages, locale } = useLocale();
+  const { messages, locale } = useLocale();
   const items = getHomeFaq(locale);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -79,10 +78,6 @@ export function FAQSection() {
             {messages.faq.subtitle}
           </p>
         </div>
-
-        <Link href={href("/guides/live-face-blur")} className="text-lg text-text-primary underline [text-underline-position:from-font]">
-          {liveFaceBlurGuide[locale].title}
-        </Link>
 
         <div className="flex w-full flex-col gap-3">
           {items.map((item, index) => (
