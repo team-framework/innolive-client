@@ -11,7 +11,7 @@ export function TypewriterHeroHeading() {
   const firstLine = messages.hero.line1;
   const secondPrefix = messages.hero.line2Prefix;
   const blurText = messages.hero.line2Blur;
-  const heading = `${firstLine}${secondPrefix}${blurText}`;
+  const heading = `${firstLine} ${secondPrefix}${blurText}`;
   const [typedLength, setTypedLength] = useState(0);
 
   useEffect(() => {

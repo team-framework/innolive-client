@@ -10,8 +10,8 @@ type SearchCopy = {
 export const seoCopy: Record<Locale, SearchCopy> = {
   ko: {
     home: {
-      title: "InnoLive 이노라이브 | 라이브 블러·실시간 비식별화",
-      description: "라이브 방송에서 등록한 출연자는 보여주고 다른 얼굴은 실시간 블러로 가립니다. InnoLive 이노라이브의 AI 비식별화를 웹에서 체험하세요.",
+      title: "라이브 방송 실시간 자동 모자이크 | InnoLive",
+      description: "유튜브와 치지직(CHZZK) 라이브 방송에서 행인 얼굴을 실시간으로 감지하고 자동으로 가리는 방송 도구입니다. InnoLive는 블러 방식으로 얼굴을 비식별화합니다.",
     },
     pricing: {
       title: "실시간 방송 블러·비식별화 요금제 | InnoLive",
