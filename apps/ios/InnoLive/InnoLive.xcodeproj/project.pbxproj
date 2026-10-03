@@ -346,7 +346,7 @@
 				CHZZK_CALLBACK_HOST = innolive.studio;
 				CODE_SIGN_ENTITLEMENTS = InnoLive/InnoLive.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = SPT4X66Z4V;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -362,7 +362,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1;
+				MARKETING_VERSION = 0.1.1;
 				INNOLIVE_BUNDLE_IDENTIFIER = com.framework.innolive;
 				INNOLIVE_DISPLAY_NAME = InnoLive;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(INNOLIVE_BUNDLE_IDENTIFIER)";
@@ -387,7 +387,7 @@
 				CHZZK_CALLBACK_HOST = innolive.studio;
 				CODE_SIGN_ENTITLEMENTS = InnoLive/InnoLive.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = SPT4X66Z4V;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -403,7 +403,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.1;
+				MARKETING_VERSION = 0.1.1;
 				INNOLIVE_BUNDLE_IDENTIFIER = com.framework.innolive;
 				INNOLIVE_DISPLAY_NAME = InnoLive;
 				PRODUCT_BUNDLE_IDENTIFIER = "$(INNOLIVE_BUNDLE_IDENTIFIER)";
