@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -120,11 +121,12 @@ internal fun ChzzkSettingsDialog(
                 Text(accountLabel)
                 Row {
                     TextButton(onClick = onRefreshAccount, enabled = canConnect && !isBusy) { Text("계정 상태 다시 확인") }
-                    Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text("연결 / 재연결") }
+                    Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text("연결") }
                     TextButton(onClick = onDisconnect, enabled = canDisconnect && !isBusy) { Text("연결 해제") }
                 }
                 OutlinedTextField(settings.title, { onChanged(settings.copy(title = it)) },
-                    label = { Text("방송 제목 (최대 100자)") }, modifier = Modifier.fillMaxWidth())
+                    label = { Text("방송 제목") }, singleLine = true,
+                    modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth())
                 OutlinedTextField(query, { query = it }, label = { Text("카테고리 검색") },
                     modifier = Modifier.fillMaxWidth())
                 Button(onClick = {
