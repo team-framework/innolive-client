@@ -129,9 +129,16 @@ struct BroadcastPreparationControlLabel: View {
 struct BroadcastSessionStatusView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    @State private var isShowingUpgradeOffer = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            if youtube.upgradeOffer != nil {
+                Button { isShowingUpgradeOffer = true } label: {
+                    Label(String(localized: "방송 업그레이드 제안", table: "UpgradeOffer"), systemImage: "arrow.up.circle")
+                }
+                .accessibilityIdentifier("upgrade-offer-entry")
+            }
             ForEach(youtube.visibleBroadcastTargets) { target in
                 let policy = YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false)
                 Text(policy.streamStatusText.replacingOccurrences(of: "YouTube", with: target.title))
@@ -194,6 +201,12 @@ struct BroadcastSessionStatusView: View {
         }
         .font(.caption)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .sheet(isPresented: $isShowingUpgradeOffer) {
+            NavigationStack { UpgradeOfferView(authentication: authentication, youtube: youtube) }
+        }
+        .onChange(of: youtube.upgradeOffer) { _, offer in
+            if offer == nil { isShowingUpgradeOffer = false }
+        }
     }
 }
 

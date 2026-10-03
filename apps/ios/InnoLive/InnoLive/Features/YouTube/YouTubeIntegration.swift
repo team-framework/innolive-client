@@ -81,11 +81,178 @@ final class YouTubeIntegration: ObservableObject {
     private var broadcastModeQualityRequest = UUID()
     private var observedModeCompletion: BroadcastResolutionSwitch?
 
+    @Published private(set) var isHandlingUpgradeOffer = false
+    @Published private(set) var upgradeOfferError: String?
+    private var upgradeOfferRequest = UUID()
+    private var upgradeOfferExpirationTask: Task<Void, Never>?
+    private var dismissedUpgradeOffer = false
+    private var savedUpgradeProviders: Set<BroadcastSettingsProvider> = []
+    private var confirmedUpgradeMode: String?
+
+    var upgradeOffer: BroadcastUpgradeOffer? { responseState.details.upgradeOffer }
+    var selectedUpgradeOption: BroadcastUpgradeOption? { upgradeOffer?.selectedOption }
+    var upgradeSettingsProviders: [BroadcastSettingsProvider] {
+        guard let targets = selectedUpgradeOption?.supportedTargets else { return [] }
+        return targets.subtracting(Set(liveEditingTargets)).sorted { $0.rawValue < $1.rawValue }
+    }
+
+    // 확인 전 호출도 거절해 재시작 확인 취소 시 API를 보내지 않는다.
+    @discardableResult
+    func chooseUpgradeOption(mode: String, restartConfirmed: Bool = false, accessToken: String?) async -> Bool {
+        guard canChangeBroadcastMode, let offer = upgradeOffer, !offer.isExpired(),
+              let option = offer.options?.first(where: { $0.mode == mode }),
+              let targets = option.supportedTargets, (!option.restartsBroadcast || restartConfirmed),
+              let current = session, let accessToken, !accessToken.isEmpty else { return false }
+        upgradeOfferError = nil
+        if !option.needsSettings {
+            return await changeBroadcastMode(resolution: option.resolution, targets: targets, accessToken: accessToken,
+                                             upgradeOption: option)
+        }
+        // 같은 선택의 설정 재진입은 select를 반복하거나 보류 시간을 연장하지 않는다.
+        if offer.selected == mode { confirmedUpgradeMode = mode; return true }
+        let request = UUID()
+        let generation = sessionOperationGeneration
+        let scope = settingsScopeKey(accessToken: accessToken)
+        upgradeOfferRequest = request
+        isHandlingUpgradeOffer = true
+        upgradeOfferExpirationTask?.cancel()
+        stopPolling()
+        func isCurrent() -> Bool {
+            upgradeOfferRequest == request && generation == sessionOperationGeneration
+                && session?.sessionID == current.sessionID && settingsScopeKey(accessToken: accessToken) == scope
+                && !Task.isCancelled
+        }
+        defer {
+            if upgradeOfferRequest == request {
+                isHandlingUpgradeOffer = false
+                synchronizeUpgradeOffer()
+            }
+            if generation == sessionOperationGeneration, session?.sessionID == current.sessionID {
+                beginPolling(accessToken: accessToken)
+            }
+        }
+        do {
+            let snapshot = try await api.selectUpgradeOffer(session: current, accessToken: accessToken, mode: mode)
+            guard isCurrent() else { return false }
+            _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            guard upgradeOffer?.selected == mode, upgradeOffer?.isExpired() == false else { return false }
+            confirmedUpgradeMode = mode
+            return true
+        } catch {
+            guard isCurrent() else { return false }
+            handleUpgradeOfferError(error)
+            if !isUpgradeOfferNotFound(error),
+               let snapshot = try? await api.sessionStatus(session: current, accessToken: accessToken), isCurrent() {
+                _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            }
+            return false
+        }
+    }
+
+    @discardableResult
+    func saveUpgradeOfferSettings(provider: BroadcastSettingsProvider, accessToken: String?) async -> Bool {
+        guard let option = selectedUpgradeOption, option.needsSettings,
+              !option.restartsBroadcast || confirmedUpgradeMode == option.mode,
+              upgradeOffer?.isExpired() == false, upgradeSettingsProviders.contains(provider),
+              let targets = option.supportedTargets else { return false }
+        let request = upgradeOfferRequest
+        let saved = await saveBroadcastModeSettings(provider: provider, accessToken: accessToken)
+        guard saved, request == upgradeOfferRequest, selectedUpgradeOption?.mode == option.mode,
+              upgradeOffer?.isExpired() == false else { return false }
+        savedUpgradeProviders.insert(provider)
+        guard Set(upgradeSettingsProviders).isSubset(of: savedUpgradeProviders) else { return true }
+        return await changeBroadcastMode(resolution: option.resolution, targets: targets, accessToken: accessToken,
+                                         upgradeOption: option, savedAddedProviders: savedUpgradeProviders)
+    }
+
+    @discardableResult
+    func declineUpgradeOffer(accessToken: String?) async -> Bool {
+        guard upgradeOffer != nil, !isHandlingUpgradeOffer, !isChangingBroadcastMode,
+              !isSavingLiveSettings, !isChangingStreamState, !isEndingSession,
+              let current = session, let accessToken, !accessToken.isEmpty else { return false }
+        let request = UUID()
+        let generation = sessionOperationGeneration
+        let scope = settingsScopeKey(accessToken: accessToken)
+        upgradeOfferRequest = request
+        isHandlingUpgradeOffer = true
+        upgradeOfferError = nil
+        stopPolling()
+        defer {
+            if upgradeOfferRequest == request { isHandlingUpgradeOffer = false }
+            if generation == sessionOperationGeneration, session?.sessionID == current.sessionID {
+                beginPolling(accessToken: accessToken)
+            }
+        }
+        func isCurrent() -> Bool {
+            request == upgradeOfferRequest && generation == sessionOperationGeneration
+                && session?.sessionID == current.sessionID && settingsScopeKey(accessToken: accessToken) == scope
+                && !Task.isCancelled
+        }
+        do {
+            let snapshot = try await api.declineUpgradeOffer(session: current, accessToken: accessToken)
+            guard isCurrent() else { return false }
+            _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            closeUpgradeOffer()
+            return true
+        } catch {
+            guard isCurrent() else { return false }
+            handleUpgradeOfferError(error)
+            return false
+        }
+    }
+
+    private func handleUpgradeOfferError(_ error: Error) {
+        if isUpgradeOfferNotFound(error) {
+            closeUpgradeOffer()
+        } else {
+            upgradeOfferError = String(localized: "제안을 처리하지 못했습니다. 다시 시도해 주세요.", table: "UpgradeOffer")
+        }
+    }
+
+    private func isUpgradeOfferNotFound(_ error: Error) -> Bool {
+        guard let apiError = error as? YouTubeAPIError, case let .api(code, _, _) = apiError else { return false }
+        return code == "upgrade_offer_not_found"
+    }
+
+    private func closeUpgradeOffer() {
+        dismissedUpgradeOffer = true
+        responseState.details.upgradeOffer = nil
+        upgradeOfferExpirationTask?.cancel()
+        upgradeOfferExpirationTask = nil
+        upgradeOfferRequest = UUID()
+        isHandlingUpgradeOffer = false
+        upgradeOfferError = nil
+        savedUpgradeProviders = []
+        confirmedUpgradeMode = nil
+    }
+
+    private func synchronizeUpgradeOffer() {
+        upgradeOfferExpirationTask?.cancel()
+        upgradeOfferExpirationTask = nil
+        guard !dismissedUpgradeOffer else { responseState.details.upgradeOffer = nil; return }
+        guard let offer = upgradeOffer else { return }
+        guard let expiration = offer.expirationDate, expiration > Date() else { closeUpgradeOffer(); return }
+        let generation = sessionOperationGeneration
+        let sessionID = session?.sessionID
+        upgradeOfferExpirationTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(expiration.timeIntervalSinceNow)) }
+            catch { return }
+            guard let self, !Task.isCancelled, generation == self.sessionOperationGeneration,
+                  sessionID == self.session?.sessionID, self.upgradeOffer?.expiresAt == offer.expiresAt else { return }
+            self.closeUpgradeOffer()
+        }
+    }
+
+    private func resetUpgradeOffer() {
+        closeUpgradeOffer()
+        dismissedUpgradeOffer = false
+    }
+
     var canChangeBroadcastMode: Bool {
         session != nil && !liveEditingTargets.isEmpty && !isChangingBroadcastMode
             && !isSavingLiveSettings && !isChangingStreamState && !isEndingSession
             && !isPreparingSession && !isConnectingVideo && !isRecoveringVideoFailure
-            && !isYouTubeConnectionOperationInProgress && !videoUplink.isSwitchingCamera
+            && !isYouTubeConnectionOperationInProgress && !videoUplink.isSwitchingCamera && !isHandlingUpgradeOffer
     }
 
     @discardableResult
@@ -141,9 +308,15 @@ final class YouTubeIntegration: ObservableObject {
 
     // 추가 대상은 UI에서 설정을 편집한 뒤 이 메서드를 호출한다. 저장 성공 후에만 전환한다.
     @discardableResult
-    func changeBroadcastMode(resolution: String, targets: Set<BroadcastSettingsProvider>, accessToken: String?) async -> Bool {
+    func changeBroadcastMode(resolution: String, targets: Set<BroadcastSettingsProvider>, accessToken: String?,
+                             upgradeOption: BroadcastUpgradeOption? = nil,
+                             savedAddedProviders: Set<BroadcastSettingsProvider> = []) async -> Bool {
         guard canChangeBroadcastMode, let current = session, let accessToken, !accessToken.isEmpty,
               ["720p", "fhd"].contains(resolution), !targets.isEmpty else { return false }
+        if let upgradeOption {
+            guard upgradeOffer?.isExpired() == false,
+                  upgradeOffer?.options?.contains(upgradeOption) == true else { return false }
+        }
         if let snapshot = planStore.snapshot, !snapshot.canPrepare(.current(resolution: resolution, targetCount: targets.count)) {
             broadcastModeError = String(localized: "현재 요금제와 남은 시간으로 선택한 송출 방식을 사용할 수 없습니다.", table: "BroadcastMode")
             return false
@@ -191,7 +364,7 @@ final class YouTubeIntegration: ObservableObject {
             }
         }
         do {
-            for provider in added {
+            for provider in added where !savedAddedProviders.contains(provider) {
                 settingsEditor.cancelDefaults(provider: provider)
                 let snapshot: YouTubeSessionResponse
                 if provider == .youtube {
@@ -204,6 +377,10 @@ final class YouTubeIntegration: ObservableObject {
                 settingsEditor.persist(provider: provider)
             }
             guard isCurrent() else { return false }
+            if let upgradeOption {
+                guard upgradeOffer?.isExpired() == false,
+                      upgradeOffer?.options?.contains(upgradeOption) == true else { return false }
+            }
             let snapshot = try await api.changeBroadcastMode(session: current, accessToken: accessToken,
                                                              resolution: resolution, targets: targets)
             guard isCurrent() else {
@@ -212,11 +389,16 @@ final class YouTubeIntegration: ObservableObject {
                 return false
             }
             _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            if upgradeOption != nil { closeUpgradeOffer() }
             return true
         } catch {
             guard isCurrent() else {
                 if broadcastModeRequest == request, generation == sessionOperationGeneration,
                    session?.sessionID == current.sessionID { broadcastModeAwaitingStatus = true }
+                return false
+            }
+            if upgradeOption != nil, isUpgradeOfferNotFound(error) {
+                closeUpgradeOffer()
                 return false
             }
             if let field = error as? BroadcastSettingsFieldError { settingsEditor.showFieldError(field) }
@@ -473,7 +655,7 @@ final class YouTubeIntegration: ObservableObject {
     func canEditLiveBroadcast(_ provider: BroadcastSettingsProvider) -> Bool {
         session != nil && liveEditingTargets.contains(provider) && !unavailableLiveProviders.contains(provider) && !isChangingStreamState
             && !isChangingBroadcastMode && responseState.details.resolutionSwitch?.status != "switching"
-            && !isEndingSession
+            && !isEndingSession && !isHandlingUpgradeOffer
     }
 
     func beginLiveEditing(_ provider: BroadcastSettingsProvider, accessToken: String?) {
@@ -587,11 +769,11 @@ final class YouTubeIntegration: ObservableObject {
 
     var isYouTubeBroadcastPaused: Bool { statePolicy.isBroadcastPaused }
 
-    var canPauseYouTubeBroadcast: Bool { !isChangingBroadcastMode && statePolicy.canPauseBroadcast }
+    var canPauseYouTubeBroadcast: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canPauseBroadcast }
 
-    var canResumeYouTubeBroadcast: Bool { !isChangingBroadcastMode && statePolicy.canResumeBroadcast }
+    var canResumeYouTubeBroadcast: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canResumeBroadcast }
 
-    var canChangeYouTubePauseState: Bool { !isChangingBroadcastMode && statePolicy.canChangePauseState }
+    var canChangeYouTubePauseState: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canChangePauseState }
 
     var streamStatusText: String { statePolicy.streamStatusText }
 
@@ -600,7 +782,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var isYouTubeAccountChangeBlocked: Bool {
-        isBroadcastSettingsLocked || isChangingBroadcastMode
+        isBroadcastSettingsLocked || isChangingBroadcastMode || isHandlingUpgradeOffer
             || isYouTubeConnectionOperationInProgress
     }
 
@@ -613,7 +795,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var isCHZZKAccountChangeBlocked: Bool {
-        isChangingBroadcastMode || isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
+        isChangingBroadcastMode || isHandlingUpgradeOffer || isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
             || isEndingSession || preparationStatus?.isRunning == true
             || preparationStatus?.phase == .cancelling
             || StreamingAccountPolicy.isInUse("chzzk", snapshot: responseState)
@@ -1596,7 +1778,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func goLiveYouTubeStream(accessToken: String?) async {
-        guard !isChangingBroadcastMode else { return }
+        guard !isChangingBroadcastMode, !isHandlingUpgradeOffer else { return }
         clearError()
         guard !isChangingStreamState else { return }
         guard let accessToken, !accessToken.isEmpty else {
@@ -1755,6 +1937,7 @@ final class YouTubeIntegration: ObservableObject {
         settingsEditor.reset()
         resetLiveEditing()
         resetBroadcastMode()
+        resetUpgradeOffer()
         streamingAccounts = []
         preparationGeneration &+= 1
         preparationStatus = nil
@@ -1879,7 +2062,11 @@ final class YouTubeIntegration: ObservableObject {
         let confirmedLiveTrack = videoTrack?.readyStateValue == .live ? videoTrack : nil
         isRemainingTimeStale = false
         let previouslyLive = Set(liveEditingTargets)
+        let previousOffer = upgradeOffer
         responseState.apply(response, provider: provider, clearsWarnings: clearsWarnings)
+        if previousOffer != nil && upgradeOffer == nil { closeUpgradeOffer() }
+        if previousOffer?.selected != upgradeOffer?.selected { savedUpgradeProviders = []; confirmedUpgradeMode = nil }
+        synchronizeUpgradeOffer()
         responseRevision &+= 1
         broadcastModeAwaitingStatus = false
         reconcileBroadcastModeState()
@@ -1909,6 +2096,7 @@ final class YouTubeIntegration: ObservableObject {
     private func clearSessionResponseState() {
         resetLiveEditing()
         resetBroadcastMode()
+        resetUpgradeOffer()
         targetActionErrors = [:]
         liveStartFailures = []
         preparationFailures = [:]
@@ -2169,7 +2357,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, providers: [String?]) async {
-        guard !isChangingStreamState, (!isChangingBroadcastMode || action == .stop),
+        guard !isChangingStreamState, (!isChangingBroadcastMode || action == .stop), (!isHandlingUpgradeOffer || action == .stop),
               !broadcastModeRequestInFlight, backgroundPauseTask == nil else { return }
         clearError()
         guard let accessToken, !accessToken.isEmpty else { showError(.unauthorized); return }

@@ -1,0 +1,468 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "방송 업그레이드 제안": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 업그레이드 제안"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast upgrade offer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信アップグレードの提案"
+          }
+        }
+      }
+    },
+    "제안 만료까지 %lld초": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제안 만료까지 %lld초"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offer expires in %lld seconds"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提案の有効期限まで%lld秒"
+          }
+        }
+      }
+    },
+    "만료 시각: %@": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "만료 시각: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expires at: %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有効期限: %@"
+          }
+        }
+      }
+    },
+    "방송 시간 차감: %lld배 → %lld배": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 시간 차감: %lld배 → %lld배"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time usage multiplier: %lld× → %lld×"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信時間の消費倍率: %lld倍 → %lld倍"
+          }
+        }
+      }
+    },
+    "전환 후 남은 시간: %lld분": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전환 후 남은 시간: %lld분"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time remaining after switching: %lld minutes"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切り替え後の残り時間: %lld分"
+          }
+        }
+      }
+    },
+    "전환 후 시간 제한 없음": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전환 후 시간 제한 없음"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No time limit after switching"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切り替え後の時間制限なし"
+          }
+        }
+      }
+    },
+    "전환 후 남은 시간 확인 필요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전환 후 남은 시간 확인 필요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remaining time after switching is unavailable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切り替え後の残り時間は未確認"
+          }
+        }
+      }
+    },
+    "방송을 다시 시작하며 잠시 끊길 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 다시 시작하며 잠시 끊길 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast will restart and may briefly disconnect."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を再開する際に一時的に途切れることがあります。"
+          }
+        }
+      }
+    },
+    "같은 시청 링크 유지": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "같은 시청 링크 유지"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same viewer link"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "視聴リンクを維持"
+          }
+        }
+      }
+    },
+    "새 시청 링크 생성": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 시청 링크 생성"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New viewer link"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しい視聴リンクを作成"
+          }
+        }
+      }
+    },
+    "약 %lld초 송출 공백": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "약 %lld초 송출 공백"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %lld seconds off air"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "約%lld秒の配信中断"
+          }
+        }
+      }
+    },
+    "설정을 저장하면 선택한 방식으로 전환합니다. 보류 시간은 서버와 동기화됩니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정을 저장하면 선택한 방식으로 전환합니다. 보류 시간은 서버와 동기화됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save the settings to switch to the selected mode. The hold expires at the time supplied by the server."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定を保存すると選択した方式に切り替わります。保留期限はサーバーと同期されます。"
+          }
+        }
+      }
+    },
+    "추가 플랫폼 설정": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가 플랫폼 설정"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set up added platform"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加プラットフォームの設定"
+          }
+        }
+      }
+    },
+    "이 방식으로 전환": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 방식으로 전환"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to this mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この方式に切り替え"
+          }
+        }
+      }
+    },
+    "이 제안의 선택지를 확인할 수 없습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 제안의 선택지를 확인할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The options for this offer are unavailable."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この提案の選択肢を確認できません。"
+          }
+        }
+      }
+    },
+    "제안 거절": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제안 거절"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decline offer"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提案を拒否"
+          }
+        }
+      }
+    },
+    "방송을 다시 시작할까요?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 다시 시작할까요?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restart the broadcast?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を再開しますか？"
+          }
+        }
+      }
+    },
+    "전환": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전환"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切り替え"
+          }
+        }
+      }
+    },
+    "제안을 처리하지 못했습니다. 다시 시도해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제안을 처리하지 못했습니다. 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The offer could not be processed. Please try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提案を処理できませんでした。もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "설정 저장까지 남은 시간 %lld초": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "설정 저장까지 남은 시간 %lld초"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld seconds left to save settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "設定保存まで残り%lld秒"
+          }
+        }
+      }
+    },
+    "저장 후 전환": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장 후 전환"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save and switch"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存して切り替え"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

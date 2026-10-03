@@ -73,6 +73,10 @@ private struct BroadcastModeRequest: Encodable {
     let targets: [String]
 }
 
+private struct UpgradeOfferSelectionRequest: Encodable {
+    let mode: String
+}
+
 private struct AnonymizationRequest: Encodable {
     let enabled: Bool
 }
@@ -301,6 +305,19 @@ final class YouTubeAPI: PlanAPIClient {
         try await request(path: "/sessions/\(session.sessionID)/broadcast-mode", method: "PUT",
                           accessToken: accessToken, ownerToken: session.ownerToken,
                           body: BroadcastModeRequest(resolution: resolution, targets: targets.map(\.rawValue).sorted()))
+    }
+
+    func selectUpgradeOffer(session: YouTubeBroadcastSession, accessToken: String,
+                            mode: String) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/upgrade-offer/select", method: "POST",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: UpgradeOfferSelectionRequest(mode: mode))
+    }
+
+    func declineUpgradeOffer(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/upgrade-offer", method: "DELETE",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: Optional<YouTubeEmptyRequest>.none)
     }
 
     func broadcastDefaults(session: YouTubeBroadcastSession, accessToken: String,
