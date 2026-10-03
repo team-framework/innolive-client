@@ -89,14 +89,6 @@
       "fit": "broad"
     },
     {
-      "id": "q11",
-      "keyword": "OBS 자동 모자이크",
-      "prompt": "OBS 자동 모자이크로 행인 얼굴을 가릴 수 있는 도구 있어?",
-      "intent": "obs",
-      "sourcePath": "/ko/obs-face-blur",
-      "fit": "adjacent"
-    },
-    {
       "id": "q12",
       "keyword": "무료 모자이크",
       "prompt": "무료 모자이크 프로그램으로 얼굴을 자동으로 가릴 수 있어?",
@@ -249,14 +241,6 @@
       "fit": "direct"
     },
     {
-      "id": "q31",
-      "keyword": "야외방송 모자이크 OBS",
-      "prompt": "야외방송 모자이크 OBS에서 자동으로 적용하려면 어떤 도구가 필요해?",
-      "intent": "obs",
-      "sourcePath": "/ko/obs-face-blur",
-      "fit": "adjacent"
-    },
-    {
       "id": "q32",
       "keyword": "휴대폰 방송 얼굴 모자이크",
       "prompt": "휴대폰 방송 얼굴 모자이크를 자동으로 해 주는 앱 있어?",
@@ -340,8 +324,8 @@
       "id": "q42",
       "keyword": "버튜버 야방",
       "prompt": "버튜버 야방에서 행인 얼굴을 자동으로 가릴 수 있는 도구 있어?",
-      "intent": "obs",
-      "sourcePath": "/ko/obs-face-blur",
+      "intent": "whitelist",
+      "sourcePath": "/ko/face-mosaic",
       "fit": "adjacent"
     },
     {

@@ -49,7 +49,6 @@ export default async function Home({ params }: PageProps) {
                 <Link href="/ko/blog/live-face-blur" className="underline">라이브 방송에서 행인 얼굴 가리는 방법</Link>
                 <Link href="/ko/free-face-blur" className="underline">무료 자동 모자이크 이용 범위</Link>
                 <Link href="/ko/mobile-live-face-blur" className="underline">휴대폰 야외방송 얼굴 가리기</Link>
-                <Link href="/ko/obs-face-blur" className="underline">OBS 자동 모자이크와 사용 범위</Link>
               </div>
             </section>
           )}

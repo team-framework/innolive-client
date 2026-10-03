@@ -127,8 +127,8 @@ def main():
     paths = [url.removeprefix(ORIGIN) for url in urls]
     assert TARGETS <= set(paths), "missing AEO page in sitemap"
     queries = json.loads((Path(__file__).resolve().parents[3] / "docs/fixtures/landing-aeo-queries.ko.json").read_text())
-    assert len(queries["queries"]) == 45, "keyword inventory count"
-    assert len({query["keyword"] for query in queries["queries"]}) == 45, "duplicate keyword"
+    assert len(queries["queries"]) == 43, "keyword inventory count"
+    assert len({query["keyword"] for query in queries["queries"]}) == 43, "duplicate keyword"
     assert all("innolive" not in query["prompt"].lower() for query in queries["queries"]), "branded benchmark prompt"
     assert all(query["sourcePath"] in paths for query in queries["queries"]), "benchmark source missing from sitemap"
     pages = [check_page(base, path, robots) for path in paths]
