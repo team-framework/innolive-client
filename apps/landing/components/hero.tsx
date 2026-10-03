@@ -11,7 +11,7 @@ export function Hero() {
   const { href, locale, messages } = useLocale();
   return (
     <section
-      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 lg:h-screen lg:min-h-[calc(100dvh-var(--header-block-desktop))] lg:justify-center lg:pb-0 lg:pt-0"
+      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 lg:min-h-screen lg:justify-center lg:pb-28 lg:pt-0"
       aria-labelledby="hero-heading"
     >
       <div className="flex relative top-12 w-full max-w-[1640px] flex-col items-center gap-y-2 lg:flex-row lg:items-center lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
