@@ -1,0 +1,12 @@
+{
+  "commit": "c8e88d4600e6469f150af13d0a40016c5ad112d4",
+  "first_seo_commit": "329abf57b03ae42269189414768fbfd783aaacb2",
+  "selection": "first SEO implementation commit parent",
+  "source_extraction": "git archive c8e88d4600e6469f150af13d0a40016c5ad112d4 apps/landing",
+  "install": "pnpm install --frozen-lockfile",
+  "build": "npm run build",
+  "url": "http://localhost:3212/ko",
+  "source_modified": false,
+  "package.json_sha256": "5fd1490d5b81c2a313a5f1ccb5f75765928cdd4e9b83a3165fdaedfd7231e9ca",
+  "pnpm-lock.yaml_sha256": "3e1dafa2200c141c6688bbc66236017c0d9c1729e6098a469ab5c82f2b3bbf94"
+}

@@ -1,0 +1,45 @@
+[
+  {
+    "mode": "normal",
+    "blocked": 0,
+    "unlocked": {
+      "intro": false,
+      "complete": "true",
+      "overflow": "",
+      "inert": false
+    },
+    "errors": []
+  },
+  {
+    "mode": "pending-skip",
+    "blocked": 1,
+    "unlocked": {
+      "intro": false,
+      "complete": "true",
+      "overflow": "",
+      "inert": false
+    },
+    "errors": []
+  },
+  {
+    "mode": "failed-import",
+    "blocked": 2,
+    "unlocked": {
+      "intro": false,
+      "complete": "true",
+      "overflow": "",
+      "inert": false
+    },
+    "errors": []
+  },
+  {
+    "dpr": 1.75,
+    "video": "/mockups/hero-live-demo-mobile.mp4",
+    "introRequests": []
+  },
+  {
+    "dpr": 3,
+    "video": "/mockups/hero-live-demo.mp4",
+    "introRequests": []
+  }
+]
