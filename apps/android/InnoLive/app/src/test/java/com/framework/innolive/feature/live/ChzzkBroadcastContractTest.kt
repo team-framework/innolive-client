@@ -80,6 +80,24 @@ class ChzzkBroadcastContractTest {
             StreamingAccount("chzzk", "new", "new channel", false)).canPrepare)
     }
 
+    @Test fun reopeningSettingsDuringAccountDeletionCannotVerifyTheOldAccount() {
+        val oldAccount = StreamingAccount("chzzk", "old", "old channel", false)
+        val verified = ChzzkAccountVerification().confirm(0, oldAccount)
+        val deleting = verified.beginMutation()
+
+        assertTrue(deleting.mutationInProgress)
+        assertNull(deleting.beginRefresh())
+        assertFalse(deleting.confirm(deleting.revision, oldAccount).canPrepare)
+        assertFalse(deleting.canPrepare)
+
+        val finished = deleting.finishMutation(deleting.revision)
+        assertFalse(finished.mutationInProgress)
+        assertFalse(finished.canPrepare)
+        val refreshed = finished.beginRefresh()!!
+        assertFalse(refreshed.canPrepare)
+        assertFalse(refreshed.confirm(refreshed.revision, null).canPrepare)
+    }
+
     @Test fun emptySettingsRequireSuccessfulDefaultsBeforeSaving() {
         assertThrows(IOException::class.java) {
             resolveChzzkSettingsForPrepare(ChzzkBroadcastSettings()) {

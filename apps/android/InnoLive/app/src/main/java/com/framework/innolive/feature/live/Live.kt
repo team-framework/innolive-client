@@ -116,15 +116,27 @@ fun LiveScreen(
     val scope = rememberCoroutineScope()
     val chzzkApi = remember { runCatching { ChzzkApi(BuildConfig.INNOLIVE_SERVER_URL) }.getOrNull() }
     DisposableEffect(chzzkApi) { onDispose { chzzkApi?.close() } }
+    fun finishChzzkAccountMutation(revision: Long) {
+        if (chzzkAccountVerification.mutationRevision != revision) return
+        chzzkAccountVerification = chzzkAccountVerification.finishMutation(revision)
+        chzzkAccountRefreshKey++
+    }
     LaunchedEffect(selectedPlatform) {
         if (selectedPlatform == "CHZZK") webRtcSession.selectProvider(BroadcastProvider.CHZZK)
         if (selectedPlatform == "YouTube") webRtcSession.selectProvider(BroadcastProvider.YOUTUBE)
         if (selectedPlatform != null) providerPreferences.edit().putString("selected", selectedPlatform).apply()
     }
     LaunchedEffect(openChzzkSettingsDialog, props.profileEmail, chzzkAccountRefreshKey) {
-        val revision = chzzkAccountVerification.invalidate().also { chzzkAccountVerification = it }.revision
+        val refreshing = chzzkAccountVerification.beginRefresh() ?: return@LaunchedEffect
+        chzzkAccountVerification = refreshing
+        val revision = refreshing.revision
+        if (!openChzzkSettingsDialog) {
+            chzzkBusy = false
+            return@LaunchedEffect
+        }
         if (openChzzkSettingsDialog && props.profileEmail.isBlank()) {
             chzzkMessage = "먼저 로그인하세요."
+            chzzkBusy = false
         }
         if (openChzzkSettingsDialog && props.profileEmail.isNotBlank()) {
             chzzkBusy = true
@@ -372,7 +384,9 @@ fun LiveScreen(
                                 openChzzkSettingsDialog = false
                                 openPlatformDialog = true
                             },
-                            accountLabel = chzzkMessage ?: when {
+                            accountLabel = when {
+                                chzzkAccountVerification.mutationInProgress -> "계정 변경 확인 중"
+                                chzzkMessage != null -> chzzkMessage.orEmpty()
                                 !chzzkAccountVerification.verified -> "계정 상태 확인 중"
                                 chzzkAccountVerification.account == null -> "치지직 계정을 연결하세요."
                                 chzzkAccountVerification.account?.reconnectRequired == true -> "치지직 계정을 다시 연결하세요."
@@ -381,48 +395,56 @@ fun LiveScreen(
                             canPrepare = chzzkAccountVerification.canPrepare,
                             canConnect = props.profileEmail.isNotBlank(),
                             canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
-                            isBusy = chzzkBusy,
+                            isBusy = chzzkBusy || chzzkAccountVerification.mutationInProgress,
                             onChanged = { chzzkSettings = it },
                             onRefreshAccount = {
-                                chzzkAccountVerification = chzzkAccountVerification.invalidate()
-                                chzzkBusy = true
-                                chzzkAccountRefreshKey++
+                                if (!chzzkAccountVerification.mutationInProgress) {
+                                    chzzkAccountVerification = chzzkAccountVerification.invalidate()
+                                    chzzkBusy = true
+                                    chzzkAccountRefreshKey++
+                                }
                             },
-                            onConnect = {
-                                chzzkAccountVerification = chzzkAccountVerification.invalidate()
+                            onConnect = connect@ {
+                                if (chzzkAccountVerification.mutationInProgress) return@connect
+                                val mutation = chzzkAccountVerification.beginMutation()
+                                chzzkAccountVerification = mutation
                                 chzzkBusy = true
                                 chzzkMessage = null
                                 scope.launch {
+                                    var awaitingOAuth = false
                                     try {
                                         val state = newChzzkOAuthState()
                                         val config = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }.config(state)
-                                        chzzkOAuthState = state
-                                        chzzkOAuthConfig = config
-                                        chzzkMessage = null
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                            chzzkOAuthState = state
+                                            chzzkOAuthConfig = config
+                                            awaitingOAuth = true
+                                        }
                                     } catch (_: Exception) {
-                                        chzzkMessage = "치지직 연동 설정을 받지 못했습니다. 서버 설정을 확인하세요."
-                                    } finally { chzzkBusy = false }
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                            chzzkMessage = "치지직 연동 설정을 받지 못했습니다. 서버 설정을 확인하세요."
+                                        }
+                                    } finally {
+                                        if (!awaitingOAuth) finishChzzkAccountMutation(mutation.revision)
+                                    }
                                 }
                             },
-                            onDisconnect = {
-                                val revision = chzzkAccountVerification.invalidate()
-                                    .also { chzzkAccountVerification = it }.revision
+                            onDisconnect = disconnect@ {
+                                if (chzzkAccountVerification.mutationInProgress) return@disconnect
+                                val mutation = chzzkAccountVerification.beginMutation()
+                                chzzkAccountVerification = mutation
                                 chzzkBusy = true
                                 chzzkMessage = null
                                 scope.launch {
                                     try {
                                         checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
                                             .disconnect(props.onRefreshAccessToken())
-                                        if (chzzkAccountVerification.revision == revision) {
-                                            chzzkAccountVerification = chzzkAccountVerification.confirm(revision, null)
-                                            chzzkMessage = null
-                                        }
                                     } catch (_: Exception) {
-                                        if (chzzkAccountVerification.revision == revision) {
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
                                             chzzkMessage = "연결 해제 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요."
                                         }
                                     } finally {
-                                        if (chzzkAccountVerification.revision == revision) chzzkBusy = false
+                                        finishChzzkAccountMutation(mutation.revision)
                                     }
                                 }
                             },
@@ -443,33 +465,24 @@ fun LiveScreen(
                     }
                     val currentConfig = chzzkOAuthConfig
                     val currentState = chzzkOAuthState
-                    if (currentConfig != null && currentState != null) {
+                    val currentMutationRevision = chzzkAccountVerification.mutationRevision
+                    if (currentConfig != null && currentState != null && currentMutationRevision != null) {
                         ChzzkOAuthDialog(
                             config = currentConfig,
                             state = currentState,
                             onCode = { code ->
                                 chzzkOAuthConfig = null
                                 chzzkOAuthState = null
-                                val revision = chzzkAccountVerification.invalidate()
-                                    .also { chzzkAccountVerification = it }.revision
-                                chzzkBusy = true
-                                chzzkMessage = null
                                 scope.launch {
                                     try {
                                         val api = checkNotNull(chzzkApi)
                                         api.connect(props.onRefreshAccessToken(), code, currentState)
-                                        val account = api.accounts(props.onRefreshAccessToken())
-                                            .firstOrNull { it.provider == "chzzk" }
-                                        if (chzzkAccountVerification.revision == revision) {
-                                            chzzkAccountVerification = chzzkAccountVerification.confirm(revision, account)
-                                            chzzkMessage = if (account == null) "연결 상태를 다시 확인하세요." else null
-                                        }
                                     } catch (_: Exception) {
-                                        if (chzzkAccountVerification.revision == revision) {
+                                        if (chzzkAccountVerification.mutationRevision == currentMutationRevision) {
                                             chzzkMessage = "치지직 연결 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요."
                                         }
                                     } finally {
-                                        if (chzzkAccountVerification.revision == revision) chzzkBusy = false
+                                        finishChzzkAccountMutation(currentMutationRevision)
                                     }
                                 }
                             },
@@ -477,8 +490,13 @@ fun LiveScreen(
                                 chzzkOAuthConfig = null
                                 chzzkOAuthState = null
                                 chzzkMessage = reason
+                                finishChzzkAccountMutation(currentMutationRevision)
                             },
-                            onDismiss = { chzzkOAuthConfig = null; chzzkOAuthState = null },
+                            onDismiss = {
+                                chzzkOAuthConfig = null
+                                chzzkOAuthState = null
+                                finishChzzkAccountMutation(currentMutationRevision)
+                            },
                         )
                     }
                     if (openYouTubeSettingsDialog) {
