@@ -58,8 +58,8 @@
     "line1": "If you're not the star,",
     "line2Prefix": "cover them ",
     "line2Blur": "boldly.",
-    "support1": "Are you still editing out bystanders' faces one by one after an outdoor stream?",
-    "support2": "Make safer broadcasts with InnoLive.",
+    "support1": "InnoLive detects faces in live video and blurs unregistered faces in real time.",
+    "support2": "Register participants who should stay visible, then check the face blur before broadcasting.",
     "tryOut": "Try Out"
   },
   "privacy": {
@@ -118,7 +118,7 @@
       },
       {
         "question": "Q. Can I register more than one face?",
-        "answer": "Yes. You can register each co-host as an allowed person. Free allows up to 2 faces, and Streamer and above allow up to 5."
+        "answer": "You can register each co-host as an allowed person. Spark and Glow allow up to 2 faces, Beam allows up to 5, and Plasma allows up to 10."
       }
     ],
     "privacyQuestion": "Q. How do you handle signup information and registered faces?",

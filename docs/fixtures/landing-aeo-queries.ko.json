@@ -1,0 +1,372 @@
+{
+  "schemaVersion": 1,
+  "locale": "ko-KR",
+  "primaryPrompt": "실시간 방송에서 행인 얼굴 자동으로 가리는 프로그램 있어?",
+  "services": [
+    "ChatGPT",
+    "Gemini",
+    "Claude"
+  ],
+  "queries": [
+    {
+      "id": "q01",
+      "keyword": "라이브",
+      "prompt": "행인 얼굴을 자동으로 가리고 라이브 방송할 수 있는 앱 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/live-mosaic",
+      "fit": "broad"
+    },
+    {
+      "id": "q02",
+      "keyword": "라이브 모자이크",
+      "prompt": "라이브 모자이크를 자동으로 해 주는 프로그램 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/live-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q03",
+      "keyword": "실시간 모자이크",
+      "prompt": "실시간 모자이크로 행인 얼굴을 가릴 수 있는 프로그램 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/live-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q04",
+      "keyword": "영상 자동 모자이크 하는 방법",
+      "prompt": "영상 자동 모자이크 하는 방법 알려줘. 녹화 영상과 라이브 방송은 어떻게 달라?",
+      "intent": "recorded",
+      "sourcePath": "/ko/blog/automatic-mosaic",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q05",
+      "keyword": "모자이크 무료",
+      "prompt": "모자이크 무료로 쓸 수 있는 프로그램 있어?",
+      "intent": "free",
+      "sourcePath": "/ko/free-face-blur",
+      "fit": "broad"
+    },
+    {
+      "id": "q06",
+      "keyword": "라이브 방송 행인 모자이크",
+      "prompt": "라이브 방송 행인 모자이크를 자동으로 하는 앱 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/live-privacy",
+      "fit": "direct"
+    },
+    {
+      "id": "q07",
+      "keyword": "AI 모자이크",
+      "prompt": "AI 모자이크로 방송 중 얼굴을 자동으로 가릴 수 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q08",
+      "keyword": "모자이크 실시간",
+      "prompt": "모자이크 실시간으로 해 주는 방송 프로그램 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/live-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q09",
+      "keyword": "자동 모자이크 방송",
+      "prompt": "자동 모자이크 방송을 하려면 어떤 앱을 써야 해?",
+      "intent": "live",
+      "sourcePath": "/ko/mosaic-software",
+      "fit": "direct"
+    },
+    {
+      "id": "q10",
+      "keyword": "자동 모자이크",
+      "prompt": "얼굴 자동 모자이크 프로그램 추천해 줘.",
+      "intent": "live",
+      "sourcePath": "/ko/mosaic-software",
+      "fit": "broad"
+    },
+    {
+      "id": "q11",
+      "keyword": "OBS 자동 모자이크",
+      "prompt": "OBS 자동 모자이크로 행인 얼굴을 가릴 수 있는 도구 있어?",
+      "intent": "obs",
+      "sourcePath": "/ko/obs-face-blur",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q12",
+      "keyword": "무료 모자이크",
+      "prompt": "무료 모자이크 프로그램으로 얼굴을 자동으로 가릴 수 있어?",
+      "intent": "free",
+      "sourcePath": "/ko/free-face-blur",
+      "fit": "broad"
+    },
+    {
+      "id": "q13",
+      "keyword": "공짜 모자이크",
+      "prompt": "공짜 모자이크 프로그램으로 방송 중 얼굴을 가릴 수 있어?",
+      "intent": "free",
+      "sourcePath": "/ko/free-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q14",
+      "keyword": "무료 블러",
+      "prompt": "라이브 방송에서 행인 얼굴을 가리는 무료 블러 앱 있어?",
+      "intent": "free",
+      "sourcePath": "/ko/free-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q15",
+      "keyword": "공짜 블러",
+      "prompt": "방송 중 다른 사람 얼굴만 가릴 수 있는 공짜 블러 프로그램 있어?",
+      "intent": "free",
+      "sourcePath": "/ko/free-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q16",
+      "keyword": "모자이크 무료 자동",
+      "prompt": "모자이크 무료 자동 처리로 라이브 방송할 수 있어?",
+      "intent": "free",
+      "sourcePath": "/ko/free-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q17",
+      "keyword": "실시간 방송 얼굴 모자이크",
+      "prompt": "실시간 방송 얼굴 모자이크를 자동으로 하는 프로그램 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/live-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q18",
+      "keyword": "자동 모자이크 프로그램",
+      "prompt": "라이브 방송용 자동 모자이크 프로그램 추천해 줘.",
+      "intent": "live",
+      "sourcePath": "/ko/mosaic-software",
+      "fit": "direct"
+    },
+    {
+      "id": "q19",
+      "keyword": "야외방송 얼굴 모자이크 프로그램",
+      "prompt": "야외방송 얼굴 모자이크 프로그램 있어?",
+      "intent": "mobile",
+      "sourcePath": "/ko/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q20",
+      "keyword": "모자이크 자동화",
+      "prompt": "행인 얼굴 모자이크 자동화해서 라이브 방송하는 방법 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q21",
+      "keyword": "블러 자동화",
+      "prompt": "라이브 방송에서 얼굴 블러 자동화하는 방법 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q22",
+      "keyword": "AI 블러",
+      "prompt": "AI 블러로 실시간 방송에서 행인 얼굴만 가릴 수 있어?",
+      "intent": "live",
+      "sourcePath": "/ko/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q23",
+      "keyword": "야방 다른 얼굴 가리기",
+      "prompt": "야방 다른 얼굴 가리기를 자동으로 해 주는 앱 있어?",
+      "intent": "whitelist",
+      "sourcePath": "/ko/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q24",
+      "keyword": "초상권 모자이크",
+      "prompt": "라이브 방송에서 초상권 모자이크를 준비하려면 어떤 도구를 써야 해?",
+      "intent": "privacy",
+      "sourcePath": "/ko/live-privacy",
+      "fit": "direct"
+    },
+    {
+      "id": "q25",
+      "keyword": "방송 모자이크 안하면 소송",
+      "prompt": "방송 모자이크 안하면 소송 당할 수 있어? 얼굴 가리기 도구도 알려줘.",
+      "intent": "privacy",
+      "sourcePath": "/ko/live-privacy",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q26",
+      "keyword": "치지직 모자이크",
+      "prompt": "치지직 모자이크를 실시간으로 해 주는 방송 앱 있어?",
+      "intent": "platform",
+      "sourcePath": "/ko/chzzk",
+      "fit": "direct"
+    },
+    {
+      "id": "q27",
+      "keyword": "유튜브 모자이크",
+      "prompt": "유튜브 모자이크를 자동으로 하는 방법은 뭐야?",
+      "intent": "platform",
+      "sourcePath": "/ko/youtube",
+      "fit": "broad"
+    },
+    {
+      "id": "q28",
+      "keyword": "치지직 블러",
+      "prompt": "치지직 블러로 행인 얼굴만 가리면서 방송할 수 있어?",
+      "intent": "platform",
+      "sourcePath": "/ko/chzzk",
+      "fit": "direct"
+    },
+    {
+      "id": "q29",
+      "keyword": "유튜브 블러",
+      "prompt": "유튜브 블러로 라이브 방송 중 행인 얼굴을 가리는 앱 있어?",
+      "intent": "platform",
+      "sourcePath": "/ko/youtube",
+      "fit": "direct"
+    },
+    {
+      "id": "q30",
+      "keyword": "야방 자동 모자이크",
+      "prompt": "야방 자동 모자이크 앱 추천해 줘.",
+      "intent": "mobile",
+      "sourcePath": "/ko/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q31",
+      "keyword": "야외방송 모자이크 OBS",
+      "prompt": "야외방송 모자이크 OBS에서 자동으로 적용하려면 어떤 도구가 필요해?",
+      "intent": "obs",
+      "sourcePath": "/ko/obs-face-blur",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q32",
+      "keyword": "휴대폰 방송 얼굴 모자이크",
+      "prompt": "휴대폰 방송 얼굴 모자이크를 자동으로 해 주는 앱 있어?",
+      "intent": "mobile",
+      "sourcePath": "/ko/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q33",
+      "keyword": "야외방송 나만 빼고 모자이크하는 법",
+      "prompt": "야외방송 나만 빼고 모자이크하는 법 알려줘.",
+      "intent": "whitelist",
+      "sourcePath": "/ko/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q34",
+      "keyword": "야외방송 초상권 침해 방지하는 법",
+      "prompt": "야외방송 초상권 침해 방지하는 법과 행인 얼굴 가리는 도구 알려줘.",
+      "intent": "privacy",
+      "sourcePath": "/ko/live-privacy",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q35",
+      "keyword": "야외방송 행인 얼굴",
+      "prompt": "야외방송 행인 얼굴을 자동으로 가릴 수 있는 프로그램 있어?",
+      "intent": "mobile",
+      "sourcePath": "/ko/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q36",
+      "keyword": "스트리머 얼굴 빼고 모자이크",
+      "prompt": "스트리머 얼굴 빼고 모자이크해 주는 라이브 앱 있어?",
+      "intent": "whitelist",
+      "sourcePath": "/ko/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q37",
+      "keyword": "모자이크 초상권 야방",
+      "prompt": "모자이크 초상권 야방에서 확인할 점과 얼굴 가리는 앱 알려줘.",
+      "intent": "privacy",
+      "sourcePath": "/ko/live-privacy",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q38",
+      "keyword": "치지직 야방 초상권",
+      "prompt": "치지직 야방 초상권 때문에 행인 얼굴을 가리고 싶은데 어떤 앱을 쓸 수 있어?",
+      "intent": "privacy",
+      "sourcePath": "/ko/chzzk",
+      "fit": "direct"
+    },
+    {
+      "id": "q39",
+      "keyword": "유튜브 야방 초상권",
+      "prompt": "유튜브 야방 초상권 때문에 행인 얼굴을 가리고 싶은데 어떤 앱을 쓸 수 있어?",
+      "intent": "privacy",
+      "sourcePath": "/ko/youtube",
+      "fit": "direct"
+    },
+    {
+      "id": "q40",
+      "keyword": "유튜브 모자이크 자동",
+      "prompt": "유튜브 모자이크 자동으로 처리하면서 라이브 방송할 수 있어?",
+      "intent": "platform",
+      "sourcePath": "/ko/youtube",
+      "fit": "direct"
+    },
+    {
+      "id": "q41",
+      "keyword": "치지직 모자이크 자동",
+      "prompt": "치지직 모자이크 자동 처리로 라이브 방송할 수 있어?",
+      "intent": "platform",
+      "sourcePath": "/ko/chzzk",
+      "fit": "direct"
+    },
+    {
+      "id": "q42",
+      "keyword": "버튜버 야방",
+      "prompt": "버튜버 야방에서 행인 얼굴을 자동으로 가릴 수 있는 도구 있어?",
+      "intent": "obs",
+      "sourcePath": "/ko/obs-face-blur",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q43",
+      "keyword": "캡컷 모자이크",
+      "prompt": "캡컷 모자이크처럼 얼굴을 가릴 수 있는 도구는 녹화 영상과 라이브 방송에서 어떻게 달라?",
+      "intent": "recorded",
+      "sourcePath": "/ko/blog/automatic-mosaic",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q44",
+      "keyword": "모자이크 트래킹",
+      "prompt": "모자이크 트래킹으로 움직이는 얼굴을 자동으로 가릴 수 있는 도구 있어?",
+      "intent": "recorded",
+      "sourcePath": "/ko/face-mosaic",
+      "fit": "broad"
+    },
+    {
+      "id": "q45",
+      "keyword": "온라인 동영상 모자이크",
+      "prompt": "온라인 동영상 모자이크로 파일을 올려 얼굴을 가리는 도구 있어?",
+      "intent": "recorded",
+      "sourcePath": "/ko/blog/automatic-mosaic",
+      "fit": "adjacent"
+    }
+  ]
+}

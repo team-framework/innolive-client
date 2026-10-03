@@ -18,15 +18,15 @@
 
 `/robots.txt`는 공개 페이지를 허용하고 API 경로를 제외하며 `/sitemap.xml`을 안내한다.
 sitemap에는 홈·요금제·체험 안내·고객 지원·개인정보 처리방침·이용약관의 3개 언어,
-총 18개 URL과 언어별 대체 URL을 포함한다. 로그인·회원가입·카메라 체험 실행 경로는
+18개 URL과 라이브 블러 안내 3개, 한국어 검색 의도 페이지 11개를 포함해 총 32개 URL을 제공한다. 로그인·회원가입·카메라 체험 실행 경로는
 사이트를 소개하는 sitemap에서 제외한다. 이 작업은 해당 페이지의 색인 정책을 바꾸지 않는다.
 `lastModified`는 실제 콘텐츠 변경 시점을 관리할 때만 추가한다.
 
 ## 검증
 
-- production build 후 27개 페이지의 응답, canonical, hreflang, 공유 제목·설명을 검사한다.
+- production build 후 sitemap의 공개 페이지 응답, canonical, 해당 언어의 hreflang, 공유 제목·설명을 검사한다.
 - JavaScript 실행 전 홈 HTML에 제목과 3개 검색 의도 FAQ, h1 문구가 있는지 검사한다.
-- sitemap의 18개 URL과 robots.txt의 sitemap 선언을 검사한다.
+- sitemap의 32개 URL과 robots.txt의 sitemap 선언을 검사한다.
 - 브라우저에서 FAQ를 열고 답변과 기존 타이핑 애니메이션을 확인한다.
 - 배포 후 Google Search Console에서 sitemap과 주요 URL을 제출하고 색인 여부를 확인한다.
 - 이후 검색어별 노출·클릭·CTR을 비교한다. 코드 반영만으로 순위나 노출을 보장하지 않는다.
@@ -37,6 +37,8 @@ hreflang은 없었고 robots.txt·sitemap.xml은 404였다. Lighthouse SEO는 10
 
 근거: [Google SEO 기본 가이드](https://developers.google.com/search/docs/fundamentals/seo-starter-guide),
 [언어별 페이지 안내](https://developers.google.com/search/docs/specialty/international/localized-versions).
+
+AI 검색을 위한 본문·구조화 데이터와 인용 측정 기준은 [Landing AEO/GEO](landing-aeo-geo.md)를 따른다.
 
 ## 2026-10-02 로컬 검증 결과
 

@@ -30,7 +30,7 @@ export const downloadPlatforms: DownloadPlatform[] = [
   {
     id: "android",
     name: "Android",
-    minOs: "Android 12+",
+    minOs: "Android 11+",
     iconSrc: "/icons/android-head.svg",
     iconWidth: 26,
     iconHeight: 15,
