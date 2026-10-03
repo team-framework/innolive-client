@@ -28,6 +28,7 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
     let cancelled = false;
     let starting = false;
     let cancelPaint: (() => void) | undefined;
+    let removeRefreshListener: (() => void) | undefined;
     const initialize = async () => {
       const [{ default: gsap }, { ScrollTrigger }, { ScrollSmoother }] = await Promise.all([
         import("gsap"),
@@ -44,6 +45,8 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
         effects: true,
         normalizeScroll: false,
       });
+      ScrollTrigger.addEventListener("refresh", scheduleHashScroll);
+      removeRefreshListener = () => ScrollTrigger.removeEventListener("refresh", scheduleHashScroll);
       scheduleHashScroll();
     };
     const start = () => {
@@ -76,6 +79,7 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
       if (hashFrame !== undefined) window.cancelAnimationFrame(hashFrame);
       window.removeEventListener("hashchange", onHashChange);
       window.removeEventListener("innolive:intro-complete", start);
+      removeRefreshListener?.();
       smoother?.kill();
     };
   }, []);

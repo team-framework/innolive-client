@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { LocaleProvider } from "@/components/locale-provider";
+import { RouteScrollReset } from "@/components/route-scroll-reset";
 import { defaultLocale, isLocale, locales } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
 import { seoCopy } from "@/lib/seo-copy";
@@ -59,6 +60,7 @@ export default async function LocaleLayout({
       </head>
       <body className="flex min-h-dvh flex-col">
         <LocaleProvider locale={locale} messages={messages}>
+          <RouteScrollReset />
           <Header />
           <div className="flex-1">{children}</div>
           <Footer />

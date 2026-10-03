@@ -39,7 +39,7 @@ export function Header() {
       >
         {messages.common.skipToMain}
       </a>
-      <div className=" absolute mx-auto flex w-screen h-24 top-0 items-end justify-between gap-3  px-5 py-5 backdrop-blur bg-background-primary/80 md:p-8 md:px-12">
+      <div className=" absolute mx-auto flex w-screen h-[var(--header-height)] top-0 items-end justify-between gap-3  px-5 py-5 backdrop-blur bg-background-primary/80 md:p-8 md:px-12">
         <Link href={href("/")} className="shrink-0" aria-label={messages.header.home}>
           <Image
             src="/brand/logo-header.svg"

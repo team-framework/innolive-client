@@ -29,7 +29,7 @@ export function TryOutView() {
 
   return (
     <section
-      className="flex w-full flex-col items-center px-[var(--page-gutter)] pb-16 pt-16 lg:pt-24"
+      className="page-top-spacing flex w-full flex-col items-center px-[var(--page-gutter)] pb-16"
       aria-labelledby="try-out-heading"
     >
       <div className="flex w-full max-w-[100rem] flex-col items-center gap-10">
