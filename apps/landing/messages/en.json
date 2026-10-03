@@ -155,9 +155,10 @@
         "description": "Essential privacy protection",
         "cta": "Current plan",
         "features": [
-          "Face-outline and license-plate anonymization",
-          "5 h/month · 720p to one platform",
-          "Up to 2 h per broadcast",
+          "Real-time face and license-plate anonymization",
+          "5 broadcast hours/month",
+          "HD streaming to one platform",
+          "Up to 2 hours of continuous broadcasting",
           "Register up to 2 faces",
           "Android and iOS apps"
         ]
@@ -166,10 +167,11 @@
         "description": "On your device, without time limits",
         "cta": "Subscribe to Glow",
         "features": [
-          "Face-outline and license-plate anonymization",
-          "Unlimited monthly and per-broadcast time",
+          "Real-time face and license-plate anonymization",
+          "Unlimited broadcast time",
           "Process on your device, stream to one platform",
           "Broadcast regardless of server congestion",
+          "No limit on continuous broadcast time",
           "Register up to 2 faces",
           "Android and iOS apps"
         ],
@@ -179,29 +181,42 @@
         ]
       },
       "beam": {
-        "description": "FHD or two platforms at once",
+        "description": "High-quality streaming and simulcast",
         "cta": "Subscribe to Beam",
         "features": [
           "Spark anonymization features",
-          "120 broadcast hours/month*",
-          "Up to FHD quality*",
+          "120 broadcast hours/month",
+          "Up to FHD quality",
           "720p simulcast to two platforms*",
-          "Up to 8 h per broadcast",
-          "Dedicated broadcast capacity",
+          "Server-side processing less dependent on device performance*",
+          "Up to 8 hours of continuous broadcasting",
+          "Fast queue*",
           "Register up to 5 faces"
+        ],
+        "helpLabel": "Beam plan details",
+        "footnotes": [
+          "*Simulcast to CHZZK and YouTube is supported.",
+          "*Performance may vary depending on network and service conditions.",
+          "*A dedicated Beam queue is provided. You may need to wait when servers are congested."
         ]
       },
       "plasma": {
-        "description": "FHD simulcast and more broadcast time",
+        "description": "High-quality simulcast and more broadcast time",
         "cta": "Subscribe to Plasma",
         "features": [
-          "Beam anonymization features",
-          "240 broadcast hours/month*",
-          "Up to FHD quality*",
-          "FHD simulcast to two platforms*",
-          "Up to 12 h per broadcast",
-          "Priority broadcast capacity",
+          "All Beam features",
+          "240 broadcast hours/month",
+          "Up to FHD quality",
+          "FHD simulcast to two platforms",
+          "12 hours of continuous broadcasting",
+          "Highest-priority queue*",
           "Register up to 10 faces"
+        ],
+        "helpLabel": "Plasma plan details",
+        "footnotes": [
+          "*Simulcast to CHZZK and YouTube is supported.",
+          "*Performance may vary depending on network and service conditions.",
+          "*An expanded dedicated Plasma queue is provided. You may need to wait when servers are congested."
         ]
       }
     },
