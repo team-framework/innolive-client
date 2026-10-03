@@ -44,7 +44,8 @@
     "terms": "サービス利用規約",
     "support": "カスタマーサポート",
     "faq": "FAQ",
-    "socialMissing": "{name} のリンクはまだありません"
+    "socialMissing": "{name} のリンクはまだありません",
+    "guide": "使い方"
   },
   "intro": {
     "dialogLabel": "InnoLive 紹介",
@@ -58,8 +59,8 @@
     "line1": "主役でなければ",
     "line2Prefix": "思い切って ",
     "line2Blur": "隠す。",
-    "support1": "InnoLiveはライブ映像から顔を検出し、未登録の顔をリアルタイムでぼかします。",
-    "support2": "表示する出演者の顔を登録し、配信前に顔のぼかし結果を確認してください。",
+    "support1": "屋外配信に映った通行人の顔を、まだ一つずつ消していますか？",
+    "support2": "InnoLiveと一緒に、より安全な配信をつくりましょう。",
     "tryOut": "Try Out"
   },
   "privacy": {

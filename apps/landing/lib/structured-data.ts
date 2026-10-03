@@ -30,7 +30,7 @@ function siteEntities(locale: Locale) {
       "@type": "SoftwareApplication", "@id": softwareId,
       name: "InnoLive", applicationCategory: "MultimediaApplication",
       url: `${siteOrigin}${localePath(locale, "/")}`,
-      description: getMessages(locale).hero.support1,
+      description: seoCopy[locale].home.description,
       publisher: { "@id": organizationId },
     },
   ];

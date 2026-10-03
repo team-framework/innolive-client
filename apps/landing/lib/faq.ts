@@ -1,6 +1,5 @@
 import { localePath, type Locale } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
-import { seoCopy } from "@/lib/seo-copy";
 
 export type FaqItem = {
   question: string;
@@ -12,7 +11,6 @@ export function getHomeFaq(locale: Locale): FaqItem[] {
   const { faq } = getMessages(locale);
   return [
     ...faq.items,
-    ...seoCopy[locale].faq,
     {
       question: faq.privacyQuestion,
       answer: `${faq.privacyBefore}${faq.privacyLink}${faq.privacyAfter}`,
