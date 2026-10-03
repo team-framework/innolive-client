@@ -1,9 +1,5 @@
 package com.framework.innolive.feature.live.components
 
-import android.graphics.Bitmap
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,7 +15,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,68 +23,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.feature.live.ChzzkBroadcastSettings
 import com.framework.innolive.feature.live.ChzzkCategory
-import com.framework.innolive.feature.live.ChzzkOAuthConfig
-import com.framework.innolive.feature.live.parseChzzkCallback
 import com.framework.innolive.feature.live.validationField
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
-
-@Composable
-internal fun ChzzkOAuthDialog(
-    config: ChzzkOAuthConfig,
-    state: String,
-    onCode: (String) -> Unit,
-    onFailure: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var webView by remember { mutableStateOf<WebView?>(null) }
-    val completed = remember { AtomicBoolean(false) }
-    DisposableEffect(Unit) {
-        onDispose { webView?.destroy() }
-    }
-    Dialog(onDismissRequest = onDismiss) {
-        Surface {
-            Column(Modifier.padding(12.dp)) {
-                Text("치지직 계정 연결")
-                TextButton(onClick = onDismiss) { Text("취소") }
-                AndroidView(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 400.dp),
-                    factory = { context ->
-                        WebView(context).also { view ->
-                            webView = view
-                            view.settings.javaScriptEnabled = true
-                            view.settings.domStorageEnabled = true
-                            view.webViewClient = object : WebViewClient() {
-                                private fun intercept(url: String): Boolean = try {
-                                    val code = parseChzzkCallback(url, config.redirectUri, state) ?: return false
-                                    if (completed.compareAndSet(false, true)) onCode(code)
-                                    true
-                                } catch (exception: Exception) {
-                                    if (completed.compareAndSet(false, true)) {
-                                        onFailure(exception.message ?: "치지직 인증을 완료하지 못했습니다.")
-                                    }
-                                    true
-                                }
-
-                                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-                                    request.isForMainFrame && intercept(request.url.toString())
-
-                                override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
-                                    if (intercept(url)) view.stopLoading()
-                                }
-                            }
-                            view.loadUrl(config.authorizeUrl)
-                        }
-                    },
-                )
-            }
-        }
-    }
-}
 
 @Composable
 internal fun ChzzkSettingsDialog(
