@@ -3,35 +3,14 @@
 import Image from "next/image";
 import { observeSectionAnimation } from "@/lib/landing-animation";
 import Link from "next/link";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import { liveFaceBlurGuide } from "@/lib/live-face-blur-guide";
 import { useLocale } from "@/components/locale-provider";
+import { getHomeFaq } from "@/lib/faq";
 
-export function FAQSection({
-  searchQuestions = [],
-}: {
-  searchQuestions?: { question: string; answer: string }[];
-}) {
+export function FAQSection() {
   const { href, messages, locale } = useLocale();
-  const items: { question: string; answer: ReactNode }[] = [
-    ...messages.faq.items,
-    ...searchQuestions,
-    {
-      question: messages.faq.privacyQuestion,
-      answer: (
-        <>
-          {messages.faq.privacyBefore}
-          <Link
-            href={href("/privacy")}
-            className="underline [text-underline-position:from-font]"
-          >
-            {messages.faq.privacyLink}
-          </Link>
-          {messages.faq.privacyAfter}
-        </>
-      ),
-    },
-  ];
+  const items = getHomeFaq(locale);
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -106,8 +85,9 @@ export function FAQSection({
         </Link>
 
         <div className="flex w-full flex-col gap-3">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <details
+              id={`faq-${index + 1}`}
               key={item.question}
               open={false}
               className="flex w-full flex-col gap-2.5 py-2 open:[&_summary_img]:rotate-180"
@@ -127,7 +107,15 @@ export function FAQSection({
               </summary>
               <div className="px-3 py-2">
                 <p className="break-keep text-xl font-normal leading-[1.15] text-text-primary">
-                  {item.answer}
+                  {item.answerLink ? (
+                    <>
+                      {item.answerLink.before}
+                      <Link href={item.answerLink.href} className="underline [text-underline-position:from-font]">
+                        {item.answerLink.label}
+                      </Link>
+                      {item.answerLink.after}
+                    </>
+                  ) : item.answer}
                 </p>
               </div>
             </details>

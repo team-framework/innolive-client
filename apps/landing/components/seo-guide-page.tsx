@@ -2,36 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/button";
 import { findSeoGuide, type SeoGuide } from "@/lib/seo-guides";
-import { siteOrigin } from "@/lib/seo";
+import { StructuredData } from "@/components/structured-data";
+import { guideStructuredData } from "@/lib/structured-data";
 
 export function SeoGuidePage({ guide }: { guide: SeoGuide }) {
-  const canonical = `${siteOrigin}/ko${guide.path}`;
-  const breadcrumbs = [
-    { "@type": "ListItem", position: 1, name: "InnoLive", item: `${siteOrigin}/ko` },
-    { "@type": "ListItem", position: 2, name: guide.heading, item: canonical },
-  ];
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@graph": [
-      { "@type": "BreadcrumbList", itemListElement: breadcrumbs },
-      ...(guide.faq ? [{
-        "@type": "FAQPage",
-        mainEntity: guide.faq.map(({ question, answer }) => ({
-          "@type": "Question", name: question,
-          acceptedAnswer: { "@type": "Answer", text: answer },
-        })),
-      }] : []),
-      ...(guide.path === "/mosaic-software" ? [{
-        "@type": "SoftwareApplication", name: "InnoLive",
-        applicationCategory: "MultimediaApplication",
-        url: canonical, description: guide.description,
-      }] : []),
-    ],
-  };
-
   return (
     <main id="main" tabIndex={-1} className="min-h-dvh bg-background-primary px-[var(--page-gutter)] pb-20 pt-40 md:pt-56">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
+      <StructuredData data={guideStructuredData(guide)} />
       <article className="mx-auto flex max-w-[72rem] min-w-0 flex-col gap-12 break-keep">
         <nav aria-label="현재 위치" className="flex flex-wrap gap-3 text-base leading-relaxed text-text-secondary">
           <Link href="/ko" className="underline">InnoLive</Link>
@@ -59,10 +36,10 @@ export function SeoGuidePage({ guide }: { guide: SeoGuide }) {
           </section>
         ))}
         {guide.faq && (
-          <section className="flex flex-col gap-6">
+          <section id="faq" className="flex flex-col gap-6">
             <h2 className="text-2xl font-semibold md:text-3xl">자주 묻는 질문</h2>
-            {guide.faq.map(({ question, answer }) => (
-              <div key={question} className="flex flex-col gap-3">
+            {guide.faq.map(({ question, answer }, index) => (
+              <div id={`faq-${index + 1}`} key={question} className="flex flex-col gap-3">
                 <h3 className="text-xl font-semibold leading-snug">{question}</h3>
                 <p className="text-body leading-relaxed">{answer}</p>
               </div>

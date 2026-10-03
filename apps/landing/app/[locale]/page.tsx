@@ -9,8 +9,10 @@ import { PrivacySection } from "@/components/privacy-section";
 import {SmoothScroll} from "@/components/smooth-wrapper";
 import { notFound } from "next/navigation";
 import { defaultLocale, isLocale } from "@/lib/locales";
-import { siteOrigin, pageMetadata } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
 import { seoCopy } from "@/lib/seo-copy";
+import { StructuredData } from "@/components/structured-data";
+import { homeStructuredData } from "@/lib/structured-data";
 
 type PageProps = { params: Promise<{ locale: string }> };
 
@@ -24,13 +26,7 @@ export default async function Home({ params }: PageProps) {
   if (!isLocale(locale)) notFound();
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-        "@context": "https://schema.org",
-        "@graph": [
-          { "@type": "Organization", "@id": `${siteOrigin}/#organization`, name: "InnoLive", url: siteOrigin, logo: `${siteOrigin}/brand/logo-header.svg` },
-          { "@type": "WebSite", name: "InnoLive", url: siteOrigin, inLanguage: locale, publisher: { "@id": `${siteOrigin}/#organization` } },
-        ],
-      }).replace(/</g, "\\u003c") }} />
+      <StructuredData data={homeStructuredData(locale)} />
       <IntroScroll />
       <Header />
       <main
@@ -54,7 +50,7 @@ export default async function Home({ params }: PageProps) {
               </div>
             </section>
           )}
-          <FAQSection searchQuestions={seoCopy[locale].faq} />
+          <FAQSection />
           <Footer />
         </SmoothScroll>
       </main>
