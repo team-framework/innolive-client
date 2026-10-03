@@ -33,8 +33,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,11 +61,14 @@ import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
 import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
 import com.framework.innolive.ui.text.ServerErrorAction
 import com.framework.innolive.feature.live.components.PlatformDialog
+import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
+import com.framework.innolive.feature.live.components.ChzzkOAuthDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.components.cappedDialogWidth
 import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun LiveScreen(
@@ -73,9 +79,18 @@ fun LiveScreen(
     var openFaceManagement by remember { mutableStateOf(false) }
     var openPlatformDialog by remember { mutableStateOf(false) }
     var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
+    var openChzzkSettingsDialog by remember { mutableStateOf(false) }
+    var chzzkOAuthConfig by remember { mutableStateOf<ChzzkOAuthConfig?>(null) }
+    var chzzkOAuthState by remember { mutableStateOf<String?>(null) }
+    var chzzkSettings by rememberSaveable(stateSaver = ChzzkSettingsSaver) {
+        mutableStateOf(ChzzkBroadcastSettings())
+    }
+    var chzzkAccountVerification by remember { mutableStateOf(ChzzkAccountVerification()) }
+    var chzzkAccountRefreshKey by remember { mutableIntStateOf(0) }
+    var chzzkBusy by remember { mutableStateOf(false) }
+    var chzzkMessage by remember { mutableStateOf<String?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
-    var selectedPlatform by remember { mutableStateOf<String?>(null) }
     var testUsageWarningOverride by remember { mutableStateOf(false) }
     var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
     val sessionSnapshot = webRtcSession.sessionSnapshot
@@ -92,6 +107,56 @@ fun LiveScreen(
         testUsageWarningOverride = false
     }
     val context = LocalContext.current
+    val providerPreferences = remember(context) {
+        context.getSharedPreferences("innolive_broadcast_provider", android.content.Context.MODE_PRIVATE)
+    }
+    var selectedPlatform by rememberSaveable {
+        mutableStateOf(providerPreferences.getString("selected", null))
+    }
+    val scope = rememberCoroutineScope()
+    val chzzkApi = remember { runCatching { ChzzkApi(BuildConfig.INNOLIVE_SERVER_URL) }.getOrNull() }
+    DisposableEffect(chzzkApi) { onDispose { chzzkApi?.close() } }
+    fun finishChzzkAccountMutation(revision: Long) {
+        if (chzzkAccountVerification.mutationRevision != revision) return
+        chzzkAccountVerification = chzzkAccountVerification.finishMutation(revision)
+        chzzkAccountRefreshKey++
+    }
+    LaunchedEffect(selectedPlatform) {
+        if (selectedPlatform == "CHZZK") webRtcSession.selectProvider(BroadcastProvider.CHZZK)
+        if (selectedPlatform == "YouTube") webRtcSession.selectProvider(BroadcastProvider.YOUTUBE)
+        if (selectedPlatform != null) providerPreferences.edit().putString("selected", selectedPlatform).apply()
+    }
+    LaunchedEffect(openChzzkSettingsDialog, props.profileEmail, chzzkAccountRefreshKey) {
+        val refreshing = chzzkAccountVerification.beginRefresh() ?: return@LaunchedEffect
+        chzzkAccountVerification = refreshing
+        val revision = refreshing.revision
+        if (!openChzzkSettingsDialog) {
+            chzzkBusy = false
+            return@LaunchedEffect
+        }
+        if (openChzzkSettingsDialog && props.profileEmail.isBlank()) {
+            chzzkMessage = "먼저 로그인하세요."
+            chzzkBusy = false
+        }
+        if (openChzzkSettingsDialog && props.profileEmail.isNotBlank()) {
+            chzzkBusy = true
+            try {
+                val account = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
+                    .accounts(props.onRefreshAccessToken())
+                    .firstOrNull { it.provider == "chzzk" }
+                if (chzzkAccountVerification.revision == revision) {
+                    chzzkAccountVerification = chzzkAccountVerification.confirm(revision, account)
+                    chzzkMessage = null
+                }
+            } catch (_: Exception) {
+                if (chzzkAccountVerification.revision == revision) {
+                    chzzkMessage = "계정 상태를 확인하지 못했습니다. 다시 확인하거나 로그인하세요."
+                }
+            } finally {
+                if (chzzkAccountVerification.revision == revision) chzzkBusy = false
+            }
+        }
+    }
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
     val lookPreviews by frameAnalyzer.lookPreviews.collectAsState()
@@ -285,7 +350,10 @@ fun LiveScreen(
                 onBroadcastAction = {
                     when (presentation.broadcastAction) {
                         LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
-                        LiveBroadcastAction.PREPARE_BROADCAST -> openYouTubeSettingsDialog = true
+                        LiveBroadcastAction.PREPARE_BROADCAST -> {
+                            if (selectedPlatform == "CHZZK") openChzzkSettingsDialog = true
+                            else openYouTubeSettingsDialog = true
+                        }
                         LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
                     }
                 },
@@ -296,15 +364,148 @@ fun LiveScreen(
                                 openPlatformDialog = false
                             },
                             onYouTubeSelected = {
+                                webRtcSession.selectProvider(BroadcastProvider.YOUTUBE)
                                 selectedPlatform = "YouTube"
                                 pendingYouTubeSettingsDialog = true
                                 openPlatformDialog = false
+                            },
+                            onChzzkSelected = {
+                                webRtcSession.selectProvider(BroadcastProvider.CHZZK)
+                                selectedPlatform = "CHZZK"
+                                openChzzkSettingsDialog = true
+                                openPlatformDialog = false
+                            },
+                        )
+                    }
+                    if (openChzzkSettingsDialog) {
+                        ChzzkSettingsDialog(
+                            settings = chzzkSettings,
+                            onChangePlatform = {
+                                openChzzkSettingsDialog = false
+                                openPlatformDialog = true
+                            },
+                            accountLabel = when {
+                                chzzkAccountVerification.mutationInProgress -> "계정 변경 확인 중"
+                                chzzkMessage != null -> chzzkMessage.orEmpty()
+                                !chzzkAccountVerification.verified -> "계정 상태 확인 중"
+                                chzzkAccountVerification.account == null -> "치지직 계정을 연결하세요."
+                                chzzkAccountVerification.account?.reconnectRequired == true -> "치지직 계정을 다시 연결하세요."
+                                else -> "연결됨: ${chzzkAccountVerification.account?.channelTitle.orEmpty()}"
+                            },
+                            canPrepare = chzzkAccountVerification.canPrepare,
+                            canConnect = props.profileEmail.isNotBlank(),
+                            canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
+                            isBusy = chzzkBusy || chzzkAccountVerification.mutationInProgress,
+                            onChanged = { chzzkSettings = it },
+                            onRefreshAccount = {
+                                if (!chzzkAccountVerification.mutationInProgress) {
+                                    chzzkAccountVerification = chzzkAccountVerification.invalidate()
+                                    chzzkBusy = true
+                                    chzzkAccountRefreshKey++
+                                }
+                            },
+                            onConnect = connect@ {
+                                if (chzzkAccountVerification.mutationInProgress) return@connect
+                                val mutation = chzzkAccountVerification.beginMutation()
+                                chzzkAccountVerification = mutation
+                                chzzkBusy = true
+                                chzzkMessage = null
+                                scope.launch {
+                                    var awaitingOAuth = false
+                                    try {
+                                        val state = newChzzkOAuthState()
+                                        val config = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }.config(state)
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                            chzzkOAuthState = state
+                                            chzzkOAuthConfig = config
+                                            awaitingOAuth = true
+                                        }
+                                    } catch (_: Exception) {
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                            chzzkMessage = "치지직 연동 설정을 받지 못했습니다. 서버 설정을 확인하세요."
+                                        }
+                                    } finally {
+                                        if (!awaitingOAuth) finishChzzkAccountMutation(mutation.revision)
+                                    }
+                                }
+                            },
+                            onDisconnect = disconnect@ {
+                                if (chzzkAccountVerification.mutationInProgress) return@disconnect
+                                val mutation = chzzkAccountVerification.beginMutation()
+                                chzzkAccountVerification = mutation
+                                chzzkBusy = true
+                                chzzkMessage = null
+                                scope.launch {
+                                    try {
+                                        checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
+                                            .disconnect(props.onRefreshAccessToken())
+                                    } catch (_: Exception) {
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                            chzzkMessage = "연결 해제 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요."
+                                        }
+                                    } finally {
+                                        finishChzzkAccountMutation(mutation.revision)
+                                    }
+                                }
+                            },
+                            onSearch = { query -> checkNotNull(chzzkApi).categories(props.onRefreshAccessToken(), query) },
+                            onPrepare = {
+                                if (!chzzkAccountVerification.canPrepare || chzzkBusy) {
+                                    chzzkMessage = "계정 상태를 다시 확인한 뒤 방송을 준비하세요."
+                                } else if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+                                    mediaPermissions.refresh()
+                                    mediaPermissionLauncher.launch(readMediaPermissionState(context).missingPermissions.toTypedArray())
+                                } else if (webRtcSession.prepareChzzkBroadcast(context, chzzkSettings,
+                                        props.onRefreshAccessToken)) {
+                                    openChzzkSettingsDialog = false
+                                }
+                            },
+                            onDismiss = { openChzzkSettingsDialog = false },
+                        )
+                    }
+                    val currentConfig = chzzkOAuthConfig
+                    val currentState = chzzkOAuthState
+                    val currentMutationRevision = chzzkAccountVerification.mutationRevision
+                    if (currentConfig != null && currentState != null && currentMutationRevision != null) {
+                        ChzzkOAuthDialog(
+                            config = currentConfig,
+                            state = currentState,
+                            onCode = { code ->
+                                chzzkOAuthConfig = null
+                                chzzkOAuthState = null
+                                scope.launch {
+                                    try {
+                                        val api = checkNotNull(chzzkApi)
+                                        api.connect(props.onRefreshAccessToken(), code, currentState)
+                                    } catch (_: Exception) {
+                                        if (chzzkAccountVerification.mutationRevision == currentMutationRevision) {
+                                            chzzkMessage = "치지직 연결 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요."
+                                        }
+                                    } finally {
+                                        finishChzzkAccountMutation(currentMutationRevision)
+                                    }
+                                }
+                            },
+                            onFailure = { reason ->
+                                chzzkOAuthConfig = null
+                                chzzkOAuthState = null
+                                chzzkMessage = reason
+                                finishChzzkAccountMutation(currentMutationRevision)
+                            },
+                            onDismiss = {
+                                chzzkOAuthConfig = null
+                                chzzkOAuthState = null
+                                finishChzzkAccountMutation(currentMutationRevision)
                             },
                         )
                     }
                     if (openYouTubeSettingsDialog) {
                         YouTubeLiveSettingsDialog(
                             settings = props.broadcastSettings,
+                            onChangePlatform = {
+                                openYouTubeSettingsDialog = false
+                                openPlatformDialog = true
+                            },
                             youtubeChannelTitle = props.youtubeChannelTitle,
                             hasYouTubeAccount = props.hasYouTubeAccount,
                             youtubeAccountStatus = props.youtubeAccountStatus,

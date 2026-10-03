@@ -10,4 +10,5 @@
     <string name="google_user">Google 사용자</string>
     <string name="youtube_account_action_in_progress">YouTube 계정 작업이 진행 중입니다.</string>
     <string name="broadcast_settings_save_unavailable">현재 방송 상태에서는 설정을 저장할 수 없습니다.</string>
+    <string name="broadcast_settings_youtube_only">이 화면은 YouTube 설정 전용입니다. 치지직 방송 설정은 라이브 화면에서 변경하세요.</string>
 </resources>

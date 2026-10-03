@@ -8,6 +8,35 @@ data class BroadcastSettings(
     val categoryId: String,
 )
 
+enum class BroadcastProvider(val wireValue: String) {
+    YOUTUBE("youtube"), CHZZK("chzzk");
+
+    companion object {
+        fun fromWire(value: String): BroadcastProvider = entries.firstOrNull { it.wireValue == value }
+            ?: throw IllegalArgumentException("Unknown broadcast provider")
+    }
+}
+
+data class ChzzkBroadcastSettings(
+    val title: String = "",
+    val categoryType: String = "",
+    val categoryId: String = "",
+    val tags: List<String> = emptyList(),
+)
+
+internal fun ChzzkBroadcastSettings.validationField(): String? {
+    if (title.codePointCount(0, title.length) > 100) return "title"
+    if (categoryType.isNotEmpty() && categoryType !in setOf("GAME", "SPORTS", "ETC")) return "category_type"
+    if (categoryType.isEmpty() && categoryId.isNotEmpty()) return "category_type"
+    if (categoryType.isNotEmpty() && categoryId.isEmpty()) return "category_id"
+    if (tags.size > 5) return "tags"
+    tags.forEachIndexed { index, tag ->
+        if (tag.isEmpty() || tag.codePointCount(0, tag.length) > 15 ||
+            tag.codePoints().anyMatch { !Character.isLetterOrDigit(it) }) return "tags[$index]"
+    }
+    return null
+}
+
 enum class BroadcastState {
     IDLE,
     SAVING_SETTINGS,

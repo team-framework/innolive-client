@@ -31,6 +31,7 @@ private val platformOptions = listOf(
 fun PlatformDialog(
     onDismissRequest: () -> Unit,
     onYouTubeSelected: () -> Unit,
+    onChzzkSelected: () -> Unit = {},
 ) {
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -60,6 +61,8 @@ fun PlatformDialog(
                         onClick = {
                             if (platform.id == "youtube") {
                                 onYouTubeSelected()
+                            } else if (platform.id == "chzzk") {
+                                onChzzkSelected()
                             }
                             onDismissRequest()
                         },

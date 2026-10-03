@@ -34,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +70,7 @@ fun YouTubeLiveSettingsDialog(
     onDismissRequest: () -> Unit,
     onPrepare: (() -> Unit)? = null,
     serverError: ServerErrorGuidance? = null,
+    onChangePlatform: (() -> Unit)? = null,
 ) {
     var isPrivacyMenuExpanded by remember { mutableStateOf(false) }
     var isAudienceMenuExpanded by remember { mutableStateOf(false) }
@@ -147,6 +149,10 @@ fun YouTubeLiveSettingsDialog(
                             contentDescription = stringResource(R.string.action_close),
                         )
                     }
+                }
+
+                onChangePlatform?.let { change ->
+                    TextButton(onClick = change) { Text("플랫폼 변경") }
                 }
 
                 if (serverError != null && serverError.field !in setOf("title", "description", "privacy", "made_for_kids")) {

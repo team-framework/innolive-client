@@ -5,6 +5,13 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class CreatedSessionTest {
+    @Test fun providerComesFromServerAndUnknownProviderIsRejected() {
+        assertEquals(BroadcastProvider.CHZZK,
+            parseCreatedSession("""{"session_id":"session","owner_token":"owner","provider":"chzzk"}""").provider)
+        assertThrows(IllegalArgumentException::class.java) {
+            parseCreatedSession("""{"session_id":"session","owner_token":"owner","provider":"other"}""")
+        }
+    }
     @Test fun readsConfirmedOnAndOffWithoutInferringFromConnection() {
         for ((json, expected) in listOf("true" to AnonymizationState.ENABLED, "false" to AnonymizationState.DISABLED)) {
             val session = parseCreatedSession("""{"session_id":"session","owner_token":"owner","media":{"anonymization_enabled":$json}}""")
