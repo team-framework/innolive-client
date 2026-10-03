@@ -105,10 +105,20 @@ const timeline = {
   progress(value) { currentProgress = value; return this; },
   kill() { timelineKilled = true; },
 };
+let animationLoads = 0;
+let failAnimation = false;
+let pendingFinish;
+const preferenceListeners = new Map();
+let mobileMatches = false;
 const mocks = {
+  "@/lib/landing-animation": { afterPaint(callback) { callback(); return () => {}; } },
   react: {
     useLayoutEffect: (callback) => { effect = callback; },
-    useRef: (value) => ({ current: refCount++ === 0 ? root : value }),
+    useRef: (value) => {
+      const ref = { current: refCount++ === 0 ? root : value };
+      if (refCount === 2) pendingFinish = ref;
+      return ref;
+    },
     useState: () => [false, (value) => { finished = value; }],
   },
   gsap: {
@@ -143,17 +153,29 @@ vm.runInNewContext(ts.transpileModule(
   fs.readFileSync(path.join(landing, "components/intro-scroll.tsx"), "utf8"),
   { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, esModuleInterop: true } },
 ).outputText + "\nmodule.exports.scrollSpeed = INTRO_SCROLL_SPEED; module.exports.focusScrollRange = INTRO_FOCUS_SCROLL_RANGE; module.exports.lockMs = INTRO_EXIT_SCROLL_LOCK_MS;", {
-  require: (name) => mocks[name] ?? require(name),
+  require: (name) => {
+    if (name.startsWith("gsap")) {
+      animationLoads++;
+      if (failAnimation) throw new Error("animation load failed");
+    }
+    return mocks[name] ?? require(name);
+  },
   module: introModule, exports: introModule.exports,
-  document, innerHeight: 800, Event,
+  document, innerHeight: 800, Event, queueMicrotask,
   window: {
     location: { hash: "" },
-    matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+    matchMedia: (query) => ({
+      get matches() { return mobileMatches && query.includes("max-width"); },
+      addEventListener(event, callback) { preferenceListeners.set(query, callback); },
+      removeEventListener() { preferenceListeners.delete(query); },
+    }),
     scrollTo() {}, dispatchEvent() {},
   },
 });
+async function main() {
 introModule.exports.IntroScroll();
 const cleanup = effect();
+await new Promise(setImmediate);
 const speed = introModule.exports.scrollSpeed;
 const lockMs = introModule.exports.lockMs;
 const focusScrollRange = introModule.exports.focusScrollRange;
@@ -233,3 +255,59 @@ cleanup();
 assert.equal(timelineKilled, true);
 assert.equal(listeners.size, 0);
 console.log("intro scroll: OK");
+
+// The mobile skip must neither import animation code nor run after cleanup.
+mobileMatches = true;
+refCount = 0;
+finished = false;
+delete document.documentElement.dataset.introComplete;
+const loadedBeforeSkip = animationLoads;
+introModule.exports.IntroScroll();
+const cancelSkip = effect();
+cancelSkip();
+await new Promise(setImmediate);
+assert.equal(finished, false, "unmounted skip must not update state");
+refCount = 0;
+introModule.exports.IntroScroll();
+effect();
+await new Promise(setImmediate);
+assert.equal(finished, true);
+assert.equal(animationLoads, loadedBeforeSkip, "mobile skip must avoid GSAP imports");
+console.log("intro async skip: OK");
+
+const startPendingDesktop = () => {
+  mobileMatches = false;
+  refCount = 0;
+  finished = false;
+  delete document.documentElement.dataset.introComplete;
+  introModule.exports.IntroScroll();
+  return effect();
+};
+const cancelPending = startPendingDesktop();
+assert.equal(document.body.style.overflow, "hidden");
+pendingFinish.current();
+assert.equal(finished, true, "skip must work while imports are pending");
+assert.equal(document.body.style.overflow, "auto");
+await new Promise(setImmediate);
+assert.equal(listeners.size, 0, "late imports must not activate a skipped intro");
+cancelPending();
+
+const cancelPreference = startPendingDesktop();
+mobileMatches = true;
+preferenceListeners.get("(max-width: 47.999rem)")();
+assert.equal(finished, true, "mobile transition must release a pending intro");
+assert.equal(document.body.style.overflow, "auto");
+await new Promise(setImmediate);
+assert.equal(listeners.size, 0);
+cancelPreference();
+
+failAnimation = true;
+const cancelFailure = startPendingDesktop();
+await new Promise(setImmediate);
+assert.equal(finished, true, "import failure must reveal the page");
+assert.equal(document.body.style.overflow, "auto");
+assert.deepEqual(background.map(({ inert }) => inert), [false, true]);
+cancelFailure();
+console.log("intro pending skip, preference and load failure: OK");
+}
+main().catch((error) => { console.error(error); process.exitCode = 1; });

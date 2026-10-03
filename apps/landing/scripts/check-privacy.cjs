@@ -22,7 +22,10 @@ const smoother = {
   },
   scrollTop(value) { this.top = value; return this; },
 };
-let effect;
+const effects = [];
+let initializeAnimation;
+let artworkObserver;
+let artworkLoaded = false;
 let entry;
 let timer;
 let mobileAnimation;
@@ -30,9 +33,17 @@ let reverted = false;
 let timerCount = 0;
 const setups = new Map();
 const mocks = {
+  "@/lib/landing-animation": {
+    observeSectionAnimation: (target, initialize) => {
+      assert.equal(target, section);
+      initializeAnimation = initialize;
+      return () => {};
+    },
+  },
   react: {
     useRef: () => ({ current: section }),
-    useLayoutEffect: (callback) => { effect = callback; },
+    useEffect: (callback) => { effects.push(callback); },
+    useState: () => [artworkLoaded, (value) => { artworkLoaded = value; }],
   },
   "next/image": () => null,
   "@/components/locale-provider": { useLocale: () => ({ messages: { privacy: { slides: [] } } }) },
@@ -60,9 +71,32 @@ const privacyModule = { exports: {} };
 vm.runInNewContext(source, {
   require: (name) => mocks[name] ?? require(name),
   module: privacyModule, exports: privacyModule.exports,
+  IntersectionObserver: class {
+    constructor(callback, options) {
+      artworkObserver = {
+        callback,
+        options,
+        disconnected: false,
+        observe(target) { this.target = target; },
+        disconnect() { this.disconnected = true; },
+      };
+      return artworkObserver;
+    }
+  },
 });
+async function main() {
 privacyModule.exports.PrivacySection();
-effect();
+const cleanupArtwork = effects[0]();
+assert.equal(artworkObserver.target, section);
+assert.equal(artworkObserver.options.rootMargin, "400px");
+artworkObserver.callback([{ isIntersecting: false }]);
+assert.equal(artworkLoaded, false);
+artworkObserver.callback([{ isIntersecting: true }]);
+assert.equal(artworkLoaded, true);
+assert.equal(artworkObserver.disconnected, true);
+cleanupArtwork();
+effects[1]();
+const cleanupAnimation = await initializeAnimation(() => false);
 const delaySeconds = privacyModule.exports.delayMs / 1000;
 const setupDesktop = setups.get("(min-width: 64rem) and (prefers-reduced-motion: no-preference)");
 const trigger = {
@@ -100,3 +134,7 @@ assert.equal(smoother.isPaused, true, "cleanup must restore the previous pause s
 setups.get("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)")();
 assert.equal(mobileAnimation.delay, delaySeconds);
 console.log("privacy arrival delay: OK");
+
+cleanupAnimation();
+}
+main().catch((error) => { console.error(error); process.exitCode = 1; });
