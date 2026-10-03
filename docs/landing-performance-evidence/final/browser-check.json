@@ -1,0 +1,483 @@
+[
+  {
+    "mode": "mobile",
+    "locale": "ko",
+    "hero": {
+      "heading": "주인공이 아니라면과감하게 가리기.\n주인공이 아니라면\n과감하게 가리기.\n가리기.\n가리기.",
+      "bodyWidth": 390,
+      "viewport": 390,
+      "fonts": [
+        {
+          "family": "wantedSans",
+          "range": "U+0-FF"
+        },
+        {
+          "family": "Wanted Sans",
+          "range": "U+2013, U+20A9, U+AC00-AC01, U+AC04, U+AC10, U+AC1C-AC1D, U+AC70-AC71, U+AC74, U+AC78, U+AC8C, U+ACA8-ACA9, U+ACB0, U+ACBD, U+ACC4, U+ACE0, U+ACF3, U+ACF5, U+ACFC-ACFD, U+AD00, U+AD11, U+AD50, U+AD6C, U+AD70, U+AD74, U+AD8C, U+ADF8, U+ADFC, U+AE08, U+AE30, U+AE38, U+AED8, U+B098, U+B09C, U+B0A8, U+B0AE, U+B0B4, U+B0B8, U+B0BC, U+B0C5, U+B0C8, U+B108, U+B124, U+B178, U+B192, U+B204, U+B208, U+B274, U+B294, U+B2A5, U+B2C8, U+B2E4, U+B2E8, U+B2EB-B2EC, U+B2F9, U+B300, U+B354, U+B370, U+B3C4-B3C5, U+B3D9, U+B410, U+B418, U+B41C, U+B429, U+B450, U+B4A4, U+B4DC, U+B4E0, U+B4E4, U+B4ED, U+B4F1, U+B514, U+B529, U+B530, U+B5A4, U+B5BB, U+B610, U+B6F0, U+B77C, U+B780, U+B78C, U+B79C, U+B7AB, U+B7EC, U+B824-B825, U+B828, U+B834-B835, U+B838, U+B85C-B85D, U+B864, U+B8CC, U+B8E8, U+B974, U+B978, U+B97C, U+B9AC, U+B9BD, U+B9C1, U+B9CC, U+B9CE, U+B9DE, U+BA3C, U+BA54, U+BA70, U+BA74, U+BA85, U+BAA8, U+BABB, U+BB34, U+BB38, U+BB3B, U+BBF8, U+BC00, U+BC0F, U+BC14, U+BC1C, U+BC29, U+BC30, U+BC84, U+BC88, U+BCA0, U+BCC0, U+BCC4, U+BCF4, U+BCF8, U+BD80, U+BD84, U+BE0C, U+BE14, U+BE44, U+C0AC, U+C0C1, U+C0DD, U+C11C, U+C120, U+C124, U+C131, U+C138, U+C140, U+C158, U+C18C-C18D, U+C190, U+C194, U+C1A1, U+C218, U+C21C, U+C228, U+C27D, U+C2A4, U+C2B5, U+C2DC-C2DD, U+C2E0, U+C2E4, U+C544, U+C548, U+C54A, U+C54C, U+C558, U+C560, U+C571, U+C57C-C57D, U+C591, U+C5B4, U+C5B8, U+C5BC, U+C5C5-C5C8, U+C5D0, U+C5EC-C5ED, U+C5F0, U+C5F4, U+C601, U+C608, U+C624, U+C628, U+C62C, U+C640, U+C644, U+C678, U+C67C, U+C694, U+C6A9, U+C6B0-C6B1, U+C6B4, U+C6C3, U+C6CC, U+C6D0, U+C6D4, U+C6F9, U+C704, U+C720, U+C724, U+C73C, U+C740, U+C744, U+C74D, U+C758, U+C774, U+C778, U+C77C, U+C784-C785, U+C788, U+C790-C791, U+C7A0-C7A1, U+C7A5, U+C7AC, U+C800-C801, U+C804, U+C811, U+C815, U+C81C, U+C838, U+C885, U+C8FC, U+C900, U+C904, U+C911, U+C99D, U+C9C0-C9C1, U+C9C8, U+C9D1, U+CABD, U+CC28, U+CC3D-CC3E, U+CC44-CC45, U+CC98, U+CCAD, U+CCB4, U+CD08, U+CD5C, U+CD94, U+CD9C, U+CDA4, U+CDA9, U+CDB0, U+CE21, U+CE58, U+CE68, U+CE74, U+CF00, U+CF54, U+D06C, U+D0A8, U+D0C0, U+D0DD, U+D130, U+D14C, U+D1B5, U+D2B8, U+D2F0, U+D310, U+D328, U+D3B8, U+D3FC, U+D45C, U+D50C, U+D53D, U+D544, U+D558, U+D55C, U+D560, U+D568-D569, U+D574, U+D588-D589, U+D5A5, U+D5C8, U+D5D8, U+D604, U+D615, U+D638, U+D63C, U+D648, U+D654-D655, U+D658, U+D669, U+D68C, U+D6C4, U+D750, U+D788"
+        }
+      ],
+      "video": [
+        {
+          "src": null,
+          "paused": true
+        }
+      ],
+      "images": [
+        {
+          "src": "http://localhost:3211/brand/logo-header.svg",
+          "complete": true,
+          "width": 124
+        },
+        {
+          "src": "http://localhost:3211/icons/chevron-down.svg",
+          "complete": true,
+          "width": 24
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-face-registration.webp&w=256&q=75",
+          "complete": true,
+          "width": 195
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Flanding%2Fhero-phone.webp&w=256&q=75",
+          "complete": true,
+          "width": 202
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=256&q=75",
+          "complete": true,
+          "width": 202
+        },
+        {
+          "src": "[inline WebP: 1080px, 25,858 bytes]",
+          "complete": true,
+          "width": 1080
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Flanding%2Fprivacy-phone.webp&w=384&q=75",
+          "complete": true,
+          "width": 276
+        }
+      ]
+    },
+    "privacy": [
+      {
+        "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=384&q=75",
+        "complete": true,
+        "width": 276
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  {
+    "mode": "mobile",
+    "locale": "en",
+    "hero": {
+      "heading": "If you're not the star,cover them boldly.\nIf you're not the star,\ncover them boldly.\nboldly.\nboldly.",
+      "bodyWidth": 390,
+      "viewport": 390,
+      "fonts": [
+        {
+          "family": "wantedSans",
+          "range": "U+0-FF"
+        }
+      ],
+      "video": [
+        {
+          "src": null,
+          "paused": true
+        }
+      ],
+      "images": [
+        {
+          "src": "http://localhost:3211/brand/logo-header.svg",
+          "complete": true,
+          "width": 124
+        },
+        {
+          "src": "http://localhost:3211/icons/chevron-down.svg",
+          "complete": true,
+          "width": 24
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-face-registration.webp&w=256&q=75",
+          "complete": true,
+          "width": 195
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Flanding%2Fhero-phone.webp&w=256&q=75",
+          "complete": true,
+          "width": 202
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=256&q=75",
+          "complete": true,
+          "width": 202
+        },
+        {
+          "src": "[inline WebP: 1080px, 25,858 bytes]",
+          "complete": true,
+          "width": 1080
+        }
+      ]
+    },
+    "privacy": [
+      {
+        "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=384&q=75",
+        "complete": true,
+        "width": 276
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  {
+    "mode": "mobile",
+    "locale": "ja",
+    "hero": {
+      "heading": "主役でなければ思い切って 隠す。\n主役でなければ\n思い切って 隠す。\n隠す。\n隠す。",
+      "bodyWidth": 390,
+      "viewport": 390,
+      "fonts": [
+        {
+          "family": "wantedSans",
+          "range": "U+0-FF"
+        },
+        {
+          "family": "Wanted Sans",
+          "range": "U+2013, U+20A9, U+AC00-AC01, U+AC04, U+AC10, U+AC1C-AC1D, U+AC70-AC71, U+AC74, U+AC78, U+AC8C, U+ACA8-ACA9, U+ACB0, U+ACBD, U+ACC4, U+ACE0, U+ACF3, U+ACF5, U+ACFC-ACFD, U+AD00, U+AD11, U+AD50, U+AD6C, U+AD70, U+AD74, U+AD8C, U+ADF8, U+ADFC, U+AE08, U+AE30, U+AE38, U+AED8, U+B098, U+B09C, U+B0A8, U+B0AE, U+B0B4, U+B0B8, U+B0BC, U+B0C5, U+B0C8, U+B108, U+B124, U+B178, U+B192, U+B204, U+B208, U+B274, U+B294, U+B2A5, U+B2C8, U+B2E4, U+B2E8, U+B2EB-B2EC, U+B2F9, U+B300, U+B354, U+B370, U+B3C4-B3C5, U+B3D9, U+B410, U+B418, U+B41C, U+B429, U+B450, U+B4A4, U+B4DC, U+B4E0, U+B4E4, U+B4ED, U+B4F1, U+B514, U+B529, U+B530, U+B5A4, U+B5BB, U+B610, U+B6F0, U+B77C, U+B780, U+B78C, U+B79C, U+B7AB, U+B7EC, U+B824-B825, U+B828, U+B834-B835, U+B838, U+B85C-B85D, U+B864, U+B8CC, U+B8E8, U+B974, U+B978, U+B97C, U+B9AC, U+B9BD, U+B9C1, U+B9CC, U+B9CE, U+B9DE, U+BA3C, U+BA54, U+BA70, U+BA74, U+BA85, U+BAA8, U+BABB, U+BB34, U+BB38, U+BB3B, U+BBF8, U+BC00, U+BC0F, U+BC14, U+BC1C, U+BC29, U+BC30, U+BC84, U+BC88, U+BCA0, U+BCC0, U+BCC4, U+BCF4, U+BCF8, U+BD80, U+BD84, U+BE0C, U+BE14, U+BE44, U+C0AC, U+C0C1, U+C0DD, U+C11C, U+C120, U+C124, U+C131, U+C138, U+C140, U+C158, U+C18C-C18D, U+C190, U+C194, U+C1A1, U+C218, U+C21C, U+C228, U+C27D, U+C2A4, U+C2B5, U+C2DC-C2DD, U+C2E0, U+C2E4, U+C544, U+C548, U+C54A, U+C54C, U+C558, U+C560, U+C571, U+C57C-C57D, U+C591, U+C5B4, U+C5B8, U+C5BC, U+C5C5-C5C8, U+C5D0, U+C5EC-C5ED, U+C5F0, U+C5F4, U+C601, U+C608, U+C624, U+C628, U+C62C, U+C640, U+C644, U+C678, U+C67C, U+C694, U+C6A9, U+C6B0-C6B1, U+C6B4, U+C6C3, U+C6CC, U+C6D0, U+C6D4, U+C6F9, U+C704, U+C720, U+C724, U+C73C, U+C740, U+C744, U+C74D, U+C758, U+C774, U+C778, U+C77C, U+C784-C785, U+C788, U+C790-C791, U+C7A0-C7A1, U+C7A5, U+C7AC, U+C800-C801, U+C804, U+C811, U+C815, U+C81C, U+C838, U+C885, U+C8FC, U+C900, U+C904, U+C911, U+C99D, U+C9C0-C9C1, U+C9C8, U+C9D1, U+CABD, U+CC28, U+CC3D-CC3E, U+CC44-CC45, U+CC98, U+CCAD, U+CCB4, U+CD08, U+CD5C, U+CD94, U+CD9C, U+CDA4, U+CDA9, U+CDB0, U+CE21, U+CE58, U+CE68, U+CE74, U+CF00, U+CF54, U+D06C, U+D0A8, U+D0C0, U+D0DD, U+D130, U+D14C, U+D1B5, U+D2B8, U+D2F0, U+D310, U+D328, U+D3B8, U+D3FC, U+D45C, U+D50C, U+D53D, U+D544, U+D558, U+D55C, U+D560, U+D568-D569, U+D574, U+D588-D589, U+D5A5, U+D5C8, U+D5D8, U+D604, U+D615, U+D638, U+D63C, U+D648, U+D654-D655, U+D658, U+D669, U+D68C, U+D6C4, U+D750, U+D788"
+        }
+      ],
+      "video": [
+        {
+          "src": null,
+          "paused": true
+        }
+      ],
+      "images": [
+        {
+          "src": "http://localhost:3211/brand/logo-header.svg",
+          "complete": true,
+          "width": 124
+        },
+        {
+          "src": "http://localhost:3211/icons/chevron-down.svg",
+          "complete": true,
+          "width": 24
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-face-registration.webp&w=256&q=75",
+          "complete": true,
+          "width": 195
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Flanding%2Fhero-phone.webp&w=256&q=75",
+          "complete": true,
+          "width": 202
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=256&q=75",
+          "complete": true,
+          "width": 202
+        },
+        {
+          "src": "[inline WebP: 1080px, 25,858 bytes]",
+          "complete": true,
+          "width": 1080
+        }
+      ]
+    },
+    "privacy": [
+      {
+        "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=384&q=75",
+        "complete": true,
+        "width": 276
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  {
+    "mode": "desktop",
+    "locale": "ko",
+    "hero": {
+      "heading": "주인공이 아니라면과감하게 가리기.\n주인공이 아니라면\n과감하게 가리기.\n가리기.\n가리기.",
+      "bodyWidth": 1350,
+      "viewport": 1350,
+      "fonts": [
+        {
+          "family": "wantedSans",
+          "range": "U+0-FF"
+        },
+        {
+          "family": "Wanted Sans",
+          "range": "U+2013, U+20A9, U+AC00-AC01, U+AC04, U+AC10, U+AC1C-AC1D, U+AC70-AC71, U+AC74, U+AC78, U+AC8C, U+ACA8-ACA9, U+ACB0, U+ACBD, U+ACC4, U+ACE0, U+ACF3, U+ACF5, U+ACFC-ACFD, U+AD00, U+AD11, U+AD50, U+AD6C, U+AD70, U+AD74, U+AD8C, U+ADF8, U+ADFC, U+AE08, U+AE30, U+AE38, U+AED8, U+B098, U+B09C, U+B0A8, U+B0AE, U+B0B4, U+B0B8, U+B0BC, U+B0C5, U+B0C8, U+B108, U+B124, U+B178, U+B192, U+B204, U+B208, U+B274, U+B294, U+B2A5, U+B2C8, U+B2E4, U+B2E8, U+B2EB-B2EC, U+B2F9, U+B300, U+B354, U+B370, U+B3C4-B3C5, U+B3D9, U+B410, U+B418, U+B41C, U+B429, U+B450, U+B4A4, U+B4DC, U+B4E0, U+B4E4, U+B4ED, U+B4F1, U+B514, U+B529, U+B530, U+B5A4, U+B5BB, U+B610, U+B6F0, U+B77C, U+B780, U+B78C, U+B79C, U+B7AB, U+B7EC, U+B824-B825, U+B828, U+B834-B835, U+B838, U+B85C-B85D, U+B864, U+B8CC, U+B8E8, U+B974, U+B978, U+B97C, U+B9AC, U+B9BD, U+B9C1, U+B9CC, U+B9CE, U+B9DE, U+BA3C, U+BA54, U+BA70, U+BA74, U+BA85, U+BAA8, U+BABB, U+BB34, U+BB38, U+BB3B, U+BBF8, U+BC00, U+BC0F, U+BC14, U+BC1C, U+BC29, U+BC30, U+BC84, U+BC88, U+BCA0, U+BCC0, U+BCC4, U+BCF4, U+BCF8, U+BD80, U+BD84, U+BE0C, U+BE14, U+BE44, U+C0AC, U+C0C1, U+C0DD, U+C11C, U+C120, U+C124, U+C131, U+C138, U+C140, U+C158, U+C18C-C18D, U+C190, U+C194, U+C1A1, U+C218, U+C21C, U+C228, U+C27D, U+C2A4, U+C2B5, U+C2DC-C2DD, U+C2E0, U+C2E4, U+C544, U+C548, U+C54A, U+C54C, U+C558, U+C560, U+C571, U+C57C-C57D, U+C591, U+C5B4, U+C5B8, U+C5BC, U+C5C5-C5C8, U+C5D0, U+C5EC-C5ED, U+C5F0, U+C5F4, U+C601, U+C608, U+C624, U+C628, U+C62C, U+C640, U+C644, U+C678, U+C67C, U+C694, U+C6A9, U+C6B0-C6B1, U+C6B4, U+C6C3, U+C6CC, U+C6D0, U+C6D4, U+C6F9, U+C704, U+C720, U+C724, U+C73C, U+C740, U+C744, U+C74D, U+C758, U+C774, U+C778, U+C77C, U+C784-C785, U+C788, U+C790-C791, U+C7A0-C7A1, U+C7A5, U+C7AC, U+C800-C801, U+C804, U+C811, U+C815, U+C81C, U+C838, U+C885, U+C8FC, U+C900, U+C904, U+C911, U+C99D, U+C9C0-C9C1, U+C9C8, U+C9D1, U+CABD, U+CC28, U+CC3D-CC3E, U+CC44-CC45, U+CC98, U+CCAD, U+CCB4, U+CD08, U+CD5C, U+CD94, U+CD9C, U+CDA4, U+CDA9, U+CDB0, U+CE21, U+CE58, U+CE68, U+CE74, U+CF00, U+CF54, U+D06C, U+D0A8, U+D0C0, U+D0DD, U+D130, U+D14C, U+D1B5, U+D2B8, U+D2F0, U+D310, U+D328, U+D3B8, U+D3FC, U+D45C, U+D50C, U+D53D, U+D544, U+D558, U+D55C, U+D560, U+D568-D569, U+D574, U+D588-D589, U+D5A5, U+D5C8, U+D5D8, U+D604, U+D615, U+D638, U+D63C, U+D648, U+D654-D655, U+D658, U+D669, U+D68C, U+D6C4, U+D750, U+D788"
+        }
+      ],
+      "video": [
+        {
+          "src": null,
+          "paused": true
+        }
+      ],
+      "images": [
+        {
+          "src": "http://localhost:3211/brand/logo-header.svg",
+          "complete": true,
+          "width": 124
+        },
+        {
+          "src": "http://localhost:3211/icons/chevron-down.svg",
+          "complete": true,
+          "width": 24
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-face-registration.webp&w=384&q=75",
+          "complete": true,
+          "width": 377
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Flanding%2Fhero-phone.webp&w=640&q=75",
+          "complete": true,
+          "width": 391
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=384&q=75",
+          "complete": true,
+          "width": 310
+        },
+        {
+          "src": "[inline WebP: 1080px, 25,858 bytes]",
+          "complete": true,
+          "width": 1080
+        }
+      ]
+    },
+    "privacy": [
+      {
+        "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75",
+        "complete": true,
+        "width": 403
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  {
+    "mode": "desktop",
+    "locale": "en",
+    "hero": {
+      "heading": "If you're not the star,cover them boldly.\nIf you're not the star,\ncover them boldly.\nboldly.\nboldly.",
+      "bodyWidth": 1350,
+      "viewport": 1350,
+      "fonts": [
+        {
+          "family": "wantedSans",
+          "range": "U+0-FF"
+        }
+      ],
+      "video": [
+        {
+          "src": null,
+          "paused": true
+        }
+      ],
+      "images": [
+        {
+          "src": "http://localhost:3211/brand/logo-header.svg",
+          "complete": true,
+          "width": 124
+        },
+        {
+          "src": "http://localhost:3211/icons/chevron-down.svg",
+          "complete": true,
+          "width": 24
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-face-registration.webp&w=384&q=75",
+          "complete": true,
+          "width": 377
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Flanding%2Fhero-phone.webp&w=640&q=75",
+          "complete": true,
+          "width": 391
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=384&q=75",
+          "complete": true,
+          "width": 310
+        },
+        {
+          "src": "[inline WebP: 1080px, 25,858 bytes]",
+          "complete": true,
+          "width": 1080
+        }
+      ]
+    },
+    "privacy": [
+      {
+        "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75",
+        "complete": true,
+        "width": 403
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  {
+    "mode": "desktop",
+    "locale": "ja",
+    "hero": {
+      "heading": "主役でなければ思い切って 隠す。\n主役でなければ\n思い切って 隠す。\n隠す。\n隠す。",
+      "bodyWidth": 1350,
+      "viewport": 1350,
+      "fonts": [
+        {
+          "family": "wantedSans",
+          "range": "U+0-FF"
+        },
+        {
+          "family": "Wanted Sans",
+          "range": "U+2013, U+20A9, U+AC00-AC01, U+AC04, U+AC10, U+AC1C-AC1D, U+AC70-AC71, U+AC74, U+AC78, U+AC8C, U+ACA8-ACA9, U+ACB0, U+ACBD, U+ACC4, U+ACE0, U+ACF3, U+ACF5, U+ACFC-ACFD, U+AD00, U+AD11, U+AD50, U+AD6C, U+AD70, U+AD74, U+AD8C, U+ADF8, U+ADFC, U+AE08, U+AE30, U+AE38, U+AED8, U+B098, U+B09C, U+B0A8, U+B0AE, U+B0B4, U+B0B8, U+B0BC, U+B0C5, U+B0C8, U+B108, U+B124, U+B178, U+B192, U+B204, U+B208, U+B274, U+B294, U+B2A5, U+B2C8, U+B2E4, U+B2E8, U+B2EB-B2EC, U+B2F9, U+B300, U+B354, U+B370, U+B3C4-B3C5, U+B3D9, U+B410, U+B418, U+B41C, U+B429, U+B450, U+B4A4, U+B4DC, U+B4E0, U+B4E4, U+B4ED, U+B4F1, U+B514, U+B529, U+B530, U+B5A4, U+B5BB, U+B610, U+B6F0, U+B77C, U+B780, U+B78C, U+B79C, U+B7AB, U+B7EC, U+B824-B825, U+B828, U+B834-B835, U+B838, U+B85C-B85D, U+B864, U+B8CC, U+B8E8, U+B974, U+B978, U+B97C, U+B9AC, U+B9BD, U+B9C1, U+B9CC, U+B9CE, U+B9DE, U+BA3C, U+BA54, U+BA70, U+BA74, U+BA85, U+BAA8, U+BABB, U+BB34, U+BB38, U+BB3B, U+BBF8, U+BC00, U+BC0F, U+BC14, U+BC1C, U+BC29, U+BC30, U+BC84, U+BC88, U+BCA0, U+BCC0, U+BCC4, U+BCF4, U+BCF8, U+BD80, U+BD84, U+BE0C, U+BE14, U+BE44, U+C0AC, U+C0C1, U+C0DD, U+C11C, U+C120, U+C124, U+C131, U+C138, U+C140, U+C158, U+C18C-C18D, U+C190, U+C194, U+C1A1, U+C218, U+C21C, U+C228, U+C27D, U+C2A4, U+C2B5, U+C2DC-C2DD, U+C2E0, U+C2E4, U+C544, U+C548, U+C54A, U+C54C, U+C558, U+C560, U+C571, U+C57C-C57D, U+C591, U+C5B4, U+C5B8, U+C5BC, U+C5C5-C5C8, U+C5D0, U+C5EC-C5ED, U+C5F0, U+C5F4, U+C601, U+C608, U+C624, U+C628, U+C62C, U+C640, U+C644, U+C678, U+C67C, U+C694, U+C6A9, U+C6B0-C6B1, U+C6B4, U+C6C3, U+C6CC, U+C6D0, U+C6D4, U+C6F9, U+C704, U+C720, U+C724, U+C73C, U+C740, U+C744, U+C74D, U+C758, U+C774, U+C778, U+C77C, U+C784-C785, U+C788, U+C790-C791, U+C7A0-C7A1, U+C7A5, U+C7AC, U+C800-C801, U+C804, U+C811, U+C815, U+C81C, U+C838, U+C885, U+C8FC, U+C900, U+C904, U+C911, U+C99D, U+C9C0-C9C1, U+C9C8, U+C9D1, U+CABD, U+CC28, U+CC3D-CC3E, U+CC44-CC45, U+CC98, U+CCAD, U+CCB4, U+CD08, U+CD5C, U+CD94, U+CD9C, U+CDA4, U+CDA9, U+CDB0, U+CE21, U+CE58, U+CE68, U+CE74, U+CF00, U+CF54, U+D06C, U+D0A8, U+D0C0, U+D0DD, U+D130, U+D14C, U+D1B5, U+D2B8, U+D2F0, U+D310, U+D328, U+D3B8, U+D3FC, U+D45C, U+D50C, U+D53D, U+D544, U+D558, U+D55C, U+D560, U+D568-D569, U+D574, U+D588-D589, U+D5A5, U+D5C8, U+D5D8, U+D604, U+D615, U+D638, U+D63C, U+D648, U+D654-D655, U+D658, U+D669, U+D68C, U+D6C4, U+D750, U+D788"
+        }
+      ],
+      "video": [
+        {
+          "src": null,
+          "paused": true
+        }
+      ],
+      "images": [
+        {
+          "src": "http://localhost:3211/brand/logo-header.svg",
+          "complete": true,
+          "width": 124
+        },
+        {
+          "src": "http://localhost:3211/icons/chevron-down.svg",
+          "complete": true,
+          "width": 24
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-face-registration.webp&w=384&q=75",
+          "complete": true,
+          "width": 377
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Flanding%2Fhero-phone.webp&w=640&q=75",
+          "complete": true,
+          "width": 391
+        },
+        {
+          "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=384&q=75",
+          "complete": true,
+          "width": 310
+        },
+        {
+          "src": "[inline WebP: 1080px, 25,858 bytes]",
+          "complete": true,
+          "width": 1080
+        }
+      ]
+    },
+    "privacy": [
+      {
+        "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75",
+        "complete": true,
+        "width": 403
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      },
+      {
+        "src": "",
+        "complete": false,
+        "width": 0
+      }
+    ],
+    "errors": [],
+    "failed": []
+  },
+  {
+    "playback": {
+      "autoplay": {
+        "src": "/mockups/hero-live-demo-mobile.mp4",
+        "paused": false,
+        "time": 0.011492,
+        "poster": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=256&q=75"
+      },
+      "offscreen": {
+        "src": "/mockups/hero-live-demo-mobile.mp4",
+        "paused": true,
+        "time": 0.061123,
+        "poster": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=256&q=75"
+      },
+      "resumed": {
+        "src": "/mockups/hero-live-demo-mobile.mp4",
+        "paused": false,
+        "time": 0.07708,
+        "poster": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=256&q=75"
+      },
+      "reduced": {
+        "src": null,
+        "paused": true,
+        "time": 0,
+        "poster": "http://localhost:3211/_next/image?url=%2Fmockups%2Fhero-live-demo.jpg&w=256&q=75"
+      }
+    }
+  }
+]

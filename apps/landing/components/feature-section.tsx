@@ -1,9 +1,8 @@
 "use client";
 
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
-import { useLayoutEffect, useRef } from "react";
+import { observeSectionAnimation } from "@/lib/landing-animation";
+import { useEffect, useRef } from "react";
 import { useLocale } from "@/components/locale-provider";
 
 const cardClass = "overflow-clip rounded-[12px]";
@@ -49,7 +48,7 @@ export function FeatureSection() {
   const { locale, messages } = useLocale();
   const sectionRef = useRef<HTMLElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
 
@@ -58,70 +57,82 @@ export function FeatureSection() {
     );
     if (rows.length === 0) return;
 
-    gsap.registerPlugin(ScrollTrigger);
-    const media = gsap.matchMedia();
-    media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
-      const context = gsap.context(() => {
-        const contentsByRow = rows.map((row) =>
-          Array.from(row.querySelectorAll<HTMLElement>("[data-feature-content]")),
-        );
-        const contents = contentsByRow.flat();
-        gsap.set(contents, { autoAlpha: 0, y: 48 });
-        const headerHeight = () =>
-          Math.max(
-            0,
-            ...Array.from(document.querySelectorAll<HTMLElement>("header")).map(
-              (header) => header.offsetHeight,
-            ),
-          );
+    return observeSectionAnimation(section, async (isCancelled) => {
+      const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+      ]);
+      if (isCancelled()) return () => {};
+      gsap.registerPlugin(ScrollTrigger);
+      const media = gsap.matchMedia();
+      try {
+        media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
+          const context = gsap.context(() => {
+            const contentsByRow = rows.map((row) =>
+              Array.from(row.querySelectorAll<HTMLElement>("[data-feature-content]")),
+            );
+            const contents = contentsByRow.flat();
+            gsap.set(contents, { autoAlpha: 0, y: 48 });
+            const headerHeight = () =>
+              Math.max(
+                0,
+                ...Array.from(document.querySelectorAll<HTMLElement>("header")).map(
+                  (header) => header.offsetHeight,
+                ),
+              );
 
-        const timeline = gsap.timeline({
-          scrollTrigger: {
-            anticipatePin: 1,
-            end: () => `+=${Math.min(640, window.innerHeight * 0.75)}`,
-            invalidateOnRefresh: true,
-            pin: true,
-            scrub: 0.2,
-            start: () => `top ${headerHeight()+60}px`,
-            trigger: section,
-          },
+            const timeline = gsap.timeline({
+              scrollTrigger: {
+                anticipatePin: 1,
+                end: () => `+=${Math.min(640, window.innerHeight * 0.75)}`,
+                invalidateOnRefresh: true,
+                pin: true,
+                scrub: 0.2,
+                start: () => `top ${headerHeight()+60}px`,
+                trigger: section,
+              },
+            });
+
+            contentsByRow.forEach((contentsInRow) => {
+              timeline.to(contentsInRow, {
+                autoAlpha: 1,
+                duration: 0.7,
+                ease: "power2.out",
+                stagger: 0.12,
+                y: 0,
+              });
+            });
+
+          }, section);
+
+          return () => context.revert();
+        });
+        media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
+          const context = gsap.context(() => {
+            section.querySelectorAll<HTMLElement>("[data-feature-card]").forEach((card) => {
+              gsap.from(card, {
+                autoAlpha: 0,
+                duration: 0.8,
+                ease: "power2.out",
+                scrollTrigger: {
+                  start: "top 70%",
+                  toggleActions: "restart none restart reverse",
+                  trigger: card,
+                },
+                y: 48,
+              });
+            });
+          }, section);
+
+          return () => context.revert();
         });
 
-        contentsByRow.forEach((contentsInRow) => {
-          timeline.to(contentsInRow, {
-            autoAlpha: 1,
-            duration: 0.7,
-            ease: "power2.out",
-            stagger: 0.12,
-            y: 0,
-          });
-        });
-
-      }, section);
-
-      return () => context.revert();
+        return () => media.revert();
+      } catch (error) {
+        media.revert();
+        throw error;
+      }
     });
-    media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
-      const context = gsap.context(() => {
-        section.querySelectorAll<HTMLElement>("[data-feature-card]").forEach((card) => {
-          gsap.from(card, {
-            autoAlpha: 0,
-            duration: 0.8,
-            ease: "power2.out",
-            scrollTrigger: {
-              start: "top 70%",
-              toggleActions: "restart none restart reverse",
-              trigger: card,
-            },
-            y: 48,
-          });
-        });
-      }, section);
-
-      return () => context.revert();
-    });
-
-    return () => media.revert();
   }, []);
 
   return (
@@ -220,6 +231,7 @@ export function FeatureSection() {
               <div
                 data-feature-card
                 className={`${cardClass} relative aspect-[874/370] w-full bg-background-secondary lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[874px] min-[106.5rem]:flex-none min-[106.5rem]:aspect-auto`}
+                role="img"
                 aria-label={messages.features.letteringAria}
               >
                 <div

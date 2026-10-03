@@ -1,10 +1,9 @@
 "use client";
 
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
+import { observeSectionAnimation } from "@/lib/landing-animation";
 import Link from "next/link";
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { liveFaceBlurGuide } from "@/lib/live-face-blur-guide";
 import { useLocale } from "@/components/locale-provider";
 
@@ -35,39 +34,51 @@ export function FAQSection({
   ];
   const sectionRef = useRef<HTMLElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
-    gsap.registerPlugin(ScrollTrigger);
-    const media = gsap.matchMedia();
-    media.add("(prefers-reduced-motion: no-preference)", () => {
-      const entries = section.querySelectorAll("details");
-      gsap.set(entries, { opacity: 0, y: 32 });
-      ScrollTrigger.batch(entries, {
-        start: "top 80%",
-        onEnter: (batch) => {
-          gsap.to(batch, { opacity: 1, y: 0, duration: 0.6, stagger: 0.12, ease: "power2.out" });
-        },
-        onLeaveBack: (batch) => {
-          gsap.to(batch, {
-            opacity: 0,
-            y: 32,
-            duration: 0.6,
-            stagger: 0.12,
-            ease: "power2.out",
-            overwrite: true,
+    return observeSectionAnimation(section, async (isCancelled) => {
+      const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+      ]);
+      if (isCancelled()) return () => {};
+      gsap.registerPlugin(ScrollTrigger);
+      const media = gsap.matchMedia();
+      try {
+        media.add("(prefers-reduced-motion: no-preference)", () => {
+          const entries = section.querySelectorAll("details");
+          gsap.set(entries, { opacity: 0, y: 32 });
+          ScrollTrigger.batch(entries, {
+            start: "top 80%",
+            onEnter: (batch) => {
+              gsap.to(batch, { opacity: 1, y: 0, duration: 0.6, stagger: 0.12, ease: "power2.out" });
+            },
+            onLeaveBack: (batch) => {
+              gsap.to(batch, {
+                opacity: 0,
+                y: 32,
+                duration: 0.6,
+                stagger: 0.12,
+                ease: "power2.out",
+                overwrite: true,
+              });
+            },
           });
-        },
-      });
-      // Keyboard focus must never remain on an invisible question or answer link.
-      const revealFocused = (event: FocusEvent) => {
-        const entry = (event.target as HTMLElement).closest("details");
-        if (entry) gsap.to(entry, { opacity: 1, y: 0, duration: 0, overwrite: true });
-      };
-      section.addEventListener("focusin", revealFocused);
-      return () => section.removeEventListener("focusin", revealFocused);
-    }, section);
-    return () => media.revert();
+          // Keyboard focus must never remain on an invisible question or answer link.
+          const revealFocused = (event: FocusEvent) => {
+            const entry = (event.target as HTMLElement).closest("details");
+            if (entry) gsap.to(entry, { opacity: 1, y: 0, duration: 0, overwrite: true });
+          };
+          section.addEventListener("focusin", revealFocused);
+          return () => section.removeEventListener("focusin", revealFocused);
+        }, section);
+        return () => media.revert();
+      } catch (error) {
+        media.revert();
+        throw error;
+      }
+    });
   }, []);
 
   return (

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Button } from "@/components/button";
 import { DownloadMenu } from "@/components/download-menu";
 import { HeroDemoVideo } from "@/components/hero-demo-video";
@@ -42,8 +43,17 @@ export function Hero() {
           aria-hidden="true"
         >
           <div
-            className="absolute inset-[4.22%_0_0_44.88%] overflow-hidden rounded-tl-[clamp(30px,8.5vw,70px)] rounded-tr-[clamp(30px,8.5vw,70px)] bg-[url('/mockups/hero-face-registration.png')] bg-cover bg-center lg:rounded-tl-[clamp(44px,5vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
-          />
+            className="absolute inset-[4.22%_0_0_44.88%] overflow-hidden rounded-tl-[clamp(30px,8.5vw,70px)] rounded-tr-[clamp(30px,8.5vw,70px)] lg:rounded-tl-[clamp(44px,5vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
+          >
+            <Image
+              src="/mockups/hero-face-registration.webp"
+              alt=""
+              fill
+              sizes="(min-width: 106.5rem) 400px, (min-width: 64rem) 28vw, (min-width: 48rem) 400px, 50vw"
+              loading="eager"
+              className="object-cover object-center"
+            />
+          </div>
           <PhoneArtwork
             frameClassName="inset-[4.22%_0_0_44.88%]"
             imageStyle={{

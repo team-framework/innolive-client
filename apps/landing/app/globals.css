@@ -3,7 +3,7 @@
 
 :root {
   --color-text-primary: #000000;
-  --color-text-secondary: #767676;
+  --color-text-secondary: #6b6b6b;
   --color-text-reversed: #ffffff;
   --color-background-primary: #f8f8f8;
   --color-background-secondary: #ffffff;
@@ -74,7 +74,7 @@
   --font-sans: var(--font-wanted-sans), "Wanted Sans", system-ui, sans-serif;
 
   --color-text-primary: #000000;
-  --color-text-secondary: #767676;
+  --color-text-secondary: #6b6b6b;
   --color-text-reversed: #ffffff;
   --color-background-primary: #f8f8f8;
   --color-background-secondary: #ffffff;

@@ -1,0 +1,128 @@
+[
+  {
+    "mode": "mobile",
+    "run": 1,
+    "fetchTime": "2026-10-03T11:37:34.945Z",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 928.7634,
+      "largest-contentful-paint": 1903.7633999999998,
+      "speed-index": 1629.7024865706012,
+      "total-blocking-time": 7.5,
+      "cumulative-layout-shift": 0.01928698028278896,
+      "total-byte-weight": 1115182
+    },
+    "warnings": [],
+    "error": null
+  },
+  {
+    "mode": "desktop",
+    "run": 1,
+    "fetchTime": "2026-10-03T11:37:46.994Z",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 252.5312,
+      "largest-contentful-paint": 740.0624,
+      "speed-index": 332.4662381156914,
+      "total-blocking-time": 0,
+      "cumulative-layout-shift": 0,
+      "total-byte-weight": 1760183
+    },
+    "warnings": [],
+    "error": null
+  },
+  {
+    "mode": "mobile",
+    "run": 2,
+    "fetchTime": "2026-10-03T11:37:59.468Z",
+    "scores": {
+      "performance": 97,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 909.7713000000001,
+      "largest-contentful-paint": 2651.871075,
+      "speed-index": 1404.7207710636198,
+      "total-blocking-time": 4,
+      "cumulative-layout-shift": 0.01928698028278896,
+      "total-byte-weight": 1115182
+    },
+    "warnings": [],
+    "error": null
+  },
+  {
+    "mode": "desktop",
+    "run": 2,
+    "fetchTime": "2026-10-03T11:38:11.035Z",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 251.6456,
+      "largest-contentful-paint": 609.114,
+      "speed-index": 333.39892654416496,
+      "total-blocking-time": 0,
+      "cumulative-layout-shift": 0,
+      "total-byte-weight": 1760183
+    },
+    "warnings": [],
+    "error": null
+  },
+  {
+    "mode": "mobile",
+    "run": 3,
+    "fetchTime": "2026-10-03T11:38:24.076Z",
+    "scores": {
+      "performance": 96,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 914.6655000000001,
+      "largest-contentful-paint": 2729.331,
+      "speed-index": 1385.4513927687226,
+      "total-blocking-time": 4.999999999999773,
+      "cumulative-layout-shift": 0.01928698028278896,
+      "total-byte-weight": 1115182
+    },
+    "warnings": [],
+    "error": null
+  },
+  {
+    "mode": "desktop",
+    "run": 3,
+    "fetchTime": "2026-10-03T11:38:35.973Z",
+    "scores": {
+      "performance": 100,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 262.5657,
+      "largest-contentful-paint": 630.772825,
+      "speed-index": 352.52297864058716,
+      "total-blocking-time": 0,
+      "cumulative-layout-shift": 0,
+      "total-byte-weight": 1760183
+    },
+    "warnings": [],
+    "error": null
+  }
+]

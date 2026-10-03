@@ -7,8 +7,9 @@ import { defaultLocale, isLocale, locales } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
 import { seoCopy } from "@/lib/seo-copy";
 import { siteOrigin } from "@/lib/seo";
-import { wantedSans } from "../fonts";
+import { wantedSans, wantedSansCommonPreload } from "../fonts";
 import "../globals.css";
+import "../fonts/wanted-sans.css";
 
 type LocaleLayoutProps = Readonly<{
   children: React.ReactNode;
@@ -44,6 +45,17 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} className={`${wantedSans.variable} ${wantedSans.className}`}>
+      <head>
+        {locale !== "en" && (
+          <link
+            rel="preload"
+            href={wantedSansCommonPreload}
+            as="font"
+            type="font/woff2"
+            crossOrigin="anonymous"
+          />
+        )}
+      </head>
       <body className="flex min-h-dvh flex-col">
         <LocaleProvider locale={locale} messages={messages}>
           <Header />

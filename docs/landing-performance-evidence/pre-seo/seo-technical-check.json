@@ -1,0 +1,309 @@
+{
+  "rows": [
+    {
+      "path": "/ko",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ko/pricing",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ko/try-out",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ko/try-out/experience",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ko/login",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ko/signup",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ko/privacy",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ko/terms",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ko/support",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en/pricing",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en/try-out",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en/try-out/experience",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en/login",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en/signup",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en/privacy",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en/terms",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/en/support",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja/pricing",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja/try-out",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja/try-out/experience",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja/login",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja/signup",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja/privacy",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja/terms",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    },
+    {
+      "path": "/ja/support",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [],
+      "hreflang": [],
+      "ogTitle": false,
+      "twitterCard": false
+    }
+  ],
+  "endpoints": {
+    "/robots.txt": {
+      "status": 404
+    },
+    "/sitemap.xml": {
+      "status": 404
+    }
+  }
+}
