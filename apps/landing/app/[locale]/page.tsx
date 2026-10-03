@@ -42,11 +42,14 @@ export default async function Home({ params }: PageProps) {
           {locale === "ko" && (
             <section aria-labelledby="mosaic-guides-heading" className="mx-auto flex max-w-[72rem] flex-col gap-6 px-[var(--page-gutter)] py-16">
               <h2 id="mosaic-guides-heading" className="text-heading">라이브 모자이크와 얼굴 비식별화</h2>
-              <p className="text-body leading-relaxed">실시간 모자이크와 자동 모자이크를 찾는 방송자를 위해 얼굴 자동 모자이크의 동작과 현재 블러 방식을 안내합니다. 행인 얼굴 모자이크가 필요한 야외 방송에서 라이브 방송 개인정보 보호를 준비하세요.</p>
+              <p className="text-body leading-relaxed">InnoLive는 야외 라이브 방송에서 공개 대상자로 등록한 얼굴을 보여 주고 행인의 얼굴을 실시간 블러로 가립니다. 무료 이용 범위, 휴대폰 방송 준비, 유튜브·치지직 송출 방법을 확인하세요.</p>
               <div className="flex flex-wrap gap-x-8 gap-y-4 text-body leading-relaxed">
                 <Link href="/ko/live-mosaic" className="underline">실시간 자동 모자이크 자세히 보기</Link>
                 <Link href="/ko/face-mosaic" className="underline">얼굴 자동 모자이크 기능 확인</Link>
                 <Link href="/ko/blog/live-face-blur" className="underline">라이브 방송에서 행인 얼굴 가리는 방법</Link>
+                <Link href="/ko/free-face-blur" className="underline">무료 자동 모자이크 이용 범위</Link>
+                <Link href="/ko/mobile-live-face-blur" className="underline">휴대폰 야외방송 얼굴 가리기</Link>
+                <Link href="/ko/obs-face-blur" className="underline">OBS 자동 모자이크와 사용 범위</Link>
               </div>
             </section>
           )}
