@@ -129,6 +129,19 @@ class BroadcastApiFlowTest {
         }
     }
 
+    @Test fun failedChzzkDefaultsLookupCannotSaveEmptySettingsOrPrepare() {
+        Harness(provider = BroadcastProvider.CHZZK).use { h ->
+            h.getStatus = 503
+            h.serverErrorCode = "not_supported"
+            assertTrue(h.connection.prepareBroadcast(ChzzkBroadcastSettings()))
+            h.awaitState(BroadcastState.FAILED)
+            assertTrue(h.requests.any { it.method == "GET" &&
+                it.url.encodedPath.endsWith("broadcast/defaults") })
+            assertFalse(h.requests.any { it.method == "PUT" })
+            assertFalse(h.requests.any { it.url.encodedPath.endsWith("stream/prepare") })
+        }
+    }
+
     @Test fun disconnectedMediaCannotStartOrResumeBroadcastOnTheServer() {
         Harness().use { h ->
             assertTrue(h.connection.prepareBroadcast(settings))

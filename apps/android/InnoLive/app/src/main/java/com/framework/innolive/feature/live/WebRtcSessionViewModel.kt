@@ -375,6 +375,11 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
+        if (selectedProvider != BroadcastProvider.YOUTUBE) {
+            broadcastStatus = UiText.Resource(com.framework.innolive.R.string.broadcast_settings_youtube_only)
+            isBroadcastStatusDefault = false
+            return
+        }
         serverError = null
         retryBroadcastRequest = { saveBroadcastSettings(settings) }
         connection?.saveBroadcastSettings(settings)

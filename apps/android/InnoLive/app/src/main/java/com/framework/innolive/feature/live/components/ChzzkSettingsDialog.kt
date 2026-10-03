@@ -99,6 +99,7 @@ internal fun ChzzkSettingsDialog(
     canDisconnect: Boolean,
     isBusy: Boolean,
     onChanged: (ChzzkBroadcastSettings) -> Unit,
+    onRefreshAccount: () -> Unit,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onSearch: suspend (String) -> List<ChzzkCategory>,
@@ -118,6 +119,7 @@ internal fun ChzzkSettingsDialog(
                 TextButton(onClick = onChangePlatform, enabled = !isBusy) { Text("플랫폼 변경") }
                 Text(accountLabel)
                 Row {
+                    TextButton(onClick = onRefreshAccount, enabled = canConnect && !isBusy) { Text("계정 상태 다시 확인") }
                     Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text("연결 / 재연결") }
                     TextButton(onClick = onDisconnect, enabled = canDisconnect && !isBusy) { Text("연결 해제") }
                 }

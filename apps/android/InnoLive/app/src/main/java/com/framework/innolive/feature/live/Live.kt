@@ -33,6 +33,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -84,8 +85,8 @@ fun LiveScreen(
     var chzzkSettings by rememberSaveable(stateSaver = ChzzkSettingsSaver) {
         mutableStateOf(ChzzkBroadcastSettings())
     }
-    var chzzkAccount by remember { mutableStateOf<com.framework.innolive.feature.youtube.StreamingAccount?>(null) }
-    var chzzkAccountVerified by remember { mutableStateOf(false) }
+    var chzzkAccountVerification by remember { mutableStateOf(ChzzkAccountVerification()) }
+    var chzzkAccountRefreshKey by remember { mutableIntStateOf(0) }
     var chzzkBusy by remember { mutableStateOf(false) }
     var chzzkMessage by remember { mutableStateOf<String?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
@@ -120,23 +121,28 @@ fun LiveScreen(
         if (selectedPlatform == "YouTube") webRtcSession.selectProvider(BroadcastProvider.YOUTUBE)
         if (selectedPlatform != null) providerPreferences.edit().putString("selected", selectedPlatform).apply()
     }
-    LaunchedEffect(openChzzkSettingsDialog, props.profileEmail) {
-        chzzkAccountVerified = false
-        chzzkAccount = null
+    LaunchedEffect(openChzzkSettingsDialog, props.profileEmail, chzzkAccountRefreshKey) {
+        val revision = chzzkAccountVerification.invalidate().also { chzzkAccountVerification = it }.revision
         if (openChzzkSettingsDialog && props.profileEmail.isBlank()) {
             chzzkMessage = "먼저 로그인하세요."
         }
         if (openChzzkSettingsDialog && props.profileEmail.isNotBlank()) {
             chzzkBusy = true
             try {
-                chzzkAccount = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
+                val account = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
                     .accounts(props.onRefreshAccessToken())
                     .firstOrNull { it.provider == "chzzk" }
-                chzzkAccountVerified = true
-                chzzkMessage = null
+                if (chzzkAccountVerification.revision == revision) {
+                    chzzkAccountVerification = chzzkAccountVerification.confirm(revision, account)
+                    chzzkMessage = null
+                }
             } catch (_: Exception) {
-                chzzkMessage = "계정 상태를 확인하지 못했습니다. 로그인 후 다시 시도하세요."
-            } finally { chzzkBusy = false }
+                if (chzzkAccountVerification.revision == revision) {
+                    chzzkMessage = "계정 상태를 확인하지 못했습니다. 다시 확인하거나 로그인하세요."
+                }
+            } finally {
+                if (chzzkAccountVerification.revision == revision) chzzkBusy = false
+            }
         }
     }
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
@@ -367,20 +373,26 @@ fun LiveScreen(
                                 openPlatformDialog = true
                             },
                             accountLabel = chzzkMessage ?: when {
-                                !chzzkAccountVerified -> "계정 상태 확인 중"
-                                chzzkAccount == null -> "치지직 계정을 연결하세요."
-                                chzzkAccount?.reconnectRequired == true -> "치지직 계정을 다시 연결하세요."
-                                else -> "연결됨: ${chzzkAccount?.channelTitle.orEmpty()}"
+                                !chzzkAccountVerification.verified -> "계정 상태 확인 중"
+                                chzzkAccountVerification.account == null -> "치지직 계정을 연결하세요."
+                                chzzkAccountVerification.account?.reconnectRequired == true -> "치지직 계정을 다시 연결하세요."
+                                else -> "연결됨: ${chzzkAccountVerification.account?.channelTitle.orEmpty()}"
                             },
-                            canPrepare = chzzkAccountVerified && chzzkAccount != null &&
-                                chzzkAccount?.reconnectRequired == false,
+                            canPrepare = chzzkAccountVerification.canPrepare,
                             canConnect = props.profileEmail.isNotBlank(),
-                            canDisconnect = chzzkAccountVerified && chzzkAccount != null,
+                            canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
                             isBusy = chzzkBusy,
                             onChanged = { chzzkSettings = it },
+                            onRefreshAccount = {
+                                chzzkAccountVerification = chzzkAccountVerification.invalidate()
+                                chzzkBusy = true
+                                chzzkAccountRefreshKey++
+                            },
                             onConnect = {
+                                chzzkAccountVerification = chzzkAccountVerification.invalidate()
+                                chzzkBusy = true
+                                chzzkMessage = null
                                 scope.launch {
-                                    chzzkBusy = true
                                     try {
                                         val state = newChzzkOAuthState()
                                         val config = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }.config(state)
@@ -393,22 +405,32 @@ fun LiveScreen(
                                 }
                             },
                             onDisconnect = {
+                                val revision = chzzkAccountVerification.invalidate()
+                                    .also { chzzkAccountVerification = it }.revision
+                                chzzkBusy = true
+                                chzzkMessage = null
                                 scope.launch {
-                                    chzzkBusy = true
                                     try {
                                         checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
                                             .disconnect(props.onRefreshAccessToken())
-                                        chzzkAccount = null
-                                        chzzkAccountVerified = true
-                                        chzzkMessage = null
+                                        if (chzzkAccountVerification.revision == revision) {
+                                            chzzkAccountVerification = chzzkAccountVerification.confirm(revision, null)
+                                            chzzkMessage = null
+                                        }
                                     } catch (_: Exception) {
-                                        chzzkMessage = "연결을 해제하지 못했습니다. 다시 시도하세요."
-                                    } finally { chzzkBusy = false }
+                                        if (chzzkAccountVerification.revision == revision) {
+                                            chzzkMessage = "연결 해제 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요."
+                                        }
+                                    } finally {
+                                        if (chzzkAccountVerification.revision == revision) chzzkBusy = false
+                                    }
                                 }
                             },
                             onSearch = { query -> checkNotNull(chzzkApi).categories(props.onRefreshAccessToken(), query) },
                             onPrepare = {
-                                if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+                                if (!chzzkAccountVerification.canPrepare || chzzkBusy) {
+                                    chzzkMessage = "계정 상태를 다시 확인한 뒤 방송을 준비하세요."
+                                } else if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
                                     mediaPermissions.refresh()
                                     mediaPermissionLauncher.launch(readMediaPermissionState(context).missingPermissions.toTypedArray())
                                 } else if (webRtcSession.prepareChzzkBroadcast(context, chzzkSettings,
@@ -428,18 +450,27 @@ fun LiveScreen(
                             onCode = { code ->
                                 chzzkOAuthConfig = null
                                 chzzkOAuthState = null
+                                val revision = chzzkAccountVerification.invalidate()
+                                    .also { chzzkAccountVerification = it }.revision
+                                chzzkBusy = true
+                                chzzkMessage = null
                                 scope.launch {
-                                    chzzkBusy = true
                                     try {
                                         val api = checkNotNull(chzzkApi)
                                         api.connect(props.onRefreshAccessToken(), code, currentState)
-                                        chzzkAccount = api.accounts(props.onRefreshAccessToken())
+                                        val account = api.accounts(props.onRefreshAccessToken())
                                             .firstOrNull { it.provider == "chzzk" }
-                                        chzzkAccountVerified = true
-                                        chzzkMessage = if (chzzkAccount == null) "연결 상태를 다시 확인하세요." else null
+                                        if (chzzkAccountVerification.revision == revision) {
+                                            chzzkAccountVerification = chzzkAccountVerification.confirm(revision, account)
+                                            chzzkMessage = if (account == null) "연결 상태를 다시 확인하세요." else null
+                                        }
                                     } catch (_: Exception) {
-                                        chzzkMessage = "치지직 연결에 실패했습니다. 다시 연결하세요."
-                                    } finally { chzzkBusy = false }
+                                        if (chzzkAccountVerification.revision == revision) {
+                                            chzzkMessage = "치지직 연결 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요."
+                                        }
+                                    } finally {
+                                        if (chzzkAccountVerification.revision == revision) chzzkBusy = false
+                                    }
                                 }
                             },
                             onFailure = { reason ->

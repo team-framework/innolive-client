@@ -56,6 +56,7 @@ import com.framework.innolive.feature.live.LiveScreen
 import com.framework.innolive.feature.live.LiveScreenProps
 import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
+import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
 import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
 import com.framework.innolive.feature.login.LoginScreen
@@ -950,21 +951,12 @@ fun AppNavigation(
 
                 BroadcastSettingRoute -> {
                     NavEntry(route) {
-                        val saveDisabledReasonRes = when {
-                            webRtcSession.connectionState != WebRtcConnectionState.CONNECTED ->
-                                R.string.broadcast_settings_connection_required
-                            broadcastAudience == "unset" -> R.string.validation_audience
-                            webRtcSession.broadcastState == BroadcastState.SAVING_SETTINGS ->
-                                R.string.broadcast_settings_saving
-                            webRtcSession.broadcastState in setOf(
-                                BroadcastState.PREPARING,
-                                BroadcastState.PREPARED,
-                                BroadcastState.GOING_LIVE,
-                                BroadcastState.LIVE,
-                                BroadcastState.STOPPING,
-                            ) -> R.string.broadcast_settings_save_unavailable
-                            else -> null
-                        }
+                        val saveDisabledReasonRes = broadcastSettingsSaveDisabledReason(
+                            provider = webRtcSession.selectedProvider,
+                            connectionState = webRtcSession.connectionState,
+                            broadcastState = webRtcSession.broadcastState,
+                            audienceSelected = broadcastAudience != "unset",
+                        )
                         val connectDisabledReasonRes = when {
                             session == null -> R.string.youtube_status_sign_in_required
                             isYouTubeAccountOperationInProgress ->

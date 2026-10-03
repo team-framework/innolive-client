@@ -586,8 +586,7 @@ class WebRtcConnection(
             updateBroadcastState(BroadcastState.SAVING_SETTINGS)
             if (provider == BroadcastProvider.CHZZK) {
                 val value = checkNotNull(chzzkSettings)
-                val defaults = runCatching { getChzzkDefaults() }.getOrNull()
-                putChzzkBroadcastSettings(value.withDefaults(defaults))
+                putChzzkBroadcastSettings(resolveChzzkSettingsForPrepare(value, ::getChzzkDefaults))
             } else putBroadcastSettings(checkNotNull(settings))
             updateBroadcastState(BroadcastState.PREPARING)
             val request = JSONObject().put("provider", provider.wireValue)
@@ -2402,9 +2401,12 @@ internal fun buildChzzkSettingsPayload(settings: ChzzkBroadcastSettings): JSONOb
     .put("category_id", settings.categoryId)
     .put("tags", org.json.JSONArray(settings.tags))
 
-internal fun ChzzkBroadcastSettings.withDefaults(defaults: ChzzkBroadcastSettings?): ChzzkBroadcastSettings =
-    if (defaults != null && title.isBlank() && categoryType.isBlank() && categoryId.isBlank() && tags.isEmpty())
-        defaults else this
+internal fun resolveChzzkSettingsForPrepare(
+    settings: ChzzkBroadcastSettings,
+    loadDefaults: () -> ChzzkBroadcastSettings,
+): ChzzkBroadcastSettings =
+    if (settings.title.isBlank() && settings.categoryType.isBlank() &&
+        settings.categoryId.isBlank() && settings.tags.isEmpty()) loadDefaults() else settings
 
 internal fun parseBroadcastState(payload: String, provider: BroadcastProvider): BroadcastState? {
     val json = JSONObject(payload)

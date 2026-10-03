@@ -1,11 +1,14 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.R
+import com.framework.innolive.feature.youtube.StreamingAccount
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 class ChzzkBroadcastContractTest {
     @Test fun settingsPayloadContainsOnlyChzzkFields() {
@@ -58,5 +61,42 @@ class ChzzkBroadcastContractTest {
         assertTrue(chzzkBroadcastErrorMessage("not_supported", null).contains("서버"))
         assertTrue(chzzkBroadcastErrorMessage("broadcast_not_ready", null).contains("준비"))
         assertTrue(chzzkBroadcastErrorMessage("bad_request", "tags[0]").contains("태그"))
+    }
+
+    @Test fun accountMutationInvalidatesPreviousVerificationUntilFreshResponse() {
+        val oldAccount = StreamingAccount("chzzk", "old", "old channel", false)
+        val verified = ChzzkAccountVerification().confirm(0, oldAccount)
+        assertTrue(verified.canPrepare)
+
+        val pending = verified.invalidate()
+        assertFalse(pending.canPrepare)
+        assertNull(pending.account)
+        assertFalse(pending.confirm(0, oldAccount).canPrepare)
+
+        val reconnectRequired = pending.confirm(
+            pending.revision, StreamingAccount("chzzk", "new", "new channel", true))
+        assertFalse(reconnectRequired.canPrepare)
+        assertTrue(reconnectRequired.confirm(reconnectRequired.revision,
+            StreamingAccount("chzzk", "new", "new channel", false)).canPrepare)
+    }
+
+    @Test fun emptySettingsRequireSuccessfulDefaultsBeforeSaving() {
+        assertThrows(IOException::class.java) {
+            resolveChzzkSettingsForPrepare(ChzzkBroadcastSettings()) {
+                throw IOException("defaults unavailable")
+            }
+        }
+        val explicit = ChzzkBroadcastSettings("직접 입력", "GAME", "game-id")
+        assertEquals(explicit, resolveChzzkSettingsForPrepare(explicit) {
+            throw AssertionError("explicit settings must not load defaults")
+        })
+    }
+
+    @Test fun youtubeSettingsSaveIsDisabledForChzzkEvenWhenPreviewIsConnectedAndIdle() {
+        assertEquals(R.string.broadcast_settings_youtube_only,
+            broadcastSettingsSaveDisabledReason(BroadcastProvider.CHZZK,
+                WebRtcConnectionState.CONNECTED, BroadcastState.IDLE, audienceSelected = true))
+        assertNull(broadcastSettingsSaveDisabledReason(BroadcastProvider.YOUTUBE,
+            WebRtcConnectionState.CONNECTED, BroadcastState.IDLE, audienceSelected = true))
     }
 }
