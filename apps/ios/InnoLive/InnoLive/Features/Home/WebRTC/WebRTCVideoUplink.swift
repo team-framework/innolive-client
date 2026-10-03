@@ -164,9 +164,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         )
         videoQualitySettings = normalized
         normalized.save()
-        if let activeCameraID {
-            applyExposureToCamera(activeCameraID)
-        }
+        cameraFrameRelay?.setExposureEV(normalized.exposureEV)
     }
 
     func setColor(warmth: Float, saturation: Float) {
@@ -186,11 +184,10 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         cameraFrameRelay?.setUnprocessedPreviewHandler(handler)
     }
 
-    func applyExposureToCamera(_ cameraID: String) {
-        let exposureEV = videoQualitySettings.exposureEV
+    func resetCameraExposureBias(_ cameraID: String) {
         zoomQueue.async {
             guard let device = AVCaptureDevice(uniqueID: cameraID) else { return }
-            _ = CameraDeviceExposure.apply(exposureEV, to: device)
+            _ = CameraDeviceExposure.apply(0, to: device)
         }
     }
 

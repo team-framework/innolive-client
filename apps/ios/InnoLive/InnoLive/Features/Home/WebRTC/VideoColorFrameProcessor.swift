@@ -22,11 +22,12 @@ nonisolated final class VideoColorFrameProcessor: @unchecked Sendable {
     private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
     private var pools: [Dimensions: CVPixelBufferPool] = [:]
 
-    func process(_ frame: LKRTCVideoFrame, warmth: Float, saturation: Float) throws -> LKRTCVideoFrame {
-        guard warmth.isFinite, saturation.isFinite else { throw ProcessingError.invalidAdjustment }
+    func process(_ frame: LKRTCVideoFrame, exposureEV: Float = 0, warmth: Float, saturation: Float) throws -> LKRTCVideoFrame {
+        guard exposureEV.isFinite, warmth.isFinite, saturation.isFinite else { throw ProcessingError.invalidAdjustment }
+        let clampedExposureEV = min(max(exposureEV, -2), 2)
         let clampedWarmth = min(max(warmth, -1), 1)
         let clampedSaturation = min(max(saturation, 0), 2)
-        if clampedWarmth == 0, clampedSaturation == 1 { return frame }
+        if clampedExposureEV == 0, clampedWarmth == 0, clampedSaturation == 1 { return frame }
 
         guard let source = frame.buffer as? LKRTCCVPixelBuffer else { throw ProcessingError.unsupportedBuffer }
         let sourceBuffer = source.pixelBuffer
@@ -38,6 +39,13 @@ nonisolated final class VideoColorFrameProcessor: @unchecked Sendable {
         guard extent.origin.x.isFinite, extent.origin.y.isFinite,
               extent.width.isFinite, extent.height.isFinite,
               !extent.isEmpty else { throw ProcessingError.invalidImage }
+        if clampedExposureEV != 0 {
+            guard let filter = CIFilter(name: "CIExposureAdjust", parameters: [
+                kCIInputImageKey: image,
+                kCIInputEVKey: clampedExposureEV
+            ]), let output = filter.outputImage else { throw ProcessingError.unavailableFilter }
+            image = output
+        }
         if clampedWarmth != 0 {
             guard let filter = CIFilter(name: "CITemperatureAndTint", parameters: [
                 kCIInputImageKey: image,
