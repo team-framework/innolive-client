@@ -119,8 +119,8 @@ internal fun ChzzkSettingsDialog(
                 Text("치지직 방송 설정")
                 TextButton(onClick = onChangePlatform, enabled = !isBusy) { Text("플랫폼 변경") }
                 Text(accountLabel)
+                TextButton(onClick = onRefreshAccount, enabled = canConnect && !isBusy) { Text("계정 상태 다시 확인") }
                 Row {
-                    TextButton(onClick = onRefreshAccount, enabled = canConnect && !isBusy) { Text("계정 상태 다시 확인") }
                     Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text("연결") }
                     TextButton(onClick = onDisconnect, enabled = canDisconnect && !isBusy) { Text("연결 해제") }
                 }
