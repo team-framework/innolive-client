@@ -9,9 +9,10 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 ORIGIN = "https://innolive.studio"
-AGENTS = ["Googlebot", "bingbot", "OAI-SearchBot", "PerplexityBot"]
-GUIDES = ["live-mosaic", "face-mosaic", "live-privacy", "youtube", "chzzk", "mosaic-software", "blog/live-face-blur", "blog/automatic-mosaic"]
-TARGETS = {"/ko", "/en", "/ja", *(f"/ko/{path}" for path in GUIDES)}
+AGENTS = ["Googlebot", "Google-Extended", "bingbot", "OAI-SearchBot", "Claude-SearchBot", "Claude-User", "PerplexityBot"]
+# The same path registry drives language navigation and this verification.
+GUIDES = re.findall(r'"(/[^" ]+)"', (Path(__file__).resolve().parents[1] / "lib/seo-guide-paths.ts").read_text())
+TARGETS = {"/ko", "/en", "/ja", *(f"/ko{path}" for path in GUIDES)}
 
 
 class Node:
@@ -125,6 +126,11 @@ def main():
     assert all(url.startswith(ORIGIN + "/") for url in urls), "sitemap origin"
     paths = [url.removeprefix(ORIGIN) for url in urls]
     assert TARGETS <= set(paths), "missing AEO page in sitemap"
+    queries = json.loads((Path(__file__).resolve().parents[3] / "docs/fixtures/landing-aeo-queries.ko.json").read_text())
+    assert len(queries["queries"]) == 45, "keyword inventory count"
+    assert len({query["keyword"] for query in queries["queries"]}) == 45, "duplicate keyword"
+    assert all("innolive" not in query["prompt"].lower() for query in queries["queries"]), "branded benchmark prompt"
+    assert all(query["sourcePath"] in paths for query in queries["queries"]), "benchmark source missing from sitemap"
     pages = [check_page(base, path, robots) for path in paths]
     report = {"base_url": base, "sitemap_urls": len(urls), "structured_pages": len(TARGETS), "faq_answers": sum(page["faq_answers"] for page in pages), "pages": pages}
     if args.report:

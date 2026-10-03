@@ -28,6 +28,7 @@ function load(file) {
 
 const { serializeStructuredData, homeStructuredData, guideStructuredData } = load(path.join(__dirname, "structured-data.ts"));
 const { seoGuides } = load(path.join(__dirname, "seo-guides.ts"));
+const { seoGuidePaths } = load(path.join(__dirname, "seo-guide-paths.ts"));
 
 test("JSON-LD의 HTML 닫는 태그를 차단하고 원문을 보존한다", () => {
   const original = { answer: '</script><script>alert("x")</script> & 블러 日本語' };
@@ -44,5 +45,14 @@ test("언어·페이지가 달라도 같은 제품과 사이트를 참조한다"
   }
   for (const graph of graphs) {
     assert.ok(!graph.some((node) => "aggregateRating" in node || "offers" in node || "datePublished" in node));
+  }
+});
+
+test("안내의 경로·언어 탐색·관련 링크가 실제 페이지와 일치한다", () => {
+  const paths = seoGuides.map(({ path }) => path);
+  assert.equal(new Set(paths).size, paths.length);
+  assert.deepEqual([...paths].sort(), [...seoGuidePaths].sort());
+  for (const guide of seoGuides) {
+    for (const related of guide.related) assert.ok(paths.includes(related), `${guide.path}: ${related}`);
   }
 });
