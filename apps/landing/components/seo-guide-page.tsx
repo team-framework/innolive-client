@@ -24,7 +24,6 @@ export function SeoGuidePage({ guide }: { guide: SeoGuide }) {
           <div className="flex flex-wrap gap-3">
             <Button href="/ko/try-out" variant="secondary" showChevron={false}>얼굴 가리기 체험하기</Button>
             <Button href="/ko/pricing" showChevron={false}>방송 요금제 확인</Button>
-            {guide.path === "/obs-face-blur" && <Button href="/ko/support" showChevron={false}>OBS 연동 문의</Button>}
           </div>
         </div>
         {["/live-mosaic", "/face-mosaic", "/mobile-live-face-blur"].includes(guide.path) && (

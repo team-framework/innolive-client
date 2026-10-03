@@ -2,7 +2,7 @@
 export const seoGuidePaths = [
   "/live-mosaic", "/face-mosaic", "/live-privacy", "/youtube", "/chzzk",
   "/mosaic-software", "/blog/live-face-blur", "/blog/automatic-mosaic",
-  "/free-face-blur", "/mobile-live-face-blur", "/obs-face-blur",
+  "/free-face-blur", "/mobile-live-face-blur",
 ] as const;
 
 export function isSeoGuidePath(path: string): boolean {
