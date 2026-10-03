@@ -36,7 +36,7 @@ struct CameraAudioSettingsView: View {
                     CameraQualitySelectionRow(
                         selectedQualityRaw: $selectedQualityRaw,
                         isChanging: isChangingQuality,
-                        isDisabled: isChangingCamera
+                        isDisabled: isChangingCamera || youtube.hasStartedYouTubeBroadcast || youtube.isChangingBroadcastMode
                     )
 
                     CameraDeviceSelectionRow(
@@ -144,6 +144,10 @@ struct CameraAudioSettingsView: View {
     }
 
     private func applyQualitySelection(_ qualityRaw: String, fallbackQuality: String) {
+        guard !youtube.hasStartedYouTubeBroadcast, !youtube.isChangingBroadcastMode else {
+            selectedQualityRaw = youtube.videoUplink.currentVideoQuality?.rawValue ?? fallbackQuality
+            return
+        }
         guard let quality = CameraQualityPreset(rawValue: qualityRaw) else {
             selectedQualityRaw = CameraQualityPreset.defaultValue.rawValue
             return

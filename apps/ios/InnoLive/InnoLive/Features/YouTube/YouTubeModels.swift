@@ -220,34 +220,6 @@ struct YouTubeChannel: Codable, Equatable {
     let title: String
 }
 
-struct YouTubeStreamingAccountSummary: Decodable, Equatable {
-    let provider: String
-    let channelID: String
-    let channelTitle: String
-    let connectedAt: String?
-    let reconnectRequired: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case provider
-        case channelID = "channel_id"
-        case channelTitle = "channel_title"
-        case connectedAt = "connected_at"
-        case reconnectRequired = "reconnect_required"
-    }
-
-    var youtubeConnection: YouTubeConnection? {
-        guard provider == "youtube" else { return nil }
-        return YouTubeConnection(
-            provider: provider,
-            channel: YouTubeChannel(
-                id: channelID,
-                title: channelTitle.isEmpty ? channelID : channelTitle
-            ),
-            requiresReconnection: reconnectRequired
-        )
-    }
-}
-
 struct YouTubeBroadcastSession: Decodable, Equatable {
     var aiProcessing: String? = nil
     // Server capability stays fixed; the client can move inference without replacing this session.
@@ -509,7 +481,7 @@ struct BroadcastUpgradeOption: Decodable, Equatable {
         remainingSecondsAfter = try container.remainingTime(forKey: .remainingSecondsAfter)
         needsSettings = try container.decode(Bool.self, forKey: .needsSettings)
         restartsBroadcast = try container.decode(Bool.self, forKey: .restartsBroadcast)
-        restartEffects = try container.decode([BroadcastRestartEffect].self, forKey: .restartEffects)
+        restartEffects = try container.decodeIfPresent([BroadcastRestartEffect].self, forKey: .restartEffects) ?? []
     }
 }
 

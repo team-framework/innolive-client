@@ -1,0 +1,86 @@
+{
+  "session_id": "fixture-upgrade",
+  "owner_token": "fixture-owner",
+  "provider": "youtube",
+  "broadcast_resolution": "720p",
+  "stream": {
+    "status": "streaming",
+    "publisher_active": true,
+    "reconnect_attempts": 0,
+    "broadcast_phase": "live"
+  },
+  "media": {},
+  "targets": [
+    {
+      "provider": "youtube",
+      "stream": {
+        "status": "streaming",
+        "publisher_active": true,
+        "reconnect_attempts": 0,
+        "broadcast_phase": "live"
+      }
+    }
+  ],
+  "notices": [],
+  "broadcast_remaining_seconds": 14400,
+  "resolution_switch": null,
+  "upgrade_offer": {
+    "resolution": "fhd",
+    "mode": "fhd_single",
+    "units_from": 1,
+    "units_to": 2,
+    "remaining_seconds_after": 7200,
+    "options": [
+      {
+        "mode": "fhd_single",
+        "resolution": "fhd",
+        "targets": [
+          "youtube"
+        ],
+        "units_to": 2,
+        "remaining_seconds_after": 7200,
+        "needs_settings": false,
+        "restarts_broadcast": true,
+        "restart_effects": [
+          {
+            "provider": "youtube",
+            "same_link": false
+          }
+        ]
+      },
+      {
+        "mode": "720p_multi",
+        "resolution": "720p",
+        "targets": [
+          "youtube",
+          "chzzk"
+        ],
+        "units_to": 2,
+        "remaining_seconds_after": 7200,
+        "needs_settings": true,
+        "restarts_broadcast": false,
+        "restart_effects": null
+      },
+      {
+        "mode": "fhd_multi",
+        "resolution": "fhd",
+        "targets": [
+          "youtube",
+          "chzzk"
+        ],
+        "units_to": 3,
+        "remaining_seconds_after": 4800,
+        "needs_settings": true,
+        "restarts_broadcast": true,
+        "restart_effects": [
+          {
+            "provider": "youtube",
+            "same_link": false
+          }
+        ]
+      }
+    ],
+    "expires_at": "2099-10-03T00:03:00Z",
+    "selected": "720p_multi"
+  }
+}

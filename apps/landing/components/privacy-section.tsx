@@ -1,14 +1,13 @@
 "use client";
 
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ScrollSmoother } from "gsap/ScrollSmoother";
 import Image from "next/image";
-import { useLayoutEffect, useRef } from "react";
+import { observeSectionAnimation } from "@/lib/landing-animation";
+import { useEffect, useRef, useState } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { privacySlideSources } from "@/lib/privacy-slides";
 
-const phoneSizes = "(min-width: 106.5rem) 438px, (min-width: 64rem) 40vw, 80vw";
+const phoneSizes = "(min-width: 64rem) min(438px, calc((100dvh - 8rem) * 438 / 881)), min(100vw, calc((100dvh - 18rem) * 438 / 881))";
+const PRIVACY_ANIMATION_DELAY_MS = 400;
 
 const aiAccentStyle = {
   backgroundImage:
@@ -25,8 +24,26 @@ export function PrivacySection() {
     label: messages.privacy.slides[index]?.label ?? "",
   }));
   const sectionRef = useRef<HTMLElement>(null);
+  const [loadArtwork, setLoadArtwork] = useState(false);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) return;
+    // Native lazy-loading can fetch distant images on slow connections. Keep
+    // the slides out of the initial request queue until this section approaches.
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setLoadArtwork(true);
+        observer.disconnect();
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const section = sectionRef.current;
     if (!section || slides.length < 2) return;
 
@@ -35,125 +52,87 @@ export function PrivacySection() {
     );
     if (slideNodes.length < 2) return;
 
-    gsap.registerPlugin(ScrollTrigger);
-    const media = gsap.matchMedia();
-    media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
-      let active = false;
-      let index = 0;
-      let busy = false;
-      let consumed = true;
-      let distance = 0;
-      let lastInput = 0;
-      let tween: gsap.core.Timeline | undefined;
-      let trigger: ScrollTrigger;
-      const scrollTo = (top: number) => {
-        const smoother = ScrollSmoother.get();
-        if (smoother) smoother.scrollTop(top);
-        else window.scrollTo({ top, behavior: "instant" });
-      };
-      const show = (next: number) => {
-        gsap.set(slideNodes, { autoAlpha: 0, yPercent: 100 });
-        gsap.set(slideNodes[next], { autoAlpha: 1, yPercent: 0 });
-        index = next;
-        section.dataset.privacyIndex = String(index);
-      };
-      const context = gsap.context(() => {
-        show(0);
-        trigger = ScrollTrigger.create({
-          trigger: section,
-          start: "top top",
-          end: "+=2",
-          pin: true,
-          invalidateOnRefresh: true,
-          onUpdate: (self) => {
-            if (active && !self.isActive) active = false;
-          },
-        });
-      }, section);
-      const step = (direction: number) => {
-        if (busy) return;
-        const next = index + direction;
-        if (next < 0 || next >= slideNodes.length) {
-          active = false;
-          scrollTo(direction > 0 ? trigger.end + 1 : trigger.start - 1);
-          return;
-        }
-        busy = true;
-        const previous = slideNodes[index];
-        const target = slideNodes[next];
-        index = next;
-        section.dataset.privacyIndex = String(index);
-        gsap.set(target, { autoAlpha: 0, yPercent: direction * 100 });
-        tween = gsap.timeline({ onComplete: () => { busy = false; } })
-          .to(previous, { autoAlpha: 0, yPercent: -direction * 100, duration: 0.35 })
-          .to(target, { autoAlpha: 1, yPercent: 0, duration: 0.35 }, 0);
-      };
-      const intercept = (delta: number, event: Event, fresh: boolean) => {
-        const y = window.scrollY;
-        if (active && (y < trigger.start || y > trigger.end)) active = false;
-        if (!active) {
-          const enteringDown = delta > 0 && y <= trigger.start && y + delta >= trigger.start;
-          const enteringUp = delta < 0 && y >= trigger.end && y + delta <= trigger.end;
-          const atSection = y >= trigger.start && y <= trigger.end;
-          if (!enteringDown && !enteringUp && !atSection) return;
-          active = true;
-          consumed = true;
-          show(enteringUp ? slideNodes.length - 1 : index);
-          scrollTo(trigger.start + 1);
-        } else {
-          if (fresh) { consumed = false; distance = 0; }
-          distance += delta;
-          if (!consumed && !busy && Math.abs(distance) >= 40) {
-            consumed = true;
-            step(Math.sign(distance));
-          }
-        }
-        event.preventDefault();
-        event.stopImmediatePropagation();
-      };
-      const onWheel = (event: WheelEvent) => {
-        if (document.documentElement.dataset.introComplete !== "true") return;
-        const now = performance.now();
-        const fresh = now - lastInput > 260;
-        lastInput = now;
-        const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1);
-        if (Math.abs(delta) > 0) intercept(delta, event, fresh);
-      };
-      const onKey = (event: KeyboardEvent) => {
-        if (!active || event.repeat || (event.target instanceof HTMLElement && event.target.closest("a, button, input, select, textarea"))) return;
-        if (["ArrowDown", "PageDown", " ", "ArrowUp", "PageUp"].includes(event.key)) {
-          intercept(["ArrowUp", "PageUp"].includes(event.key) ? -80 : 80, event, true);
-        }
-      };
-      window.addEventListener("wheel", onWheel, { capture: true, passive: false });
-      window.addEventListener("keydown", onKey, { capture: true });
-      return () => {
-        window.removeEventListener("wheel", onWheel, true);
-        window.removeEventListener("keydown", onKey, true);
-        tween?.kill();
-        delete section.dataset.privacyIndex;
-        context.revert();
-      };
-    });
-    media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
-      const context = gsap.context(() => {
-        gsap.from(section, {
-          autoAlpha: 0,
-          duration: 0.8,
-          ease: "power2.out",
-          scrollTrigger: {
-            start: "top 70%",
-            toggleActions: "restart none restart reverse",
-            trigger: section,
-          },
-          y: 48,
-        });
-      }, section);
+    return observeSectionAnimation(section, async (isCancelled) => {
+      const [{ default: gsap }, { ScrollTrigger }, { ScrollSmoother }] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+        import("gsap/ScrollSmoother"),
+      ]);
+      if (isCancelled()) return () => {};
+      gsap.registerPlugin(ScrollTrigger);
+      const media = gsap.matchMedia();
+      try {
+        media.add("(min-width: 64rem) and (prefers-reduced-motion: no-preference)", () => {
+          let entered = false;
+          let delayTimer: gsap.core.Tween | undefined;
+          let releaseScroll: (() => void) | undefined;
+          const context = gsap.context(() => {
+            gsap.set(slideNodes, { autoAlpha: 0, yPercent: 100 });
+            gsap.set(slideNodes[0], { autoAlpha: 1, yPercent: 0 });
+            const timeline = gsap.timeline({
+              scrollTrigger: {
+                anticipatePin: 1,
+                end: () => `+=${window.innerHeight * (slideNodes.length - 1)}`,
+                invalidateOnRefresh: true,
+                onEnter: (trigger) => {
+                  if (entered) return;
+                  entered = true;
+                  const smoother = ScrollSmoother.get();
+                  const wasPaused = smoother?.paused() ?? false;
+                  trigger.disable(false);
+                  smoother?.paused(true).scrollTop(trigger.start);
+                  trigger.animation?.progress(0);
+                  releaseScroll = () => {
+                    trigger.enable(false, false);
+                    smoother?.paused(wasPaused);
+                    releaseScroll = undefined;
+                  };
+                  delayTimer = gsap.delayedCall(PRIVACY_ANIMATION_DELAY_MS / 1000, releaseScroll);
+                },
+                pin: true,
+                scrub: 0.4,
+                start: "top top",
+                trigger: section,
+              },
+            });
 
-      return () => context.revert();
-    });
+            slideNodes.slice(1).forEach((slide, index) => {
+              timeline.to(slideNodes[index], { autoAlpha: 0, duration: 1, yPercent: -100 });
+              timeline.to(slide, { autoAlpha: 1, duration: 1, yPercent: 0 }, "<");
+            });
+          }, section);
 
-    return () => media.revert();
+          return () => {
+            delayTimer?.kill();
+            releaseScroll?.();
+            context.revert();
+          };
+        });
+        media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
+          const context = gsap.context(() => {
+            gsap.from(section, {
+              autoAlpha: 0,
+              delay: PRIVACY_ANIMATION_DELAY_MS / 1000,
+              duration: 0.8,
+              ease: "power2.out",
+              scrollTrigger: {
+                start: "top 70%",
+                toggleActions: "restart none restart reverse",
+                trigger: section,
+              },
+              y: 48,
+            });
+          }, section);
+
+          return () => context.revert();
+        });
+
+        return () => media.revert();
+      } catch (error) {
+        media.revert();
+        throw error;
+      }
+    });
   }, [slides.length]);
 
   return (
@@ -182,14 +161,17 @@ export function PrivacySection() {
           </div>
         </div>
         <div className="privacy-phone relative aspect-[438/881] min-w-0 lg:-translate-y-10 lg:flex-none">
-          <Image
-            src="/landing/privacy-phone.png"
-            alt=""
-            width={1359}
-            height={2736}
-            sizes={phoneSizes}
-            className="absolute inset-0 size-full max-w-none z-1"
-          />
+          {loadArtwork && (
+            <Image
+              src="/landing/privacy-phone.webp"
+              alt=""
+              width={1359}
+              height={2736}
+              sizes={phoneSizes}
+              fetchPriority="low"
+              className="absolute inset-0 size-full max-w-none z-1"
+            />
+          )}
           <div className="absolute inset-[3.2%_5.5%] z-0 overflow-hidden rounded-[3rem] bg-background-secondary">
             {slides.length ? (
               slides.map((slide, index) => (
@@ -199,14 +181,16 @@ export function PrivacySection() {
                   className="absolute inset-0 hidden items-center justify-center bg-gradient-to-br from-[#eef2ff] to-[#dbeafe] p-4 text-center first:flex lg:flex motion-reduce:hidden motion-reduce:first:flex lg:motion-reduce:hidden lg:motion-reduce:first:flex"
                 >
                   {slide.src ? (
-                    <Image
-                      src={slide.src}
-                      alt={slide.alt}
-                      fill
-                      unoptimized
-                      sizes={phoneSizes}
-                      className="object-cover"
-                    />
+                    loadArtwork && (
+                      <Image
+                        src={slide.src}
+                        alt={slide.alt}
+                        fill
+                        sizes={phoneSizes}
+                        fetchPriority="low"
+                        className="object-cover"
+                      />
+                    )
                   ) : (
                     <span className="break-keep text-sm font-semibold text-text-primary sm:text-base">
                       {slide.label}

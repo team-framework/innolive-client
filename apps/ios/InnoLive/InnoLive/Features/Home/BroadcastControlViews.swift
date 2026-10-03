@@ -129,12 +129,28 @@ struct BroadcastPreparationControlLabel: View {
 struct BroadcastSessionStatusView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    @State private var isShowingUpgradeOffer = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            if youtube.upgradeOffer != nil {
+                Button { isShowingUpgradeOffer = true } label: {
+                    Label(String(localized: "방송 업그레이드 제안", table: "UpgradeOffer"), systemImage: "arrow.up.circle")
+                }
+                .accessibilityIdentifier("upgrade-offer-entry")
+            }
             ForEach(youtube.visibleBroadcastTargets) { target in
                 let policy = YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false)
                 Text(policy.streamStatusText.replacingOccurrences(of: "YouTube", with: target.title))
+            }
+            if youtube.hasStartedYouTubeBroadcast {
+                NavigationLink {
+                    BroadcastModeView(authentication: authentication, youtube: youtube)
+                } label: {
+                    Label(String(localized: "방송 방식 변경", table: "BroadcastMode"), systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(!youtube.canChangeBroadcastMode || youtube.isSavingLiveSettings)
+                .accessibilityIdentifier("broadcast-mode-entry")
             }
             ForEach(youtube.liveEditingTargets) { provider in
                 NavigationLink {
@@ -142,7 +158,7 @@ struct BroadcastSessionStatusView: View {
                 } label: {
                     Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
                 }
-                .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
+                .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode)
                 .accessibilityIdentifier("live-edit-" + provider.rawValue)
             }
             if youtube.isYouTubeBroadcastActive {
@@ -168,8 +184,16 @@ struct BroadcastSessionStatusView: View {
             if !(youtube.responseState.details.resolutionSwitch?.failedTargets ?? []).isEmpty {
                 Text(String(localized: "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."))
             }
-            if !youtube.responseState.details.failedTargets.isEmpty {
-                Text(String(localized: "일부 방송 플랫폼의 라이브 시작에 실패했습니다."))
+            ForEach(youtube.liveStartFailures, id: \.provider) { failure in
+                let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
+                Text("\(title) · \(String(localized: "라이브 시작 실패", table: "Simulcast"))").foregroundStyle(.orange)
+            }
+            if youtube.hasStartedYouTubeBroadcast,
+               youtube.visibleBroadcastTargets.contains(where: { $0.stream.broadcastPhaseValue == .prepared && $0.stream.statusValue != .stopped }) {
+                Button(String(localized: "준비된 대상 다시 시작", table: "Simulcast")) {
+                    Task { await youtube.goLiveYouTubeStream(accessToken: authentication.currentAccessToken()) }
+                }
+                .disabled(youtube.isChangingStreamState)
             }
             if !youtube.responseState.details.warnings.isEmpty {
                 Text(String(localized: "방송은 준비되었지만 일부 설정을 적용하지 못했습니다."))
@@ -177,6 +201,12 @@ struct BroadcastSessionStatusView: View {
         }
         .font(.caption)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .sheet(isPresented: $isShowingUpgradeOffer) {
+            NavigationStack { UpgradeOfferView(authentication: authentication, youtube: youtube) }
+        }
+        .onChange(of: youtube.upgradeOffer) { _, offer in
+            if offer == nil { isShowingUpgradeOffer = false }
+        }
     }
 }
 

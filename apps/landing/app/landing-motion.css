@@ -14,14 +14,14 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .hero-support-reveal {
-    animation: hero-support-rise 650ms ease-out 1.6s both paused;
+    animation: hero-support-rise 289ms ease-out 711ms both paused;
   }
 
   html[data-intro-complete="true"] .hero-support-reveal {
     animation-play-state: running;
   }
 
-  .hero-support-actions { animation-delay: 1.8s; }
+  .hero-support-actions { animation-delay: 800ms; }
 
   .pricing-support-reveal {
     animation: hero-support-rise 650ms ease-out 1s both;
@@ -95,6 +95,14 @@
 }
 
 body > header + div {
+  padding-top: var(--header-height);
+}
+
+.page-top-spacing {
+  padding-top: 2rem;
+}
+
+body:has([data-page="home"]) > header + div {
   padding-top: 101px;
 }
 
@@ -154,7 +162,7 @@ body:has([data-page="auth"]) > header + div {
 }
 
 @media (min-width: 48rem) {
-  body > header + div {
+  body:has([data-page="home"]) > header + div {
     padding-top: var(--header-block-desktop);
   }
 }

@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { Button } from "@/components/button";
 import { DownloadMenu } from "@/components/download-menu";
+import { HeroDemoVideo } from "@/components/hero-demo-video";
 import { useLocale } from "@/components/locale-provider";
 import { PhoneArtwork } from "@/components/phone-artwork";
 import { TypewriterHeroHeading } from "@/components/typewriter-hero-heading";
@@ -10,7 +12,7 @@ export function Hero() {
   const { href, locale, messages } = useLocale();
   return (
     <section
-      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 lg:h-screen lg:min-h-[calc(100dvh-var(--header-block-desktop))] lg:justify-center lg:pb-0 lg:pt-0"
+      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 lg:min-h-screen lg:justify-center lg:pb-28 lg:pt-0"
       aria-labelledby="hero-heading"
     >
       <div className="flex relative top-12 w-full max-w-[1640px] flex-col items-center gap-y-2 lg:flex-row lg:items-center lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
@@ -41,8 +43,17 @@ export function Hero() {
           aria-hidden="true"
         >
           <div
-            className="absolute inset-[4.22%_0_0_44.88%] overflow-hidden rounded-tl-[clamp(30px,8.5vw,70px)] rounded-tr-[clamp(30px,8.5vw,70px)] bg-[url('/mockups/hero-face-registration.png')] bg-cover bg-center lg:rounded-tl-[clamp(44px,5vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
-          />
+            className="absolute inset-[4.22%_0_0_44.88%] overflow-hidden rounded-tl-[clamp(30px,8.5vw,70px)] rounded-tr-[clamp(30px,8.5vw,70px)] lg:rounded-tl-[clamp(44px,5vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
+          >
+            <Image
+              src="/mockups/hero-face-registration.webp"
+              alt=""
+              fill
+              sizes="(min-width: 106.5rem) 400px, (min-width: 64rem) 28vw, (min-width: 48rem) 400px, 50vw"
+              loading="eager"
+              className="object-cover object-center"
+            />
+          </div>
           <PhoneArtwork
             frameClassName="inset-[4.22%_0_0_44.88%]"
             imageStyle={{
@@ -52,8 +63,8 @@ export function Hero() {
               top: "-1.31%",
             }}
           />
-          <div
-            className="absolute inset-[0_44.88%_0_0] overflow-hidden rounded-tl-[clamp(30px,8.6vw,70px)] rounded-tr-[clamp(30px,8.6vw,70px)] bg-[url('/mockups/Phone1.gif')] bg-cover bg-center lg:rounded-tl-[clamp(44px,4.3vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
+          <HeroDemoVideo
+            className="absolute inset-[0_44.88%_0_0] overflow-hidden rounded-tl-[clamp(30px,8.6vw,70px)] rounded-tr-[clamp(30px,8.6vw,70px)] bg-cover bg-center lg:rounded-tl-[clamp(44px,4.3vw,70px)] lg:rounded-tr-[clamp(44px,4.3vw,70px)]"
           />
           <PhoneArtwork
             frameClassName="inset-[0_44.85%_0_0] -top-[1px]"
