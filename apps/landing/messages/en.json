@@ -184,7 +184,7 @@
         "description": "High-quality streaming and simulcast",
         "cta": "Subscribe to Beam",
         "features": [
-          "Spark anonymization features",
+          "All Spark features",
           "120 broadcast hours/month",
           "Up to FHD quality",
           "720p simulcast to two platforms*",
@@ -214,8 +214,6 @@
         ],
         "helpLabel": "Plasma plan details",
         "footnotes": [
-          "*Simulcast to CHZZK and YouTube is supported.",
-          "*Performance may vary depending on network and service conditions.",
           "*An expanded dedicated Plasma queue is provided. You may need to wait when servers are congested."
         ]
       }
