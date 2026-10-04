@@ -57,7 +57,9 @@ jobs:
             --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \
             --test \
             app/api/version/route.test.mts \
-            lib/auth-validation.test.mts
+            lib/auth-validation.test.mts \
+            lib/experience-quality.test.mts \
+            app/api/experience-quality/route.test.mts
 
           docker run --rm \
             --entrypoint node \
