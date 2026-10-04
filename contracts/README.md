@@ -31,3 +31,5 @@ answers and remote candidates from older negotiations. The existing session and
 owner token remain in use during recovery; older initial offers without these
 optional fields remain valid. `/webrtc/config` supplies `recovery.window_ms`,
 `recovery.debounce_ms`, and `recovery.max_attempts` for the recovery window.
+
+- `api/web-conversion-analytics-v1.md`: anonymous landing conversion events; additive collector with JSONB properties
