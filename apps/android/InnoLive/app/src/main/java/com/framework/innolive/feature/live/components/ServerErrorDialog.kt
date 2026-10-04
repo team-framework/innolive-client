@@ -43,6 +43,7 @@ fun ServerErrorDialog(
         ServerErrorAction.CONFIRM_CONCURRENT -> R.string.action_continue_broadcast
         ServerErrorAction.RETRY -> R.string.action_retry
         ServerErrorAction.LOGIN -> R.string.action_sign_in_again
+        ServerErrorAction.PLAN -> R.string.plan_title
         else -> null
     }
     Dialog(onDismissRequest = onDismiss) {

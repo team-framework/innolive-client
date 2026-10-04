@@ -26,6 +26,8 @@ data class SessionSnapshot(
     val notices: List<SessionNotice>? = null,
     val remainingTime: BroadcastRemainingTime = BroadcastRemainingTime.Unknown,
     val warnings: List<SessionNotice>? = null,
+    val broadcastResolution: String? = null,
+    val isRemainingTimeStale: Boolean = false,
 ) {
     val visibleTargets: List<SessionTarget>
         get() = targets.orEmpty().filter { it.broadcastPhase != "idle" }
@@ -108,7 +110,14 @@ internal fun parseSessionSnapshot(
         clearWarningsWhenMissing -> emptyList()
         else -> previous.warnings
     }
-    return SessionSnapshot(sessionId, provider, targets, notices, remaining, warnings)
+    return SessionSnapshot(
+        sessionId, provider, targets, notices, remaining, warnings,
+        broadcastResolution = response.opt("broadcast_resolution") as? String ?: previous.broadcastResolution,
+        isRemainingTimeStale = if (response.has("broadcast_remaining_seconds") &&
+            (response.isNull("broadcast_remaining_seconds") || response.nonNegativeInteger("broadcast_remaining_seconds") != null)) {
+            false
+        } else previous.isRemainingTimeStale,
+    )
 }
 
 private fun parseSessionTarget(stream: JSONObject, provider: String, previous: SessionTarget?): SessionTarget =

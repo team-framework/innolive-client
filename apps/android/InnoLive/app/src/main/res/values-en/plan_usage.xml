@@ -1,0 +1,25 @@
+<resources>
+    <string name="plan_title">Plan and usage</string>
+    <string name="plan_loading">Loading</string>
+    <string name="plan_refresh">Refresh</string>
+    <string name="plan_waiting">Waiting for plan information</string>
+    <string name="plan_load_failed">Could not load your plan. Please refresh.</string>
+    <string name="plan_last_value">Last confirmed values</string>
+    <string name="plan_current">Current plan: %1$s</string>
+    <string name="plan_monthly_limit">Monthly allowance: %1$s</string>
+    <string name="plan_broadcast_limit">Per-broadcast limit: %1$s</string>
+    <string name="plan_used">Charged time this month: %1$s</string>
+    <string name="plan_remaining">Remaining monthly allowance: %1$s</string>
+    <string name="plan_mode_time_hint">Monthly broadcasting time for each mode. The per-broadcast limit applies separately.</string>
+    <string name="plan_unlimited">Unlimited</string>
+    <string name="plan_locked">Locked</string>
+    <string name="plan_exhausted">Exhausted</string>
+    <string name="plan_multiplier">Usage multiplier: %1$s×</string>
+    <string name="plan_mode_locked">Your current plan does not allow %1$s.</string>
+    <string name="plan_hd_single">720p single</string>
+    <string name="plan_fhd_single">FHD single</string>
+    <string name="plan_hd_multi">720p simulcast</string>
+    <string name="plan_fhd_multi">FHD simulcast</string>
+    <string name="plan_remaining_description">Remaining broadcast time %1$s, view plan</string>
+    <string name="plan_session_stale">Last confirmed value · retrying</string>
+</resources>

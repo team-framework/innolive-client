@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.youtube
 
 import android.util.Log
+import com.framework.innolive.feature.settings.PlanUsage
+import com.framework.innolive.feature.settings.parsePlanUsage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -79,6 +81,12 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
                 }
             }
         }
+    }
+
+    suspend fun planUsage(accessToken: String): PlanUsage = withContext(Dispatchers.IO) {
+        val plan = execute(requestBuilder("/users/me/plan").get().bearer(accessToken).build(), "user plan") { it }
+        val usage = execute(requestBuilder("/users/me/usage").get().bearer(accessToken).build(), "user usage") { it }
+        parsePlanUsage(plan, usage)
     }
 
     override fun close() {

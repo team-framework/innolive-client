@@ -4,7 +4,7 @@ import com.framework.innolive.R
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 enum class ServerErrorAction {
-    NONE, CONNECT, RECONNECT, HELP, CONFIRM_CONCURRENT, RETRY, LOGIN, EDIT_SETTINGS,
+    NONE, CONNECT, RECONNECT, HELP, CONFIRM_CONCURRENT, RETRY, LOGIN, EDIT_SETTINGS, PLAN,
 }
 
 data class ServerErrorGuidance(
@@ -59,6 +59,8 @@ fun serverErrorGuidance(
         "channel_already_live" -> ServerErrorAction.CONFIRM_CONCURRENT
         "streaming_prepare_failed", "streaming_golive_failed", "streaming_update_failed" -> ServerErrorAction.RETRY
         "unauthorized" -> ServerErrorAction.LOGIN
+        "plan_resolution_not_allowed", "plan_simulcast_not_allowed", "plan_server_streaming_not_allowed",
+        "monthly_limit_exhausted" -> ServerErrorAction.PLAN
         "bad_request", "field_not_changeable_live" -> ServerErrorAction.EDIT_SETTINGS
         else -> ServerErrorAction.NONE
     }
