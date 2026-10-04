@@ -9,6 +9,7 @@ import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
 import type { Messages } from "@/lib/messages";
+import { trackConversion } from "@/lib/conversion-analytics";
 import { createQualityAttempt, observeFirstFrame, sendQualityEvent, type QualityStage } from "@/lib/experience-quality";
 import { preferExperienceVideoCodec } from "@/lib/experience-codecs";
 
@@ -414,7 +415,11 @@ export function TryOutExperience() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     const role: ExperienceRole = isLogined ? "member" : "guest";
-    const quality = createQualityAttempt({ attemptId: crypto.randomUUID(), role, locale, retry: retryRef.current }, sendQualityEvent);
+    const quality = createQualityAttempt({ attemptId: crypto.randomUUID(), role, locale, retry: retryRef.current }, (event) => {
+      sendQualityEvent(event);
+      if (event.event === "started") trackConversion("experience_started", locale);
+      if (event.event === "first_frame") trackConversion("experience_succeeded", locale);
+    });
     qualityRef.current = quality;
 
     try {

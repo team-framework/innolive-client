@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ConversionTracker } from "@/components/conversion-tracker";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { LocaleProvider } from "@/components/locale-provider";
@@ -61,6 +62,7 @@ export default async function LocaleLayout({
       <body className="flex min-h-dvh flex-col">
         <LocaleProvider locale={locale} messages={messages}>
           <RouteScrollReset />
+          <ConversionTracker />
           <Header />
           <div className="flex-1">{children}</div>
           <Footer />
