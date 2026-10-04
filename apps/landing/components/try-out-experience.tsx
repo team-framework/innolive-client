@@ -10,6 +10,7 @@ import { useIsLogined } from "@/hooks/use-is-logined";
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
 import type { Messages } from "@/lib/messages";
 import { createQualityAttempt, observeFirstFrame, sendQualityEvent, type QualityStage } from "@/lib/experience-quality";
+import { preferExperienceVideoCodec } from "@/lib/experience-codecs";
 
 type ExperienceState = "connecting" | "connected" | "failed" | "ended";
 type ExperienceRole = "member" | "guest";
@@ -459,6 +460,7 @@ export function TryOutExperience() {
       const peerConnection = new RTCPeerConnection({ iceServers: session.iceServers });
       peerConnectionRef.current = peerConnection;
       localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+      preferExperienceVideoCodec(peerConnection, RTCRtpReceiver.getCapabilities?.("video")?.codecs);
       const socket = new WebSocket(signalingURL());
       quality.stage("signaling");
       socketRef.current = socket;

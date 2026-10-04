@@ -10,6 +10,9 @@ payload는 유지한다. 추가하는 `/api/experience-quality`는 landing 내�
   미지원 브라우저는 `playing` 또는 `loadeddata` 시 재생 상태·decoded dimensions를 확인한다.
   fallback은 실제 화면 composition 확인보다 약한 근거다.
 - 연결과 첫 프레임을 모두 확인한 뒤 기존 체험 완료 문구·얼굴 등록 버튼을 표시한다.
+- 영상 transceiver는 브라우저가 VP8을 지원하면 offer에서 VP8을 우선한다.
+  H.264·RTX 등 나머지 codec은 유지한다. VP8 또는 codec preference API가 없으면
+  브라우저의 기본 협상을 유지한다. HTTP·signaling 필드는 바꾸지 않는다.
 - 연결 제한 시간은 기존 30초, 연결 후 첫 프레임 제한 시간은 15초다.
   게스트 대기열·권한 허용 시간은 이 제한 시간에 포함하지 않는다.
 - 대기 중 종료할 수 있다. 재시도·페이지 이탈·pagehide에서 카메라, 연결, 프레임 관찰을 정리한다.
@@ -73,7 +76,7 @@ composition callback·fallback·취소, 집계 분모·누락·중복을 검사�
 
 ### 2026-10-04 로컬 검증
 
-- 진단·수집·집계 테스트 9개, 기존 번역 키 테스트 3개 통과.
+- 진단·수집·집계·codec 협상 테스트 12개, 기존 번역 키 테스트 3개 통과.
 - 전체 ESLint, production build·TypeScript 검사 통과.
 - production 서버의 수집 API 정상 요청 204와 실제 stdout JSON 기록 확인.
 - Chromium 390px에서 서버·WebRTC를 모의 처리하고 canvas MediaStream을 재생해
@@ -81,5 +84,10 @@ composition callback·fallback·취소, 집계 분모·누락·중복을 검사�
   정상 종료·track 정리, 첫 프레임 timeout, 대기 중 취소 확인. page error 없음.
 - 이 테스트에서 수집한 로그의 집계 결과: 5개 시도, 첫 프레임 1개, 실패 3개,
   취소 1개, 정상 종료 1개, 누락 started·진행 중 시도 0개. 운영 성능 수치가 아니다.
-- 운영 배포, 실제 서버 연결·AI 처리, 회원 인증 E2E, 실제 Safari·카메라 및
-  back/forward cache 복귀는 미검증.
+- 실제 Safari 카메라로 게스트 체험에서 VP8 송수신, 원격 영상 1280×720 및
+  첫 프레임 확인 후 완료 표시 확인. 재시도 1회에서 연결 796ms·첫 프레임 1223ms 기록.
+  codec 우선순위 변경 전에는 전송 연결 뒤 첫 프레임 timeout 관측.
+  H.264 처리 경로의 구체적인 실패 원인은 미확인.
+- 로컬 개발에서는 loopback API gateway로 게스트 쿠키를 같은 site에서 전달해 검증.
+  gateway는 저장소 밖 임시 실행 도구이며 운영 배포 구성을 변경하지 않는다.
+- 운영 배포, 회원 인증 E2E 및 Safari back/forward cache 복귀는 미검증.

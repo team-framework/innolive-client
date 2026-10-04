@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:auth": "node --test lib/auth-validation.test.mts",
-    "test:experience": "node --test lib/experience-quality.test.mts app/api/experience-quality/route.test.mts",
+    "test:experience": "node --test lib/experience-codecs.test.mts lib/experience-quality.test.mts app/api/experience-quality/route.test.mts",
     "test:structured-data": "node --test lib/structured-data.test.cjs",
     "test:i18n": "node --experimental-strip-types --test lib/locales.test.mts lib/messages.test.mts",
     "test:version": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test app/api/version/route.test.mts"
