@@ -307,6 +307,7 @@
     "checkingMedia": "Checking camera permission.",
     "connected": "The experience is connected.",
     "startingWebrtc": "Starting the WebRTC connection.",
+    "waitingForVideo": "Connected. Waiting for the processed video.",
     "ended": "The experience has ended.",
     "remoteLabel": "Processed remote video",
     "remotePlaceholder": "Processed video appears when the connection is ready.",

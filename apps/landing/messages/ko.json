@@ -307,6 +307,7 @@
     "checkingMedia": "카메라 권한을 확인하는 중입니다.",
     "connected": "체험 연결이 완료되었습니다.",
     "startingWebrtc": "WebRTC 연결을 시작하는 중입니다.",
+    "waitingForVideo": "연결되었습니다. 처리된 영상을 기다리는 중입니다.",
     "ended": "체험을 종료했습니다.",
     "remoteLabel": "처리된 원격 영상",
     "remotePlaceholder": "연결이 완료되면 처리된 영상이 표시됩니다.",
