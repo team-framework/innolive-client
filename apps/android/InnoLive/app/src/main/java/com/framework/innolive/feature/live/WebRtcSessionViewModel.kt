@@ -90,6 +90,17 @@ class WebRtcSessionViewModel : ViewModel() {
         private set
 
     private var connection: WebRtcConnection? = null
+    var selectedProvider by mutableStateOf(BroadcastProvider.YOUTUBE)
+        private set
+
+    fun selectProvider(provider: BroadcastProvider): Boolean {
+        if (!broadcastState.canPrepare || isPreparingBroadcast) return false
+        if (selectedProvider != provider) {
+            if (connectionState != WebRtcConnectionState.IDLE) close()
+            selectedProvider = provider
+        }
+        return true
+    }
     private var closingConnection: WebRtcConnection? = null
     private var anonymizationPreference: AnonymizationPreference? = null
     var selectedOnDeviceProcessing by mutableStateOf(false)
@@ -234,6 +245,7 @@ class WebRtcSessionViewModel : ViewModel() {
                     refreshAccessToken = refreshAccessToken,
                     initialAnonymizationEnabled = initialEnabled,
                     initialOnDeviceProcessing = initialOnDevice,
+                    provider = selectedProvider,
                     preferredAudioInput = selectedAudioInput,
                     onStateChanged = { state, failure ->
                         if (sessionState.acceptsCallback(generation)) {
@@ -363,6 +375,11 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
+        if (selectedProvider != BroadcastProvider.YOUTUBE) {
+            broadcastStatus = UiText.Resource(com.framework.innolive.R.string.broadcast_settings_youtube_only)
+            isBroadcastStatusDefault = false
+            return
+        }
         serverError = null
         retryBroadcastRequest = { saveBroadcastSettings(settings) }
         connection?.saveBroadcastSettings(settings)
@@ -378,9 +395,25 @@ class WebRtcSessionViewModel : ViewModel() {
         context: Context,
         settings: BroadcastSettings,
         refreshAccessToken: suspend () -> String,
+    ): Boolean = prepareBroadcastInternal(context, settings, null, refreshAccessToken)
+
+    fun prepareChzzkBroadcast(
+        context: Context,
+        settings: ChzzkBroadcastSettings,
+        refreshAccessToken: suspend () -> String,
+    ): Boolean = prepareBroadcastInternal(context, null, settings, refreshAccessToken)
+
+    private fun prepareBroadcastInternal(
+        context: Context,
+        settings: BroadcastSettings?,
+        chzzkSettings: ChzzkBroadcastSettings?,
+        refreshAccessToken: suspend () -> String,
     ): Boolean {
         if (isPreparingBroadcast || !broadcastState.canPrepare) return false
-        if (!validateYouTubeLiveSettings(settings).isValid) {
+        val invalid = if (selectedProvider == BroadcastProvider.YOUTUBE)
+            settings == null || !validateYouTubeLiveSettings(settings).isValid
+        else chzzkSettings == null || chzzkSettings.validationField() != null
+        if (invalid) {
             broadcastState = BroadcastState.FAILED
             broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_validation)
             isBroadcastStatusDefault = false
@@ -420,7 +453,9 @@ class WebRtcSessionViewModel : ViewModel() {
                     isBroadcastStatusDefault = false
                     return@launch
                 }
-                requestBroadcastPreparation(activeConnection, settings)
+                if (selectedProvider == BroadcastProvider.CHZZK) {
+                    requestChzzkBroadcastPreparation(activeConnection, checkNotNull(chzzkSettings))
+                } else requestBroadcastPreparation(activeConnection, checkNotNull(settings))
             } catch (_: TimeoutCancellationException) {
                 if (isCurrentGeneration(generation)) {
                     close()
@@ -451,6 +486,20 @@ class WebRtcSessionViewModel : ViewModel() {
         isBroadcastStatusDefault = true
         if (activeConnection.prepareBroadcast(settings, allowConcurrent)) return true
 
+        broadcastState = BroadcastState.FAILED
+        broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_request)
+        isBroadcastStatusDefault = false
+        return false
+    }
+
+    internal fun requestChzzkBroadcastPreparation(
+        activeConnection: WebRtcConnection,
+        settings: ChzzkBroadcastSettings,
+    ): Boolean {
+        broadcastState = BroadcastState.SAVING_SETTINGS
+        broadcastStatus = broadcastStateMessage(BroadcastState.SAVING_SETTINGS).text
+        isBroadcastStatusDefault = true
+        if (activeConnection.prepareBroadcast(settings)) return true
         broadcastState = BroadcastState.FAILED
         broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_request)
         isBroadcastStatusDefault = false

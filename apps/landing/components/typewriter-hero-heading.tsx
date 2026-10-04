@@ -11,7 +11,7 @@ export function TypewriterHeroHeading() {
   const firstLine = messages.hero.line1;
   const secondPrefix = messages.hero.line2Prefix;
   const blurText = messages.hero.line2Blur;
-  const heading = `${firstLine}${secondPrefix}${blurText}`;
+  const heading = `${firstLine} ${secondPrefix}${blurText}`;
   const [typedLength, setTypedLength] = useState(0);
 
   useEffect(() => {
@@ -58,9 +58,9 @@ export function TypewriterHeroHeading() {
   return (
     <h1
       id="hero-heading"
-      aria-label={heading}
       className="w-full break-words text-[length:var(--text-display)] font-bold leading-[calc(100/84)] tracking-tight text-text-primary"
     >
+      <span className="sr-only">{heading}</span>
       <span aria-hidden="true">
         {firstLine.slice(0, firstLineLength)}
         <br />

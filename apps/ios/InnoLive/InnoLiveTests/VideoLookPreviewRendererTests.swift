@@ -6,14 +6,11 @@ import XCTest
 final class VideoLookPreviewRendererTests: XCTestCase {
     func testZeroSaturationMakesColorNeutral() throws {
         let renderer = VideoLookPreviewRenderer()
-        let base = try XCTUnwrap(renderer.makeBaseImage(pixelBuffer: try makeBuffer(red: 220, green: 80, blue: 40), rotation: 0))
-
-        let preview = try XCTUnwrap(renderer.makePreview(
-            from: base,
-            warmth: 0,
-            saturation: 0,
-            relativeExposureEV: 0
-        ))
+        let preview = try XCTUnwrap(renderer.makePreviewSet(
+            pixelBuffer: try makeBuffer(red: 220, green: 80, blue: 40),
+            rotation: 0,
+            adjustments: [(warmth: 0, saturation: 0, exposureEV: 0)]
+        )[0])
         let pixel = try centerPixel(preview)
 
         XCTAssertLessThanOrEqual(abs(Int(pixel.red) - Int(pixel.green)), 8)
@@ -22,18 +19,32 @@ final class VideoLookPreviewRendererTests: XCTestCase {
 
     func testPositiveExposureIsBrighterThanNegative() throws {
         let renderer = VideoLookPreviewRenderer()
-        let base = try XCTUnwrap(renderer.makeBaseImage(pixelBuffer: try makeBuffer(red: 90, green: 90, blue: 90), rotation: 0))
-        let bright = try centerPixel(renderer.makePreview(from: base, warmth: 0, saturation: 1, relativeExposureEV: 1))
-        let dark = try centerPixel(renderer.makePreview(from: base, warmth: 0, saturation: 1, relativeExposureEV: -1))
+        let previews = renderer.makePreviewSet(
+            pixelBuffer: try makeBuffer(red: 90, green: 90, blue: 90),
+            rotation: 0,
+            adjustments: [
+                (warmth: 0, saturation: 1, exposureEV: 1),
+                (warmth: 0, saturation: 1, exposureEV: -1)
+            ]
+        )
+        let bright = try centerPixel(previews[0])
+        let dark = try centerPixel(previews[1])
 
         XCTAssertGreaterThan(Int(bright.red) + Int(bright.green) + Int(bright.blue), Int(dark.red) + Int(dark.green) + Int(dark.blue))
     }
 
     func testWarmPreviewShiftsGrayTowardRed() throws {
         let renderer = VideoLookPreviewRenderer()
-        let base = try XCTUnwrap(renderer.makeBaseImage(pixelBuffer: try makeBuffer(red: 128, green: 128, blue: 128), rotation: 0))
-        let warm = try centerPixel(renderer.makePreview(from: base, warmth: 1, saturation: 1, relativeExposureEV: 0))
-        let cool = try centerPixel(renderer.makePreview(from: base, warmth: -1, saturation: 1, relativeExposureEV: 0))
+        let previews = renderer.makePreviewSet(
+            pixelBuffer: try makeBuffer(red: 128, green: 128, blue: 128),
+            rotation: 0,
+            adjustments: [
+                (warmth: 1, saturation: 1, exposureEV: 0),
+                (warmth: -1, saturation: 1, exposureEV: 0)
+            ]
+        )
+        let warm = try centerPixel(previews[0])
+        let cool = try centerPixel(previews[1])
 
         XCTAssertGreaterThan(Int(warm.red) - Int(warm.blue), Int(cool.red) - Int(cool.blue))
     }

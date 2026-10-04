@@ -1,5 +1,7 @@
 import { TryOutView } from "@/components/try-out-view";
-import { getMessages } from "@/lib/messages";
+import { defaultLocale, isLocale } from "@/lib/locales";
+import { pageMetadata } from "@/lib/seo";
+import { seoCopy } from "@/lib/seo-copy";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -7,7 +9,7 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps) {
   const { locale } = await params;
-  return { title: getMessages(locale).metadata.tryOutTitle };
+  return pageMetadata(locale, "/try-out", seoCopy[isLocale(locale) ? locale : defaultLocale].tryOut);
 }
 
 export default function TryOutPage() {

@@ -136,7 +136,7 @@ export default function PricingPage() {
   return (
     <main id="main" data-page="pricing" className="bg-background-primary">
       <section
-        className="flex w-full flex-col items-center gap-12 overflow-x-clip px-[var(--page-gutter)] pb-[5.25rem] pt-16 lg:pt-24 min-[106.5rem]:gap-[7.5rem] min-[106.5rem]:pt-[9.5rem]"
+        className="page-top-spacing flex w-full flex-col items-center gap-12 overflow-x-clip px-[var(--page-gutter)] pb-[5.25rem] min-[106.5rem]:gap-[7.5rem]"
         aria-labelledby="pricing-heading"
       >
         <div className="flex w-full max-w-[43.75rem] flex-col items-center gap-8 text-center">

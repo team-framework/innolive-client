@@ -94,7 +94,8 @@ class SessionRecoveryApiTest {
         val otherServerScope = sessionRecoveryScope("https://other.example.test/", accessTokenFor("user-a"))
         store.clear(firstScope)
         try {
-            store.save(CreatedSession("private-session", "private-owner", AnonymizationState.UNKNOWN), firstScope)
+            store.save(CreatedSession("private-session", "private-owner", AnonymizationState.UNKNOWN,
+                BroadcastProvider.CHZZK), firstScope)
             val raw = context.getSharedPreferences("innolive_session_recovery_test", 0).all.toString()
             assertFalse(raw.contains("private-session"))
             assertFalse(raw.contains("private-owner"))
@@ -106,6 +107,7 @@ class SessionRecoveryApiTest {
             ).load(firstScope)
             assertEquals("private-session", restored?.sessionId)
             assertEquals("private-owner", restored?.ownerToken)
+            assertEquals(BroadcastProvider.CHZZK, restored?.provider)
             assertNull(store.load(otherScope))
             assertNull(store.load(otherServerScope))
         } finally {

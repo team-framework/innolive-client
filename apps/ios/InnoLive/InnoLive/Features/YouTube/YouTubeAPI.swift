@@ -22,6 +22,11 @@ private struct WebRTCConfigurationResponse: Decodable {
             ?? []
     }
 }
+private struct CHZZKConnectRequest: Encodable {
+    let code: String
+    let state: String
+}
+
 private struct YouTubeConnectRequest: Encodable {
     let serverAuthCode: String
     let codeSource = "native"
@@ -62,6 +67,15 @@ private struct YouTubePrepareStreamRequest: Encodable {
 }
 
 private struct YouTubeEmptyRequest: Encodable {}
+
+private struct BroadcastModeRequest: Encodable {
+    let resolution: String
+    let targets: [String]
+}
+
+private struct UpgradeOfferSelectionRequest: Encodable {
+    let mode: String
+}
 
 private struct AnonymizationRequest: Encodable {
     let enabled: Bool
@@ -150,6 +164,32 @@ final class YouTubeAPI: PlanAPIClient {
             accessToken: accessToken,
             body: YouTubeConnectRequest(serverAuthCode: serverAuthCode)
         )
+    }
+
+    func chzzkConfiguration(state: String) async throws -> CHZZKConfiguration {
+        guard !state.isEmpty, let baseURL = serverURLProvider("/auth/chzzk/config"),
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            throw CHZZKAuthorizationError.configuration
+        }
+        components.queryItems = [URLQueryItem(name: "state", value: state)]
+        guard let url = components.url else { throw CHZZKAuthorizationError.configuration }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await perform(request)
+        guard let response = response as? HTTPURLResponse else { throw YouTubeAPIError.response }
+        try validate(response, data: data)
+        return try decode(CHZZKConfiguration.self, from: data)
+    }
+
+    func connectCHZZK(authorization: CHZZKAuthorizationCode, accessToken: String) async throws -> CHZZKConnectionResponse {
+        let response: CHZZKConnectionResponse = try await request(
+            path: "/auth/chzzk/connect", method: "POST", accessToken: accessToken,
+            body: CHZZKConnectRequest(code: authorization.code, state: authorization.state)
+        )
+        guard response.connected, response.provider == "chzzk", !response.channel.id.isEmpty else {
+            throw YouTubeAPIError.response
+        }
+        return response
     }
 
     func streamingAccounts(accessToken: String) async throws -> [YouTubeStreamingAccountSummary] {
@@ -258,6 +298,26 @@ final class YouTubeAPI: PlanAPIClient {
                                  body: YouTubeLiveBroadcastRequest(title: youtube.title.trimmingCharacters(in: .whitespacesAndNewlines),
                                                                   description: youtube.description, categoryID: youtube.categoryID),
                                  queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+    }
+
+    func changeBroadcastMode(session: YouTubeBroadcastSession, accessToken: String,
+                             resolution: String, targets: Set<BroadcastSettingsProvider>) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/broadcast-mode", method: "PUT",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: BroadcastModeRequest(resolution: resolution, targets: targets.map(\.rawValue).sorted()))
+    }
+
+    func selectUpgradeOffer(session: YouTubeBroadcastSession, accessToken: String,
+                            mode: String) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/upgrade-offer/select", method: "POST",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: UpgradeOfferSelectionRequest(mode: mode))
+    }
+
+    func declineUpgradeOffer(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/upgrade-offer", method: "DELETE",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: Optional<YouTubeEmptyRequest>.none)
     }
 
     func broadcastDefaults(session: YouTubeBroadcastSession, accessToken: String,

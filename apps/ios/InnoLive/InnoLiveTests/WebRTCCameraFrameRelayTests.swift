@@ -157,6 +157,90 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
         XCTAssertNil(uplink.lockedBroadcastOrientation)
     }
 
+    func testServerAdjustmentsKeepPresetInputNeutralAndMatchPreview() throws {
+        try assertAdjustmentsKeepPresetInputNeutral(mode: .server)
+    }
+
+    func testOnDeviceAdjustmentsKeepPresetInputNeutralWithAnonymizationOff() throws {
+        try assertAdjustmentsKeepPresetInputNeutral(mode: .onDevice)
+    }
+
+    private func assertAdjustmentsKeepPresetInputNeutral(mode: AIProcessingMode) throws {
+        let sent = ColorRecordingVideoTarget()
+        let preview = ColorRecordingVideoTarget()
+        let raw = UnprocessedPreviewRecording()
+        let relay = WebRTCCameraFrameRelay(
+            target: sent,
+            cameraPosition: .back,
+            processingMode: mode,
+            previewTarget: preview
+        )
+        // Exercise the asynchronous local route without invoking the AI model.
+        if mode == .onDevice { relay.setLocalAnonymizationEnabled(false) }
+        relay.setUnprocessedPreviewHandler { buffer, rotation in
+            raw.record(buffer, rotation: rotation)
+        }
+        defer { relay.stopProcessing() }
+
+        let frame = try makeFrame(rotation: 90, timeStampNs: 42)
+        frame.timeStamp = 7
+        let source = try XCTUnwrap((frame.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer)
+        let originalPixel = try firstPixel(source)
+        let renderer = VideoLookPreviewRenderer()
+        let preset = [(warmth: Float(0.2), saturation: Float(1.2), exposureEV: Float(0.8))]
+        let referencePreset = try XCTUnwrap(renderer.makePreviewSet(
+            pixelBuffer: source, rotation: 90, adjustments: preset
+        )[0])
+        let expectedProcessor = VideoColorFrameProcessor()
+        let adjustments: [(exposure: Float, warmth: Float, saturation: Float)] = [
+            (-1, -0.5, 0), (1, 0.5, 2), (0.8, 0.2, 1.2)
+        ]
+
+        for adjustment in adjustments {
+            let delivered = expectation(description: "adjusted uplink \(mode)")
+            sent.onFrame = { delivered.fulfill() }
+            relay.setExposureEV(adjustment.exposure)
+            relay.setColor(warmth: adjustment.warmth, saturation: adjustment.saturation)
+            relay.capturer(LKRTCVideoCapturer(delegate: sent), didCapture: frame)
+            wait(for: [delivered], timeout: 3)
+
+            let rawBuffer = try XCTUnwrap(raw.buffer)
+            XCTAssertTrue(rawBuffer === source)
+            XCTAssertEqual(raw.rotation, 90)
+            XCTAssertEqual(try firstPixel(rawBuffer), originalPixel)
+            let actualPreset = try XCTUnwrap(renderer.makePreviewSet(
+                pixelBuffer: rawBuffer, rotation: raw.rotation, adjustments: preset
+            )[0])
+            XCTAssertEqual(
+                try XCTUnwrap(actualPreset.dataProvider?.data) as Data,
+                try XCTUnwrap(referencePreset.dataProvider?.data) as Data
+            )
+
+            let expected = try expectedProcessor.process(
+                frame, exposureEV: adjustment.exposure,
+                warmth: adjustment.warmth, saturation: adjustment.saturation
+            )
+            let expectedBuffer = try XCTUnwrap((expected.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer)
+            let expectedPixel = try firstPixel(expectedBuffer)
+            XCTAssertNotEqual(expectedPixel, originalPixel)
+            for target in [sent, preview] {
+                let output = try XCTUnwrap(target.lastFrame)
+                let outputBuffer = try XCTUnwrap((output.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer)
+                XCTAssertEqual(try firstPixel(outputBuffer), expectedPixel)
+                XCTAssertEqual(output.rotation, frame.rotation)
+                XCTAssertEqual(output.timeStampNs, 42)
+                XCTAssertEqual(output.timeStamp, 7)
+            }
+        }
+    }
+
+    private func firstPixel(_ buffer: CVPixelBuffer) throws -> [UInt8] {
+        XCTAssertEqual(CVPixelBufferLockBaseAddress(buffer, .readOnly), kCVReturnSuccess)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        let bytes = try XCTUnwrap(CVPixelBufferGetBaseAddress(buffer)).assumingMemoryBound(to: UInt8.self)
+        return Array(UnsafeBufferPointer(start: bytes, count: 4))
+    }
+
     private func makeFrame(
         rotation: Int,
         timeStampNs: Int64 = 1_000
@@ -192,6 +276,22 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
         let buffer = LKRTCCVPixelBuffer(pixelBuffer: pixelBuffer)
         let liveKitRotation = try XCTUnwrap(LKRTCVideoRotation(rawValue: rotation))
         return LKRTCVideoFrame(buffer: buffer, rotation: liveKitRotation, timeStampNs: timeStampNs)
+    }
+}
+
+nonisolated private final class UnprocessedPreviewRecording: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recordedBuffer: CVPixelBuffer?
+    private var recordedRotation = 0
+
+    var buffer: CVPixelBuffer? { lock.withLock { recordedBuffer } }
+    var rotation: Int { lock.withLock { recordedRotation } }
+
+    func record(_ buffer: CVPixelBuffer, rotation: Int) {
+        lock.withLock {
+            recordedBuffer = buffer
+            recordedRotation = rotation
+        }
     }
 }
 

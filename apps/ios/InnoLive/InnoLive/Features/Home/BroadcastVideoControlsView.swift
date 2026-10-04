@@ -53,7 +53,6 @@ struct BroadcastVideoControlsView: View {
 
                     Button {
                         uplink.setExposureEV(0)
-                        cameraManager.setExposureEV(0)
                         uplink.setColor(warmth: 0, saturation: 1)
                     } label: {
                         Label(String(localized: "초기화"), systemImage: "arrow.counterclockwise")
@@ -76,9 +75,6 @@ struct BroadcastVideoControlsView: View {
             .onDisappear(perform: stopPresetPreviews)
             .onChange(of: uplink.isCapturingMedia) { _, _ in
                 startPresetPreviews()
-            }
-            .onChange(of: uplink.videoQualitySettings.exposureEV) { _, value in
-                previews.updateExposure(value)
             }
         }
     }
@@ -121,13 +117,11 @@ struct BroadcastVideoControlsView: View {
 
     private func apply(_ look: BroadcastVideoLook) {
         uplink.setExposureEV(look.exposureEV)
-        cameraManager.setExposureEV(look.exposureEV)
         uplink.setColor(warmth: look.warmth, saturation: look.saturation)
     }
 
     private func startPresetPreviews() {
         stopPresetPreviews()
-        previews.updateExposure(uplink.videoQualitySettings.exposureEV)
         let pump = previews.pump
         let deliver: @Sendable (CVPixelBuffer, Int) -> Void = { buffer, rotation in
             pump.submit(pixelBuffer: buffer, rotation: rotation)
@@ -150,7 +144,6 @@ struct BroadcastVideoControlsView: View {
             set: { value in
                 let ev = Float(value)
                 uplink.setExposureEV(ev)
-                cameraManager.setExposureEV(ev)
             }
         )
     }
@@ -262,10 +255,6 @@ private final class PresetPreviewModel: ObservableObject {
             self?.images = images
         }
     }
-
-    func updateExposure(_ exposure: Float) {
-        pump.setExposure(exposure)
-    }
 }
 
 nonisolated private final class PresetPreviewPump: @unchecked Sendable {
@@ -274,20 +263,7 @@ nonisolated private final class PresetPreviewPump: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.innolive.preset-preview", qos: .utility)
     private let lock = NSLock()
     private var busy = false
-    private var exposure: Float = 0
-    private var base: CGImage?
     private var lastSubmitTime: TimeInterval = 0
-
-    func setExposure(_ exposure: Float) {
-        lock.lock()
-        self.exposure = exposure
-        let base = base
-        let canRender = base != nil && !busy
-        if canRender { busy = true }
-        lock.unlock()
-        guard canRender, let base else { return }
-        render(base: base, exposure: exposure)
-    }
 
     func submit(pixelBuffer: CVPixelBuffer, rotation: Int) {
         lock.lock()
@@ -298,7 +274,6 @@ nonisolated private final class PresetPreviewPump: @unchecked Sendable {
         }
         busy = true
         lastSubmitTime = now
-        let exposure = exposure
         lock.unlock()
         guard let copy = renderer.ownedCopy(of: pixelBuffer) else {
             finish()
@@ -306,21 +281,15 @@ nonisolated private final class PresetPreviewPump: @unchecked Sendable {
         }
         queue.async { [renderer] in
             let adjustments = BroadcastVideoLook.allCases.map { look in
-                (warmth: look.warmth, saturation: look.saturation, relativeExposureEV: look.exposureEV - exposure)
+                (warmth: look.warmth, saturation: look.saturation, exposureEV: look.exposureEV)
             }
-            guard let set = renderer.makePreviewSet(
+            let images = renderer.makePreviewSet(
                 pixelBuffer: copy,
                 rotation: rotation,
                 adjustments: adjustments
-            ) else {
-                self.finish()
-                return
-            }
-            self.lock.lock()
-            self.base = set.base
-            self.lock.unlock()
+            )
             var rendered: [BroadcastVideoLook: CGImage] = [:]
-            for (look, image) in zip(BroadcastVideoLook.allCases, set.previews) {
+            for (look, image) in zip(BroadcastVideoLook.allCases, images) {
                 if let image {
                     rendered[look] = image
                 }
@@ -331,36 +300,6 @@ nonisolated private final class PresetPreviewPump: @unchecked Sendable {
                 update?(output)
             }
             self.finish()
-        }
-    }
-
-    private func render(base: CGImage, exposure: Float, alreadyBusy: Bool = false) {
-        let looks = BroadcastVideoLook.allCases.map { look in
-            (look, look.warmth, look.saturation, look.exposureEV - exposure)
-        }
-        let update = onUpdate
-        let work = { [renderer] in
-            var rendered: [BroadcastVideoLook: CGImage] = [:]
-            for (look, warmth, saturation, relativeExposure) in looks {
-                if let image = renderer.makePreview(
-                    from: base,
-                    warmth: warmth,
-                    saturation: saturation,
-                    relativeExposureEV: relativeExposure
-                ) {
-                    rendered[look] = image
-                }
-            }
-            let output = rendered
-            Task { @MainActor in
-                update?(output)
-            }
-            self.finish()
-        }
-        if alreadyBusy {
-            work()
-        } else {
-            queue.async(execute: work)
         }
     }
 

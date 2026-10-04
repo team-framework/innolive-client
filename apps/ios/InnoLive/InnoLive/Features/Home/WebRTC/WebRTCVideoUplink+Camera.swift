@@ -190,6 +190,7 @@ extension WebRTCVideoUplink {
             }
         }
         if local { relay.setLocalAnonymizationEnabled(credentials?.localAnonymizationEnabled ?? true) }
+        relay.setExposureEV(videoQualitySettings.exposureEV)
         relay.setColor(
             warmth: videoQualitySettings.warmth,
             saturation: videoQualitySettings.saturation
@@ -365,7 +366,7 @@ extension WebRTCVideoUplink {
         capturer: LKRTCCameraVideoCapturer,
         device: AVCaptureDevice
     ) {
-        applyExposureToCamera(device.uniqueID)
+        resetCameraExposureBias(device.uniqueID)
         applyStabilization(to: capturer, device: device)
     }
 
@@ -451,6 +452,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private var lockedInterfaceOrientation: BroadcastInterfaceOrientation?
     private var warmth: Float = 0
     private var saturation: Float = 1
+    private var exposureEV: Float = 0
     private var isAnalysisPending = false
     private var lastDeliveryTime: TimeInterval = 0
     private var unprocessedPreviewHandler: (@Sendable (CVPixelBuffer, Int) -> Void)?
@@ -486,6 +488,12 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         lock.unlock()
     }
 
+    func setExposureEV(_ exposureEV: Float) {
+        lock.lock()
+        self.exposureEV = min(max(exposureEV.isFinite ? exposureEV : 0, -2), 2)
+        lock.unlock()
+    }
+
     func setUnprocessedPreviewHandler(_ handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
         lock.lock()
         unprocessedPreviewHandler = handler
@@ -512,6 +520,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         let currentCameraPosition = cameraPosition
         let warmth = warmth
         let saturation = saturation
+        let exposureEV = exposureEV
         lock.unlock()
 
         let outgoing = outgoingFrame(
@@ -524,6 +533,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         do {
             coloredPreview = try previewColorProcessor.process(
                 outgoing,
+                exposureEV: exposureEV,
                 warmth: warmth,
                 saturation: saturation
             )
@@ -539,6 +549,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                     do {
                         coloredUplink = try colorProcessor.process(
                             result,
+                            exposureEV: exposureEV,
                             warmth: warmth,
                             saturation: saturation
                         )

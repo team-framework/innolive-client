@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/button";
+import { TryOutVideoPanels } from "@/components/try-out-video-panels";
 import { FaceRegistrationModal } from "@/components/face-registration-modal";
 import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
 import { getInnoLiveServerUrl } from "@/lib/auth-config";
 import type { Messages } from "@/lib/messages";
+import { trackConversion } from "@/lib/conversion-analytics";
+import { createQualityAttempt, observeFirstFrame, sendQualityEvent, type QualityStage } from "@/lib/experience-quality";
+import { preferExperienceVideoCodec } from "@/lib/experience-codecs";
 
 type ExperienceState = "connecting" | "connected" | "failed" | "ended";
 type ExperienceRole = "member" | "guest";
@@ -41,6 +45,7 @@ const experienceMetadata = {
 const guestPollInterval = 5_000;
 const guestHeartbeatInterval = 30_000;
 const connectionTimeout = 30_000;
+const firstFrameTimeout = 15_000;
 
 function serverURL(path: string) {
   return `${getInnoLiveServerUrl()}${path}`;
@@ -213,7 +218,8 @@ function waitForGuestAdmission(ticketID: string, signal: AbortSignal) {
   });
 }
 
-async function createGuestSession(signal: AbortSignal, onTicket: (ticketID: string) => void) {
+async function createGuestSession(signal: AbortSignal, onTicket: (ticketID: string) => void, onStage: (stage: QualityStage) => void) {
+  onStage("queue");
   const queueResponse = await fetch(serverURL("/guest-queue"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -234,6 +240,7 @@ async function createGuestSession(signal: AbortSignal, onTicket: (ticketID: stri
   const admissionToken = typeof initialAdmissionToken === "string" && initialAdmissionToken.length > 0
     ? initialAdmissionToken
     : await waitForGuestAdmission(ticketID, signal);
+  onStage("session");
   const sessionResponse = await fetch(serverURL("/guest-sessions"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -316,7 +323,7 @@ function userMessage(error: unknown, copy: Messages["experience"]["errors"]) {
 
 export function TryOutExperience() {
   const router = useRouter();
-  const { href, messages } = useLocale();
+  const { href, locale, messages } = useLocale();
   const copy = messages.experience;
   const { isLogined, isLoading } = useIsLogined();
   const [state, setState] = useState<ExperienceState>("connecting");
@@ -336,6 +343,9 @@ export function TryOutExperience() {
   const timeoutRef = useRef<number | null>(null);
   const generationRef = useRef(0);
   const pendingRemoteCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const qualityRef = useRef<ReturnType<typeof createQualityAttempt> | null>(null);
+  const cancelFrameObserverRef = useRef<(() => void) | null>(null);
+  const retryRef = useRef(false);
 
   const cleanupResources = useCallback((deleteSession: boolean) => {
     const session = sessionRef.current;
@@ -346,6 +356,8 @@ export function TryOutExperience() {
     const remoteStream = remoteStreamRef.current;
 
     abortControllerRef.current?.abort();
+    cancelFrameObserverRef.current?.();
+    cancelFrameObserverRef.current = null;
     abortControllerRef.current = null;
     socketRef.current = null;
     peerConnectionRef.current = null;
@@ -385,6 +397,8 @@ export function TryOutExperience() {
 
   const fail = useCallback((generation: number, error: unknown) => {
     if (generationRef.current !== generation) return;
+    qualityRef.current?.fail(error);
+    retryRef.current = true;
     generationRef.current += 1;
     cleanupResources(true);
     setState("failed");
@@ -394,19 +408,26 @@ export function TryOutExperience() {
   const start = useCallback(async () => {
     const generation = generationRef.current + 1;
     generationRef.current = generation;
+    qualityRef.current?.finish(true);
     cleanupResources(true);
     setState("connecting");
     setStatus(copy.preparing);
     const controller = new AbortController();
     abortControllerRef.current = controller;
     const role: ExperienceRole = isLogined ? "member" : "guest";
+    const quality = createQualityAttempt({ attemptId: crypto.randomUUID(), role, locale, retry: retryRef.current }, (event) => {
+      sendQualityEvent(event);
+      if (event.event === "started") trackConversion("experience_started", locale);
+      if (event.event === "first_frame") trackConversion("experience_succeeded", locale);
+    });
+    qualityRef.current = quality;
 
     try {
       const session = role === "member"
         ? await createMemberSession(controller.signal)
         : await createGuestSession(controller.signal, (ticketID) => {
             if (generationRef.current === generation) ticketIDRef.current = ticketID;
-          });
+          }, (stage) => quality.stage(stage));
       if (generationRef.current !== generation) {
         if (session.role === "member" && session.accessToken) {
           await deleteMemberSession(
@@ -424,11 +445,12 @@ export function TryOutExperience() {
       setActiveSession(session);
       if (session.ticketID) ticketIDRef.current = session.ticketID;
       setStatus(copy.checkingMedia);
+      quality.stage("camera");
       const localStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 720, min: 500 },
+          width: { ideal: 1280, min: 500 },
           height: { ideal: 720, min: 500 },
-          aspectRatio: { ideal: 1 },
+          aspectRatio: { ideal: 16 / 9 },
         },
         audio: false,
       });
@@ -443,11 +465,23 @@ export function TryOutExperience() {
       const peerConnection = new RTCPeerConnection({ iceServers: session.iceServers });
       peerConnectionRef.current = peerConnection;
       localStream.getTracks().forEach((track) => peerConnection.addTrack(track, localStream));
+      preferExperienceVideoCodec(peerConnection, RTCRtpReceiver.getCapabilities?.("video")?.codecs);
       const socket = new WebSocket(signalingURL());
+      quality.stage("signaling");
       socketRef.current = socket;
       const negotiationID = crypto.randomUUID();
       const pendingCandidates: OutboundSignal[] = [];
       const isCurrent = () => generationRef.current === generation;
+      let frameReceived = false;
+      let transportConnected = false;
+      const showConnected = () => {
+        if (!isCurrent() || !frameReceived || !transportConnected) return;
+        if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        quality.stage("streaming");
+        setState("connected");
+        setStatus(copy.connected);
+      };
       const send = (message: OutboundSignal) => {
         if (!isCurrent() || socket.readyState !== WebSocket.OPEN) return false;
         socket.send(JSON.stringify(message));
@@ -480,17 +514,33 @@ export function TryOutExperience() {
         }
         remoteStreamRef.current = stream;
         attachVideo(remoteVideoRef.current, stream);
+        if (remoteVideoRef.current && !frameReceived && !cancelFrameObserverRef.current) {
+          const video = remoteVideoRef.current;
+          cancelFrameObserverRef.current = observeFirstFrame(video, () => {
+            if (!isCurrent() || video.srcObject !== stream) return;
+            frameReceived = true;
+            quality.firstFrame();
+            showConnected();
+          });
+        }
       };
 
       peerConnection.onconnectionstatechange = () => {
         if (!isCurrent()) return;
         if (peerConnection.connectionState === "connected") {
-          if (timeoutRef.current !== null) {
-            window.clearTimeout(timeoutRef.current);
-            timeoutRef.current = null;
+          if (!transportConnected) {
+            transportConnected = true;
+            quality.connected();
+            if (!frameReceived) {
+              quality.stage("first_frame");
+              setStatus(copy.waitingForVideo);
+              if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+              timeoutRef.current = window.setTimeout(() => {
+                if (isCurrent()) fail(generation, new DOMException("First frame timed out", "TimeoutError"));
+              }, firstFrameTimeout);
+            }
           }
-          setState("connected");
-          setStatus(copy.connected);
+          showConnected();
         } else if (["failed", "disconnected"].includes(peerConnection.connectionState)) {
           fail(generation, new Error("peer connection failed"));
         }
@@ -512,6 +562,7 @@ export function TryOutExperience() {
             sdp: offer.sdp,
             negotiation_id: negotiationID,
           });
+          quality.stage("transport");
         } catch (error) {
           fail(generation, error);
         }
@@ -554,22 +605,23 @@ export function TryOutExperience() {
         }
       };
       timeoutRef.current = window.setTimeout(() => {
-        if (isCurrent()) fail(generation, new Error("connection timed out"));
+        if (isCurrent()) fail(generation, new DOMException("Connection timed out", "TimeoutError"));
       }, connectionTimeout);
     } catch (error) {
       if (generationRef.current === generation && (error as { name?: unknown }).name !== "AbortError") {
         fail(generation, error);
       }
     }
-  }, [cleanupResources, copy.checkingMedia, copy.connected, copy.preparing, copy.startingWebrtc, fail, isLogined]);
+  }, [cleanupResources, copy.checkingMedia, copy.connected, copy.preparing, copy.startingWebrtc, copy.waitingForVideo, fail, isLogined, locale]);
 
   const end = useCallback(() => {
+    qualityRef.current?.finish(state !== "connected");
     generationRef.current += 1;
     cleanupResources(true);
     setState("ended");
     setStatus(copy.ended);
     router.replace(href("/try-out"));
-  }, [cleanupResources, copy.ended, href, router]);
+  }, [cleanupResources, copy.ended, href, router, state]);
 
   const closeFaceRegistration = useCallback(() => {
     setIsFaceRegistrationOpen(false);
@@ -585,12 +637,25 @@ export function TryOutExperience() {
     return () => window.clearTimeout(timer);
   }, [isLoading, start]);
 
-  useEffect(() => () => {
-    generationRef.current += 1;
-    cleanupResources(true);
-  }, [cleanupResources]);
+  useEffect(() => {
+    const dispose = () => {
+      qualityRef.current?.finish(true);
+      generationRef.current += 1;
+      cleanupResources(true);
+    };
+    // pagehide also covers full navigation and back/forward cache entry.
+    window.addEventListener("pagehide", dispose);
+    const resume = (event: PageTransitionEvent) => {
+      if (event.persisted) void start();
+    };
+    window.addEventListener("pageshow", resume);
+    return () => {
+      window.removeEventListener("pagehide", dispose);
+      window.removeEventListener("pageshow", resume);
+      dispose();
+    };
+  }, [cleanupResources, start]);
 
-  const isBusy = state === "connecting" || isLoading;
   return (
     <section
       className="flex w-full flex-col items-center gap-10 px-[var(--page-gutter)] pb-16 pt-16 lg:pt-24"
@@ -608,22 +673,21 @@ export function TryOutExperience() {
         </p>
       </div>
 
-      <div className="flex w-full max-w-[100rem] flex-col gap-3 lg:flex-row">
-        <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-contain" aria-label={copy.remoteLabel} />
-          {state !== "connected" ? (
-            <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
-              {copy.remotePlaceholder}
-            </p>
-          ) : null}
-        </div>
-        <div className="relative aspect-video w-full overflow-hidden rounded-[12px] bg-background-secondary">
-          <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-contain" aria-label={copy.localLabel} />
-          <p className="absolute bottom-3 left-3 rounded-pill bg-background-primary/80 px-3 py-1 text-sm text-text-primary">
-            {copy.localBadge}
-          </p>
-        </div>
-      </div>
+      <TryOutVideoPanels
+        local={
+          <video ref={localVideoRef} autoPlay playsInline muted className="size-full object-cover" aria-label={copy.localLabel} />
+        }
+        processed={
+          <>
+            <video ref={remoteVideoRef} autoPlay muted playsInline className="size-full object-cover" aria-label={copy.remoteLabel} />
+            {state !== "connected" ? (
+              <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
+                {copy.remotePlaceholder}
+              </p>
+            ) : null}
+          </>
+        }
+      />
 
       <div className="flex flex-wrap justify-center gap-3">
         {state === "connected" && localStream ? (
@@ -637,7 +701,7 @@ export function TryOutExperience() {
           </Button>
         ) : null}
         {state !== "ended" ? (
-          <Button variant="secondary" showChevron={false} onClick={end} disabled={isBusy}>
+          <Button variant="secondary" showChevron={false} onClick={end} disabled={isLoading}>
             {copy.end}
           </Button>
         ) : (

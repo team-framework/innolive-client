@@ -20,7 +20,6 @@ export default async function TermsPage({ params }: PageProps) {
   return (
     <DocumentPage
       locale={locale}
-      slug="terms"
       Content={documentContent.terms[locale]}
     />
   );

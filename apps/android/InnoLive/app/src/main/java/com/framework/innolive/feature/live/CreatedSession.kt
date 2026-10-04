@@ -6,6 +6,7 @@ internal data class CreatedSession(
     val sessionId: String,
     val ownerToken: String,
     val anonymizationState: AnonymizationState,
+    val provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
 )
 
 internal fun parseCreatedSession(payload: String): CreatedSession {
@@ -22,5 +23,6 @@ internal fun parseCreatedSession(payload: String): CreatedSession {
             false -> AnonymizationState.DISABLED
             else -> AnonymizationState.UNKNOWN
         },
+        provider = BroadcastProvider.fromWire(response.optString("provider", "youtube")),
     )
 }

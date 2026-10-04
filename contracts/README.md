@@ -2,8 +2,12 @@
 
 This directory is the source of truth for behavior shared by all clients.
 
+- `api/streaming-accounts-v1.md`: CHZZK OAuth and shared account listing/disconnection semantics
 - `api/broadcast-settings-v1.md`: provider-specific settings, categories, defaults and draft isolation
+- `api/broadcast-mode-v1.md`: live resolution/target switching, asynchronous completion and edit ordering
+- `api/upgrade-offer-v1.md`: upgrade options, server expiration, restart effects, selection holds and decline semantics
 - `api/`: HTTP API schemas and versioning notes
+- `api/web-experience-quality-v1.md`: landing-only diagnostic collector; shared server payloads are unchanged
 - `signaling/`: WebRTC signaling schemas
 - `fixtures/`: valid and invalid payload examples
 
@@ -27,3 +31,5 @@ answers and remote candidates from older negotiations. The existing session and
 owner token remain in use during recovery; older initial offers without these
 optional fields remain valid. `/webrtc/config` supplies `recovery.window_ms`,
 `recovery.debounce_ms`, and `recovery.max_attempts` for the recovery window.
+
+- `api/web-conversion-analytics-v1.md`: anonymous landing conversion events; additive collector with JSONB properties

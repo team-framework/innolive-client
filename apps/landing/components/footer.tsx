@@ -58,6 +58,9 @@ export function Footer() {
                 <Link href={href("/support")} className="underline">
                   {messages.footer.support}
                 </Link>
+                <Link href={href("/guides/live-face-blur")} className="underline">
+                  {messages.footer.guide}
+                </Link>
                 <Link href={href("/#faq")} scroll={false} className="underline">
                   {messages.footer.faq}
                 </Link>

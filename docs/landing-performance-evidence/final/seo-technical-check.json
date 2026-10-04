@@ -1,0 +1,500 @@
+{
+  "rows": [
+    {
+      "path": "/ko",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ko/pricing",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko/pricing"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ko/try-out",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko/try-out"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ko/try-out/experience",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko/try-out/experience"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ko/login",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko/login"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ko/signup",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko/signup"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ko/privacy",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko/privacy"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ko/terms",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko/terms"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ko/support",
+      "status": 200,
+      "title": true,
+      "lang": "ko",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ko/support"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en/pricing",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en/pricing"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en/try-out",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en/try-out"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en/try-out/experience",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en/try-out/experience"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en/login",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en/login"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en/signup",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en/signup"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en/privacy",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en/privacy"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en/terms",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en/terms"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/en/support",
+      "status": 200,
+      "title": true,
+      "lang": "en",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/en/support"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja/pricing",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja/pricing"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja/try-out",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja/try-out"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja/try-out/experience",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja/try-out/experience"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja/login",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja/login"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja/signup",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja/signup"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja/privacy",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja/privacy"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja/terms",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja/terms"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    },
+    {
+      "path": "/ja/support",
+      "status": 200,
+      "title": true,
+      "lang": "ja",
+      "description": true,
+      "canonical": [
+        "https://innolive.studio/ja/support"
+      ],
+      "hreflang": [
+        "ko",
+        "en",
+        "ja",
+        "x-default"
+      ],
+      "ogTitle": true,
+      "twitterCard": true
+    }
+  ],
+  "endpoints": {
+    "/robots.txt": {
+      "status": 200,
+      "body": "User-Agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: https://innolive.studio/sitemap.xml\n"
+    },
+    "/sitemap.xml": {
+      "status": 200,
+      "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:xhtml=\"http://www.w3.org/1999/xhtml\">\n<url>\n<loc>https://innolive.studio/ko</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko\" />\n</url>\n<url>\n<loc>https://innolive.studio/en</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko\" />\n</url>\n<url>\n<loc>https://innolive.studio/ja</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko\" />\n</url>\n<url>\n<loc>https://innolive.studio/ko/pricing</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/pricing\" />\n</url>\n<url>\n<loc>https://innolive.studio/en/pricing</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/pricing\" />\n</url>\n<url>\n<loc>https://innolive.studio/ja/pricing</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/pricing\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/pricing\" />\n</url>\n<url>\n<loc>https://innolive.studio/ko/try-out</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/try-out\" />\n</url>\n<url>\n<loc>https://innolive.studio/en/try-out</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/try-out\" />\n</url>\n<url>\n<loc>https://innolive.studio/ja/try-out</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/try-out\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/try-out\" />\n</url>\n<url>\n<loc>https://innolive.studio/ko/support</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/support\" />\n</url>\n<url>\n<loc>https://innolive.studio/en/support</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/support\" />\n</url>\n<url>\n<loc>https://innolive.studio/ja/support</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/support\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/support\" />\n</url>\n<url>\n<loc>https://innolive.studio/ko/privacy</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/privacy\" />\n</url>\n<url>\n<loc>https://innolive.studio/en/privacy</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/privacy\" />\n</url>\n<url>\n<loc>https://innolive.studio/ja/privacy</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/privacy\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/privacy\" />\n</url>\n<url>\n<loc>https://innolive.studio/ko/terms</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/terms\" />\n</url>\n<url>\n<loc>https://innolive.studio/en/terms</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/terms\" />\n</url>\n<url>\n<loc>https://innolive.studio/ja/terms</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/terms\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/terms\" />\n</url>\n<url>\n<loc>https://innolive.studio/ko/guides/live-face-blur</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/guides/live-face-blur\" />\n</url>\n<url>\n<loc>https://innolive.studio/en/guides/live-face-blur</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/guides/live-face-blur\" />\n</url>\n<url>\n<loc>https://innolive.studio/ja/guides/live-face-blur</loc>\n<xhtml:link rel=\"alternate\" hreflang=\"ko\" href=\"https://innolive.studio/ko/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"en\" href=\"https://innolive.studio/en/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"ja\" href=\"https://innolive.studio/ja/guides/live-face-blur\" />\n<xhtml:link rel=\"alternate\" hreflang=\"x-default\" href=\"https://innolive.studio/ko/guides/live-face-blur\" />\n</url>\n</urlset>\n"
+    }
+  }
+}

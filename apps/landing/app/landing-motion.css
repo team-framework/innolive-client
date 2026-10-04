@@ -95,6 +95,14 @@
 }
 
 body > header + div {
+  padding-top: var(--header-height);
+}
+
+.page-top-spacing {
+  padding-top: 2rem;
+}
+
+body:has([data-page="home"]) > header + div {
   padding-top: 101px;
 }
 
@@ -154,7 +162,7 @@ body:has([data-page="auth"]) > header + div {
 }
 
 @media (min-width: 48rem) {
-  body > header + div {
+  body:has([data-page="home"]) > header + div {
     padding-top: var(--header-block-desktop);
   }
 }
