@@ -34,7 +34,18 @@ export function pageMetadata(
       url: alternates.canonical,
       locale: ogLocales[resolvedLocale],
       alternateLocale: locales.filter((language) => language !== resolvedLocale).map((language) => ogLocales[language]),
+      images: [{
+        url: `${siteOrigin}/brand/opengraph.png`,
+        width: 1200,
+        height: 630,
+        type: "image/png",
+        alt: "InnoLive",
+      }],
     },
-    twitter: { card: "summary", ...copy },
+    twitter: {
+      card: "summary_large_image",
+      ...copy,
+      images: [{ url: `${siteOrigin}/brand/opengraph.png`, alt: "InnoLive" }],
+    },
   };
 }

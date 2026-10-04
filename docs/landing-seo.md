@@ -12,6 +12,9 @@
 - 한국어·영어·일본어 페이지는 해당 언어의 자기 URL을 canonical로 사용한다.
 - `x-default`는 같은 경로의 한국어 페이지를 가리킨다.
 - 제목과 설명은 해당 페이지의 내용을 설명한다. 검색어를 나열하는 keywords 메타 태그는 사용하지 않는다.
+- 공통 OpenGraph 이미지는 `public/brand/opengraph.png`의 1200×630 InnoLive 로고 PNG를 사용한다.
+  `pageMetadata`를 사용하는 페이지는 이미지 절대 URL·크기·형식·대체 텍스트와
+  Twitter의 `summary_large_image` 카드를 제공한다. 공유 제목·설명은 기존 페이지별 언어 설정을 유지한다.
 - 홈 h1은 초기 HTML에 전체 문구를 제공한다. 화면의 타이핑 애니메이션은 유지한다.
 
 ## 크롤링
