@@ -7,5 +7,6 @@
   "retry": true,
   "stage": "first_frame",
   "elapsedMs": 15500,
-  "code": "timeout"
+  "code": "timeout",
+  "browser": "safari"
 }
