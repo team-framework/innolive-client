@@ -35,6 +35,11 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Test quality runtime injection
+        run: |
+          bash -n scripts/deploy-innolive-web.sh
+          python3 scripts/test-web-quality-runtime.py
+
       - name: Build the landing image
         env:
           IMAGE: innolive-landing-ci:${{ github.sha }}
@@ -58,6 +63,7 @@ jobs:
             --test \
             app/api/version/route.test.mts \
             lib/auth-validation.test.mts \
+            lib/experience-codecs.test.mts \
             lib/experience-quality.test.mts \
             app/api/experience-quality/route.test.mts
 

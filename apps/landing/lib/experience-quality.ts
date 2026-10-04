@@ -3,6 +3,18 @@ export type QualityStage = (typeof qualityStages)[number];
 export const qualityEvents = ["started", "transport_connected", "first_frame", "failed", "ended", "cancelled"] as const;
 export const failureCodes = ["permission_denied", "camera_missing", "timeout", "request_failed", "connection_failed"] as const;
 
+export const qualityBrowsers = ["safari", "chrome", "firefox", "edge", "other", "unknown"] as const;
+export type QualityBrowser = (typeof qualityBrowsers)[number];
+
+export function qualityBrowser(userAgent: string): QualityBrowser {
+  if (!userAgent) return "unknown";
+  if (/Edg(?:e|A|iOS)?\//i.test(userAgent)) return "edge";
+  if (/Firefox\/|FxiOS\//i.test(userAgent)) return "firefox";
+  if (/Chrome\/|Chromium\/|CriOS\//i.test(userAgent)) return "chrome";
+  if (/Safari\//i.test(userAgent)) return "safari";
+  return "other";
+}
+
 export type QualityEvent = {
   version: 1;
   attemptId: string;
@@ -13,30 +25,33 @@ export type QualityEvent = {
   stage: QualityStage;
   elapsedMs: number;
   code?: (typeof failureCodes)[number];
+  browser?: QualityBrowser;
 };
 
 // Copy only allowlisted scalar fields. Never forward errors or signaling payloads.
 export function parseQualityEvent(value: unknown): QualityEvent | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const v = value as Record<string, unknown>;
-  const keys = ["version", "attemptId", "event", "role", "locale", "retry", "stage", "elapsedMs", "code"];
+  const keys = ["version", "attemptId", "event", "role", "locale", "retry", "stage", "elapsedMs", "code", "browser"];
   if (Object.keys(v).some((key) => !keys.includes(key))) return null;
   if (v.version !== 1 || typeof v.attemptId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v.attemptId)) return null;
   if (!qualityEvents.includes(v.event as QualityEvent["event"]) || !qualityStages.includes(v.stage as QualityStage)) return null;
   if (!["member", "guest"].includes(v.role as string) || !["ko", "en", "ja"].includes(v.locale as string) || typeof v.retry !== "boolean") return null;
   if (typeof v.elapsedMs !== "number" || !Number.isSafeInteger(v.elapsedMs) || v.elapsedMs < 0 || v.elapsedMs > 86_400_000) return null;
+  if (v.browser !== undefined && !qualityBrowsers.includes(v.browser as QualityBrowser)) return null;
   if (v.event === "failed" ? !failureCodes.includes(v.code as NonNullable<QualityEvent["code"]>) : v.code !== undefined) return null;
   return {
     version: 1, attemptId: v.attemptId, event: v.event as QualityEvent["event"],
     role: v.role as QualityEvent["role"], locale: v.locale as QualityEvent["locale"],
     retry: v.retry, stage: v.stage as QualityStage, elapsedMs: v.elapsedMs,
+    ...(v.browser !== undefined ? { browser: v.browser as QualityBrowser } : {}),
     ...(v.event === "failed" ? { code: v.code as QualityEvent["code"] } : {}),
   };
 }
 
 export function sendQualityEvent(event: QualityEvent) {
   try {
-    const body = JSON.stringify(event);
+    const body = JSON.stringify({ ...event, browser: qualityBrowser(navigator.userAgent) });
     if (navigator.sendBeacon?.("/api/experience-quality", new Blob([body], { type: "application/json" }))) return;
     void fetch("/api/experience-quality", {
       method: "POST", body, headers: { "Content-Type": "application/json" },

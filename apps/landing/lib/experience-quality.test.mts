@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createQualityAttempt, observeFirstFrame, parseQualityEvent, type QualityEvent } from "./experience-quality.ts";
+import { createQualityAttempt, observeFirstFrame, parseQualityEvent, qualityBrowser, type QualityEvent } from "./experience-quality.ts";
 import { summarize } from "../scripts/report-experience-quality.mts";
 
 const context = { attemptId: "12345678-1234-4234-8234-123456789abc", role: "guest", locale: "ko", retry: false } as const;
@@ -114,4 +114,14 @@ test("fallback requires playback and decoded dimensions, and removes its listene
   listeners.get("playing")?.();
   assert.equal(frames, 1);
   assert.equal(listeners.size, 0);
+});
+
+test("browser classification retains only a coarse family", () => {
+  assert.equal(qualityBrowser("Version/26.0 Safari/605.1.15"), "safari");
+  assert.equal(qualityBrowser("Chrome/140.0 Safari/537.36"), "chrome");
+  assert.equal(qualityBrowser("Chrome/140.0 Safari/537.36 Edg/140.0"), "edge");
+  assert.equal(qualityBrowser("FxiOS/140.0 Safari/605.1.15"), "firefox");
+  assert.equal(qualityBrowser("CriOS/140.0 Safari/605.1.15"), "chrome");
+  assert.equal(qualityBrowser(""), "unknown");
+  assert.equal(qualityBrowser("custom-agent"), "other");
 });

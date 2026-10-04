@@ -4,6 +4,7 @@ set -Eeuo pipefail
 umask 077
 
 readonly DEPLOY_CONFIG_FILE='/etc/innolive/web-deploy.env'
+readonly QUALITY_ENV_FILE='/etc/innolive/web-quality.env'
 readonly MAX_ARCHIVE_BYTES=$((256 * 1024 * 1024))
 readonly MAX_TAR_BYTES=$((512 * 1024 * 1024))
 readonly MAX_MEMBER_COUNT=10000
@@ -133,7 +134,12 @@ write_release_override() {
     printf '        NEXT_PUBLIC_IOS_DOWNLOAD_URL: "%s"\n' "$NEXT_PUBLIC_IOS_DOWNLOAD_URL"
     printf '        NEXT_PUBLIC_ANDROID_DOWNLOAD_URL: "%s"\n' "$NEXT_PUBLIC_ANDROID_DOWNLOAD_URL"
     printf '    image: %s\n' "$image"
-    printf '%s\n' '    env_file: !reset []'
+    if [[ -f "$QUALITY_ENV_FILE" ]]; then
+      printf '%s\n' '    env_file: !override'
+      printf '      - "%s"\n' "$QUALITY_ENV_FILE"
+    else
+      printf '%s\n' '    env_file: !reset []'
+    fi
     printf '%s\n' '    depends_on: !reset {}'
     printf '%s\n' '    networks: !override'
     printf '%s\n' '      monitoring_default:'
@@ -321,6 +327,11 @@ compose_gpu="$web_dir/docker-compose.gpu.yml"
 for required_file in "$env_file" "$compose_main" "$compose_server" "$compose_gpu"; do
   [[ -s "$required_file" && ! -L "$required_file" ]] || fail 'production runtime configuration is incomplete'
 done
+
+if [[ -e "$QUALITY_ENV_FILE" || -L "$QUALITY_ENV_FILE" ]]; then
+  [[ -s "$QUALITY_ENV_FILE" && ! -L "$QUALITY_ENV_FILE" ]] || fail 'quality runtime configuration is invalid'
+  [[ "$(stat -c '%u:%a' "$QUALITY_ENV_FILE")" == '0:600' ]] || fail 'quality runtime configuration must be root-owned mode 600'
+fi
 
 lock_file="$releases_dir/.deploy.lock"
 if ! exec 9>"$lock_file"; then
