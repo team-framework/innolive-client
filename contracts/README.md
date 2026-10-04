@@ -7,6 +7,7 @@ This directory is the source of truth for behavior shared by all clients.
 - `api/broadcast-mode-v1.md`: live resolution/target switching, asynchronous completion and edit ordering
 - `api/upgrade-offer-v1.md`: upgrade options, server expiration, restart effects, selection holds and decline semantics
 - `api/`: HTTP API schemas and versioning notes
+- `api/web-experience-quality-v1.md`: landing-only diagnostic collector; shared server payloads are unchanged
 - `signaling/`: WebRTC signaling schemas
 - `fixtures/`: valid and invalid payload examples
 
