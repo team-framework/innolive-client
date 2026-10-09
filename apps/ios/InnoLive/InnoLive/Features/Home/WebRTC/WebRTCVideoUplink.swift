@@ -19,6 +19,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     @Published private(set) var zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
     @Published private(set) var videoQualitySettings = BroadcastVideoQualitySettings.load()
     @Published private(set) var stabilizationStatus: VideoStabilizationStatus = .inactive
+    @Published private(set) var uplinkQuality = BroadcastUplinkQuality.measuring
 
     private static let sslInitialized = LKRTCInitializeSSL()
 
@@ -57,6 +58,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     var outboundVerificationTask: Task<Void, Never>?
     var qualityPollTask: Task<Void, Never>?
     let diagnostics = UplinkDiagnosticsMonitor()
+    var uplinkQualityTracker = BroadcastUplinkQualityTracker()
     private var pendingCameraStopTask: Task<Void, Never>?
     var cameraOperationGeneration: UInt = 0
     var isStopping = false
@@ -390,6 +392,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         qualityPollTask?.cancel()
         qualityPollTask = nil
         diagnostics.resetQualityTracker()
+        uplinkQualityTracker.reset()
+        if uplinkQuality != .measuring { uplinkQuality = .measuring }
 
         if let startContinuation {
             self.startContinuation = nil
@@ -473,6 +477,12 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     func dismissError() {
         errorMessage = nil
+    }
+
+    /// 방송 상태 패널이 쓰는 업로드 품질. 값이 바뀔 때만 발행해 화면 갱신을 줄인다.
+    func recordUplinkQuality(_ sample: UplinkVideoOutboundStats) {
+        let quality = uplinkQualityTracker.record(sample)
+        if quality != uplinkQuality { uplinkQuality = quality }
     }
 
     func setRemoteVideoAvailable(_ isAvailable: Bool) {
