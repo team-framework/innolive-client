@@ -9,6 +9,8 @@ struct SettingsView: View {
     @ScaledMetric(relativeTo: .body) private var iconWidth: CGFloat = 28
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    var tutorial: BroadcastTutorialCoordinator? = nil
+    @Environment(\.dismiss) private var dismiss
     var body: some View {
         ScrollView {
             // Liquid Glass 효과를 자연스럽게 묶음
@@ -70,6 +72,23 @@ struct SettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
+
+                    if let tutorial {
+                        // 방송을 준비하거나 송출하는 중에는 처음부터 안내할 수 없으므로 막는다.
+                        Button {
+                            tutorial.restart()
+                            dismiss()
+                        } label: {
+                            SettingsGlassRow {
+                                settingsRowContent(
+                                    title: String(localized: "방송 준비 안내 다시 보기", table: "BroadcastGuide"),
+                                    systemImage: "questionmark.circle"
+                                )
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(youtube.session != nil)
+                    }
 
                     if let privacyPolicyURL = InnoLiveLinks.privacyPolicyURL {
                         Link(destination: privacyPolicyURL) {

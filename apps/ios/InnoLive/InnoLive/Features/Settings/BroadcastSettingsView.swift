@@ -73,6 +73,7 @@ struct BroadcastSettingsView: View {
                     } label: {
                         Label(String(localized: "플랫폼 계정 연결"), systemImage: "person.crop.circle")
                     }
+                    .broadcastTutorialAnchor(.connectAccount)
                     BroadcastTargetSelectionView(youtube: youtube)
                     Text(String(localized: "설정을 편집할 플랫폼", table: "Simulcast")).font(.caption).foregroundStyle(.secondary)
                     Picker(String(localized: "설정을 편집할 플랫폼", table: "Simulcast"), selection: Binding(
@@ -136,6 +137,7 @@ struct BroadcastSettingsView: View {
                 .innoLiveGlassButtonStyle(prominent: true)
                 .tint(.blue)
                 .disabled(isPrepareButtonDisabled)
+                .broadcastTutorialAnchor(.startPreparation)
             }
             .padding(24)
         }
@@ -208,37 +210,42 @@ struct BroadcastSettingsView: View {
     @ViewBuilder
     private var preparationSection: some View {
         if let status = youtube.preparationStatus {
-            Text(status.isFailed ? (status.failedPhase?.failureMessage ?? status.phase.failureMessage) : status.phase.title)
-                .font(.footnote.weight(.semibold))
-            if youtube.preparationFailures.isEmpty {
-                Text(status.message ?? status.phase.detail).font(.footnote).foregroundStyle(.secondary)
-            }
-            ForEach(BroadcastSettingsProvider.allCases) { provider in
-                if let failure = youtube.preparationFailures[provider] {
-                    Text(failure.message ?? failure.phase.failureMessage).font(.footnote).foregroundStyle(.orange)
-                } else if youtube.targetPolicy(provider).broadcastPhase == .prepared {
-                    Text("\(provider.title) · \(String(localized: "준비 완료", table: "Simulcast"))")
+            // 안내가 준비 진행 영역 전체를 한 번에 가리키도록 묶는다. 간격은 바깥 VStack과 같다.
+            VStack(alignment: .leading, spacing: 16) {
+                Text(status.isFailed ? (status.failedPhase?.failureMessage ?? status.phase.failureMessage) : status.phase.title)
+                    .font(.footnote.weight(.semibold))
+                if youtube.preparationFailures.isEmpty {
+                    Text(status.message ?? status.phase.detail).font(.footnote).foregroundStyle(.secondary)
+                }
+                ForEach(BroadcastSettingsProvider.allCases) { provider in
+                    if let failure = youtube.preparationFailures[provider] {
+                        Text(failure.message ?? failure.phase.failureMessage).font(.footnote).foregroundStyle(.orange)
+                    } else if youtube.targetPolicy(provider).broadcastPhase == .prepared {
+                        Text("\(provider.title) · \(String(localized: "준비 완료", table: "Simulcast"))")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                if status.isFailed {
+                    Button(String(localized: "실패한 플랫폼 다시 준비", table: "Simulcast"), action: primaryAction)
+                        .disabled(isPrepareButtonDisabled)
+                }
+                if youtube.canContinuePreparedBroadcast {
+                    Button(String(localized: "준비된 플랫폼으로 계속", table: "Simulcast")) {
+                        if youtube.continueWithPreparedTargets() { onContinuePreparation?() }
+                    }
+                    .accessibilityIdentifier("simulcast-continue-ready")
+                    Text(String(localized: "계속해도 바로 방송이 시작되지 않습니다. 방송 시작을 눌러 공개하세요.", table: "Simulcast"))
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-            }
-            if status.isFailed {
-                Button(String(localized: "실패한 플랫폼 다시 준비", table: "Simulcast"), action: primaryAction)
-                    .disabled(isPrepareButtonDisabled)
-            }
-            if youtube.canContinuePreparedBroadcast {
-                Button(String(localized: "준비된 플랫폼으로 계속", table: "Simulcast")) {
-                    if youtube.continueWithPreparedTargets() { onContinuePreparation?() }
+                if onCancelPreparation != nil {
+                    Button(status.phase == .cancelling ? String(localized: "준비 취소 중") : String(localized: "준비 취소"), role: .destructive) {
+                        onCancelPreparation?()
+                    }
+                    .disabled(status.phase == .cancelling)
                 }
-                .accessibilityIdentifier("simulcast-continue-ready")
-                Text(String(localized: "계속해도 바로 방송이 시작되지 않습니다. 방송 시작을 눌러 공개하세요.", table: "Simulcast"))
-                    .font(.footnote).foregroundStyle(.secondary)
             }
-            if onCancelPreparation != nil {
-                Button(status.phase == .cancelling ? String(localized: "준비 취소 중") : String(localized: "준비 취소"), role: .destructive) {
-                    onCancelPreparation?()
-                }
-                .disabled(status.phase == .cancelling)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .broadcastTutorialAnchor(.preparationProgress)
         }
     }
 

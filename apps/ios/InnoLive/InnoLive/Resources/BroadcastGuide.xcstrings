@@ -396,6 +396,28 @@
           }
         }
       }
+    },
+    "방송 준비 안내 다시 보기": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 준비 안내 다시 보기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show Broadcast Setup Guide Again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信準備ガイドをもう一度見る"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
