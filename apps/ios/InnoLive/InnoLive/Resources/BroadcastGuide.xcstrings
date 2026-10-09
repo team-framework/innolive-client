@@ -1,0 +1,402 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "방송 준비부터 시작해요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 준비부터 시작해요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start by preparing your broadcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "まずは配信の準備から"
+          }
+        }
+      }
+    },
+    "방송할 계정을 연결해요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송할 계정을 연결해요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect your streaming account"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信するアカウントを連携しましょう"
+          }
+        }
+      }
+    },
+    "제목을 확인하고 준비해요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제목을 확인하고 준비해요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check your title and get ready"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タイトルを確認して準備しましょう"
+          }
+        }
+      }
+    },
+    "방송을 준비하고 있어요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 준비하고 있어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Getting your broadcast ready"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を準備しています"
+          }
+        }
+      }
+    },
+    "준비가 잘 되지 않았어요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "준비가 잘 되지 않았어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparation didn't finish"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備がうまくいきませんでした"
+          }
+        }
+      }
+    },
+    "방송할 준비가 끝났어요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송할 준비가 끝났어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're ready to go live"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信の準備ができました"
+          }
+        }
+      }
+    },
+    "이 버튼을 누르면 방송할 플랫폼과 제목을 정할 수 있어요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 버튼을 누르면 방송할 플랫폼과 제목을 정할 수 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap this button to choose where to stream and set a title."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このボタンを押すと、配信先とタイトルを決められます。"
+          }
+        }
+      }
+    },
+    "YouTube나 치지직 계정을 연결해 주세요. 연결하고 돌아오면 다음 단계로 넘어가요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube나 치지직 계정을 연결해 주세요. 연결하고 돌아오면 다음 단계로 넘어가요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect a YouTube or CHZZK account. When you come back, we'll go to the next step."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeまたはCHZZKのアカウントを連携してください。連携して戻ると次のステップに進みます。"
+          }
+        }
+      }
+    },
+    "플랫폼과 방송 제목을 확인한 뒤 아래 방송 준비 버튼을 눌러 주세요. 준비만으로는 시청자에게 공개되지 않아요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼과 방송 제목을 확인한 뒤 아래 방송 준비 버튼을 눌러 주세요. 준비만으로는 시청자에게 공개되지 않아요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check your platforms and title, then tap Prepare Broadcast below. Preparing doesn't make your stream public."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信先とタイトルを確認してから、下の「配信を準備」を押してください。準備だけでは視聴者に公開されません。"
+          }
+        }
+      }
+    },
+    "서버와 연결하는 동안 잠시만 기다려 주세요. 준비가 끝나면 다음 단계를 알려 드릴게요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버와 연결하는 동안 잠시만 기다려 주세요. 준비가 끝나면 다음 단계를 알려 드릴게요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hang on while we connect to the server. We'll show you the next step when it's ready."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに接続するまで少しお待ちください。準備ができたら次のステップをお知らせします。"
+          }
+        }
+      }
+    },
+    "안내 문구를 확인한 뒤 다시 시도해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "안내 문구를 확인한 뒤 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the message, then try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示されたメッセージを確認して、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "방송 시작을 누르면 시청자에게 방송이 공개돼요. 준비되면 눌러 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 시작을 누르면 시청자에게 방송이 공개돼요. 준비되면 눌러 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapping Go Live makes your stream visible to viewers. Tap it when you're ready."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「配信開始」を押すと視聴者に配信が公開されます。準備ができたら押してください。"
+          }
+        }
+      }
+    },
+    "전체 %lld단계 중 %lld단계": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "전체 %lld단계 중 %lld단계"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Step %2$lld of %1$lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全%1$lldステップ中%2$lldステップ目"
+          }
+        }
+      }
+    },
+    "건너뛰기": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "건너뛰기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "スキップ"
+          }
+        }
+      }
+    },
+    "안내는 설정에서 다시 볼 수 있어요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "안내는 설정에서 다시 볼 수 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can see this guide again in Settings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ガイドは設定からもう一度見られます。"
+          }
+        }
+      }
+    },
+    "알겠어요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "알겠어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Got It"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "わかりました"
+          }
+        }
+      }
+    },
+    "방송 상태는 여기서 확인해요": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 상태는 여기서 확인해요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check your broadcast status here"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信の状態はここで確認できます"
+          }
+        }
+      }
+    },
+    "플랫폼별 송출 상태와 업로드 화질을 보여 드려요. 문제가 생기면 여기에 알려 드릴게요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼별 송출 상태와 업로드 화질을 보여 드려요. 문제가 생기면 여기에 알려 드릴게요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See each platform's status and your upload quality. If something goes wrong, we'll let you know here."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信先ごとの状態とアップロード画質を表示します。問題があればここでお知らせします。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
