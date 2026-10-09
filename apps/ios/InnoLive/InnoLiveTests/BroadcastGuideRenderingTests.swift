@@ -4,7 +4,7 @@ import XCTest
 
 @testable import InnoLive
 
-/// 방송 준비 안내 오버레이를 실제 SwiftUI 화면으로 그려 xcresult에 이미지로 남긴다.
+/// 안내 오버레이와 송출 상태 패널을 실제 SwiftUI 화면으로 그려 xcresult에 이미지로 남긴다.
 /// 계정 연결, 방송 준비, 카메라 시작은 하지 않는다.
 @MainActor
 final class BroadcastGuideRenderingTests: XCTestCase {
@@ -57,6 +57,55 @@ final class BroadcastGuideRenderingTests: XCTestCase {
         }
     }
 
+    func testLiveStatusPanelShowsEachPlatformAndUploadWarning() async throws {
+        let streaming = try decodeStream(status: "streaming")
+        let reconnecting = try decodeStream(status: "reconnecting")
+
+        for (appearance, textSize) in variants {
+            try await render("live-status-panel", appearance: appearance, textSize: textSize) {
+                ZStack(alignment: .bottom) {
+                    GuidePreviewBackground()
+                    BroadcastLiveStatusPanel(
+                        targets: [
+                            BroadcastTargetState(provider: "youtube", stream: streaming),
+                            BroadcastTargetState(provider: "chzzk", stream: reconnecting)
+                        ],
+                        broadcastResolution: "1080p",
+                        uplinkQuality: BroadcastUplinkQuality(shortEdge: 720, framesPerSecond: 30, limitation: .network),
+                        remainingTime: .seconds(2_820)
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 120)
+                }
+            }
+        }
+    }
+
+    func testLiveStatusTipPointsAtThePanelWithoutDimming() async throws {
+        let fixture = GuideRenderingFixture()
+        defer { fixture.removePreferences() }
+        let streaming = try decodeStream(status: "streaming")
+        let tutorial = fixture.makeTutorial()
+        tutorial.update(.init(selectedAccountsConnected: true, phase: .live, hasStartedBroadcast: true))
+        XCTAssertTrue(tutorial.isShowingLiveStatusTip)
+
+        try await render("live-status-tip", appearance: .dark, textSize: .large) {
+            ZStack(alignment: .bottom) {
+                GuidePreviewBackground()
+                BroadcastLiveStatusPanel(
+                    targets: [BroadcastTargetState(provider: "youtube", stream: streaming)],
+                    broadcastResolution: "720p",
+                    uplinkQuality: BroadcastUplinkQuality(shortEdge: 720, framesPerSecond: 30),
+                    remainingTime: .unlimitedOrInactive
+                )
+                .broadcastTutorialAnchor(.liveStatus)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 120)
+            }
+            .broadcastTutorialHost(tutorial, host: .home)
+        }
+    }
+
     private var variants: [(UIUserInterfaceStyle, DynamicTypeSize)] {
         [(.light, .large), (.dark, .large), (.light, .accessibility2)]
     }
@@ -98,6 +147,25 @@ final class BroadcastGuideRenderingTests: XCTestCase {
         attachment.name = "\(name)-\(style)-\(textSize == .large ? "default" : "large-text")"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    private func decodeStream(status: String) throws -> YouTubeStreamState {
+        let data = Data(
+            """
+            {
+              "status": "\(status)",
+              "started_at": "2026-10-09T12:00:00Z",
+              "stopped_at": null,
+              "publisher_active": true,
+              "last_error": null,
+              "reconnect_attempts": 1,
+              "stop_reason": null,
+              "paused_at": null,
+              "broadcast_phase": "live"
+            }
+            """.utf8
+        )
+        return try JSONDecoder().decode(YouTubeStreamState.self, from: data)
     }
 }
 
