@@ -14,12 +14,17 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -31,11 +36,14 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.SessionTarget
+import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
 import com.framework.innolive.feature.live.status.BroadcastUplinkLimitation
 import com.framework.innolive.feature.live.status.BroadcastUplinkQuality
+import com.framework.innolive.feature.settings.SettingsScreen
+import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -163,6 +171,95 @@ class BroadcastGuideUiTest {
     }
 
     @Test
+    fun platformDialogShowsTheChoosePlatformGuide() {
+        val tutorial = BroadcastTutorialCoordinator(MemoryStore())
+        var selected = 0
+        compose.setContent {
+            MyApplicationTheme {
+                PlatformDialog(
+                    onDismissRequest = {},
+                    onYouTubeSelected = { selected++ },
+                    guide = tutorial.guideFor(BroadcastTutorialHost.PLATFORM_DIALOG),
+                )
+            }
+        }
+        compose.runOnIdle {
+            tutorial.restart(BroadcastTutorialSnapshot(openDialog = BroadcastTutorialDialog.PLATFORM))
+        }
+
+        compose.onNodeWithText(string(R.string.tutorial_choose_platform_title)).assertIsDisplayed()
+        compose.onNodeWithText("1/5").assertIsDisplayed()
+        saveScreenshot("platform-choose")
+        compose.onNodeWithText("YouTube").performClick()
+        compose.runOnIdle { assertEquals(1, selected) }
+    }
+
+    @Test
+    fun settingsDialogPointsAtPrepareWhenTheAccountIsConnected() {
+        val tutorial = BroadcastTutorialCoordinator(MemoryStore())
+        var prepared = 0
+        compose.setContent {
+            MyApplicationTheme {
+                YouTubeLiveSettingsDialog(
+                    settings = BroadcastSettings("Test", "Description", "public", false, "22"),
+                    youtubeChannelTitle = "Channel",
+                    hasYouTubeAccount = true,
+                    youtubeAccountStatus = "Channel",
+                    isYouTubeReconnectRequired = false,
+                    isYouTubeAccountActionInProgress = false,
+                    isYouTubeConnectEnabled = true,
+                    onSettingsChanged = {},
+                    onConnectYouTube = {},
+                    onDismissRequest = {},
+                    onPrepare = { prepared++ },
+                    guide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG),
+                )
+            }
+        }
+        compose.runOnIdle {
+            tutorial.restart(
+                BroadcastTutorialSnapshot(openDialog = BroadcastTutorialDialog.SETTINGS, selectedAccountConnected = true),
+            )
+        }
+
+        compose.onNodeWithText(string(R.string.tutorial_start_preparation_title)).assertIsDisplayed()
+        // 가리키는 방송 준비 버튼이 스크롤되어 화면 안에 보인다.
+        compose.onNodeWithText(string(R.string.action_prepare_broadcast)).assertIsDisplayed()
+        saveScreenshot("settings-start-preparation")
+        compose.onNodeWithText(string(R.string.action_prepare_broadcast)).performClick()
+        compose.runOnIdle { assertEquals(1, prepared) }
+    }
+
+    @Test
+    fun settingsReplayRowRunsOnlyWhenAllowed() {
+        var replays = 0
+        var canReplay by mutableStateOf(false)
+        compose.setContent {
+            MyApplicationTheme {
+                SettingsScreen(
+                    SettingsScreenProps(
+                        onBack = {},
+                        onOpenCameraSettings = {},
+                        onOpenBroadcastSettings = {},
+                        profileName = "Tester",
+                        profileEmail = "tester@example.com",
+                        onLogout = {},
+                        canReplayBroadcastGuide = canReplay,
+                        onReplayBroadcastGuide = { replays++ },
+                    ),
+                )
+            }
+        }
+
+        compose.onNodeWithText(string(R.string.tutorial_replay)).assertIsDisplayed().assertIsNotEnabled()
+        compose.runOnIdle { canReplay = true }
+        compose.onNodeWithText(string(R.string.tutorial_replay)).assertIsEnabled()
+        saveScreenshot("settings-replay")
+        compose.onNodeWithText(string(R.string.tutorial_replay)).performClick()
+        compose.runOnIdle { assertEquals(1, replays) }
+    }
+
+    @Test
     fun largeFontLandscapeLiveStatusTipKeepsGotItReachable() {
         val store = MemoryStore().apply { hasFinishedPreparationGuide = true }
         val tutorial = BroadcastTutorialCoordinator(store)
@@ -265,6 +362,9 @@ class BroadcastGuideUiTest {
     /** 렌더링 결과를 기기 외부 앱 폴더에 남겨 사람이 확인할 수 있게 한다. */
     private fun saveScreenshot(name: String) {
         compose.waitForIdle()
+        // Dialog 창 크기 변경과 다음 프레임이 화면에 반영될 때까지 기다린 뒤 찍는다.
+        Thread.sleep(SCREENSHOT_SETTLE_MILLIS)
+        compose.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val bitmap = instrumentation.uiAutomation.takeScreenshot() ?: return
         val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "broadcast-guide").apply { mkdirs() }
@@ -274,5 +374,6 @@ class BroadcastGuideUiTest {
     private companion object {
         const val PRIMARY_BUTTON = "방송 준비"
         const val OUTSIDE_BUTTON = "다른 버튼"
+        const val SCREENSHOT_SETTLE_MILLIS = 700L
     }
 }
