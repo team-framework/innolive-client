@@ -6,7 +6,7 @@
     <string name="tutorial_connect_account_title">방송할 계정을 연결해요</string>
     <string name="tutorial_connect_account_message">표시된 버튼으로 계정을 연결해 주세요. 연결하고 돌아오면 다음 단계로 넘어가요.</string>
     <string name="tutorial_start_preparation_title">제목을 확인하고 준비해요</string>
-    <string name="tutorial_start_preparation_message">방송 제목을 확인한 뒤 아래 방송 준비 버튼을 눌러 주세요. 준비만으로는 시청자에게 공개되지 않아요.</string>
+    <string name="tutorial_start_preparation_message">방송 제목과 필요한 항목을 채운 뒤 아래 방송 준비 버튼을 눌러 주세요. 준비만으로는 시청자에게 공개되지 않아요.</string>
     <string name="tutorial_wait_preparation_title">방송을 준비하고 있어요</string>
     <string name="tutorial_wait_preparation_message">서버와 연결하는 동안 잠시만 기다려 주세요. 준비가 끝나면 다음 단계를 알려 드릴게요.</string>
     <string name="tutorial_retry_preparation_title">준비가 잘 되지 않았어요</string>

@@ -6,7 +6,7 @@
     <string name="tutorial_connect_account_title">Connect your account</string>
     <string name="tutorial_connect_account_message">Use the highlighted button to connect your account. You will move on to the next step when you come back.</string>
     <string name="tutorial_start_preparation_title">Check the title and prepare</string>
-    <string name="tutorial_start_preparation_message">Check your broadcast title, then tap Prepare broadcast below. Preparing alone does not make the broadcast visible to viewers.</string>
+    <string name="tutorial_start_preparation_message">Fill in your broadcast title and any required fields, then tap Prepare broadcast below. Preparing alone does not make the broadcast visible to viewers.</string>
     <string name="tutorial_wait_preparation_title">Preparing your broadcast</string>
     <string name="tutorial_wait_preparation_message">Please wait while we connect to the server. We will show you the next step when it is ready.</string>
     <string name="tutorial_retry_preparation_title">Preparation did not finish</string>

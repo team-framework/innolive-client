@@ -6,7 +6,7 @@
     <string name="tutorial_connect_account_title">配信するアカウントを連携します</string>
     <string name="tutorial_connect_account_message">表示されたボタンからアカウントを連携してください。連携して戻ると次のステップに進みます。</string>
     <string name="tutorial_start_preparation_title">タイトルを確認して準備します</string>
-    <string name="tutorial_start_preparation_message">配信タイトルを確認してから、下の「配信を準備」を押してください。準備だけでは視聴者に公開されません。</string>
+    <string name="tutorial_start_preparation_message">配信タイトルと必要な項目を入力してから、下の「配信を準備」を押してください。準備だけでは視聴者に公開されません。</string>
     <string name="tutorial_wait_preparation_title">配信を準備しています</string>
     <string name="tutorial_wait_preparation_message">サーバーに接続するまで少しお待ちください。準備ができたら次のステップをお知らせします。</string>
     <string name="tutorial_retry_preparation_title">準備がうまくいきませんでした</string>
