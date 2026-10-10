@@ -149,7 +149,7 @@ class BroadcastGuideUiTest {
                     settings = BroadcastSettings("", "", "public", null, "22"),
                     youtubeChannelTitle = null,
                     hasYouTubeAccount = false,
-                    youtubeAccountStatus = "YouTube 계정을 연결하세요.",
+                    youtubeAccountStatus = string(R.string.youtube_status_no_account),
                     isYouTubeReconnectRequired = false,
                     isYouTubeAccountActionInProgress = false,
                     isYouTubeConnectEnabled = true,
