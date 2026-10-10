@@ -288,6 +288,19 @@ class BroadcastTutorialTest {
         assertFalse(store.hasSeenLiveStatusTip)
     }
 
+    @Test
+    fun startingALiveBroadcastWithoutTheGuideStillRecordsCompletion() {
+        val tutorial = coordinator()
+
+        tutorial.update(snapshot(connected = true, state = BroadcastState.PREPARED))
+        tutorial.update(snapshot(connected = true, state = BroadcastState.LIVE, started = true))
+        tutorial.update(snapshot(connected = true))
+        tutorial.startIfNeeded()
+
+        assertTrue(store.hasFinishedPreparationGuide)
+        assertNull(tutorial.stage)
+    }
+
     // Helpers
 
     private fun coordinator() = BroadcastTutorialCoordinator(store)
