@@ -13,6 +13,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
+import com.framework.innolive.feature.live.status.BroadcastUplinkQuality
+import com.framework.innolive.feature.live.status.BroadcastUplinkQualityTracker
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.ServerErrorGuidance
 import com.framework.innolive.ui.text.ServerErrorAction
@@ -79,6 +81,10 @@ class WebRtcSessionViewModel : ViewModel() {
         private set
     var broadcastStartedAtElapsedRealtimeMillis by mutableStateOf<Long?>(null)
         private set
+    /** 방송 상태 패널이 쓰는 업로드 품질. 값이 바뀔 때만 갱신해 화면 갱신을 줄인다. */
+    var uplinkQuality by mutableStateOf(BroadcastUplinkQuality.Measuring)
+        private set
+    private val uplinkQualityTracker = BroadcastUplinkQualityTracker()
 
     var frameAnalyzer: CameraFrameAnalyzer? by mutableStateOf(null)
         private set
@@ -209,6 +215,7 @@ class WebRtcSessionViewModel : ViewModel() {
         sessionState = sessionState.beginConnection()
         sessionSnapshot = null
         signalingStartedGeneration = null
+        resetUplinkQuality()
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
         val generation = sessionState.generation
@@ -303,6 +310,12 @@ class WebRtcSessionViewModel : ViewModel() {
                     },
                     onSessionSnapshotChanged = { snapshot ->
                         if (sessionState.acceptsCallback(generation)) sessionSnapshot = snapshot
+                    },
+                    onUplinkVideoStats = { sample ->
+                        if (sessionState.acceptsCallback(generation)) {
+                            val quality = uplinkQualityTracker.record(sample)
+                            if (quality != uplinkQuality) uplinkQuality = quality
+                        }
                     },
                     onBroadcastStateChanged = { state, event ->
                         if (sessionState.acceptsCallback(generation) && (state != broadcastState || event != null)) {
@@ -571,6 +584,12 @@ class WebRtcSessionViewModel : ViewModel() {
         broadcastStatus = broadcastStateMessage(BroadcastState.IDLE).text
         isBroadcastStatusDefault = true
         broadcastStartedAtElapsedRealtimeMillis = null
+        resetUplinkQuality()
+    }
+
+    private fun resetUplinkQuality() {
+        uplinkQualityTracker.reset()
+        uplinkQuality = BroadcastUplinkQuality.Measuring
     }
 
     /** Removes only the deleted account's credentials for its current server. */

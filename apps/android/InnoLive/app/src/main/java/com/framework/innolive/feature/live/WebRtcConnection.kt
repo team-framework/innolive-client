@@ -4,6 +4,7 @@ import android.util.Log
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.privacy.PrivacyTextureReadbackCounter
 import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
+import com.framework.innolive.feature.live.status.UplinkVideoStats
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -98,6 +99,7 @@ class WebRtcConnection(
     private val onInitialSignalingStarted: () -> Unit = {},
     private val onSessionSnapshotChanged: (SessionSnapshot) -> Unit = {},
     private val onServerError: (ServerErrorGuidance) -> Unit = {},
+    private val onUplinkVideoStats: (UplinkVideoStats) -> Unit = {},
 ) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val onDeviceProcessing = initialOnDeviceProcessing
@@ -120,6 +122,7 @@ class WebRtcConnection(
     private val timerExecutor: ScheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor()
     private var privacyStatsTask: ScheduledFuture<*>? = null
+    private var uplinkStatsTask: ScheduledFuture<*>? = null
     private var previousPrivacyVideoStats: PrivacyVideoStats? = null
     private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val httpClient = OkHttpClient.Builder()
@@ -1483,7 +1486,35 @@ class WebRtcConnection(
             Log.i("LiveConnection", "network_recovery_succeeded")
         }
         updateState(WebRtcConnectionState.CONNECTED)
+        startUplinkStats()
         if (!broadcastOperation.get()) refreshBroadcastStatus()
+    }
+
+    /** 방송 상태 패널이 쓰는 업로드 해상도·FPS·제한 사유를 2초마다 읽는다. */
+    private fun startUplinkStats() {
+        if (uplinkStatsTask != null) return
+        uplinkStatsTask = runCatching {
+            timerExecutor.scheduleWithFixedDelay(
+                { executeOnOwner { sampleUplinkStats() } },
+                UPLINK_STATS_POLL_MILLIS,
+                UPLINK_STATS_POLL_MILLIS,
+                TimeUnit.MILLISECONDS,
+            )
+        }.getOrNull()
+    }
+
+    private fun sampleUplinkStats() {
+        if (!isActive()) return
+        val connection = peerConnection ?: return
+        val sender = videoSender ?: return
+        runCatching {
+            connection.getStats(sender) { report ->
+                val outbound = report.statsMap.values.firstOrNull { it.type == "outbound-rtp" &&
+                    (it.members["kind"] == "video" || it.members["mediaType"] == "video") } ?: return@getStats
+                val sample = UplinkVideoStats.from(outbound.members)
+                mainHandler.post { if (isActive()) onUplinkVideoStats(sample) }
+            }
+        }
     }
 
     private var broadcastStatusRefreshJob: Job? = null
@@ -2231,6 +2262,7 @@ class WebRtcConnection(
         private const val RECOVERY_VIDEO_VERIFICATION_MILLIS = 10_000L
         private const val RECOVERY_VIDEO_STATS_POLL_MILLIS = 250L
         private const val SESSION_STATUS_POLL_MILLIS = 2_000L
+        private const val UPLINK_STATS_POLL_MILLIS = 2_000L
         private const val SESSION_STATUS_HTTP_TIMEOUT_MILLIS = 3_000L
         private const val RECOVERY_VIDEO_STATUS_POLL_MILLIS = 1_000L
         private const val RECOVERY_VIDEO_STATUS_HTTP_TIMEOUT_MILLIS = 3_000L
