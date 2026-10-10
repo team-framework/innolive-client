@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +68,17 @@ import com.framework.innolive.feature.live.components.ChzzkOAuthDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.components.cappedDialogWidth
+import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchors
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialDialog
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialHomeOverlay
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialHost
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialSnapshot
+import com.framework.innolive.feature.live.tutorial.LocalBroadcastTutorialAnchors
+import com.framework.innolive.feature.live.tutorial.broadcastTutorialAnchor
+import com.framework.innolive.feature.live.tutorial.guideFor
 import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -74,6 +87,20 @@ import kotlinx.coroutines.launch
 fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
+    tutorial: BroadcastTutorialCoordinator? = null,
+) {
+    val tutorialAnchors = remember { BroadcastTutorialAnchors() }
+    CompositionLocalProvider(LocalBroadcastTutorialAnchors provides tutorialAnchors) {
+        LiveScreenContent(props, webRtcSession, tutorial, tutorialAnchors)
+    }
+}
+
+@Composable
+private fun LiveScreenContent(
+    props: LiveScreenProps,
+    webRtcSession: WebRtcSessionViewModel,
+    tutorial: BroadcastTutorialCoordinator?,
+    tutorialAnchors: BroadcastTutorialAnchors,
 ) {
     var openVideoControls by remember { mutableStateOf(false) }
     var openFaceManagement by remember { mutableStateOf(false) }
@@ -202,6 +229,32 @@ fun LiveScreen(
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
+    }
+    val tutorialSnapshot = BroadcastTutorialSnapshot(
+        openDialog = when {
+            openPlatformDialog -> BroadcastTutorialDialog.PLATFORM
+            openYouTubeSettingsDialog || openChzzkSettingsDialog -> BroadcastTutorialDialog.SETTINGS
+            else -> BroadcastTutorialDialog.NONE
+        },
+        selectedAccountConnected = if (selectedPlatform == "CHZZK") {
+            chzzkAccountVerification.canPrepare
+        } else {
+            props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
+        },
+        broadcastState = webRtcSession.broadcastState,
+        isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
+        hasStartedBroadcast = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null,
+    )
+    LaunchedEffect(tutorial, tutorialSnapshot) {
+        tutorial?.update(tutorialSnapshot)
+    }
+    // 카메라·마이크 권한 안내가 떠 있는 동안에는 안내를 겹쳐 띄우지 않는다.
+    val canShowTutorial = missingMediaPermissions.isEmpty()
+    LaunchedEffect(tutorial, canShowTutorial) {
+        if (tutorial == null || !canShowTutorial) return@LaunchedEffect
+        // 카메라 미리보기가 먼저 보이도록 잠시 기다린 뒤 안내를 띄운다.
+        delay(TUTORIAL_START_DELAY_MILLIS)
+        tutorial.startIfNeeded()
     }
     LaunchedEffect(openPlatformDialog, pendingYouTubeSettingsDialog) {
         if (!openPlatformDialog && pendingYouTubeSettingsDialog) {
@@ -344,8 +397,22 @@ fun LiveScreen(
                     )
                 }
             }
+            val statusTargets = sessionSnapshot?.visibleTargets.orEmpty()
+            if (statusTargets.isNotEmpty()) {
+                BroadcastLiveStatusPanel(
+                    targets = statusTargets,
+                    broadcastResolution = sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected },
+                    uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .widthIn(max = 360.dp)
+                        .fillMaxWidth()
+                        .broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
+                )
+            }
             BroadcastActionControls(
                 presentation = presentation,
+                buttonModifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.PRIMARY_BUTTON),
                 onBroadcastAction = {
                     when (presentation.broadcastAction) {
                         LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
@@ -359,6 +426,7 @@ fun LiveScreen(
                 centerOverlay = {
                     if (openPlatformDialog) {
                         PlatformDialog(
+                            guide = tutorial.guideFor(BroadcastTutorialHost.PLATFORM_DIALOG),
                             onDismissRequest = {
                                 openPlatformDialog = false
                             },
@@ -379,6 +447,7 @@ fun LiveScreen(
                     if (openChzzkSettingsDialog) {
                         ChzzkSettingsDialog(
                             settings = chzzkSettings,
+                            guide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG),
                             onChangePlatform = {
                                 openChzzkSettingsDialog = false
                                 openPlatformDialog = true
@@ -501,6 +570,7 @@ fun LiveScreen(
                     if (openYouTubeSettingsDialog) {
                         YouTubeLiveSettingsDialog(
                             settings = props.broadcastSettings,
+                            guide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG),
                             onChangePlatform = {
                                 openYouTubeSettingsDialog = false
                                 openPlatformDialog = true
@@ -614,6 +684,14 @@ fun LiveScreen(
                 }
             }
         }
+
+        if (tutorial != null) {
+            BroadcastTutorialHomeOverlay(
+                tutorial = tutorial,
+                anchors = tutorialAnchors,
+                isEnabled = canShowTutorial,
+            )
+        }
     }
     webRtcSession.serverError?.takeIf { it.action != ServerErrorAction.EDIT_SETTINGS }?.let { guidance ->
         ServerErrorDialog(
@@ -717,6 +795,8 @@ private fun rememberBroadcastDurationText(startedAtElapsedRealtimeMillis: Long?)
     return formatBroadcastDuration(elapsedMillis)
 }
 
+private const val TUTORIAL_START_DELAY_MILLIS = 600L
+
 private fun mediaPermissionGuidance(state: MediaPermissionState): Int = when {
     !state.hasCameraPermission && !state.hasMicrophonePermission -> R.string.permission_media_required
     !state.hasCameraPermission -> R.string.permission_camera_required
@@ -741,6 +821,7 @@ internal fun StableBroadcastFeedback(
 internal fun BroadcastActionControls(
     presentation: LiveScreenPresentation,
     onBroadcastAction: () -> Unit,
+    buttonModifier: Modifier = Modifier,
     centerOverlay: @Composable () -> Unit = {},
 ) {
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -749,6 +830,7 @@ internal fun BroadcastActionControls(
             text = stringResource(presentation.broadcastButtonTextRes),
             enabled = presentation.isBroadcastButtonEnabled,
             onClick = onBroadcastAction,
+            modifier = buttonModifier,
         )
     }
 }

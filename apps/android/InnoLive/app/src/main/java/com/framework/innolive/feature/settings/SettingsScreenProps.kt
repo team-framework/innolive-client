@@ -23,4 +23,6 @@ data class SettingsScreenProps(
     val isPlanLoading: Boolean = false,
     val planError: UiText? = null,
     val onRefreshPlan: () -> Unit = {},
+    val canReplayBroadcastGuide: Boolean = false,
+    val onReplayBroadcastGuide: () -> Unit = {},
 )

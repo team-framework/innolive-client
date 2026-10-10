@@ -14,6 +14,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialDialogFrame
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialGuide
+import com.framework.innolive.feature.live.tutorial.broadcastTutorialAnchor
 
 private data class PlatformOption(
     val id: String,
@@ -32,6 +36,7 @@ fun PlatformDialog(
     onDismissRequest: () -> Unit,
     onYouTubeSelected: () -> Unit,
     onChzzkSelected: () -> Unit = {},
+    guide: BroadcastTutorialGuide? = null,
 ) {
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -42,31 +47,37 @@ fun PlatformDialog(
             color = Color.White.copy(alpha = 0.9f),
             shadowElevation = 12.dp,
         ) {
-            Column(modifier = Modifier.padding(8.dp)) {
-                platformOptions.forEach { platform ->
-                    PlatformItem(
-                        name = platform.label,
-                        leadingContent = {
-                            platform.iconResId?.let { iconResId ->
-                                Image(
-                                    painter = painterResource(iconResId),
-                                    contentDescription = stringResource(
-                                        R.string.content_description_platform_icon,
-                                        platform.label,
-                                    ),
-                                    modifier = Modifier.size(28.dp),
-                                )
-                            }
-                        },
-                        onClick = {
-                            if (platform.id == "youtube") {
-                                onYouTubeSelected()
-                            } else if (platform.id == "chzzk") {
-                                onChzzkSelected()
-                            }
-                            onDismissRequest()
-                        },
-                    )
+            BroadcastTutorialDialogFrame(guide) {
+                Column(
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .broadcastTutorialAnchor(BroadcastTutorialAnchor.PLATFORM_OPTIONS),
+                ) {
+                    platformOptions.forEach { platform ->
+                        PlatformItem(
+                            name = platform.label,
+                            leadingContent = {
+                                platform.iconResId?.let { iconResId ->
+                                    Image(
+                                        painter = painterResource(iconResId),
+                                        contentDescription = stringResource(
+                                            R.string.content_description_platform_icon,
+                                            platform.label,
+                                        ),
+                                        modifier = Modifier.size(28.dp),
+                                    )
+                                }
+                            },
+                            onClick = {
+                                if (platform.id == "youtube") {
+                                    onYouTubeSelected()
+                                } else if (platform.id == "chzzk") {
+                                    onChzzkSelected()
+                                }
+                                onDismissRequest()
+                            },
+                        )
+                    }
                 }
             }
         }

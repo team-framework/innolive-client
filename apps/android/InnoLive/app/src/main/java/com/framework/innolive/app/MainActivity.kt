@@ -61,6 +61,8 @@ import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
 import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialPreferences
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
@@ -836,6 +838,9 @@ fun AppNavigation(
     val isYouTubeAccountOperationInProgress = isYouTubeAccountActionInProgress ||
         youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING
     val isYouTubeAccountChangeEnabled = canChangeYouTubeAccountNow()
+    val broadcastTutorial = remember(context) {
+        BroadcastTutorialCoordinator(BroadcastTutorialPreferences(context))
+    }
     val liveScreenProps = rememberUpdatedState(
         LiveScreenProps(
             cameraLensFacing = selectedCameraLensFacing,
@@ -916,6 +921,7 @@ fun AppNavigation(
                         LiveScreen(
                             webRtcSession = webRtcSession,
                             props = liveScreenProps.value,
+                            tutorial = broadcastTutorial,
                         )
                     }
                 }
@@ -971,6 +977,13 @@ fun AppNavigation(
                                 canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
                                 onSelectAIProcessing = { onDevice ->
                                     webRtcSession.selectAIProcessing(context, onDevice)
+                                },
+                                canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
+                                    webRtcSession.broadcastState == BroadcastState.IDLE &&
+                                    !webRtcSession.isPreparingBroadcast,
+                                onReplayBroadcastGuide = {
+                                    broadcastTutorial.restart()
+                                    onBack()
                                 },
                             ),
                         )

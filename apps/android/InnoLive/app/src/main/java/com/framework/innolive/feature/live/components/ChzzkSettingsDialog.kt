@@ -27,6 +27,10 @@ import androidx.compose.ui.window.Dialog
 import com.framework.innolive.feature.live.ChzzkBroadcastSettings
 import com.framework.innolive.feature.live.ChzzkCategory
 import com.framework.innolive.feature.live.validationField
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialDialogFrame
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialGuide
+import com.framework.innolive.feature.live.tutorial.broadcastTutorialAnchor
 import kotlinx.coroutines.launch
 
 @Composable
@@ -45,6 +49,7 @@ internal fun ChzzkSettingsDialog(
     onPrepare: () -> Unit,
     onDismiss: () -> Unit,
     onChangePlatform: () -> Unit,
+    guide: BroadcastTutorialGuide? = null,
 ) {
     var query by remember { mutableStateOf("") }
     var categories by remember { mutableStateOf(emptyList<ChzzkCategory>()) }
@@ -52,54 +57,62 @@ internal fun ChzzkSettingsDialog(
     val scope = rememberCoroutineScope()
     Dialog(onDismissRequest = onDismiss) {
         Surface(modifier = Modifier.heightIn(max = 700.dp)) {
-            Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("치지직 방송 설정")
-                TextButton(onClick = onChangePlatform, enabled = !isBusy) { Text("플랫폼 변경") }
-                Text(accountLabel)
-                TextButton(onClick = onRefreshAccount, enabled = canConnect && !isBusy) { Text("계정 상태 다시 확인") }
-                Row {
-                    Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text("연결") }
-                    TextButton(onClick = onDisconnect, enabled = canDisconnect && !isBusy) { Text("연결 해제") }
-                }
-                OutlinedTextField(settings.title, { onChanged(settings.copy(title = it)) },
-                    label = { Text("방송 제목") }, singleLine = true,
-                    modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth())
-                OutlinedTextField(query, { query = it }, label = { Text("카테고리 검색") },
-                    modifier = Modifier.fillMaxWidth())
-                Button(onClick = {
-                    scope.launch {
-                        message = null
-                        runCatching { onSearch(query) }
-                            .onSuccess { categories = it; if (it.isEmpty()) message = "검색 결과가 없습니다." }
-                            .onFailure { message = "카테고리를 조회하지 못했습니다. 다시 검색하세요." }
+            BroadcastTutorialDialogFrame(guide) {
+                Column(
+                    Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("치지직 방송 설정")
+                    TextButton(onClick = onChangePlatform, enabled = !isBusy) { Text("플랫폼 변경") }
+                    Text(accountLabel)
+                    TextButton(onClick = onRefreshAccount, enabled = canConnect && !isBusy) { Text("계정 상태 다시 확인") }
+                    Row(Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.CONNECT_ACCOUNT)) {
+                        Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text("연결") }
+                        TextButton(onClick = onDisconnect, enabled = canDisconnect && !isBusy) { Text("연결 해제") }
                     }
-                }, enabled = query.isNotBlank() && !isBusy) { Text("검색") }
-                categories.forEach { category ->
-                    TextButton(onClick = {
-                        onChanged(settings.copy(categoryType = category.type, categoryId = category.id))
-                        categories = emptyList()
-                    }) { Text("${category.value} (${category.type})") }
-                }
-                Text("선택된 카테고리: ${settings.categoryType} ${settings.categoryId}")
-                Text("설정을 모두 비우면 준비할 때 서버의 기본값을 조회해 사용합니다.")
-                TextButton(onClick = { onChanged(settings.copy(categoryType = "", categoryId = "")) }) {
-                    Text("카테고리 해제")
-                }
-                OutlinedTextField(settings.tags.joinToString(","), { raw ->
-                    onChanged(settings.copy(tags = if (raw.isBlank()) emptyList()
-                        else raw.split(',').map(String::trim)))
-                }, label = { Text("태그 (쉼표로 구분, 최대 5개)") },
-                    modifier = Modifier.fillMaxWidth())
-                val invalidField = settings.validationField()
-                if (invalidField != null) Text("$invalidField 입력을 확인하세요. 태그는 각 15자 이하의 문자·숫자만 가능합니다.",
-                    color = Color.Red)
-                message?.let { Text(it, color = Color.Red) }
-                Row {
-                    Button(onClick = onPrepare, enabled = canPrepare && !isBusy && invalidField == null) {
-                        Text("방송 준비")
+                    OutlinedTextField(settings.title, { onChanged(settings.copy(title = it)) },
+                        label = { Text("방송 제목") }, singleLine = true,
+                        modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth())
+                    OutlinedTextField(query, { query = it }, label = { Text("카테고리 검색") },
+                        modifier = Modifier.fillMaxWidth())
+                    Button(onClick = {
+                        scope.launch {
+                            message = null
+                            runCatching { onSearch(query) }
+                                .onSuccess { categories = it; if (it.isEmpty()) message = "검색 결과가 없습니다." }
+                                .onFailure { message = "카테고리를 조회하지 못했습니다. 다시 검색하세요." }
+                        }
+                    }, enabled = query.isNotBlank() && !isBusy) { Text("검색") }
+                    categories.forEach { category ->
+                        TextButton(onClick = {
+                            onChanged(settings.copy(categoryType = category.type, categoryId = category.id))
+                            categories = emptyList()
+                        }) { Text("${category.value} (${category.type})") }
                     }
-                    TextButton(onClick = onDismiss) { Text("닫기") }
+                    Text("선택된 카테고리: ${settings.categoryType} ${settings.categoryId}")
+                    Text("설정을 모두 비우면 준비할 때 서버의 기본값을 조회해 사용합니다.")
+                    TextButton(onClick = { onChanged(settings.copy(categoryType = "", categoryId = "")) }) {
+                        Text("카테고리 해제")
+                    }
+                    OutlinedTextField(settings.tags.joinToString(","), { raw ->
+                        onChanged(settings.copy(tags = if (raw.isBlank()) emptyList()
+                            else raw.split(',').map(String::trim)))
+                    }, label = { Text("태그 (쉼표로 구분, 최대 5개)") },
+                        modifier = Modifier.fillMaxWidth())
+                    val invalidField = settings.validationField()
+                    if (invalidField != null) Text("$invalidField 입력을 확인하세요. 태그는 각 15자 이하의 문자·숫자만 가능합니다.",
+                        color = Color.Red)
+                    message?.let { Text(it, color = Color.Red) }
+                    Row {
+                        Button(
+                            onClick = onPrepare,
+                            enabled = canPrepare && !isBusy && invalidField == null,
+                            modifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.START_PREPARATION),
+                        ) {
+                            Text("방송 준비")
+                        }
+                        TextButton(onClick = onDismiss) { Text("닫기") }
+                    }
                 }
             }
         }
