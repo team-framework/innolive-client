@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -49,13 +51,30 @@ internal fun displayedRemainingTime(active: Boolean, snapshot: SessionSnapshot?,
 internal fun formatRemainingSeconds(seconds: Long): String = formatBroadcastDuration(seconds * 1_000L)
 
 /**
- * 서버는 남은 시간을 약 15초마다 갱신하므로, 방송 중에는 마지막 서버 값에서 1초씩 줄여 보여 준다.
- * 일시 중지나 갱신 지연처럼 서버 값이 줄지 않는 동안에는 줄이지 않고, 오래 갱신이 없으면 더 줄이지 않는다.
+ * 서버는 남은 시간을 약 15초마다 갱신하므로, 방송 중에는 기준 값에서 1초씩 줄여 보여 준다.
+ * 일시 중지하면 그때 보이던 값에서 멈추고, 재개하면 멈춘 값에서 다시 줄인다. 새 서버 값이 오면 그 값으로 맞춘다.
+ * 서버 갱신이 오래 없으면 화면 값이 서버와 멀어지지 않도록 기준 시각에서 30초까지만 줄인다.
  */
-internal fun countdownRemainingSeconds(serverSeconds: Long, elapsedSinceUpdateMillis: Long, counting: Boolean): Long {
-    if (!counting) return serverSeconds
-    val elapsedSeconds = elapsedSinceUpdateMillis.coerceIn(0L, REMAINING_COUNTDOWN_LIMIT_MILLIS) / 1_000L
-    return (serverSeconds - elapsedSeconds).coerceAtLeast(0L)
+internal data class RemainingCountdown(
+    val serverSeconds: Long,
+    val baseSeconds: Long = serverSeconds,
+    val baseAtMillis: Long,
+    val counting: Boolean = false,
+) {
+    fun displayed(nowMillis: Long): Long {
+        if (!counting) return baseSeconds
+        val elapsedSeconds = (nowMillis - baseAtMillis).coerceIn(0L, REMAINING_COUNTDOWN_LIMIT_MILLIS) / 1_000L
+        return (baseSeconds - elapsedSeconds).coerceAtLeast(0L)
+    }
+
+    /** 같은 서버 값이 여러 번 와도 처음 받은 시각을 기준으로 줄인다. */
+    fun onServerValue(seconds: Long, nowMillis: Long): RemainingCountdown =
+        if (seconds == serverSeconds) this
+        else copy(serverSeconds = seconds, baseSeconds = seconds, baseAtMillis = nowMillis)
+
+    fun onCountingChanged(isCounting: Boolean, nowMillis: Long): RemainingCountdown =
+        if (isCounting == counting) this
+        else copy(baseSeconds = displayed(nowMillis), baseAtMillis = nowMillis, counting = isCounting)
 }
 
 private const val REMAINING_COUNTDOWN_LIMIT_MILLIS = 30_000L
@@ -63,16 +82,21 @@ private const val REMAINING_COUNTDOWN_LIMIT_MILLIS = 30_000L
 @Composable
 internal fun rememberRemainingCountdown(remaining: BroadcastRemainingTime, counting: Boolean): BroadcastRemainingTime {
     val serverSeconds = (remaining as? BroadcastRemainingTime.Seconds)?.value ?: return remaining
-    // 같은 서버 값이 여러 번 와도 처음 받은 시각을 기준으로 줄인다.
-    val receivedAt = remember(serverSeconds) { SystemClock.elapsedRealtime() }
-    var elapsedMillis by remember(serverSeconds) { mutableLongStateOf(0L) }
-    LaunchedEffect(serverSeconds, counting) {
-        while (counting) {
-            elapsedMillis = SystemClock.elapsedRealtime() - receivedAt
-            delay(1_000L - elapsedMillis % 1_000L)
+    var countdown by remember {
+        mutableStateOf(RemainingCountdown(serverSeconds = serverSeconds, baseAtMillis = SystemClock.elapsedRealtime()))
+    }
+    // 서버 값과 송출 상태 변화를 화면 그리기 전에 반영해 값이 한 프레임이라도 튀지 않게 한다.
+    val now = SystemClock.elapsedRealtime()
+    val current = countdown.onServerValue(serverSeconds, now).onCountingChanged(counting, now)
+    SideEffect { if (current != countdown) countdown = current }
+    var tick by remember { mutableLongStateOf(now) }
+    LaunchedEffect(current.baseAtMillis, current.counting) {
+        while (current.counting) {
+            tick = SystemClock.elapsedRealtime()
+            delay(1_000L - (tick - current.baseAtMillis).mod(1_000L))
         }
     }
-    return BroadcastRemainingTime.Seconds(countdownRemainingSeconds(serverSeconds, elapsedMillis, counting))
+    return BroadcastRemainingTime.Seconds(current.displayed(maxOf(tick, current.baseAtMillis)))
 }
 
 @Composable
