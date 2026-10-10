@@ -14,6 +14,7 @@ struct BroadcastControllsView: View {
     @ObservedObject var youtube: YouTubeIntegration
     let onPrepareBroadcast: (BroadcastSettingsProvider) async -> Void
     let onCancelPreparation: () async -> Void
+    var tutorial: BroadcastTutorialCoordinator?
 
     @State private var isShowingBroadcastSettings = false
     @State private var isShowingBroadcastActions = false
@@ -31,7 +32,7 @@ struct BroadcastControllsView: View {
                 VStack(spacing: 8) {
                     HStack(spacing: 10) {
                         NavigationLink {
-                            SettingsView(authentication: authentication, youtube: youtube)
+                            SettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
                         } label: {
                             SettingsControlLabel()
                         }
@@ -58,6 +59,7 @@ struct BroadcastControllsView: View {
                         .frame(maxWidth: .infinity)
                         .disabled(isPrimaryActionDisabled)
                         .layoutPriority(1)
+                        .broadcastTutorialAnchor(.primaryButton)
                         .accessibilityHint(primaryActionHint)
                         .contextMenu {
                             if canCancelPreparation {
@@ -112,6 +114,7 @@ struct BroadcastControllsView: View {
                         .disabled(isPreparationSheetLocked)
                     }
                 }
+                .broadcastTutorialHost(tutorial, host: .settingsSheet)
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -149,6 +152,20 @@ struct BroadcastControllsView: View {
         } message: {
             Text(String(localized: "방송 플랫폼에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
         }
+        .onChange(of: tutorialSnapshot, initial: true) { _, snapshot in
+            tutorial?.update(snapshot)
+        }
+    }
+
+    /// 안내 단계는 시트 표시 여부를 아는 이 화면에서 앱 상태를 모아 전달한다.
+    private var tutorialSnapshot: BroadcastTutorialSnapshot {
+        BroadcastTutorialSnapshot(
+            isSettingsSheetPresented: isShowingBroadcastSettings,
+            selectedAccountsConnected: youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected),
+            preparation: youtube.preparationStatus,
+            phase: YouTubeBroadcastPhase(rawValue: youtube.broadcastPhase),
+            hasStartedBroadcast: youtube.hasStartedYouTubeBroadcast
+        )
     }
 
     private var isPreparingConnection: Bool {

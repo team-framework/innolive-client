@@ -139,9 +139,9 @@ struct BroadcastSessionStatusView: View {
                 }
                 .accessibilityIdentifier("upgrade-offer-entry")
             }
-            ForEach(youtube.visibleBroadcastTargets) { target in
-                let policy = YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false)
-                Text(policy.streamStatusText.replacingOccurrences(of: "YouTube", with: target.title))
+            if !youtube.visibleBroadcastTargets.isEmpty || youtube.isYouTubeBroadcastActive {
+                BroadcastLiveStatusSection(youtube: youtube, uplink: youtube.videoUplink)
+                    .broadcastTutorialAnchor(.liveStatus)
             }
             if youtube.hasStartedYouTubeBroadcast {
                 NavigationLink {
@@ -160,23 +160,6 @@ struct BroadcastSessionStatusView: View {
                 }
                 .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode)
                 .accessibilityIdentifier("live-edit-" + provider.rawValue)
-            }
-            if youtube.isYouTubeBroadcastActive {
-                HStack {
-                    if let resolution = youtube.broadcastResolution {
-                        Text(resolution.uppercased())
-                    }
-                    if youtube.hasStartedYouTubeBroadcast {
-                        switch youtube.broadcastRemainingTime {
-                        case .seconds(let seconds):
-                            Text(String(localized: "남은 방송 시간 \(max(0, seconds) / 60)분"))
-                        case .unlimitedOrInactive:
-                            Text(String(localized: "방송 시간 제한 없음"))
-                        case .missing:
-                            EmptyView()
-                        }
-                    }
-                }
             }
             if youtube.responseState.details.resolutionSwitch?.status == "switching" {
                 Text(String(localized: "방송 화질을 전환하고 있습니다."))

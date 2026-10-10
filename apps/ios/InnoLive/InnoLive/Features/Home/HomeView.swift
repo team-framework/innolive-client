@@ -25,6 +25,7 @@ struct HomeView: View {
     @State private var topTrailingReserved = CGSize(width: 44, height: 44)
     @State private var bottomReservedHeight: CGFloat = 56
     @GestureState private var pinchStartZoom: CGFloat?
+    @StateObject private var tutorial = BroadcastTutorialCoordinator()
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject private var broadcastOrientation = BroadcastOrientationController.shared
@@ -158,7 +159,8 @@ struct HomeView: View {
                 authentication: authentication,
                 youtube: youtube,
                 onPrepareBroadcast: beginBroadcastPreparation,
-                onCancelPreparation: cancelBroadcastPreparation
+                onCancelPreparation: cancelBroadcastPreparation,
+                tutorial: tutorial
             )
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.height
@@ -174,7 +176,15 @@ struct HomeView: View {
                 )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .broadcastTutorialHost(tutorial, host: .home)
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
+        .task(id: canStartTutorial) {
+            guard canStartTutorial else { return }
+            // 카메라 미리보기가 먼저 보이도록 잠시 기다린 뒤 안내를 띄운다.
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled, canStartTutorial else { return }
+            tutorial.startIfNeeded()
+        }
         .onAppear {
             isHomeVisible = true
             beginLocalPreviewIfNeeded()
@@ -264,6 +274,14 @@ struct HomeView: View {
         } message: {
             Text(cameraSwitchErrorMessage ?? String(localized: "다시 시도해 주세요."))
         }
+    }
+
+    /// 카메라 권한 요청이나 권한 안내가 떠 있는 동안에는 안내를 겹쳐 띄우지 않는다.
+    private var canStartTutorial: Bool {
+        isHomeVisible
+            && (usesSimulatorVideo || cameraManager.authorizationStatus != .notDetermined)
+            && !isShowingCameraPermissionAlert
+            && !isShowingMicrophonePermissionAlert
     }
 
     private var localPreviewPresentation: LocalPreviewPresentation {
