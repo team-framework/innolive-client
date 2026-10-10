@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
@@ -17,11 +18,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.R
@@ -157,6 +160,52 @@ class BroadcastGuideUiTest {
         compose.onNodeWithText(string(R.string.tutorial_connect_account_title)).assertIsDisplayed()
         compose.onNodeWithText("2/5").assertIsDisplayed()
         saveScreenshot("settings-connect-account")
+    }
+
+    @Test
+    fun largeFontLandscapeLiveStatusTipKeepsGotItReachable() {
+        val store = MemoryStore().apply { hasFinishedPreparationGuide = true }
+        val tutorial = BroadcastTutorialCoordinator(store)
+        compose.setContent {
+            LargeFontLandscape { HomeFixture(tutorial = tutorial, showsStatusPanel = true) }
+        }
+        compose.runOnIdle {
+            tutorial.update(
+                BroadcastTutorialSnapshot(
+                    selectedAccountConnected = true,
+                    broadcastState = BroadcastState.LIVE,
+                    hasStartedBroadcast = true,
+                ),
+            )
+        }
+
+        compose.onNodeWithText(string(R.string.tutorial_got_it)).assertIsDisplayed()
+        saveScreenshot("large-font-landscape-live-status")
+        compose.onNodeWithText(string(R.string.tutorial_got_it)).performClick()
+        compose.runOnIdle { assertEquals(true, store.hasSeenLiveStatusTip) }
+    }
+
+    @Test
+    fun largeFontLandscapeGuideKeepsSkipReachable() {
+        val tutorial = BroadcastTutorialCoordinator(MemoryStore())
+        compose.setContent {
+            LargeFontLandscape { HomeFixture(tutorial = tutorial) }
+        }
+        compose.runOnIdle { tutorial.startIfNeeded(BroadcastTutorialSnapshot()) }
+
+        compose.onNodeWithText(string(R.string.tutorial_skip)).assertIsDisplayed()
+        saveScreenshot("large-font-landscape-open-preparation")
+        compose.onNodeWithText(string(R.string.tutorial_skip)).performClick()
+        compose.runOnIdle { assertNull(tutorial.stage) }
+    }
+
+    /** 가로 화면 크기와 글꼴 200%를 함께 적용한다. */
+    @androidx.compose.runtime.Composable
+    private fun LargeFontLandscape(content: @androidx.compose.runtime.Composable () -> Unit) {
+        val density = LocalDensity.current
+        CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+            Box(modifier = Modifier.size(width = 780.dp, height = 360.dp)) { content() }
+        }
     }
 
     @androidx.compose.runtime.Composable
