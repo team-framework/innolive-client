@@ -1,0 +1,33 @@
+<resources>
+    <string name="chzzk_settings_title">CHZZK broadcast settings</string>
+    <string name="action_change_platform">Change platform</string>
+    <string name="chzzk_action_refresh_account">Check account status again</string>
+    <string name="chzzk_action_connect">Connect</string>
+    <string name="chzzk_action_disconnect">Disconnect</string>
+    <string name="chzzk_label_category_search">Search categories</string>
+    <string name="chzzk_action_search">Search</string>
+    <string name="chzzk_search_empty">No results found.</string>
+    <string name="chzzk_search_failed">Could not load categories. Search again.</string>
+    <string name="chzzk_selected_category">Selected category: %1$s %2$s</string>
+    <string name="chzzk_default_settings_hint">If you leave every setting empty, the server defaults are used when you prepare.</string>
+    <string name="chzzk_action_clear_category">Clear category</string>
+    <string name="chzzk_label_tags">Tags (comma-separated, up to 5)</string>
+    <string name="chzzk_validation_field">Check the %1$s field. Each tag can contain only letters and numbers, up to 15 characters.</string>
+    <string name="chzzk_oauth_title">Connect CHZZK account</string>
+    <string name="chzzk_oauth_load_failed">Could not load the CHZZK sign-in page. Try again.</string>
+    <string name="chzzk_oauth_ssl_failed">Could not verify the secure connection to the CHZZK sign-in page. Check your network and try again.</string>
+    <string name="chzzk_oauth_invalid_callback">The OAuth state or callback format is invalid. Connect again.</string>
+    <string name="chzzk_oauth_denied">CHZZK account connection was cancelled or denied. Connect again.</string>
+    <string name="chzzk_oauth_failed">CHZZK authorization could not be completed. Connect again.</string>
+    <string name="chzzk_sign_in_required">Sign in first.</string>
+    <string name="chzzk_account_check_failed">Could not check the account status. Check again or sign in.</string>
+    <string name="chzzk_account_changing">Checking account change</string>
+    <string name="chzzk_account_checking">Checking account status</string>
+    <string name="chzzk_account_required">Connect a CHZZK account.</string>
+    <string name="chzzk_account_reconnect_required">Reconnect your CHZZK account.</string>
+    <string name="chzzk_account_connected">Connected: %1$s</string>
+    <string name="chzzk_config_failed">Could not get the CHZZK connection settings. Check the server settings.</string>
+    <string name="chzzk_disconnect_unconfirmed">Could not confirm the disconnection. Check the account status again.</string>
+    <string name="chzzk_connect_unconfirmed">Could not confirm the CHZZK connection. Check the account status again.</string>
+    <string name="chzzk_prepare_requires_account">Check the account status again before preparing the broadcast.</string>
+</resources>

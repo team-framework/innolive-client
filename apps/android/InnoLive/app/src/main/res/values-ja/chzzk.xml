@@ -1,0 +1,33 @@
+<resources>
+    <string name="chzzk_settings_title">CHZZK配信設定</string>
+    <string name="action_change_platform">プラットフォーム変更</string>
+    <string name="chzzk_action_refresh_account">アカウント状態を再確認</string>
+    <string name="chzzk_action_connect">連携</string>
+    <string name="chzzk_action_disconnect">連携解除</string>
+    <string name="chzzk_label_category_search">カテゴリを検索</string>
+    <string name="chzzk_action_search">検索</string>
+    <string name="chzzk_search_empty">検索結果がありません。</string>
+    <string name="chzzk_search_failed">カテゴリを取得できませんでした。もう一度検索してください。</string>
+    <string name="chzzk_selected_category">選択したカテゴリ: %1$s %2$s</string>
+    <string name="chzzk_default_settings_hint">設定をすべて空にすると、準備時にサーバーの既定値を使用します。</string>
+    <string name="chzzk_action_clear_category">カテゴリを解除</string>
+    <string name="chzzk_label_tags">タグ（カンマ区切り、最大5個）</string>
+    <string name="chzzk_validation_field">%1$sの入力を確認してください。タグは各15文字以内の文字と数字のみ使用できます。</string>
+    <string name="chzzk_oauth_title">CHZZKアカウント連携</string>
+    <string name="chzzk_oauth_load_failed">CHZZKのログインページを読み込めませんでした。もう一度お試しください。</string>
+    <string name="chzzk_oauth_ssl_failed">CHZZKログインページの安全な接続を確認できませんでした。ネットワークを確認して、もう一度お試しください。</string>
+    <string name="chzzk_oauth_invalid_callback">OAuth stateまたはコールバックの形式が正しくありません。もう一度連携してください。</string>
+    <string name="chzzk_oauth_denied">CHZZKアカウントの連携がキャンセルまたは拒否されました。もう一度連携してください。</string>
+    <string name="chzzk_oauth_failed">CHZZK認証を完了できませんでした。もう一度連携してください。</string>
+    <string name="chzzk_sign_in_required">先にログインしてください。</string>
+    <string name="chzzk_account_check_failed">アカウント状態を確認できませんでした。もう一度確認するか、ログインしてください。</string>
+    <string name="chzzk_account_changing">アカウント変更を確認中</string>
+    <string name="chzzk_account_checking">アカウント状態を確認中</string>
+    <string name="chzzk_account_required">CHZZKアカウントを連携してください。</string>
+    <string name="chzzk_account_reconnect_required">CHZZKアカウントを再連携してください。</string>
+    <string name="chzzk_account_connected">連携済み: %1$s</string>
+    <string name="chzzk_config_failed">CHZZK連携の設定を取得できませんでした。サーバー設定を確認してください。</string>
+    <string name="chzzk_disconnect_unconfirmed">連携解除の結果を確認できませんでした。アカウント状態をもう一度確認してください。</string>
+    <string name="chzzk_connect_unconfirmed">CHZZK連携の結果を確認できませんでした。アカウント状態をもう一度確認してください。</string>
+    <string name="chzzk_prepare_requires_account">アカウント状態を再確認してから配信を準備してください。</string>
+</resources>
