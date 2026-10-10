@@ -1,0 +1,33 @@
+<resources>
+    <string name="chzzk_settings_title">치지직 방송 설정</string>
+    <string name="action_change_platform">플랫폼 변경</string>
+    <string name="chzzk_action_refresh_account">계정 상태 다시 확인</string>
+    <string name="chzzk_action_connect">연결</string>
+    <string name="chzzk_action_disconnect">연결 해제</string>
+    <string name="chzzk_label_category_search">카테고리 검색</string>
+    <string name="chzzk_action_search">검색</string>
+    <string name="chzzk_search_empty">검색 결과가 없습니다.</string>
+    <string name="chzzk_search_failed">카테고리를 조회하지 못했습니다. 다시 검색하세요.</string>
+    <string name="chzzk_selected_category">선택된 카테고리: %1$s %2$s</string>
+    <string name="chzzk_default_settings_hint">설정을 모두 비우면 준비할 때 서버의 기본값을 조회해 사용합니다.</string>
+    <string name="chzzk_action_clear_category">카테고리 해제</string>
+    <string name="chzzk_label_tags">태그 (쉼표로 구분, 최대 5개)</string>
+    <string name="chzzk_validation_field">%1$s 입력을 확인하세요. 태그는 각 15자 이하의 문자·숫자만 가능합니다.</string>
+    <string name="chzzk_oauth_title">치지직 계정 연결</string>
+    <string name="chzzk_oauth_load_failed">치지직 로그인 페이지를 불러오지 못했습니다. 다시 시도하세요.</string>
+    <string name="chzzk_oauth_ssl_failed">치지직 로그인 페이지의 보안 연결을 확인하지 못했습니다. 네트워크를 확인하고 다시 시도하세요.</string>
+    <string name="chzzk_oauth_invalid_callback">OAuth state 또는 콜백 형식이 올바르지 않습니다. 다시 연결하세요.</string>
+    <string name="chzzk_oauth_denied">치지직 계정 연결이 취소되거나 거절됐습니다. 다시 연결하세요.</string>
+    <string name="chzzk_oauth_failed">치지직 인증을 완료하지 못했습니다. 다시 연결하세요.</string>
+    <string name="chzzk_sign_in_required">먼저 로그인하세요.</string>
+    <string name="chzzk_account_check_failed">계정 상태를 확인하지 못했습니다. 다시 확인하거나 로그인하세요.</string>
+    <string name="chzzk_account_changing">계정 변경 확인 중</string>
+    <string name="chzzk_account_checking">계정 상태 확인 중</string>
+    <string name="chzzk_account_required">치지직 계정을 연결하세요.</string>
+    <string name="chzzk_account_reconnect_required">치지직 계정을 다시 연결하세요.</string>
+    <string name="chzzk_account_connected">연결됨: %1$s</string>
+    <string name="chzzk_config_failed">치지직 연동 설정을 받지 못했습니다. 서버 설정을 확인하세요.</string>
+    <string name="chzzk_disconnect_unconfirmed">연결 해제 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요.</string>
+    <string name="chzzk_connect_unconfirmed">치지직 연결 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요.</string>
+    <string name="chzzk_prepare_requires_account">계정 상태를 다시 확인한 뒤 방송을 준비하세요.</string>
+</resources>

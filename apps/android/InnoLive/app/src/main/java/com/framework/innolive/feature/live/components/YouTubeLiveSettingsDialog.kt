@@ -158,7 +158,7 @@ fun YouTubeLiveSettingsDialog(
                     }
 
                     onChangePlatform?.let { change ->
-                        TextButton(onClick = change) { Text("플랫폼 변경") }
+                        TextButton(onClick = change) { Text(stringResource(R.string.action_change_platform)) }
                     }
 
                     if (serverError != null && serverError.field !in setOf("title", "description", "privacy", "made_for_kids")) {
