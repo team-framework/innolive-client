@@ -19,7 +19,10 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.width
 import androidx.compose.material3.Surface
 import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.R
@@ -107,13 +110,41 @@ class PlanUsageScreenTest {
             }
         }
         composeRule.onNodeWithText("00:01:23").assertExists()
-        composeRule.onNodeWithText("12min").performClick()
+        composeRule.onNodeWithText("00:12:00").performClick()
         assertEquals(1, opens)
         saveScreenshot("broadcast-time.png")
         composeRule.runOnIdle { update(BroadcastRemainingTime.Seconds(59)) }
-        composeRule.onNodeWithText("59s").assertExists()
+        composeRule.onNodeWithText("00:00:59").assertExists()
         composeRule.runOnIdle { update(BroadcastRemainingTime.UnlimitedOrInactive) }
         composeRule.onNodeWithText(context.getString(R.string.plan_unlimited)).assertExists()
+    }
+
+    @Test fun dividerSitsAtTheHorizontalCenterWithTimesOnEachSide() {
+        lateinit var update: (BroadcastRemainingTime) -> Unit
+        composeRule.setContent {
+            var remaining by remember { mutableStateOf<BroadcastRemainingTime>(BroadcastRemainingTime.Seconds(43_200)) }
+            update = { remaining = it }
+            Box(Modifier.fillMaxWidth().background(Color.Black)) {
+                BroadcastTimeDisplay("00:01:23", remaining, false, {}, Modifier.padding(horizontal = 16.dp))
+            }
+        }
+        composeRule.onNodeWithText("12:00:00", useUnmergedTree = true).assertExists()
+        assertSymmetricAroundCenter("12:00:00")
+        saveScreenshot("broadcast-time-centered.png")
+        composeRule.runOnIdle { update(BroadcastRemainingTime.Unknown) }
+        assertSymmetricAroundCenter("—")
+    }
+
+    /** 방송 시간 오른쪽 끝과 남은 시간 왼쪽 끝이 화면 가운데에서 같은 거리에 있어야 한다. */
+    private fun assertSymmetricAroundCenter(remainingText: String) {
+        val rootWidth = composeRule.onRoot().getUnclippedBoundsInRoot().width
+        val center = rootWidth / 2
+        val uptime = composeRule.onNodeWithText("00:01:23", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val remaining = composeRule.onNodeWithText(remainingText, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val leftGap = center - uptime.right
+        val rightGap = remaining.left - center
+        assertTrue("left=$leftGap right=$rightGap", leftGap > 0.dp && rightGap > 0.dp)
+        assertEquals(leftGap.value, rightGap.value, 1f)
     }
 
     @Test fun staleSessionKeepsRemainingValueWithVisibleStatusAndAccessibleLabels() {
@@ -123,7 +154,7 @@ class PlanUsageScreenTest {
             }
         }
         composeRule.onNodeWithText(context.getString(R.string.plan_session_stale)).assertExists()
-        composeRule.onNodeWithContentDescription(context.getString(R.string.plan_remaining_description, "12min")).assertExists()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.plan_remaining_description, "00:12:00")).assertExists()
         saveScreenshot("broadcast-time-stale.png")
     }
 
