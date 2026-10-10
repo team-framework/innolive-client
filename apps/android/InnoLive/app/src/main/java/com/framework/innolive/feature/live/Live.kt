@@ -329,17 +329,23 @@ private fun LiveScreenContent(
             )
         }
 
+        val isRemainingTimeStale = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null &&
+            sessionSnapshot?.isRemainingTimeStale == true
         BroadcastTimeDisplay(
             uptime = broadcastDurationText,
-            remaining = displayedRemainingTime(
-                webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null, sessionSnapshot, props.planUsage,
+            remaining = rememberRemainingCountdown(
+                remaining = displayedRemainingTime(
+                    webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null, sessionSnapshot, props.planUsage,
+                ),
+                // 송출 중인 세션 값만 줄인다. 요금제 미리보기나 일시 중지·갱신 지연 중에는 그대로 둔다.
+                counting = webRtcSession.broadcastState == BroadcastState.LIVE && !isRemainingTimeStale &&
+                    sessionSnapshot?.remainingTime is BroadcastRemainingTime.Seconds,
             ),
-            isStale = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null &&
-                sessionSnapshot?.isRemainingTimeStale == true,
+            isStale = isRemainingTimeStale,
             onOpenPlan = props.onOpenPlan,
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(end = 16.dp),
+                .align(Alignment.TopCenter)
+                .padding(horizontal = 16.dp),
         )
 
         SessionUsageWarningBanner(
