@@ -61,6 +61,8 @@ import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
 import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialViewModel
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
@@ -171,6 +173,7 @@ class MainActivity : ComponentActivity() {
         val webRtcSession = ViewModelProvider(this)[WebRtcSessionViewModel::class.java]
         val authenticationSession =
             ViewModelProvider(this)[AuthenticationSessionViewModel::class.java]
+        val broadcastTutorial = ViewModelProvider(this)[BroadcastTutorialViewModel::class.java].coordinator
         setContent {
             LaunchedEffect(webRtcSession.lockedScreenOrientation) {
                 val lockedOrientation = webRtcSession.lockedScreenOrientation
@@ -188,6 +191,7 @@ class MainActivity : ComponentActivity() {
                     AppNavigation(
                         webRtcSession = webRtcSession,
                         authenticationSession = authenticationSession,
+                        broadcastTutorial = broadcastTutorial,
                         modifier = Modifier
                             .padding(innerPadding)
                             .consumeWindowInsets(innerPadding)
@@ -203,6 +207,7 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     webRtcSession: WebRtcSessionViewModel,
     authenticationSession: AuthenticationSessionViewModel,
+    broadcastTutorial: BroadcastTutorialCoordinator,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -916,6 +921,7 @@ fun AppNavigation(
                         LiveScreen(
                             webRtcSession = webRtcSession,
                             props = liveScreenProps.value,
+                            tutorial = broadcastTutorial,
                         )
                     }
                 }
@@ -971,6 +977,13 @@ fun AppNavigation(
                                 canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
                                 onSelectAIProcessing = { onDevice ->
                                     webRtcSession.selectAIProcessing(context, onDevice)
+                                },
+                                canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
+                                    webRtcSession.broadcastState == BroadcastState.IDLE &&
+                                    !webRtcSession.isPreparingBroadcast,
+                                onReplayBroadcastGuide = {
+                                    broadcastTutorial.restart()
+                                    onBack()
                                 },
                             ),
                         )

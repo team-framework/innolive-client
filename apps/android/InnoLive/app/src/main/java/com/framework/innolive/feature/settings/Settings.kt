@@ -13,6 +13,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.VideoCameraBack
@@ -50,6 +51,7 @@ import com.framework.innolive.ui.text.asString
 data class SettingsMenuItem(
     val icon: ImageVector,
     val label: String,
+    val enabled: Boolean = true,
     val onNav: () -> Unit
 )
 
@@ -67,12 +69,12 @@ fun SettingsScreen(props: SettingsScreenProps) {
         SettingsMenuItem(
             Icons.Outlined.VideoCameraBack,
             stringResource(R.string.settings_camera_audio),
-            props.onOpenCameraSettings,
+            onNav = props.onOpenCameraSettings,
         ),
         SettingsMenuItem(
             Icons.Outlined.CloudUpload,
             stringResource(R.string.settings_broadcast),
-            props.onOpenBroadcastSettings,
+            onNav = props.onOpenBroadcastSettings,
         ),
         SettingsMenuItem(
             Icons.Outlined.Description,
@@ -80,6 +82,13 @@ fun SettingsScreen(props: SettingsScreenProps) {
         ) {
             uriHandler.openUri(privacyPolicyUrl)
         },
+        SettingsMenuItem(
+            Icons.AutoMirrored.Outlined.HelpOutline,
+            stringResource(R.string.tutorial_replay),
+            // 방송을 준비하거나 송출하는 중에는 처음부터 안내할 수 없으므로 막는다.
+            enabled = props.canReplayBroadcastGuide,
+            onNav = props.onReplayBroadcastGuide,
+        ),
     )
 
     Column(
@@ -127,7 +136,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
             settingItems.forEach { item ->
                 Button(
                     onClick = item.onNav,
-                    enabled = !props.isDeletingAccount && !props.isAccountDeletionPending,
+                    enabled = item.enabled && !props.isDeletingAccount && !props.isAccountDeletionPending,
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
