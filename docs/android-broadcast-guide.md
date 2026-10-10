@@ -35,6 +35,8 @@
 
 ### 기록과 다시 보기
 
+진행 상태는 `BroadcastTutorialViewModel`이 보관해 화면 회전이나 라이브 시작 때의 방향 고정으로 Activity가 다시 만들어져도 같은 단계를 이어서 보여 준다. 안내 없이 라이브를 시작해도 완료로 기록한다.
+
 완료·건너뛰기는 기기 단위 SharedPreferences `broadcast_tutorial`의 `broadcast_preparation_v1`에 저장한다. 로그아웃·회원 탈퇴 때 지우지 않는다. 설정의 `방송 준비 안내 다시 보기`는 기록을 지우고 방송 화면으로 돌아가 지금 상태에 맞는 단계부터 보여 준다. 세션이 있거나 방송 상태가 `IDLE`이 아니면 비활성화한다.
 
 ## 송출 상태 패널
@@ -58,6 +60,7 @@
 - `BroadcastTutorialTest`(JVM): 단계 판단, 실패·취소·라이브 처리, 단계 번호, 자동 시작 조건, 건너뛰기·완료 기록, 다시 보기, 상태 패널 안내 1회 표시
 - `BroadcastLiveStatusTest`(JVM): 업로드 품질 표기, 경고 표시·해제 표본 수, 통계 파싱, 플랫폼 상태 색·문구
 - `CalloutPlacementTest`(JVM): 말풍선 위·아래 배치, 공간 부족 시 넓은 쪽 선택과 최소 높이 확보
+- `BroadcastTutorialRecreationTest`(기기): Activity 재생성 후 안내 단계 유지와 라이브 시작 시 종료
 - `BroadcastGuideUiTest`(기기): 홈 막의 터치 차단과 강조 버튼 통과, 건너뛰기, 마지막 단계 완료, 상태 패널 안내가 조작을 막지 않음, 설정 Dialog 안내 표시, 가로 화면·글꼴 200%에서 닫기 버튼 표시와 동작. 화면을 앱 외부 파일 폴더 `broadcast-guide/`에 PNG로 남긴다.
 
 ```bash
