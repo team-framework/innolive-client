@@ -14,16 +14,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,6 +67,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
 import com.framework.innolive.R
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -93,6 +97,11 @@ val LocalBroadcastTutorialAnchors = staticCompositionLocalOf<BroadcastTutorialAn
 
 private val HighlightPadding = 6.dp
 private val CalloutSpacing = 12.dp
+private val CalloutHorizontalPadding = 16.dp
+private val CalloutEdgePadding = 8.dp
+private val CalloutBottomMargin = 24.dp
+private val CalloutMinimumHeight = 160.dp
+private const val DialogCalloutMaxHeightFraction = 0.4f
 
 /** 안내가 가리킬 화면 요소를 표시한다. 안내가 없는 화면에서는 아무 영향이 없다. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -198,19 +207,26 @@ fun BroadcastTutorialDialogFrame(
         anchors.highlightColor = highlightColor
     }
     CompositionLocalProvider(LocalBroadcastTutorialAnchors provides anchors) {
-        Column {
-            BroadcastTutorialCallout(
-                progress = guide.progress,
-                title = stringResource(guide.step.titleRes),
-                message = stringResource(guide.step.messageRes),
-                onSkip = guide.onSkip,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, top = 12.dp, end = 12.dp),
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                elevated = false,
-            )
-            Box(modifier = Modifier.weight(1f, fill = false)) { content() }
+        BoxWithConstraints {
+            // 큰 글꼴에서도 안내가 Dialog를 다 차지해 폼을 밀어내지 않도록 높이를 제한하고 설명을 스크롤한다.
+            val calloutMaxHeight = if (constraints.hasBoundedHeight) {
+                maxHeight * DialogCalloutMaxHeightFraction
+            } else Dp.Unspecified
+            Column {
+                BroadcastTutorialCallout(
+                    progress = guide.progress,
+                    title = stringResource(guide.step.titleRes),
+                    message = stringResource(guide.step.messageRes),
+                    onSkip = guide.onSkip,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, top = 12.dp, end = 12.dp)
+                        .heightIn(max = calloutMaxHeight),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    elevated = false,
+                )
+                Box(modifier = Modifier.weight(1f, fill = false)) { content() }
+            }
         }
     }
 }
@@ -313,28 +329,78 @@ private fun HomeGuideLayer(
             TouchBlockers(highlight = highlight, layerSize = layerSize)
         }
 
-        val calloutModifier = Modifier
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
-            .padding(horizontal = 16.dp)
-        val spacing = with(density) { CalloutSpacing.toPx() }
-        when {
-            highlight != null && highlight.center.y > layerSize.height / 2 -> Box(
-                modifier = calloutModifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = with(density) { (layerSize.height - highlight.top + spacing).toDp() }),
-            ) { callout() }
-            highlight != null -> Box(
-                modifier = calloutModifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = with(density) { (highlight.bottom + spacing).toDp() }),
-            ) { callout() }
-            else -> Box(
-                modifier = calloutModifier
-                    .align(Alignment.BottomCenter)
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                    .padding(bottom = 24.dp),
-            ) { callout() }
+        CalloutLayout(highlight = highlight, callout = callout)
+    }
+}
+
+/**
+ * 말풍선의 실제 높이를 재서 가리키는 요소 위나 아래 중 들어가는 쪽에 놓는다.
+ * 가로 화면·큰 글꼴처럼 어느 쪽에도 들어가지 않으면 넓은 쪽에 놓고, 말풍선 안의 설명만 스크롤되게 한다.
+ */
+@Composable
+private fun CalloutLayout(highlight: Rect?, callout: @Composable () -> Unit) {
+    val insets = WindowInsets.safeDrawing
+    Layout(content = callout, modifier = Modifier.fillMaxSize()) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val start = insets.getLeft(this, layoutDirection) + CalloutHorizontalPadding.roundToPx()
+        val end = width - insets.getRight(this, layoutDirection) - CalloutHorizontalPadding.roundToPx()
+        val maxWidth = (end - start).coerceAtLeast(0)
+        val measurable = measurables.single()
+        val naturalHeight = measurable.maxIntrinsicHeight(maxWidth)
+        val placement = calloutPlacement(
+            highlight = highlight,
+            naturalHeight = naturalHeight,
+            areaTop = insets.getTop(this) + CalloutEdgePadding.roundToPx(),
+            areaBottom = height - insets.getBottom(this) - CalloutEdgePadding.roundToPx(),
+            spacing = CalloutSpacing.roundToPx(),
+            minimumHeight = CalloutMinimumHeight.roundToPx(),
+            bottomMargin = CalloutBottomMargin.roundToPx(),
+        )
+        val placeable = measurable.measure(Constraints(maxWidth = maxWidth, maxHeight = placement.maxHeight))
+        val y = if (placement.alignsBottom) placement.edge - placeable.height else placement.edge
+        layout(width, height) {
+            placeable.place(start + (maxWidth - placeable.width) / 2, y)
         }
+    }
+}
+
+internal data class CalloutPlacement(
+    /** alignsBottom이면 말풍선 아래 끝, 아니면 위 끝의 y 좌표 */
+    val edge: Int,
+    val alignsBottom: Boolean,
+    val maxHeight: Int,
+)
+
+internal fun calloutPlacement(
+    highlight: Rect?,
+    naturalHeight: Int,
+    areaTop: Int,
+    areaBottom: Int,
+    spacing: Int,
+    minimumHeight: Int,
+    bottomMargin: Int,
+): CalloutPlacement {
+    val areaHeight = (areaBottom - areaTop).coerceAtLeast(0)
+    if (highlight == null) {
+        return CalloutPlacement(areaBottom - bottomMargin, true, (areaHeight - bottomMargin).coerceAtLeast(0))
+    }
+    val aboveEdge = highlight.top.roundToInt() - spacing
+    val belowEdge = highlight.bottom.roundToInt() + spacing
+    val spaceAbove = (aboveEdge - areaTop).coerceAtLeast(0)
+    val spaceBelow = (areaBottom - belowEdge).coerceAtLeast(0)
+    val prefersAbove = highlight.center.y > (areaTop + areaBottom) / 2f
+    val above = CalloutPlacement(aboveEdge, true, spaceAbove)
+    val below = CalloutPlacement(belowEdge, false, spaceBelow)
+    val ordered = if (prefersAbove) listOf(above, below) else listOf(below, above)
+    ordered.firstOrNull { naturalHeight <= it.maxHeight }?.let { return it }
+    // 어느 쪽에도 다 들어가지 않으면 넓은 쪽을 쓴다. 그래도 너무 좁으면 강조 요소를 일부 덮더라도 버튼이 보일 높이를 확보한다.
+    val roomier = if (spaceAbove >= spaceBelow) above else below
+    val maxHeight = maxOf(roomier.maxHeight, minOf(naturalHeight, minimumHeight, areaHeight))
+    return if (roomier.alignsBottom) {
+        CalloutPlacement(maxOf(roomier.edge, areaTop + maxHeight), true, maxHeight)
+    } else {
+        CalloutPlacement(minOf(roomier.edge, areaBottom - maxHeight), false, maxHeight)
     }
 }
 
@@ -402,8 +468,12 @@ internal fun BroadcastTutorialCallout(
                 )
             }
             // 단계가 바뀌면 TalkBack이 제목과 설명을 읽는다.
+            // 높이가 부족하면 설명만 스크롤되고 아래 버튼은 항상 보이게 한다.
             Column(
-                modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(text = title, style = MaterialTheme.typography.titleMedium)
