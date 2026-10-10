@@ -1,0 +1,37 @@
+<resources>
+    <string name="tutorial_open_preparation_title">방송 준비부터 시작해요</string>
+    <string name="tutorial_open_preparation_message">이 버튼을 누르면 방송할 플랫폼과 제목을 정할 수 있어요.</string>
+    <string name="tutorial_choose_platform_title">방송할 플랫폼을 골라요</string>
+    <string name="tutorial_choose_platform_message">방송할 플랫폼을 눌러 주세요. 나중에 방송 설정의 플랫폼 변경으로 바꿀 수 있어요.</string>
+    <string name="tutorial_connect_account_title">방송할 계정을 연결해요</string>
+    <string name="tutorial_connect_account_message">표시된 버튼으로 계정을 연결해 주세요. 연결하고 돌아오면 다음 단계로 넘어가요.</string>
+    <string name="tutorial_start_preparation_title">제목을 확인하고 준비해요</string>
+    <string name="tutorial_start_preparation_message">방송 제목을 확인한 뒤 아래 방송 준비 버튼을 눌러 주세요. 준비만으로는 시청자에게 공개되지 않아요.</string>
+    <string name="tutorial_wait_preparation_title">방송을 준비하고 있어요</string>
+    <string name="tutorial_wait_preparation_message">서버와 연결하는 동안 잠시만 기다려 주세요. 준비가 끝나면 다음 단계를 알려 드릴게요.</string>
+    <string name="tutorial_retry_preparation_title">준비가 잘 되지 않았어요</string>
+    <string name="tutorial_retry_preparation_message">안내 문구를 확인한 뒤 방송 준비를 다시 눌러 주세요.</string>
+    <string name="tutorial_go_live_title">방송할 준비가 끝났어요</string>
+    <string name="tutorial_go_live_message">이 버튼을 누르고 방송 시작을 고르면 시청자에게 방송이 공개돼요. 준비되면 눌러 주세요.</string>
+    <string name="tutorial_live_status_title">방송 상태는 여기서 확인해요</string>
+    <string name="tutorial_live_status_message">플랫폼별 송출 상태와 업로드 화질을 보여 드려요. 문제가 생기면 여기에 알려 드릴게요.</string>
+    <string name="tutorial_progress_description">전체 %2$d단계 중 %1$d단계</string>
+    <string name="tutorial_skip">건너뛰기</string>
+    <string name="tutorial_skip_hint">건너뛰기. 안내는 설정에서 다시 볼 수 있어요.</string>
+    <string name="tutorial_got_it">알겠어요</string>
+    <string name="tutorial_replay">방송 준비 안내 다시 보기</string>
+    <string name="live_status_target_stopped">송출 종료</string>
+    <string name="live_status_target_preparing">준비 중</string>
+    <string name="live_status_target_prepared">시작 대기</string>
+    <string name="live_status_target_going_live">시작하는 중</string>
+    <string name="live_status_target_streaming">송출 중</string>
+    <string name="live_status_target_reconfiguring">화질 바꾸는 중</string>
+    <string name="live_status_target_reconnecting">다시 연결하는 중</string>
+    <string name="live_status_target_paused">일시 중지</string>
+    <string name="live_status_target_checking">확인 중</string>
+    <string name="live_status_broadcast_resolution">방송 화질 %1$s</string>
+    <string name="live_status_uplink">업로드 %1$s</string>
+    <string name="live_status_uplink_measuring">업로드 확인 중</string>
+    <string name="live_status_warning_network">인터넷이 느려 화질을 잠시 낮췄어요. 와이파이를 쓰면 더 안정적이에요.</string>
+    <string name="live_status_warning_device">기기가 바빠 화질을 잠시 낮췄어요. 다른 앱을 닫으면 나아질 수 있어요.</string>
+</resources>
