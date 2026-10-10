@@ -62,6 +62,7 @@ import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
 import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
 import com.framework.innolive.ui.text.ServerErrorAction
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ChzzkOAuthDialog
@@ -115,7 +116,7 @@ private fun LiveScreenContent(
     var chzzkAccountVerification by remember { mutableStateOf(ChzzkAccountVerification()) }
     var chzzkAccountRefreshKey by remember { mutableIntStateOf(0) }
     var chzzkBusy by remember { mutableStateOf(false) }
-    var chzzkMessage by remember { mutableStateOf<String?>(null) }
+    var chzzkMessage by remember { mutableStateOf<UiText?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var testUsageWarningOverride by remember { mutableStateOf(false) }
@@ -162,7 +163,7 @@ private fun LiveScreenContent(
             return@LaunchedEffect
         }
         if (openChzzkSettingsDialog && props.profileEmail.isBlank()) {
-            chzzkMessage = "먼저 로그인하세요."
+            chzzkMessage = UiText.Resource(R.string.chzzk_sign_in_required)
             chzzkBusy = false
         }
         if (openChzzkSettingsDialog && props.profileEmail.isNotBlank()) {
@@ -177,7 +178,7 @@ private fun LiveScreenContent(
                 }
             } catch (_: Exception) {
                 if (chzzkAccountVerification.revision == revision) {
-                    chzzkMessage = "계정 상태를 확인하지 못했습니다. 다시 확인하거나 로그인하세요."
+                    chzzkMessage = UiText.Resource(R.string.chzzk_account_check_failed)
                 }
             } finally {
                 if (chzzkAccountVerification.revision == revision) chzzkBusy = false
@@ -453,12 +454,16 @@ private fun LiveScreenContent(
                                 openPlatformDialog = true
                             },
                             accountLabel = when {
-                                chzzkAccountVerification.mutationInProgress -> "계정 변경 확인 중"
-                                chzzkMessage != null -> chzzkMessage.orEmpty()
-                                !chzzkAccountVerification.verified -> "계정 상태 확인 중"
-                                chzzkAccountVerification.account == null -> "치지직 계정을 연결하세요."
-                                chzzkAccountVerification.account?.reconnectRequired == true -> "치지직 계정을 다시 연결하세요."
-                                else -> "연결됨: ${chzzkAccountVerification.account?.channelTitle.orEmpty()}"
+                                chzzkAccountVerification.mutationInProgress -> stringResource(R.string.chzzk_account_changing)
+                                chzzkMessage != null -> chzzkMessage?.asString().orEmpty()
+                                !chzzkAccountVerification.verified -> stringResource(R.string.chzzk_account_checking)
+                                chzzkAccountVerification.account == null -> stringResource(R.string.chzzk_account_required)
+                                chzzkAccountVerification.account?.reconnectRequired == true ->
+                                    stringResource(R.string.chzzk_account_reconnect_required)
+                                else -> stringResource(
+                                    R.string.chzzk_account_connected,
+                                    chzzkAccountVerification.account?.channelTitle.orEmpty(),
+                                )
                             },
                             canPrepare = chzzkAccountVerification.canPrepare,
                             canConnect = props.profileEmail.isNotBlank(),
@@ -490,7 +495,7 @@ private fun LiveScreenContent(
                                         }
                                     } catch (_: Exception) {
                                         if (chzzkAccountVerification.mutationRevision == mutation.revision) {
-                                            chzzkMessage = "치지직 연동 설정을 받지 못했습니다. 서버 설정을 확인하세요."
+                                            chzzkMessage = UiText.Resource(R.string.chzzk_config_failed)
                                         }
                                     } finally {
                                         if (!awaitingOAuth) finishChzzkAccountMutation(mutation.revision)
@@ -509,7 +514,7 @@ private fun LiveScreenContent(
                                             .disconnect(props.onRefreshAccessToken())
                                     } catch (_: Exception) {
                                         if (chzzkAccountVerification.mutationRevision == mutation.revision) {
-                                            chzzkMessage = "연결 해제 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요."
+                                            chzzkMessage = UiText.Resource(R.string.chzzk_disconnect_unconfirmed)
                                         }
                                     } finally {
                                         finishChzzkAccountMutation(mutation.revision)
@@ -519,7 +524,7 @@ private fun LiveScreenContent(
                             onSearch = { query -> checkNotNull(chzzkApi).categories(props.onRefreshAccessToken(), query) },
                             onPrepare = {
                                 if (!chzzkAccountVerification.canPrepare || chzzkBusy) {
-                                    chzzkMessage = "계정 상태를 다시 확인한 뒤 방송을 준비하세요."
+                                    chzzkMessage = UiText.Resource(R.string.chzzk_prepare_requires_account)
                                 } else if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
                                     mediaPermissions.refresh()
                                     mediaPermissionLauncher.launch(readMediaPermissionState(context).missingPermissions.toTypedArray())
@@ -547,7 +552,7 @@ private fun LiveScreenContent(
                                         api.connect(props.onRefreshAccessToken(), code, currentState)
                                     } catch (_: Exception) {
                                         if (chzzkAccountVerification.mutationRevision == currentMutationRevision) {
-                                            chzzkMessage = "치지직 연결 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요."
+                                            chzzkMessage = UiText.Resource(R.string.chzzk_connect_unconfirmed)
                                         }
                                     } finally {
                                         finishChzzkAccountMutation(currentMutationRevision)

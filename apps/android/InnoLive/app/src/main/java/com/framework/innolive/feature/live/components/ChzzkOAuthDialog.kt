@@ -30,11 +30,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.ChzzkOAuthConfig
 import com.framework.innolive.feature.live.parseChzzkCallback
+import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.delay
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -44,14 +47,14 @@ internal fun ChzzkOAuthDialog(
     config: ChzzkOAuthConfig,
     state: String,
     onCode: (String) -> Unit,
-    onFailure: (String) -> Unit,
+    onFailure: (UiText) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val completed = remember(config, state) { AtomicBoolean(false) }
     var loading by remember(config, state) { mutableStateOf(true) }
-    var loadError by remember(config, state) { mutableStateOf<String?>(null) }
+    var loadError by remember(config, state) { mutableStateOf<Int?>(null) }
     var loadAttempt by remember(config, state) { mutableIntStateOf(0) }
-    val loadFailure = "치지직 로그인 페이지를 불러오지 못했습니다. 다시 시도하세요."
+    val loadFailure = R.string.chzzk_oauth_load_failed
     val dismiss = { if (completed.compareAndSet(false, true)) onDismiss() }
 
     LaunchedEffect(loading, loadAttempt) {
@@ -70,19 +73,19 @@ internal fun ChzzkOAuthDialog(
                 Modifier.fillMaxWidth().fillMaxHeight(0.85f).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("치지직 계정 연결")
-                TextButton(onClick = dismiss) { Text("취소") }
+                Text(stringResource(R.string.chzzk_oauth_title))
+                TextButton(onClick = dismiss) { Text(stringResource(R.string.action_cancel)) }
                 // A bounded, weighted area gives the native WebView an exact height.
                 // heightIn alone lets a page without intrinsic height measure to zero.
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     if (loadError != null) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(loadError.orEmpty())
+                            loadError?.let { Text(stringResource(it)) }
                             TextButton(onClick = {
                                 loadError = null
                                 loading = true
                                 loadAttempt++
-                            }) { Text("다시 시도") }
+                            }) { Text(stringResource(R.string.action_retry)) }
                         }
                     } else {
                         key(config, state, loadAttempt) {
@@ -101,17 +104,17 @@ internal fun ChzzkOAuthDialog(
                                                 true
                                             } catch (_: SecurityException) {
                                                 if (completed.compareAndSet(false, true)) {
-                                                    onFailure("OAuth state 또는 콜백 형식이 올바르지 않습니다. 다시 연결하세요.")
+                                                    onFailure(UiText.Resource(R.string.chzzk_oauth_invalid_callback))
                                                 }
                                                 true
                                             } catch (_: IOException) {
                                                 if (completed.compareAndSet(false, true)) {
-                                                    onFailure("치지직 계정 연결이 취소되거나 거절됐습니다. 다시 연결하세요.")
+                                                    onFailure(UiText.Resource(R.string.chzzk_oauth_denied))
                                                 }
                                                 true
                                             } catch (_: Exception) {
                                                 if (completed.compareAndSet(false, true)) {
-                                                    onFailure("치지직 인증을 완료하지 못했습니다. 다시 연결하세요.")
+                                                    onFailure(UiText.Resource(R.string.chzzk_oauth_failed))
                                                 }
                                                 true
                                             }
@@ -145,7 +148,7 @@ internal fun ChzzkOAuthDialog(
                                             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                                                 handler.cancel()
                                                 if (!completed.get()) {
-                                                    loadError = "치지직 로그인 페이지의 보안 연결을 확인하지 못했습니다. 네트워크를 확인하고 다시 시도하세요."
+                                                    loadError = R.string.chzzk_oauth_ssl_failed
                                                     loading = false
                                                 }
                                             }
