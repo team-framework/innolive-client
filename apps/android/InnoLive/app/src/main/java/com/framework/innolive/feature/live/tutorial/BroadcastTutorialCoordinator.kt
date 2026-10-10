@@ -102,6 +102,10 @@ class BroadcastTutorialCoordinator(private val store: BroadcastTutorialStore) {
     private fun updateLiveStatusTip(snapshot: BroadcastTutorialSnapshot) {
         val wasStarted = hadStartedBroadcast
         hadStartedBroadcast = snapshot.hasStartedBroadcast
+        // 안내 없이 라이브를 시작한 사용자도 방송 준비를 마친 것으로 보고 다음 실행에 안내를 다시 띄우지 않는다.
+        if (snapshot.hasStartedBroadcast && !store.hasFinishedPreparationGuide) {
+            store.hasFinishedPreparationGuide = true
+        }
         if (!snapshot.hasStartedBroadcast) {
             if (isShowingLiveStatusTip) isShowingLiveStatusTip = false
             return
