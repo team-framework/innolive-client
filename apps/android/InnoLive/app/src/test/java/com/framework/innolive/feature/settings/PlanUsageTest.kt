@@ -52,6 +52,13 @@ class PlanUsageTest {
         assertEquals(BroadcastRemainingTime.Seconds(3600), displayedRemainingTime(true, null, usage))
         val session = SessionSnapshot("s", remainingTime = BroadcastRemainingTime.Seconds(720))
         assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(true, session, usage))
+        // 같은 세션에서 방송을 끝낸 뒤에도 요금제 기준(3600)이 아니라 그 세션의 남은 시간을 보여 준다.
+        assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(false, session, usage))
+        assertEquals(BroadcastRemainingTime.Seconds(720),
+            displayedRemainingTime(false, session, usage.copy(allowedModes = emptyList())))
+        // 세션은 있지만 서버 값이 아직 없으면 요금제 기준 값으로 보완한다.
+        assertEquals(BroadcastRemainingTime.Seconds(3600),
+            displayedRemainingTime(false, session.copy(remainingTime = BroadcastRemainingTime.Unknown), usage))
         assertEquals(BroadcastRemainingTime.Seconds(3600),
             displayedRemainingTime(true, session.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive), usage))
         val unlimited = parsePlanUsage(plan, fixture("unlimited")).copy(maxBroadcastSeconds = 0)
