@@ -37,8 +37,12 @@ import com.framework.innolive.feature.settings.PlanMode
 import com.framework.innolive.feature.settings.PlanUsage
 import kotlinx.coroutines.delay
 
+/**
+ * 서버의 1회 한도는 세션 단위라, 같은 세션에서 다시 방송하면 이미 방송한 시간만큼 줄어 있다.
+ * 세션 값이 있으면 방송 전·종료 후에도 그 값을 보여 주고, 아직 없을 때만 요금제 기준 값으로 보완한다.
+ */
 internal fun displayedRemainingTime(active: Boolean, snapshot: SessionSnapshot?, usage: PlanUsage?): BroadcastRemainingTime {
-    if (active && snapshot?.remainingTime is BroadcastRemainingTime.Seconds) return snapshot.remainingTime
+    if (snapshot?.remainingTime is BroadcastRemainingTime.Seconds) return snapshot.remainingTime
     val mode = PlanMode.current(snapshot?.broadcastResolution, snapshot?.visibleTargets?.size ?: 1)
     if (usage == null || !usage.isAllowed(mode)) return BroadcastRemainingTime.Unknown
     return usage.previewRemaining(mode)?.let(BroadcastRemainingTime::Seconds)
