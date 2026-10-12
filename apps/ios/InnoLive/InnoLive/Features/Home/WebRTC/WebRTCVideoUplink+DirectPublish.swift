@@ -5,7 +5,6 @@ extension WebRTCVideoUplink {
     /// 온디바이스 세션의 앱 직접 송출 대상을 연결한다(#481).
     func setDirectMediaSink(_ sink: (any DirectMediaSink)?) {
         directMediaSink = sink
-        directAudioTap.setSink(sink)
         cameraFrameRelay?.setDirectMediaSink(sink)
     }
 

@@ -582,7 +582,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                         delivered = true
                     }
                     // 무효화된 경로의 결과는 직접 송출에도 넘기지 않는다. 변환은 경로 잠금 밖에서 한다.
-                    if delivered, let directSink, directSink.acceptsMedia,
+                    // 송출 대상이 없어도 넘긴다. 첫 연결 때 인코더 크기를 실제 프레임 크기로 정한다.
+                    if delivered, let directSink,
                        let buffer = (coloredUplink.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
                         directSink.appendVideo(
                             pixelBuffer: buffer,

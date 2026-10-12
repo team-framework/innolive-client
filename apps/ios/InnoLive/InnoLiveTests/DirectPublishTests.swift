@@ -219,7 +219,6 @@ final class DirectMediaPipelineTests: XCTestCase {
         paused.onVideo = nil
         XCTAssertEqual(paused.videoSizes.first, CGSize(width: 32, height: 64))
         XCTAssertGreaterThan(paused.silentAudioBuffers, 0)
-        XCTAssertEqual(active.silentAudioBuffers, 0)
 
         fanout.detach(provider: "youtube")
         fanout.detach(provider: "chzzk")
@@ -537,6 +536,7 @@ private final class FakeDirectPublisher: DirectBroadcastPublishing {
     var mediaSink: (any DirectMediaSink)? { nil }
     var onStateChange: (() -> Void)?
     var onPermanentFailure: ((String) -> Void)?
+    var isMicrophoneUnavailable = false
     var failStart = false
     private(set) var started: [(provider: String, endpoint: DirectIngestEndpoint)] = []
     private(set) var stopped: [String] = []

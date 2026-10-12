@@ -2,12 +2,12 @@ import AVFoundation
 import CoreMedia
 import VideoToolbox
 
-/// 송출 프레임·마이크 음성을 받는 쪽이다. 캡처·오디오 스레드에서 호출된다.
+/// 송출 프레임을 받는 쪽이다. 캡처 스레드에서 호출된다.
 nonisolated protocol DirectMediaSink: AnyObject, Sendable {
     /// 연결된 송출 대상이 없으면 변환 비용을 들이지 않는다.
     var acceptsMedia: Bool { get }
+    /// 송출 대상이 없어도 호출한다. 첫 연결 전에 인코더 크기를 알아야 하기 때문이다.
     func appendVideo(pixelBuffer: CVPixelBuffer, rotation: Int, timestampNs: Int64)
-    func appendAudio(_ buffer: AVAudioPCMBuffer, when: AVAudioTime)
     func recordInference(milliseconds: Double)
     func recordAnonymizationFailure()
 }
@@ -21,8 +21,17 @@ nonisolated protocol DirectMediaOutput: AnyObject, Sendable {
 /// 가림 처리가 끝난 송출 프레임과 마이크 음성을 대상별 RTMP 연결에 나눠 준다.
 /// 일시 중지한 대상에는 원본 대신 검은 화면과 무음을 보낸다. 백그라운드에서 카메라가
 /// 멈춰도 연결이 끊기지 않도록 일시 중지 화면은 자체 타이머로 만든다.
+/// YouTube는 음성 트랙이 없으면 스트림을 활성으로 보지 않아 라이브 전환을 거절한다.
+/// 마이크 음성이 끊기면 그 구간을 무음으로 채운다.
 nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable {
     static let slateFramesPerSecond = 15
+    /// 송출 음성 형식이다. 마이크 음성과 무음이 같은 형식이어야 AAC 인코더가 다시 설정되지 않는다.
+    static let audioFormat = DirectAudioResampler.outputFormat
+    static let audioKeeperInterval: TimeInterval = 0.05
+    /// 이 시간 동안 마이크 음성이 없으면 무음을 채운다.
+    static let microphoneStaleInterval: TimeInterval = 0.3
+    /// 무음 버퍼 하나의 길이다. HaishinKit 링 버퍼(16,384프레임)를 넘지 않게 나눠 보낸다.
+    static let silenceChunkDuration: TimeInterval = 0.02
 
     let metrics = DirectPublishMetrics()
     private let lock = NSLock()
@@ -32,13 +41,22 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
     private var outputs: [String: any DirectMediaOutput] = [:]
     private var pausedProviders: Set<String> = []
     private var slateTimer: DispatchSourceTimer?
+    private var audioKeeperTimer: DispatchSourceTimer?
     private var videoDimensions: CMVideoDimensions?
-    private var audioFormat: AVAudioFormat?
+    private var lastMicrophoneAudioAt: TimeInterval = 0
+    private var audioCoveredUntil: TimeInterval = 0
 
     var acceptsMedia: Bool {
         lock.lock()
         defer { lock.unlock() }
         return !outputs.isEmpty
+    }
+
+    /// 최근 1초 안에 마이크 음성이 들어왔다.
+    var isReceivingMicrophone: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return Self.hostSeconds() - lastMicrophoneAudioAt < 1
     }
 
     /// 회전을 적용한 최근 송출 프레임 크기다. 인코더 크기를 처음 정할 때 쓴다.
@@ -50,9 +68,11 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
 
     func attach(_ output: any DirectMediaOutput, provider: String) {
         lock.lock()
+        if outputs.isEmpty { audioCoveredUntil = Self.hostSeconds() }
         outputs[provider] = output
         lock.unlock()
         updateSlateTimer()
+        updateAudioKeeperTimer()
     }
 
     func detach(provider: String) {
@@ -61,6 +81,7 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
         pausedProviders.remove(provider)
         lock.unlock()
         updateSlateTimer()
+        updateAudioKeeperTimer()
     }
 
     func setPaused(_ paused: Bool, provider: String) {
@@ -108,12 +129,65 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
         metrics.recordAnonymizationFailure()
     }
 
+    /// 마이크 음성이다. `audioFormat` 형식이어야 한다.
     func appendAudio(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) {
         lock.lock()
-        audioFormat = buffer.format
+        let now = Self.hostSeconds()
+        lastMicrophoneAudioAt = now
+        audioCoveredUntil = now
         let targets = outputs.filter { !pausedProviders.contains($0.key) }.map(\.value)
         lock.unlock()
         targets.forEach { $0.appendAudio(buffer, when: when) }
+    }
+
+    private func updateAudioKeeperTimer() {
+        lock.lock()
+        let needsKeeper = !outputs.isEmpty
+        let running = audioKeeperTimer != nil
+        lock.unlock()
+        guard needsKeeper != running else { return }
+        if needsKeeper {
+            let timer = DispatchSource.makeTimerSource(queue: slateQueue)
+            timer.schedule(deadline: .now() + Self.audioKeeperInterval, repeating: Self.audioKeeperInterval,
+                           leeway: .milliseconds(5))
+            timer.setEventHandler { [weak self] in self?.fillMissingAudio() }
+            lock.lock()
+            audioKeeperTimer = timer
+            lock.unlock()
+            timer.resume()
+        } else {
+            lock.lock()
+            let timer = audioKeeperTimer
+            audioKeeperTimer = nil
+            lock.unlock()
+            timer?.cancel()
+        }
+    }
+
+    private func fillMissingAudio() {
+        lock.lock()
+        let now = Self.hostSeconds()
+        let targets = outputs.filter { !pausedProviders.contains($0.key) }.map(\.value)
+        var chunks = 0
+        if now - lastMicrophoneAudioAt > Self.microphoneStaleInterval, !targets.isEmpty {
+            // 오래 멈췄던 타이머가 한꺼번에 큰 무음을 만들지 않도록 한 번에 0.5초까지만 채운다.
+            audioCoveredUntil = max(audioCoveredUntil, now - 0.5)
+            chunks = Int(((now - audioCoveredUntil) / Self.silenceChunkDuration).rounded(.down))
+            // 남은 구간은 다음 주기로 넘긴다. 버리면 음성 시간축이 실제 시간보다 느려진다.
+            audioCoveredUntil += Double(chunks) * Self.silenceChunkDuration
+        }
+        lock.unlock()
+        guard chunks > 0, let silence = Self.silence(format: Self.audioFormat, duration: Self.silenceChunkDuration) else {
+            return
+        }
+        for _ in 0..<chunks {
+            let when = AVAudioTime(hostTime: mach_absolute_time())
+            targets.forEach { $0.appendAudio(silence, when: when) }
+        }
+    }
+
+    static func hostSeconds() -> TimeInterval {
+        AVAudioTime.seconds(forHostTime: mach_absolute_time())
     }
 
     private func updateSlateTimer() {
@@ -145,7 +219,6 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
         let targets = outputs.filter { pausedProviders.contains($0.key) }.map(\.value)
         // 송출 크기를 아직 모르면 검은 화면을 만들지 않는다. 다른 크기를 보내면 인코더가 다시 설정된다.
         let dimensions = videoDimensions
-        let format = audioFormat ?? AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)
         lock.unlock()
         guard !targets.isEmpty else { return }
 
@@ -155,7 +228,7 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
             converter.blackSampleBuffer(width: Int($0.width), height: Int($0.height), presentationTime: now)
         }
         conversionLock.unlock()
-        let silence = format.flatMap { Self.silence(format: $0, duration: 1.0 / Double(Self.slateFramesPerSecond)) }
+        let silence = Self.silence(format: Self.audioFormat, duration: 1.0 / Double(Self.slateFramesPerSecond))
         let when = AVAudioTime(hostTime: mach_absolute_time())
         for target in targets {
             if let video { target.appendVideo(video) }

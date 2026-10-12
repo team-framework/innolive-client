@@ -11,6 +11,8 @@ protocol DirectBroadcastPublishing: AnyObject {
     var onStateChange: (() -> Void)? { get set }
     /// 재연결까지 실패해 송출이 끊긴 대상이다. 서버의 플랫폼 방송도 정리해야 한다.
     var onPermanentFailure: ((String) -> Void)? { get set }
+    /// 마이크를 열지 못해 무음으로 송출 중이다.
+    var isMicrophoneUnavailable: Bool { get }
     func start(provider: String, endpoint: DirectIngestEndpoint, quality: CameraQualityPreset) async throws
     func stop(provider: String) async
     func stopAll() async
@@ -52,10 +54,14 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
     static let maximumReconnectAttempts = 3
 
     @Published private(set) var states: [String: DirectPublishState] = [:]
+    @Published private(set) var isMicrophoneUnavailable = false
     var onStateChange: (() -> Void)?
     var onPermanentFailure: ((String) -> Void)?
 
     private let fanout = DirectMediaFanout()
+    private let microphone: any DirectAudioCapturing
+    /// 마이크 녹음을 시작했고 아직 멈추지 않았다. 시작에 실패해도 녹음기는 다시 열기를 시도하므로 멈춰야 한다.
+    private var isMicrophoneActive = false
     private var outputs: [String: RTMPDirectOutput] = [:]
     private var configurations: [String: (endpoint: DirectIngestEndpoint, quality: CameraQualityPreset)] = [:]
     private var generations: [String: UInt] = [:]
@@ -64,6 +70,10 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
 
     var mediaSink: (any DirectMediaSink)? { fanout }
 
+    init(microphone: any DirectAudioCapturing = DirectMicrophoneCapture()) {
+        self.microphone = microphone
+    }
+
     func start(provider: String, endpoint: DirectIngestEndpoint, quality: CameraQualityPreset) async throws {
         await stop(provider: provider)
         if states.isEmpty && outputs.isEmpty {
@@ -71,6 +81,7 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
             fanout.metrics.reset()
             reconnectCounts = [:]
         }
+        startMicrophoneIfNeeded()
         let generation = nextGeneration(provider)
         configurations[provider] = (endpoint, quality)
         setState(.connecting, provider: provider)
@@ -79,6 +90,7 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
         } catch {
             guard generations[provider] == generation else { throw CancellationError() }
             configurations[provider] = nil
+            stopMicrophoneIfIdle()
             setState(nil, provider: provider)
             throw DirectPublishError.connectionFailed(provider: provider)
         }
@@ -90,6 +102,7 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
         configurations[provider] = nil
         fanout.detach(provider: provider)
         let output = outputs.removeValue(forKey: provider)
+        stopMicrophoneIfIdle()
         setState(nil, provider: provider)
         await output?.close()
     }
@@ -108,6 +121,7 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
     }
 
     func heartbeatStatus() async -> DirectPublishStatus {
+        refreshMicrophoneAvailability()
         var targets: [DirectPublishTargetStatus] = []
         for provider in states.keys.sorted() {
             let connected = states[provider] == .publishing || states[provider] == .paused
@@ -136,7 +150,36 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
         )
     }
 
-    static let audioSettings = AudioCodecSettings(bitRate: 128_000)
+    /// 마이크·무음 입력(48kHz 스테레오)과 같은 샘플레이트로 고정한다. 입력이 바뀌어도 AAC 설정은 그대로다.
+    static let audioSettings = AudioCodecSettings(
+        bitRate: 128_000, sampleRate: DirectMediaFanout.audioFormat.sampleRate
+    )
+
+    /// 직접 송출 대상이 하나라도 있는 동안 마이크를 연다. 열지 못하면 송출은 무음으로 이어간다.
+    private func startMicrophoneIfNeeded() {
+        guard !isMicrophoneActive else { return }
+        isMicrophoneActive = true
+        let fanout = fanout
+        isMicrophoneUnavailable = !microphone.start { buffer, when in
+            fanout.appendAudio(buffer, when: when)
+        }
+    }
+
+    private func stopMicrophoneIfIdle() {
+        guard configurations.isEmpty, outputs.isEmpty, isMicrophoneActive else { return }
+        microphone.stop()
+        isMicrophoneActive = false
+        isMicrophoneUnavailable = false
+    }
+
+    /// 하트비트 주기마다 실제로 마이크 음성이 들어오는지로 경고를 고친다. 녹음이 나중에 살아나거나 끊긴 경우다.
+    private func refreshMicrophoneAvailability() {
+        guard isMicrophoneActive else { return }
+        let unavailable = !fanout.isReceivingMicrophone
+        guard unavailable != isMicrophoneUnavailable else { return }
+        isMicrophoneUnavailable = unavailable
+        onStateChange?()
+    }
 
     private func connect(provider: String, endpoint: DirectIngestEndpoint,
                          quality: CameraQualityPreset, generation: UInt) async throws {
@@ -188,6 +231,8 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
             guard let self, self.generations[provider] == reconnectGeneration else { return }
             self.reconnectTasks[provider] = nil
             self.fanout.detach(provider: provider)
+            self.configurations[provider] = nil
+            self.stopMicrophoneIfIdle()
             self.setState(.failed, provider: provider)
             self.onPermanentFailure?(provider)
         }

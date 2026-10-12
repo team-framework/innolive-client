@@ -45,6 +45,18 @@ nonisolated final class RTMPDirectOutput: DirectMediaOutput, @unchecked Sendable
         try await stream.setAudioSettings(audio)
         let statuses = await connection.status
         _ = try await connection.connect(endpoint.connectURL)
+        // HaishinKit은 publish 시점의 입력 형식으로 onMetaData를 만든다. 입력이 없으면 영상·음성 정보가
+        // 빠지므로 같은 형식의 검은 화면과 무음을 먼저 넣는다. publish 전에는 인코더가 돌지 않아 송출되지 않는다.
+        let primingTime = CMClockGetTime(CMClockGetHostTimeClock())
+        if let frame = DirectFrameConverter().blackSampleBuffer(
+            width: Int(video.videoSize.width), height: Int(video.videoSize.height), presentationTime: primingTime
+        ) {
+            await stream.append(frame)
+        }
+        if let silence = DirectMediaFanout.silence(format: DirectMediaFanout.audioFormat,
+                                                   duration: DirectMediaFanout.silenceChunkDuration) {
+            await stream.append(silence, when: AVAudioTime(hostTime: mach_absolute_time()))
+        }
         _ = try await stream.publish(endpoint.streamName)
 
         let stream = stream

@@ -1159,7 +1159,8 @@ final class YouTubeIntegration: ObservableObject {
                 guard generation == sessionOperationGeneration else { return false }
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
-                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled),
+                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled,
+                                                      sendsMicrophoneToServer: !Self.isDirectPublish(session)),
                     accessToken: refreshedAccessToken,
                     serverURL: serverURL,
                     iceServers: iceServers,
@@ -2309,7 +2310,8 @@ final class YouTubeIntegration: ObservableObject {
                         session: WebRTCSessionCredentials(
                             sessionID: session.sessionID,
                             ownerToken: session.ownerToken,
-                            processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled
+                            processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled,
+                            sendsMicrophoneToServer: !Self.isDirectPublish(session)
                         ),
                         accessToken: self.api.currentAccessToken(fallback: accessToken),
                         serverURL: serverURL,
@@ -2504,7 +2506,11 @@ final class YouTubeIntegration: ObservableObject {
     // MARK: 앱 직접 송출 (#481)
 
     /// 서버가 송출하지 않고 앱이 플랫폼으로 직접 보내는 세션이다(server #438).
-    var isDirectPublishSession: Bool { session?.aiProcessing == AIProcessingMode.onDevice.rawValue }
+    var isDirectPublishSession: Bool { session.map(Self.isDirectPublish) ?? false }
+
+    static func isDirectPublish(_ session: YouTubeBroadcastSession) -> Bool {
+        session.aiProcessing == AIProcessingMode.onDevice.rawValue
+    }
 
     var directPublishStates: [String: DirectPublishState] { directPublisher.states }
 
