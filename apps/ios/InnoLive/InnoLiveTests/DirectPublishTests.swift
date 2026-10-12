@@ -225,6 +225,64 @@ final class DirectMediaPipelineTests: XCTestCase {
         XCTAssertFalse(fanout.acceptsMedia)
     }
 
+    func testFanoutKeepsAudioTrackWithRealTimeSilenceWhileMicrophoneIsQuiet() throws {
+        // YouTube는 음성 트랙이 없으면 스트림을 활성으로 보지 않는다(2026-10-12 실기기 broadcast_not_ready).
+        let fanout = DirectMediaFanout()
+        let output = RecordingDirectOutput()
+        fanout.attach(output, provider: "youtube")
+        let started = Date()
+        let filled = expectation(description: "silence")
+        DispatchQueue.global().asyncAfter(deadline: .now() + 1.2) { filled.fulfill() }
+        wait(for: [filled], timeout: 3)
+        let elapsed = Date().timeIntervalSince(started)
+        fanout.detach(provider: "youtube")
+
+        XCTAssertEqual(output.audioFormats, [DirectMediaFanout.audioFormat])
+        // 마이크 음성이 없으면 연결 직후부터 실제 시간만큼 무음을 채워야 음성 시간축이 밀리지 않는다.
+        let seconds = Double(output.silentFrames) / DirectMediaFanout.audioFormat.sampleRate
+        XCTAssertEqual(seconds, elapsed, accuracy: 0.15)
+    }
+
+    func testFanoutDoesNotAddSilenceWhileMicrophoneDelivers() throws {
+        let fanout = DirectMediaFanout()
+        let output = RecordingDirectOutput()
+        fanout.attach(output, provider: "youtube")
+        let format = DirectMediaFanout.audioFormat
+        let tone = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 960))
+        tone.frameLength = 960
+        for channel in 0..<Int(format.channelCount) {
+            tone.floatChannelData?[channel].update(repeating: 0.25, count: 960)
+        }
+        for _ in 0..<40 {
+            fanout.appendAudio(tone, when: AVAudioTime(hostTime: mach_absolute_time()))
+            Thread.sleep(forTimeInterval: 0.02)
+        }
+        fanout.detach(provider: "youtube")
+
+        XCTAssertEqual(output.soundAudioBuffers, 40)
+        XCTAssertEqual(output.silentAudioBuffers, 0)
+    }
+
+    func testResamplerConvertsMicrophoneInputToStereo48kHz() throws {
+        let resampler = DirectAudioResampler()
+        let input = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44_100, channels: 1, interleaved: false))
+        var frames = 0
+        for _ in 0..<10 {
+            let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: input, frameCapacity: 4_410))
+            buffer.frameLength = 4_410
+            buffer.floatChannelData?[0].update(repeating: 0.5, count: 4_410)
+            guard let converted = resampler.convert(buffer) else { continue }
+            XCTAssertEqual(converted.format, DirectAudioResampler.outputFormat)
+            let channels = try XCTUnwrap(converted.floatChannelData)
+            let last = Int(converted.frameLength) - 1
+            XCTAssertEqual(channels[0][last], channels[1][last])
+            XCTAssertEqual(channels[0][last], 0.5, accuracy: 0.05)
+            frames += Int(converted.frameLength)
+        }
+        // 1초 분량 입력은 48,000프레임 근처가 된다. 리샘플러 지연만큼 조금 모자랄 수 있다.
+        XCTAssertEqual(Double(frames), 48_000, accuracy: 600)
+    }
+
     func testSilenceBufferMatchesSlateDuration() throws {
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
         let buffer = try XCTUnwrap(DirectMediaFanout.silence(format: format, duration: 1.0 / 15))
@@ -258,10 +316,16 @@ private final class RecordingDirectOutput: DirectMediaOutput, @unchecked Sendabl
     private let lock = NSLock()
     private var sizes: [CGSize] = []
     private var silence = 0
+    private var silenceFrames = 0
+    private var sound = 0
+    private var formats: [AVAudioFormat] = []
     private var videoHandler: (() -> Void)?
 
     var videoSizes: [CGSize] { lock.withLock { sizes } }
     var silentAudioBuffers: Int { lock.withLock { silence } }
+    var silentFrames: Int { lock.withLock { silenceFrames } }
+    var soundAudioBuffers: Int { lock.withLock { sound } }
+    var audioFormats: [AVAudioFormat] { lock.withLock { formats } }
     var onVideo: (() -> Void)? {
         get { lock.withLock { videoHandler } }
         set { lock.withLock { videoHandler = newValue } }
@@ -283,7 +347,15 @@ private final class RecordingDirectOutput: DirectMediaOutput, @unchecked Sendabl
         let isSilent = buffer.floatChannelData.map { channels in
             (0..<Int(buffer.frameLength)).allSatisfy { channels[0][$0] == 0 }
         } ?? false
-        if isSilent { lock.withLock { silence += 1 } }
+        lock.withLock {
+            if formats.last != buffer.format { formats.append(buffer.format) }
+            if isSilent {
+                silence += 1
+                silenceFrames += Int(buffer.frameLength)
+            } else {
+                sound += 1
+            }
+        }
     }
 }
 
@@ -344,6 +416,48 @@ final class DirectPublishIntegrationTests: XCTestCase {
         let message = try XCTUnwrap(integration.errorMessage)
         XCTAssertFalse(message.contains("fixture-stream-key"))
         XCTAssertFalse(message.contains("rtmp"))
+        integration.reset()
+    }
+
+    func testMissingPrepareIngestStopsTargetInsteadOfWaitingForVideo() async throws {
+        let integration = try makeIntegration(aiProcessing: "on_device", phase: "idle")
+        var prepare = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: ContractTestFixtures.data(named: "broadcast-session-direct-prepare.v1")
+        ) as? [String: Any])
+        prepare.removeValue(forKey: "ingest_url")
+        DirectPublishURLProtocol.responses = [
+            .init(statusCode: 200, data: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
+            .init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: prepare)),
+            .init(statusCode: 200, data: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
+        ]
+
+        let prepared = await integration.prepareYouTubeStream(accessToken: "access-token")
+
+        XCTAssertFalse(prepared)
+        XCTAssertTrue(publisher.started.isEmpty)
+        XCTAssertEqual(DirectPublishURLProtocol.paths.last, "/sessions/session-direct/stream/stop")
+        XCTAssertEqual(integration.errorMessage, DirectPublishError.missingIngest(provider: "youtube").errorDescription)
+        integration.reset()
+    }
+
+    func testGoLiveReportsMissingCHZZKIngest() async throws {
+        let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared", providers: ["chzzk"])
+        var live = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: ContractTestFixtures.data(named: "broadcast-session-direct-golive.v1")
+        ) as? [String: Any])
+        live.removeValue(forKey: "direct_ingest")
+        DirectPublishURLProtocol.responses = [
+            .init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: live)),
+            .init(statusCode: 200, data: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
+        ]
+
+        await integration.goLiveYouTubeStream(accessToken: "access-token")
+
+        XCTAssertTrue(publisher.started.isEmpty)
+        XCTAssertEqual(DirectPublishURLProtocol.requests.last?.url?.query, "provider=chzzk")
+        XCTAssertEqual(DirectPublishURLProtocol.paths.last, "/sessions/session-direct/stream/stop")
+        let message = try XCTUnwrap(integration.errorMessage)
+        XCTAssertTrue(message.contains(try XCTUnwrap(DirectPublishError.missingIngest(provider: "chzzk").errorDescription)))
         integration.reset()
     }
 
