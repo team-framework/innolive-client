@@ -1,0 +1,5 @@
+{
+  "stop_targets": ["chzzk"],
+  "notices": [{ "code": "broadcast_limit_10m", "at": "2026-10-12T08:30:00Z" }],
+  "broadcast_remaining_seconds": 540
+}
