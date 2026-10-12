@@ -507,6 +507,14 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         lock.lock()
         directMediaSink = sink
         lock.unlock()
+        processor.setMetricsHandler(sink.map { sink in
+            { [weak sink] metric in
+                switch metric {
+                case let .inference(milliseconds): sink?.recordInference(milliseconds: milliseconds)
+                case .failure: sink?.recordAnonymizationFailure()
+                }
+            }
+        })
     }
 
     func updateCameraPosition(_ cameraPosition: AVCaptureDevice.Position) {

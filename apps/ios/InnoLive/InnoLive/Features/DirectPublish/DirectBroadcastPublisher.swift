@@ -15,6 +15,21 @@ protocol DirectBroadcastPublishing: AnyObject {
     func stop(provider: String) async
     func stopAll() async
     func setPaused(_ paused: Bool, provider: String)
+    /// 하트비트에 싣는 대상별 연결 상태와 누적 지표다.
+    func heartbeatStatus() async -> DirectPublishStatus
+}
+
+struct DirectPublishTargetStatus: Equatable {
+    let provider: String
+    let connected: Bool
+    /// 송신 대기열에 넘긴 누적 바이트. 연결이 없으면 nil이다.
+    let sentBytes: Int?
+    let reconnects: Int
+}
+
+struct DirectPublishStatus: Equatable {
+    var targets: [DirectPublishTargetStatus] = []
+    var metrics = DirectPublishMetrics.Snapshot()
 }
 
 enum DirectPublishError: LocalizedError, Equatable {
@@ -45,11 +60,17 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
     private var configurations: [String: (endpoint: DirectIngestEndpoint, quality: CameraQualityPreset)] = [:]
     private var generations: [String: UInt] = [:]
     private var reconnectTasks: [String: Task<Void, Never>] = [:]
+    private var reconnectCounts: [String: Int] = [:]
 
     var mediaSink: (any DirectMediaSink)? { fanout }
 
     func start(provider: String, endpoint: DirectIngestEndpoint, quality: CameraQualityPreset) async throws {
         await stop(provider: provider)
+        if states.isEmpty && outputs.isEmpty {
+            // 하트비트 누적값은 세션의 첫 직접 송출부터 센다.
+            fanout.metrics.reset()
+            reconnectCounts = [:]
+        }
         let generation = nextGeneration(provider)
         configurations[provider] = (endpoint, quality)
         setState(.connecting, provider: provider)
@@ -86,6 +107,18 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
         }
     }
 
+    func heartbeatStatus() async -> DirectPublishStatus {
+        var targets: [DirectPublishTargetStatus] = []
+        for provider in states.keys.sorted() {
+            let connected = states[provider] == .publishing || states[provider] == .paused
+            let bytes: Int?
+            if connected, let output = outputs[provider] { bytes = await output.sentByteCount() } else { bytes = nil }
+            targets.append(.init(provider: provider, connected: connected, sentBytes: bytes,
+                                 reconnects: reconnectCounts[provider] ?? 0))
+        }
+        return DirectPublishStatus(targets: targets, metrics: fanout.metrics.drain())
+    }
+
     static func videoSettings(quality: CameraQualityPreset, dimensions: CMVideoDimensions?) -> VideoCodecSettings {
         let size = dimensions.map { CGSize(width: Int($0.width), height: Int($0.height)) }
             ?? CGSize(width: Int(quality.width), height: Int(quality.height))
@@ -107,7 +140,7 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
 
     private func connect(provider: String, endpoint: DirectIngestEndpoint,
                          quality: CameraQualityPreset, generation: UInt) async throws {
-        let output = RTMPDirectOutput { [weak self] in
+        let output = RTMPDirectOutput(metrics: fanout.metrics) { [weak self] in
             Task { @MainActor [weak self] in self?.handleDisconnect(provider: provider, generation: generation) }
         }
         do {
@@ -135,6 +168,7 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
         fanout.detach(provider: provider)
         if paused { fanout.setPaused(true, provider: provider) }
         let previous = outputs.removeValue(forKey: provider)
+        reconnectCounts[provider, default: 0] += 1
         setState(.reconnecting, provider: provider)
         let reconnectGeneration = nextGeneration(provider)
         reconnectTasks[provider] = Task { @MainActor [weak self] in

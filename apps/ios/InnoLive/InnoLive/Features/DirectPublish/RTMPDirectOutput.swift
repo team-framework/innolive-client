@@ -27,8 +27,10 @@ nonisolated final class RTMPDirectOutput: DirectMediaOutput, @unchecked Sendable
     private var lastVideoTime = CMTime.negativeInfinity
     private var tasks: [Task<Void, Never>] = []
     private let onDisconnect: @Sendable () -> Void
+    private let metrics: DirectPublishMetrics?
 
-    init(onDisconnect: @escaping @Sendable () -> Void) {
+    init(metrics: DirectPublishMetrics? = nil, onDisconnect: @escaping @Sendable () -> Void) {
+        self.metrics = metrics
         // 치지직 등 확장 RTMP를 모르는 서버와도 연결되도록 E-RTMP 연결 인자를 보내지 않는다.
         // H.264·AAC만 쓰므로 확장 코덱 협상은 필요 없다.
         connection = RTMPConnection(fourCcList: nil, videoFourCcInfoMap: nil, audioFourCcInfoMap: nil, capsEx: 0)
@@ -86,13 +88,24 @@ nonisolated final class RTMPDirectOutput: DirectMediaOutput, @unchecked Sendable
         let time = sampleBuffer.presentationTimeStamp
         lock.lock()
         // RTMP 타임스탬프는 증가해야 한다. 늦게 도착한 프레임은 버린다.
-        guard isOpen, time > lastVideoTime else {
+        guard isOpen else {
             lock.unlock()
+            return
+        }
+        guard time > lastVideoTime else {
+            lock.unlock()
+            metrics?.recordDroppedFrame()
             return
         }
         lastVideoTime = time
         lock.unlock()
-        videoContinuation.yield(sampleBuffer)
+        // 인코더가 밀리면 가장 오래된 프레임을 버린다. 버린 수는 하트비트 드롭에 더한다.
+        if case .dropped = videoContinuation.yield(sampleBuffer) { metrics?.recordDroppedFrame() }
+    }
+
+    /// 송신 대기열에 넘긴 누적 바이트다. 하트비트 비트레이트 계산에 쓴다.
+    func sentByteCount() async -> Int {
+        await stream.info.byteCount
     }
 
     func appendAudio(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) {

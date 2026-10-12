@@ -8,6 +8,8 @@ nonisolated protocol DirectMediaSink: AnyObject, Sendable {
     var acceptsMedia: Bool { get }
     func appendVideo(pixelBuffer: CVPixelBuffer, rotation: Int, timestampNs: Int64)
     func appendAudio(_ buffer: AVAudioPCMBuffer, when: AVAudioTime)
+    func recordInference(milliseconds: Double)
+    func recordAnonymizationFailure()
 }
 
 /// RTMP 연결 하나가 받는 미디어다.
@@ -22,6 +24,7 @@ nonisolated protocol DirectMediaOutput: AnyObject, Sendable {
 nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable {
     static let slateFramesPerSecond = 15
 
+    let metrics = DirectPublishMetrics()
     private let lock = NSLock()
     private let conversionLock = NSLock()
     private let converter = DirectFrameConverter()
@@ -87,8 +90,22 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
         conversionLock.lock()
         let sample = converter.sampleBuffer(from: pixelBuffer, rotation: rotation, presentationTime: presentationTime)
         conversionLock.unlock()
-        guard let sample else { return }
+        guard let sample else {
+            metrics.recordDroppedFrame()
+            return
+        }
+        metrics.recordVideoFrame(width: Int(dimensions.width), height: Int(dimensions.height))
         targets.forEach { $0.appendVideo(sample) }
+    }
+
+    func recordInference(milliseconds: Double) {
+        guard acceptsMedia else { return }
+        metrics.recordInference(milliseconds: milliseconds)
+    }
+
+    func recordAnonymizationFailure() {
+        guard acceptsMedia else { return }
+        metrics.recordAnonymizationFailure()
     }
 
     func appendAudio(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) {
