@@ -22,6 +22,15 @@ internal class IngestUrl private constructor(private val value: String) {
         private const val RTMP_PREFIX = "rtmp://"
         private const val RTMPS_PREFIX = "rtmps://"
 
+        // 호스트 이름·IPv4 또는 대괄호 IPv6와 선택적 포트만 허용합니다. 사용자 정보와 쿼리는 받지 않습니다.
+        private val AUTHORITY = Regex("""^(?:\[[0-9A-Fa-f:.]+]|[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)(?::([0-9]{1,5}))?$""")
+
+        private fun isValidAuthority(authority: String): Boolean {
+            val match = AUTHORITY.matchEntire(authority) ?: return false
+            val port = match.groupValues[1]
+            return port.isEmpty() || port.toInt() in 1..65_535
+        }
+
         /**
          * 서버 응답 값을 검증합니다. 실패 메시지와 원인에도 입력 값을 싣지 않으려고
          * URI 파서를 쓰지 않습니다.
@@ -35,9 +44,9 @@ internal class IngestUrl private constructor(private val value: String) {
                 else -> throw IllegalArgumentException("ingest URL이 RTMP(S) 주소가 아닙니다.")
             }
             require(text.none(Char::isWhitespace)) { "ingest URL 형식이 올바르지 않습니다." }
-            val host = rest.substringBefore('/')
+            val authority = rest.substringBefore('/')
             val path = rest.substringAfter('/', missingDelimiterValue = "")
-            require(host.isNotEmpty() && path.isNotEmpty() && !path.endsWith('/')) {
+            require(isValidAuthority(authority) && path.isNotEmpty() && !path.endsWith('/')) {
                 "ingest URL 형식이 올바르지 않습니다."
             }
             return IngestUrl(text)
