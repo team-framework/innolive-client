@@ -82,6 +82,7 @@ extension WebRTCVideoUplink {
         self.peerConnection = peerConnection
         audioSender = audioTransceiver.sender
         videoSender = transceiver.sender
+        if isDirectPublishBitrateLimited { applyDirectPublishBitrateLimit() }
     }
 
     func createAndSendOffer() {
