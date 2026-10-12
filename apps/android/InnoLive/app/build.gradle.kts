@@ -1,8 +1,11 @@
 import java.util.Properties
 
 plugins {
-    alias(libs.plugins.android.application)
+    // AGP 버전은 buildSrc 의존성(libs.versions.toml의 agp)으로 정합니다.
+    id("com.android.application")
     alias(libs.plugins.kotlin.compose)
+    // RootEncoder 로그의 스트림 키 노출을 막습니다(buildSrc/RedactLibraryLogsPlugin.kt).
+    id("innolive.redact-library-logs")
 }
 
 val localProperties = Properties()
