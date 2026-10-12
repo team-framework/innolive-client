@@ -45,22 +45,36 @@ internal class DirectPublishApi(
     @Volatile
     private var accessToken: String = accessToken.trim().also { require(it.isNotEmpty()) }
 
-    /** 409 `session_already_exists`는 [ServerApiException]으로 전달합니다. 기존 세션 정리는 호출자가 맡습니다. */
+    /**
+     * 409 `session_already_exists`는 [ServerApiException]으로 전달합니다. 기존 세션 정리는 호출자가 맡습니다.
+     * 만들어진 세션을 쓸 수 없으면 owner token이 이 응답에만 있으므로 바로 삭제하고
+     * [DirectSessionRejectedException]을 던집니다.
+     */
     fun createSession(provider: BroadcastProvider, resolution: DirectPublishResolution): CreatedSession {
         val body = buildDirectSessionRequest(provider, resolution)
-        val payload = execute("create_session", request("/sessions").post(body.toJsonBody()))
+        val payload = execute("create_session", sessionsRequest().post(body.toJsonBody()))
         val created = parseCreatedSession(payload)
-        // 최상위 ai_processing을 모르는 서버는 server 세션을 만듭니다. 서버 송출 세션으로 직접 송출하지 않습니다.
-        check(JSONObject(payload).optString("ai_processing") == ON_DEVICE_PROCESSING) {
-            "서버가 온디바이스 세션을 만들지 않았습니다."
+        val rejection = when {
+            // 최상위 ai_processing을 모르는 서버는 server 세션을 만듭니다. 서버 송출 세션으로 직접 송출하지 않습니다.
+            JSONObject(payload).optString("ai_processing") != ON_DEVICE_PROCESSING -> "서버가 온디바이스 세션을 만들지 않았습니다."
+            created.provider != provider -> "서버가 다른 방송 플랫폼의 세션을 생성했습니다."
+            else -> return created
         }
-        check(created.provider == provider) { "서버가 다른 방송 플랫폼의 세션을 생성했습니다." }
-        return created
+        val uncleaned = try {
+            deleteSession(created)
+            null
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            created
+        }
+        throw DirectSessionRejectedException(rejection, uncleaned)
     }
 
     fun saveYouTubeSettings(session: CreatedSession, settings: BroadcastSettings) {
         requireNotNull(settings.madeForKids) { "made_for_kids가 필요합니다." }
-        execute("broadcast_settings", sessionRequest(session, "broadcast")
+        // 생략하면 서버는 세션 기본 플랫폼으로 해석합니다. 치지직 세션에 YouTube 대상을 더할 때도 YouTube 설정으로 읽게 합니다.
+        execute("broadcast_settings", sessionRequest(session, "broadcast", BroadcastProvider.YOUTUBE)
             .put(buildBroadcastSettingsPayload(settings).toJsonBody()))
     }
 
@@ -123,12 +137,15 @@ internal class DirectPublishApi(
         }
         return try {
             executeAuthenticated("heartbeat", request).use { response ->
+                // 상태 코드만으로 종료가 확정됩니다. 본문 전송이 끊겨도 재시도로 바꾸지 않습니다.
+                when (response.code) {
+                    404 -> return@use HeartbeatResult.StopAll(HeartbeatStopReason.SESSION_GONE)
+                    403 -> return@use HeartbeatResult.StopAll(HeartbeatStopReason.OWNERSHIP_LOST)
+                }
                 val payload = response.body.string()
                 if (response.isSuccessful) return@use parseHeartbeatAccepted(payload)
                 val error = parseServerApiException(payload, response.code)
                 when {
-                    response.code == 404 -> HeartbeatResult.StopAll(HeartbeatStopReason.SESSION_GONE)
-                    response.code == 403 -> HeartbeatResult.StopAll(HeartbeatStopReason.OWNERSHIP_LOST)
                     response.code == 409 && error.code == "heartbeat_not_applicable" ->
                         HeartbeatResult.StopAll(HeartbeatStopReason.NOT_APPLICABLE)
                     response.code == 400 -> HeartbeatResult.Invalid(error.field)
@@ -152,15 +169,17 @@ internal class DirectPublishApi(
         client.dispatcher.cancelAll()
     }
 
-    private fun request(path: String): Request.Builder =
-        Request.Builder().url(checkNotNull(baseUrl.resolve(path)))
+    /** 서버 주소에 경로가 있어도 모든 요청이 같은 기준 경로 아래 `sessions`를 씁니다. */
+    private fun sessionsUrl(): HttpUrl.Builder = baseUrl.newBuilder().addPathSegment("sessions")
+
+    private fun sessionsRequest(): Request.Builder = Request.Builder().url(sessionsUrl().build())
 
     private fun sessionRequest(
         session: CreatedSession,
         path: String?,
         provider: BroadcastProvider? = null,
     ): Request.Builder {
-        val url = baseUrl.newBuilder().addPathSegment("sessions").addPathSegment(session.sessionId).apply {
+        val url = sessionsUrl().addPathSegment(session.sessionId).apply {
             path?.split('/')?.forEach(::addPathSegment)
             provider?.let { addQueryParameter("provider", it.wireValue) }
         }.build()
@@ -204,3 +223,12 @@ internal class DirectPublishApi(
         val JSON_MEDIA_TYPE = "application/json".toMediaType()
     }
 }
+
+/**
+ * 서버가 세션을 만들었지만 직접 송출에 쓸 수 없어 거부했습니다. 삭제에 실패하면
+ * [uncleanedSession]으로 owner token을 넘기므로 호출자가 정리 저장소에 보관해 다음에 지웁니다.
+ */
+internal class DirectSessionRejectedException(
+    message: String,
+    val uncleanedSession: CreatedSession?,
+) : IllegalStateException(message)

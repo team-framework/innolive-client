@@ -12,11 +12,17 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.BufferedSource
+import okio.Source
+import okio.Timeout
+import okio.buffer
 import okio.Buffer
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -31,8 +37,10 @@ class DirectPublishApiTest {
     private var refreshCount = 0
     private var refreshFailure: Exception? = null
 
-    private val api = DirectPublishApi(
-        serverUrl = "https://api.example.test/",
+    private val api = newApi("https://api.example.test/")
+
+    private fun newApi(serverUrl: String) = DirectPublishApi(
+        serverUrl = serverUrl,
         accessToken = "access-1",
         refreshAccessToken = {
             refreshCount++
@@ -51,6 +59,22 @@ class DirectPublishApiTest {
         responses += { request ->
             Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("")
                 .body(body.toResponseBody("application/json".toMediaType())).build()
+        }
+    }
+
+    /** 상태 줄과 헤더는 받았지만 본문 전송이 끊긴 응답입니다. */
+    private fun respondWithBrokenBody(code: Int) {
+        responses += { request ->
+            val body = object : ResponseBody() {
+                override fun contentType() = "application/json".toMediaType()
+                override fun contentLength() = -1L
+                override fun source(): BufferedSource = object : Source {
+                    override fun read(sink: Buffer, byteCount: Long): Long = throw IOException("unexpected end of stream")
+                    override fun timeout() = Timeout.NONE
+                    override fun close() = Unit
+                }.buffer()
+            }
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(code).message("").body(body).build()
         }
     }
 
@@ -89,6 +113,7 @@ class DirectPublishApiTest {
 
     @Test fun createSessionRejectsServerModeSessions() {
         respond(201, """{"session_id":"s","owner_token":"o","provider":"youtube","ai_processing":"server"}""")
+        respond(204, "")
         assertThrows(IllegalStateException::class.java) {
             api.createSession(BroadcastProvider.YOUTUBE, DirectPublishResolution.HD_720)
         }
@@ -218,6 +243,60 @@ class DirectPublishApiTest {
         assertEquals(HeartbeatResult.Accepted(emptyList(), emptyList(), null), api.heartbeat(session, value))
         val anonymization = requests.single().json().getJSONObject("anonymization")
         assertEquals(listOf("failed_frames"), anonymization.keys().asSequence().toList())
+    }
+
+    @Test fun youTubeSettingsTargetYouTubeEvenInChzzkSession() {
+        respond(200)
+        val chzzkSession = session.copy(provider = BroadcastProvider.CHZZK)
+        api.saveYouTubeSettings(chzzkSession, BroadcastSettings("t", "", "unlisted", false, "22"))
+        val request = requests.single()
+        assertEquals("/sessions/session-1/broadcast", request.url.encodedPath)
+        assertEquals("youtube", request.url.queryParameter("provider"))
+    }
+
+    @Test fun heartbeatStopsOnOwnershipLossOrMissingSessionEvenIfBodyFails() {
+        respondWithBrokenBody(404)
+        assertEquals(HeartbeatResult.StopAll(HeartbeatStopReason.SESSION_GONE), api.heartbeat(session, heartbeat))
+        respondWithBrokenBody(403)
+        assertEquals(HeartbeatResult.StopAll(HeartbeatStopReason.OWNERSHIP_LOST), api.heartbeat(session, heartbeat))
+        respondWithBrokenBody(409)
+        assertEquals(HeartbeatResult.RetryLater, api.heartbeat(session, heartbeat))
+    }
+
+    @Test fun rejectedCreatedSessionIsDeleted() {
+        respond(201, """{"session_id":"s","owner_token":"o","provider":"youtube","ai_processing":"server"}""")
+        respond(204, "")
+        val exception = assertThrows(DirectSessionRejectedException::class.java) {
+            api.createSession(BroadcastProvider.YOUTUBE, DirectPublishResolution.HD_720)
+        }
+        assertNull(exception.uncleanedSession)
+        val delete = requests.last()
+        assertEquals("DELETE", delete.method)
+        assertEquals("/sessions/s", delete.url.encodedPath)
+        assertEquals("o", delete.header("X-Session-Owner-Token"))
+    }
+
+    @Test fun rejectedSessionIsHandedToCallerWhenDeleteFails() {
+        respond(201, """{"session_id":"s","owner_token":"o","provider":"chzzk","ai_processing":"on_device"}""")
+        fail(IOException("offline"))
+        val exception = assertThrows(DirectSessionRejectedException::class.java) {
+            api.createSession(BroadcastProvider.YOUTUBE, DirectPublishResolution.HD_720)
+        }
+        assertEquals("s", exception.uncleanedSession?.sessionId)
+        assertEquals("o", exception.uncleanedSession?.ownerToken)
+        assertFalse(exception.message.orEmpty().contains("o\""))
+    }
+
+    @Test fun allRequestsShareServerBasePath() {
+        val prefixed = newApi("https://api.example.test/api/v1/")
+        respond(201, """{"session_id":"s","owner_token":"o","provider":"youtube","ai_processing":"on_device"}""")
+        prefixed.createSession(BroadcastProvider.YOUTUBE, DirectPublishResolution.HD_720)
+        respond(200, """{"stream":{"broadcast_phase":"idle"}}""")
+        prefixed.stop(session, BroadcastProvider.YOUTUBE)
+        assertEquals(
+            listOf("/api/v1/sessions", "/api/v1/sessions/session-1/stream/stop"),
+            requests.map { it.url.encodedPath },
+        )
     }
 
     @Test fun rejectsCleartextServer() {
