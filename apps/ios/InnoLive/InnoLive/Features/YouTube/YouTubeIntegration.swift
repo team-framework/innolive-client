@@ -1470,9 +1470,9 @@ final class YouTubeIntegration: ObservableObject {
             guard !useEditor || settingsEditor.contextGeneration == editorGeneration else { return false }
             guard applySessionResponse(preparedSnapshot, sessionID: session.sessionID, generation: generation, provider: provider.rawValue, clearsWarnings: true) else { return false }
             // YouTube는 라이브 전환 전에 영상이 도착해야 하므로 준비 응답의 주소로 바로 송출한다.
-            if isDirectPublishSession, let endpoint = preparedSnapshot.ingestEndpoint {
-                guard await startDirectPublish(provider: provider.rawValue, endpoint: endpoint, session: session,
-                                               accessToken: accessToken, generation: generation) else { return false }
+            if isDirectPublishSession, !Self.receivesDirectIngestAtGoLive(provider.rawValue) {
+                guard await startDirectPublish(provider: provider.rawValue, endpoint: preparedSnapshot.ingestEndpoint,
+                                               session: session, accessToken: accessToken, generation: generation) else { return false }
             }
             return true
         } catch {
@@ -1858,12 +1858,21 @@ final class YouTubeIntegration: ObservableObject {
             // 치지직은 연결하는 순간 공개 방송이 되므로 라이브 전환 응답의 주소로 이때 연결한다.
             var directFailures: [String] = []
             if isDirectPublishSession {
-                for target in liveResponse.directIngest {
-                    guard let endpoint = target.endpoint else { continue }
-                    let started = await startDirectPublish(provider: target.provider, endpoint: endpoint, session: session,
+                let failedProviders = Set(liveResponse.details.failedTargets.map(\.provider))
+                var endpoints: [String: DirectIngestEndpoint?] = [:]
+                for target in liveResponse.directIngest where endpoints[target.provider] == nil {
+                    endpoints[target.provider] = target.endpoint
+                }
+                // 라이브로 전환됐는데 주소가 없거나 쓸 수 없는 대상도 실패로 알린다. 이미 송출 중인 대상은 다시 연결하지 않는다.
+                let expected = attemptedProviders.filter { Self.receivesDirectIngestAtGoLive($0) && !failedProviders.contains($0) }
+                let providers = Set(endpoints.keys).union(expected)
+                    .filter { directPublisher.states[$0] == nil }
+                    .sorted()
+                for provider in providers {
+                    let started = await startDirectPublish(provider: provider, endpoint: endpoints[provider] ?? nil, session: session,
                                                            accessToken: accessToken, generation: sessionGeneration)
                     guard isCurrentBroadcastOperation(operationGeneration) else { return }
-                    if !started { directFailures.append(errorMessage ?? DirectPublishError.connectionFailed(provider: target.provider).localizedDescription) }
+                    if !started { directFailures.append(errorMessage ?? DirectPublishError.connectionFailed(provider: provider).localizedDescription) }
                 }
             }
             if !liveResponse.details.failedTargets.isEmpty {
@@ -2514,10 +2523,17 @@ final class YouTubeIntegration: ObservableObject {
 
     var directPublishStates: [String: DirectPublishState] { directPublisher.states }
 
-    private func startDirectPublish(provider: String, endpoint: DirectIngestEndpoint, session: YouTubeBroadcastSession,
+    /// 치지직은 RTMP 연결이 곧 공개 방송이라 서버가 라이브 전환 응답에서 주소를 준다. 나머지는 준비 응답에서 준다.
+    static func receivesDirectIngestAtGoLive(_ provider: String) -> Bool {
+        provider == BroadcastSettingsProvider.chzzk.rawValue
+    }
+
+    /// 주소가 없으면 송출을 시작하지 않고 실패로 처리한다. 영상 없이 남은 플랫폼 방송은 서버에서 정리한다.
+    private func startDirectPublish(provider: String, endpoint: DirectIngestEndpoint?, session: YouTubeBroadcastSession,
                                     accessToken: String, generation: UInt) async -> Bool {
         let quality = videoConnectionConfiguration?.preferredVideoQuality ?? .defaultValue
         do {
+            guard let endpoint else { throw DirectPublishError.missingIngest(provider: provider) }
             try await directPublisher.start(provider: provider, endpoint: endpoint, quality: quality)
             guard generation == sessionOperationGeneration, self.session?.sessionID == session.sessionID else {
                 await directPublisher.stop(provider: provider)

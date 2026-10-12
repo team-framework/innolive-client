@@ -36,12 +36,16 @@ struct DirectPublishStatus: Equatable {
 
 enum DirectPublishError: LocalizedError, Equatable {
     case connectionFailed(provider: String)
+    /// 직접 송출 세션인데 서버 응답에 쓸 수 있는 ingest 주소가 없다.
+    case missingIngest(provider: String)
 
     var errorDescription: String? {
+        let title: (String) -> String = { BroadcastSettingsProvider(rawValue: $0)?.title ?? $0 }
         switch self {
         case let .connectionFailed(provider):
-            let title = BroadcastSettingsProvider(rawValue: provider)?.title ?? provider
-            return String(format: String(localized: "%@ 송출 서버에 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.", table: "DirectPublish"), title)
+            return String(format: String(localized: "%@ 송출 서버에 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.", table: "DirectPublish"), title(provider))
+        case let .missingIngest(provider):
+            return String(format: String(localized: "서버에서 %@ 송출 주소를 받지 못해 방송을 시작하지 않았습니다.", table: "DirectPublish"), title(provider))
         }
     }
 }

@@ -88,6 +88,28 @@
           }
         }
       }
+    },
+    "서버에서 %@ 송출 주소를 받지 못해 방송을 시작하지 않았습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에서 %@ 송출 주소를 받지 못해 방송을 시작하지 않았습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server did not provide a %@ ingest address, so the broadcast was not started."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーから%@の配信先アドレスを受け取れなかったため、配信を開始しませんでした。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
