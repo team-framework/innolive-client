@@ -37,6 +37,9 @@
 - YouTube는 음성 트랙이 없으면 스트림을 활성으로 보지 않아 라이브 전환을 `broadcast_not_ready`로
   거절한다(2026-10-12 실기기). 마이크 음성이 0.3초 넘게 없으면 그 구간을 무음으로 채운다.
   마이크를 열지 못하면 무음으로 송출하고 방송 화면에 경고를 띄운다.
+- 일시 중지·백그라운드 화면은 서버 모드와 같은 안내 화면이다. 서버 에셋
+  (`internal/media/assets/cancel-*.png`)을 `Resources/DirectPublishPause*.png`로 복사해 쓴다.
+  서버에서 문구·디자인을 바꾸면 이 파일도 함께 바꾼다.
 - HaishinKit 로그는 trace 단계에서만 RTMP 명령을 출력한다. 앱은 기본 info 단계를 바꾸지 않는다.
   `RTMPStreamInfo.resourceName`에는 스트림 키가 들어 있으므로 출력하지 않는다.
 - 라이브 중에는 15초마다 서버에 하트비트를 보낸다. 서버가 한도·입력 없음으로 끝낸 대상은
