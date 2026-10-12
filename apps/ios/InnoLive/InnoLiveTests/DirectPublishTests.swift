@@ -283,6 +283,30 @@ final class DirectMediaPipelineTests: XCTestCase {
         XCTAssertEqual(Double(frames), 48_000, accuracy: 600)
     }
 
+    func testPauseSlateUsesServerPauseScreenForFrameOrientation() throws {
+        let converter = DirectFrameConverter()
+        for (width, height) in [(720, 1280), (1280, 720)] {
+            let sample = try XCTUnwrap(converter.pauseSlateSampleBuffer(width: width, height: height, presentationTime: .zero))
+            let pixels = try XCTUnwrap(CMSampleBufferGetImageBuffer(sample))
+            XCTAssertEqual(CVPixelBufferGetWidth(pixels), width)
+            XCTAssertEqual(CVPixelBufferGetHeight(pixels), height)
+            XCTAssertEqual(CVPixelBufferGetPixelFormatType(pixels), kCVPixelFormatType_32BGRA)
+            // 서버 화면은 검은 바탕 가운데에 로고와 "스트리머가 방송을 일시 중지했습니다." 문구가 있다.
+            XCTAssertEqual(try brightPixels(in: pixels, rows: 0..<Int(Double(height) * 0.3)), 0)
+            XCTAssertGreaterThan(try brightPixels(in: pixels, rows: Int(Double(height) * 0.4)..<Int(Double(height) * 0.6)), 500)
+        }
+    }
+
+    func testPauseSlateCropMatchesServerCenterCrop() {
+        typealias Converter = DirectFrameConverter
+        XCTAssertEqual(Converter.pauseSlateCropRect(sourceWidth: 1080, sourceHeight: 1920, targetWidth: 720, targetHeight: 1280),
+                       CGRect(x: 0, y: 0, width: 1080, height: 1920))
+        XCTAssertEqual(Converter.pauseSlateCropRect(sourceWidth: 1080, sourceHeight: 1920, targetWidth: 32, targetHeight: 64),
+                       CGRect(x: 60, y: 0, width: 960, height: 1920))
+        XCTAssertEqual(Converter.pauseSlateCropRect(sourceWidth: 1920, sourceHeight: 1080, targetWidth: 2560, targetHeight: 1080),
+                       CGRect(x: 0, y: 135, width: 1920, height: 810))
+    }
+
     func testSilenceBufferMatchesSlateDuration() throws {
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1))
         let buffer = try XCTUnwrap(DirectMediaFanout.silence(format: format, duration: 1.0 / 15))
@@ -301,6 +325,21 @@ final class DirectMediaPipelineTests: XCTestCase {
         let hd = DirectBroadcastPublisher.videoSettings(quality: .hd24, dimensions: nil)
         XCTAssertEqual(hd.videoSize, CGSize(width: 1280, height: 720))
         XCTAssertEqual(hd.bitRate, 3_500_000)
+    }
+
+    private func brightPixels(in buffer: CVPixelBuffer, rows: Range<Int>) throws -> Int {
+        CVPixelBufferLockBaseAddress(buffer, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+        let base = try XCTUnwrap(CVPixelBufferGetBaseAddress(buffer)).assumingMemoryBound(to: UInt8.self)
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+        var count = 0
+        for row in rows {
+            for column in 0..<CVPixelBufferGetWidth(buffer) {
+                let pixel = base + row * bytesPerRow + column * 4
+                if pixel[0] > 200, pixel[1] > 200, pixel[2] > 200 { count += 1 }
+            }
+        }
+        return count
     }
 
     private func makePixelBuffer(width: Int, height: Int) throws -> CVPixelBuffer {
