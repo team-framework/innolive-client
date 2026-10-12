@@ -28,6 +28,8 @@ data class SessionSnapshot(
     val warnings: List<SessionNotice>? = null,
     val broadcastResolution: String? = null,
     val isRemainingTimeStale: Boolean = false,
+    /** 이 세션에서 마지막으로 받은 남은 시간 숫자. 송출이 멈춘 뒤 null이 와도 표시를 유지하는 데 쓴다. */
+    val lastRemainingSeconds: Long? = null,
 ) {
     val visibleTargets: List<SessionTarget>
         get() = targets.orEmpty().filter { it.broadcastPhase != "idle" }
@@ -117,6 +119,8 @@ internal fun parseSessionSnapshot(
             (response.isNull("broadcast_remaining_seconds") || response.nonNegativeInteger("broadcast_remaining_seconds") != null)) {
             false
         } else previous.isRemainingTimeStale,
+        // 응답에 숫자가 실렸을 때만 갱신한다. 필드가 없거나 null이면 이 세션의 마지막 숫자를 유지한다.
+        lastRemainingSeconds = response.nonNegativeInteger("broadcast_remaining_seconds") ?: previous.lastRemainingSeconds,
     )
 }
 
