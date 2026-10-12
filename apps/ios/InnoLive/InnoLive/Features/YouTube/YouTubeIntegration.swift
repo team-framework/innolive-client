@@ -1870,10 +1870,11 @@ final class YouTubeIntegration: ObservableObject {
                 for target in liveResponse.directIngest where endpoints[target.provider] == nil {
                     endpoints[target.provider] = target.endpoint
                 }
-                // 라이브로 전환됐는데 주소가 없거나 쓸 수 없는 대상도 실패로 알린다. 이미 송출 중인 대상은 다시 연결하지 않는다.
-                let expected = attemptedProviders.filter { Self.receivesDirectIngestAtGoLive($0) && !failedProviders.contains($0) }
+                // 라이브로 전환됐는데 주소가 없거나 쓸 수 없는 대상도 실패로 알린다. 이미 송출 중인 대상과
+                // 라이브 전환에 실패한 대상(failed_targets)은 연결하지 않는다.
+                let expected = attemptedProviders.filter { Self.receivesDirectIngestAtGoLive($0) }
                 let providers = Set(endpoints.keys).union(expected)
-                    .filter { directPublisher.states[$0] == nil }
+                    .filter { directPublisher.states[$0] == nil && !failedProviders.contains($0) }
                     .sorted()
                 for provider in providers {
                     let started = await startDirectPublish(provider: provider, endpoint: endpoints[provider] ?? nil, session: session,
