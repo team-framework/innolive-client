@@ -188,6 +188,11 @@ class PlanUsageScreenTest {
         composeRule.onNodeWithText("00:00:00", useUnmergedTree = true).assertExists()
         composeRule.onNodeWithText("11:55:00", useUnmergedTree = true).assertExists()
         saveScreenshot("broadcast-time-after-stop.png")
+        // 이후 폴링에서 서버가 null을 보내도 같은 세션의 마지막 남은 시간을 유지한다.
+        composeRule.runOnIdle {
+            snapshot = snapshot?.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive, lastRemainingSeconds = 42_900)
+        }
+        composeRule.onNodeWithText("11:55:00", useUnmergedTree = true).assertExists()
         // 새 세션: 서버가 다시 12시간을 보낸다.
         composeRule.runOnIdle { snapshot = SessionSnapshot("s2", remainingTime = BroadcastRemainingTime.Seconds(43_200)) }
         composeRule.onNodeWithText("12:00:00", useUnmergedTree = true).assertExists()

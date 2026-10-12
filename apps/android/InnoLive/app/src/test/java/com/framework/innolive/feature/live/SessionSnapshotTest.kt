@@ -40,6 +40,16 @@ class SessionSnapshotTest {
         }
     }
 
+    @Test fun lastRemainingSecondsSurvivesNullWithinTheSameSession() {
+        val live = parseSessionSnapshot("""{"broadcast_remaining_seconds":42900}""", "s")
+        val stopped = parseSessionSnapshot("""{"broadcast_remaining_seconds":null}""", "s", live)
+
+        assertEquals(BroadcastRemainingTime.UnlimitedOrInactive, stopped.remainingTime)
+        assertEquals(42_900L, stopped.lastRemainingSeconds)
+        // 새 세션은 이전 세션의 값을 이어받지 않는다.
+        assertEquals(null, parseSessionSnapshot("""{"broadcast_remaining_seconds":null}""", "s2").lastRemainingSeconds)
+    }
+
     @Test fun sessionAndPrepareWarningsExposeEachCodeOnce() {
         val prepared = parseSessionSnapshot(
             """{"notices":[{"code":"youtube_quota_low","at":"2026-09-30T00:00:00Z"}],
