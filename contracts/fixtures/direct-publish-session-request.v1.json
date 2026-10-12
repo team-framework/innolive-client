@@ -1,0 +1,5 @@
+{
+  "provider": "youtube",
+  "ai_processing": "on_device",
+  "broadcast_resolution": "720p"
+}
