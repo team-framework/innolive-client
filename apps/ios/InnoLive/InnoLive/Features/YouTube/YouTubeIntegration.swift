@@ -2458,10 +2458,12 @@ final class YouTubeIntegration: ObservableObject {
                 backgroundPausedProviders.remove(key)
                 continue
             }
-            // 치지직은 앱이 연결을 끊어야 방송이 끝난다. 서버 응답과 관계없이 송출을 닫는다.
-            if action == .stop, directPublisher.states[key] != nil { await directPublisher.stop(provider: key) }
+            // 공유 계약(direct-publish-v1) 순서대로 stop 요청 뒤 연결을 끊는다. 요청이 실패해도 끊는다.
+            // 치지직은 앱이 연결을 끊어야 방송이 끝난다.
+            let closesDirectPublish = action == .stop && directPublisher.states[key] != nil
             do {
                 let response = try await api.streamAction(action, session: session, accessToken: accessToken, provider: provider)
+                if closesDirectPublish { await directPublisher.stop(provider: key) }
                 guard isCurrentBroadcastOperation(operationGeneration) else { return }
                 let normalized = action == .stop && !response.isFullSnapshot ? YouTubeSessionResponse(
                     stream: response.stream.markedStoppedByUser(), media: response.media,
@@ -2471,6 +2473,7 @@ final class YouTubeIntegration: ObservableObject {
                 backgroundPausedProviders.remove(key)
                 if action == .stop { liveStartFailures.removeAll { $0.provider == key } }
             } catch {
+                if closesDirectPublish { await directPublisher.stop(provider: key) }
                 guard generation == sessionOperationGeneration, isCurrentBroadcastOperation(operationGeneration) else { return }
                 handle(error)
                 let title = BroadcastSettingsProvider(rawValue: key)?.title ?? key
