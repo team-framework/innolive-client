@@ -5,7 +5,9 @@ import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.SessionNotice
 import com.framework.innolive.feature.live.parseBroadcastState
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
+import java.io.IOException
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -167,7 +169,23 @@ internal fun buildHeartbeatPayload(heartbeat: DirectHeartbeat): JSONObject {
         .put("model", heartbeat.model.trim())
 }
 
-internal fun parseDirectPrepare(payload: String, provider: BroadcastProvider): DirectPrepareResult {
+/**
+ * 응답 본문을 읽지 못했습니다. Android의 org.json 예외 메시지에는 입력 전체가 붙어 스트림 키나
+ * owner token이 함께 남으므로, 원문과 cause 없이 이 예외로 바꿉니다.
+ */
+internal class DirectPublishResponseException : IOException("직접 송출 서버 응답 형식이 올바르지 않습니다.")
+
+/** 응답 원문을 다루는 파싱을 감싸 org.json 예외가 원문을 싣고 밖으로 나가지 않게 합니다. */
+internal inline fun <T> parseResponseSafely(parse: () -> T): T = try {
+    parse()
+} catch (_: JSONException) {
+    throw DirectPublishResponseException()
+}
+
+internal fun parseDirectPrepare(payload: String, provider: BroadcastProvider): DirectPrepareResult =
+    parseResponseSafely { parseDirectPrepareUnsafe(payload, provider) }
+
+private fun parseDirectPrepareUnsafe(payload: String, provider: BroadcastProvider): DirectPrepareResult {
     val json = JSONObject(payload)
     val state = parseBroadcastState(payload, provider)
     check(state == BroadcastState.PREPARED) { "서버가 방송 준비를 확인하지 않았습니다." }
@@ -183,7 +201,10 @@ internal fun parseDirectPrepare(payload: String, provider: BroadcastProvider): D
     }
 }
 
-internal fun parseDirectGoLive(payload: String, provider: BroadcastProvider): DirectGoLiveResult {
+internal fun parseDirectGoLive(payload: String, provider: BroadcastProvider): DirectGoLiveResult =
+    parseResponseSafely { parseDirectGoLiveUnsafe(payload, provider) }
+
+private fun parseDirectGoLiveUnsafe(payload: String, provider: BroadcastProvider): DirectGoLiveResult {
     val json = JSONObject(payload)
     val failures = json.optJSONArray("failed_targets")?.objects().orEmpty().map { item ->
         DirectTargetFailure(item.optString("provider"), item.string("code"), item.string("message"))
@@ -202,7 +223,10 @@ internal fun parseDirectGoLive(payload: String, provider: BroadcastProvider): Di
     return DirectGoLiveResult(parseBroadcastState(payload, provider), ingest, failures)
 }
 
-internal fun parseHeartbeatAccepted(payload: String): HeartbeatResult.Accepted {
+internal fun parseHeartbeatAccepted(payload: String): HeartbeatResult.Accepted =
+    parseResponseSafely { parseHeartbeatAcceptedUnsafe(payload) }
+
+private fun parseHeartbeatAcceptedUnsafe(payload: String): HeartbeatResult.Accepted {
     val json = JSONObject(payload)
     val stops = json.optJSONArray("stop_targets")?.let { array ->
         List(array.length()) { index -> array.opt(index) as? String }
