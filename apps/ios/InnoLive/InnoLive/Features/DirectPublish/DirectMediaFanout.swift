@@ -1,5 +1,6 @@
 import AVFoundation
 import CoreMedia
+import ImageIO
 import VideoToolbox
 
 /// 송출 프레임을 받는 쪽이다. 캡처 스레드에서 호출된다.
@@ -19,8 +20,8 @@ nonisolated protocol DirectMediaOutput: AnyObject, Sendable {
 }
 
 /// 가림 처리가 끝난 송출 프레임과 마이크 음성을 대상별 RTMP 연결에 나눠 준다.
-/// 일시 중지한 대상에는 원본 대신 검은 화면과 무음을 보낸다. 백그라운드에서 카메라가
-/// 멈춰도 연결이 끊기지 않도록 일시 중지 화면은 자체 타이머로 만든다.
+/// 일시 중지한 대상에는 원본 대신 서버 모드와 같은 일시 중지 안내 화면과 무음을 보낸다.
+/// 백그라운드에서 카메라가 멈춰도 연결이 끊기지 않도록 일시 중지 화면은 자체 타이머로 만든다.
 /// YouTube는 음성 트랙이 없으면 스트림을 활성으로 보지 않아 라이브 전환을 거절한다.
 /// 마이크 음성이 끊기면 그 구간을 무음으로 채운다.
 nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable {
@@ -217,7 +218,7 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
     private func emitSlate() {
         lock.lock()
         let targets = outputs.filter { pausedProviders.contains($0.key) }.map(\.value)
-        // 송출 크기를 아직 모르면 검은 화면을 만들지 않는다. 다른 크기를 보내면 인코더가 다시 설정된다.
+        // 송출 크기를 아직 모르면 안내 화면을 만들지 않는다. 다른 크기를 보내면 인코더가 다시 설정된다.
         let dimensions = videoDimensions
         lock.unlock()
         guard !targets.isEmpty else { return }
@@ -225,7 +226,7 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
         let now = CMClockGetTime(CMClockGetHostTimeClock())
         conversionLock.lock()
         let video = dimensions.flatMap {
-            converter.blackSampleBuffer(width: Int($0.width), height: Int($0.height), presentationTime: now)
+            converter.pauseSlateSampleBuffer(width: Int($0.width), height: Int($0.height), presentationTime: now)
         }
         conversionLock.unlock()
         let silence = Self.silence(format: Self.audioFormat, duration: 1.0 / Double(Self.slateFramesPerSecond))
@@ -261,6 +262,8 @@ nonisolated final class DirectFrameConverter {
     private var sessionRotation = -1
     private var pools: [PoolKey: CVPixelBufferPool] = [:]
     private var blackBuffers: [PoolKey: CVPixelBuffer] = [:]
+    private var slateBuffers: [PoolKey: CVPixelBuffer] = [:]
+    private var slateImages: [Bool: CGImage] = [:]
 
     deinit {
         if let rotationSession { VTPixelRotationSessionInvalidate(rotationSession) }
@@ -293,6 +296,66 @@ nonisolated final class DirectFrameConverter {
             buffer = created
         }
         return Self.makeSampleBuffer(buffer, presentationTime: presentationTime)
+    }
+
+    /// 서버 모드 일시 중지 화면과 같은 안내 화면이다. 에셋은 서버 `internal/media/assets/cancel-*.png`
+    /// (server ad49ac2)와 같은 파일이다. 서버처럼 방향으로 에셋을 고르고 가운데를 출력 비율로 잘라 채운다.
+    /// 에셋을 읽지 못하면 검은 화면을 보낸다.
+    func pauseSlateSampleBuffer(width: Int, height: Int, presentationTime: CMTime) -> CMSampleBuffer? {
+        guard width > 0, height > 0 else { return nil }
+        let key = PoolKey(format: kCVPixelFormatType_32BGRA, width: width, height: height)
+        if let cached = slateBuffers[key] { return Self.makeSampleBuffer(cached, presentationTime: presentationTime) }
+        guard let image = pauseSlateImage(landscape: width >= height),
+              let buffer = makeBuffer(for: key),
+              Self.render(image, into: buffer) else {
+            return blackSampleBuffer(width: width, height: height, presentationTime: presentationTime)
+        }
+        slateBuffers = [key: buffer]
+        return Self.makeSampleBuffer(buffer, presentationTime: presentationTime)
+    }
+
+    /// 서버 `cancellationSlateCropRect`와 같은 계산이다. 늘이지 않고 출력 프레임 전체를 채운다.
+    static func pauseSlateCropRect(sourceWidth: Int, sourceHeight: Int, targetWidth: Int, targetHeight: Int) -> CGRect {
+        if targetWidth * sourceHeight > targetHeight * sourceWidth {
+            let cropHeight = sourceWidth * targetHeight / targetWidth
+            return CGRect(x: 0, y: (sourceHeight - cropHeight) / 2, width: sourceWidth, height: cropHeight)
+        }
+        if targetWidth * sourceHeight < targetHeight * sourceWidth {
+            let cropWidth = sourceHeight * targetWidth / targetHeight
+            return CGRect(x: (sourceWidth - cropWidth) / 2, y: 0, width: cropWidth, height: sourceHeight)
+        }
+        return CGRect(x: 0, y: 0, width: sourceWidth, height: sourceHeight)
+    }
+
+    private func pauseSlateImage(landscape: Bool) -> CGImage? {
+        if let cached = slateImages[landscape] { return cached }
+        let name = landscape ? "DirectPublishPauseLandscape" : "DirectPublishPausePortrait"
+        guard let url = Bundle.main.url(forResource: name, withExtension: "png"),
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        slateImages[landscape] = image
+        return image
+    }
+
+    private static func render(_ image: CGImage, into buffer: CVPixelBuffer) -> Bool {
+        let width = CVPixelBufferGetWidth(buffer), height = CVPixelBufferGetHeight(buffer)
+        let crop = pauseSlateCropRect(sourceWidth: image.width, sourceHeight: image.height,
+                                      targetWidth: width, targetHeight: height)
+        guard let cropped = image.cropping(to: crop) else { return false }
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        guard let context = CGContext(
+            data: CVPixelBufferGetBaseAddress(buffer), width: width, height: height, bitsPerComponent: 8,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer), space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        ) else { return false }
+        // 에셋의 투명한 부분은 서버(JPEG 변환)처럼 검게 보이도록 검은 바탕 위에 그린다.
+        let bounds = CGRect(x: 0, y: 0, width: width, height: height)
+        context.setFillColor(CGColor(gray: 0, alpha: 1))
+        context.fill(bounds)
+        context.interpolationQuality = .high
+        context.draw(cropped, in: bounds)
+        return true
     }
 
     private func rotated(_ source: CVPixelBuffer, rotation: Int) -> CVPixelBuffer? {
@@ -349,7 +412,7 @@ nonisolated final class DirectFrameConverter {
             var created: CVPixelBufferPool?
             guard CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes as CFDictionary, &created) == kCVReturnSuccess,
                   let created else { return nil }
-            // 회전·검은 화면 크기는 방송 중에 거의 바뀌지 않는다. 이전 크기의 풀은 버린다.
+            // 회전·안내 화면 크기는 방송 중에 거의 바뀌지 않는다. 이전 크기의 풀은 버린다.
             pools = pools.filter { $0.key.width == key.width && $0.key.height == key.height }
             pools[key] = created
             pool = created

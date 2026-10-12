@@ -2452,7 +2452,7 @@ final class YouTubeIntegration: ObservableObject {
         for provider in providers {
             let key = providerKey(provider)
             targetActionErrors[key] = nil
-            // 서버는 온디바이스 세션의 일시 중지를 거부한다. 앱 송출을 검은 화면·무음으로 바꾼다.
+            // 서버는 온디바이스 세션의 일시 중지를 거부한다. 앱 송출을 일시 중지 안내 화면·무음으로 바꾼다.
             if (action == .pause || action == .resume), directPublisher.states[key] != nil {
                 directPublisher.setPaused(action == .pause, provider: key)
                 backgroundPausedProviders.remove(key)
