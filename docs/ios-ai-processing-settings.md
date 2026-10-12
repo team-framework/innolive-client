@@ -19,16 +19,24 @@
 카메라 → iPhone의 YOLO 분할·YuNet·AdaFace → 비식별화 합성 → H.264 인코더
 → RTMP(S) → YouTube·치지직. 서버 #438 이후 온디바이스 세션은 서버를 거치지 않고
 앱이 플랫폼으로 직접 송출한다(client #481). 서버는 방송 생성·라이브 전환·종료만 맡는다.
-준비 응답에 ingest URL을 주지 않는 구 서버에서는 기존 WebRTC 중계 송출을 쓴다.
+세션 응답의 `ai_processing`이 `on_device`가 아닌 구 서버에서는 기존 WebRTC 중계 송출을 쓴다.
 
 직접 송출 구현:
 
 - RTMP(S) 송출은 HaishinKit 2.2.5(`RTMPHaishinKit`, BSD-3-Clause)를 쓴다. H.264 High,
-  키프레임 2초, B-frame 없음, 1080p 6Mbps·720p 3.5Mbps, AAC 128kbps다.
+  키프레임 2초, B-frame 없음, 1080p 6Mbps·720p 3.5Mbps, AAC 48kHz 스테레오 128kbps다.
+- publish 전에 같은 형식의 검은 화면과 무음을 넣어 둔다. HaishinKit은 publish 시점 입력으로
+  `onMetaData`를 만들기 때문에, 입력이 없으면 영상·음성 정보가 빠진다.
 - 영상은 WebRTC 송출 트랙과 같은 가림 처리·색 보정 결과를 쓴다. WebRTC 프레임의 회전
   정보를 `VTPixelRotationSession`으로 픽셀에 적용한다. 원본 미리보기 프레임은 넘기지 않는다.
-- 음성은 WebRTC가 처리한 송신 버퍼를 `LKRTCDefaultAudioProcessingModule`의 capture
-  post-processing으로 복사한다. 마이크를 따로 열지 않는다.
+- 음성은 앱이 `AVAudioEngine`으로 마이크를 녹음해 48kHz 스테레오로 바꿔 보낸다. 직접 송출
+  세션에서는 WebRTC 오디오 송신기에 트랙을 붙이지 않아 WebRTC가 마이크를 열지 않는다. 오디오
+  m-line은 남겨 서버와의 SDP 형태는 그대로다. 서버는 이 세션의 음성을 쓰지 않는다.
+- WebRTC 음성 처리 모듈(`LKRTCDefaultAudioProcessingModule`)의 capture post-processing으로
+  음성을 복사하는 방식은 버렸다. iPhone 15에서 콜백이 한 번도 호출되지 않았다(2026-10-12).
+- YouTube는 음성 트랙이 없으면 스트림을 활성으로 보지 않아 라이브 전환을 `broadcast_not_ready`로
+  거절한다(2026-10-12 실기기). 마이크 음성이 0.3초 넘게 없으면 그 구간을 무음으로 채운다.
+  마이크를 열지 못하면 무음으로 송출하고 방송 화면에 경고를 띄운다.
 - HaishinKit 로그는 trace 단계에서만 RTMP 명령을 출력한다. 앱은 기본 info 단계를 바꾸지 않는다.
   `RTMPStreamInfo.resourceName`에는 스트림 키가 들어 있으므로 출력하지 않는다.
 - 라이브 중에는 15초마다 서버에 하트비트를 보낸다. 서버가 한도·입력 없음으로 끝낸 대상은
@@ -41,7 +49,8 @@
 - YouTube·치지직 실채널 송출, 라이브 전환, 종료
 - 백그라운드 체류 뒤 재연결과 치지직 방송 유지 여부
 - 동시 송출 시 인코더 2개의 발열·배터리
-- 오디오 처리 모듈 교체 뒤 서버 모드 음성 품질
+- 블루투스 마이크 연결·해제, 통화 중단 뒤 마이크 복구
+- 온디바이스 가림 처리 속도. iPhone 15에서 송출 영상이 약 5.5fps였다(2026-10-12)
 - 하트비트 실서버 수신, `stop_targets` 한도 종료, 입력 없음 5분 종료
 - 백그라운드 정지 동안 하트비트 공백. iOS가 앱을 멈추면 보고가 끊긴다
 
