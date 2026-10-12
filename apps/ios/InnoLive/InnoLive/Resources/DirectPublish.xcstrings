@@ -1,0 +1,138 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "%@ 송출 서버에 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 송출 서버에 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not connect to the %@ ingest server. Check your network and try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@の配信サーバーに接続できませんでした。ネットワークを確認してもう一度お試しください。"
+          }
+        }
+      }
+    },
+    "%@ 송출 연결이 끊겨 방송을 종료했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 송출 연결이 끊겨 방송을 종료했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The %@ stream connection was lost, so the broadcast was ended."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@への配信接続が切れたため、配信を終了しました。"
+          }
+        }
+      }
+    },
+    "앱 직접 송출 세션에서는 AI 처리 방식을 바꿀 수 없습니다. 방송 준비를 취소한 뒤 다시 선택해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 직접 송출 세션에서는 AI 처리 방식을 바꿀 수 없습니다. 방송 준비를 취소한 뒤 다시 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can't change the AI processing mode during a direct-stream session. Cancel broadcast preparation, then choose again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ直接配信のセッションではAI処理方式を変更できません。配信準備をキャンセルしてから選び直してください。"
+          }
+        }
+      }
+    },
+    "서버가 %@ 방송을 종료해 송출을 멈췄습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버가 %@ 방송을 종료해 송출을 멈췄습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server ended the %@ broadcast, so streaming stopped."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーが%@の配信を終了したため、送信を停止しました。"
+          }
+        }
+      }
+    },
+    "서버에서 %@ 송출 주소를 받지 못해 방송을 시작하지 않았습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에서 %@ 송출 주소를 받지 못해 방송을 시작하지 않았습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server did not provide a %@ ingest address, so the broadcast was not started."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーから%@の配信先アドレスを受け取れなかったため、配信を開始しませんでした。"
+          }
+        }
+      }
+    },
+    "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't open the microphone, so the stream has no sound. Check the microphone permission and connection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マイクを開けなかったため、音声なしで配信しています。マイクの許可と接続を確認してください。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

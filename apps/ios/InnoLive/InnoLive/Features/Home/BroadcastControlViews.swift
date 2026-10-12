@@ -133,6 +133,15 @@ struct BroadcastSessionStatusView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            #if DEBUG
+            if youtube.session != nil {
+                DirectPublishDebugBadge(youtube: youtube)
+            }
+            #endif
+            if youtube.isDirectPublishSession, youtube.isDirectMicrophoneUnavailable, !youtube.directPublishStates.isEmpty {
+                Text(String(localized: "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.", table: "DirectPublish"))
+                    .foregroundStyle(.orange)
+            }
             if youtube.upgradeOffer != nil {
                 Button { isShowingUpgradeOffer = true } label: {
                     Label(String(localized: "방송 업그레이드 제안", table: "UpgradeOffer"), systemImage: "arrow.up.circle")
