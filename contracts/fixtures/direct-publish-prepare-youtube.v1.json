@@ -1,0 +1,14 @@
+{
+  "ai_processing": "on_device",
+  "session_id": "fixture-session",
+  "provider": "youtube",
+  "broadcast_resolution": "720p",
+  "media": { "anonymization_enabled": false },
+  "stream": {
+    "status": "idle",
+    "publisher_active": false,
+    "reconnect_attempts": 0,
+    "broadcast_phase": "prepared"
+  },
+  "ingest_url": "rtmps://a.rtmp.youtube.com/live2/fixture-stream-key"
+}
