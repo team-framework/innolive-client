@@ -10,6 +10,10 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var connection: YouTubeConnection?
     @Published private(set) var session: YouTubeBroadcastSession?
     @Published private(set) var stream: YouTubeStreamState?
+    /// 대상별 앱 직접 송출 상태다(#481). 화면이 바로 갱신되도록 송출기 상태를 옮겨 둔다.
+    @Published private(set) var directPublishStates: [String: DirectPublishState] = [:]
+    /// 직접 송출 중 마이크를 열지 못해 무음으로 보내고 있다.
+    @Published private(set) var isDirectMicrophoneUnavailable = false
     @Published private(set) var videoTrack: YouTubeVideoTrackState?
     @Published private(set) var responseState = BroadcastSessionSnapshot()
     @Published private(set) var isFeatureAvailable = true
@@ -588,7 +592,10 @@ final class YouTubeIntegration: ObservableObject {
         }
         videoUplink.setDirectMediaSink(self.directPublisher.mediaSink)
         self.directPublisher.onStateChange = { [weak self] in
-            self?.refreshDirectPublishOverlay()
+            guard let self else { return }
+            self.directPublishStates = self.directPublisher.states
+            self.isDirectMicrophoneUnavailable = self.directPublisher.isMicrophoneUnavailable
+            self.refreshDirectPublishOverlay()
         }
         self.directPublisher.onPermanentFailure = { [weak self] provider in
             Task { @MainActor [weak self] in await self?.handleDirectPublishFailure(provider: provider) }
@@ -2520,8 +2527,6 @@ final class YouTubeIntegration: ObservableObject {
     static func isDirectPublish(_ session: YouTubeBroadcastSession) -> Bool {
         session.aiProcessing == AIProcessingMode.onDevice.rawValue
     }
-
-    var directPublishStates: [String: DirectPublishState] { directPublisher.states }
 
     /// 치지직은 RTMP 연결이 곧 공개 방송이라 서버가 라이브 전환 응답에서 주소를 준다. 나머지는 준비 응답에서 준다.
     static func receivesDirectIngestAtGoLive(_ provider: String) -> Bool {

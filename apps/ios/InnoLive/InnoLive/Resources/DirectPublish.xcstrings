@@ -110,6 +110,28 @@
           }
         }
       }
+    },
+    "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't open the microphone, so the stream has no sound. Check the microphone permission and connection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マイクを開けなかったため、音声なしで配信しています。マイクの許可と接続を確認してください。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
