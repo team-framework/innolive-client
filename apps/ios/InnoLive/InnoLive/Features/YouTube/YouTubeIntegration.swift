@@ -2666,11 +2666,38 @@ final class YouTubeIntegration: ObservableObject {
             await applyHeartbeatResponse(response, session: session, accessToken: accessToken)
             return true
         } catch let error as YouTubeAPIError {
-            if case let .api(code, _, _) = error, code == "heartbeat_not_applicable" { return false }
+            if case let .api(code, _, _) = error, let code, Self.heartbeatTerminalCodes.contains(code) {
+                // 보고 작업은 곧 취소되므로 정리는 별도 작업에서 한다. 취소된 작업에서는 세션 조회가 실패한다.
+                Task { @MainActor [weak self] in
+                    await self?.endDirectPublishAfterHeartbeat(code: code, session: session, accessToken: accessToken,
+                                                               sessionGeneration: sessionGeneration)
+                }
+                return false
+            }
             return true
         } catch {
             return true
         }
+    }
+
+    /// 공유 계약(direct-publish-v1)에서 모든 연결을 끊어야 하는 하트비트 오류다.
+    /// 409 라이브 대상 없음, 403 소유권 상실, 404 세션 삭제. 401은 요청 계층이 인증을 갱신해 다시 보낸다.
+    nonisolated static let heartbeatTerminalCodes: Set<String> = ["heartbeat_not_applicable", "forbidden", "not_found"]
+
+    private func endDirectPublishAfterHeartbeat(code: String, session: YouTubeBroadcastSession, accessToken: String,
+                                                sessionGeneration: UInt) async {
+        guard sessionOperationGeneration == sessionGeneration, self.session?.sessionID == session.sessionID else { return }
+        let titles = directPublisher.states.keys.sorted().map { BroadcastSettingsProvider(rawValue: $0)?.title ?? $0 }
+        await stopAllDirectPublish()
+        guard sessionOperationGeneration == sessionGeneration else { return }
+        // 409는 세션이 남아 있어 서버 상태로 화면을 맞춘다. 403·404는 세션 조회도 실패하므로 기존 폴링이 정리한다.
+        if code == "heartbeat_not_applicable",
+           let status = try? await api.sessionStatus(session: session, accessToken: accessToken) {
+            applySessionResponse(status, sessionID: session.sessionID, generation: sessionGeneration)
+        }
+        guard sessionOperationGeneration == sessionGeneration, !titles.isEmpty else { return }
+        errorMessage = String(format: String(localized: "서버가 %@ 방송을 종료해 송출을 멈췄습니다.", table: "DirectPublish"),
+                              titles.joined(separator: ", "))
     }
 
     private func applyHeartbeatResponse(_ response: DirectHeartbeatResponse, session: YouTubeBroadcastSession,
