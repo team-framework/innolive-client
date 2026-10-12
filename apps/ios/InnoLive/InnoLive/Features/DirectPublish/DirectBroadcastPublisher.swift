@@ -141,7 +141,8 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
         let size = dimensions.map { CGSize(width: Int($0.width), height: Int($0.height)) }
             ?? CGSize(width: Int(quality.width), height: Int(quality.height))
         // YouTube·치지직 권장 범위 안에서 셀룰러 업로드를 고려한 고정 비트레이트다.
-        let bitRate = quality.height >= 1080 ? 6_000_000 : 3_500_000
+        // 카메라 화질은 세션 해상도에 맞춰 바뀌므로 설정값이 아니라 실제 프레임의 짧은 변으로 고른다.
+        let bitRate = min(size.width, size.height) >= 1080 ? 6_000_000 : 3_500_000
         return VideoCodecSettings(
             videoSize: size,
             bitRate: bitRate,
