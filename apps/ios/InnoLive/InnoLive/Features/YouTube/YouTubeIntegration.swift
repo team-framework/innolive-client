@@ -540,6 +540,10 @@ final class YouTubeIntegration: ObservableObject {
     private var backgroundPauseTask: Task<Void, Never>?
     private var backgroundPauseGeneration: UInt = 0
     private let directPublisher: any DirectBroadcastPublishing
+    private let heartbeatInterval: Duration
+    private var heartbeatTask: Task<Void, Never>?
+    private var heartbeatGeneration: UInt = 0
+    private var heartbeatBuilder = DirectHeartbeatBuilder()
 
     convenience init() {
         self.init(preferencesStore: YouTubePreferencesStore())
@@ -558,9 +562,11 @@ final class YouTubeIntegration: ObservableObject {
         persistAIProcessingMode: @escaping (AIProcessingMode) -> Void = {
             UserDefaults.standard.set($0.rawValue, forKey: AIProcessingMode.storageKey)
         },
-        directPublisher: (any DirectBroadcastPublishing)? = nil
+        directPublisher: (any DirectBroadcastPublishing)? = nil,
+        heartbeatInterval: Duration = .seconds(15)
     ) {
         self.directPublisher = directPublisher ?? DirectBroadcastPublisher()
+        self.heartbeatInterval = heartbeatInterval
         self.aiModeProvider = aiModeProvider
         self.localModelsAvailable = localModelsAvailable
         self.persistAIProcessingMode = persistAIProcessingMode
@@ -1869,6 +1875,10 @@ final class YouTubeIntegration: ObservableObject {
                 errorMessage = ([errorMessage].compactMap { $0 } + directFailures).joined(separator: "\n")
             }
             if hasStartedYouTubeBroadcast { liveStartedAt = liveStartedAt ?? Date() }
+            // 서버의 입력 없음 시계는 라이브 전환 시점부터 돈다. 전환 직후 첫 보고를 보낸다.
+            if isDirectPublishSession, hasStartedYouTubeBroadcast, !directPublisher.states.isEmpty {
+                beginDirectHeartbeat(accessToken: accessToken)
+            }
             beginPolling(accessToken: accessToken)
         } catch {
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
@@ -1998,6 +2008,7 @@ final class YouTubeIntegration: ObservableObject {
         reconnectTask?.cancel()
         reconnectTask = nil
         videoRecoveryStatus = nil
+        stopDirectHeartbeat()
         for provider in directPublisher.states.keys {
             Task { @MainActor [directPublisher] in await directPublisher.stop(provider: provider) }
         }
@@ -2524,6 +2535,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func stopAllDirectPublish() async {
+        stopDirectHeartbeat()
         await directPublisher.stopAll()
         videoUplink.setDirectPublishBitrateLimited(false)
     }
@@ -2562,6 +2574,99 @@ final class YouTubeIntegration: ObservableObject {
         guard generation == sessionOperationGeneration else { return }
         errorMessage = message
         beginPolling(accessToken: accessToken)
+    }
+
+    // MARK: 직접 송출 하트비트 (server #434, #436)
+
+    var isSendingDirectHeartbeat: Bool { heartbeatTask != nil }
+
+    private func beginDirectHeartbeat(accessToken: String) {
+        guard heartbeatTask == nil, isDirectPublishSession else { return }
+        heartbeatGeneration &+= 1
+        let generation = heartbeatGeneration
+        let sessionGeneration = sessionOperationGeneration
+        let interval = heartbeatInterval
+        heartbeatBuilder.reset()
+        heartbeatTask = Task { [weak self] in
+            var isFirst = true
+            while !Task.isCancelled {
+                if !isFirst {
+                    do { try await Task.sleep(for: interval) } catch { return }
+                }
+                isFirst = false
+                guard let self, self.heartbeatGeneration == generation,
+                      self.sessionOperationGeneration == sessionGeneration else { return }
+                // 실패해도 방송은 유지하고 다음 주기에 다시 보낸다. 누락분은 재전송하지 않는다.
+                guard await self.sendDirectHeartbeat(generation: generation, sessionGeneration: sessionGeneration,
+                                                     fallbackAccessToken: accessToken) else {
+                    if self.heartbeatGeneration == generation { self.heartbeatTask = nil }
+                    return
+                }
+            }
+        }
+    }
+
+    private func stopDirectHeartbeat() {
+        heartbeatGeneration &+= 1
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+    }
+
+    /// 계속 보낼지 돌려준다. 라이브 대상이 없다는 409를 받으면 멈춘다.
+    private func sendDirectHeartbeat(generation: UInt, sessionGeneration: UInt, fallbackAccessToken: String) async -> Bool {
+        guard let session, isDirectPublishSession else { return false }
+        let accessToken = api.currentAccessToken(fallback: fallbackAccessToken)
+        guard !accessToken.isEmpty else { return true }
+        var status = await directPublisher.heartbeatStatus()
+        guard heartbeatGeneration == generation, sessionOperationGeneration == sessionGeneration else { return false }
+        // 서버에서 라이브인데 앱 연결이 없는 대상은 끊긴 상태로 보고한다.
+        let reported = Set(status.targets.map(\.provider))
+        for provider in liveEditingTargets.map(\.rawValue) where !reported.contains(provider) {
+            status.targets.append(.init(provider: provider, connected: false, sentBytes: nil, reconnects: 0))
+        }
+        guard !status.targets.isEmpty else { return false }
+        let request = heartbeatBuilder.makeRequest(
+            status: status,
+            anonymizationEnabled: isAnonymizationEnabled,
+            device: DirectHeartbeatDevice.current(),
+            model: DirectHeartbeatDevice.model,
+            now: Date()
+        )
+        do {
+            let response = try await api.sendHeartbeat(session: session, accessToken: accessToken, request: request)
+            guard heartbeatGeneration == generation, sessionOperationGeneration == sessionGeneration,
+                  self.session?.sessionID == session.sessionID else { return false }
+            await applyHeartbeatResponse(response, session: session, accessToken: accessToken)
+            return true
+        } catch let error as YouTubeAPIError {
+            if case let .api(code, _, _) = error, code == "heartbeat_not_applicable" { return false }
+            return true
+        } catch {
+            return true
+        }
+    }
+
+    private func applyHeartbeatResponse(_ response: DirectHeartbeatResponse, session: YouTubeBroadcastSession,
+                                        accessToken: String) async {
+        let generation = sessionOperationGeneration
+        responseState.details.notices = response.notices
+        if response.remainingTime != .missing {
+            responseState.details.remainingTime = response.remainingTime
+            isRemainingTimeStale = false
+        }
+        guard !response.stopTargets.isEmpty else { return }
+        // 서버가 끝낸 대상(한도 도달, 입력 없음, 플랫폼에서 종료)은 즉시 끊는다.
+        // 치지직은 이 연결 종료가 방송 종료다.
+        for provider in response.stopTargets {
+            await directPublisher.stop(provider: provider)
+        }
+        let titles = response.stopTargets.map { BroadcastSettingsProvider(rawValue: $0)?.title ?? $0 }
+        if let status = try? await api.sessionStatus(session: session, accessToken: accessToken) {
+            applySessionResponse(status, sessionID: session.sessionID, generation: generation)
+        }
+        guard generation == sessionOperationGeneration else { return }
+        errorMessage = String(format: String(localized: "서버가 %@ 방송을 종료해 송출을 멈췄습니다.", table: "DirectPublish"),
+                              titles.joined(separator: ", "))
     }
 
     #if DEBUG

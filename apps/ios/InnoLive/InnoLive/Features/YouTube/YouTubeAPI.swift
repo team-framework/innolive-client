@@ -407,6 +407,17 @@ final class YouTubeAPI: PlanAPIClient {
         )
     }
 
+    func sendHeartbeat(session: YouTubeBroadcastSession, accessToken: String,
+                       request: DirectHeartbeatRequest) async throws -> DirectHeartbeatResponse {
+        try await self.request(
+            path: "/sessions/\(session.sessionID)/heartbeat",
+            method: "POST",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: request
+        )
+    }
+
     func sessionStatus(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeSessionResponse {
         try await request(
             path: "/sessions/\(session.sessionID)",

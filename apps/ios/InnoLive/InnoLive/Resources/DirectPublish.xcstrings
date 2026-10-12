@@ -66,6 +66,28 @@
           }
         }
       }
+    },
+    "서버가 %@ 방송을 종료해 송출을 멈췄습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버가 %@ 방송을 종료해 송출을 멈췄습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server ended the %@ broadcast, so streaming stopped."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーが%@の配信を終了したため、送信を停止しました。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
