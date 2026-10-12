@@ -114,7 +114,13 @@ internal class DirectPublishApi(
 
     /** 예외를 던지지 않고 결과로 앱 동작을 구분합니다. 취소만 그대로 전달합니다. */
     fun heartbeat(session: CreatedSession, heartbeat: DirectHeartbeat): HeartbeatResult {
-        val request = sessionRequest(session, "heartbeat").post(buildHeartbeatPayload(heartbeat).toJsonBody()).build()
+        val request = try {
+            sessionRequest(session, "heartbeat").post(buildHeartbeatPayload(heartbeat).toJsonBody()).build()
+        } catch (exception: InvalidHeartbeatFieldException) {
+            return HeartbeatResult.Invalid(exception.field)
+        } catch (_: Exception) {
+            return HeartbeatResult.Invalid(null)
+        }
         return try {
             executeAuthenticated("heartbeat", request).use { response ->
                 val payload = response.body.string()

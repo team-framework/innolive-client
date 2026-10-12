@@ -200,6 +200,26 @@ class DirectPublishApiTest {
         assertEquals(HeartbeatResult.Unauthorized, api.heartbeat(session, heartbeat))
     }
 
+    @Test fun heartbeatWithNonFiniteFpsIsInvalidWithoutSending() {
+        for (fps in listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
+            val result = api.heartbeat(session, heartbeat.copy(video = HeartbeatVideo(fps = fps, droppedFrames = 0)))
+            assertEquals(HeartbeatResult.Invalid("video.fps"), result)
+        }
+        assertTrue(requests.isEmpty())
+    }
+
+    @Test fun heartbeatOmitsNonFiniteOptionalValues() {
+        respond(200)
+        val value = heartbeat.copy(
+            anonymization = HeartbeatAnonymization(
+                failedFrames = 0, inferenceMsP50 = Double.NaN, inferenceMsP95 = Double.POSITIVE_INFINITY,
+            ),
+        )
+        assertEquals(HeartbeatResult.Accepted(emptyList(), emptyList(), null), api.heartbeat(session, value))
+        val anonymization = requests.single().json().getJSONObject("anonymization")
+        assertEquals(listOf("failed_frames"), anonymization.keys().asSequence().toList())
+    }
+
     @Test fun rejectsCleartextServer() {
         assertThrows(IllegalArgumentException::class.java) {
             DirectPublishApi("http://api.example.test", "token", { "token" }, log = {})

@@ -104,7 +104,10 @@ internal sealed interface HeartbeatResult {
     /** 모든 연결을 끊습니다. */
     data class StopAll(val reason: HeartbeatStopReason) : HeartbeatResult
 
-    /** 400: 필수 필드 누락입니다. 송출은 유지하고 구현 오류로 다룹니다. */
+    /**
+     * 400 응답 또는 보낼 수 없는 필수 값(NaN·무한대 fps)입니다. 송출은 유지하고 구현 오류로
+     * 다룹니다. 요청 생성 단계에서 막힌 경우 서버로 보내지 않습니다.
+     */
     data class Invalid(val field: String?) : HeartbeatResult
 
     /** 인증 갱신 실패입니다. 송출은 유지하고 다음 주기에 다시 보냅니다. */
@@ -134,6 +137,8 @@ internal fun buildHeartbeatPayload(heartbeat: DirectHeartbeat): JSONObject {
                 .putIfNotNull("reconnects", target.reconnects),
         )
     }
+    // JSON은 NaN·무한대를 표현하지 못합니다. 필수 값은 보내지 않고, 선택 값은 수집 불가로 보고 생략합니다.
+    if (!heartbeat.video.fps.isFinite()) throw InvalidHeartbeatFieldException("video.fps")
     val video = JSONObject()
         .put("fps", heartbeat.video.fps)
         .put("dropped_frames", heartbeat.video.droppedFrames)
@@ -211,14 +216,19 @@ internal fun parseHeartbeatAccepted(payload: String): HeartbeatResult.Accepted {
     return HeartbeatResult.Accepted(stops, notices, remaining)
 }
 
+internal class InvalidHeartbeatFieldException(val field: String) : IllegalArgumentException("하트비트 값이 올바르지 않습니다: $field")
+
 internal const val ON_DEVICE_PROCESSING = "on_device"
 
 /** golive 응답의 직접 송출 주소가 올바르지 않을 때 앱이 붙이는 실패 코드입니다. 서버 코드가 아닙니다. */
 internal const val INVALID_INGEST_URL = "invalid_ingest_url"
 private const val HEARTBEAT_PLATFORM = "android"
 
-private fun JSONObject.putIfNotNull(key: String, value: Any?): JSONObject =
-    if (value == null) this else put(key, value)
+private fun JSONObject.putIfNotNull(key: String, value: Any?): JSONObject = when {
+    value == null -> this
+    value is Double && !value.isFinite() -> this
+    else -> put(key, value)
+}
 
 private fun JSONObject.string(key: String): String? = (opt(key) as? String)?.takeIf { it.isNotBlank() }
 
