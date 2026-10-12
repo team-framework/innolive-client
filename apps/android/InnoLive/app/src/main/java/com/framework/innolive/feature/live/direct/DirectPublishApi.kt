@@ -53,22 +53,26 @@ internal class DirectPublishApi(
     fun createSession(provider: BroadcastProvider, resolution: DirectPublishResolution): CreatedSession {
         val body = buildDirectSessionRequest(provider, resolution)
         val payload = execute("create_session", sessionsRequest().post(body.toJsonBody()))
-        val created = parseCreatedSession(payload)
+        // 응답에 owner token이 있어 파싱 오류가 원문을 싣지 않게 합니다.
+        val (created, processing) = parseResponseSafely {
+            parseCreatedSession(payload) to JSONObject(payload).optString("ai_processing")
+        }
         val rejection = when {
             // 최상위 ai_processing을 모르는 서버는 server 세션을 만듭니다. 서버 송출 세션으로 직접 송출하지 않습니다.
-            JSONObject(payload).optString("ai_processing") != ON_DEVICE_PROCESSING -> "서버가 온디바이스 세션을 만들지 않았습니다."
+            processing != ON_DEVICE_PROCESSING -> "서버가 온디바이스 세션을 만들지 않았습니다."
             created.provider != provider -> "서버가 다른 방송 플랫폼의 세션을 생성했습니다."
             else -> return created
         }
-        val uncleaned = try {
+        // owner token은 이 응답에만 있습니다. 삭제가 취소돼도 호출자가 보관할 수 있게 세션을 넘깁니다.
+        try {
             deleteSession(created)
-            null
         } catch (exception: CancellationException) {
-            throw exception
+            throw DirectSessionRejectedException(rejection, created, cleanupCancelled = true)
+                .apply { addSuppressed(exception) }
         } catch (_: Exception) {
-            created
+            throw DirectSessionRejectedException(rejection, created)
         }
-        throw DirectSessionRejectedException(rejection, uncleaned)
+        throw DirectSessionRejectedException(rejection, null)
     }
 
     fun saveYouTubeSettings(session: CreatedSession, settings: BroadcastSettings) {
@@ -81,7 +85,7 @@ internal class DirectPublishApi(
     fun saveChzzkSettings(session: CreatedSession, settings: ChzzkBroadcastSettings) {
         val payload = execute("broadcast_settings", sessionRequest(session, "broadcast", BroadcastProvider.CHZZK)
             .put(buildChzzkSettingsPayload(settings).toJsonBody()))
-        val confirmed = checkNotNull(JSONObject(payload).optJSONObject("chzzk_broadcast")) {
+        val confirmed = checkNotNull(parseResponseSafely { JSONObject(payload).optJSONObject("chzzk_broadcast") }) {
             "서버가 치지직 설정 저장을 확인하지 않았습니다."
         }
         check(confirmed.optString("title") == settings.title.trim() &&
@@ -115,7 +119,7 @@ internal class DirectPublishApi(
     /** 서버 방송만 끝냅니다. 요청 성공 여부와 무관하게 호출자가 RTMP 연결을 끊습니다. */
     fun stop(session: CreatedSession, provider: BroadcastProvider): BroadcastState? {
         val payload = execute("stream_stop", sessionRequest(session, "stream/stop", provider).post(JSONObject().toJsonBody()))
-        return parseBroadcastState(payload, provider)
+        return parseResponseSafely { parseBroadcastState(payload, provider) }
     }
 
     /** 이미 없는 세션(404)과 소유권이 없는 세션(403)도 정리된 것으로 봅니다. */
@@ -225,10 +229,13 @@ internal class DirectPublishApi(
 }
 
 /**
- * 서버가 세션을 만들었지만 직접 송출에 쓸 수 없어 거부했습니다. 삭제에 실패하면
+ * 서버가 세션을 만들었지만 직접 송출에 쓸 수 없어 거부했습니다. 삭제에 실패하거나 취소되면
  * [uncleanedSession]으로 owner token을 넘기므로 호출자가 정리 저장소에 보관해 다음에 지웁니다.
+ * [cleanupCancelled]이면 토큰 갱신 취소(계정 변경 등)로 삭제를 끝내지 못한 것이며, 원래 취소는
+ * suppressed 예외로 붙어 있습니다.
  */
 internal class DirectSessionRejectedException(
     message: String,
     val uncleanedSession: CreatedSession?,
+    val cleanupCancelled: Boolean = false,
 ) : IllegalStateException(message)
