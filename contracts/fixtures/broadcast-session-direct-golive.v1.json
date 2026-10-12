@@ -1,1 +1,0 @@
-{"status":"idle","publisher_active":false,"reconnect_attempts":0,"broadcast_phase":"live","targets":[{"provider":"chzzk","stream":{"status":"idle","publisher_active":false,"reconnect_attempts":0,"broadcast_phase":"live"}}],"direct_ingest":[{"provider":"chzzk","ingest_url":"rtmp://global-rtmp.lip2.navercorp.com:8080/relay/fixture-stream-key"}]}

@@ -280,7 +280,10 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertTrue(ready)
         XCTAssertEqual(methods, ["POST"])
         let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
-        XCTAssertTrue(body.contains("\"ai_processing\":\"on_device\""))
+        // 공유 계약(direct-publish-v1)은 최상위 ai_processing을 쓴다. metadata는 구 서버 협상용이다.
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+        XCTAssertEqual(json["ai_processing"] as? String, "on_device")
+        XCTAssertEqual((json["metadata"] as? [String: String])?["ai_processing"], "on_device")
         XCTAssertTrue(integration.isDirectPublishSession)
         XCTAssertEqual(integration.session?.processingMode, .onDevice)
         XCTAssertTrue(integration.isAnonymizationEnabled)

@@ -35,15 +35,15 @@ final class DirectIngestEndpointTests: XCTestCase {
         }
     }
 
-    func testDecodesPrepareIngestURLAndGoLiveDirectIngest() throws {
+    func testDecodesSharedPrepareAndGoLiveFixtures() throws {
         let prepared = try JSONDecoder().decode(
-            YouTubeSessionResponse.self, from: ContractTestFixtures.data(named: "broadcast-session-direct-prepare.v1")
+            YouTubeSessionResponse.self, from: ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")
         )
         XCTAssertEqual(prepared.ingestEndpoint?.streamName, "fixture-stream-key")
         XCTAssertTrue(prepared.directIngest.isEmpty)
 
         let live = try JSONDecoder().decode(
-            YouTubeSessionResponse.self, from: ContractTestFixtures.data(named: "broadcast-session-direct-golive.v1")
+            YouTubeSessionResponse.self, from: ContractTestFixtures.data(named: "direct-publish-golive-chzzk.v1")
         )
         XCTAssertFalse(live.isFullSnapshot)
         XCTAssertNil(live.ingestEndpoint)
@@ -53,6 +53,59 @@ final class DirectIngestEndpointTests: XCTestCase {
         let server = try SessionStateFixture.decode()
         XCTAssertNil(server.ingestEndpoint)
         XCTAssertTrue(server.directIngest.isEmpty)
+    }
+}
+
+final class DirectPublishSharedContractTests: XCTestCase {
+    private func object(_ name: String) throws -> [String: Any] {
+        try XCTUnwrap(JSONSerialization.jsonObject(with: ContractTestFixtures.data(named: name)) as? [String: Any])
+    }
+
+    private func encodedObject(_ value: some Encodable) throws -> [String: Any] {
+        try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(value)) as? [String: Any])
+    }
+
+    func testSessionCreateRequestUsesSharedTopLevelProcessingMode() throws {
+        let contract = try object("direct-publish-session-request.v1")
+        let onDevice = try encodedObject(YouTubeSessionCreateRequest(mode: .onDevice))
+        XCTAssertEqual(onDevice["ai_processing"] as? String, contract["ai_processing"] as? String)
+        // 처리 방식을 돌려주지 않는 구 서버와의 협상용이다. 서버는 최상위 값을 먼저 쓴다.
+        XCTAssertEqual((onDevice["metadata"] as? [String: String])?["ai_processing"], "on_device")
+        XCTAssertTrue(try encodedObject(YouTubeSessionCreateRequest(mode: .server)).isEmpty)
+    }
+
+    func testHeartbeatRequestKeysMatchSharedFixture() throws {
+        let contract = try object("direct-publish-heartbeat-request.v1")
+        let request = DirectHeartbeatRequest(
+            sentAt: "2026-10-12T08:30:00Z",
+            targets: [.init(provider: "youtube", connected: true, bitrateKbps: 5_200, reconnects: 0)],
+            video: .init(fps: 29.8, droppedFrames: 12, width: 1280, height: 720),
+            anonymization: .init(enabled: true, inferenceMsP50: 18.2, inferenceMsP95: 31, failedFrames: 0),
+            device: .init(thermal: "fair", batteryPct: 64, charging: false),
+            model: "iPhone15,4"
+        )
+        let encoded = try encodedObject(request)
+        XCTAssertEqual(Set(encoded.keys), Set(contract.keys))
+        for key in ["video", "anonymization"] {
+            XCTAssertEqual(Set((encoded[key] as? [String: Any] ?? [:]).keys), Set((contract[key] as? [String: Any] ?? [:]).keys), key)
+        }
+        let target = { (json: [String: Any]) in Set(((json["targets"] as? [[String: Any]])?.first ?? [:]).keys) }
+        XCTAssertEqual(target(encoded), target(contract))
+        // iOS는 기기 전체 CPU 사용률을 얻을 공개 API가 없어 선택 필드인 cpu_pct를 보내지 않는다.
+        let contractDevice = Set((contract["device"] as? [String: Any] ?? [:]).keys).subtracting(["cpu_pct"])
+        XCTAssertEqual(Set((encoded["device"] as? [String: Any] ?? [:]).keys), contractDevice)
+    }
+
+    func testHeartbeatResponseDecodesSharedFixture() throws {
+        let response = try JSONDecoder().decode(
+            DirectHeartbeatResponse.self, from: ContractTestFixtures.data(named: "direct-publish-heartbeat-response.v1")
+        )
+        XCTAssertEqual(response.stopTargets, ["chzzk"])
+        XCTAssertEqual(response.notices.count, 1)
+        XCTAssertEqual(response.remainingTime, .seconds(540))
+        let refusal = try object("direct-publish-heartbeat-not-applicable.v1")
+        let code = (refusal["error"] as? [String: Any])?["code"] as? String
+        XCTAssertTrue(YouTubeIntegration.heartbeatTerminalCodes.contains(try XCTUnwrap(code)))
     }
 }
 
@@ -325,6 +378,11 @@ final class DirectMediaPipelineTests: XCTestCase {
         let hd = DirectBroadcastPublisher.videoSettings(quality: .hd24, dimensions: nil)
         XCTAssertEqual(hd.videoSize, CGSize(width: 1280, height: 720))
         XCTAssertEqual(hd.bitRate, 3_500_000)
+        // 세션 해상도(720p)에 맞춰 카메라가 내려간 경우 FHD 설정값이어도 720p 비트레이트를 쓴다.
+        let synced = DirectBroadcastPublisher.videoSettings(
+            quality: .fullHD30, dimensions: CMVideoDimensions(width: 720, height: 1280)
+        )
+        XCTAssertEqual(synced.bitRate, 3_500_000)
     }
 
     private func brightPixels(in buffer: CVPixelBuffer, rows: Range<Int>) throws -> Int {
@@ -422,9 +480,14 @@ final class DirectPublishIntegrationTests: XCTestCase {
 
     func testOnDeviceSessionPrepareStartsYouTubeDirectPublish() async throws {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "idle")
+        // 실제 prepare 응답은 세션 전체 응답(targets 포함)에 ingest_url을 더한 형태다. 공유 fixture는 targets를 생략한다.
+        var prepare = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")
+        ) as? [String: Any])
+        prepare["targets"] = [["provider": "youtube", "stream": prepare["stream"] as Any]]
         DirectPublishURLProtocol.responses = [
             .init(statusCode: 200, data: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
-            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "broadcast-session-direct-prepare.v1")),
+            .init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: prepare)),
         ]
 
         let prepared = await integration.prepareYouTubeStream(accessToken: "access-token")
@@ -443,7 +506,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
         publisher.failStart = true
         DirectPublishURLProtocol.responses = [
             .init(statusCode: 200, data: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
-            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "broadcast-session-direct-prepare.v1")),
+            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")),
             .init(statusCode: 200, data: Data(SessionStateFixture.stream(phase: "idle", status: "stopped").utf8)),
         ]
 
@@ -461,7 +524,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
     func testMissingPrepareIngestStopsTargetInsteadOfWaitingForVideo() async throws {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "idle")
         var prepare = try XCTUnwrap(JSONSerialization.jsonObject(
-            with: ContractTestFixtures.data(named: "broadcast-session-direct-prepare.v1")
+            with: ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")
         ) as? [String: Any])
         prepare.removeValue(forKey: "ingest_url")
         DirectPublishURLProtocol.responses = [
@@ -479,10 +542,27 @@ final class DirectPublishIntegrationTests: XCTestCase {
         integration.reset()
     }
 
+    func testGoLiveSkipsFailedCHZZKTarget() async throws {
+        let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared", providers: ["chzzk"])
+        var live = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: ContractTestFixtures.data(named: "direct-publish-golive-chzzk.v1")
+        ) as? [String: Any])
+        live["failed_targets"] = [["provider": "chzzk", "code": "streaming_golive_failed", "message": "failed"]]
+        DirectPublishURLProtocol.responses = [
+            .init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: live)),
+        ]
+
+        await integration.goLiveYouTubeStream(accessToken: "access-token")
+
+        XCTAssertTrue(publisher.started.isEmpty)
+        XCTAssertFalse(DirectPublishURLProtocol.paths.contains { $0.hasSuffix("/stream/stop") })
+        integration.reset()
+    }
+
     func testGoLiveReportsMissingCHZZKIngest() async throws {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared", providers: ["chzzk"])
         var live = try XCTUnwrap(JSONSerialization.jsonObject(
-            with: ContractTestFixtures.data(named: "broadcast-session-direct-golive.v1")
+            with: ContractTestFixtures.data(named: "direct-publish-golive-chzzk.v1")
         ) as? [String: Any])
         live.removeValue(forKey: "direct_ingest")
         DirectPublishURLProtocol.responses = [
@@ -504,7 +584,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
         let integration = try makeIntegration(aiProcessing: "server", phase: "idle")
         DirectPublishURLProtocol.responses = [
             .init(statusCode: 200, data: Data(SessionStateFixture.json(providers: ["youtube"], phase: "idle", status: "idle").utf8)),
-            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "broadcast-session-direct-prepare.v1")),
+            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")),
         ]
 
         let prepared = await integration.prepareYouTubeStream(accessToken: "access-token")
@@ -517,7 +597,7 @@ final class DirectPublishIntegrationTests: XCTestCase {
     func testGoLiveConnectsCHZZKDirectIngest() async throws {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared", providers: ["chzzk"])
         DirectPublishURLProtocol.responses = [
-            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "broadcast-session-direct-golive.v1")),
+            .init(statusCode: 200, data: try ContractTestFixtures.data(named: "direct-publish-golive-chzzk.v1")),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -550,6 +630,24 @@ final class DirectPublishIntegrationTests: XCTestCase {
         await integration.stopYouTubeStream(accessToken: "access-token")
         XCTAssertEqual(publisher.stopped, ["youtube"])
         XCTAssertEqual(DirectPublishURLProtocol.paths.last, "/sessions/session-direct/stream/stop")
+        // 공유 계약 순서: stop 요청을 보낸 뒤 연결을 끊는다.
+        XCTAssertEqual(publisher.lastRequestPathAtStop, "/sessions/session-direct/stream/stop")
+        integration.reset()
+    }
+
+    func testStopClosesDirectConnectionEvenWhenStopRequestFails() async throws {
+        let integration = try makeIntegration(aiProcessing: "on_device", phase: "live")
+        publisher.states = ["youtube": .publishing]
+        integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(phase: "live", status: "idle"))
+        DirectPublishURLProtocol.responses = [
+            .init(statusCode: 502, data: Data(#"{"error":{"code":"streaming_stop_failed","message":"none"}}"#.utf8)),
+        ]
+
+        await integration.stopYouTubeStream(accessToken: "access-token")
+
+        XCTAssertEqual(DirectPublishURLProtocol.paths.last, "/sessions/session-direct/stream/stop")
+        XCTAssertEqual(publisher.stopped, ["youtube"])
+        XCTAssertNotNil(integration.errorMessage)
         integration.reset()
     }
 
@@ -614,18 +712,53 @@ final class DirectPublishIntegrationTests: XCTestCase {
         integration.reset()
     }
 
-    func testHeartbeatStopsWhenServerHasNoLiveTarget() async throws {
+    func testHeartbeatNotApplicableClosesAllDirectConnections() async throws {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
         publisher.states = ["youtube": .publishing]
         DirectPublishURLProtocol.responses = [
             .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
-            .init(statusCode: 409, data: Data(#"{"error":{"code":"heartbeat_not_applicable","message":"none"}}"#.utf8)),
+            .init(statusCode: 409, data: try ContractTestFixtures.data(named: "direct-publish-heartbeat-not-applicable.v1")),
+            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "idle", status: "stopped").utf8)),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
-        try await waitUntil { DirectPublishURLProtocol.paths.contains { $0.hasSuffix("/heartbeat") } && !integration.isSendingDirectHeartbeat }
+        try await waitUntil { self.publisher.stopped == ["youtube"] && integration.errorMessage != nil }
+        XCTAssertFalse(integration.isSendingDirectHeartbeat)
+        XCTAssertTrue(DirectPublishURLProtocol.paths.last?.hasSuffix("/sessions/session-direct") == true)
+        integration.reset()
+    }
+
+    func testHeartbeatOwnershipLossClosesAllDirectConnections() async throws {
+        for (status, code) in [(403, "forbidden"), (404, "not_found")] {
+            DirectPublishURLProtocol.reset()
+            publisher = FakeDirectPublisher()
+            let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
+            publisher.states = ["youtube": .publishing]
+            DirectPublishURLProtocol.responses = [
+                .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
+                .init(statusCode: status, data: Data(#"{"error":{"code":"\#(code)","message":"none"}}"#.utf8)),
+            ]
+
+            await integration.goLiveYouTubeStream(accessToken: "access-token")
+            try await waitUntil { self.publisher.stopped == ["youtube"] && integration.errorMessage != nil }
+            XCTAssertFalse(integration.isSendingDirectHeartbeat, code)
+            integration.reset()
+        }
+    }
+
+    func testHeartbeatServerErrorKeepsPublishing() async throws {
+        let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
+        publisher.states = ["youtube": .publishing]
+        DirectPublishURLProtocol.responses = [
+            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
+            .init(statusCode: 503, data: Data(#"{"error":{"code":"unavailable","message":"none"}}"#.utf8)),
+        ]
+
+        await integration.goLiveYouTubeStream(accessToken: "access-token")
+        try await waitUntil { DirectPublishURLProtocol.paths.contains { $0.hasSuffix("/heartbeat") } }
+        try await Task.sleep(for: .milliseconds(200))
         XCTAssertTrue(publisher.stopped.isEmpty)
-        XCTAssertNil(integration.errorMessage)
+        XCTAssertTrue(integration.isSendingDirectHeartbeat)
         integration.reset()
     }
 
@@ -702,9 +835,12 @@ private final class FakeDirectPublisher: DirectBroadcastPublishing {
         onStateChange?()
     }
 
+    private(set) var lastRequestPathAtStop: String?
+
     func stop(provider: String) async {
         guard states.removeValue(forKey: provider) != nil else { return }
         stopped.append(provider)
+        lastRequestPathAtStop = DirectPublishURLProtocol.paths.last
         onStateChange?()
     }
 
