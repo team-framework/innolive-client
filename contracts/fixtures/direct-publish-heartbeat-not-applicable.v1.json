@@ -1,0 +1,8 @@
+{
+  "error": {
+    "code": "heartbeat_not_applicable",
+    "message": "The session has no live broadcast target.",
+    "details": { "session_id": "fixture-session" }
+  },
+  "request_id": "b3bfbe21-8b1f-4f9f-ae75-b760d7b902c1"
+}
