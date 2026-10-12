@@ -56,6 +56,105 @@ final class DirectIngestEndpointTests: XCTestCase {
     }
 }
 
+final class DirectHeartbeatModelTests: XCTestCase {
+    func testBuilderReportsIntervalFPSBitrateAndCumulativeCounters() throws {
+        var builder = DirectHeartbeatBuilder()
+        let start = Date(timeIntervalSince1970: 1_000)
+        let device = DirectHeartbeatRequest.Device(thermal: "fair", batteryPct: 64, charging: false)
+        var status = DirectPublishStatus(
+            targets: [.init(provider: "youtube", connected: true, sentBytes: 1_000_000, reconnects: 0)],
+            metrics: .init(videoFrames: 300, droppedFrames: 1, failedFrames: 0, inferenceMilliseconds: [10, 12, 40],
+                           videoWidth: 1280, videoHeight: 720, startedAt: start)
+        )
+
+        let first = builder.makeRequest(status: status, anonymizationEnabled: true, device: device,
+                                        model: "iPhone15,4", now: start.addingTimeInterval(10))
+        XCTAssertEqual(first.video.fps, 30)
+        XCTAssertNil(first.targets.first?.bitrateKbps)
+        XCTAssertEqual(first.anonymization.inferenceMsP50, 12)
+        XCTAssertEqual(first.anonymization.inferenceMsP95, 40)
+        XCTAssertEqual(first.sentAt, "1970-01-01T00:16:50Z")
+
+        status.targets = [.init(provider: "youtube", connected: true, sentBytes: 11_000_000, reconnects: 1)]
+        status.metrics.videoFrames = 750
+        status.metrics.droppedFrames = 3
+        status.metrics.inferenceMilliseconds = []
+        let second = builder.makeRequest(status: status, anonymizationEnabled: true, device: device,
+                                         model: "iPhone15,4", now: start.addingTimeInterval(25))
+        XCTAssertEqual(second.video.fps, 30)
+        XCTAssertEqual(second.video.droppedFrames, 3)
+        XCTAssertEqual(second.targets.first?.bitrateKbps, 5_333)
+        XCTAssertEqual(second.targets.first?.reconnects, 1)
+        XCTAssertNil(second.anonymization.inferenceMsP50)
+    }
+
+    func testRequestEncodesContractKeysAndOmitsUnavailableOptionalFields() throws {
+        let request = DirectHeartbeatRequest(
+            sentAt: "2026-10-12T08:30:00Z",
+            targets: [.init(provider: "chzzk", connected: false, bitrateKbps: nil, reconnects: 2)],
+            video: .init(fps: 29.8, droppedFrames: 12, width: 1280, height: 720),
+            anonymization: .init(enabled: true, inferenceMsP50: nil, inferenceMsP95: nil, failedFrames: 0),
+            device: .init(thermal: "nominal", batteryPct: nil, charging: nil),
+            model: "iPhone15,3"
+        )
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        XCTAssertEqual(Set(json.keys), ["sent_at", "targets", "video", "anonymization", "device", "platform", "model"])
+        XCTAssertEqual(json["platform"] as? String, "ios")
+        let target = try XCTUnwrap((json["targets"] as? [[String: Any]])?.first)
+        XCTAssertEqual(Set(target.keys), ["provider", "connected", "reconnects"])
+        let video = try XCTUnwrap(json["video"] as? [String: Any])
+        XCTAssertEqual(video["dropped_frames"] as? Int, 12)
+        let anonymization = try XCTUnwrap(json["anonymization"] as? [String: Any])
+        XCTAssertEqual(Set(anonymization.keys), ["enabled", "failed_frames"])
+        XCTAssertEqual(Set((json["device"] as? [String: Any] ?? [:]).keys), ["thermal"])
+    }
+
+    func testResponseDecodesStopTargetsNoticesAndRemainingTime() throws {
+        let limited = try JSONDecoder().decode(DirectHeartbeatResponse.self, from: Data(
+            #"{"stop_targets":["chzzk"],"notices":[{"code":"broadcast_limit_10m","at":"2026-10-12T08:30:00Z"}],"broadcast_remaining_seconds":540}"#.utf8
+        ))
+        XCTAssertEqual(limited.stopTargets, ["chzzk"])
+        XCTAssertEqual(limited.notices.first?.code, "broadcast_limit_10m")
+        XCTAssertEqual(limited.remainingTime, .seconds(540))
+        let unlimited = try JSONDecoder().decode(DirectHeartbeatResponse.self, from: Data(
+            #"{"stop_targets":[],"notices":[],"broadcast_remaining_seconds":null}"#.utf8
+        ))
+        XCTAssertEqual(unlimited.remainingTime, .unlimitedOrInactive)
+        XCTAssertTrue(unlimited.stopTargets.isEmpty)
+    }
+
+    func testThermalStatesMatchContractValues() {
+        XCTAssertEqual(DirectHeartbeatDevice.thermal(.nominal), "nominal")
+        XCTAssertEqual(DirectHeartbeatDevice.thermal(.fair), "fair")
+        XCTAssertEqual(DirectHeartbeatDevice.thermal(.serious), "serious")
+        XCTAssertEqual(DirectHeartbeatDevice.thermal(.critical), "critical")
+        XCTAssertFalse(DirectHeartbeatDevice.model.isEmpty)
+    }
+
+    func testMetricsCountFramesDropsAndDrainInferenceSamples() throws {
+        let fanout = DirectMediaFanout()
+        fanout.metrics.reset()
+        fanout.recordInference(milliseconds: 5)
+        XCTAssertTrue(fanout.metrics.drain().inferenceMilliseconds.isEmpty)
+        let output = RecordingDirectOutput()
+        fanout.attach(output, provider: "youtube")
+        var buffer: CVPixelBuffer?
+        CVPixelBufferCreate(kCFAllocatorDefault, 64, 32, kCVPixelFormatType_32BGRA,
+                            [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &buffer)
+        fanout.appendVideo(pixelBuffer: try XCTUnwrap(buffer), rotation: 0, timestampNs: 1)
+        fanout.recordInference(milliseconds: 5)
+        fanout.recordAnonymizationFailure()
+        let snapshot = fanout.metrics.drain()
+        XCTAssertEqual(snapshot.videoFrames, 1)
+        XCTAssertEqual(snapshot.failedFrames, 1)
+        XCTAssertEqual(snapshot.inferenceMilliseconds, [5])
+        XCTAssertEqual(snapshot.videoWidth, 64)
+        XCTAssertTrue(fanout.metrics.drain().inferenceMilliseconds.isEmpty)
+        XCTAssertEqual(fanout.metrics.drain().videoFrames, 1)
+        fanout.detach(provider: "youtube")
+    }
+}
+
 final class DirectPublishOverlayTests: XCTestCase {
     func testDirectTargetStatusFollowsLocalPublisherWhilePhaseStaysServerOwned() throws {
         var snapshot = BroadcastSessionSnapshot()
@@ -328,6 +427,75 @@ final class DirectPublishIntegrationTests: XCTestCase {
         integration.reset()
     }
 
+    func testGoLiveSendsFirstHeartbeatAndStopsServerEndedTargets() async throws {
+        let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
+        publisher.states = ["youtube": .publishing]
+        DirectPublishURLProtocol.responses = [
+            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
+            .init(statusCode: 200, data: Data(#"{"stop_targets":["youtube"],"notices":[{"code":"broadcast_limit_10m","at":"2026-10-12T08:30:00Z"}],"broadcast_remaining_seconds":540}"#.utf8)),
+            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "idle", status: "stopped").utf8)),
+        ]
+
+        await integration.goLiveYouTubeStream(accessToken: "access-token")
+        try await waitUntil { self.publisher.stopped == ["youtube"] && integration.errorMessage != nil }
+
+        let heartbeat = try XCTUnwrap(DirectPublishURLProtocol.requests.first { $0.url?.path.hasSuffix("/heartbeat") == true })
+        XCTAssertEqual(heartbeat.httpMethod, "POST")
+        XCTAssertEqual(heartbeat.value(forHTTPHeaderField: "X-Session-Owner-Token"), "owner")
+        let body = try XCTUnwrap(DirectPublishURLProtocol.body(heartbeat))
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(json["platform"] as? String, "ios")
+        XCTAssertNotNil(json["sent_at"] as? String)
+        XCTAssertFalse((json["model"] as? String ?? "").isEmpty)
+        let targets = try XCTUnwrap(json["targets"] as? [[String: Any]])
+        XCTAssertEqual(targets.first?["provider"] as? String, "youtube")
+        XCTAssertEqual(targets.first?["connected"] as? Bool, true)
+        let video = try XCTUnwrap(json["video"] as? [String: Any])
+        XCTAssertEqual(video["dropped_frames"] as? Int, 2)
+        XCTAssertEqual(video["fps"] as? Double ?? 0, 30, accuracy: 1)
+        let anonymization = try XCTUnwrap(json["anonymization"] as? [String: Any])
+        XCTAssertEqual(anonymization["failed_frames"] as? Int, 0)
+        XCTAssertEqual(anonymization["inference_ms_p50"] as? Double, 20)
+        XCTAssertNotNil((json["device"] as? [String: Any])?["thermal"])
+
+        XCTAssertTrue(DirectPublishURLProtocol.paths.last?.hasSuffix("/sessions/session-direct") == true)
+        integration.reset()
+    }
+
+    func testHeartbeatStopsWhenServerHasNoLiveTarget() async throws {
+        let integration = try makeIntegration(aiProcessing: "on_device", phase: "prepared")
+        publisher.states = ["youtube": .publishing]
+        DirectPublishURLProtocol.responses = [
+            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "idle").utf8)),
+            .init(statusCode: 409, data: Data(#"{"error":{"code":"heartbeat_not_applicable","message":"none"}}"#.utf8)),
+        ]
+
+        await integration.goLiveYouTubeStream(accessToken: "access-token")
+        try await waitUntil { DirectPublishURLProtocol.paths.contains { $0.hasSuffix("/heartbeat") } && !integration.isSendingDirectHeartbeat }
+        XCTAssertTrue(publisher.stopped.isEmpty)
+        XCTAssertNil(integration.errorMessage)
+        integration.reset()
+    }
+
+    func testServerSessionNeverSendsHeartbeat() async throws {
+        let integration = try makeIntegration(aiProcessing: "server", phase: "prepared")
+        DirectPublishURLProtocol.responses = [
+            .init(statusCode: 200, data: Data(SessionStateFixture.json(phase: "live", status: "streaming").utf8)),
+        ]
+        await integration.goLiveYouTubeStream(accessToken: "access-token")
+        XCTAssertFalse(integration.isSendingDirectHeartbeat)
+        XCTAssertFalse(DirectPublishURLProtocol.paths.contains { $0.hasSuffix("/heartbeat") })
+        integration.reset()
+    }
+
+    private func waitUntil(timeout: TimeInterval = 3, _ condition: @escaping () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() {
+            guard Date() < deadline else { return XCTFail("condition not met before timeout") }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+    }
+
     private func makeIntegration(aiProcessing: String, phase: String, providers: [String] = ["youtube"]) throws -> YouTubeIntegration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [DirectPublishURLProtocol.self]
@@ -340,7 +508,8 @@ final class DirectPublishIntegrationTests: XCTestCase {
             api: api,
             localModelsAvailable: { true },
             persistAIProcessingMode: { _ in },
-            directPublisher: publisher
+            directPublisher: publisher,
+            heartbeatInterval: .seconds(3_600)
         )
         let targets = providers.map {
             "{\"provider\":\"\($0)\",\"stream\":\(SessionStateFixture.stream(phase: phase, status: "idle"))}"
@@ -395,6 +564,14 @@ private final class FakeDirectPublisher: DirectBroadcastPublishing {
         states[provider] = paused ? .paused : .publishing
         onStateChange?()
     }
+
+    func heartbeatStatus() async -> DirectPublishStatus {
+        DirectPublishStatus(
+            targets: states.keys.sorted().map { .init(provider: $0, connected: states[$0] == .publishing, sentBytes: 1_000, reconnects: 0) },
+            metrics: .init(videoFrames: 300, droppedFrames: 2, failedFrames: 0, inferenceMilliseconds: [10, 20, 30],
+                           videoWidth: 1080, videoHeight: 1920, startedAt: Date(timeIntervalSinceNow: -10))
+        )
+    }
 }
 
 private final class DirectPublishURLProtocol: URLProtocol {
@@ -413,6 +590,21 @@ private final class DirectPublishURLProtocol: URLProtocol {
     static func reset() {
         responses = []
         requests = []
+    }
+
+    static func body(_ request: URLRequest) -> Data? {
+        if let data = request.httpBody { return data }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 1_024)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return data
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
