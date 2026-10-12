@@ -64,6 +64,20 @@ class DirectPublishContractTest {
         assertThrows(IllegalStateException::class.java) { parseDirectPrepare(live, BroadcastProvider.YOUTUBE) }
     }
 
+    @Test fun malformedResponsesFailWithoutOriginalTextOrCause() {
+        val secret = "secret-stream-key"
+        val failures = listOf(
+            runCatching { parseDirectPrepare("""{"ingest_url":"rtmps://h/live2/$secret""", BroadcastProvider.YOUTUBE) },
+            runCatching { parseDirectGoLive("""{"direct_ingest":[{"ingest_url":"rtmp://h/a/$secret""", BroadcastProvider.CHZZK) },
+            runCatching { parseHeartbeatAccepted("""{"stop_targets":[""") },
+        ).map { it.exceptionOrNull() }
+        for (error in failures) {
+            assertTrue("$error", error is DirectPublishResponseException)
+            assertNull(error?.cause)
+            assertFalse(error.toString().contains(secret))
+        }
+    }
+
     @Test fun chzzkGoLiveReturnsDirectIngestOnly() {
         val result = parseDirectGoLive(fixture("golive-chzzk"), BroadcastProvider.YOUTUBE)
         assertEquals(BroadcastState.LIVE, result.state)
