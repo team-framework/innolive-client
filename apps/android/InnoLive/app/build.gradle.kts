@@ -85,6 +85,7 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.squareup.okhttp3:okhttp:5.3.0")
     implementation("io.github.webrtc-sdk:android:144.7559.09")
+    implementation("com.github.pedroSG94.RootEncoder:rtmp:2.8.1")
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
     implementation(platform(libs.androidx.compose.bom))
