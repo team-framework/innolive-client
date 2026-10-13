@@ -34,21 +34,27 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
-import com.framework.innolive.feature.live.SessionTarget
+import com.framework.innolive.feature.live.direct.broadcast.BroadcastTargetRow
+import com.framework.innolive.feature.live.direct.broadcast.DirectStatusWarning
+import com.framework.innolive.ui.text.asString
 
 private val PanelBackground = Color.Black.copy(alpha = 0.55f)
 private val ChipBackground = Color.White.copy(alpha = 0.16f)
 private val SecondaryText = Color(0xFFD0D0D0)
 private val AttentionColor = Color(0xFFFFB020)
 
-/** 방송 중 플랫폼별 송출 상태와 앱의 업로드 품질을 한곳에 보여 준다. */
+/**
+ * 방송 중 플랫폼별 송출 상태와 앱의 업로드 품질을 한곳에 보여 준다.
+ * 직접 송출이면 [warnings]에 대기 화면·마이크·발열·준비 마감 안내가 온다.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun BroadcastLiveStatusPanel(
-    targets: List<SessionTarget>,
+    targets: List<BroadcastTargetRow>,
     broadcastResolution: String?,
     uplinkQuality: BroadcastUplinkQuality?,
     modifier: Modifier = Modifier,
+    warnings: List<DirectStatusWarning> = emptyList(),
 ) {
     Column(
         modifier = modifier
@@ -68,29 +74,31 @@ internal fun BroadcastLiveStatusPanel(
             }
         }
 
-        uplinkQuality?.limitation?.let { limitation ->
-            Row(
-                modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Warning,
-                    contentDescription = null,
-                    tint = AttentionColor,
-                    modifier = Modifier.size(16.dp),
-                )
-                Text(
-                    text = stringResource(limitation.warningRes),
-                    color = AttentionColor,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
+        uplinkQuality?.limitation?.let { limitation -> WarningRow(stringResource(limitation.warningRes), AttentionColor) }
+        warnings.forEach { warning ->
+            WarningRow(warning.text.asString(), if (warning.urgent) AttentionColor else SecondaryText)
         }
     }
 }
 
 @Composable
-private fun TargetRow(target: SessionTarget) {
+private fun WarningRow(text: String, color: Color) {
+    Row(
+        modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Warning,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(text = text, color = color, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun TargetRow(target: BroadcastTargetRow) {
     val tone = target.tone
     Row(
         modifier = Modifier
@@ -112,7 +120,7 @@ private fun TargetRow(target: SessionTarget) {
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            text = stringResource(target.statusLabelRes),
+            text = stringResource(target.labelRes),
             color = if (tone == BroadcastTargetTone.ATTENTION) AttentionColor else SecondaryText,
             style = MaterialTheme.typography.labelMedium,
         )
