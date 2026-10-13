@@ -99,6 +99,42 @@ class DirectPublisherDeviceTest {
         publishAnonymizedFrames(checkNotNull(url), trustManager = TrustAllForLocalTest)
     }
 
+    /**
+     * 호스트 이름이 다른 인증서의 RTMPS 서버에는 연결하지 않아야 합니다. `-e directPublishWrongHostUrl
+     * rtmps://127.0.0.1:1938/live/<key>`로 켭니다. 호스트의 TLS 프록시는 127.0.0.1이 아닌 이름의
+     * 인증서를 씁니다. 신뢰 검사는 끄므로 호스트 이름 검증만 연결을 막습니다.
+     */
+    @Test fun rejectsRtmpsCertificateIssuedForAnotherHost() {
+        val url = arguments.getString("directPublishWrongHostUrl")
+        assumeTrue("directPublishWrongHostUrl 인자가 없어 호스트 검증 테스트를 건너뜁니다.", url != null)
+        initializeWebRtc()
+        val root = EglBase.create()
+        val profile = DirectPublishProfile.of(DirectPublishResolution.HD_720, PublishOrientation.LANDSCAPE)
+        val states = CopyOnWriteArrayList<RtmpTargetState>()
+        val settled = CountDownLatch(1)
+        val publisher = DirectPublisher(profile, root.eglBaseContext, SinePcmSource(profile),
+            object : DirectPublisher.Listener {
+                override fun onTargetStateChanged(provider: BroadcastProvider, state: RtmpTargetState, failure: RtmpFailure?) {
+                    states += state
+                    if (state == RtmpTargetState.FAILED || state == RtmpTargetState.PUBLISHING) settled.countDown()
+                }
+
+                override fun onPublisherFailed(error: Exception) = Unit
+            },
+            targetFactory = { provider, ingestUrl, onChanged ->
+                RtmpPublishTarget(provider, ingestUrl, profile, onChanged, TrustAllForLocalTest)
+            })
+        try {
+            publisher.start()
+            publisher.connect(BroadcastProvider.YOUTUBE, IngestUrl.parse(url))
+            assertTrue("연결 결과가 오지 않았습니다. states=$states", settled.await(15, TimeUnit.SECONDS))
+            assertTrue("호스트가 다른 인증서로 송출했습니다. states=$states", RtmpTargetState.PUBLISHING !in states)
+        } finally {
+            publisher.close()
+            root.release()
+        }
+    }
+
     private fun publishAnonymizedFrames(url: String, trustManager: X509TrustManager?) {
         val seconds = arguments.getString("directPublishSeconds")?.toLongOrNull() ?: 10L
         initializeWebRtc()
