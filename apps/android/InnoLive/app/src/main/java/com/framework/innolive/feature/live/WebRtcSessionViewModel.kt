@@ -40,6 +40,7 @@ class WebRtcSessionViewModel internal constructor(
     var serverError by mutableStateOf<ServerErrorGuidance?>(null)
         private set
     private var preparationSettings: BroadcastSettings? = null
+    private var preparationChzzkSettings: ChzzkBroadcastSettings? = null
     private var retryBroadcastRequest: (() -> Unit)? = null
 
     fun dismissServerError() { serverError = null }
@@ -50,6 +51,9 @@ class WebRtcSessionViewModel internal constructor(
         val settings = preparationSettings ?: return false
         val activeConnection = connection ?: return false
         serverError = null
+        preparationChzzkSettings?.let { chzzk ->
+            return requestSimulcastPreparation(activeConnection, settings, chzzk, allowConcurrent = true)
+        }
         return requestBroadcastPreparation(activeConnection, settings, allowConcurrent = true)
     }
 
@@ -119,14 +123,26 @@ class WebRtcSessionViewModel internal constructor(
         directBroadcastPlan = plan
         return true
     }
-    var selectedProvider by mutableStateOf(BroadcastProvider.YOUTUBE)
+    /** 송출할 플랫폼입니다. 둘이면 동시 송출이며 세션은 [selectedProvider]로 만듭니다. */
+    var selectedProviders by mutableStateOf(setOf(BroadcastProvider.YOUTUBE))
         private set
 
-    fun selectProvider(provider: BroadcastProvider): Boolean {
-        if (!broadcastState.canPrepare || isPreparingBroadcast) return false
-        if (selectedProvider != provider) {
-            if (connectionState != WebRtcConnectionState.IDLE) close()
-            selectedProvider = provider
+    /** 세션의 기본 대상입니다. 동시 송출이면 YouTube입니다. */
+    val selectedProvider: BroadcastProvider
+        get() = BroadcastProvider.entries.first { it in selectedProviders }
+
+    val isSimulcastSelected: Boolean
+        get() = selectedProviders.size > 1
+
+    fun selectProvider(provider: BroadcastProvider): Boolean = selectProviders(setOf(provider))
+
+    fun selectProviders(providers: Set<BroadcastProvider>): Boolean {
+        if (providers.isEmpty() || !broadcastState.canPrepare || isPreparingBroadcast) return false
+        if (selectedProviders != providers) {
+            // 기본 대상이 같으면 세션을 그대로 쓰고 다음 준비에서 대상만 더하거나 뺍니다.
+            val primary = BroadcastProvider.entries.first { it in providers }
+            if (primary != selectedProvider && connectionState != WebRtcConnectionState.IDLE) close()
+            selectedProviders = providers
         }
         return true
     }
@@ -238,6 +254,7 @@ class WebRtcSessionViewModel internal constructor(
         val initialOnDevice = selectedOnDeviceProcessing
         serverError = null
         preparationSettings = null
+        preparationChzzkSettings = null
         retryBroadcastRequest = null
         sessionState = sessionState.beginConnection()
         sessionSnapshot = null
@@ -453,16 +470,32 @@ class WebRtcSessionViewModel internal constructor(
         refreshAccessToken: suspend () -> String,
     ): Boolean = prepareBroadcastInternal(context, null, settings, refreshAccessToken)
 
+    /** YouTube와 치지직을 한 세션에서 함께 준비합니다. 한 플랫폼이 실패해도 다른 플랫폼의 준비는 유지합니다. */
+    fun prepareSimulcastBroadcast(
+        context: Context,
+        settings: BroadcastSettings,
+        chzzkSettings: ChzzkBroadcastSettings,
+        refreshAccessToken: suspend () -> String,
+    ): Boolean = prepareBroadcastInternal(context, settings, chzzkSettings, refreshAccessToken)
+
     private fun prepareBroadcastInternal(
         context: Context,
         settings: BroadcastSettings?,
         chzzkSettings: ChzzkBroadcastSettings?,
         refreshAccessToken: suspend () -> String,
     ): Boolean {
+        val youtubeInvalid = settings == null || !validateYouTubeLiveSettings(settings).isValid
+        val chzzkInvalid = chzzkSettings == null || chzzkSettings.validationField() != null
+        val invalid = selectedProviders.any { provider ->
+            if (provider == BroadcastProvider.YOUTUBE) youtubeInvalid else chzzkInvalid
+        }
+        // 동시 송출의 한 플랫폼만 준비됐으면 연결과 준비된 플랫폼을 유지하고 남은 플랫폼만 다시 준비합니다.
+        if (isSimulcastSelected && broadcastState == BroadcastState.PREPARED && !isPreparingBroadcast) {
+            val activeConnection = connection
+            if (invalid || activeConnection == null || connectionState != WebRtcConnectionState.CONNECTED) return false
+            return requestSimulcastPreparation(activeConnection, checkNotNull(settings), checkNotNull(chzzkSettings))
+        }
         if (isPreparingBroadcast || !broadcastState.canPrepare) return false
-        val invalid = if (selectedProvider == BroadcastProvider.YOUTUBE)
-            settings == null || !validateYouTubeLiveSettings(settings).isValid
-        else chzzkSettings == null || chzzkSettings.validationField() != null
         if (invalid) {
             broadcastState = BroadcastState.FAILED
             broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_validation)
@@ -503,9 +536,14 @@ class WebRtcSessionViewModel internal constructor(
                     isBroadcastStatusDefault = false
                     return@launch
                 }
-                if (selectedProvider == BroadcastProvider.CHZZK) {
-                    requestChzzkBroadcastPreparation(activeConnection, checkNotNull(chzzkSettings))
-                } else requestBroadcastPreparation(activeConnection, checkNotNull(settings))
+                when {
+                    isSimulcastSelected -> requestSimulcastPreparation(
+                        activeConnection, checkNotNull(settings), checkNotNull(chzzkSettings),
+                    )
+                    selectedProvider == BroadcastProvider.CHZZK ->
+                        requestChzzkBroadcastPreparation(activeConnection, checkNotNull(chzzkSettings))
+                    else -> requestBroadcastPreparation(activeConnection, checkNotNull(settings))
+                }
             } catch (_: TimeoutCancellationException) {
                 if (isCurrentGeneration(generation)) {
                     close()
@@ -528,6 +566,7 @@ class WebRtcSessionViewModel internal constructor(
     ): Boolean {
         serverError = null
         preparationSettings = settings
+        preparationChzzkSettings = null
         retryBroadcastRequest = {
             connection?.let { requestBroadcastPreparation(it, settings, allowConcurrent) }
         }
@@ -536,6 +575,35 @@ class WebRtcSessionViewModel internal constructor(
         isBroadcastStatusDefault = true
         if (activeConnection.prepareBroadcast(settings, allowConcurrent)) return true
 
+        broadcastState = BroadcastState.FAILED
+        broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_request)
+        isBroadcastStatusDefault = false
+        return false
+    }
+
+    internal fun requestSimulcastPreparation(
+        activeConnection: LiveBroadcastTransport,
+        settings: BroadcastSettings,
+        chzzkSettings: ChzzkBroadcastSettings,
+        allowConcurrent: Boolean = false,
+    ): Boolean {
+        serverError = null
+        preparationSettings = settings
+        preparationChzzkSettings = chzzkSettings
+        retryBroadcastRequest = {
+            connection?.let { requestSimulcastPreparation(it, settings, chzzkSettings, allowConcurrent) }
+        }
+        val previousState = broadcastState
+        broadcastState = BroadcastState.SAVING_SETTINGS
+        broadcastStatus = broadcastStateMessage(BroadcastState.SAVING_SETTINGS).text
+        isBroadcastStatusDefault = true
+        if (activeConnection.prepareTargets(settings, chzzkSettings, allowConcurrent)) return true
+        // 일부 대상이 준비된 상태의 재요청이 거절되면 준비된 대상을 그대로 보여 줍니다.
+        if (previousState == BroadcastState.PREPARED) {
+            broadcastState = previousState
+            broadcastStatus = broadcastStateMessage(previousState).text
+            return false
+        }
         broadcastState = BroadcastState.FAILED
         broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_request)
         isBroadcastStatusDefault = false
@@ -597,6 +665,7 @@ class WebRtcSessionViewModel internal constructor(
     fun close() {
         serverError = null
         preparationSettings = null
+        preparationChzzkSettings = null
         retryBroadcastRequest = null
         lockedBroadcastRotation = null
         lockedScreenOrientation = null

@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live.components
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.hoverable
@@ -73,6 +74,8 @@ fun YouTubeLiveSettingsDialog(
     onConnectYouTube: () -> Unit,
     onDismissRequest: () -> Unit,
     onPrepare: (() -> Unit)? = null,
+    /** 준비 버튼 문구입니다. 동시 송출에서는 치지직 설정으로 넘어가는 문구를 씁니다. */
+    @StringRes prepareActionRes: Int = R.string.action_prepare_broadcast,
     serverError: ServerErrorGuidance? = null,
     onChangePlatform: (() -> Unit)? = null,
     guide: BroadcastTutorialGuide? = null,
@@ -415,7 +418,7 @@ fun YouTubeLiveSettingsDialog(
                         Text(
                             text = stringResource(
                                 if (onPrepare == null) R.string.action_save_and_close
-                                else R.string.action_prepare_broadcast,
+                                else prepareActionRes,
                             ),
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.Black,

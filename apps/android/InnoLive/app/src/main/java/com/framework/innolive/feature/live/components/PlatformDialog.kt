@@ -1,7 +1,9 @@
 package com.framework.innolive.feature.live.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +39,8 @@ fun PlatformDialog(
     onYouTubeSelected: () -> Unit,
     onChzzkSelected: () -> Unit = {},
     guide: BroadcastTutorialGuide? = null,
+    /** null이면 동시 송출 선택지를 보여 주지 않습니다. */
+    onSimulcastSelected: (() -> Unit)? = null,
 ) {
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -74,6 +78,27 @@ fun PlatformDialog(
                                 } else if (platform.id == "chzzk") {
                                     onChzzkSelected()
                                 }
+                                onDismissRequest()
+                            },
+                        )
+                    }
+                    if (onSimulcastSelected != null) {
+                        val label = stringResource(R.string.simulcast_platform_label)
+                        PlatformItem(
+                            name = label,
+                            leadingContent = {
+                                Row(horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
+                                    listOf(R.drawable.ic_youtube, R.drawable.ic_chzzk).forEach { iconResId ->
+                                        Image(
+                                            painter = painterResource(iconResId),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(28.dp),
+                                        )
+                                    }
+                                }
+                            },
+                            onClick = {
+                                onSimulcastSelected()
                                 onDismissRequest()
                             },
                         )
