@@ -16,9 +16,9 @@ import com.framework.innolive.feature.live.direct.publish.RtmpTargetState
  * 각 작업은 이 타입만 보고 따로 구현하고, 컨트롤러가 조립합니다.
  */
 
-/** 직접 송출을 켭니다. 상태 머신(C4)이 끝나기 전에는 꺼 두어 기존 서버 중계 동작을 유지합니다. */
+/** 온디바이스 세션을 앱 직접 송출로 보냅니다. 끄면 기존 서버 중계 경로를 씁니다. */
 internal object DirectPublishFeature {
-    const val ENABLED = false
+    const val ENABLED = true
 }
 
 /** 화면이 고른 직접 송출 구성입니다. 세션을 만들 때 `broadcast_resolution`과 송출 대상이 정해집니다. */
