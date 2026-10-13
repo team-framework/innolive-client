@@ -12,6 +12,7 @@ import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.broadcast.LocalTargetStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -89,6 +90,8 @@ class LiveBroadcastTransportSeamTest {
             assertEquals(listOf("start", "prepare:검증 방송"), transport.calls)
             assertEquals(plan, transport.request.directPlan)
             assertEquals("access-token", transport.request.accessToken)
+            // 화면이 Activity를 넘겨도 송출 경로는 application context만 보관합니다.
+            assertSame(compose.activity.applicationContext, transport.request.context)
             assertEquals(LocalTargetStatus.CONNECTING, session.directBroadcastUiState.targets[BroadcastProvider.YOUTUBE])
             // 준비된 방송이 있으면 구성을 바꾸지 않습니다.
             assertFalse(session.selectDirectBroadcastPlan(DirectBroadcastPlan()))

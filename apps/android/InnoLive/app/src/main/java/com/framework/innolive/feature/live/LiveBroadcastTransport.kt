@@ -55,9 +55,12 @@ internal class LiveBroadcastCallbacks(
     val onDirectUiStateChanged: (DirectBroadcastUiState) -> Unit = {},
 )
 
-/** 송출 경로를 만들 때 필요한 값입니다. */
+/**
+ * 송출 경로를 만들 때 필요한 값입니다. 송출 경로가 ViewModel 수명 동안 요청을 보관하므로
+ * [context]는 화면이 넘긴 Activity가 아니라 application context로 정규화합니다.
+ */
 internal class LiveBroadcastTransportRequest(
-    val context: Context,
+    context: Context,
     val serverUrl: String,
     val accessToken: String,
     val refreshAccessToken: suspend () -> String,
@@ -68,7 +71,9 @@ internal class LiveBroadcastTransportRequest(
     /** 직접 송출의 해상도와 대상입니다. 서버 중계에서는 쓰지 않습니다. */
     val directPlan: DirectBroadcastPlan,
     val callbacks: LiveBroadcastCallbacks,
-)
+) {
+    val context: Context = context.applicationContext
+}
 
 /**
  * 기본 송출 경로입니다. 온디바이스를 고르고 직접 송출이 켜져 있으면 앱 직접 송출을, 그 밖에는
