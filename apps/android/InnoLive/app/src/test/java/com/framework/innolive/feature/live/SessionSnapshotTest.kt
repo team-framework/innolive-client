@@ -87,12 +87,40 @@ class SessionSnapshotTest {
             "notices":[{"code":"broadcast_limit_30m","at":"2026-09-30T00:00:00Z"}],
             "broadcast_remaining_seconds":120}""", "s")
         val paused = parseSessionSnapshot("""{"status":"paused","broadcast_phase":"live"}""", "s", initial)
-        assertEquals(BroadcastState.PAUSED, paused.broadcastState())
+        // 치지직이 아직 송출 중이므로 합산 상태는 라이브입니다.
+        assertEquals(BroadcastState.LIVE, paused.broadcastState())
         assertEquals(2, paused.visibleTargets.size)
         assertEquals(initial.notices, paused.notices)
         assertEquals(initial.remainingTime, paused.remainingTime)
         assertEquals(initial.targets!!.last(), paused.targets!!.first())
         assertEquals(paused, parseSessionSnapshot("{}", "s", paused))
+    }
+
+    @Test fun simulcastStateCombinesTargetsAndTargetResponsesUpdateOnlyThatTarget() {
+        val initial = parseSessionSnapshot("""{"session_id":"s","provider":"youtube",
+            "targets":[{"provider":"youtube","stream":{"status":"streaming","broadcast_phase":"live"}},
+            {"provider":"chzzk","stream":{"status":"streaming","broadcast_phase":"live"}}]}""", "s")
+        val chzzkPaused = parseSessionSnapshot(
+            """{"status":"paused","broadcast_phase":"live"}""", "s", initial, targetProvider = "chzzk",
+        )
+        assertEquals("youtube", chzzkPaused.provider)
+        assertEquals("streaming", chzzkPaused.targets!!.first { it.provider == "youtube" }.status)
+        assertEquals("paused", chzzkPaused.targets!!.first { it.provider == "chzzk" }.status)
+        assertEquals(BroadcastState.LIVE, chzzkPaused.broadcastState())
+
+        val bothPaused = parseSessionSnapshot("""{"status":"paused","broadcast_phase":"live"}""", "s", chzzkPaused)
+        assertEquals(BroadcastState.PAUSED, bothPaused.broadcastState())
+
+        val oneStopped = parseSessionSnapshot(
+            """{"status":"stopped","broadcast_phase":"idle"}""", "s", bothPaused, targetProvider = "chzzk",
+        )
+        assertEquals(BroadcastState.PAUSED, oneStopped.broadcastState())
+        assertEquals(listOf("youtube"), oneStopped.visibleTargets.map { it.provider })
+
+        val partlyPrepared = parseSessionSnapshot("""{"session_id":"s","provider":"youtube",
+            "targets":[{"provider":"youtube","stream":{"broadcast_phase":"idle"}},
+            {"provider":"chzzk","stream":{"broadcast_phase":"prepared"}}]}""", "s")
+        assertEquals(BroadcastState.PREPARED, partlyPrepared.broadcastState())
     }
 
     @Test fun emptyTargetsOverrideLegacyStreamAndIdleTargetsRetainStopReason() {
