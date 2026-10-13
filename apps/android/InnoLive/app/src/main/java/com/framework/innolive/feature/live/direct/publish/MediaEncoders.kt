@@ -30,6 +30,9 @@ internal abstract class AsyncMediaEncoder(
     protected lateinit var codec: MediaCodec
     @Volatile private var released = false
 
+    /** [close] 뒤에는 코덱이 멈춰 입력·출력 호출이 IllegalStateException을 던집니다. */
+    protected val isReleased: Boolean get() = released
+
     /** 실패하면 이번에 만든 코덱을 해제하고 예외를 그대로 던집니다. */
     protected fun configure(format: MediaFormat, mime: String, surfaceInput: Boolean) {
         val created = codecFactory(mime)
@@ -44,7 +47,14 @@ internal abstract class AsyncMediaEncoder(
 
     private fun configureCodec(format: MediaFormat, surfaceInput: Boolean) {
         codec.setCallback(object : MediaCodec.Callback() {
-            override fun onInputBufferAvailable(codec: MediaCodec, index: Int) = onInputAvailable(index)
+            override fun onInputBufferAvailable(codec: MediaCodec, index: Int) {
+                if (released) return
+                try {
+                    onInputAvailable(index)
+                } catch (error: Exception) {
+                    fail(error)
+                }
+            }
 
             override fun onOutputBufferAvailable(codec: MediaCodec, index: Int, info: MediaCodec.BufferInfo) {
                 if (released) return
@@ -80,7 +90,8 @@ internal abstract class AsyncMediaEncoder(
 
     fun start() = codec.start()
 
-    private fun fail(error: Exception) {
+    /** 종료 중 경쟁으로 난 코덱 상태 예외는 무시합니다. 인코더 스레드에서 던지면 앱이 종료됩니다. */
+    protected fun fail(error: Exception) {
         if (!released) output.onError(error)
     }
 
@@ -185,8 +196,17 @@ internal class AacEncoder(private val profile: DirectPublishProfile, output: Enc
         drain()
     }
 
+    /** 인코더 스레드에서만 부릅니다. 종료와 겹친 예외는 [fail]이 걸러 냅니다. */
     private fun drain() {
-        while (true) {
+        try {
+            drainInputs()
+        } catch (error: Exception) {
+            fail(error)
+        }
+    }
+
+    private fun drainInputs() {
+        while (!isReleased) {
             val (index, chunk) = synchronized(lock) {
                 if (freeInputs.isEmpty() || pending.isEmpty()) return
                 freeInputs.removeFirst() to pending.removeFirst()
