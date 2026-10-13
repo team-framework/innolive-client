@@ -524,7 +524,7 @@ class DirectBroadcastControllerTest {
         assertFalse("stop:youtube" in server.calls)
         assertTrue("disconnect:youtube" in media.engine.calls)
         assertTrue("delete:session-1" in server.calls)
-        assertEquals(BroadcastState.IDLE to BroadcastEvent.Failure(BroadcastFailure.YOUTUBE_STOPPED), states.last())
+        assertEquals(BroadcastState.IDLE to DirectBroadcastNotice.TargetStoppedByServer(BroadcastProvider.YOUTUBE).toBroadcastEvent(), states.last())
     }
 
     @Test fun heartbeatResultAfterStopIsIgnored() {
