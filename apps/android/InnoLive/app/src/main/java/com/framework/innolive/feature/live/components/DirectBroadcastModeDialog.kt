@@ -96,13 +96,13 @@ internal fun DirectBroadcastModeDialog(
                         Checkbox(checked = option.selected, onCheckedChange = null, enabled = option.enabled)
                         Column {
                             Text(option.provider.title, style = MaterialTheme.typography.bodyLarge)
-                            providerCaption(option.block, option.accountConnected)?.let { caption ->
-                                Text(
-                                    stringResource(caption),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            // 계정 확인이 끝나며 안내가 사라져도 창 크기가 바뀌지 않도록 안내 줄 높이를 늘 둡니다.
+                            Text(
+                                providerCaption(option.block, option.accountConnected)?.let { stringResource(it) }.orEmpty(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                minLines = 1,
+                            )
                         }
                     }
                 }
