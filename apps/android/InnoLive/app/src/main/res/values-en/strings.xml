@@ -55,4 +55,9 @@
     <string name="session_notice_youtube_quota_low">Today\'s YouTube API usage is high. Changing broadcast modes or starting a new broadcast may fail.</string>
     <string name="session_usage_warning_test_show">Show test banner</string>
     <string name="session_usage_warning_test_hide">Hide test banner</string>
+    <string name="direct_broadcast_notification_channel">Live broadcast</string>
+    <string name="direct_broadcast_notification_title">Live</string>
+    <string name="direct_broadcast_notification_text">While you use another app or the screen is off, a standby image and silence are sent instead of the camera.</string>
+    <string name="direct_broadcast_notification_stop">End broadcast</string>
+    <string name="direct_broadcast_notification_hidden">Notifications are off, so the live notification will not appear. Your broadcast continues.</string>
 </resources>
