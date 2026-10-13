@@ -58,6 +58,7 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.components.DirectBroadcastModeDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
 import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
@@ -69,6 +70,16 @@ import com.framework.innolive.feature.live.components.ChzzkOAuthDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.components.cappedDialogWidth
+import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
+import com.framework.innolive.feature.live.direct.broadcast.directBroadcastModeState
+import com.framework.innolive.feature.live.direct.broadcast.directStatusWarnings
+import com.framework.innolive.feature.live.direct.broadcast.directTargetRows
+import com.framework.innolive.feature.live.direct.broadcast.isDirectBroadcastModeLocked
+import com.framework.innolive.feature.live.direct.broadcast.labelRes
+import com.framework.innolive.feature.live.direct.broadcast.reconcileDirectBroadcastPlan
+import com.framework.innolive.feature.live.direct.broadcast.title
+import com.framework.innolive.feature.live.direct.broadcast.withSelectedPlatform
+import com.framework.innolive.feature.live.direct.broadcast.DirectProviderOrder
 import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchors
@@ -120,6 +131,9 @@ private fun LiveScreenContent(
     var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
     var testUsageWarningOverride by remember { mutableStateOf(false) }
+    var openDirectModeDialog by remember { mutableStateOf(false) }
+    // 사용자가 방송 방식을 직접 고르기 전에는 요금제가 허용하는 최고 화질을 따릅니다.
+    var directModeUserSelected by rememberSaveable { mutableStateOf(false) }
     var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
     val sessionSnapshot = webRtcSession.sessionSnapshot
     val sessionId = webRtcSession.sessionSnapshot?.sessionId
@@ -154,19 +168,21 @@ private fun LiveScreenContent(
         if (selectedPlatform == "YouTube") webRtcSession.selectProvider(BroadcastProvider.YOUTUBE)
         if (selectedPlatform != null) providerPreferences.edit().putString("selected", selectedPlatform).apply()
     }
-    LaunchedEffect(openChzzkSettingsDialog, props.profileEmail, chzzkAccountRefreshKey) {
+    // 방송 방식 화면도 치지직 계정 연결 여부로 선택지를 막으므로 같은 확인을 씁니다.
+    val needsChzzkAccount = openChzzkSettingsDialog || openDirectModeDialog
+    LaunchedEffect(needsChzzkAccount, props.profileEmail, chzzkAccountRefreshKey) {
         val refreshing = chzzkAccountVerification.beginRefresh() ?: return@LaunchedEffect
         chzzkAccountVerification = refreshing
         val revision = refreshing.revision
-        if (!openChzzkSettingsDialog) {
+        if (!needsChzzkAccount) {
             chzzkBusy = false
             return@LaunchedEffect
         }
-        if (openChzzkSettingsDialog && props.profileEmail.isBlank()) {
+        if (props.profileEmail.isBlank()) {
             chzzkMessage = UiText.Resource(R.string.chzzk_sign_in_required)
             chzzkBusy = false
         }
-        if (openChzzkSettingsDialog && props.profileEmail.isNotBlank()) {
+        if (props.profileEmail.isNotBlank()) {
             chzzkBusy = true
             try {
                 val account = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
@@ -184,6 +200,27 @@ private fun LiveScreenContent(
                 if (chzzkAccountVerification.revision == revision) chzzkBusy = false
             }
         }
+    }
+    val isDirectMode = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED
+    val isDirectModeLocked = isDirectBroadcastModeLocked(
+        webRtcSession.broadcastState, webRtcSession.isPreparingBroadcast,
+    )
+    LaunchedEffect(isDirectMode, isDirectModeLocked, props.planUsage, directModeUserSelected) {
+        if (!isDirectMode || isDirectModeLocked) return@LaunchedEffect
+        val reconciled = reconcileDirectBroadcastPlan(
+            webRtcSession.directBroadcastPlan, props.planUsage, directModeUserSelected,
+        )
+        if (reconciled != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(reconciled)
+    }
+    LaunchedEffect(isDirectMode, isDirectModeLocked, selectedPlatform) {
+        if (!isDirectMode || isDirectModeLocked) return@LaunchedEffect
+        val provider = when (selectedPlatform) {
+            "YouTube" -> BroadcastProvider.YOUTUBE
+            "CHZZK" -> BroadcastProvider.CHZZK
+            else -> return@LaunchedEffect
+        }
+        val synced = webRtcSession.directBroadcastPlan.withSelectedPlatform(provider)
+        if (synced != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(synced)
     }
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
@@ -404,10 +441,14 @@ private fun LiveScreenContent(
                     )
                 }
             }
-            val statusTargets = sessionSnapshot?.visibleTargets.orEmpty()
-            if (statusTargets.isNotEmpty()) {
+            val directUiState = webRtcSession.directBroadcastUiState
+            val statusTargets = directTargetRows(sessionSnapshot?.visibleTargets.orEmpty(), directUiState)
+            val nowElapsedMillis = rememberElapsedRealtime(ticking = directUiState.preparedDeadlineElapsedMillis != null)
+            val directWarnings = directStatusWarnings(directUiState, nowElapsedMillis)
+            if (statusTargets.isNotEmpty() || directWarnings.isNotEmpty()) {
                 BroadcastLiveStatusPanel(
                     targets = statusTargets,
+                    warnings = directWarnings,
                     broadcastResolution = sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected },
                     uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected },
                     modifier = Modifier
@@ -415,6 +456,49 @@ private fun LiveScreenContent(
                         .widthIn(max = 360.dp)
                         .fillMaxWidth()
                         .broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
+                )
+            }
+            if (isDirectMode && !isDirectModeLocked) {
+                val plan = webRtcSession.directBroadcastPlan
+                val summary = stringResource(plan.resolution.labelRes) + " · " +
+                    DirectProviderOrder.filter { it in plan.providers }.joinToString(" + ") { it.title }
+                val description = stringResource(R.string.direct_mode_entry, summary)
+                TextButton(onClick = { openDirectModeDialog = true }) {
+                    Text(
+                        text = summary,
+                        modifier = Modifier.semantics { contentDescription = description },
+                        color = Color.White,
+                    )
+                }
+            }
+            if (openDirectModeDialog) {
+                DirectBroadcastModeDialog(
+                    state = directBroadcastModeState(
+                        plan = webRtcSession.directBroadcastPlan,
+                        planUsage = props.planUsage,
+                        accountConnected = { provider ->
+                            when (provider) {
+                                BroadcastProvider.YOUTUBE -> props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
+                                BroadcastProvider.CHZZK -> chzzkAccountVerification.canPrepare
+                            }
+                        },
+                        locked = isDirectModeLocked,
+                    ),
+                    onPlanChanged = { plan ->
+                        if (webRtcSession.selectDirectBroadcastPlan(plan)) {
+                            directModeUserSelected = true
+                            // 단독 송출이면 준비 버튼이 여는 설정 화면도 같은 플랫폼으로 맞춥니다.
+                            plan.providers.singleOrNull()?.let { provider ->
+                                webRtcSession.selectProvider(provider)
+                                selectedPlatform = if (provider == BroadcastProvider.CHZZK) "CHZZK" else "YouTube"
+                            }
+                        }
+                    },
+                    onOpenPlan = {
+                        openDirectModeDialog = false
+                        props.onOpenPlan()
+                    },
+                    onDismiss = { openDirectModeDialog = false },
                 )
             }
             BroadcastActionControls(
@@ -807,6 +891,20 @@ private fun rememberBroadcastDurationText(startedAtElapsedRealtimeMillis: Long?)
 }
 
 private const val TUTORIAL_START_DELAY_MILLIS = 600L
+
+/** 준비 마감 안내처럼 초 단위로 다시 그릴 때만 시계를 돌립니다. */
+@Composable
+private fun rememberElapsedRealtime(ticking: Boolean): Long {
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(ticking) {
+        now = SystemClock.elapsedRealtime()
+        while (ticking) {
+            delay(1_000L - now % 1_000L)
+            now = SystemClock.elapsedRealtime()
+        }
+    }
+    return now
+}
 
 private fun mediaPermissionGuidance(state: MediaPermissionState): Int = when {
     !state.hasCameraPermission && !state.hasMicrophonePermission -> R.string.permission_media_required

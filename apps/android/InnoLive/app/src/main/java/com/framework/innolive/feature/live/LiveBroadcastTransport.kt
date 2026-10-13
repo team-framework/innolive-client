@@ -9,6 +9,7 @@ import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastUiState
 import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.broadcast.RtmpReconnectSupervisor
+import com.framework.innolive.feature.live.direct.broadcast.createDirectHeartbeatLoop
 import com.framework.innolive.feature.live.status.UplinkVideoStats
 import com.framework.innolive.ui.text.ServerErrorGuidance
 import org.webrtc.EglBase
@@ -84,11 +85,14 @@ internal class LiveBroadcastTransportRequest(
  */
 internal fun createLiveBroadcastTransport(request: LiveBroadcastTransportRequest): LiveBroadcastTransport =
     if (request.initialOnDeviceProcessing && DirectPublishFeature.ENABLED) {
-        DirectBroadcastController(request, DirectBroadcastDependencies(
-            reconnect = { actions -> RtmpReconnectSupervisor(actions, AndroidNetworkAvailability(request.context)) },
-        ))
-    }
-    else with(request.callbacks) {
+        DirectBroadcastController(
+            request,
+            DirectBroadcastDependencies(
+                heartbeat = { api, input, listener -> createDirectHeartbeatLoop(request.context, api, input, listener) },
+                reconnect = { actions -> RtmpReconnectSupervisor(actions, AndroidNetworkAvailability(request.context)) },
+            ),
+        )
+    } else with(request.callbacks) {
         WebRtcConnection(
             context = request.context,
             serverUrl = request.serverUrl,
