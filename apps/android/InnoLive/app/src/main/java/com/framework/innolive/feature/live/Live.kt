@@ -49,7 +49,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -74,6 +73,7 @@ import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.components.cappedDialogWidth
 import com.framework.innolive.feature.live.direct.broadcast.directBroadcastModeState
+import com.framework.innolive.feature.live.direct.broadcast.directPlanRows
 import com.framework.innolive.feature.live.direct.broadcast.directStatusWarnings
 import com.framework.innolive.feature.live.direct.broadcast.directTargetRows
 import com.framework.innolive.feature.live.direct.broadcast.isDirectBroadcastModeLocked
@@ -456,31 +456,30 @@ private fun LiveScreenContent(
             val statusTargets = directTargetRows(sessionSnapshot?.visibleTargets.orEmpty(), directUiState)
             val nowElapsedMillis = rememberElapsedRealtime(ticking = directUiState.preparedDeadlineElapsedMillis != null)
             val directWarnings = directStatusWarnings(directUiState, nowElapsedMillis)
-            if (statusTargets.isNotEmpty() || directWarnings.isNotEmpty()) {
+            // 직접 송출은 방송 전부터 같은 상태 패널에 고른 구성을 보여 주고, 눌러서 방송 모드를 바꿉니다.
+            val canChangeDirectMode = isDirectMode && !isDirectModeLocked
+            val plan = webRtcSession.directBroadcastPlan
+            val showPlan = canChangeDirectMode && statusTargets.isEmpty()
+            val panelTargets = if (showPlan) directPlanRows(plan) else statusTargets
+            if (panelTargets.isNotEmpty() || directWarnings.isNotEmpty()) {
+                val summary = stringResource(plan.resolution.labelRes) + " · " +
+                    DirectProviderOrder.filter { it in plan.providers }.joinToString(" + ") { it.title }
                 BroadcastLiveStatusPanel(
-                    targets = statusTargets,
+                    targets = panelTargets,
                     warnings = directWarnings,
-                    broadcastResolution = sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected },
+                    broadcastResolution = if (showPlan) plan.resolution.wireValue
+                    else sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected },
                     uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected },
+                    onClickLabel = stringResource(R.string.direct_mode_entry, summary).takeIf { canChangeDirectMode },
+                    onClick = if (canChangeDirectMode) {
+                        { openDirectModeDialog = true }
+                    } else null,
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .widthIn(max = 360.dp)
                         .fillMaxWidth()
                         .broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
                 )
-            }
-            if (isDirectMode && !isDirectModeLocked) {
-                val plan = webRtcSession.directBroadcastPlan
-                val summary = stringResource(plan.resolution.labelRes) + " · " +
-                    DirectProviderOrder.filter { it in plan.providers }.joinToString(" + ") { it.title }
-                val description = stringResource(R.string.direct_mode_entry, summary)
-                TextButton(onClick = { openDirectModeDialog = true }) {
-                    Text(
-                        text = summary,
-                        modifier = Modifier.semantics { contentDescription = description },
-                        color = Color.White,
-                    )
-                }
             }
             if (openDirectModeDialog) {
                 DirectBroadcastModeDialog(
