@@ -28,7 +28,6 @@ private data class PlatformOption(
 private val platformOptions = listOf(
     PlatformOption(id = "chzzk", label = "CHZZK", iconResId = R.drawable.ic_chzzk),
     PlatformOption(id = "youtube", label = "YouTube", iconResId = R.drawable.ic_youtube),
-    PlatformOption(id = "soop", label = "SOOP", iconResId = R.drawable.ic_soop),
 )
 
 @Composable
