@@ -70,7 +70,15 @@ internal fun DirectBroadcastModeDialog(
                         }
                     }
                 }
-                Text(stringResource(R.string.direct_mode_targets_title), style = MaterialTheme.typography.titleSmall)
+                Column {
+                    Text(stringResource(R.string.direct_mode_targets_title), style = MaterialTheme.typography.titleSmall)
+                    // 마지막 대상 안내는 선택할 때마다 생겼다 사라지면 창 높이가 흔들리므로 제목 아래에 늘 둡니다.
+                    Text(
+                        stringResource(R.string.direct_mode_last_target),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 state.providers.forEach { option ->
                     Row(
                         modifier = Modifier
@@ -127,6 +135,5 @@ internal fun DirectBroadcastModeDialog(
 private fun providerCaption(block: DirectModeBlock?, accountConnected: Boolean): Int? = when {
     !accountConnected -> R.string.direct_mode_account_required
     block == DirectModeBlock.PLAN -> R.string.direct_mode_option_plan_locked
-    block == DirectModeBlock.LAST_TARGET -> R.string.direct_mode_last_target
     else -> null
 }
