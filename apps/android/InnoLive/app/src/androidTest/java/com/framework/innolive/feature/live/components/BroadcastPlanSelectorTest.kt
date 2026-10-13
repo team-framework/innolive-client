@@ -16,15 +16,15 @@ import com.framework.innolive.ui.text.UiText
 import org.junit.Rule
 import org.junit.Test
 
-/** 치지직 계정을 쓸 수 없을 때 방송 방식 창이 비활성 이유를 보여 주는지 확인합니다. */
-class DirectBroadcastModeDialogTest {
+/** 치지직 계정을 쓸 수 없을 때 방송 설정의 플랫폼 선택이 비활성 이유를 보여 주는지 확인합니다. */
+class BroadcastPlanSelectorTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     private fun show(checking: () -> Boolean, issue: UiText?) {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             MaterialTheme {
-                DirectBroadcastModeDialog(
+                BroadcastPlanSelector(
                     state = directBroadcastModeState(
                         plan = DirectBroadcastPlan(),
                         planUsage = null,
@@ -33,7 +33,6 @@ class DirectBroadcastModeDialogTest {
                     ),
                     onPlanChanged = {},
                     onOpenPlan = {},
-                    onDismiss = {},
                     accountChecking = { checking() },
                     accountIssue = { provider -> issue.takeIf { provider == BroadcastProvider.CHZZK } },
                 )

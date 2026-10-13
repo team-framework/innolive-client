@@ -172,7 +172,5 @@ class SessionSnapshotTest {
         assertEquals(listOf(BroadcastProvider.CHZZK), snapshot("prepared", null).unpreparedProviders(both))
         assertEquals(emptyList<BroadcastProvider>(), snapshot("prepared", "prepared").unpreparedProviders(both))
         assertEquals(both.toList(), null.unpreparedProviders(both))
-        assertTrue(simulcastRetryOpensYouTubeSettings(listOf(BroadcastProvider.YOUTUBE)))
-        assertFalse(simulcastRetryOpensYouTubeSettings(listOf(BroadcastProvider.CHZZK)))
     }
 }
