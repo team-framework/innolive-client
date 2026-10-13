@@ -6,6 +6,7 @@ import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.CreatedSession
 import com.framework.innolive.feature.live.ServerApiException
+import kotlinx.coroutines.CancellationException
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -285,6 +286,17 @@ class DirectPublishApiTest {
         assertEquals("s", exception.uncleanedSession?.sessionId)
         assertEquals("o", exception.uncleanedSession?.ownerToken)
         assertFalse(exception.message.orEmpty().contains("o\""))
+    }
+
+    @Test fun rejectedSessionIsHandedToCallerWhenCleanupIsCancelled() {
+        refreshFailure = CancellationException("account changed")
+        respond(201, """{"session_id":"s","owner_token":"o","provider":"youtube","ai_processing":"server"}""")
+        respond(401)
+        val exception = assertThrows(DirectSessionRejectedException::class.java) {
+            api.createSession(BroadcastProvider.YOUTUBE, DirectPublishResolution.HD_720)
+        }
+        assertEquals("o", exception.uncleanedSession?.ownerToken)
+        assertTrue(exception.cleanupCancelled)
     }
 
     @Test fun allRequestsShareServerBasePath() {

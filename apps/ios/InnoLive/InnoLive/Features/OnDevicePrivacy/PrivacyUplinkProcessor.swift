@@ -44,8 +44,18 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     private var geometry: String?
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let onError: @Sendable (String) -> Void
+    private let metricsLock = NSLock()
+    private var metricsHandler: (@Sendable (PrivacyFrameMetric) -> Void)?
 
     init(onError: @escaping @Sendable (String) -> Void) { self.onError = onError }
+    /// 직접 송출 하트비트용 추론 시간·실패 기록을 받는다.
+    func setMetricsHandler(_ handler: (@Sendable (PrivacyFrameMetric) -> Void)?) {
+        metricsLock.withLock { metricsHandler = handler }
+    }
+    private func report(_ metric: PrivacyFrameMetric) {
+        let handler = metricsLock.withLock { metricsHandler }
+        handler?(metric)
+    }
     func prepare() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             queue.async { [self] in
@@ -77,6 +87,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                             appliedGeneration = ticket.generation
                             geometry = nextGeometry
                         }
+                        let started = DispatchTime.now().uptimeNanoseconds
                         let orientation = Self.orientation(rotation: payload.frame.rotation.rawValue)
                         let original = CIImage(cvPixelBuffer: pixels.pixelBuffer).oriented(orientation.forward)
                         let upright = original.transformed(by: CGAffineTransform(translationX: -original.extent.minX, y: -original.extent.minY))
@@ -90,6 +101,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                               let output else { throw PrivacyModelError.imageBuffer }
                         let normalized = restored.transformed(by: CGAffineTransform(translationX: -restored.extent.minX, y: -restored.extent.minY))
                         context.render(normalized, to: output, bounds: CGRect(x: 0, y: 0, width: width, height: height), colorSpace: CGColorSpaceCreateDeviceRGB())
+                        report(.inference(milliseconds: Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000))
                         result = LKRTCVideoFrame(buffer: LKRTCCVPixelBuffer(pixelBuffer: output), rotation: payload.frame.rotation, timeStampNs: payload.frame.timeStampNs)
                         result.timeStamp = payload.frame.timeStamp
                     } else {
@@ -104,6 +116,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         deliver(result)
                     }
                 } catch {
+                    report(.failure)
                     gate.finish(ticket) { onError(error.localizedDescription) }
                     // No raw fallback when model loading, inference or rendering fails.
                 }
@@ -119,6 +132,11 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
         default: (.up, .up)
         }
     }
+}
+
+nonisolated enum PrivacyFrameMetric: Sendable {
+    case inference(milliseconds: Double)
+    case failure
 }
 
 nonisolated private struct FramePayload: @unchecked Sendable { let frame: LKRTCVideoFrame }
