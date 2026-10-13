@@ -30,4 +30,14 @@
     <string name="chzzk_disconnect_unconfirmed">Could not confirm the disconnection. Check the account status again.</string>
     <string name="chzzk_connect_unconfirmed">Could not confirm the CHZZK connection. Check the account status again.</string>
     <string name="chzzk_prepare_requires_account">Check the account status again before preparing the broadcast.</string>
+    <string name="chzzk_error_not_connected">Connect a CHZZK account and prepare again.</string>
+    <string name="chzzk_error_reconnect_required">Reconnect your CHZZK account and prepare again.</string>
+    <string name="chzzk_error_not_supported">CHZZK broadcasting is not configured on the server. Contact an administrator.</string>
+    <string name="chzzk_error_not_ready">Broadcast preparation is not finished. Check the preparation status and try again.</string>
+    <string name="chzzk_error_title">Enter a broadcast title of 100 characters or fewer.</string>
+    <string name="chzzk_error_category">Search for and select a category again.</string>
+    <string name="chzzk_error_tags">Enter up to 5 tags, each with 15 or fewer letters and numbers.</string>
+    <string name="chzzk_error_settings">Check your CHZZK broadcast settings.</string>
+    <string name="chzzk_error_unauthorized">Your sign-in has expired. Please sign in again.</string>
+    <string name="chzzk_error_request">The CHZZK broadcast request failed. Please try again.</string>
 </resources>

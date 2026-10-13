@@ -4,6 +4,7 @@ import com.framework.innolive.feature.live.AnonymizationState
 import com.framework.innolive.feature.live.BroadcastProvider
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
+import com.framework.innolive.feature.live.ChzzkBroadcastSettings
 import com.framework.innolive.feature.live.CreatedSession
 import com.framework.innolive.feature.live.ServerApiException
 import kotlinx.coroutines.CancellationException
@@ -309,6 +310,23 @@ class DirectPublishApiTest {
             listOf("/api/v1/sessions", "/api/v1/sessions/session-1/stream/stop"),
             requests.map { it.url.encodedPath },
         )
+    }
+
+    @Test fun chzzkDefaultsAndSessionStatusUseOwnerToken() {
+        respond(200, """{"title":"기본","category_type":"GAME","category_id":"g","tags":["a"]}""")
+        respond(200, """{"session_id":"session-1"}""")
+        assertEquals(ChzzkBroadcastSettings("기본", "GAME", "g", listOf("a")), api.chzzkDefaults(session))
+        assertEquals("""{"session_id":"session-1"}""", api.fetchSession(session))
+        assertEquals(listOf("/sessions/session-1/broadcast/defaults", "/sessions/session-1"),
+            requests.map { it.url.encodedPath })
+        assertEquals("chzzk", requests.first().url.queryParameter("provider"))
+        assertTrue(requests.all { it.method == "GET" && it.header("X-Session-Owner-Token") == "owner-1" })
+    }
+
+    @Test fun sessionStatusErrorCarriesStatusCode() {
+        respond(404, error("not_found"))
+        val error = assertThrows(ServerApiException::class.java) { api.fetchSession(session) }
+        assertEquals(404, error.statusCode)
     }
 
     @Test fun rejectsCleartextServer() {
