@@ -2,10 +2,13 @@ package com.framework.innolive.feature.live
 
 import android.content.Context
 import android.media.AudioDeviceInfo
+import com.framework.innolive.feature.live.direct.broadcast.AndroidNetworkAvailability
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastController
+import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastDependencies
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastUiState
 import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
+import com.framework.innolive.feature.live.direct.broadcast.RtmpReconnectSupervisor
 import com.framework.innolive.feature.live.status.UplinkVideoStats
 import com.framework.innolive.ui.text.ServerErrorGuidance
 import org.webrtc.EglBase
@@ -80,7 +83,11 @@ internal class LiveBroadcastTransportRequest(
  * 기존 서버 중계를 씁니다.
  */
 internal fun createLiveBroadcastTransport(request: LiveBroadcastTransportRequest): LiveBroadcastTransport =
-    if (request.initialOnDeviceProcessing && DirectPublishFeature.ENABLED) DirectBroadcastController(request)
+    if (request.initialOnDeviceProcessing && DirectPublishFeature.ENABLED) {
+        DirectBroadcastController(request, DirectBroadcastDependencies(
+            reconnect = { actions -> RtmpReconnectSupervisor(actions, AndroidNetworkAvailability(request.context)) },
+        ))
+    }
     else with(request.callbacks) {
         WebRtcConnection(
             context = request.context,
