@@ -49,8 +49,20 @@ fun LiveVideoPanels(
             .size(pipWidth, pipHeight)
             .clip(shape = RoundedCornerShape(8.dp))
 
-        val remoteIsMain = isConnected && !isDirectPublish
-        if (!isDirectPublish) {
+        // 직접 송출도 서버 송출처럼 연결 뒤에는 가림 처리 영상을 메인에, 카메라 원본을 작은 창에 둡니다.
+        val directProcessedMain = isDirectPublish && isConnected && frameAnalyzer != null && eglContext != null
+        val remoteIsMain = if (isDirectPublish) directProcessedMain else isConnected
+        if (isDirectPublish) {
+            if (directProcessedMain) {
+                CameraProcessedPreview(
+                    analyzer = checkNotNull(frameAnalyzer),
+                    cameraLensFacing = cameraLensFacing,
+                    modifier = mainModifier.zIndex(0f),
+                    // 가림 처리 출력 텍스처를 그리려면 분석기와 같은 EGL 컨텍스트를 공유해야 합니다.
+                    sharedEglContext = eglContext,
+                )
+            }
+        } else {
             WebRtcRemotePreview(
                 remoteVideoTrack = liveMainVideoTrack(onDeviceProcessing, isConnected, localVideoTrack, remoteVideoTrack),
                 eglContext = eglContext,
@@ -68,8 +80,8 @@ fun LiveVideoPanels(
                 lockedRotation = lockedRotation,
                 videoQualitySettings = videoQualitySettings,
                 onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
-                showAdjustedColorPreview = localVideoTrack == null,
-                // 직접 송출은 가림 처리 출력 텍스처를 그대로 미리 보여 주므로 같은 EGL 컨텍스트를 씁니다.
+                // 분석기의 가림 처리 미리보기 출력은 하나뿐이므로 메인이 쓰는 동안 작은 창은 원본만 보여 줍니다.
+                showAdjustedColorPreview = if (isDirectPublish) !directProcessedMain else localVideoTrack == null,
                 processedPreviewEglContext = if (isDirectPublish) eglContext else null,
                 modifier = Modifier.fillMaxSize(),
             )
