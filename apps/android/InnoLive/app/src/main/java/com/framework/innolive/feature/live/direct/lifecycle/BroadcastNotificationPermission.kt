@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.BroadcastState
 
 /** 직접 송출 진행 중 알림을 보여 주기 위해 할 일입니다. */
 internal enum class NotificationPermissionAction {
@@ -47,6 +48,25 @@ internal fun notificationPermissionAction(
         (!requestedBefore || shouldShowRationale) -> NotificationPermissionAction.REQUEST
     else -> NotificationPermissionAction.SHOW_GUIDANCE
 }
+
+/**
+ * 알림이 보이지 않는다는 안내를 띄울지 정합니다. 직접 송출 방송이 준비됐거나 진행 중일 때만 보여 주고,
+ * 준비 전·종료 뒤·실패 뒤에는 숨깁니다.
+ */
+internal fun shouldShowNotificationsHiddenNotice(
+    notificationsHidden: Boolean,
+    directBroadcast: Boolean,
+    state: BroadcastState,
+): Boolean = notificationsHidden && directBroadcast && state in NOTICE_STATES
+
+private val NOTICE_STATES = setOf(
+    BroadcastState.PREPARED,
+    BroadcastState.GOING_LIVE,
+    BroadcastState.LIVE,
+    BroadcastState.PAUSING,
+    BroadcastState.PAUSED,
+    BroadcastState.RESUMING,
+)
 
 /** 방송 준비 때 알림 권한을 확인합니다. 결과와 관계없이 방송은 진행합니다. */
 internal class BroadcastNotificationPermission(

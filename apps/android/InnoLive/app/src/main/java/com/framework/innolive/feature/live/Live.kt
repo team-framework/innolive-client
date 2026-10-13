@@ -61,6 +61,7 @@ import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.lifecycle.rememberBroadcastNotificationPermission
+import com.framework.innolive.feature.live.direct.lifecycle.shouldShowNotificationsHiddenNotice
 import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
 import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
 import com.framework.innolive.ui.text.ServerErrorAction
@@ -692,6 +693,20 @@ private fun LiveScreenContent(
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium,
                 )
+            }
+            if (shouldShowNotificationsHiddenNotice(
+                    notificationsHidden = broadcastNotificationPermission.notificationsHidden,
+                    directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
+                    state = webRtcSession.broadcastState,
+                )) {
+                    Text(
+                        text = stringResource(broadcastNotificationPermission.hiddenMessage),
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
             }
             StableBroadcastFeedback {
                 presentation.broadcastStatusText?.let { status ->

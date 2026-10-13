@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live.direct.lifecycle
 
 import android.os.PowerManager
 import androidx.camera.core.CameraState
+import com.framework.innolive.feature.live.BroadcastState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -35,6 +36,17 @@ class DirectBroadcastLifecycleHelpersTest {
     @Test fun grantedButDisabledNotificationsShowGuidance() {
         assertEquals(NotificationPermissionAction.SHOW_GUIDANCE, action(sdk = 34, enabled = false, granted = true))
         assertEquals(NotificationPermissionAction.READY, action(sdk = 34, enabled = true, granted = true))
+    }
+
+    @Test fun hiddenNotificationNoticeOnlyWhileDirectBroadcastIsPreparedOrLive() {
+        val shown = BroadcastState.entries.filter { shouldShowNotificationsHiddenNotice(true, true, it) }.toSet()
+        assertEquals(
+            setOf(BroadcastState.PREPARED, BroadcastState.GOING_LIVE, BroadcastState.LIVE,
+                BroadcastState.PAUSING, BroadcastState.PAUSED, BroadcastState.RESUMING),
+            shown,
+        )
+        assertFalse(shouldShowNotificationsHiddenNotice(false, true, BroadcastState.LIVE))
+        assertFalse(shouldShowNotificationsHiddenNotice(true, false, BroadcastState.LIVE))
     }
 
     @Test fun cameraOpenIsAvailable() {
