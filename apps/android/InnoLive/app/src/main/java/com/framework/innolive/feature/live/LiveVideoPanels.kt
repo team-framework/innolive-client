@@ -25,6 +25,7 @@ fun LiveVideoPanels(
     remoteVideoTrack: VideoTrack?,
     eglContext: EglBase.Context?,
     isConnected: Boolean,
+    onDeviceProcessing: Boolean = false,
     modifier: Modifier = Modifier,
     localVideoTrack: VideoTrack? = null,
     videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
@@ -47,7 +48,7 @@ fun LiveVideoPanels(
             .clip(shape = RoundedCornerShape(8.dp))
 
         WebRtcRemotePreview(
-            remoteVideoTrack = if (isConnected) remoteVideoTrack else null,
+            remoteVideoTrack = liveMainVideoTrack(onDeviceProcessing, isConnected, localVideoTrack, remoteVideoTrack),
             eglContext = eglContext,
             cameraLensFacing = cameraLensFacing,
             modifier = (if (isConnected) mainModifier else pipModifier)
@@ -65,7 +66,7 @@ fun LiveVideoPanels(
                 showAdjustedColorPreview = localVideoTrack == null,
                 modifier = Modifier.fillMaxSize(),
             )
-            if (isConnected && localVideoTrack != null) {
+            if (isConnected && !onDeviceProcessing && localVideoTrack != null) {
                 WebRtcRemotePreview(
                     remoteVideoTrack = localVideoTrack,
                     eglContext = eglContext,
@@ -76,4 +77,12 @@ fun LiveVideoPanels(
             }
         }
     }
+}
+
+/** A locally protected preview must not inherit server return stalls or stale remote frames. */
+internal fun <T> liveMainVideoTrack(onDeviceProcessing: Boolean, isConnected: Boolean,
+    local: T?, remote: T?): T? = when {
+    !isConnected -> null
+    onDeviceProcessing -> local
+    else -> remote
 }
