@@ -32,8 +32,18 @@ internal fun preferredVideoCodecsForAI(
     onDevice: Boolean,
     capabilities: List<RtpCapabilities.CodecCapability>,
     hardwareFormats: List<VideoCodecInfo>,
-): List<RtpCapabilities.CodecCapability>? = if (onDevice) {
-    preferredServerVideoCodecs(capabilities)
-} else {
-    preferredHardwareVideoCodecs(capabilities, hardwareFormats)
+    sendOnlyVideoSupported: Boolean = false,
+): List<RtpCapabilities.CodecCapability>? {
+    // Debug instrumentation can compare the two negotiated paths in the same build.
+    if (com.framework.innolive.BuildConfig.DEBUG && onDevice) {
+        when (System.getProperty("innolive.codec.probe")) {
+            "H264" -> return preferredHardwareVideoCodecs(capabilities, hardwareFormats)
+            "VP8" -> return preferredServerVideoCodecs(capabilities)
+        }
+    }
+    val hardware = preferredHardwareVideoCodecs(capabilities, hardwareFormats)
+    return if (onDevice) {
+        if (sendOnlyVideoSupported) hardware ?: preferredServerVideoCodecs(capabilities)
+        else preferredServerVideoCodecs(capabilities)
+    } else hardware
 }

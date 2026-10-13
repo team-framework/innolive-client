@@ -778,9 +778,9 @@ com.framework.innolive.test/androidx.test.runner.AndroidJUnitRunner`를 각각 �
 `PrivacyGpuEncoderDeviceTest`의 카메라 버퍼 해제 후 shared EGL H.264 인코딩.
 
 
-### 실제 서버 반환 경로의 코덱 선택 (2026-09-28)
+### 실제 서버 반환 경로의 코덱 선택 (2026-09-28 당시 정책)
 
-온디바이스 AI는 iOS처럼 VP8을 첫 번째로 협상한다. VP8이 없는 기기는 기본 협상 순서를
+이 측정 당시 온디바이스 AI는 iOS처럼 VP8을 첫 번째로 협상했다. 현재 정책은 아래 2026-10-13 항목을 따른다. VP8이 없는 기기는 기본 협상 순서를
 유지한다. 서버 AI는 종전 하드웨어 H264 Baseline 우선 협상 정책을 유지한다.
 모드 전환 시 세션을 새로 열어 코덱 정책을 적용한다. 기본 카메라 입력은
 1080p이며 WebRTC는 네트워크 및 CPU 부하에 따라 실제 인코딩 해상도를 적응할 수 있다.
@@ -825,3 +825,41 @@ SM-S931N, 전면 카메라 1080p 요청, 반환 FHD, WebRTC 미리보기 3분씩
 2026-09-30 수정: 위 계측은 방송 화면에 카메라가 남아 있는 진단 흐름에서 수행했다.
 제품 설정 화면에는 카메라가 없어 즉시 재연결하면 첫 보호 프레임을 받을 수 없다.
 설정에서 선택을 저장한 뒤 다음 방송 준비에서 새 세션을 여는 흐름으로 바꿨다.
+
+
+### 로컬 보호 미리보기와 하드웨어 송신 (2026-10-13)
+
+온디바이스 연결 후 메인 화면은 비식별화·색상 조정이 끝난 localVideoTrack을
+표시한다. 서버 반환의 buffer 대기와 freeze가 메인 화면에 전파되지 않는다.
+작은 화면은 기존 카메라 원본 미리보기이며, 같은 보호 영상을 작은 화면에
+다시 렌더링하던 중복 Surface를 제거한다. 첫 보호 프레임이 준비되기 전에는
+서버 반환을 메인 화면으로 대체하지 않는다. 보호 처리 실패 시 원본 송출 금지와
+연결 종료 정책은 유지한다. 서버 AI의 메인 화면은 서버 보호 반환을 계속 사용한다.
+
+서버가 GET /webrtc/config의 features.send_only_video=true를 명시하고, 서버와 검증한 H.264 Baseline 42e01f / packetization-mode=1 하드웨어 인코더와
+송신 capability가 모두 있을 때 온디바이스도 해당 H.264를 우선한다. 지원되지
+않으면 기존 VP8 우선 정책으로 내려간다. 모드 선택은 새 세션·offer에 적용하며
+연결 중 코덱을 임의로 바꾸지 않는다. debug instrumentation은 두 코덱을 강제해
+같은 빌드에서 성능 경로를 비교할 수 있다.
+
+새 서버 기능이 명시되면 온디바이스 영상 offer는 SEND_ONLY로 협상해 반환 수신·디코딩을 제거한다.
+기능이 없거나 false 또는 잘못된 형식이면 VP8 + SEND_RECV 호환 경로를 유지한다.
+서버 AI는 SEND_RECV를 유지한다. 처리 위치는 세션 중 고정되며 새 연결에서 기능을 확인한다.
+GET /webrtc/config에 선택적 features.send_only_video capability를 더하는 additive 계약이며
+privacy 정책과 기존 시그널링 JSON 필드는 바꾸지 않는다. 로컬 미리보기 FPS는
+실제 외부 플랫폼 시청자 FPS나 glass-to-glass 지연을 의미하지 않는다.
+
+회귀 검증: LiveVideoPreviewPolicyTest는 서버 반환이 없거나 보호 track이 미준비인
+경우에도 올바른 표시 경로를 검증하고, VideoCodecPreferenceTest는 하드웨어 지원·
+미지원의 협상 순서를 검증한다. CodecComparisonDeviceTest의 productionProbe opt-in
+실기기 검증은 기존 로그인으로 서버 세션을 만들며 공개 방송을 시작하지 않는다.
+
+
+`CodecComparisonDeviceTest`는 `localPreview=true`로 제품의 로컬 보호 표시 경로를
+검증한다. 수정 서버의 로컬 실측은 debug 빌드에서만
+`serverUrl=http://127.0.0.1:18644`를 허용하고 합성 테스트 identity를 사용한다.
+실제 로그인 토큰을 로컬 서버로 보내지 않는다. 서버의 opt-in
+`TestLocalDeviceMediaProbe`와 ADB reverse가 필요하며,
+`forceCodec=false`는 강제 코덱 대신 실제 capability 협상 정책을 검증한다.
+로컬 서버 실측은 운영 서버의 인터넷 경로·부하·방송 플랫폼 수신 품질 검증을
+대체하지 않는다. release 서버 URL은 기존 HTTPS 제한을 유지한다.

@@ -1,0 +1,8 @@
+{
+  "iceServers": [],
+  "recovery": {
+    "window_ms": 50000,
+    "debounce_ms": 2000,
+    "max_attempts": 10
+  }
+}

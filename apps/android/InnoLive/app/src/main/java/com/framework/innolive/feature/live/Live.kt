@@ -371,6 +371,7 @@ private fun LiveScreenContent(
                 onVideoQualityCaptureStateChanged = props.onVideoQualityCaptureStateChanged,
                 eglContext = webRtcSession.eglContext,
                 isConnected = presentation.isConnected,
+                onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
                 modifier = Modifier.fillMaxSize(),
             )
         }

@@ -110,7 +110,8 @@ internal class WebRtcConnection(
     private val recoveryAccessToken = RecoveryAccessToken(accessToken)
     private var sessionRecoveryStore: SessionRecoveryStore = EncryptedSessionRecoveryStore(applicationContext)
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
-        if (!url.isHttps) throw ConnectionFailureException(ConnectionFailure.CONFIGURATION)
+        if (!isAllowedWebRtcServer(url.scheme, url.host, BuildConfig.DEBUG))
+            throw ConnectionFailureException(ConnectionFailure.CONFIGURATION)
     }
     private val sessionRecoveryScope = sessionRecoveryScope(serverBaseUrl.toString(), accessToken)
     private val audioManager = applicationContext.getSystemService(AudioManager::class.java)
@@ -223,6 +224,7 @@ internal class WebRtcConnection(
     private var localVideoTrack: org.webrtc.VideoTrack? = null
 
     private var videoSender: RtpSender? = null
+    private var sendOnlyVideoSupported = false
 
     @Volatile
     private var frameAnalyzer: CameraFrameAnalyzer? = null
@@ -1033,7 +1035,7 @@ internal class WebRtcConnection(
             connection.addTransceiver(
                 videoTrack,
                 RtpTransceiver.RtpTransceiverInit(
-                    RtpTransceiver.RtpTransceiverDirection.SEND_RECV,
+                    videoDirectionForAI(onDeviceProcessing, sendOnlyVideoSupported),
                 ),
             ),
         ) { "Unable to add the camera video transceiver." }
@@ -1042,11 +1044,11 @@ internal class WebRtcConnection(
         val hardwareFormats = HardwareVideoEncoderFactory(
             checkNotNull(eglBase).eglBaseContext, true, true,
         ).supportedCodecs.toList()
-        val preference = preferredVideoCodecsForAI(onDeviceProcessing, videoCodecs, hardwareFormats)
+        val preference = preferredVideoCodecsForAI(onDeviceProcessing, videoCodecs, hardwareFormats, sendOnlyVideoSupported)
         if (preference != null) {
             val result = transceiver.setCodecPreferences(preference)
             if (result.isSuccess()) Log.i("PrivacyPipeline",
-                "video_codec_preference=${if (onDeviceProcessing) "on_device_vp8" else "server_h264_baseline"}")
+                "video_codec_preference=${preference.first().name}")
             else Log.w("PrivacyPipeline", "video_codec_preference=default")
         }
         videoSender = transceiver.sender
@@ -1057,6 +1059,7 @@ internal class WebRtcConnection(
         return executeAuthenticatedHttp(request).use { response ->
             val payload = response.body.string()
             if (!response.isSuccessful) throw parseServerApiException(payload, response.code)
+            sendOnlyVideoSupported = parseSendOnlyVideoSupport(JSONObject(payload))
             parseIceServers(payload) to parseWebRtcRecoveryPolicy(JSONObject(payload))
         }
     }
