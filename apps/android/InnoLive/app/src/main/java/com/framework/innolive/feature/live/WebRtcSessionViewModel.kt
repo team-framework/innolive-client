@@ -173,8 +173,12 @@ class WebRtcSessionViewModel : ViewModel() {
 
     fun localFacesChanged() { frameAnalyzer?.resetFaceExceptions() }
 
-    fun start(
+    fun start(context: Context, refreshAccessToken: suspend () -> String) =
+        start(context, BuildConfig.INNOLIVE_SERVER_URL, refreshAccessToken)
+
+    internal fun start(
         context: Context,
+        serverUrl: String,
         refreshAccessToken: suspend () -> String,
     ) {
         if (
@@ -229,7 +233,7 @@ class WebRtcSessionViewModel : ViewModel() {
 
                 val newConnection = WebRtcConnection(
                     context = context,
-                    serverUrl = BuildConfig.INNOLIVE_SERVER_URL,
+                    serverUrl = serverUrl,
                     accessToken = accessToken,
                     refreshAccessToken = refreshAccessToken,
                     initialAnonymizationEnabled = initialEnabled,
@@ -396,7 +400,7 @@ class WebRtcSessionViewModel : ViewModel() {
         broadcastState = BroadcastState.IDLE
         broadcastStatus = broadcastStateMessage(BroadcastState.PREPARING).text
         isBroadcastStatusDefault = true
-        start(context.applicationContext, refreshAccessToken)
+        start(context.applicationContext, refreshAccessToken = refreshAccessToken)
         val generation = sessionState.generation
         prepareJob = viewModelScope.launch {
             try {

@@ -27,3 +27,16 @@ answers and remote candidates from older negotiations. The existing session and
 owner token remain in use during recovery; older initial offers without these
 optional fields remain valid. `/webrtc/config` supplies `recovery.window_ms`,
 `recovery.debounce_ms`, and `recovery.max_attempts` for the recovery window.
+
+
+WebRTC video direction follows RFC 3264. The default `sendrecv` offer keeps the
+processed return stream. Servers with the send-only negotiation fix (server #461)
+answer a `sendonly` video section with `recvonly`, without a return sender, while
+retaining ingress processing, egress fanout, and negotiated RTCP feedback.
+Session-level direction is inherited unless the video section overrides it.
+GET /webrtc/config advertises the optional Boolean `features.send_only_video`.
+Clients must keep `sendrecv` unless this value is explicitly true;
+existing servers may incorrectly add a return track. No signaling JSON field is
+added. Older configs without `features` remain valid. `fixtures/signaling-offer-send-only.v2.json` is an additive example.
+Android uses the capability only for a new on-device connection; server AI stays
+`sendrecv`. See `api/webrtc-config-v1.md`.

@@ -1,0 +1,9 @@
+{
+  "type": "offer",
+  "session_id": "session-example",
+  "owner_token": "owner-token-example",
+  "access_token": "access-token-example",
+  "sdp": "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=video 9 UDP/TLS/RTP/SAVPF 102\r\na=sendonly\r\na=rtpmap:102 H264/90000\r\na=fmtp:102 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\na=rtcp-fb:102 nack\r\na=rtcp-fb:102 nack pli\r\na=rtcp-fb:102 transport-cc\r\n",
+  "negotiation_id": "73014724-28db-40af-b0d5-63df5f83d16b",
+  "ice_restart": false
+}
