@@ -73,6 +73,9 @@ internal class RtmpPublishTarget(
         setFps(profile.fps)
         setAudioInfo(profile.audioSampleRate, profile.isStereo)
         setLogs(false)
+        // 기본값은 인증서 체인만 검사하고 호스트 이름은 확인하지 않습니다. 다른 도메인의 유효한 인증서로
+        // 가로채면 스트림 키와 영상이 넘어가므로 RTMPS 연결의 호스트 이름을 검증합니다.
+        tlsHostVerification = true
         trustManager?.let(::addCertificates)
     }
 
