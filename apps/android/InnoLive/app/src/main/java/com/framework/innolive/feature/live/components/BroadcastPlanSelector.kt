@@ -53,6 +53,9 @@ internal fun BroadcastPlanSelector(
     showResolution: Boolean = true,
     accountChecking: (BroadcastProvider) -> Boolean = { false },
     accountIssue: (BroadcastProvider) -> UiText? = { null },
+    /** 계정이 없는 플랫폼은 고를 수 없으므로 같은 줄에서 바로 연결할 수 있게 합니다. */
+    onConnectAccount: ((BroadcastProvider) -> Unit)? = null,
+    canConnectAccount: (BroadcastProvider) -> Boolean = { true },
 ) {
     var accountGraceElapsed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -98,10 +101,10 @@ internal fun BroadcastPlanSelector(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                val showAccountCaption = accountGraceElapsed && !accountChecking(option.provider)
                 Checkbox(checked = option.selected, onCheckedChange = null, enabled = option.enabled)
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(option.provider.title, style = MaterialTheme.typography.bodyLarge)
-                    val showAccountCaption = accountGraceElapsed && !accountChecking(option.provider)
                     val issue = accountIssue(option.provider)
                         ?.takeIf { showAccountCaption && !option.accountConnected }
                     val caption = issue?.asString() ?: providerCaption(
@@ -113,6 +116,14 @@ internal fun BroadcastPlanSelector(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+                if (onConnectAccount != null && !option.accountConnected && showAccountCaption && !state.locked) {
+                    TextButton(
+                        onClick = { onConnectAccount(option.provider) },
+                        enabled = canConnectAccount(option.provider),
+                    ) {
+                        Text(stringResource(R.string.action_connect))
                     }
                 }
             }

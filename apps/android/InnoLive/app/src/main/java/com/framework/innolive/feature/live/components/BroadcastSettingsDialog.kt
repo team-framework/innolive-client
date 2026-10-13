@@ -141,6 +141,18 @@ internal fun BroadcastSettingsDialog(
                         showResolution = showResolution,
                         accountChecking = accountChecking,
                         accountIssue = accountIssue,
+                        onConnectAccount = { provider ->
+                            when (provider) {
+                                BroadcastProvider.YOUTUBE -> youtube.onConnect()
+                                BroadcastProvider.CHZZK -> chzzk.onConnect()
+                            }
+                        },
+                        canConnectAccount = { provider ->
+                            when (provider) {
+                                BroadcastProvider.YOUTUBE -> youtube.connectEnabled && !youtube.accountActionInProgress
+                                BroadcastProvider.CHZZK -> chzzk.canConnect && !chzzk.isBusy
+                            }
+                        },
                     )
                     HorizontalDivider()
                     if (selected.size > 1) {
