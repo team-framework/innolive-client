@@ -494,6 +494,10 @@ private fun LiveScreenContent(
                         },
                         locked = isDirectModeLocked,
                     ),
+                    accountChecking = { provider ->
+                        provider == BroadcastProvider.CHZZK &&
+                            (!chzzkAccountVerification.verified || chzzkAccountVerification.mutationInProgress)
+                    },
                     onPlanChanged = { plan ->
                         if (webRtcSession.selectDirectBroadcastPlan(plan)) {
                             directModeUserSelected = true

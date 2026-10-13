@@ -17,6 +17,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -24,6 +29,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.BroadcastProvider
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastModeState
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.DirectModeBlock
@@ -32,10 +38,12 @@ import com.framework.innolive.feature.live.direct.broadcast.labelRes
 import com.framework.innolive.feature.live.direct.broadcast.selectResolution
 import com.framework.innolive.feature.live.direct.broadcast.title
 import com.framework.innolive.feature.live.direct.broadcast.toggleProvider
+import kotlinx.coroutines.delay
 
 /**
  * 직접 송출의 화질과 송출 플랫폼을 고릅니다(iOS `BroadcastModeView`). 선택은 바로 [onPlanChanged]로 적용하고,
- * 막힌 선택지와 요금제 안내는 [state]가 정합니다.
+ * 막힌 선택지와 요금제 안내는 [state]가 정합니다. 계정 연결 안내는 [accountChecking]이 끝나고
+ * 잠시 기다린 뒤에만 보여 줘, 창을 열자마자 안내가 나왔다 사라지지 않게 합니다.
  */
 @Composable
 internal fun DirectBroadcastModeDialog(
@@ -43,7 +51,13 @@ internal fun DirectBroadcastModeDialog(
     onPlanChanged: (DirectBroadcastPlan) -> Unit,
     onOpenPlan: () -> Unit,
     onDismiss: () -> Unit,
+    accountChecking: (BroadcastProvider) -> Boolean = { false },
 ) {
+    var accountGraceElapsed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(ACCOUNT_CAPTION_GRACE_MILLIS)
+        accountGraceElapsed = true
+    }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.cappedDialogWidth(400.dp),
@@ -96,13 +110,14 @@ internal fun DirectBroadcastModeDialog(
                         Checkbox(checked = option.selected, onCheckedChange = null, enabled = option.enabled)
                         Column {
                             Text(option.provider.title, style = MaterialTheme.typography.bodyLarge)
-                            // 계정 확인이 끝나며 안내가 사라져도 창 크기가 바뀌지 않도록 안내 줄 높이를 늘 둡니다.
-                            Text(
-                                providerCaption(option.block, option.accountConnected)?.let { stringResource(it) }.orEmpty(),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                minLines = 1,
-                            )
+                            val showAccountCaption = accountGraceElapsed && !accountChecking(option.provider)
+                            providerCaption(option.block, option.accountConnected || !showAccountCaption)?.let { caption ->
+                                Text(
+                                    stringResource(caption),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
@@ -137,3 +152,6 @@ private fun providerCaption(block: DirectModeBlock?, accountConnected: Boolean):
     block == DirectModeBlock.PLAN -> R.string.direct_mode_option_plan_locked
     else -> null
 }
+
+/** 계정 조회가 막 끝난 직후의 일시적인 미연결 상태를 안내로 보여 주지 않도록 기다리는 시간입니다. */
+private const val ACCOUNT_CAPTION_GRACE_MILLIS = 1_500L
