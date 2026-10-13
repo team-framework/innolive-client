@@ -2298,7 +2298,7 @@ private fun ServerApiException.toKnownBroadcastFailure(): BroadcastFailure? = wh
     else -> null
 }
 
-private fun ServerApiException.toBroadcastEvent(
+internal fun ServerApiException.toBroadcastEvent(
     fallback: BroadcastFailure,
     provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
     preserveServerMessage: Boolean = true,
