@@ -10,6 +10,8 @@
 		C426F0012026100300000001 /* Contract fixtures in Resources */ = {isa = PBXBuildFile; fileRef = C426F0012026100300000002 /* Contract fixtures */; };
 		A1B2C3D40101010101010101 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D50101010101010101 /* GoogleSignIn */; };
 		B2C3D4E50101010101010101 /* LiveKitWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = B2C3D4E60101010101010101 /* LiveKitWebRTC */; };
+		C3D4E5F50101010101010101 /* HaishinKit in Frameworks */ = {isa = PBXBuildFile; productRef = C3D4E5F60101010101010101 /* HaishinKit */; };
+		C3D4E5F70101010101010101 /* RTMPHaishinKit in Frameworks */ = {isa = PBXBuildFile; productRef = C3D4E5F80101010101010101 /* RTMPHaishinKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +50,8 @@
 			files = (
 				A1B2C3D40101010101010101 /* GoogleSignIn in Frameworks */,
 				B2C3D4E50101010101010101 /* LiveKitWebRTC in Frameworks */,
+				C3D4E5F50101010101010101 /* HaishinKit in Frameworks */,
+				C3D4E5F70101010101010101 /* RTMPHaishinKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -102,6 +106,8 @@
 			packageProductDependencies = (
 				A1B2C3D50101010101010101 /* GoogleSignIn */,
 				B2C3D4E60101010101010101 /* LiveKitWebRTC */,
+				C3D4E5F60101010101010101 /* HaishinKit */,
+				C3D4E5F80101010101010101 /* RTMPHaishinKit */,
 			);
 			productName = InnoLive;
 			productReference = 7B64AA013013CA7300BA69CE /* InnoLive.app */;
@@ -161,6 +167,7 @@
 			packageReferences = (
 				A1B2C3D30101010101010101 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				B2C3D4E40101010101010101 /* XCRemoteSwiftPackageReference "webrtc-xcframework" */,
+				C3D4E5F40101010101010101 /* XCRemoteSwiftPackageReference "HaishinKit.swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7B64AA023013CA7300BA69CE /* Products */;
@@ -521,6 +528,14 @@
 				version = 144.7559.11;
 			};
 		};
+		C3D4E5F40101010101010101 /* XCRemoteSwiftPackageReference "HaishinKit.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/HaishinKit/HaishinKit.swift";
+			requirement = {
+				kind = exactVersion;
+				version = 2.2.5;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -533,6 +548,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B2C3D4E40101010101010101 /* XCRemoteSwiftPackageReference "webrtc-xcframework" */;
 			productName = LiveKitWebRTC;
+		};
+		C3D4E5F60101010101010101 /* HaishinKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C3D4E5F40101010101010101 /* XCRemoteSwiftPackageReference "HaishinKit.swift" */;
+			productName = HaishinKit;
+		};
+		C3D4E5F80101010101010101 /* RTMPHaishinKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C3D4E5F40101010101010101 /* XCRemoteSwiftPackageReference "HaishinKit.swift" */;
+			productName = RTMPHaishinKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -85,6 +85,8 @@ struct WebRTCSessionCredentials {
     let ownerToken: String
     var processingMode: AIProcessingMode = .server
     var localAnonymizationEnabled = true
+    /// 앱 직접 송출 세션은 서버가 음성을 쓰지 않는다. 마이크는 앱 송출용 녹음이 쓰도록 WebRTC에 넘기지 않는다.
+    var sendsMicrophoneToServer = true
 }
 
 struct WebRTCIceServer: Codable, Equatable {

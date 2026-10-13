@@ -10,6 +10,10 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var connection: YouTubeConnection?
     @Published private(set) var session: YouTubeBroadcastSession?
     @Published private(set) var stream: YouTubeStreamState?
+    /// 대상별 앱 직접 송출 상태다(#481). 화면이 바로 갱신되도록 송출기 상태를 옮겨 둔다.
+    @Published private(set) var directPublishStates: [String: DirectPublishState] = [:]
+    /// 직접 송출 중 마이크를 열지 못해 무음으로 보내고 있다.
+    @Published private(set) var isDirectMicrophoneUnavailable = false
     @Published private(set) var videoTrack: YouTubeVideoTrackState?
     @Published private(set) var responseState = BroadcastSessionSnapshot()
     @Published private(set) var isFeatureAvailable = true
@@ -249,7 +253,8 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var canChangeBroadcastMode: Bool {
-        session != nil && !liveEditingTargets.isEmpty && !isChangingBroadcastMode
+        // 방송 중 방식 전환은 서버 egress를 교체하는 동작이라 앱 직접 송출 세션에는 쓸 수 없다.
+        session != nil && !isDirectPublishSession && !liveEditingTargets.isEmpty && !isChangingBroadcastMode
             && !isSavingLiveSettings && !isChangingStreamState && !isEndingSession
             && !isPreparingSession && !isConnectingVideo && !isRecoveringVideoFailure
             && !isYouTubeConnectionOperationInProgress && !videoUplink.isSwitchingCamera && !isHandlingUpgradeOffer
@@ -538,6 +543,11 @@ final class YouTubeIntegration: ObservableObject {
     private var hasObservedActiveScene = false
     private var backgroundPauseTask: Task<Void, Never>?
     private var backgroundPauseGeneration: UInt = 0
+    private let directPublisher: any DirectBroadcastPublishing
+    private let heartbeatInterval: Duration
+    private var heartbeatTask: Task<Void, Never>?
+    private var heartbeatGeneration: UInt = 0
+    private var heartbeatBuilder = DirectHeartbeatBuilder()
 
     convenience init() {
         self.init(preferencesStore: YouTubePreferencesStore())
@@ -555,8 +565,12 @@ final class YouTubeIntegration: ObservableObject {
         localModelsAvailable: @escaping () -> Bool = { AIProcessingMode.localModelsAvailable },
         persistAIProcessingMode: @escaping (AIProcessingMode) -> Void = {
             UserDefaults.standard.set($0.rawValue, forKey: AIProcessingMode.storageKey)
-        }
+        },
+        directPublisher: (any DirectBroadcastPublishing)? = nil,
+        heartbeatInterval: Duration = .seconds(15)
     ) {
+        self.directPublisher = directPublisher ?? DirectBroadcastPublisher()
+        self.heartbeatInterval = heartbeatInterval
         self.aiModeProvider = aiModeProvider
         self.localModelsAvailable = localModelsAvailable
         self.persistAIProcessingMode = persistAIProcessingMode
@@ -575,6 +589,16 @@ final class YouTubeIntegration: ObservableObject {
         hasAcknowledgedYouTubeTransmission = consentStore.hasAcknowledgedYouTubeTransmission
         videoUplink.onConnectionInterrupted = { [weak self] in
             self?.reconnectVideoUsingExistingSession()
+        }
+        videoUplink.setDirectMediaSink(self.directPublisher.mediaSink)
+        self.directPublisher.onStateChange = { [weak self] in
+            guard let self else { return }
+            self.directPublishStates = self.directPublisher.states
+            self.isDirectMicrophoneUnavailable = self.directPublisher.isMicrophoneUnavailable
+            self.refreshDirectPublishOverlay()
+        }
+        self.directPublisher.onPermanentFailure = { [weak self] provider in
+            Task { @MainActor [weak self] in await self?.handleDirectPublishFailure(provider: provider) }
         }
     }
 
@@ -1023,8 +1047,9 @@ final class YouTubeIntegration: ObservableObject {
                 let scope = try api.broadcastSessionScope(accessToken: accessToken)
                 try await removePreviousSession(scope: scope, accessToken: accessToken)
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                // Keep a server-capable session so either direction can switch in place.
-                var created = try await api.createSession(accessToken: accessToken, mode: .server)
+                // 온디바이스 선택은 앱 직접 송출 세션으로 만든다(server #438). 서버가 처리 방식을
+                // 받지 않으면 기존처럼 서버 세션에서 서버 AI를 끄고 중계 송출한다.
+                var created = try await api.createSession(accessToken: accessToken, mode: requestedMode)
                 let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
                 // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
                 do {
@@ -1037,11 +1062,13 @@ final class YouTubeIntegration: ObservableObject {
                     throw error
                 }
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                guard created.aiProcessing == nil || created.aiProcessing == AIProcessingMode.server.rawValue else {
+                let createdOnDevice = created.aiProcessing == AIProcessingMode.onDevice.rawValue
+                guard created.aiProcessing == nil || created.aiProcessing == AIProcessingMode.server.rawValue
+                        || (createdOnDevice && requestedMode == .onDevice) else {
                     try? await removePreviousSession(scope: scope, accessToken: accessToken)
                     throw WebRTCVideoUplinkError.failed(String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다."))
                 }
-                if requestedMode == .onDevice {
+                if requestedMode == .onDevice && !createdOnDevice {
                     // Legacy servers expose a per-session AI switch. Verify it is off before
                     // starting capture; an echoed request metadata field alone is not an acknowledgement.
                     do {
@@ -1139,7 +1166,8 @@ final class YouTubeIntegration: ObservableObject {
                 guard generation == sessionOperationGeneration else { return false }
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
-                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled),
+                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled,
+                                                      sendsMicrophoneToServer: !Self.isDirectPublish(session)),
                     accessToken: refreshedAccessToken,
                     serverURL: serverURL,
                     iceServers: iceServers,
@@ -1244,6 +1272,12 @@ final class YouTubeIntegration: ObservableObject {
             return true
         }
         guard let accessToken, !accessToken.isEmpty else { showError(.unauthorized); return false }
+        if isDirectPublishSession {
+            guard mode != .onDevice else { return true }
+            // 서버는 온디바이스 세션의 처리 방식 변경을 거부한다. 새 세션이 필요하다.
+            errorMessage = String(localized: "앱 직접 송출 세션에서는 AI 처리 방식을 바꿀 수 없습니다. 방송 준비를 취소한 뒤 다시 선택해 주세요.", table: "DirectPublish")
+            return false
+        }
         guard current.aiProcessing == nil || current.aiProcessing == AIProcessingMode.server.rawValue else {
             errorMessage = String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다.")
             return false
@@ -1293,6 +1327,7 @@ final class YouTubeIntegration: ObservableObject {
         if isYouTubeBroadcastActive {
             await stopYouTubeStream(accessToken: accessToken)
         }
+        await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -1323,6 +1358,7 @@ final class YouTubeIntegration: ObservableObject {
         let failureMessage = videoUplink.errorMessage
             ?? String(localized: "카메라 영상 연결이 끊겼습니다. 비식별화를 다시 시작해 주세요.")
 
+        await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -1440,6 +1476,11 @@ final class YouTubeIntegration: ObservableObject {
             )
             guard !useEditor || settingsEditor.contextGeneration == editorGeneration else { return false }
             guard applySessionResponse(preparedSnapshot, sessionID: session.sessionID, generation: generation, provider: provider.rawValue, clearsWarnings: true) else { return false }
+            // YouTube는 라이브 전환 전에 영상이 도착해야 하므로 준비 응답의 주소로 바로 송출한다.
+            if isDirectPublishSession, !Self.receivesDirectIngestAtGoLive(provider.rawValue) {
+                guard await startDirectPublish(provider: provider.rawValue, endpoint: preparedSnapshot.ingestEndpoint,
+                                               session: session, accessToken: accessToken, generation: generation) else { return false }
+            }
             return true
         } catch {
             guard generation == sessionOperationGeneration, !useEditor || settingsEditor.contextGeneration == editorGeneration else { return false }
@@ -1515,6 +1556,7 @@ final class YouTubeIntegration: ObservableObject {
         isConnectingVideo = false
         await stopPreparedTargetsIfNeeded(accessToken: accessToken)
         isChangingStreamState = false
+        await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -1743,6 +1785,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private func discardUnconnectedSession(accessToken: String?) async {
         stopPolling()
+        await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         await deleteCurrentSession(accessToken: accessToken)
         session = nil
@@ -1819,13 +1862,41 @@ final class YouTubeIntegration: ObservableObject {
             guard applySessionResponse(liveResponse, sessionID: session.sessionID, generation: sessionGeneration) else { return }
             liveStartFailures.removeAll { attemptedProviders.contains($0.provider) }
             liveStartFailures.append(contentsOf: liveResponse.details.failedTargets)
+            // 치지직은 연결하는 순간 공개 방송이 되므로 라이브 전환 응답의 주소로 이때 연결한다.
+            var directFailures: [String] = []
+            if isDirectPublishSession {
+                let failedProviders = Set(liveResponse.details.failedTargets.map(\.provider))
+                var endpoints: [String: DirectIngestEndpoint?] = [:]
+                for target in liveResponse.directIngest where endpoints[target.provider] == nil {
+                    endpoints[target.provider] = target.endpoint
+                }
+                // 라이브로 전환됐는데 주소가 없거나 쓸 수 없는 대상도 실패로 알린다. 이미 송출 중인 대상과
+                // 라이브 전환에 실패한 대상(failed_targets)은 연결하지 않는다.
+                let expected = attemptedProviders.filter { Self.receivesDirectIngestAtGoLive($0) }
+                let providers = Set(endpoints.keys).union(expected)
+                    .filter { directPublisher.states[$0] == nil && !failedProviders.contains($0) }
+                    .sorted()
+                for provider in providers {
+                    let started = await startDirectPublish(provider: provider, endpoint: endpoints[provider] ?? nil, session: session,
+                                                           accessToken: accessToken, generation: sessionGeneration)
+                    guard isCurrentBroadcastOperation(operationGeneration) else { return }
+                    if !started { directFailures.append(errorMessage ?? DirectPublishError.connectionFailed(provider: provider).localizedDescription) }
+                }
+            }
             if !liveResponse.details.failedTargets.isEmpty {
                 errorMessage = liveResponse.details.failedTargets.map { failure in
                     let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
                     return title + ": " + String(localized: "라이브 시작에 실패했습니다. 다른 플랫폼의 방송은 유지됩니다.", table: "Simulcast")
                 }.joined(separator: "\n")
             }
+            if !directFailures.isEmpty {
+                errorMessage = ([errorMessage].compactMap { $0 } + directFailures).joined(separator: "\n")
+            }
             if hasStartedYouTubeBroadcast { liveStartedAt = liveStartedAt ?? Date() }
+            // 서버의 입력 없음 시계는 라이브 전환 시점부터 돈다. 전환 직후 첫 보고를 보낸다.
+            if isDirectPublishSession, hasStartedYouTubeBroadcast, !directPublisher.states.isEmpty {
+                beginDirectHeartbeat(accessToken: accessToken)
+            }
             beginPolling(accessToken: accessToken)
         } catch {
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
@@ -1955,6 +2026,11 @@ final class YouTubeIntegration: ObservableObject {
         reconnectTask?.cancel()
         reconnectTask = nil
         videoRecoveryStatus = nil
+        stopDirectHeartbeat()
+        for provider in directPublisher.states.keys {
+            Task { @MainActor [directPublisher] in await directPublisher.stop(provider: provider) }
+        }
+        videoUplink.setDirectPublishBitrateLimited(false)
         videoUplink.stop()
         videoConnectionConfiguration = nil
         connection = nil
@@ -2064,6 +2140,8 @@ final class YouTubeIntegration: ObservableObject {
         let previouslyLive = Set(liveEditingTargets)
         let previousOffer = upgradeOffer
         responseState.apply(response, provider: provider, clearsWarnings: clearsWarnings)
+        responseState.applyDirectPublishStates(directPublisher.states)
+        stopDirectPublishForEndedTargets()
         if previousOffer != nil && upgradeOffer == nil { closeUpgradeOffer() }
         if previousOffer?.selected != upgradeOffer?.selected { savedUpgradeProviders = []; confirmedUpgradeMode = nil }
         synchronizeUpgradeOffer()
@@ -2249,7 +2327,8 @@ final class YouTubeIntegration: ObservableObject {
                         session: WebRTCSessionCredentials(
                             sessionID: session.sessionID,
                             ownerToken: session.ownerToken,
-                            processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled
+                            processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled,
+                            sendsMicrophoneToServer: !Self.isDirectPublish(session)
                         ),
                         accessToken: self.api.currentAccessToken(fallback: accessToken),
                         serverURL: serverURL,
@@ -2310,6 +2389,11 @@ final class YouTubeIntegration: ObservableObject {
             for provider in targetProviders(for: .pause) {
                 guard pauseGeneration == backgroundPauseGeneration,
                       sessionGeneration == sessionOperationGeneration else { return }
+                if directPublisher.states[providerKey(provider)] != nil {
+                    directPublisher.setPaused(true, provider: providerKey(provider))
+                    backgroundPausedProviders.insert(providerKey(provider))
+                    continue
+                }
                 do {
                     let paused = try await api.streamAction(.pause, session: session, accessToken: accessToken, provider: provider)
                     guard pauseGeneration == backgroundPauseGeneration,
@@ -2369,8 +2453,18 @@ final class YouTubeIntegration: ObservableObject {
         for provider in providers {
             let key = providerKey(provider)
             targetActionErrors[key] = nil
+            // 서버는 온디바이스 세션의 일시 중지를 거부한다. 앱 송출을 일시 중지 안내 화면·무음으로 바꾼다.
+            if (action == .pause || action == .resume), directPublisher.states[key] != nil {
+                directPublisher.setPaused(action == .pause, provider: key)
+                backgroundPausedProviders.remove(key)
+                continue
+            }
+            // 공유 계약(direct-publish-v1) 순서대로 stop 요청 뒤 연결을 끊는다. 요청이 실패해도 끊는다.
+            // 치지직은 앱이 연결을 끊어야 방송이 끝난다.
+            let closesDirectPublish = action == .stop && directPublisher.states[key] != nil
             do {
                 let response = try await api.streamAction(action, session: session, accessToken: accessToken, provider: provider)
+                if closesDirectPublish { await directPublisher.stop(provider: key) }
                 guard isCurrentBroadcastOperation(operationGeneration) else { return }
                 let normalized = action == .stop && !response.isFullSnapshot ? YouTubeSessionResponse(
                     stream: response.stream.markedStoppedByUser(), media: response.media,
@@ -2380,6 +2474,7 @@ final class YouTubeIntegration: ObservableObject {
                 backgroundPausedProviders.remove(key)
                 if action == .stop { liveStartFailures.removeAll { $0.provider == key } }
             } catch {
+                if closesDirectPublish { await directPublisher.stop(provider: key) }
                 guard generation == sessionOperationGeneration, isCurrentBroadcastOperation(operationGeneration) else { return }
                 handle(error)
                 let title = BroadcastSettingsProvider(rawValue: key)?.title ?? key
@@ -2426,6 +2521,210 @@ final class YouTubeIntegration: ObservableObject {
 
     private func persistBroadcastSettings() {
         preferencesStore.saveBroadcastSettings(broadcastSettings)
+    }
+
+    // MARK: 앱 직접 송출 (#481)
+
+    /// 서버가 송출하지 않고 앱이 플랫폼으로 직접 보내는 세션이다(server #438).
+    var isDirectPublishSession: Bool { session.map(Self.isDirectPublish) ?? false }
+
+    static func isDirectPublish(_ session: YouTubeBroadcastSession) -> Bool {
+        session.aiProcessing == AIProcessingMode.onDevice.rawValue
+    }
+
+    /// 치지직은 RTMP 연결이 곧 공개 방송이라 서버가 라이브 전환 응답에서 주소를 준다. 나머지는 준비 응답에서 준다.
+    static func receivesDirectIngestAtGoLive(_ provider: String) -> Bool {
+        provider == BroadcastSettingsProvider.chzzk.rawValue
+    }
+
+    /// 주소가 없으면 송출을 시작하지 않고 실패로 처리한다. 영상 없이 남은 플랫폼 방송은 서버에서 정리한다.
+    private func startDirectPublish(provider: String, endpoint: DirectIngestEndpoint?, session: YouTubeBroadcastSession,
+                                    accessToken: String, generation: UInt) async -> Bool {
+        let quality = videoConnectionConfiguration?.preferredVideoQuality ?? .defaultValue
+        do {
+            guard let endpoint else { throw DirectPublishError.missingIngest(provider: provider) }
+            try await directPublisher.start(provider: provider, endpoint: endpoint, quality: quality)
+            guard generation == sessionOperationGeneration, self.session?.sessionID == session.sessionID else {
+                await directPublisher.stop(provider: provider)
+                return false
+            }
+            videoUplink.setDirectPublishBitrateLimited(true)
+            refreshDirectPublishOverlay()
+            return true
+        } catch {
+            guard generation == sessionOperationGeneration, self.session?.sessionID == session.sessionID else { return false }
+            errorMessage = (error as? LocalizedError)?.errorDescription
+                ?? DirectPublishError.connectionFailed(provider: provider).localizedDescription
+            // 영상 없이 남은 플랫폼 방송을 정리한다. 실패해도 위 오류를 유지한다.
+            if let response = try? await api.streamAction(.stop, session: session, accessToken: accessToken, provider: provider) {
+                let message = errorMessage
+                applySessionResponse(response, sessionID: session.sessionID, generation: generation, provider: provider)
+                errorMessage = message
+            }
+            return false
+        }
+    }
+
+    private func stopAllDirectPublish() async {
+        stopDirectHeartbeat()
+        await directPublisher.stopAll()
+        videoUplink.setDirectPublishBitrateLimited(false)
+    }
+
+    private func refreshDirectPublishOverlay() {
+        guard session != nil else { return }
+        responseState.applyDirectPublishStates(directPublisher.states)
+        stream = responseState.stream
+        if directPublisher.states.isEmpty { videoUplink.setDirectPublishBitrateLimited(false) }
+    }
+
+    /// 서버에서 방송이 끝난 대상(스튜디오 종료, 한도 종료 등)은 앱 송출도 닫는다.
+    private func stopDirectPublishForEndedTargets() {
+        guard let targets = responseState.details.targets else { return }
+        for provider in directPublisher.states.keys {
+            guard let target = targets.first(where: { $0.provider == provider }) else { continue }
+            if target.stream.broadcastPhaseValue == .idle {
+                Task { @MainActor [directPublisher] in await directPublisher.stop(provider: provider) }
+            }
+        }
+    }
+
+    private func handleDirectPublishFailure(provider: String) async {
+        let accessToken = api.currentAccessToken(fallback: videoUplink.accessToken ?? "")
+        guard let session, !accessToken.isEmpty else {
+            await directPublisher.stop(provider: provider)
+            return
+        }
+        let generation = sessionOperationGeneration
+        let title = BroadcastSettingsProvider(rawValue: provider)?.title ?? provider
+        let message = String(format: String(localized: "%@ 송출 연결이 끊겨 방송을 종료했습니다.", table: "DirectPublish"), title)
+        if let response = try? await api.streamAction(.stop, session: session, accessToken: accessToken, provider: provider) {
+            applySessionResponse(response, sessionID: session.sessionID, generation: generation, provider: provider)
+        }
+        await directPublisher.stop(provider: provider)
+        guard generation == sessionOperationGeneration else { return }
+        errorMessage = message
+        beginPolling(accessToken: accessToken)
+    }
+
+    // MARK: 직접 송출 하트비트 (server #434, #436)
+
+    var isSendingDirectHeartbeat: Bool { heartbeatTask != nil }
+
+    private func beginDirectHeartbeat(accessToken: String) {
+        guard heartbeatTask == nil, isDirectPublishSession else { return }
+        heartbeatGeneration &+= 1
+        let generation = heartbeatGeneration
+        let sessionGeneration = sessionOperationGeneration
+        let interval = heartbeatInterval
+        heartbeatBuilder.reset()
+        heartbeatTask = Task { [weak self] in
+            var isFirst = true
+            while !Task.isCancelled {
+                if !isFirst {
+                    do { try await Task.sleep(for: interval) } catch { return }
+                }
+                isFirst = false
+                guard let self, self.heartbeatGeneration == generation,
+                      self.sessionOperationGeneration == sessionGeneration else { return }
+                // 실패해도 방송은 유지하고 다음 주기에 다시 보낸다. 누락분은 재전송하지 않는다.
+                guard await self.sendDirectHeartbeat(generation: generation, sessionGeneration: sessionGeneration,
+                                                     fallbackAccessToken: accessToken) else {
+                    if self.heartbeatGeneration == generation { self.heartbeatTask = nil }
+                    return
+                }
+            }
+        }
+    }
+
+    private func stopDirectHeartbeat() {
+        heartbeatGeneration &+= 1
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+    }
+
+    /// 계속 보낼지 돌려준다. 라이브 대상이 없다는 409를 받으면 멈춘다.
+    private func sendDirectHeartbeat(generation: UInt, sessionGeneration: UInt, fallbackAccessToken: String) async -> Bool {
+        guard let session, isDirectPublishSession else { return false }
+        let accessToken = api.currentAccessToken(fallback: fallbackAccessToken)
+        guard !accessToken.isEmpty else { return true }
+        var status = await directPublisher.heartbeatStatus()
+        guard heartbeatGeneration == generation, sessionOperationGeneration == sessionGeneration else { return false }
+        // 서버에서 라이브인데 앱 연결이 없는 대상은 끊긴 상태로 보고한다.
+        let reported = Set(status.targets.map(\.provider))
+        for provider in liveEditingTargets.map(\.rawValue) where !reported.contains(provider) {
+            status.targets.append(.init(provider: provider, connected: false, sentBytes: nil, reconnects: 0))
+        }
+        guard !status.targets.isEmpty else { return false }
+        let request = heartbeatBuilder.makeRequest(
+            status: status,
+            anonymizationEnabled: isAnonymizationEnabled,
+            device: DirectHeartbeatDevice.current(),
+            model: DirectHeartbeatDevice.model,
+            now: Date()
+        )
+        do {
+            let response = try await api.sendHeartbeat(session: session, accessToken: accessToken, request: request)
+            guard heartbeatGeneration == generation, sessionOperationGeneration == sessionGeneration,
+                  self.session?.sessionID == session.sessionID else { return false }
+            await applyHeartbeatResponse(response, session: session, accessToken: accessToken)
+            return true
+        } catch let error as YouTubeAPIError {
+            if case let .api(code, _, _) = error, let code, Self.heartbeatTerminalCodes.contains(code) {
+                // 보고 작업은 곧 취소되므로 정리는 별도 작업에서 한다. 취소된 작업에서는 세션 조회가 실패한다.
+                Task { @MainActor [weak self] in
+                    await self?.endDirectPublishAfterHeartbeat(code: code, session: session, accessToken: accessToken,
+                                                               sessionGeneration: sessionGeneration)
+                }
+                return false
+            }
+            return true
+        } catch {
+            return true
+        }
+    }
+
+    /// 공유 계약(direct-publish-v1)에서 모든 연결을 끊어야 하는 하트비트 오류다.
+    /// 409 라이브 대상 없음, 403 소유권 상실, 404 세션 삭제. 401은 요청 계층이 인증을 갱신해 다시 보낸다.
+    nonisolated static let heartbeatTerminalCodes: Set<String> = ["heartbeat_not_applicable", "forbidden", "not_found"]
+
+    private func endDirectPublishAfterHeartbeat(code: String, session: YouTubeBroadcastSession, accessToken: String,
+                                                sessionGeneration: UInt) async {
+        guard sessionOperationGeneration == sessionGeneration, self.session?.sessionID == session.sessionID else { return }
+        let titles = directPublisher.states.keys.sorted().map { BroadcastSettingsProvider(rawValue: $0)?.title ?? $0 }
+        await stopAllDirectPublish()
+        guard sessionOperationGeneration == sessionGeneration else { return }
+        // 409는 세션이 남아 있어 서버 상태로 화면을 맞춘다. 403·404는 세션 조회도 실패하므로 기존 폴링이 정리한다.
+        if code == "heartbeat_not_applicable",
+           let status = try? await api.sessionStatus(session: session, accessToken: accessToken) {
+            applySessionResponse(status, sessionID: session.sessionID, generation: sessionGeneration)
+        }
+        guard sessionOperationGeneration == sessionGeneration, !titles.isEmpty else { return }
+        errorMessage = String(format: String(localized: "서버가 %@ 방송을 종료해 송출을 멈췄습니다.", table: "DirectPublish"),
+                              titles.joined(separator: ", "))
+    }
+
+    private func applyHeartbeatResponse(_ response: DirectHeartbeatResponse, session: YouTubeBroadcastSession,
+                                        accessToken: String) async {
+        let generation = sessionOperationGeneration
+        responseState.details.notices = response.notices
+        if response.remainingTime != .missing {
+            responseState.details.remainingTime = response.remainingTime
+            isRemainingTimeStale = false
+        }
+        guard !response.stopTargets.isEmpty else { return }
+        // 서버가 끝낸 대상(한도 도달, 입력 없음, 플랫폼에서 종료)은 즉시 끊는다.
+        // 치지직은 이 연결 종료가 방송 종료다.
+        for provider in response.stopTargets {
+            await directPublisher.stop(provider: provider)
+        }
+        let titles = response.stopTargets.map { BroadcastSettingsProvider(rawValue: $0)?.title ?? $0 }
+        if let status = try? await api.sessionStatus(session: session, accessToken: accessToken) {
+            applySessionResponse(status, sessionID: session.sessionID, generation: generation)
+        }
+        guard generation == sessionOperationGeneration else { return }
+        errorMessage = String(format: String(localized: "서버가 %@ 방송을 종료해 송출을 멈췄습니다.", table: "DirectPublish"),
+                              titles.joined(separator: ", "))
     }
 
     #if DEBUG
