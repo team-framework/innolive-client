@@ -469,7 +469,7 @@ private fun LiveScreenContent(
                     warnings = directWarnings,
                     broadcastResolution = if (showPlan) plan.resolution.wireValue
                     else sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected },
-                    uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected },
+                    uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected && !showPlan },
                     onClickLabel = stringResource(R.string.direct_mode_entry, summary).takeIf { canChangeDirectMode },
                     onClick = if (canChangeDirectMode) {
                         { openDirectModeDialog = true }
