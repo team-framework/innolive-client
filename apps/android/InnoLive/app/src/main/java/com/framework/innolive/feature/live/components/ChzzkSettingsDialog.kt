@@ -53,10 +53,6 @@ internal fun ChzzkSettingsDialog(
     onChangePlatform: () -> Unit,
     guide: BroadcastTutorialGuide? = null,
 ) {
-    var query by remember { mutableStateOf("") }
-    var categories by remember { mutableStateOf(emptyList<ChzzkCategory>()) }
-    var message by remember { mutableStateOf<Int?>(null) }
-    val scope = rememberCoroutineScope()
     Dialog(onDismissRequest = onDismiss) {
         Surface(modifier = Modifier.heightIn(max = 700.dp)) {
             BroadcastTutorialDialogFrame(guide) {
@@ -66,45 +62,19 @@ internal fun ChzzkSettingsDialog(
                 ) {
                     Text(stringResource(R.string.chzzk_settings_title))
                     TextButton(onClick = onChangePlatform, enabled = !isBusy) { Text(stringResource(R.string.action_change_platform)) }
-                    Text(accountLabel)
-                    TextButton(onClick = onRefreshAccount, enabled = canConnect && !isBusy) { Text(stringResource(R.string.chzzk_action_refresh_account)) }
-                    Row(Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.CONNECT_ACCOUNT)) {
-                        Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text(stringResource(R.string.chzzk_action_connect)) }
-                        TextButton(onClick = onDisconnect, enabled = canDisconnect && !isBusy) { Text(stringResource(R.string.chzzk_action_disconnect)) }
-                    }
-                    OutlinedTextField(settings.title, { onChanged(settings.copy(title = it)) },
-                        label = { Text(stringResource(R.string.label_broadcast_title)) }, singleLine = true,
-                        modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth())
-                    OutlinedTextField(query, { query = it }, label = { Text(stringResource(R.string.chzzk_label_category_search)) },
-                        modifier = Modifier.fillMaxWidth())
-                    Button(onClick = {
-                        scope.launch {
-                            message = null
-                            runCatching { onSearch(query) }
-                                .onSuccess { categories = it; if (it.isEmpty()) message = R.string.chzzk_search_empty }
-                                .onFailure { message = R.string.chzzk_search_failed }
-                        }
-                    }, enabled = query.isNotBlank() && !isBusy) { Text(stringResource(R.string.chzzk_action_search)) }
-                    categories.forEach { category ->
-                        TextButton(onClick = {
-                            onChanged(settings.copy(categoryType = category.type, categoryId = category.id))
-                            categories = emptyList()
-                        }) { Text("${category.value} (${category.type})") }
-                    }
-                    Text(stringResource(R.string.chzzk_selected_category, settings.categoryType, settings.categoryId))
-                    Text(stringResource(R.string.chzzk_default_settings_hint))
-                    TextButton(onClick = { onChanged(settings.copy(categoryType = "", categoryId = "")) }) {
-                        Text(stringResource(R.string.chzzk_action_clear_category))
-                    }
-                    OutlinedTextField(settings.tags.joinToString(","), { raw ->
-                        onChanged(settings.copy(tags = if (raw.isBlank()) emptyList()
-                            else raw.split(',').map(String::trim)))
-                    }, label = { Text(stringResource(R.string.chzzk_label_tags)) },
-                        modifier = Modifier.fillMaxWidth())
+                    ChzzkSettingsFields(
+                        settings = settings,
+                        accountLabel = accountLabel,
+                        canConnect = canConnect,
+                        canDisconnect = canDisconnect,
+                        isBusy = isBusy,
+                        onChanged = onChanged,
+                        onRefreshAccount = onRefreshAccount,
+                        onConnect = onConnect,
+                        onDisconnect = onDisconnect,
+                        onSearch = onSearch,
+                    )
                     val invalidField = settings.validationField()
-                    if (invalidField != null) Text(stringResource(R.string.chzzk_validation_field, invalidField),
-                        color = Color.Red)
-                    message?.let { Text(stringResource(it), color = Color.Red) }
                     Row {
                         Button(
                             onClick = onPrepare,
@@ -118,5 +88,66 @@ internal fun ChzzkSettingsDialog(
                 }
             }
         }
+    }
+}
+
+/** 치지직 방송 설정 입력 항목입니다. 설정 창과 통합 방송 설정 창이 함께 씁니다. */
+@Composable
+internal fun ChzzkSettingsFields(
+    settings: ChzzkBroadcastSettings,
+    accountLabel: String,
+    canConnect: Boolean,
+    canDisconnect: Boolean,
+    isBusy: Boolean,
+    onChanged: (ChzzkBroadcastSettings) -> Unit,
+    onRefreshAccount: () -> Unit,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+    onSearch: suspend (String) -> List<ChzzkCategory>,
+) {
+    var query by remember { mutableStateOf("") }
+    var categories by remember { mutableStateOf(emptyList<ChzzkCategory>()) }
+    var message by remember { mutableStateOf<Int?>(null) }
+    val scope = rememberCoroutineScope()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(accountLabel)
+        TextButton(onClick = onRefreshAccount, enabled = canConnect && !isBusy) { Text(stringResource(R.string.chzzk_action_refresh_account)) }
+        Row(Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.CONNECT_ACCOUNT)) {
+            Button(onClick = onConnect, enabled = canConnect && !isBusy) { Text(stringResource(R.string.chzzk_action_connect)) }
+            TextButton(onClick = onDisconnect, enabled = canDisconnect && !isBusy) { Text(stringResource(R.string.chzzk_action_disconnect)) }
+        }
+        OutlinedTextField(settings.title, { onChanged(settings.copy(title = it)) },
+            label = { Text(stringResource(R.string.label_broadcast_title)) }, singleLine = true,
+            modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth())
+        OutlinedTextField(query, { query = it }, label = { Text(stringResource(R.string.chzzk_label_category_search)) },
+            modifier = Modifier.fillMaxWidth())
+        Button(onClick = {
+            scope.launch {
+                message = null
+                runCatching { onSearch(query) }
+                    .onSuccess { categories = it; if (it.isEmpty()) message = R.string.chzzk_search_empty }
+                    .onFailure { message = R.string.chzzk_search_failed }
+            }
+        }, enabled = query.isNotBlank() && !isBusy) { Text(stringResource(R.string.chzzk_action_search)) }
+        categories.forEach { category ->
+            TextButton(onClick = {
+                onChanged(settings.copy(categoryType = category.type, categoryId = category.id))
+                categories = emptyList()
+            }) { Text("${category.value} (${category.type})") }
+        }
+        Text(stringResource(R.string.chzzk_selected_category, settings.categoryType, settings.categoryId))
+        Text(stringResource(R.string.chzzk_default_settings_hint))
+        TextButton(onClick = { onChanged(settings.copy(categoryType = "", categoryId = "")) }) {
+            Text(stringResource(R.string.chzzk_action_clear_category))
+        }
+        OutlinedTextField(settings.tags.joinToString(","), { raw ->
+            onChanged(settings.copy(tags = if (raw.isBlank()) emptyList()
+                else raw.split(',').map(String::trim)))
+        }, label = { Text(stringResource(R.string.chzzk_label_tags)) },
+            modifier = Modifier.fillMaxWidth())
+        val invalidField = settings.validationField()
+        if (invalidField != null) Text(stringResource(R.string.chzzk_validation_field, invalidField),
+            color = Color.Red)
+        message?.let { Text(stringResource(it), color = Color.Red) }
     }
 }
