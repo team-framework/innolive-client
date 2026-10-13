@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -42,9 +43,12 @@ internal fun CameraProcessedPreview(
             eglBase.release()
         }
     }
-    AndroidView(
-        factory = { renderer },
-        update = { it.setMirror(cameraLensFacing.shouldMirrorPreview) },
-        modifier = modifier,
-    )
+    // AndroidView는 factory를 한 번만 호출하므로, EGL 컨텍스트가 바뀌어 새 renderer를 만들면 view도 새로 붙입니다.
+    key(renderer) {
+        AndroidView(
+            factory = { renderer },
+            update = { it.setMirror(cameraLensFacing.shouldMirrorPreview) },
+            modifier = modifier,
+        )
+    }
 }
