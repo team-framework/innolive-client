@@ -131,7 +131,7 @@ internal class DirectBroadcastController internal constructor(
             if (!targets.containsKey(provider)) return@execute
             env.log("reconnect_given_up provider=${provider.wireValue} failure=$failure")
             stopTarget(provider)
-            afterTargetsRemoved(DirectEvent.CONNECTION_LOST.toBroadcastEvent())
+            afterTargetsRemoved(directConnectionLostEvent(provider))
         }
     })
 
@@ -743,7 +743,7 @@ internal class DirectBroadcastController internal constructor(
         env.log("server_stopped_targets count=${ended.size}")
         ended.forEach(::disconnectTarget)
         refreshSnapshot()
-        afterTargetsRemoved(DirectEvent.SERVER_STOPPED.toBroadcastEvent())
+        afterTargetsRemoved(directTargetsStoppedEvent(ended))
     }
 
     private fun stopAllByServer(reason: HeartbeatStopReason) {

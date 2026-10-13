@@ -5,11 +5,12 @@ import com.framework.innolive.feature.live.BroadcastFailure
 import com.framework.innolive.feature.live.BroadcastProvider
 import com.framework.innolive.feature.live.ServerApiException
 import com.framework.innolive.feature.live.toBroadcastEvent
-import com.framework.innolive.ui.text.serverErrorGuidance
+import com.framework.innolive.ui.text.directPublishErrorGuidance
 
 /*
- * 직접 송출 상태 머신이 화면에 보내는 안내를 한곳에 모읍니다. 직접 송출 전용 문구(C8)가 들어오면
- * 이 파일의 대응만 바꿉니다. 지금은 기존 방송 안내 문구를 씁니다.
+ * 직접 송출 상태 머신이 화면에 보내는 안내를 한곳에 모읍니다. 서버 오류는 직접 송출 전용 안내
+ * ([directGuidance])를 먼저 쓰고, 앱 상황은 [DirectBroadcastNotice]로 알립니다. 해당 문구가 없는
+ * 상황만 기존 방송 안내 문구를 씁니다.
  */
 
 /** 서버 응답이 아닌 앱 상황입니다. */
@@ -38,20 +39,37 @@ internal enum class DirectEvent {
     REQUEST,
     ;
 
-    fun toBroadcastEvent(): BroadcastEvent = BroadcastEvent.Failure(when (this) {
-        PREPARE_FAILED -> BroadcastFailure.YOUTUBE_PREPARE
-        PREPARED_EXPIRED -> BroadcastFailure.YOUTUBE_PREPARE
-        NOT_READY -> BroadcastFailure.YOUTUBE_NOT_READY
-        STOPPED_DURING_GO_LIVE, SERVER_STOPPED, CONNECTION_LOST -> BroadcastFailure.YOUTUBE_STOPPED
-        CONNECT_FAILED, REQUEST -> BroadcastFailure.REQUEST
-    })
+    fun toBroadcastEvent(): BroadcastEvent = when (this) {
+        PREPARED_EXPIRED -> DirectBroadcastNotice.PreparedExpired.toBroadcastEvent()
+        else -> BroadcastEvent.Failure(when (this) {
+            PREPARE_FAILED -> BroadcastFailure.YOUTUBE_PREPARE
+            NOT_READY -> BroadcastFailure.YOUTUBE_NOT_READY
+            STOPPED_DURING_GO_LIVE, SERVER_STOPPED, CONNECTION_LOST, PREPARED_EXPIRED -> BroadcastFailure.YOUTUBE_STOPPED
+            CONNECT_FAILED, REQUEST -> BroadcastFailure.REQUEST
+        })
+    }
 }
 
-/** 서버 오류를 화면 안내로 바꿉니다. 알려진 코드는 서버 안내 문구, 그 밖에는 요청 실패입니다. */
-internal fun directServerEvent(exception: ServerApiException, provider: BroadcastProvider): BroadcastEvent =
-    exception.toBroadcastEvent(BroadcastFailure.REQUEST, provider, preserveServerMessage = false)
+/** 재연결을 포기해 [provider] 방송을 끝냈습니다. */
+internal fun directConnectionLostEvent(provider: BroadcastProvider): BroadcastEvent =
+    DirectBroadcastNotice.ConnectionLost(provider).toBroadcastEvent()
+
+/** 서버가 끝낸 대상입니다. 한 플랫폼이면 그 이름으로, 여럿이면 방송 종료 안내로 알립니다. */
+internal fun directTargetsStoppedEvent(providers: List<BroadcastProvider>): BroadcastEvent =
+    providers.singleOrNull()?.let { DirectBroadcastNotice.TargetStoppedByServer(it).toBroadcastEvent() }
+        ?: DirectEvent.SERVER_STOPPED.toBroadcastEvent()
+
+/**
+ * 서버 오류를 화면 안내로 바꿉니다. 직접 송출 전용 안내가 있으면 그것을 쓰고, 치지직 설정 입력 오류처럼
+ * 필드별 문구가 있는 경우와 알 수 없는 코드는 기존 변환을 따릅니다.
+ */
+internal fun directServerEvent(exception: ServerApiException, provider: BroadcastProvider): BroadcastEvent {
+    val chzzkFieldError = provider == BroadcastProvider.CHZZK && exception.code == "bad_request"
+    if (!chzzkFieldError) exception.directGuidance()?.let { return BroadcastEvent.ApiFailure(it) }
+    return exception.toBroadcastEvent(BroadcastFailure.REQUEST, provider, preserveServerMessage = false)
         ?: DirectEvent.REQUEST.toBroadcastEvent()
+}
 
 /** golive `failed_targets[]`의 대상별 실패 코드입니다. */
 internal fun directTargetFailureEvent(code: String?): BroadcastEvent =
-    serverErrorGuidance(code)?.let(BroadcastEvent::ApiFailure) ?: DirectEvent.REQUEST.toBroadcastEvent()
+    directPublishErrorGuidance(code)?.let(BroadcastEvent::ApiFailure) ?: DirectEvent.REQUEST.toBroadcastEvent()
