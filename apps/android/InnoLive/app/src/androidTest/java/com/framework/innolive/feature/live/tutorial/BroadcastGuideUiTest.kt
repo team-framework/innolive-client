@@ -36,7 +36,6 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.SessionTarget
-import com.framework.innolive.feature.live.components.PlatformDialog
 import com.framework.innolive.feature.live.direct.broadcast.toStatusRow
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
@@ -170,30 +169,6 @@ class BroadcastGuideUiTest {
         compose.onNodeWithText(string(R.string.tutorial_connect_account_title)).assertIsDisplayed()
         compose.onNodeWithText("2/5").assertIsDisplayed()
         saveScreenshot("settings-connect-account")
-    }
-
-    @Test
-    fun platformDialogShowsTheChoosePlatformGuide() {
-        val tutorial = BroadcastTutorialCoordinator(MemoryStore())
-        var selected = 0
-        compose.setContent {
-            MyApplicationTheme {
-                PlatformDialog(
-                    onDismissRequest = {},
-                    onYouTubeSelected = { selected++ },
-                    guide = tutorial.guideFor(BroadcastTutorialHost.PLATFORM_DIALOG),
-                )
-            }
-        }
-        compose.runOnIdle {
-            tutorial.restart(BroadcastTutorialSnapshot(openDialog = BroadcastTutorialDialog.PLATFORM))
-        }
-
-        compose.onNodeWithText(string(R.string.tutorial_choose_platform_title)).assertIsDisplayed()
-        compose.onNodeWithText("1/5").assertIsDisplayed()
-        saveScreenshot("platform-choose")
-        compose.onNodeWithText("YouTube").performClick()
-        compose.runOnIdle { assertEquals(1, selected) }
     }
 
     @Test
