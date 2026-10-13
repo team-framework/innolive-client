@@ -8,6 +8,7 @@ import androidx.camera.core.CameraState
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -113,8 +114,12 @@ class FaceCameraHandoffTest {
         assertEquals("$label: capture initialization failed", 0, errors.get())
         val start = android.os.SystemClock.elapsedRealtime()
         val startFrames = frames.get()
-        // Count delivered registration Bitmaps over a wall-clock window, not Compose text or mocks.
-        composeRule.waitUntil(5_000) { android.os.SystemClock.elapsedRealtime() - start >= 3_000 }
+        // Count delivered registration Bitmaps, not Compose text or mocks. Emulated back cameras
+        // deliver well under 1 fps, so allow a longer window before treating frames as stopped.
+        try {
+            composeRule.waitUntil(10_000) { frames.get() - startFrames >= 3 || errors.get() > 0 }
+        } catch (_: ComposeTimeoutException) {
+        }
         val elapsed = android.os.SystemClock.elapsedRealtime() - start
         val received = frames.get() - startFrames
         Log.i("FaceCameraHandoffTest", "$label observation_ms=$elapsed frames=$received errors=${errors.get()}")
