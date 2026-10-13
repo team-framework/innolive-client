@@ -12,6 +12,7 @@ import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.ChzzkBroadcastSettings
 import com.framework.innolive.feature.live.ConnectionFailure
+import com.framework.innolive.feature.live.status.UplinkVideoStats
 import com.framework.innolive.feature.live.ConnectionFailureException
 import com.framework.innolive.feature.live.CreatedSession
 import com.framework.innolive.feature.live.LiveBroadcastCallbacks
@@ -863,6 +864,8 @@ internal class DirectBroadcastController internal constructor(
         val live = liveProviders
         if (live.isEmpty()) return null
         val stats = runCatching { engine?.stats() }.getOrNull()
+        // 상태 패널의 송출 화질도 같은 주기의 인코더 값으로 채웁니다. 직접 송출에는 WebRTC 송신 통계가 없습니다.
+        stats?.let { post { callbacks.onUplinkVideoStats(UplinkVideoStats("none", it.width, it.height, it.fps)) } }
         // 서버에서는 라이브인데 로컬 연결이 없으면 connected:false로 보고합니다. 대기 화면 중에도 연결은 유지됩니다.
         val reported = live.map { provider ->
             stats?.targets?.firstOrNull { it.provider == provider }
