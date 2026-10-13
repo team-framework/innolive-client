@@ -37,6 +37,7 @@ import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.SessionTarget
 import com.framework.innolive.feature.live.components.PlatformDialog
+import com.framework.innolive.feature.live.direct.broadcast.toStatusRow
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
@@ -335,7 +336,7 @@ class BroadcastGuideUiTest {
                                 targets = listOf(
                                     SessionTarget("youtube", "streaming", "live", null, 0),
                                     SessionTarget("chzzk", "reconnecting", "live", null, 1),
-                                ),
+                                ).map { it.toStatusRow() },
                                 broadcastResolution = "1080P",
                                 uplinkQuality = BroadcastUplinkQuality(720, 30, BroadcastUplinkLimitation.NETWORK),
                                 modifier = Modifier

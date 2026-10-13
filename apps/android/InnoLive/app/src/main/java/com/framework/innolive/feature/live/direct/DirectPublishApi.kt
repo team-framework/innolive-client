@@ -24,6 +24,19 @@ import okhttp3.Response
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
+/** 직접 송출 상태 머신이 쓰는 서버 동작입니다. 테스트는 가짜 서버를 넣습니다. */
+internal interface DirectSessionServer : AutoCloseable {
+    fun createSession(provider: BroadcastProvider, resolution: DirectPublishResolution): CreatedSession
+    fun saveYouTubeSettings(session: CreatedSession, settings: BroadcastSettings)
+    fun saveChzzkSettings(session: CreatedSession, settings: ChzzkBroadcastSettings)
+    fun chzzkDefaults(session: CreatedSession): ChzzkBroadcastSettings
+    fun prepare(session: CreatedSession, provider: BroadcastProvider, allowConcurrent: Boolean = false): DirectPrepareResult
+    fun goLive(session: CreatedSession, provider: BroadcastProvider): DirectGoLiveResult
+    fun stop(session: CreatedSession, provider: BroadcastProvider): BroadcastState?
+    fun deleteSession(session: CreatedSession)
+    fun fetchSession(session: CreatedSession): String
+}
+
 /**
  * 온디바이스 직접 송출 세션의 서버 API입니다(contracts/api/direct-publish-v1.md).
  *
@@ -37,7 +50,7 @@ internal class DirectPublishApi(
     private val refreshAccessToken: suspend () -> String,
     private val client: OkHttpClient = OkHttpClient.Builder().callTimeout(15, TimeUnit.SECONDS).build(),
     private val log: (String) -> Unit = { message -> Log.i(LOG_TAG, message) },
-) : AutoCloseable {
+) : DirectSessionServer {
     private val baseUrl: HttpUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
         require(url.isHttps) { "서버 주소는 HTTPS여야 합니다." }
     }
@@ -50,7 +63,7 @@ internal class DirectPublishApi(
      * 만들어진 세션을 쓸 수 없으면 owner token이 이 응답에만 있으므로 바로 삭제하고
      * [DirectSessionRejectedException]을 던집니다.
      */
-    fun createSession(provider: BroadcastProvider, resolution: DirectPublishResolution): CreatedSession {
+    override fun createSession(provider: BroadcastProvider, resolution: DirectPublishResolution): CreatedSession {
         val body = buildDirectSessionRequest(provider, resolution)
         val payload = execute("create_session", sessionsRequest().post(body.toJsonBody()))
         // 응답에 owner token이 있어 파싱 오류가 원문을 싣지 않게 합니다.
@@ -75,14 +88,14 @@ internal class DirectPublishApi(
         throw DirectSessionRejectedException(rejection, null)
     }
 
-    fun saveYouTubeSettings(session: CreatedSession, settings: BroadcastSettings) {
+    override fun saveYouTubeSettings(session: CreatedSession, settings: BroadcastSettings) {
         requireNotNull(settings.madeForKids) { "made_for_kids가 필요합니다." }
         // 생략하면 서버는 세션 기본 플랫폼으로 해석합니다. 치지직 세션에 YouTube 대상을 더할 때도 YouTube 설정으로 읽게 합니다.
         execute("broadcast_settings", sessionRequest(session, "broadcast", BroadcastProvider.YOUTUBE)
             .put(buildBroadcastSettingsPayload(settings).toJsonBody()))
     }
 
-    fun saveChzzkSettings(session: CreatedSession, settings: ChzzkBroadcastSettings) {
+    override fun saveChzzkSettings(session: CreatedSession, settings: ChzzkBroadcastSettings) {
         val payload = execute("broadcast_settings", sessionRequest(session, "broadcast", BroadcastProvider.CHZZK)
             .put(buildChzzkSettingsPayload(settings).toJsonBody()))
         val confirmed = checkNotNull(parseResponseSafely { JSONObject(payload).optJSONObject("chzzk_broadcast") }) {
@@ -96,10 +109,10 @@ internal class DirectPublishApi(
     }
 
     /** [allowConcurrent]는 채널이 이미 다른 도구로 라이브 중임을 사용자가 확인한 YouTube 재요청에만 씁니다. */
-    fun prepare(
+    override fun prepare(
         session: CreatedSession,
         provider: BroadcastProvider,
-        allowConcurrent: Boolean = false,
+        allowConcurrent: Boolean,
     ): DirectPrepareResult {
         val body = JSONObject().put("provider", provider.wireValue)
         if (allowConcurrent && provider == BroadcastProvider.YOUTUBE) body.put("allow_concurrent", true)
@@ -111,24 +124,41 @@ internal class DirectPublishApi(
      * 준비된 모든 대상을 한 번에 공개 전환합니다. `409 broadcast_not_ready`는
      * [ServerApiException]으로 전달하며 재시도는 호출자가 송출을 유지한 채 맡습니다.
      */
-    fun goLive(session: CreatedSession, provider: BroadcastProvider): DirectGoLiveResult {
+    override fun goLive(session: CreatedSession, provider: BroadcastProvider): DirectGoLiveResult {
         val payload = execute("stream_golive", sessionRequest(session, "stream/golive").post(JSONObject().toJsonBody()))
         return parseDirectGoLive(payload, provider)
     }
 
     /** 서버 방송만 끝냅니다. 요청 성공 여부와 무관하게 호출자가 RTMP 연결을 끊습니다. */
-    fun stop(session: CreatedSession, provider: BroadcastProvider): BroadcastState? {
+    override fun stop(session: CreatedSession, provider: BroadcastProvider): BroadcastState? {
         val payload = execute("stream_stop", sessionRequest(session, "stream/stop", provider).post(JSONObject().toJsonBody()))
         return parseResponseSafely { parseBroadcastState(payload, provider) }
     }
 
     /** 이미 없는 세션(404)과 소유권이 없는 세션(403)도 정리된 것으로 봅니다. */
-    fun deleteSession(session: CreatedSession) {
+    override fun deleteSession(session: CreatedSession) {
         val response = executeAuthenticated("delete_session", sessionRequest(session, null).delete().build())
         response.use {
             if (it.code !in setOf(204, 403, 404)) throw parseServerApiException(it.body.string(), it.code)
         }
     }
+
+    /** 치지직 설정을 비워 준비할 때 쓰는 서버 기본값입니다. */
+    override fun chzzkDefaults(session: CreatedSession): ChzzkBroadcastSettings {
+        val payload = execute("broadcast_defaults",
+            sessionRequest(session, "broadcast/defaults", BroadcastProvider.CHZZK).get())
+        return parseResponseSafely {
+            val value = JSONObject(payload)
+            val tags = value.optJSONArray("tags")
+            ChzzkBroadcastSettings(value.optString("title"), value.optString("category_type"),
+                value.optString("category_id"),
+                if (tags == null) emptyList() else List(tags.length()) { tags.getString(it) })
+        }
+    }
+
+    /** 세션 상태 조회입니다. 원문은 상태 파싱에만 쓰고 로그에 남기지 않습니다. */
+    override fun fetchSession(session: CreatedSession): String =
+        execute("session_status", sessionRequest(session, null).get())
 
     /** 예외를 던지지 않고 결과로 앱 동작을 구분합니다. 취소만 그대로 전달합니다. */
     fun heartbeat(session: CreatedSession, heartbeat: DirectHeartbeat): HeartbeatResult {

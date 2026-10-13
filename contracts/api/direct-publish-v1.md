@@ -42,6 +42,9 @@
 - 라이브 중 활동 시각은 10분 간격의 회수 판정 때만 갱신된다. 라이브가 끝나면 세션은
   종료 직후부터 10분 안의 어느 시점에든 삭제될 수 있으므로, 같은 세션으로 다시 준비하다 404를 받으면
   새 세션을 만든다. 하트비트 404는 모든 연결을 끊는 신호다.
+- 앱은 방송을 끝내면(준비 취소 포함) 대상별 stop과 연결 종료 뒤 `DELETE /sessions/{id}`로
+  세션을 지우고 정리 저장소를 비운다. 다음 방송은 새 세션으로 시작하므로 종료 직후 회수와
+  충돌하지 않는다. 삭제에 실패하면 기록을 남겨 다음 시작 때 지운다.
 
 ## 송출 순서
 
@@ -135,6 +138,9 @@ stop 요청이 실패해도 앱은 연결을 끊는다. YouTube는 송출이 멈
 | `POST stream/pause`, `POST stream/resume` | `409 on_device_processing` |
 | 방송 중 `PUT broadcast-resolution` | `409 on_device_processing` |
 | `PATCH anonymization` | `409 on_device_processing` |
+
+일시 중지는 앱이 처리한다. RTMP 연결을 유지한 채 서버 일시 중지 화면과 같은 이미지
+(`cancel-*.png`)를 15fps로 보내고 음성은 무음으로 채운다. 가림 처리 전환도 앱에서만 바꾼다.
 
 ## 스트림 키 보호
 

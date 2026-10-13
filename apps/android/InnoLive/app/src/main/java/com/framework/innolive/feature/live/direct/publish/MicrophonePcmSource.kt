@@ -3,9 +3,12 @@ package com.framework.innolive.feature.live.direct.publish
 import android.Manifest
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
+import android.media.AudioRecordingConfiguration
 import android.media.MediaRecorder
 import androidx.annotation.RequiresPermission
+import java.util.concurrent.Executor
 
 /** PCM 16비트 청크와 단조 시계 기준 시각(µs)을 받습니다. */
 internal fun interface PcmSink {
@@ -26,10 +29,13 @@ internal class MicrophonePcmSource(
     private val preferredDevice: AudioDeviceInfo? = null,
     private val nowNs: () -> Long = System::nanoTime,
     private val onError: (Exception) -> Unit = {},
+    /** 실제 녹음 장치와 차단(silenced) 여부입니다. 다른 앱이 마이크를 가져가면 silenced로 옵니다. */
+    private val onRouteChanged: (deviceId: Int?, silenced: Boolean) -> Unit = { _, _ -> },
 ) : PcmSource {
     @Volatile private var running = false
     private var thread: Thread? = null
     private var record: AudioRecord? = null
+    private var routeCallback: AudioManager.AudioRecordingCallback? = null
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     override fun start(sink: PcmSink) {
@@ -49,7 +55,15 @@ internal class MicrophonePcmSource(
         preferredDevice?.let(created::setPreferredDevice)
         record = created
         running = true
+        val callback = object : AudioManager.AudioRecordingCallback() {
+            override fun onRecordingConfigChanged(configs: List<AudioRecordingConfiguration>) {
+                configs.firstOrNull { it.clientAudioSessionId == created.audioSessionId }?.let(::reportRoute)
+            }
+        }
+        created.registerAudioRecordingCallback(callbackExecutor, callback)
+        routeCallback = callback
         created.startRecording()
+        created.activeRecordingConfiguration?.let(::reportRoute)
         thread = Thread({
             val buffer = ByteArray(chunkBytes)
             val bytesPerSecond = profile.audioSampleRate.toLong() * bytesPerFrame
@@ -71,8 +85,14 @@ internal class MicrophonePcmSource(
         }
     }
 
+    private fun reportRoute(config: AudioRecordingConfiguration) {
+        if (running) onRouteChanged(config.audioDevice?.id, config.isClientSilenced)
+    }
+
     override fun close() {
         running = false
+        routeCallback?.let { callback -> runCatching { record?.unregisterAudioRecordingCallback(callback) } }
+        routeCallback = null
         runCatching { record?.stop() }
         thread?.join(500)
         runCatching { record?.release() }
@@ -80,3 +100,6 @@ internal class MicrophonePcmSource(
         thread = null
     }
 }
+
+/** 녹음 경로 콜백은 바로 실행합니다. 받는 쪽이 자기 스레드로 넘깁니다. */
+private val callbackExecutor = Executor { it.run() }

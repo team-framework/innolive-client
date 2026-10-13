@@ -30,4 +30,14 @@
     <string name="chzzk_disconnect_unconfirmed">연결 해제 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요.</string>
     <string name="chzzk_connect_unconfirmed">치지직 연결 결과를 확인하지 못했습니다. 계정 상태를 다시 확인하세요.</string>
     <string name="chzzk_prepare_requires_account">계정 상태를 다시 확인한 뒤 방송을 준비하세요.</string>
+    <string name="chzzk_error_not_connected">치지직 계정을 연결한 뒤 다시 준비하세요.</string>
+    <string name="chzzk_error_reconnect_required">치지직 계정을 다시 연결한 뒤 준비하세요.</string>
+    <string name="chzzk_error_not_supported">서버에 치지직 방송 설정이 없습니다. 관리자에게 문의하세요.</string>
+    <string name="chzzk_error_not_ready">방송 준비가 끝나지 않았습니다. 준비 상태를 확인하고 다시 시도하세요.</string>
+    <string name="chzzk_error_title">방송 제목은 100자 이하로 입력하세요.</string>
+    <string name="chzzk_error_category">카테고리를 검색해 다시 선택하세요.</string>
+    <string name="chzzk_error_tags">태그는 최대 5개, 각 15자 이하의 문자와 숫자로 입력하세요.</string>
+    <string name="chzzk_error_settings">치지직 방송 설정을 확인하세요.</string>
+    <string name="chzzk_error_unauthorized">로그인이 만료됐습니다. 다시 로그인하세요.</string>
+    <string name="chzzk_error_request">치지직 방송 요청에 실패했습니다. 다시 시도하세요.</string>
 </resources>
