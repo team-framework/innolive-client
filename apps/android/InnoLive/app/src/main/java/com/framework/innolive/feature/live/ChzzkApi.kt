@@ -16,6 +16,7 @@ import java.net.URI
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 
 internal data class ChzzkOAuthConfig(val authorizeUrl: String, val redirectUri: String)
@@ -94,8 +95,19 @@ internal class ChzzkApi(serverUrl: String) : AutoCloseable {
 
     override fun close() {
         client.dispatcher.cancelAll()
-        client.connectionPool.evictAll()
-        client.dispatcher.executorService.shutdown()
+        // TLS 연결 종료는 소켓에 쓰므로 화면 dispose가 부르는 메인 스레드에서 하지 않습니다(YouTubeApi.close와 같음).
+        val cleanup = Runnable {
+            try {
+                client.connectionPool.evictAll()
+            } finally {
+                client.dispatcher.executorService.shutdown()
+            }
+        }
+        try {
+            client.dispatcher.executorService.execute(cleanup)
+        } catch (_: RejectedExecutionException) {
+            Thread(cleanup, "chzzk-api-close").start()
+        }
     }
 }
 
