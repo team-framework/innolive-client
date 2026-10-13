@@ -10,7 +10,6 @@ import org.webrtc.VideoFrame
 import org.webrtc.VideoFrameDrawer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * 가림 처리된 [VideoFrame]을 인코더 입력 Surface에 그립니다.
@@ -29,7 +28,7 @@ internal class EncoderSurfaceRenderer(
 ) : AutoCloseable {
     private val thread = HandlerThread("direct-publish-render").apply { start() }
     private val handler = Handler(thread.looper)
-    private val pending = AtomicReference<Pair<VideoFrame, Long>?>(null)
+    private val pending = LatestFrameSlot<PendingFrame> { it.frame.release() }
     private var eglBase: EglBase? = null
     private var drawer: GlRectDrawer? = null
     private var frameDrawer: VideoFrameDrawer? = null
@@ -60,15 +59,19 @@ internal class EncoderSurfaceRenderer(
     fun render(frame: VideoFrame, presentationTimeNs: Long) {
         if (closed) return
         frame.retain()
-        pending.getAndSet(frame to presentationTimeNs)?.let { (stale, _) ->
-            stale.release()
-            onDropped()
+        val item = PendingFrame(frame, presentationTimeNs)
+        when (pending.offer(item)) {
+            // 확인 직후 닫혔습니다. 슬롯이 이미 프레임을 해제했습니다.
+            SlotOffer.REJECTED -> return
+            SlotOffer.REPLACED -> onDropped()
+            SlotOffer.ACCEPTED -> Unit
         }
-        handler.post(::drawPending)
+        // 스레드가 끝나 예약하지 못하면 남은 참조를 돌려줍니다.
+        if (!handler.post(::drawPending)) pending.discard(item)
     }
 
     private fun drawPending() {
-        val (frame, presentationTimeNs) = pending.getAndSet(null) ?: return
+        val (frame, presentationTimeNs) = pending.take() ?: return
         try {
             if (closed) return
             val egl = checkNotNull(eglBase)
@@ -90,7 +93,7 @@ internal class EncoderSurfaceRenderer(
     override fun close() {
         if (closed) return
         closed = true
-        pending.getAndSet(null)?.first?.release()
+        pending.close()
         val done = CountDownLatch(1)
         handler.post {
             runCatching { frameDrawer?.release() }
@@ -102,3 +105,5 @@ internal class EncoderSurfaceRenderer(
         thread.quitSafely()
     }
 }
+
+private data class PendingFrame(val frame: VideoFrame, val presentationTimeNs: Long)
