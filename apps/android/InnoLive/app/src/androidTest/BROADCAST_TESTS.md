@@ -34,6 +34,25 @@ adb -s DEVICE_SERIAL shell am instrument -w -r \
   com.framework.innolive.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
+### 직접 송출 엔진
+
+`DirectPublisherDeviceTest`는 가림 처리 파이프라인(`CameraFrameAnalyzer`)의 프레임과 합성 음성(440Hz)을 송출 엔진으로 인코딩해 로컬 RTMP 서버로 보낸다. 실제 플랫폼에는 보내지 않는다. 송출 인자가 없으면 서버 모드 원본이 직접 송출 입력으로 가지 않는지만 확인한다.
+
+```bash
+adb -s DEVICE_SERIAL reverse tcp:1935 tcp:1935
+ffmpeg -listen 1 -i rtmp://127.0.0.1:1935/live/test-key -c copy out.flv
+adb -s DEVICE_SERIAL shell am instrument -w -r \
+  -e class com.framework.innolive.feature.live.direct.publish.DirectPublisherDeviceTest \
+  -e directPublishUrl rtmp://127.0.0.1:1935/live/test-key \
+  com.framework.innolive.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+- 동시 송출: 다른 포트에 수신 서버를 하나 더 띄우고 `-e directPublishSecondUrl rtmp://127.0.0.1:1937/relay/<key>`를 더한다.
+- RTMPS: ffmpeg는 RTMPS를 수신하지 못하므로 1936 포트에 TLS 종단 프록시를 두고 `-e directPublishRtmpsUrl rtmps://127.0.0.1:1936/live/<key>`로 실행한다. 이 테스트만 자체 서명 인증서를 허용한다.
+- 마이크: `-e directPublishMicrophone true`. 테스트가 앱에 마이크 권한을 부여한다.
+- 수신 파일은 `ffprobe`로 H.264·AAC 스트림, 길이, 키프레임 간격(2초 이하)을 확인한다. 영상 밝기는 시간에 따라 40에서 200으로 올라가고 음성은 440Hz다.
+- 송출 후 `adb logcat`에 스트림 키가 없는지 확인한다. RootEncoder 로그는 빌드 시 `RedactedLibraryLog`로 바뀐다.
+
 ## 별도로 필요한 확인
 
 - **시청자 측 영상:** Off 원본과 On 비식별화가 실제 YouTube 재생 화면에 반영되는지, 얼굴 처리가 적절한지 확인한다. 원격 트랙 객체와 앱의 LIVE 상태가 유지돼도 프레임이 정상 재생된다는 보장은 없다.

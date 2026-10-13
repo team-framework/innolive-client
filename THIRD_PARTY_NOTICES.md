@@ -34,6 +34,18 @@ inventory for the web application's complete dependency tree.
 | `tslib` | 0BSD |
 | `nanoid`, `semver`, `picocolors`, `split2`, `xtend` | MIT / ISC |
 
+## Android direct publishing
+
+Used by the Android app to publish anonymized video and audio directly to
+YouTube and CHZZK over RTMP(S).
+
+| Dependency | License |
+| --- | --- |
+| RootEncoder `rtmp`, `common` 2.8.1 (`com.github.pedroSG94.RootEncoder`, https://github.com/pedroSG94/RootEncoder) | Apache-2.0 |
+| Ktor network and TLS 3.5.2 (`io.ktor`) | Apache-2.0 |
+| kotlinx-io 0.9.1 (`org.jetbrains.kotlinx`) | Apache-2.0 |
+| SLF4J API 2.0.18 (`org.slf4j:slf4j-api`) | MIT |
+
 ## Bundled font
 
 - **Wanted Sans** (`apps/web/public/fonts/wanted-sans`)
