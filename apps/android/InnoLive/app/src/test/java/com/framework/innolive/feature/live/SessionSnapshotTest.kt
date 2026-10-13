@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
 import java.io.File
 import org.junit.Assert.*
 import org.junit.Test
@@ -18,7 +19,9 @@ class SessionSnapshotTest {
         assertEquals(BroadcastState.LIVE, youtube.broadcastState())
         assertEquals(BroadcastRemainingTime.Seconds(120), youtube.remainingTime)
         assertEquals("youtube", youtube.visibleTargets.single().provider)
-        assertEquals(2, fixture("dual").visibleTargets.size)
+        val dual = fixture("dual")
+        assertEquals(2, dual.visibleTargets.size)
+        assertEquals("broadcast_limit_30m", dual.notices!!.single().code)
         assertEquals("chzzk", fixture("chzzk").provider)
         val unknown = fixture("unknown")
         assertEquals("future_provider", unknown.targets!!.single().provider)
@@ -35,6 +38,46 @@ class SessionSnapshotTest {
         for (invalid in listOf("-1", "1.5", "\"120\"", "true", "9223372036854775808")) {
             assertEquals(zero, parseSessionSnapshot("""{"broadcast_remaining_seconds":$invalid}""", "s", zero))
         }
+    }
+
+    @Test fun lastRemainingSecondsSurvivesNullWithinTheSameSession() {
+        val live = parseSessionSnapshot("""{"broadcast_remaining_seconds":42900}""", "s")
+        val stopped = parseSessionSnapshot("""{"broadcast_remaining_seconds":null}""", "s", live)
+
+        assertEquals(BroadcastRemainingTime.UnlimitedOrInactive, stopped.remainingTime)
+        assertEquals(42_900L, stopped.lastRemainingSeconds)
+        // 새 세션은 이전 세션의 값을 이어받지 않는다.
+        assertEquals(null, parseSessionSnapshot("""{"broadcast_remaining_seconds":null}""", "s2").lastRemainingSeconds)
+    }
+
+    @Test fun sessionAndPrepareWarningsExposeEachCodeOnce() {
+        val prepared = parseSessionSnapshot(
+            """{"notices":[{"code":"youtube_quota_low","at":"2026-09-30T00:00:00Z"}],
+                "warnings":[{"code":"youtube_quota_low","message":"server copy"},{"code":"thumbnail_failed","message":"ignored"}]}""",
+            "s",
+        )
+        assertEquals(listOf("youtube_quota_low", "thumbnail_failed"), prepared.bannerNotices.map { it.code })
+
+        val polled = parseSessionSnapshot("{}", "s", prepared)
+        assertEquals(prepared.warnings, polled.warnings)
+        assertEquals(
+            emptyList<SessionNotice>(),
+            parseSessionSnapshot("""{"warnings":[]}""", "s", prepared).warnings,
+        )
+
+        val nextPrepare = parseSessionSnapshot("{}", "s", polled, clearWarningsWhenMissing = true)
+        assertEquals(emptyList<SessionNotice>(), nextPrepare.warnings)
+        assertEquals(listOf("youtube_quota_low"), nextPrepare.bannerNotices.map { it.code })
+    }
+
+    @Test fun localizedBannerCopyCoversSpecifiedNoticeCodesOnly() {
+        val codes = listOf(
+            "broadcast_limit_30m", "broadcast_limit_10m", "broadcast_limit_reached",
+            "monthly_usage_80", "monthly_usage_100", "monthly_limit_reached", "no_input_stopped",
+            "channel_live_elsewhere", "platform_broadcast_ended", "youtube_quota_low",
+        )
+        assertTrue(codes.all { sessionNoticeMessageResource(it) != null })
+        assertNull(sessionNoticeMessageResource("future_notice"))
     }
 
     @Test fun partialStreamResponseDoesNotEraseOtherTargetsNoticesOrTime() {

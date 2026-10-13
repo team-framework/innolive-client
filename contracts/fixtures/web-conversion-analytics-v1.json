@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "eventId": "12345678-1234-4234-8234-123456789abc",
+  "visitId": "12345678-1234-4234-8234-123456789abd",
+  "sequence": 1,
+  "event": "landing_viewed",
+  "properties": {
+    "locale": "ko",
+    "browser": "safari"
+  }
+}

@@ -5,6 +5,7 @@ final class ConsentAcknowledgementStore {
     nonisolated deinit {}
 
     private enum Key {
+        static let accountCollection = "com.framework.innolive.consent.account-collection.v1"
         static let mediaTransmission = "com.framework.innolive.consent.media-transmission.v1"
         static let youtubeTransmission = "com.framework.innolive.consent.youtube-transmission.v1"
     }
@@ -13,6 +14,18 @@ final class ConsentAcknowledgementStore {
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
+    }
+
+    var hasAcceptedAccountCollection: Bool {
+        userDefaults.bool(forKey: Key.accountCollection)
+    }
+
+    func recordAccountCollection() {
+        userDefaults.set(true, forKey: Key.accountCollection)
+    }
+
+    func clearAccountCollection() {
+        userDefaults.removeObject(forKey: Key.accountCollection)
     }
 
     var hasAcceptedMediaTransmission: Bool {

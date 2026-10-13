@@ -29,6 +29,19 @@ final class VideoColorFrameProcessorTests: XCTestCase {
         XCTAssertEqual(pixel.alpha, 255)
     }
 
+    func testExposureChangesOutgoingFrameWithoutChangingCameraInput() throws {
+        let frame = try makeFrame(red: 90, green: 90, blue: 90)
+        let processor = VideoColorFrameProcessor()
+
+        let bright = try readPixel(processor.process(frame, exposureEV: 1, warmth: 0, saturation: 1))
+        let dark = try readPixel(processor.process(frame, exposureEV: -1, warmth: 0, saturation: 1))
+        let original = try readPixel(frame)
+
+        XCTAssertGreaterThan(bright.red, original.red)
+        XCTAssertLessThan(dark.red, original.red)
+        XCTAssertEqual(original.red, 90)
+    }
+
     func testPositiveWarmthWarmsNeutralGrayAndNegativeCoolsIt() throws {
         let frame = try makeFrame(red: 128, green: 128, blue: 128)
         let processor = VideoColorFrameProcessor()
@@ -64,6 +77,11 @@ final class VideoColorFrameProcessorTests: XCTestCase {
         XCTAssertThrowsError(try processor.process(frame, warmth: 0, saturation: .infinity)) { error in
             guard case VideoColorFrameProcessor.ProcessingError.invalidAdjustment = error else {
                 return XCTFail("Expected invalid adjustment for infinite saturation")
+            }
+        }
+        XCTAssertThrowsError(try processor.process(frame, exposureEV: .nan, warmth: 0, saturation: 1)) { error in
+            guard case VideoColorFrameProcessor.ProcessingError.invalidAdjustment = error else {
+                return XCTFail("Expected invalid adjustment for NaN exposure")
             }
         }
     }

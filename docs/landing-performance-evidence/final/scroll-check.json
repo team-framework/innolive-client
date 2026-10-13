@@ -1,0 +1,382 @@
+[
+  {
+    "y": 0,
+    "height": 6192,
+    "privacy": 940,
+    "slides": [
+      {
+        "opacity": "1",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 4572.6875
+  },
+  {
+    "y": 700,
+    "height": 6192,
+    "privacy": 239.9976806640625,
+    "slides": [
+      {
+        "opacity": "1",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 3872.685302734375
+  },
+  {
+    "y": 940,
+    "height": 6192,
+    "privacy": 0,
+    "slides": [
+      {
+        "opacity": "1",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 3632.6875
+  },
+  {
+    "y": 1640,
+    "height": 6192,
+    "privacy": -2.4000000848900527e-05,
+    "slides": [
+      {
+        "opacity": "0.0652",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0.9348",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 2932.6875
+  },
+  {
+    "y": 2340,
+    "height": 6192,
+    "privacy": 0.0001014062509057112,
+    "slides": [
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0.2608",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0.7392",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 2232.68505859375
+  },
+  {
+    "y": 3040,
+    "height": 6832,
+    "privacy": -219.85366821289062,
+    "slides": [
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "1",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 2173.146240234375
+  },
+  {
+    "y": 3740,
+    "height": 6832,
+    "privacy": -920,
+    "slides": [
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "1",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 1473
+  },
+  {
+    "y": 4440,
+    "height": 6832,
+    "privacy": -1619.9991455078125,
+    "slides": [
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "1",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 773.0009155273438
+  },
+  {
+    "y": 5140,
+    "height": 6850,
+    "privacy": -2319.94482421875,
+    "slides": [
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "1",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": 73.05526733398438
+  },
+  {
+    "y": 5840,
+    "height": 6850,
+    "privacy": -3020.001953125,
+    "slides": [
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-1.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "0",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-2.webp&w=640&q=75"
+          }
+        ]
+      },
+      {
+        "opacity": "1",
+        "images": [
+          {
+            "complete": true,
+            "width": 403,
+            "src": "http://localhost:3211/_next/image?url=%2Fmockups%2Fprivacy-3.webp&w=640&q=75"
+          }
+        ]
+      }
+    ],
+    "faq": -627.001953125
+  }
+]

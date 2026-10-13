@@ -1,0 +1,281 @@
+{
+  "source_bytes": 1289292,
+  "source_sha256": "4259e7e9a172e634c2cb419d793b84148990316341e910443e5d10965b2c8f16",
+  "axes": [
+    [
+      "wght",
+      400.0,
+      400.0,
+      1000.0
+    ]
+  ],
+  "chunks": [
+    {
+      "name": "latin",
+      "bytes": 36012,
+      "codepoints": 191,
+      "unicode_range": "U+20-7E, U+A0-FF"
+    },
+    {
+      "name": "common",
+      "bytes": 41892,
+      "codepoints": 305,
+      "unicode_range": "U+2013, U+20A9, U+AC00-AC01, U+AC04, U+AC10, U+AC1C-AC1D, U+AC70-AC71, U+AC74, U+AC78, U+AC8C, U+ACA8-ACA9, U+ACB0, U+ACBD, U+ACC4, U+ACE0, U+ACF3, U+ACF5, U+ACFC-ACFD, U+AD00, U+AD11, U+AD50, U+AD6C, U+AD70, U+AD74, U+AD8C, U+ADF8, U+ADFC, U+AE08, U+AE30, U+AE38, U+AED8, U+B098, U+B09C, U+B0A8, U+B0AE, U+B0B4, U+B0B8, U+B0BC, U+B0C5, U+B0C8, U+B108, U+B124, U+B178, U+B192, U+B204, U+B208, U+B274, U+B294, U+B2A5, U+B2C8, U+B2E4, U+B2E8, U+B2EB-B2EC, U+B2F9, U+B300, U+B354, U+B370, U+B3C4-B3C5, U+B3D9, U+B410, U+B418, U+B41C, U+B429, U+B450, U+B4A4, U+B4DC, U+B4E0, U+B4E4, U+B4ED, U+B4F1, U+B514, U+B529, U+B530, U+B5A4, U+B5BB, U+B610, U+B6F0, U+B77C, U+B780, U+B78C, U+B79C, U+B7AB, U+B7EC, U+B824-B825, U+B828, U+B834-B835, U+B838, U+B85C-B85D, U+B864, U+B8CC, U+B8E8, U+B974, U+B978, U+B97C, U+B9AC, U+B9BD, U+B9C1, U+B9CC, U+B9CE, U+B9DE, U+BA3C, U+BA54, U+BA70, U+BA74, U+BA85, U+BAA8, U+BABB, U+BB34, U+BB38, U+BB3B, U+BBF8, U+BC00, U+BC0F, U+BC14, U+BC1C, U+BC29, U+BC30, U+BC84, U+BC88, U+BCA0, U+BCC0, U+BCC4, U+BCF4, U+BCF8, U+BD80, U+BD84, U+BE0C, U+BE14, U+BE44, U+C0AC, U+C0C1, U+C0DD, U+C11C, U+C120, U+C124, U+C131, U+C138, U+C140, U+C158, U+C18C-C18D, U+C190, U+C194, U+C1A1, U+C218, U+C21C, U+C228, U+C27D, U+C2A4, U+C2B5, U+C2DC-C2DD, U+C2E0, U+C2E4, U+C544, U+C548, U+C54A, U+C54C, U+C558, U+C560, U+C571, U+C57C-C57D, U+C591, U+C5B4, U+C5B8, U+C5BC, U+C5C5-C5C8, U+C5D0, U+C5EC-C5ED, U+C5F0, U+C5F4, U+C601, U+C608, U+C624, U+C628, U+C62C, U+C640, U+C644, U+C678, U+C67C, U+C694, U+C6A9, U+C6B0-C6B1, U+C6B4, U+C6C3, U+C6CC, U+C6D0, U+C6D4, U+C6F9, U+C704, U+C720, U+C724, U+C73C, U+C740, U+C744, U+C74D, U+C758, U+C774, U+C778, U+C77C, U+C784-C785, U+C788, U+C790-C791, U+C7A0-C7A1, U+C7A5, U+C7AC, U+C800-C801, U+C804, U+C811, U+C815, U+C81C, U+C838, U+C885, U+C8FC, U+C900, U+C904, U+C911, U+C99D, U+C9C0-C9C1, U+C9C8, U+C9D1, U+CABD, U+CC28, U+CC3D-CC3E, U+CC44-CC45, U+CC98, U+CCAD, U+CCB4, U+CD08, U+CD5C, U+CD94, U+CD9C, U+CDA4, U+CDA9, U+CDB0, U+CE21, U+CE58, U+CE68, U+CE74, U+CF00, U+CF54, U+D06C, U+D0A8, U+D0C0, U+D0DD, U+D130, U+D14C, U+D1B5, U+D2B8, U+D2F0, U+D310, U+D328, U+D3B8, U+D3FC, U+D45C, U+D50C, U+D53D, U+D544, U+D558, U+D55C, U+D560, U+D568-D569, U+D574, U+D588-D589, U+D5A5, U+D5C8, U+D5D8, U+D604, U+D615, U+D638, U+D63C, U+D648, U+D654-D655, U+D658, U+D669, U+D68C, U+D6C4, U+D750, U+D788",
+      "filename": "common-1888acf2241ffa36.woff2",
+      "public_path": "/fonts/wanted-sans/common-1888acf2241ffa36.woff2"
+    },
+    {
+      "name": "range-0000",
+      "bytes": 13220,
+      "codepoints": 131,
+      "unicode_range": "U+100-113, U+116-125, U+127-12B, U+12E-137, U+139-13E, U+141-148, U+14C-14D, U+150-165, U+168-17E, U+186, U+189, U+18E, U+192, U+1CD-1D4, U+1DD, U+1E6-1E9, U+1FE-1FF"
+    },
+    {
+      "name": "range-0200",
+      "bytes": 9160,
+      "codepoints": 72,
+      "unicode_range": "U+201, U+218-21B, U+227-229, U+232-233, U+237, U+245, U+250-252, U+254, U+258-259, U+261, U+268, U+26F, U+279, U+28C-28E, U+29E, U+2B0, U+2B2-2B3, U+2B7-2B8, U+2BD, U+2C6-2C7, U+2D8-2DD, U+2E1-2E3, U+300-304, U+306-308, U+30A-30C, U+30F, U+312, U+314, U+316-317, U+323-328, U+32C-331, U+335"
+    },
+    {
+      "name": "range-1c00",
+      "bytes": 4124,
+      "codepoints": 19,
+      "unicode_range": "U+1D43, U+1D47-1D49, U+1D4D, U+1D4F-1D50, U+1D52, U+1D56-1D58, U+1D5B, U+1D62-1D65, U+1D9C, U+1DA0, U+1DBB"
+    },
+    {
+      "name": "range-1e00",
+      "bytes": 10332,
+      "codepoints": 90,
+      "unicode_range": "U+1E04-1E05, U+1E0C-1E0F, U+1E12-1E13, U+1E20-1E21, U+1E24-1E25, U+1E2A-1E2B, U+1E34-1E4B, U+1E5C-1E5F, U+1E62-1E63, U+1E6C-1E71, U+1E80-1E85, U+1E8E-1E8F, U+1E92-1E97, U+1EA0-1EA1, U+1EAC-1EAD, U+1EB6-1EB9, U+1EBC-1EBD, U+1EC6-1EC7, U+1ECA-1ECD, U+1ED8-1ED9, U+1EE4-1EE5, U+1EF2-1EF5, U+1EF8-1EF9"
+    },
+    {
+      "name": "range-2000",
+      "bytes": 11060,
+      "codepoints": 94,
+      "unicode_range": "U+2000-200D, U+2012, U+2014-2015, U+2018-201A, U+201C-201E, U+2020-2023, U+2025-2026, U+202F-2033, U+2039-203B, U+2042-2044, U+204E, U+2051, U+2060, U+2070-2071, U+2074-2079, U+207F-2089, U+2090-2093, U+2095-209C, U+20AC, U+20DD-20DE, U+2103, U+2109, U+2122, U+215B-215E, U+2190-2199"
+    },
+    {
+      "name": "range-2200",
+      "bytes": 1304,
+      "codepoints": 3,
+      "unicode_range": "U+2212, U+2248, U+2260"
+    },
+    {
+      "name": "range-2400",
+      "bytes": 16752,
+      "codepoints": 44,
+      "unicode_range": "U+2460-2468, U+24B6-24CF, U+24D2, U+24EA, U+24FF, U+25A0-25A2, U+25CB, U+25CF, U+25E6"
+    },
+    {
+      "name": "range-2600",
+      "bytes": 9196,
+      "codepoints": 34,
+      "unicode_range": "U+2605-2606, U+2661, U+2665, U+26A0, U+2713, U+2717, U+2776-277E, U+2780-2788, U+278A-2792"
+    },
+    {
+      "name": "range-2c00",
+      "bytes": 1056,
+      "codepoints": 1,
+      "unicode_range": "U+2C7C"
+    },
+    {
+      "name": "range-2e00",
+      "bytes": 1016,
+      "codepoints": 2,
+      "unicode_range": "U+2E3A-2E3B"
+    },
+    {
+      "name": "range-3000",
+      "bytes": 5856,
+      "codepoints": 65,
+      "unicode_range": "U+3000, U+3008-3011, U+3014-3015, U+3131-3164"
+    },
+    {
+      "name": "range-3200",
+      "bytes": 1108,
+      "codepoints": 1,
+      "unicode_range": "U+321C"
+    },
+    {
+      "name": "range-ac00",
+      "bytes": 58180,
+      "codepoints": 482,
+      "unicode_range": "U+AC02-AC03, U+AC05-AC0F, U+AC11-AC1B, U+AC1E-AC6F, U+AC72-AC73, U+AC75-AC77, U+AC79-AC8B, U+AC8D-ACA7, U+ACAA-ACAF, U+ACB1-ACBC, U+ACBE-ACC3, U+ACC5-ACDF, U+ACE1-ACF2, U+ACF4, U+ACF6-ACFB, U+ACFE-ACFF, U+AD01-AD10, U+AD12-AD4F, U+AD51-AD6B, U+AD6D-AD6F, U+AD71-AD73, U+AD75-AD8B, U+AD8D-ADF7, U+ADF9-ADFB, U+ADFD-ADFF"
+    },
+    {
+      "name": "range-ae00",
+      "bytes": 75324,
+      "codepoints": 508,
+      "unicode_range": "U+AE00-AE07, U+AE09-AE2F, U+AE31-AE37, U+AE39-AED7, U+AED9-AFFF"
+    },
+    {
+      "name": "range-b000",
+      "bytes": 70372,
+      "codepoints": 499,
+      "unicode_range": "U+B000-B097, U+B099-B09B, U+B09D-B0A7, U+B0A9-B0AD, U+B0AF-B0B3, U+B0B5-B0B7, U+B0B9-B0BB, U+B0BD-B0C4, U+B0C6-B0C7, U+B0C9-B107, U+B109-B123, U+B125-B177, U+B179-B191, U+B193-B1FF"
+    },
+    {
+      "name": "range-b200",
+      "bytes": 61732,
+      "codepoints": 495,
+      "unicode_range": "U+B200-B203, U+B205-B207, U+B209-B273, U+B275-B293, U+B295-B2A4, U+B2A6-B2C7, U+B2C9-B2E3, U+B2E5-B2E7, U+B2E9-B2EA, U+B2ED-B2F8, U+B2FA-B2FF, U+B301-B353, U+B355-B36F, U+B371-B3C3, U+B3C6-B3D8, U+B3DA-B3FF"
+    },
+    {
+      "name": "range-b400",
+      "bytes": 62692,
+      "codepoints": 496,
+      "unicode_range": "U+B400-B40F, U+B411-B417, U+B419-B41B, U+B41D-B428, U+B42A-B44F, U+B451-B4A3, U+B4A5-B4DB, U+B4DD-B4DF, U+B4E1-B4E3, U+B4E5-B4EC, U+B4EE-B4F0, U+B4F2-B513, U+B515-B528, U+B52A-B52F, U+B531-B5A3, U+B5A5-B5BA, U+B5BC-B5FF"
+    },
+    {
+      "name": "range-b600",
+      "bytes": 70592,
+      "codepoints": 504,
+      "unicode_range": "U+B600-B60F, U+B611-B6EF, U+B6F1-B77B, U+B77D-B77F, U+B781-B78B, U+B78D-B79B, U+B79D-B7AA, U+B7AC-B7EB, U+B7ED-B7FF"
+    },
+    {
+      "name": "range-b800",
+      "bytes": 63656,
+      "codepoints": 492,
+      "unicode_range": "U+B800-B823, U+B826-B827, U+B829-B833, U+B836-B837, U+B839-B85B, U+B85E-B863, U+B865-B8CB, U+B8CD-B8E7, U+B8E9-B973, U+B975-B977, U+B979-B97B, U+B97D-B9AB, U+B9AD-B9BC, U+B9BE-B9C0, U+B9C2-B9CB, U+B9CD, U+B9CF-B9DD, U+B9DF-B9FF"
+    },
+    {
+      "name": "range-ba00",
+      "bytes": 57796,
+      "codepoints": 501,
+      "unicode_range": "U+BA00-BA3B, U+BA3D-BA53, U+BA55-BA6F, U+BA71-BA73, U+BA75-BA84, U+BA86-BAA7, U+BAA9-BABA, U+BABC-BB33, U+BB35-BB37, U+BB39-BB3A, U+BB3C-BBF7, U+BBF9-BBFF"
+    },
+    {
+      "name": "range-bc00",
+      "bytes": 59596,
+      "codepoints": 497,
+      "unicode_range": "U+BC01-BC0E, U+BC10-BC13, U+BC15-BC1B, U+BC1D-BC28, U+BC2A-BC2F, U+BC31-BC83, U+BC85-BC87, U+BC89-BC9F, U+BCA1-BCBF, U+BCC1-BCC3, U+BCC5-BCF3, U+BCF5-BCF7, U+BCF9-BD7F, U+BD81-BD83, U+BD85-BDFF"
+    },
+    {
+      "name": "range-be00",
+      "bytes": 58664,
+      "codepoints": 509,
+      "unicode_range": "U+BE00-BE0B, U+BE0D-BE13, U+BE15-BE43, U+BE45-BFFF"
+    },
+    {
+      "name": "range-c000",
+      "bytes": 68428,
+      "codepoints": 497,
+      "unicode_range": "U+C000-C0AB, U+C0AD-C0C0, U+C0C2-C0DC, U+C0DE-C11B, U+C11D-C11F, U+C121-C123, U+C125-C130, U+C132-C137, U+C139-C13F, U+C141-C157, U+C159-C18B, U+C18E-C18F, U+C191-C193, U+C195-C1A0, U+C1A2-C1FF"
+    },
+    {
+      "name": "range-c200",
+      "bytes": 73376,
+      "codepoints": 502,
+      "unicode_range": "U+C200-C217, U+C219-C21B, U+C21D-C227, U+C229-C27C, U+C27E-C2A3, U+C2A5-C2B4, U+C2B6-C2DB, U+C2DE-C2DF, U+C2E1-C2E3, U+C2E5-C3FF"
+    },
+    {
+      "name": "range-c400",
+      "bytes": 70468,
+      "codepoints": 490,
+      "unicode_range": "U+C400-C543, U+C545-C547, U+C549, U+C54B, U+C54D-C557, U+C559-C55F, U+C561-C570, U+C572-C57B, U+C57E-C590, U+C592-C5B3, U+C5B5-C5B7, U+C5B9-C5BB, U+C5BD-C5C4, U+C5C9-C5CF, U+C5D1-C5EB, U+C5EE-C5EF, U+C5F1-C5F3, U+C5F5-C5FF"
+    },
+    {
+      "name": "range-c600",
+      "bytes": 71052,
+      "codepoints": 473,
+      "unicode_range": "U+C600, U+C602-C607, U+C609-C623, U+C625-C627, U+C629-C62B, U+C62D-C63F, U+C641-C643, U+C645-C677, U+C679-C67B, U+C67D-C693, U+C695-C6A8, U+C6AA-C6AF, U+C6B2-C6B3, U+C6B5-C6C2, U+C6C4-C6CB, U+C6CD-C6CF, U+C6D1-C6D3, U+C6D5-C6F8, U+C6FA-C703, U+C705-C71F, U+C721-C723, U+C725-C73B, U+C73D-C73F, U+C741-C743, U+C745-C74C, U+C74E-C757, U+C759-C773, U+C775-C777, U+C779-C77B, U+C77D-C783, U+C786-C787, U+C789-C78F, U+C792-C79F, U+C7A2-C7A4, U+C7A6-C7AB, U+C7AD-C7FF"
+    },
+    {
+      "name": "range-c800",
+      "bytes": 72784,
+      "codepoints": 495,
+      "unicode_range": "U+C802-C803, U+C805-C810, U+C812-C814, U+C816-C81B, U+C81D-C837, U+C839-C884, U+C886-C8FB, U+C8FD-C8FF, U+C901-C903, U+C905-C910, U+C912-C99C, U+C99E-C9BF, U+C9C2-C9C7, U+C9C9-C9D0, U+C9D2-C9FF"
+    },
+    {
+      "name": "range-ca00",
+      "bytes": 74708,
+      "codepoints": 511,
+      "unicode_range": "U+CA00-CABC, U+CABE-CBFF"
+    },
+    {
+      "name": "range-cc00",
+      "bytes": 69644,
+      "codepoints": 497,
+      "unicode_range": "U+CC00-CC27, U+CC29-CC3C, U+CC3F-CC43, U+CC46-CC97, U+CC99-CCAC, U+CCAE-CCB3, U+CCB5-CD07, U+CD09-CD5B, U+CD5D-CD93, U+CD95-CD9B, U+CD9D-CDA3, U+CDA5-CDA8, U+CDAA-CDAF, U+CDB1-CDFF"
+    },
+    {
+      "name": "range-ce00",
+      "bytes": 68888,
+      "codepoints": 506,
+      "unicode_range": "U+CE00-CE20, U+CE22-CE57, U+CE59-CE67, U+CE69-CE73, U+CE75-CEFF, U+CF01-CF53, U+CF55-CFFF"
+    },
+    {
+      "name": "range-d000",
+      "bytes": 69116,
+      "codepoints": 505,
+      "unicode_range": "U+D000-D06B, U+D06D-D0A7, U+D0A9-D0BF, U+D0C1-D0DC, U+D0DE-D12F, U+D131-D14B, U+D14D-D1B4, U+D1B6-D1FF"
+    },
+    {
+      "name": "range-d200",
+      "bytes": 63260,
+      "codepoints": 506,
+      "unicode_range": "U+D200-D2B7, U+D2B9-D2EF, U+D2F1-D30F, U+D311-D327, U+D329-D3B7, U+D3B9-D3FB, U+D3FD-D3FF"
+    },
+    {
+      "name": "range-d400",
+      "bytes": 65240,
+      "codepoints": 497,
+      "unicode_range": "U+D400-D45B, U+D45D-D50B, U+D50D-D53C, U+D53E-D543, U+D545-D557, U+D559-D55B, U+D55D-D55F, U+D561-D567, U+D56A-D573, U+D575-D587, U+D58A-D5A4, U+D5A6-D5C7, U+D5C9-D5D7, U+D5D9-D5FF"
+    },
+    {
+      "name": "range-d600",
+      "bytes": 69972,
+      "codepoints": 407,
+      "unicode_range": "U+D600-D603, U+D605-D614, U+D616-D637, U+D639-D63B, U+D63D-D647, U+D649-D653, U+D656-D657, U+D659-D668, U+D66A-D68B, U+D68D-D6C3, U+D6C5-D74F, U+D751-D787, U+D789-D7A3"
+    },
+    {
+      "name": "range-fa00",
+      "bytes": 3764,
+      "codepoints": 5,
+      "unicode_range": "U+FB00-FB04"
+    },
+    {
+      "name": "range-fe00",
+      "bytes": 716,
+      "codepoints": 1,
+      "unicode_range": "U+FEFF"
+    },
+    {
+      "name": "range-10600",
+      "bytes": 1012,
+      "codepoints": 1,
+      "unicode_range": "U+107A5"
+    },
+    {
+      "name": "range-1f000",
+      "bytes": 9204,
+      "codepoints": 78,
+      "unicode_range": "U+1F130-1F149, U+1F150-1F169, U+1F170-1F189"
+    },
+    {
+      "name": "range-f0000",
+      "bytes": 1348,
+      "codepoints": 4,
+      "unicode_range": "U+F0000-F0003"
+    },
+    {
+      "name": "range-100000",
+      "bytes": 5780,
+      "codepoints": 17,
+      "unicode_range": "U+100000-100001, U+100092-100093, U+100128-10012B, U+10012E-100131, U+10013E, U+100184-100185, U+1001FE-1001FF"
+    },
+    {
+      "name": "range-100200",
+      "bytes": 2884,
+      "codepoints": 4,
+      "unicode_range": "U+1002B4-1002B5, U+1002C2-1002C3"
+    },
+    {
+      "name": "range-100400",
+      "bytes": 1360,
+      "codepoints": 1,
+      "unicode_range": "U+100479"
+    }
+  ],
+  "common_preload": "/fonts/wanted-sans/common-1888acf2241ffa36.woff2"
+}

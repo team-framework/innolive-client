@@ -32,7 +32,7 @@ struct AISettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .disabled(isChanging || youtube.isYouTubeBroadcastActive || youtube.isChangingStreamState || youtube.isPreparingSession || youtube.isConnectingVideo)
+                    .disabled(isChanging || youtube.isYouTubeBroadcastActive || youtube.isChangingBroadcastMode || youtube.isChangingStreamState || youtube.isPreparingSession || youtube.isConnectingVideo)
                 }
                 if isChanging { ProgressView() }
                 Text(youtube.isYouTubeBroadcastActive ? String(localized: "방송을 종료한 뒤 AI 처리 방식을 변경할 수 있습니다.") : String(localized: "영상 연결을 유지하며 AI 처리 위치를 변경합니다. 얼굴 등록은 서버와 이 기기에 각각 저장됩니다."))

@@ -33,6 +33,18 @@ final class ConsentAcknowledgementStoreTests: XCTestCase {
         XCTAssertFalse(store.hasAcknowledgedYouTubeTransmission)
     }
 
+    func testAccountConsentPersistsInNewDefaultsInstanceAndClearsIndependently() {
+        store.recordAccountCollection()
+        store.recordMediaTransmission()
+        store.recordYouTubeTransmission()
+        let reloaded = ConsentAcknowledgementStore(userDefaults: UserDefaults(suiteName: suiteName)!)
+        XCTAssertTrue(reloaded.hasAcceptedAccountCollection)
+        reloaded.clearAccountCollection()
+        XCTAssertFalse(store.hasAcceptedAccountCollection)
+        XCTAssertTrue(store.hasAcceptedMediaTransmission)
+        XCTAssertTrue(store.hasAcknowledgedYouTubeTransmission)
+    }
+
     func testMediaRoundTripUsesInjectedUserDefaults() {
         store.recordMediaTransmission()
         XCTAssertTrue(store.hasAcceptedMediaTransmission)

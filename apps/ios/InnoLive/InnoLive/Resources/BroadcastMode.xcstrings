@@ -1,0 +1,534 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "방송 화질": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 화질"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast quality"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信画質"
+          }
+        }
+      }
+    },
+    "방송 설정": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 설정"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信設定"
+          }
+        }
+      }
+    },
+    "추가할 플랫폼의 방송 설정을 확인하고 저장해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가할 플랫폼의 방송 설정을 확인하고 저장해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review and save the broadcast settings for the platform you are adding."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加する配信先の設定を確認して保存してください。"
+          }
+        }
+      }
+    },
+    "화질 변경 안내": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화질 변경 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing broadcast quality"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画質変更について"
+          }
+        }
+      }
+    },
+    "화질을 바꾸면 방송이 잠시 끊길 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화질을 바꾸면 방송이 잠시 끊길 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing quality may briefly interrupt the broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画質を変更すると配信が一時的に途切れる場合があります。"
+          }
+        }
+      }
+    },
+    "YouTube는 새 방송 링크를 만듭니다. 시청자에게 새 링크를 안내해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube는 새 방송 링크를 만듭니다. 시청자에게 새 링크를 안내해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube creates a new broadcast link. Share the new link with your viewers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeでは新しい配信リンクが作成されます。視聴者に新しいリンクを案内してください。"
+          }
+        }
+      }
+    },
+    "치지직은 같은 링크를 유지하며 약 15초 동안 방송이 끊길 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직은 같은 링크를 유지하며 약 15초 동안 방송이 끊길 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK keeps the same link. The broadcast may be interrupted for about 15 seconds."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKでは同じリンクを維持します。配信が約15秒間途切れる場合があります。"
+          }
+        }
+      }
+    },
+    "선택한 방식으로 방송할 수 있는 시간이 부족합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 방식으로 방송할 수 있는 시간이 부족합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is not enough broadcast time for the selected mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択した方式で配信できる時間が不足しています。"
+          }
+        }
+      }
+    },
+    "현재 요금제에서 사용할 수 없는 방송 방식입니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 요금제에서 사용할 수 없는 방송 방식입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This broadcast mode is not available on your current plan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランではこの配信方式を利用できません。"
+          }
+        }
+      }
+    },
+    "방송 방식 변경 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 방식 변경 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changing broadcast mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信方式を変更中"
+          }
+        }
+      }
+    },
+    "방송 정보 저장이 끝난 뒤 변경해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 정보 저장이 끝난 뒤 변경해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wait until broadcast information finishes saving before changing the mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信情報の保存が完了してから変更してください。"
+          }
+        }
+      }
+    },
+    "방송 방식 변경": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 방식 변경"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change broadcast mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信方式を変更"
+          }
+        }
+      }
+    },
+    "방송 화질을 변경할까요?": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 화질을 변경할까요?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change broadcast quality?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信画質を変更しますか？"
+          }
+        }
+      }
+    },
+    "변경": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "변경"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "変更"
+          }
+        }
+      }
+    },
+    "방송 방식 변경 실패": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 방식 변경 실패"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast mode change failed"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信方式の変更に失敗"
+          }
+        }
+      }
+    },
+    "추가할 플랫폼의 방송 정보를 저장하지 못했습니다. 입력값을 확인한 뒤 다시 시도해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가할 플랫폼의 방송 정보를 저장하지 못했습니다. 입력값을 확인한 뒤 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save broadcast information for the platform you are adding. Check the fields and try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加する配信先の情報を保存できませんでした。入力内容を確認して再試行してください。"
+          }
+        }
+      }
+    },
+    "YouTube 전송 안내에 동의해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube 전송 안내에 동의해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accept the YouTube transmission notice."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTubeへの送信に関する案内に同意してください。"
+          }
+        }
+      }
+    },
+    "추가할 플랫폼의 계정을 연결해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가할 플랫폼의 계정을 연결해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect the account for the platform you are adding."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加する配信先のアカウントを接続してください。"
+          }
+        }
+      }
+    },
+    "추가할 플랫폼의 방송 정보를 입력해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "추가할 플랫폼의 방송 정보를 입력해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter broadcast information for the platform you are adding."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "追加する配信先の情報を入力してください。"
+          }
+        }
+      }
+    },
+    "송출 방식을 변경하지 못했습니다. 현재 방송 상태를 확인한 뒤 다시 시도해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "송출 방식을 변경하지 못했습니다. 현재 방송 상태를 확인한 뒤 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not change the broadcast mode. Check the current broadcast status and try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信方式を変更できませんでした。現在の配信状態を確認して再試行してください。"
+          }
+        }
+      }
+    },
+    " 송출을 전환하지 못했습니다. 대상 상태를 확인해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " 송출을 전환하지 못했습니다. 대상 상태를 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " could not switch broadcasts. Check the platform status."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "の配信を切り替えられませんでした。配信先の状態を確認してください。"
+          }
+        }
+      }
+    },
+    "송출 방식 전환을 완료하지 못했습니다. 현재 방송 상태를 확인해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "송출 방식 전환을 완료하지 못했습니다. 현재 방송 상태를 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast mode change did not finish. Check the current broadcast status."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信方式の切り替えが完了しませんでした。現在の配信状態を確認してください。"
+          }
+        }
+      }
+    },
+    "서버 해상도에 맞춰 카메라 화질을 변경하지 못했습니다. 카메라 상태를 확인해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 해상도에 맞춰 카메라 화질을 변경하지 못했습니다. 카메라 상태를 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not match camera quality to the broadcast resolution. Check the camera status."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信解像度に合わせてカメラ画質を変更できませんでした。カメラの状態を確認してください。"
+          }
+        }
+      }
+    },
+    "현재 요금제와 남은 시간으로 선택한 송출 방식을 사용할 수 없습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 요금제와 남은 시간으로 선택한 송출 방식을 사용할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your current plan and remaining time do not support the selected broadcast mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランと残り時間では、選択した配信方式を利用できません。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

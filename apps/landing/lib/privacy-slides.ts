@@ -1,5 +1,5 @@
 export const privacySlideSources: string[] = [
-  "/mockups/privacy-1.png",
-  "/mockups/privacy-2.png",
-  "/mockups/privacy-3.png",
+  "/mockups/privacy-1.webp",
+  "/mockups/privacy-2.webp",
+  "/mockups/privacy-3.webp",
 ];

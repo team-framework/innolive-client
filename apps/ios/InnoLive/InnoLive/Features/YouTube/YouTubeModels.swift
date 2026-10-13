@@ -220,34 +220,6 @@ struct YouTubeChannel: Codable, Equatable {
     let title: String
 }
 
-struct YouTubeStreamingAccountSummary: Decodable, Equatable {
-    let provider: String
-    let channelID: String
-    let channelTitle: String
-    let connectedAt: String?
-    let reconnectRequired: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case provider
-        case channelID = "channel_id"
-        case channelTitle = "channel_title"
-        case connectedAt = "connected_at"
-        case reconnectRequired = "reconnect_required"
-    }
-
-    var youtubeConnection: YouTubeConnection? {
-        guard provider == "youtube" else { return nil }
-        return YouTubeConnection(
-            provider: provider,
-            channel: YouTubeChannel(
-                id: channelID,
-                title: channelTitle.isEmpty ? channelID : channelTitle
-            ),
-            requiresReconnection: reconnectRequired
-        )
-    }
-}
-
 struct YouTubeBroadcastSession: Decodable, Equatable {
     var aiProcessing: String? = nil
     // Server capability stays fixed; the client can move inference without replacing this session.
@@ -389,10 +361,18 @@ struct YouTubeSessionResponse: Decodable {
     var details = BroadcastSessionDetails()
     var isFullSnapshot = true
     var hasMedia = true
+    // 온디바이스 세션 YouTube 준비 응답에만 온다(server #438). 스트림 키가 들어 있다.
+    var ingestEndpoint: DirectIngestEndpoint? = nil
+    // 온디바이스 세션 라이브 전환 응답에서 이번에 라이브가 된 치지직 대상만 온다.
+    var directIngest: [DirectIngestTarget] = []
 }
 
 extension YouTubeSessionResponse {
-    private enum CodingKeys: String, CodingKey { case broadcast, stream, media }
+    private enum CodingKeys: String, CodingKey {
+        case broadcast, stream, media
+        case ingestURL = "ingest_url"
+        case directIngest = "direct_ingest"
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -405,6 +385,9 @@ extension YouTubeSessionResponse {
         media = try container.decodeIfPresent(YouTubeSessionMedia.self, forKey: .media)
             ?? YouTubeSessionMedia(anonymizationEnabled: nil, rawVideoTrack: nil)
         details = try BroadcastSessionDetails(from: decoder)
+        ingestEndpoint = try container.decodeIfPresent(String.self, forKey: .ingestURL)
+            .flatMap(DirectIngestEndpoint.init(ingestURL:))
+        directIngest = try container.decodeIfPresent([DirectIngestTarget].self, forKey: .directIngest) ?? []
     }
 }
 
@@ -509,7 +492,7 @@ struct BroadcastUpgradeOption: Decodable, Equatable {
         remainingSecondsAfter = try container.remainingTime(forKey: .remainingSecondsAfter)
         needsSettings = try container.decode(Bool.self, forKey: .needsSettings)
         restartsBroadcast = try container.decode(Bool.self, forKey: .restartsBroadcast)
-        restartEffects = try container.decode([BroadcastRestartEffect].self, forKey: .restartEffects)
+        restartEffects = try container.decodeIfPresent([BroadcastRestartEffect].self, forKey: .restartEffects) ?? []
     }
 }
 

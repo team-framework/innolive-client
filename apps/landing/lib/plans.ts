@@ -31,6 +31,13 @@ export type Plan = {
   helpLabel?: string;
 };
 
+type PlanCopy = {
+  description: string;
+  cta: string;
+  features: readonly string[];
+  footnotes?: readonly string[];
+};
+
 function featureList(
   icons: Array<PlanFeature["icon"]>,
   texts: readonly string[],
@@ -45,12 +52,12 @@ export function getPersonalPlans(messages: Messages, locale: Locale): Plan[] {
   const copy = messages.plans.personal;
   const month = messages.plans.periodMonth;
   const signup = localePath(locale, "/signup");
-  const definitions = [
+  const definitions: Array<{ id: string; name: string; amount: string; copy: PlanCopy }> = [
     { id: "spark", name: "Spark", amount: "0", copy: copy.spark },
     { id: "glow", name: "Glow", amount: "9,900", copy: copy.glow },
     { id: "beam", name: "Beam", amount: "19,900", copy: copy.beam },
     { id: "plasma", name: "Plasma", amount: "39,000", copy: copy.plasma },
-  ] as const;
+  ];
   return definitions.map((definition): Plan => ({
     id: definition.id,
     name: definition.name,
@@ -63,13 +70,13 @@ export function getPersonalPlans(messages: Messages, locale: Locale): Plan[] {
       : { label: definition.copy.cta, href: signup },
     features: featureList([], definition.copy.features),
     ribbon: definition.id === "spark" ? undefined : messages.plans.ribbon,
-    footnotes: definition.id === "glow" ? [...copy.glow.footnotes] : undefined,
+    footnotes: definition.copy.footnotes?.length ? [...definition.copy.footnotes] : undefined,
     helpLabel: definition.id === "glow" ? copy.glow.helpLabel : undefined,
   }));
 }
 
 export function getBusinessPlans(messages: Messages, locale: Locale): Plan[] {
-  const copy = messages.plans.business;
+  const copy: Record<"crew" | "business", PlanCopy & { amount: string }> = messages.plans.business;
   const support = localePath(locale, "/support");
   return [
     {
@@ -80,6 +87,7 @@ export function getBusinessPlans(messages: Messages, locale: Locale): Plan[] {
       price: { amount: copy.crew.amount, period: "" },
       cta: { label: copy.crew.cta, href: support },
       features: featureList(["check", "sparkles"], copy.crew.features),
+      footnotes: copy.crew.footnotes?.length ? [...copy.crew.footnotes] : undefined,
     },
     {
       id: "business",
@@ -89,6 +97,7 @@ export function getBusinessPlans(messages: Messages, locale: Locale): Plan[] {
       price: { amount: copy.business.amount, period: "" },
       cta: { label: copy.business.cta, href: support },
       features: featureList(["check", "check"], copy.business.features),
+      footnotes: copy.business.footnotes?.length ? [...copy.business.footnotes] : undefined,
     },
   ];
 }

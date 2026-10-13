@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { isSeoGuidePath } from "@/lib/seo-guide-paths";
 import { defaultLocale, isLocale, shouldRememberLocale } from "@/lib/locales";
 
 const publicFile = /\.[^/]+$/;
@@ -29,6 +30,13 @@ export function proxy(request: NextRequest) {
 
   if (/^[a-z]{2}$/.test(firstSegment)) {
     return NextResponse.next();
+  }
+
+  // Search guides use a stable Korean URL regardless of browser language.
+  if (isSeoGuidePath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/ko${pathname.replace(/\/$/, "")}`;
+    return NextResponse.redirect(url, 308);
   }
 
   const cookieLocale = request.cookies.get("NEXT_LOCALE")?.value;

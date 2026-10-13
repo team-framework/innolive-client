@@ -49,6 +49,8 @@ class CameraFrameAnalyzer(
     private val previewRenderer = VideoLookPreviewRenderer()
     val lookPreviews: StateFlow<VideoLookPreviews?> = previewRenderer.previews
     @Volatile private var previewSink: VideoSink? = null
+    @Volatile private var directPublishSink: VideoSink? = null
+    private val anonymizationFailures = AtomicLong()
     private var reportedColorFailure = false
 
     internal var faceCoordinatorFactory: (() -> com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator)? = null
@@ -161,6 +163,27 @@ class CameraFrameAnalyzer(
         if (!stopped.get()) previewSink = sink
     }
 
+    /**
+     * 앱 직접 송출 입력입니다. 가림 처리된 프레임과 사용자가 가림을 끈 프레임만 받습니다.
+     * 서버가 가림 처리할 원본(SERVER 모드)은 넘기지 않습니다.
+     */
+    fun setDirectPublishSink(sink: VideoSink?) = synchronized(captureLock) {
+        directPublishSink = if (stopped.get()) null else sink
+    }
+
+    /** 가림 처리에 실패해 내보내지 않은 누적 프레임 수입니다. 하트비트 `anonymization.failed_frames`입니다. */
+    val anonymizationFailedFrames: Long get() = anonymizationFailures.get()
+
+    private fun deliverToDirectPublish(frame: VideoFrame) {
+        val sink = directPublishSink ?: return
+        // 직접 송출 오류가 미리보기·WebRTC 전달이나 가림 처리 실패 판정으로 번지지 않게 합니다.
+        try {
+            sink.onFrame(frame)
+        } catch (error: Exception) {
+            Log.w("CameraFrameAnalyzer", "direct_publish_frame_failed type=${error.javaClass.simpleName}")
+        }
+    }
+
     fun resetFaceExceptions() {
         route.invalidate()
         pendingProtectedCamera.clearPending()?.close()
@@ -194,6 +217,7 @@ class CameraFrameAnalyzer(
     override fun close() {
         synchronized(captureLock) {
             previewSink = null
+            directPublishSink = null
             previewRenderer.close()
         }
         stop()
@@ -295,6 +319,7 @@ class CameraFrameAnalyzer(
                             relayAdjustedFrame(frame) { adjusted ->
                                 previewSink?.onFrame(adjusted)
                                 capturerObserver?.onFrameCaptured(adjusted)
+                                if (currentTicket.mode == PrivacyFrameMode.LOCAL_RAW) deliverToDirectPublish(adjusted)
                             }
                         }
                     } finally {
@@ -307,6 +332,7 @@ class CameraFrameAnalyzer(
         } catch (error: Exception) {
             reportVideoAdjustmentFailure(error)
             if (ticket?.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
+                anonymizationFailures.incrementAndGet()
                 ticket?.let { route.deliver(it, onProcessingFailure) }
             }
         } finally {
@@ -351,6 +377,7 @@ class CameraFrameAnalyzer(
                     relayAdjustedFrame(outgoing) { adjusted ->
                         previewSink?.onFrame(adjusted)
                         capturerObserver?.onFrameCaptured(adjusted)
+                        deliverToDirectPublish(adjusted)
                         delivered.incrementAndGet()
                         if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
                     }
@@ -375,6 +402,7 @@ class CameraFrameAnalyzer(
         } catch (_: PrivacyGpuBackpressureException) {
             dropped.incrementAndGet()
         } catch (_: Exception) {
+            anonymizationFailures.incrementAndGet()
             route.deliver(ticket, onProcessingFailure)
         } finally {
             releaseInput()

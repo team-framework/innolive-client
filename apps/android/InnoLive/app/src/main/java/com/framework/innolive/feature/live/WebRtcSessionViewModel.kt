@@ -13,6 +13,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
+import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
+import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastUiState
+import com.framework.innolive.feature.live.status.BroadcastUplinkQuality
+import com.framework.innolive.feature.live.status.BroadcastUplinkQualityTracker
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.ServerErrorGuidance
 import com.framework.innolive.ui.text.ServerErrorAction
@@ -25,7 +29,12 @@ import org.webrtc.EglBase
 import org.webrtc.VideoTrack
 import kotlin.coroutines.resume
 
-class WebRtcSessionViewModel : ViewModel() {
+class WebRtcSessionViewModel internal constructor(
+    /** 송출 경로를 만듭니다. 테스트는 가짜 송출 경로를 넣습니다. */
+    private val transportFactory: (LiveBroadcastTransportRequest) -> LiveBroadcastTransport,
+) : ViewModel() {
+    constructor() : this(::createLiveBroadcastTransport)
+
     private var startJob: Job? = null
     private var prepareJob: Job? = null
     var serverError by mutableStateOf<ServerErrorGuidance?>(null)
@@ -79,6 +88,10 @@ class WebRtcSessionViewModel : ViewModel() {
         private set
     var broadcastStartedAtElapsedRealtimeMillis by mutableStateOf<Long?>(null)
         private set
+    /** 방송 상태 패널이 쓰는 업로드 품질. 값이 바뀔 때만 갱신해 화면 갱신을 줄인다. */
+    var uplinkQuality by mutableStateOf(BroadcastUplinkQuality.Measuring)
+        private set
+    private val uplinkQualityTracker = BroadcastUplinkQualityTracker()
 
     var frameAnalyzer: CameraFrameAnalyzer? by mutableStateOf(null)
         private set
@@ -89,8 +102,35 @@ class WebRtcSessionViewModel : ViewModel() {
     var lockedScreenOrientation: Int? by mutableStateOf(null)
         private set
 
-    private var connection: WebRtcConnection? = null
-    private var closingConnection: WebRtcConnection? = null
+    private var connection: LiveBroadcastTransport? = null
+
+    /** 직접 송출의 해상도와 대상입니다. 다음 세션을 만들 때 적용합니다. */
+    internal var directBroadcastPlan by mutableStateOf(DirectBroadcastPlan())
+        private set
+
+    /** 직접 송출 중 서버 응답에 없는 로컬 상태입니다. 서버 중계에서는 기본값입니다. */
+    internal var directBroadcastUiState by mutableStateOf(DirectBroadcastUiState())
+        private set
+
+    /** 방송 준비 전에만 바꿀 수 있습니다. 이미 연결된 세션은 다음 준비에서 새로 만듭니다. */
+    internal fun selectDirectBroadcastPlan(plan: DirectBroadcastPlan): Boolean {
+        if (!broadcastState.canPrepare || isPreparingBroadcast) return false
+        if (plan != directBroadcastPlan && connectionState != WebRtcConnectionState.IDLE) close()
+        directBroadcastPlan = plan
+        return true
+    }
+    var selectedProvider by mutableStateOf(BroadcastProvider.YOUTUBE)
+        private set
+
+    fun selectProvider(provider: BroadcastProvider): Boolean {
+        if (!broadcastState.canPrepare || isPreparingBroadcast) return false
+        if (selectedProvider != provider) {
+            if (connectionState != WebRtcConnectionState.IDLE) close()
+            selectedProvider = provider
+        }
+        return true
+    }
+    private var closingConnection: LiveBroadcastTransport? = null
     private var anonymizationPreference: AnonymizationPreference? = null
     var selectedOnDeviceProcessing by mutableStateOf(false)
         private set
@@ -201,7 +241,9 @@ class WebRtcSessionViewModel : ViewModel() {
         retryBroadcastRequest = null
         sessionState = sessionState.beginConnection()
         sessionSnapshot = null
+        directBroadcastUiState = DirectBroadcastUiState()
         signalingStartedGeneration = null
+        resetUplinkQuality()
         lockedBroadcastRotation = null
         lockedScreenOrientation = null
         val generation = sessionState.generation
@@ -231,14 +273,7 @@ class WebRtcSessionViewModel : ViewModel() {
                 val accessToken = refreshAccessToken()
                 if (!isCurrentGeneration(generation)) return@launch
 
-                val newConnection = WebRtcConnection(
-                    context = context,
-                    serverUrl = serverUrl,
-                    accessToken = accessToken,
-                    refreshAccessToken = refreshAccessToken,
-                    initialAnonymizationEnabled = initialEnabled,
-                    initialOnDeviceProcessing = initialOnDevice,
-                    preferredAudioInput = selectedAudioInput,
+                val callbacks = LiveBroadcastCallbacks(
                     onStateChanged = { state, failure ->
                         if (sessionState.acceptsCallback(generation)) {
                             sessionState = sessionState.connectionChanged(generation, state)
@@ -296,6 +331,12 @@ class WebRtcSessionViewModel : ViewModel() {
                     onSessionSnapshotChanged = { snapshot ->
                         if (sessionState.acceptsCallback(generation)) sessionSnapshot = snapshot
                     },
+                    onUplinkVideoStats = { sample ->
+                        if (sessionState.acceptsCallback(generation)) {
+                            val quality = uplinkQualityTracker.record(sample)
+                            if (quality != uplinkQuality) uplinkQuality = quality
+                        }
+                    },
                     onBroadcastStateChanged = { state, event ->
                         if (sessionState.acceptsCallback(generation) && (state != broadcastState || event != null)) {
                             lockedBroadcastRotation = nextBroadcastRotation(
@@ -315,6 +356,23 @@ class WebRtcSessionViewModel : ViewModel() {
                             isBroadcastStatusDefault = feedback.isStateDescription
                         }
                     },
+                    onDirectUiStateChanged = { state ->
+                        if (sessionState.acceptsCallback(generation)) directBroadcastUiState = state
+                    },
+                )
+                val newConnection = transportFactory(
+                    LiveBroadcastTransportRequest(
+                        context = context,
+                        serverUrl = serverUrl,
+                        accessToken = accessToken,
+                        refreshAccessToken = refreshAccessToken,
+                        initialAnonymizationEnabled = initialEnabled,
+                        initialOnDeviceProcessing = initialOnDevice,
+                        provider = selectedProvider,
+                        preferredAudioInput = selectedAudioInput,
+                        directPlan = directBroadcastPlan,
+                        callbacks = callbacks,
+                    ),
                 )
                 if (!isCurrentGeneration(generation)) {
                     newConnection.close()
@@ -367,6 +425,11 @@ class WebRtcSessionViewModel : ViewModel() {
     }
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
+        if (selectedProvider != BroadcastProvider.YOUTUBE) {
+            broadcastStatus = UiText.Resource(com.framework.innolive.R.string.broadcast_settings_youtube_only)
+            isBroadcastStatusDefault = false
+            return
+        }
         serverError = null
         retryBroadcastRequest = { saveBroadcastSettings(settings) }
         connection?.saveBroadcastSettings(settings)
@@ -382,9 +445,25 @@ class WebRtcSessionViewModel : ViewModel() {
         context: Context,
         settings: BroadcastSettings,
         refreshAccessToken: suspend () -> String,
+    ): Boolean = prepareBroadcastInternal(context, settings, null, refreshAccessToken)
+
+    fun prepareChzzkBroadcast(
+        context: Context,
+        settings: ChzzkBroadcastSettings,
+        refreshAccessToken: suspend () -> String,
+    ): Boolean = prepareBroadcastInternal(context, null, settings, refreshAccessToken)
+
+    private fun prepareBroadcastInternal(
+        context: Context,
+        settings: BroadcastSettings?,
+        chzzkSettings: ChzzkBroadcastSettings?,
+        refreshAccessToken: suspend () -> String,
     ): Boolean {
         if (isPreparingBroadcast || !broadcastState.canPrepare) return false
-        if (!validateYouTubeLiveSettings(settings).isValid) {
+        val invalid = if (selectedProvider == BroadcastProvider.YOUTUBE)
+            settings == null || !validateYouTubeLiveSettings(settings).isValid
+        else chzzkSettings == null || chzzkSettings.validationField() != null
+        if (invalid) {
             broadcastState = BroadcastState.FAILED
             broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_validation)
             isBroadcastStatusDefault = false
@@ -424,7 +503,9 @@ class WebRtcSessionViewModel : ViewModel() {
                     isBroadcastStatusDefault = false
                     return@launch
                 }
-                requestBroadcastPreparation(activeConnection, settings)
+                if (selectedProvider == BroadcastProvider.CHZZK) {
+                    requestChzzkBroadcastPreparation(activeConnection, checkNotNull(chzzkSettings))
+                } else requestBroadcastPreparation(activeConnection, checkNotNull(settings))
             } catch (_: TimeoutCancellationException) {
                 if (isCurrentGeneration(generation)) {
                     close()
@@ -441,7 +522,7 @@ class WebRtcSessionViewModel : ViewModel() {
 
     // 네이티브 작업의 상태 콜백이 도착하기 전에도 중복 준비를 막습니다.
     internal fun requestBroadcastPreparation(
-        activeConnection: WebRtcConnection,
+        activeConnection: LiveBroadcastTransport,
         settings: BroadcastSettings,
         allowConcurrent: Boolean = false,
     ): Boolean {
@@ -455,6 +536,20 @@ class WebRtcSessionViewModel : ViewModel() {
         isBroadcastStatusDefault = true
         if (activeConnection.prepareBroadcast(settings, allowConcurrent)) return true
 
+        broadcastState = BroadcastState.FAILED
+        broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_request)
+        isBroadcastStatusDefault = false
+        return false
+    }
+
+    internal fun requestChzzkBroadcastPreparation(
+        activeConnection: LiveBroadcastTransport,
+        settings: ChzzkBroadcastSettings,
+    ): Boolean {
+        broadcastState = BroadcastState.SAVING_SETTINGS
+        broadcastStatus = broadcastStateMessage(BroadcastState.SAVING_SETTINGS).text
+        isBroadcastStatusDefault = true
+        if (activeConnection.prepareBroadcast(settings)) return true
         broadcastState = BroadcastState.FAILED
         broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_request)
         isBroadcastStatusDefault = false
@@ -507,6 +602,7 @@ class WebRtcSessionViewModel : ViewModel() {
         lockedScreenOrientation = null
         sessionState = sessionState.endConnection()
         sessionSnapshot = null
+        directBroadcastUiState = DirectBroadcastUiState()
         signalingStartedGeneration = null
         prepareJob?.cancel()
         prepareJob = null
@@ -526,6 +622,12 @@ class WebRtcSessionViewModel : ViewModel() {
         broadcastStatus = broadcastStateMessage(BroadcastState.IDLE).text
         isBroadcastStatusDefault = true
         broadcastStartedAtElapsedRealtimeMillis = null
+        resetUplinkQuality()
+    }
+
+    private fun resetUplinkQuality() {
+        uplinkQualityTracker.reset()
+        uplinkQuality = BroadcastUplinkQuality.Measuring
     }
 
     /** Removes only the deleted account's credentials for its current server. */
@@ -541,7 +643,7 @@ class WebRtcSessionViewModel : ViewModel() {
     private fun isCurrentGeneration(generation: Long): Boolean =
         sessionState.generation == generation
 
-    private suspend fun awaitClose(webRtcConnection: WebRtcConnection) {
+    private suspend fun awaitClose(webRtcConnection: LiveBroadcastTransport) {
         suspendCancellableCoroutine { continuation ->
             webRtcConnection.close {
                 if (continuation.isActive) continuation.resume(Unit)

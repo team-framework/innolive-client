@@ -80,7 +80,7 @@ final class YouTubeTransmissionNoticePersistenceTests: XCTestCase {
         XCTAssertTrue(reloaded.hasAcknowledgedYouTubeTransmission)
     }
 
-    func testResetClearsYouTubeNoticeButNotMediaConsent() {
+    func testLogoutResetKeepsYouTubeAndMediaConsent() {
         consentStore.recordMediaTransmission()
         let youtube = YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(userDefaults: userDefaults),
@@ -88,9 +88,25 @@ final class YouTubeTransmissionNoticePersistenceTests: XCTestCase {
         )
         _ = youtube.acknowledgeYouTubeTransmission(acceptedConsent())
         youtube.reset()
+        XCTAssertTrue(youtube.hasAcknowledgedYouTubeTransmission)
+        XCTAssertTrue(consentStore.hasAcknowledgedYouTubeTransmission)
+        let reloaded = YouTubeIntegration(
+            preferencesStore: YouTubePreferencesStore(userDefaults: userDefaults),
+            consentStore: consentStore
+        )
+        XCTAssertTrue(reloaded.hasAcknowledgedYouTubeTransmission)
+        XCTAssertTrue(consentStore.hasAcceptedMediaTransmission)
+    }
+
+    func testAccountDeletionClearsYouTubeConsent() {
+        let youtube = YouTubeIntegration(
+            preferencesStore: YouTubePreferencesStore(userDefaults: userDefaults),
+            consentStore: consentStore
+        )
+        _ = youtube.acknowledgeYouTubeTransmission(acceptedConsent())
+        youtube.resetForAccountDeletion()
         XCTAssertFalse(youtube.hasAcknowledgedYouTubeTransmission)
         XCTAssertFalse(consentStore.hasAcknowledgedYouTubeTransmission)
-        XCTAssertTrue(consentStore.hasAcceptedMediaTransmission)
     }
 
     private func acceptedConsent() -> SignupConsent {

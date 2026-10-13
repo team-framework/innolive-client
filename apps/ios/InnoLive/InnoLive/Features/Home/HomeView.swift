@@ -379,9 +379,11 @@ struct HomeView: View {
         let quality = CameraQualityPreset(
             rawValue: UserDefaults.standard.string(forKey: "selectedResolution") ?? ""
         ) ?? .defaultValue
-        let connected = await youtube.startBroadcastPreparation(
+        _ = await youtube.startBroadcastPreparation(
             accessToken: authentication.currentAccessToken(),
             provider: provider,
+            providers: youtube.preparationStatus?.isFailed == true ? youtube.lastPreparationProviders
+                : BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains),
             permissions: BroadcastPreparationPermissions(
                 hasMediaTransmissionConsent: authentication.hasAcceptedMediaTransmission,
                 cameraAuthorized: usesSimulatorVideo || cameraManager.authorizationStatus == .authorized,
@@ -402,7 +404,7 @@ struct HomeView: View {
             }
         )
         previewTransition = .none
-        if connected, youtube.isVideoConnected {
+        if youtube.isVideoConnected {
             if !usesSimulatorVideo, let activeCameraID = youtube.videoUplink.currentCameraID {
                 _ = await cameraManager.switchCamera(to: activeCameraID)
             }

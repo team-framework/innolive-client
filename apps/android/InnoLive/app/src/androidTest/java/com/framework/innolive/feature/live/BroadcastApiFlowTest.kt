@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import android.util.Base64
+import com.framework.innolive.feature.youtube.canChangeYouTubeAccount
 import com.framework.innolive.ui.text.serverErrorGuidance
 import com.framework.innolive.ui.text.ServerErrorAction
 import android.os.SystemClock
@@ -27,6 +28,119 @@ import java.util.concurrent.atomic.AtomicBoolean
 class BroadcastApiFlowTest {
     private val settings = BroadcastSettings("검증", "검증 설명", "private", false, "22")
     private val accessToken = accessTokenFor("broadcast-api-user")
+
+    @Test fun lostPrepareResponseBlocksAccountChangeUntilPreparationIsCancelled() {
+        Harness().use { h ->
+            h.prepareResponseToLose = snapshot("prepared", "idle")
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.FAILED)
+            assertEquals(snapshot("prepared", "idle"), h.getPayload)
+            assertFalse(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+
+            h.startPolling()
+            h.awaitState(BroadcastState.PREPARED)
+            assertFalse(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+            h.stopStatus = 500
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.PREPARED)
+            assertFalse(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+
+            h.stopStatus = 200
+            h.payloads["stop"] = snapshot("idle", "stopped")
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.IDLE)
+            h.getPayload = snapshot("idle", "stopped")
+            assertTrue(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("stream/prepare") })
+            assertEquals(2, h.requests.count { it.url.encodedPath.endsWith("stream/stop") })
+        }
+    }
+
+    @Test fun failedPreparationStaysBlockedWhenPollingFailsAndUnlocksOnServerIdle() {
+        Harness().use { h ->
+            h.prepareResponseToLose = snapshot("prepared", "idle")
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.FAILED)
+            h.getStatus = 503
+            h.startPolling()
+            h.awaitGetCount(1)
+            assertEquals(BroadcastState.FAILED, h.states.last())
+            assertFalse(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+
+            h.getPayload = snapshot("idle", "stopped")
+            h.getStatus = 200
+            h.awaitState(BroadcastState.IDLE)
+            assertTrue(canChangeYouTubeAccount(true, h.states.last(), false, false, false))
+        }
+    }
+
+    @Test fun connectionStatusRefreshDoesNotBlockStopOrRestoreStaleLiveState() {
+        Harness().use { h ->
+            assertTrue(h.connection.prepareBroadcast(settings))
+            h.awaitState(BroadcastState.PREPARED)
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            h.blockGet = true
+            h.getPayload = """{"broadcast_phase":"live","status":"streaming"}"""
+            h.refreshOnOwner()
+            assertTrue(h.getEntered.await(2, TimeUnit.SECONDS))
+            try {
+                h.connection.stopBroadcast()
+                val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2)
+                while (BroadcastState.IDLE !in h.states && System.nanoTime() < deadline) Thread.sleep(10)
+                assertTrue("status GET must not delay stop", BroadcastState.IDLE in h.states)
+            } finally {
+                h.releaseGet.countDown()
+            }
+            h.awaitRefreshCompletion()
+            assertEquals(BroadcastState.IDLE, h.states.last())
+            assertEquals(BroadcastState.IDLE, h.currentBroadcastState())
+        }
+    }
+
+    @Test fun chzzkPreparationDoesNotGoLiveOrSendYouTubeFields() {
+        Harness(provider = BroadcastProvider.CHZZK).use { h ->
+            assertTrue(h.connection.prepareBroadcast(ChzzkBroadcastSettings("치지직", "GAME", "GTA5", listOf("게임"))))
+            h.awaitState(BroadcastState.PREPARED)
+            val save = h.requests.first { it.method == "PUT" }
+            assertEquals("chzzk", save.url.queryParameter("provider"))
+            val body = JSONObject(h.body(save))
+            assertEquals("GAME", body.getString("category_type"))
+            assertFalse(body.has("made_for_kids"))
+            assertFalse(body.has("description"))
+            assertFalse(h.requests.any { it.url.encodedPath.endsWith("stream/golive") })
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.connection.resumeBroadcast()
+            h.awaitState(BroadcastState.LIVE)
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.IDLE)
+        }
+    }
+
+    @Test fun chzzkSaveMismatchCannotAdvanceToPrepare() {
+        Harness(provider = BroadcastProvider.CHZZK).use { h ->
+            h.chzzkSaveMismatch = true
+            assertTrue(h.connection.prepareBroadcast(ChzzkBroadcastSettings("치지직", "GAME", "GTA5")))
+            h.awaitState(BroadcastState.FAILED)
+            assertFalse(h.requests.any { it.url.encodedPath.endsWith("stream/prepare") })
+        }
+    }
+
+    @Test fun failedChzzkDefaultsLookupCannotSaveEmptySettingsOrPrepare() {
+        Harness(provider = BroadcastProvider.CHZZK).use { h ->
+            h.getStatus = 503
+            h.serverErrorCode = "not_supported"
+            assertTrue(h.connection.prepareBroadcast(ChzzkBroadcastSettings()))
+            h.awaitState(BroadcastState.FAILED)
+            assertTrue(h.requests.any { it.method == "GET" &&
+                it.url.encodedPath.endsWith("broadcast/defaults") })
+            assertFalse(h.requests.any { it.method == "PUT" })
+            assertFalse(h.requests.any { it.url.encodedPath.endsWith("stream/prepare") })
+        }
+    }
 
     @Test fun disconnectedMediaCannotStartOrResumeBroadcastOnTheServer() {
         Harness().use { h ->
@@ -337,11 +451,14 @@ class BroadcastApiFlowTest {
             h.getStatus = 503
             h.startPolling()
             h.awaitGetCount(1)
+            assertEquals(BroadcastRemainingTime.Seconds(120), h.awaitSnapshot { it.isRemainingTimeStale }.remainingTime)
             assertEquals(BroadcastState.LIVE, h.snapshots.last().broadcastState())
             h.getPayload = snapshot("idle", "stopped")
             h.getStatus = 200
             h.awaitState(BroadcastState.IDLE)
-            assertTrue(h.awaitSnapshot { it.broadcastState() == BroadcastState.IDLE }.visibleTargets.isEmpty())
+            val stopped = h.awaitSnapshot { it.broadcastState() == BroadcastState.IDLE }
+            assertTrue(stopped.visibleTargets.isEmpty())
+            assertFalse(stopped.isRemainingTimeStale)
         }
     }
 
@@ -487,6 +604,7 @@ class BroadcastApiFlowTest {
 
     private class Harness(
         private val broadcastCallbackExecutor: Executor? = null,
+        private val provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
         private val onBroadcastState: (BroadcastState) -> Unit = {},
     ) : AutoCloseable {
         val snapshots = CopyOnWriteArrayList<SessionSnapshot>()
@@ -511,12 +629,14 @@ class BroadcastApiFlowTest {
         @Volatile var patchStatus = 200
         @Volatile var settingsStatus = 200
         @Volatile var prepareStatus = 200
+        @Volatile var prepareResponseToLose: String? = null
         @Volatile var stopStatus = 200
         @Volatile var pauseStatus = 200
         @Volatile var resumeStatus = 200
         @Volatile var deleteStatus = 204
         @Volatile var goLiveNotReady = false
         @Volatile var goLiveStatus = 200
+        @Volatile var chzzkSaveMismatch = false
         val goLiveAccepted = AtomicBoolean(false)
         @Volatile var acceptedAtGoLiveRequest = false
         @Volatile var serverErrorMessage: String? = null
@@ -531,6 +651,7 @@ class BroadcastApiFlowTest {
                 accessTokenFor("broadcast-api-user") + ".refreshed"
             },
             initialAnonymizationEnabled = false,
+            provider = provider,
             preferredAudioInput = null,
             onStateChanged = { state, failure ->
                 if (state == WebRtcConnectionState.FAILED && failure != null) connectionFailures.add(failure)
@@ -567,7 +688,12 @@ class BroadcastApiFlowTest {
                         reply.first
                     }
                     request.method == "DELETE" -> deleteStatus
-                    request.method == "PUT" -> settingsStatus
+                    request.method == "PUT" -> {
+                        if (provider == BroadcastProvider.CHZZK) {
+                            payload = """{"chzzk_broadcast":{"title":"${if (chzzkSaveMismatch) "다른 방송" else "치지직"}","category_type":"GAME","category_id":"GTA5","tags":["게임"]}}"""
+                        }
+                        settingsStatus
+                    }
                     request.method == "PATCH" -> {
                         val enabled = JSONObject(body(request)).getBoolean("enabled")
                         payload = """{"session_id":"test-session","media":{"anonymization_enabled":$enabled}}"""
@@ -580,18 +706,35 @@ class BroadcastApiFlowTest {
                     }
                     request.url.encodedPath.endsWith("golive") -> {
                         acceptedAtGoLiveRequest = goLiveAccepted.get()
+                        payload = """{"broadcast_phase":"live","status":"streaming"}"""
                         goLiveStatus
                     }
-                    request.url.encodedPath.endsWith("prepare") -> prepareStatus
-                    request.url.encodedPath.endsWith("stop") -> stopStatus
-                    request.url.encodedPath.endsWith("pause") -> pauseStatus
-                    request.url.encodedPath.endsWith("resume") -> resumeStatus
+                    request.url.encodedPath.endsWith("stop") -> {
+                        payload = """{"broadcast_phase":"idle","status":"idle"}"""
+                        stopStatus
+                    }
+                    request.url.encodedPath.endsWith("pause") -> {
+                        payload = """{"broadcast_phase":"live","status":"paused"}"""
+                        pauseStatus
+                    }
+                    request.url.encodedPath.endsWith("resume") -> {
+                        payload = """{"broadcast_phase":"live","status":"streaming"}"""
+                        resumeStatus
+                    }
+                    request.url.encodedPath.endsWith("prepare") -> {
+                        prepareResponseToLose?.let { appliedServerState ->
+                            getPayload = appliedServerState
+                            throw java.io.IOException("Prepare response lost after server applied it")
+                        }
+                        payload = """{"stream":{"broadcast_phase":"prepared","status":"idle"},"targets":[{"provider":"${provider.wireValue}","stream":{"broadcast_phase":"prepared","status":"idle"}}]}"""
+                        prepareStatus
+                    }
                     else -> 200
                 }
                 if (status < 400 && request.method != "GET") {
                     payload = payloads[request.url.pathSegments.last()] ?: payload
                 }
-                if (status >= 400 && payload == "{}" &&
+                if (status >= 400 && mutationReply == null && !JSONObject(payload).has("error") &&
                     (serverErrorCode != null || serverErrorMessage != null)
                 ) {
                     payload = JSONObject()
@@ -608,7 +751,8 @@ class BroadcastApiFlowTest {
             }.build()
             // 테스트에서만 연결 완료 세션과 HTTP 응답을 주입한다. 실제 DNS나 외부 계정은 사용하지 않는다.
             field("httpClient", client)
-            field("session", CreatedSession("test-session", "test-owner", AnonymizationState.DISABLED))
+            field("session", CreatedSession("test-session", "test-owner", AnonymizationState.DISABLED, provider))
+            field("sessionSnapshot", SessionSnapshot("test-session", provider.wireValue))
             field("peerConnectionConnected", true)
             field("audioInputVerified", true)
         }
@@ -616,6 +760,27 @@ class BroadcastApiFlowTest {
         private fun field(name: String, value: Any) {
             WebRtcConnection::class.java.getDeclaredField(name).apply { isAccessible = true; set(connection, value) }
         }
+
+        fun refreshOnOwner() {
+            val owner = WebRtcConnection::class.java.getDeclaredField("ownerExecutor")
+                .apply { isAccessible = true }.get(connection) as java.util.concurrent.ExecutorService
+            owner.execute {
+                WebRtcConnection::class.java.getDeclaredMethod("refreshBroadcastStatus")
+                    .apply { isAccessible = true }.invoke(connection)
+            }
+        }
+
+        fun awaitRefreshCompletion() {
+            val job = WebRtcConnection::class.java.getDeclaredField("broadcastStatusRefreshJob")
+                .apply { isAccessible = true }.get(connection) as kotlinx.coroutines.Job
+            kotlinx.coroutines.runBlocking { kotlinx.coroutines.withTimeout(3000) { job.join() } }
+            val owner = WebRtcConnection::class.java.getDeclaredField("ownerExecutor")
+                .apply { isAccessible = true }.get(connection) as java.util.concurrent.ExecutorService
+            owner.submit {}.get(3, TimeUnit.SECONDS)
+        }
+
+        fun currentBroadcastState(): BroadcastState = WebRtcConnection::class.java.getDeclaredField("broadcastState")
+            .apply { isAccessible = true }.get(connection) as BroadcastState
 
         fun startPolling() {
             WebRtcConnection::class.java.getDeclaredMethod("startSessionPolling", CreatedSession::class.java)

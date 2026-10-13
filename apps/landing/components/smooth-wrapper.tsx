@@ -1,10 +1,9 @@
 "use client";
 
-import gsap from "gsap";
-import { ScrollSmoother } from "gsap/ScrollSmoother";
-import { useLayoutEffect, useRef } from "react";
+import type { ScrollSmoother } from "gsap/ScrollSmoother";
+import { afterPaint } from "@/lib/landing-animation";
+import { useEffect, useRef } from "react";
 
-gsap.registerPlugin(ScrollSmoother);
 
 interface SmoothScrollProps {
   children: React.ReactNode;
@@ -24,10 +23,20 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     let smoother: ScrollSmoother | undefined;
-    const start = () => {
-      if (smoother) return;
+    let cancelled = false;
+    let starting = false;
+    let cancelPaint: (() => void) | undefined;
+    let removeRefreshListener: (() => void) | undefined;
+    const initialize = async () => {
+      const [{ default: gsap }, { ScrollTrigger }, { ScrollSmoother }] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+        import("gsap/ScrollSmoother"),
+      ]);
+      if (cancelled) return;
+      gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
       smoother = ScrollSmoother.create({
         wrapper: wrapperRef.current,
         content: contentRef.current,
@@ -36,7 +45,20 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
         effects: true,
         normalizeScroll: false,
       });
+      ScrollTrigger.addEventListener("refresh", scheduleHashScroll);
+      removeRefreshListener = () => ScrollTrigger.removeEventListener("refresh", scheduleHashScroll);
       scheduleHashScroll();
+    };
+    const start = () => {
+      if (cancelled || starting || smoother) return;
+      starting = true;
+      cancelPaint = afterPaint(() => {
+        void initialize().catch(() => {
+          starting = false;
+          smoother?.kill();
+          smoother = undefined;
+        });
+      });
     };
     let hashFrame: number | undefined;
     const scheduleHashScroll = () => {
@@ -52,9 +74,12 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
     window.addEventListener("hashchange", onHashChange);
 
     return () => {
+      cancelled = true;
+      cancelPaint?.();
       if (hashFrame !== undefined) window.cancelAnimationFrame(hashFrame);
       window.removeEventListener("hashchange", onHashChange);
       window.removeEventListener("innolive:intro-complete", start);
+      removeRefreshListener?.();
       smoother?.kill();
     };
   }, []);

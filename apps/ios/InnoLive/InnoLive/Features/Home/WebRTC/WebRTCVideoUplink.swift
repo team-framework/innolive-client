@@ -73,6 +73,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var isReconnectPending = false
     var isReconnectInProgress = false
     var lockedBroadcastOrientation: BroadcastInterfaceOrientation?
+    // 온디바이스 세션의 앱 직접 송출(#481). 프레임 경로가 재생성돼도 유지한다.
+    weak var directMediaSink: (any DirectMediaSink)?
+    var isDirectPublishBitrateLimited = false
 
     override init() {
         _ = Self.sslInitialized
@@ -164,9 +167,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         )
         videoQualitySettings = normalized
         normalized.save()
-        if let activeCameraID {
-            applyExposureToCamera(activeCameraID)
-        }
+        cameraFrameRelay?.setExposureEV(normalized.exposureEV)
     }
 
     func setColor(warmth: Float, saturation: Float) {
@@ -186,11 +187,10 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         cameraFrameRelay?.setUnprocessedPreviewHandler(handler)
     }
 
-    func applyExposureToCamera(_ cameraID: String) {
-        let exposureEV = videoQualitySettings.exposureEV
+    func resetCameraExposureBias(_ cameraID: String) {
         zoomQueue.async {
             guard let device = AVCaptureDevice(uniqueID: cameraID) else { return }
-            _ = CameraDeviceExposure.apply(exposureEV, to: device)
+            _ = CameraDeviceExposure.apply(0, to: device)
         }
     }
 

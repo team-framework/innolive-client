@@ -19,4 +19,10 @@ data class SettingsScreenProps(
     val onDeviceProcessing: Boolean = false,
     val canChangeAIProcessing: Boolean = false,
     val onSelectAIProcessing: (Boolean) -> Unit = {},
+    val planUsage: PlanUsage? = null,
+    val isPlanLoading: Boolean = false,
+    val planError: UiText? = null,
+    val onRefreshPlan: () -> Unit = {},
+    val canReplayBroadcastGuide: Boolean = false,
+    val onReplayBroadcastGuide: () -> Unit = {},
 )

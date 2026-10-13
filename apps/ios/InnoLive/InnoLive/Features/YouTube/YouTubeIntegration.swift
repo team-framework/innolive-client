@@ -10,15 +10,44 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var connection: YouTubeConnection?
     @Published private(set) var session: YouTubeBroadcastSession?
     @Published private(set) var stream: YouTubeStreamState?
+    /// 대상별 앱 직접 송출 상태다(#481). 화면이 바로 갱신되도록 송출기 상태를 옮겨 둔다.
+    @Published private(set) var directPublishStates: [String: DirectPublishState] = [:]
+    /// 직접 송출 중 마이크를 열지 못해 무음으로 보내고 있다.
+    @Published private(set) var isDirectMicrophoneUnavailable = false
     @Published private(set) var videoTrack: YouTubeVideoTrackState?
     @Published private(set) var responseState = BroadcastSessionSnapshot()
     @Published private(set) var isFeatureAvailable = true
     @Published private(set) var isConnecting = false
     @Published private(set) var isRefreshingConnection = false
     @Published private(set) var isDisconnecting = false
+    @Published private(set) var isConnectingCHZZK = false
+    @Published private(set) var isDisconnectingCHZZK = false
+    @Published private(set) var chzzkAccountMessage: String?
     @Published private(set) var isPreparingSession = false
     @Published private(set) var isConnectingVideo = false
     @Published private(set) var preparationStatus: BroadcastPreparationStatus?
+    @Published var selectedBroadcastProviders: Set<BroadcastSettingsProvider> = [.youtube]
+    @Published private(set) var lastPreparationProviders: [BroadcastSettingsProvider] = []
+    @Published private(set) var preparationFailures: [BroadcastSettingsProvider: BroadcastPreparationStatus] = [:]
+    var canContinuePreparedBroadcast: Bool {
+        preparationStatus?.isFailed == true && !isChangingStreamState && broadcastPreparationTask == nil
+            && lastPreparationProviders.contains(where: isProviderPrepared)
+    }
+
+    @discardableResult
+    func continueWithPreparedTargets() -> Bool {
+        guard canContinuePreparedBroadcast else { return false }
+        lastPreparationProviders = lastPreparationProviders.filter(isProviderPrepared)
+        preparationStatus = nil
+        clearError()
+        return true
+    }
+
+    var preparationPlanMode: BroadcastPlanMode {
+        let count = broadcastPreparationTask != nil ? lastPreparationProviders.count : selectedBroadcastProviders.count
+        return .current(resolution: broadcastResolution, targetCount: count)
+    }
+
     @Published private(set) var lastPreparationProvider: BroadcastSettingsProvider?
     @Published private(set) var isChangingStreamState = false
     @Published private(set) var isRecoveringVideoFailure = false
@@ -46,6 +75,411 @@ final class YouTubeIntegration: ObservableObject {
     private var liveSettingsGeneration: UInt = 0
     private var liveSettingsScope = ""
     private var unavailableLiveProviders: Set<BroadcastSettingsProvider> = []
+
+    @Published private(set) var isChangingBroadcastMode = false
+    @Published private(set) var broadcastModeError: String?
+    @Published private(set) var broadcastModeFailures: [BroadcastTargetFailure] = []
+    private var broadcastModeRequest = UUID()
+    private var broadcastModeRequestInFlight = false
+    private var broadcastModeQualityTask: Task<Void, Never>?
+    private var broadcastModeQualityRequest = UUID()
+    private var observedModeCompletion: BroadcastResolutionSwitch?
+
+    @Published private(set) var isHandlingUpgradeOffer = false
+    @Published private(set) var upgradeOfferError: String?
+    private var upgradeOfferRequest = UUID()
+    private var upgradeOfferExpirationTask: Task<Void, Never>?
+    private var dismissedUpgradeOffer = false
+    private var savedUpgradeProviders: Set<BroadcastSettingsProvider> = []
+    private var confirmedUpgradeMode: String?
+
+    var upgradeOffer: BroadcastUpgradeOffer? { responseState.details.upgradeOffer }
+    var selectedUpgradeOption: BroadcastUpgradeOption? { upgradeOffer?.selectedOption }
+    var upgradeSettingsProviders: [BroadcastSettingsProvider] {
+        guard let targets = selectedUpgradeOption?.supportedTargets else { return [] }
+        return targets.subtracting(Set(liveEditingTargets)).sorted { $0.rawValue < $1.rawValue }
+    }
+
+    // 확인 전 호출도 거절해 재시작 확인 취소 시 API를 보내지 않는다.
+    @discardableResult
+    func chooseUpgradeOption(mode: String, restartConfirmed: Bool = false, accessToken: String?) async -> Bool {
+        guard canChangeBroadcastMode, let offer = upgradeOffer, !offer.isExpired(),
+              let option = offer.options?.first(where: { $0.mode == mode }),
+              let targets = option.supportedTargets, (!option.restartsBroadcast || restartConfirmed),
+              let current = session, let accessToken, !accessToken.isEmpty else { return false }
+        upgradeOfferError = nil
+        if !option.needsSettings {
+            return await changeBroadcastMode(resolution: option.resolution, targets: targets, accessToken: accessToken,
+                                             upgradeOption: option)
+        }
+        // 같은 선택의 설정 재진입은 select를 반복하거나 보류 시간을 연장하지 않는다.
+        if offer.selected == mode { confirmedUpgradeMode = mode; return true }
+        let request = UUID()
+        let generation = sessionOperationGeneration
+        let scope = settingsScopeKey(accessToken: accessToken)
+        upgradeOfferRequest = request
+        isHandlingUpgradeOffer = true
+        upgradeOfferExpirationTask?.cancel()
+        stopPolling()
+        func isCurrent() -> Bool {
+            upgradeOfferRequest == request && generation == sessionOperationGeneration
+                && session?.sessionID == current.sessionID && settingsScopeKey(accessToken: accessToken) == scope
+                && !Task.isCancelled
+        }
+        defer {
+            if upgradeOfferRequest == request {
+                isHandlingUpgradeOffer = false
+                synchronizeUpgradeOffer()
+            }
+            if generation == sessionOperationGeneration, session?.sessionID == current.sessionID {
+                beginPolling(accessToken: accessToken)
+            }
+        }
+        do {
+            let snapshot = try await api.selectUpgradeOffer(session: current, accessToken: accessToken, mode: mode)
+            guard isCurrent() else { return false }
+            _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            guard upgradeOffer?.selected == mode, upgradeOffer?.isExpired() == false else { return false }
+            confirmedUpgradeMode = mode
+            return true
+        } catch {
+            guard isCurrent() else { return false }
+            handleUpgradeOfferError(error)
+            if !isUpgradeOfferNotFound(error),
+               let snapshot = try? await api.sessionStatus(session: current, accessToken: accessToken), isCurrent() {
+                _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            }
+            return false
+        }
+    }
+
+    @discardableResult
+    func saveUpgradeOfferSettings(provider: BroadcastSettingsProvider, accessToken: String?) async -> Bool {
+        guard let option = selectedUpgradeOption, option.needsSettings,
+              !option.restartsBroadcast || confirmedUpgradeMode == option.mode,
+              upgradeOffer?.isExpired() == false, upgradeSettingsProviders.contains(provider),
+              let targets = option.supportedTargets else { return false }
+        let request = upgradeOfferRequest
+        let saved = await saveBroadcastModeSettings(provider: provider, accessToken: accessToken)
+        guard saved, request == upgradeOfferRequest, selectedUpgradeOption?.mode == option.mode,
+              upgradeOffer?.isExpired() == false else { return false }
+        savedUpgradeProviders.insert(provider)
+        guard Set(upgradeSettingsProviders).isSubset(of: savedUpgradeProviders) else { return true }
+        return await changeBroadcastMode(resolution: option.resolution, targets: targets, accessToken: accessToken,
+                                         upgradeOption: option, savedAddedProviders: savedUpgradeProviders)
+    }
+
+    @discardableResult
+    func declineUpgradeOffer(accessToken: String?) async -> Bool {
+        guard upgradeOffer != nil, !isHandlingUpgradeOffer, !isChangingBroadcastMode,
+              !isSavingLiveSettings, !isChangingStreamState, !isEndingSession,
+              let current = session, let accessToken, !accessToken.isEmpty else { return false }
+        let request = UUID()
+        let generation = sessionOperationGeneration
+        let scope = settingsScopeKey(accessToken: accessToken)
+        upgradeOfferRequest = request
+        isHandlingUpgradeOffer = true
+        upgradeOfferError = nil
+        stopPolling()
+        defer {
+            if upgradeOfferRequest == request { isHandlingUpgradeOffer = false }
+            if generation == sessionOperationGeneration, session?.sessionID == current.sessionID {
+                beginPolling(accessToken: accessToken)
+            }
+        }
+        func isCurrent() -> Bool {
+            request == upgradeOfferRequest && generation == sessionOperationGeneration
+                && session?.sessionID == current.sessionID && settingsScopeKey(accessToken: accessToken) == scope
+                && !Task.isCancelled
+        }
+        do {
+            let snapshot = try await api.declineUpgradeOffer(session: current, accessToken: accessToken)
+            guard isCurrent() else { return false }
+            _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            closeUpgradeOffer()
+            return true
+        } catch {
+            guard isCurrent() else { return false }
+            handleUpgradeOfferError(error)
+            return false
+        }
+    }
+
+    private func handleUpgradeOfferError(_ error: Error) {
+        if isUpgradeOfferNotFound(error) {
+            closeUpgradeOffer()
+        } else {
+            upgradeOfferError = String(localized: "제안을 처리하지 못했습니다. 다시 시도해 주세요.", table: "UpgradeOffer")
+        }
+    }
+
+    private func isUpgradeOfferNotFound(_ error: Error) -> Bool {
+        guard let apiError = error as? YouTubeAPIError, case let .api(code, _, _) = apiError else { return false }
+        return code == "upgrade_offer_not_found"
+    }
+
+    private func closeUpgradeOffer() {
+        dismissedUpgradeOffer = true
+        responseState.details.upgradeOffer = nil
+        upgradeOfferExpirationTask?.cancel()
+        upgradeOfferExpirationTask = nil
+        upgradeOfferRequest = UUID()
+        isHandlingUpgradeOffer = false
+        upgradeOfferError = nil
+        savedUpgradeProviders = []
+        confirmedUpgradeMode = nil
+    }
+
+    private func synchronizeUpgradeOffer() {
+        upgradeOfferExpirationTask?.cancel()
+        upgradeOfferExpirationTask = nil
+        guard !dismissedUpgradeOffer else { responseState.details.upgradeOffer = nil; return }
+        guard let offer = upgradeOffer else { return }
+        guard let expiration = offer.expirationDate, expiration > Date() else { closeUpgradeOffer(); return }
+        let generation = sessionOperationGeneration
+        let sessionID = session?.sessionID
+        upgradeOfferExpirationTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(expiration.timeIntervalSinceNow)) }
+            catch { return }
+            guard let self, !Task.isCancelled, generation == self.sessionOperationGeneration,
+                  sessionID == self.session?.sessionID, self.upgradeOffer?.expiresAt == offer.expiresAt else { return }
+            self.closeUpgradeOffer()
+        }
+    }
+
+    private func resetUpgradeOffer() {
+        closeUpgradeOffer()
+        dismissedUpgradeOffer = false
+    }
+
+    var canChangeBroadcastMode: Bool {
+        // 방송 중 방식 전환은 서버 egress를 교체하는 동작이라 앱 직접 송출 세션에는 쓸 수 없다.
+        session != nil && !isDirectPublishSession && !liveEditingTargets.isEmpty && !isChangingBroadcastMode
+            && !isSavingLiveSettings && !isChangingStreamState && !isEndingSession
+            && !isPreparingSession && !isConnectingVideo && !isRecoveringVideoFailure
+            && !isYouTubeConnectionOperationInProgress && !videoUplink.isSwitchingCamera && !isHandlingUpgradeOffer
+    }
+
+    @discardableResult
+    func saveBroadcastModeSettings(provider: BroadcastSettingsProvider, accessToken: String?) async -> Bool {
+        guard canChangeBroadcastMode, let current = session, let accessToken, !accessToken.isEmpty,
+              isSettingsAccountConnected(provider), !liveEditingTargets.contains(provider),
+              provider != .youtube || hasAcknowledgedYouTubeTransmission else { return false }
+        settingsEditor.select(provider)
+        settingsEditor.showValidation()
+        guard settingsEditor.validation.isEmpty else { return false }
+        settingsEditor.cancelDefaults(provider: provider)
+        let generation = sessionOperationGeneration
+        let editorGeneration = settingsEditor.contextGeneration
+        let scope = settingsScopeKey(accessToken: accessToken)
+        let request = UUID()
+        broadcastModeRequest = request
+        broadcastModeRequestInFlight = true
+        isChangingBroadcastMode = true
+        broadcastModeError = nil
+        stopPolling()
+        func isCurrent() -> Bool {
+            generation == sessionOperationGeneration && session?.sessionID == current.sessionID
+                && broadcastModeRequest == request && settingsEditor.contextGeneration == editorGeneration
+                && settingsScopeKey(accessToken: accessToken) == scope && !Task.isCancelled
+        }
+        defer {
+            if broadcastModeRequest == request {
+                broadcastModeRequestInFlight = false
+                reconcileBroadcastModeState()
+                if generation == sessionOperationGeneration, session?.sessionID == current.sessionID {
+                    beginPolling(accessToken: accessToken)
+                }
+            }
+        }
+        do {
+            let snapshot: YouTubeSessionResponse
+            if provider == .youtube {
+                snapshot = try await api.saveBroadcastSettings(session: current, accessToken: accessToken, settings: settingsEditor.youtube)
+            } else {
+                snapshot = try await api.saveCHZZKBroadcastSettings(session: current, accessToken: accessToken, settings: settingsEditor.chzzk)
+            }
+            guard isCurrent() else { return false }
+            _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation, provider: provider.rawValue)
+            settingsEditor.persist(provider: provider)
+            return true
+        } catch {
+            guard isCurrent() else { return false }
+            if let field = error as? BroadcastSettingsFieldError { settingsEditor.showFieldError(field) }
+            broadcastModeError = String(localized: "추가할 플랫폼의 방송 정보를 저장하지 못했습니다. 입력값을 확인한 뒤 다시 시도해 주세요.", table: "BroadcastMode")
+            return false
+        }
+    }
+
+    // 추가 대상은 UI에서 설정을 편집한 뒤 이 메서드를 호출한다. 저장 성공 후에만 전환한다.
+    @discardableResult
+    func changeBroadcastMode(resolution: String, targets: Set<BroadcastSettingsProvider>, accessToken: String?,
+                             upgradeOption: BroadcastUpgradeOption? = nil,
+                             savedAddedProviders: Set<BroadcastSettingsProvider> = []) async -> Bool {
+        guard canChangeBroadcastMode, let current = session, let accessToken, !accessToken.isEmpty,
+              ["720p", "fhd"].contains(resolution), !targets.isEmpty else { return false }
+        if let upgradeOption {
+            guard upgradeOffer?.isExpired() == false,
+                  upgradeOffer?.options?.contains(upgradeOption) == true else { return false }
+        }
+        if let snapshot = planStore.snapshot, !snapshot.canPrepare(.current(resolution: resolution, targetCount: targets.count)) {
+            broadcastModeError = String(localized: "현재 요금제와 남은 시간으로 선택한 송출 방식을 사용할 수 없습니다.", table: "BroadcastMode")
+            return false
+        }
+        let added = targets.subtracting(Set(liveEditingTargets)).sorted { $0.rawValue < $1.rawValue }
+        if added.contains(.youtube), !hasAcknowledgedYouTubeTransmission {
+            broadcastModeError = String(localized: "YouTube 전송 안내에 동의해 주세요.", table: "BroadcastMode")
+            return false
+        }
+        for provider in added {
+            guard isSettingsAccountConnected(provider) else {
+                broadcastModeError = String(localized: "추가할 플랫폼의 계정을 연결해 주세요.", table: "BroadcastMode")
+                return false
+            }
+            let validation = provider == .youtube ? settingsEditor.youtube.validation : settingsEditor.chzzk.validation
+            guard validation.isEmpty else {
+                settingsEditor.select(provider)
+                settingsEditor.showValidation()
+                broadcastModeError = String(localized: "추가할 플랫폼의 방송 정보를 입력해 주세요.", table: "BroadcastMode")
+                return false
+            }
+        }
+        let request = UUID()
+        let generation = sessionOperationGeneration
+        let editorGeneration = settingsEditor.contextGeneration
+        let scope = settingsScopeKey(accessToken: accessToken)
+        broadcastModeRequest = request
+        broadcastModeRequestInFlight = true
+        isChangingBroadcastMode = true
+        broadcastModeError = nil
+        broadcastModeFailures = []
+        stopPolling()
+        func isCurrent() -> Bool {
+            broadcastModeRequest == request && generation == sessionOperationGeneration
+                && session?.sessionID == current.sessionID && settingsEditor.contextGeneration == editorGeneration
+                && settingsScopeKey(accessToken: accessToken) == scope && !Task.isCancelled
+        }
+        defer {
+            if broadcastModeRequest == request {
+                broadcastModeRequestInFlight = false
+                reconcileBroadcastModeState()
+                if generation == sessionOperationGeneration, session?.sessionID == current.sessionID {
+                    beginPolling(accessToken: accessToken)
+                }
+            }
+        }
+        do {
+            for provider in added where !savedAddedProviders.contains(provider) {
+                settingsEditor.cancelDefaults(provider: provider)
+                let snapshot: YouTubeSessionResponse
+                if provider == .youtube {
+                    snapshot = try await api.saveBroadcastSettings(session: current, accessToken: accessToken, settings: settingsEditor.youtube)
+                } else {
+                    snapshot = try await api.saveCHZZKBroadcastSettings(session: current, accessToken: accessToken, settings: settingsEditor.chzzk)
+                }
+                guard isCurrent() else { return false }
+                _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation, provider: provider.rawValue)
+                settingsEditor.persist(provider: provider)
+            }
+            guard isCurrent() else { return false }
+            if let upgradeOption {
+                guard upgradeOffer?.isExpired() == false,
+                      upgradeOffer?.options?.contains(upgradeOption) == true else { return false }
+            }
+            let snapshot = try await api.changeBroadcastMode(session: current, accessToken: accessToken,
+                                                             resolution: resolution, targets: targets)
+            guard isCurrent() else {
+                if broadcastModeRequest == request, generation == sessionOperationGeneration,
+                   session?.sessionID == current.sessionID { broadcastModeAwaitingStatus = true }
+                return false
+            }
+            _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            if upgradeOption != nil { closeUpgradeOffer() }
+            return true
+        } catch {
+            guard isCurrent() else {
+                if broadcastModeRequest == request, generation == sessionOperationGeneration,
+                   session?.sessionID == current.sessionID { broadcastModeAwaitingStatus = true }
+                return false
+            }
+            if upgradeOption != nil, isUpgradeOfferNotFound(error) {
+                closeUpgradeOffer()
+                return false
+            }
+            if let field = error as? BroadcastSettingsFieldError { settingsEditor.showFieldError(field) }
+            broadcastModeError = String(localized: "송출 방식을 변경하지 못했습니다. 현재 방송 상태를 확인한 뒤 다시 시도해 주세요.", table: "BroadcastMode")
+            // 응답이 유실돼도 서버에서 전환을 시작했을 수 있다. 조회할 때까지 편집을 잠근다.
+            if let snapshot = try? await api.sessionStatus(session: current, accessToken: accessToken), isCurrent() {
+                _ = applySessionResponse(snapshot, sessionID: current.sessionID, generation: generation)
+            } else if isCurrent() {
+                broadcastModeAwaitingStatus = true
+            }
+            return false
+        }
+    }
+
+    private var broadcastModeAwaitingStatus = false
+
+    private func reconcileBroadcastModeState() {
+        let switching = responseState.details.resolutionSwitch?.status == "switching"
+        isChangingBroadcastMode = broadcastModeRequestInFlight || broadcastModeAwaitingStatus
+            || switching || broadcastModeQualityTask != nil
+        if let state = responseState.details.resolutionSwitch, state.status != "switching",
+           state != observedModeCompletion {
+            observedModeCompletion = state
+            broadcastModeFailures = state.failedTargets ?? []
+            if !broadcastModeFailures.isEmpty {
+                let providers = broadcastModeFailures.map { $0.provider == "youtube" ? "YouTube" : "CHZZK" }.joined(separator: ", ")
+                broadcastModeError = providers + String(localized: " 송출을 전환하지 못했습니다. 대상 상태를 확인해 주세요.", table: "BroadcastMode")
+            }
+            if state.status == "failed" || state.status == "canceled" {
+                broadcastModeError = String(localized: "송출 방식 전환을 완료하지 못했습니다. 현재 방송 상태를 확인해 주세요.", table: "BroadcastMode")
+            }
+        }
+    }
+
+    private func resetBroadcastMode() {
+        broadcastModeRequest = UUID()
+        broadcastModeRequestInFlight = false
+        broadcastModeAwaitingStatus = false
+        broadcastModeQualityRequest = UUID()
+        broadcastModeQualityTask?.cancel()
+        broadcastModeQualityTask = nil
+        observedModeCompletion = nil
+        isChangingBroadcastMode = false
+        broadcastModeError = nil
+        broadcastModeFailures = []
+    }
+
+    private func synchronizeBroadcastModeQuality() {
+        guard broadcastModeQualityTask == nil, let current = session,
+              let active = videoUplink.activeVideoQuality, let resolution = broadcastResolution,
+              ["720p", "fhd"].contains(resolution) else { return }
+        let quality: CameraQualityPreset = resolution == "fhd"
+            ? (active.framesPerSecond == 24 ? .fullHD24 : .fullHD30)
+            : (active.framesPerSecond == 24 ? .hd24 : .hd30)
+        guard active != quality else { return }
+        let generation = sessionOperationGeneration
+        let request = UUID()
+        broadcastModeQualityRequest = request
+        broadcastModeQualityTask = Task { [weak self] in
+            guard let self else { return }
+            defer {
+                if broadcastModeQualityRequest == request {
+                    broadcastModeQualityTask = nil
+                    reconcileBroadcastModeState()
+                }
+            }
+            do {
+                try await videoUplink.switchVideoQuality(to: quality)
+            } catch {
+                guard !Task.isCancelled, generation == sessionOperationGeneration,
+                      session?.sessionID == current.sessionID, broadcastModeQualityRequest == request else { return }
+                broadcastModeError = String(localized: "서버 해상도에 맞춰 카메라 화질을 변경하지 못했습니다. 카메라 상태를 확인해 주세요.", table: "BroadcastMode")
+            }
+        }
+        reconcileBroadcastModeState()
+    }
 
     let settingsEditor: BroadcastSettingsEditor
     @Published private(set) var streamingAccounts: [YouTubeStreamingAccountSummary] = []
@@ -83,6 +517,7 @@ final class YouTubeIntegration: ObservableObject {
     private var isEndingSession = false
     private var unsavedSessions: [String: StoredBroadcastSession] = [:]
     private let authorization = YouTubeAuthorization()
+    private let chzzkAuthorization: any CHZZKAuthorizing
     private let preferencesStore: YouTubePreferencesStore
     private let consentStore: ConsentAcknowledgementStore
     private let orientationLock: any BroadcastOrientationLocking
@@ -101,11 +536,18 @@ final class YouTubeIntegration: ObservableObject {
     private let maximumGoLiveAttempts = 15
     private var ownedOrientationLockGeneration: UInt?
     private var broadcastOperationGeneration: UInt = 0
-    private var didPauseYouTubeForBackground = false
+    private var backgroundPausedProviders: Set<String> = []
+    @Published private(set) var liveStartFailures: [BroadcastTargetFailure] = []
+    @Published private(set) var targetActionErrors: [String: String] = [:]
     private var shouldResumeAfterBackgroundPause = false
     private var hasObservedActiveScene = false
     private var backgroundPauseTask: Task<Void, Never>?
     private var backgroundPauseGeneration: UInt = 0
+    private let directPublisher: any DirectBroadcastPublishing
+    private let heartbeatInterval: Duration
+    private var heartbeatTask: Task<Void, Never>?
+    private var heartbeatGeneration: UInt = 0
+    private var heartbeatBuilder = DirectHeartbeatBuilder()
 
     convenience init() {
         self.init(preferencesStore: YouTubePreferencesStore())
@@ -114,6 +556,7 @@ final class YouTubeIntegration: ObservableObject {
     init(
         preferencesStore: YouTubePreferencesStore,
         api: YouTubeAPI? = nil,
+        chzzkAuthorization: (any CHZZKAuthorizing)? = nil,
         orientationLock: (any BroadcastOrientationLocking)? = nil,
         consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore(),
         sessionStore: (any BroadcastSessionStoring)? = nil,
@@ -122,13 +565,18 @@ final class YouTubeIntegration: ObservableObject {
         localModelsAvailable: @escaping () -> Bool = { AIProcessingMode.localModelsAvailable },
         persistAIProcessingMode: @escaping (AIProcessingMode) -> Void = {
             UserDefaults.standard.set($0.rawValue, forKey: AIProcessingMode.storageKey)
-        }
+        },
+        directPublisher: (any DirectBroadcastPublishing)? = nil,
+        heartbeatInterval: Duration = .seconds(15)
     ) {
+        self.directPublisher = directPublisher ?? DirectBroadcastPublisher()
+        self.heartbeatInterval = heartbeatInterval
         self.aiModeProvider = aiModeProvider
         self.localModelsAvailable = localModelsAvailable
         self.persistAIProcessingMode = persistAIProcessingMode
         let resolvedAPI = api ?? YouTubeAPI()
         self.api = resolvedAPI
+        self.chzzkAuthorization = chzzkAuthorization ?? CHZZKAuthorization()
         settingsEditor = BroadcastSettingsEditor(api: resolvedAPI, preferences: preferencesStore)
         liveSettingsEditor = BroadcastSettingsEditor(api: resolvedAPI, preferences: preferencesStore)
         self.sessionStore = sessionStore ?? BroadcastSessionStore()
@@ -141,6 +589,16 @@ final class YouTubeIntegration: ObservableObject {
         hasAcknowledgedYouTubeTransmission = consentStore.hasAcknowledgedYouTubeTransmission
         videoUplink.onConnectionInterrupted = { [weak self] in
             self?.reconnectVideoUsingExistingSession()
+        }
+        videoUplink.setDirectMediaSink(self.directPublisher.mediaSink)
+        self.directPublisher.onStateChange = { [weak self] in
+            guard let self else { return }
+            self.directPublishStates = self.directPublisher.states
+            self.isDirectMicrophoneUnavailable = self.directPublisher.isMicrophoneUnavailable
+            self.refreshDirectPublishOverlay()
+        }
+        self.directPublisher.onPermanentFailure = { [weak self] provider in
+            Task { @MainActor [weak self] in await self?.handleDirectPublishFailure(provider: provider) }
         }
     }
 
@@ -161,7 +619,8 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var isRemainingTimeStale = false
 
     var currentPlanMode: BroadcastPlanMode {
-        .current(resolution: broadcastResolution, targetCount: visibleBroadcastTargets.count)
+        .current(resolution: broadcastResolution, targetCount: visibleBroadcastTargets.isEmpty
+                 ? selectedBroadcastProviders.count : visibleBroadcastTargets.count)
     }
 
     func refreshPlan(accessToken: String?) async {
@@ -172,7 +631,9 @@ final class YouTubeIntegration: ObservableObject {
         planStore.reset()
         settingsEditor.reset()
         resetLiveEditing()
+        resetBroadcastMode()
         streamingAccounts = []
+        chzzkAccountMessage = nil
         sessionOperationGeneration &+= 1
         invalidateConnectionOperation()
         api.configureAuthentication(
@@ -202,7 +663,7 @@ final class YouTubeIntegration: ObservableObject {
     private var statePolicy: YouTubeBroadcastStatePolicy {
         YouTubeBroadcastStatePolicy(
             stream: stream,
-            isChangingStreamState: isChangingStreamState,
+            isChangingStreamState: isChangingStreamState || isChangingBroadcastMode,
             targets: responseState.details.targets
         )
     }
@@ -217,8 +678,8 @@ final class YouTubeIntegration: ObservableObject {
 
     func canEditLiveBroadcast(_ provider: BroadcastSettingsProvider) -> Bool {
         session != nil && liveEditingTargets.contains(provider) && !unavailableLiveProviders.contains(provider) && !isChangingStreamState
-            && responseState.details.resolutionSwitch?.status != "switching"
-            && !isEndingSession
+            && !isChangingBroadcastMode && responseState.details.resolutionSwitch?.status != "switching"
+            && !isEndingSession && !isHandlingUpgradeOffer
     }
 
     func beginLiveEditing(_ provider: BroadcastSettingsProvider, accessToken: String?) {
@@ -332,25 +793,132 @@ final class YouTubeIntegration: ObservableObject {
 
     var isYouTubeBroadcastPaused: Bool { statePolicy.isBroadcastPaused }
 
-    var canPauseYouTubeBroadcast: Bool { statePolicy.canPauseBroadcast }
+    var canPauseYouTubeBroadcast: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canPauseBroadcast }
 
-    var canResumeYouTubeBroadcast: Bool { statePolicy.canResumeBroadcast }
+    var canResumeYouTubeBroadcast: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canResumeBroadcast }
 
-    var canChangeYouTubePauseState: Bool { statePolicy.canChangePauseState }
+    var canChangeYouTubePauseState: Bool { !isChangingBroadcastMode && !isHandlingUpgradeOffer && statePolicy.canChangePauseState }
 
     var streamStatusText: String { statePolicy.streamStatusText }
 
     var isYouTubeConnectionOperationInProgress: Bool {
-        isConnecting || isRefreshingConnection || isDisconnecting
+        isConnecting || isRefreshingConnection || isDisconnecting || isConnectingCHZZK || isDisconnectingCHZZK
     }
 
     var isYouTubeAccountChangeBlocked: Bool {
-        isBroadcastSettingsLocked
+        isBroadcastSettingsLocked || isChangingBroadcastMode || isHandlingUpgradeOffer
             || isYouTubeConnectionOperationInProgress
     }
 
     var canDisconnectYouTubeAccount: Bool {
         connection != nil && !isYouTubeAccountChangeBlocked
+    }
+
+    var chzzkAccount: StreamingAccountSummary? {
+        streamingAccounts.first { $0.provider == "chzzk" }
+    }
+
+    var isCHZZKAccountChangeBlocked: Bool {
+        isChangingBroadcastMode || isHandlingUpgradeOffer || isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
+            || isEndingSession || preparationStatus?.isRunning == true
+            || preparationStatus?.phase == .cancelling
+            || StreamingAccountPolicy.isInUse("chzzk", snapshot: responseState)
+    }
+
+    var canDisconnectCHZZKAccount: Bool { chzzkAccount != nil && !isCHZZKAccountChangeBlocked }
+
+    func connectCHZZK(presenting viewController: UIViewController, accessToken: String?) async {
+        guard !isCHZZKAccountChangeBlocked else { return }
+        chzzkAccountMessage = nil
+        guard let accessToken, !accessToken.isEmpty else {
+            chzzkAccountMessage = YouTubeAPIError.unauthorized.userMessage
+            return
+        }
+        let generation = beginConnectionOperation()
+        isConnectingCHZZK = true
+        defer { if isCurrentConnectionOperation(generation) { isConnectingCHZZK = false } }
+        do {
+            let attempt = try CHZZKAuthorizationAttempt.random()
+            let configuration = try await api.chzzkConfiguration(state: attempt.state)
+            guard isCurrentConnectionOperation(generation) else { return }
+            let authorization = try await chzzkAuthorization.authorize(
+                configuration: configuration, attempt: attempt, presenting: viewController
+            )
+            guard isCurrentConnectionOperation(generation), !Task.isCancelled else { return }
+            _ = try attempt.remaining()
+            guard authorization.state == attempt.state else { throw CHZZKAuthorizationError.stateMismatch }
+            let response = try await api.connectCHZZK(authorization: authorization, accessToken: accessToken)
+            guard isCurrentConnectionOperation(generation) else { return }
+            streamingAccounts.removeAll { $0.provider == "chzzk" }
+            streamingAccounts.append(response.account)
+            // 서버 응답을 반영한 뒤 전체 목록을 다시 읽어 YouTube도 함께 동기화한다.
+            await synchronizeAccountsAfterCHZZKChange(accessToken: accessToken, generation: generation)
+        } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            chzzkAccountMessage = chzzkMessage(for: error)
+        }
+    }
+
+    func disconnectCHZZKAccount(accessToken: String?) async {
+        guard canDisconnectCHZZKAccount else { return }
+        chzzkAccountMessage = nil
+        guard let accessToken, !accessToken.isEmpty else {
+            chzzkAccountMessage = YouTubeAPIError.unauthorized.userMessage
+            return
+        }
+        let generation = beginConnectionOperation()
+        isDisconnectingCHZZK = true
+        defer { if isCurrentConnectionOperation(generation) { isDisconnectingCHZZK = false } }
+        do {
+            try await api.disconnectStreamingAccount(accessToken: accessToken, provider: "chzzk")
+            guard isCurrentConnectionOperation(generation) else { return }
+            streamingAccounts.removeAll { $0.provider == "chzzk" }
+            await synchronizeAccountsAfterCHZZKChange(accessToken: accessToken, generation: generation)
+        } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            chzzkAccountMessage = chzzkMessage(for: error)
+        }
+    }
+
+    private func synchronizeAccountsAfterCHZZKChange(accessToken: String, generation: UInt) async {
+        do {
+            let accounts = try await api.streamingAccounts(accessToken: accessToken)
+            guard isCurrentConnectionOperation(generation) else { return }
+            applyStreamingAccounts(accounts)
+        } catch {
+            guard isCurrentConnectionOperation(generation) else { return }
+            chzzkAccountMessage = chzzkMessage(for: error)
+        }
+    }
+
+    private func applyStreamingAccounts(_ accounts: [StreamingAccountSummary]) {
+        streamingAccounts = accounts
+        if let connection = accounts.first(where: { $0.provider == "youtube" })?.youtubeConnection {
+            self.connection = connection
+            persistConnection()
+        } else {
+            connection = nil
+            clearPersistedYouTubeConnection()
+        }
+    }
+
+    private func chzzkMessage(for error: Error) -> String {
+        if let error = error as? CHZZKAuthorizationError { return error.userMessage }
+        if let error = error as? YouTubeAPIError {
+            if error == .unauthorized { return error.userMessage }
+            if case let .api(code, _, _) = error {
+                switch code {
+                case "unauthorized": return YouTubeAPIError.unauthorized.userMessage
+                case "invalid_auth_code": return String(localized: "치지직 인가 코드가 만료되었거나 유효하지 않습니다. 다시 연결해 주세요.", table: "CHZZK")
+                case "streaming_account_in_use": return String(localized: "치지직 방송을 종료한 뒤 연결을 해제해 주세요.", table: "CHZZK")
+                case "chzzk_scope_missing": return String(localized: "치지직 연결에 필요한 권한을 모두 허용해 주세요.", table: "CHZZK")
+                case "chzzk_channel_missing": return String(localized: "이 치지직 계정에 채널이 없습니다. 채널을 먼저 만들어 주세요.", table: "CHZZK")
+                case "streaming_reconnect_required": return String(localized: "치지직 계정을 다시 연결해 주세요.", table: "CHZZK")
+                default: break
+                }
+            }
+        }
+        return String(localized: "치지직 계정 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.", table: "CHZZK")
     }
 
     func refreshAvailability() async {
@@ -365,7 +933,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func refreshConnection(accessToken: String?) async {
-        guard !isYouTubeAccountChangeBlocked,
+        guard !isYouTubeConnectionOperationInProgress,
               let accessToken,
               !accessToken.isEmpty else {
             return
@@ -383,15 +951,7 @@ final class YouTubeIntegration: ObservableObject {
             let accounts = try await api.streamingAccounts(accessToken: accessToken)
             guard isCurrentConnectionOperation(generation) else { return }
 
-            streamingAccounts = accounts
-            if let connection = accounts.first(where: { $0.provider == "youtube" })?.youtubeConnection {
-                self.connection = connection
-                persistConnection()
-            } else {
-                // An authenticated empty list is authoritative for this user.
-                connection = nil
-                clearPersistedYouTubeConnection()
-            }
+            applyStreamingAccounts(accounts)
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
             // Keep the last known connection when the refresh is unavailable.
@@ -452,6 +1012,7 @@ final class YouTubeIntegration: ObservableObject {
             try await api.disconnectStreamingAccount(accessToken: accessToken)
             guard isCurrentConnectionOperation(generation) else { return }
             connection = nil
+            streamingAccounts.removeAll { $0.provider == "youtube" }
             clearPersistedYouTubeConnection()
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
@@ -486,8 +1047,9 @@ final class YouTubeIntegration: ObservableObject {
                 let scope = try api.broadcastSessionScope(accessToken: accessToken)
                 try await removePreviousSession(scope: scope, accessToken: accessToken)
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                // Keep a server-capable session so either direction can switch in place.
-                var created = try await api.createSession(accessToken: accessToken, mode: .server)
+                // 온디바이스 선택은 앱 직접 송출 세션으로 만든다(server #438). 서버가 처리 방식을
+                // 받지 않으면 기존처럼 서버 세션에서 서버 AI를 끄고 중계 송출한다.
+                var created = try await api.createSession(accessToken: accessToken, mode: requestedMode)
                 let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
                 // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
                 do {
@@ -500,11 +1062,13 @@ final class YouTubeIntegration: ObservableObject {
                     throw error
                 }
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                guard created.aiProcessing == nil || created.aiProcessing == AIProcessingMode.server.rawValue else {
+                let createdOnDevice = created.aiProcessing == AIProcessingMode.onDevice.rawValue
+                guard created.aiProcessing == nil || created.aiProcessing == AIProcessingMode.server.rawValue
+                        || (createdOnDevice && requestedMode == .onDevice) else {
                     try? await removePreviousSession(scope: scope, accessToken: accessToken)
                     throw WebRTCVideoUplinkError.failed(String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다."))
                 }
-                if requestedMode == .onDevice {
+                if requestedMode == .onDevice && !createdOnDevice {
                     // Legacy servers expose a per-session AI switch. Verify it is off before
                     // starting capture; an echoed request metadata field alone is not an acknowledgement.
                     do {
@@ -602,7 +1166,8 @@ final class YouTubeIntegration: ObservableObject {
                 guard generation == sessionOperationGeneration else { return false }
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
-                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled),
+                    session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled,
+                                                      sendsMicrophoneToServer: !Self.isDirectPublish(session)),
                     accessToken: refreshedAccessToken,
                     serverURL: serverURL,
                     iceServers: iceServers,
@@ -681,6 +1246,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func switchVideoQuality(to quality: CameraQualityPreset) async -> Bool {
+        guard !hasStartedYouTubeBroadcast, !isChangingBroadcastMode else { return false }
         clearError()
         do {
             try await videoUplink.switchVideoQuality(to: quality)
@@ -693,7 +1259,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func changeAIProcessingMode(_ mode: AIProcessingMode, accessToken: String?) async -> Bool {
-        guard !isYouTubeBroadcastActive, !isChangingStreamState, !isPreparingSession,
+        guard !isYouTubeBroadcastActive, !isChangingBroadcastMode, !isChangingStreamState, !isPreparingSession,
               !isConnectingVideo, !isEndingSession, !isChangingAIProcessing,
               !isTogglingAnonymization else { return false }
         clearError()
@@ -706,6 +1272,12 @@ final class YouTubeIntegration: ObservableObject {
             return true
         }
         guard let accessToken, !accessToken.isEmpty else { showError(.unauthorized); return false }
+        if isDirectPublishSession {
+            guard mode != .onDevice else { return true }
+            // 서버는 온디바이스 세션의 처리 방식 변경을 거부한다. 새 세션이 필요하다.
+            errorMessage = String(localized: "앱 직접 송출 세션에서는 AI 처리 방식을 바꿀 수 없습니다. 방송 준비를 취소한 뒤 다시 선택해 주세요.", table: "DirectPublish")
+            return false
+        }
         guard current.aiProcessing == nil || current.aiProcessing == AIProcessingMode.server.rawValue else {
             errorMessage = String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다.")
             return false
@@ -755,6 +1327,7 @@ final class YouTubeIntegration: ObservableObject {
         if isYouTubeBroadcastActive {
             await stopYouTubeStream(accessToken: accessToken)
         }
+        await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -785,6 +1358,7 @@ final class YouTubeIntegration: ObservableObject {
         let failureMessage = videoUplink.errorMessage
             ?? String(localized: "카메라 영상 연결이 끊겼습니다. 비식별화를 다시 시작해 주세요.")
 
+        await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -861,8 +1435,8 @@ final class YouTubeIntegration: ObservableObject {
             showError(.sessionRequired)
             return false
         }
-        if let snapshot = planStore.snapshot, !snapshot.canPrepare(currentPlanMode) {
-            errorMessage = snapshot.isAllowed(currentPlanMode)
+        if let snapshot = planStore.snapshot, !snapshot.canPrepare(preparationPlanMode) {
+            errorMessage = snapshot.isAllowed(preparationPlanMode)
                 ? String(localized: "이번 달 방송 시간을 모두 사용했습니다.")
                 : String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
             return false
@@ -902,6 +1476,11 @@ final class YouTubeIntegration: ObservableObject {
             )
             guard !useEditor || settingsEditor.contextGeneration == editorGeneration else { return false }
             guard applySessionResponse(preparedSnapshot, sessionID: session.sessionID, generation: generation, provider: provider.rawValue, clearsWarnings: true) else { return false }
+            // YouTube는 라이브 전환 전에 영상이 도착해야 하므로 준비 응답의 주소로 바로 송출한다.
+            if isDirectPublishSession, !Self.receivesDirectIngestAtGoLive(provider.rawValue) {
+                guard await startDirectPublish(provider: provider.rawValue, endpoint: preparedSnapshot.ingestEndpoint,
+                                               session: session, accessToken: accessToken, generation: generation) else { return false }
+            }
             return true
         } catch {
             guard generation == sessionOperationGeneration, !useEditor || settingsEditor.contextGeneration == editorGeneration else { return false }
@@ -915,6 +1494,7 @@ final class YouTubeIntegration: ObservableObject {
     func startBroadcastPreparation(
         accessToken: String?,
         provider: BroadcastSettingsProvider = .youtube,
+        providers: [BroadcastSettingsProvider]? = nil,
         useEditor: Bool = true,
         permissions: BroadcastPreparationPermissions,
         preferredCameraID: String? = nil,
@@ -927,10 +1507,13 @@ final class YouTubeIntegration: ObservableObject {
         if let task = broadcastPreparationTask {
             return await task.value
         }
+        guard !isYouTubeConnectionOperationInProgress else { return false }
+        let chosen = providers ?? [provider]
+        let targets = preparationStatus?.isFailed == true && !lastPreparationProviders.isEmpty ? lastPreparationProviders : chosen
         let task = Task { @MainActor in
             await self.performBroadcastPreparation(
                 accessToken: accessToken,
-                provider: provider,
+                providers: targets,
                 useEditor: useEditor,
                 permissions: permissions,
                 preferredCameraID: preferredCameraID,
@@ -973,6 +1556,7 @@ final class YouTubeIntegration: ObservableObject {
         isConnectingVideo = false
         await stopPreparedTargetsIfNeeded(accessToken: accessToken)
         isChangingStreamState = false
+        await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         reconnectTask?.cancel()
         reconnectTask = nil
@@ -995,7 +1579,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private func performBroadcastPreparation(
         accessToken: String?,
-        provider: BroadcastSettingsProvider,
+        providers: [BroadcastSettingsProvider],
         useEditor: Bool,
         permissions: BroadcastPreparationPermissions,
         preferredCameraID: String?,
@@ -1007,16 +1591,23 @@ final class YouTubeIntegration: ObservableObject {
     ) async -> Bool {
         let generation = preparationGeneration
         guard preparationStatus?.phase != .cancelling else { return false }
-        lastPreparationProvider = provider
-        if preparationBlocker(provider: provider, accessToken: accessToken, useEditor: useEditor, permissions: permissions) != nil {
+        guard !providers.isEmpty else {
+            errorMessage = String(localized: "방송할 플랫폼을 하나 이상 선택해 주세요.", table: "Simulcast")
             return false
+        }
+        lastPreparationProviders = providers
+        lastPreparationProvider = providers.first
+        for provider in providers {
+            if preparationBlocker(provider: provider, accessToken: accessToken, useEditor: useEditor, permissions: permissions) != nil {
+                return false
+            }
         }
 
         let canReuseConnection = session != nil && isVideoConnected
         if !canReuseConnection {
             guard await createAndConnectForPreparation(
                 accessToken: accessToken,
-                provider: provider,
+                providers: providers,
                 useEditor: useEditor,
                 generation: generation,
                 preferredCameraID: preferredCameraID,
@@ -1029,7 +1620,7 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         guard preparationGeneration == generation else { return false }
-        let prepared = await saveAndPrepareTargets(accessToken: accessToken, provider: provider, useEditor: useEditor, generation: generation)
+        let prepared = await saveAndPrepareTargets(accessToken: accessToken, providers: providers, useEditor: useEditor, generation: generation)
         guard preparationGeneration == generation else { return false }
         if prepared {
             preparationStatus = nil
@@ -1075,8 +1666,8 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = message
             return message
         }
-        if let snapshot = planStore.snapshot, !snapshot.canPrepare(currentPlanMode) {
-            errorMessage = snapshot.isAllowed(currentPlanMode)
+        if let snapshot = planStore.snapshot, !snapshot.canPrepare(.current(resolution: broadcastResolution, targetCount: lastPreparationProviders.count)) {
+            errorMessage = snapshot.isAllowed(.current(resolution: broadcastResolution, targetCount: lastPreparationProviders.count))
                 ? String(localized: "이번 달 방송 시간을 모두 사용했습니다.")
                 : String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
             return errorMessage
@@ -1086,7 +1677,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private func createAndConnectForPreparation(
         accessToken: String?,
-        provider: BroadcastSettingsProvider,
+        providers: [BroadcastSettingsProvider],
         useEditor: Bool,
         generation: UInt,
         preferredCameraID: String?,
@@ -1104,15 +1695,19 @@ final class YouTubeIntegration: ObservableObject {
         }
         guard preparationGeneration == generation else { return false }
         if useEditor, let accessToken, let session {
-            await settingsEditor.loadDefaults(session: session, accessToken: accessToken, provider: provider)
-            guard preparationGeneration == generation else { return false }
-            settingsEditor.showValidation()
-            if let message = settingsEditor.validation.sorted(by: { $0.key < $1.key }).first?.value {
-                errorMessage = message
-                await discardUnconnectedSession(accessToken: accessToken)
+            for provider in providers {
+                await settingsEditor.loadDefaults(session: session, accessToken: accessToken, provider: provider)
                 guard preparationGeneration == generation else { return false }
-                failPreparation(.creatingSession)
-                return false
+                let validation = provider == .youtube ? settingsEditor.youtube.validation : settingsEditor.chzzk.validation
+                if let message = validation.sorted(by: { $0.key < $1.key }).first?.value {
+                    settingsEditor.select(provider)
+                    settingsEditor.showValidation()
+                    errorMessage = message
+                    await discardUnconnectedSession(accessToken: accessToken)
+                    guard preparationGeneration == generation else { return false }
+                    failPreparation(.creatingSession)
+                    return false
+                }
             }
         }
         guard preparationGeneration == generation else { return false }
@@ -1146,51 +1741,36 @@ final class YouTubeIntegration: ObservableObject {
 
     private func saveAndPrepareTargets(
         accessToken: String?,
-        provider: BroadcastSettingsProvider,
+        providers: [BroadcastSettingsProvider],
         useEditor: Bool,
         generation: UInt
     ) async -> Bool {
-        if responseState.details.failedTargets.isEmpty, isProviderPrepared(provider), preparationStatus?.isFailed != true, session != nil, isVideoConnected {
-            return true
-        }
-        let targets = providersToPrepare(preferred: provider)
-        if targets.isEmpty {
-            if isProviderPrepared(provider), responseState.details.failedTargets.isEmpty {
-                return true
-            }
-            failPreparation(.preparingStream)
-            return false
-        }
-        for target in targets {
+        for provider in providers {
             guard preparationGeneration == generation else { return false }
-            let saved = await prepareYouTubeStream(accessToken: accessToken, provider: target, useEditor: useEditor)
+            preparationFailures[provider] = nil
+            if isProviderPrepared(provider) { continue }
+            preparationStatus = BroadcastPreparationStatus(phase: .savingSettings)
+            let prepared = await prepareYouTubeStream(accessToken: accessToken, provider: provider, useEditor: useEditor)
             guard preparationGeneration == generation else { return false }
-            if !saved {
-                failPreparation(preparationStatus?.phase == .savingSettings ? .savingSettings : .preparingStream)
-                return false
+            if !prepared || !isProviderPrepared(provider) {
+                let phase: BroadcastPreparationPhase = preparationStatus?.phase == .savingSettings ? .savingSettings : .preparingStream
+                let message = provider.title + ": " + (errorMessage ?? phase.failureMessage)
+                preparationFailures[provider] = BroadcastPreparationStatus(phase: phase, failedPhase: phase, message: message)
             }
         }
         guard preparationGeneration == generation else { return false }
-        if !responseState.details.failedTargets.isEmpty || !isProviderPrepared(provider) {
-            if errorMessage == nil {
-                errorMessage = String(localized: "일부 플랫폼만 준비되었습니다. 다시 시도하면 남은 플랫폼만 준비합니다.")
-            }
-            failPreparation(.preparingStream)
+        let failures = providers.compactMap { preparationFailures[$0] }
+        if let first = failures.first {
+            errorMessage = failures.compactMap(\.message).joined(separator: "\n")
+            failPreparation(first.phase)
             return false
         }
-        return true
-    }
-
-    private func providersToPrepare(preferred: BroadcastSettingsProvider) -> [BroadcastSettingsProvider] {
-        let failed = responseState.details.failedTargets.compactMap { BroadcastSettingsProvider(rawValue: $0.provider) }
-            .filter(isSettingsAccountConnected)
-        if !failed.isEmpty { return failed }
-        if isProviderPrepared(preferred) { return [] }
-        return [preferred]
+        return providers.allSatisfy(isProviderPrepared)
     }
 
     private func isProviderPrepared(_ provider: BroadcastSettingsProvider) -> Bool {
         if let target = responseState.details.targets?.first(where: { $0.provider == provider.rawValue }) {
+            guard target.stream.statusValue != .stopped else { return false }
             switch target.stream.broadcastPhaseValue {
             case .prepared, .live, .goingLive: return true
             default: return false
@@ -1198,13 +1778,14 @@ final class YouTubeIntegration: ObservableObject {
         }
         guard responseState.details.targets == nil else { return false }
         switch statePolicy.broadcastPhase {
-        case .prepared, .live, .goingLive: return provider == .youtube || provider.rawValue == (responseState.details.provider ?? "youtube")
+        case .prepared, .live, .goingLive: return provider.rawValue == (responseState.details.provider ?? "youtube")
         default: return false
         }
     }
 
     private func discardUnconnectedSession(accessToken: String?) async {
         stopPolling()
+        await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         await deleteCurrentSession(accessToken: accessToken)
         session = nil
@@ -1240,6 +1821,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func goLiveYouTubeStream(accessToken: String?) async {
+        guard !isChangingBroadcastMode, !isHandlingUpgradeOffer else { return }
         clearError()
         guard !isChangingStreamState else { return }
         guard let accessToken, !accessToken.isEmpty else {
@@ -1250,7 +1832,8 @@ final class YouTubeIntegration: ObservableObject {
             showError(.sessionRequired)
             return
         }
-        guard statePolicy.broadcastPhase == .prepared else {
+        guard preparationStatus?.isFailed != true, !targetProviders(for: .goLive).isEmpty,
+              statePolicy.broadcastPhase == .prepared || hasStartedYouTubeBroadcast else {
             showError(.api(
                 code: "broadcast_not_prepared",
                 fallback: String(localized: "YouTube 방송을 먼저 준비해 주세요."),
@@ -1259,6 +1842,7 @@ final class YouTubeIntegration: ObservableObject {
             return
         }
 
+        let attemptedProviders = Set(targetProviders(for: .goLive).map(providerKey))
         let operationGeneration = beginBroadcastOperation()
         let sessionGeneration = sessionOperationGeneration
         let lockGeneration = lockBroadcastOrientationIfNeeded()
@@ -1276,59 +1860,69 @@ final class YouTubeIntegration: ObservableObject {
             )
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
             guard applySessionResponse(liveResponse, sessionID: session.sessionID, generation: sessionGeneration) else { return }
-            if isYouTubeBroadcastActive { liveStartedAt = liveStartedAt ?? Date() }
+            liveStartFailures.removeAll { attemptedProviders.contains($0.provider) }
+            liveStartFailures.append(contentsOf: liveResponse.details.failedTargets)
+            // 치지직은 연결하는 순간 공개 방송이 되므로 라이브 전환 응답의 주소로 이때 연결한다.
+            var directFailures: [String] = []
+            if isDirectPublishSession {
+                let failedProviders = Set(liveResponse.details.failedTargets.map(\.provider))
+                var endpoints: [String: DirectIngestEndpoint?] = [:]
+                for target in liveResponse.directIngest where endpoints[target.provider] == nil {
+                    endpoints[target.provider] = target.endpoint
+                }
+                // 라이브로 전환됐는데 주소가 없거나 쓸 수 없는 대상도 실패로 알린다. 이미 송출 중인 대상과
+                // 라이브 전환에 실패한 대상(failed_targets)은 연결하지 않는다.
+                let expected = attemptedProviders.filter { Self.receivesDirectIngestAtGoLive($0) }
+                let providers = Set(endpoints.keys).union(expected)
+                    .filter { directPublisher.states[$0] == nil && !failedProviders.contains($0) }
+                    .sorted()
+                for provider in providers {
+                    let started = await startDirectPublish(provider: provider, endpoint: endpoints[provider] ?? nil, session: session,
+                                                           accessToken: accessToken, generation: sessionGeneration)
+                    guard isCurrentBroadcastOperation(operationGeneration) else { return }
+                    if !started { directFailures.append(errorMessage ?? DirectPublishError.connectionFailed(provider: provider).localizedDescription) }
+                }
+            }
+            if !liveResponse.details.failedTargets.isEmpty {
+                errorMessage = liveResponse.details.failedTargets.map { failure in
+                    let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
+                    return title + ": " + String(localized: "라이브 시작에 실패했습니다. 다른 플랫폼의 방송은 유지됩니다.", table: "Simulcast")
+                }.joined(separator: "\n")
+            }
+            if !directFailures.isEmpty {
+                errorMessage = ([errorMessage].compactMap { $0 } + directFailures).joined(separator: "\n")
+            }
+            if hasStartedYouTubeBroadcast { liveStartedAt = liveStartedAt ?? Date() }
+            // 서버의 입력 없음 시계는 라이브 전환 시점부터 돈다. 전환 직후 첫 보고를 보낸다.
+            if isDirectPublishSession, hasStartedYouTubeBroadcast, !directPublisher.states.isEmpty {
+                beginDirectHeartbeat(accessToken: accessToken)
+            }
             beginPolling(accessToken: accessToken)
         } catch {
             guard isCurrentBroadcastOperation(operationGeneration) else { return }
             handle(error)
-            if let lockGeneration {
+            if !hasStartedYouTubeBroadcast, let lockGeneration {
                 releaseBroadcastOrientationLock(generation: lockGeneration)
             }
         }
     }
 
-    func stopYouTubeStream(accessToken: String?) async {
-        clearError()
-        guard !isChangingStreamState else { return }
-        guard let accessToken, !accessToken.isEmpty,
-              let session else {
-            return
-        }
-
-        let operationGeneration = beginBroadcastOperation()
-        let sessionGeneration = sessionOperationGeneration
-        isChangingStreamState = true
-        defer {
-            if isCurrentBroadcastOperation(operationGeneration) {
-                isChangingStreamState = false
-            }
-        }
-        do {
-            for provider in targetProviders(for: .stop) {
-                let stoppedResponse = try await api.streamAction(.stop, session: session, accessToken: accessToken, provider: provider)
-                guard isCurrentBroadcastOperation(operationGeneration) else { return }
-                let normalized = stoppedResponse.isFullSnapshot ? stoppedResponse : YouTubeSessionResponse(
-                    stream: stoppedResponse.stream.markedStoppedByUser(), media: stoppedResponse.media,
-                    details: stoppedResponse.details, isFullSnapshot: false, hasMedia: stoppedResponse.hasMedia
-                )
-                applySessionResponse(normalized, sessionID: session.sessionID, generation: sessionGeneration, provider: provider)
-            }
-            clearBackgroundYouTubePauseState()
-            if !isYouTubeBroadcastActive, let generation = ownedOrientationLockGeneration {
-                releaseBroadcastOrientationLock(generation: generation)
-            }
-        } catch {
-            guard isCurrentBroadcastOperation(operationGeneration) else { return }
-            handle(error)
-        }
+    func stopYouTubeStream(accessToken: String?, provider: BroadcastSettingsProvider? = nil) async {
+        await changeTargets(.stop, accessToken: accessToken, provider: provider)
     }
 
-    func pauseYouTubeStream(accessToken: String?) async {
-        await changePausedState(accessToken: accessToken, shouldPause: true)
+    func pauseYouTubeStream(accessToken: String?, provider: BroadcastSettingsProvider? = nil) async {
+        await changeTargets(.pause, accessToken: accessToken, provider: provider)
     }
 
-    func resumeYouTubeStream(accessToken: String?) async {
-        await changePausedState(accessToken: accessToken, shouldPause: false)
+    func resumeYouTubeStream(accessToken: String?, provider: BroadcastSettingsProvider? = nil) async {
+        await changeTargets(.resume, accessToken: accessToken, provider: provider)
+    }
+
+    func targetPolicy(_ provider: BroadcastSettingsProvider) -> YouTubeBroadcastStatePolicy {
+        let target = responseState.details.targets?.first { $0.provider == provider.rawValue }?.stream
+        let legacy = responseState.details.targets == nil && (responseState.details.provider ?? "youtube") == provider.rawValue
+        return YouTubeBroadcastStatePolicy(stream: target ?? (legacy ? stream : nil), isChangingStreamState: isChangingStreamState)
     }
 
     func handleAppMovedToBackground(accessToken: String?) async {
@@ -1357,13 +1951,18 @@ final class YouTubeIntegration: ObservableObject {
         shouldResumeAfterBackgroundPause = true
         if let backgroundPauseTask {
             await backgroundPauseTask.value
-            self.backgroundPauseTask = nil
+            if self.backgroundPauseTask == backgroundPauseTask { self.backgroundPauseTask = nil }
         }
-        guard shouldResumeAfterBackgroundPause, didPauseYouTubeForBackground else { return }
-        didPauseYouTubeForBackground = false
-        shouldResumeAfterBackgroundPause = false
-        guard canResumeYouTubeBroadcast else { return }
-        await resumeYouTubeStream(accessToken: accessToken)
+        await resumeBackgroundTargetsIfNeeded(accessToken: accessToken)
+    }
+
+    private func resumeBackgroundTargetsIfNeeded(accessToken: String?) async {
+        guard hasObservedActiveScene, shouldResumeAfterBackgroundPause, !backgroundPausedProviders.isEmpty,
+              !isChangingStreamState, backgroundPauseTask == nil else { return }
+        let providers = targetProviders(for: .resume).filter { backgroundPausedProviders.contains(providerKey($0)) }
+        guard !providers.isEmpty else { return }
+        await changeTargets(.resume, accessToken: accessToken, providers: providers)
+        if hasObservedActiveScene { shouldResumeAfterBackgroundPause = !backgroundPausedProviders.isEmpty }
     }
 
     func toggleAnonymization(accessToken: String?) async {
@@ -1408,18 +2007,30 @@ final class YouTubeIntegration: ObservableObject {
         planStore.reset()
         settingsEditor.reset()
         resetLiveEditing()
+        resetBroadcastMode()
+        resetUpgradeOffer()
         streamingAccounts = []
         preparationGeneration &+= 1
         preparationStatus = nil
+        selectedBroadcastProviders = [.youtube]
+        lastPreparationProvider = nil
+        lastPreparationProviders = []
+        preparationFailures = [:]
         sessionOperationGeneration &+= 1
         sessionScope = nil
         invalidateConnectionOperation()
+        chzzkAccountMessage = nil
         invalidateBroadcastOperation()
         clearBackgroundYouTubePauseState()
         stopPolling()
         reconnectTask?.cancel()
         reconnectTask = nil
         videoRecoveryStatus = nil
+        stopDirectHeartbeat()
+        for provider in directPublisher.states.keys {
+            Task { @MainActor [directPublisher] in await directPublisher.stop(provider: provider) }
+        }
+        videoUplink.setDirectPublishBitrateLimited(false)
         videoUplink.stop()
         videoConnectionConfiguration = nil
         connection = nil
@@ -1431,12 +2042,13 @@ final class YouTubeIntegration: ObservableObject {
         isAIProcessingUnconfirmed = false
         errorMessage = nil
         helpURL = nil
-        clearPersistedYouTubeConnection()
+        preferencesStore.removeConnection()
         forceReleaseBroadcastOrientationLock()
     }
 
     func resetForAccountDeletion() {
         reset()
+        clearPersistedYouTubeConnection()
         suppressBroadcastSettingsPersistence = true
         broadcastSettings = .defaultValue
         suppressBroadcastSettingsPersistence = false
@@ -1526,8 +2138,17 @@ final class YouTubeIntegration: ObservableObject {
         let confirmedLiveTrack = videoTrack?.readyStateValue == .live ? videoTrack : nil
         isRemainingTimeStale = false
         let previouslyLive = Set(liveEditingTargets)
+        let previousOffer = upgradeOffer
         responseState.apply(response, provider: provider, clearsWarnings: clearsWarnings)
+        responseState.applyDirectPublishStates(directPublisher.states)
+        stopDirectPublishForEndedTargets()
+        if previousOffer != nil && upgradeOffer == nil { closeUpgradeOffer() }
+        if previousOffer?.selected != upgradeOffer?.selected { savedUpgradeProviders = []; confirmedUpgradeMode = nil }
+        synchronizeUpgradeOffer()
         responseRevision &+= 1
+        broadcastModeAwaitingStatus = false
+        reconcileBroadcastModeState()
+        synchronizeBroadcastModeQuality()
         stream = responseState.stream
         unavailableLiveProviders.subtract(Set(liveEditingTargets).subtracting(previouslyLive))
         // 준비·저장 스냅샷은 트랙을 빠뜨릴 수 있다. 이미 확인한 라이브 입력은 유지한다.
@@ -1541,7 +2162,7 @@ final class YouTubeIntegration: ObservableObject {
         if session?.processingMode == .server, let enabled = responseState.media?.anonymizationEnabled {
             isAnonymizationEnabled = enabled
         }
-        if !isYouTubeBroadcastActive {
+        if !isYouTubeBroadcastActive && !isChangingBroadcastMode {
             liveStartedAt = nil
             if let generation = ownedOrientationLockGeneration {
                 releaseBroadcastOrientationLock(generation: generation)
@@ -1552,6 +2173,11 @@ final class YouTubeIntegration: ObservableObject {
 
     private func clearSessionResponseState() {
         resetLiveEditing()
+        resetBroadcastMode()
+        resetUpgradeOffer()
+        targetActionErrors = [:]
+        liveStartFailures = []
+        preparationFailures = [:]
         isRemainingTimeStale = false
         responseState = BroadcastSessionSnapshot()
         stream = nil
@@ -1560,6 +2186,9 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func targetProviders(for action: YouTubeAPI.StreamAction) -> [String?] {
+        if action == .stop, let switching = responseState.details.resolutionSwitch, switching.status == "switching" {
+            return switching.targets.filter { BroadcastSettingsProvider(rawValue: $0) != nil }.map { Optional($0) }
+        }
         guard let targets = responseState.details.targets else { return [nil] }
         return targets.filter { target in
             guard target.provider == "youtube" || target.provider == "chzzk" else { return false }
@@ -1602,6 +2231,7 @@ final class YouTubeIntegration: ObservableObject {
                         continue
                     }
                     self.applySessionResponse(snapshot, sessionID: session.sessionID, generation: sessionGeneration)
+                    await self.resumeBackgroundTargetsIfNeeded(accessToken: accessToken)
                 } catch {
                     guard !Task.isCancelled, self.pollingGeneration == generation else {
                         break
@@ -1697,7 +2327,8 @@ final class YouTubeIntegration: ObservableObject {
                         session: WebRTCSessionCredentials(
                             sessionID: session.sessionID,
                             ownerToken: session.ownerToken,
-                            processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled
+                            processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled,
+                            sendsMicrophoneToServer: !Self.isDirectPublish(session)
                         ),
                         accessToken: self.api.currentAccessToken(fallback: accessToken),
                         serverURL: serverURL,
@@ -1755,18 +2386,26 @@ final class YouTubeIntegration: ObservableObject {
               let session else { return }
 
         await withBackgroundTaskNamed("youtube-background-pause") {
-            do {
-                for provider in targetProviders(for: .pause) {
+            for provider in targetProviders(for: .pause) {
+                guard pauseGeneration == backgroundPauseGeneration,
+                      sessionGeneration == sessionOperationGeneration else { return }
+                if directPublisher.states[providerKey(provider)] != nil {
+                    directPublisher.setPaused(true, provider: providerKey(provider))
+                    backgroundPausedProviders.insert(providerKey(provider))
+                    continue
+                }
+                do {
                     let paused = try await api.streamAction(.pause, session: session, accessToken: accessToken, provider: provider)
                     guard pauseGeneration == backgroundPauseGeneration,
-                          sessionGeneration == sessionOperationGeneration else { return }
-                    applySessionResponse(paused, sessionID: session.sessionID, generation: sessionGeneration, provider: provider)
-                    didPauseYouTubeForBackground = true
+                          sessionGeneration == sessionOperationGeneration,
+                          applySessionResponse(paused, sessionID: session.sessionID, generation: sessionGeneration, provider: provider) else { return }
+                    backgroundPausedProviders.insert(providerKey(provider))
+                } catch {
+                    // 자동 중지 실패는 다른 대상의 중지를 막지 않으며 홈 오류 배너를 띄우지 않는다.
                 }
-                beginPolling(accessToken: accessToken)
-            } catch {
-                // 홈 이탈로 보낸 자동 일시 중지는 배너를 띄우지 않는다.
             }
+            guard pauseGeneration == backgroundPauseGeneration, sessionGeneration == sessionOperationGeneration else { return }
+            beginPolling(accessToken: accessToken)
         }
     }
 
@@ -1787,41 +2426,65 @@ final class YouTubeIntegration: ObservableObject {
 
     private func clearBackgroundYouTubePauseState() {
         backgroundPauseGeneration &+= 1
-        didPauseYouTubeForBackground = false
+        backgroundPausedProviders = []
         shouldResumeAfterBackgroundPause = false
         backgroundPauseTask = nil
     }
 
-    private func changePausedState(accessToken: String?, shouldPause: Bool) async {
-        clearError()
-        guard !isChangingStreamState else { return }
-        guard let accessToken, !accessToken.isEmpty else {
-            showError(.unauthorized)
-            return
-        }
-        guard let session, isYouTubeBroadcastActive else {
-            showError(.api(code: "stream_not_active", fallback: String(localized: "YouTube 송출 중이 아닙니다."), helpURL: nil))
-            return
-        }
-        guard shouldPause ? canPauseYouTubeBroadcast : canResumeYouTubeBroadcast else {
-            return
-        }
+    private func providerKey(_ provider: String?) -> String {
+        provider ?? responseState.details.provider ?? "youtube"
+    }
 
-        isChangingStreamState = true
+    private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, provider: BroadcastSettingsProvider?) async {
+        let providers = targetProviders(for: action).filter { provider == nil || providerKey($0) == provider?.rawValue }
+        await changeTargets(action, accessToken: accessToken, providers: providers)
+    }
+
+    private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, providers: [String?]) async {
+        guard !isChangingStreamState, (!isChangingBroadcastMode || action == .stop), (!isHandlingUpgradeOffer || action == .stop),
+              !broadcastModeRequestInFlight, backgroundPauseTask == nil else { return }
+        clearError()
+        guard let accessToken, !accessToken.isEmpty else { showError(.unauthorized); return }
+        guard let session, !providers.isEmpty else { return }
+        let operationGeneration = beginBroadcastOperation()
         let generation = sessionOperationGeneration
-        defer { if generation == sessionOperationGeneration { isChangingStreamState = false } }
-        do {
-            let action: YouTubeAPI.StreamAction = shouldPause ? .pause : .resume
-            for provider in targetProviders(for: action) {
-                let response = try await api.streamAction(action, session: session, accessToken: accessToken, provider: provider)
-                guard applySessionResponse(response, sessionID: session.sessionID, generation: generation, provider: provider) else { return }
+        isChangingStreamState = true
+        defer { if isCurrentBroadcastOperation(operationGeneration) { isChangingStreamState = false } }
+        for provider in providers {
+            let key = providerKey(provider)
+            targetActionErrors[key] = nil
+            // 서버는 온디바이스 세션의 일시 중지를 거부한다. 앱 송출을 일시 중지 안내 화면·무음으로 바꾼다.
+            if (action == .pause || action == .resume), directPublisher.states[key] != nil {
+                directPublisher.setPaused(action == .pause, provider: key)
+                backgroundPausedProviders.remove(key)
+                continue
             }
-            // 일시 중지와 재개는 RTMP egress만 전환한다. WebRTC 업링크와 세션은 유지한다.
-            beginPolling(accessToken: accessToken)
-        } catch {
-            guard generation == sessionOperationGeneration else { return }
-            handle(error)
+            // 공유 계약(direct-publish-v1) 순서대로 stop 요청 뒤 연결을 끊는다. 요청이 실패해도 끊는다.
+            // 치지직은 앱이 연결을 끊어야 방송이 끝난다.
+            let closesDirectPublish = action == .stop && directPublisher.states[key] != nil
+            do {
+                let response = try await api.streamAction(action, session: session, accessToken: accessToken, provider: provider)
+                if closesDirectPublish { await directPublisher.stop(provider: key) }
+                guard isCurrentBroadcastOperation(operationGeneration) else { return }
+                let normalized = action == .stop && !response.isFullSnapshot ? YouTubeSessionResponse(
+                    stream: response.stream.markedStoppedByUser(), media: response.media,
+                    details: response.details, isFullSnapshot: false, hasMedia: response.hasMedia
+                ) : response
+                guard applySessionResponse(normalized, sessionID: session.sessionID, generation: generation, provider: provider) else { return }
+                backgroundPausedProviders.remove(key)
+                if action == .stop { liveStartFailures.removeAll { $0.provider == key } }
+            } catch {
+                if closesDirectPublish { await directPublisher.stop(provider: key) }
+                guard generation == sessionOperationGeneration, isCurrentBroadcastOperation(operationGeneration) else { return }
+                handle(error)
+                let title = BroadcastSettingsProvider(rawValue: key)?.title ?? key
+                targetActionErrors[key] = title + ": " + (errorMessage ?? String(localized: "방송 제어를 완료하지 못했습니다.", table: "Simulcast"))
+            }
         }
+        let failures = providers.compactMap { targetActionErrors[providerKey($0)] }
+        if !failures.isEmpty { errorMessage = failures.joined(separator: "\n") }
+        // 대상 종료도 세션 DELETE와 구분한다. 다른 송출과 업링크·폴링을 유지한다.
+        beginPolling(accessToken: accessToken)
     }
 
     private func handleSettingsError(_ error: Error, provider: BroadcastSettingsProvider) {
@@ -1858,6 +2521,210 @@ final class YouTubeIntegration: ObservableObject {
 
     private func persistBroadcastSettings() {
         preferencesStore.saveBroadcastSettings(broadcastSettings)
+    }
+
+    // MARK: 앱 직접 송출 (#481)
+
+    /// 서버가 송출하지 않고 앱이 플랫폼으로 직접 보내는 세션이다(server #438).
+    var isDirectPublishSession: Bool { session.map(Self.isDirectPublish) ?? false }
+
+    static func isDirectPublish(_ session: YouTubeBroadcastSession) -> Bool {
+        session.aiProcessing == AIProcessingMode.onDevice.rawValue
+    }
+
+    /// 치지직은 RTMP 연결이 곧 공개 방송이라 서버가 라이브 전환 응답에서 주소를 준다. 나머지는 준비 응답에서 준다.
+    static func receivesDirectIngestAtGoLive(_ provider: String) -> Bool {
+        provider == BroadcastSettingsProvider.chzzk.rawValue
+    }
+
+    /// 주소가 없으면 송출을 시작하지 않고 실패로 처리한다. 영상 없이 남은 플랫폼 방송은 서버에서 정리한다.
+    private func startDirectPublish(provider: String, endpoint: DirectIngestEndpoint?, session: YouTubeBroadcastSession,
+                                    accessToken: String, generation: UInt) async -> Bool {
+        let quality = videoConnectionConfiguration?.preferredVideoQuality ?? .defaultValue
+        do {
+            guard let endpoint else { throw DirectPublishError.missingIngest(provider: provider) }
+            try await directPublisher.start(provider: provider, endpoint: endpoint, quality: quality)
+            guard generation == sessionOperationGeneration, self.session?.sessionID == session.sessionID else {
+                await directPublisher.stop(provider: provider)
+                return false
+            }
+            videoUplink.setDirectPublishBitrateLimited(true)
+            refreshDirectPublishOverlay()
+            return true
+        } catch {
+            guard generation == sessionOperationGeneration, self.session?.sessionID == session.sessionID else { return false }
+            errorMessage = (error as? LocalizedError)?.errorDescription
+                ?? DirectPublishError.connectionFailed(provider: provider).localizedDescription
+            // 영상 없이 남은 플랫폼 방송을 정리한다. 실패해도 위 오류를 유지한다.
+            if let response = try? await api.streamAction(.stop, session: session, accessToken: accessToken, provider: provider) {
+                let message = errorMessage
+                applySessionResponse(response, sessionID: session.sessionID, generation: generation, provider: provider)
+                errorMessage = message
+            }
+            return false
+        }
+    }
+
+    private func stopAllDirectPublish() async {
+        stopDirectHeartbeat()
+        await directPublisher.stopAll()
+        videoUplink.setDirectPublishBitrateLimited(false)
+    }
+
+    private func refreshDirectPublishOverlay() {
+        guard session != nil else { return }
+        responseState.applyDirectPublishStates(directPublisher.states)
+        stream = responseState.stream
+        if directPublisher.states.isEmpty { videoUplink.setDirectPublishBitrateLimited(false) }
+    }
+
+    /// 서버에서 방송이 끝난 대상(스튜디오 종료, 한도 종료 등)은 앱 송출도 닫는다.
+    private func stopDirectPublishForEndedTargets() {
+        guard let targets = responseState.details.targets else { return }
+        for provider in directPublisher.states.keys {
+            guard let target = targets.first(where: { $0.provider == provider }) else { continue }
+            if target.stream.broadcastPhaseValue == .idle {
+                Task { @MainActor [directPublisher] in await directPublisher.stop(provider: provider) }
+            }
+        }
+    }
+
+    private func handleDirectPublishFailure(provider: String) async {
+        let accessToken = api.currentAccessToken(fallback: videoUplink.accessToken ?? "")
+        guard let session, !accessToken.isEmpty else {
+            await directPublisher.stop(provider: provider)
+            return
+        }
+        let generation = sessionOperationGeneration
+        let title = BroadcastSettingsProvider(rawValue: provider)?.title ?? provider
+        let message = String(format: String(localized: "%@ 송출 연결이 끊겨 방송을 종료했습니다.", table: "DirectPublish"), title)
+        if let response = try? await api.streamAction(.stop, session: session, accessToken: accessToken, provider: provider) {
+            applySessionResponse(response, sessionID: session.sessionID, generation: generation, provider: provider)
+        }
+        await directPublisher.stop(provider: provider)
+        guard generation == sessionOperationGeneration else { return }
+        errorMessage = message
+        beginPolling(accessToken: accessToken)
+    }
+
+    // MARK: 직접 송출 하트비트 (server #434, #436)
+
+    var isSendingDirectHeartbeat: Bool { heartbeatTask != nil }
+
+    private func beginDirectHeartbeat(accessToken: String) {
+        guard heartbeatTask == nil, isDirectPublishSession else { return }
+        heartbeatGeneration &+= 1
+        let generation = heartbeatGeneration
+        let sessionGeneration = sessionOperationGeneration
+        let interval = heartbeatInterval
+        heartbeatBuilder.reset()
+        heartbeatTask = Task { [weak self] in
+            var isFirst = true
+            while !Task.isCancelled {
+                if !isFirst {
+                    do { try await Task.sleep(for: interval) } catch { return }
+                }
+                isFirst = false
+                guard let self, self.heartbeatGeneration == generation,
+                      self.sessionOperationGeneration == sessionGeneration else { return }
+                // 실패해도 방송은 유지하고 다음 주기에 다시 보낸다. 누락분은 재전송하지 않는다.
+                guard await self.sendDirectHeartbeat(generation: generation, sessionGeneration: sessionGeneration,
+                                                     fallbackAccessToken: accessToken) else {
+                    if self.heartbeatGeneration == generation { self.heartbeatTask = nil }
+                    return
+                }
+            }
+        }
+    }
+
+    private func stopDirectHeartbeat() {
+        heartbeatGeneration &+= 1
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+    }
+
+    /// 계속 보낼지 돌려준다. 라이브 대상이 없다는 409를 받으면 멈춘다.
+    private func sendDirectHeartbeat(generation: UInt, sessionGeneration: UInt, fallbackAccessToken: String) async -> Bool {
+        guard let session, isDirectPublishSession else { return false }
+        let accessToken = api.currentAccessToken(fallback: fallbackAccessToken)
+        guard !accessToken.isEmpty else { return true }
+        var status = await directPublisher.heartbeatStatus()
+        guard heartbeatGeneration == generation, sessionOperationGeneration == sessionGeneration else { return false }
+        // 서버에서 라이브인데 앱 연결이 없는 대상은 끊긴 상태로 보고한다.
+        let reported = Set(status.targets.map(\.provider))
+        for provider in liveEditingTargets.map(\.rawValue) where !reported.contains(provider) {
+            status.targets.append(.init(provider: provider, connected: false, sentBytes: nil, reconnects: 0))
+        }
+        guard !status.targets.isEmpty else { return false }
+        let request = heartbeatBuilder.makeRequest(
+            status: status,
+            anonymizationEnabled: isAnonymizationEnabled,
+            device: DirectHeartbeatDevice.current(),
+            model: DirectHeartbeatDevice.model,
+            now: Date()
+        )
+        do {
+            let response = try await api.sendHeartbeat(session: session, accessToken: accessToken, request: request)
+            guard heartbeatGeneration == generation, sessionOperationGeneration == sessionGeneration,
+                  self.session?.sessionID == session.sessionID else { return false }
+            await applyHeartbeatResponse(response, session: session, accessToken: accessToken)
+            return true
+        } catch let error as YouTubeAPIError {
+            if case let .api(code, _, _) = error, let code, Self.heartbeatTerminalCodes.contains(code) {
+                // 보고 작업은 곧 취소되므로 정리는 별도 작업에서 한다. 취소된 작업에서는 세션 조회가 실패한다.
+                Task { @MainActor [weak self] in
+                    await self?.endDirectPublishAfterHeartbeat(code: code, session: session, accessToken: accessToken,
+                                                               sessionGeneration: sessionGeneration)
+                }
+                return false
+            }
+            return true
+        } catch {
+            return true
+        }
+    }
+
+    /// 공유 계약(direct-publish-v1)에서 모든 연결을 끊어야 하는 하트비트 오류다.
+    /// 409 라이브 대상 없음, 403 소유권 상실, 404 세션 삭제. 401은 요청 계층이 인증을 갱신해 다시 보낸다.
+    nonisolated static let heartbeatTerminalCodes: Set<String> = ["heartbeat_not_applicable", "forbidden", "not_found"]
+
+    private func endDirectPublishAfterHeartbeat(code: String, session: YouTubeBroadcastSession, accessToken: String,
+                                                sessionGeneration: UInt) async {
+        guard sessionOperationGeneration == sessionGeneration, self.session?.sessionID == session.sessionID else { return }
+        let titles = directPublisher.states.keys.sorted().map { BroadcastSettingsProvider(rawValue: $0)?.title ?? $0 }
+        await stopAllDirectPublish()
+        guard sessionOperationGeneration == sessionGeneration else { return }
+        // 409는 세션이 남아 있어 서버 상태로 화면을 맞춘다. 403·404는 세션 조회도 실패하므로 기존 폴링이 정리한다.
+        if code == "heartbeat_not_applicable",
+           let status = try? await api.sessionStatus(session: session, accessToken: accessToken) {
+            applySessionResponse(status, sessionID: session.sessionID, generation: sessionGeneration)
+        }
+        guard sessionOperationGeneration == sessionGeneration, !titles.isEmpty else { return }
+        errorMessage = String(format: String(localized: "서버가 %@ 방송을 종료해 송출을 멈췄습니다.", table: "DirectPublish"),
+                              titles.joined(separator: ", "))
+    }
+
+    private func applyHeartbeatResponse(_ response: DirectHeartbeatResponse, session: YouTubeBroadcastSession,
+                                        accessToken: String) async {
+        let generation = sessionOperationGeneration
+        responseState.details.notices = response.notices
+        if response.remainingTime != .missing {
+            responseState.details.remainingTime = response.remainingTime
+            isRemainingTimeStale = false
+        }
+        guard !response.stopTargets.isEmpty else { return }
+        // 서버가 끝낸 대상(한도 도달, 입력 없음, 플랫폼에서 종료)은 즉시 끊는다.
+        // 치지직은 이 연결 종료가 방송 종료다.
+        for provider in response.stopTargets {
+            await directPublisher.stop(provider: provider)
+        }
+        let titles = response.stopTargets.map { BroadcastSettingsProvider(rawValue: $0)?.title ?? $0 }
+        if let status = try? await api.sessionStatus(session: session, accessToken: accessToken) {
+            applySessionResponse(status, sessionID: session.sessionID, generation: generation)
+        }
+        guard generation == sessionOperationGeneration else { return }
+        errorMessage = String(format: String(localized: "서버가 %@ 방송을 종료해 송출을 멈췄습니다.", table: "DirectPublish"),
+                              titles.joined(separator: ", "))
     }
 
     #if DEBUG
@@ -1954,6 +2821,9 @@ final class YouTubeIntegration: ObservableObject {
         isConnecting = false
         isRefreshingConnection = false
         isDisconnecting = false
+        isConnectingCHZZK = false
+        isDisconnectingCHZZK = false
+        chzzkAuthorization.cancel()
     }
 }
 

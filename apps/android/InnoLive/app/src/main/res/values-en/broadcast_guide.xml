@@ -1,0 +1,37 @@
+<resources>
+    <string name="tutorial_open_preparation_title">Start by preparing your broadcast</string>
+    <string name="tutorial_open_preparation_message">Tap this button to choose a platform and set your broadcast title.</string>
+    <string name="tutorial_choose_platform_title">Choose a platform</string>
+    <string name="tutorial_choose_platform_message">Tap the platform you want to broadcast on. You can switch later with Change platform in the broadcast settings.</string>
+    <string name="tutorial_connect_account_title">Connect your account</string>
+    <string name="tutorial_connect_account_message">Use the highlighted button to connect your account. You will move on to the next step when you come back.</string>
+    <string name="tutorial_start_preparation_title">Check the title and prepare</string>
+    <string name="tutorial_start_preparation_message">Fill in your broadcast title and any required fields, then tap Prepare broadcast below. Preparing alone does not make the broadcast visible to viewers.</string>
+    <string name="tutorial_wait_preparation_title">Preparing your broadcast</string>
+    <string name="tutorial_wait_preparation_message">Please wait while we connect to the server. We will show you the next step when it is ready.</string>
+    <string name="tutorial_retry_preparation_title">Preparation did not finish</string>
+    <string name="tutorial_retry_preparation_message">Check the message, then tap Prepare broadcast again.</string>
+    <string name="tutorial_go_live_title">You are ready to broadcast</string>
+    <string name="tutorial_go_live_message">Tap this button and choose Start broadcast to make your broadcast visible to viewers. Tap it when you are ready.</string>
+    <string name="tutorial_live_status_title">Check your broadcast status here</string>
+    <string name="tutorial_live_status_message">See each platform\'s streaming status and your upload quality. We will let you know here if something goes wrong.</string>
+    <string name="tutorial_progress_description">Step %1$d of %2$d</string>
+    <string name="tutorial_skip">Skip</string>
+    <string name="tutorial_skip_hint">Skip. You can view the guide again in Settings.</string>
+    <string name="tutorial_got_it">Got it</string>
+    <string name="tutorial_replay">View broadcast preparation guide again</string>
+    <string name="live_status_target_stopped">Ended</string>
+    <string name="live_status_target_preparing">Preparing</string>
+    <string name="live_status_target_prepared">Ready to start</string>
+    <string name="live_status_target_going_live">Starting</string>
+    <string name="live_status_target_streaming">Streaming</string>
+    <string name="live_status_target_reconfiguring">Changing quality</string>
+    <string name="live_status_target_reconnecting">Reconnecting</string>
+    <string name="live_status_target_paused">Paused</string>
+    <string name="live_status_target_checking">Checking</string>
+    <string name="live_status_broadcast_resolution">Broadcast quality %1$s</string>
+    <string name="live_status_uplink">Upload %1$s</string>
+    <string name="live_status_uplink_measuring">Checking upload</string>
+    <string name="live_status_warning_network">Your internet is slow, so quality was lowered for now. Wi-Fi is more stable.</string>
+    <string name="live_status_warning_device">Your device is busy, so quality was lowered for now. Closing other apps may help.</string>
+</resources>

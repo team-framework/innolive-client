@@ -80,7 +80,9 @@ Compose `ps web`이 비어 있고 `{project}-web-1` 이름의 수동 컨테이�
 rollback용 tag로 저장한 뒤 다음 두 동작만 수행한다.
 
 release override는 기존 web 서비스의 DB `env_file`, `depends_on`, 내부
-네트워크를 제거한다. Caddy가 사용하는 `monitoring_default`의 `innolive-web`
+네트워크를 제거한다. `/etc/innolive/web-quality.env`가 있으면 품질 수집용 runtime
+`env_file`만 별도로 주입한다. 파일은 root 소유·0600·symlink 아님을 검사하며,
+수집 키를 build ARG 또는 배포 출력에 넣지 않는다. Caddy가 사용하는 `monitoring_default`의 `innolive-web`
 alias와 `127.0.0.1:3010` 포트는 유지한다.
 
 ```text
@@ -105,3 +107,12 @@ root 전용 파일에 보관하고 Actions 출력에는 단계와 SHA만 표시�
 원하는 이전 release의 `docker-compose.web-release.yml`을 세 운영 Compose
 파일과 함께 지정하고 `web` service만 실행한다. DB와 proxy service를
 명령에 포함하지 않는다.
+
+## 체험 품질 DB 수집 runtime
+
+웹 이미지 build ARG에는 수집 키를 넣지 않는다. 호스트의 root 소유·0600 파일
+`/etc/innolive/web-quality.env`에 `EXPERIENCE_QUALITY_SERVER_URL`과
+`EXPERIENCE_QUALITY_INGEST_KEY`를 설정한다. 키는 서버 runtime과 같은 랜덤 32자 이상 값이다.
+수정된 deploy-innolive-web.sh 수신 스크립트를 설치한 뒤 배포해야 이 파일이 주입된다.
+서버 수집 API와 migration을 먼저 배포한다. 파일이 없으면 웹 수집 API는 503을 반환하고
+체험은 계속 동작한다. 키를 파일 본문·Compose config 출력·Actions 로그에 표시하지 않는다.

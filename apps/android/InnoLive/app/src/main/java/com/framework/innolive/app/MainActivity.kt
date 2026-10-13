@@ -25,6 +25,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.framework.innolive.R
+import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.AudioInputDevice
 import com.framework.innolive.feature.live.BroadcastVideoQualitySettings
 import com.framework.innolive.feature.live.BroadcastVideoQualityPreferences
@@ -56,13 +58,21 @@ import com.framework.innolive.feature.live.LiveScreen
 import com.framework.innolive.feature.live.LiveScreenProps
 import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
+import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
 import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialViewModel
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
+import com.framework.innolive.feature.settings.PlanUsage
+import com.framework.innolive.feature.settings.PlanMode
+import com.framework.innolive.feature.settings.rememberPlanChargeMillis
+import com.framework.innolive.feature.live.sessionRecoveryScope
+import com.framework.innolive.feature.youtube.YouTubeApiException
 import com.framework.innolive.feature.settings.broadcast.BroadcastSetting
 import com.framework.innolive.feature.settings.broadcast.BroadcastSettingProps
 import com.framework.innolive.feature.settings.camera.CameraSetting
@@ -76,6 +86,7 @@ import com.framework.innolive.feature.youtube.YouTubeAccountVerificationState
 import com.framework.innolive.feature.youtube.YouTubePreferencesStore
 import com.framework.innolive.feature.youtube.acceptServerVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.cancelYouTubeAuthorization
+import com.framework.innolive.feature.youtube.canChangeYouTubeAccount
 import com.framework.innolive.feature.youtube.defaultYouTubeBroadcastTitle
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.rememberYouTubeVerificationMemory
@@ -93,6 +104,9 @@ import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.Serializable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 
 sealed interface AppRoute : Serializable
 data object LoginRoute : AppRoute
@@ -159,6 +173,7 @@ class MainActivity : ComponentActivity() {
         val webRtcSession = ViewModelProvider(this)[WebRtcSessionViewModel::class.java]
         val authenticationSession =
             ViewModelProvider(this)[AuthenticationSessionViewModel::class.java]
+        val broadcastTutorial = ViewModelProvider(this)[BroadcastTutorialViewModel::class.java].coordinator
         setContent {
             LaunchedEffect(webRtcSession.lockedScreenOrientation) {
                 val lockedOrientation = webRtcSession.lockedScreenOrientation
@@ -176,6 +191,7 @@ class MainActivity : ComponentActivity() {
                     AppNavigation(
                         webRtcSession = webRtcSession,
                         authenticationSession = authenticationSession,
+                        broadcastTutorial = broadcastTutorial,
                         modifier = Modifier
                             .padding(innerPadding)
                             .consumeWindowInsets(innerPadding)
@@ -191,6 +207,7 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     webRtcSession: WebRtcSessionViewModel,
     authenticationSession: AuthenticationSessionViewModel,
+    broadcastTutorial: BroadcastTutorialCoordinator,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -331,35 +348,87 @@ fun AppNavigation(
         operation: Long,
         exception: Throwable? = null,
         stage: String = "connection_completion",
+        suppressAccountRefresh: Boolean = true,
     ) {
         if (!isCurrentYouTubeOperation(operation)) return
         Log.w("InnoLiveYouTube", "failure_stage=$stage ${youtubeFailureDiagnostic(exception)}")
         youtubeAuthorizationOperation = null
         isYouTubeAuthorizationLaunched = false
-        suppressYouTubeAccountRefreshOnce = true
+        suppressYouTubeAccountRefreshOnce = suppressAccountRefresh
         isYouTubeAccountActionInProgress = false
         youtubeAccountStatusBeforeAuthorization = null
         youtubeAccountStatus = youtubeConnectionFailureMessage(exception)
         youtubeAccountGuidance = youtubeFailureGuidance(exception)
     }
 
+    fun canChangeYouTubeAccountNow(): Boolean = canChangeYouTubeAccount(
+        hasSignedInUser = session != null,
+        broadcastState = webRtcSession.broadcastState,
+        isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
+        isDeletingAccount = isDeletingAccount,
+        isAccountDeletionPending = isAccountDeletionPending,
+    )
+
+    fun cancelYouTubeAccountChange(operation: Long) {
+        if (!isCurrentYouTubeOperation(operation)) return
+        youtubeOperationGeneration.invalidate()
+        youtubeAuthorizationOperation = null
+        isYouTubeAuthorizationLaunched = false
+        val cancellationState = cancelYouTubeAuthorization(
+            accountStatusBeforeAuthorization =
+                youtubeAccountStatusBeforeAuthorization ?: youtubeAccountStatus,
+            verificationState = youtubeAccountVerificationState,
+        )
+        youtubeAccountStatus = cancellationState.accountStatus
+        youtubeAccountVerificationState = cancellationState.verificationState
+        suppressYouTubeAccountRefreshOnce = !cancellationState.shouldRefreshAccount
+        isYouTubeAccountActionInProgress = cancellationState.isActionInProgress
+        youtubeAccountStatusBeforeAuthorization = null
+    }
+
     fun completeYouTubeConnection(operation: Long, serverAuthCode: String) {
         if (!isCurrentYouTubeOperation(operation) || !isYouTubeAccountActionInProgress) return
+        if (!canChangeYouTubeAccountNow()) {
+            cancelYouTubeAccountChange(operation)
+            return
+        }
         youtubeAuthorizationOperation = null
         isYouTubeAuthorizationLaunched = false
         coroutineScope.launch {
             try {
-                val account = youtubeCoordinator.connect(serverAuthCode, ::refreshCurrentAccessToken)
-                if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
+                suspend fun refreshConnectionAccessToken(): String {
+                    val accessToken = refreshCurrentAccessToken()
+                    if (!isCurrentYouTubeOperation(operation)) {
+                        throw CancellationException("YouTube account operation is no longer current.")
+                    }
+                    if (!canChangeYouTubeAccountNow()) {
+                        cancelYouTubeAccountChange(operation)
+                        throw CancellationException("YouTube account change is no longer allowed.")
+                    }
+                    return accessToken
+                }
+                val accessToken = refreshConnectionAccessToken()
+                youtubeVerification.connectAccount {
+                    val account = youtubeCoordinator.connect(
+                        serverAuthCode = serverAuthCode,
+                        accessToken = accessToken,
+                        refreshAccessToken = ::refreshConnectionAccessToken,
+                    )
+                    if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
+                }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Exception) {
-                showYouTubeAccountFailure(operation, exception)
+                showYouTubeAccountFailure(
+                    operation,
+                    exception,
+                    suppressAccountRefresh =
+                        youtubeAccountVerificationState == YouTubeAccountVerificationState.VERIFIED,
+                )
             } finally {
                 if (isCurrentYouTubeOperation(operation)) {
                     youtubeAuthorizationOperation = null
                     isYouTubeAuthorizationLaunched = false
-                    suppressYouTubeAccountRefreshOnce = true
                     isYouTubeAccountActionInProgress = false
                     youtubeAccountStatusBeforeAuthorization = null
                 }
@@ -382,17 +451,7 @@ fun AppNavigation(
                     }
                     .onFailure { exception -> showYouTubeAccountFailure(operation, exception, "google_result") }
             } else {
-                isYouTubeAuthorizationLaunched = false
-                val cancellationState = cancelYouTubeAuthorization(
-                    accountStatusBeforeAuthorization =
-                        youtubeAccountStatusBeforeAuthorization ?: youtubeAccountStatus,
-                    verificationState = youtubeAccountVerificationState,
-                )
-                youtubeAccountStatus = cancellationState.accountStatus
-                youtubeAccountVerificationState = cancellationState.verificationState
-                suppressYouTubeAccountRefreshOnce = !cancellationState.shouldRefreshAccount
-                isYouTubeAccountActionInProgress = cancellationState.isActionInProgress
-                youtubeAccountStatusBeforeAuthorization = null
+                cancelYouTubeAccountChange(operation)
             }
         }
     }
@@ -427,6 +486,54 @@ fun AppNavigation(
                 else -> LiveRoute
             },
         )
+    }
+    val planAccount = session?.let {
+        runCatching { sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, it.accessToken).storageKey }
+            .getOrNull()
+    }
+    var planUsage by remember(planAccount) { mutableStateOf<PlanUsage?>(null) }
+    var planError by remember(planAccount) { mutableStateOf<UiText?>(null) }
+    var isPlanLoading by remember(planAccount) { mutableStateOf(false) }
+    var planRefresh by remember(planAccount) { mutableIntStateOf(0) }
+    var planUsageChargeMillis by remember(planAccount) { mutableLongStateOf(0L) }
+    val isBroadcastActive = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null
+    val planMode = PlanMode.current(webRtcSession.sessionSnapshot?.broadcastResolution,
+        webRtcSession.sessionSnapshot?.visibleTargets?.size ?: 1)
+    val planChargeMillis = rememberPlanChargeMillis(
+        account = planAccount,
+        charging = isBroadcastActive && webRtcSession.broadcastState == BroadcastState.LIVE,
+        multiplier = planUsage?.availability(planMode)?.multiplier ?: 0L,
+    )
+    val currentPlanChargeMillis by rememberUpdatedState(planChargeMillis)
+    val displayedPlanUsage = planUsage?.afterChargedSeconds(
+        (planChargeMillis - planUsageChargeMillis).coerceAtLeast(0L) / 1_000L)
+    LaunchedEffect(planAccount, backStack.lastOrNull(), planRefresh, isBroadcastActive) {
+        if (planAccount == null || backStack.lastOrNull() !in setOf(LiveRoute, SettingsRoute)) return@LaunchedEffect
+        if (backStack.lastOrNull() == LiveRoute && isBroadcastActive) return@LaunchedEffect
+        do {
+            isPlanLoading = true
+            planError = null
+            try {
+                val token = checkNotNull(authenticationSession.session.value).accessToken
+                val snapshot = youtubeCoordinator.loadPlanUsage(token, ::refreshCurrentAccessToken)
+                coroutineContext.ensureActive()
+                planUsage = snapshot
+                planUsageChargeMillis = currentPlanChargeMillis
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                coroutineContext.ensureActive()
+                planError = UiText.Resource(R.string.plan_load_failed)
+                if ((exception as? YouTubeApiException)?.statusCode == 401) {
+                    webRtcSession.close()
+                    authenticationSession.clear()
+                }
+            } finally {
+                isPlanLoading = false
+            }
+            if (backStack.lastOrNull() != SettingsRoute || !isBroadcastActive) break
+            delay(15_000L)
+        } while (true)
     }
     LaunchedEffect(
         backStack.lastOrNull(),
@@ -642,10 +749,9 @@ fun AppNavigation(
 
     val connectYouTube: () -> Unit = connectYouTube@{
         if (
-            isDeletingAccount ||
+            !canChangeYouTubeAccountNow() ||
             isYouTubeAccountActionInProgress ||
-            youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING ||
-            session == null
+            youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING
         ) {
             return@connectYouTube
         }
@@ -664,6 +770,10 @@ fun AppNavigation(
                         if (isCurrentYouTubeOperation(operation) &&
                             isYouTubeAccountActionInProgress
                         ) {
+                            if (!canChangeYouTubeAccountNow()) {
+                                cancelYouTubeAccountChange(operation)
+                                return@beginAuthorization
+                            }
                             youtubeAuthorizationOperation = operation
                             isYouTubeAuthorizationLaunched = true
                             try {
@@ -681,6 +791,10 @@ fun AppNavigation(
                         if (isCurrentYouTubeOperation(operation) &&
                             isYouTubeAccountActionInProgress
                         ) {
+                            if (!canChangeYouTubeAccountNow()) {
+                                cancelYouTubeAccountChange(operation)
+                                return@beginAuthorization
+                            }
                             youtubeAuthorizationOperation = null
                             isYouTubeAuthorizationLaunched = false
                             completeYouTubeConnection(operation, serverAuthCode)
@@ -726,6 +840,7 @@ fun AppNavigation(
     )
     val isYouTubeAccountOperationInProgress = isYouTubeAccountActionInProgress ||
         youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING
+    val isYouTubeAccountChangeEnabled = canChangeYouTubeAccountNow()
     val liveScreenProps = rememberUpdatedState(
         LiveScreenProps(
             cameraLensFacing = selectedCameraLensFacing,
@@ -753,7 +868,7 @@ fun AppNavigation(
             youtubeAccountStatus = youtubeAccountStatus.asString(),
             isYouTubeReconnectRequired = visibleYouTubeAccount?.reconnectRequired == true,
             isYouTubeAccountActionInProgress = isYouTubeAccountOperationInProgress,
-            isYouTubeConnectEnabled = session != null,
+            isYouTubeConnectEnabled = isYouTubeAccountChangeEnabled,
             onConnectYouTube = connectYouTube,
             onRefreshAccessToken = ::refreshCurrentAccessToken,
             onAuthenticationExpired = {
@@ -762,6 +877,7 @@ fun AppNavigation(
             },
             onGetAccessToken = { authenticationSession.session.value?.accessToken },
             profileEmail = session?.profileEmail.orEmpty(),
+            planUsage = displayedPlanUsage,
             onOpenSettings = {
                 backStack.add(SettingsRoute)
             },
@@ -805,6 +921,7 @@ fun AppNavigation(
                         LiveScreen(
                             webRtcSession = webRtcSession,
                             props = liveScreenProps.value,
+                            tutorial = broadcastTutorial,
                         )
                     }
                 }
@@ -822,6 +939,10 @@ fun AppNavigation(
                                 },
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
+                                planUsage = displayedPlanUsage,
+                                planError = planError,
+                                isPlanLoading = isPlanLoading,
+                                onRefreshPlan = { planRefresh++ },
                                 onLogout = {
                                     if (
                                         !isDeletingAccount &&
@@ -856,6 +977,13 @@ fun AppNavigation(
                                 canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
                                 onSelectAIProcessing = { onDevice ->
                                     webRtcSession.selectAIProcessing(context, onDevice)
+                                },
+                                canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
+                                    webRtcSession.broadcastState == BroadcastState.IDLE &&
+                                    !webRtcSession.isPreparingBroadcast,
+                                onReplayBroadcastGuide = {
+                                    broadcastTutorial.restart()
+                                    onBack()
                                 },
                             ),
                         )
@@ -899,25 +1027,18 @@ fun AppNavigation(
 
                 BroadcastSettingRoute -> {
                     NavEntry(route) {
-                        val saveDisabledReasonRes = when {
-                            webRtcSession.connectionState != WebRtcConnectionState.CONNECTED ->
-                                R.string.broadcast_settings_connection_required
-                            broadcastAudience == "unset" -> R.string.validation_audience
-                            webRtcSession.broadcastState == BroadcastState.SAVING_SETTINGS ->
-                                R.string.broadcast_settings_saving
-                            webRtcSession.broadcastState in setOf(
-                                BroadcastState.PREPARING,
-                                BroadcastState.PREPARED,
-                                BroadcastState.GOING_LIVE,
-                                BroadcastState.LIVE,
-                                BroadcastState.STOPPING,
-                            ) -> R.string.broadcast_settings_save_unavailable
-                            else -> null
-                        }
+                        val saveDisabledReasonRes = broadcastSettingsSaveDisabledReason(
+                            provider = webRtcSession.selectedProvider,
+                            connectionState = webRtcSession.connectionState,
+                            broadcastState = webRtcSession.broadcastState,
+                            audienceSelected = broadcastAudience != "unset",
+                        )
                         val connectDisabledReasonRes = when {
                             session == null -> R.string.youtube_status_sign_in_required
                             isYouTubeAccountOperationInProgress ->
                                 R.string.youtube_account_action_in_progress
+                            !isYouTubeAccountChangeEnabled ->
+                                R.string.youtube_account_change_unavailable
                             else -> null
                         }
                         BroadcastSetting(
@@ -974,7 +1095,7 @@ fun AppNavigation(
                                     visibleYouTubeAccount?.reconnectRequired == true,
                                 isYouTubeAccountActionInProgress =
                                     isYouTubeAccountOperationInProgress,
-                                isYouTubeConnectEnabled = session != null,
+                                isYouTubeConnectEnabled = isYouTubeAccountChangeEnabled,
                                 connectDisabledReasonRes = connectDisabledReasonRes,
                                 onConnectYouTube = connectYouTube,
                                 onSave = {

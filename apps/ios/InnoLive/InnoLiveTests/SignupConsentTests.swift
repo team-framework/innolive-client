@@ -1,9 +1,29 @@
+import Foundation
 import XCTest
 
 @testable import InnoLive
 
 @MainActor
 final class SignupConsentTests: XCTestCase {
+    private var suiteName: String!
+    private var userDefaults: UserDefaults!
+    private var consentStore: ConsentAcknowledgementStore!
+
+    override func setUp() {
+        super.setUp()
+        suiteName = "com.framework.innolive.tests.signup-consent.\(UUID().uuidString)"
+        userDefaults = UserDefaults(suiteName: suiteName)!
+        consentStore = ConsentAcknowledgementStore(userDefaults: userDefaults)
+    }
+
+    override func tearDown() {
+        userDefaults.removePersistentDomain(forName: suiteName)
+        consentStore = nil
+        userDefaults = nil
+        suiteName = nil
+        super.tearDown()
+    }
+
     func testLastVisibleLineCountsAsReadEvenWithABottomSafeAreaInset() {
         let position = SignupConsent.scrollPosition(
             contentHeight: 1400,
@@ -112,7 +132,7 @@ final class SignupConsentTests: XCTestCase {
 
     func testSignupAndGoogleRequestsAreBlockedWithoutConsent() async {
         let api = ConsentTestAPI()
-        let session = AuthSession(api: api, tokenStore: ConsentTokenStore())
+        let session = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
         let started = await session.startSignup(email: "user@example.com", password: "password123", consent: SignupConsent())
         await session.signInWithGoogle(idToken: "test-id-token", consent: SignupConsent())
         XCTAssertFalse(started)
@@ -123,7 +143,7 @@ final class SignupConsentTests: XCTestCase {
 
     func testReadingWithoutAcceptingStillBlocksSignup() async {
         let api = ConsentTestAPI()
-        let session = AuthSession(api: api, tokenStore: ConsentTokenStore())
+        let session = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
         var consent = SignupConsent()
         consent.observeScroll(contentHeight: 200, visibleHeight: 400, offset: 0)
         let started = await session.startSignup(email: "user@example.com", password: "password123", consent: consent)
@@ -133,7 +153,7 @@ final class SignupConsentTests: XCTestCase {
 
     func testAcceptedSignupCanResendAndCancellationClearsPendingSignup() async {
         let api = ConsentTestAPI()
-        let session = AuthSession(api: api, tokenStore: ConsentTokenStore())
+        let session = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
         let started = await session.startSignup(email: "user@example.com", password: "password123", consent: acceptedConsent())
         let resent = await session.resendSignup()
         XCTAssertTrue(started)
@@ -147,7 +167,7 @@ final class SignupConsentTests: XCTestCase {
 
     func testFailedSignupCanRetryWithSameConsent() async {
         let api = ConsentTestAPI()
-        let session = AuthSession(api: api, tokenStore: ConsentTokenStore())
+        let session = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
         let consent = acceptedConsent()
         api.failSignup = true
         let failed = await session.startSignup(email: "user@example.com", password: "password123", consent: consent)
@@ -160,7 +180,7 @@ final class SignupConsentTests: XCTestCase {
 
     func testAcceptedGoogleSignInAndExistingEmailSignInSucceed() async {
         let api = ConsentTestAPI()
-        let session = AuthSession(api: api, tokenStore: ConsentTokenStore())
+        let session = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
         await session.signInWithGoogle(idToken: "test-id-token", consent: acceptedConsent())
         XCTAssertEqual(api.googleCalls, 1)
         XCTAssertTrue(session.isAuthenticated)
@@ -168,6 +188,43 @@ final class SignupConsentTests: XCTestCase {
         await session.signIn(email: "user@example.com", password: "password123")
         XCTAssertEqual(api.emailSignInCalls, 1)
         XCTAssertTrue(session.isAuthenticated)
+    }
+
+    func testAccountConsentSurvivesLogoutExpirationAndNewSession() async {
+        let api = ConsentTestAPI()
+        let session = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
+        XCTAssertTrue(session.acceptAccountCollection(acceptedConsent()))
+        session.signOut()
+        session.expireSession()
+        XCTAssertTrue(session.hasAcceptedAccountCollection)
+
+        let reloaded = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
+        XCTAssertTrue(reloaded.hasAcceptedAccountCollection)
+        await reloaded.signInWithGoogle(idToken: "test-id-token", consent: SignupConsent())
+        XCTAssertEqual(api.googleCalls, 1)
+        XCTAssertTrue(reloaded.isAuthenticated)
+    }
+
+    func testReadingWithoutAcceptingDoesNotPersistAccountConsent() {
+        let session = AuthSession(api: ConsentTestAPI(), tokenStore: ConsentTokenStore(), consentStore: consentStore)
+        var unread = SignupConsent()
+        unread.reachedEnd()
+        XCTAssertFalse(session.acceptAccountCollection(unread))
+        XCTAssertFalse(consentStore.hasAcceptedAccountCollection)
+    }
+
+    func testAccountDeletionClearsPersistedAccountConsent() async {
+        let api = ConsentTestAPI()
+        let session = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
+        await session.signInWithGoogle(idToken: "test-id-token", consent: acceptedConsent())
+        let deleted = await session.deleteAccount()
+        XCTAssertTrue(deleted)
+        XCTAssertFalse(session.hasAcceptedAccountCollection)
+        XCTAssertFalse(consentStore.hasAcceptedAccountCollection)
+        let reloaded = AuthSession(api: api, tokenStore: ConsentTokenStore(), consentStore: consentStore)
+        await reloaded.signInWithGoogle(idToken: "test-id-token", consent: SignupConsent())
+        XCTAssertEqual(api.googleCalls, 1)
+        XCTAssertFalse(reloaded.isAuthenticated)
     }
 
     private func acceptedConsent() -> SignupConsent {

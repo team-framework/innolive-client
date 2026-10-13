@@ -4,7 +4,7 @@ import com.framework.innolive.R
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 enum class ServerErrorAction {
-    NONE, CONNECT, RECONNECT, HELP, CONFIRM_CONCURRENT, RETRY, LOGIN, EDIT_SETTINGS,
+    NONE, CONNECT, RECONNECT, HELP, CONFIRM_CONCURRENT, RETRY, LOGIN, EDIT_SETTINGS, PLAN,
 }
 
 data class ServerErrorGuidance(
@@ -59,8 +59,33 @@ fun serverErrorGuidance(
         "channel_already_live" -> ServerErrorAction.CONFIRM_CONCURRENT
         "streaming_prepare_failed", "streaming_golive_failed", "streaming_update_failed" -> ServerErrorAction.RETRY
         "unauthorized" -> ServerErrorAction.LOGIN
+        "plan_resolution_not_allowed", "plan_simulcast_not_allowed", "plan_server_streaming_not_allowed",
+        "monthly_limit_exhausted" -> ServerErrorAction.PLAN
         "bad_request", "field_not_changeable_live" -> ServerErrorAction.EDIT_SETTINGS
         else -> ServerErrorAction.NONE
     }
     return ServerErrorGuidance(knownCode, UiText.Resource(message), action, safeHelpUrl, field)
+}
+
+/**
+ * 직접 송출(온디바이스) 경로의 오류 안내입니다. 공통 안내를 먼저 쓰고 직접 송출에서 오는 코드를 더합니다.
+ * 서버 중계 경로의 기존 표시가 바뀌지 않도록 공통 함수와 나눕니다.
+ */
+fun directPublishErrorGuidance(
+    code: String?,
+    statusCode: Int? = null,
+    helpUrl: String? = null,
+    field: String? = null,
+    reason: String? = null,
+): ServerErrorGuidance? {
+    serverErrorGuidance(code, statusCode, helpUrl, field, reason)?.let { return it }
+    val (message, action) = when (code) {
+        "on_device_processing" -> R.string.error_on_device_processing to ServerErrorAction.NONE
+        "heartbeat_not_applicable" -> R.string.error_heartbeat_not_applicable to ServerErrorAction.NONE
+        "broadcast_stopped" -> R.string.error_broadcast_stopped to ServerErrorAction.NONE
+        "channel_in_use_by_other_account" -> R.string.error_channel_in_use_by_other_account to ServerErrorAction.NONE
+        "youtube_channel_required" -> R.string.error_youtube_channel_required to ServerErrorAction.RECONNECT
+        else -> return null
+    }
+    return ServerErrorGuidance(code, UiText.Resource(message), action, field = field)
 }

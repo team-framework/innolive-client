@@ -1,0 +1,37 @@
+<resources>
+    <string name="tutorial_open_preparation_title">まずは配信の準備から</string>
+    <string name="tutorial_open_preparation_message">このボタンを押すと、配信するプラットフォームとタイトルを決められます。</string>
+    <string name="tutorial_choose_platform_title">配信するプラットフォームを選びます</string>
+    <string name="tutorial_choose_platform_message">配信するプラットフォームを押してください。あとで配信設定のプラットフォーム変更から変えられます。</string>
+    <string name="tutorial_connect_account_title">配信するアカウントを連携します</string>
+    <string name="tutorial_connect_account_message">表示されたボタンからアカウントを連携してください。連携して戻ると次のステップに進みます。</string>
+    <string name="tutorial_start_preparation_title">タイトルを確認して準備します</string>
+    <string name="tutorial_start_preparation_message">配信タイトルと必要な項目を入力してから、下の「配信を準備」を押してください。準備だけでは視聴者に公開されません。</string>
+    <string name="tutorial_wait_preparation_title">配信を準備しています</string>
+    <string name="tutorial_wait_preparation_message">サーバーに接続するまで少しお待ちください。準備ができたら次のステップをお知らせします。</string>
+    <string name="tutorial_retry_preparation_title">準備がうまくいきませんでした</string>
+    <string name="tutorial_retry_preparation_message">メッセージを確認してから、もう一度「配信を準備」を押してください。</string>
+    <string name="tutorial_go_live_title">配信の準備ができました</string>
+    <string name="tutorial_go_live_message">このボタンを押して「配信を開始」を選ぶと、視聴者に配信が公開されます。準備ができたら押してください。</string>
+    <string name="tutorial_live_status_title">配信の状態はここで確認できます</string>
+    <string name="tutorial_live_status_message">プラットフォームごとの配信状態とアップロード画質を表示します。問題があればここでお知らせします。</string>
+    <string name="tutorial_progress_description">全%2$dステップ中%1$dステップ目</string>
+    <string name="tutorial_skip">スキップ</string>
+    <string name="tutorial_skip_hint">スキップ。ガイドは設定からもう一度見られます。</string>
+    <string name="tutorial_got_it">わかりました</string>
+    <string name="tutorial_replay">配信準備ガイドをもう一度見る</string>
+    <string name="live_status_target_stopped">配信終了</string>
+    <string name="live_status_target_preparing">準備中</string>
+    <string name="live_status_target_prepared">開始待ち</string>
+    <string name="live_status_target_going_live">開始中</string>
+    <string name="live_status_target_streaming">配信中</string>
+    <string name="live_status_target_reconfiguring">画質を変更中</string>
+    <string name="live_status_target_reconnecting">再接続中</string>
+    <string name="live_status_target_paused">一時停止</string>
+    <string name="live_status_target_checking">確認中</string>
+    <string name="live_status_broadcast_resolution">配信画質 %1$s</string>
+    <string name="live_status_uplink">アップロード %1$s</string>
+    <string name="live_status_uplink_measuring">アップロード確認中</string>
+    <string name="live_status_warning_network">インターネットが遅いため、一時的に画質を下げました。Wi-Fiのほうが安定します。</string>
+    <string name="live_status_warning_device">端末の負荷が高いため、一時的に画質を下げました。ほかのアプリを閉じると改善する場合があります。</string>
+</resources>

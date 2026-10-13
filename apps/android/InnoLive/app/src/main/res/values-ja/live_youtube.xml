@@ -10,4 +10,5 @@
     <string name="google_user">Google ユーザー</string>
     <string name="youtube_account_action_in_progress">YouTube アカウントの操作中です。</string>
     <string name="broadcast_settings_save_unavailable">現在の配信状態では設定を保存できません。</string>
+    <string name="broadcast_settings_youtube_only">この画面は YouTube 設定専用です。CHZZK の設定はライブ画面で変更してください。</string>
 </resources>

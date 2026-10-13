@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,12 +30,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,28 +58,172 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.components.DirectBroadcastModeDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
+import com.framework.innolive.feature.live.direct.lifecycle.rememberBroadcastNotificationPermission
+import com.framework.innolive.feature.live.direct.lifecycle.shouldShowNotificationsHiddenNotice
+import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
+import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
 import com.framework.innolive.ui.text.ServerErrorAction
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.feature.live.components.PlatformDialog
+import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
+import com.framework.innolive.feature.live.components.ChzzkOAuthDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.components.cappedDialogWidth
+import com.framework.innolive.feature.live.direct.broadcast.directBroadcastModeState
+import com.framework.innolive.feature.live.direct.broadcast.directStatusWarnings
+import com.framework.innolive.feature.live.direct.broadcast.directTargetRows
+import com.framework.innolive.feature.live.direct.broadcast.isDirectBroadcastModeLocked
+import com.framework.innolive.feature.live.direct.broadcast.labelRes
+import com.framework.innolive.feature.live.direct.broadcast.reconcileDirectBroadcastPlan
+import com.framework.innolive.feature.live.direct.broadcast.title
+import com.framework.innolive.feature.live.direct.broadcast.withSelectedPlatform
+import com.framework.innolive.feature.live.direct.broadcast.DirectProviderOrder
+import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchors
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialDialog
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialHomeOverlay
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialHost
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialSnapshot
+import com.framework.innolive.feature.live.tutorial.LocalBroadcastTutorialAnchors
+import com.framework.innolive.feature.live.tutorial.broadcastTutorialAnchor
+import com.framework.innolive.feature.live.tutorial.guideFor
 import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
+    tutorial: BroadcastTutorialCoordinator? = null,
+) {
+    val tutorialAnchors = remember { BroadcastTutorialAnchors() }
+    CompositionLocalProvider(LocalBroadcastTutorialAnchors provides tutorialAnchors) {
+        LiveScreenContent(props, webRtcSession, tutorial, tutorialAnchors)
+    }
+}
+
+@Composable
+private fun LiveScreenContent(
+    props: LiveScreenProps,
+    webRtcSession: WebRtcSessionViewModel,
+    tutorial: BroadcastTutorialCoordinator?,
+    tutorialAnchors: BroadcastTutorialAnchors,
 ) {
     var openVideoControls by remember { mutableStateOf(false) }
     var openFaceManagement by remember { mutableStateOf(false) }
     var openPlatformDialog by remember { mutableStateOf(false) }
     var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
+    var openChzzkSettingsDialog by remember { mutableStateOf(false) }
+    var chzzkOAuthConfig by remember { mutableStateOf<ChzzkOAuthConfig?>(null) }
+    var chzzkOAuthState by remember { mutableStateOf<String?>(null) }
+    var chzzkSettings by rememberSaveable(stateSaver = ChzzkSettingsSaver) {
+        mutableStateOf(ChzzkBroadcastSettings())
+    }
+    var chzzkAccountVerification by remember { mutableStateOf(ChzzkAccountVerification()) }
+    var chzzkAccountRefreshKey by remember { mutableIntStateOf(0) }
+    var chzzkBusy by remember { mutableStateOf(false) }
+    var chzzkMessage by remember { mutableStateOf<UiText?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
     var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
-    var selectedPlatform by remember { mutableStateOf<String?>(null) }
+    var testUsageWarningOverride by remember { mutableStateOf(false) }
+    var openDirectModeDialog by remember { mutableStateOf(false) }
+    // 사용자가 방송 방식을 직접 고르기 전에는 요금제가 허용하는 최고 화질을 따릅니다.
+    var directModeUserSelected by rememberSaveable { mutableStateOf(false) }
+    var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
+    val sessionSnapshot = webRtcSession.sessionSnapshot
+    val sessionId = webRtcSession.sessionSnapshot?.sessionId
+    val activeNoticeCode = if (testUsageWarningOverride) {
+        "monthly_usage_80"
+    } else {
+        sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
+            notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
+        }?.code
+    }
+    LaunchedEffect(sessionId) {
+        dismissedNoticeCodes = emptySet()
+        testUsageWarningOverride = false
+    }
     val context = LocalContext.current
+    val providerPreferences = remember(context) {
+        context.getSharedPreferences("innolive_broadcast_provider", android.content.Context.MODE_PRIVATE)
+    }
+    var selectedPlatform by rememberSaveable {
+        mutableStateOf(providerPreferences.getString("selected", null))
+    }
+    val scope = rememberCoroutineScope()
+    val chzzkApi = remember { runCatching { ChzzkApi(BuildConfig.INNOLIVE_SERVER_URL) }.getOrNull() }
+    DisposableEffect(chzzkApi) { onDispose { chzzkApi?.close() } }
+    fun finishChzzkAccountMutation(revision: Long) {
+        if (chzzkAccountVerification.mutationRevision != revision) return
+        chzzkAccountVerification = chzzkAccountVerification.finishMutation(revision)
+        chzzkAccountRefreshKey++
+    }
+    LaunchedEffect(selectedPlatform) {
+        if (selectedPlatform == "CHZZK") webRtcSession.selectProvider(BroadcastProvider.CHZZK)
+        if (selectedPlatform == "YouTube") webRtcSession.selectProvider(BroadcastProvider.YOUTUBE)
+        if (selectedPlatform != null) providerPreferences.edit().putString("selected", selectedPlatform).apply()
+    }
+    // 방송 방식 화면도 치지직 계정 연결 여부로 선택지를 막으므로 같은 확인을 씁니다.
+    val needsChzzkAccount = openChzzkSettingsDialog || openDirectModeDialog
+    LaunchedEffect(needsChzzkAccount, props.profileEmail, chzzkAccountRefreshKey) {
+        val refreshing = chzzkAccountVerification.beginRefresh() ?: return@LaunchedEffect
+        chzzkAccountVerification = refreshing
+        val revision = refreshing.revision
+        if (!needsChzzkAccount) {
+            chzzkBusy = false
+            return@LaunchedEffect
+        }
+        if (props.profileEmail.isBlank()) {
+            chzzkMessage = UiText.Resource(R.string.chzzk_sign_in_required)
+            chzzkBusy = false
+        }
+        if (props.profileEmail.isNotBlank()) {
+            chzzkBusy = true
+            try {
+                val account = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
+                    .accounts(props.onRefreshAccessToken())
+                    .firstOrNull { it.provider == "chzzk" }
+                if (chzzkAccountVerification.revision == revision) {
+                    chzzkAccountVerification = chzzkAccountVerification.confirm(revision, account)
+                    chzzkMessage = null
+                }
+            } catch (_: Exception) {
+                if (chzzkAccountVerification.revision == revision) {
+                    chzzkMessage = UiText.Resource(R.string.chzzk_account_check_failed)
+                }
+            } finally {
+                if (chzzkAccountVerification.revision == revision) chzzkBusy = false
+            }
+        }
+    }
+    val isDirectMode = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED
+    val isDirectModeLocked = isDirectBroadcastModeLocked(
+        webRtcSession.broadcastState, webRtcSession.isPreparingBroadcast,
+    )
+    LaunchedEffect(isDirectMode, isDirectModeLocked, props.planUsage, directModeUserSelected) {
+        if (!isDirectMode || isDirectModeLocked) return@LaunchedEffect
+        val reconciled = reconcileDirectBroadcastPlan(
+            webRtcSession.directBroadcastPlan, props.planUsage, directModeUserSelected,
+        )
+        if (reconciled != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(reconciled)
+    }
+    LaunchedEffect(isDirectMode, isDirectModeLocked, selectedPlatform) {
+        if (!isDirectMode || isDirectModeLocked) return@LaunchedEffect
+        val provider = when (selectedPlatform) {
+            "YouTube" -> BroadcastProvider.YOUTUBE
+            "CHZZK" -> BroadcastProvider.CHZZK
+            else -> return@LaunchedEffect
+        }
+        val synced = webRtcSession.directBroadcastPlan.withSelectedPlatform(provider)
+        if (synced != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(synced)
+    }
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
     val lookPreviews by frameAnalyzer.lookPreviews.collectAsState()
@@ -96,10 +245,6 @@ fun LiveScreen(
     val broadcastDurationText = rememberBroadcastDurationText(
         webRtcSession.broadcastStartedAtElapsedRealtimeMillis,
     )
-    val broadcastDurationDescription = stringResource(
-        R.string.content_description_broadcast_duration,
-        broadcastDurationText,
-    )
     val mediaPermissions = rememberMediaPermissionController(context)
     val mediaPermissionState = mediaPermissions.state
     val missingMediaPermissions = mediaPermissionState.missingPermissions
@@ -110,6 +255,13 @@ fun LiveScreen(
     val requestMissingMediaPermissions = {
         if (missingMediaPermissions.isNotEmpty()) {
             mediaPermissionLauncher.launch(missingMediaPermissions.toTypedArray())
+        }
+    }
+    val broadcastNotificationPermission = rememberBroadcastNotificationPermission(context)
+    // 직접 송출은 백그라운드 유지 알림을 띄우므로 준비 직후 알림 권한을 확인합니다. 거부해도 방송은 진행합니다.
+    val requestDirectBroadcastNotifications = {
+        if (webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED) {
+            broadcastNotificationPermission.ensure()
         }
     }
     LaunchedEffect(webRtcSession.serverError) {
@@ -124,6 +276,32 @@ fun LiveScreen(
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
+    }
+    val tutorialSnapshot = BroadcastTutorialSnapshot(
+        openDialog = when {
+            openPlatformDialog -> BroadcastTutorialDialog.PLATFORM
+            openYouTubeSettingsDialog || openChzzkSettingsDialog -> BroadcastTutorialDialog.SETTINGS
+            else -> BroadcastTutorialDialog.NONE
+        },
+        selectedAccountConnected = if (selectedPlatform == "CHZZK") {
+            chzzkAccountVerification.canPrepare
+        } else {
+            props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
+        },
+        broadcastState = webRtcSession.broadcastState,
+        isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
+        hasStartedBroadcast = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null,
+    )
+    LaunchedEffect(tutorial, tutorialSnapshot) {
+        tutorial?.update(tutorialSnapshot)
+    }
+    // 카메라·마이크 권한 안내가 떠 있는 동안에는 안내를 겹쳐 띄우지 않는다.
+    val canShowTutorial = missingMediaPermissions.isEmpty()
+    LaunchedEffect(tutorial, canShowTutorial) {
+        if (tutorial == null || !canShowTutorial) return@LaunchedEffect
+        // 카메라 미리보기가 먼저 보이도록 잠시 기다린 뒤 안내를 띄운다.
+        delay(TUTORIAL_START_DELAY_MILLIS)
+        tutorial.startIfNeeded()
     }
     LaunchedEffect(openPlatformDialog, pendingYouTubeSettingsDialog) {
         if (!openPlatformDialog && pendingYouTubeSettingsDialog) {
@@ -198,14 +376,34 @@ fun LiveScreen(
             )
         }
 
-        Text(
-            text = broadcastDurationText,
+        val isRemainingTimeStale = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null &&
+            sessionSnapshot?.isRemainingTimeStale == true
+        BroadcastTimeDisplay(
+            uptime = broadcastDurationText,
+            remaining = rememberRemainingCountdown(
+                remaining = displayedRemainingTime(
+                    webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null, sessionSnapshot, props.planUsage,
+                ),
+                // 송출 중인 세션 값만 줄인다. 요금제 미리보기나 일시 중지·갱신 지연 중에는 그대로 둔다.
+                counting = webRtcSession.broadcastState == BroadcastState.LIVE && !isRemainingTimeStale &&
+                    sessionSnapshot?.remainingTime is BroadcastRemainingTime.Seconds,
+            ),
+            isStale = isRemainingTimeStale,
+            onOpenPlan = props.onOpenPlan,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 10.dp)
-                .semantics { contentDescription = broadcastDurationDescription },
-            style = MaterialTheme.typography.headlineSmall,
-            color = Color.White,
+                .padding(horizontal = 16.dp),
+        )
+
+        SessionUsageWarningBanner(
+            noticeCode = activeNoticeCode,
+            onDismissRequest = { code ->
+                dismissedNoticeCodes = dismissedNoticeCodes + code
+                if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
+            },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(start = 10.dp, top = 56.dp, end = 10.dp),
         )
 
         LiveSideControls(
@@ -241,31 +439,248 @@ fun LiveScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (BuildConfig.DEBUG) {
+                TextButton(onClick = {
+                    testUsageWarningOverride = !testUsageWarningOverride
+                }) {
+                    Text(
+                        stringResource(
+                            if (testUsageWarningOverride) R.string.session_usage_warning_test_hide
+                            else R.string.session_usage_warning_test_show,
+                        ),
+                    )
+                }
+            }
+            val directUiState = webRtcSession.directBroadcastUiState
+            val statusTargets = directTargetRows(sessionSnapshot?.visibleTargets.orEmpty(), directUiState)
+            val nowElapsedMillis = rememberElapsedRealtime(ticking = directUiState.preparedDeadlineElapsedMillis != null)
+            val directWarnings = directStatusWarnings(directUiState, nowElapsedMillis)
+            if (statusTargets.isNotEmpty() || directWarnings.isNotEmpty()) {
+                BroadcastLiveStatusPanel(
+                    targets = statusTargets,
+                    warnings = directWarnings,
+                    broadcastResolution = sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected },
+                    uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .widthIn(max = 360.dp)
+                        .fillMaxWidth()
+                        .broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
+                )
+            }
+            if (isDirectMode && !isDirectModeLocked) {
+                val plan = webRtcSession.directBroadcastPlan
+                val summary = stringResource(plan.resolution.labelRes) + " · " +
+                    DirectProviderOrder.filter { it in plan.providers }.joinToString(" + ") { it.title }
+                val description = stringResource(R.string.direct_mode_entry, summary)
+                TextButton(onClick = { openDirectModeDialog = true }) {
+                    Text(
+                        text = summary,
+                        modifier = Modifier.semantics { contentDescription = description },
+                        color = Color.White,
+                    )
+                }
+            }
+            if (openDirectModeDialog) {
+                DirectBroadcastModeDialog(
+                    state = directBroadcastModeState(
+                        plan = webRtcSession.directBroadcastPlan,
+                        planUsage = props.planUsage,
+                        accountConnected = { provider ->
+                            when (provider) {
+                                BroadcastProvider.YOUTUBE -> props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
+                                BroadcastProvider.CHZZK -> chzzkAccountVerification.canPrepare
+                            }
+                        },
+                        locked = isDirectModeLocked,
+                    ),
+                    onPlanChanged = { plan ->
+                        if (webRtcSession.selectDirectBroadcastPlan(plan)) {
+                            directModeUserSelected = true
+                            // 단독 송출이면 준비 버튼이 여는 설정 화면도 같은 플랫폼으로 맞춥니다.
+                            plan.providers.singleOrNull()?.let { provider ->
+                                webRtcSession.selectProvider(provider)
+                                selectedPlatform = if (provider == BroadcastProvider.CHZZK) "CHZZK" else "YouTube"
+                            }
+                        }
+                    },
+                    onOpenPlan = {
+                        openDirectModeDialog = false
+                        props.onOpenPlan()
+                    },
+                    onDismiss = { openDirectModeDialog = false },
+                )
+            }
             BroadcastActionControls(
                 presentation = presentation,
+                buttonModifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.PRIMARY_BUTTON),
                 onBroadcastAction = {
                     when (presentation.broadcastAction) {
                         LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
-                        LiveBroadcastAction.PREPARE_BROADCAST -> openYouTubeSettingsDialog = true
+                        LiveBroadcastAction.PREPARE_BROADCAST -> {
+                            if (selectedPlatform == "CHZZK") openChzzkSettingsDialog = true
+                            else openYouTubeSettingsDialog = true
+                        }
                         LiveBroadcastAction.SELECT_PLATFORM -> openPlatformDialog = true
                     }
                 },
                 centerOverlay = {
                     if (openPlatformDialog) {
                         PlatformDialog(
+                            guide = tutorial.guideFor(BroadcastTutorialHost.PLATFORM_DIALOG),
                             onDismissRequest = {
                                 openPlatformDialog = false
                             },
                             onYouTubeSelected = {
+                                webRtcSession.selectProvider(BroadcastProvider.YOUTUBE)
                                 selectedPlatform = "YouTube"
                                 pendingYouTubeSettingsDialog = true
                                 openPlatformDialog = false
+                            },
+                            onChzzkSelected = {
+                                webRtcSession.selectProvider(BroadcastProvider.CHZZK)
+                                selectedPlatform = "CHZZK"
+                                openChzzkSettingsDialog = true
+                                openPlatformDialog = false
+                            },
+                        )
+                    }
+                    if (openChzzkSettingsDialog) {
+                        ChzzkSettingsDialog(
+                            settings = chzzkSettings,
+                            guide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG),
+                            onChangePlatform = {
+                                openChzzkSettingsDialog = false
+                                openPlatformDialog = true
+                            },
+                            accountLabel = when {
+                                chzzkAccountVerification.mutationInProgress -> stringResource(R.string.chzzk_account_changing)
+                                chzzkMessage != null -> chzzkMessage?.asString().orEmpty()
+                                !chzzkAccountVerification.verified -> stringResource(R.string.chzzk_account_checking)
+                                chzzkAccountVerification.account == null -> stringResource(R.string.chzzk_account_required)
+                                chzzkAccountVerification.account?.reconnectRequired == true ->
+                                    stringResource(R.string.chzzk_account_reconnect_required)
+                                else -> stringResource(
+                                    R.string.chzzk_account_connected,
+                                    chzzkAccountVerification.account?.channelTitle.orEmpty(),
+                                )
+                            },
+                            canPrepare = chzzkAccountVerification.canPrepare,
+                            canConnect = props.profileEmail.isNotBlank(),
+                            canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
+                            isBusy = chzzkBusy || chzzkAccountVerification.mutationInProgress,
+                            onChanged = { chzzkSettings = it },
+                            onRefreshAccount = {
+                                if (!chzzkAccountVerification.mutationInProgress) {
+                                    chzzkAccountVerification = chzzkAccountVerification.invalidate()
+                                    chzzkBusy = true
+                                    chzzkAccountRefreshKey++
+                                }
+                            },
+                            onConnect = connect@ {
+                                if (chzzkAccountVerification.mutationInProgress) return@connect
+                                val mutation = chzzkAccountVerification.beginMutation()
+                                chzzkAccountVerification = mutation
+                                chzzkBusy = true
+                                chzzkMessage = null
+                                scope.launch {
+                                    var awaitingOAuth = false
+                                    try {
+                                        val state = newChzzkOAuthState()
+                                        val config = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }.config(state)
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                            chzzkOAuthState = state
+                                            chzzkOAuthConfig = config
+                                            awaitingOAuth = true
+                                        }
+                                    } catch (_: Exception) {
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                            chzzkMessage = UiText.Resource(R.string.chzzk_config_failed)
+                                        }
+                                    } finally {
+                                        if (!awaitingOAuth) finishChzzkAccountMutation(mutation.revision)
+                                    }
+                                }
+                            },
+                            onDisconnect = disconnect@ {
+                                if (chzzkAccountVerification.mutationInProgress) return@disconnect
+                                val mutation = chzzkAccountVerification.beginMutation()
+                                chzzkAccountVerification = mutation
+                                chzzkBusy = true
+                                chzzkMessage = null
+                                scope.launch {
+                                    try {
+                                        checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
+                                            .disconnect(props.onRefreshAccessToken())
+                                    } catch (_: Exception) {
+                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                            chzzkMessage = UiText.Resource(R.string.chzzk_disconnect_unconfirmed)
+                                        }
+                                    } finally {
+                                        finishChzzkAccountMutation(mutation.revision)
+                                    }
+                                }
+                            },
+                            onSearch = { query -> checkNotNull(chzzkApi).categories(props.onRefreshAccessToken(), query) },
+                            onPrepare = {
+                                if (!chzzkAccountVerification.canPrepare || chzzkBusy) {
+                                    chzzkMessage = UiText.Resource(R.string.chzzk_prepare_requires_account)
+                                } else if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+                                    mediaPermissions.refresh()
+                                    mediaPermissionLauncher.launch(readMediaPermissionState(context).missingPermissions.toTypedArray())
+                                } else if (webRtcSession.prepareChzzkBroadcast(context, chzzkSettings,
+                                        props.onRefreshAccessToken)) {
+                                    openChzzkSettingsDialog = false
+                                    requestDirectBroadcastNotifications()
+                                }
+                            },
+                            onDismiss = { openChzzkSettingsDialog = false },
+                        )
+                    }
+                    val currentConfig = chzzkOAuthConfig
+                    val currentState = chzzkOAuthState
+                    val currentMutationRevision = chzzkAccountVerification.mutationRevision
+                    if (currentConfig != null && currentState != null && currentMutationRevision != null) {
+                        ChzzkOAuthDialog(
+                            config = currentConfig,
+                            state = currentState,
+                            onCode = { code ->
+                                chzzkOAuthConfig = null
+                                chzzkOAuthState = null
+                                scope.launch {
+                                    try {
+                                        val api = checkNotNull(chzzkApi)
+                                        api.connect(props.onRefreshAccessToken(), code, currentState)
+                                    } catch (_: Exception) {
+                                        if (chzzkAccountVerification.mutationRevision == currentMutationRevision) {
+                                            chzzkMessage = UiText.Resource(R.string.chzzk_connect_unconfirmed)
+                                        }
+                                    } finally {
+                                        finishChzzkAccountMutation(currentMutationRevision)
+                                    }
+                                }
+                            },
+                            onFailure = { reason ->
+                                chzzkOAuthConfig = null
+                                chzzkOAuthState = null
+                                chzzkMessage = reason
+                                finishChzzkAccountMutation(currentMutationRevision)
+                            },
+                            onDismiss = {
+                                chzzkOAuthConfig = null
+                                chzzkOAuthState = null
+                                finishChzzkAccountMutation(currentMutationRevision)
                             },
                         )
                     }
                     if (openYouTubeSettingsDialog) {
                         YouTubeLiveSettingsDialog(
                             settings = props.broadcastSettings,
+                            guide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG),
+                            onChangePlatform = {
+                                openYouTubeSettingsDialog = false
+                                openPlatformDialog = true
+                            },
                             youtubeChannelTitle = props.youtubeChannelTitle,
                             hasYouTubeAccount = props.hasYouTubeAccount,
                             youtubeAccountStatus = props.youtubeAccountStatus,
@@ -294,6 +709,7 @@ fun LiveScreen(
                                         context, props.broadcastSettings, props.onRefreshAccessToken,
                                     )) {
                                     openYouTubeSettingsDialog = false
+                                    requestDirectBroadcastNotifications()
                                 }
                             },
                         )
@@ -362,6 +778,20 @@ fun LiveScreen(
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
+            if (shouldShowNotificationsHiddenNotice(
+                    notificationsHidden = broadcastNotificationPermission.notificationsHidden,
+                    directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
+                    state = webRtcSession.broadcastState,
+                )) {
+                    Text(
+                        text = stringResource(broadcastNotificationPermission.hiddenMessage),
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+            }
             StableBroadcastFeedback {
                 presentation.broadcastStatusText?.let { status ->
                     Text(
@@ -374,6 +804,14 @@ fun LiveScreen(
                     )
                 }
             }
+        }
+
+        if (tutorial != null) {
+            BroadcastTutorialHomeOverlay(
+                tutorial = tutorial,
+                anchors = tutorialAnchors,
+                isEnabled = canShowTutorial,
+            )
         }
     }
     webRtcSession.serverError?.takeIf { it.action != ServerErrorAction.EDIT_SETTINGS }?.let { guidance ->
@@ -392,6 +830,10 @@ fun LiveScreen(
                     ServerErrorAction.LOGIN -> {
                         webRtcSession.dismissServerError()
                         props.onAuthenticationExpired()
+                    }
+                    ServerErrorAction.PLAN -> {
+                        webRtcSession.dismissServerError()
+                        props.onOpenPlan()
                     }
                     else -> webRtcSession.dismissServerError()
                 }
@@ -474,6 +916,22 @@ private fun rememberBroadcastDurationText(startedAtElapsedRealtimeMillis: Long?)
     return formatBroadcastDuration(elapsedMillis)
 }
 
+private const val TUTORIAL_START_DELAY_MILLIS = 600L
+
+/** 준비 마감 안내처럼 초 단위로 다시 그릴 때만 시계를 돌립니다. */
+@Composable
+private fun rememberElapsedRealtime(ticking: Boolean): Long {
+    var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
+    LaunchedEffect(ticking) {
+        now = SystemClock.elapsedRealtime()
+        while (ticking) {
+            delay(1_000L - now % 1_000L)
+            now = SystemClock.elapsedRealtime()
+        }
+    }
+    return now
+}
+
 private fun mediaPermissionGuidance(state: MediaPermissionState): Int = when {
     !state.hasCameraPermission && !state.hasMicrophonePermission -> R.string.permission_media_required
     !state.hasCameraPermission -> R.string.permission_camera_required
@@ -498,6 +956,7 @@ internal fun StableBroadcastFeedback(
 internal fun BroadcastActionControls(
     presentation: LiveScreenPresentation,
     onBroadcastAction: () -> Unit,
+    buttonModifier: Modifier = Modifier,
     centerOverlay: @Composable () -> Unit = {},
 ) {
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -506,6 +965,7 @@ internal fun BroadcastActionControls(
             text = stringResource(presentation.broadcastButtonTextRes),
             enabled = presentation.isBroadcastButtonEnabled,
             onClick = onBroadcastAction,
+            modifier = buttonModifier,
         )
     }
 }

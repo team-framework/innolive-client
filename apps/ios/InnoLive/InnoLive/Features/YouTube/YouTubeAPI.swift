@@ -22,6 +22,11 @@ private struct WebRTCConfigurationResponse: Decodable {
             ?? []
     }
 }
+private struct CHZZKConnectRequest: Encodable {
+    let code: String
+    let state: String
+}
+
 private struct YouTubeConnectRequest: Encodable {
     let serverAuthCode: String
     let codeSource = "native"
@@ -62,6 +67,34 @@ private struct YouTubePrepareStreamRequest: Encodable {
 }
 
 private struct YouTubeEmptyRequest: Encodable {}
+
+/// `POST /sessions` 본문이다. 서버 처리는 기존처럼 빈 본문을 보낸다.
+/// 온디바이스는 공유 계약(direct-publish-v1)의 최상위 `ai_processing`을 보낸다. 처리 방식을
+/// 돌려주지 않는 구 서버와 협상하도록 `metadata.ai_processing`도 함께 보낸다(서버는 최상위 값을 먼저 쓴다).
+/// 해상도는 보내지 않는다. 서버 기본값(720p)에 맞춰 카메라 화질을 맞추므로 송출 해상도와 같다.
+struct YouTubeSessionCreateRequest: Encodable, Equatable {
+    let aiProcessing: String?
+    let metadata: [String: String]?
+
+    init(mode: AIProcessingMode) {
+        aiProcessing = mode == .server ? nil : mode.rawValue
+        metadata = mode == .server ? nil : ["ai_processing": mode.rawValue]
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case metadata
+        case aiProcessing = "ai_processing"
+    }
+}
+
+private struct BroadcastModeRequest: Encodable {
+    let resolution: String
+    let targets: [String]
+}
+
+private struct UpgradeOfferSelectionRequest: Encodable {
+    let mode: String
+}
 
 private struct AnonymizationRequest: Encodable {
     let enabled: Bool
@@ -152,6 +185,32 @@ final class YouTubeAPI: PlanAPIClient {
         )
     }
 
+    func chzzkConfiguration(state: String) async throws -> CHZZKConfiguration {
+        guard !state.isEmpty, let baseURL = serverURLProvider("/auth/chzzk/config"),
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            throw CHZZKAuthorizationError.configuration
+        }
+        components.queryItems = [URLQueryItem(name: "state", value: state)]
+        guard let url = components.url else { throw CHZZKAuthorizationError.configuration }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await perform(request)
+        guard let response = response as? HTTPURLResponse else { throw YouTubeAPIError.response }
+        try validate(response, data: data)
+        return try decode(CHZZKConfiguration.self, from: data)
+    }
+
+    func connectCHZZK(authorization: CHZZKAuthorizationCode, accessToken: String) async throws -> CHZZKConnectionResponse {
+        let response: CHZZKConnectionResponse = try await request(
+            path: "/auth/chzzk/connect", method: "POST", accessToken: accessToken,
+            body: CHZZKConnectRequest(code: authorization.code, state: authorization.state)
+        )
+        guard response.connected, response.provider == "chzzk", !response.channel.id.isEmpty else {
+            throw YouTubeAPIError.response
+        }
+        return response
+    }
+
     func streamingAccounts(accessToken: String) async throws -> [YouTubeStreamingAccountSummary] {
         try await request(
             path: "/auth/streaming/accounts",
@@ -181,7 +240,7 @@ final class YouTubeAPI: PlanAPIClient {
             path: "/sessions",
             method: "POST",
             accessToken: accessToken,
-            body: mode == .server ? [:] : ["metadata": ["ai_processing": mode.rawValue]],
+            body: YouTubeSessionCreateRequest(mode: mode),
             preserveCreatedSession: true
         )
     }
@@ -258,6 +317,26 @@ final class YouTubeAPI: PlanAPIClient {
                                  body: YouTubeLiveBroadcastRequest(title: youtube.title.trimmingCharacters(in: .whitespacesAndNewlines),
                                                                   description: youtube.description, categoryID: youtube.categoryID),
                                  queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+    }
+
+    func changeBroadcastMode(session: YouTubeBroadcastSession, accessToken: String,
+                             resolution: String, targets: Set<BroadcastSettingsProvider>) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/broadcast-mode", method: "PUT",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: BroadcastModeRequest(resolution: resolution, targets: targets.map(\.rawValue).sorted()))
+    }
+
+    func selectUpgradeOffer(session: YouTubeBroadcastSession, accessToken: String,
+                            mode: String) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/upgrade-offer/select", method: "POST",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: UpgradeOfferSelectionRequest(mode: mode))
+    }
+
+    func declineUpgradeOffer(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeSessionResponse {
+        try await request(path: "/sessions/\(session.sessionID)/upgrade-offer", method: "DELETE",
+                          accessToken: accessToken, ownerToken: session.ownerToken,
+                          body: Optional<YouTubeEmptyRequest>.none)
     }
 
     func broadcastDefaults(session: YouTubeBroadcastSession, accessToken: String,
@@ -344,6 +423,17 @@ final class YouTubeAPI: PlanAPIClient {
             accessToken: accessToken,
             ownerToken: session.ownerToken,
             body: AnonymizationRequest(enabled: enabled)
+        )
+    }
+
+    func sendHeartbeat(session: YouTubeBroadcastSession, accessToken: String,
+                       request: DirectHeartbeatRequest) async throws -> DirectHeartbeatResponse {
+        try await self.request(
+            path: "/sessions/\(session.sessionID)/heartbeat",
+            method: "POST",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: request
         )
     }
 

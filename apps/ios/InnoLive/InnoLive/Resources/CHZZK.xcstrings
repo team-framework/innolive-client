@@ -1,0 +1,328 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "치지직 계정 연결을 취소했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 계정 연결을 취소했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK account connection was cancelled."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKアカウントの連携をキャンセルしました。"
+          }
+        }
+      }
+    },
+    "치지직 인증 시간이 만료되었습니다. 다시 연결해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 인증 시간이 만료되었습니다. 다시 연결해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK authorization timed out. Connect again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK認証の有効時間が切れました。もう一度連携してください。"
+          }
+        }
+      }
+    },
+    "치지직 인증 요청이 일치하지 않습니다. 다시 연결해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 인증 요청이 일치하지 않습니다. 다시 연결해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK authorization did not match your request. Connect again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK認証がリクエストと一致しません。もう一度連携してください。"
+          }
+        }
+      }
+    },
+    "치지직 인증 복귀 설정을 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 인증 복귀 설정을 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the CHZZK authorization callback settings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK認証のコールバック設定を確認してください。"
+          }
+        }
+      }
+    },
+    "치지직 인증을 완료하지 못했습니다. 다시 연결해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 인증을 완료하지 못했습니다. 다시 연결해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK authorization could not be completed. Connect again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK認証を完了できませんでした。もう一度連携してください。"
+          }
+        }
+      }
+    },
+    "치지직 방송을 종료한 뒤 연결을 해제해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 방송을 종료한 뒤 연결을 해제해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End your CHZZK broadcast before disconnecting."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK配信を終了してから連携を解除してください。"
+          }
+        }
+      }
+    },
+    "치지직 연결에 필요한 권한을 모두 허용해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 연결에 필요한 권한을 모두 허용해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grant all permissions required for CHZZK connection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK連携に必要な権限をすべて許可してください。"
+          }
+        }
+      }
+    },
+    "이 치지직 계정에 채널이 없습니다. 채널을 먼저 만들어 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 치지직 계정에 채널이 없습니다. 채널을 먼저 만들어 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This CHZZK account has no channel. Create a channel first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このCHZZKアカウントにはチャンネルがありません。先に作成してください。"
+          }
+        }
+      }
+    },
+    "치지직 계정을 다시 연결해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 계정을 다시 연결해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnect your CHZZK account."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKアカウントを再連携してください。"
+          }
+        }
+      }
+    },
+    "치지직 계정 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 계정 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The CHZZK account request could not be completed. Try again later."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKアカウントのリクエストを処理できませんでした。しばらくしてから再試行してください。"
+          }
+        }
+      }
+    },
+    "치지직 방송을 종료한 뒤 계정 연결을 변경해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 방송을 종료한 뒤 계정 연결을 변경해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End your CHZZK broadcast before changing the account connection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK配信を終了してからアカウント連携を変更してください。"
+          }
+        }
+      }
+    },
+    "치지직 연결 해제": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 연결 해제"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect CHZZK"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK連携解除"
+          }
+        }
+      }
+    },
+    "연결을 해제하면 다시 방송하기 전에 치지직 계정을 연결해야 합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결을 해제하면 다시 방송하기 전에 치지직 계정을 연결해야 합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After disconnecting, connect a CHZZK account again before broadcasting."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連携を解除すると、次の配信前にCHZZKアカウントの再連携が必要です。"
+          }
+        }
+      }
+    },
+    "치지직 인가 코드가 만료되었거나 유효하지 않습니다. 다시 연결해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 인가 코드가 만료되었거나 유효하지 않습니다. 다시 연결해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The CHZZK authorization code is expired or invalid. Connect again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK認証コードが期限切れか無効です。もう一度連携してください。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

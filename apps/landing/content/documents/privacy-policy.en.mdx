@@ -23,7 +23,13 @@ The Framework team (the “Operations Team”) processes personal information on
 | Audio transmission | Microphone audio and broadcast connection information | Audio relay, video-audio synchronization, and broadcast transmission |
 | YouTube connection and broadcasting | Channel identification information, encrypted connection tokens, broadcast title, description, and visibility, broadcast connection and status information, and transmitted video and audio | Connecting the YouTube channel you select, preparing and transmitting broadcasts, and managing status |
 | Preventing abuse of web pre-registration | Access IP address and request-count information | Preventing automated repeated submissions and excessive requests |
+| Web trial quality diagnostics | Temporary identifier per trial attempt, member or guest status, interface language, retry status, time to connection and first video frame, failure stage and category, end or cancellation status, browser family and app release | Investigating trial connection errors and improving quality |
+| Web conversion analytics | Temporary visit and event identifiers, event sequence, landing/pricing/trial/signup steps, interface language, browser family and app release | Measuring trial and signup conversion |
 | Customer support and exercise of rights | Email address, inquiry and report content, and device, app, and attachment information you submit | Responding to inquiries, confirming errors, handling account and personal-information requests, and processing reports of rights infringement |
+
+Web trial diagnostics are stored in a separate database table without links to accounts or broadcast identifiers. These records exclude raw User-Agent strings, IP addresses, cookies, tokens and media. Scheduled cleanup removes records older than 30 days from server receipt; outages may delay cleanup.
+
+Web conversion analytics keeps a temporary per-tab identifier in sessionStorage without linking it to an account. A visit expires after 30 minutes of inactivity; server records are scheduled for deletion after 30 days from receipt. Analytics records exclude email, account IDs, full URLs, raw User-Agent, IP addresses, cookies, tokens and media. Conversion events are disabled when the browser enables Do Not Track.
 
 Names are processed according to the login method you used and the scope of information the external provider transmitted. User-Agent includes information such as the browser and operating system used to access the service.
 

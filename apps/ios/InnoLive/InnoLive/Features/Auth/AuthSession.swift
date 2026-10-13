@@ -11,6 +11,7 @@ final class AuthSession: ObservableObject {
     @Published private(set) var isAuthenticated = false
     @Published private(set) var isLoading = false
     @Published private(set) var isDeletingAccount = false
+    @Published private(set) var hasAcceptedAccountCollection = false
     @Published private(set) var hasAcceptedMediaTransmission = false
     @Published private(set) var errorMessage: String?
 
@@ -30,6 +31,7 @@ final class AuthSession: ObservableObject {
         self.api = api
         self.tokenStore = tokenStore
         self.consentStore = consentStore
+        hasAcceptedAccountCollection = consentStore.hasAcceptedAccountCollection
         hasAcceptedMediaTransmission = consentStore.hasAcceptedMediaTransmission
     }
 
@@ -52,7 +54,7 @@ final class AuthSession: ObservableObject {
     }
 
     func startSignup(email: String, password: String, consent: SignupConsent) async -> Bool {
-        guard requireConsent(consent) else { return false }
+        guard acceptAccountCollection(consent) else { return false }
         return await requestSignup(email: email, password: password)
     }
 
@@ -119,7 +121,7 @@ final class AuthSession: ObservableObject {
     }
 
     func signInWithGoogle(idToken: String, consent: SignupConsent) async {
-        guard requireConsent(consent) else { return }
+        guard hasAcceptedAccountCollection || acceptAccountCollection(consent) else { return }
         clearError()
         guard !idToken.isEmpty else {
             errorMessage = String(localized: "Google 로그인 정보를 받지 못했습니다.")
@@ -129,7 +131,7 @@ final class AuthSession: ObservableObject {
     }
 
     func signInWithApple(credential: ASAuthorizationAppleIDCredential, nonce: String, consent: SignupConsent) async {
-        guard requireConsent(consent) else { return }
+        guard hasAcceptedAccountCollection || acceptAccountCollection(consent) else { return }
         clearError()
         guard let authorizationCode = credential.authorizationCode,
               let code = String(data: authorizationCode, encoding: .utf8),
@@ -145,6 +147,14 @@ final class AuthSession: ObservableObject {
                 familyName: credential.fullName?.familyName
             )
         }
+    }
+
+    @discardableResult
+    func acceptAccountCollection(_ consent: SignupConsent) -> Bool {
+        guard requireConsent(consent) else { return false }
+        consentStore.recordAccountCollection()
+        hasAcceptedAccountCollection = true
+        return true
     }
 
     func acceptMediaTransmission(_ consent: SignupConsent) -> Bool {
@@ -219,6 +229,8 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         pendingSignup = nil
+        consentStore.clearAccountCollection()
+        hasAcceptedAccountCollection = false
         clearMediaTransmissionConsent()
         errorMessage = nil
         isAuthenticated = false

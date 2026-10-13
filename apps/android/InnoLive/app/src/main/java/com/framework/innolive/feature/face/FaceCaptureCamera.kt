@@ -2,6 +2,7 @@ package com.framework.innolive.feature.face
 
 import android.graphics.Bitmap
 import android.util.Size
+import android.util.Log
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -70,13 +71,15 @@ internal fun FaceCaptureCamera(
             object : ImageAnalysis.Analyzer {
                 override fun analyze(image: ImageProxy) {
                     try {
+                        if (isDisposed.get()) return
                         val now = System.nanoTime()
                         if (now < nextFrameAtNanos) return
                         nextFrameAtNanos = now + FRAME_INTERVAL_NANOS
 
                         val bitmap = try {
                             image.toReferenceFaceBitmap()
-                        } catch (_: Exception) {
+                        } catch (error: Exception) {
+                            Log.e("FaceCaptureCamera", "Face capture frame conversion failed", error)
                             if (!isDisposed.get()) currentOnCameraError()
                             return
                         }
@@ -84,6 +87,8 @@ internal fun FaceCaptureCamera(
                             if (!isDisposed.get()) currentOnSourceTooSmall()
                         } else if (!isDisposed.get()) {
                             currentOnFrame(bitmap)
+                        } else {
+                            bitmap.recycle()
                         }
                     } finally {
                         image.close()
@@ -112,7 +117,8 @@ internal fun FaceCaptureCamera(
                         cameraSelector,
                         imageAnalysis,
                     )
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    Log.e("FaceCaptureCamera", "Face capture camera initialization failed", error)
                     if (!isDisposed.get()) currentOnCameraError()
                 }
             },
@@ -121,9 +127,10 @@ internal fun FaceCaptureCamera(
 
         onDispose {
             isDisposed.set(true)
-            cameraProvider?.unbind(imageAnalysis)
             imageAnalysis.clearAnalyzer()
-            analysisExecutor.shutdownNow()
+            cameraProvider?.unbind(imageAnalysis)
+            // Drain already queued callbacks; each one closes its ImageProxy in finally.
+            analysisExecutor.shutdown()
         }
     }
 }

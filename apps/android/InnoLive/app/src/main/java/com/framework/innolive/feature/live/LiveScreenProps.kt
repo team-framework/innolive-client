@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live
 
 import androidx.compose.runtime.Immutable
+import com.framework.innolive.feature.settings.PlanUsage
 
 @Immutable
 data class LiveScreenProps(
@@ -26,4 +27,6 @@ data class LiveScreenProps(
     val onVideoQualitySettingsChanged: (BroadcastVideoQualitySettings) -> Unit = {},
     val videoQualityCaptureState: VideoQualityCaptureState = VideoQualityCaptureState(),
     val onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
+    val planUsage: PlanUsage? = null,
+    val onOpenPlan: () -> Unit = onOpenSettings,
 )

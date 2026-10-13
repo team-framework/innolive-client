@@ -176,6 +176,92 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
         XCTAssertEqual(requestCount(suffix: "/stream/resume"), 0)
     }
 
+    func testForegroundResumesOnlyAutomaticallyPausedTarget() async throws {
+        let integration = try await makeLiveIntegration()
+        let json = SessionStateFixture.json(providers: ["youtube", "chzzk"])
+            .replacingOccurrences(of: "\"provider\":\"youtube\",\"stream\":{\"status\":\"streaming\"", with: "\"provider\":\"youtube\",\"stream\":{\"status\":\"paused\"")
+        integration.applyLiveEditingSnapshotForTesting(try JSONDecoder().decode(YouTubeSessionResponse.self, from: Data(json.utf8)))
+        YouTubeBackgroundPauseURLProtocol.responses = [
+            .init(statusCode: 200, data: streamState(status: "paused")),
+            .init(statusCode: 200, data: streamState(status: "streaming")),
+        ]
+        await integration.handleAppBecameActive(accessToken: "access-token")
+        await integration.handleAppMovedToBackground(accessToken: "access-token")
+        await integration.handleAppBecameActive(accessToken: "access-token")
+        let resumes = YouTubeBackgroundPauseURLProtocol.requests.filter { $0.url?.path.hasSuffix("/stream/resume") == true }
+        XCTAssertEqual(resumes.count, 1)
+        XCTAssertEqual(resumes.first?.url?.query, "provider=chzzk")
+        XCTAssertEqual(integration.visibleBroadcastTargets.first { $0.provider == "youtube" }?.stream.status, "paused")
+        integration.reset()
+    }
+
+    func testBackgroundPauseFailureStillPausesAndResumesOtherTarget() async throws {
+        let integration = try await makeLiveIntegration()
+        integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"]))
+        YouTubeBackgroundPauseURLProtocol.responses = [
+            .init(statusCode: 500, data: Data()),
+            .init(statusCode: 200, data: streamState(status: "paused")),
+            .init(statusCode: 200, data: streamState(status: "streaming")),
+        ]
+        await integration.handleAppBecameActive(accessToken: "access-token")
+        await integration.handleAppMovedToBackground(accessToken: "access-token")
+        await integration.handleAppBecameActive(accessToken: "access-token")
+        XCTAssertEqual(requestCount(suffix: "/stream/pause"), 2)
+        let resumes = YouTubeBackgroundPauseURLProtocol.requests.filter { $0.url?.path.hasSuffix("/stream/resume") == true }
+        XCTAssertEqual(resumes.count, 1)
+        XCTAssertEqual(resumes.first?.url?.query, "provider=chzzk")
+        XCTAssertNil(integration.errorMessage)
+        integration.reset()
+    }
+
+    func testWholeStopFailureStillStopsOtherTarget() async throws {
+        let integration = try await makeLiveIntegration()
+        integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"]))
+        YouTubeBackgroundPauseURLProtocol.responses = [
+            .init(statusCode: 500, data: Data()),
+            .init(statusCode: 200, data: streamState(status: "stopped")),
+        ]
+        await integration.stopYouTubeStream(accessToken: "access-token")
+        XCTAssertEqual(requestCount(suffix: "/stream/stop"), 2)
+        XCTAssertEqual(integration.visibleBroadcastTargets.first { $0.provider == "youtube" }?.stream.status, "streaming")
+        XCTAssertEqual(integration.responseState.details.targets?.first { $0.provider == "chzzk" }?.stream.status, "stopped")
+        XCTAssertTrue(locker.isLocked)
+        XCTAssertNotNil(integration.errorMessage)
+        XCTAssertFalse(YouTubeBackgroundPauseURLProtocol.requests.contains { $0.httpMethod == "DELETE" })
+        integration.reset()
+    }
+
+    func testGoLivePartialFailureNamesOnlyFailedTargetAndKeepsOtherLive() async throws {
+        let integration = try makePreparedIntegration()
+        integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"], phase: "prepared", status: "idle"))
+        let data = try ContractTestFixtures.data(named: "broadcast-session-state-golive-partial.v1")
+        YouTubeBackgroundPauseURLProtocol.responses = [.init(statusCode: 200, data: data)]
+        await integration.goLiveYouTubeStream(accessToken: "access-token")
+        XCTAssertEqual(requestCount(suffix: "/stream/golive"), 1)
+        XCTAssertTrue(integration.hasStartedYouTubeBroadcast)
+        XCTAssertTrue(locker.isLocked)
+        XCTAssertEqual(integration.liveEditingTargets, [.chzzk])
+        XCTAssertTrue(integration.errorMessage?.contains("YouTube") == true)
+        XCTAssertFalse(integration.errorMessage?.contains("치지직") == true)
+        integration.reset()
+    }
+
+    func testStoppingOneTargetKeepsOtherLiveSessionAndOrientation() async throws {
+        let integration = try await makeLiveIntegration()
+        integration.applyLiveEditingSnapshotForTesting(try SessionStateFixture.decode(providers: ["youtube", "chzzk"]))
+        YouTubeBackgroundPauseURLProtocol.responses = [.init(statusCode: 200, data: streamState(status: "stopped"))]
+        await integration.stopYouTubeStream(accessToken: "access-token", provider: .youtube)
+        XCTAssertEqual(requestCount(suffix: "/stream/stop"), 1)
+        XCTAssertEqual(YouTubeBackgroundPauseURLProtocol.requests.last?.url?.query, "provider=youtube")
+        XCTAssertEqual(integration.visibleBroadcastTargets.map(\.provider), ["chzzk"])
+        XCTAssertEqual(integration.currentPlanMode, .hdSingle)
+        XCTAssertTrue(integration.hasStartedYouTubeBroadcast)
+        XCTAssertNotNil(integration.streamStartedAt)
+        XCTAssertNotNil(integration.session)
+        XCTAssertTrue(locker.isLocked)
+        integration.reset()
+    }
+
     private func makeLiveIntegration() async throws -> YouTubeIntegration {
         let integration = try makePreparedIntegration()
         YouTubeBackgroundPauseURLProtocol.responses = [

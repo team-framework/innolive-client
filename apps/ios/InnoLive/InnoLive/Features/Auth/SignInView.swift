@@ -43,20 +43,21 @@ struct SignInView: View {
         .sheet(item: $consentProvider, onDismiss: {
             guard let (provider, consent) = approvedSignIn else { return }
             approvedSignIn = nil
-            guard consent.isAccepted, !isAuthorizing else { return }
+            guard authentication.hasAcceptedAccountCollection || consent.isAccepted, !isAuthorizing else { return }
             switch provider {
             case .google: signInWithGoogle(consent: consent)
             case .apple: signInWithApple(consent: consent)
             }
         }) { provider in
             SignupConsentView { consent in
+                guard authentication.acceptAccountCollection(consent) else { return }
                 approvedSignIn = (provider, consent)
             }
         }
     }
 
     private var googleButton: some View {
-        Button { consentProvider = .google } label: {
+        Button { beginSignIn(.google) } label: {
             HStack(spacing: 12) {
                 if let googleIcon = Self.googleIcon {
                     Image(uiImage: googleIcon)
@@ -86,8 +87,20 @@ struct SignInView: View {
         return UIImage(named: "google", in: resourceBundle, compatibleWith: nil)
     }()
 
+    private func beginSignIn(_ provider: Provider) {
+        guard !isAuthorizing else { return }
+        guard authentication.hasAcceptedAccountCollection else {
+            consentProvider = provider
+            return
+        }
+        switch provider {
+        case .google: signInWithGoogle(consent: SignupConsent())
+        case .apple: signInWithApple(consent: SignupConsent())
+        }
+    }
+
     private func signInWithGoogle(consent: SignupConsent) {
-        guard consent.isAccepted, !isAuthorizing else { return }
+        guard authentication.hasAcceptedAccountCollection || consent.isAccepted, !isAuthorizing else { return }
         authentication.clearError()
         guard let presentingViewController else { return }
         guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GIDClientID") as? String,
@@ -113,14 +126,14 @@ struct SignInView: View {
 
     private var appleButton: some View {
         ConsentAppleSignInButton(style: colorScheme == .dark ? .white : .black) {
-            consentProvider = .apple
+            beginSignIn(.apple)
         }
         .id(colorScheme)
         .frame(maxWidth: .infinity).frame(height: 48).disabled(authentication.isLoading)
     }
 
     private func signInWithApple(consent: SignupConsent) {
-        guard consent.isAccepted, !isAuthorizing,
+        guard authentication.hasAcceptedAccountCollection || consent.isAccepted, !isAuthorizing,
               let window = presentingViewController?.view.window else { return }
         authentication.clearError()
         let nonce = authentication.makeNonce()

@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": "upgrade_offer_not_found",
+    "message": "There is no pending upgrade offer for this session."
+  }
+}

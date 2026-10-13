@@ -1,0 +1,16 @@
+[
+  {
+    "provider": "youtube",
+    "channel_id": "UC-example",
+    "channel_title": "예시 YouTube 채널",
+    "connected_at": "2026-10-01T00:00:00Z",
+    "reconnect_required": false
+  },
+  {
+    "provider": "chzzk",
+    "channel_id": "chzzk-example",
+    "channel_title": "예시 치지직 채널",
+    "connected_at": "2026-10-01T00:00:00Z",
+    "reconnect_required": true
+  }
+]

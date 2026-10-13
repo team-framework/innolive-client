@@ -1,0 +1,25 @@
+<resources>
+    <string name="plan_title">요금제 및 사용량</string>
+    <string name="plan_loading">조회 중</string>
+    <string name="plan_refresh">새로고침</string>
+    <string name="plan_waiting">요금제 조회 대기</string>
+    <string name="plan_load_failed">요금제를 불러오지 못했습니다. 새로고침해 주세요.</string>
+    <string name="plan_last_value">마지막 조회값</string>
+    <string name="plan_current">현재 요금제: %1$s</string>
+    <string name="plan_monthly_limit">월 한도: %1$s</string>
+    <string name="plan_broadcast_limit">1회 방송 한도: %1$s</string>
+    <string name="plan_used">이번 달 차감 시간: %1$s</string>
+    <string name="plan_remaining">이번 달 남은 시간: %1$s</string>
+    <string name="plan_mode_time_hint">방식별 월 방송 가능 시간입니다. 1회 방송 한도는 별도로 적용됩니다.</string>
+    <string name="plan_unlimited">무제한</string>
+    <string name="plan_locked">잠금</string>
+    <string name="plan_exhausted">소진</string>
+    <string name="plan_multiplier">차감 %1$s배</string>
+    <string name="plan_mode_locked">현재 요금제에서는 %1$s 방식을 사용할 수 없습니다.</string>
+    <string name="plan_hd_single">720p 단독</string>
+    <string name="plan_fhd_single">FHD 단독</string>
+    <string name="plan_hd_multi">720p 동시</string>
+    <string name="plan_fhd_multi">FHD 동시</string>
+    <string name="plan_remaining_description">남은 방송 시간 %1$s, 요금제 확인</string>
+    <string name="plan_session_stale">마지막 조회값 · 재시도 중</string>
+</resources>

@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.PendingIntent
 import android.content.Intent
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.settings.PlanUsage
+import kotlinx.coroutines.CancellationException
 
 class YouTubeAccountCoordinator(
     private val activity: Activity?,
@@ -15,6 +17,17 @@ class YouTubeAccountCoordinator(
         retryYouTubeUnauthorized(refreshAccessToken(), refreshAccessToken) { token ->
             findYouTubeAccount(api().listAccounts(token))
         }
+
+    suspend fun loadPlanUsage(accessToken: String, refreshAccessToken: suspend () -> String): PlanUsage =
+        retryYouTubeUnauthorized(accessToken, {
+            try {
+                refreshAccessToken()
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Exception) {
+                throw YouTubeApiException(401, "plan authentication", cause = exception)
+            }
+        }) { api().planUsage(it) }
 
     suspend fun beginAuthorization(
         onAuthorizationRequired: (PendingIntent) -> Unit,
@@ -32,15 +45,10 @@ class YouTubeAccountCoordinator(
 
     suspend fun connect(
         serverAuthCode: String,
+        accessToken: String,
         refreshAccessToken: suspend () -> String,
-    ): StreamingAccount? {
-        var accessToken = refreshAccessToken()
-        val refresh = suspend { refreshAccessToken().also { accessToken = it } }
-        retryYouTubeUnauthorized(accessToken, refresh) { token -> api().connect(serverAuthCode, token) }
-        // 연결 후 목록 조회가 실패해도 일회용 OAuth 코드를 다시 보내지 않습니다.
-        return retryYouTubeUnauthorized(accessToken, refresh) { token ->
-            findYouTubeAccount(api().listAccounts(token))
-        }
+    ): StreamingAccount = retryYouTubeUnauthorized(accessToken, refreshAccessToken) { token ->
+        api().connect(serverAuthCode, token)
     }
 
     fun serverAuthCodeFromIntent(data: Intent): String =

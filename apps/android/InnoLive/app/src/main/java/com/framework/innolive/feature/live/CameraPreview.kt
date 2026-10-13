@@ -181,6 +181,7 @@ fun CameraPreview(
                 }
         }
         var cameraProvider: ProcessCameraProvider? = null
+        var boundSessionConfig: SessionConfig? = null
         var isDisposed = false
         var observedCamera: Camera? = null
         val cameraStateObserver = Observer<CameraState> { state ->
@@ -207,12 +208,14 @@ fun CameraPreview(
                         CameraFrameRateBinding.bind(
                             cameraProvider, lifecycleOwner, cameraSelector,
                             listOfNotNull(preview, imageAnalysis), viewPort,
+                            onSessionConfigBound = { boundSessionConfig = it },
                         ) { boundCamera ->
                             controller.bind(boundCamera)
                             observedCamera = boundCamera
                             boundCamera.cameraInfo.cameraState.observe(lifecycleOwner, cameraStateObserver)
                         }
-                    } catch (_: Exception) {
+                    } catch (error: Exception) {
+                        Log.e("PrivacyCamera", "Camera preview initialization failed", error)
                         hasCameraError = true
                     }
                 }
@@ -230,12 +233,16 @@ fun CameraPreview(
                     stabilizationStatus = VideoStabilizationStatus.INACTIVE,
                 ))
             }
-            cameraProvider?.unbind(preview)
-            imageAnalysis?.let { analysis ->
-                analysis.clearAnalyzer()
-                cameraProvider?.unbind(analysis)
+            imageAnalysis?.clearAnalyzer()
+            val sessionConfig = boundSessionConfig
+            if (sessionConfig != null) {
+                // CameraX ignores UseCase unbind calls for a SessionConfig binding.
+                // Keep the exact instance so an old effect cannot unbind a newer session.
+                cameraProvider?.unbind(sessionConfig)
+            } else {
+                cameraProvider?.unbind(*listOfNotNull(preview, imageAnalysis).toTypedArray())
             }
-            analysisExecutor?.shutdownNow()
+            analysisExecutor?.shutdown()
         }
     }
 
@@ -265,7 +272,9 @@ fun CameraPreview(
 /** CameraX's supported range is specific to the combined preview and analysis session. */
 internal object CameraFrameRateBinding {
     fun bind(provider:ProcessCameraProvider, owner:LifecycleOwner, selector:CameraSelector,
-             useCases:List<UseCase>, viewPort:ViewPort, onBound:(Camera)->Unit = {}):Boolean {
+             useCases:List<UseCase>, viewPort:ViewPort,
+             onSessionConfigBound:(SessionConfig?)->Unit = {},
+             onBound:(Camera)->Unit = {}):Boolean {
         val exact30=Range(30,30)
         val proposed=SessionConfig.Builder(useCases).setViewPort(viewPort)
         val supported=runCatching {
@@ -274,13 +283,17 @@ internal object CameraFrameRateBinding {
                 info.isSessionConfigSupported(proposed.setFrameRateRange(exact30).build())
         }.getOrDefault(false)
         if(supported) {
+            val sessionConfig = proposed.build()
             try {
-                onBound(provider.bindToLifecycle(owner,selector,proposed.build()))
+                val camera = provider.bindToLifecycle(owner,selector,sessionConfig)
+                onSessionConfigBound(sessionConfig)
+                onBound(camera)
                 Log.i("PrivacyCamera","capture_range=30-30")
                 return true
             } catch(error:Exception) {
-                provider.unbind(*useCases.toTypedArray())
-                Log.w("PrivacyCamera","capture_range_fallback type=${error.javaClass.simpleName}")
+                provider.unbind(sessionConfig)
+                onSessionConfigBound(null)
+                Log.w("PrivacyCamera","capture_range_fallback", error)
             }
         }
         val group=UseCaseGroup.Builder().apply {useCases.forEach(::addUseCase)}

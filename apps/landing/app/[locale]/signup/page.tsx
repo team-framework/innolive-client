@@ -5,6 +5,7 @@ import { SignupForm } from "@/components/signup-form";
 import { documentContent } from "@/lib/document-content";
 import { isLocale } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
+import { pageMetadata } from "@/lib/seo";
 
 type PageProps = {
   params: Promise<{ locale: string }>;
@@ -12,7 +13,11 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps) {
   const { locale } = await params;
-  return { title: getMessages(locale).metadata.signupTitle };
+  const { metadata } = getMessages(locale);
+  return pageMetadata(locale, "/signup", {
+    title: metadata.signupTitle,
+    description: metadata.description,
+  });
 }
 
 export default async function SignupPage({ params }: PageProps) {

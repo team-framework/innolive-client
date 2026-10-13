@@ -20,7 +20,6 @@ export default async function PrivacyPage({ params }: PageProps) {
   return (
     <DocumentPage
       locale={locale}
-      slug="privacy"
       Content={documentContent.privacy[locale]}
     />
   );

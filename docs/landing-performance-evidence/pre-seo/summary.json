@@ -1,0 +1,134 @@
+[
+  {
+    "mode": "mobile",
+    "run": 1,
+    "fetchTime": "2026-10-03T11:45:13.906Z",
+    "scores": {
+      "performance": 75,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 919.2774999999999,
+      "largest-contentful-paint": 251808.73562500003,
+      "speed-index": 1727.6687591132072,
+      "total-blocking-time": 72,
+      "cumulative-layout-shift": 0.01906933206779221,
+      "total-byte-weight": 52527240
+    },
+    "warnings": [],
+    "error": null
+  },
+  {
+    "mode": "desktop",
+    "run": 1,
+    "fetchTime": "2026-10-03T11:45:28.087Z",
+    "scores": {
+      "performance": 75,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 253.52429999999998,
+      "largest-contentful-paint": 42900.28645,
+      "speed-index": 611.9437799055967,
+      "total-blocking-time": 0,
+      "cumulative-layout-shift": 0,
+      "total-byte-weight": 57054002
+    },
+    "warnings": [
+      "The page loaded too slowly to finish within the time limit. Results may be incomplete."
+    ],
+    "error": null
+  },
+  {
+    "mode": "mobile",
+    "run": 2,
+    "fetchTime": "2026-10-03T11:46:25.010Z",
+    "scores": {
+      "performance": 75,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 910.9839999999999,
+      "largest-contentful-paint": 251796.968,
+      "speed-index": 1445.8574618428352,
+      "total-blocking-time": 23,
+      "cumulative-layout-shift": 0.01906933206779221,
+      "total-byte-weight": 52527232
+    },
+    "warnings": [],
+    "error": null
+  },
+  {
+    "mode": "desktop",
+    "run": 2,
+    "fetchTime": "2026-10-03T11:46:36.681Z",
+    "scores": {
+      "performance": 75,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 252.24169999999998,
+      "largest-contentful-paint": 42898.362550000005,
+      "speed-index": 584.2219028589526,
+      "total-blocking-time": 0,
+      "cumulative-layout-shift": 0,
+      "total-byte-weight": 57054001
+    },
+    "warnings": [
+      "The page loaded too slowly to finish within the time limit. Results may be incomplete."
+    ],
+    "error": null
+  },
+  {
+    "mode": "mobile",
+    "run": 3,
+    "fetchTime": "2026-10-03T11:47:33.008Z",
+    "scores": {
+      "performance": 75,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 910.5718999999999,
+      "largest-contentful-paint": 251940.85785,
+      "speed-index": 1731.981524553365,
+      "total-blocking-time": 7,
+      "cumulative-layout-shift": 0,
+      "total-byte-weight": 52527232
+    },
+    "warnings": [],
+    "error": null
+  },
+  {
+    "mode": "desktop",
+    "run": 3,
+    "fetchTime": "2026-10-03T11:47:44.567Z",
+    "scores": {
+      "performance": 75,
+      "accessibility": 100,
+      "best-practices": 100,
+      "seo": 100
+    },
+    "metrics": {
+      "first-contentful-paint": 254.2025,
+      "largest-contentful-paint": 42921.30374999999,
+      "speed-index": 479.9656884776385,
+      "total-blocking-time": 0,
+      "cumulative-layout-shift": 0,
+      "total-byte-weight": 57053983
+    },
+    "warnings": [
+      "The page loaded too slowly to finish within the time limit. Results may be incomplete."
+    ],
+    "error": null
+  }
+]

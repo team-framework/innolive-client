@@ -114,25 +114,26 @@ fun BroadcastSetting(props: BroadcastSettingProps) {
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            if (!props.hasVerifiedYouTubeAccount || props.isYouTubeReconnectRequired) {
-                val connectDisabledReason = props.connectDisabledReasonRes?.let { stringResource(it) }
-                Button(
-                    onClick = props.onConnectYouTube,
-                    enabled = props.isYouTubeConnectEnabled && !props.isYouTubeAccountActionInProgress,
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .semantics {
-                            if (connectDisabledReason != null) stateDescription = connectDisabledReason
+            val connectDisabledReason = props.connectDisabledReasonRes?.let { stringResource(it) }
+            Button(
+                onClick = props.onConnectYouTube,
+                enabled = props.isYouTubeConnectEnabled && !props.isYouTubeAccountActionInProgress,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .semantics {
+                        if (connectDisabledReason != null) stateDescription = connectDisabledReason
+                    },
+            ) {
+                Text(
+                    text = stringResource(
+                        when {
+                            props.isYouTubeReconnectRequired -> R.string.action_reconnect
+                            props.hasVerifiedYouTubeAccount -> R.string.action_change_youtube_account
+                            !props.youtubeChannelTitle.isNullOrBlank() -> R.string.action_reconnect
+                            else -> R.string.action_connect
                         },
-                ) {
-                    Text(
-                        text = if (
-                            props.isYouTubeReconnectRequired ||
-                            !props.youtubeChannelTitle.isNullOrBlank()
-                        ) stringResource(R.string.action_reconnect)
-                        else stringResource(R.string.action_connect),
-                    )
-                }
+                    ),
+                )
             }
         }
 

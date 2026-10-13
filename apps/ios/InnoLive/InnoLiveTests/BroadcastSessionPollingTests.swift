@@ -197,6 +197,73 @@ final class BroadcastSessionPollingTests: XCTestCase {
         XCTAssertTrue(accounts.isEmpty)
     }
 
+    func testStoppingOneTargetKeepsOtherTargetPolling() async {
+        let poll = expectation(description: "remaining target is polled after stop")
+        var stopped = false
+        var fulfilled = false
+        SessionStateURLProtocol.handler = { request in
+            if request.url?.path.hasSuffix("/stream/stop") == true {
+                XCTAssertEqual(request.url?.query, "provider=youtube")
+                stopped = true
+                return (200, SessionStateFixture.stream(phase: "idle", status: "stopped"))
+            }
+            if request.httpMethod == "GET", stopped, !fulfilled { fulfilled = true; poll.fulfill() }
+            var json = SessionStateFixture.json(providers: ["youtube", "chzzk"])
+            if stopped {
+                json = json.replacingOccurrences(of: "\"provider\":\"youtube\",\"stream\":\(SessionStateFixture.stream())",
+                                                with: "\"provider\":\"youtube\",\"stream\":\(SessionStateFixture.stream(phase: "idle", status: "stopped"))")
+            }
+            return (request.httpMethod == "POST" ? 201 : 200, json)
+        }
+        let integration = makeIntegration()
+        let token = SessionStateFixture.token("user")
+        _ = await integration.prepareSession(accessToken: token)
+        await integration.stopYouTubeStream(accessToken: token, provider: .youtube)
+        await fulfillment(of: [poll], timeout: 2)
+        XCTAssertEqual(integration.visibleBroadcastTargets.map(\.provider), ["chzzk"])
+        XCTAssertTrue(integration.hasStartedYouTubeBroadcast)
+        XCTAssertNotNil(integration.session)
+        integration.reset()
+    }
+
+    func testForegroundResumesAutomaticallyPausedTargetAfterReconnectFinishes() async {
+        let resumed = expectation(description: "reconnected background target resumes")
+        var statuses = ["youtube": "streaming", "chzzk": "streaming"]
+        var foreground = false
+        var resumeProviders: [String] = []
+        SessionStateURLProtocol.handler = { request in
+            let provider = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value ?? "youtube"
+            if request.url?.path.hasSuffix("/stream/pause") == true {
+                statuses[provider] = provider == "youtube" ? "paused_reconnecting" : "paused"
+                return (200, SessionStateFixture.stream(status: statuses[provider]!))
+            }
+            if request.url?.path.hasSuffix("/stream/resume") == true {
+                resumeProviders.append(provider)
+                statuses[provider] = "streaming"
+                if provider == "youtube" { resumed.fulfill() }
+                return (200, SessionStateFixture.stream())
+            }
+            if foreground, statuses["youtube"] == "paused_reconnecting" { statuses["youtube"] = "paused" }
+            let youtube = SessionStateFixture.stream(status: statuses["youtube"]!)
+            let chzzk = SessionStateFixture.stream(status: statuses["chzzk"]!)
+            let json = "{\"session_id\":\"state-session\",\"owner_token\":\"fixture-owner\",\"provider\":\"youtube\",\"stream\":\(youtube),\"targets\":[{\"provider\":\"youtube\",\"stream\":\(youtube)},{\"provider\":\"chzzk\",\"stream\":\(chzzk)}]}"
+            return (request.httpMethod == "POST" ? 201 : 200, json)
+        }
+        let integration = makeIntegration()
+        let token = SessionStateFixture.token("user")
+        _ = await integration.prepareSession(accessToken: token)
+        await integration.handleAppBecameActive(accessToken: token)
+        await integration.handleAppMovedToBackground(accessToken: token)
+        foreground = true
+        await integration.handleAppBecameActive(accessToken: token)
+        await fulfillment(of: [resumed], timeout: 1)
+        XCTAssertEqual(Set(resumeProviders), ["youtube", "chzzk"])
+        XCTAssertEqual(resumeProviders.count, 2)
+        XCTAssertTrue(integration.hasStartedYouTubeBroadcast)
+        XCTAssertFalse(integration.isYouTubeBroadcastPaused)
+        integration.reset()
+    }
+
     private func makeAPI() -> YouTubeAPI {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SessionStateURLProtocol.self]

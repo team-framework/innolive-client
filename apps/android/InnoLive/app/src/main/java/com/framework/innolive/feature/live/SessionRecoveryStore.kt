@@ -94,6 +94,7 @@ internal class EncryptedSessionRecoveryStore(
                 sessionId = payload.getString("session_id"),
                 ownerToken = payload.getString("owner_token"),
                 anonymizationState = AnonymizationState.UNKNOWN,
+                provider = BroadcastProvider.fromWire(payload.optString("provider", "youtube")),
             ).also { check(it.sessionId.isNotBlank() && it.ownerToken.isNotBlank()) }
         }.getOrElse {
             clearInvalid()
@@ -106,6 +107,7 @@ internal class EncryptedSessionRecoveryStore(
         val payload = JSONObject()
             .put("session_id", session.sessionId)
             .put("owner_token", session.ownerToken)
+            .put("provider", session.provider.wireValue)
             .toString()
         val encrypted = cipher.doFinal(payload.toByteArray(Charsets.UTF_8))
         check(preferences.edit()

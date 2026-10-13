@@ -33,6 +33,8 @@
 	<string>243768920567-l2mhbgrrm3mq0audqfdali4ok7otkjug.apps.googleusercontent.com</string>
     <key>GIDServerClientID</key>
 	<string>243768920567-klo731slcpu8aslvlrol3s99a6ghfjr6.apps.googleusercontent.com</string>
+    <key>CHZZKCallbackHost</key>
+    <string>$(CHZZK_CALLBACK_HOST)</string>
     <key>InnoLiveServerURL</key>
     <string>$(INNOLIVE_SERVER_URL)</string>
     <key>UILaunchScreen</key>

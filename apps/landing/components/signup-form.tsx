@@ -14,6 +14,7 @@ import {
   isValidSignupPassword,
   isVerificationCode,
 } from "@/lib/auth-validation";
+import { trackConversion } from "@/lib/conversion-analytics";
 import { interpolate } from "@/lib/locales";
 
 type SignupErrors = {
@@ -26,7 +27,7 @@ type SignupErrors = {
 
 export function SignupForm({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { href, messages } = useLocale();
+  const { href, messages, locale } = useLocale();
   const copy = messages.auth;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,6 +72,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
     setIsSubmitting(true);
     try {
       await startSignup(trimmedEmail, password);
+      trackConversion("signup_verification_sent", locale);
       setStep("verification");
       setNotice(copy.verificationSent);
     } catch (error) {
@@ -92,6 +94,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
     setIsSubmitting(true);
     try {
       await completeSignup(verificationCode.trim());
+      trackConversion("signup_completed", locale);
       router.replace(href("/login"));
     } catch (error) {
       setNotice(authErrorMessage(error, copy.errors));

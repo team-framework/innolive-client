@@ -1,67 +1,62 @@
 "use client";
 
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Image from "next/image";
+import { observeSectionAnimation } from "@/lib/landing-animation";
 import Link from "next/link";
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import { useLocale } from "@/components/locale-provider";
+import { getHomeFaq } from "@/lib/faq";
 
 export function FAQSection() {
-  const { href, messages } = useLocale();
-  const items: { question: string; answer: ReactNode }[] = [
-    ...messages.faq.items,
-    {
-      question: messages.faq.privacyQuestion,
-      answer: (
-        <>
-          {messages.faq.privacyBefore}
-          <Link
-            href={href("/privacy")}
-            className="underline [text-underline-position:from-font]"
-          >
-            {messages.faq.privacyLink}
-          </Link>
-          {messages.faq.privacyAfter}
-        </>
-      ),
-    },
-  ];
+  const { messages, locale } = useLocale();
+  const items = getHomeFaq(locale);
   const sectionRef = useRef<HTMLElement>(null);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
-    gsap.registerPlugin(ScrollTrigger);
-    const media = gsap.matchMedia();
-    media.add("(prefers-reduced-motion: no-preference)", () => {
-      const entries = section.querySelectorAll("details");
-      gsap.set(entries, { opacity: 0, y: 32 });
-      ScrollTrigger.batch(entries, {
-        start: "top 80%",
-        onEnter: (batch) => {
-          gsap.to(batch, { opacity: 1, y: 0, duration: 0.6, stagger: 0.12, ease: "power2.out" });
-        },
-        onLeaveBack: (batch) => {
-          gsap.to(batch, {
-            opacity: 0,
-            y: 32,
-            duration: 0.6,
-            stagger: 0.12,
-            ease: "power2.out",
-            overwrite: true,
+    return observeSectionAnimation(section, async (isCancelled) => {
+      const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+      ]);
+      if (isCancelled()) return () => {};
+      gsap.registerPlugin(ScrollTrigger);
+      const media = gsap.matchMedia();
+      try {
+        media.add("(prefers-reduced-motion: no-preference)", () => {
+          const entries = section.querySelectorAll("details");
+          gsap.set(entries, { opacity: 0, y: 32 });
+          ScrollTrigger.batch(entries, {
+            start: "top 80%",
+            onEnter: (batch) => {
+              gsap.to(batch, { opacity: 1, y: 0, duration: 0.6, stagger: 0.12, ease: "power2.out" });
+            },
+            onLeaveBack: (batch) => {
+              gsap.to(batch, {
+                opacity: 0,
+                y: 32,
+                duration: 0.6,
+                stagger: 0.12,
+                ease: "power2.out",
+                overwrite: true,
+              });
+            },
           });
-        },
-      });
-      // Keyboard focus must never remain on an invisible question or answer link.
-      const revealFocused = (event: FocusEvent) => {
-        const entry = (event.target as HTMLElement).closest("details");
-        if (entry) gsap.to(entry, { opacity: 1, y: 0, duration: 0, overwrite: true });
-      };
-      section.addEventListener("focusin", revealFocused);
-      return () => section.removeEventListener("focusin", revealFocused);
-    }, section);
-    return () => media.revert();
+          // Keyboard focus must never remain on an invisible question or answer link.
+          const revealFocused = (event: FocusEvent) => {
+            const entry = (event.target as HTMLElement).closest("details");
+            if (entry) gsap.to(entry, { opacity: 1, y: 0, duration: 0, overwrite: true });
+          };
+          section.addEventListener("focusin", revealFocused);
+          return () => section.removeEventListener("focusin", revealFocused);
+        }, section);
+        return () => media.revert();
+      } catch (error) {
+        media.revert();
+        throw error;
+      }
+    });
   }, []);
 
   return (
@@ -85,8 +80,9 @@ export function FAQSection() {
         </div>
 
         <div className="flex w-full flex-col gap-3">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <details
+              id={`faq-${index + 1}`}
               key={item.question}
               open={false}
               className="flex w-full flex-col gap-2.5 py-2 open:[&_summary_img]:rotate-180"
@@ -106,7 +102,15 @@ export function FAQSection() {
               </summary>
               <div className="px-3 py-2">
                 <p className="break-keep text-xl font-normal leading-[1.15] text-text-primary">
-                  {item.answer}
+                  {item.answerLink ? (
+                    <>
+                      {item.answerLink.before}
+                      <Link href={item.answerLink.href} className="underline [text-underline-position:from-font]">
+                        {item.answerLink.label}
+                      </Link>
+                      {item.answerLink.after}
+                    </>
+                  ) : item.answer}
                 </p>
               </div>
             </details>

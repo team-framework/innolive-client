@@ -1,0 +1,25 @@
+<resources>
+    <string name="plan_title">プランと使用量</string>
+    <string name="plan_loading">読み込み中</string>
+    <string name="plan_refresh">更新</string>
+    <string name="plan_waiting">プラン情報を待機中</string>
+    <string name="plan_load_failed">プランを読み込めませんでした。更新してください。</string>
+    <string name="plan_last_value">最後に確認した値</string>
+    <string name="plan_current">現在のプラン: %1$s</string>
+    <string name="plan_monthly_limit">月間上限: %1$s</string>
+    <string name="plan_broadcast_limit">1回の配信上限: %1$s</string>
+    <string name="plan_used">今月の消費時間: %1$s</string>
+    <string name="plan_remaining">今月の残り時間: %1$s</string>
+    <string name="plan_mode_time_hint">方式別の月間配信可能時間です。1回の配信上限は別に適用されます。</string>
+    <string name="plan_unlimited">無制限</string>
+    <string name="plan_locked">ロック</string>
+    <string name="plan_exhausted">使い切りました</string>
+    <string name="plan_multiplier">消費倍率: %1$s倍</string>
+    <string name="plan_mode_locked">現在のプランでは%1$sを利用できません。</string>
+    <string name="plan_hd_single">720p 単独</string>
+    <string name="plan_fhd_single">FHD 単独</string>
+    <string name="plan_hd_multi">720p 同時</string>
+    <string name="plan_fhd_multi">FHD 同時</string>
+    <string name="plan_remaining_description">残り配信時間 %1$s、プランを確認</string>
+    <string name="plan_session_stale">最後に確認した値・再試行中</string>
+</resources>

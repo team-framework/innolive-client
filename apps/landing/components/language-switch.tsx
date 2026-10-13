@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { isLocale, localeLabels, locales, switchLocalePath } from "@/lib/locales";
+import { isSeoGuidePath } from "@/lib/seo-guide-paths";
+import { isLocale, localeLabels, locales, stripLocalePrefix, switchLocalePath } from "@/lib/locales";
 import { useLocale } from "@/components/locale-provider";
 import { cn } from "@/lib/cn";
 
@@ -19,7 +20,9 @@ export function LanguageSwitch({ className }: { className?: string }) {
           if (!isLocale(next) || next === locale) return;
           document.cookie = `NEXT_LOCALE=${next}; Path=/; SameSite=Lax`;
           router.push(
-            switchLocalePath(window.location.pathname, next, window.location.search, window.location.hash),
+            isSeoGuidePath(stripLocalePrefix(window.location.pathname))
+              ? switchLocalePath("/", next)
+              : switchLocalePath(window.location.pathname, next, window.location.search, window.location.hash),
             { scroll: false },
           );
         }}
