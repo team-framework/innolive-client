@@ -7,7 +7,10 @@ import org.junit.Test
 import java.nio.ByteBuffer
 
 class PacketFanoutTest {
-    private class FakeEndpoint(override var isPublishing: Boolean = true) : PublishEndpoint {
+    private class FakeEndpoint(
+        override var isPublishing: Boolean = true,
+        override var connectionGeneration: Int = 1,
+    ) : PublishEndpoint {
         val events = mutableListOf<String>()
 
         override fun setVideoConfig(sps: ByteBuffer, pps: ByteBuffer) {
@@ -71,6 +74,20 @@ class PacketFanoutTest {
         youtube.isPublishing = true
         fanout.onVideo(video(3_000))
         fanout.onVideo(video(4_000, key = true))
+        assertEquals(listOf("config 8/4", "video 0 key 10", "config 8/4", "video 0 key 10"), youtube.events)
+        assertEquals(1, keyFrameRequests)
+    }
+
+    @Test fun reconnectBetweenVideoPacketsRestartsWithConfigAndKeyFrame() {
+        val youtube = FakeEndpoint()
+        fanout.add(BroadcastProvider.YOUTUBE, youtube)
+        configure()
+        fanout.onVideo(video(1_000, key = true))
+        // 영상 출력 사이에 끊김과 재연결이 끝나 isPublishing=false를 한 번도 보지 못한 경우입니다.
+        youtube.connectionGeneration = 2
+        fanout.onAudio(audio(1_500))
+        fanout.onVideo(video(2_000))
+        fanout.onVideo(video(3_000, key = true))
         assertEquals(listOf("config 8/4", "video 0 key 10", "config 8/4", "video 0 key 10"), youtube.events)
         assertEquals(1, keyFrameRequests)
     }

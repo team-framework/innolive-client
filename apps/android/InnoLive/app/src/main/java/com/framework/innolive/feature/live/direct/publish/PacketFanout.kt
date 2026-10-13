@@ -13,6 +13,9 @@ internal data class EncodedPacket(
 /** RTMP 연결 하나에 보낼 수 있는 동작입니다. 실제 구현은 [RtmpPublishTarget]입니다. */
 internal interface PublishEndpoint {
     val isPublishing: Boolean
+
+    /** 연결 시도마다 바뀌는 값입니다. 바뀌면 새 RTMP 세션이므로 코덱 설정과 키프레임부터 다시 보냅니다. */
+    val connectionGeneration: Int
     fun setVideoConfig(sps: ByteBuffer, pps: ByteBuffer)
     fun sendVideo(data: ByteBuffer, presentationTimeUs: Long, isKeyFrame: Boolean)
     fun sendAudio(data: ByteBuffer, presentationTimeUs: Long)
@@ -32,6 +35,23 @@ internal class PacketFanout(private val requestKeyFrame: () -> Unit) {
         var baseUs: Long? = null
         var configured = false
         var keyFrameRequested = false
+        var generation = endpoint.connectionGeneration
+
+        /** 새 RTMP 세션은 코덱 설정과 키프레임부터 받아야 합니다. */
+        fun restart() {
+            baseUs = null
+            configured = false
+            keyFrameRequested = false
+        }
+
+        /** 영상 출력 사이에 재연결이 끝나 송출 중이 아닌 순간을 보지 못해도 연결 세대로 알아챕니다. */
+        fun syncGeneration() {
+            val current = endpoint.connectionGeneration
+            if (current != generation) {
+                generation = current
+                restart()
+            }
+        }
     }
 
     private val lock = Any()
@@ -53,18 +73,17 @@ internal class PacketFanout(private val requestKeyFrame: () -> Unit) {
         this.sps = sps.copyRemaining()
         this.pps = pps.copyRemaining()
         // 인코더가 다시 설정되면 모든 대상이 새 설정과 키프레임부터 다시 받아야 합니다.
-        routes.values.forEach { it.configured = false; it.baseUs = null; it.keyFrameRequested = false }
+        routes.values.forEach(Route::restart)
     }
 
     fun onVideo(packet: EncodedPacket) {
         var needsKeyFrame = false
         synchronized(lock) {
             for (route in routes.values) {
+                route.syncGeneration()
                 if (!route.endpoint.isPublishing) {
                     // 재연결은 새 RTMP 세션이므로 코덱 설정부터 다시 보냅니다.
-                    route.baseUs = null
-                    route.configured = false
-                    route.keyFrameRequested = false
+                    route.restart()
                     continue
                 }
                 if (route.baseUs == null) {
@@ -92,6 +111,7 @@ internal class PacketFanout(private val requestKeyFrame: () -> Unit) {
 
     fun onAudio(packet: EncodedPacket) = synchronized(lock) {
         for (route in routes.values) {
+            route.syncGeneration()
             val base = route.baseUs ?: continue
             if (!route.endpoint.isPublishing || packet.presentationTimeUs < base) continue
             route.endpoint.sendAudio(packet.data.duplicate(), packet.presentationTimeUs - base)

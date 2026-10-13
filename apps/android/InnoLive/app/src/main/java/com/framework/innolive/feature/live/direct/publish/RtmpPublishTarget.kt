@@ -87,6 +87,8 @@ internal class RtmpPublishTarget(
 
     override val isPublishing: Boolean get() = state.get() == RtmpTargetState.PUBLISHING
 
+    override val connectionGeneration: Int get() = synchronized(lock) { generation }
+
     fun connect() {
         val next = synchronized(lock) {
             val current = state.get()
