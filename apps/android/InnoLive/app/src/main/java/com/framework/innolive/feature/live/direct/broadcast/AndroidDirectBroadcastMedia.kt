@@ -44,8 +44,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal fun androidDirectBroadcastEnvironment(
     request: LiveBroadcastTransportRequest,
     dependencies: DirectBroadcastDependencies,
+    /** 서버 API를 만듭니다. 기기 통합 테스트만 가짜 응답을 주는 클라이언트로 바꿉니다. */
+    apiFactory: (LiveBroadcastTransportRequest) -> DirectPublishApi =
+        { DirectPublishApi(it.serverUrl, it.accessToken, it.refreshAccessToken) },
 ): DirectBroadcastEnvironment {
-    val api = DirectPublishApi(request.serverUrl, request.accessToken, request.refreshAccessToken)
+    val api = apiFactory(request)
     // 서버 중계와 같은 범위를 써야 어느 경로로 남긴 세션이든 다음 시작 때 지웁니다.
     val scope = sessionRecoveryScope(request.serverUrl.trim().trimEnd('/').toHttpUrl().toString(), request.accessToken)
     val mainHandler = Handler(Looper.getMainLooper())
