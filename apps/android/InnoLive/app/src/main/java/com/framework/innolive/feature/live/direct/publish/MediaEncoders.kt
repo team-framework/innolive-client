@@ -19,14 +19,30 @@ internal interface EncoderOutput {
  * MediaCodec 비동기 콜백을 전용 스레드에서 처리합니다. 출력 버퍼는 [EncoderOutput.onPacket]이
  * 끝난 뒤 바로 돌려주므로 받는 쪽은 그 안에서 데이터를 복사하거나 전송을 끝내야 합니다.
  */
-internal abstract class AsyncMediaEncoder(name: String, private val output: EncoderOutput) : AutoCloseable {
+internal abstract class AsyncMediaEncoder(
+    name: String,
+    private val output: EncoderOutput,
+    /** 코덱 생성입니다. 기기 테스트가 구성 실패를 재현할 때만 바꿉니다. */
+    private val codecFactory: (String) -> MediaCodec = MediaCodec::createEncoderByType,
+) : AutoCloseable {
     private val thread = HandlerThread(name).apply { start() }
     protected val handler = Handler(thread.looper)
     protected lateinit var codec: MediaCodec
     @Volatile private var released = false
 
+    /** 실패하면 이번에 만든 코덱을 해제하고 예외를 그대로 던집니다. */
     protected fun configure(format: MediaFormat, mime: String, surfaceInput: Boolean) {
-        codec = MediaCodec.createEncoderByType(mime)
+        val created = codecFactory(mime)
+        codec = created
+        try {
+            configureCodec(format, surfaceInput)
+        } catch (error: Exception) {
+            runCatching { created.release() }
+            throw error
+        }
+    }
+
+    private fun configureCodec(format: MediaFormat, surfaceInput: Boolean) {
         codec.setCallback(object : MediaCodec.Callback() {
             override fun onInputBufferAvailable(codec: MediaCodec, index: Int) = onInputAvailable(index)
 
@@ -71,15 +87,30 @@ internal abstract class AsyncMediaEncoder(name: String, private val output: Enco
     override fun close() {
         if (released) return
         released = true
-        runCatching { codec.stop() }
-        runCatching { codec.release() }
+        if (::codec.isInitialized) {
+            runCatching { codec.stop() }
+            runCatching { codec.release() }
+        }
         thread.quitSafely()
+    }
+
+    /** 하위 클래스 생성 중 실패하면 시작한 스레드와 코덱을 정리합니다. 호출자는 인스턴스를 받지 못해 닫을 수 없습니다. */
+    protected inline fun initializeOrClose(block: () -> Unit) {
+        try {
+            block()
+        } catch (error: Exception) {
+            close()
+            throw error
+        }
     }
 }
 
 /** 가림 처리된 프레임을 입력 Surface로 받는 H.264 인코더입니다. */
-internal class H264SurfaceEncoder(profile: DirectPublishProfile, output: EncoderOutput) :
-    AsyncMediaEncoder("direct-publish-video", output) {
+internal class H264SurfaceEncoder(
+    profile: DirectPublishProfile,
+    output: EncoderOutput,
+    codecFactory: (String) -> MediaCodec = MediaCodec::createEncoderByType,
+) : AsyncMediaEncoder("direct-publish-video", output, codecFactory) {
     lateinit var inputSurface: Surface
         private set
 
@@ -97,14 +128,15 @@ internal class H264SurfaceEncoder(profile: DirectPublishProfile, output: Encoder
             setLong(MediaFormat.KEY_REPEAT_PREVIOUS_FRAME_AFTER, 1_000_000L / profile.fps * 2)
             setInteger(MediaFormat.KEY_MAX_B_FRAMES, 0)
         }
-        try {
-            configure(format, MediaFormat.MIMETYPE_VIDEO_AVC, surfaceInput = true)
-        } catch (error: Exception) {
-            // 일부 기기는 High 프로파일 지정을 거부합니다. 기본 프로파일로 다시 설정합니다.
-            runCatching { codec.release() }
-            format.removeKey(MediaFormat.KEY_PROFILE)
-            format.removeKey(MediaFormat.KEY_LEVEL)
-            configure(format, MediaFormat.MIMETYPE_VIDEO_AVC, surfaceInput = true)
+        initializeOrClose {
+            try {
+                configure(format, MediaFormat.MIMETYPE_VIDEO_AVC, surfaceInput = true)
+            } catch (error: Exception) {
+                // 일부 기기는 High 프로파일 지정을 거부합니다. 기본 프로파일로 다시 설정합니다.
+                format.removeKey(MediaFormat.KEY_PROFILE)
+                format.removeKey(MediaFormat.KEY_LEVEL)
+                configure(format, MediaFormat.MIMETYPE_VIDEO_AVC, surfaceInput = true)
+            }
         }
     }
 
@@ -135,7 +167,7 @@ internal class AacEncoder(private val profile: DirectPublishProfile, output: Enc
             setInteger(MediaFormat.KEY_BIT_RATE, profile.audioBitrateBps)
             setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, MAX_INPUT_BYTES)
         }
-        configure(format, MediaFormat.MIMETYPE_AUDIO_AAC, surfaceInput = false)
+        initializeOrClose { configure(format, MediaFormat.MIMETYPE_AUDIO_AAC, surfaceInput = false) }
     }
 
     /** 오디오 캡처 스레드에서 부릅니다. [data]는 이 호출 안에서 복사합니다. */
