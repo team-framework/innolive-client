@@ -79,7 +79,7 @@ internal fun hasValidatedInternet(hasCapability: (Int) -> Boolean): Boolean =
     hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
         hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 
-class WebRtcConnection(
+internal class WebRtcConnection(
     context: Context,
     serverUrl: String,
     accessToken: String,
@@ -100,7 +100,7 @@ class WebRtcConnection(
     private val onSessionSnapshotChanged: (SessionSnapshot) -> Unit = {},
     private val onServerError: (ServerErrorGuidance) -> Unit = {},
     private val onUplinkVideoStats: (UplinkVideoStats) -> Unit = {},
-) : AutoCloseable {
+) : LiveBroadcastTransport {
     private val applicationContext = context.applicationContext
     private val onDeviceProcessing = initialOnDeviceProcessing
     private var localAnonymizationEnabled = initialAnonymizationEnabled
@@ -252,7 +252,7 @@ class WebRtcConnection(
         require(accessToken.isNotBlank()) { "Access token must not be blank." }
     }
 
-    fun start() {
+    override fun start() {
         if (
             !started.compareAndSet(false, true) ||
             closed.get() ||
@@ -340,7 +340,7 @@ class WebRtcConnection(
      * released every resource. The callback is useful when a failed session
      * must finish teardown before a retry creates its replacement.
      */
-    fun close(onComplete: (() -> Unit)?) {
+    override fun close(onComplete: (() -> Unit)?) {
         var callbackAfterShutdown: (() -> Unit)? = null
         val shouldStartShutdown = synchronized(shutdownLock) {
             onComplete?.let { callback ->
@@ -487,7 +487,7 @@ class WebRtcConnection(
             .createPeerConnectionFactory()
     }
 
-    fun setPreferredAudioInput(audioInput: AudioDeviceInfo?) {
+    override fun setPreferredAudioInput(audioInput: AudioDeviceInfo?) {
         executeOnOwner {
             if (!isActive()) return@executeOnOwner
             preferredAudioInput = audioInput
@@ -504,7 +504,7 @@ class WebRtcConnection(
         }
     }
 
-    internal fun setAnonymizationEnabled(
+    override fun setAnonymizationEnabled(
         enabled: Boolean,
         onComplete: (AnonymizationState?, AnonymizationFailure?) -> Unit,
     ) {
@@ -539,7 +539,7 @@ class WebRtcConnection(
         )
     }
 
-    fun saveBroadcastSettings(settings: BroadcastSettings) {
+    override fun saveBroadcastSettings(settings: BroadcastSettings) {
         if (provider != BroadcastProvider.YOUTUBE) return
         runBroadcastOperation {
             if (settings.madeForKids == null) {
@@ -555,10 +555,10 @@ class WebRtcConnection(
         }
     }
 
-    fun prepareBroadcast(settings: BroadcastSettings, allowConcurrent: Boolean = false): Boolean =
+    override fun prepareBroadcast(settings: BroadcastSettings, allowConcurrent: Boolean): Boolean =
         prepareBroadcast(settings, null, allowConcurrent)
 
-    fun prepareBroadcast(chzzkSettings: ChzzkBroadcastSettings): Boolean =
+    override fun prepareBroadcast(chzzkSettings: ChzzkBroadcastSettings): Boolean =
         prepareBroadcast(null, chzzkSettings, false)
 
     private fun prepareBroadcast(
@@ -605,7 +605,7 @@ class WebRtcConnection(
         }
     }
 
-    fun goLive(onAccepted: () -> Unit = {}): Boolean {
+    override fun goLive(onAccepted: () -> Unit): Boolean {
         if (!broadcastState.canGoLive) return false
         return runBroadcastOperation(onAccepted = onAccepted) {
             if (!peerConnectionConnected || !audioInputVerified ||
@@ -634,7 +634,7 @@ class WebRtcConnection(
         }
     }
 
-    fun pauseBroadcast() {
+    override fun pauseBroadcast() {
         if (!broadcastState.canPause) return
         runBroadcastOperation {
             updateBroadcastState(BroadcastState.PAUSING)
@@ -656,7 +656,7 @@ class WebRtcConnection(
         }
     }
 
-    fun resumeBroadcast() {
+    override fun resumeBroadcast() {
         if (!broadcastState.canResume) return
         runBroadcastOperation {
             if (!peerConnectionConnected || !audioInputVerified ||
@@ -680,7 +680,7 @@ class WebRtcConnection(
         }
     }
 
-    fun stopBroadcast() {
+    override fun stopBroadcast() {
         if (!broadcastState.canStop) return
         runBroadcastOperation {
             val previousState = broadcastState
