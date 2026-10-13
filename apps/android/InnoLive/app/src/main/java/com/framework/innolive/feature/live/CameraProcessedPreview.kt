@@ -16,11 +16,16 @@ internal fun CameraProcessedPreview(
     analyzer: CameraFrameAnalyzer,
     cameraLensFacing: CameraLensFacing,
     modifier: Modifier = Modifier,
+    /**
+     * 가림 처리 출력이 GPU 텍스처일 때 그 텍스처를 만든 EGL 컨텍스트입니다. 공유하지 않으면 텍스처를
+     * 그릴 수 없어 미리보기가 멈춥니다(앱 직접 송출).
+     */
+    sharedEglContext: EglBase.Context? = null,
 ) {
     val context = LocalContext.current
-    val eglBase = remember(context, analyzer) {
+    val eglBase = remember(context, analyzer, sharedEglContext) {
         WebRtcNativeRuntime.initialize(context)
-        EglBase.create()
+        if (sharedEglContext != null) EglBase.create(sharedEglContext, EglBase.CONFIG_PLAIN) else EglBase.create()
     }
     val renderer = remember(context, eglBase) {
         SurfaceViewRenderer(context).apply {

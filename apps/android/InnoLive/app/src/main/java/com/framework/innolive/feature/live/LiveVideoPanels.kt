@@ -30,6 +30,8 @@ fun LiveVideoPanels(
     localVideoTrack: VideoTrack? = null,
     videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
     onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
+    /** 앱 직접 송출이면 서버에서 돌아오는 영상이 없으므로 카메라를 계속 메인 화면에 둡니다. */
+    isDirectPublish: Boolean = false,
 ) {
     BoxWithConstraints(modifier = modifier) {
         val aspectRatio = if (maxWidth > maxHeight) 16f / 9f else 9f / 16f
@@ -47,15 +49,18 @@ fun LiveVideoPanels(
             .size(pipWidth, pipHeight)
             .clip(shape = RoundedCornerShape(8.dp))
 
-        WebRtcRemotePreview(
-            remoteVideoTrack = liveMainVideoTrack(onDeviceProcessing, isConnected, localVideoTrack, remoteVideoTrack),
-            eglContext = eglContext,
-            cameraLensFacing = cameraLensFacing,
-            modifier = (if (isConnected) mainModifier else pipModifier)
-                .zIndex(if (isConnected) 0f else 1f),
-        )
-        Box(modifier = (if (isConnected) pipModifier else mainModifier)
-            .zIndex(if (isConnected) 1f else 0f)) {
+        val remoteIsMain = isConnected && !isDirectPublish
+        if (!isDirectPublish) {
+            WebRtcRemotePreview(
+                remoteVideoTrack = liveMainVideoTrack(onDeviceProcessing, isConnected, localVideoTrack, remoteVideoTrack),
+                eglContext = eglContext,
+                cameraLensFacing = cameraLensFacing,
+                modifier = (if (remoteIsMain) mainModifier else pipModifier)
+                    .zIndex(if (remoteIsMain) 0f else 1f),
+            )
+        }
+        Box(modifier = (if (remoteIsMain) pipModifier else mainModifier)
+            .zIndex(if (remoteIsMain) 1f else 0f)) {
             CameraPreview(
                 cameraLensFacing = cameraLensFacing,
                 cameraResolution = cameraResolution,
@@ -64,6 +69,8 @@ fun LiveVideoPanels(
                 videoQualitySettings = videoQualitySettings,
                 onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
                 showAdjustedColorPreview = localVideoTrack == null,
+                // 직접 송출은 가림 처리 출력 텍스처를 그대로 미리 보여 주므로 같은 EGL 컨텍스트를 씁니다.
+                processedPreviewEglContext = if (isDirectPublish) eglContext else null,
                 modifier = Modifier.fillMaxSize(),
             )
             if (isConnected && !onDeviceProcessing && localVideoTrack != null) {

@@ -372,6 +372,7 @@ private fun LiveScreenContent(
                 eglContext = webRtcSession.eglContext,
                 isConnected = presentation.isConnected,
                 onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
+                isDirectPublish = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
                 modifier = Modifier.fillMaxSize(),
             )
         }
