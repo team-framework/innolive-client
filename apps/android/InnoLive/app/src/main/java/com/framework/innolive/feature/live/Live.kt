@@ -60,6 +60,9 @@ import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.DirectBroadcastModeDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
+import com.framework.innolive.feature.live.direct.lifecycle.rememberBroadcastNotificationPermission
+import com.framework.innolive.feature.live.direct.lifecycle.shouldShowNotificationsHiddenNotice
 import com.framework.innolive.feature.live.components.SessionUsageWarningBanner
 import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
 import com.framework.innolive.ui.text.ServerErrorAction
@@ -70,7 +73,6 @@ import com.framework.innolive.feature.live.components.ChzzkOAuthDialog
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.components.cappedDialogWidth
-import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.broadcast.directBroadcastModeState
 import com.framework.innolive.feature.live.direct.broadcast.directStatusWarnings
 import com.framework.innolive.feature.live.direct.broadcast.directTargetRows
@@ -253,6 +255,13 @@ private fun LiveScreenContent(
     val requestMissingMediaPermissions = {
         if (missingMediaPermissions.isNotEmpty()) {
             mediaPermissionLauncher.launch(missingMediaPermissions.toTypedArray())
+        }
+    }
+    val broadcastNotificationPermission = rememberBroadcastNotificationPermission(context)
+    // 직접 송출은 백그라운드 유지 알림을 띄우므로 준비 직후 알림 권한을 확인합니다. 거부해도 방송은 진행합니다.
+    val requestDirectBroadcastNotifications = {
+        if (webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED) {
+            broadcastNotificationPermission.ensure()
         }
     }
     LaunchedEffect(webRtcSession.serverError) {
@@ -621,6 +630,7 @@ private fun LiveScreenContent(
                                 } else if (webRtcSession.prepareChzzkBroadcast(context, chzzkSettings,
                                         props.onRefreshAccessToken)) {
                                     openChzzkSettingsDialog = false
+                                    requestDirectBroadcastNotifications()
                                 }
                             },
                             onDismiss = { openChzzkSettingsDialog = false },
@@ -698,6 +708,7 @@ private fun LiveScreenContent(
                                         context, props.broadcastSettings, props.onRefreshAccessToken,
                                     )) {
                                     openYouTubeSettingsDialog = false
+                                    requestDirectBroadcastNotifications()
                                 }
                             },
                         )
@@ -765,6 +776,20 @@ private fun LiveScreenContent(
                     color = Color.White,
                     style = MaterialTheme.typography.labelMedium,
                 )
+            }
+            if (shouldShowNotificationsHiddenNotice(
+                    notificationsHidden = broadcastNotificationPermission.notificationsHidden,
+                    directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
+                    state = webRtcSession.broadcastState,
+                )) {
+                    Text(
+                        text = stringResource(broadcastNotificationPermission.hiddenMessage),
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
             }
             StableBroadcastFeedback {
                 presentation.broadcastStatusText?.let { status ->
