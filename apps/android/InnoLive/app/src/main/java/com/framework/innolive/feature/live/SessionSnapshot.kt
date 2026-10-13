@@ -55,6 +55,17 @@ private val AggregateStateOrder = listOf(
     BroadcastState.PREPARING,
 )
 
+private val PreparedOrLaterStates = setOf(
+    BroadcastState.PREPARED, BroadcastState.GOING_LIVE, BroadcastState.LIVE, BroadcastState.PAUSED,
+)
+
+/** 선택한 플랫폼 중 서버에서 아직 준비되지 않은 플랫폼입니다. 동시 송출 부분 실패 뒤 다시 준비할 대상입니다. */
+internal fun SessionSnapshot?.unpreparedProviders(selected: Set<BroadcastProvider>): List<BroadcastProvider> =
+    BroadcastProvider.entries.filter { provider ->
+        provider in selected && this?.targets.orEmpty()
+            .firstOrNull { it.provider == provider.wireValue }?.broadcastState() !in PreparedOrLaterStates
+    }
+
 internal fun SessionTarget.broadcastState(): BroadcastState? = when (broadcastPhase) {
     "idle" -> BroadcastState.IDLE
     "preparing" -> BroadcastState.PREPARING

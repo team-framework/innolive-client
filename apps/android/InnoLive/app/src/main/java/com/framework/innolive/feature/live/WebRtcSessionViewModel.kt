@@ -134,6 +134,12 @@ class WebRtcSessionViewModel internal constructor(
     val isSimulcastSelected: Boolean
         get() = selectedProviders.size > 1
 
+    /** 동시 송출에서 한 플랫폼만 준비됐을 때 남은 플랫폼입니다. 비어 있지 않으면 화면이 다시 준비를 연다. */
+    val simulcastRetryProviders: List<BroadcastProvider>
+        get() = if (isSimulcastSelected && broadcastState == BroadcastState.PREPARED && !isPreparingBroadcast) {
+            sessionSnapshot.unpreparedProviders(selectedProviders)
+        } else emptyList()
+
     fun selectProvider(provider: BroadcastProvider): Boolean = selectProviders(setOf(provider))
 
     fun selectProviders(providers: Set<BroadcastProvider>): Boolean {

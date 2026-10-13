@@ -740,8 +740,16 @@ private fun LiveScreenContent(
                         )
                     }
                     if (openBroadcastActions) {
+                        val retryProviders = webRtcSession.simulcastRetryProviders
                         BroadcastActionDialog(
                             presentation = presentation,
+                            canRetryPreparation = retryProviders.isNotEmpty(),
+                            onRetryPreparation = {
+                                openBroadcastActions = false
+                                // 남은 플랫폼의 설정부터 다시 엽니다. 준비 요청은 준비된 플랫폼을 건너뜁니다.
+                                if (simulcastRetryOpensYouTubeSettings(retryProviders)) openYouTubeSettingsDialog = true
+                                else openChzzkSettingsDialog = true
+                            },
                             onDismiss = { openBroadcastActions = false },
                             onGoLive = {
                                 openBroadcastActions = false
@@ -998,6 +1006,8 @@ internal fun BroadcastActionControls(
 @Composable
 internal fun BroadcastActionDialog(
     presentation: LiveScreenPresentation,
+    canRetryPreparation: Boolean = false,
+    onRetryPreparation: () -> Unit = {},
     onDismiss: () -> Unit,
     onGoLive: () -> Unit,
     onCancelPreparation: () -> Unit,
@@ -1034,6 +1044,13 @@ internal fun BroadcastActionDialog(
                         onGoLive,
                         enabled = presentation.canStartOrResumeBroadcast,
                     )
+                    if (canRetryPreparation) {
+                        BroadcastDialogButton(
+                            stringResource(R.string.simulcast_action_retry_remaining),
+                            onRetryPreparation,
+                            enabled = presentation.canStartOrResumeBroadcast,
+                        )
+                    }
                     BroadcastDialogButton(
                         text = stringResource(R.string.action_cancel_preparation),
                         onClick = onCancelPreparation,
@@ -1112,3 +1129,7 @@ private fun BroadcastDialogButton(
 }
 
 private val SimulcastProviders = setOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)
+
+/** 동시 송출 다시 준비는 YouTube가 남았으면 YouTube 설정(이어서 치지직)부터, 아니면 치지직 설정만 엽니다. */
+internal fun simulcastRetryOpensYouTubeSettings(retryProviders: List<BroadcastProvider>): Boolean =
+    BroadcastProvider.YOUTUBE in retryProviders
