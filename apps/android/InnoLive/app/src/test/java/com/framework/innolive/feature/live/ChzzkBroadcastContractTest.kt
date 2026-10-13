@@ -8,6 +8,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.framework.innolive.ui.text.UiText
+import java.io.File
 import java.io.IOException
 
 class ChzzkBroadcastContractTest {
@@ -56,11 +58,27 @@ class ChzzkBroadcastContractTest {
     }
 
     @Test fun serverErrorsDescribeRecoveryWithoutLeakingServerText() {
-        assertTrue(chzzkBroadcastErrorMessage("streaming_not_connected", null).contains("연결"))
-        assertTrue(chzzkBroadcastErrorMessage("streaming_reconnect_required", null).contains("다시 연결"))
-        assertTrue(chzzkBroadcastErrorMessage("not_supported", null).contains("서버"))
-        assertTrue(chzzkBroadcastErrorMessage("broadcast_not_ready", null).contains("준비"))
-        assertTrue(chzzkBroadcastErrorMessage("bad_request", "tags[0]").contains("태그"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("streaming_not_connected", null)).contains("연결"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("streaming_reconnect_required", null)).contains("다시 연결"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("not_supported", null)).contains("서버"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("broadcast_not_ready", null)).contains("준비"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("bad_request", "tags[0]")).contains("태그"))
+        // 리소스로 옮긴 뒤에도 한국어 문구는 그대로입니다.
+        assertEquals("방송 제목은 100자 이하로 입력하세요.", koreanText(chzzkBroadcastErrorMessage("bad_request", "title")))
+        assertEquals("로그인이 만료됐습니다. 다시 로그인하세요.", koreanText(chzzkBroadcastErrorMessage("unauthorized", null)))
+        assertEquals("치지직 방송 요청에 실패했습니다. 다시 시도하세요.", koreanText(chzzkBroadcastErrorMessage("other", null)))
+    }
+
+    /** 리소스로 옮긴 치지직 문구의 한국어 원문입니다. */
+    private fun koreanText(text: UiText): String {
+        val id = (text as UiText.Resource).id
+        val name = R.string::class.java.fields.first { it.getInt(null) == id }.name
+        val directory = File(checkNotNull(System.getProperty("innolive.android.resDir")), "values")
+        return checkNotNull(
+            directory.listFiles { file -> file.extension == "xml" }.orEmpty().firstNotNullOfOrNull { file ->
+                Regex("""<string name="$name">(.*?)</string>""").find(file.readText())?.groupValues?.get(1)
+            },
+        )
     }
 
     @Test fun accountMutationInvalidatesPreviousVerificationUntilFreshResponse() {

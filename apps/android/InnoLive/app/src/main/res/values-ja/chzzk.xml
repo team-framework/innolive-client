@@ -30,4 +30,14 @@
     <string name="chzzk_disconnect_unconfirmed">連携解除の結果を確認できませんでした。アカウント状態をもう一度確認してください。</string>
     <string name="chzzk_connect_unconfirmed">CHZZK連携の結果を確認できませんでした。アカウント状態をもう一度確認してください。</string>
     <string name="chzzk_prepare_requires_account">アカウント状態を再確認してから配信を準備してください。</string>
+    <string name="chzzk_error_not_connected">CHZZKアカウントを連携してから、もう一度準備してください。</string>
+    <string name="chzzk_error_reconnect_required">CHZZKアカウントを再連携してから準備してください。</string>
+    <string name="chzzk_error_not_supported">サーバーにCHZZKの配信設定がありません。管理者にお問い合わせください。</string>
+    <string name="chzzk_error_not_ready">配信の準備が完了していません。準備状態を確認して、もう一度お試しください。</string>
+    <string name="chzzk_error_title">配信タイトルは100文字以内で入力してください。</string>
+    <string name="chzzk_error_category">カテゴリを検索して選び直してください。</string>
+    <string name="chzzk_error_tags">タグは最大5個、各15文字以内の文字と数字で入力してください。</string>
+    <string name="chzzk_error_settings">CHZZKの配信設定を確認してください。</string>
+    <string name="chzzk_error_unauthorized">ログインの有効期限が切れました。もう一度ログインしてください。</string>
+    <string name="chzzk_error_request">CHZZKの配信リクエストに失敗しました。もう一度お試しください。</string>
 </resources>

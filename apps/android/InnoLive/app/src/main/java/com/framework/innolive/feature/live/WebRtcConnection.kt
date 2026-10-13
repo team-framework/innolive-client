@@ -24,7 +24,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import com.framework.innolive.R
 import com.framework.innolive.ui.text.ServerErrorGuidance
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.serverErrorGuidance
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
@@ -2303,26 +2305,28 @@ private fun ServerApiException.toBroadcastEvent(
     provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
     preserveServerMessage: Boolean = true,
 ): BroadcastEvent? = if (code in BUSY_SERVER_CODES) null
-    else if (provider == BroadcastProvider.CHZZK) BroadcastEvent.ServerMessage(chzzkBroadcastErrorMessage(code, field))
+    else if (provider == BroadcastProvider.CHZZK) BroadcastEvent.Message(chzzkBroadcastErrorMessage(code, field))
     else guidance()?.let(BroadcastEvent::ApiFailure)
     ?: toKnownBroadcastFailure()?.let(BroadcastEvent::Failure)
     ?: serverMessage?.takeIf { preserveServerMessage && it.isNotBlank() }?.let(BroadcastEvent::ServerMessage)
     ?: BroadcastEvent.Failure(fallback)
 
-internal fun chzzkBroadcastErrorMessage(code: String?, field: String?): String = when (code) {
-        "streaming_not_connected" -> "치지직 계정을 연결한 뒤 다시 준비하세요."
-        "streaming_reconnect_required" -> "치지직 계정을 다시 연결한 뒤 준비하세요."
-        "not_supported" -> "서버에 치지직 방송 설정이 없습니다. 관리자에게 문의하세요."
-        "broadcast_not_ready", "broadcast_not_prepared" -> "방송 준비가 끝나지 않았습니다. 준비 상태를 확인하고 다시 시도하세요."
+internal fun chzzkBroadcastErrorMessage(code: String?, field: String?): UiText = UiText.Resource(
+    when (code) {
+        "streaming_not_connected" -> R.string.chzzk_error_not_connected
+        "streaming_reconnect_required" -> R.string.chzzk_error_reconnect_required
+        "not_supported" -> R.string.chzzk_error_not_supported
+        "broadcast_not_ready", "broadcast_not_prepared" -> R.string.chzzk_error_not_ready
         "bad_request" -> when (field?.substringBefore('[')) {
-            "title" -> "방송 제목은 100자 이하로 입력하세요."
-            "category_type", "category_id" -> "카테고리를 검색해 다시 선택하세요."
-            "tags" -> "태그는 최대 5개, 각 15자 이하의 문자와 숫자로 입력하세요."
-            else -> "치지직 방송 설정을 확인하세요."
+            "title" -> R.string.chzzk_error_title
+            "category_type", "category_id" -> R.string.chzzk_error_category
+            "tags" -> R.string.chzzk_error_tags
+            else -> R.string.chzzk_error_settings
         }
-        "unauthorized" -> "로그인이 만료됐습니다. 다시 로그인하세요."
-        else -> "치지직 방송 요청에 실패했습니다. 다시 시도하세요."
-}
+        "unauthorized" -> R.string.chzzk_error_unauthorized
+        else -> R.string.chzzk_error_request
+    },
+)
 
 private fun Throwable.toBroadcastEventOrFailure(
     provider: BroadcastProvider,
