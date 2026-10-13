@@ -177,6 +177,9 @@ internal class DirectPublisher(
         droppedFrames = droppedFrames.get(),
         width = profile.width,
         height = profile.height,
+        targetFps = profile.fps,
+        targetVideoBitrateKbps = profile.videoBitrateBps / 1000,
+        slateActive = slateActive.get(),
     )
 
     private fun onProtectedFrame(frame: VideoFrame) {

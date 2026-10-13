@@ -3,6 +3,7 @@ package com.framework.innolive.feature.live.direct.broadcast
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.CreatedSession
 import com.framework.innolive.feature.live.direct.DirectHeartbeat
 import com.framework.innolive.feature.live.direct.DirectPublishApi
@@ -12,6 +13,7 @@ import java.time.Instant
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import java.util.Locale
 
 /** 하트비트 주기입니다(contracts/api/direct-publish-v1.md). */
 internal const val HEARTBEAT_INTERVAL_MILLIS = 15_000L
@@ -206,6 +208,25 @@ internal fun buildDirectHeartbeat(
 }
 
 private const val UNKNOWN_MODEL = "unknown"
+
+/** debug 빌드의 성능 확인 로그입니다. 하트비트 측정값만 담습니다. */
+internal fun describeHeartbeatForLog(heartbeat: DirectHeartbeat): String = buildString {
+    append("heartbeat_stats fps=").append(String.format(Locale.ROOT, "%.1f", heartbeat.video.fps))
+    append(" dropped=").append(heartbeat.video.droppedFrames)
+    append(" failed=").append(heartbeat.anonymization.failedFrames)
+    heartbeat.anonymization.inferenceMsP95?.let { append(" infer_p95=").append(String.format(Locale.ROOT, "%.1f", it)) }
+    heartbeat.targets.forEach { target ->
+        append(" ").append(target.provider.wireValue).append("=")
+        append(if (target.connected) "on" else "off")
+        target.bitrateKbps?.let { append(",").append(it).append("kbps") }
+        target.reconnects?.let { append(",r").append(it) }
+    }
+    heartbeat.device?.let { device ->
+        device.thermal?.let { append(" thermal=").append(it.wireValue) }
+        device.batteryPct?.let { append(" battery=").append(it) }
+        device.charging?.let { append(" charging=").append(it) }
+    }
+}
 private const val HEARTBEAT_LOG_TAG = "DirectPublish"
 
 /** 기본 송출 경로가 쓰는 하트비트 루프입니다. */
@@ -217,7 +238,11 @@ internal fun createDirectHeartbeatLoop(
 ): HeartbeatScheduler {
     val deviceHealth = DeviceHealthReader(context)
     return DirectHeartbeatLoop(
-        send = api::heartbeat,
+        send = { session, heartbeat ->
+            // 기기 성능 확인용입니다. 값만 남기고 세션·주소는 넣지 않습니다.
+            if (BuildConfig.DEBUG) Log.i(HEARTBEAT_LOG_TAG, describeHeartbeatForLog(heartbeat))
+            api.heartbeat(session, heartbeat)
+        },
         inputs = inputs,
         listener = listener,
         device = deviceHealth::read,

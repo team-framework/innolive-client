@@ -12,6 +12,7 @@ import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.ChzzkBroadcastSettings
 import com.framework.innolive.feature.live.ConnectionFailure
+import com.framework.innolive.feature.live.status.UplinkVideoStats
 import com.framework.innolive.feature.live.ConnectionFailureException
 import com.framework.innolive.feature.live.CreatedSession
 import com.framework.innolive.feature.live.LiveBroadcastCallbacks
@@ -35,6 +36,7 @@ import com.framework.innolive.feature.live.direct.IngestUrl
 import com.framework.innolive.feature.live.direct.publish.DirectPublishEngine
 import com.framework.innolive.feature.live.direct.publish.DirectPublishProfile
 import com.framework.innolive.feature.live.direct.publish.DirectPublisher
+import com.framework.innolive.feature.live.direct.publish.DirectUplinkLimitation
 import com.framework.innolive.feature.live.direct.publish.PublishOrientation
 import com.framework.innolive.feature.live.direct.publish.RtmpFailure
 import com.framework.innolive.feature.live.direct.publish.RtmpTargetState
@@ -101,6 +103,7 @@ internal class DirectBroadcastController internal constructor(
     @Volatile private var wait: Wait? = null
     @Volatile private var engine: DirectPublishEngine? = null
     @Volatile private var liveProviders: List<BroadcastProvider> = emptyList()
+    private val uplinkLimitation = DirectUplinkLimitation()
     @Volatile private var anonymizationEnabled = config.anonymizationEnabled
 
     // 아래 값은 owner 스레드에서만 다룹니다.
@@ -869,6 +872,11 @@ internal class DirectBroadcastController internal constructor(
         val live = liveProviders
         if (live.isEmpty()) return null
         val stats = runCatching { engine?.stats() }.getOrNull()
+        // 상태 패널의 송출 화질과 제한 사유도 같은 주기의 인코더 값으로 채웁니다. 직접 송출에는 WebRTC 송신 통계가 없습니다.
+        stats?.let {
+            val reason = uplinkLimitation.reason(it)
+            post { callbacks.onUplinkVideoStats(UplinkVideoStats(reason, it.width, it.height, it.fps)) }
+        }
         // 서버에서는 라이브인데 로컬 연결이 없으면 connected:false로 보고합니다. 대기 화면 중에도 연결은 유지됩니다.
         val reported = live.map { provider ->
             stats?.targets?.firstOrNull { it.provider == provider }
