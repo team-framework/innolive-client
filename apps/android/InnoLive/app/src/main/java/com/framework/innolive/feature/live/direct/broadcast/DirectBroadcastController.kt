@@ -238,6 +238,12 @@ internal class DirectBroadcastController internal constructor(
     override fun prepareBroadcast(chzzkSettings: ChzzkBroadcastSettings): Boolean =
         prepareDirectBroadcast(null, chzzkSettings, false)
 
+    override fun prepareTargets(
+        youtube: BroadcastSettings?,
+        chzzk: ChzzkBroadcastSettings?,
+        allowConcurrent: Boolean,
+    ): Boolean = prepareDirectBroadcast(youtube, chzzk, allowConcurrent)
+
     /**
      * 구성의 플랫폼마다 설정을 저장하고 prepare합니다. 설정을 넘긴 플랫폼만 준비하며, 이미 준비한 플랫폼은
      * 건너뜁니다. [allowConcurrent]는 `channel_already_live`를 사용자가 확인한 YouTube 재요청입니다.

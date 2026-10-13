@@ -168,6 +168,7 @@ private fun LiveScreenContent(
     LaunchedEffect(selectedPlatform) {
         if (selectedPlatform == "CHZZK") webRtcSession.selectProvider(BroadcastProvider.CHZZK)
         if (selectedPlatform == "YouTube") webRtcSession.selectProvider(BroadcastProvider.YOUTUBE)
+        if (selectedPlatform == "SIMULCAST") webRtcSession.selectProviders(SimulcastProviders)
         if (selectedPlatform != null) providerPreferences.edit().putString("selected", selectedPlatform).apply()
     }
     // 방송 방식 화면도 치지직 계정 연결 여부로 선택지를 막으므로 같은 확인을 씁니다.
@@ -216,12 +217,13 @@ private fun LiveScreenContent(
     }
     LaunchedEffect(isDirectMode, isDirectModeLocked, selectedPlatform) {
         if (!isDirectMode || isDirectModeLocked) return@LaunchedEffect
-        val provider = when (selectedPlatform) {
-            "YouTube" -> BroadcastProvider.YOUTUBE
-            "CHZZK" -> BroadcastProvider.CHZZK
+        val plan = webRtcSession.directBroadcastPlan
+        val synced = when (selectedPlatform) {
+            "YouTube" -> plan.withSelectedPlatform(BroadcastProvider.YOUTUBE)
+            "CHZZK" -> plan.withSelectedPlatform(BroadcastProvider.CHZZK)
+            "SIMULCAST" -> plan.copy(providers = SimulcastProviders)
             else -> return@LaunchedEffect
         }
-        val synced = webRtcSession.directBroadcastPlan.withSelectedPlatform(provider)
         if (synced != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(synced)
     }
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
@@ -283,10 +285,11 @@ private fun LiveScreenContent(
             openYouTubeSettingsDialog || openChzzkSettingsDialog -> BroadcastTutorialDialog.SETTINGS
             else -> BroadcastTutorialDialog.NONE
         },
-        selectedAccountConnected = if (selectedPlatform == "CHZZK") {
-            chzzkAccountVerification.canPrepare
-        } else {
-            props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
+        selectedAccountConnected = when (selectedPlatform) {
+            "CHZZK" -> chzzkAccountVerification.canPrepare
+            "SIMULCAST" -> chzzkAccountVerification.canPrepare &&
+                props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
+            else -> props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
         },
         broadcastState = webRtcSession.broadcastState,
         isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
@@ -504,7 +507,11 @@ private fun LiveScreenContent(
                     onPlanChanged = { plan ->
                         if (webRtcSession.selectDirectBroadcastPlan(plan)) {
                             directModeUserSelected = true
-                            // 단독 송출이면 준비 버튼이 여는 설정 화면도 같은 플랫폼으로 맞춥니다.
+                            // 준비 버튼이 여는 설정 화면도 같은 플랫폼으로 맞춥니다.
+                            if (plan.providers.size > 1) {
+                                webRtcSession.selectProviders(plan.providers)
+                                selectedPlatform = "SIMULCAST"
+                            }
                             plan.providers.singleOrNull()?.let { provider ->
                                 webRtcSession.selectProvider(provider)
                                 selectedPlatform = if (provider == BroadcastProvider.CHZZK) "CHZZK" else "YouTube"
@@ -525,6 +532,7 @@ private fun LiveScreenContent(
                     when (presentation.broadcastAction) {
                         LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
                         LiveBroadcastAction.PREPARE_BROADCAST -> {
+                            // 동시 송출은 YouTube 설정에서 시작해 치지직 설정으로 이어집니다.
                             if (selectedPlatform == "CHZZK") openChzzkSettingsDialog = true
                             else openYouTubeSettingsDialog = true
                         }
@@ -548,6 +556,13 @@ private fun LiveScreenContent(
                                 webRtcSession.selectProvider(BroadcastProvider.CHZZK)
                                 selectedPlatform = "CHZZK"
                                 openChzzkSettingsDialog = true
+                                openPlatformDialog = false
+                            },
+                            onSimulcastSelected = {
+                                webRtcSession.selectProviders(SimulcastProviders)
+                                selectedPlatform = "SIMULCAST"
+                                // 동시 송출은 YouTube 설정 다음에 치지직 설정을 확인합니다.
+                                pendingYouTubeSettingsDialog = true
                                 openPlatformDialog = false
                             },
                         )
@@ -635,7 +650,10 @@ private fun LiveScreenContent(
                                 } else if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
                                     mediaPermissions.refresh()
                                     mediaPermissionLauncher.launch(readMediaPermissionState(context).missingPermissions.toTypedArray())
-                                } else if (webRtcSession.prepareChzzkBroadcast(context, chzzkSettings,
+                                } else if (if (selectedPlatform == "SIMULCAST") {
+                                        webRtcSession.prepareSimulcastBroadcast(context, props.broadcastSettings,
+                                            chzzkSettings, props.onRefreshAccessToken)
+                                    } else webRtcSession.prepareChzzkBroadcast(context, chzzkSettings,
                                         props.onRefreshAccessToken)) {
                                     openChzzkSettingsDialog = false
                                     requestDirectBroadcastNotifications()
@@ -706,8 +724,15 @@ private fun LiveScreenContent(
                                 openYouTubeSettingsDialog = false
                                 webRtcSession.dismissServerError()
                             },
+                            prepareActionRes = if (selectedPlatform == "SIMULCAST") {
+                                R.string.simulcast_action_next_chzzk
+                            } else R.string.action_prepare_broadcast,
                             onPrepare = {
-                                if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
+                                if (selectedPlatform == "SIMULCAST") {
+                                    openYouTubeSettingsDialog = false
+                                    webRtcSession.dismissServerError()
+                                    openChzzkSettingsDialog = true
+                                } else if (readMediaPermissionState(context).missingPermissions.isNotEmpty()) {
                                     mediaPermissions.refresh()
                                     mediaPermissionLauncher.launch(
                                         readMediaPermissionState(context).missingPermissions.toTypedArray(),
@@ -722,8 +747,16 @@ private fun LiveScreenContent(
                         )
                     }
                     if (openBroadcastActions) {
+                        val retryProviders = webRtcSession.simulcastRetryProviders
                         BroadcastActionDialog(
                             presentation = presentation,
+                            canRetryPreparation = retryProviders.isNotEmpty(),
+                            onRetryPreparation = {
+                                openBroadcastActions = false
+                                // 남은 플랫폼의 설정부터 다시 엽니다. 준비 요청은 준비된 플랫폼을 건너뜁니다.
+                                if (simulcastRetryOpensYouTubeSettings(retryProviders)) openYouTubeSettingsDialog = true
+                                else openChzzkSettingsDialog = true
+                            },
                             onDismiss = { openBroadcastActions = false },
                             onGoLive = {
                                 openBroadcastActions = false
@@ -980,6 +1013,8 @@ internal fun BroadcastActionControls(
 @Composable
 internal fun BroadcastActionDialog(
     presentation: LiveScreenPresentation,
+    canRetryPreparation: Boolean = false,
+    onRetryPreparation: () -> Unit = {},
     onDismiss: () -> Unit,
     onGoLive: () -> Unit,
     onCancelPreparation: () -> Unit,
@@ -1016,6 +1051,13 @@ internal fun BroadcastActionDialog(
                         onGoLive,
                         enabled = presentation.canStartOrResumeBroadcast,
                     )
+                    if (canRetryPreparation) {
+                        BroadcastDialogButton(
+                            stringResource(R.string.simulcast_action_retry_remaining),
+                            onRetryPreparation,
+                            enabled = presentation.canStartOrResumeBroadcast,
+                        )
+                    }
                     BroadcastDialogButton(
                         text = stringResource(R.string.action_cancel_preparation),
                         onClick = onCancelPreparation,
@@ -1092,3 +1134,9 @@ private fun BroadcastDialogButton(
         )
     }
 }
+
+private val SimulcastProviders = setOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)
+
+/** 동시 송출 다시 준비는 YouTube가 남았으면 YouTube 설정(이어서 치지직)부터, 아니면 치지직 설정만 엽니다. */
+internal fun simulcastRetryOpensYouTubeSettings(retryProviders: List<BroadcastProvider>): Boolean =
+    BroadcastProvider.YOUTUBE in retryProviders

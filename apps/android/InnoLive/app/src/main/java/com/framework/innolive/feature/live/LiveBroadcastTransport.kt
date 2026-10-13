@@ -35,6 +35,20 @@ internal interface LiveBroadcastTransport : AutoCloseable {
     fun saveBroadcastSettings(settings: BroadcastSettings)
     fun prepareBroadcast(settings: BroadcastSettings, allowConcurrent: Boolean = false): Boolean
     fun prepareBroadcast(chzzkSettings: ChzzkBroadcastSettings): Boolean
+
+    /**
+     * 설정을 넘긴 플랫폼마다 설정을 저장하고 준비합니다. 둘 다 넘기면 동시 송출이며 이미 준비한 플랫폼은
+     * 건너뜁니다. 한 플랫폼의 실패가 다른 플랫폼의 준비를 막지 않습니다.
+     */
+    fun prepareTargets(
+        youtube: BroadcastSettings?,
+        chzzk: ChzzkBroadcastSettings?,
+        allowConcurrent: Boolean = false,
+    ): Boolean = when {
+        youtube != null && chzzk == null -> prepareBroadcast(youtube, allowConcurrent)
+        youtube == null && chzzk != null -> prepareBroadcast(chzzk)
+        else -> false
+    }
     fun goLive(onAccepted: () -> Unit = {}): Boolean
     fun pauseBroadcast()
     fun resumeBroadcast()

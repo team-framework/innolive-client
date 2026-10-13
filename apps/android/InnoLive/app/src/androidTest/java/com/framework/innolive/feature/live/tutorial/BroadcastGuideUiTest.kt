@@ -130,7 +130,8 @@ class BroadcastGuideUiTest {
         }
 
         compose.onNodeWithText(string(R.string.tutorial_live_status_title)).assertIsDisplayed()
-        compose.onNodeWithText(string(R.string.live_status_warning_network)).assertIsDisplayed()
+        // 화질 저하 사유는 칩 줄 오른쪽에 짧게 표시합니다.
+        compose.onNodeWithText(string(R.string.live_status_limit_network)).assertIsDisplayed()
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.live_status_uplink, "720p · 30fps"))
             .assertIsDisplayed()
         saveScreenshot("home-live-status")

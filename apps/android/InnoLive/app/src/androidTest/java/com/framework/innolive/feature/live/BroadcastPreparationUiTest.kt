@@ -101,6 +101,26 @@ class BroadcastPreparationUiTest {
         }
     }
 
+    @Test fun simulcastSelectionStartsWithYouTubeSettingsAndLeadsToChzzkWithoutConnecting() {
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
+        compose.onNodeWithText(label(R.string.simulcast_platform_label)).performClick()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.simulcast_action_next_chzzk)).assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(setOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK), session.selectedProviders)
+            assertEquals(BroadcastProvider.YOUTUBE, session.selectedProvider)
+            assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
+        }
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
+        compose.onNodeWithText(label(R.string.simulcast_action_next_chzzk)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.action_change_platform)).performClick()
+        compose.onNodeWithText("YouTube").performClick()
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.simulcast_action_next_chzzk)).assertDoesNotExist()
+        compose.runOnIdle { assertEquals(setOf(BroadcastProvider.YOUTUBE), session.selectedProviders) }
+    }
+
     @Test fun cancelAndReopenSettingsDoesNotConnectUntilValidConfirmation() {
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).assertIsEnabled().performClick()
         compose.onNodeWithText("YouTube").performClick()
