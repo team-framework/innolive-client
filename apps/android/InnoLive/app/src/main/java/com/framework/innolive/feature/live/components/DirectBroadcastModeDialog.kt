@@ -38,12 +38,15 @@ import com.framework.innolive.feature.live.direct.broadcast.labelRes
 import com.framework.innolive.feature.live.direct.broadcast.selectResolution
 import com.framework.innolive.feature.live.direct.broadcast.title
 import com.framework.innolive.feature.live.direct.broadcast.toggleProvider
+import com.framework.innolive.ui.text.UiText
+import com.framework.innolive.ui.text.asString
 import kotlinx.coroutines.delay
 
 /**
  * 직접 송출의 화질과 송출 플랫폼을 고릅니다(iOS `BroadcastModeView`). 선택은 바로 [onPlanChanged]로 적용하고,
  * 막힌 선택지와 요금제 안내는 [state]가 정합니다. 계정 연결 안내는 [accountChecking]이 끝나고
- * 잠시 기다린 뒤에만 보여 줘, 창을 열자마자 안내가 나왔다 사라지지 않게 합니다.
+ * 잠시 기다린 뒤에만 보여 줘, 창을 열자마자 안내가 나왔다 사라지지 않게 합니다. 조회 실패처럼
+ * 연결 여부를 모르는 경우는 [accountIssue]의 사유를 대신 보여 줍니다.
  */
 @Composable
 internal fun DirectBroadcastModeDialog(
@@ -52,6 +55,7 @@ internal fun DirectBroadcastModeDialog(
     onOpenPlan: () -> Unit,
     onDismiss: () -> Unit,
     accountChecking: (BroadcastProvider) -> Boolean = { false },
+    accountIssue: (BroadcastProvider) -> UiText? = { null },
 ) {
     var accountGraceElapsed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -111,9 +115,14 @@ internal fun DirectBroadcastModeDialog(
                         Column {
                             Text(option.provider.title, style = MaterialTheme.typography.bodyLarge)
                             val showAccountCaption = accountGraceElapsed && !accountChecking(option.provider)
-                            providerCaption(option.block, option.accountConnected || !showAccountCaption)?.let { caption ->
+                            val issue = accountIssue(option.provider)
+                                ?.takeIf { showAccountCaption && !option.accountConnected }
+                            val caption = issue?.asString() ?: providerCaption(
+                                option.block, option.accountConnected || !showAccountCaption,
+                            )?.let { stringResource(it) }
+                            caption?.let {
                                 Text(
-                                    stringResource(caption),
+                                    it,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

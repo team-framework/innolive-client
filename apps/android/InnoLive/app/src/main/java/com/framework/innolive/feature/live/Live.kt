@@ -494,9 +494,12 @@ private fun LiveScreenContent(
                         },
                         locked = isDirectModeLocked,
                     ),
+                    // 조회가 실제로 진행 중일 때만 확인 중입니다. 조회 실패·로그인 필요는 그 사유를 보여 줍니다.
                     accountChecking = { provider ->
-                        provider == BroadcastProvider.CHZZK &&
-                            (!chzzkAccountVerification.verified || chzzkAccountVerification.mutationInProgress)
+                        provider == BroadcastProvider.CHZZK && (chzzkBusy || chzzkAccountVerification.mutationInProgress)
+                    },
+                    accountIssue = { provider ->
+                        chzzkMessage.takeIf { provider == BroadcastProvider.CHZZK && !chzzkAccountVerification.verified }
                     },
                     onPlanChanged = { plan ->
                         if (webRtcSession.selectDirectBroadcastPlan(plan)) {
