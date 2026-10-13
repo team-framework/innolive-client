@@ -162,4 +162,17 @@ class SessionSnapshotTest {
             assertEquals(expected, next.broadcastState())
         }
     }
+    @Test fun simulcastRetryTargetsOnlyUnpreparedSelectedPlatforms() {
+        val both = setOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)
+        fun snapshot(youtube: String, chzzk: String?) = SessionSnapshot("s", targets = listOfNotNull(
+            SessionTarget("youtube", "idle", youtube, null, null),
+            chzzk?.let { SessionTarget("chzzk", "idle", it, null, null) },
+        ))
+        assertEquals(listOf(BroadcastProvider.CHZZK), snapshot("prepared", "idle").unpreparedProviders(both))
+        assertEquals(listOf(BroadcastProvider.CHZZK), snapshot("prepared", null).unpreparedProviders(both))
+        assertEquals(emptyList<BroadcastProvider>(), snapshot("prepared", "prepared").unpreparedProviders(both))
+        assertEquals(both.toList(), null.unpreparedProviders(both))
+        assertTrue(simulcastRetryOpensYouTubeSettings(listOf(BroadcastProvider.YOUTUBE)))
+        assertFalse(simulcastRetryOpensYouTubeSettings(listOf(BroadcastProvider.CHZZK)))
+    }
 }
