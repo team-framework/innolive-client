@@ -101,7 +101,7 @@ class LiveBroadcastTransportSeamTest {
         }
     }
 
-    @Test fun directPublishStaysOffUntilStateMachineLands() {
-        assertFalse(DirectPublishFeature.ENABLED)
+    @Test fun directPublishIsEnabled() {
+        assertTrue(DirectPublishFeature.ENABLED)
     }
 }

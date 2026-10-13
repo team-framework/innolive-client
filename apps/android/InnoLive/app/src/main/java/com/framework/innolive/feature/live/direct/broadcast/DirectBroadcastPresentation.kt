@@ -200,6 +200,12 @@ internal data class BroadcastTargetRow(
 
 internal fun SessionTarget.toStatusRow(): BroadcastTargetRow = BroadcastTargetRow(provider, statusLabelRes, tone)
 
+/** 방송 전에는 고른 송출 대상을 상태 패널 행으로 보여 줍니다. 세션이 생기면 실제 상태 행으로 바뀝니다. */
+internal fun directPlanRows(plan: DirectBroadcastPlan): List<BroadcastTargetRow> =
+    DirectProviderOrder.filter { it in plan.providers }.map { provider ->
+        BroadcastTargetRow(provider.wireValue, R.string.live_status_target_not_started, BroadcastTargetTone.PROGRESS)
+    }
+
 private val SERVER_PROGRESS_PHASES = setOf("preparing", "going_live")
 
 /**

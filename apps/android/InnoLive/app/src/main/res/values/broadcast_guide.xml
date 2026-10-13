@@ -28,10 +28,13 @@
     <string name="live_status_target_reconfiguring">화질 바꾸는 중</string>
     <string name="live_status_target_reconnecting">다시 연결하는 중</string>
     <string name="live_status_target_paused">일시 중지</string>
+    <string name="live_status_target_not_started">시작 전</string>
     <string name="live_status_target_checking">확인 중</string>
     <string name="live_status_broadcast_resolution">방송 화질 %1$s</string>
     <string name="live_status_uplink">업로드 %1$s</string>
     <string name="live_status_uplink_measuring">업로드 확인 중</string>
     <string name="live_status_warning_network">인터넷이 느려 화질을 잠시 낮췄어요. 와이파이를 쓰면 더 안정적이에요.</string>
     <string name="live_status_warning_device">기기가 바빠 화질을 잠시 낮췄어요. 다른 앱을 닫으면 나아질 수 있어요.</string>
+    <string name="live_status_limit_device">기기 과부하</string>
+    <string name="live_status_limit_network">인터넷 느림</string>
 </resources>
