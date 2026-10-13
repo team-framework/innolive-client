@@ -1,6 +1,4 @@
 <resources>
-    <string name="simulcast_platform_label">YouTube + CHZZK</string>
-    <string name="simulcast_action_next_chzzk">Next: CHZZK settings</string>
     <string name="simulcast_prepare_failed_youtube">YouTube could not be prepared. Prepare it again, start with the prepared CHZZK broadcast, or cancel the preparation.</string>
     <string name="simulcast_prepare_failed_chzzk">CHZZK could not be prepared. Prepare it again, start with the prepared YouTube broadcast, or cancel the preparation.</string>
     <string name="simulcast_prepare_failed_all">Neither YouTube nor CHZZK could be prepared. Try again.</string>
