@@ -45,6 +45,7 @@ import com.framework.innolive.feature.live.resolveChzzkSettingsForPrepare
 import com.framework.innolive.feature.live.stoppingState
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /** 하트비트·재연결·생명주기 구현을 바꿔 끼우는 지점입니다. 각 작업이 기본값을 실제 구현으로 바꿉니다. */
 internal class DirectBroadcastDependencies(
@@ -120,6 +121,8 @@ internal class DirectBroadcastController internal constructor(
     private var waitTimeout: Cancellable? = null
     private var pollTask: Cancellable? = null
     private var pollGeneration = 0
+    /** 제어 요청을 시작할 때마다 올립니다. 그 전에 보낸 상태 조회 결과를 버리는 기준입니다. */
+    private val controlEpoch = AtomicInteger()
     private var heartbeatStarted = false
     private var keepAliveStarted = false
     /** 오류 문구를 고를 플랫폼입니다. 동시 송출 준비에서는 지금 요청 중인 플랫폼입니다. */
@@ -331,6 +334,7 @@ internal class DirectBroadcastController internal constructor(
             if (waiting) invalidateWait()
             val stopping = if (broadcastState.canStop) broadcastState.stoppingState() else BroadcastState.CANCELLING_PREPARATION
             operation.set(true)
+            controlEpoch.incrementAndGet()
             report(stopping)
             endBroadcast()
             session?.let(::deleteSession)
@@ -798,21 +802,25 @@ internal class DirectBroadcastController internal constructor(
     private fun refreshSnapshot() {
         session?.let { created ->
             val generation = pollGeneration
-            env.io.execute { fetchSnapshot(created, generation) }
+            val epoch = controlEpoch.get()
+            env.io.execute { fetchSnapshot(created, generation, epoch) }
         }
     }
 
     private fun pollSession(created: CreatedSession, generation: Int) {
         if (!isActive() || generation != pollGeneration) return
-        env.io.execute { fetchSnapshot(created, generation) }
+        val epoch = controlEpoch.get()
+        env.io.execute { fetchSnapshot(created, generation, epoch) }
         pollTask = env.owner.schedule(SESSION_POLL_MILLIS) { pollSession(created, generation) }
     }
 
-    private fun fetchSnapshot(created: CreatedSession, generation: Int) {
+    private fun fetchSnapshot(created: CreatedSession, generation: Int, epoch: Int) {
         val outcome = runCatching { env.server.fetchSession(created) }
         env.owner.execute {
-            // 제어 요청 중에는 늦게 온 조회가 최신 결과를 덮어쓰지 않게 버립니다.
-            if (!isActive() || generation != pollGeneration || session !== created || operation.get()) return@execute
+            // 제어 요청 중이거나 조회를 보낸 뒤 제어 요청이 시작됐으면 늦게 온 조회가 최신 결과를 덮어쓰지 않게 버립니다.
+            if (!isActive() || generation != pollGeneration || session !== created || operation.get() ||
+                epoch != controlEpoch.get()
+            ) return@execute
             outcome.fold(
                 onSuccess = { applySnapshot(created, it) },
                 onFailure = { error ->
@@ -952,7 +960,8 @@ internal class DirectBroadcastController internal constructor(
 
     private fun isActive(): Boolean = !closed.get() && !terminal
 
-    private fun beginOperation(): Boolean = isActive() && operation.compareAndSet(false, true)
+    private fun beginOperation(): Boolean =
+        (isActive() && operation.compareAndSet(false, true)).also { if (it) controlEpoch.incrementAndGet() }
 
     /** 실패하면 서버 오류를 화면 안내로 바꿉니다. [rollback]이면 이번 준비에서 연 연결을 정리합니다. */
     private fun runOperation(rollback: Boolean = false, block: () -> Unit) {
