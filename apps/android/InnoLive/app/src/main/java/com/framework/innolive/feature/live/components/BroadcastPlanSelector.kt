@@ -1,9 +1,7 @@
 package com.framework.innolive.feature.live.components
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.size
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.verticalScroll
@@ -28,7 +26,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -111,11 +108,6 @@ internal fun BroadcastPlanSelector(
             ) {
                 val showAccountCaption = accountGraceElapsed && !accountChecking(option.provider)
                 Checkbox(checked = option.selected, onCheckedChange = null, enabled = option.enabled)
-                Image(
-                    painter = painterResource(option.provider.logoRes),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(option.provider.title, style = MaterialTheme.typography.bodyLarge)
                     val issue = accountIssue(option.provider)
