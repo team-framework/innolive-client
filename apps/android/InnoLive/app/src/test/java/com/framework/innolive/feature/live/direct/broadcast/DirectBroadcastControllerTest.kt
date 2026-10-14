@@ -688,6 +688,17 @@ class DirectBroadcastControllerTest {
         assertTrue(supervisor.closed)
     }
 
+    @Test fun closeShutsDownStatusIoExecutor() {
+        val controller = preparedYouTube()
+        var completed = false
+        controller.close { completed = true }
+        assertFalse(io.shutdown)
+        scheduler.runUntilIdle()
+
+        assertTrue(completed)
+        assertTrue(io.shutdown)
+    }
+
     @Test fun ingestUrlNeverReachesLogs() {
         val controller = preparedYouTube()
         live(controller)
