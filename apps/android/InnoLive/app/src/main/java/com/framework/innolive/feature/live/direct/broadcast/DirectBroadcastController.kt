@@ -223,7 +223,9 @@ internal class DirectBroadcastController internal constructor(
         try {
             env.media.setAnonymizationEnabled(enabled)
             anonymizationEnabled = enabled
-            post { onComplete(if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED, null) }
+            val confirmed = anonymizationState(enabled)
+            post { callbacks.onAnonymizationStateConfirmed(confirmed) }
+            post { onComplete(confirmed, null) }
         } catch (_: Exception) {
             post { onComplete(null, AnonymizationFailure.REQUEST) }
         }
@@ -935,8 +937,14 @@ internal class DirectBroadcastController internal constructor(
     private fun maybeConnected() {
         if (connected || !firstFrame || session == null || !isActive()) return
         connected = true
+        // 서버 확인 대신 첫 가림 처리 프레임을 낸 앱 처리 상태를 확인값으로 알립니다.
+        val confirmed = anonymizationState(anonymizationEnabled)
+        post { callbacks.onAnonymizationStateConfirmed(confirmed) }
         postConnection(WebRtcConnectionState.CONNECTED)
     }
+
+    private fun anonymizationState(enabled: Boolean) =
+        if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED
 
     private fun failStart(exception: Exception) {
         if (terminal) return
