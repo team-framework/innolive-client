@@ -31,6 +31,15 @@ class ChzzkBroadcastContractTest {
         assertEquals("tags", ChzzkBroadcastSettings(tags = List(6) { "tag$it" }).validationField())
     }
 
+    /** broadcast-settings-v1.md: 클라이언트는 공백뿐인 제목을 허용하지 않는다. 빈 설정 전체는 서버 기본값 조회다. */
+    @Test fun whitespaceOnlyTitleIsRejectedUnlessEverySettingIsBlank() {
+        assertEquals("title", ChzzkBroadcastSettings(title = "   ", categoryType = "GAME", categoryId = "g").validationField())
+        assertEquals("title", ChzzkBroadcastSettings(title = "", tags = listOf("tag")).validationField())
+        assertNull(ChzzkBroadcastSettings().validationField())
+        assertNull(ChzzkBroadcastSettings(title = " \t ").validationField())
+        assertNull(ChzzkBroadcastSettings(title = " 제목 ", categoryType = "GAME", categoryId = "g").validationField())
+    }
+
     @Test fun prepareResponseCannotBeMistakenForLiveOrAnotherTarget() {
         val prepared = """{"stream":{"broadcast_phase":"prepared","status":"idle"},"targets":[{"provider":"chzzk","stream":{"broadcast_phase":"prepared","status":"idle"}}]}"""
         assertEquals(BroadcastState.PREPARED, parseBroadcastState(prepared, BroadcastProvider.CHZZK))
