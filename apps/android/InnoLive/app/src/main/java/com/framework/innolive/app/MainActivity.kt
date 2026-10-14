@@ -550,7 +550,8 @@ fun AppNavigation(
 
         val operation = youtubeOperationGeneration.begin()
         youtubeOperationProfileEmail = session?.profileEmail
-        if (backStack.lastOrNull() in setOf(BroadcastSettingRoute, LiveRoute) && session != null) {
+        // 설정 화면으로 옮겨도 조회를 이어 갑니다. 화면 전환으로 취소된 조회가 확인 중 상태로 남지 않게 합니다.
+        if (backStack.lastOrNull() in YouTubeAccountCheckRoutes && session != null) {
             youtubeAccountVerificationState = YouTubeAccountVerificationState.CHECKING
             youtubeAccountStatus = UiText.Resource(R.string.youtube_status_checking)
             try {
@@ -1222,3 +1223,6 @@ fun AppNavigation(
         )
     }
 }
+
+/** YouTube 계정 상태를 보여 주거나 쓰는 화면입니다. 이 화면 사이를 오가도 계정 조회를 다시 시작합니다. */
+private val YouTubeAccountCheckRoutes = setOf(BroadcastSettingRoute, LiveRoute, SettingsRoute)
