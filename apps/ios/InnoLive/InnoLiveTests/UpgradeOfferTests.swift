@@ -373,6 +373,10 @@ final class UpgradeOfferTests: XCTestCase {
         await integration.refreshConnection(accessToken: token)
         integration.configureSettingsEditor(accessToken: token)
         integration.settingsEditor.editCHZZK { $0.title = "additional draft" }
+        var consent = SignupConsent()
+        consent.observeScroll(contentHeight: 200, visibleHeight: 400, offset: 0)
+        consent.accept()
+        XCTAssertTrue(integration.acknowledgeTransmission(consent, for: .chzzk))
         let confirmed = await integration.chooseUpgradeOption(mode: "fhd_multi", restartConfirmed: true, accessToken: token)
         XCTAssertTrue(confirmed)
         UpgradeURLProtocol.requests = []
