@@ -30,12 +30,17 @@ class BroadcastPreparationUiTest {
     private val refresh = CompletableDeferred<Unit>()
     private var authenticationCalls = 0
     private var savedProvider: String? = null
+    private var savedOnDevice: Boolean? = null
 
     @Before fun showLiveScreen() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val preferences = instrumentation.targetContext.getSharedPreferences("innolive_broadcast_provider", 0)
         savedProvider = preferences.getString("selected", null)
         preferences.edit().remove("selected").commit()
+        // 기기에 저장된 온디바이스 선택이 있으면 직접 송출 메뉴가 열리므로 서버 송출로 고정합니다.
+        val aiProcessing = instrumentation.targetContext.getSharedPreferences("live_ai_processing", 0)
+        savedOnDevice = aiProcessing.getBoolean("on_device", false).takeIf { aiProcessing.contains("on_device") }
+        aiProcessing.edit().putBoolean("on_device", false).commit()
         for (permission in listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) {
             instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName, permission)
         }
@@ -71,9 +76,12 @@ class BroadcastPreparationUiTest {
     }
 
     @After fun restoreProviderPreference() {
-        InstrumentationRegistry.getInstrumentation().targetContext
-            .getSharedPreferences("innolive_broadcast_provider", 0)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        context.getSharedPreferences("innolive_broadcast_provider", 0)
             .edit().putString("selected", savedProvider).commit()
+        context.getSharedPreferences("live_ai_processing", 0).edit().apply {
+            savedOnDevice?.let { putBoolean("on_device", it) } ?: remove("on_device")
+        }.commit()
     }
 
     @Test fun settingsMenuOpensEachEditorWithoutConnecting() {
