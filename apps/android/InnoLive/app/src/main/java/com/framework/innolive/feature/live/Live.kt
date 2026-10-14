@@ -62,6 +62,7 @@ import com.framework.innolive.feature.live.components.BroadcastSettingsMenu
 import com.framework.innolive.feature.live.components.BroadcastSettingsMenuItem
 import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.feature.live.components.logoRes
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
 import com.framework.innolive.feature.live.direct.broadcast.DirectProviderOrder
@@ -529,6 +530,7 @@ private fun LiveScreenContent(
                                     },
                                     onClick = { openYouTubeEditor = true },
                                     highlightsAccount = BroadcastProvider.YOUTUBE in providers && !youtubeReady,
+                                    iconRes = BroadcastProvider.YOUTUBE.logoRes,
                                 ),
                                 BroadcastSettingsMenuItem(
                                     title = stringResource(R.string.broadcast_menu_chzzk),
@@ -538,6 +540,7 @@ private fun LiveScreenContent(
                                         else -> chzzkStatus
                                     },
                                     onClick = { openChzzkEditor = true },
+                                    iconRes = BroadcastProvider.CHZZK.logoRes,
                                     highlightsAccount = BroadcastProvider.CHZZK in providers && !chzzkReady &&
                                         (BroadcastProvider.YOUTUBE !in providers || youtubeReady),
                                 ),
@@ -547,6 +550,7 @@ private fun LiveScreenContent(
                                     ),
                                     summary = modeSummary,
                                     onClick = { openModeEditor = true },
+                                    iconVector = Icons.Outlined.Tune,
                                 ),
                             ),
                             canPrepare = (BroadcastProvider.YOUTUBE !in providers || youtubeReady) &&

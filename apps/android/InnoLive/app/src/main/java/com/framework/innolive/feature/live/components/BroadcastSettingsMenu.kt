@@ -1,11 +1,14 @@
 package com.framework.innolive.feature.live.components
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,6 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -38,6 +43,9 @@ internal class BroadcastSettingsMenuItem(
     val onClick: () -> Unit,
     /** 방송 안내가 계정 연결을 가리킬 때 이 줄을 강조합니다. */
     val highlightsAccount: Boolean = false,
+    /** 플랫폼 로고입니다. 없으면 [iconVector]를 씁니다. */
+    @param:DrawableRes val iconRes: Int? = null,
+    val iconVector: ImageVector? = null,
 )
 
 /**
@@ -85,7 +93,20 @@ internal fun BroadcastSettingsMenu(
                                 .clickable(role = Role.Button, onClick = item.onClick)
                                 .padding(horizontal = 20.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
+                            when {
+                                item.iconRes != null -> Image(
+                                    painter = painterResource(item.iconRes),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp),
+                                )
+                                item.iconVector != null -> Icon(
+                                    item.iconVector,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(28.dp),
+                                )
+                            }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(item.title, style = MaterialTheme.typography.bodyLarge)
                                 Text(

@@ -1,6 +1,9 @@
 package com.framework.innolive.feature.live.components
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.verticalScroll
@@ -25,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -107,6 +111,11 @@ internal fun BroadcastPlanSelector(
             ) {
                 val showAccountCaption = accountGraceElapsed && !accountChecking(option.provider)
                 Checkbox(checked = option.selected, onCheckedChange = null, enabled = option.enabled)
+                Image(
+                    painter = painterResource(option.provider.logoRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(option.provider.title, style = MaterialTheme.typography.bodyLarge)
                     val issue = accountIssue(option.provider)
@@ -209,3 +218,11 @@ private fun providerCaption(block: DirectModeBlock?, accountConnected: Boolean):
 
 /** 계정 조회가 막 끝난 직후의 일시적인 미연결 상태를 안내로 보여 주지 않도록 기다리는 시간입니다. */
 private const val ACCOUNT_CAPTION_GRACE_MILLIS = 1_500L
+
+/** 방송 설정 메뉴와 송출 플랫폼 선택에 함께 쓰는 플랫폼 로고입니다. */
+@get:DrawableRes
+internal val BroadcastProvider.logoRes: Int
+    get() = when (this) {
+        BroadcastProvider.YOUTUBE -> R.drawable.ic_youtube
+        BroadcastProvider.CHZZK -> R.drawable.ic_chzzk
+    }
