@@ -19,8 +19,13 @@ final class UpgradeOfferRenderingTests: XCTestCase {
                              serverURLProvider: { URL(string: "https://example.invalid\($0)") })
         let authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }),
             tokenStore: UpgradeRenderingTokenStore(token: token), consentStore: ConsentAcknowledgementStore(userDefaults: defaults))
-        let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api)
+        let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api,
+                                             consentStore: ConsentAcknowledgementStore(userDefaults: defaults))
         defer { integration.reset() }
+        var consent = SignupConsent()
+        consent.observeScroll(contentHeight: 200, visibleHeight: 400, offset: 0)
+        consent.accept()
+        XCTAssertTrue(integration.acknowledgeTransmission(consent, for: .chzzk))
         for settings in [false, true] {
             for large in [false, true] {
                 let data = try ContractTestFixtures.data(named: settings ? "upgrade-offer-selected.v1" : "upgrade-offer-options.v1")

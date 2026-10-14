@@ -375,6 +375,28 @@
         }
       }
     },
+    "치지직 전송 안내에 동의해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 전송 안내에 동의해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accept the CHZZK transmission notice."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKへの送信に関する案内に同意してください。"
+          }
+        }
+      }
+    },
     "추가할 플랫폼의 계정을 연결해 주세요.": {
       "localizations": {
         "ko": {
