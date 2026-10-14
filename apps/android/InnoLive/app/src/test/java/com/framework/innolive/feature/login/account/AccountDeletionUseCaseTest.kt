@@ -19,6 +19,8 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import java.io.IOException
 
 class AccountDeletionUseCaseTest {
     @Test
@@ -452,6 +454,257 @@ class AccountDeletionUseCaseTest {
         assertEquals(UiText.Resource(R.string.error_account_deletion), coordinator.state.value.error)
         assertEquals(false, coordinator.state.value.localCleanupPending)
         assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
+        coordinatorJob.cancel()
+    }
+
+
+    // --- 삭제 API 응답 처리 (account-deletion-v1.md) ---
+
+    /** 204 No Content만 성공이다. 본문이 없는 DELETE 요청에 Bearer 토큰을 싣는다. */
+    @Test fun onlyNoContentConfirmsDeletionAndTheRequestCarriesBearerWithoutBody() = runBlocking {
+        val requests = mutableListOf<Request>()
+        var code = 200
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            requests += chain.request()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(code)
+                .message("fixture")
+                .body((if (code == 204) "" else "{}").toResponseBody())
+                .build()
+        }.build()
+
+        AccountDeletionApi("https://example.test", client).use { api ->
+            val useCase = AccountDeletionUseCase(api) { error("재인증하면 안 됩니다.") }
+            assertEquals(
+                AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion)),
+                useCase.delete("access-token"),
+            )
+            code = 204
+            assertEquals(AccountDeletionResult.Deleted, useCase.delete("access-token"))
+        }
+
+        assertEquals(2, requests.size)
+        requests.forEach { request ->
+            assertEquals("DELETE", request.method)
+            assertEquals("/auth/me", request.url.encodedPath)
+            assertEquals("Bearer access-token", request.header("Authorization"))
+            assertEquals(0L, request.body?.contentLength() ?: 0L)
+        }
+    }
+
+    /** 401은 본문의 코드와 무관하게 갱신 후 한 번 재시도한다. */
+    @Test fun unauthorizedWithoutErrorBodyStillRefreshesExactlyOnce() = runBlocking {
+        val requests = mutableListOf<Request>()
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            requests += chain.request()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(if (requests.size == 1) 401 else 204)
+                .message("fixture")
+                .body("".toResponseBody())
+                .build()
+        }.build()
+        var refreshCount = 0
+
+        val result = AccountDeletionApi("https://example.test", client).use { api ->
+            AccountDeletionUseCase(api) {
+                refreshCount += 1
+                "refreshed-token"
+            }.delete("expired-token")
+        }
+
+        assertEquals(AccountDeletionResult.Deleted, result)
+        assertEquals(1, refreshCount)
+        assertEquals(listOf("Bearer expired-token", "Bearer refreshed-token"), requests.map { it.header("Authorization") })
+    }
+
+    /** 409·502·503과 비정상 본문은 로컬 세션을 유지하는 재시도 가능 실패다. */
+    @Test fun conflictFixtureAndServerFailuresKeepTheSessionRetryable() = runBlocking {
+        val root = generateSequence(File(checkNotNull(System.getProperty("innolive.android.resDir")))) { it.parentFile }
+            .first { File(it, "contracts/fixtures").isDirectory }
+        val conflict = File(root, "contracts/fixtures/account-deletion-conflict.v1.json").readText()
+        val cases = listOf(
+            409 to conflict,
+            502 to """{"error":{"code":"withdrawal_failed"}}""",
+            503 to "",
+            500 to "not json",
+        )
+
+        for ((status, body) in cases) {
+            val client = OkHttpClient.Builder().addInterceptor { chain ->
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(status)
+                    .message("fixture")
+                    .body(body.toResponseBody())
+                    .build()
+            }.build()
+
+            val result = AccountDeletionApi("https://example.test", client).use { api ->
+                AccountDeletionUseCase(api) { error("재인증하면 안 됩니다.") }.delete("access-token")
+            }
+
+            val expected = if (status == 409) {
+                UiText.Dynamic("Account deletion is already in progress. Retry shortly.")
+            } else {
+                UiText.Resource(R.string.error_account_deletion)
+            }
+            assertEquals("HTTP $status", AccountDeletionResult.Failed(expected), result)
+        }
+    }
+
+    /** 갱신 실패는 로컬 세션을 유지하며 재시도 요청을 보내지 않는다. */
+    @Test fun refreshFailureKeepsTheSessionWithoutRetryingTheRequest() = runBlocking {
+        val gateway = FakeGateway(AccountDeletionException(code = "unauthorized"), null)
+
+        val result = AccountDeletionUseCase(gateway) { throw IOException("refresh unavailable") }
+            .delete("expired-token")
+
+        assertEquals(AccountDeletionResult.Failed(UiText.Resource(R.string.error_session_refresh)), result)
+        assertEquals(listOf("expired-token"), gateway.accessTokens)
+    }
+
+    @Test fun blankAccessTokenNeverReachesTheServer() = runBlocking {
+        var requests = 0
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            requests += 1
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(204)
+                .message("fixture")
+                .body("".toResponseBody())
+                .build()
+        }.build()
+
+        val result = AccountDeletionApi("https://example.test", client).use { api ->
+            AccountDeletionUseCase(api) { "unused" }.delete("   ")
+        }
+
+        assertTrue(result is AccountDeletionResult.Failed)
+        assertEquals(0, requests)
+    }
+
+    // --- Coordinator 경합·실패 경로 ---
+
+    @Test fun secondDeleteWhileTheFirstIsInFlightDoesNotSendAnotherRequest() = runBlocking {
+        val coordinatorJob = Job()
+        val requestStarted = CompletableDeferred<Unit>()
+        val finishRequest = CompletableDeferred<Unit>()
+        var remoteCount = 0
+        var confirmedCount = 0
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = {
+                remoteCount += 1
+                requestStarted.complete(Unit)
+                finishRequest.await()
+                AccountDeletionResult.Deleted
+            },
+            clearLocalAccountData = {},
+            clearAuthentication = {},
+        )
+
+        coordinator.delete { confirmedCount += 1 }
+        requestStarted.await()
+        coordinator.delete { confirmedCount += 1 }
+        assertTrue(coordinator.state.value.isInProgress)
+        finishRequest.complete(Unit)
+        withTimeout(2_000) { coordinator.state.first { !it.isInProgress } }
+
+        assertEquals(1, remoteCount)
+        assertEquals(1, confirmedCount)
+        assertEquals(AccountDeletionState(), coordinator.state.value)
+        coordinatorJob.cancel()
+    }
+
+    @Test fun pendingMarkerPersistenceFailureSkipsTheServerAndStaysRetryable() = runBlocking {
+        val coordinatorJob = Job()
+        var persistFails = true
+        var remoteCount = 0
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = {
+                remoteCount += 1
+                AccountDeletionResult.Deleted
+            },
+            clearLocalAccountData = {},
+            clearAuthentication = {},
+            persistPendingDeletion = { _, _ -> if (persistFails) error("disk full") },
+        )
+
+        coordinator.delete()
+        withTimeout(2_000) { coordinator.state.first { it.error != null && !it.isInProgress } }
+        assertEquals(UiText.Resource(R.string.error_account_deletion_state), coordinator.state.value.error)
+        assertEquals(null, coordinator.state.value.pendingPhase)
+        assertEquals(0, remoteCount)
+
+        persistFails = false
+        coordinator.delete()
+        withTimeout(2_000) { coordinator.state.first { remoteCount == 1 && !it.isInProgress } }
+        assertEquals(AccountDeletionState(), coordinator.state.value)
+        coordinatorJob.cancel()
+    }
+
+    @Test fun failedRemoteDeletionRunsNoCleanupAndKeepsRemotePending() = runBlocking {
+        val coordinatorJob = Job()
+        var localCleanupCount = 0
+        var authenticationClearCount = 0
+        var confirmedCount = 0
+        val persisted = mutableListOf<AccountDeletionPhase>()
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = { AccountDeletionResult.Failed(UiText.Dynamic("server detail")) },
+            clearLocalAccountData = { localCleanupCount += 1 },
+            clearAuthentication = { authenticationClearCount += 1 },
+            persistPendingDeletion = { _, phase -> persisted += phase },
+        )
+
+        coordinator.delete { confirmedCount += 1 }
+        withTimeout(2_000) { coordinator.state.first { it.error != null && !it.isInProgress } }
+
+        assertEquals(0, localCleanupCount)
+        assertEquals(0, authenticationClearCount)
+        assertEquals(0, confirmedCount)
+        assertEquals(listOf(AccountDeletionPhase.REMOTE_DELETION_PENDING), persisted)
+        assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
+        assertEquals(UiText.Dynamic("server detail"), coordinator.state.value.error)
+        coordinatorJob.cancel()
+    }
+
+    @Test fun authenticationChangeDuringDeletionIsIgnoredUntilItFinishes() = runBlocking {
+        val coordinatorJob = Job()
+        val requestStarted = CompletableDeferred<Unit>()
+        val finishRequest = CompletableDeferred<Unit>()
+        var authenticationClearCount = 0
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = {
+                requestStarted.complete(Unit)
+                finishRequest.await()
+                AccountDeletionResult.Deleted
+            },
+            clearLocalAccountData = {},
+            clearAuthentication = { authenticationClearCount += 1 },
+        )
+
+        coordinator.delete()
+        requestStarted.await()
+        coordinator.authenticationChanged(null)
+        assertTrue(coordinator.state.value.isInProgress)
+        finishRequest.complete(Unit)
+        withTimeout(2_000) { coordinator.state.first { !it.isInProgress } }
+
+        assertEquals(1, authenticationClearCount)
+        assertEquals(AccountDeletionState(), coordinator.state.value)
         coordinatorJob.cancel()
     }
 

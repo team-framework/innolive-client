@@ -22,7 +22,6 @@ import com.framework.innolive.feature.live.ServerApiException
 import com.framework.innolive.feature.live.SessionNotice
 import com.framework.innolive.feature.live.SessionSnapshot
 import com.framework.innolive.feature.live.WebRtcConnectionState
-import com.framework.innolive.feature.live.broadcastStateAfterServerError
 import com.framework.innolive.feature.live.canPrepare
 import com.framework.innolive.feature.live.canStop
 import com.framework.innolive.feature.live.direct.DirectGoLiveResult
@@ -230,8 +229,9 @@ internal class DirectBroadcastController internal constructor(
         }
     }
 
+    /** 준비·방송 중에는 설정을 잠급니다(youtube-broadcast-v1.md). 일시 중지도 서버 단계는 live입니다. */
     override fun saveBroadcastSettings(settings: BroadcastSettings) {
-        if (BroadcastProvider.YOUTUBE !in config.targets || !beginOperation()) return
+        if (BroadcastProvider.YOUTUBE !in config.targets || !broadcastState.canPrepare || !beginOperation()) return
         env.owner.execute {
             operationProvider = BroadcastProvider.YOUTUBE
             runOperation {
@@ -519,11 +519,10 @@ internal class DirectBroadcastController internal constructor(
                     session?.let(::deleteSession)
                     finish(BroadcastState.IDLE, DirectEvent.STOPPED_DURING_GO_LIVE.toBroadcastEvent())
                 }
-                // 15회를 다 써도 준비 상태와 송출을 유지해 다시 시도하거나 취소할 수 있게 합니다.
-                else -> failGoLive(
-                    broadcastStateAfterServerError(exception.code, BroadcastState.PREPARED, BroadcastState.GOING_LIVE),
-                    directServerEvent(exception, config.provider),
-                )
+                // 15회를 다 써도 준비 상태와 송출을 유지해 다시 시도하거나 취소할 수 있게 합니다. `broadcast_busy`와
+                // `broadcast_going_live`도 같습니다. 직접 송출은 서버 조회로 방송 상태를 전진시키지 않으므로
+                // GOING_LIVE에 남겨 두면 종료와 재시도가 모두 막힙니다.
+                else -> failGoLive(BroadcastState.PREPARED, directServerEvent(exception, config.provider))
             }
             return
         } catch (exception: Exception) {
@@ -988,8 +987,9 @@ internal class DirectBroadcastController internal constructor(
             invalidateWait()
             if (rollback) runCatching { rollbackPreparation() }
             val api = exception as? ServerApiException
+            // `broadcast_busy`도 FAILED로 돌려 다시 준비할 수 있게 합니다. 준비 중 상태에 남기면 빠져나올 수 없습니다.
             finish(
-                broadcastStateAfterServerError(api?.code, BroadcastState.FAILED, broadcastState),
+                BroadcastState.FAILED,
                 api?.let { directServerEvent(it, provider) }
                     ?: DirectEvent.REQUEST.toBroadcastEvent(),
             )
