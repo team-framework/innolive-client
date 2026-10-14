@@ -698,6 +698,33 @@ class DirectBroadcastControllerTest {
         assertTrue(io.shutdown)
     }
 
+    @Test fun repeatedCloseCompletesOnlyAfterCleanup() {
+        val controller = preparedYouTube()
+        live(controller)
+        val completed = mutableListOf<String>()
+        controller.close { completed += "first" }
+        controller.close {
+            assertTrue(server.closed)
+            assertTrue("delete:session-1" in server.calls)
+            completed += "second"
+        }
+
+        assertEquals(emptyList<String>(), completed)
+        scheduler.runUntilIdle()
+        assertEquals(listOf("first", "second"), completed)
+    }
+
+    @Test fun closeAfterCleanupCompletesImmediately() {
+        val controller = preparedYouTube()
+        live(controller)
+        controller.close()
+        scheduler.runUntilIdle()
+
+        var completed = false
+        controller.close { completed = true }
+        assertTrue(completed)
+    }
+
     @Test fun ingestUrlNeverReachesLogs() {
         val controller = preparedYouTube()
         live(controller)
