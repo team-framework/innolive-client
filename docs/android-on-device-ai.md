@@ -878,3 +878,12 @@ egress는 wall-clock CFR이라 그 공백이 정지 프레임으로 송출됐다
 시작됐다. 온디바이스 경로는 소프트웨어 VP8을 쓸 수 있어 라이브러리 기본값을 유지한다.
 디버그 빌드는 2초마다 `uplink_video reason= size= fps= encoder= target_bitrate=` 로그를
 두 모드 모두에서 남긴다. 실기기 재측정 결과는 별도로 기록한다.
+
+2026-10-14 21:24·21:28, SM-S931N, `CodecComparisonDeviceTest`(productionProbe, onDevice=false,
+resolution=fhd, forceCodec=false) 각 120초 실측. 두 번 모두 `uplink_bitrate applied=true`,
+송신 해상도 1080x1920 유지, `initEncode` 1회(초기)이며 서버 AI H264 전환 로그는 없었다.
+같은 시간 Wi-Fi 가용 송신 대역폭은 0.1~4.1Mbps, RTT 최대 1.0초, 반환 경로 패킷 손실 477개·
+정지 41초로 불안정해 송신 비트레이트는 0.9~2.4Mbps, 인코드 fps는 14~30 사이를 오갔다.
+해상도 대신 프레임레이트가 줄어드는 동작은 확인했지만, 시청 화면의 미세 끊김 해소는
+안정된 네트워크의 실제 방송에서 별도로 확인해야 한다. 두 실측은 YouTube 방송 준비 API나
+RTMP 송출을 실행하지 않았다.
