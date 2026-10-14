@@ -29,6 +29,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
@@ -228,7 +229,8 @@ class BroadcastGuideUiTest {
             }
         }
 
-        compose.onNodeWithText(string(R.string.tutorial_replay)).assertIsDisplayed().assertIsNotEnabled()
+        // 설정 목록 아래쪽에 있어 화면에 보이도록 먼저 스크롤합니다.
+        compose.onNodeWithText(string(R.string.tutorial_replay)).performScrollTo().assertIsDisplayed().assertIsNotEnabled()
         compose.runOnIdle { canReplay = true }
         compose.onNodeWithText(string(R.string.tutorial_replay)).assertIsEnabled()
         saveScreenshot("settings-replay")
