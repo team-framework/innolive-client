@@ -29,7 +29,7 @@ class BroadcastSettingsMenuTest {
                     items = listOf(
                         BroadcastSettingsMenuItem("YouTube", "채널", { opened += "youtube" }),
                         BroadcastSettingsMenuItem("치지직", "송출 안 함", { opened += "chzzk" }),
-                        BroadcastSettingsMenuItem("방송 화질 및 송출할 플랫폼", "FHD · YouTube", { opened += "mode" }),
+                        BroadcastSettingsMenuItem("화질 및 플랫폼", "FHD · YouTube", { opened += "mode" }),
                     ),
                     canPrepare = canPrepare,
                     onPrepare = { prepared++ },
@@ -50,7 +50,7 @@ class BroadcastSettingsMenuTest {
         compose.onNodeWithText("송출 안 함").assertIsDisplayed()
         compose.onNodeWithText("YouTube").performClick()
         compose.onNodeWithText("치지직").performClick()
-        compose.onNodeWithText("방송 화질 및 송출할 플랫폼").performClick()
+        compose.onNodeWithText("화질 및 플랫폼").performClick()
         prepareButton.performClick()
         compose.runOnIdle {
             assertEquals(listOf("youtube", "chzzk", "mode"), opened)
