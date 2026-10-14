@@ -863,3 +863,48 @@ privacy 정책과 기존 시그널링 JSON 필드는 바꾸지 않는다. 로컬
 `forceCodec=false`는 강제 코덱 대신 실제 capability 협상 정책을 검증한다.
 로컬 서버 실측은 운영 서버의 인터넷 경로·부하·방송 플랫폼 수신 품질 검증을
 대체하지 않는다. release 서버 URL은 기존 HTTPS 제한을 유지한다.
+
+
+### 서버 AI 업링크 비트레이트와 해상도 고정 (2026-10-14)
+
+client #557. 서버 AI 세션은 offer 전에 `PeerConnection.setBitrate`로 추정기 시작값과
+상한을 FHD 4Mbps/6Mbps, 720p 2Mbps/3Mbps로 설정하고, 영상 sender의
+`degradationPreference`를 MAINTAIN_RESOLUTION으로 둔다. 앱이 아무것도 설정하지 않으면
+libwebrtc는 1080p를 2500kbps로 제한하고 300kbps에서 램프업한다. 그 상한에서 H.264 QP가
+높아져 품질 스케일러가 720p↔1080p를 오가며 MediaCodec을 약 0.3초씩 재생성했고, 서버
+egress는 wall-clock CFR이라 그 공백이 정지 프레임으로 송출됐다. 2026-10-14 20:21 세션에서
+폰 `HardwareVideoEncoder: initEncode` 4회와 서버 `H.264 input resolution changed` 4회가
+같은 시각에 기록됐고, 연결 뒤 25초 램프업 동안 YouTube egress가 270x480 입력으로
+시작됐다. 온디바이스 경로는 소프트웨어 VP8을 쓸 수 있어 라이브러리 기본값을 유지한다.
+디버그 빌드는 2초마다 `uplink_video reason= size= fps= encoder= target_bitrate=` 로그를
+두 모드 모두에서 남긴다. 실기기 재측정 결과는 별도로 기록한다.
+
+2026-10-14 21:24·21:28, SM-S931N, `CodecComparisonDeviceTest`(productionProbe, onDevice=false,
+resolution=fhd, forceCodec=false) 각 120초 실측. 두 번 모두 `uplink_bitrate applied=true`,
+송신 해상도 1080x1920 유지, `initEncode` 1회(초기)이며 서버 AI H264 전환 로그는 없었다.
+같은 시간 Wi-Fi 가용 송신 대역폭은 0.1~4.1Mbps, RTT 최대 1.0초, 반환 경로 패킷 손실 477개·
+정지 41초로 불안정해 송신 비트레이트는 0.9~2.4Mbps, 인코드 fps는 14~30 사이를 오갔다.
+해상도 대신 프레임레이트가 줄어드는 동작은 확인했지만, 시청 화면의 미세 끊김 해소는
+안정된 네트워크의 실제 방송에서 별도로 확인해야 한다. 두 실측은 YouTube 방송 준비 API나
+RTMP 송출을 실행하지 않았다.
+
+같은 날 실제 YouTube FHD 방송 두 번을 2초 주기 `uplink_video`로 비교했다. `setBitrate`만
+적용한 빌드(21:37, 104개 샘플)는 송신 1080p 고정·인코더 재생성 1회였지만 목표 비트레이트가
+2500kbps 상한에 고정된 채 28fps 미만 샘플이 17개(16%)였다. `setBitrate`는 추정기 상한만
+바꾸므로 sender encoding의 `maxBitrateBps`를 함께 올렸다. 그 빌드(21:53, 60초 33개 샘플)는
+목표 비트레이트 최대 5696kbps, 평균 28.8fps, 28fps 미만 4개(12%)였고 하락은 추정 대역폭이
+540kbps~1.2Mbps로 내려간 구간과 겹쳤다. 두 방송 모두 송신 해상도 전환 0회, 인코더 재생성
+1회였다.
+
+같은 날 서버 `/metrics`(서버 재시작 이후 누적)는 `frame_received_total` 37786에
+`frame_dropped_total` 10516, `ai_duration_seconds` 평균 34.9ms, 마지막 egress의
+`egress_dup_frames` 394·`egress_drop_frames` 39였다. 서버 AI 처리가 프레임당 33.3ms를
+넘어 디코드 큐(`AI_FRAME_QUEUE_SIZE=2`)에서 프레임을 버리고 CFR egress가 직전 프레임을
+복제하는 양이 폰이 못 보낸 약 5%보다 크다. 남은 미세 끊김은 서버 AI 처리량 문제로
+innolive-server·innolive-ai에서 다룬다.
+
+2026-10-14 22:42 FHD·22:43 720p 프로브(각 60초, 손실 0, RTT 6~19ms)에서 폰은 30fps를
+보냈지만 서버 `session mosaic summary` 처리 프레임은 FHD 1303개/76초(약 17fps),
+720p 1772개/71초(약 25fps)였다. 같은 시각 서버 누적 stage 평균은 grpc 31.5ms,
+encode(반환 libx264) 41.4ms로 둘 다 33.3ms 예산을 넘고, 반환 인코더가 `processed`
+채널(크기 1)로 AI 루프를 막는 구조라 FHD에서 30fps를 유지하지 못한다.
