@@ -87,7 +87,7 @@ internal class LiveBroadcastTransportRequest(
     val initialOnDeviceProcessing: Boolean,
     val provider: BroadcastProvider,
     val preferredAudioInput: AudioDeviceInfo?,
-    /** 직접 송출의 해상도와 대상입니다. 서버 중계에서는 쓰지 않습니다. */
+    /** 송출 해상도와 대상입니다. 서버 중계는 세션을 만들 때 해상도만 씁니다. */
     val directPlan: DirectBroadcastPlan,
     val callbacks: LiveBroadcastCallbacks,
 ) {
@@ -109,6 +109,7 @@ internal fun createLiveBroadcastTransport(request: LiveBroadcastTransportRequest
             initialAnonymizationEnabled = request.initialAnonymizationEnabled,
             initialOnDeviceProcessing = request.initialOnDeviceProcessing,
             provider = request.provider,
+            broadcastResolution = request.directPlan.resolution,
             preferredAudioInput = request.preferredAudioInput,
             onStateChanged = onStateChanged,
             onRemoteTrackChanged = onRemoteTrackChanged,

@@ -48,14 +48,12 @@ import kotlinx.coroutines.delay
  * 막힌 선택지와 요금제 안내는 [state]가 정합니다. 계정 연결 안내는 [accountChecking]이 끝나고
  * 잠시 기다린 뒤에만 보여 줘, 창을 열자마자 안내가 나왔다 사라지지 않게 합니다. 조회 실패처럼
  * 연결 여부를 모르는 경우는 [accountIssue]의 사유를 대신 보여 줍니다.
- * 서버 송출은 화질을 고르지 않으므로 [showResolution]을 끕니다.
  */
 @Composable
 internal fun BroadcastPlanSelector(
     state: DirectBroadcastModeState,
     onPlanChanged: (DirectBroadcastPlan) -> Unit,
     onOpenPlan: () -> Unit,
-    showResolution: Boolean = true,
     accountChecking: (BroadcastProvider) -> Boolean = { false },
     accountIssue: (BroadcastProvider) -> UiText? = { null },
     /** 계정이 없는 플랫폼은 고를 수 없으므로 같은 줄에서 바로 연결할 수 있게 합니다. */
@@ -68,18 +66,16 @@ internal fun BroadcastPlanSelector(
         accountGraceElapsed = true
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (showResolution) {
-            Text(stringResource(R.string.direct_mode_resolution_title), style = MaterialTheme.typography.titleSmall)
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                state.resolutions.forEachIndexed { index, option ->
-                    SegmentedButton(
-                        selected = option.selected,
-                        onClick = { state.selectResolution(option.resolution)?.let(onPlanChanged) },
-                        enabled = option.enabled || option.selected,
-                        shape = SegmentedButtonDefaults.itemShape(index, state.resolutions.size),
-                    ) {
-                        Text(stringResource(option.resolution.labelRes))
-                    }
+        Text(stringResource(R.string.direct_mode_resolution_title), style = MaterialTheme.typography.titleSmall)
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            state.resolutions.forEachIndexed { index, option ->
+                SegmentedButton(
+                    selected = option.selected,
+                    onClick = { state.selectResolution(option.resolution)?.let(onPlanChanged) },
+                    enabled = option.enabled || option.selected,
+                    shape = SegmentedButtonDefaults.itemShape(index, state.resolutions.size),
+                ) {
+                    Text(stringResource(option.resolution.labelRes))
                 }
             }
         }
@@ -164,7 +160,6 @@ internal fun BroadcastModeDialog(
     onPlanChanged: (DirectBroadcastPlan) -> Unit,
     onOpenPlan: () -> Unit,
     onDismiss: () -> Unit,
-    showResolution: Boolean = true,
     accountChecking: (BroadcastProvider) -> Boolean = { false },
     accountIssue: (BroadcastProvider) -> UiText? = { null },
     onConnectAccount: ((BroadcastProvider) -> Unit)? = null,
@@ -181,14 +176,13 @@ internal fun BroadcastModeDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    stringResource(if (showResolution) R.string.broadcast_menu_mode else R.string.direct_mode_targets_title),
+                    stringResource(R.string.broadcast_menu_mode),
                     style = MaterialTheme.typography.titleLarge,
                 )
                 BroadcastPlanSelector(
                     state = state,
                     onPlanChanged = onPlanChanged,
                     onOpenPlan = onOpenPlan,
-                    showResolution = showResolution,
                     accountChecking = accountChecking,
                     accountIssue = accountIssue,
                     onConnectAccount = onConnectAccount,
