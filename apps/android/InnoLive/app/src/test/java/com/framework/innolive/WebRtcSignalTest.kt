@@ -3,7 +3,10 @@ package com.framework.innolive
 import com.framework.innolive.feature.live.ServerMessage
 import com.framework.innolive.feature.live.SignalingSessionMismatchException
 import com.framework.innolive.feature.live.parseServerMessage
+import java.io.File
+import org.json.JSONException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -172,5 +175,71 @@ class WebRtcSignalTest {
         assertEquals(negotiationId, candidate.negotiationId)
         assertEquals("0", candidate.candidate?.sdpMid)
         assertEquals(0, candidate.candidate?.sdpMLineIndex)
+    }
+
+    @Test
+    fun rejectsAnswersWithoutUsableSdpUnknownTypesAndNonJsonPayloads() {
+        for (payload in listOf(
+            """{"type":"answer","session_id":"session"}""",
+            """{"type":"answer","session_id":"session","sdp":""}""",
+            """{"type":"answer","session_id":"session","sdp":"  "}""",
+            """{"type":"answer","session_id":"session","sdp":null}""",
+            """{"type":"offer","session_id":"session","sdp":"v=0"}""",
+            """{"type":"status","session_id":"session"}""",
+        )) {
+            assertThrows(payload, IllegalArgumentException::class.java) { parseServerMessage(payload, "session") }
+        }
+        assertThrows(JSONException::class.java) { parseServerMessage("not json", "session") }
+        assertThrows(JSONException::class.java) { parseServerMessage("", "session") }
+    }
+
+    @Test
+    fun remoteCandidateRequiresMatchingSessionAndWellFormedFields() {
+        val base = "\"type\":\"ice_candidate\",\"session_id\":\"session\",\"candidate\":\"candidate:1 1 UDP 1 127.0.0.1 1 typ host\""
+        assertThrows(IllegalArgumentException::class.java) {
+            parseServerMessage("""{"type":"ice_candidate","candidate":"candidate:1"}""", "session")
+        }
+        assertThrows(SignalingSessionMismatchException::class.java) {
+            parseServerMessage("{${base.replace("\"session\"", "\"old\"")}}", "session")
+        }
+        for (field in listOf(
+            "\"negotiation_id\":1",
+            "\"negotiation_id\":\" \"",
+            "\"sdpMLineIndex\":-1",
+            "\"sdpMLineIndex\":\"0\"",
+            "\"sdpMid\":5",
+        )) {
+            assertThrows(field, IllegalArgumentException::class.java) { parseServerMessage("{$base,$field}", "session") }
+        }
+    }
+
+    @Test
+    fun nullOrAbsentCandidateMeansEndOfCandidates() {
+        for (payload in listOf(
+            """{"type":"ice_candidate","session_id":"session","candidate":null}""",
+            """{"type":"ice_candidate","session_id":"session","negotiation_id":"n1"}""",
+        )) {
+            val message = parseServerMessage(payload, "session") as ServerMessage.RemoteIceCandidate
+            assertNull(payload, message.candidate)
+        }
+    }
+
+    /** v2.schema.json: candidate는 minLength 없는 string|null이다. 빈 문자열은 후보 종료이지 프로토콜 오류가 아니다. */
+    @Test
+    fun emptyStringCandidateIsEndOfCandidatesNotAProtocolError() {
+        val message = parseServerMessage("""{"type":"ice_candidate","session_id":"session","candidate":""}""", "session")
+        assertNull((message as ServerMessage.RemoteIceCandidate).candidate)
+    }
+
+    @Test
+    fun decodesSharedWithdrawalErrorFixture() {
+        val root = generateSequence(File(checkNotNull(System.getProperty("innolive.android.resDir")))) { it.parentFile }
+            .first { File(it, "contracts/fixtures").isDirectory }
+        val payload = File(root, "contracts/fixtures/signaling-withdrawal-error.v2.json").readText()
+
+        assertEquals(
+            ServerMessage.Error("withdrawal_in_progress", "Account deletion is already in progress. Retry shortly."),
+            parseServerMessage(payload, "session"),
+        )
     }
 }
