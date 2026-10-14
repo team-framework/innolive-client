@@ -582,7 +582,7 @@ internal class DirectBroadcastController internal constructor(
             }
 
             override fun onPublisherFailed(error: Exception) {
-                env.owner.execute { if (generation == engineGeneration) onPublisherFailed(error) }
+                env.owner.execute { if (generation == engineGeneration) handlePublisherFailed(error) }
             }
         }
         // 프로필은 세션 해상도만 따릅니다. 카메라가 더 작으면 늘리고, 비율이 다르면 여백을 넣습니다.
@@ -671,7 +671,7 @@ internal class DirectBroadcastController internal constructor(
         }
     }
 
-    private fun onPublisherFailed(error: Exception) {
+    private fun handlePublisherFailed(error: Exception) {
         env.log("publisher_failed type=${error.javaClass.simpleName}")
         invalidateWait()
         val hadSession = session
