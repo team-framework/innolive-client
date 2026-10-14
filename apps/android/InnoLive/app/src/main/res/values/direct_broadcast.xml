@@ -35,4 +35,8 @@
     <string name="error_broadcast_stopped">라이브 전환 중 방송이 종료되었습니다. 다시 시작해 주세요.</string>
     <string name="error_channel_in_use_by_other_account">다른 InnoLive 계정이 이 채널로 방송 중입니다. 그 방송이 끝난 뒤 다시 시도해 주세요.</string>
     <string name="error_youtube_channel_required">연결된 YouTube 채널이 여러 개입니다. 송출할 채널로 YouTube 계정을 다시 연결해 주세요.</string>
+    <string name="broadcast_menu_mode">방송 화질 및 송출할 플랫폼</string>
+    <string name="broadcast_menu_not_selected">송출 안 함</string>
+    <string name="broadcast_menu_needs_details">설정 필요</string>
+    <string name="broadcast_menu_chzzk">치지직</string>
 </resources>

@@ -1,6 +1,10 @@
 package com.framework.innolive.feature.live.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -145,6 +149,54 @@ internal fun BroadcastPlanSelector(
         }
         if (state.showsPlanGuidance && !state.locked) {
             TextButton(onClick = onOpenPlan) { Text(stringResource(R.string.direct_mode_open_plan)) }
+        }
+    }
+}
+
+/**
+ * 방송 설정 메뉴의 "방송 화질 및 송출할 플랫폼" 창입니다. 선택은 바로 적용되고 완료로 메뉴에 돌아갑니다.
+ * 서버 송출은 화질을 고르지 않으므로 [showResolution]을 끕니다.
+ */
+@Composable
+internal fun BroadcastModeDialog(
+    state: DirectBroadcastModeState,
+    onPlanChanged: (DirectBroadcastPlan) -> Unit,
+    onOpenPlan: () -> Unit,
+    onDismiss: () -> Unit,
+    showResolution: Boolean = true,
+    accountChecking: (BroadcastProvider) -> Boolean = { false },
+    accountIssue: (BroadcastProvider) -> UiText? = { null },
+    onConnectAccount: ((BroadcastProvider) -> Unit)? = null,
+    canConnectAccount: (BroadcastProvider) -> Boolean = { true },
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.cappedDialogWidth(400.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    stringResource(if (showResolution) R.string.broadcast_menu_mode else R.string.direct_mode_targets_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                BroadcastPlanSelector(
+                    state = state,
+                    onPlanChanged = onPlanChanged,
+                    onOpenPlan = onOpenPlan,
+                    showResolution = showResolution,
+                    accountChecking = accountChecking,
+                    accountIssue = accountIssue,
+                    onConnectAccount = onConnectAccount,
+                    canConnectAccount = canConnectAccount,
+                )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.direct_mode_done)) }
+                }
+            }
         }
     }
 }

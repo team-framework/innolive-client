@@ -48,9 +48,10 @@ internal fun ChzzkSettingsDialog(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onSearch: suspend (String) -> List<ChzzkCategory>,
-    onPrepare: () -> Unit,
+    /** null이면 방송 설정 메뉴에서 연 편집 창이라 준비 버튼 없이 닫기만 둡니다. */
+    onPrepare: (() -> Unit)?,
     onDismiss: () -> Unit,
-    onChangePlatform: () -> Unit,
+    onChangePlatform: (() -> Unit)? = null,
     guide: BroadcastTutorialGuide? = null,
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -61,7 +62,9 @@ internal fun ChzzkSettingsDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(stringResource(R.string.chzzk_settings_title))
-                    TextButton(onClick = onChangePlatform, enabled = !isBusy) { Text(stringResource(R.string.action_change_platform)) }
+                    onChangePlatform?.let { change ->
+                        TextButton(onClick = change, enabled = !isBusy) { Text(stringResource(R.string.action_change_platform)) }
+                    }
                     ChzzkSettingsFields(
                         settings = settings,
                         accountLabel = accountLabel,
@@ -76,12 +79,14 @@ internal fun ChzzkSettingsDialog(
                     )
                     val invalidField = settings.validationField()
                     Row {
-                        Button(
-                            onClick = onPrepare,
-                            enabled = canPrepare && !isBusy && invalidField == null,
-                            modifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.START_PREPARATION),
-                        ) {
-                            Text(stringResource(R.string.action_prepare_broadcast))
+                        onPrepare?.let { prepare ->
+                            Button(
+                                onClick = prepare,
+                                enabled = canPrepare && !isBusy && invalidField == null,
+                                modifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.START_PREPARATION),
+                            ) {
+                                Text(stringResource(R.string.action_prepare_broadcast))
+                            }
                         }
                         TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
                     }
