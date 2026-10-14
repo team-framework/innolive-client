@@ -314,6 +314,7 @@ internal class WebRtcConnection(
                 if (!isActive()) return@executeOnOwner
                 addVideoTransceiver(connection)
                 if (!isActive()) return@executeOnOwner
+                applyUplinkPolicy(connection)
                 checkNotNull(frameAnalyzer).start()
                 val negotiationId = UUID.randomUUID().toString()
                 activeNegotiationId = negotiationId
@@ -1205,6 +1206,21 @@ internal class WebRtcConnection(
         videoSender = transceiver.sender
     }
 
+    /** Applied before the offer so the first keyframe already uses the session's bitrate budget. */
+    private fun applyUplinkPolicy(connection: PeerConnection) {
+        val sender = videoSender ?: return
+        uplinkDegradationPreferenceForAI(onDeviceProcessing)?.let { preference ->
+            val parameters = sender.parameters
+            parameters.degradationPreference = preference
+            if (sender.setParameters(parameters)) Log.i("PrivacyPipeline", "uplink_degradation=$preference")
+            else Log.w("PrivacyPipeline", "uplink_degradation=default")
+        }
+        uplinkBitratePolicyForAI(onDeviceProcessing, broadcastResolution)?.let { policy ->
+            val applied = connection.setBitrate(null, policy.startBps, policy.maxBps)
+            Log.i("PrivacyPipeline", "uplink_bitrate start_bps=${policy.startBps} max_bps=${policy.maxBps} applied=$applied")
+        }
+    }
+
     private fun loadIceServers(): Pair<List<PeerConnection.IceServer>, WebRtcRecoveryPolicy> {
         val request = authenticatedRequest("/webrtc/config").get().build()
         return executeAuthenticatedHttp(request).use { response ->
@@ -1663,6 +1679,10 @@ internal class WebRtcConnection(
                 val outbound = report.statsMap.values.firstOrNull { it.type == "outbound-rtp" &&
                     (it.members["kind"] == "video" || it.members["mediaType"] == "video") } ?: return@getStats
                 val sample = UplinkVideoStats.from(outbound.members)
+                if (BuildConfig.DEBUG) Log.i("PrivacyPipeline", "uplink_video reason=${sample.reason} " +
+                    "size=${sample.width}x${sample.height} fps=${sample.framesPerSecond} " +
+                    "encoder=${outbound.members["encoderImplementation"]} " +
+                    "target_bitrate=${outbound.members["targetBitrate"]}")
                 mainHandler.post { if (isActive()) onUplinkVideoStats(sample) }
             }
         }
