@@ -34,6 +34,9 @@ internal fun ChzzkBroadcastSettings.validationField(): String? {
         if (tag.isEmpty() || tag.codePointCount(0, tag.length) > 15 ||
             tag.codePoints().anyMatch { !Character.isLetterOrDigit(it) }) return "tags[$index]"
     }
+    // 모든 필드가 비면 서버 기본값으로 준비하는 요청이다. 그 외에는 공백뿐인 제목을 보내지 않는다(broadcast-settings-v1.md).
+    val usesServerDefaults = title.isBlank() && categoryType.isBlank() && categoryId.isBlank() && tags.isEmpty()
+    if (!usesServerDefaults && title.isBlank()) return "title"
     return null
 }
 
