@@ -9,6 +9,7 @@ import com.framework.innolive.feature.live.direct.publish.DirectPublishProfile
 import com.framework.innolive.feature.live.direct.publish.DirectPublisher
 import com.framework.innolive.feature.live.direct.publish.PublishOrientation
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
@@ -78,6 +79,20 @@ internal class ExecutorSerialScheduler(private val executor: ScheduledExecutorSe
     override fun shutdown() = executor.shutdown()
 }
 
+/** 상태 머신을 막지 않을 작업을 별도 스레드에서 실행합니다. */
+internal interface BackgroundExecutor {
+    fun execute(block: () -> Unit)
+    fun shutdown()
+}
+
+internal class ExecutorBackgroundExecutor(private val executor: ExecutorService) : BackgroundExecutor {
+    override fun execute(block: () -> Unit) {
+        runCatching { executor.execute(block) }
+    }
+
+    override fun shutdown() = executor.shutdown()
+}
+
 /** 상태 머신 밖의 의존성 묶음입니다. */
 internal class DirectBroadcastEnvironment(
     val server: DirectSessionServer,
@@ -88,7 +103,7 @@ internal class DirectBroadcastEnvironment(
     val keepAlive: BroadcastKeepAlive,
     val owner: SerialScheduler,
     /** 상태 조회처럼 상태 머신을 막지 않을 요청을 보냅니다. */
-    val io: Executor,
+    val io: BackgroundExecutor,
     /** 화면 콜백을 보낼 곳입니다(메인 스레드). */
     val callbacks: Executor,
     val elapsedRealtimeMillis: () -> Long,

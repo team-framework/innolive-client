@@ -48,6 +48,7 @@ class DirectBroadcastControllerTest {
     private val chzzkSettings = ChzzkBroadcastSettings("치지직", "GAME", "game-1", emptyList())
 
     private val scheduler = ManualScheduler()
+    private val io = ImmediateBackgroundExecutor()
     private val server = FakeServer()
     private val recovery = FakeRecovery()
     private val media = FakeMedia()
@@ -65,6 +66,7 @@ class DirectBroadcastControllerTest {
     private fun controller(
         plan: DirectBroadcastPlan = DirectBroadcastPlan(),
         provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
+        io: BackgroundExecutor = this.io,
     ) = DirectBroadcastController(
         LiveBroadcastCallbacks(
             onStateChanged = { state, failure -> connections += state to failure },
@@ -96,7 +98,7 @@ class DirectBroadcastControllerTest {
             },
             keepAlive = keepAlive,
             owner = scheduler,
-            io = { it.run() },
+            io = io,
             callbacks = { it.run() },
             elapsedRealtimeMillis = { now },
             log = logs::add,
@@ -232,6 +234,17 @@ class DirectBroadcastControllerTest {
 
         assertTrue("stop:youtube" in server.calls)
         assertEquals(BroadcastState.FAILED, states.last().first)
+    }
+
+    @Test fun publisherFailureEndsPreparedBroadcastAndDeletesSession() {
+        preparedYouTube()
+        media.engine.failPublisher(IllegalStateException("encoder"))
+        scheduler.runUntilIdle()
+
+        assertTrue("delete:session-1" in server.calls)
+        assertTrue(media.engine.closed)
+        assertEquals(BroadcastState.FAILED, states.last().first)
+        assertTrue(logs.any { it.startsWith("publisher_failed") })
     }
 
     @Test fun channelAlreadyLiveAsksForConfirmationAndRetriesConcurrently() {
@@ -567,6 +580,37 @@ class DirectBroadcastControllerTest {
         assertTrue(snapshots.isNotEmpty())
     }
 
+    @Test fun pollRequestedBeforeGoLiveDoesNotEndLiveBroadcast() {
+        val pending = ArrayDeque<Runnable>()
+        val controller = connected(controller(io = DeferredBackgroundExecutor(pending)))
+        // 준비 전 IDLE에서 보낸 조회가 서버 idle 응답으로 방송 시작 뒤에 돌아옵니다.
+        scheduler.advance(2_000)
+        assertEquals(1, pending.size)
+        server.sessionPayload = """{"session_id":"session-1","targets":[{"provider":"youtube","stream":{"status":"idle","broadcast_phase":"idle"}}]}"""
+        val stale = pending.removeFirst()
+
+        assertTrue(controller.prepareBroadcast(settings, false))
+        scheduler.runUntilIdle()
+        media.engine.emit(BroadcastProvider.YOUTUBE, RtmpTargetState.PUBLISHING)
+        scheduler.runUntilIdle()
+        live(controller)
+        assertEquals(BroadcastState.LIVE, states.last().first)
+
+        stale.run()
+        scheduler.runUntilIdle()
+
+        assertEquals(BroadcastState.LIVE, states.last().first)
+        assertFalse("disconnect:youtube" in media.engine.calls)
+        assertFalse("delete:session-1" in server.calls)
+
+        // 폴링은 이어지고, 방송 중에 보낸 조회의 idle 응답은 반영합니다.
+        scheduler.advance(2_000)
+        pending.removeFirst().run()
+        scheduler.runUntilIdle()
+        assertTrue("disconnect:youtube" in media.engine.calls)
+        assertEquals(BroadcastState.IDLE, states.last().first)
+    }
+
     @Test fun reconnectSupervisorDrivesReconnectAndGiveUp() {
         val controller = preparedYouTube()
         live(controller)
@@ -641,6 +685,44 @@ class DirectBroadcastControllerTest {
         assertTrue(server.closed)
         assertTrue(heartbeat.closed)
         assertTrue(supervisor.closed)
+    }
+
+    @Test fun closeShutsDownStatusIoExecutor() {
+        val controller = preparedYouTube()
+        var completed = false
+        controller.close { completed = true }
+        assertFalse(io.shutdown)
+        scheduler.runUntilIdle()
+
+        assertTrue(completed)
+        assertTrue(io.shutdown)
+    }
+
+    @Test fun repeatedCloseCompletesOnlyAfterCleanup() {
+        val controller = preparedYouTube()
+        live(controller)
+        val completed = mutableListOf<String>()
+        controller.close { completed += "first" }
+        controller.close {
+            assertTrue(server.closed)
+            assertTrue("delete:session-1" in server.calls)
+            completed += "second"
+        }
+
+        assertEquals(emptyList<String>(), completed)
+        scheduler.runUntilIdle()
+        assertEquals(listOf("first", "second"), completed)
+    }
+
+    @Test fun closeAfterCleanupCompletesImmediately() {
+        val controller = preparedYouTube()
+        live(controller)
+        controller.close()
+        scheduler.runUntilIdle()
+
+        var completed = false
+        controller.close { completed = true }
+        assertTrue(completed)
     }
 
     @Test fun ingestUrlNeverReachesLogs() {
@@ -753,6 +835,8 @@ class DirectBroadcastControllerTest {
         fun emit(provider: BroadcastProvider, state: RtmpTargetState, failure: RtmpFailure? = null) =
             listener.onTargetStateChanged(provider, state, failure)
 
+        fun failPublisher(error: Exception) = listener.onPublisherFailed(error)
+
         override fun connect(provider: BroadcastProvider, ingestUrl: IngestUrl) {
             calls += "connect:${provider.wireValue}"
             urls[provider] = ingestUrl
@@ -851,6 +935,20 @@ class DirectBroadcastControllerTest {
     }
 }
 
+/** 받은 작업을 바로 실행하고 종료 여부를 기록합니다. */
+internal class ImmediateBackgroundExecutor : BackgroundExecutor {
+    var shutdown = false
+        private set
+
+    override fun execute(block: () -> Unit) {
+        if (!shutdown) block()
+    }
+
+    override fun shutdown() {
+        shutdown = true
+    }
+}
+
 /** 시간을 직접 옮기는 직렬 실행기입니다. */
 internal class ManualScheduler : SerialScheduler {
     private class Task(val at: Long, val order: Long, val block: () -> Unit, var cancelled: Boolean = false)
@@ -873,7 +971,11 @@ internal class ManualScheduler : SerialScheduler {
     override fun shutdown() = Unit
 
     fun runUntilIdle() {
-        while (queue.isNotEmpty()) queue.removeFirst()()
+        var steps = 0
+        while (queue.isNotEmpty()) {
+            check(++steps <= 10_000) { "작업이 끝나지 않습니다." }
+            queue.removeFirst()()
+        }
     }
 
     fun advance(millis: Long) {
@@ -889,4 +991,13 @@ internal class ManualScheduler : SerialScheduler {
         timed.removeAll { it.cancelled }
         now = end
     }
+}
+
+/** 받은 작업을 큐에 보관해 테스트가 실행 시점을 정하게 합니다. */
+internal class DeferredBackgroundExecutor(private val queue: ArrayDeque<Runnable>) : BackgroundExecutor {
+    override fun execute(block: () -> Unit) {
+        queue.addLast(Runnable(block))
+    }
+
+    override fun shutdown() = Unit
 }
