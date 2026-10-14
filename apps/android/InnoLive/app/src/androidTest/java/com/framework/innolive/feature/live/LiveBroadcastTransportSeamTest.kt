@@ -17,9 +17,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 
 /** ViewModel이 송출 경로를 팩토리로 만들고 동작을 그대로 넘기는지 가짜 송출 경로로 확인합니다. */
 class LiveBroadcastTransportSeamTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Before fun grantPermissions() {

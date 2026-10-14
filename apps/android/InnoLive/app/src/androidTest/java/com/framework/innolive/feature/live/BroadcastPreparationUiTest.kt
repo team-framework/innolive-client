@@ -16,8 +16,10 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 
 class BroadcastPreparationUiTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private lateinit var session: WebRtcSessionViewModel
     private val settings = mutableStateOf(BroadcastSettings("검증 방송", "검증 설명", "private", null, "22"))

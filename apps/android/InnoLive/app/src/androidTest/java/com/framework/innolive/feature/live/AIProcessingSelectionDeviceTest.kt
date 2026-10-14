@@ -11,8 +11,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 
 class AIProcessingSelectionDeviceTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test fun choosingOnDeviceFromSettingsDefersConnectionUntilCameraReturns() {
