@@ -314,6 +314,7 @@ internal class WebRtcConnection(
                 if (!isActive()) return@executeOnOwner
                 addVideoTransceiver(connection)
                 if (!isActive()) return@executeOnOwner
+                applyUplinkPolicy(connection)
                 checkNotNull(frameAnalyzer).start()
                 val negotiationId = UUID.randomUUID().toString()
                 activeNegotiationId = negotiationId
@@ -1205,6 +1206,27 @@ internal class WebRtcConnection(
         videoSender = transceiver.sender
     }
 
+    /** Applied before the offer so the first keyframe already uses the session's bitrate budget. */
+    private fun applyUplinkPolicy(connection: PeerConnection) {
+        val sender = videoSender ?: return
+        val preference = uplinkDegradationPreferenceForAI(onDeviceProcessing)
+        val policy = uplinkBitratePolicyForAI(onDeviceProcessing, broadcastResolution)
+        if (preference != null || policy != null) {
+            val parameters = sender.parameters
+            preference?.let { parameters.degradationPreference = it }
+            // setBitrate only bounds the estimator; the encoder keeps libwebrtc's 2500kbps
+            // 1080p default until the encoding's own maximum is raised.
+            policy?.let { budget -> parameters.encodings.forEach { it.maxBitrateBps = budget.maxBps } }
+            if (sender.setParameters(parameters)) Log.i("PrivacyPipeline",
+                "uplink_sender degradation=$preference encoding_max_bps=${policy?.maxBps}")
+            else Log.w("PrivacyPipeline", "uplink_sender=default")
+        }
+        policy?.let { budget ->
+            val applied = connection.setBitrate(null, budget.startBps, budget.maxBps)
+            Log.i("PrivacyPipeline", "uplink_bitrate start_bps=${budget.startBps} max_bps=${budget.maxBps} applied=$applied")
+        }
+    }
+
     private fun loadIceServers(): Pair<List<PeerConnection.IceServer>, WebRtcRecoveryPolicy> {
         val request = authenticatedRequest("/webrtc/config").get().build()
         return executeAuthenticatedHttp(request).use { response ->
@@ -1663,6 +1685,10 @@ internal class WebRtcConnection(
                 val outbound = report.statsMap.values.firstOrNull { it.type == "outbound-rtp" &&
                     (it.members["kind"] == "video" || it.members["mediaType"] == "video") } ?: return@getStats
                 val sample = UplinkVideoStats.from(outbound.members)
+                if (BuildConfig.DEBUG) Log.i("PrivacyPipeline", "uplink_video reason=${sample.reason} " +
+                    "size=${sample.width}x${sample.height} fps=${sample.framesPerSecond} " +
+                    "encoder=${outbound.members["encoderImplementation"]} " +
+                    "target_bitrate=${outbound.members["targetBitrate"]}")
                 mainHandler.post { if (isActive()) onUplinkVideoStats(sample) }
             }
         }
