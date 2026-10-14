@@ -277,6 +277,121 @@
         }
       }
     },
+    "치지직 전송 안내": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직 전송 안내"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK transmission notice"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK送信のご案内"
+          }
+        }
+      }
+    },
+    "치지직에서의 처리": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직에서의 처리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing on CHZZK"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKでの取り扱い"
+          }
+        }
+      }
+    },
+    "처리된 방송 영상·음성을 연결한 치지직 채널로 전송합니다. 치지직 연결과 방송을 위해 채널 식별 정보, 암호화한 연결 토큰과 방송 설정·연결 정보를 처리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "처리된 방송 영상·음성을 연결한 치지직 채널로 전송합니다. 치지직 연결과 방송을 위해 채널 식별 정보, 암호화한 연결 토큰과 방송 설정·연결 정보를 처리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We send the processed broadcast video and audio to the connected CHZZK channel. For CHZZK connection and broadcasting, we process channel identifiers, encrypted connection tokens, and broadcast settings and connection information."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "処理済みの配信映像・音声を連携したCHZZKチャンネルに送信します。CHZZK連携と配信のため、チャンネル識別情報、暗号化した接続トークン、配信設定・接続情報を取り扱います。"
+          }
+        }
+      }
+    },
+    "연결한 치지직 채널로 처리한 영상과 음성을 전송하고 방송 설정과 상태를 관리합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결한 치지직 채널로 처리한 영상과 음성을 전송하고 방송 설정과 상태를 관리합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We send the processed video and audio to the connected CHZZK channel and manage the broadcast settings and state."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連携したCHZZKチャンネルへ処理済みの映像と音声を送信し、配信設定と状態を管理します。"
+          }
+        }
+      }
+    },
+    "치지직에 전송된 영상은 치지직(NAVER)의 정책과 사용자 채널 설정에 따라 처리됩니다. 계정 삭제는 치지직 채널의 과거 영상을 삭제하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직에 전송된 영상은 치지직(NAVER)의 정책과 사용자 채널 설정에 따라 처리됩니다. 계정 삭제는 치지직 채널의 과거 영상을 삭제하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video sent to CHZZK is processed under the policies of CHZZK (NAVER) and your channel settings. Deleting your InnoLive account does not delete past videos on your CHZZK channel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZKに送信された映像は、CHZZK(NAVER)のポリシーとチャンネル設定に従って取り扱われます。アカウント削除ではCHZZKチャンネルの過去の映像は削除されません。"
+          }
+        }
+      }
+    },
     "전송하는 정보": {
       "extractionState": "manual",
       "localizations": {

@@ -59,6 +59,7 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var helpURL: URL?
     @Published private(set) var hasAcknowledgedYouTubeTransmission = false
+    @Published private(set) var hasAcknowledgedCHZZKTransmission = false
     @Published var broadcastSettings: YouTubeBroadcastSettings {
         didSet {
             if !suppressBroadcastSettingsPersistence {
@@ -264,7 +265,7 @@ final class YouTubeIntegration: ObservableObject {
     func saveBroadcastModeSettings(provider: BroadcastSettingsProvider, accessToken: String?) async -> Bool {
         guard canChangeBroadcastMode, let current = session, let accessToken, !accessToken.isEmpty,
               isSettingsAccountConnected(provider), !liveEditingTargets.contains(provider),
-              provider != .youtube || hasAcknowledgedYouTubeTransmission else { return false }
+              hasAcknowledgedTransmission(for: provider) else { return false }
         settingsEditor.select(provider)
         settingsEditor.showValidation()
         guard settingsEditor.validation.isEmpty else { return false }
@@ -327,8 +328,10 @@ final class YouTubeIntegration: ObservableObject {
             return false
         }
         let added = targets.subtracting(Set(liveEditingTargets)).sorted { $0.rawValue < $1.rawValue }
-        if added.contains(.youtube), !hasAcknowledgedYouTubeTransmission {
-            broadcastModeError = String(localized: "YouTube 전송 안내에 동의해 주세요.", table: "BroadcastMode")
+        if let provider = added.first(where: { !hasAcknowledgedTransmission(for: $0) }) {
+            broadcastModeError = provider == .youtube
+                ? String(localized: "YouTube 전송 안내에 동의해 주세요.", table: "BroadcastMode")
+                : String(localized: "치지직 전송 안내에 동의해 주세요.", table: "BroadcastMode")
             return false
         }
         for provider in added {
@@ -587,6 +590,7 @@ final class YouTubeIntegration: ObservableObject {
         broadcastSettings = preferencesStore.loadBroadcastSettings()
         connection = preferencesStore.loadConnection()
         hasAcknowledgedYouTubeTransmission = consentStore.hasAcknowledgedYouTubeTransmission
+        hasAcknowledgedCHZZKTransmission = consentStore.hasAcknowledgedCHZZKTransmission
         videoUplink.onConnectionInterrupted = { [weak self] in
             self?.reconnectVideoUsingExistingSession()
         }
@@ -602,17 +606,39 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
-    func acknowledgeYouTubeTransmission(_ consent: SignupConsent) -> Bool {
+    func hasAcknowledgedTransmission(for provider: BroadcastSettingsProvider) -> Bool {
+        switch provider {
+        case .youtube: hasAcknowledgedYouTubeTransmission
+        case .chzzk: hasAcknowledgedCHZZKTransmission
+        }
+    }
+
+    func acknowledgeTransmission(_ consent: SignupConsent, for provider: BroadcastSettingsProvider) -> Bool {
         guard consent.isAccepted else { return false }
-        consentStore.recordYouTubeTransmission()
-        hasAcknowledgedYouTubeTransmission = true
+        switch provider {
+        case .youtube:
+            consentStore.recordYouTubeTransmission()
+            hasAcknowledgedYouTubeTransmission = true
+        case .chzzk:
+            consentStore.recordCHZZKTransmission()
+            hasAcknowledgedCHZZKTransmission = true
+        }
         return true
+    }
+
+    func acknowledgeYouTubeTransmission(_ consent: SignupConsent) -> Bool {
+        acknowledgeTransmission(consent, for: .youtube)
     }
 
     private func clearPersistedYouTubeConnection() {
         preferencesStore.removeConnection()
         consentStore.clearYouTubeTransmission()
         hasAcknowledgedYouTubeTransmission = false
+    }
+
+    private func clearCHZZKTransmissionAcknowledgement() {
+        consentStore.clearCHZZKTransmission()
+        hasAcknowledgedCHZZKTransmission = false
     }
 
     let planStore = PlanStore()
@@ -899,6 +925,9 @@ final class YouTubeIntegration: ObservableObject {
         } else {
             connection = nil
             clearPersistedYouTubeConnection()
+        }
+        if !accounts.contains(where: { $0.provider == "chzzk" }) {
+            clearCHZZKTransmissionAcknowledgement()
         }
     }
 
@@ -2049,6 +2078,7 @@ final class YouTubeIntegration: ObservableObject {
     func resetForAccountDeletion() {
         reset()
         clearPersistedYouTubeConnection()
+        clearCHZZKTransmissionAcknowledgement()
         suppressBroadcastSettingsPersistence = true
         broadcastSettings = .defaultValue
         suppressBroadcastSettingsPersistence = false
