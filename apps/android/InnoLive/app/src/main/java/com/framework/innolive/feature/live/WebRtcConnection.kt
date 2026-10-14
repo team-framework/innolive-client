@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import android.util.Log
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.direct.DirectPublishResolution
 import com.framework.innolive.feature.live.privacy.PrivacyTextureReadbackCounter
 import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
 import com.framework.innolive.feature.live.status.UplinkVideoStats
@@ -89,6 +90,8 @@ internal class WebRtcConnection(
     private val initialAnonymizationEnabled: Boolean,
     private val initialOnDeviceProcessing: Boolean = false,
     private val provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
+    /** 세션을 만들 때 서버에 요청하는 송출 해상도입니다. 세션 생성 뒤에는 바꾸지 않습니다. */
+    private val broadcastResolution: DirectPublishResolution = DirectPublishResolution.HD_720,
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, ConnectionFailure?) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
@@ -1232,12 +1235,7 @@ internal class WebRtcConnection(
     }
 
     private fun requestSessionCreation(): CreatedSession? {
-        val requestBody = JSONObject()
-            .put("provider", provider.wireValue)
-            .put(
-                "metadata",
-                JSONObject().put("client", "innolive-android"),
-            )
+        val requestBody = buildServerSessionRequest(provider, broadcastResolution)
             .toString()
             .toRequestBody(JSON_MEDIA_TYPE)
         val request = authenticatedRequest("/sessions")
@@ -2450,6 +2448,15 @@ private fun ServerApiException.toKnownBroadcastFailure(): BroadcastFailure? = wh
     "broadcast_not_ready" -> BroadcastFailure.YOUTUBE_NOT_READY
     else -> null
 }
+
+/** 서버 AI 세션 생성 본문입니다. 서버 디코더가 트랙 도착 즉시 이 해상도로 뜨므로 생성 때 정합니다. */
+internal fun buildServerSessionRequest(
+    provider: BroadcastProvider,
+    resolution: DirectPublishResolution,
+): JSONObject = JSONObject()
+    .put("provider", provider.wireValue)
+    .put("broadcast_resolution", resolution.wireValue)
+    .put("metadata", JSONObject().put("client", "innolive-android"))
 
 internal fun ServerApiException.toBroadcastEvent(
     fallback: BroadcastFailure,
