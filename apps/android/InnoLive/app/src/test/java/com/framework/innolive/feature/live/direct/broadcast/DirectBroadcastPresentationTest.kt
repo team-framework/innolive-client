@@ -23,6 +23,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import com.framework.innolive.feature.live.effectiveBroadcastPlan
+import com.framework.innolive.feature.live.storedBroadcastPlan
 import org.junit.Test
 
 class DirectBroadcastPresentationTest {
@@ -61,11 +63,22 @@ class DirectBroadcastPresentationTest {
     @Test fun disallowedModesAreBlockedWithPlanGuidance() {
         val state = directBroadcastModeState(DirectBroadcastPlan(), plan(PlanMode.HD_SINGLE), connected, locked = false)
         assertEquals(DirectModeBlock.PLAN, state.resolutions.single { it.resolution == FHD }.block)
-        assertEquals(DirectModeBlock.PLAN, state.providers.single { it.provider == CHZZK }.block)
         assertTrue(state.showsPlanGuidance)
         assertNull(state.selectResolution(FHD))
-        assertNull(state.toggleProvider(CHZZK))
         assertNull(state.warning)
+    }
+
+    @Test fun singleTargetPlanSwapsPlatformInsteadOfAddingIt() {
+        // 720p 단독만 허용하면 CHZZK를 막지 않고, 고르면 YouTube 대신 CHZZK 하나로 바꿉니다.
+        val state = directBroadcastModeState(DirectBroadcastPlan(), plan(PlanMode.HD_SINGLE), connected, locked = false)
+        val chzzk = state.providers.single { it.provider == CHZZK }
+        assertNull(chzzk.block)
+        assertTrue(chzzk.replacesSelection)
+        assertEquals(DirectBroadcastPlan(HD_720, setOf(CHZZK)), state.toggleProvider(CHZZK))
+        // 요금제가 단독 송출도 허용하지 않으면 막습니다.
+        val none = directBroadcastModeState(DirectBroadcastPlan(), plan(), connected, locked = false)
+        assertEquals(DirectModeBlock.PLAN, none.providers.single { it.provider == CHZZK }.block)
+        assertNull(none.toggleProvider(CHZZK))
     }
 
     @Test fun unknownPlanDoesNotBlockSelection() {
@@ -258,5 +271,14 @@ class DirectBroadcastPresentationTest {
         assertEquals(UiText.Resource(R.string.chzzk_error_settings), chzzkBroadcastErrorMessage("bad_request", null))
         assertEquals(UiText.Resource(R.string.chzzk_error_not_ready), chzzkBroadcastErrorMessage("broadcast_not_prepared", null))
         assertEquals(UiText.Resource(R.string.chzzk_error_request), chzzkBroadcastErrorMessage(null, null))
+    }
+
+    @Test fun serverModePlatformChangeKeepsOnDeviceResolution() {
+        val stored = DirectBroadcastPlan(FHD, setOf(YOUTUBE))
+        val shown = effectiveBroadcastPlan(stored, onDevice = false)
+        assertEquals(HD_720, shown.resolution)
+        val picked = shown.copy(providers = setOf(CHZZK))
+        assertEquals(DirectBroadcastPlan(FHD, setOf(CHZZK)), storedBroadcastPlan(picked, stored, onDevice = false))
+        assertEquals(picked, storedBroadcastPlan(picked, stored, onDevice = true))
     }
 }
