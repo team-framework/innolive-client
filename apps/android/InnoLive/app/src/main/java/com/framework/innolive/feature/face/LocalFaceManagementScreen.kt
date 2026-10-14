@@ -195,6 +195,7 @@ private fun LocalFaceRegistrationScreen(
     var latest by remember { mutableStateOf<Bitmap?>(null) }
     var message by remember { mutableStateOf(context.getString(R.string.face_registration_instruction)) }
     var generation by remember { mutableStateOf(0) }
+    var lensFacing by remember(cameraLensFacing) { mutableStateOf(cameraLensFacing) }
 
     DisposableEffect(detector) { onDispose { generation++; detector.close() } }
     DisposableEffect(lifecycleOwner) {
@@ -228,7 +229,7 @@ private fun LocalFaceRegistrationScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         val currentGeneration = generation
         FaceCaptureCamera(
-            cameraLensFacing = cameraLensFacing,
+            cameraLensFacing = lensFacing,
             enabled = active && capturing,
             onFrame = { bitmap ->
                 detector.submit(bitmap) { detectedBitmap, result ->
@@ -284,7 +285,7 @@ private fun LocalFaceRegistrationScreen(
             Text(message, color = Color.White)
             latest?.let {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    FaceRegistrationPreviewImage(it, cameraLensFacing)
+                    FaceRegistrationPreviewImage(it, lensFacing)
                 }
             }
             if (!capturing) Button(onClick = {
@@ -295,5 +296,18 @@ private fun LocalFaceRegistrationScreen(
                 message = context.getString(R.string.face_registration_instruction)
             }) { Text(stringResource(R.string.action_capture_again)) }
         }
+        FaceCameraSwitchButton(
+            enabled = active && capturing,
+            onSwitchCamera = {
+                if (capturing) {
+                    generation++
+                    detector.reset()
+                    latest = null
+                    lensFacing = lensFacing.toggled()
+                    message = context.getString(R.string.face_registration_instruction)
+                }
+            },
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
+        )
     }
 }

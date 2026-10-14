@@ -116,7 +116,7 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
             string(R.string.label_account_information),
             "연결 안 됨",
             string(R.string.action_connect),
-            string(R.string.action_save_and_close),
+            string(R.string.direct_mode_done),
         ).forEach { contrast(it) }
         compose.onNodeWithText(string(R.string.privacy_public), useUnmergedTree = true).performClick()
         contrast(string(R.string.privacy_unlisted))
