@@ -1,6 +1,8 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.components.sessionNoticeMessageResource
+import com.framework.innolive.ui.text.UiText
 import java.io.File
 import org.junit.Assert.*
 import org.junit.Test
@@ -172,5 +174,87 @@ class SessionSnapshotTest {
         assertEquals(listOf(BroadcastProvider.CHZZK), snapshot("prepared", null).unpreparedProviders(both))
         assertEquals(emptyList<BroadcastProvider>(), snapshot("prepared", "prepared").unpreparedProviders(both))
         assertEquals(both.toList(), null.unpreparedProviders(both))
+    }
+
+    private fun fixtureText(name: String): String {
+        val root = generateSequence(File(checkNotNull(System.getProperty("innolive.android.resDir")))) { it.parentFile }
+            .first { File(it, "contracts/fixtures").isDirectory }
+        return File(root, "contracts/fixtures/broadcast-session-state-$name.v1.json").readText()
+    }
+
+    /** broadcast-session-state-v1.md: golive는 StreamState·targets·failed_targets만 돌려주며 일부 실패도 성공 응답이다. */
+    @Test fun goLivePartialFixtureUpdatesTargetsAndKeepsTheLastFullSnapshotFields() {
+        val live = fixture("dual")
+        val payload = fixtureText("golive-partial")
+        val next = parseSessionSnapshot(payload, live.sessionId, live)
+
+        assertEquals(BroadcastState.LIVE, next.broadcastState())
+        assertEquals(listOf("chzzk"), next.visibleTargets.map { it.provider })
+        assertEquals("idle", next.targets!!.first { it.provider == "youtube" }.broadcastPhase)
+        assertEquals(live.notices, next.notices)
+        assertEquals(BroadcastRemainingTime.Seconds(120), next.remainingTime)
+        assertEquals(120L, next.lastRemainingSeconds)
+        assertEquals("fhd", next.broadcastResolution)
+        assertEquals("youtube", next.provider)
+
+        assertEquals(listOf(BroadcastProvider.YOUTUBE), parseFailedTargets(payload))
+        assertEquals(BroadcastState.IDLE, parseBroadcastState(payload, BroadcastProvider.YOUTUBE))
+        assertEquals(BroadcastState.LIVE, parseBroadcastState(payload, BroadcastProvider.CHZZK))
+        assertEquals(UiText.Resource(R.string.simulcast_golive_failed_youtube),
+            simulcastGoLiveFailedMessage(parseFailedTargets(payload)))
+    }
+
+    @Test fun failedTargetsIgnoreUnknownProvidersAndDuplicates() {
+        assertEquals(emptyList<BroadcastProvider>(), parseFailedTargets("""{"targets":[]}"""))
+        assertEquals(listOf(BroadcastProvider.CHZZK), parseFailedTargets(
+            """{"failed_targets":[{"provider":"future_provider","code":"x"},{"provider":"chzzk","code":"a"},
+                {"provider":"chzzk","code":"b"},{"code":"no_provider"}]}"""))
+        assertEquals(UiText.Resource(R.string.simulcast_golive_failed_all),
+            simulcastGoLiveFailedMessage(listOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)))
+        assertEquals(UiText.Resource(R.string.simulcast_golive_failed_chzzk),
+            simulcastGoLiveFailedMessage(listOf(BroadcastProvider.CHZZK)))
+        assertEquals(UiText.Resource(R.string.simulcast_prepare_failed_all),
+            simulcastPrepareFailedMessage(listOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)))
+        assertEquals(UiText.Resource(R.string.simulcast_prepare_failed_youtube),
+            simulcastPrepareFailedMessage(listOf(BroadcastProvider.YOUTUBE)))
+    }
+
+    /**
+     * android-session-snapshot.md: 알 수 없는 상태가 실린 응답은 준비·시작 완료로 단정하지 않는다.
+     * 제어 응답 확인에 쓰는 parseBroadcastState도 세션 스냅샷과 같은 해석이어야 합니다.
+     */
+    @Test fun unknownLiveStatusIsNotConfirmedAsLiveByEitherParser() {
+        val payload = """{"stream":{"broadcast_phase":"live","status":"future_status"}}"""
+        assertNull(parseSessionSnapshot(payload, "s").broadcastState())
+        assertNull(parseBroadcastState(payload, BroadcastProvider.YOUTUBE))
+    }
+
+    @Test fun unknownPhaseTargetsDoNotHideConfirmedStatesOfOtherTargets() {
+        val mixed = parseSessionSnapshot("""{"targets":[{"provider":"youtube","stream":{"broadcast_phase":"future_phase"}},
+            {"provider":"chzzk","stream":{"broadcast_phase":"live","status":"streaming"}}]}""", "s")
+        assertEquals(BroadcastState.LIVE, mixed.broadcastState())
+        assertEquals(2, mixed.visibleTargets.size)
+        val allUnknown = parseSessionSnapshot(
+            """{"targets":[{"provider":"youtube","stream":{"broadcast_phase":"future_phase"}}]}""", "s")
+        assertNull(allUnknown.broadcastState())
+    }
+
+    @Test fun targetPartialResponsePreservesWarningsResolutionAndStaleFlag() {
+        val prepared = parseSessionSnapshot("""{"session_id":"s","provider":"youtube","broadcast_resolution":"fhd",
+            "warnings":[{"code":"youtube_quota_low","message":"m"}],"broadcast_remaining_seconds":300,
+            "targets":[{"provider":"youtube","stream":{"status":"streaming","broadcast_phase":"live"}},
+            {"provider":"chzzk","stream":{"status":"streaming","broadcast_phase":"live"}}]}""", "s")
+        val stale = prepared.copy(isRemainingTimeStale = true)
+        val chzzkStopped = parseSessionSnapshot("""{"status":"stopped","broadcast_phase":"idle"}""", "s", stale,
+            targetProvider = "chzzk")
+
+        assertEquals(prepared.warnings, chzzkStopped.warnings)
+        assertEquals("fhd", chzzkStopped.broadcastResolution)
+        assertEquals(BroadcastRemainingTime.Seconds(300), chzzkStopped.remainingTime)
+        assertEquals(300L, chzzkStopped.lastRemainingSeconds)
+        assertTrue(chzzkStopped.isRemainingTimeStale)
+        assertEquals(prepared.targets!!.first(), chzzkStopped.targets!!.first { it.provider == "youtube" })
+        assertEquals(listOf("youtube"), chzzkStopped.visibleTargets.map { it.provider })
+        assertEquals(BroadcastState.LIVE, chzzkStopped.broadcastState())
     }
 }
