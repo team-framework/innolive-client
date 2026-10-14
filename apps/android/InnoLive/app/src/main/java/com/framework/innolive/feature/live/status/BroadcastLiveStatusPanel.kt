@@ -166,8 +166,7 @@ private fun detailChips(
     uplinkQuality: BroadcastUplinkQuality?,
 ): List<StatusChipModel> = buildList {
     if (broadcastResolution != null) {
-        // 업로드 화질("720p")과 같은 표기로 맞춘다.
-        val resolution = broadcastResolution.lowercase()
+        val resolution = broadcastResolutionLabel(broadcastResolution)
         add(
             StatusChipModel(
                 text = resolution,
@@ -186,6 +185,12 @@ private fun detailChips(
             ),
         )
     }
+}
+
+/** 업로드 화질("720p")과 같은 표기로 맞추고, 서버 값 `fhd`는 화질 선택 창과 같은 `FHD`로 보여 줍니다. */
+internal fun broadcastResolutionLabel(value: String): String {
+    val resolution = value.lowercase()
+    return if (resolution == "fhd") "FHD" else resolution
 }
 
 @Composable
