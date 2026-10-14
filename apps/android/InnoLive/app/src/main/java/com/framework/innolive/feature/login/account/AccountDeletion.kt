@@ -3,6 +3,7 @@ package com.framework.innolive.feature.login.account
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.feature.login.oauth.google.InvalidRefreshTokenException
 import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -79,6 +80,9 @@ internal sealed interface AccountDeletionResult {
     data object Deleted : AccountDeletionResult
 
     data class Failed(val error: UiText) : AccountDeletionResult
+
+    /** refresh token이 무효라 삭제를 재시도할 수 없다. 기존 세션 만료 동작을 따른다. */
+    data object SessionExpired : AccountDeletionResult
 }
 
 internal data class AccountDeletionState(
@@ -124,6 +128,8 @@ internal class AccountDeletionCoordinator(
         AccountDeletionPhase,
     ) -> Unit = { _, _ -> },
     private val clearPendingDeletion: suspend () -> Unit = {},
+    /** 무효 refresh token으로 로그아웃할 때 방송 연결 등을 닫는다. */
+    private val onSessionExpired: () -> Unit = {},
 ) {
     private val _state = MutableStateFlow(
         if (initialPendingDeletion == null) {
@@ -248,6 +254,16 @@ internal class AccountDeletionCoordinator(
                         pendingPhase = AccountDeletionPhase.REMOTE_DELETION_PENDING,
                         error = remoteResult.error,
                     )
+
+                    AccountDeletionResult.SessionExpired -> {
+                        // 무효 refresh token은 기존 세션 만료 동작을 따른다(account-deletion-v1.md). 서버 계정은
+                        // 남아 있으므로 삭제 대기 marker를 지우고, 다음 로그인에서 다시 삭제를 시작한다.
+                        pendingDeletion = null
+                        runCatching { clearPendingDeletion() }
+                        runCatching(onSessionExpired)
+                        runCatching(clearAuthentication)
+                        AccountDeletionState()
+                    }
                 }
             }
         }
@@ -301,6 +317,8 @@ internal class AccountDeletionUseCase(
                 refreshAccessToken()
             } catch (exception: CancellationException) {
                 throw exception
+            } catch (_: InvalidRefreshTokenException) {
+                return AccountDeletionResult.SessionExpired
             } catch (_: Exception) {
                 return AccountDeletionResult.Failed(UiText.Resource(R.string.error_session_refresh))
             }

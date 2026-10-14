@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.youtube
 
+import com.framework.innolive.feature.login.oauth.google.InvalidRefreshTokenException
 import java.io.IOException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -68,6 +69,14 @@ class YouTubeUnauthorizedRetryTest {
         }
         assertEquals("refresh unavailable", refreshFailure.message)
         assertEquals(2, calls)
+    }
+
+    /** android-plan-usage.md: 무효 refresh token만 401로 로그인 복귀, 일시 갱신 실패는 조회 실패로 마지막 값 유지. */
+    @Test fun planRefreshFailureBecomes401OnlyForRejectedRefreshTokens() {
+        assertEquals(401, planRefreshFailure(InvalidRefreshTokenException(401)).statusCode)
+        assertEquals(401, planRefreshFailure(InvalidRefreshTokenException(400)).statusCode)
+        assertNull(planRefreshFailure(IOException("HTTP 503")).statusCode)
+        assertNull(planRefreshFailure(IllegalStateException("closed")).statusCode)
     }
 
     @Test fun youtubeAccountIsFoundCaseInsensitivelyAmongOtherProviders() {

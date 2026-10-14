@@ -67,6 +67,8 @@ class AuthenticationSessionViewModel(
     )
 
     private val accountLocalDataCleaner = AccountLocalDataCleaner(application)
+    /** 삭제 확인과 세션 만료 로그아웃 모두 방송 연결을 닫아야 하므로 마지막 삭제 요청의 콜백을 보관한다. */
+    private var closeBroadcastOnSessionExpiry: () -> Unit = {}
     private val accountDeletionCleanupStore = AccountDeletionCleanupStore(application)
     private val initialPendingDeletion = repository.currentSession?.let { currentSession ->
         accountDeletionCleanupStore.loadPhaseFor(currentSession)?.let { phase ->
@@ -103,12 +105,14 @@ class AuthenticationSessionViewModel(
                 accountDeletionCleanupStore.clear()
             }
         },
+        onSessionExpired = { closeBroadcastOnSessionExpiry() },
     )
 
     internal val accountDeletionState: StateFlow<AccountDeletionState> =
         accountDeletionCoordinator.state
 
     internal fun deleteAccount(onRemoteDeletionConfirmed: () -> Unit = {}) {
+        closeBroadcastOnSessionExpiry = onRemoteDeletionConfirmed
         accountDeletionCoordinator.delete(onRemoteDeletionConfirmed)
     }
 
