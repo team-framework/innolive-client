@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="broadcast_consent_cancel">キャンセル</string>
+    <string name="broadcast_consent_privacy_policy">プライバシーポリシーの全文を読む</string>
+    <string name="broadcast_consent_sent_information">送信する情報</string>
+    <string name="broadcast_consent_purpose">利用目的</string>
+    <string name="broadcast_consent_notice_footer">この案内を確認するまで配信準備は進みません。個人情報に関するお問い合わせは、プライバシーポリシーに記載の連絡先へご連絡ください。</string>
+    <string name="broadcast_consent_notice_scroll_hint">最後までスクロールすると続行できます。</string>
+    <string name="broadcast_consent_notice_accept">確認して配信準備</string>
+
+    <string name="broadcast_consent_media_title">配信映像・音声の送信への同意</string>
+    <string name="broadcast_consent_media_sent_title">送信する配信情報</string>
+    <string name="broadcast_consent_media_sent_body">カメラとマイクで取得した配信映像・音声をサーバーに送信します。匿名化処理のため、AIサービスがこの映像・音声を処理・中継します。</string>
+    <string name="broadcast_consent_media_purpose_body">登録した顔と他の顔を区別し、配信映像の他の顔を匿名化するために利用します。</string>
+    <string name="broadcast_consent_media_retention_title">保有および処理</string>
+    <string name="broadcast_consent_media_retention_body">AIサービスは処理中、顔の特徴値をメモリに保持します。保持した顔の特徴値は、登録顔の削除、アカウント削除の完了、またはAIサービスの終了時に削除します。基準写真の原本は別に保管しません。</string>
+    <string name="broadcast_consent_media_footer">同意しない場合、カメラとマイクはサーバーに接続しません。個人情報に関するお問い合わせや同意の撤回は、プライバシーポリシーに記載の連絡先へご連絡ください。</string>
+    <string name="broadcast_consent_media_scroll_hint">最後までスクロールすると同意できます。</string>
+    <string name="broadcast_consent_media_accept">同意して続ける</string>
+
+    <string name="broadcast_consent_youtube_title">YouTube送信のご案内</string>
+    <string name="broadcast_consent_youtube_sent_body">処理済みの配信映像・音声を連携したYouTubeチャンネルに送信します。YouTube連携と配信のため、チャンネル識別情報、暗号化した接続トークン、配信接続情報を取り扱います。</string>
+    <string name="broadcast_consent_youtube_purpose_body">連携したYouTubeチャンネルへ処理済みの映像と音声を送信し、配信状態を管理します。</string>
+    <string name="broadcast_consent_youtube_platform_title">YouTubeでの取り扱い</string>
+    <string name="broadcast_consent_youtube_platform_body">YouTubeに送信された映像は、YouTubeのポリシーとチャンネル設定に従って取り扱われます。アカウント削除ではYouTubeチャンネルの過去の映像は削除されません。</string>
+
+    <string name="broadcast_consent_chzzk_title">CHZZK送信のご案内</string>
+    <string name="broadcast_consent_chzzk_sent_body">処理済みの配信映像・音声と配信タイトル・カテゴリ・タグを連携したCHZZKチャンネルに送信します。CHZZK連携と配信のため、チャンネル識別情報とチャンネル名、暗号化した接続トークン、配信に必要なストリームキーを取り扱います。</string>
+    <string name="broadcast_consent_chzzk_permissions_title">リクエストするCHZZK権限</string>
+    <string name="broadcast_consent_chzzk_permissions_body">ユーザー情報の照会、配信ストリームキーの照会、配信設定の照会・変更の権限をリクエストします。4つの権限をすべて許可しないと連携できません。チャット権限はリクエストしません。</string>
+    <string name="broadcast_consent_chzzk_purpose_body">連携したCHZZKチャンネルへ処理済みの映像と音声を送信し、配信タイトル・カテゴリ・タグと配信状態を管理します。</string>
+    <string name="broadcast_consent_chzzk_platform_title">CHZZKでの取り扱い</string>
+    <string name="broadcast_consent_chzzk_platform_body">CHZZKに送信された映像は、CHZZK(NAVER)のポリシーとチャンネル設定に従って取り扱われます。設定でCHZZK連携を解除すると、InnoLiveに保存された接続トークンと連携情報を削除します。配信中は連携を解除できません。アカウント削除や連携解除ではCHZZKチャンネルの過去の映像は削除されません。</string>
+
+    <string name="error_broadcast_media_consent_required">配信映像・音声の送信に同意してから配信を準備できます。</string>
+    <string name="error_broadcast_transmission_notice_required">プラットフォーム送信のご案内を確認してから配信を準備できます。</string>
+</resources>

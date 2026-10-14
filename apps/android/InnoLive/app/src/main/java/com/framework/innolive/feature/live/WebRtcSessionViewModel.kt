@@ -13,6 +13,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
+import com.framework.innolive.feature.live.consent.BroadcastConsentStep
+import com.framework.innolive.feature.live.consent.BroadcastConsentStore
+import com.framework.innolive.feature.live.consent.nextBroadcastConsentStep
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastUiState
 import com.framework.innolive.feature.live.status.BroadcastUplinkQuality
@@ -505,6 +508,19 @@ class WebRtcSessionViewModel internal constructor(
         if (invalid) {
             broadcastState = BroadcastState.FAILED
             broadcastStatus = UiText.Resource(com.framework.innolive.R.string.error_broadcast_validation)
+            isBroadcastStatusDefault = false
+            return false
+        }
+        // 화면을 거치지 않은 요청도 동의·안내 없이 카메라와 마이크를 서버에 연결하지 않습니다.
+        nextBroadcastConsentStep(selectedProviders, BroadcastConsentStore(context)::hasAccepted)?.let { step ->
+            broadcastState = BroadcastState.FAILED
+            broadcastStatus = UiText.Resource(
+                if (step == BroadcastConsentStep.MEDIA_TRANSMISSION) {
+                    com.framework.innolive.R.string.error_broadcast_media_consent_required
+                } else {
+                    com.framework.innolive.R.string.error_broadcast_transmission_notice_required
+                },
+            )
             isBroadcastStatusDefault = false
             return false
         }

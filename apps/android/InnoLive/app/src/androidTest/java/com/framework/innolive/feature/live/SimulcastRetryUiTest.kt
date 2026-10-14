@@ -18,9 +18,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 
 /** 동시 송출에서 한 플랫폼만 준비됐을 때 화면에서 남은 플랫폼 설정을 다시 열 수 있는지 확인합니다. */
 class SimulcastRetryUiTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private var savedProvider: String? = null
     private val transports = mutableListOf<PartialTransport>()

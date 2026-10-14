@@ -15,9 +15,11 @@ import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 
 // 실제 영상·마이크를 비공개 YouTube 라이브로 송출하므로 별도 실행 인자가 필요하다.
 class BroadcastLiveDeviceTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test fun offLiveToggleStopAndReconnectPreserveSelection() {
