@@ -95,6 +95,7 @@ internal fun FaceRegistrationScreen(
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
     }
     var uploadJob by remember { mutableStateOf<Job?>(null) }
+    var lensFacing by remember(cameraLensFacing) { mutableStateOf(cameraLensFacing) }
 
     DisposableEffect(detector) {
         onDispose { detector.close() }
@@ -238,6 +239,15 @@ internal fun FaceRegistrationScreen(
         statusMessage = UiText.Resource(R.string.face_registration_instruction)
     }
 
+    fun switchCamera() {
+        if (phase != FaceRegistrationPhase.CAPTURING) return
+        operationGeneration += 1
+        detector.reset()
+        latestBitmap = null
+        lensFacing = lensFacing.toggled()
+        statusMessage = UiText.Resource(R.string.face_registration_instruction)
+    }
+
     fun close() {
         operationGeneration += 1
         detector.reset()
@@ -254,7 +264,7 @@ internal fun FaceRegistrationScreen(
             .background(Color.Black),
     ) {
         FaceCaptureCamera(
-            cameraLensFacing = cameraLensFacing,
+            cameraLensFacing = lensFacing,
             enabled = isLifecycleActive && phase == FaceRegistrationPhase.CAPTURING,
             onFrame = { bitmap ->
                 val accepted = detector.submit(bitmap) { detectedBitmap, result ->
@@ -370,7 +380,7 @@ internal fun FaceRegistrationScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 latestBitmap?.let { bitmap ->
-                    FaceRegistrationPreviewImage(bitmap, cameraLensFacing)
+                    FaceRegistrationPreviewImage(bitmap, lensFacing)
                 } ?: Text(
                     text = stringResource(R.string.face_camera_preparing),
                     color = Color.White,
@@ -429,6 +439,13 @@ internal fun FaceRegistrationScreen(
                 }
             }
         }
+        FaceCameraSwitchButton(
+            enabled = isLifecycleActive && phase == FaceRegistrationPhase.CAPTURING,
+            onSwitchCamera = ::switchCamera,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 16.dp),
+        )
     }
 }
 
