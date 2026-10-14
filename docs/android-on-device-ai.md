@@ -902,3 +902,9 @@ RTMP 송출을 실행하지 않았다.
 넘어 디코드 큐(`AI_FRAME_QUEUE_SIZE=2`)에서 프레임을 버리고 CFR egress가 직전 프레임을
 복제하는 양이 폰이 못 보낸 약 5%보다 크다. 남은 미세 끊김은 서버 AI 처리량 문제로
 innolive-server·innolive-ai에서 다룬다.
+
+2026-10-14 22:42 FHD·22:43 720p 프로브(각 60초, 손실 0, RTT 6~19ms)에서 폰은 30fps를
+보냈지만 서버 `session mosaic summary` 처리 프레임은 FHD 1303개/76초(약 17fps),
+720p 1772개/71초(약 25fps)였다. 같은 시각 서버 누적 stage 평균은 grpc 31.5ms,
+encode(반환 libx264) 41.4ms로 둘 다 33.3ms 예산을 넘고, 반환 인코더가 `processed`
+채널(크기 1)로 AI 루프를 막는 구조라 FHD에서 30fps를 유지하지 못한다.
