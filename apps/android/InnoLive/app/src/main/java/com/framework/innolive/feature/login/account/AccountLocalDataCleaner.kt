@@ -4,6 +4,7 @@ import android.content.Context
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.face.ReferenceFaceImageStore
 import com.framework.innolive.feature.live.EncryptedSessionRecoveryStore
+import com.framework.innolive.feature.live.consent.BroadcastConsentStore
 import com.framework.innolive.feature.live.privacy.PrivacyFaceLibrary
 import com.framework.innolive.feature.live.sessionRecoveryScope
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
@@ -26,6 +27,7 @@ internal class AccountLocalDataCleaner(context: Context) {
         ReferenceFaceImageStore(applicationContext).deleteAll(session.profileEmail)
         PrivacyFaceLibrary.clearForAccountDeletion(applicationContext, recoveryScope.storageKey)
         YouTubePreferencesStore(applicationContext).clearAccountData()
+        BroadcastConsentStore(applicationContext).clearAll()
     }
 }
 

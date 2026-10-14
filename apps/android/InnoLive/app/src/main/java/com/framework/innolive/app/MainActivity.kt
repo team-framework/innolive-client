@@ -61,6 +61,8 @@ import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
 import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
+import com.framework.innolive.feature.live.consent.BroadcastConsentStep
+import com.framework.innolive.feature.live.consent.BroadcastConsentStore
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialViewModel
 import com.framework.innolive.feature.login.LoginScreen
@@ -220,6 +222,7 @@ fun AppNavigation(
     val isAccountDeletionPending = accountDeletionState.hasPendingDeletion
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
     val youtubePreferencesStore = remember(context) { YouTubePreferencesStore(context) }
+    val broadcastConsentStore = remember(context) { BroadcastConsentStore(context) }
     val videoQualityPreferences = remember(context) { BroadcastVideoQualityPreferences(context) }
     var videoQualitySettings by remember(videoQualityPreferences) { mutableStateOf(videoQualityPreferences.load()) }
     var videoQualityCaptureState by remember { mutableStateOf(VideoQualityCaptureState()) }
@@ -333,7 +336,11 @@ fun AppNavigation(
                 youtubeAccountVerificationState = YouTubeAccountVerificationState.VERIFIED
             },
             saveConnection = youtubePreferencesStore::saveConnection,
-            removeConnection = youtubePreferencesStore::removeConnection,
+            removeConnection = {
+                youtubePreferencesStore.removeConnection()
+                // 서버에서 연결이 없음을 확인하면 다음 연결 후 방송 준비에서 전송 안내를 다시 받습니다.
+                broadcastConsentStore.clear(BroadcastConsentStep.YOUTUBE_TRANSMISSION)
+            },
         )
         if (!cacheUpdated) {
             Log.w("InnoLiveYouTube", "Unable to update YouTube account display cache.")

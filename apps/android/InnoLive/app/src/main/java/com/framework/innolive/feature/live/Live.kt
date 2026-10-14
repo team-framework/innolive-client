@@ -64,6 +64,10 @@ import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.components.logoRes
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
+import com.framework.innolive.feature.live.consent.BroadcastConsentDialog
+import com.framework.innolive.feature.live.consent.BroadcastConsentStep
+import com.framework.innolive.feature.live.consent.BroadcastConsentStore
+import com.framework.innolive.feature.live.consent.nextBroadcastConsentStep
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
 import com.framework.innolive.feature.live.direct.broadcast.DirectProviderOrder
 import com.framework.innolive.feature.live.direct.broadcast.labelRes
@@ -148,6 +152,8 @@ private fun LiveScreenContent(
     var chzzkBusy by remember { mutableStateOf(false) }
     var chzzkMessage by remember { mutableStateOf<UiText?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
+    // 방송 준비 중 표시할 동의·안내입니다. 수락하면 다음 단계로 이어서 진행합니다.
+    var pendingConsentStep by remember { mutableStateOf<BroadcastConsentStep?>(null) }
     var testUsageWarningOverride by remember { mutableStateOf(false) }
     // 사용자가 방송 방식을 직접 고르기 전에는 요금제가 허용하는 최고 화질을 따릅니다.
     var directModeUserSelected by rememberSaveable { mutableStateOf(false) }
@@ -172,6 +178,7 @@ private fun LiveScreenContent(
     var selectedPlatform by rememberSaveable {
         mutableStateOf(providerPreferences.getString("selected", null))
     }
+    val broadcastConsentStore = remember(context) { BroadcastConsentStore(context) }
     val scope = rememberCoroutineScope()
     val chzzkApi = remember { runCatching { ChzzkApi(BuildConfig.INNOLIVE_SERVER_URL) }.getOrNull() }
     DisposableEffect(chzzkApi) { onDispose { chzzkApi?.close() } }
@@ -209,6 +216,10 @@ private fun LiveScreenContent(
                 if (chzzkAccountVerification.revision == revision) {
                     chzzkAccountVerification = chzzkAccountVerification.confirm(revision, account)
                     chzzkMessage = null
+                    // 서버에서 연결이 없음을 확인하면 다음 연결 후 방송 준비에서 전송 안내를 다시 받습니다.
+                    if (account == null) {
+                        runCatching { broadcastConsentStore.clear(BroadcastConsentStep.CHZZK_TRANSMISSION) }
+                    }
                 }
             } catch (_: Exception) {
                 if (chzzkAccountVerification.revision == revision) {
@@ -522,6 +533,45 @@ private fun LiveScreenContent(
                         val chzzkValid = chzzkSettings.validationField() == null
                         val chzzkStatus = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage)
                         val modePlan = broadcastPlanState.plan
+                        // 동의·안내를 순서대로 받은 뒤 카메라·마이크 권한을 확인하고 서버 연결을 시작합니다.
+                        fun continueBroadcastPreparation() {
+                            val consentStep = nextBroadcastConsentStep(providers, broadcastConsentStore::hasAccepted)
+                            when {
+                                consentStep != null -> pendingConsentStep = consentStep
+                                readMediaPermissionState(context).missingPermissions.isNotEmpty() -> {
+                                    mediaPermissions.refresh()
+                                    mediaPermissionLauncher.launch(
+                                        readMediaPermissionState(context).missingPermissions.toTypedArray(),
+                                    )
+                                }
+                                when {
+                                    providers.size > 1 -> webRtcSession.prepareSimulcastBroadcast(
+                                        context, props.broadcastSettings, chzzkSettings, props.onRefreshAccessToken,
+                                    )
+                                    BroadcastProvider.CHZZK in providers -> webRtcSession.prepareChzzkBroadcast(
+                                        context, chzzkSettings, props.onRefreshAccessToken,
+                                    )
+                                    else -> webRtcSession.prepareBroadcast(
+                                        context, props.broadcastSettings, props.onRefreshAccessToken,
+                                    )
+                                } -> {
+                                    openSettingsDialog = false
+                                    requestDirectBroadcastNotifications()
+                                }
+                            }
+                        }
+                        pendingConsentStep?.let { step ->
+                            BroadcastConsentDialog(
+                                step = step,
+                                onAccept = {
+                                    // 기록에 실패하면 준비 요청 단계에서 차단하고 상태 문구로 알립니다.
+                                    runCatching { broadcastConsentStore.record(step) }
+                                    pendingConsentStep = null
+                                    continueBroadcastPreparation()
+                                },
+                                onDismiss = { pendingConsentStep = null },
+                            )
+                        }
                         val modeSummary = (if (isDirectMode) stringResource(modePlan.resolution.labelRes) + " · " else "") +
                             DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
                         BroadcastSettingsMenu(
@@ -565,26 +615,7 @@ private fun LiveScreenContent(
                                     // 입력이 빠진 플랫폼은 그 설정 창을 열어 채우게 합니다.
                                     BroadcastProvider.YOUTUBE in providers && !youtubeValid -> openYouTubeEditor = true
                                     BroadcastProvider.CHZZK in providers && !chzzkValid -> openChzzkEditor = true
-                                    readMediaPermissionState(context).missingPermissions.isNotEmpty() -> {
-                                        mediaPermissions.refresh()
-                                        mediaPermissionLauncher.launch(
-                                            readMediaPermissionState(context).missingPermissions.toTypedArray(),
-                                        )
-                                    }
-                                    when {
-                                        providers.size > 1 -> webRtcSession.prepareSimulcastBroadcast(
-                                            context, props.broadcastSettings, chzzkSettings, props.onRefreshAccessToken,
-                                        )
-                                        BroadcastProvider.CHZZK in providers -> webRtcSession.prepareChzzkBroadcast(
-                                            context, chzzkSettings, props.onRefreshAccessToken,
-                                        )
-                                        else -> webRtcSession.prepareBroadcast(
-                                            context, props.broadcastSettings, props.onRefreshAccessToken,
-                                        )
-                                    } -> {
-                                        openSettingsDialog = false
-                                        requestDirectBroadcastNotifications()
-                                    }
+                                    else -> continueBroadcastPreparation()
                                 }
                             },
                             onDismiss = {
