@@ -196,6 +196,7 @@ internal class DirectBroadcastController internal constructor(
             }
             releaseResources()
             onComplete?.let { done -> env.callbacks.execute { done() } }
+            env.io.shutdown()
             env.owner.shutdown()
         }
     }

@@ -49,6 +49,7 @@ class DirectBroadcastControllerTest {
     private val chzzkSettings = ChzzkBroadcastSettings("치지직", "GAME", "game-1", emptyList())
 
     private val scheduler = ManualScheduler()
+    private val io = ImmediateBackgroundExecutor()
     private val server = FakeServer()
     private val recovery = FakeRecovery()
     private val media = FakeMedia()
@@ -894,6 +895,20 @@ class DirectBroadcastControllerTest {
         override fun onBroadcastEnded() {
             calls += "ended"
         }
+    }
+}
+
+/** 받은 작업을 바로 실행하고 종료 여부를 기록합니다. */
+internal class ImmediateBackgroundExecutor : BackgroundExecutor {
+    var shutdown = false
+        private set
+
+    override fun execute(block: () -> Unit) {
+        if (!shutdown) block()
+    }
+
+    override fun shutdown() {
+        shutdown = true
     }
 }
 
