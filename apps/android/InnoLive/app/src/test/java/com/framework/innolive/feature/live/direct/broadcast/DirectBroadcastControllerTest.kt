@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live.direct.broadcast
 
 import android.media.AudioDeviceInfo
+import com.framework.innolive.feature.live.AnonymizationFailure
 import com.framework.innolive.feature.live.AnonymizationState
 import com.framework.innolive.feature.live.BroadcastEvent
 import com.framework.innolive.feature.live.BroadcastFailure
@@ -63,12 +64,14 @@ class DirectBroadcastControllerTest {
     private val uiStates = mutableListOf<DirectBroadcastUiState>()
     private val snapshots = mutableListOf<SessionSnapshot>()
     private val serverErrors = mutableListOf<String>()
+    private val anonymizationConfirmations = mutableListOf<AnonymizationState>()
     private var now = 1_000L
 
     private fun controller(
         plan: DirectBroadcastPlan = DirectBroadcastPlan(),
         provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
         io: BackgroundExecutor = this.io,
+        anonymizationEnabled: Boolean = true,
     ) = DirectBroadcastController(
         LiveBroadcastCallbacks(
             onStateChanged = { state, failure -> connections += state to failure },
@@ -76,7 +79,7 @@ class DirectBroadcastControllerTest {
             onLocalMediaReady = { _, _ -> },
             onLocalMediaCleared = {},
             onBroadcastStateChanged = { state, event -> states += state to event },
-            onAnonymizationStateConfirmed = {},
+            onAnonymizationStateConfirmed = { anonymizationConfirmations += it },
             onLocalVideoTrackChanged = {},
             onInitialSignalingStarted = {},
             onSessionSnapshotChanged = { snapshots += it },
@@ -84,7 +87,7 @@ class DirectBroadcastControllerTest {
             onUplinkVideoStats = {},
             onDirectUiStateChanged = { uiStates += it },
         ),
-        DirectBroadcastConfig(plan, provider, anonymizationEnabled = true),
+        DirectBroadcastConfig(plan, provider, anonymizationEnabled = anonymizationEnabled),
         DirectBroadcastEnvironment(
             server = server,
             recovery = recovery,
@@ -663,6 +666,59 @@ class DirectBroadcastControllerTest {
         assertEquals(false, media.anonymization)
     }
 
+    @Test fun connectionConfirmsInitialAnonymizationEnabled() {
+        val controller = controller()
+        controller.start()
+        scheduler.runUntilIdle()
+        assertEquals(emptyList<AnonymizationState>(), anonymizationConfirmations)
+
+        media.events.onFirstFrame()
+        scheduler.runUntilIdle()
+        assertEquals(listOf(AnonymizationState.ENABLED), anonymizationConfirmations)
+        assertEquals(WebRtcConnectionState.CONNECTED, connections.last().first)
+    }
+
+    @Test fun connectionConfirmsInitialAnonymizationDisabled() {
+        connected(controller(anonymizationEnabled = false))
+        assertEquals(listOf(AnonymizationState.DISABLED), anonymizationConfirmations)
+    }
+
+    @Test fun localAnonymizationToggleUpdatesConfirmedState() {
+        val controller = connected(controller())
+        controller.setAnonymizationEnabled(false) { _, _ -> }
+        scheduler.runUntilIdle()
+        controller.setAnonymizationEnabled(true) { _, _ -> }
+        scheduler.runUntilIdle()
+
+        assertEquals(
+            listOf(AnonymizationState.ENABLED, AnonymizationState.DISABLED, AnonymizationState.ENABLED),
+            anonymizationConfirmations,
+        )
+    }
+
+    @Test fun failedLocalAnonymizationToggleKeepsConfirmedState() {
+        val controller = connected(controller())
+        media.failAnonymization = true
+        var failure: AnonymizationFailure? = null
+        controller.setAnonymizationEnabled(false) { _, error -> failure = error }
+        scheduler.runUntilIdle()
+
+        assertEquals(AnonymizationFailure.REQUEST, failure)
+        assertEquals(listOf(AnonymizationState.ENABLED), anonymizationConfirmations)
+    }
+
+    @Test fun anonymizationIsNotConfirmedAfterClose() {
+        val controller = controller()
+        controller.start()
+        scheduler.runUntilIdle()
+        controller.close()
+        media.events.onFirstFrame()
+        controller.setAnonymizationEnabled(false) { _, _ -> }
+        scheduler.runUntilIdle()
+
+        assertEquals(emptyList<AnonymizationState>(), anonymizationConfirmations)
+    }
+
     @Test fun processingFailureBeforeFirstFrameFailsConnection() {
         val controller = controller()
         controller.start()
@@ -1182,6 +1238,7 @@ class DirectBroadcastControllerTest {
         var orientation = PublishOrientation.LANDSCAPE
         var failedFrames = 0L
         var anonymization: Boolean? = null
+        var failAnonymization = false
         var closed = false
 
         override fun open(events: DirectMediaEvents) {
@@ -1192,6 +1249,7 @@ class DirectBroadcastControllerTest {
         override val anonymizationFailedFrames: Long get() = failedFrames
 
         override fun setAnonymizationEnabled(enabled: Boolean) {
+            if (failAnonymization) throw IllegalStateException("가림 처리 전환 실패")
             anonymization = enabled
         }
 
