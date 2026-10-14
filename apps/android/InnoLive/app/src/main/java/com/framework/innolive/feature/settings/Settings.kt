@@ -72,7 +72,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.settings_section_account), style = MaterialTheme.typography.bodySmall)
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,

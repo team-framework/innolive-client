@@ -291,6 +291,7 @@
     <string name="session_notice_youtube_quota_low">오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다.</string>
     <string name="session_usage_warning_test_show">테스트 배너 표시</string>
     <string name="session_usage_warning_test_hide">테스트 배너 숨기기</string>
+    <string name="settings_section_account">InnoLive 계정</string>
     <string name="settings_section_camera">카메라</string>
     <string name="settings_section_audio">오디오</string>
     <string name="settings_section_live">라이브</string>
