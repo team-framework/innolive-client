@@ -863,3 +863,18 @@ privacy 정책과 기존 시그널링 JSON 필드는 바꾸지 않는다. 로컬
 `forceCodec=false`는 강제 코덱 대신 실제 capability 협상 정책을 검증한다.
 로컬 서버 실측은 운영 서버의 인터넷 경로·부하·방송 플랫폼 수신 품질 검증을
 대체하지 않는다. release 서버 URL은 기존 HTTPS 제한을 유지한다.
+
+
+### 서버 AI 업링크 비트레이트와 해상도 고정 (2026-10-14)
+
+client #557. 서버 AI 세션은 offer 전에 `PeerConnection.setBitrate`로 추정기 시작값과
+상한을 FHD 4Mbps/6Mbps, 720p 2Mbps/3Mbps로 설정하고, 영상 sender의
+`degradationPreference`를 MAINTAIN_RESOLUTION으로 둔다. 앱이 아무것도 설정하지 않으면
+libwebrtc는 1080p를 2500kbps로 제한하고 300kbps에서 램프업한다. 그 상한에서 H.264 QP가
+높아져 품질 스케일러가 720p↔1080p를 오가며 MediaCodec을 약 0.3초씩 재생성했고, 서버
+egress는 wall-clock CFR이라 그 공백이 정지 프레임으로 송출됐다. 2026-10-14 20:21 세션에서
+폰 `HardwareVideoEncoder: initEncode` 4회와 서버 `H.264 input resolution changed` 4회가
+같은 시각에 기록됐고, 연결 뒤 25초 램프업 동안 YouTube egress가 270x480 입력으로
+시작됐다. 온디바이스 경로는 소프트웨어 VP8을 쓸 수 있어 라이브러리 기본값을 유지한다.
+디버그 빌드는 2초마다 `uplink_video reason= size= fps= encoder= target_bitrate=` 로그를
+두 모드 모두에서 남긴다. 실기기 재측정 결과는 별도로 기록한다.
