@@ -17,6 +17,9 @@ enum class BroadcastProvider(val wireValue: String) {
     }
 }
 
+/** 방송 화면에서 고른 송출 플랫폼을 저장하는 SharedPreferences 이름입니다. 계정 삭제의 로컬 정리에서 함께 지웁니다. */
+internal const val BROADCAST_PROVIDER_PREFERENCES = "innolive_broadcast_provider"
+
 data class ChzzkBroadcastSettings(
     val title: String = "",
     val categoryType: String = "",
