@@ -13,11 +13,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,16 +68,11 @@ internal fun BroadcastSettingsMenu(
                 Column(
                     modifier = Modifier.padding(vertical = 16.dp).verticalScroll(rememberScrollState()),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(stringResource(R.string.broadcast_settings_title), style = MaterialTheme.typography.titleLarge)
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_close))
-                        }
-                    }
+                    BroadcastDialogHeader(
+                        title = stringResource(R.string.broadcast_settings_title),
+                        onClose = onDismiss,
+                        modifier = Modifier.padding(start = 20.dp, end = 8.dp),
+                    )
                     items.forEachIndexed { index, item ->
                         if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
                         Row(

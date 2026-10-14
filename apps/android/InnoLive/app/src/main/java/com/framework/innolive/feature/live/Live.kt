@@ -524,7 +524,8 @@ private fun LiveScreenContent(
                     val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
                     // 편집 창이 메뉴를 가리므로 계정 연결 안내는 실제 연결 버튼이 있는 편집 창에 보여 줍니다.
                     val editorGuide = settingsGuide?.takeIf { it.step == BroadcastTutorialStep.CONNECT_ACCOUNT }
-                    if (openSettingsDialog) {
+                    // 하위 설정 창이 열리면 메뉴를 숨기고, 닫으면 다시 메뉴로 돌아옵니다.
+                    if (openSettingsDialog && !editorOpen) {
                         val notSelected = stringResource(R.string.broadcast_menu_not_selected)
                         val needsDetails = stringResource(R.string.broadcast_menu_needs_details)
                         val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
@@ -618,7 +619,7 @@ private fun LiveScreenContent(
                                 openSettingsDialog = false
                                 webRtcSession.dismissServerError()
                             },
-                            guide = settingsGuide.takeIf { !editorOpen },
+                            guide = settingsGuide,
                         )
                     }
                     if (openYouTubeEditor) {

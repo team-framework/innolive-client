@@ -129,7 +129,7 @@ class BroadcastPreparationUiTest {
         }
         compose.onNodeWithText(label(R.string.audience_required)).performClick()
         compose.onNodeWithText(label(R.string.audience_not_made_for_kids)).performClick()
-        compose.onNodeWithText(label(R.string.action_save_and_close)).performClick()
+        compose.onNodeWithText(label(R.string.direct_mode_done)).performClick()
         compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
         compose.onNode(confirm).performClick()
         compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertDoesNotExist()
