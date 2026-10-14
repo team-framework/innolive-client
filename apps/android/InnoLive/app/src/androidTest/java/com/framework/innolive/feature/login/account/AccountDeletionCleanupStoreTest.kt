@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Base64
 import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.BROADCAST_PROVIDER_PREFERENCES
 import com.framework.innolive.feature.live.sessionRecoveryScope
 import com.framework.innolive.feature.live.privacy.PrivacyFaceLibrary
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
@@ -44,6 +45,20 @@ class AccountDeletionCleanupStoreTest {
         } finally {
             PrivacyFaceLibrary.clearForAccountDeletion(context, scope)
             PrivacyFaceLibrary.clearForAccountDeletion(context, otherScope)
+        }
+    }
+
+    @Test
+    fun accountDeletionClearsTheSelectedBroadcastPlatform() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferences = context.getSharedPreferences(BROADCAST_PROVIDER_PREFERENCES, Context.MODE_PRIVATE)
+        check(preferences.edit().putString("selected", "CHZZK").commit())
+        try {
+            AccountLocalDataCleaner(context).clear(session("platform-account"))
+
+            assertNull(preferences.getString("selected", null))
+        } finally {
+            preferences.edit().clear().commit()
         }
     }
 

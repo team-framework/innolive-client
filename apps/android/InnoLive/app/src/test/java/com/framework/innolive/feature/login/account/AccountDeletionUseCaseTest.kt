@@ -2,6 +2,7 @@ package com.framework.innolive.feature.login.account
 
 import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.feature.login.oauth.google.InvalidRefreshTokenException
 import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -705,6 +706,50 @@ class AccountDeletionUseCaseTest {
 
         assertEquals(1, authenticationClearCount)
         assertEquals(AccountDeletionState(), coordinator.state.value)
+        coordinatorJob.cancel()
+    }
+
+    /** account-deletion-v1.md: 무효 refresh token은 기존 세션 만료 동작을 따르고, 일시 갱신 실패는 로컬 세션을 유지한다. */
+    @Test fun invalidRefreshTokenExpiresTheSessionWhileTransientRefreshFailureKeepsIt() = runBlocking {
+        val expired = FakeGateway(AccountDeletionException(code = "unauthorized"), null)
+        assertEquals(
+            AccountDeletionResult.SessionExpired,
+            AccountDeletionUseCase(expired) { throw InvalidRefreshTokenException(401) }.delete("expired-token"),
+        )
+        assertEquals(listOf("expired-token"), expired.accessTokens)
+
+        val transient = FakeGateway(AccountDeletionException(code = "unauthorized"), null)
+        assertEquals(
+            AccountDeletionResult.Failed(UiText.Resource(R.string.error_session_refresh)),
+            AccountDeletionUseCase(transient) { throw IOException("HTTP 503") }.delete("expired-token"),
+        )
+        assertEquals(listOf("expired-token"), transient.accessTokens)
+    }
+
+    @Test fun expiredSessionDuringDeletionClearsMarkerAndAuthenticationWithoutLocalCleanup() = runBlocking {
+        val coordinatorJob = Job()
+        val events = mutableListOf<String>()
+        var confirmedCount = 0
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = { AccountDeletionResult.SessionExpired },
+            clearLocalAccountData = { events += "local" },
+            clearAuthentication = { events += "auth" },
+            persistPendingDeletion = { _, phase -> events += "persist:$phase" },
+            clearPendingDeletion = { events += "clear-marker" },
+            onSessionExpired = { events += "expired" },
+        )
+
+        coordinator.delete { confirmedCount += 1 }
+        withTimeout(2_000) { coordinator.state.first { !it.isInProgress } }
+
+        assertEquals(listOf("persist:REMOTE_DELETION_PENDING", "clear-marker", "expired", "auth"), events)
+        assertEquals(0, confirmedCount)
+        assertEquals(AccountDeletionState(), coordinator.state.value)
+        // 다음 로그인에서는 새 삭제로 시작한다.
+        coordinator.authenticationChanged(null)
+        assertEquals(false, coordinator.state.value.hasPendingDeletion)
         coordinatorJob.cancel()
     }
 
