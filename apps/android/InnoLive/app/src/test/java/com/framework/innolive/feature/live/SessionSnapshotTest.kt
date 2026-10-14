@@ -220,13 +220,19 @@ class SessionSnapshotTest {
     }
 
     /**
-     * android-session-snapshot.md: 알 수 없는 상태가 실린 응답은 준비·시작 완료로 단정하지 않는다.
-     * 제어 응답 확인에 쓰는 parseBroadcastState도 세션 스냅샷과 같은 해석이어야 합니다.
+     * android-session-snapshot.md: 세션 스냅샷은 알 수 없는 status를 확정 상태로 보지 않는다.
+     * direct-publish-v1.md: 직접 송출 중 stream.status는 항상 idle이고 방송 상태는 broadcast_phase로 판단하므로,
+     * 제어 응답 파서는 status와 무관하게 단계를 따른다. 두 해석이 다른 것은 의도한 차이다.
      */
-    @Test fun unknownLiveStatusIsNotConfirmedAsLiveByEitherParser() {
-        val payload = """{"stream":{"broadcast_phase":"live","status":"future_status"}}"""
-        assertNull(parseSessionSnapshot(payload, "s").broadcastState())
-        assertNull(parseBroadcastState(payload, BroadcastProvider.YOUTUBE))
+    @Test fun snapshotHoldsUnknownLiveStatusWhileControlResponsesFollowThePhase() {
+        val unknown = """{"stream":{"broadcast_phase":"live","status":"future_status"}}"""
+        assertNull(parseSessionSnapshot(unknown, "s").broadcastState())
+        assertEquals(BroadcastState.LIVE, parseBroadcastState(unknown, BroadcastProvider.YOUTUBE))
+        val directLive = """{"stream":{"broadcast_phase":"live","status":"idle"}}"""
+        assertNull(parseSessionSnapshot(directLive, "s").broadcastState())
+        assertEquals(BroadcastState.LIVE, parseBroadcastState(directLive, BroadcastProvider.YOUTUBE))
+        assertEquals(BroadcastState.PAUSED, parseBroadcastState(
+            """{"stream":{"broadcast_phase":"live","status":"paused_reconnecting"}}""", BroadcastProvider.YOUTUBE))
     }
 
     @Test fun unknownPhaseTargetsDoNotHideConfirmedStatesOfOtherTargets() {
