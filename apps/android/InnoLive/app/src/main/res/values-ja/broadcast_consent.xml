@@ -25,10 +25,12 @@
     <string name="broadcast_consent_youtube_platform_body">YouTubeに送信された映像は、YouTubeのポリシーとチャンネル設定に従って取り扱われます。アカウント削除ではYouTubeチャンネルの過去の映像は削除されません。</string>
 
     <string name="broadcast_consent_chzzk_title">CHZZK送信のご案内</string>
-    <string name="broadcast_consent_chzzk_sent_body">処理済みの配信映像・音声を連携したCHZZKチャンネルに送信します。CHZZK連携と配信のため、チャンネル・認証・配信設定と状態情報を取り扱います。</string>
-    <string name="broadcast_consent_chzzk_purpose_body">連携したCHZZKチャンネルへ処理済みの映像と音声を送信し、配信状態を管理します。</string>
+    <string name="broadcast_consent_chzzk_sent_body">処理済みの配信映像・音声と配信タイトル・カテゴリ・タグを連携したCHZZKチャンネルに送信します。CHZZK連携と配信のため、チャンネル識別情報とチャンネル名、暗号化した接続トークン、配信に必要なストリームキーを取り扱います。</string>
+    <string name="broadcast_consent_chzzk_permissions_title">リクエストするCHZZK権限</string>
+    <string name="broadcast_consent_chzzk_permissions_body">ユーザー情報の照会、配信ストリームキーの照会、配信設定の照会・変更の権限をリクエストします。4つの権限をすべて許可しないと連携できません。チャット権限はリクエストしません。</string>
+    <string name="broadcast_consent_chzzk_purpose_body">連携したCHZZKチャンネルへ処理済みの映像と音声を送信し、配信タイトル・カテゴリ・タグと配信状態を管理します。</string>
     <string name="broadcast_consent_chzzk_platform_title">CHZZKでの取り扱い</string>
-    <string name="broadcast_consent_chzzk_platform_body">CHZZKに送信された映像は、CHZZKのポリシーとチャンネル設定に従って取り扱われます。アカウント削除ではCHZZKチャンネルの過去の映像は削除されません。</string>
+    <string name="broadcast_consent_chzzk_platform_body">CHZZKに送信された映像は、CHZZK(NAVER)のポリシーとチャンネル設定に従って取り扱われます。設定でCHZZK連携を解除すると、InnoLiveに保存された接続トークンと連携情報を削除します。配信中は連携を解除できません。アカウント削除や連携解除ではCHZZKチャンネルの過去の映像は削除されません。</string>
 
     <string name="error_broadcast_media_consent_required">配信映像・音声の送信に同意してから配信を準備できます。</string>
     <string name="error_broadcast_transmission_notice_required">プラットフォーム送信のご案内を確認してから配信を準備できます。</string>

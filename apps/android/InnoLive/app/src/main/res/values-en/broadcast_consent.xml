@@ -25,10 +25,12 @@
     <string name="broadcast_consent_youtube_platform_body">Video sent to YouTube is processed under YouTube\'s policies and your channel settings. Deleting your InnoLive account does not delete past videos on your YouTube channel.</string>
 
     <string name="broadcast_consent_chzzk_title">CHZZK transmission notice</string>
-    <string name="broadcast_consent_chzzk_sent_body">We send the processed broadcast video and audio to the connected CHZZK channel. For CHZZK connection and broadcasting, we process channel, authentication, and broadcast settings and status information.</string>
-    <string name="broadcast_consent_chzzk_purpose_body">We send the processed video and audio to the connected CHZZK channel and manage the broadcast state.</string>
+    <string name="broadcast_consent_chzzk_sent_body">We send the processed broadcast video and audio, along with the broadcast title, category, and tags, to the connected CHZZK channel. For CHZZK connection and broadcasting, we process channel identifiers and the channel name, encrypted connection tokens, and the stream key needed for streaming.</string>
+    <string name="broadcast_consent_chzzk_permissions_title">CHZZK permissions we request</string>
+    <string name="broadcast_consent_chzzk_permissions_body">We request permissions to view your user information, view the broadcast stream key, and view and change broadcast settings. All four permissions are required to connect, and we do not request chat permissions.</string>
+    <string name="broadcast_consent_chzzk_purpose_body">We send the processed video and audio to the connected CHZZK channel and manage the broadcast title, category, tags, and broadcast state.</string>
     <string name="broadcast_consent_chzzk_platform_title">Processing on CHZZK</string>
-    <string name="broadcast_consent_chzzk_platform_body">Video sent to CHZZK is processed under CHZZK\'s policies and your channel settings. Deleting your InnoLive account does not delete past videos on your CHZZK channel.</string>
+    <string name="broadcast_consent_chzzk_platform_body">Video sent to CHZZK is processed under the policies of CHZZK (NAVER) and your channel settings. Disconnecting CHZZK in Settings deletes the connection tokens and connection information stored by InnoLive. You cannot disconnect while broadcasting. Deleting your InnoLive account or disconnecting does not delete past videos on your CHZZK channel.</string>
 
     <string name="error_broadcast_media_consent_required">Consent to broadcast video and audio transmission before preparing a broadcast.</string>
     <string name="error_broadcast_transmission_notice_required">Acknowledge the platform transmission notice before preparing a broadcast.</string>

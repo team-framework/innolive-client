@@ -203,6 +203,10 @@ private val BroadcastConsentStep.content: ConsentContent
             purposeBody = R.string.broadcast_consent_chzzk_purpose_body,
             platformTitle = R.string.broadcast_consent_chzzk_platform_title,
             platformBody = R.string.broadcast_consent_chzzk_platform_body,
+            permissions = ConsentSection(
+                R.string.broadcast_consent_chzzk_permissions_title,
+                R.string.broadcast_consent_chzzk_permissions_body,
+            ),
         )
     }
 
@@ -212,10 +216,13 @@ private fun platformNotice(
     @StringRes purposeBody: Int,
     @StringRes platformTitle: Int,
     @StringRes platformBody: Int,
+    permissions: ConsentSection? = null,
 ) = ConsentContent(
     title = title,
-    sections = listOf(
+    // iOS와 같이 요청 권한 안내는 전송 정보 다음에 둡니다.
+    sections = listOfNotNull(
         ConsentSection(R.string.broadcast_consent_sent_information, sentBody),
+        permissions,
         ConsentSection(R.string.broadcast_consent_purpose, purposeBody),
         ConsentSection(platformTitle, platformBody),
     ),
