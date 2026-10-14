@@ -40,7 +40,6 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
-import java.util.concurrent.Executor
 
 class DirectBroadcastControllerTest {
     private val youtubeUrl = IngestUrl.parse("rtmps://a.rtmp.youtube.com/live2/youtube-key")
@@ -67,7 +66,7 @@ class DirectBroadcastControllerTest {
     private fun controller(
         plan: DirectBroadcastPlan = DirectBroadcastPlan(),
         provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
-        io: Executor = Executor { it.run() },
+        io: BackgroundExecutor = this.io,
     ) = DirectBroadcastController(
         LiveBroadcastCallbacks(
             onStateChanged = { state, failure -> connections += state to failure },
@@ -583,7 +582,7 @@ class DirectBroadcastControllerTest {
 
     @Test fun pollRequestedBeforeGoLiveDoesNotEndLiveBroadcast() {
         val pending = ArrayDeque<Runnable>()
-        val controller = connected(controller(io = Executor { pending.addLast(it) }))
+        val controller = connected(controller(io = DeferredBackgroundExecutor(pending)))
         // 준비 전 IDLE에서 보낸 조회가 서버 idle 응답으로 방송 시작 뒤에 돌아옵니다.
         scheduler.advance(2_000)
         assertEquals(1, pending.size)
@@ -965,4 +964,13 @@ internal class ManualScheduler : SerialScheduler {
         timed.removeAll { it.cancelled }
         now = end
     }
+}
+
+/** 받은 작업을 큐에 보관해 테스트가 실행 시점을 정하게 합니다. */
+internal class DeferredBackgroundExecutor(private val queue: ArrayDeque<Runnable>) : BackgroundExecutor {
+    override fun execute(block: () -> Unit) {
+        queue.addLast(Runnable(block))
+    }
+
+    override fun shutdown() = Unit
 }
