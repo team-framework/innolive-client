@@ -98,6 +98,37 @@ final class YouTubeTransmissionNoticePersistenceTests: XCTestCase {
         XCTAssertTrue(consentStore.hasAcceptedMediaTransmission)
     }
 
+    func testCHZZKNoticeIsSeparateFromYouTubeNotice() {
+        let youtube = YouTubeIntegration(
+            preferencesStore: YouTubePreferencesStore(userDefaults: userDefaults),
+            consentStore: consentStore
+        )
+        XCTAssertFalse(youtube.acknowledgeTransmission(SignupConsent(), for: .chzzk))
+        XCTAssertTrue(youtube.acknowledgeYouTubeTransmission(acceptedConsent()))
+        XCTAssertFalse(youtube.hasAcknowledgedTransmission(for: .chzzk))
+
+        XCTAssertTrue(youtube.acknowledgeTransmission(acceptedConsent(), for: .chzzk))
+        XCTAssertTrue(consentStore.hasAcknowledgedCHZZKTransmission)
+        youtube.reset()
+        let reloaded = YouTubeIntegration(
+            preferencesStore: YouTubePreferencesStore(userDefaults: userDefaults),
+            consentStore: consentStore
+        )
+        XCTAssertTrue(reloaded.hasAcknowledgedTransmission(for: .youtube))
+        XCTAssertTrue(reloaded.hasAcknowledgedTransmission(for: .chzzk))
+    }
+
+    func testAccountDeletionClearsCHZZKConsent() {
+        let youtube = YouTubeIntegration(
+            preferencesStore: YouTubePreferencesStore(userDefaults: userDefaults),
+            consentStore: consentStore
+        )
+        _ = youtube.acknowledgeTransmission(acceptedConsent(), for: .chzzk)
+        youtube.resetForAccountDeletion()
+        XCTAssertFalse(youtube.hasAcknowledgedCHZZKTransmission)
+        XCTAssertFalse(consentStore.hasAcknowledgedCHZZKTransmission)
+    }
+
     func testAccountDeletionClearsYouTubeConsent() {
         let youtube = YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(userDefaults: userDefaults),

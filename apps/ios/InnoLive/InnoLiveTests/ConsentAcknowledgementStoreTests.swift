@@ -71,6 +71,20 @@ final class ConsentAcknowledgementStoreTests: XCTestCase {
         )
     }
 
+    func testCHZZKRoundTripIsIndependentOfYouTube() {
+        XCTAssertFalse(store.hasAcknowledgedCHZZKTransmission)
+        store.recordYouTubeTransmission()
+        store.recordCHZZKTransmission()
+        XCTAssertTrue(ConsentAcknowledgementStore(userDefaults: userDefaults).hasAcknowledgedCHZZKTransmission)
+
+        store.clearCHZZKTransmission()
+        XCTAssertFalse(store.hasAcknowledgedCHZZKTransmission)
+        XCTAssertTrue(store.hasAcknowledgedYouTubeTransmission)
+        XCTAssertNil(
+            userDefaults.object(forKey: "com.framework.innolive.consent.chzzk-transmission.v1")
+        )
+    }
+
     func testClearMediaDoesNotClearYouTube() {
         store.recordMediaTransmission()
         store.recordYouTubeTransmission()

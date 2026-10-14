@@ -157,6 +157,16 @@ final class BroadcastModeTests: XCTestCase {
         XCTAssertTrue(BroadcastModeURLProtocol.requests.isEmpty)
     }
 
+    func testAddedCHZZKRequiresTransmissionConsentBeforeSaving() async throws {
+        try seed()
+        let saved = await integration.saveBroadcastModeSettings(provider: .chzzk, accessToken: token)
+        let changed = await integration.changeBroadcastMode(resolution: "fhd", targets: [.youtube, .chzzk], accessToken: token)
+        XCTAssertFalse(saved)
+        XCTAssertFalse(changed)
+        XCTAssertEqual(integration.broadcastModeError, "치지직 전송 안내에 동의해 주세요.")
+        XCTAssertTrue(BroadcastModeURLProtocol.requests.isEmpty)
+    }
+
     func testAddedSettingsFailureNeverSendsModeRequest() async throws {
         try seed(liveProvider: "chzzk")
         var consent = SignupConsent()

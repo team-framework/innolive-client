@@ -7,7 +7,8 @@ struct BroadcastSettingsView: View {
     @ObservedObject private var editor: BroadcastSettingsEditor
     @State private var query = ""
     @State private var isSaved = false
-    @State private var isShowingTransmissionNotice = false
+    @State private var transmissionNoticeProvider: BroadcastSettingsProvider?
+    @State private var nextTransmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var isShowingMediaConsent = false
     @State private var transmissionNotice = YouTubeTransmissionNotice()
     private let modeProvider: BroadcastSettingsProvider?
@@ -177,11 +178,17 @@ struct BroadcastSettingsView: View {
                 continuePrepare()
             }
         }
-        .sheet(isPresented: $isShowingTransmissionNotice) {
-            YouTubeTransmissionNoticeView { consent in
-                guard youtube.acknowledgeYouTubeTransmission(consent) else { return }
-                if modeProvider != nil { saveModeSettings() }
-                else { onPrepare?(editor.provider) }
+        .sheet(item: $transmissionNoticeProvider, onDismiss: showNextTransmissionNotice) { provider in
+            BroadcastTransmissionNoticeView(provider: provider) { consent in
+                guard youtube.acknowledgeTransmission(consent, for: provider) else { return }
+                // YouTube와 치지직을 함께 처음 송출하면 남은 안내를 이 시트가 닫힌 뒤 연다.
+                if let next = pendingTransmissionNoticeProvider {
+                    nextTransmissionNoticeProvider = next
+                } else if modeProvider != nil {
+                    saveModeSettings()
+                } else {
+                    onPrepare?(editor.provider)
+                }
             }
         }
     }
@@ -383,9 +390,8 @@ struct BroadcastSettingsView: View {
         }
         if let modeProvider {
             guard !isFormLocked else { return }
-            if modeProvider == .youtube, !youtube.hasAcknowledgedYouTubeTransmission {
-                transmissionNotice.reset()
-                isShowingTransmissionNotice = true
+            if !youtube.hasAcknowledgedTransmission(for: modeProvider) {
+                showTransmissionNotice(for: modeProvider)
             } else {
                 saveModeSettings()
             }
@@ -419,12 +425,27 @@ struct BroadcastSettingsView: View {
     }
 
     private func continuePrepare() {
-        if youtube.selectedBroadcastProviders.contains(.youtube), !youtube.hasAcknowledgedYouTubeTransmission {
-            transmissionNotice.reset()
-            isShowingTransmissionNotice = true
+        if let provider = pendingTransmissionNoticeProvider {
+            showTransmissionNotice(for: provider)
         } else {
             onPrepare?(editor.provider)
         }
+    }
+
+    private var pendingTransmissionNoticeProvider: BroadcastSettingsProvider? {
+        let providers = modeProvider.map { Set([$0]) } ?? youtube.selectedBroadcastProviders
+        return BroadcastSettingsProvider.allCases.first { providers.contains($0) && !youtube.hasAcknowledgedTransmission(for: $0) }
+    }
+
+    private func showTransmissionNotice(for provider: BroadcastSettingsProvider) {
+        transmissionNotice.reset()
+        transmissionNoticeProvider = provider
+    }
+
+    private func showNextTransmissionNotice() {
+        guard let next = nextTransmissionNoticeProvider else { return }
+        nextTransmissionNoticeProvider = nil
+        showTransmissionNotice(for: next)
     }
 }
 
