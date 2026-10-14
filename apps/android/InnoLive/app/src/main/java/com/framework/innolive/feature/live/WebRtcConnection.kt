@@ -24,7 +24,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import com.framework.innolive.R
 import com.framework.innolive.ui.text.ServerErrorGuidance
+import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.serverErrorGuidance
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
@@ -79,7 +81,7 @@ internal fun hasValidatedInternet(hasCapability: (Int) -> Boolean): Boolean =
     hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
         hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 
-class WebRtcConnection(
+internal class WebRtcConnection(
     context: Context,
     serverUrl: String,
     accessToken: String,
@@ -100,7 +102,7 @@ class WebRtcConnection(
     private val onSessionSnapshotChanged: (SessionSnapshot) -> Unit = {},
     private val onServerError: (ServerErrorGuidance) -> Unit = {},
     private val onUplinkVideoStats: (UplinkVideoStats) -> Unit = {},
-) : AutoCloseable {
+) : LiveBroadcastTransport {
     private val applicationContext = context.applicationContext
     private val onDeviceProcessing = initialOnDeviceProcessing
     private var localAnonymizationEnabled = initialAnonymizationEnabled
@@ -108,7 +110,8 @@ class WebRtcConnection(
     private val recoveryAccessToken = RecoveryAccessToken(accessToken)
     private var sessionRecoveryStore: SessionRecoveryStore = EncryptedSessionRecoveryStore(applicationContext)
     private val serverBaseUrl = serverUrl.trim().trimEnd('/').toHttpUrl().also { url ->
-        if (!url.isHttps) throw ConnectionFailureException(ConnectionFailure.CONFIGURATION)
+        if (!isAllowedWebRtcServer(url.scheme, url.host, BuildConfig.DEBUG))
+            throw ConnectionFailureException(ConnectionFailure.CONFIGURATION)
     }
     private val sessionRecoveryScope = sessionRecoveryScope(serverBaseUrl.toString(), accessToken)
     private val audioManager = applicationContext.getSystemService(AudioManager::class.java)
@@ -221,6 +224,7 @@ class WebRtcConnection(
     private var localVideoTrack: org.webrtc.VideoTrack? = null
 
     private var videoSender: RtpSender? = null
+    private var sendOnlyVideoSupported = false
 
     @Volatile
     private var frameAnalyzer: CameraFrameAnalyzer? = null
@@ -252,7 +256,7 @@ class WebRtcConnection(
         require(accessToken.isNotBlank()) { "Access token must not be blank." }
     }
 
-    fun start() {
+    override fun start() {
         if (
             !started.compareAndSet(false, true) ||
             closed.get() ||
@@ -340,7 +344,7 @@ class WebRtcConnection(
      * released every resource. The callback is useful when a failed session
      * must finish teardown before a retry creates its replacement.
      */
-    fun close(onComplete: (() -> Unit)?) {
+    override fun close(onComplete: (() -> Unit)?) {
         var callbackAfterShutdown: (() -> Unit)? = null
         val shouldStartShutdown = synchronized(shutdownLock) {
             onComplete?.let { callback ->
@@ -487,7 +491,7 @@ class WebRtcConnection(
             .createPeerConnectionFactory()
     }
 
-    fun setPreferredAudioInput(audioInput: AudioDeviceInfo?) {
+    override fun setPreferredAudioInput(audioInput: AudioDeviceInfo?) {
         executeOnOwner {
             if (!isActive()) return@executeOnOwner
             preferredAudioInput = audioInput
@@ -504,7 +508,7 @@ class WebRtcConnection(
         }
     }
 
-    internal fun setAnonymizationEnabled(
+    override fun setAnonymizationEnabled(
         enabled: Boolean,
         onComplete: (AnonymizationState?, AnonymizationFailure?) -> Unit,
     ) {
@@ -539,7 +543,7 @@ class WebRtcConnection(
         )
     }
 
-    fun saveBroadcastSettings(settings: BroadcastSettings) {
+    override fun saveBroadcastSettings(settings: BroadcastSettings) {
         if (provider != BroadcastProvider.YOUTUBE) return
         runBroadcastOperation {
             if (settings.madeForKids == null) {
@@ -555,18 +559,24 @@ class WebRtcConnection(
         }
     }
 
-    fun prepareBroadcast(settings: BroadcastSettings, allowConcurrent: Boolean = false): Boolean =
-        prepareBroadcast(settings, null, allowConcurrent)
+    override fun prepareBroadcast(settings: BroadcastSettings, allowConcurrent: Boolean): Boolean =
+        prepareTargets(settings, null, allowConcurrent)
 
-    fun prepareBroadcast(chzzkSettings: ChzzkBroadcastSettings): Boolean =
-        prepareBroadcast(null, chzzkSettings, false)
+    override fun prepareBroadcast(chzzkSettings: ChzzkBroadcastSettings): Boolean =
+        prepareTargets(null, chzzkSettings, false)
 
-    private fun prepareBroadcast(
-        settings: BroadcastSettings?,
-        chzzkSettings: ChzzkBroadcastSettings?,
+    override fun prepareTargets(
+        youtube: BroadcastSettings?,
+        chzzk: ChzzkBroadcastSettings?,
         allowConcurrent: Boolean,
     ): Boolean {
-        if (!broadcastState.canPrepare) return false
+        val targets = listOfNotNull(
+            BroadcastProvider.YOUTUBE.takeIf { youtube != null },
+            BroadcastProvider.CHZZK.takeIf { chzzk != null },
+        )
+        if (targets.isEmpty()) return false
+        // 동시 송출에서 일부만 준비됐으면 남은 대상의 재요청(예: 동시 방송 확인)을 받습니다.
+        if (!broadcastState.canPrepare && !(targets.size > 1 && broadcastState == BroadcastState.PREPARED)) return false
         return runBroadcastOperation {
             if (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady) {
                 updateBroadcastState(
@@ -575,37 +585,122 @@ class WebRtcConnection(
                 )
                 return@runBroadcastOperation
             }
-            if (provider == BroadcastProvider.YOUTUBE && settings?.madeForKids == null) {
+            if (youtube != null && youtube.madeForKids == null) {
                 updateBroadcastState(
                     BroadcastState.FAILED,
                     BroadcastEvent.Failure(BroadcastFailure.AUDIENCE_REQUIRED),
                 )
                 return@runBroadcastOperation
             }
-            if (provider == BroadcastProvider.CHZZK && chzzkSettings?.validationField() != null) {
+            if (chzzk?.validationField() != null) {
                 updateBroadcastState(BroadcastState.FAILED, BroadcastEvent.Failure(BroadcastFailure.REQUEST))
                 return@runBroadcastOperation
             }
-            updateBroadcastState(BroadcastState.SAVING_SETTINGS)
-            if (provider == BroadcastProvider.CHZZK) {
-                val value = checkNotNull(chzzkSettings)
-                putChzzkBroadcastSettings(resolveChzzkSettingsForPrepare(value, ::getChzzkDefaults))
-            } else putBroadcastSettings(checkNotNull(settings))
-            updateBroadcastState(BroadcastState.PREPARING)
-            val request = JSONObject().put("provider", provider.wireValue)
-            if (allowConcurrent && provider == BroadcastProvider.YOUTUBE) request.put("allow_concurrent", true)
-            val response = postSessionRequest("stream/prepare", request)
-            if (provider == BroadcastProvider.CHZZK) {
-                check(parseBroadcastState(response, provider) == BroadcastState.PREPARED) {
-                    "서버가 방송 준비를 확인하지 않았습니다."
+            if (targets.size == 1) {
+                prepareTarget(targets.single(), youtube, chzzk, allowConcurrent)
+                recoverySuppressedAfterStop = false
+                updateBroadcastState(stateAfterSessionResponse(BroadcastState.PREPARED))
+                return@runBroadcastOperation
+            }
+            val failures = linkedMapOf<BroadcastProvider, Exception>()
+            for (target in targets) {
+                if (isTargetPrepared(target)) continue
+                try {
+                    prepareTarget(target, youtube, chzzk, allowConcurrent)
+                } catch (exception: Exception) {
+                    if (!isActive()) throw exception
+                    failures[target] = exception
                 }
             }
+            val confirmed = sessionSnapshot?.broadcastState()
+            if (failures.isEmpty()) {
+                recoverySuppressedAfterStop = false
+                updateBroadcastState(confirmed ?: BroadcastState.PREPARED)
+                return@runBroadcastOperation
+            }
+            val (failedTarget, failure) = failures.entries.first()
+            if (targets.none(::isTargetPrepared)) {
+                updateBroadcastState(
+                    broadcastStateAfterServerError((failure as? ServerApiException)?.code, BroadcastState.FAILED, broadcastState),
+                    failure.toBroadcastEventOrFailure(failedTarget, preserveServerMessage = false),
+                )
+                return@runBroadcastOperation
+            }
+            // 준비된 대상은 유지합니다. 사용자가 그 대상으로 시작하거나 준비를 취소할 수 있습니다.
             recoverySuppressedAfterStop = false
-            updateBroadcastState(stateAfterSessionResponse(BroadcastState.PREPARED))
+            val guidance = (failure as? ServerApiException)
+                ?.toBroadcastEvent(BroadcastFailure.REQUEST, failedTarget, preserveServerMessage = false)
+                as? BroadcastEvent.ApiFailure
+            updateBroadcastState(
+                BroadcastState.PREPARED,
+                guidance ?: BroadcastEvent.Message(simulcastPrepareFailedMessage(failures.keys)),
+            )
         }
     }
 
-    fun goLive(onAccepted: () -> Unit = {}): Boolean {
+    private fun prepareTarget(
+        target: BroadcastProvider,
+        youtube: BroadcastSettings?,
+        chzzk: ChzzkBroadcastSettings?,
+        allowConcurrent: Boolean,
+    ) {
+        updateBroadcastState(BroadcastState.SAVING_SETTINGS)
+        if (target == BroadcastProvider.CHZZK) {
+            putChzzkBroadcastSettings(resolveChzzkSettingsForPrepare(checkNotNull(chzzk), ::getChzzkDefaults))
+        } else putBroadcastSettings(checkNotNull(youtube))
+        updateBroadcastState(BroadcastState.PREPARING)
+        val request = JSONObject().put("provider", target.wireValue)
+        if (allowConcurrent && target == BroadcastProvider.YOUTUBE) request.put("allow_concurrent", true)
+        val response = postSessionRequest("stream/prepare", request)
+        if (target == BroadcastProvider.CHZZK) {
+            check(parseBroadcastState(response, target) == BroadcastState.PREPARED) {
+                "서버가 방송 준비를 확인하지 않았습니다."
+            }
+        }
+    }
+
+    private fun isTargetPrepared(target: BroadcastProvider): Boolean =
+        sessionSnapshot?.targets?.firstOrNull { it.provider == target.wireValue }?.broadcastState() in
+            setOf(BroadcastState.PREPARED, BroadcastState.GOING_LIVE, BroadcastState.LIVE, BroadcastState.PAUSED)
+
+    /**
+     * 동작할 대상입니다. 세션 조회에 대상이 없거나 맞는 대상이 없으면 기존처럼 기본 대상만 요청합니다.
+     */
+    private fun controlTargets(matches: (BroadcastState) -> Boolean): List<BroadcastProvider> =
+        sessionSnapshot?.targets.orEmpty().mapNotNull { target ->
+            val state = target.broadcastState() ?: return@mapNotNull null
+            BroadcastProvider.entries.firstOrNull { it.wireValue == target.provider }?.takeIf { matches(state) }
+        }.ifEmpty { listOf(provider) }
+
+    // 기본 대상은 기존 요청 그대로 보냅니다. provider를 생략하면 서버가 기본 대상을 고릅니다.
+    private fun targetPath(path: String, target: BroadcastProvider): String =
+        if (target == provider) path else "$path?provider=${target.wireValue}"
+
+    /**
+     * 대상마다 같은 제어를 요청합니다. 한 대상의 실패가 다른 대상의 요청을 막지 않으며 첫 실패를 돌려줍니다.
+     * 하나라도 성공했으면 [succeeded]가 참입니다.
+     */
+    private fun controlEachTarget(
+        path: String,
+        targets: List<BroadcastProvider>,
+        expected: BroadcastState,
+    ): Pair<Boolean, Pair<BroadcastProvider, Exception>?> {
+        var succeeded = false
+        var failure: Pair<BroadcastProvider, Exception>? = null
+        for (target in targets) {
+            try {
+                val response = postSessionRequest(targetPath(path, target), responseProvider = target)
+                check(parseBroadcastState(response, target) == expected)
+                succeeded = true
+            } catch (exception: Exception) {
+                if (!isActive() || targets.size == 1) throw exception
+                if (failure == null) failure = target to exception
+            }
+        }
+        return succeeded to failure
+    }
+
+    override fun goLive(onAccepted: () -> Unit): Boolean {
         if (!broadcastState.canGoLive) return false
         return runBroadcastOperation(onAccepted = onAccepted) {
             if (!peerConnectionConnected || !audioInputVerified ||
@@ -618,8 +713,17 @@ class WebRtcConnection(
             }
             updateBroadcastState(BroadcastState.GOING_LIVE)
             try {
-                goLiveWithRetry()
-                updateBroadcastState(stateAfterSessionResponse(BroadcastState.LIVE))
+                val failedTargets = goLiveWithRetry()
+                val next = stateAfterSessionResponse(BroadcastState.LIVE)
+                updateBroadcastState(
+                    next,
+                    when {
+                        failedTargets.isEmpty() -> null
+                        next == BroadcastState.LIVE || next == BroadcastState.PAUSED ->
+                            BroadcastEvent.Message(simulcastGoLiveFailedMessage(failedTargets))
+                        else -> BroadcastEvent.Failure(BroadcastFailure.REQUEST)
+                    },
+                )
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     broadcastStateAfterServerError(exception.code, BroadcastState.PREPARED, broadcastState),
@@ -634,14 +738,23 @@ class WebRtcConnection(
         }
     }
 
-    fun pauseBroadcast() {
+    override fun pauseBroadcast() {
         if (!broadcastState.canPause) return
         runBroadcastOperation {
             updateBroadcastState(BroadcastState.PAUSING)
             try {
-                val response = postSessionRequest("stream/pause")
-                check(parseBroadcastState(response, provider) == BroadcastState.PAUSED)
-                updateBroadcastState(stateAfterSessionResponse(BroadcastState.PAUSED))
+                val (succeeded, failure) = controlEachTarget(
+                    "stream/pause", controlTargets { it == BroadcastState.LIVE }, BroadcastState.PAUSED,
+                )
+                if (failure == null) {
+                    updateBroadcastState(stateAfterSessionResponse(BroadcastState.PAUSED))
+                } else {
+                    val (target, exception) = failure
+                    updateBroadcastState(
+                        partialControlState(succeeded, exception, BroadcastState.LIVE),
+                        exception.toControlEvent(BroadcastFailure.YOUTUBE_PAUSE, target),
+                    )
+                }
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     broadcastStateAfterServerError(exception.code, BroadcastState.LIVE, broadcastState),
@@ -656,16 +769,25 @@ class WebRtcConnection(
         }
     }
 
-    fun resumeBroadcast() {
+    override fun resumeBroadcast() {
         if (!broadcastState.canResume) return
         runBroadcastOperation {
             if (!peerConnectionConnected || !audioInputVerified ||
                 (onDeviceProcessing && localAnonymizationEnabled && !localVideoReady)) return@runBroadcastOperation
             updateBroadcastState(BroadcastState.RESUMING)
             try {
-                val response = postSessionRequest("stream/resume")
-                check(parseBroadcastState(response, provider) == BroadcastState.LIVE)
-                updateBroadcastState(stateAfterSessionResponse(BroadcastState.LIVE))
+                val (succeeded, failure) = controlEachTarget(
+                    "stream/resume", controlTargets { it == BroadcastState.PAUSED }, BroadcastState.LIVE,
+                )
+                if (failure == null) {
+                    updateBroadcastState(stateAfterSessionResponse(BroadcastState.LIVE))
+                } else {
+                    val (target, exception) = failure
+                    updateBroadcastState(
+                        partialControlState(succeeded, exception, BroadcastState.PAUSED),
+                        exception.toControlEvent(BroadcastFailure.YOUTUBE_RESUME, target),
+                    )
+                }
             } catch (exception: ServerApiException) {
                 updateBroadcastState(
                     broadcastStateAfterServerError(exception.code, BroadcastState.PAUSED, broadcastState),
@@ -680,15 +802,24 @@ class WebRtcConnection(
         }
     }
 
-    fun stopBroadcast() {
+    override fun stopBroadcast() {
         if (!broadcastState.canStop) return
         runBroadcastOperation {
             val previousState = broadcastState
             val stoppingState = broadcastState.stoppingState()
             updateBroadcastState(stoppingState)
             try {
-                val response = postSessionRequest("stream/stop")
-                check(parseBroadcastState(response, provider) == BroadcastState.IDLE)
+                val (succeeded, failure) = controlEachTarget(
+                    "stream/stop", controlTargets { it.canStop }, BroadcastState.IDLE,
+                )
+                if (failure != null) {
+                    val (target, exception) = failure
+                    updateBroadcastState(
+                        partialControlState(succeeded, exception, previousState),
+                        exception.toControlEvent(BroadcastFailure.REQUEST, target),
+                    )
+                    return@runBroadcastOperation
+                }
                 updateBroadcastState(stateAfterSessionResponse(BroadcastState.IDLE))
                 recoverySuppressedAfterStop = broadcastState == BroadcastState.IDLE
                 if (broadcastState == BroadcastState.IDLE && recoveryWindow.deadlineMillis != null) {
@@ -725,6 +856,11 @@ class WebRtcConnection(
             }
         }
     }
+
+    // 다른 대상이 성공했으면 서버가 확인한 합산 상태를, 모두 실패했으면 요청 전 상태를 씁니다.
+    private fun partialControlState(succeeded: Boolean, failure: Exception, before: BroadcastState): BroadcastState =
+        if (succeeded) sessionSnapshot?.broadcastState() ?: before
+        else broadcastStateAfterServerError((failure as? ServerApiException)?.code, before, broadcastState)
 
     private fun runBroadcastOperation(
         onAccepted: () -> Unit = {},
@@ -763,7 +899,9 @@ class WebRtcConnection(
     }
 
     private fun putBroadcastSettings(settings: BroadcastSettings) {
-        executeSessionRequest("broadcast", "PUT", buildBroadcastSettingsPayload(settings))
+        executeSessionRequest(
+            targetPath("broadcast", BroadcastProvider.YOUTUBE), "PUT", buildBroadcastSettingsPayload(settings),
+        )
     }
 
     private fun getChzzkDefaults(): ChzzkBroadcastSettings {
@@ -793,10 +931,18 @@ class WebRtcConnection(
         }
     }
 
-    private fun postSessionRequest(path: String, body: JSONObject = JSONObject()): String =
-        executeSessionRequest(path, "POST", body)
+    private fun postSessionRequest(
+        path: String,
+        body: JSONObject = JSONObject(),
+        responseProvider: BroadcastProvider? = null,
+    ): String = executeSessionRequest(path, "POST", body, responseProvider)
 
-    private fun executeSessionRequest(path: String, method: String, body: JSONObject): String {
+    private fun executeSessionRequest(
+        path: String,
+        method: String,
+        body: JSONObject,
+        responseProvider: BroadcastProvider? = null,
+    ): String {
         sessionRequestRevision.incrementAndGet()
         confirmedResponseState = null
         responseContainsBroadcastState = false
@@ -812,6 +958,7 @@ class WebRtcConnection(
                 payload,
                 createdSession,
                 clearWarningsWhenMissing = path == "stream/prepare",
+                responseProvider = responseProvider,
             )
             payload
         }
@@ -825,11 +972,15 @@ class WebRtcConnection(
         createdSession: CreatedSession,
         revision: Long? = null,
         clearWarningsWhenMissing: Boolean = false,
+        responseProvider: BroadcastProvider? = null,
     ) {
         if (!isActive() || session?.sessionId != createdSession.sessionId) return
         val previous = sessionSnapshot ?: SessionSnapshot(createdSession.sessionId)
         val next = runCatching {
-            parseSessionSnapshot(payload, createdSession.sessionId, previous, clearWarningsWhenMissing)
+            parseSessionSnapshot(
+                payload, createdSession.sessionId, previous, clearWarningsWhenMissing,
+                targetProvider = responseProvider?.takeIf { it != provider }?.wireValue,
+            )
         }
             .getOrElse {
                 responseContainsBroadcastState = true
@@ -927,13 +1078,14 @@ class WebRtcConnection(
         throw IOException("세션 상태 조회 실패")
     }
 
-    private fun goLiveWithRetry() {
+    // golive는 준비된 모든 대상을 한 번에 전환합니다. 일부 대상의 실패는 성공 응답의 failed_targets로 옵니다.
+    private fun goLiveWithRetry(): List<BroadcastProvider> {
         repeat(GO_LIVE_RETRY_COUNT) { attempt ->
             check(isActive()) { "WebRTC 연결이 종료되었습니다." }
             try {
                 val response = postSessionRequest("stream/golive")
                 check(parseBroadcastState(response, provider) != null)
-                return
+                return parseFailedTargets(response)
             } catch (exception: ServerApiException) {
                 if (exception.code != "broadcast_not_ready") throw exception
                 if (attempt < GO_LIVE_RETRY_COUNT - 1) {
@@ -1031,7 +1183,7 @@ class WebRtcConnection(
             connection.addTransceiver(
                 videoTrack,
                 RtpTransceiver.RtpTransceiverInit(
-                    RtpTransceiver.RtpTransceiverDirection.SEND_RECV,
+                    videoDirectionForAI(onDeviceProcessing, sendOnlyVideoSupported),
                 ),
             ),
         ) { "Unable to add the camera video transceiver." }
@@ -1040,11 +1192,11 @@ class WebRtcConnection(
         val hardwareFormats = HardwareVideoEncoderFactory(
             checkNotNull(eglBase).eglBaseContext, true, true,
         ).supportedCodecs.toList()
-        val preference = preferredVideoCodecsForAI(onDeviceProcessing, videoCodecs, hardwareFormats)
+        val preference = preferredVideoCodecsForAI(onDeviceProcessing, videoCodecs, hardwareFormats, sendOnlyVideoSupported)
         if (preference != null) {
             val result = transceiver.setCodecPreferences(preference)
             if (result.isSuccess()) Log.i("PrivacyPipeline",
-                "video_codec_preference=${if (onDeviceProcessing) "on_device_vp8" else "server_h264_baseline"}")
+                "video_codec_preference=${preference.first().name}")
             else Log.w("PrivacyPipeline", "video_codec_preference=default")
         }
         videoSender = transceiver.sender
@@ -1055,6 +1207,7 @@ class WebRtcConnection(
         return executeAuthenticatedHttp(request).use { response ->
             val payload = response.body.string()
             if (!response.isSuccessful) throw parseServerApiException(payload, response.code)
+            sendOnlyVideoSupported = parseSendOnlyVideoSupport(JSONObject(payload))
             parseIceServers(payload) to parseWebRtcRecoveryPolicy(JSONObject(payload))
         }
     }
@@ -2298,31 +2451,33 @@ private fun ServerApiException.toKnownBroadcastFailure(): BroadcastFailure? = wh
     else -> null
 }
 
-private fun ServerApiException.toBroadcastEvent(
+internal fun ServerApiException.toBroadcastEvent(
     fallback: BroadcastFailure,
     provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
     preserveServerMessage: Boolean = true,
 ): BroadcastEvent? = if (code in BUSY_SERVER_CODES) null
-    else if (provider == BroadcastProvider.CHZZK) BroadcastEvent.ServerMessage(chzzkBroadcastErrorMessage(code, field))
+    else if (provider == BroadcastProvider.CHZZK) BroadcastEvent.Message(chzzkBroadcastErrorMessage(code, field))
     else guidance()?.let(BroadcastEvent::ApiFailure)
     ?: toKnownBroadcastFailure()?.let(BroadcastEvent::Failure)
     ?: serverMessage?.takeIf { preserveServerMessage && it.isNotBlank() }?.let(BroadcastEvent::ServerMessage)
     ?: BroadcastEvent.Failure(fallback)
 
-internal fun chzzkBroadcastErrorMessage(code: String?, field: String?): String = when (code) {
-        "streaming_not_connected" -> "치지직 계정을 연결한 뒤 다시 준비하세요."
-        "streaming_reconnect_required" -> "치지직 계정을 다시 연결한 뒤 준비하세요."
-        "not_supported" -> "서버에 치지직 방송 설정이 없습니다. 관리자에게 문의하세요."
-        "broadcast_not_ready", "broadcast_not_prepared" -> "방송 준비가 끝나지 않았습니다. 준비 상태를 확인하고 다시 시도하세요."
+internal fun chzzkBroadcastErrorMessage(code: String?, field: String?): UiText = UiText.Resource(
+    when (code) {
+        "streaming_not_connected" -> R.string.chzzk_error_not_connected
+        "streaming_reconnect_required" -> R.string.chzzk_error_reconnect_required
+        "not_supported" -> R.string.chzzk_error_not_supported
+        "broadcast_not_ready", "broadcast_not_prepared" -> R.string.chzzk_error_not_ready
         "bad_request" -> when (field?.substringBefore('[')) {
-            "title" -> "방송 제목은 100자 이하로 입력하세요."
-            "category_type", "category_id" -> "카테고리를 검색해 다시 선택하세요."
-            "tags" -> "태그는 최대 5개, 각 15자 이하의 문자와 숫자로 입력하세요."
-            else -> "치지직 방송 설정을 확인하세요."
+            "title" -> R.string.chzzk_error_title
+            "category_type", "category_id" -> R.string.chzzk_error_category
+            "tags" -> R.string.chzzk_error_tags
+            else -> R.string.chzzk_error_settings
         }
-        "unauthorized" -> "로그인이 만료됐습니다. 다시 로그인하세요."
-        else -> "치지직 방송 요청에 실패했습니다. 다시 시도하세요."
-}
+        "unauthorized" -> R.string.chzzk_error_unauthorized
+        else -> R.string.chzzk_error_request
+    },
+)
 
 private fun Throwable.toBroadcastEventOrFailure(
     provider: BroadcastProvider,
@@ -2330,6 +2485,36 @@ private fun Throwable.toBroadcastEventOrFailure(
 ): BroadcastEvent? =
     if (this is ServerApiException) toBroadcastEvent(BroadcastFailure.REQUEST, provider, preserveServerMessage)
     else BroadcastEvent.Failure(BroadcastFailure.REQUEST)
+
+private fun Throwable.toControlEvent(fallback: BroadcastFailure, provider: BroadcastProvider): BroadcastEvent? =
+    if (this is ServerApiException) toBroadcastEvent(fallback, provider) else BroadcastEvent.Failure(fallback)
+
+/** 동시 송출에서 준비하지 못한 플랫폼을 알립니다. 준비된 플랫폼은 그대로 유지됩니다. */
+internal fun simulcastPrepareFailedMessage(failed: Collection<BroadcastProvider>): UiText = UiText.Resource(
+    when {
+        failed.size > 1 -> R.string.simulcast_prepare_failed_all
+        BroadcastProvider.CHZZK in failed -> R.string.simulcast_prepare_failed_chzzk
+        else -> R.string.simulcast_prepare_failed_youtube
+    },
+)
+
+/** golive의 failed_targets입니다. 실패한 플랫폼만 안내하고 성공한 플랫폼의 방송은 유지합니다. */
+internal fun simulcastGoLiveFailedMessage(failed: Collection<BroadcastProvider>): UiText = UiText.Resource(
+    when {
+        failed.size > 1 -> R.string.simulcast_golive_failed_all
+        BroadcastProvider.CHZZK in failed -> R.string.simulcast_golive_failed_chzzk
+        else -> R.string.simulcast_golive_failed_youtube
+    },
+)
+
+// 알 수 없는 플랫폼은 이 앱이 송출하지 않은 대상이므로 무시합니다.
+internal fun parseFailedTargets(payload: String): List<BroadcastProvider> {
+    val failed = JSONObject(payload).optJSONArray("failed_targets") ?: return emptyList()
+    return (0 until failed.length()).mapNotNull { index ->
+        val name = failed.optJSONObject(index)?.optString("provider")
+        BroadcastProvider.entries.firstOrNull { it.wireValue == name }
+    }.distinct()
+}
 
 private fun Throwable.toBroadcastFailure(): BroadcastFailure =
     (this as? ServerApiException)?.toKnownBroadcastFailure() ?: BroadcastFailure.REQUEST

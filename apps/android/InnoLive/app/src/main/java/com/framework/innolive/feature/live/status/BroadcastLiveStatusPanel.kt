@@ -1,11 +1,11 @@
 package com.framework.innolive.feature.live.status
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Tv
@@ -34,25 +36,37 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
-import com.framework.innolive.feature.live.SessionTarget
+import com.framework.innolive.feature.live.direct.broadcast.BroadcastTargetRow
+import com.framework.innolive.feature.live.direct.broadcast.DirectStatusWarning
+import com.framework.innolive.ui.text.asString
 
 private val PanelBackground = Color.Black.copy(alpha = 0.55f)
 private val ChipBackground = Color.White.copy(alpha = 0.16f)
 private val SecondaryText = Color(0xFFD0D0D0)
 private val AttentionColor = Color(0xFFFFB020)
 
-/** 방송 중 플랫폼별 송출 상태와 앱의 업로드 품질을 한곳에 보여 준다. */
-@OptIn(ExperimentalLayoutApi::class)
+/**
+ * 방송 중 플랫폼별 송출 상태와 앱의 업로드 품질을 한곳에 보여 준다.
+ * 직접 송출이면 [warnings]에 대기 화면·마이크·발열·준비 마감 안내가 온다.
+ * [onClick]이 있으면 방송 전 구성 변경 진입점으로 쓴다.
+ */
 @Composable
 internal fun BroadcastLiveStatusPanel(
-    targets: List<SessionTarget>,
+    targets: List<BroadcastTargetRow>,
     broadcastResolution: String?,
     uplinkQuality: BroadcastUplinkQuality?,
     modifier: Modifier = Modifier,
+    warnings: List<DirectStatusWarning> = emptyList(),
+    onClickLabel: String? = null,
+    onClick: (() -> Unit)? = null,
 ) {
+    val shape = RoundedCornerShape(14.dp)
     Column(
         modifier = modifier
-            .background(PanelBackground, RoundedCornerShape(14.dp))
+            .clip(shape)
+            .background(PanelBackground, shape)
+            .then(if (onClick != null) Modifier.clickable(onClickLabel = onClickLabel, onClick = onClick) else Modifier)
+            .animateContentSize()
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -60,37 +74,58 @@ internal fun BroadcastLiveStatusPanel(
 
         val chips = detailChips(broadcastResolution, uplinkQuality)
         if (chips.isNotEmpty()) {
-            FlowRow(
+            // 화질 저하 사유는 패널 높이가 바뀌지 않도록 칩 줄 오른쪽 끝에 짧게 적는다.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 chips.forEach { chip -> StatusChip(chip) }
+                Spacer(modifier = Modifier.weight(1f))
+                uplinkQuality?.limitation?.let { limitation -> LimitationLabel(limitation) }
             }
         }
 
-        uplinkQuality?.limitation?.let { limitation ->
-            Row(
-                modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Warning,
-                    contentDescription = null,
-                    tint = AttentionColor,
-                    modifier = Modifier.size(16.dp),
-                )
-                Text(
-                    text = stringResource(limitation.warningRes),
-                    color = AttentionColor,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
+        warnings.forEach { warning ->
+            WarningRow(warning.text.asString(), if (warning.urgent) AttentionColor else SecondaryText)
         }
     }
 }
 
 @Composable
-private fun TargetRow(target: SessionTarget) {
+private fun LimitationLabel(limitation: BroadcastUplinkLimitation) {
+    val description = stringResource(limitation.warningRes)
+    Text(
+        text = stringResource(limitation.shortLabelRes),
+        color = AttentionColor,
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.semantics {
+            liveRegion = LiveRegionMode.Polite
+            contentDescription = description
+        },
+    )
+}
+
+@Composable
+private fun WarningRow(text: String, color: Color) {
+    Row(
+        modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Warning,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(text = text, color = color, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+private fun TargetRow(target: BroadcastTargetRow) {
     val tone = target.tone
     Row(
         modifier = Modifier
@@ -112,7 +147,7 @@ private fun TargetRow(target: SessionTarget) {
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
-            text = stringResource(target.statusLabelRes),
+            text = stringResource(target.labelRes),
             color = if (tone == BroadcastTargetTone.ATTENTION) AttentionColor else SecondaryText,
             style = MaterialTheme.typography.labelMedium,
         )
@@ -191,4 +226,10 @@ private val BroadcastUplinkLimitation.warningRes: Int
     get() = when (this) {
         BroadcastUplinkLimitation.NETWORK -> R.string.live_status_warning_network
         BroadcastUplinkLimitation.DEVICE -> R.string.live_status_warning_device
+    }
+
+private val BroadcastUplinkLimitation.shortLabelRes: Int
+    get() = when (this) {
+        BroadcastUplinkLimitation.NETWORK -> R.string.live_status_limit_network
+        BroadcastUplinkLimitation.DEVICE -> R.string.live_status_limit_device
     }

@@ -1,8 +1,6 @@
 <resources>
     <string name="tutorial_open_preparation_title">Start by preparing your broadcast</string>
     <string name="tutorial_open_preparation_message">Tap this button to choose a platform and set your broadcast title.</string>
-    <string name="tutorial_choose_platform_title">Choose a platform</string>
-    <string name="tutorial_choose_platform_message">Tap the platform you want to broadcast on. You can switch later with Change platform in the broadcast settings.</string>
     <string name="tutorial_connect_account_title">Connect your account</string>
     <string name="tutorial_connect_account_message">Use the highlighted button to connect your account. You will move on to the next step when you come back.</string>
     <string name="tutorial_start_preparation_title">Check the title and prepare</string>
@@ -28,10 +26,13 @@
     <string name="live_status_target_reconfiguring">Changing quality</string>
     <string name="live_status_target_reconnecting">Reconnecting</string>
     <string name="live_status_target_paused">Paused</string>
+    <string name="live_status_target_not_started">Not started</string>
     <string name="live_status_target_checking">Checking</string>
     <string name="live_status_broadcast_resolution">Broadcast quality %1$s</string>
     <string name="live_status_uplink">Upload %1$s</string>
     <string name="live_status_uplink_measuring">Checking upload</string>
     <string name="live_status_warning_network">Your internet is slow, so quality was lowered for now. Wi-Fi is more stable.</string>
     <string name="live_status_warning_device">Your device is busy, so quality was lowered for now. Closing other apps may help.</string>
+    <string name="live_status_limit_device">Device busy</string>
+    <string name="live_status_limit_network">Slow internet</string>
 </resources>

@@ -73,6 +73,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var isReconnectPending = false
     var isReconnectInProgress = false
     var lockedBroadcastOrientation: BroadcastInterfaceOrientation?
+    // 온디바이스 세션의 앱 직접 송출(#481). 프레임 경로가 재생성돼도 유지한다.
+    weak var directMediaSink: (any DirectMediaSink)?
+    var isDirectPublishBitrateLimited = false
 
     override init() {
         _ = Self.sslInitialized

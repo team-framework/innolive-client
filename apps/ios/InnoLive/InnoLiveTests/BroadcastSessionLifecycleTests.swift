@@ -266,11 +266,63 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
 
     func testMismatchedModeNeverStartsVideoAndDeletesSession() async {
         SessionLifecycleURLProtocol.responses = [.created("wrong", mode: "on_device"), .empty(204)]
-        let integration = makeIntegration(mode: .onDevice)
+        let integration = makeIntegration(mode: .server)
         let ready = await integration.prepareSession(accessToken: token)
         XCTAssertFalse(ready)
         XCTAssertNil(integration.session)
         XCTAssertEqual(methods, ["POST", "DELETE"])
+    }
+
+    func testOnDeviceSelectionCreatesDirectPublishSessionWithoutServerAIRequest() async throws {
+        SessionLifecycleURLProtocol.responses = [.created("direct", mode: "on_device")]
+        let integration = makeIntegration(mode: .onDevice)
+        let ready = await integration.prepareSession(accessToken: token)
+        XCTAssertTrue(ready)
+        XCTAssertEqual(methods, ["POST"])
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        // 공유 계약(direct-publish-v1)은 최상위 ai_processing을 쓴다. metadata는 구 서버 협상용이다.
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+        XCTAssertEqual(json["ai_processing"] as? String, "on_device")
+        XCTAssertEqual((json["metadata"] as? [String: String])?["ai_processing"], "on_device")
+        XCTAssertTrue(integration.isDirectPublishSession)
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertTrue(integration.isAnonymizationEnabled)
+    }
+
+    func testServerSelectionKeepsServerSessionBody() async throws {
+        SessionLifecycleURLProtocol.responses = [.created("server", mode: "server")]
+        let integration = makeIntegration(mode: .server)
+        _ = await integration.prepareSession(accessToken: token)
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        XCTAssertFalse(body.contains("ai_processing"))
+        XCTAssertFalse(integration.isDirectPublishSession)
+    }
+
+    func testDirectPublishSessionRejectsInPlaceSwitchToServer() async {
+        SessionLifecycleURLProtocol.responses = [.created("direct", mode: "on_device")]
+        let integration = makeIntegration(mode: .onDevice)
+        _ = await integration.prepareSession(accessToken: token)
+        let changed = await integration.changeAIProcessingMode(.server, accessToken: token)
+        XCTAssertFalse(changed)
+        XCTAssertNotNil(integration.errorMessage)
+        XCTAssertEqual(integration.session?.sessionID, "direct")
+        XCTAssertNil(defaults.string(forKey: AIProcessingMode.storageKey))
+        XCTAssertEqual(methods, ["POST"])
+    }
+
+    private static func body(_ request: URLRequest) -> String? {
+        if let data = request.httpBody { return String(decoding: data, as: UTF8.self) }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 1_024)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return String(decoding: data, as: UTF8.self)
     }
 
     func testChangingModeKeepsSessionAndStoredCredentialsInBothDirections() async throws {

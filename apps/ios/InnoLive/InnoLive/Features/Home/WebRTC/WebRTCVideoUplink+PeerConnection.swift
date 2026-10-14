@@ -27,10 +27,13 @@ extension WebRTCVideoUplink {
         let audioTransceiverConfiguration = LKRTCRtpTransceiverInit()
         audioTransceiverConfiguration.direction = .sendOnly
         audioTransceiverConfiguration.streamIds = ["innolive-audio-stream"]
-        guard let audioTransceiver = peerConnection.addTransceiver(
-            with: localAudioTrack,
-            init: audioTransceiverConfiguration
-        ) else {
+        // 트랙을 붙이지 않으면 WebRTC 오디오 장치가 녹음을 시작하지 않는다. 앱 직접 송출이 마이크를 쓴다.
+        // 오디오 m-line은 남겨 서버와 협상하는 SDP 형태는 그대로 둔다.
+        let sendsMicrophone = credentials?.sendsMicrophoneToServer ?? true
+        guard let audioTransceiver = sendsMicrophone
+            ? peerConnection.addTransceiver(with: localAudioTrack, init: audioTransceiverConfiguration)
+            : peerConnection.addTransceiver(of: .audio, init: audioTransceiverConfiguration)
+        else {
             throw WebRTCVideoUplinkError.failed(String(localized: "마이크 오디오 송신기를 만들지 못했습니다."))
         }
 
@@ -82,6 +85,7 @@ extension WebRTCVideoUplink {
         self.peerConnection = peerConnection
         audioSender = audioTransceiver.sender
         videoSender = transceiver.sender
+        if isDirectPublishBitrateLimited { applyDirectPublishBitrateLimit() }
     }
 
     func createAndSendOffer() {

@@ -549,6 +549,101 @@ class BroadcastApiFlowTest {
         }
     }
 
+    @Test fun simulcastPreparesEachTargetOnceAndControlsEveryActiveTarget() {
+        Harness().use { h ->
+            val chzzk = ChzzkBroadcastSettings("치지직", "GAME", "GTA5", listOf("게임"))
+            h.mutationReplies.addAll(listOf(
+                200 to "{}",
+                200 to simulcastSnapshot("prepared", "idle", "idle", "idle"),
+                200 to """{"chzzk_broadcast":{"title":"치지직","category_type":"GAME","category_id":"GTA5","tags":["게임"]}}""",
+                200 to simulcastSnapshot("prepared", "idle", "prepared", "idle"),
+            ))
+            assertTrue(h.connection.prepareTargets(settings, chzzk))
+            h.awaitState(BroadcastState.PREPARED)
+            val prepares = h.requests.filter { it.url.encodedPath.endsWith("stream/prepare") }
+            assertEquals(listOf("youtube", "chzzk"), prepares.map { JSONObject(h.body(it)).getString("provider") })
+            val saves = h.requests.filter { it.method == "PUT" }
+            assertEquals(listOf(null, "chzzk"), saves.map { it.url.queryParameter("provider") })
+            assertFalse(JSONObject(h.body(saves.last())).has("made_for_kids"))
+
+            h.mutationReplies.add(200 to """{"broadcast_phase":"live","status":"streaming",
+                "targets":[{"provider":"youtube","stream":{"broadcast_phase":"live","status":"streaming"}},
+                {"provider":"chzzk","stream":{"broadcast_phase":"live","status":"streaming"}}]}""")
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            assertEquals(1, h.requests.count { it.url.encodedPath.endsWith("stream/golive") })
+
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.PAUSED)
+            h.connection.resumeBroadcast()
+            h.awaitState(BroadcastState.LIVE)
+            h.connection.stopBroadcast()
+            h.awaitState(BroadcastState.IDLE)
+            for (action in listOf("pause", "resume", "stop")) {
+                val sent = h.requests.filter { it.url.encodedPath.endsWith("stream/$action") }
+                assertEquals(listOf(null, "chzzk"), sent.map { it.url.queryParameter("provider") })
+            }
+            assertFalse(h.requests.any { it.method == "DELETE" })
+        }
+    }
+
+    @Test fun simulcastKeepsPreparedTargetWhenTheOtherFailsAndRetriesOnlyTheFailedTarget() {
+        Harness().use { h ->
+            val chzzk = ChzzkBroadcastSettings("치지직", "GAME", "GTA5", listOf("게임"))
+            h.mutationReplies.addAll(listOf(
+                200 to "{}",
+                200 to simulcastSnapshot("prepared", "idle", "idle", "idle"),
+                200 to """{"chzzk_broadcast":{"title":"치지직","category_type":"GAME","category_id":"GTA5","tags":["게임"]}}""",
+                500 to """{"error":{"code":"streaming_prepare_failed","message":"chzzk"}}""",
+            ))
+            assertTrue(h.connection.prepareTargets(settings, chzzk))
+            h.awaitState(BroadcastState.PREPARED)
+            assertEquals(
+                BroadcastEvent.Message(simulcastPrepareFailedMessage(listOf(BroadcastProvider.CHZZK))),
+                h.outcomes.last().second,
+            )
+
+            h.mutationReplies.addAll(listOf(
+                200 to """{"chzzk_broadcast":{"title":"치지직","category_type":"GAME","category_id":"GTA5","tags":["게임"]}}""",
+                200 to simulcastSnapshot("prepared", "idle", "prepared", "idle"),
+            ))
+            assertTrue(h.connection.prepareTargets(settings, chzzk))
+            h.awaitState(BroadcastState.PREPARED)
+            assertNull(h.outcomes.last().second)
+            val prepares = h.requests.filter { it.url.encodedPath.endsWith("stream/prepare") }
+            assertEquals(listOf("youtube", "chzzk", "chzzk"), prepares.map { JSONObject(h.body(it)).getString("provider") })
+        }
+    }
+
+    @Test fun simulcastGoLiveAndPauseFailuresOnlyAffectTheFailedTarget() {
+        Harness().use { h ->
+            h.field("sessionSnapshot", parseSessionSnapshot(simulcastSnapshot("prepared", "idle", "prepared", "idle"), "test-session"))
+            h.field("broadcastState", BroadcastState.PREPARED)
+            h.mutationReplies.add(200 to """{"broadcast_phase":"live","status":"streaming",
+                "targets":[{"provider":"youtube","stream":{"broadcast_phase":"live","status":"streaming"}},
+                {"provider":"chzzk","stream":{"broadcast_phase":"prepared","status":"idle"}}],
+                "failed_targets":[{"provider":"chzzk","code":"streaming_prepare_failed","message":"x"}]}""")
+            h.connection.goLive()
+            h.awaitState(BroadcastState.LIVE)
+            assertEquals(
+                BroadcastEvent.Message(simulcastGoLiveFailedMessage(listOf(BroadcastProvider.CHZZK))),
+                h.outcomes.last().second,
+            )
+
+            h.field("sessionSnapshot", parseSessionSnapshot(simulcastSnapshot("live", "streaming", "live", "streaming"), "test-session"))
+            h.mutationReplies.addAll(listOf(
+                200 to """{"broadcast_phase":"live","status":"paused"}""",
+                500 to """{"error":{"code":"unexpected_failure","message":"x"}}""",
+            ))
+            h.connection.pauseBroadcast()
+            h.awaitState(BroadcastState.LIVE)
+            val snapshot = h.awaitSnapshot { target -> target.targets?.any { it.status == "paused" } == true }
+            assertEquals("paused", snapshot.targets!!.first { it.provider == "youtube" }.status)
+            assertEquals("streaming", snapshot.targets!!.first { it.provider == "chzzk" }.status)
+            assertEquals(2, h.requests.count { it.url.encodedPath.endsWith("stream/pause") })
+        }
+    }
+
     @Test fun unauthorizedMutationRefreshesOnceAndSecond401StillProducesLoginGuidance() {
         for (retryStatus in listOf(200, 401)) Harness().use { h ->
             h.mutationReplies.add(401 to "{}")
@@ -596,6 +691,11 @@ class BroadcastApiFlowTest {
             h.awaitState(BroadcastState.LIVE)
         }
     }
+
+    private fun simulcastSnapshot(youtubePhase: String, youtubeStatus: String, chzzkPhase: String, chzzkStatus: String) =
+        """{"session_id":"test-session","provider":"youtube",
+        "targets":[{"provider":"youtube","stream":{"status":"$youtubeStatus","broadcast_phase":"$youtubePhase"}},
+        {"provider":"chzzk","stream":{"status":"$chzzkStatus","broadcast_phase":"$chzzkPhase"}}]}"""
 
     private fun snapshot(phase: String, status: String) = """{"session_id":"test-session","provider":"youtube",
         "targets":[{"provider":"youtube","stream":{"status":"$status","broadcast_phase":"$phase"}}],
@@ -757,7 +857,7 @@ class BroadcastApiFlowTest {
             field("audioInputVerified", true)
         }
 
-        private fun field(name: String, value: Any) {
+        fun field(name: String, value: Any) {
             WebRtcConnection::class.java.getDeclaredField(name).apply { isAccessible = true; set(connection, value) }
         }
 

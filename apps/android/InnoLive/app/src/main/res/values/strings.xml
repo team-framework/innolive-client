@@ -294,4 +294,9 @@
     <string name="settings_section_camera">카메라</string>
     <string name="settings_section_audio">오디오</string>
     <string name="settings_section_live">라이브</string>
+    <string name="direct_broadcast_notification_channel">방송 진행</string>
+    <string name="direct_broadcast_notification_title">방송 중</string>
+    <string name="direct_broadcast_notification_text">다른 앱을 쓰거나 화면이 꺼지면 카메라 대신 대기 화면과 무음을 송출합니다.</string>
+    <string name="direct_broadcast_notification_stop">방송 종료</string>
+    <string name="direct_broadcast_notification_hidden">알림이 꺼져 있어 방송 중 알림이 보이지 않습니다. 방송은 그대로 진행됩니다.</string>
 </resources>

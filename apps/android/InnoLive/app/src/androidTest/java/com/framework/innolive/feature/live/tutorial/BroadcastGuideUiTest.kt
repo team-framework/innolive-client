@@ -36,7 +36,7 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.SessionTarget
-import com.framework.innolive.feature.live.components.PlatformDialog
+import com.framework.innolive.feature.live.direct.broadcast.toStatusRow
 import com.framework.innolive.feature.live.components.VerticalHeroButton
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
@@ -129,7 +129,8 @@ class BroadcastGuideUiTest {
         }
 
         compose.onNodeWithText(string(R.string.tutorial_live_status_title)).assertIsDisplayed()
-        compose.onNodeWithText(string(R.string.live_status_warning_network)).assertIsDisplayed()
+        // 화질 저하 사유는 칩 줄 오른쪽에 짧게 표시합니다.
+        compose.onNodeWithText(string(R.string.live_status_limit_network)).assertIsDisplayed()
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.live_status_uplink, "720p · 30fps"))
             .assertIsDisplayed()
         saveScreenshot("home-live-status")
@@ -168,30 +169,6 @@ class BroadcastGuideUiTest {
         compose.onNodeWithText(string(R.string.tutorial_connect_account_title)).assertIsDisplayed()
         compose.onNodeWithText("2/5").assertIsDisplayed()
         saveScreenshot("settings-connect-account")
-    }
-
-    @Test
-    fun platformDialogShowsTheChoosePlatformGuide() {
-        val tutorial = BroadcastTutorialCoordinator(MemoryStore())
-        var selected = 0
-        compose.setContent {
-            MyApplicationTheme {
-                PlatformDialog(
-                    onDismissRequest = {},
-                    onYouTubeSelected = { selected++ },
-                    guide = tutorial.guideFor(BroadcastTutorialHost.PLATFORM_DIALOG),
-                )
-            }
-        }
-        compose.runOnIdle {
-            tutorial.restart(BroadcastTutorialSnapshot(openDialog = BroadcastTutorialDialog.PLATFORM))
-        }
-
-        compose.onNodeWithText(string(R.string.tutorial_choose_platform_title)).assertIsDisplayed()
-        compose.onNodeWithText("1/5").assertIsDisplayed()
-        saveScreenshot("platform-choose")
-        compose.onNodeWithText("YouTube").performClick()
-        compose.runOnIdle { assertEquals(1, selected) }
     }
 
     @Test
@@ -335,7 +312,7 @@ class BroadcastGuideUiTest {
                                 targets = listOf(
                                     SessionTarget("youtube", "streaming", "live", null, 0),
                                     SessionTarget("chzzk", "reconnecting", "live", null, 1),
-                                ),
+                                ).map { it.toStatusRow() },
                                 broadcastResolution = "1080P",
                                 uplinkQuality = BroadcastUplinkQuality(720, 30, BroadcastUplinkLimitation.NETWORK),
                                 modifier = Modifier

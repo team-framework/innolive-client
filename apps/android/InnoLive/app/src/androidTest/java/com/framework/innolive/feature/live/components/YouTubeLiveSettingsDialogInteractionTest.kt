@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -159,7 +158,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
     }
 
     @Test
-    fun youtubeSelectionOpensInteractiveSettingsDialog() {
+    fun settingsDialogAcceptsKeyboardInputAfterOpening() {
         val initialSettings = BroadcastSettings(
             title = "",
             description = "",
@@ -169,36 +168,17 @@ class YouTubeLiveSettingsDialogInteractionTest {
         )
 
         composeRule.setContent {
-            var openPlatformDialog by remember { mutableStateOf(false) }
-            var pendingYouTubeSettingsDialog by remember { mutableStateOf(false) }
             var openYouTubeSettingsDialog by remember { mutableStateOf(false) }
             var settings by remember { mutableStateOf(initialSettings) }
 
             MaterialTheme {
                 Column {
-                    Button(onClick = { openPlatformDialog = true }) {
+                    Button(onClick = { openYouTubeSettingsDialog = true }) {
                         Text("방송 시작")
                     }
                     Text(
                         text = "state:${settings.title}|privacy:${settings.privacy}|audience:${settings.madeForKids}",
                     )
-                }
-
-                if (openPlatformDialog) {
-                    PlatformDialog(
-                        onDismissRequest = { openPlatformDialog = false },
-                        onYouTubeSelected = {
-                            pendingYouTubeSettingsDialog = true
-                            openPlatformDialog = false
-                        },
-                    )
-                }
-
-                LaunchedEffect(openPlatformDialog, pendingYouTubeSettingsDialog) {
-                    if (!openPlatformDialog && pendingYouTubeSettingsDialog) {
-                        pendingYouTubeSettingsDialog = false
-                        openYouTubeSettingsDialog = true
-                    }
                 }
 
                 if (openYouTubeSettingsDialog) {
@@ -219,7 +199,6 @@ class YouTubeLiveSettingsDialogInteractionTest {
         }
 
         composeRule.onNodeWithText("방송 시작").performClick()
-        composeRule.onNodeWithText("YouTube").performClick()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText(text(R.string.live_settings_title)).fetchSemanticsNodes().isNotEmpty()

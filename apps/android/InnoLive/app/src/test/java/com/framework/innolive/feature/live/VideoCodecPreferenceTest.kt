@@ -42,12 +42,15 @@ class VideoCodecPreferenceTest {
         val hardware = listOf(VideoCodecInfo("H264", baseline, emptyList()))
         val capabilities = listOf(h264, vp8, av1)
 
-        assertEquals(listOf(vp8, h264, av1),
-            preferredVideoCodecsForAI(true, capabilities, hardware))
+        assertEquals(listOf(vp8, h264, av1), preferredVideoCodecsForAI(true, capabilities, hardware))
+        assertEquals(listOf(h264, vp8, av1),
+            preferredVideoCodecsForAI(true, capabilities, hardware, true))
         assertEquals(listOf(h264, vp8, av1),
             preferredVideoCodecsForAI(false, capabilities, hardware))
         assertNull(preferredVideoCodecsForAI(false, capabilities, emptyList()))
-        assertNull(preferredVideoCodecsForAI(true, listOf(h264), hardware))
+        assertEquals(listOf(h264), preferredVideoCodecsForAI(true, listOf(h264), hardware, true))
+        assertEquals(listOf(vp8, h264, av1), preferredVideoCodecsForAI(true, capabilities, emptyList(), true))
+        assertNull(preferredVideoCodecsForAI(true, listOf(h264), emptyList(), true))
     }
 
     private fun codec(name: String) = RtpCapabilities.CodecCapability().apply {

@@ -66,3 +66,26 @@ fun serverErrorGuidance(
     }
     return ServerErrorGuidance(knownCode, UiText.Resource(message), action, safeHelpUrl, field)
 }
+
+/**
+ * 직접 송출(온디바이스) 경로의 오류 안내입니다. 공통 안내를 먼저 쓰고 직접 송출에서 오는 코드를 더합니다.
+ * 서버 중계 경로의 기존 표시가 바뀌지 않도록 공통 함수와 나눕니다.
+ */
+fun directPublishErrorGuidance(
+    code: String?,
+    statusCode: Int? = null,
+    helpUrl: String? = null,
+    field: String? = null,
+    reason: String? = null,
+): ServerErrorGuidance? {
+    serverErrorGuidance(code, statusCode, helpUrl, field, reason)?.let { return it }
+    val (message, action) = when (code) {
+        "on_device_processing" -> R.string.error_on_device_processing to ServerErrorAction.NONE
+        "heartbeat_not_applicable" -> R.string.error_heartbeat_not_applicable to ServerErrorAction.NONE
+        "broadcast_stopped" -> R.string.error_broadcast_stopped to ServerErrorAction.NONE
+        "channel_in_use_by_other_account" -> R.string.error_channel_in_use_by_other_account to ServerErrorAction.NONE
+        "youtube_channel_required" -> R.string.error_youtube_channel_required to ServerErrorAction.RECONNECT
+        else -> return null
+    }
+    return ServerErrorGuidance(code, UiText.Resource(message), action, field = field)
+}

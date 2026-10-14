@@ -2,7 +2,8 @@ package com.framework.innolive.feature.settings
 
 import com.framework.innolive.feature.live.BroadcastRemainingTime
 import com.framework.innolive.feature.live.SessionSnapshot
-import com.framework.innolive.feature.live.compactRemainingSeconds
+import com.framework.innolive.feature.live.RemainingCountdown
+import com.framework.innolive.feature.live.formatRemainingSeconds
 import com.framework.innolive.feature.live.displayedRemainingTime
 import com.framework.innolive.feature.live.parseSessionSnapshot
 import com.framework.innolive.ui.text.ServerErrorAction
@@ -51,6 +52,18 @@ class PlanUsageTest {
         assertEquals(BroadcastRemainingTime.Seconds(3600), displayedRemainingTime(true, null, usage))
         val session = SessionSnapshot("s", remainingTime = BroadcastRemainingTime.Seconds(720))
         assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(true, session, usage))
+        // 같은 세션에서 방송을 끝낸 뒤에도 요금제 기준(3600)이 아니라 그 세션의 남은 시간을 보여 준다.
+        assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(false, session, usage))
+        assertEquals(BroadcastRemainingTime.Seconds(720),
+            displayedRemainingTime(false, session, usage.copy(allowedModes = emptyList())))
+        // 송출이 멈춘 세션이 null을 보내도 방송 중이 아니면 같은 세션의 마지막 숫자를 유지한다.
+        val stoppedNull = session.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive, lastRemainingSeconds = 720)
+        assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(false, stoppedNull, usage))
+        // 방송 중 null은 기존 규칙(요금제 보완·무제한)을 따른다.
+        assertEquals(BroadcastRemainingTime.Seconds(3600), displayedRemainingTime(true, stoppedNull, usage))
+        // 세션은 있지만 서버 값이 아직 없으면 요금제 기준 값으로 보완한다.
+        assertEquals(BroadcastRemainingTime.Seconds(3600),
+            displayedRemainingTime(false, session.copy(remainingTime = BroadcastRemainingTime.Unknown), usage))
         assertEquals(BroadcastRemainingTime.Seconds(3600),
             displayedRemainingTime(true, session.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive), usage))
         val unlimited = parsePlanUsage(plan, fixture("unlimited")).copy(maxBroadcastSeconds = 0)
@@ -92,14 +105,46 @@ class PlanUsageTest {
         assertEquals(BroadcastRemainingTime.Seconds(600), fresh.remainingTime)
     }
 
+    @Test fun liveRemainingTimeCountsDownBetweenServerUpdates() {
+        val live = RemainingCountdown(serverSeconds = 720, baseAtMillis = 0).onCountingChanged(true, 0)
+
+        assertEquals(720L, live.displayed(0))
+        assertEquals(719L, live.displayed(1_000))
+        assertEquals(706L, live.displayed(14_999))
+        // 같은 서버 값이 다시 와도 처음 받은 시각 기준을 유지한다.
+        assertEquals(706L, live.onServerValue(720, 14_999).displayed(14_999))
+        // 새 서버 값이 오면 그 값에서 다시 줄인다.
+        val corrected = live.onServerValue(705, 15_000)
+        assertEquals(705L, corrected.displayed(15_000))
+        assertEquals(704L, corrected.displayed(16_000))
+        // 갱신이 오래 없으면 30초 이상 줄이지 않고, 0 아래로 내려가지 않는다.
+        assertEquals(690L, live.displayed(120_000))
+        assertEquals(0L, RemainingCountdown(3, baseAtMillis = 0).onCountingChanged(true, 0).displayed(10_000))
+    }
+
+    @Test fun pauseFreezesTheShownValueAndResumeContinuesFromIt() {
+        val live = RemainingCountdown(serverSeconds = 720, baseAtMillis = 0).onCountingChanged(true, 0)
+
+        // 10초 뒤 일시 중지하면 서버 값(720)으로 되돌아가지 않고 보이던 710에서 멈춘다.
+        val paused = live.onCountingChanged(false, 10_000)
+        assertEquals(710L, paused.displayed(10_000))
+        assertEquals(710L, paused.displayed(60_000))
+        // 50초 뒤 재개하면 멈춘 동안의 시간을 한꺼번에 빼지 않고 710에서 다시 줄인다.
+        val resumed = paused.onCountingChanged(true, 60_000)
+        assertEquals(710L, resumed.displayed(60_000))
+        assertEquals(709L, resumed.displayed(61_000))
+    }
+
     @Test fun modeAndTimeFormattingReflectTheServerValues() {
         assertEquals(PlanMode.HD_SINGLE, PlanMode.current(null, 0))
         assertEquals(PlanMode.FHD_SINGLE, PlanMode.current("fhd", 1))
         assertEquals(PlanMode.HD_MULTI, PlanMode.current("720p", 2))
         assertEquals(PlanMode.FHD_MULTI, PlanMode.current("fhd", 2))
-        assertEquals("12min", compactRemainingSeconds(720))
-        assertEquals("59s", compactRemainingSeconds(59))
-        assertEquals("0s", compactRemainingSeconds(0))
+        assertEquals("00:12:00", formatRemainingSeconds(720))
+        assertEquals("00:00:59", formatRemainingSeconds(59))
+        assertEquals("00:00:00", formatRemainingSeconds(0))
+        assertEquals("12:00:00", formatRemainingSeconds(43_200))
+        assertEquals("100:00:00", formatRemainingSeconds(360_000))
         assertEquals("01:01:01", formatPlanDuration(3661))
         assertEquals("00:00:00", formatPlanDuration(0))
         assertEquals(ServerErrorAction.PLAN, serverErrorGuidance("monthly_limit_exhausted")!!.action)

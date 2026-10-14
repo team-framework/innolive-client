@@ -23,14 +23,6 @@ class BroadcastTutorialTest {
     }
 
     @Test
-    fun openPlatformDialogAsksToChoosePlatform() {
-        assertEquals(
-            stage(BroadcastTutorialStep.CHOOSE_PLATFORM, BroadcastTutorialHost.PLATFORM_DIALOG),
-            policy(snapshot(dialog = BroadcastTutorialDialog.PLATFORM)),
-        )
-    }
-
-    @Test
     fun openSettingsWithoutConnectedAccountAsksToConnect() {
         assertEquals(
             stage(BroadcastTutorialStep.CONNECT_ACCOUNT, BroadcastTutorialHost.SETTINGS_DIALOG),
@@ -104,7 +96,6 @@ class BroadcastTutorialTest {
     @Test
     fun progressCountsTheAccountStepOnlyWhenNeeded() {
         assertEquals(progress(1, 5), BroadcastTutorialPolicy.progress(BroadcastTutorialStep.OPEN_PREPARATION, true))
-        assertEquals(progress(1, 5), BroadcastTutorialPolicy.progress(BroadcastTutorialStep.CHOOSE_PLATFORM, true))
         assertEquals(progress(2, 5), BroadcastTutorialPolicy.progress(BroadcastTutorialStep.CONNECT_ACCOUNT, true))
         assertEquals(progress(3, 5), BroadcastTutorialPolicy.progress(BroadcastTutorialStep.START_PREPARATION, true))
         assertEquals(progress(4, 5), BroadcastTutorialPolicy.progress(BroadcastTutorialStep.RETRY_PREPARATION, true))

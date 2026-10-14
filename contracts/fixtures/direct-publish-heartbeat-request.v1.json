@@ -1,0 +1,12 @@
+{
+  "sent_at": "2026-10-12T08:30:00Z",
+  "targets": [
+    { "provider": "youtube", "connected": true, "bitrate_kbps": 5200, "reconnects": 0 },
+    { "provider": "chzzk", "connected": true, "bitrate_kbps": 5100, "reconnects": 1 }
+  ],
+  "video": { "fps": 29.8, "dropped_frames": 12, "width": 1280, "height": 720 },
+  "anonymization": { "enabled": true, "inference_ms_p50": 18.2, "inference_ms_p95": 31.0, "failed_frames": 0 },
+  "device": { "thermal": "fair", "battery_pct": 64, "charging": false, "cpu_pct": 42 },
+  "platform": "android",
+  "model": "Pixel 8"
+}

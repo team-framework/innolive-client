@@ -25,10 +25,13 @@ fun LiveVideoPanels(
     remoteVideoTrack: VideoTrack?,
     eglContext: EglBase.Context?,
     isConnected: Boolean,
+    onDeviceProcessing: Boolean = false,
     modifier: Modifier = Modifier,
     localVideoTrack: VideoTrack? = null,
     videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
     onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
+    /** 앱 직접 송출이면 서버에서 돌아오는 영상이 없으므로 카메라를 계속 메인 화면에 둡니다. */
+    isDirectPublish: Boolean = false,
 ) {
     BoxWithConstraints(modifier = modifier) {
         val aspectRatio = if (maxWidth > maxHeight) 16f / 9f else 9f / 16f
@@ -46,15 +49,30 @@ fun LiveVideoPanels(
             .size(pipWidth, pipHeight)
             .clip(shape = RoundedCornerShape(8.dp))
 
-        WebRtcRemotePreview(
-            remoteVideoTrack = if (isConnected) remoteVideoTrack else null,
-            eglContext = eglContext,
-            cameraLensFacing = cameraLensFacing,
-            modifier = (if (isConnected) mainModifier else pipModifier)
-                .zIndex(if (isConnected) 0f else 1f),
-        )
-        Box(modifier = (if (isConnected) pipModifier else mainModifier)
-            .zIndex(if (isConnected) 1f else 0f)) {
+        // 직접 송출도 서버 송출처럼 연결 뒤에는 가림 처리 영상을 메인에, 카메라 원본을 작은 창에 둡니다.
+        val directProcessedMain = isDirectPublish && isConnected && frameAnalyzer != null && eglContext != null
+        val remoteIsMain = if (isDirectPublish) directProcessedMain else isConnected
+        if (isDirectPublish) {
+            if (directProcessedMain) {
+                CameraProcessedPreview(
+                    analyzer = checkNotNull(frameAnalyzer),
+                    cameraLensFacing = cameraLensFacing,
+                    modifier = mainModifier.zIndex(0f),
+                    // 가림 처리 출력 텍스처를 그리려면 분석기와 같은 EGL 컨텍스트를 공유해야 합니다.
+                    sharedEglContext = eglContext,
+                )
+            }
+        } else {
+            WebRtcRemotePreview(
+                remoteVideoTrack = liveMainVideoTrack(onDeviceProcessing, isConnected, localVideoTrack, remoteVideoTrack),
+                eglContext = eglContext,
+                cameraLensFacing = cameraLensFacing,
+                modifier = (if (remoteIsMain) mainModifier else pipModifier)
+                    .zIndex(if (remoteIsMain) 0f else 1f),
+            )
+        }
+        Box(modifier = (if (remoteIsMain) pipModifier else mainModifier)
+            .zIndex(if (remoteIsMain) 1f else 0f)) {
             CameraPreview(
                 cameraLensFacing = cameraLensFacing,
                 cameraResolution = cameraResolution,
@@ -62,10 +80,12 @@ fun LiveVideoPanels(
                 lockedRotation = lockedRotation,
                 videoQualitySettings = videoQualitySettings,
                 onVideoQualityCaptureStateChanged = onVideoQualityCaptureStateChanged,
-                showAdjustedColorPreview = localVideoTrack == null,
+                // 분석기의 가림 처리 미리보기 출력은 하나뿐이므로 메인이 쓰는 동안 작은 창은 원본만 보여 줍니다.
+                showAdjustedColorPreview = if (isDirectPublish) !directProcessedMain else localVideoTrack == null,
+                processedPreviewEglContext = if (isDirectPublish) eglContext else null,
                 modifier = Modifier.fillMaxSize(),
             )
-            if (isConnected && localVideoTrack != null) {
+            if (isConnected && !onDeviceProcessing && localVideoTrack != null) {
                 WebRtcRemotePreview(
                     remoteVideoTrack = localVideoTrack,
                     eglContext = eglContext,
@@ -76,4 +96,12 @@ fun LiveVideoPanels(
             }
         }
     }
+}
+
+/** A locally protected preview must not inherit server return stalls or stale remote frames. */
+internal fun <T> liveMainVideoTrack(onDeviceProcessing: Boolean, isConnected: Boolean,
+    local: T?, remote: T?): T? = when {
+    !isConnected -> null
+    onDeviceProcessing -> local
+    else -> remote
 }

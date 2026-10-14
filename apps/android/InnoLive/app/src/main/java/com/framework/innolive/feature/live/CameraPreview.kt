@@ -64,6 +64,8 @@ fun CameraPreview(
     videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
     onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
     showAdjustedColorPreview: Boolean = true,
+    /** 가림 처리 출력 텍스처를 그릴 EGL 컨텍스트입니다. [CameraProcessedPreview]에 넘깁니다. */
+    processedPreviewEglContext: org.webrtc.EglBase.Context? = null,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -257,6 +259,7 @@ fun CameraPreview(
                 analyzer = frameAnalyzer,
                 cameraLensFacing = cameraLensFacing,
                 modifier = Modifier.fillMaxSize(),
+                sharedEglContext = processedPreviewEglContext,
             )
         }
 

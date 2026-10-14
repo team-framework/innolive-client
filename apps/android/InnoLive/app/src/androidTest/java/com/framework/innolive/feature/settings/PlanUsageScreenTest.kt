@@ -19,12 +19,18 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.width
 import androidx.compose.material3.Surface
 import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastRemainingTime
 import com.framework.innolive.feature.live.BroadcastTimeDisplay
+import com.framework.innolive.feature.live.SessionSnapshot
+import com.framework.innolive.feature.live.displayedRemainingTime
+import com.framework.innolive.feature.live.rememberRemainingCountdown
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import org.junit.Assert.assertEquals
@@ -107,13 +113,89 @@ class PlanUsageScreenTest {
             }
         }
         composeRule.onNodeWithText("00:01:23").assertExists()
-        composeRule.onNodeWithText("12min").performClick()
+        composeRule.onNodeWithText("00:12:00").performClick()
         assertEquals(1, opens)
         saveScreenshot("broadcast-time.png")
         composeRule.runOnIdle { update(BroadcastRemainingTime.Seconds(59)) }
-        composeRule.onNodeWithText("59s").assertExists()
+        composeRule.onNodeWithText("00:00:59").assertExists()
         composeRule.runOnIdle { update(BroadcastRemainingTime.UnlimitedOrInactive) }
         composeRule.onNodeWithText(context.getString(R.string.plan_unlimited)).assertExists()
+    }
+
+    @Test fun dividerSitsAtTheHorizontalCenterWithTimesOnEachSide() {
+        lateinit var update: (BroadcastRemainingTime) -> Unit
+        composeRule.setContent {
+            var remaining by remember { mutableStateOf<BroadcastRemainingTime>(BroadcastRemainingTime.Seconds(43_200)) }
+            update = { remaining = it }
+            Box(Modifier.fillMaxWidth().background(Color.Black)) {
+                BroadcastTimeDisplay("00:01:23", remaining, false, {}, Modifier.padding(horizontal = 16.dp))
+            }
+        }
+        composeRule.onNodeWithText("12:00:00", useUnmergedTree = true).assertExists()
+        assertSymmetricAroundCenter("12:00:00")
+        saveScreenshot("broadcast-time-centered.png")
+        composeRule.runOnIdle { update(BroadcastRemainingTime.Unknown) }
+        assertSymmetricAroundCenter("—")
+    }
+
+    /** 방송 시간 오른쪽 끝과 남은 시간 왼쪽 끝이 화면 가운데에서 같은 거리에 있어야 한다. */
+    private fun assertSymmetricAroundCenter(remainingText: String) {
+        val rootWidth = composeRule.onRoot().getUnclippedBoundsInRoot().width
+        val center = rootWidth / 2
+        val uptime = composeRule.onNodeWithText("00:01:23", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val remaining = composeRule.onNodeWithText(remainingText, useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val leftGap = center - uptime.right
+        val rightGap = remaining.left - center
+        assertTrue("left=$leftGap right=$rightGap", leftGap > 0.dp && rightGap > 0.dp)
+        assertEquals(leftGap.value, rightGap.value, 1f)
+    }
+
+    @Test fun sameSessionKeepsItsRemainingTimeAfterTheBroadcastEnds() {
+        // 1회 12시간, 월 240시간 요금제. 세션 값이 없으면 12:00:00을 보여 준다.
+        val usage = PlanUsage(
+            plan = "pro", allowedModes = listOf("720p_single"), monthlySeconds = 864_000,
+            maxBroadcastSeconds = 43_200, usedSeconds = 0, remainingSeconds = 864_000,
+            modes = listOf(ModeAvailability("720p_single", true, 864_000, 1)),
+        )
+        var live by mutableStateOf(false)
+        var snapshot by mutableStateOf<SessionSnapshot?>(null)
+        composeRule.setContent {
+            Box(Modifier.fillMaxWidth().background(Color.Black)) {
+                // Live.kt와 같은 조합으로 화면 값을 만든다.
+                BroadcastTimeDisplay(
+                    uptime = if (live) "00:05:00" else "00:00:00",
+                    remaining = rememberRemainingCountdown(
+                        displayedRemainingTime(live, snapshot, usage),
+                        counting = false,
+                    ),
+                    isStale = false,
+                    onOpenPlan = {},
+                )
+            }
+        }
+        // 세션 생성 직후 서버 값이 오기 전: 요금제 기준 12시간
+        composeRule.runOnIdle { snapshot = SessionSnapshot("s") }
+        composeRule.onNodeWithText("12:00:00", useUnmergedTree = true).assertExists()
+        // 5분 방송 중: 서버가 11:55:00을 보낸다.
+        composeRule.runOnIdle {
+            live = true
+            snapshot = SessionSnapshot("s", remainingTime = BroadcastRemainingTime.Seconds(42_900))
+        }
+        composeRule.onNodeWithText("00:05:00", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithText("11:55:00", useUnmergedTree = true).assertExists()
+        // 같은 세션에서 방송 종료: 방송 시간은 0으로, 남은 시간은 세션 값 그대로
+        composeRule.runOnIdle { live = false }
+        composeRule.onNodeWithText("00:00:00", useUnmergedTree = true).assertExists()
+        composeRule.onNodeWithText("11:55:00", useUnmergedTree = true).assertExists()
+        saveScreenshot("broadcast-time-after-stop.png")
+        // 이후 폴링에서 서버가 null을 보내도 같은 세션의 마지막 남은 시간을 유지한다.
+        composeRule.runOnIdle {
+            snapshot = snapshot?.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive, lastRemainingSeconds = 42_900)
+        }
+        composeRule.onNodeWithText("11:55:00", useUnmergedTree = true).assertExists()
+        // 새 세션: 서버가 다시 12시간을 보낸다.
+        composeRule.runOnIdle { snapshot = SessionSnapshot("s2", remainingTime = BroadcastRemainingTime.Seconds(43_200)) }
+        composeRule.onNodeWithText("12:00:00", useUnmergedTree = true).assertExists()
     }
 
     @Test fun staleSessionKeepsRemainingValueWithVisibleStatusAndAccessibleLabels() {
@@ -123,7 +205,7 @@ class PlanUsageScreenTest {
             }
         }
         composeRule.onNodeWithText(context.getString(R.string.plan_session_stale)).assertExists()
-        composeRule.onNodeWithContentDescription(context.getString(R.string.plan_remaining_description, "12min")).assertExists()
+        composeRule.onNodeWithContentDescription(context.getString(R.string.plan_remaining_description, "00:12:00")).assertExists()
         saveScreenshot("broadcast-time-stale.png")
     }
 
