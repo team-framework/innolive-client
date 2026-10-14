@@ -895,3 +895,10 @@ RTMP 송출을 실행하지 않았다.
 목표 비트레이트 최대 5696kbps, 평균 28.8fps, 28fps 미만 4개(12%)였고 하락은 추정 대역폭이
 540kbps~1.2Mbps로 내려간 구간과 겹쳤다. 두 방송 모두 송신 해상도 전환 0회, 인코더 재생성
 1회였다.
+
+같은 날 서버 `/metrics`(서버 재시작 이후 누적)는 `frame_received_total` 37786에
+`frame_dropped_total` 10516, `ai_duration_seconds` 평균 34.9ms, 마지막 egress의
+`egress_dup_frames` 394·`egress_drop_frames` 39였다. 서버 AI 처리가 프레임당 33.3ms를
+넘어 디코드 큐(`AI_FRAME_QUEUE_SIZE=2`)에서 프레임을 버리고 CFR egress가 직전 프레임을
+복제하는 양이 폰이 못 보낸 약 5%보다 크다. 남은 미세 끊김은 서버 AI 처리량 문제로
+innolive-server·innolive-ai에서 다룬다.
