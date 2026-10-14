@@ -35,4 +35,8 @@
     <string name="error_broadcast_stopped">The broadcast ended while going live. Please start again.</string>
     <string name="error_channel_in_use_by_other_account">Another InnoLive account is streaming to this channel. Please try again after that broadcast ends.</string>
     <string name="error_youtube_channel_required">Several YouTube channels are connected. Reconnect your YouTube account with the channel to stream to.</string>
+    <string name="broadcast_menu_mode">Quality and platforms</string>
+    <string name="broadcast_menu_not_selected">Not selected</string>
+    <string name="broadcast_menu_needs_details">Needs details</string>
+    <string name="broadcast_menu_chzzk">CHZZK</string>
 </resources>

@@ -80,7 +80,6 @@ import kotlin.math.roundToInt
 
 enum class BroadcastTutorialAnchor {
     PRIMARY_BUTTON,
-    PLATFORM_OPTIONS,
     CONNECT_ACCOUNT,
     START_PREPARATION,
     LIVE_STATUS,
@@ -140,7 +139,6 @@ fun Modifier.broadcastTutorialAnchor(anchor: BroadcastTutorialAnchor): Modifier 
 val BroadcastTutorialStep.titleRes: Int
     get() = when (this) {
         BroadcastTutorialStep.OPEN_PREPARATION -> R.string.tutorial_open_preparation_title
-        BroadcastTutorialStep.CHOOSE_PLATFORM -> R.string.tutorial_choose_platform_title
         BroadcastTutorialStep.CONNECT_ACCOUNT -> R.string.tutorial_connect_account_title
         BroadcastTutorialStep.START_PREPARATION -> R.string.tutorial_start_preparation_title
         BroadcastTutorialStep.WAIT_FOR_PREPARATION -> R.string.tutorial_wait_preparation_title
@@ -152,7 +150,6 @@ val BroadcastTutorialStep.titleRes: Int
 val BroadcastTutorialStep.messageRes: Int
     get() = when (this) {
         BroadcastTutorialStep.OPEN_PREPARATION -> R.string.tutorial_open_preparation_message
-        BroadcastTutorialStep.CHOOSE_PLATFORM -> R.string.tutorial_choose_platform_message
         BroadcastTutorialStep.CONNECT_ACCOUNT -> R.string.tutorial_connect_account_message
         BroadcastTutorialStep.START_PREPARATION -> R.string.tutorial_start_preparation_message
         BroadcastTutorialStep.WAIT_FOR_PREPARATION -> R.string.tutorial_wait_preparation_message
@@ -163,7 +160,6 @@ val BroadcastTutorialStep.messageRes: Int
 fun BroadcastTutorialStep.anchor(host: BroadcastTutorialHost): BroadcastTutorialAnchor? = when (this) {
     BroadcastTutorialStep.OPEN_PREPARATION,
     BroadcastTutorialStep.GO_LIVE -> BroadcastTutorialAnchor.PRIMARY_BUTTON
-    BroadcastTutorialStep.CHOOSE_PLATFORM -> BroadcastTutorialAnchor.PLATFORM_OPTIONS
     BroadcastTutorialStep.CONNECT_ACCOUNT -> BroadcastTutorialAnchor.CONNECT_ACCOUNT
     BroadcastTutorialStep.START_PREPARATION -> BroadcastTutorialAnchor.START_PREPARATION
     BroadcastTutorialStep.WAIT_FOR_PREPARATION ->

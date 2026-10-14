@@ -124,7 +124,7 @@ class SimulcastRetryUiTest {
         compose.onNode(hasText(label(R.string.broadcast_state_prepared)) and hasClickAction()).performClick()
         compose.onNodeWithText(label(R.string.action_start_broadcast)).assertIsDisplayed()
         compose.onNodeWithText(label(R.string.simulcast_action_retry_remaining)).performClick()
-        // 준비된 YouTube를 취소하지 않고 남은 치지직 설정만 다시 엽니다.
+        // 준비된 YouTube를 취소하지 않고 방송 설정 메뉴 위에 남은 치지직 설정을 엽니다.
         compose.onNodeWithText(label(R.string.chzzk_settings_title)).assertIsDisplayed()
         compose.runOnIdle { assertEquals(BroadcastState.PREPARED, session.broadcastState) }
     }

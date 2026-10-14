@@ -1,8 +1,6 @@
 <resources>
     <string name="tutorial_open_preparation_title">まずは配信の準備から</string>
     <string name="tutorial_open_preparation_message">このボタンを押すと、配信するプラットフォームとタイトルを決められます。</string>
-    <string name="tutorial_choose_platform_title">配信するプラットフォームを選びます</string>
-    <string name="tutorial_choose_platform_message">配信するプラットフォームを押してください。あとで配信設定のプラットフォーム変更から変えられます。</string>
     <string name="tutorial_connect_account_title">配信するアカウントを連携します</string>
     <string name="tutorial_connect_account_message">表示されたボタンからアカウントを連携してください。連携して戻ると次のステップに進みます。</string>
     <string name="tutorial_start_preparation_title">タイトルを確認して準備します</string>

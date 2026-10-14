@@ -4,7 +4,6 @@ import com.framework.innolive.feature.live.BroadcastState
 
 enum class BroadcastTutorialStep {
     OPEN_PREPARATION,
-    CHOOSE_PLATFORM,
     CONNECT_ACCOUNT,
     START_PREPARATION,
     WAIT_FOR_PREPARATION,
@@ -15,13 +14,11 @@ enum class BroadcastTutorialStep {
 /** 안내를 그릴 화면. Dialog는 홈과 다른 창이라 각자 안내를 그린다. */
 enum class BroadcastTutorialHost {
     HOME,
-    PLATFORM_DIALOG,
     SETTINGS_DIALOG,
 }
 
 enum class BroadcastTutorialDialog {
     NONE,
-    PLATFORM,
     SETTINGS,
 }
 
@@ -65,10 +62,6 @@ object BroadcastTutorialPolicy {
         if (snapshot.hasStartedBroadcast || snapshot.broadcastState in endedStates) return null
         val isPreparing = snapshot.isPreparingBroadcast || snapshot.broadcastState in preparingStates
         return when (snapshot.openDialog) {
-            BroadcastTutorialDialog.PLATFORM -> BroadcastTutorialStage(
-                BroadcastTutorialStep.CHOOSE_PLATFORM,
-                BroadcastTutorialHost.PLATFORM_DIALOG,
-            )
             BroadcastTutorialDialog.SETTINGS -> BroadcastTutorialStage(
                 when {
                     snapshot.broadcastState == BroadcastState.FAILED -> BroadcastTutorialStep.RETRY_PREPARATION
@@ -91,12 +84,10 @@ object BroadcastTutorialPolicy {
         }
     }
 
-    /** 플랫폼 선택은 방송 준비 버튼을 누른 뒤 이어지는 같은 단계로 센다. */
     fun progress(step: BroadcastTutorialStep, includesAccountStep: Boolean): BroadcastTutorialProgress {
         val accountOffset = if (includesAccountStep) 1 else 0
         val index = when (step) {
-            BroadcastTutorialStep.OPEN_PREPARATION,
-            BroadcastTutorialStep.CHOOSE_PLATFORM -> 1
+            BroadcastTutorialStep.OPEN_PREPARATION -> 1
             BroadcastTutorialStep.CONNECT_ACCOUNT -> 2
             BroadcastTutorialStep.START_PREPARATION -> 2 + accountOffset
             BroadcastTutorialStep.WAIT_FOR_PREPARATION,

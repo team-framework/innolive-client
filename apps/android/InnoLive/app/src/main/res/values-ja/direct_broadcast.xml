@@ -35,4 +35,8 @@
     <string name="error_broadcast_stopped">ライブへの切り替え中に配信が終了しました。もう一度開始してください。</string>
     <string name="error_channel_in_use_by_other_account">別のInnoLiveアカウントがこのチャンネルで配信中です。その配信が終わってからもう一度お試しください。</string>
     <string name="error_youtube_channel_required">複数のYouTubeチャンネルが連携されています。配信するチャンネルでYouTubeアカウントを連携し直してください。</string>
+    <string name="broadcast_menu_mode">配信画質と配信先</string>
+    <string name="broadcast_menu_not_selected">配信しない</string>
+    <string name="broadcast_menu_needs_details">設定が必要</string>
+    <string name="broadcast_menu_chzzk">CHZZK</string>
 </resources>
