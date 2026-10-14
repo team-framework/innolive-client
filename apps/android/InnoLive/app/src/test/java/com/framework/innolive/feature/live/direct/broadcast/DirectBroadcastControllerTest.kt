@@ -40,6 +40,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import java.util.concurrent.Executor
 
 class DirectBroadcastControllerTest {
     private val youtubeUrl = IngestUrl.parse("rtmps://a.rtmp.youtube.com/live2/youtube-key")
@@ -65,6 +66,7 @@ class DirectBroadcastControllerTest {
     private fun controller(
         plan: DirectBroadcastPlan = DirectBroadcastPlan(),
         provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
+        io: Executor = Executor { it.run() },
     ) = DirectBroadcastController(
         LiveBroadcastCallbacks(
             onStateChanged = { state, failure -> connections += state to failure },
@@ -96,7 +98,7 @@ class DirectBroadcastControllerTest {
             },
             keepAlive = keepAlive,
             owner = scheduler,
-            io = { it.run() },
+            io = io,
             callbacks = { it.run() },
             elapsedRealtimeMillis = { now },
             log = logs::add,
@@ -576,6 +578,37 @@ class DirectBroadcastControllerTest {
         assertTrue("disconnect:youtube" in media.engine.calls)
         assertEquals(BroadcastState.IDLE, states.last().first)
         assertTrue(snapshots.isNotEmpty())
+    }
+
+    @Test fun pollRequestedBeforeGoLiveDoesNotEndLiveBroadcast() {
+        val pending = ArrayDeque<Runnable>()
+        val controller = connected(controller(io = Executor { pending.addLast(it) }))
+        // 준비 전 IDLE에서 보낸 조회가 서버 idle 응답으로 방송 시작 뒤에 돌아옵니다.
+        scheduler.advance(2_000)
+        assertEquals(1, pending.size)
+        server.sessionPayload = """{"session_id":"session-1","targets":[{"provider":"youtube","stream":{"status":"idle","broadcast_phase":"idle"}}]}"""
+        val stale = pending.removeFirst()
+
+        assertTrue(controller.prepareBroadcast(settings, false))
+        scheduler.runUntilIdle()
+        media.engine.emit(BroadcastProvider.YOUTUBE, RtmpTargetState.PUBLISHING)
+        scheduler.runUntilIdle()
+        live(controller)
+        assertEquals(BroadcastState.LIVE, states.last().first)
+
+        stale.run()
+        scheduler.runUntilIdle()
+
+        assertEquals(BroadcastState.LIVE, states.last().first)
+        assertFalse("disconnect:youtube" in media.engine.calls)
+        assertFalse("delete:session-1" in server.calls)
+
+        // 폴링은 이어지고, 방송 중에 보낸 조회의 idle 응답은 반영합니다.
+        scheduler.advance(2_000)
+        pending.removeFirst().run()
+        scheduler.runUntilIdle()
+        assertTrue("disconnect:youtube" in media.engine.calls)
+        assertEquals(BroadcastState.IDLE, states.last().first)
     }
 
     @Test fun reconnectSupervisorDrivesReconnectAndGiveUp() {
