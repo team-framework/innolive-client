@@ -1209,15 +1209,21 @@ internal class WebRtcConnection(
     /** Applied before the offer so the first keyframe already uses the session's bitrate budget. */
     private fun applyUplinkPolicy(connection: PeerConnection) {
         val sender = videoSender ?: return
-        uplinkDegradationPreferenceForAI(onDeviceProcessing)?.let { preference ->
+        val preference = uplinkDegradationPreferenceForAI(onDeviceProcessing)
+        val policy = uplinkBitratePolicyForAI(onDeviceProcessing, broadcastResolution)
+        if (preference != null || policy != null) {
             val parameters = sender.parameters
-            parameters.degradationPreference = preference
-            if (sender.setParameters(parameters)) Log.i("PrivacyPipeline", "uplink_degradation=$preference")
-            else Log.w("PrivacyPipeline", "uplink_degradation=default")
+            preference?.let { parameters.degradationPreference = it }
+            // setBitrate only bounds the estimator; the encoder keeps libwebrtc's 2500kbps
+            // 1080p default until the encoding's own maximum is raised.
+            policy?.let { budget -> parameters.encodings.forEach { it.maxBitrateBps = budget.maxBps } }
+            if (sender.setParameters(parameters)) Log.i("PrivacyPipeline",
+                "uplink_sender degradation=$preference encoding_max_bps=${policy?.maxBps}")
+            else Log.w("PrivacyPipeline", "uplink_sender=default")
         }
-        uplinkBitratePolicyForAI(onDeviceProcessing, broadcastResolution)?.let { policy ->
-            val applied = connection.setBitrate(null, policy.startBps, policy.maxBps)
-            Log.i("PrivacyPipeline", "uplink_bitrate start_bps=${policy.startBps} max_bps=${policy.maxBps} applied=$applied")
+        policy?.let { budget ->
+            val applied = connection.setBitrate(null, budget.startBps, budget.maxBps)
+            Log.i("PrivacyPipeline", "uplink_bitrate start_bps=${budget.startBps} max_bps=${budget.maxBps} applied=$applied")
         }
     }
 
