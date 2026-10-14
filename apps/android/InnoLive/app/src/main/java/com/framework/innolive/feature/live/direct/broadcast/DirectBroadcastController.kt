@@ -96,6 +96,9 @@ internal class DirectBroadcastController internal constructor(
 
     private val started = AtomicBoolean(false)
     private val closed = AtomicBoolean(false)
+    private val closeLock = Any()
+    private val closeCallbacks = mutableListOf<() -> Unit>()
+    private var closeFinished = false
     private val operation = AtomicBoolean(false)
 
     @Volatile private var broadcastState = BroadcastState.IDLE
@@ -182,10 +185,13 @@ internal class DirectBroadcastController internal constructor(
     }
 
     override fun close(onComplete: (() -> Unit)?) {
-        if (!closed.compareAndSet(false, true)) {
-            onComplete?.let { done -> env.callbacks.execute { done() } }
-            return
+        var completeNow: (() -> Unit)? = null
+        val shouldClean = synchronized(closeLock) {
+            onComplete?.let { done -> if (closeFinished) completeNow = done else closeCallbacks += done }
+            closed.compareAndSet(false, true)
         }
+        completeNow?.let { done -> env.callbacks.execute { done() } }
+        if (!shouldClean) return
         env.owner.execute {
             invalidateWait()
             try {
@@ -195,7 +201,11 @@ internal class DirectBroadcastController internal constructor(
                 env.log("close_cleanup_failed type=${exception.javaClass.simpleName}")
             }
             releaseResources()
-            onComplete?.let { done -> env.callbacks.execute { done() } }
+            val callbacks = synchronized(closeLock) {
+                closeFinished = true
+                closeCallbacks.toList().also { closeCallbacks.clear() }
+            }
+            callbacks.forEach { done -> env.callbacks.execute { done() } }
             env.io.shutdown()
             env.owner.shutdown()
         }
