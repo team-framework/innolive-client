@@ -172,7 +172,7 @@ private fun LiveScreenContent(
     }
     val context = LocalContext.current
     val providerPreferences = remember(context) {
-        context.getSharedPreferences("innolive_broadcast_provider", android.content.Context.MODE_PRIVATE)
+        context.getSharedPreferences(BROADCAST_PROVIDER_PREFERENCES, android.content.Context.MODE_PRIVATE)
     }
     var selectedPlatform by rememberSaveable {
         mutableStateOf(providerPreferences.getString("selected", null))
