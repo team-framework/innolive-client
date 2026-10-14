@@ -104,7 +104,6 @@
     <string name="audience_not_made_for_kids">아동용 아님</string>
     <string name="live_settings_title">라이브 설정</string>
     <string name="label_account_information">계정 정보</string>
-    <string name="action_save_and_close">저장 및 닫기</string>
     <string name="action_prepare_broadcast">방송 준비</string>
     <string name="validation_broadcast_title">방송 제목을 입력해 주세요.</string>
     <string name="validation_broadcast_description">방송 설명을 입력해 주세요.</string>

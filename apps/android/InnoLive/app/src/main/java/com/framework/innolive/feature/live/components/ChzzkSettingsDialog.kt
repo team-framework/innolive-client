@@ -61,7 +61,10 @@ internal fun ChzzkSettingsDialog(
                     Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(stringResource(R.string.chzzk_settings_title))
+                    BroadcastDialogHeader(
+                        title = stringResource(R.string.chzzk_settings_title),
+                        onClose = onDismiss,
+                    )
                     onChangePlatform?.let { change ->
                         TextButton(onClick = change, enabled = !isBusy) { Text(stringResource(R.string.action_change_platform)) }
                     }
@@ -78,17 +81,24 @@ internal fun ChzzkSettingsDialog(
                         onSearch = onSearch,
                     )
                     val invalidField = settings.validationField()
-                    Row {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         onPrepare?.let { prepare ->
                             Button(
                                 onClick = prepare,
                                 enabled = canPrepare && !isBusy && invalidField == null,
-                                modifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.START_PREPARATION),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .broadcastTutorialAnchor(BroadcastTutorialAnchor.START_PREPARATION),
                             ) {
                                 Text(stringResource(R.string.action_prepare_broadcast))
                             }
                         }
-                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
+                        Button(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.direct_mode_done))
+                        }
                     }
                 }
             }

@@ -17,6 +17,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -175,9 +176,9 @@ internal fun BroadcastModeDialog(
                 modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    stringResource(R.string.broadcast_menu_mode),
-                    style = MaterialTheme.typography.titleLarge,
+                BroadcastDialogHeader(
+                    title = stringResource(R.string.broadcast_menu_mode),
+                    onClose = onDismiss,
                 )
                 BroadcastPlanSelector(
                     state = state,
@@ -188,8 +189,8 @@ internal fun BroadcastModeDialog(
                     onConnectAccount = onConnectAccount,
                     canConnectAccount = canConnectAccount,
                 )
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.direct_mode_done)) }
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.direct_mode_done))
                 }
             }
         }

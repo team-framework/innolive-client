@@ -289,7 +289,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
             }
         }
 
-        composeRule.onNodeWithText(text(R.string.action_save_and_close)).performClick()
+        composeRule.onNodeWithText(text(R.string.direct_mode_done)).performClick()
         composeRule.onNodeWithText(text(R.string.validation_broadcast_title)).assertIsDisplayed()
         composeRule.onNodeWithText(text(R.string.validation_broadcast_description)).assertIsDisplayed()
         composeRule.onNodeWithText(text(R.string.validation_audience)).assertIsDisplayed()
@@ -310,7 +310,7 @@ class YouTubeLiveSettingsDialogInteractionTest {
             .performClick()
         composeRule.onAllNodesWithText(text(R.string.validation_audience)).assertCountEquals(0)
 
-        composeRule.onNodeWithText(text(R.string.action_save_and_close)).performClick()
+        composeRule.onNodeWithText(text(R.string.direct_mode_done)).performClick()
         composeRule.onNodeWithText("dismissed").assertIsDisplayed()
     }
 
