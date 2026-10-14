@@ -49,7 +49,7 @@ internal class BroadcastSettingsMenuItem(
 )
 
 /**
- * 방송 준비 버튼이 여는 방송 설정 메뉴입니다. YouTube·치지직·방송 화질 및 송출할 플랫폼을 고르면
+ * 방송 준비 버튼이 여는 방송 설정 메뉴입니다. YouTube·치지직·화질 및 플랫폼을 고르면
  * 각 기존 설정 창이 열리고, 닫으면 이 메뉴로 돌아옵니다. 방송 준비는 이 메뉴에서만 시작합니다.
  */
 @Composable
