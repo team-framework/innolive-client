@@ -95,6 +95,8 @@ internal data class DirectProviderOption(
     val selected: Boolean,
     val accountConnected: Boolean,
     val block: DirectModeBlock?,
+    /** 요금제가 동시 송출을 허용하지 않아, 고르면 지금 플랫폼 대신 이 플랫폼 하나로 바꿉니다. */
+    val replacesSelection: Boolean = false,
 ) {
     val enabled: Boolean get() = block == null
 }
@@ -142,6 +144,9 @@ internal fun directBroadcastModeState(
     val providers = DirectProviderOrder.map { provider ->
         val selected = provider in plan.providers
         val connected = accountConnected(provider)
+        val canAdd = planUsage.allows(plan.resolution.planMode(count + 1))
+        // 동시 송출은 안 되지만 단독 송출은 되면, 추가 대신 교체로 다른 플랫폼을 고를 수 있게 합니다.
+        val canReplace = !canAdd && planUsage.allows(plan.resolution.planMode(1))
         DirectProviderOption(
             provider = provider,
             selected = selected,
@@ -151,9 +156,10 @@ internal fun directBroadcastModeState(
                 selected && count == 1 -> DirectModeBlock.LAST_TARGET
                 selected -> null
                 !connected -> DirectModeBlock.ACCOUNT
-                !planUsage.allows(plan.resolution.planMode(count + 1)) -> DirectModeBlock.PLAN
+                !canAdd && !canReplace -> DirectModeBlock.PLAN
                 else -> null
             },
+            replacesSelection = !selected && canReplace,
         )
     }
     val mode = plan.planMode()
@@ -173,7 +179,11 @@ internal fun DirectBroadcastModeState.selectResolution(resolution: DirectPublish
 
 internal fun DirectBroadcastModeState.toggleProvider(provider: BroadcastProvider): DirectBroadcastPlan? {
     val option = providers.firstOrNull { it.provider == provider }?.takeIf { it.enabled } ?: return null
-    val next = if (option.selected) plan.providers - provider else plan.providers + provider
+    val next = when {
+        option.selected -> plan.providers - provider
+        option.replacesSelection -> setOf(provider)
+        else -> plan.providers + provider
+    }
     return if (next.isEmpty()) null else plan.copy(providers = next)
 }
 

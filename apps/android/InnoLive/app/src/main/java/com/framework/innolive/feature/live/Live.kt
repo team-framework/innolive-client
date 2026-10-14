@@ -95,6 +95,7 @@ import com.framework.innolive.feature.live.tutorial.BroadcastTutorialDialog
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialHomeOverlay
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialHost
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialSnapshot
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialStep
 import com.framework.innolive.feature.live.tutorial.LocalBroadcastTutorialAnchors
 import com.framework.innolive.feature.live.tutorial.broadcastTutorialAnchor
 import com.framework.innolive.feature.live.tutorial.guideFor
@@ -510,6 +511,10 @@ private fun LiveScreenContent(
                         },
                         locked = isDirectModeLocked,
                     )
+                    val settingsGuide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG)
+                    val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
+                    // 편집 창이 메뉴를 가리므로 계정 연결 안내는 실제 연결 버튼이 있는 편집 창에 보여 줍니다.
+                    val editorGuide = settingsGuide?.takeIf { it.step == BroadcastTutorialStep.CONNECT_ACCOUNT }
                     if (openSettingsDialog) {
                         val notSelected = stringResource(R.string.broadcast_menu_not_selected)
                         val needsDetails = stringResource(R.string.broadcast_menu_needs_details)
@@ -586,13 +591,14 @@ private fun LiveScreenContent(
                                 openSettingsDialog = false
                                 webRtcSession.dismissServerError()
                             },
-                            guide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG),
+                            guide = settingsGuide.takeIf { !editorOpen },
                         )
                     }
                     if (openYouTubeEditor) {
-                        // 방송 안내는 메뉴에서만 보여 줍니다. 편집 창에는 방송 준비 버튼이 없습니다.
+                        // 편집 창에는 방송 준비 버튼이 없으므로 계정 연결 단계 안내만 보여 줍니다.
                         YouTubeLiveSettingsDialog(
                             settings = props.broadcastSettings,
+                            guide = editorGuide,
                             youtubeChannelTitle = props.youtubeChannelTitle,
                             hasYouTubeAccount = props.hasYouTubeAccount,
                             youtubeAccountStatus = props.youtubeAccountStatus,
@@ -611,6 +617,7 @@ private fun LiveScreenContent(
                     if (openChzzkEditor) {
                         ChzzkSettingsDialog(
                             settings = chzzkSettings,
+                            guide = editorGuide,
                             accountLabel = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage),
                             canConnect = props.profileEmail.isNotBlank(),
                             canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
@@ -678,9 +685,10 @@ private fun LiveScreenContent(
                             state = broadcastPlanState,
                             // 서버 송출은 서버 기본 화질(720p)로 보내므로 화질을 고르지 않습니다.
                             showResolution = isDirectMode,
-                            onPlanChanged = { plan ->
+                            onPlanChanged = { selected ->
+                                val plan = storedBroadcastPlan(selected, webRtcSession.directBroadcastPlan, isDirectMode)
                                 if (webRtcSession.selectDirectBroadcastPlan(plan)) {
-                                    directModeUserSelected = true
+                                    if (isDirectMode) directModeUserSelected = true
                                     webRtcSession.selectProviders(plan.providers)
                                     selectedPlatform = platformPreferenceOf(plan.providers)
                                 }
@@ -1134,6 +1142,13 @@ private val SimulcastProviders = setOf(BroadcastProvider.YOUTUBE, BroadcastProvi
 /** 서버 송출은 서버 기본 화질(720p)로 보내므로 표시와 요금제 판단도 720p로 합니다. */
 internal fun effectiveBroadcastPlan(plan: DirectBroadcastPlan, onDevice: Boolean): DirectBroadcastPlan =
     if (onDevice) plan else plan.copy(resolution = DirectPublishResolution.HD_720)
+
+/** 서버 송출 화면의 720p는 표시용이므로 저장할 때는 온디바이스용으로 고른 화질을 그대로 둡니다. */
+internal fun storedBroadcastPlan(
+    selected: DirectBroadcastPlan,
+    current: DirectBroadcastPlan,
+    onDevice: Boolean,
+): DirectBroadcastPlan = if (onDevice) selected else selected.copy(resolution = current.resolution)
 
 /** 기존 저장값(`YouTube`·`CHZZK`·`SIMULCAST`)과 같은 형식으로 플랫폼 선택을 저장합니다. */
 internal fun platformPreferenceOf(providers: Set<BroadcastProvider>): String = when {
