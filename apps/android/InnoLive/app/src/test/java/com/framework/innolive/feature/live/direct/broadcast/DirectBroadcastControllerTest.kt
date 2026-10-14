@@ -234,6 +234,17 @@ class DirectBroadcastControllerTest {
         assertEquals(BroadcastState.FAILED, states.last().first)
     }
 
+    @Test fun publisherFailureEndsPreparedBroadcastAndDeletesSession() {
+        preparedYouTube()
+        media.engine.failPublisher(IllegalStateException("encoder"))
+        scheduler.runUntilIdle()
+
+        assertTrue("delete:session-1" in server.calls)
+        assertTrue(media.engine.closed)
+        assertEquals(BroadcastState.FAILED, states.last().first)
+        assertTrue(logs.any { it.startsWith("publisher_failed") })
+    }
+
     @Test fun channelAlreadyLiveAsksForConfirmationAndRetriesConcurrently() {
         val controller = connected(controller())
         server.prepareFailures += ServerApiException("channel_already_live", statusCode = 409)
@@ -753,6 +764,8 @@ class DirectBroadcastControllerTest {
         fun emit(provider: BroadcastProvider, state: RtmpTargetState, failure: RtmpFailure? = null) =
             listener.onTargetStateChanged(provider, state, failure)
 
+        fun failPublisher(error: Exception) = listener.onPublisherFailed(error)
+
         override fun connect(provider: BroadcastProvider, ingestUrl: IngestUrl) {
             calls += "connect:${provider.wireValue}"
             urls[provider] = ingestUrl
@@ -873,7 +886,11 @@ internal class ManualScheduler : SerialScheduler {
     override fun shutdown() = Unit
 
     fun runUntilIdle() {
-        while (queue.isNotEmpty()) queue.removeFirst()()
+        var steps = 0
+        while (queue.isNotEmpty()) {
+            check(++steps <= 10_000) { "작업이 끝나지 않습니다." }
+            queue.removeFirst()()
+        }
     }
 
     fun advance(millis: Long) {
