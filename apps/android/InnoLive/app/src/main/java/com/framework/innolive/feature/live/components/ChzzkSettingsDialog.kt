@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -133,7 +132,7 @@ internal fun ChzzkSettingsFields(
         }
         OutlinedTextField(settings.title, { onChanged(settings.copy(title = it)) },
             label = { Text(stringResource(R.string.label_broadcast_title)) }, singleLine = true,
-            modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth())
+            modifier = Modifier.fillMaxWidth())
         OutlinedTextField(query, { query = it }, label = { Text(stringResource(R.string.chzzk_label_category_search)) },
             modifier = Modifier.fillMaxWidth())
         Button(onClick = {
