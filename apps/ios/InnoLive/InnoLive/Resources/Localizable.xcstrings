@@ -15,6 +15,12 @@
             "state": "translated",
             "value": "On"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オン"
+          }
         }
       }
     },
@@ -31,6 +37,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフ"
           }
         }
       }
@@ -49,6 +61,12 @@
             "state": "translated",
             "value": "Turn screen blur off"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしをオフにする"
+          }
         }
       }
     },
@@ -65,6 +83,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Turn screen blur on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしをオンにする"
           }
         }
       }
@@ -83,6 +107,12 @@
             "state": "translated",
             "value": "Blurs the entire preview and broadcast in server processing mode."
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー処理モードで、プレビューと配信映像の全体をぼかします。"
+          }
         }
       }
     },
@@ -99,6 +129,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Turn screen blur off before changing AI processing mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしをオフにすると、AIの処理方式を変更できます。"
           }
         }
       }
