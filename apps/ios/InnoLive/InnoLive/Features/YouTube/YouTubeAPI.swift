@@ -73,12 +73,14 @@ private struct YouTubeEmptyRequest: Encodable {}
 /// `POST /sessions` 본문이다. 서버 처리는 기존처럼 빈 본문을 보낸다.
 /// 온디바이스는 공유 계약(direct-publish-v1)의 최상위 `ai_processing`을 보낸다. 처리 방식을
 /// 돌려주지 않는 구 서버와 협상하도록 `metadata.ai_processing`도 함께 보낸다(서버는 최상위 값을 먼저 쓴다).
-/// 해상도는 보내지 않는다. 서버 기본값(720p)에 맞춰 카메라 화질을 맞추므로 송출 해상도와 같다.
+/// 서버 송출은 기본 해상도를 사용하고 온디바이스 송출은 선택한 카메라 해상도를 전달한다.
 struct YouTubeSessionCreateRequest: Encodable, Equatable {
     let aiProcessing: String?
+    let broadcastResolution: String?
     let metadata: [String: String]?
 
-    init(mode: AIProcessingMode) {
+    init(mode: AIProcessingMode, broadcastResolution: String? = nil) {
+        self.broadcastResolution = mode == .onDevice ? broadcastResolution : nil
         aiProcessing = mode == .server ? nil : mode.rawValue
         metadata = mode == .server ? nil : ["ai_processing": mode.rawValue]
     }
@@ -86,6 +88,7 @@ struct YouTubeSessionCreateRequest: Encodable, Equatable {
     enum CodingKeys: String, CodingKey {
         case metadata
         case aiProcessing = "ai_processing"
+        case broadcastResolution = "broadcast_resolution"
     }
 }
 
@@ -239,12 +242,12 @@ final class YouTubeAPI: PlanAPIClient {
         }
     }
 
-    func createSession(accessToken: String, mode: AIProcessingMode = .server) async throws -> YouTubeBroadcastSession {
+    func createSession(accessToken: String, mode: AIProcessingMode = .server, broadcastResolution: String? = nil) async throws -> YouTubeBroadcastSession {
         try await request(
             path: "/sessions",
             method: "POST",
             accessToken: accessToken,
-            body: YouTubeSessionCreateRequest(mode: mode),
+            body: YouTubeSessionCreateRequest(mode: mode, broadcastResolution: broadcastResolution),
             preserveCreatedSession: true
         )
     }

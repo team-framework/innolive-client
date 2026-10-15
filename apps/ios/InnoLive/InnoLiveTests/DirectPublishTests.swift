@@ -480,6 +480,8 @@ final class DirectPublishIntegrationTests: XCTestCase {
 
     func testOnDeviceSessionPrepareStartsYouTubeDirectPublish() async throws {
         let integration = try makeIntegration(aiProcessing: "on_device", phase: "idle")
+        // Glow has no server time but must still prepare on-device.
+        await integration.planStore.refresh(api: try DevicePlanStub(), accessToken: "test")
         // 실제 prepare 응답은 세션 전체 응답(targets 포함)에 ingest_url을 더한 형태다. 공유 fixture는 targets를 생략한다.
         var prepare = try XCTUnwrap(JSONSerialization.jsonObject(
             with: ContractTestFixtures.data(named: "direct-publish-prepare-youtube.v1")
@@ -498,6 +500,16 @@ final class DirectPublishIntegrationTests: XCTestCase {
         XCTAssertEqual(publisher.started.first?.endpoint.connectURL, "rtmps://a.rtmp.youtube.com/live2")
         XCTAssertEqual(integration.responseState.details.targets?.first?.stream.status, "streaming")
         XCTAssertEqual(DirectPublishURLProtocol.paths, ["/sessions/session-direct/broadcast", "/sessions/session-direct/stream/prepare"])
+        integration.reset()
+    }
+
+    func testGlowServerPreparationIsBlockedBeforeSavingSettings() async throws {
+        let integration = try makeIntegration(aiProcessing: "server", phase: "idle")
+        await integration.planStore.refresh(api: try DevicePlanStub(), accessToken: "test")
+        let prepared = await integration.prepareYouTubeStream(accessToken: "access-token")
+        XCTAssertFalse(prepared)
+        XCTAssertTrue(DirectPublishURLProtocol.requests.isEmpty)
+        XCTAssertEqual(integration.errorMessage, String(localized: "이 요금제는 서버 송출을 지원하지 않습니다. 방송 준비를 취소한 뒤 온디바이스 방식을 선택해 주세요."))
         integration.reset()
     }
 
@@ -911,4 +923,18 @@ private final class DirectPublishURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+}
+
+@MainActor
+private final class DevicePlanStub: PlanAPIClient {
+    let snapshot: PlanSnapshot
+    init() throws {
+        struct Fixture: Decodable { let plan: UserPlan; let usage: UserUsage }
+        let fixtures = try JSONDecoder().decode([Fixture].self,
+            from: ContractTestFixtures.data(named: "plan-usage-processing.v1"))
+        let glow = try XCTUnwrap(fixtures.first { $0.plan.plan == "glow" })
+        snapshot = PlanSnapshot(plan: glow.plan, usage: glow.usage)
+    }
+    func userPlan(accessToken: String) async throws -> UserPlan { snapshot.plan }
+    func userUsage(accessToken: String) async throws -> UserUsage { snapshot.usage }
 }

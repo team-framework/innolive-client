@@ -163,7 +163,7 @@ final class BroadcastModeTests: XCTestCase {
         let changed = await integration.changeBroadcastMode(resolution: "fhd", targets: [.youtube, .chzzk], accessToken: token)
         XCTAssertFalse(saved)
         XCTAssertFalse(changed)
-        XCTAssertEqual(integration.broadcastModeError, "치지직 전송 안내에 동의해 주세요.")
+        XCTAssertEqual(integration.broadcastModeError, String(localized: "치지직 전송 안내에 동의해 주세요.", table: "BroadcastMode"))
         XCTAssertTrue(BroadcastModeURLProtocol.requests.isEmpty)
     }
 

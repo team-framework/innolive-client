@@ -22,6 +22,11 @@ struct BroadcastControllsView: View {
     var body: some View {
         VStack(spacing: 10) {
             BroadcastSessionStatusView(authentication: authentication, youtube: youtube)
+            if let notice = youtube.responseState.details.notices.last(where: { $0.planMessage != nil }),
+               let message = notice.planMessage {
+                Text(message).font(.footnote).foregroundStyle(.orange)
+                    .accessibilityIdentifier("broadcast-plan-notice")
+            }
             if !isShowingBroadcastSettings, let feedback {
                 BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
                     youtube.dismissError()

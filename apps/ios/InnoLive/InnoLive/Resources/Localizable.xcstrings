@@ -1,6 +1,374 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "사용량 구분": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용량 구분"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage type"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用量の種類"
+          }
+        }
+      }
+    },
+    "서버": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー"
+          }
+        }
+      }
+    },
+    "온디바이스": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온디바이스"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オンデバイス"
+          }
+        }
+      }
+    },
+    "이 요금제는 서버 송출을 지원하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 요금제는 서버 송출을 지원하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server streaming is not included in this plan."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このプランではサーバー配信を利用できません。"
+          }
+        }
+      }
+    },
+    "이 요금제는 서버 송출을 지원하지 않습니다. 방송 준비를 취소한 뒤 온디바이스 방식을 선택해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 요금제는 서버 송출을 지원하지 않습니다. 방송 준비를 취소한 뒤 온디바이스 방식을 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server streaming is not included in this plan. Cancel preparation and choose on-device streaming."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このプランではサーバー配信を利用できません。配信準備を取り消してオンデバイス方式を選択してください。"
+          }
+        }
+      }
+    },
+    "이번 달 서버 시간을 모두 사용했습니다. 온디바이스 잔여 시간을 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 달 서버 시간을 모두 사용했습니다. 온디바이스 잔여 시간을 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have used all server time for this month. Check your remaining on-device time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今月のサーバー時間を使い切りました。オンデバイスの残り時間を確認してください。"
+          }
+        }
+      }
+    },
+    "선택한 방식으로 사용할 온디바이스 시간이 부족합니다. 요금제 및 사용량을 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 방식으로 사용할 온디바이스 시간이 부족합니다. 요금제 및 사용량을 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is not enough on-device time for this mode. Check your plan and usage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択した方式で利用できるオンデバイス時間が不足しています。プランと使用量を確認してください。"
+          }
+        }
+      }
+    },
+    "현재 처리 위치의 월 시간을 모두 사용했습니다. 요금제 및 사용량에서 서버·온디바이스 잔여 시간을 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 처리 위치의 월 시간을 모두 사용했습니다. 요금제 및 사용량에서 서버·온디바이스 잔여 시간을 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have used all monthly time for the current processing location. Check your remaining server and on-device time in Plan and Usage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の処理場所の月間時間を使い切りました。プランと使用量でサーバーとオンデバイスの残り時間を確認してください。"
+          }
+        }
+      }
+    },
+    "1회 방송 한도에 도달했습니다. 방송 준비를 취소한 뒤 새 방송을 준비해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1회 방송 한도에 도달했습니다. 방송 준비를 취소한 뒤 새 방송을 준비해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The per-broadcast limit has been reached. Cancel preparation and prepare a new broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1回の配信上限に達しました。配信準備を取り消して新しい配信を準備してください。"
+          }
+        }
+      }
+    },
+    "현재 처리 위치의 월 시간을 80% 사용했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 처리 위치의 월 시간을 80% 사용했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have used 80 percent of the monthly time for the current processing location."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の処理場所の月間時間を80%使用しました。"
+          }
+        }
+      }
+    },
+    "현재 처리 위치의 월 시간을 모두 사용했습니다. 진행 중 방송은 서버 정책에 따라 유지됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 처리 위치의 월 시간을 모두 사용했습니다. 진행 중 방송은 서버 정책에 따라 유지됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have used all monthly time for the current processing location. The current broadcast continues according to server policy."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在の処理場所の月間時間を使い切りました。配信中の放送はサーバーのポリシーに従って継続します。"
+          }
+        }
+      }
+    },
+    "월 방송 한도에 도달해 방송이 종료되었습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "월 방송 한도에 도달해 방송이 종료되었습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast ended because the monthly limit was reached."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月間の配信上限に達したため配信を終了しました。"
+          }
+        }
+      }
+    },
+    "1회 방송 한도까지 30분 남았습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1회 방송 한도까지 30분 남았습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 minutes remain until the per-broadcast limit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1回の配信上限まで残り30分です。"
+          }
+        }
+      }
+    },
+    "1회 방송 한도까지 10분 남았습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1회 방송 한도까지 10분 남았습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10 minutes remain until the per-broadcast limit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1回の配信上限まで残り10分です。"
+          }
+        }
+      }
+    },
+    "1회 방송 한도에 도달해 방송이 종료되었습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1회 방송 한도에 도달해 방송이 종료되었습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast ended because the per-broadcast limit was reached."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1回の配信上限に達したため配信を終了しました。"
+          }
+        }
+      }
+    },
+    "영상 입력이 없어 방송이 종료되었습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상 입력이 없어 방송이 종료되었습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast ended because no video input was received."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "映像入力がないため配信を終了しました。"
+          }
+        }
+      }
+    },
     "켜짐": {
       "extractionState": "manual",
       "localizations": {
