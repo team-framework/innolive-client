@@ -412,6 +412,13 @@ enum BroadcastRemainingTime: Equatable {
 struct BroadcastTargetState: Decodable, Equatable, Identifiable {
     let provider: String
     var stream: YouTubeStreamState
+    var videoID: String? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case provider, stream
+        case videoID = "video_id"
+    }
+
     var id: String { provider }
     var title: String {
         switch provider {
