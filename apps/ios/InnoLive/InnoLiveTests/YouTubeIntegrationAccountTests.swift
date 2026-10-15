@@ -175,6 +175,10 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         await integration.disconnectYouTubeAccount(accessToken: "access", accountID: "a")
         XCTAssertEqual(integration.youtubeAccounts.map(\.accountID), ["b"])
         XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
+        let requestCount = YouTubeIntegrationAccountURLProtocol.requests.count
+        await integration.disconnectYouTubeAccount(accessToken: "access", accountID: "a")
+        XCTAssertEqual(YouTubeIntegrationAccountURLProtocol.requests.count, requestCount)
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
         integration.reset()
         XCTAssertNil(integration.selectedYouTubeAccountID)
     }
