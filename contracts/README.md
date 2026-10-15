@@ -2,6 +2,7 @@
 
 This directory is the source of truth for behavior shared by all clients.
 
+- `api/youtube-multi-channel-v1.md`: connected YouTube account selection, defaults, and channel-specific disconnect
 - `api/youtube-viewer-chat-v1.md`: optional YouTube video IDs and iOS viewer-chat lifecycle
 - `api/streaming-accounts-v1.md`: CHZZK OAuth and shared account listing/disconnection semantics
 - `api/broadcast-settings-v1.md`: provider-specific settings, categories, defaults and draft isolation
