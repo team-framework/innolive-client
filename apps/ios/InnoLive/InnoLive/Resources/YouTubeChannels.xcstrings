@@ -66,6 +66,28 @@
           }
         }
       }
+    },
+    "마지막으로 확인한 채널": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마지막으로 확인한 채널"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last confirmed channel"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最後に確認したチャンネル"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

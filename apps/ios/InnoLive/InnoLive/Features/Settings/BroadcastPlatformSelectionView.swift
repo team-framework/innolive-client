@@ -142,6 +142,22 @@ struct BroadcastPlatformSelectionView: View {
     private var youTubeRow: some View {
         VStack(alignment: .leading, spacing: 12) {
             platformIdentity(.youTube, allowsWrapping: true)
+            if youtube.youtubeAccounts.isEmpty, let connection = youtube.connection {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(connection.channel.title)
+                        .font(.callout.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(String(localized: "마지막으로 확인한 채널", table: "YouTubeChannels"))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button(String(localized: "다시 시도")) {
+                        Task { await youtube.refreshConnection(accessToken: authentication.currentAccessToken()) }
+                    }
+                    .disabled(youtube.isYouTubeConnectionOperationInProgress)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .innoLiveGlassBackground(cornerRadius: 16)
+            }
             ForEach(youtube.youtubeAccounts, id: \.channelID) { account in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(account.displayTitle)
