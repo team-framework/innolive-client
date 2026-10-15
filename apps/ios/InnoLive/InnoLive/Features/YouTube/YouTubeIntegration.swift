@@ -500,6 +500,9 @@ final class YouTubeIntegration: ObservableObject {
     var selectedYouTubeAccount: StreamingAccountSummary? {
         youtubeAccounts.first { $0.accountID == selectedYouTubeAccountID }
     }
+    func canConnectYouTubeChannel(reconnecting: Bool = false) -> Bool {
+        !isYouTubeAccountChangeBlocked && (reconnecting || youtubeAccounts.count < 5)
+    }
     var canSelectYouTubeChannel: Bool {
         !isChangingStreamState && !isChangingBroadcastMode && !isPreparingSession
             && !isYouTubeConnectionOperationInProgress

@@ -141,23 +141,31 @@ struct BroadcastPlatformSelectionView: View {
 
     private var youTubeRow: some View {
         VStack(alignment: .leading, spacing: 12) {
-            platformIdentity(.youTube)
+            platformIdentity(.youTube, allowsWrapping: true)
             ForEach(youtube.youtubeAccounts, id: \.channelID) { account in
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(account.displayTitle).font(.callout.weight(.semibold))
-                        if account.reconnectRequired { Text(String(localized: "재연결 필요")).font(.caption) }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(account.displayTitle)
+                        .font(.callout.weight(.semibold))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(account.reconnectRequired ? String(localized: "재연결 필요") : String(localized: "연결됨"))
+                        .font(.caption)
+                        .foregroundStyle(account.reconnectRequired ? .orange : .secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) { youTubeAccountActions(account, allowsWrapping: false) }
+                        VStack(alignment: .leading, spacing: 8) { youTubeAccountActions(account, allowsWrapping: true) }
                     }
-                    Spacer()
-                    Button(String(localized: "연결 해제"), role: .destructive) {
-                        disconnectAccount = account
-                        isShowingDisconnectConfirmation = true
-                    }
-                    .disabled(!youtube.canDisconnectYouTubeChannel(account))
                 }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .innoLiveGlassBackground(cornerRadius: 16)
             }
             Button(String(localized: "채널 추가 연결", table: "YouTubeChannels"), action: connectYouTube)
-                .disabled(youtube.isYouTubeAccountChangeBlocked || youtube.youtubeAccounts.count >= 5)
+                .innoLiveGlassButtonStyle(prominent: true)
+                .tint(.blue)
+                .disabled(!youtube.canConnectYouTubeChannel())
             if youtube.isYouTubeConnectionOperationInProgress { ProgressView() }
         }
         .padding(16)
@@ -170,6 +178,34 @@ struct BroadcastPlatformSelectionView: View {
             Button(String(localized: "취소"), role: .cancel) {}
         } message: {
             Text(disconnectAccount?.displayTitle ?? "YouTube")
+        }
+    }
+
+    @ViewBuilder
+    private func youTubeAccountActions(_ account: StreamingAccountSummary, allowsWrapping: Bool) -> some View {
+        if account.reconnectRequired {
+            Button(action: connectYouTube) {
+                youTubeAccountActionLabel(String(localized: "다시 연결"), allowsWrapping: allowsWrapping)
+            }
+            .buttonStyle(.borderless)
+            .disabled(!youtube.canConnectYouTubeChannel(reconnecting: true))
+        }
+        Button(role: .destructive) {
+            disconnectAccount = account
+            isShowingDisconnectConfirmation = true
+        } label: {
+            youTubeAccountActionLabel(String(localized: "연결 해제"), allowsWrapping: allowsWrapping)
+        }
+        .buttonStyle(.borderless)
+        .disabled(!youtube.canDisconnectYouTubeChannel(account))
+    }
+
+    @ViewBuilder
+    private func youTubeAccountActionLabel(_ title: String, allowsWrapping: Bool) -> some View {
+        if allowsWrapping {
+            Text(title).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+        } else {
+            Text(title)
         }
     }
 

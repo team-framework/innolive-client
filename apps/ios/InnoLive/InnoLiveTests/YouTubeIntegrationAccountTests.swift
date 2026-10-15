@@ -202,6 +202,19 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         XCTAssertEqual(store.loadConnection()?.channel.id, "uca")
     }
 
+    func testFiveChannelsStillAllowReconnectButNotAddition() async throws {
+        let accounts = (1...5).map { index in
+            ["id": "account-\(index)", "provider": "youtube", "channel_id": "uc-\(index)",
+             "channel_title": "Channel \(index)", "reconnect_required": true] as [String: Any]
+        }
+        YouTubeIntegrationAccountURLProtocol.responses = [.init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: accounts))]
+        let integration = makeIntegration(store: YouTubePreferencesStore(userDefaults: userDefaults))
+        await integration.refreshConnection(accessToken: "access")
+        XCTAssertEqual(integration.youtubeAccounts.count, 5)
+        XCTAssertFalse(integration.canConnectYouTubeChannel())
+        XCTAssertTrue(integration.canConnectYouTubeChannel(reconnecting: true))
+    }
+
     private func makeIntegration(store: YouTubePreferencesStore) -> YouTubeIntegration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [YouTubeIntegrationAccountURLProtocol.self]
