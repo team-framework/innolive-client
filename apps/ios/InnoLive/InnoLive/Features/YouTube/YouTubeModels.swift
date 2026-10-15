@@ -414,11 +414,15 @@ struct BroadcastTargetState: Decodable, Equatable, Identifiable {
     var stream: YouTubeStreamState
     var accountID: String? = nil
     var channelTitle: String? = nil
+    var videoID: String? = nil
+
     enum CodingKeys: String, CodingKey {
         case provider, stream
         case accountID = "account_id"
         case channelTitle = "channel_title"
+        case videoID = "video_id"
     }
+
     var id: String { provider }
     var title: String {
         switch provider {
