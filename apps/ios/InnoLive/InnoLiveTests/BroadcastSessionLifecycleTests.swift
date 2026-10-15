@@ -26,6 +26,65 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         super.tearDown()
     }
 
+    private func seedExhaustedPlan(_ integration: YouTubeIntegration) async throws {
+        struct Stub: PlanAPIClient {
+            func userPlan(accessToken: String) async throws -> UserPlan {
+                try JSONDecoder().decode(UserPlan.self, from: Data(#"{"plan":"beam","allowed_modes":["720p_single"],"monthly_broadcast_seconds":100,"max_per_broadcast_seconds":3600,"device_modes":["720p_single"]}"#.utf8))
+            }
+            func userUsage(accessToken: String) async throws -> UserUsage {
+                try JSONDecoder().decode(UserUsage.self, from: Data(#"{"plan":"beam","used_seconds":100,"remaining_seconds":0,"device_remaining_seconds":3600,"available_by_mode":[{"mode":"720p_single","allowed":true,"seconds":0,"multiplier":1}]}"#.utf8))
+            }
+        }
+        await integration.planStore.refresh(api: Stub(), accessToken: token)
+    }
+
+    func testOnDeviceFallbackDeletesOldSessionBeforeCreatingWithoutGoLive() async throws {
+        let integration = makeIntegration()
+        SessionLifecycleURLProtocol.responses = [.created("old"), .empty(204), .created("device", mode: "on_device")]
+        _ = await integration.prepareSession(accessToken: token)
+        try await seedExhaustedPlan(integration)
+        XCTAssertTrue(integration.offersOnDevicePreparation)
+        let switched = await integration.switchPreparationToOnDevice(accessToken: token)
+        XCTAssertTrue(switched)
+        XCTAssertNil(integration.session)
+        XCTAssertEqual(integration.planProcessingMode, .onDevice)
+        let created = await integration.prepareSession(accessToken: token, broadcastResolution: "fhd")
+        XCTAssertTrue(created)
+        XCTAssertEqual(methods, ["POST", "DELETE", "POST"])
+        let last = try XCTUnwrap(SessionLifecycleURLProtocol.requests.last)
+        let json = try screenBlurRequestBody(last)
+        XCTAssertEqual(json["ai_processing"] as? String, "on_device")
+        XCTAssertEqual(json["broadcast_resolution"] as? String, "fhd")
+        XCTAssertFalse(SessionLifecycleURLProtocol.requests.contains { $0.url!.path.contains("golive") })
+    }
+
+    func testOnDeviceFallbackDeleteFailureBlocksNewSession() async throws {
+        let integration = makeIntegration()
+        SessionLifecycleURLProtocol.responses = [.created("old"), .empty(503)]
+        _ = await integration.prepareSession(accessToken: token)
+        try await seedExhaustedPlan(integration)
+        let switched = await integration.switchPreparationToOnDevice(accessToken: token)
+        XCTAssertFalse(switched)
+        XCTAssertEqual(methods, ["POST", "DELETE"])
+        XCTAssertEqual(integration.planProcessingMode, .server)
+        XCTAssertNotNil(try store.load(scope: scope()))
+    }
+
+    func testAccountResetDuringFallbackRejectsLateSwitch() async throws {
+        let integration = makeIntegration()
+        SessionLifecycleURLProtocol.responses = [.created("old"), .empty(204)]
+        _ = await integration.prepareSession(accessToken: token)
+        try await seedExhaustedPlan(integration)
+        SessionLifecycleURLProtocol.beforeResponse = { request in
+            if request.httpMethod == "DELETE" { integration.reset() }
+        }
+        let switched = await integration.switchPreparationToOnDevice(accessToken: token)
+        XCTAssertFalse(switched)
+        XCTAssertEqual(integration.planProcessingMode, .server)
+        XCTAssertFalse(integration.isSwitchingToOnDevice)
+        XCTAssertEqual(methods, ["POST", "DELETE"])
+    }
+
     func testColdLaunchDeletesPreviousBeforeCreatingAndSavesCredentials() async throws {
         try store.save(old, scope: scope())
         SessionLifecycleURLProtocol.responses = [.empty(204), .created("new")]

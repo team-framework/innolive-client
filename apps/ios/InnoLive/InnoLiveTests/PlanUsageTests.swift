@@ -22,6 +22,40 @@ final class PlanUsageTests: XCTestCase {
             .map { PlanSnapshot(plan: $0.plan, usage: $0.usage) }
     }
 
+    func testMaximumUsesServerSecondsAndPerBroadcastCap() throws {
+        let capped = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "80000")))
+        XCTAssertEqual(capped.maximumBroadcastAvailability(for: .hdSingle, processing: .server)?.seconds, 28800)
+        let shorter = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "123")))
+        XCTAssertEqual(shorter.maximumBroadcastAvailability(for: .hdSingle, processing: .server)?.seconds, 123)
+        let apiCap = usageJSON(seconds: "80000").replacingOccurrences(of: "\"used_seconds\":12", with: "\"used_seconds\":12,\"max_per_broadcast_seconds\":600")
+        XCTAssertEqual(PlanSnapshot(plan: try plan(), usage: try usage(apiCap)).maximumBroadcastAvailability(for: .hdSingle, processing: .server)?.seconds, 600)
+    }
+
+    func testDeviceNullMeansUnlimitedButAbsentStaysUnknown() throws {
+        var policy = try plan()
+        policy.deviceModes = ["720p_single"]
+        let raw = usageJSON().replacingOccurrences(of: "\"used_seconds\":12", with: "\"used_seconds\":12,\"device_limit_seconds\":null,\"device_remaining_seconds\":null")
+        let snapshot = PlanSnapshot(plan: policy, usage: try usage(raw))
+        XCTAssertTrue(snapshot.usage.hasDeviceLimitSeconds)
+        XCTAssertTrue(snapshot.canPrepare(.hdSingle, processing: .onDevice))
+        XCTAssertNil(snapshot.availability(for: .hdSingle, processing: .onDevice)?.seconds)
+        XCTAssertEqual(snapshot.maximumBroadcastAvailability(for: .hdSingle, processing: .onDevice)?.seconds, 28800)
+        XCTAssertNil(PlanSnapshot(plan: policy, usage: try usage(usageJSON())).maximumBroadcastAvailability(for: .hdSingle, processing: .onDevice))
+    }
+
+    func testBroadcastHistoryDecodesBothProcessingLocations() throws {
+        let raw = usageJSON().replacingOccurrences(of: "\"used_seconds\":12", with: """
+        "used_seconds":12,"month":"2026-10","broadcasts":[
+        {"session_id":"one","started_at":"2026-10-15T01:00:00Z","resolution":"fhd","providers":["youtube"],"ai_processing":"server","broadcast_seconds":3600,"charged_seconds":7200},
+        {"session_id":"two","started_at":"2026-10-15T03:00:00Z","resolution":"720p","providers":["chzzk","youtube"],"ai_processing":"on_device","broadcast_seconds":10800,"charged_seconds":21600}]
+        """)
+        let result = try usage(raw)
+        XCTAssertEqual(result.month, "2026-10")
+        XCTAssertEqual(result.broadcasts.map(\.aiProcessing), ["server", "on_device"])
+        XCTAssertEqual(result.broadcasts.map(\.chargedSeconds), [7200, 21600])
+        XCTAssertNotNil(result.broadcasts.first?.startDate)
+    }
+
     func testNewPlansSeparateServerAndDeviceBudgetsAndModes() throws {
         let snapshots = try processingSnapshots()
         XCTAssertEqual(snapshots.map { $0.plan.monthlyDeviceSeconds }, [18000, 216000, 432000, 1080000])
@@ -51,7 +85,7 @@ final class PlanUsageTests: XCTestCase {
         XCTAssertTrue(exhausted.canPrepare(.hdSingle, processing: .server))
         XCTAssertFalse(exhausted.canPrepare(.hdSingle, processing: .onDevice))
         XCTAssertNotNil(exhausted.preparationBlockMessage(.hdSingle, processing: .onDevice))
-        for raw in [usageJSON(), exhaustedJSON.replacingOccurrences(of: "\"device_remaining_seconds\":0", with: "\"device_remaining_seconds\":null")] {
+        for raw in [usageJSON()] {
             let unknown = PlanSnapshot(plan: policy, usage: try usage(raw))
             XCTAssertNil(unknown.availability(for: .hdSingle, processing: .onDevice))
             XCTAssertNil(unknown.preparationBlockMessage(.hdSingle, processing: .onDevice))
