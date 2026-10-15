@@ -1,0 +1,205 @@
+[
+  {
+    "plan": {
+      "plan": "spark",
+      "monthly_broadcast_seconds": 0,
+      "monthly_device_seconds": 18000,
+      "max_per_broadcast_seconds": 3600,
+      "allowed_modes": [],
+      "device_modes": [
+        "720p_single"
+      ]
+    },
+    "usage": {
+      "plan": "spark",
+      "limit_seconds": null,
+      "used_seconds": 0,
+      "remaining_seconds": null,
+      "device_limit_seconds": 18000,
+      "device_used_seconds": 3600,
+      "device_remaining_seconds": 14400,
+      "available_by_mode": [
+        {
+          "mode": "720p_single",
+          "multiplier": 1,
+          "seconds": null,
+          "allowed": false
+        },
+        {
+          "mode": "fhd_single",
+          "multiplier": 2,
+          "seconds": null,
+          "allowed": false
+        },
+        {
+          "mode": "720p_multi",
+          "multiplier": 2,
+          "seconds": null,
+          "allowed": false
+        },
+        {
+          "mode": "fhd_multi",
+          "multiplier": 3,
+          "seconds": null,
+          "allowed": false
+        }
+      ]
+    }
+  },
+  {
+    "plan": {
+      "plan": "glow",
+      "monthly_broadcast_seconds": 0,
+      "monthly_device_seconds": 216000,
+      "max_per_broadcast_seconds": 28800,
+      "allowed_modes": [],
+      "device_modes": [
+        "720p_single",
+        "fhd_single"
+      ]
+    },
+    "usage": {
+      "plan": "glow",
+      "limit_seconds": null,
+      "used_seconds": 0,
+      "remaining_seconds": null,
+      "device_limit_seconds": 216000,
+      "device_used_seconds": 3600,
+      "device_remaining_seconds": 212400,
+      "available_by_mode": [
+        {
+          "mode": "720p_single",
+          "multiplier": 1,
+          "seconds": null,
+          "allowed": false
+        },
+        {
+          "mode": "fhd_single",
+          "multiplier": 2,
+          "seconds": null,
+          "allowed": false
+        },
+        {
+          "mode": "720p_multi",
+          "multiplier": 2,
+          "seconds": null,
+          "allowed": false
+        },
+        {
+          "mode": "fhd_multi",
+          "multiplier": 3,
+          "seconds": null,
+          "allowed": false
+        }
+      ]
+    }
+  },
+  {
+    "plan": {
+      "plan": "beam",
+      "monthly_broadcast_seconds": 144000,
+      "monthly_device_seconds": 432000,
+      "max_per_broadcast_seconds": 43200,
+      "allowed_modes": [
+        "720p_single",
+        "fhd_single",
+        "720p_multi"
+      ],
+      "device_modes": [
+        "720p_single",
+        "fhd_single",
+        "720p_multi"
+      ]
+    },
+    "usage": {
+      "plan": "beam",
+      "limit_seconds": 144000,
+      "used_seconds": 144000,
+      "remaining_seconds": 0,
+      "device_limit_seconds": 432000,
+      "device_used_seconds": 3600,
+      "device_remaining_seconds": 428400,
+      "available_by_mode": [
+        {
+          "mode": "720p_single",
+          "multiplier": 1,
+          "seconds": 0,
+          "allowed": true
+        },
+        {
+          "mode": "fhd_single",
+          "multiplier": 2,
+          "seconds": 0,
+          "allowed": true
+        },
+        {
+          "mode": "720p_multi",
+          "multiplier": 2,
+          "seconds": 0,
+          "allowed": true
+        },
+        {
+          "mode": "fhd_multi",
+          "multiplier": 3,
+          "seconds": 0,
+          "allowed": false
+        }
+      ]
+    }
+  },
+  {
+    "plan": {
+      "plan": "plasma",
+      "monthly_broadcast_seconds": 288000,
+      "monthly_device_seconds": 1080000,
+      "max_per_broadcast_seconds": 43200,
+      "allowed_modes": [
+        "720p_single",
+        "fhd_single",
+        "720p_multi",
+        "fhd_multi"
+      ],
+      "device_modes": [
+        "720p_single",
+        "fhd_single",
+        "720p_multi",
+        "fhd_multi"
+      ]
+    },
+    "usage": {
+      "plan": "plasma",
+      "limit_seconds": 288000,
+      "used_seconds": 288000,
+      "remaining_seconds": 0,
+      "device_limit_seconds": 1080000,
+      "device_used_seconds": 3600,
+      "device_remaining_seconds": 1076400,
+      "available_by_mode": [
+        {
+          "mode": "720p_single",
+          "multiplier": 1,
+          "seconds": 0,
+          "allowed": true
+        },
+        {
+          "mode": "fhd_single",
+          "multiplier": 2,
+          "seconds": 0,
+          "allowed": true
+        },
+        {
+          "mode": "720p_multi",
+          "multiplier": 2,
+          "seconds": 0,
+          "allowed": true
+        },
+        {
+          "mode": "fhd_multi",
+          "multiplier": 3,
+          "seconds": 0,
+          "allowed": true
+        }
+      ]
+    }
+  }
+]

@@ -65,7 +65,7 @@ final class LocalizationTests: XCTestCase {
     func testPlanUsageLabelsAreTranslatedInSupportedLanguages() throws {
         for language in ["ko", "en", "ja"] {
             let bundle = try localizedBundle(language)
-            for key in ["요금제 및 사용량", "월 방송 한도", "1회 방송 한도", "소진", "잠김", "마지막 조회값 · 재시도 중"] {
+            for key in ["사용량 구분", "서버", "온디바이스", "이 요금제는 서버 송출을 지원하지 않습니다.", "1회 방송 한도까지 10분 남았습니다.", "요금제 및 사용량", "월 방송 한도", "1회 방송 한도", "소진", "잠김", "마지막 조회값 · 재시도 중"] {
                 let label = bundle.localizedString(forKey: key, value: "MISSING", table: nil)
                 XCTAssertNotEqual(label, "MISSING")
                 if language != "ko" { XCTAssertNil(label.range(of: "[가-힣]", options: .regularExpression)) }
