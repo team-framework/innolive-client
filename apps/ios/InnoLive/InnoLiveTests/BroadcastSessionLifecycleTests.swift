@@ -70,6 +70,22 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertNotNil(try store.load(scope: scope()))
     }
 
+    func testOnDeviceFallbackRetriesRetainedSessionCleanup() async throws {
+        let integration = makeIntegration()
+        SessionLifecycleURLProtocol.responses = [.created("old"), .empty(503), .empty(204), .created("device", mode: "on_device")]
+        _ = await integration.prepareSession(accessToken: token)
+        try await seedExhaustedPlan(integration)
+        let first = await integration.switchPreparationToOnDevice(accessToken: token)
+        XCTAssertFalse(first)
+        XCTAssertNil(integration.session)
+        let retry = await integration.switchPreparationToOnDevice(accessToken: token)
+        XCTAssertTrue(retry)
+        XCTAssertNil(try store.load(scope: scope()))
+        let created = await integration.prepareSession(accessToken: token)
+        XCTAssertTrue(created)
+        XCTAssertEqual(methods, ["POST", "DELETE", "DELETE", "POST"])
+    }
+
     func testAccountResetDuringFallbackRejectsLateSwitch() async throws {
         let integration = makeIntegration()
         SessionLifecycleURLProtocol.responses = [.created("old"), .empty(204)]

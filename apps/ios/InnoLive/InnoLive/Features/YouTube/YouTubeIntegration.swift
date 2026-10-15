@@ -75,7 +75,18 @@ final class YouTubeIntegration: ObservableObject {
         let switchID = UUID()
         processingSwitchID = switchID
         defer { if processingSwitchID == switchID { isSwitchingToOnDevice = false } }
+        let hadSession = session != nil
         await cancelBroadcastPreparation(accessToken: accessToken)
+        guard processingSwitchID == switchID else { return false }
+        if !hadSession {
+            do {
+                let scope = try api.broadcastSessionScope(accessToken: accessToken)
+                try await removePreviousSession(scope: scope, accessToken: accessToken)
+            } catch {
+                if processingSwitchID == switchID { handle(error) }
+                return false
+            }
+        }
         guard processingSwitchID == switchID, session == nil,
               retainedSessionRecord(accessToken: accessToken) == nil else { return false }
         preparationProcessingOverride = .onDevice
