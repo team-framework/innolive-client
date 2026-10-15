@@ -86,6 +86,50 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(methods, ["POST", "DELETE", "DELETE", "POST"])
     }
 
+    func testRetainedSessionCleanupBlocksChannelChanges() async throws {
+        let integration = makeIntegration()
+        SessionLifecycleURLProtocol.responses = [
+            .init(status: 200, body: #"[{"id":"a","provider":"youtube","channel_id":"uca","channel_title":"A","reconnect_required":false},{"id":"b","provider":"youtube","channel_id":"ucb","channel_title":"B","reconnect_required":false}]"#),
+            .empty(204)
+        ]
+        await integration.refreshConnection(accessToken: token)
+        try store.save(old, scope: scope())
+        try await seedExhaustedPlan(integration)
+        var checked = false
+        SessionLifecycleURLProtocol.beforeResponse = { request in
+            guard request.httpMethod == "DELETE" else { return }
+            checked = true
+            XCTAssertTrue(integration.isSwitchingToOnDevice)
+            XCTAssertTrue(integration.isYouTubeAccountChangeBlocked)
+            XCTAssertTrue(integration.isCHZZKAccountChangeBlocked)
+            XCTAssertFalse(integration.canSelectYouTubeChannel)
+            integration.selectYouTubeChannel("b", accessToken: self.token)
+            XCTAssertEqual(integration.selectedYouTubeAccountID, "a")
+            guard let account = integration.youtubeAccounts.last else { XCTFail("Expected connected channel"); return }
+            XCTAssertFalse(integration.canDisconnectYouTubeChannel(account))
+            await integration.disconnectYouTubeAccount(accessToken: self.token, accountID: "b")
+        }
+        let switched = await integration.switchPreparationToOnDevice(accessToken: token)
+        XCTAssertTrue(switched)
+        XCTAssertTrue(checked)
+        XCTAssertEqual(methods, ["GET", "DELETE"])
+        XCTAssertEqual(integration.youtubeAccounts.count, 2)
+    }
+
+    func testAccountRefreshBlocksOnDeviceSwitch() async throws {
+        let integration = makeIntegration()
+        try await seedExhaustedPlan(integration)
+        SessionLifecycleURLProtocol.responses = [.init(status: 200, body: "[]")]
+        SessionLifecycleURLProtocol.beforeResponse = { _ in
+            XCTAssertTrue(integration.isYouTubeConnectionOperationInProgress)
+            let switched = await integration.switchPreparationToOnDevice(accessToken: self.token)
+            XCTAssertFalse(switched)
+        }
+        await integration.refreshConnection(accessToken: token)
+        XCTAssertEqual(integration.planProcessingMode, .server)
+        XCTAssertEqual(methods, ["GET"])
+    }
+
     func testAccountResetDuringFallbackRejectsLateSwitch() async throws {
         let integration = makeIntegration()
         SessionLifecycleURLProtocol.responses = [.created("old"), .empty(204)]
@@ -606,7 +650,7 @@ private final class SessionLifecycleURLProtocol: URLProtocol {
     }
     @MainActor static var responses: [Response] = []
     @MainActor static var requests: [URLRequest] = []
-    @MainActor static var beforeResponse: ((URLRequest) -> Void)?
+    @MainActor static var beforeResponse: ((URLRequest) async -> Void)?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -618,7 +662,7 @@ private final class SessionLifecycleURLProtocol: URLProtocol {
                 return
             }
             let response = Self.responses.removeFirst()
-            Self.beforeResponse?(request)
+            await Self.beforeResponse?(request)
             let http = HTTPURLResponse(url: request.url!, statusCode: response.status, httpVersion: nil, headerFields: nil)!
             client?.urlProtocol(self, didReceive: http, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data(response.body.utf8))

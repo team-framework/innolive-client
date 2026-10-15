@@ -63,7 +63,7 @@ final class YouTubeIntegration: ObservableObject {
 
     /// End the old session before preparing a new one; the caller reuses the normal consent/camera flow.
     func switchPreparationToOnDevice(accessToken: String?) async -> Bool {
-        guard offersOnDevicePreparation, !isSwitchingToOnDevice, !isChangingStreamState,
+        guard offersOnDevicePreparation, !isSwitchingToOnDevice, !isYouTubeConnectionOperationInProgress, !isChangingStreamState,
               !isChangingAIProcessing, !isPreparingSession, !isConnectingVideo, !isEndingSession,
               !isChangingBroadcastMode, !isTogglingAnonymization, !isTogglingScreenBlur,
               broadcastPreparationTask == nil, let accessToken, !accessToken.isEmpty else { return false }
@@ -559,7 +559,7 @@ final class YouTubeIntegration: ObservableObject {
         !isYouTubeAccountChangeBlocked && (reconnecting || youtubeAccounts.count < 5)
     }
     var canSelectYouTubeChannel: Bool {
-        !isChangingStreamState && !isChangingBroadcastMode && !isPreparingSession
+        !isChangingStreamState && !isChangingBroadcastMode && !isPreparingSession && !isSwitchingToOnDevice
             && !isEndingSession && !isSavingLiveSettings
             && preparationStatus?.isRunning != true && preparationStatus?.phase != .cancelling
             && !isYouTubeConnectionOperationInProgress
@@ -572,7 +572,7 @@ final class YouTubeIntegration: ObservableObject {
         configureSettingsEditor(accessToken: accessToken)
     }
     func canDisconnectYouTubeChannel(_ account: StreamingAccountSummary) -> Bool {
-        guard !isYouTubeConnectionOperationInProgress, !isChangingStreamState,
+        guard !isYouTubeConnectionOperationInProgress, !isChangingStreamState, !isSwitchingToOnDevice,
               !isChangingBroadcastMode, !isPreparingSession, !isEndingSession,
               preparationStatus?.isRunning != true, preparationStatus?.phase != .cancelling else { return false }
         if let target = responseState.details.targets?.first(where: { $0.provider == "youtube" }),
@@ -929,7 +929,7 @@ final class YouTubeIntegration: ObservableObject {
 
     var isYouTubeAccountChangeBlocked: Bool {
         isBroadcastSettingsLocked || isChangingBroadcastMode || isHandlingUpgradeOffer
-            || isYouTubeConnectionOperationInProgress
+            || isSwitchingToOnDevice || isYouTubeConnectionOperationInProgress
     }
 
     var canDisconnectYouTubeAccount: Bool {
@@ -941,7 +941,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var isCHZZKAccountChangeBlocked: Bool {
-        isChangingBroadcastMode || isHandlingUpgradeOffer || isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
+        isChangingBroadcastMode || isHandlingUpgradeOffer || isSwitchingToOnDevice || isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
             || isEndingSession || preparationStatus?.isRunning == true
             || preparationStatus?.phase == .cancelling
             || StreamingAccountPolicy.isInUse("chzzk", snapshot: responseState)
