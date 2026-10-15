@@ -162,6 +162,59 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         XCTAssertNil(store.loadConnection())
     }
 
+    func testChannelSelectionSurvivesRefreshAndDisconnectOnlyRemovesChosenChannel() async throws {
+        let body = Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false},{\"id\":\"b\",\"provider\":\"youtube\",\"channel_id\":\"ucb\",\"channel_title\":\"B\",\"reconnect_required\":false}]".utf8)
+        YouTubeIntegrationAccountURLProtocol.responses = [.init(statusCode: 200, data: body), .init(statusCode: 200, data: body), .init(statusCode: 204, data: Data())]
+        let integration = makeIntegration(store: YouTubePreferencesStore(userDefaults: userDefaults))
+        await integration.refreshConnection(accessToken: "access")
+        XCTAssertEqual(integration.youtubeAccounts.count, 2)
+        integration.selectYouTubeChannel("b", accessToken: "access")
+        await integration.refreshConnection(accessToken: "access")
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
+        XCTAssertEqual(integration.connection?.channel.title, "B")
+        await integration.disconnectYouTubeAccount(accessToken: "access", accountID: "a")
+        XCTAssertEqual(integration.youtubeAccounts.map(\.accountID), ["b"])
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
+        let requestCount = YouTubeIntegrationAccountURLProtocol.requests.count
+        await integration.disconnectYouTubeAccount(accessToken: "access", accountID: "a")
+        XCTAssertEqual(YouTubeIntegrationAccountURLProtocol.requests.count, requestCount)
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
+        integration.reset()
+        XCTAssertNil(integration.selectedYouTubeAccountID)
+    }
+
+    func testConnectSuccessThenListFailurePreservesSelectedChannel() async throws {
+        let store = YouTubePreferencesStore(userDefaults: userDefaults)
+        let integration = makeIntegration(store: store)
+        YouTubeIntegrationAccountURLProtocol.responses = [
+            .init(statusCode: 200, data: Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false}]".utf8)),
+            .init(statusCode: 200, data: Data("{\"connected\":true,\"provider\":\"youtube\",\"channel\":{\"id\":\"ucb\",\"title\":\"B\"}}".utf8)),
+            .init(statusCode: 503, data: Data("{}".utf8))
+        ]
+        await integration.refreshConnection(accessToken: "access")
+        do {
+            try await integration.connectAuthorizedYouTubeAccount(serverAuthCode: "code", accessToken: "access")
+            XCTFail("Account list failure must be reported")
+        } catch {}
+        XCTAssertEqual(YouTubeIntegrationAccountURLProtocol.requests.count, 3)
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "a")
+        XCTAssertEqual(integration.connection?.channel.id, "uca")
+        XCTAssertEqual(store.loadConnection()?.channel.id, "uca")
+    }
+
+    func testFiveChannelsStillAllowReconnectButNotAddition() async throws {
+        let accounts = (1...5).map { index in
+            ["id": "account-\(index)", "provider": "youtube", "channel_id": "uc-\(index)",
+             "channel_title": "Channel \(index)", "reconnect_required": true] as [String: Any]
+        }
+        YouTubeIntegrationAccountURLProtocol.responses = [.init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: accounts))]
+        let integration = makeIntegration(store: YouTubePreferencesStore(userDefaults: userDefaults))
+        await integration.refreshConnection(accessToken: "access")
+        XCTAssertEqual(integration.youtubeAccounts.count, 5)
+        XCTAssertFalse(integration.canConnectYouTubeChannel())
+        XCTAssertTrue(integration.canConnectYouTubeChannel(reconnecting: true))
+    }
+
     private func makeIntegration(store: YouTubePreferencesStore) -> YouTubeIntegration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [YouTubeIntegrationAccountURLProtocol.self]

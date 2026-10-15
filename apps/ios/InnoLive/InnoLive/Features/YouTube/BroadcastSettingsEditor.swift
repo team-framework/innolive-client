@@ -18,6 +18,7 @@ final class BroadcastSettingsEditor: ObservableObject {
     private let api: YouTubeAPI
     private let preferences: YouTubePreferencesStore
     private(set) var contextGeneration = UUID()
+    private var youtubeAccountID: String?
     private var context: String?
     private var keys: [BroadcastSettingsProvider: String] = [:]
     private var revisions: [BroadcastSettingsProvider: Int] = [:]
@@ -31,11 +32,12 @@ final class BroadcastSettingsEditor: ObservableObject {
         self.preferences = preferences
     }
 
-    func configure(scope: BroadcastSessionScope?, channels: [String: String]) {
-        let next = scope.map { $0.storageKey + ":" + (channels["youtube"] ?? "") + ":" + (channels["chzzk"] ?? "") }
+    func configure(scope: BroadcastSessionScope?, channels: [String: String], youtubeAccountID: String? = nil) {
+        let next = scope.map { $0.storageKey + ":" + (youtubeAccountID ?? channels["youtube"] ?? "") + ":" + (channels["chzzk"] ?? "") }
         guard next != context else { return }
         reset()
         context = next
+        self.youtubeAccountID = youtubeAccountID
         guard let scope else { return }
         for provider in BroadcastSettingsProvider.allCases {
             let channel = channels[provider.rawValue] ?? "unconnected"
@@ -113,7 +115,7 @@ final class BroadcastSettingsEditor: ObservableObject {
         loadingDefaults.insert(provider)
         defer { if requests[provider] == request { loadingDefaults.remove(provider) } }
         do {
-            let values = try await api.broadcastDefaults(session: session, accessToken: accessToken, provider: provider)
+            let values = try await api.broadcastDefaults(session: session, accessToken: accessToken, provider: provider, accountID: provider == .youtube ? youtubeAccountID : nil)
             guard context == originalContext, requests[provider] == request, usesDefaults[provider] == true,
                   revisions[provider, default: 0] == revision, revision == 0, !Task.isCancelled else { return }
             if provider == .youtube {

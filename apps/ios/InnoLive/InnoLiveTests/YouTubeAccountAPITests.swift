@@ -176,6 +176,32 @@ final class YouTubeAccountAPITests: XCTestCase {
         XCTAssertEqual(AccountManagementURLProtocol.requests.count, 1)
     }
 
+    func testDisconnectSpecificChannelUsesAccountIDPath() async throws {
+        AccountManagementURLProtocol.responses = [.init(statusCode: 204, data: Data())]
+        try await makeAPI().disconnectStreamingAccount(accessToken: "access", accountID: "account-b")
+        XCTAssertEqual(AccountManagementURLProtocol.requests.last?.url?.path, "/auth/streaming/accounts/youtube/account-b")
+    }
+
+    func testPrepareAndModeCarryAccountIDButExistingTargetModeOmitsIt() async throws {
+        let session = try JSONDecoder().decode(YouTubeBroadcastSession.self, from: Data("{\"session_id\":\"session\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}".utf8))
+        let api = makeAPI()
+        for operation in 0..<3 {
+            AccountManagementURLProtocol.responses = [.init(statusCode: 200, data: Data("{}".utf8))]
+            if operation == 0 { _ = try? await api.prepareStream(session: session, accessToken: "access", accountID: "account-b") }
+            else { _ = try? await api.changeBroadcastMode(session: session, accessToken: "access", resolution: "fhd", targets: [.youtube], accountID: operation == 1 ? "account-b" : nil) }
+            let request = try XCTUnwrap(AccountManagementURLProtocol.requests.last)
+            var data = request.httpBody
+            if data == nil, let stream = request.httpBodyStream {
+                stream.open(); defer { stream.close() }
+                var bytes = [UInt8](repeating: 0, count: 4096)
+                let count = stream.read(&bytes, maxLength: bytes.count)
+                data = Data(bytes.prefix(max(0, count)))
+            }
+            let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(data)) as? [String: Any])
+            XCTAssertEqual(body["account_id"] as? String, operation == 2 ? nil : "account-b")
+        }
+    }
+
     private func makeAPI() -> YouTubeAPI {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [AccountManagementURLProtocol.self]

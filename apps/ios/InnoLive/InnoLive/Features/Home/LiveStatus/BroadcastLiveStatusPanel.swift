@@ -45,7 +45,7 @@ struct BroadcastLiveStatusPanel: View {
             Circle()
                 .fill(Self.dotColor(tone))
                 .frame(width: dotSize, height: dotSize)
-            Text(BroadcastSettingsProvider(rawValue: target.provider)?.title ?? target.title)
+            Text(target.provider == "youtube" ? target.title : (BroadcastSettingsProvider(rawValue: target.provider)?.title ?? target.title))
                 .fontWeight(.semibold)
             Spacer(minLength: 8)
             Text(policy.targetLabel)

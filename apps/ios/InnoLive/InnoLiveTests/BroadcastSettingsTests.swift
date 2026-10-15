@@ -104,6 +104,20 @@ final class BroadcastSettingsTests: XCTestCase {
         editor.setUsesDefaults(false, provider: .youtube)
         XCTAssertEqual(editor.youtube.title, "typed")
     }
+    func testChannelChangeIgnoresLateDefaultsAndSendsSelectedAccountID() async throws {
+        editor.configure(scope: scope("A"), channels: ["youtube": "channel-a"], youtubeAccountID: "account-a")
+        enqueue("{\"title\":\"channel A stale\"}", delay: 0.1)
+        let session = try session()
+        let task = Task { await editor.loadDefaults(session: session, accessToken: "access", provider: .youtube) }
+        await waitForRequest()
+        let query = URLComponents(url: try XCTUnwrap(SettingsURLProtocol.requests.first?.url), resolvingAgainstBaseURL: false)?.queryItems
+        XCTAssertEqual(query?.first { $0.name == "account_id" }?.value, "account-a")
+        editor.configure(scope: scope("A"), channels: ["youtube": "channel-b"], youtubeAccountID: "account-b")
+        editor.editYouTube { $0.title = "channel B draft" }
+        await task.value
+        XCTAssertEqual(editor.youtube.title, "channel B draft")
+    }
+
     func testLateDefaultsNeverOverwriteManualInput() async throws {
         enqueue("{\"title\":\"last\"}", delay: 0.1)
         let session = try session()

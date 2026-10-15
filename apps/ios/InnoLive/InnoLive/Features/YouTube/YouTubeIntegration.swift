@@ -63,7 +63,7 @@ final class YouTubeIntegration: ObservableObject {
 
     /// End the old session before preparing a new one; the caller reuses the normal consent/camera flow.
     func switchPreparationToOnDevice(accessToken: String?) async -> Bool {
-        guard offersOnDevicePreparation, !isSwitchingToOnDevice, !isChangingStreamState,
+        guard offersOnDevicePreparation, !isSwitchingToOnDevice, !isYouTubeConnectionOperationInProgress, !isChangingStreamState,
               !isChangingAIProcessing, !isPreparingSession, !isConnectingVideo, !isEndingSession,
               !isChangingBroadcastMode, !isTogglingAnonymization, !isTogglingScreenBlur,
               broadcastPreparationTask == nil, let accessToken, !accessToken.isEmpty else { return false }
@@ -452,7 +452,8 @@ final class YouTubeIntegration: ObservableObject {
                       upgradeOffer?.options?.contains(upgradeOption) == true else { return false }
             }
             let snapshot = try await api.changeBroadcastMode(session: current, accessToken: accessToken,
-                                                             resolution: resolution, targets: targets)
+                                                             resolution: resolution, targets: targets,
+                                                             accountID: added.contains(.youtube) ? selectedYouTubeAccountID : nil)
             guard isCurrent() else {
                 if broadcastModeRequest == request, generation == sessionOperationGeneration,
                    session?.sessionID == current.sessionID { broadcastModeAwaitingStatus = true }
@@ -549,17 +550,49 @@ final class YouTubeIntegration: ObservableObject {
     let settingsEditor: BroadcastSettingsEditor
     @Published private(set) var streamingAccounts: [YouTubeStreamingAccountSummary] = []
 
+    @Published private(set) var selectedYouTubeAccountID: String?
+    var youtubeAccounts: [StreamingAccountSummary] { streamingAccounts.filter { $0.provider == "youtube" } }
+    var selectedYouTubeAccount: StreamingAccountSummary? {
+        youtubeAccounts.first { $0.accountID == selectedYouTubeAccountID }
+    }
+    func canConnectYouTubeChannel(reconnecting: Bool = false) -> Bool {
+        !isYouTubeAccountChangeBlocked && (reconnecting || youtubeAccounts.count < 5)
+    }
+    var canSelectYouTubeChannel: Bool {
+        !isChangingStreamState && !isChangingBroadcastMode && !isPreparingSession && !isSwitchingToOnDevice
+            && !isEndingSession && !isSavingLiveSettings
+            && preparationStatus?.isRunning != true && preparationStatus?.phase != .cancelling
+            && !isYouTubeConnectionOperationInProgress
+            && !StreamingAccountPolicy.isInUse("youtube", snapshot: responseState)
+    }
+    func selectYouTubeChannel(_ id: String?, accessToken: String?) {
+        guard canSelectYouTubeChannel, let account = youtubeAccounts.first(where: { $0.accountID == id }) else { return }
+        selectedYouTubeAccountID = id
+        connection = account.youtubeConnection
+        configureSettingsEditor(accessToken: accessToken)
+    }
+    func canDisconnectYouTubeChannel(_ account: StreamingAccountSummary) -> Bool {
+        guard !isYouTubeConnectionOperationInProgress, !isChangingStreamState, !isSwitchingToOnDevice,
+              !isChangingBroadcastMode, !isPreparingSession, !isEndingSession,
+              preparationStatus?.isRunning != true, preparationStatus?.phase != .cancelling else { return false }
+        if let target = responseState.details.targets?.first(where: { $0.provider == "youtube" }),
+           target.stream.broadcastPhaseValue != .idle {
+            return target.accountID != nil && target.accountID != account.accountID
+        }
+        return !StreamingAccountPolicy.isInUse("youtube", snapshot: responseState)
+    }
+
     func configureSettingsEditor(accessToken: String?) {
         let scope = accessToken.flatMap { try? api.broadcastSessionScope(accessToken: $0) }
         var channels = Dictionary(streamingAccounts.map { ($0.provider, $0.channelID) }, uniquingKeysWith: { _, last in last })
         if let connection { channels["youtube"] = connection.channel.id }
-        settingsEditor.configure(scope: scope, channels: channels)
+        settingsEditor.configure(scope: scope, channels: channels, youtubeAccountID: selectedYouTubeAccountID)
     }
 
     func settingsScopeKey(accessToken: String?) -> String {
         let scope = accessToken.flatMap { try? api.broadcastSessionScope(accessToken: $0) }
         return (scope?.storageKey ?? "") + ":" + streamingAccounts.map { $0.provider + ":" + $0.channelID }.sorted().joined(separator: ":")
-            + ":" + (connection?.channel.id ?? "")
+            + ":" + (connection?.channel.id ?? "") + ":" + (selectedYouTubeAccountID ?? "")
     }
 
     func isSettingsAccountConnected(_ provider: BroadcastSettingsProvider) -> Bool {
@@ -721,6 +754,7 @@ final class YouTubeIntegration: ObservableObject {
         resetLiveEditing()
         resetBroadcastMode()
         streamingAccounts = []
+        selectedYouTubeAccountID = nil
         chzzkAccountMessage = nil
         sessionOperationGeneration &+= 1
         invalidateConnectionOperation()
@@ -895,7 +929,7 @@ final class YouTubeIntegration: ObservableObject {
 
     var isYouTubeAccountChangeBlocked: Bool {
         isBroadcastSettingsLocked || isChangingBroadcastMode || isHandlingUpgradeOffer
-            || isYouTubeConnectionOperationInProgress
+            || isSwitchingToOnDevice || isYouTubeConnectionOperationInProgress
     }
 
     var canDisconnectYouTubeAccount: Bool {
@@ -907,7 +941,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var isCHZZKAccountChangeBlocked: Bool {
-        isChangingBroadcastMode || isHandlingUpgradeOffer || isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
+        isChangingBroadcastMode || isHandlingUpgradeOffer || isSwitchingToOnDevice || isYouTubeConnectionOperationInProgress || isPreparingSession || isChangingStreamState
             || isEndingSession || preparationStatus?.isRunning == true
             || preparationStatus?.phase == .cancelling
             || StreamingAccountPolicy.isInUse("chzzk", snapshot: responseState)
@@ -981,7 +1015,10 @@ final class YouTubeIntegration: ObservableObject {
 
     private func applyStreamingAccounts(_ accounts: [StreamingAccountSummary]) {
         streamingAccounts = accounts
-        if let connection = accounts.first(where: { $0.provider == "youtube" })?.youtubeConnection {
+        let selected = accounts.first { $0.provider == "youtube" && $0.accountID == selectedYouTubeAccountID }
+            ?? accounts.first { $0.provider == "youtube" }
+        selectedYouTubeAccountID = selected?.accountID
+        if let connection = selected?.youtubeConnection {
             self.connection = connection
             persistConnection()
         } else {
@@ -1073,18 +1110,27 @@ final class YouTubeIntegration: ObservableObject {
                 presenting: viewController
             )
             guard isCurrentConnectionOperation(generation) else { return }
-            let response = try await api.connect(serverAuthCode: serverAuthCode, accessToken: accessToken)
-            guard isCurrentConnectionOperation(generation) else { return }
-            connection = YouTubeConnection(provider: response.provider, channel: response.channel)
-            persistConnection()
+            try await connectAuthorizedYouTubeAccount(serverAuthCode: serverAuthCode, accessToken: accessToken)
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
             handle(error)
         }
     }
 
-    func disconnectYouTubeAccount(accessToken: String?) async {
-        guard canDisconnectYouTubeAccount else { return }
+    // Keep the previous selection until the full account list confirms its connection ID.
+    func connectAuthorizedYouTubeAccount(serverAuthCode: String, accessToken: String) async throws {
+        let generation = connectionOperationGeneration
+        _ = try await api.connect(serverAuthCode: serverAuthCode, accessToken: accessToken)
+        guard isCurrentConnectionOperation(generation) else { return }
+        let accounts = try await api.streamingAccounts(accessToken: accessToken)
+        guard isCurrentConnectionOperation(generation) else { return }
+        applyStreamingAccounts(accounts)
+    }
+
+    func disconnectYouTubeAccount(accessToken: String?, accountID: String? = nil) async {
+        let account = youtubeAccounts.first { $0.accountID == (accountID ?? selectedYouTubeAccountID) }
+        if accountID != nil && account == nil { return }
+        guard account.map(canDisconnectYouTubeChannel) ?? canDisconnectYouTubeAccount else { return }
         clearError()
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
@@ -1100,11 +1146,9 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         do {
-            try await api.disconnectStreamingAccount(accessToken: accessToken)
+            try await api.disconnectStreamingAccount(accessToken: accessToken, accountID: account?.accountID)
             guard isCurrentConnectionOperation(generation) else { return }
-            connection = nil
-            streamingAccounts.removeAll { $0.provider == "youtube" }
-            clearPersistedYouTubeConnection()
+            applyStreamingAccounts(streamingAccounts.filter { $0.provider != "youtube" || $0.accountID != account?.accountID })
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
             // A failed DELETE does not prove that the server removed the link.
@@ -1562,7 +1606,8 @@ final class YouTubeIntegration: ObservableObject {
             let preparedSnapshot = try await api.prepareStream(
                 session: session,
                 accessToken: accessToken,
-                provider: provider
+                provider: provider,
+                accountID: provider == .youtube ? selectedYouTubeAccountID : nil
             )
             guard !useEditor || settingsEditor.contextGeneration == editorGeneration else { return false }
             guard applySessionResponse(preparedSnapshot, sessionID: session.sessionID, generation: generation, provider: provider.rawValue, clearsWarnings: true) else { return false }
@@ -2127,6 +2172,7 @@ final class YouTubeIntegration: ObservableObject {
         resetBroadcastMode()
         resetUpgradeOffer()
         streamingAccounts = []
+        selectedYouTubeAccountID = nil
         preparationGeneration &+= 1
         preparationStatus = nil
         selectedBroadcastProviders = [.youtube]

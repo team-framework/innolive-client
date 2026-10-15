@@ -1,6 +1,7 @@
 import Foundation
 
 struct StreamingAccountSummary: Decodable, Equatable {
+    var accountID: String? = nil
     let provider: String
     let channelID: String
     let channelTitle: String
@@ -8,6 +9,7 @@ struct StreamingAccountSummary: Decodable, Equatable {
     let reconnectRequired: Bool
 
     enum CodingKeys: String, CodingKey {
+        case accountID = "id"
         case provider
         case channelID = "channel_id"
         case channelTitle = "channel_title"

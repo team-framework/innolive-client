@@ -7,6 +7,7 @@ struct BroadcastSettingsView: View {
     @ObservedObject private var editor: BroadcastSettingsEditor
     @State private var query = ""
     @State private var isSaved = false
+    @State private var isConfirmingChannel = false
     @State private var transmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var nextTransmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var isShowingMediaConsent = false
@@ -111,6 +112,20 @@ struct BroadcastSettingsView: View {
                         .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
                     }
                 }
+                if editor.provider == .youtube, !isLiveEditing, !youtube.youtubeAccounts.isEmpty {
+                    Section(String(localized: "YouTube 채널", table: "YouTubeChannels")) {
+                        Picker(String(localized: "방송할 채널", table: "YouTubeChannels"), selection: Binding(
+                            get: { youtube.selectedYouTubeAccountID ?? "" },
+                            set: { youtube.selectYouTubeChannel($0.isEmpty ? nil : $0, accessToken: token) }
+                        )) {
+                            ForEach(youtube.youtubeAccounts, id: \.channelID) { account in
+                                Text(account.displayTitle).tag(account.accountID ?? "")
+                            }
+                        }
+                        .disabled(!youtube.canSelectYouTubeChannel)
+                        .accessibilityIdentifier("youtube-channel-picker")
+                    }
+                }
                 if editor.provider == .youtube { youtubeForm } else { chzzkForm }
 
                 if isLiveEditing {
@@ -156,6 +171,10 @@ struct BroadcastSettingsView: View {
         }
         .navigationTitle(isLiveEditing ? String(localized: "방송 정보 수정") : String(localized: "방송 설정"))
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(String(localized: "방송할 채널", table: "YouTubeChannels"), isPresented: $isConfirmingChannel, titleVisibility: .visible) {
+            Button(youtube.selectedYouTubeAccount?.displayTitle ?? "YouTube") { performPrimaryAction() }
+            Button(String(localized: "취소"), role: .cancel) {}
+        }
         .onChange(of: youtube.selectedBroadcastProviders) { _, selected in
             if !isLiveEditing, modeProvider == nil, !selected.contains(editor.provider),
                let provider = BroadcastSettingsProvider.allCases.first(where: selected.contains) {
@@ -403,6 +422,16 @@ struct BroadcastSettingsView: View {
     }
     private func searchCHZZK() { Task { await editor.searchCategories(query: query, accessToken: token) } }
     private func primaryAction() {
+        if !isLiveEditing, youtube.youtubeAccounts.count > 1,
+           (modeProvider == .youtube || (onPrepare != nil && youtube.selectedBroadcastProviders.contains(.youtube))),
+           youtube.canSelectYouTubeChannel {
+            isConfirmingChannel = true
+        } else {
+            performPrimaryAction()
+        }
+    }
+
+    private func performPrimaryAction() {
         if isLiveEditing {
             Task { isSaved = await youtube.saveLiveSettings(accessToken: token) }
             return
