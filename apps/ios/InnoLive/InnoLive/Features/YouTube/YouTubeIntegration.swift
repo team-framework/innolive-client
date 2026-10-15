@@ -1049,17 +1049,21 @@ final class YouTubeIntegration: ObservableObject {
                 presenting: viewController
             )
             guard isCurrentConnectionOperation(generation) else { return }
-            let response = try await api.connect(serverAuthCode: serverAuthCode, accessToken: accessToken)
-            guard isCurrentConnectionOperation(generation) else { return }
-            connection = YouTubeConnection(provider: response.provider, channel: response.channel)
-            persistConnection()
-            let accounts = try await api.streamingAccounts(accessToken: accessToken)
-            guard isCurrentConnectionOperation(generation) else { return }
-            applyStreamingAccounts(accounts)
+            try await connectAuthorizedYouTubeAccount(serverAuthCode: serverAuthCode, accessToken: accessToken)
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
             handle(error)
         }
+    }
+
+    // Keep the previous selection until the full account list confirms its connection ID.
+    func connectAuthorizedYouTubeAccount(serverAuthCode: String, accessToken: String) async throws {
+        let generation = connectionOperationGeneration
+        _ = try await api.connect(serverAuthCode: serverAuthCode, accessToken: accessToken)
+        guard isCurrentConnectionOperation(generation) else { return }
+        let accounts = try await api.streamingAccounts(accessToken: accessToken)
+        guard isCurrentConnectionOperation(generation) else { return }
+        applyStreamingAccounts(accounts)
     }
 
     func disconnectYouTubeAccount(accessToken: String?, accountID: String? = nil) async {
