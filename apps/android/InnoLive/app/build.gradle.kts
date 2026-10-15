@@ -1,8 +1,11 @@
 import java.util.Properties
 
 plugins {
-    alias(libs.plugins.android.application)
+    // AGP 버전은 buildSrc 의존성(libs.versions.toml의 agp)으로 정합니다.
+    id("com.android.application")
     alias(libs.plugins.kotlin.compose)
+    // RootEncoder 로그의 스트림 키 노출을 막습니다(buildSrc/RedactLibraryLogsPlugin.kt).
+    id("innolive.redact-library-logs")
 }
 
 val localProperties = Properties()
@@ -31,8 +34,8 @@ android {
         applicationId = "com.framework.innolive"
         minSdk = 30
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.1.1"
+        versionCode = 6
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "PRIVACY_PERF_DIAGNOSTICS", privacyReleaseTest.toString())
@@ -85,6 +88,7 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.squareup.okhttp3:okhttp:5.3.0")
     implementation("io.github.webrtc-sdk:android:144.7559.09")
+    implementation("com.github.pedroSG94.RootEncoder:rtmp:2.8.1")
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
     implementation(platform(libs.androidx.compose.bom))
@@ -98,6 +102,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.process)
     testImplementation(libs.junit)
     testImplementation("org.json:json:20251224")
     androidTestImplementation(platform(libs.androidx.compose.bom))

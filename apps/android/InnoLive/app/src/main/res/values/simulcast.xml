@@ -1,0 +1,9 @@
+<resources>
+    <string name="simulcast_prepare_failed_youtube">YouTube 준비에 실패했습니다. 다시 준비하거나, 준비된 치지직으로 방송을 시작하거나, 준비를 취소하세요.</string>
+    <string name="simulcast_prepare_failed_chzzk">치지직 준비에 실패했습니다. 다시 준비하거나, 준비된 YouTube로 방송을 시작하거나, 준비를 취소하세요.</string>
+    <string name="simulcast_prepare_failed_all">YouTube와 치지직 모두 준비하지 못했습니다. 다시 시도하세요.</string>
+    <string name="simulcast_golive_failed_youtube">YouTube 라이브 시작에 실패했습니다. 치지직 방송은 유지됩니다.</string>
+    <string name="simulcast_golive_failed_chzzk">치지직 라이브 시작에 실패했습니다. YouTube 방송은 유지됩니다.</string>
+    <string name="simulcast_golive_failed_all">라이브 시작에 실패했습니다. 다시 시도하세요.</string>
+    <string name="simulcast_action_retry_remaining">남은 플랫폼 다시 준비</string>
+</resources>

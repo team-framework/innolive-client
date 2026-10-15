@@ -4,10 +4,13 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.youtube.StreamingAccount
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.framework.innolive.ui.text.UiText
+import java.io.File
 import java.io.IOException
 
 class ChzzkBroadcastContractTest {
@@ -26,6 +29,15 @@ class ChzzkBroadcastContractTest {
         assertEquals("tags[0]", ChzzkBroadcastSettings(tags = listOf("고전 명작")).validationField())
         assertEquals("tags[0]", ChzzkBroadcastSettings(tags = listOf("retro!")).validationField())
         assertEquals("tags", ChzzkBroadcastSettings(tags = List(6) { "tag$it" }).validationField())
+    }
+
+    /** broadcast-settings-v1.md: 클라이언트는 공백뿐인 제목을 허용하지 않는다. 빈 설정 전체는 서버 기본값 조회다. */
+    @Test fun whitespaceOnlyTitleIsRejectedUnlessEverySettingIsBlank() {
+        assertEquals("title", ChzzkBroadcastSettings(title = "   ", categoryType = "GAME", categoryId = "g").validationField())
+        assertEquals("title", ChzzkBroadcastSettings(title = "", tags = listOf("tag")).validationField())
+        assertNull(ChzzkBroadcastSettings().validationField())
+        assertNull(ChzzkBroadcastSettings(title = " \t ").validationField())
+        assertNull(ChzzkBroadcastSettings(title = " 제목 ", categoryType = "GAME", categoryId = "g").validationField())
     }
 
     @Test fun prepareResponseCannotBeMistakenForLiveOrAnotherTarget() {
@@ -56,11 +68,27 @@ class ChzzkBroadcastContractTest {
     }
 
     @Test fun serverErrorsDescribeRecoveryWithoutLeakingServerText() {
-        assertTrue(chzzkBroadcastErrorMessage("streaming_not_connected", null).contains("연결"))
-        assertTrue(chzzkBroadcastErrorMessage("streaming_reconnect_required", null).contains("다시 연결"))
-        assertTrue(chzzkBroadcastErrorMessage("not_supported", null).contains("서버"))
-        assertTrue(chzzkBroadcastErrorMessage("broadcast_not_ready", null).contains("준비"))
-        assertTrue(chzzkBroadcastErrorMessage("bad_request", "tags[0]").contains("태그"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("streaming_not_connected", null)).contains("연결"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("streaming_reconnect_required", null)).contains("다시 연결"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("not_supported", null)).contains("서버"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("broadcast_not_ready", null)).contains("준비"))
+        assertTrue(koreanText(chzzkBroadcastErrorMessage("bad_request", "tags[0]")).contains("태그"))
+        // 리소스로 옮긴 뒤에도 한국어 문구는 그대로입니다.
+        assertEquals("방송 제목은 100자 이하로 입력하세요.", koreanText(chzzkBroadcastErrorMessage("bad_request", "title")))
+        assertEquals("로그인이 만료됐습니다. 다시 로그인하세요.", koreanText(chzzkBroadcastErrorMessage("unauthorized", null)))
+        assertEquals("치지직 방송 요청에 실패했습니다. 다시 시도하세요.", koreanText(chzzkBroadcastErrorMessage("other", null)))
+    }
+
+    /** 리소스로 옮긴 치지직 문구의 한국어 원문입니다. */
+    private fun koreanText(text: UiText): String {
+        val id = (text as UiText.Resource).id
+        val name = R.string::class.java.fields.first { it.getInt(null) == id }.name
+        val directory = File(checkNotNull(System.getProperty("innolive.android.resDir")), "values")
+        return checkNotNull(
+            directory.listFiles { file -> file.extension == "xml" }.orEmpty().firstNotNullOfOrNull { file ->
+                Regex("""<string name="$name">(.*?)</string>""").find(file.readText())?.groupValues?.get(1)
+            },
+        )
     }
 
     @Test fun accountMutationInvalidatesPreviousVerificationUntilFreshResponse() {
@@ -116,5 +144,25 @@ class ChzzkBroadcastContractTest {
                 WebRtcConnectionState.CONNECTED, BroadcastState.IDLE, audienceSelected = true))
         assertNull(broadcastSettingsSaveDisabledReason(BroadcastProvider.YOUTUBE,
             WebRtcConnectionState.CONNECTED, BroadcastState.IDLE, audienceSelected = true))
+    }
+
+    /**
+     * youtube-broadcast-v1.md: preparing·prepared·going_live·live 단계에서 방송 설정을 잠근다.
+     * 일시 중지·재개·준비 취소·종료 중에도 서버 단계는 그대로이므로 저장을 열면 안 됩니다.
+     */
+    @Test fun settingsSaveIsLockedForEveryActiveBroadcastState() {
+        val unlocked = setOf(BroadcastState.IDLE, BroadcastState.FAILED)
+        for (state in BroadcastState.entries) {
+            val reason = broadcastSettingsSaveDisabledReason(BroadcastProvider.YOUTUBE,
+                WebRtcConnectionState.CONNECTED, state, audienceSelected = true)
+            if (state in unlocked) assertNull("$state", reason)
+            else assertNotNull("$state 상태에서 설정 저장이 열려 있습니다", reason)
+            assertEquals(R.string.broadcast_settings_connection_required, broadcastSettingsSaveDisabledReason(
+                BroadcastProvider.YOUTUBE, WebRtcConnectionState.CONNECTING, state, audienceSelected = true))
+            assertEquals(R.string.validation_audience, broadcastSettingsSaveDisabledReason(
+                BroadcastProvider.YOUTUBE, WebRtcConnectionState.CONNECTED, state, audienceSelected = false))
+        }
+        assertEquals(R.string.broadcast_settings_saving, broadcastSettingsSaveDisabledReason(
+            BroadcastProvider.YOUTUBE, WebRtcConnectionState.CONNECTED, BroadcastState.SAVING_SETTINGS, true))
     }
 }

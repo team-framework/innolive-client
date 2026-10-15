@@ -28,6 +28,8 @@ data class SessionSnapshot(
     val warnings: List<SessionNotice>? = null,
     val broadcastResolution: String? = null,
     val isRemainingTimeStale: Boolean = false,
+    /** 이 세션에서 마지막으로 받은 남은 시간 숫자. 송출이 멈춘 뒤 null이 와도 표시를 유지하는 데 쓴다. */
+    val lastRemainingSeconds: Long? = null,
 ) {
     val visibleTargets: List<SessionTarget>
         get() = targets.orEmpty().filter { it.broadcastPhase != "idle" }
@@ -35,25 +37,47 @@ data class SessionSnapshot(
     val bannerNotices: List<SessionNotice>
         get() = (notices.orEmpty() + warnings.orEmpty()).distinctBy { it.code }
 
-    // 기존 방송 버튼은 기본 대상만 제어합니다. 다른 대상의 상태를 합산하지 않습니다.
+    // 동시 송출이면 대상들의 상태를 합칩니다. 하나라도 라이브면 방송 중으로 보고 모두 멈췄을 때만 일시 중지입니다.
     internal fun broadcastState(): BroadcastState? {
         val knownTargets = targets ?: return null
         if (knownTargets.isEmpty()) return BroadcastState.IDLE
-        val target = knownTargets.firstOrNull { it.provider == provider } ?: return null
-        return when (target.broadcastPhase) {
-            "idle" -> BroadcastState.IDLE
-            "preparing" -> BroadcastState.PREPARING
-            "prepared" -> BroadcastState.PREPARED
-            "going_live" -> BroadcastState.GOING_LIVE
-            "live" -> when (target.status) {
-                "streaming", "reconnecting", "reconfiguring" -> BroadcastState.LIVE
-                "paused", "paused_reconnecting", "paused_reconfiguring" -> BroadcastState.PAUSED
-                "stopped" -> BroadcastState.IDLE
-                else -> null
-            }
-            else -> null
-        }
+        // 알 수 없는 단계의 대상은 다른 대상의 확인된 상태를 가리지 않습니다.
+        val states = knownTargets.mapNotNull { it.broadcastState() }.ifEmpty { return null }
+        return AggregateStateOrder.firstOrNull { it in states } ?: BroadcastState.IDLE
     }
+}
+
+private val AggregateStateOrder = listOf(
+    BroadcastState.GOING_LIVE,
+    BroadcastState.LIVE,
+    BroadcastState.PAUSED,
+    BroadcastState.PREPARED,
+    BroadcastState.PREPARING,
+)
+
+private val PreparedOrLaterStates = setOf(
+    BroadcastState.PREPARED, BroadcastState.GOING_LIVE, BroadcastState.LIVE, BroadcastState.PAUSED,
+)
+
+/** 선택한 플랫폼 중 서버에서 아직 준비되지 않은 플랫폼입니다. 동시 송출 부분 실패 뒤 다시 준비할 대상입니다. */
+internal fun SessionSnapshot?.unpreparedProviders(selected: Set<BroadcastProvider>): List<BroadcastProvider> =
+    BroadcastProvider.entries.filter { provider ->
+        provider in selected && this?.targets.orEmpty()
+            .firstOrNull { it.provider == provider.wireValue }?.broadcastState() !in PreparedOrLaterStates
+    }
+
+internal fun SessionTarget.broadcastState(): BroadcastState? = when (broadcastPhase) {
+    "idle" -> BroadcastState.IDLE
+    "preparing" -> BroadcastState.PREPARING
+    "prepared" -> BroadcastState.PREPARED
+    "going_live" -> BroadcastState.GOING_LIVE
+    "live" -> when (status) {
+        "streaming", "reconnecting", "reconfiguring" -> BroadcastState.LIVE
+        "paused", "paused_reconnecting", "paused_reconfiguring" -> BroadcastState.PAUSED
+        "stopped" -> BroadcastState.IDLE
+        else -> null
+    }
+    else -> null
 }
 
 // 부분 응답은 포함된 필드만 갱신합니다. targets: []는 이전 stream으로 되돌리지 않습니다.
@@ -62,13 +86,17 @@ internal fun parseSessionSnapshot(
     sessionId: String,
     previous: SessionSnapshot = SessionSnapshot(sessionId),
     clearWarningsWhenMissing: Boolean = false,
+    /** pause·resume·stop처럼 한 대상의 stream만 오는 응답의 대상입니다. 없으면 기본 대상입니다. */
+    targetProvider: String? = null,
 ): SessionSnapshot {
     val response = JSONObject(payload)
     require(previous.sessionId == sessionId)
     if (response.has("session_id")) {
         require(response.opt("session_id") == sessionId) { "응답의 세션이 일치하지 않습니다." }
     }
-    val provider = (response.opt("provider") as? String)?.takeIf { it.isNotBlank() } ?: previous.provider
+    val provider = if (targetProvider != null) previous.provider
+        else (response.opt("provider") as? String)?.takeIf { it.isNotBlank() } ?: previous.provider
+    val streamProvider = targetProvider ?: provider
     val oldTargets = previous.targets.orEmpty()
     val targets = when {
         response.has("targets") -> response.optJSONArray("targets")?.objects()?.map { item ->
@@ -78,9 +106,9 @@ internal fun parseSessionSnapshot(
         } ?: previous.targets
         response.optJSONObject("stream") != null || response.has("broadcast_phase") -> {
             val stream = response.optJSONObject("stream") ?: response
-            val target = parseSessionTarget(stream, provider, oldTargets.firstOrNull { it.provider == provider })
+            val target = parseSessionTarget(stream, streamProvider, oldTargets.firstOrNull { it.provider == streamProvider })
             if (response.has("session_id")) listOf(target)
-            else oldTargets.filter { it.provider != provider } + target
+            else oldTargets.filter { it.provider != streamProvider } + target
         }
         else -> previous.targets
     }
@@ -117,6 +145,8 @@ internal fun parseSessionSnapshot(
             (response.isNull("broadcast_remaining_seconds") || response.nonNegativeInteger("broadcast_remaining_seconds") != null)) {
             false
         } else previous.isRemainingTimeStale,
+        // 응답에 숫자가 실렸을 때만 갱신한다. 필드가 없거나 null이면 이 세션의 마지막 숫자를 유지한다.
+        lastRemainingSeconds = response.nonNegativeInteger("broadcast_remaining_seconds") ?: previous.lastRemainingSeconds,
     )
 }
 

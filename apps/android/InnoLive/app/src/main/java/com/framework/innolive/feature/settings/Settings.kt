@@ -1,9 +1,12 @@
 package com.framework.innolive.feature.settings
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,10 +15,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.CloudUpload
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.VideoCameraBack
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,7 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +33,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.semantics
@@ -42,16 +41,12 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.ProfileDisplay
 import com.framework.innolive.ui.text.asString
-
-data class SettingsMenuItem(
-    val icon: ImageVector,
-    val label: String,
-    val onNav: () -> Unit
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,90 +58,66 @@ fun SettingsScreen(props: SettingsScreenProps) {
     val privacyPolicyUrl = privacyPolicyUrlForLanguage(
         LocalConfiguration.current.locales[0].language,
     )
-    val settingItems = listOf(
-        SettingsMenuItem(
-            Icons.Outlined.VideoCameraBack,
-            stringResource(R.string.settings_camera_audio),
-            props.onOpenCameraSettings,
-        ),
-        SettingsMenuItem(
-            Icons.Outlined.CloudUpload,
-            stringResource(R.string.settings_broadcast),
-            props.onOpenBroadcastSettings,
-        ),
-        SettingsMenuItem(
-            Icons.Outlined.Description,
-            stringResource(R.string.privacy_policy),
-        ) {
-            uriHandler.openUri(privacyPolicyUrl)
-        },
-    )
+    val enabled = !props.isDeletingAccount && !props.isAccountDeletionPending
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(
-            space = 10.dp
-        )
-    ) {
-        TopAppBar(
-            title = { Text(text = stringResource(R.string.settings_title)) },
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            navigationIcon = {
-                IconButton(
-                    onClick = props.onBack,
-                    enabled = !props.isDeletingAccount && !props.isAccountDeletionPending,
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = stringResource(R.string.action_back),
-                    )
-                }
-            },
-        )
-        Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            ProfileDisplay(
-                name = props.profileName,
-                email = props.profileEmail,
-            )
-            OutlinedButton(
-                onClick = props.onLogout,
-                enabled = !props.isDeletingAccount && !props.isAccountDeletionPending,
-            ) {
-                Text(text = stringResource(R.string.action_logout))
+    Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = props.onBack, enabled = enabled) {
+                Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_close))
             }
+            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleMedium)
         }
         Column(
             modifier = Modifier.weight(1f).fillMaxWidth()
-                .verticalScroll(rememberScrollState()).padding(horizontal = 12.dp),
+                .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            settingItems.forEach { item ->
-                Button(
-                    onClick = item.onNav,
-                    enabled = !props.isDeletingAccount && !props.isAccountDeletionPending,
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(
-                            space = 8.dp,
-                            alignment = Alignment.Start
-                        )
-                    ) {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = null,
-                        )
-                        Text(text = item.label)
-                    }
+            Text(stringResource(R.string.settings_section_account), style = MaterialTheme.typography.bodySmall)
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    ProfileDisplay(name = props.profileName, email = props.profileEmail)
+                }
+                OutlinedButton(onClick = props.onLogout, enabled = enabled) {
+                    Text(stringResource(R.string.action_logout))
                 }
             }
+            SettingsDivider()
+            Text(stringResource(R.string.settings_section_camera), style = MaterialTheme.typography.bodySmall)
+            SettingsValueRow(stringResource(R.string.label_camera_resolution), props.selectedResolution,
+                enabled, props.onOpenResolutionOptions)
+            SettingsValueRow(stringResource(R.string.label_camera_device), props.selectedCameraDevice,
+                enabled, props.onOpenCameraDeviceOptions)
+            SettingsDivider()
+            Text(stringResource(R.string.settings_section_audio), style = MaterialTheme.typography.bodySmall)
+            SettingsValueRow(stringResource(R.string.label_audio_device), props.selectedAudioDevice,
+                enabled, props.onOpenAudioDeviceOptions)
+            TextButton(onClick = props.onOpenCameraSettings, enabled = enabled) {
+                Text(stringResource(R.string.settings_camera_audio))
+            }
+            SettingsDivider()
+            Text(stringResource(R.string.settings_section_live), style = MaterialTheme.typography.bodySmall)
+            SettingsValueRow(stringResource(R.string.label_broadcast_platform), props.selectedPlatform,
+                enabled, props.onOpenBroadcastSettings)
+            SettingsValueRow(stringResource(R.string.label_broadcast_account), props.broadcastAccount,
+                enabled, props.onOpenBroadcastSettings)
+            TextButton(onClick = props.onOpenBroadcastSettings, enabled = enabled) {
+                Text(stringResource(R.string.settings_broadcast))
+            }
+            SettingsDivider()
             PlanUsageSettings(props)
             AIProcessingSettings(props)
+            SettingsDivider()
+            TextButton(onClick = { uriHandler.openUri(privacyPolicyUrl) }, enabled = enabled) {
+                Text(stringResource(R.string.privacy_policy))
+            }
+            TextButton(onClick = props.onReplayBroadcastGuide,
+                enabled = enabled && props.canReplayBroadcastGuide) {
+                Text(stringResource(R.string.tutorial_replay))
+            }
             OutlinedButton(
                 onClick = { isDeleteConfirmationVisible = true },
                 enabled = !props.isDeletingAccount,
@@ -239,5 +210,29 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
                 Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun SettingsDivider() {
+    Image(
+        painter = painterResource(R.drawable.settings_divider),
+        contentDescription = null,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).height(3.dp),
+    )
+}
+
+@Composable
+private fun SettingsValueRow(label: String, value: String, enabled: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f))
     }
 }

@@ -373,6 +373,166 @@ class ReferenceFaceApiTest {
         }
     }
 
+
+    // --- reference-face-v1.md: 401 뒤 한 번 갱신·재시도, 오류 코드 매핑 ---
+
+    @Test
+    fun appendStatusAndDeleteRequestsRefreshOnceAfter401Too() {
+        val operations: List<Pair<String, suspend ReferenceFaceApi.(suspend () -> String) -> Unit>> = listOf(
+            "append" to { refresh -> append(listOf(image), "old-token", refresh); Unit },
+            "status" to { refresh -> getStatus("old-token", refresh); Unit },
+            "deleteAll" to { refresh -> deleteAll("old-token", refresh) },
+            "deleteFace" to { refresh -> deleteFace("face-1", "old-token", refresh) },
+        )
+
+        operations.forEach { (name, operation) ->
+            val requests = mutableListOf<Request>()
+            val client = clientWithResponse { request ->
+                requests += request
+                when {
+                    requests.size == 1 -> response(request, 401, "")
+                    request.method == "DELETE" -> response(request, 204, "")
+                    else -> response(request, 200, "{\"registered\":true}")
+                }
+            }
+            val api = ReferenceFaceApi("https://example.com", client)
+            var refreshCount = 0
+            try {
+                runBlocking {
+                    api.operation {
+                        refreshCount += 1
+                        "new-token"
+                    }
+                }
+
+                assertEquals(name, 2, requests.size)
+                assertEquals(name, listOf("Bearer old-token", "Bearer new-token"), requests.map { it.header("Authorization") })
+                assertEquals(name, 1, refreshCount)
+            } finally {
+                closeClient(api, client)
+            }
+        }
+    }
+
+    @Test
+    fun refreshFailureOrBlankTokenBecomesAuthenticationErrorWithoutASecondRequest() {
+        val refreshes: List<suspend () -> String> = listOf(
+            { throw IOException("refresh unavailable") },
+            { "   " },
+        )
+
+        refreshes.forEach { refresh ->
+            val callCount = AtomicInteger()
+            val client = clientWithResponse { request ->
+                callCount.incrementAndGet()
+                response(request, 401, "{\"error\":{\"code\":\"authentication_error\"}}")
+            }
+            val api = ReferenceFaceApi("https://example.com", client)
+            try {
+                val exception = assertThrows(ReferenceFaceApiException::class.java) {
+                    runBlocking { api.getStatus("old-token", refresh) }
+                }
+
+                assertEquals(401, exception.statusCode)
+                assertEquals("authentication_error", exception.code)
+                assertEquals(1, callCount.get())
+            } finally {
+                closeClient(api, client)
+            }
+        }
+    }
+
+    @Test
+    fun mapsNotFoundConflictNetworkAndNonJsonResponses() {
+        data class Case(val status: Int?, val body: String, val expectedCode: String?, val delete: Boolean = false)
+        val cases = listOf(
+            Case(404, "{\"error\":{\"code\":\"not_found\",\"message\":\"missing face\"}}", "not_found", delete = true),
+            Case(409, "{\"error\":{\"code\":\"withdrawal_in_progress\"}}", "withdrawal_in_progress"),
+            Case(401, "", "authentication_error"),
+            Case(502, "", "ai_unavailable"),
+            Case(200, "<html>", "invalid_response"),
+            // delete는 204만 성공입니다.
+            Case(200, "{\"registered\":true}", null, delete = true),
+            Case(null, "", null),
+        )
+
+        cases.forEach { case ->
+            val client = if (case.status == null) {
+                OkHttpClient.Builder().addInterceptor { throw IOException("unreachable") }.build()
+            } else {
+                clientWithResponse { request -> response(request, case.status, case.body) }
+            }
+            val api = ReferenceFaceApi("https://example.com", client)
+            try {
+                val exception = assertThrows(ReferenceFaceApiException::class.java) {
+                    runBlocking {
+                        if (case.delete) api.deleteFace("face-1", "access-token") { "new-token" }
+                        else api.getStatus("access-token") { "new-token" }
+                    }
+                }
+
+                assertEquals("$case", case.status, exception.statusCode)
+                assertEquals("$case", case.expectedCode, exception.code)
+                if (case.status == 404) assertEquals("missing face", exception.message)
+            } finally {
+                closeClient(api, client)
+            }
+        }
+    }
+
+    @Test
+    fun appendRejectsEmptyBlankAndOversizedBatchesBeforeSending() {
+        val requests = AtomicInteger()
+        val client = clientWithResponse { request ->
+            requests.incrementAndGet()
+            response(request, 201, "{\"registered\":true}")
+        }
+        val api = ReferenceFaceApi("https://example.com", client)
+
+        try {
+            for (images in listOf(emptyList(), listOf(byteArrayOf()), List(21) { image })) {
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking { api.append(images, "access-token") { "new-token" } }
+                }
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { api.deleteFace("  ", "access-token") { "new-token" } }
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { api.getStatus("  ") { "new-token" } }
+            }
+            assertEquals(0, requests.get())
+
+            runBlocking { api.append(List(20) { image }, "access-token") { "new-token" } }
+            assertEquals(1, requests.get())
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
+    @Test
+    fun statusSkipsBlankFaceIdsAndLeavesMissingCountNull() {
+        val client = clientWithResponse { request ->
+            response(
+                request,
+                200,
+                """{"registered":true,"faces":[{"face_id":"  "},{"face_id":"face-2"},{"registered_at":"x"},null]}""",
+            )
+        }
+        val api = ReferenceFaceApi("https://example.com", client)
+
+        try {
+            val status = runBlocking { api.getStatus("access-token") { error("refresh must not run") } }
+
+            assertTrue(status.registered)
+            assertEquals(null, status.count)
+            assertEquals(null, status.source)
+            assertEquals(listOf(ReferenceFace("face-2", null)), status.faces)
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
     private fun clientWithResponse(
         responder: (Request) -> Response,
     ): OkHttpClient = OkHttpClient.Builder()

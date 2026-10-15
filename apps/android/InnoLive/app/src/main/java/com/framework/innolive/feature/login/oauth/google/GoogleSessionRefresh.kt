@@ -11,6 +11,16 @@ import java.net.URL
 
 private const val REFRESH_TIMEOUT_MILLIS = 10_000
 
+/** 서버가 refresh token을 거부했습니다. 기존 세션 만료 동작(로그인 복귀)을 따릅니다. */
+class InvalidRefreshTokenException(val statusCode: Int) :
+    IOException("Authentication refresh rejected with HTTP $statusCode.")
+
+/**
+ * 400·401·403은 refresh token 자체의 거부다. 그 밖의 상태와 네트워크 오류는 일시 실패로 보고
+ * 로컬 세션과 재시도 가능 상태를 유지한다(account-deletion-v1.md).
+ */
+internal fun isInvalidRefreshTokenStatus(statusCode: Int): Boolean = statusCode in setOf(400, 401, 403)
+
 class GoogleAuthenticationApi : AuthenticationApi {
     override suspend fun refresh(
         currentSession: GoogleSessionStore.Session,
@@ -48,11 +58,11 @@ internal suspend fun performGoogleSessionRefresh(
             )
         }
 
-        if (connection.responseCode !in HttpURLConnection.HTTP_OK until
-            HttpURLConnection.HTTP_MULT_CHOICE
-        ) {
+        val statusCode = connection.responseCode
+        if (statusCode !in HttpURLConnection.HTTP_OK until HttpURLConnection.HTTP_MULT_CHOICE) {
             connection.errorStream?.close()
-            throw IOException("Authentication refresh failed with HTTP ${connection.responseCode}.")
+            if (isInvalidRefreshTokenStatus(statusCode)) throw InvalidRefreshTokenException(statusCode)
+            throw IOException("Authentication refresh failed with HTTP $statusCode.")
         }
 
         val responseBody = connection.inputStream.bufferedReader().use { reader ->

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="broadcast_consent_cancel">Cancel</string>
+    <string name="broadcast_consent_privacy_policy">Read the full Privacy Policy</string>
+    <string name="broadcast_consent_sent_information">Information we send</string>
+    <string name="broadcast_consent_purpose">Purpose of use</string>
+    <string name="broadcast_consent_notice_footer">Broadcast preparation will not continue until you acknowledge this notice. For privacy inquiries, use the contact listed in the Privacy Policy.</string>
+    <string name="broadcast_consent_notice_scroll_hint">Scroll to the end to continue.</string>
+    <string name="broadcast_consent_notice_accept">Acknowledge and prepare broadcast</string>
+
+    <string name="broadcast_consent_media_title">Broadcast video and audio consent</string>
+    <string name="broadcast_consent_media_sent_title">Broadcast information we send</string>
+    <string name="broadcast_consent_media_sent_body">We send the broadcast video and audio captured by the camera and microphone to the server. An AI service processes and relays this video and audio for de-identification.</string>
+    <string name="broadcast_consent_media_purpose_body">We use this information to distinguish registered faces from other faces and to de-identify other faces in the broadcast video.</string>
+    <string name="broadcast_consent_media_retention_title">Retention and processing</string>
+    <string name="broadcast_consent_media_retention_body">The AI service keeps face feature values in memory during processing. Stored face feature values are deleted when you delete a registered face, when account deletion is completed, or when the AI service is discontinued. Original reference photos are not stored separately.</string>
+    <string name="broadcast_consent_media_footer">If you do not consent, the camera and microphone will not be connected to the server. For privacy inquiries or withdrawal of consent, use the contact listed in the Privacy Policy.</string>
+    <string name="broadcast_consent_media_scroll_hint">Scroll to the end to enable consent.</string>
+    <string name="broadcast_consent_media_accept">Agree and continue</string>
+
+    <string name="broadcast_consent_youtube_title">YouTube transmission notice</string>
+    <string name="broadcast_consent_youtube_sent_body">We send the processed broadcast video and audio to the connected YouTube channel. For YouTube connection and broadcasting, we process channel identifiers, encrypted connection tokens, and broadcast connection information.</string>
+    <string name="broadcast_consent_youtube_purpose_body">We send the processed video and audio to the connected YouTube channel and manage the broadcast state.</string>
+    <string name="broadcast_consent_youtube_platform_title">Processing on YouTube</string>
+    <string name="broadcast_consent_youtube_platform_body">Video sent to YouTube is processed under YouTube\'s policies and your channel settings. Deleting your InnoLive account does not delete past videos on your YouTube channel.</string>
+
+    <string name="broadcast_consent_chzzk_title">CHZZK transmission notice</string>
+    <string name="broadcast_consent_chzzk_sent_body">We send the processed broadcast video and audio, along with the broadcast title, category, and tags, to the connected CHZZK channel. For CHZZK connection and broadcasting, we process channel identifiers and the channel name, encrypted connection tokens, and the stream key needed for streaming.</string>
+    <string name="broadcast_consent_chzzk_permissions_title">CHZZK permissions we request</string>
+    <string name="broadcast_consent_chzzk_permissions_body">We request permissions to view your user information, view the broadcast stream key, and view and change broadcast settings. All four permissions are required to connect, and we do not request chat permissions.</string>
+    <string name="broadcast_consent_chzzk_purpose_body">We send the processed video and audio to the connected CHZZK channel and manage the broadcast title, category, tags, and broadcast state.</string>
+    <string name="broadcast_consent_chzzk_platform_title">Processing on CHZZK</string>
+    <string name="broadcast_consent_chzzk_platform_body">Video sent to CHZZK is processed under the policies of CHZZK (NAVER) and your channel settings. Disconnecting CHZZK in Settings deletes the connection tokens and connection information stored by InnoLive. You cannot disconnect while broadcasting. Deleting your InnoLive account or disconnecting does not delete past videos on your CHZZK channel.</string>
+
+    <string name="error_broadcast_media_consent_required">Consent to broadcast video and audio transmission before preparing a broadcast.</string>
+    <string name="error_broadcast_transmission_notice_required">Acknowledge the platform transmission notice before preparing a broadcast.</string>
+</resources>

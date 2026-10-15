@@ -11,9 +11,11 @@ import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 
 // 명시적 실행 인자가 있을 때만 실제 계정으로 비공개 방송을 준비하고 취소합니다.
 class BroadcastPreparationDeviceTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test fun offPreparationConnectsAutomaticallyAndCanPrepareAgainAfterCancellation() {

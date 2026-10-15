@@ -61,6 +61,10 @@ import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
 import com.framework.innolive.feature.live.rememberAudioInputDevices
 import com.framework.innolive.feature.live.supportedCameraResolutions
+import com.framework.innolive.feature.live.consent.BroadcastConsentStep
+import com.framework.innolive.feature.live.consent.BroadcastConsentStore
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
+import com.framework.innolive.feature.live.tutorial.BroadcastTutorialViewModel
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
@@ -171,6 +175,7 @@ class MainActivity : ComponentActivity() {
         val webRtcSession = ViewModelProvider(this)[WebRtcSessionViewModel::class.java]
         val authenticationSession =
             ViewModelProvider(this)[AuthenticationSessionViewModel::class.java]
+        val broadcastTutorial = ViewModelProvider(this)[BroadcastTutorialViewModel::class.java].coordinator
         setContent {
             LaunchedEffect(webRtcSession.lockedScreenOrientation) {
                 val lockedOrientation = webRtcSession.lockedScreenOrientation
@@ -188,6 +193,7 @@ class MainActivity : ComponentActivity() {
                     AppNavigation(
                         webRtcSession = webRtcSession,
                         authenticationSession = authenticationSession,
+                        broadcastTutorial = broadcastTutorial,
                         modifier = Modifier
                             .padding(innerPadding)
                             .consumeWindowInsets(innerPadding)
@@ -203,6 +209,7 @@ class MainActivity : ComponentActivity() {
 fun AppNavigation(
     webRtcSession: WebRtcSessionViewModel,
     authenticationSession: AuthenticationSessionViewModel,
+    broadcastTutorial: BroadcastTutorialCoordinator,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -215,6 +222,7 @@ fun AppNavigation(
     val isAccountDeletionPending = accountDeletionState.hasPendingDeletion
     val youtubeCoordinator = remember(activity) { YouTubeAccountCoordinator(activity) }
     val youtubePreferencesStore = remember(context) { YouTubePreferencesStore(context) }
+    val broadcastConsentStore = remember(context) { BroadcastConsentStore(context) }
     val videoQualityPreferences = remember(context) { BroadcastVideoQualityPreferences(context) }
     var videoQualitySettings by remember(videoQualityPreferences) { mutableStateOf(videoQualityPreferences.load()) }
     var videoQualityCaptureState by remember { mutableStateOf(VideoQualityCaptureState()) }
@@ -328,7 +336,11 @@ fun AppNavigation(
                 youtubeAccountVerificationState = YouTubeAccountVerificationState.VERIFIED
             },
             saveConnection = youtubePreferencesStore::saveConnection,
-            removeConnection = youtubePreferencesStore::removeConnection,
+            removeConnection = {
+                youtubePreferencesStore.removeConnection()
+                // 서버에서 연결이 없음을 확인하면 다음 연결 후 방송 준비에서 전송 안내를 다시 받습니다.
+                broadcastConsentStore.clear(BroadcastConsentStep.YOUTUBE_TRANSMISSION)
+            },
         )
         if (!cacheUpdated) {
             Log.w("InnoLiveYouTube", "Unable to update YouTube account display cache.")
@@ -545,7 +557,8 @@ fun AppNavigation(
 
         val operation = youtubeOperationGeneration.begin()
         youtubeOperationProfileEmail = session?.profileEmail
-        if (backStack.lastOrNull() in setOf(BroadcastSettingRoute, LiveRoute) && session != null) {
+        // 설정 화면으로 옮겨도 조회를 이어 갑니다. 화면 전환으로 취소된 조회가 확인 중 상태로 남지 않게 합니다.
+        if (backStack.lastOrNull() in YouTubeAccountCheckRoutes && session != null) {
             youtubeAccountVerificationState = YouTubeAccountVerificationState.CHECKING
             youtubeAccountStatus = UiText.Resource(R.string.youtube_status_checking)
             try {
@@ -822,8 +835,7 @@ fun AppNavigation(
         authenticationSession.deleteAccount(webRtcSession::close)
     }
 
-    // NavDisplay keeps the LiveRoute NavEntry while the back stack is unchanged.
-    // Keep its props up to date independently of NavEntry recreation.
+    // Keep navigation callbacks current while the studio remains composed below settings.
     val visibleYouTubeAccount = youtubeAccount.takeIf {
         session != null && previousProfileEmail == session?.profileEmail
     }
@@ -879,8 +891,9 @@ fun AppNavigation(
         ),
     )
 
+    val navigation: @Composable () -> Unit = {
     NavDisplay(
-        modifier = modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         backStack = backStack,
         onBack = onBack,
         entryProvider = { route ->
@@ -912,12 +925,7 @@ fun AppNavigation(
                 }
 
                 LiveRoute -> {
-                    NavEntry(route) {
-                        LiveScreen(
-                            webRtcSession = webRtcSession,
-                            props = liveScreenProps.value,
-                        )
-                    }
+                    NavEntry(route) {}
                 }
 
                 SettingsRoute -> {
@@ -930,6 +938,20 @@ fun AppNavigation(
                                 },
                                 onOpenBroadcastSettings = {
                                     backStack.add(BroadcastSettingRoute)
+                                },
+                                selectedResolution = selectedResolution?.displayName.orEmpty(),
+                                selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
+                                selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
+                                selectedPlatform = selectedBroadcastPlatform,
+                                broadcastAccount = visibleYouTubeAccount?.channelTitle ?: youtubeAccountStatus.asString(),
+                                onOpenResolutionOptions = {
+                                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
+                                },
+                                onOpenCameraDeviceOptions = {
+                                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_DEVICE))
+                                },
+                                onOpenAudioDeviceOptions = {
+                                    backStack.add(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
                                 },
                                 profileName = session?.profileName.orEmpty(),
                                 profileEmail = session?.profileEmail.orEmpty(),
@@ -971,6 +993,13 @@ fun AppNavigation(
                                 canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
                                 onSelectAIProcessing = { onDevice ->
                                     webRtcSession.selectAIProcessing(context, onDevice)
+                                },
+                                canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
+                                    webRtcSession.broadcastState == BroadcastState.IDLE &&
+                                    !webRtcSession.isPreparingBroadcast,
+                                onReplayBroadcastGuide = {
+                                    broadcastTutorial.restart()
+                                    onBack()
                                 },
                             ),
                         )
@@ -1191,6 +1220,19 @@ fun AppNavigation(
             }
         },
     )
+    }
+    val showStudio = LiveRoute in backStack && session != null && !isAccountDeletionPending
+    StudioSettingsLayer(
+        showStudio = showStudio,
+        showSettings = showStudio && backStack.lastOrNull() != LiveRoute,
+        onDismissSettings = onBack,
+        modifier = modifier,
+        studio = {
+            LiveScreen(webRtcSession = webRtcSession, props = liveScreenProps.value,
+                tutorial = broadcastTutorial)
+        },
+        navigation = navigation,
+    )
     youtubeAccountGuidance?.let { guidance ->
         ServerErrorDialog(
             guidance = guidance,
@@ -1209,3 +1251,6 @@ fun AppNavigation(
         )
     }
 }
+
+/** YouTube 계정 상태를 보여 주거나 쓰는 화면입니다. 이 화면 사이를 오가도 계정 조회를 다시 시작합니다. */
+private val YouTubeAccountCheckRoutes = setOf(BroadcastSettingRoute, LiveRoute, SettingsRoute)

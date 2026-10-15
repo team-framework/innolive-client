@@ -111,6 +111,7 @@ class PrivacyActualCameraDeviceTest {
                 val ready = CountDownLatch(1)
                 val samples = ConcurrentLinkedQueue<PrivacyCaptureDiagnostics>()
                 val observedSize = ConcurrentLinkedQueue<Pair<Int, Int>>()
+                val cameraRotation = AtomicInteger(-1)
                 val textureFrames = AtomicInteger()
                 val hardwareBufferInspected = AtomicBoolean(false)
                 val decoded = AtomicInteger()
@@ -169,7 +170,8 @@ class PrivacyActualCameraDeviceTest {
                     override fun onCapturerStarted(success: Boolean) { source?.capturerObserver?.onCapturerStarted(success) }
                     override fun onCapturerStopped() { source?.capturerObserver?.onCapturerStopped() }
                     override fun onFrameCaptured(frame: VideoFrame) {
-                        observedSize.add(frame.buffer.width to frame.buffer.height)
+                        // Protected output may already be upright, so compare the rotation-applied size.
+                        observedSize.add(frame.rotatedWidth to frame.rotatedHeight)
                         if (collecting.get() && frame.buffer is VideoFrame.TextureBuffer) textureFrames.incrementAndGet()
                         if (source != null) source.capturerObserver.onFrameCaptured(frame) else renderer.onFrame(frame)
                         ready.countDown()
@@ -208,6 +210,7 @@ class PrivacyActualCameraDeviceTest {
                                         "format=${buffer?.format} usage=${buffer?.usage} dimensions=${buffer?.width}x${buffer?.height}")
                                 }
                             }
+                            cameraRotation.compareAndSet(-1, image.imageInfo.rotationDegrees)
                             if (collecting.get()) captures.incrementAndGet()
                             analyzer.analyze(image)
                         }
@@ -241,8 +244,9 @@ class PrivacyActualCameraDeviceTest {
                     assertTrue("GPU texture output was not used", textureFrames.get() > 0)
                     assertTrue("No steady AI samples", measured.isNotEmpty())
                     assertEquals(0, failures.get())
-                    assertTrue("Requested camera geometry changed: ${observedSize.toSet()}",
-                        observedSize.all { it == (width to height) })
+                    val upright = if (cameraRotation.get() % 180 == 0) width to height else height to width
+                    assertTrue("Requested camera geometry changed: ${observedSize.toSet()} expected=$upright",
+                        observedSize.all { it == upright })
                     assertTrue("Detector GPU was not used", measured.any { it.analysis.detectorGpu || it.analysis.detectorNnapi })
                     fun percentile(fraction: Double, select: (PrivacyCaptureDiagnostics) -> Double): Double {
                         val values = measured.map(select).sorted()

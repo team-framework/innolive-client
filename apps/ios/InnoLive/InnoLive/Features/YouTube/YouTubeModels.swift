@@ -361,10 +361,18 @@ struct YouTubeSessionResponse: Decodable {
     var details = BroadcastSessionDetails()
     var isFullSnapshot = true
     var hasMedia = true
+    // 온디바이스 세션 YouTube 준비 응답에만 온다(server #438). 스트림 키가 들어 있다.
+    var ingestEndpoint: DirectIngestEndpoint? = nil
+    // 온디바이스 세션 라이브 전환 응답에서 이번에 라이브가 된 치지직 대상만 온다.
+    var directIngest: [DirectIngestTarget] = []
 }
 
 extension YouTubeSessionResponse {
-    private enum CodingKeys: String, CodingKey { case broadcast, stream, media }
+    private enum CodingKeys: String, CodingKey {
+        case broadcast, stream, media
+        case ingestURL = "ingest_url"
+        case directIngest = "direct_ingest"
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -377,15 +385,20 @@ extension YouTubeSessionResponse {
         media = try container.decodeIfPresent(YouTubeSessionMedia.self, forKey: .media)
             ?? YouTubeSessionMedia(anonymizationEnabled: nil, rawVideoTrack: nil)
         details = try BroadcastSessionDetails(from: decoder)
+        ingestEndpoint = try container.decodeIfPresent(String.self, forKey: .ingestURL)
+            .flatMap(DirectIngestEndpoint.init(ingestURL:))
+        directIngest = try container.decodeIfPresent([DirectIngestTarget].self, forKey: .directIngest) ?? []
     }
 }
 
 struct YouTubeSessionMedia: Decodable, Equatable {
     let anonymizationEnabled: Bool?
+    var screenBlurEnabled: Bool? = nil
     let rawVideoTrack: YouTubeVideoTrackState?
 
     enum CodingKeys: String, CodingKey {
         case anonymizationEnabled = "anonymization_enabled"
+        case screenBlurEnabled = "screen_blur_enabled"
         case rawVideoTrack = "raw_video_track"
     }
 }

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="direct_mode_title">Broadcast mode</string>
+    <string name="direct_mode_entry">Broadcast mode %1$s</string>
+    <string name="direct_mode_resolution_title">Broadcast quality</string>
+    <string name="direct_mode_resolution_hd">720p</string>
+    <string name="direct_mode_resolution_fhd">FHD</string>
+    <string name="direct_mode_targets_title">Platforms to stream to</string>
+    <string name="direct_mode_account_required">Account connection required</string>
+    <string name="direct_mode_option_plan_locked">Plan upgrade required</string>
+    <string name="direct_mode_locked">You cannot change this while preparing or streaming.</string>
+    <string name="direct_mode_last_target">Select at least one platform.</string>
+    <string name="direct_mode_plan_locked">Some broadcast modes are not available on your current plan.</string>
+    <string name="direct_mode_not_in_plan">This broadcast mode is not available on your current plan.</string>
+    <string name="direct_mode_time_exhausted">Not enough streaming time is left for the selected mode.</string>
+    <string name="direct_mode_open_plan">View plan</string>
+    <string name="direct_mode_done">Done</string>
+    <string name="live_status_target_failed">Stream failed</string>
+    <string name="live_status_target_connecting">Connecting</string>
+    <string name="live_status_target_slate">Standby screen</string>
+    <string name="direct_warning_slate_paused">Paused. Sending the standby screen with no sound.</string>
+    <string name="direct_warning_slate_background">The app is in the background. Sending the standby screen with no sound.</string>
+    <string name="direct_warning_slate_camera">The camera is unavailable. Sending the standby screen.</string>
+    <string name="direct_warning_microphone_unavailable">The microphone is unavailable. Streaming without sound.</string>
+    <string name="direct_warning_microphone_silenced">Another app is using the microphone. Streaming without sound.</string>
+    <string name="direct_warning_thermal">The device is hot. The broadcast may become unstable.</string>
+    <string name="direct_warning_prepared_deadline">Start the broadcast within %1$s or the preparation will be canceled.</string>
+    <string name="direct_warning_prepared_expired">The preparation was canceled after 10 minutes. Please prepare again.</string>
+    <string name="direct_notice_target_stopped_by_server">The server ended the %1$s stream.</string>
+    <string name="direct_notice_connection_lost">The %1$s stream connection was lost, so the broadcast ended.</string>
+    <string name="direct_notice_prepared_expired">The broadcast preparation expired after 10 minutes. Please prepare again.</string>
+    <string name="direct_notice_microphone_unavailable">The microphone is unavailable. Streaming without sound.</string>
+    <string name="error_on_device_processing">This request is not supported for on-device processing broadcasts.</string>
+    <string name="error_heartbeat_not_applicable">No platform is streaming, so the broadcast ended.</string>
+    <string name="error_broadcast_stopped">The broadcast ended while going live. Please start again.</string>
+    <string name="error_channel_in_use_by_other_account">Another InnoLive account is streaming to this channel. Please try again after that broadcast ends.</string>
+    <string name="error_youtube_channel_required">Several YouTube channels are connected. Reconnect your YouTube account with the channel to stream to.</string>
+    <string name="broadcast_menu_mode">Quality and platforms</string>
+    <string name="broadcast_menu_not_selected">Not selected</string>
+    <string name="broadcast_menu_needs_details">Needs details</string>
+    <string name="broadcast_menu_chzzk">CHZZK</string>
+</resources>

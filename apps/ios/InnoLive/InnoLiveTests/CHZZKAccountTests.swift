@@ -123,6 +123,27 @@ final class CHZZKAccountTests: XCTestCase {
         XCTAssertEqual(reloaded.connection?.channel.id, "UCfake")
     }
 
+    func testCHZZKNoticeClearsOnlyAfterServerConfirmsDisconnect() async {
+        CHZZKTestURLProtocol.accountJSON = accounts
+        let consentStore = ConsentAcknowledgementStore(userDefaults: defaults)
+        let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: makeAPI(),
+                                             chzzkAuthorization: CHZZKTestAuthorization(), consentStore: consentStore)
+        await integration.refreshConnection(accessToken: "fake-access")
+        XCTAssertTrue(integration.acknowledgeTransmission(acceptedConsent(), for: .youtube))
+        XCTAssertTrue(integration.acknowledgeTransmission(acceptedConsent(), for: .chzzk))
+        await integration.refreshConnection(accessToken: "fake-access")
+        CHZZKTestURLProtocol.deleteError = "internal_error"
+        await integration.disconnectCHZZKAccount(accessToken: "fake-access")
+        XCTAssertTrue(integration.hasAcknowledgedCHZZKTransmission)
+
+        CHZZKTestURLProtocol.deleteError = nil
+        CHZZKTestURLProtocol.accountJSON = youtubeOnly
+        await integration.disconnectCHZZKAccount(accessToken: "fake-access")
+        XCTAssertFalse(integration.hasAcknowledgedCHZZKTransmission)
+        XCTAssertFalse(consentStore.hasAcknowledgedCHZZKTransmission)
+        XCTAssertTrue(integration.hasAcknowledgedYouTubeTransmission)
+    }
+
     func testDisconnectInUseAndServerFailureKeepBothConnections() async {
         for error in ["streaming_account_in_use", "internal_error"] {
             CHZZKTestURLProtocol.reset()
@@ -285,6 +306,13 @@ final class CHZZKAccountTests: XCTestCase {
         configuration.protocolClasses = [CHZZKTestURLProtocol.self]
         return YouTubeAPI(urlSession: URLSession(configuration: configuration),
                           serverURLProvider: { URL(string: "https://example.invalid\($0)") })
+    }
+
+    private func acceptedConsent() -> SignupConsent {
+        var consent = SignupConsent()
+        consent.observeScroll(contentHeight: 200, visibleHeight: 400, offset: 0)
+        consent.accept()
+        return consent
     }
 
     private func makeIntegration(_ browser: CHZZKTestAuthorization? = nil) -> YouTubeIntegration {

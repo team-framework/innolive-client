@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="direct_mode_title">配信方式</string>
+    <string name="direct_mode_entry">配信方式 %1$s</string>
+    <string name="direct_mode_resolution_title">配信画質</string>
+    <string name="direct_mode_resolution_hd">720p</string>
+    <string name="direct_mode_resolution_fhd">FHD</string>
+    <string name="direct_mode_targets_title">配信するプラットフォーム</string>
+    <string name="direct_mode_account_required">アカウント連携が必要</string>
+    <string name="direct_mode_option_plan_locked">プランのアップグレードが必要</string>
+    <string name="direct_mode_locked">配信の準備中や配信中は変更できません。</string>
+    <string name="direct_mode_last_target">プラットフォームを1つ以上選択してください。</string>
+    <string name="direct_mode_plan_locked">現在のプランでは使えない配信方式があります。</string>
+    <string name="direct_mode_not_in_plan">現在のプランでは使えない配信方式です。</string>
+    <string name="direct_mode_time_exhausted">選択した方式で配信できる時間が足りません。</string>
+    <string name="direct_mode_open_plan">プランを見る</string>
+    <string name="direct_mode_done">完了</string>
+    <string name="live_status_target_failed">配信失敗</string>
+    <string name="live_status_target_connecting">接続中</string>
+    <string name="live_status_target_slate">待機画面</string>
+    <string name="direct_warning_slate_paused">一時停止中のため、待機画面と無音を配信しています。</string>
+    <string name="direct_warning_slate_background">アプリが画面に表示されていないため、待機画面と無音を配信しています。</string>
+    <string name="direct_warning_slate_camera">カメラを使用できないため、待機画面を配信しています。</string>
+    <string name="direct_warning_microphone_unavailable">マイクを使用できないため、無音で配信しています。</string>
+    <string name="direct_warning_microphone_silenced">別のアプリがマイクを使用しているため、無音で配信しています。</string>
+    <string name="direct_warning_thermal">端末の温度が高いため、配信が不安定になる可能性があります。</string>
+    <string name="direct_warning_prepared_deadline">%1$s以内に配信を開始しないと、準備がキャンセルされます。</string>
+    <string name="direct_warning_prepared_expired">準備から10分が過ぎたため、準備がキャンセルされました。もう一度準備してください。</string>
+    <string name="direct_notice_target_stopped_by_server">サーバーが%1$sの配信を終了しました。</string>
+    <string name="direct_notice_connection_lost">%1$sの配信接続が切れたため、配信を終了しました。</string>
+    <string name="direct_notice_prepared_expired">準備から10分が過ぎたため、配信の準備が期限切れになりました。もう一度準備してください。</string>
+    <string name="direct_notice_microphone_unavailable">マイクを使用できないため、無音で配信します。</string>
+    <string name="error_on_device_processing">オンデバイス処理の配信ではサポートされていないリクエストです。</string>
+    <string name="error_heartbeat_not_applicable">配信中のプラットフォームがないため、配信を終了しました。</string>
+    <string name="error_broadcast_stopped">ライブへの切り替え中に配信が終了しました。もう一度開始してください。</string>
+    <string name="error_channel_in_use_by_other_account">別のInnoLiveアカウントがこのチャンネルで配信中です。その配信が終わってからもう一度お試しください。</string>
+    <string name="error_youtube_channel_required">複数のYouTubeチャンネルが連携されています。配信するチャンネルでYouTubeアカウントを連携し直してください。</string>
+    <string name="broadcast_menu_mode">配信画質と配信先</string>
+    <string name="broadcast_menu_not_selected">配信しない</string>
+    <string name="broadcast_menu_needs_details">設定が必要</string>
+    <string name="broadcast_menu_chzzk">CHZZK</string>
+</resources>

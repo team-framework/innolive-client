@@ -1,0 +1,9 @@
+<resources>
+    <string name="simulcast_prepare_failed_youtube">YouTubeを準備できませんでした。再準備するか、準備済みのCHZZKで配信を開始するか、準備をキャンセルしてください。</string>
+    <string name="simulcast_prepare_failed_chzzk">CHZZKを準備できませんでした。再準備するか、準備済みのYouTubeで配信を開始するか、準備をキャンセルしてください。</string>
+    <string name="simulcast_prepare_failed_all">YouTubeとCHZZKのどちらも準備できませんでした。もう一度お試しください。</string>
+    <string name="simulcast_golive_failed_youtube">YouTubeでライブを開始できませんでした。CHZZKの配信は継続します。</string>
+    <string name="simulcast_golive_failed_chzzk">CHZZKでライブを開始できませんでした。YouTubeの配信は継続します。</string>
+    <string name="simulcast_golive_failed_all">ライブを開始できませんでした。もう一度お試しください。</string>
+    <string name="simulcast_action_retry_remaining">残りのプラットフォームを再準備</string>
+</resources>

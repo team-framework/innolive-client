@@ -16,8 +16,10 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 
 class BroadcastPreparationUiTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private lateinit var session: WebRtcSessionViewModel
     private val settings = mutableStateOf(BroadcastSettings("검증 방송", "검증 설명", "private", null, "22"))
@@ -28,12 +30,17 @@ class BroadcastPreparationUiTest {
     private val refresh = CompletableDeferred<Unit>()
     private var authenticationCalls = 0
     private var savedProvider: String? = null
+    private var savedOnDevice: Boolean? = null
 
     @Before fun showLiveScreen() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val preferences = instrumentation.targetContext.getSharedPreferences("innolive_broadcast_provider", 0)
         savedProvider = preferences.getString("selected", null)
         preferences.edit().remove("selected").commit()
+        // 기기에 저장된 온디바이스 선택이 있으면 직접 송출 메뉴가 열리므로 서버 송출로 고정합니다.
+        val aiProcessing = instrumentation.targetContext.getSharedPreferences("live_ai_processing", 0)
+        savedOnDevice = aiProcessing.getBoolean("on_device", false).takeIf { aiProcessing.contains("on_device") }
+        aiProcessing.edit().putBoolean("on_device", false).commit()
         for (permission in listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) {
             instrumentation.uiAutomation.grantRuntimePermission(instrumentation.targetContext.packageName, permission)
         }
@@ -69,30 +76,30 @@ class BroadcastPreparationUiTest {
     }
 
     @After fun restoreProviderPreference() {
-        InstrumentationRegistry.getInstrumentation().targetContext
-            .getSharedPreferences("innolive_broadcast_provider", 0)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        context.getSharedPreferences("innolive_broadcast_provider", 0)
             .edit().putString("selected", savedProvider).commit()
+        context.getSharedPreferences("live_ai_processing", 0).edit().apply {
+            savedOnDevice?.let { putBoolean("on_device", it) } ?: remove("on_device")
+        }.commit()
     }
 
-    @Test fun savedProviderCanBeChangedInBothDirectionsWithoutConnecting() {
+    @Test fun settingsMenuOpensEachEditorWithoutConnecting() {
         compose.onNodeWithText(label(R.string.session_usage_warning_test_show)).performClick()
         compose.onNodeWithText(label(R.string.session_notice_monthly_usage_80)).assertIsDisplayed()
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
-        compose.onNodeWithText("YouTube").performClick()
+        // 방송 준비는 YouTube·치지직·방송 화질 및 송출할 플랫폼 메뉴를 엽니다(서버 송출도 화질을 고릅니다).
+        compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.broadcast_menu_chzzk)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.broadcast_menu_mode)).assertIsDisplayed()
+        // 메뉴의 첫 줄이 YouTube입니다. 송출할 플랫폼 줄 요약에도 YouTube가 있어 첫 항목을 고릅니다.
+        compose.onAllNodes(hasText("YouTube") and hasClickAction() and hasAnyAncestor(isDialog()))[0].performClick()
         compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
-        compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
-        compose.onNodeWithText("플랫폼 변경").performClick()
-        compose.onNodeWithText("CHZZK").performClick()
-        compose.onNodeWithText("치지직 방송 설정").assertIsDisplayed()
-        compose.runOnIdle { assertEquals(BroadcastProvider.CHZZK, session.selectedProvider) }
-        compose.onNodeWithText("플랫폼 변경").performClick()
-        compose.onNodeWithText("YouTube").performClick()
-        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
-        compose.onNodeWithText(label(R.string.action_change_youtube_account)).assertIsEnabled()
+        compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertIsDisplayed()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertDoesNotExist()
         compose.onNodeWithText(label(R.string.session_notice_monthly_usage_80)).assertIsDisplayed()
         compose.runOnIdle {
             assertEquals(BroadcastProvider.YOUTUBE, session.selectedProvider)
@@ -103,26 +110,29 @@ class BroadcastPreparationUiTest {
 
     @Test fun cancelAndReopenSettingsDoesNotConnectUntilValidConfirmation() {
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).assertIsEnabled().performClick()
-        compose.onNodeWithText("YouTube").performClick()
-        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertIsDisplayed()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(0, authenticationCalls)
             assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
         }
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
-        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertIsDisplayed()
         val confirm = hasText(label(R.string.action_prepare_broadcast)) and hasAnyAncestor(isDialog())
         compose.onNode(confirm).performClick()
+        // 아동용 여부가 비어 있어 연결하지 않고 YouTube 설정 창을 엽니다.
+        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
         compose.runOnIdle {
             assertEquals(0, authenticationCalls)
             assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
         }
         compose.onNodeWithText(label(R.string.audience_required)).performClick()
         compose.onNodeWithText(label(R.string.audience_not_made_for_kids)).performClick()
-        compose.onNode(confirm).performClick()
+        compose.onNodeWithText(label(R.string.direct_mode_done)).performClick()
         compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
+        compose.onNode(confirm).performClick()
+        compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertDoesNotExist()
         compose.onNodeWithText(label(R.string.broadcast_state_preparing)).assertIsNotEnabled()
         compose.runOnIdle {
             assertEquals(1, authenticationCalls)
@@ -131,13 +141,12 @@ class BroadcastPreparationUiTest {
         }
         compose.waitUntil { !session.isPreparingBroadcast }
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).assertIsEnabled().performClick()
-        compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertIsDisplayed()
     }
 
     @Test fun unlinkedAccountCannotStartConnection() {
         compose.runOnIdle { hasAccount.value = false; settings.value = settings.value.copy(madeForKids = false) }
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
-        compose.onNodeWithText("YouTube").performClick()
         compose.onNode(hasText(label(R.string.action_prepare_broadcast)) and hasAnyAncestor(isDialog())).assertIsNotEnabled()
         compose.runOnIdle {
             assertEquals(0, authenticationCalls)
@@ -151,13 +160,10 @@ class BroadcastPreparationUiTest {
             settings.value = settings.value.copy(madeForKids = false)
         }
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
-        compose.onNodeWithText("YouTube").performClick()
         val confirm = hasText(label(R.string.action_prepare_broadcast)) and hasAnyAncestor(isDialog())
         compose.onNode(confirm).assertIsEnabled()
-        compose.onNodeWithText(label(R.string.action_connect)).assertDoesNotExist()
         compose.runOnIdle { reconnectRequired.value = true }
         compose.onNode(confirm).assertIsNotEnabled()
-        compose.onNodeWithText(label(R.string.action_reconnect)).assertExists()
         compose.runOnIdle { reconnectRequired.value = false; accountBusy.value = true }
         compose.onNode(confirm).assertIsNotEnabled()
         compose.runOnIdle { accountBusy.value = false; channel.value = null }

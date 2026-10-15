@@ -79,8 +79,9 @@ class AccountDeletionSettingsScreenTest {
 
         composeRule.onNodeWithText(string(R.string.action_retry_device_cleanup))
             .performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(string(R.string.action_logout)).assertIsDisplayed().assertIsNotEnabled()
-        composeRule.onNodeWithContentDescription(string(R.string.action_back)).assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.action_logout))
+            .performScrollTo().assertIsDisplayed().assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription(string(R.string.action_close)).assertIsNotEnabled()
         composeRule.onNodeWithText("서버 계정은 삭제됐지만 기기 데이터 정리에 실패했습니다. 다시 시도해 주세요.")
             .performScrollTo().assertIsDisplayed()
     }

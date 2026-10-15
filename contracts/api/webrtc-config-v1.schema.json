@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WebRTC config capability compatibility",
+  "type": "object",
+  "required": [
+    "iceServers",
+    "recovery"
+  ],
+  "properties": {
+    "iceServers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "urls"
+        ],
+        "properties": {
+          "urls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "username": {
+            "type": "string"
+          },
+          "credential": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "required": [
+        "window_ms",
+        "debounce_ms",
+        "max_attempts"
+      ],
+      "properties": {
+        "window_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "debounce_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "send_only_video": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

@@ -32,6 +32,8 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
+import org.junit.Rule
 
 /**
  * Opt-in real-time camera/return-stream measurement against the configured backend.
@@ -41,6 +43,7 @@ import java.util.concurrent.atomic.AtomicLong
  * Connection/codec assertions are not a performance acceptance gate; analyze recorded stats.
  */
 class ProductionVideoReturnDeviceTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     private lateinit var activity: ComponentActivity
 
     @Test fun deployedVideoReturnPath() {

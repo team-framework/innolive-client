@@ -101,7 +101,8 @@ internal object SignalingMessageCodec {
                     message = "서버 ICE 후보에 세션 ID가 없습니다.",
                 )
                 ensureExpectedSession(expectedSessionId, sessionId)
-                val candidate = response.optionalString("candidate")?.let { sdp ->
+                // v2 스키마의 candidate는 길이 제한이 없는 string|null이다. 빈 문자열은 후보 종료로 본다.
+                val candidate = response.optionalStringAllowingBlank("candidate")?.let { sdp ->
                     IceCandidate(
                         response.optionalString("sdpMid"),
                         response.optionalInt("sdpMLineIndex") ?: -1,
@@ -181,6 +182,13 @@ private fun JSONObject.optionalString(key: String): String? {
     if (!has(key) || isNull(key)) return null
     return (get(key) as? String)?.takeIf(String::isNotBlank)
         ?: throw IllegalArgumentException("signaling 응답의 ${key}가 문자열이 아닙니다.")
+}
+
+private fun JSONObject.optionalStringAllowingBlank(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    val value = get(key) as? String
+        ?: throw IllegalArgumentException("signaling 응답의 ${key}가 문자열이 아닙니다.")
+    return value.takeIf(String::isNotBlank)
 }
 
 private fun JSONObject.optionalInt(key: String): Int? {

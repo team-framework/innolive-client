@@ -36,6 +36,9 @@ sealed interface BroadcastEvent {
     /** A server-provided message that is intentionally displayed verbatim. */
     data class ServerMessage(val value: String) : BroadcastEvent
 
+    /** 앱이 정한 안내 문구입니다. 서버 오류 코드가 없거나 플랫폼별 문구를 쓸 때 씁니다. */
+    data class Message(val text: UiText) : BroadcastEvent
+
     data object SettingsSaved : BroadcastEvent
 }
 
@@ -80,6 +83,7 @@ internal fun broadcastUserMessage(
         text = UiText.Dynamic(event.value),
         isStateDescription = false,
     )
+    is BroadcastEvent.Message -> BroadcastUserMessage(event.text, isStateDescription = false)
     BroadcastEvent.SettingsSaved -> BroadcastUserMessage(
         text = UiText.Resource(R.string.broadcast_settings_saved),
         isStateDescription = false,

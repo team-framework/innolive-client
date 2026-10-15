@@ -2,7 +2,8 @@ package com.framework.innolive.feature.settings
 
 import com.framework.innolive.feature.live.BroadcastRemainingTime
 import com.framework.innolive.feature.live.SessionSnapshot
-import com.framework.innolive.feature.live.compactRemainingSeconds
+import com.framework.innolive.feature.live.RemainingCountdown
+import com.framework.innolive.feature.live.formatRemainingSeconds
 import com.framework.innolive.feature.live.displayedRemainingTime
 import com.framework.innolive.feature.live.parseSessionSnapshot
 import com.framework.innolive.ui.text.ServerErrorAction
@@ -10,6 +11,7 @@ import com.framework.innolive.ui.text.serverErrorGuidance
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
+import org.json.JSONObject
 
 class PlanUsageTest {
     private val plan = """{"plan":"beam","allowed_modes":["720p_single","fhd_single"],"monthly_broadcast_seconds":432000,"max_per_broadcast_seconds":3600}"""
@@ -51,6 +53,18 @@ class PlanUsageTest {
         assertEquals(BroadcastRemainingTime.Seconds(3600), displayedRemainingTime(true, null, usage))
         val session = SessionSnapshot("s", remainingTime = BroadcastRemainingTime.Seconds(720))
         assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(true, session, usage))
+        // 같은 세션에서 방송을 끝낸 뒤에도 요금제 기준(3600)이 아니라 그 세션의 남은 시간을 보여 준다.
+        assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(false, session, usage))
+        assertEquals(BroadcastRemainingTime.Seconds(720),
+            displayedRemainingTime(false, session, usage.copy(allowedModes = emptyList())))
+        // 송출이 멈춘 세션이 null을 보내도 방송 중이 아니면 같은 세션의 마지막 숫자를 유지한다.
+        val stoppedNull = session.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive, lastRemainingSeconds = 720)
+        assertEquals(BroadcastRemainingTime.Seconds(720), displayedRemainingTime(false, stoppedNull, usage))
+        // 방송 중 null은 기존 규칙(요금제 보완·무제한)을 따른다.
+        assertEquals(BroadcastRemainingTime.Seconds(3600), displayedRemainingTime(true, stoppedNull, usage))
+        // 세션은 있지만 서버 값이 아직 없으면 요금제 기준 값으로 보완한다.
+        assertEquals(BroadcastRemainingTime.Seconds(3600),
+            displayedRemainingTime(false, session.copy(remainingTime = BroadcastRemainingTime.Unknown), usage))
         assertEquals(BroadcastRemainingTime.Seconds(3600),
             displayedRemainingTime(true, session.copy(remainingTime = BroadcastRemainingTime.UnlimitedOrInactive), usage))
         val unlimited = parsePlanUsage(plan, fixture("unlimited")).copy(maxBroadcastSeconds = 0)
@@ -92,16 +106,112 @@ class PlanUsageTest {
         assertEquals(BroadcastRemainingTime.Seconds(600), fresh.remainingTime)
     }
 
+    @Test fun liveRemainingTimeCountsDownBetweenServerUpdates() {
+        val live = RemainingCountdown(serverSeconds = 720, baseAtMillis = 0).onCountingChanged(true, 0)
+
+        assertEquals(720L, live.displayed(0))
+        assertEquals(719L, live.displayed(1_000))
+        assertEquals(706L, live.displayed(14_999))
+        // 같은 서버 값이 다시 와도 처음 받은 시각 기준을 유지한다.
+        assertEquals(706L, live.onServerValue(720, 14_999).displayed(14_999))
+        // 새 서버 값이 오면 그 값에서 다시 줄인다.
+        val corrected = live.onServerValue(705, 15_000)
+        assertEquals(705L, corrected.displayed(15_000))
+        assertEquals(704L, corrected.displayed(16_000))
+        // 갱신이 오래 없으면 30초 이상 줄이지 않고, 0 아래로 내려가지 않는다.
+        assertEquals(690L, live.displayed(120_000))
+        assertEquals(0L, RemainingCountdown(3, baseAtMillis = 0).onCountingChanged(true, 0).displayed(10_000))
+    }
+
+    @Test fun pauseFreezesTheShownValueAndResumeContinuesFromIt() {
+        val live = RemainingCountdown(serverSeconds = 720, baseAtMillis = 0).onCountingChanged(true, 0)
+
+        // 10초 뒤 일시 중지하면 서버 값(720)으로 되돌아가지 않고 보이던 710에서 멈춘다.
+        val paused = live.onCountingChanged(false, 10_000)
+        assertEquals(710L, paused.displayed(10_000))
+        assertEquals(710L, paused.displayed(60_000))
+        // 50초 뒤 재개하면 멈춘 동안의 시간을 한꺼번에 빼지 않고 710에서 다시 줄인다.
+        val resumed = paused.onCountingChanged(true, 60_000)
+        assertEquals(710L, resumed.displayed(60_000))
+        assertEquals(709L, resumed.displayed(61_000))
+    }
+
     @Test fun modeAndTimeFormattingReflectTheServerValues() {
         assertEquals(PlanMode.HD_SINGLE, PlanMode.current(null, 0))
         assertEquals(PlanMode.FHD_SINGLE, PlanMode.current("fhd", 1))
         assertEquals(PlanMode.HD_MULTI, PlanMode.current("720p", 2))
         assertEquals(PlanMode.FHD_MULTI, PlanMode.current("fhd", 2))
-        assertEquals("12min", compactRemainingSeconds(720))
-        assertEquals("59s", compactRemainingSeconds(59))
-        assertEquals("0s", compactRemainingSeconds(0))
+        assertEquals("00:12:00", formatRemainingSeconds(720))
+        assertEquals("00:00:59", formatRemainingSeconds(59))
+        assertEquals("00:00:00", formatRemainingSeconds(0))
+        assertEquals("12:00:00", formatRemainingSeconds(43_200))
+        assertEquals("100:00:00", formatRemainingSeconds(360_000))
         assertEquals("01:01:01", formatPlanDuration(3661))
         assertEquals("00:00:00", formatPlanDuration(0))
         assertEquals(ServerErrorAction.PLAN, serverErrorGuidance("monthly_limit_exhausted")!!.action)
+    }
+
+    private fun without(json: String, key: String): String = JSONObject(json).apply { remove(key) }.toString()
+
+    private fun withoutEntryField(usage: String, key: String): String = JSONObject(usage).apply {
+        getJSONArray("available_by_mode").getJSONObject(0).remove(key)
+    }.toString()
+
+    /** plan-usage-v1.md: Missing required time fields fail decoding; they must not silently become unlimited. */
+    @Test fun everyRequiredFieldMustBePresentInPlanAndUsage() {
+        val usage = fixture("allowed")
+        assertNotNull(parsePlanUsage(plan, usage))
+        for (key in listOf("plan", "allowed_modes", "monthly_broadcast_seconds", "max_per_broadcast_seconds")) {
+            assertThrows("plan.$key", Exception::class.java) { parsePlanUsage(without(plan, key), usage) }
+        }
+        for (key in listOf("plan", "used_seconds", "remaining_seconds", "available_by_mode")) {
+            assertThrows("usage.$key", Exception::class.java) { parsePlanUsage(plan, without(usage, key)) }
+        }
+        for (key in listOf("mode", "allowed", "seconds", "multiplier")) {
+            assertThrows("entry.$key", Exception::class.java) { parsePlanUsage(plan, withoutEntryField(usage, key)) }
+        }
+        assertThrows(Exception::class.java) {
+            parsePlanUsage(plan.replace("\"beam\"", "\"\""), usage.replace("\"beam\"", "\"\""))
+        }
+        assertThrows(Exception::class.java) { parsePlanUsage(plan, usage.replace("\"allowed\": true", "\"allowed\": \"true\"")) }
+        assertThrows(Exception::class.java) { parsePlanUsage(plan, usage.replace("\"720p_single\"", "\"\"")) }
+        assertThrows(Exception::class.java) { parsePlanUsage(plan, usage.replace("\"used_seconds\": 0", "\"used_seconds\": -1")) }
+        assertThrows(Exception::class.java) {
+            parsePlanUsage(plan.replace("\"max_per_broadcast_seconds\":3600", "\"max_per_broadcast_seconds\":null"), usage)
+        }
+    }
+
+    /** plan-usage-v1.md: 요금제 한도 0은 무제한, 사용량의 0은 소진이다. */
+    @Test fun zeroPlanLimitsAreUnlimitedWhileZeroUsageIsExhausted() {
+        val unlimitedPlan = """{"plan":"beam","allowed_modes":["720p_single"],"monthly_broadcast_seconds":0,"max_per_broadcast_seconds":0}"""
+        val usage = parsePlanUsage(unlimitedPlan, fixture("allowed"))
+        assertEquals(0L, usage.monthlySeconds)
+        assertEquals(0L, usage.maxBroadcastSeconds)
+        // 방송당 한도가 없으면 월 잔여만 남는다.
+        assertEquals(7200L, usage.previewRemaining(PlanMode.HD_SINGLE))
+
+        val exhausted = parsePlanUsage(plan, fixture("exhausted"))
+        assertEquals(0L, exhausted.usedSeconds)
+        assertEquals(0L, exhausted.remainingSeconds)
+        assertEquals(0L, exhausted.availability(PlanMode.HD_SINGLE)!!.seconds)
+        assertTrue(exhausted.isAllowed(PlanMode.HD_SINGLE))
+        assertEquals(0L, exhausted.previewRemaining(PlanMode.HD_SINGLE))
+    }
+
+    /** plan-usage-v1.md: 알 수 없는 mode는 보존하되 선택 가능한 행이 되지 않고, 추가 필드는 무시한다. */
+    @Test fun unknownModesAreRetainedWithoutBecomingSelectableAndExtraFieldsAreIgnored() {
+        val futurePlan = """{"plan":"beam","allowed_modes":["720p_single","8k_single"],"monthly_broadcast_seconds":10,
+            "max_per_broadcast_seconds":5,"future":{"x":1}}"""
+        val futureUsage = """{"plan":"beam","used_seconds":1,"remaining_seconds":9,"future":true,"available_by_mode":[
+            {"mode":"720p_single","allowed":true,"seconds":9,"multiplier":1,"future":"y"},
+            {"mode":"8k_single","allowed":true,"seconds":3,"multiplier":3}]}"""
+
+        val usage = parsePlanUsage(futurePlan, futureUsage)
+
+        assertEquals(listOf("720p_single", "8k_single"), usage.modes.map { it.mode })
+        assertEquals(listOf(PlanMode.HD_SINGLE), PlanMode.entries.filter(usage::isAllowed))
+        // allowed_modes에만 있고 항목이 없는 mode는 사용할 수 없다.
+        val missingEntry = parsePlanUsage(futurePlan.replace("\"8k_single\"", "\"fhd_single\""), futureUsage)
+        assertFalse(missingEntry.isAllowed(PlanMode.FHD_SINGLE))
     }
 }

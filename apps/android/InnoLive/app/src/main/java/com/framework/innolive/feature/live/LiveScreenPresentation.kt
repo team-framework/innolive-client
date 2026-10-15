@@ -42,7 +42,8 @@ fun buildLiveScreenPresentation(
     val isBroadcastBusy = broadcastState.isBusy || isPreparingBroadcast
     val broadcastAction = when {
         isBroadcastLive || isBroadcastPrepared -> LiveBroadcastAction.SHOW_BROADCAST_ACTIONS
-        selectedPlatform == "YouTube" || selectedPlatform == "CHZZK" -> LiveBroadcastAction.PREPARE_BROADCAST
+        selectedPlatform == "YouTube" || selectedPlatform == "CHZZK" || selectedPlatform == "SIMULCAST" ->
+            LiveBroadcastAction.PREPARE_BROADCAST
         else -> LiveBroadcastAction.SELECT_PLATFORM
     }
     val broadcastStatusText = when {

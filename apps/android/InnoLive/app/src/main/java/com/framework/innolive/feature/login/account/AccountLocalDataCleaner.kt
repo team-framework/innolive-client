@@ -3,7 +3,9 @@ package com.framework.innolive.feature.login.account
 import android.content.Context
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.face.ReferenceFaceImageStore
+import com.framework.innolive.feature.live.BROADCAST_PROVIDER_PREFERENCES
 import com.framework.innolive.feature.live.EncryptedSessionRecoveryStore
+import com.framework.innolive.feature.live.consent.BroadcastConsentStore
 import com.framework.innolive.feature.live.privacy.PrivacyFaceLibrary
 import com.framework.innolive.feature.live.sessionRecoveryScope
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
@@ -26,6 +28,10 @@ internal class AccountLocalDataCleaner(context: Context) {
         ReferenceFaceImageStore(applicationContext).deleteAll(session.profileEmail)
         PrivacyFaceLibrary.clearForAccountDeletion(applicationContext, recoveryScope.storageKey)
         YouTubePreferencesStore(applicationContext).clearAccountData()
+        BroadcastConsentStore(applicationContext).clearAll()
+        // 방송 플랫폼 선택은 계정별 방송 설정이다. 카메라·오디오 설정은 유지한다(account-deletion-v1.md).
+        applicationContext.getSharedPreferences(BROADCAST_PROVIDER_PREFERENCES, Context.MODE_PRIVATE)
+            .edit().clear().commit()
     }
 }
 

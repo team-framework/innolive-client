@@ -8,6 +8,7 @@ final class ConsentAcknowledgementStore {
         static let accountCollection = "com.framework.innolive.consent.account-collection.v1"
         static let mediaTransmission = "com.framework.innolive.consent.media-transmission.v1"
         static let youtubeTransmission = "com.framework.innolive.consent.youtube-transmission.v1"
+        static let chzzkTransmission = "com.framework.innolive.consent.chzzk-transmission.v1"
     }
 
     private let userDefaults: UserDefaults
@@ -50,5 +51,17 @@ final class ConsentAcknowledgementStore {
 
     func clearYouTubeTransmission() {
         userDefaults.removeObject(forKey: Key.youtubeTransmission)
+    }
+
+    var hasAcknowledgedCHZZKTransmission: Bool {
+        userDefaults.bool(forKey: Key.chzzkTransmission)
+    }
+
+    func recordCHZZKTransmission() {
+        userDefaults.set(true, forKey: Key.chzzkTransmission)
+    }
+
+    func clearCHZZKTransmission() {
+        userDefaults.removeObject(forKey: Key.chzzkTransmission)
     }
 }

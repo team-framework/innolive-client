@@ -140,3 +140,15 @@ sitemap은 기존 21개 URL에 한국어 신규 페이지 8개를 더해 총 29�
 - 신규 8개 페이지의 320px 화면에서 H1 하나, 가로 넘침과 브라우저 콘솔 오류 없음 확인.
 
 운영 배포·검색엔진 등록·색인·검색 노출과 실제 플랫폼 송출 E2E는 검증하지 않았다.
+
+
+## 실시간 방송 모자이크 검색 개선 (2026-10-15)
+
+- Google 한국어·한국·맞춤검색 제외 파라미터(`hl=ko&gl=kr&pws=0`)의 일반 검색 결과에서 BlurMe 안내 글 1위, `/ko/live-mosaic` 2위 관측. 로그인 상태의 단일 관측으로 지역·기기별 순위와 Search Console 평균 게재순위는 별도 확인 대상.
+- 기존 `/ko/live-mosaic` URL과 canonical을 유지하고 제목·H1에 검색 의도를 명시. 얼굴 등록, 촬영 장소 점검, 설정 저장, 플랫폼별 송출 시작의 4단계와 FAQ 보강.
+- 한국어 홈 FAQ에서 대표 안내 페이지로 직접 연결. 화면의 답변과 JSON-LD에 동일한 내용 제공.
+- 제품의 실제 블러 방식과 웹 체험·방송 앱의 역할 구분 유지. 미검증 성능 수치·픽셀 모자이크·OBS 연동 기능 추가 없음.
+- 검증 범위: production build, ESLint, 구조화 데이터·다국어 테스트, 생성 HTML의 제목·H1·canonical·FAQ·홈 링크.
+- 운영 배포와 순위 상승은 별도 확인. 배포 후 Search Console에서 대상 URL 색인 상태와 검색어별 노출·클릭·CTR·평균 게재순위를 같은 기간·국가·기기 조건으로 비교.
+
+근거: [Google 제목 링크 안내](https://developers.google.com/search/docs/appearance/title-link), [검색 스니펫 안내](https://developers.google.com/search/docs/appearance/snippet).

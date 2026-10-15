@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -16,11 +17,16 @@ internal fun CameraProcessedPreview(
     analyzer: CameraFrameAnalyzer,
     cameraLensFacing: CameraLensFacing,
     modifier: Modifier = Modifier,
+    /**
+     * 가림 처리 출력이 GPU 텍스처일 때 그 텍스처를 만든 EGL 컨텍스트입니다. 공유하지 않으면 텍스처를
+     * 그릴 수 없어 미리보기가 멈춥니다(앱 직접 송출).
+     */
+    sharedEglContext: EglBase.Context? = null,
 ) {
     val context = LocalContext.current
-    val eglBase = remember(context, analyzer) {
+    val eglBase = remember(context, analyzer, sharedEglContext) {
         WebRtcNativeRuntime.initialize(context)
-        EglBase.create()
+        if (sharedEglContext != null) EglBase.create(sharedEglContext, EglBase.CONFIG_PLAIN) else EglBase.create()
     }
     val renderer = remember(context, eglBase) {
         SurfaceViewRenderer(context).apply {
@@ -37,9 +43,12 @@ internal fun CameraProcessedPreview(
             eglBase.release()
         }
     }
-    AndroidView(
-        factory = { renderer },
-        update = { it.setMirror(cameraLensFacing.shouldMirrorPreview) },
-        modifier = modifier,
-    )
+    // AndroidView는 factory를 한 번만 호출하므로, EGL 컨텍스트가 바뀌어 새 renderer를 만들면 view도 새로 붙입니다.
+    key(renderer) {
+        AndroidView(
+            factory = { renderer },
+            update = { it.setMirror(cameraLensFacing.shouldMirrorPreview) },
+            modifier = modifier,
+        )
+    }
 }

@@ -15,8 +15,10 @@ import kotlinx.coroutines.withContext
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
+import com.framework.innolive.feature.live.consent.BroadcastConsentRule
 
 class BroadcastPreparationTest {
+    @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     @Before fun grantPermissions() {
         // 실제 앱처럼 Compose의 상태 변경 알림을 시작합니다.

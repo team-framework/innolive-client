@@ -68,6 +68,25 @@ private struct YouTubePrepareStreamRequest: Encodable {
 
 private struct YouTubeEmptyRequest: Encodable {}
 
+/// `POST /sessions` 본문이다. 서버 처리는 기존처럼 빈 본문을 보낸다.
+/// 온디바이스는 공유 계약(direct-publish-v1)의 최상위 `ai_processing`을 보낸다. 처리 방식을
+/// 돌려주지 않는 구 서버와 협상하도록 `metadata.ai_processing`도 함께 보낸다(서버는 최상위 값을 먼저 쓴다).
+/// 해상도는 보내지 않는다. 서버 기본값(720p)에 맞춰 카메라 화질을 맞추므로 송출 해상도와 같다.
+struct YouTubeSessionCreateRequest: Encodable, Equatable {
+    let aiProcessing: String?
+    let metadata: [String: String]?
+
+    init(mode: AIProcessingMode) {
+        aiProcessing = mode == .server ? nil : mode.rawValue
+        metadata = mode == .server ? nil : ["ai_processing": mode.rawValue]
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case metadata
+        case aiProcessing = "ai_processing"
+    }
+}
+
 private struct BroadcastModeRequest: Encodable {
     let resolution: String
     let targets: [String]
@@ -221,7 +240,7 @@ final class YouTubeAPI: PlanAPIClient {
             path: "/sessions",
             method: "POST",
             accessToken: accessToken,
-            body: mode == .server ? [:] : ["metadata": ["ai_processing": mode.rawValue]],
+            body: YouTubeSessionCreateRequest(mode: mode),
             preserveCreatedSession: true
         )
     }
@@ -400,6 +419,27 @@ final class YouTubeAPI: PlanAPIClient {
     func toggleAnonymization(session: YouTubeBroadcastSession, accessToken: String, enabled: Bool) async throws -> YouTubeSessionResponse {
         try await request(
             path: "/sessions/\(session.sessionID)/anonymization",
+            method: "PATCH",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: AnonymizationRequest(enabled: enabled)
+        )
+    }
+
+    func sendHeartbeat(session: YouTubeBroadcastSession, accessToken: String,
+                       request: DirectHeartbeatRequest) async throws -> DirectHeartbeatResponse {
+        try await self.request(
+            path: "/sessions/\(session.sessionID)/heartbeat",
+            method: "POST",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: request
+        )
+    }
+
+    func toggleScreenBlur(session: YouTubeBroadcastSession, accessToken: String, enabled: Bool) async throws -> YouTubeSessionResponse {
+        try await request(
+            path: "/sessions/\(session.sessionID)/screen-blur",
             method: "PATCH",
             accessToken: accessToken,
             ownerToken: session.ownerToken,

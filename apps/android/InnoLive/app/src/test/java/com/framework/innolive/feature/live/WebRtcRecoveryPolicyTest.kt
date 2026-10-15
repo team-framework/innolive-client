@@ -3,7 +3,9 @@ package com.framework.innolive.feature.live
 import android.net.NetworkCapabilities
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import java.io.File
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -210,5 +212,55 @@ class WebRtcRecoveryPolicyTest {
         assertEquals(RecoveryServerVideoStatus.PENDING, recoveryServerVideoStatus(200, "{}"))
         assertEquals(RecoveryServerVideoStatus.UNAUTHORIZED, recoveryServerVideoStatus(401))
         assertEquals(RecoveryServerVideoStatus.TERMINAL, recoveryServerVideoStatus(404))
+    }
+
+    private fun configFixture(name: String): String {
+        val root = generateSequence(File(checkNotNull(System.getProperty("innolive.android.resDir")))) { it.parentFile }
+            .first { File(it, "contracts/fixtures").isDirectory }
+        return File(root, "contracts/fixtures/webrtc-config-$name.v1.json").readText()
+    }
+
+    /** webrtc-config-v1.schema.json: window_ms·max_attempts는 1 이상, debounce_ms는 0 이상이다. 없거나 범위 밖이면 필드별로 기본값을 쓴다. */
+    @Test fun missingOrPartialRecoveryConfigFallsBackPerField() {
+        assertEquals(WebRtcRecoveryPolicy(), parseWebRtcRecoveryPolicy(JSONObject("{}")))
+        assertEquals(WebRtcRecoveryPolicy(), parseWebRtcRecoveryPolicy(JSONObject("""{"recovery":{}}""")))
+        assertEquals(WebRtcRecoveryPolicy(), parseWebRtcRecoveryPolicy(JSONObject("""{"recovery":"soon"}""")))
+        assertEquals(
+            WebRtcRecoveryPolicy(windowMillis = 30_000),
+            parseWebRtcRecoveryPolicy(JSONObject("""{"recovery":{"window_ms":30000}}""")),
+        )
+        assertEquals(
+            WebRtcRecoveryPolicy(windowMillis = 30_000, debounceMillis = 0, maxAttempts = 3),
+            parseWebRtcRecoveryPolicy(JSONObject("""{"recovery":{"window_ms":30000,"debounce_ms":0,"max_attempts":3}}""")),
+        )
+        // 공유 fixture의 값은 기본값과 같으므로 파싱 자체는 위의 다른 값 사례로 확인한다.
+        for (name in listOf("legacy", "send-only")) {
+            assertEquals(name, WebRtcRecoveryPolicy(), parseWebRtcRecoveryPolicy(JSONObject(configFixture(name))))
+        }
+    }
+
+    @Test fun serverVideoStatusAndOutboundPacketCountsHandleEdgeCases() {
+        assertEquals(RecoveryServerVideoStatus.TERMINAL, recoveryServerVideoStatus(403))
+        assertEquals(RecoveryServerVideoStatus.PENDING, recoveryServerVideoStatus(500))
+        assertEquals(RecoveryServerVideoStatus.PENDING, recoveryServerVideoStatus(200))
+        assertEquals(RecoveryServerVideoStatus.PENDING, recoveryServerVideoStatus(200, "not json"))
+
+        val twoSenders = RTCStatsReport(
+            0L,
+            mapOf(
+                "v1" to RTCStats(0L, "outbound-rtp", "v1", mapOf("kind" to "video", "packetsSent" to 10L)),
+                "v2" to RTCStats(0L, "outbound-rtp", "v2", mapOf("mediaType" to "video", "packetsSent" to 5)),
+                "a" to RTCStats(0L, "outbound-rtp", "a", mapOf("kind" to "audio", "packetsSent" to 99L)),
+            ),
+        )
+        assertEquals(15L, outboundVideoPackets(twoSenders))
+        assertNull(outboundVideoPackets(RTCStatsReport(0L, mapOf(
+            "in" to RTCStats(0L, "inbound-rtp", "in", mapOf("kind" to "video", "packetsReceived" to 1L)),
+        ))))
+        assertNull(outboundVideoPackets(RTCStatsReport(0L, mapOf(
+            "v" to RTCStats(0L, "outbound-rtp", "v", mapOf("kind" to "video", "packetsSent" to "12")),
+        ))))
+        assertNull(extractCandidateUfrag("candidate:1 1 udp 1 127.0.0.1 9 typ host"))
+        assertEquals(emptySet<String>(), extractIceUfrags("v=0\r\n"))
     }
 }
