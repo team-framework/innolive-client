@@ -1,0 +1,6 @@
+{
+  "session_id": "fixture-screen-blur",
+  "ai_processing": "server",
+  "stream": { "status": "streaming", "publisher_active": true, "reconnect_attempts": 0 },
+  "media": { "anonymization_enabled": false, "screen_blur_enabled": true }
+}
