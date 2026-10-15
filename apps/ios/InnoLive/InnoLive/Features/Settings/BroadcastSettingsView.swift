@@ -207,7 +207,7 @@ struct BroadcastSettingsView: View {
         if youtube.preparationStatus?.isRunning == true || youtube.preparationStatus?.phase == .cancelling {
             return true
         }
-        if planStore.snapshot.map({ !$0.canPrepare(youtube.preparationPlanMode) }) == true { return true }
+        if planStore.snapshot?.preparationBlockMessage(youtube.preparationPlanMode, processing: youtube.planProcessingMode) != nil { return true }
         if youtube.selectedBroadcastProviders.isEmpty || !youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) { return true }
         return youtube.isBroadcastSettingsLocked && youtube.preparationStatus?.isFailed != true
     }

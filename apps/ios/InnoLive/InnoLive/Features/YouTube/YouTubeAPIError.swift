@@ -54,6 +54,10 @@ enum YouTubeAPIError: Error, Equatable {
         case .response: return String(localized: "YouTube 서버 응답을 확인하지 못했습니다. 다시 시도해 주세요.")
         case let .api(code, _, _):
             switch code {
+            case "plan_server_streaming_not_allowed": return String(localized: "이 요금제는 서버 송출을 지원하지 않습니다. 방송 준비를 취소한 뒤 온디바이스 방식을 선택해 주세요.")
+            case "plan_resolution_not_allowed", "plan_simulcast_not_allowed": return String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
+            case "monthly_limit_exhausted": return String(localized: "현재 처리 위치의 월 시간을 모두 사용했습니다. 요금제 및 사용량에서 서버·온디바이스 잔여 시간을 확인해 주세요.")
+            case "broadcast_limit_reached": return String(localized: "1회 방송 한도에 도달했습니다. 방송 준비를 취소한 뒤 새 방송을 준비해 주세요.")
             case "unauthorized": return String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
             case "session_already_exists": return String(localized: "이전 방송 세션을 정리하지 못했습니다. 이전 방송을 종료한 뒤 다시 시도해 주세요.")
             case "bad_request": return String(localized: "YouTube 방송 설정을 확인한 뒤 다시 시도해 주세요.")

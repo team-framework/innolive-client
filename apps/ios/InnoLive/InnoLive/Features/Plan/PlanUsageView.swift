@@ -27,7 +27,7 @@ struct PlanUsageSection: View {
     var body: some View {
         PlanUsageContent(snapshot: store.snapshot, isLoading: store.isLoading,
                          errorMessage: store.errorMessage, lastUpdatedAt: store.lastUpdatedAt,
-                         currentMode: youtube.currentPlanMode) {
+                         currentMode: youtube.currentPlanMode, currentProcessing: youtube.planProcessingMode) {
             Task { await youtube.refreshPlan(accessToken: authentication.currentAccessToken()) }
         }
         .task { await youtube.refreshPlan(accessToken: authentication.currentAccessToken()) }
@@ -40,9 +40,13 @@ struct PlanUsageContent: View {
     let errorMessage: String?
     let lastUpdatedAt: Date?
     let currentMode: BroadcastPlanMode
+    var currentProcessing: AIProcessingMode = .server
     let onRefresh: () -> Void
+    @State private var selectedProcessing: AIProcessingMode?
     @State private var selectedMode: BroadcastPlanMode?
     @State private var showsPlanGuide = false
+
+    private var processing: AIProcessingMode { selectedProcessing ?? currentProcessing }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -55,18 +59,31 @@ struct PlanUsageContent: View {
             }
             if let snapshot {
                 Text(snapshot.plan.plan.capitalized).font(.title3.bold())
-                timeRow(String(localized: "월 방송 한도"), value: PlanTimeText.duration(
-                    snapshot.plan.monthlyBroadcastSeconds == 0 ? nil : snapshot.plan.monthlyBroadcastSeconds))
+                Picker(String(localized: "사용량 구분"), selection: Binding(
+                    get: { processing }, set: { selectedProcessing = $0; selectedMode = nil }
+                )) {
+                    Text(String(localized: "서버")).tag(AIProcessingMode.server)
+                    Text(String(localized: "온디바이스")).tag(AIProcessingMode.onDevice)
+                }.pickerStyle(.segmented)
+                if processing == .server && snapshot.plan.monthlyBroadcastSeconds == 0 {
+                    Text(String(localized: "이 요금제는 서버 송출을 지원하지 않습니다."))
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    timeRow(String(localized: "월 방송 한도"), value: knownTime(processing == .server
+                        ? snapshot.plan.monthlyBroadcastSeconds : snapshot.usage.deviceLimitSeconds))
+                    timeRow(String(localized: "이번 달 차감 시간"), value: usedTime(processing == .server
+                        ? snapshot.usage.usedSeconds : snapshot.usage.deviceUsedSeconds))
+                    timeRow(String(localized: "이번 달 남은 시간"), value: processing == .server
+                        ? PlanTimeText.duration(snapshot.usage.remainingSeconds) : knownTime(snapshot.usage.deviceRemainingSeconds))
+                }
                 timeRow(String(localized: "1회 방송 한도"), value: PlanTimeText.duration(
                     snapshot.plan.maxPerBroadcastSeconds == 0 ? nil : snapshot.plan.maxPerBroadcastSeconds))
-                timeRow(String(localized: "이번 달 차감 시간"), value: usedTime(snapshot.usage.usedSeconds))
-                timeRow(String(localized: "이번 달 남은 시간"), value: PlanTimeText.duration(snapshot.usage.remainingSeconds))
                 Text(String(localized: "현재 방송 방식: \(currentMode.title)"))
                     .font(.subheadline.weight(.semibold))
                 ForEach(BroadcastPlanMode.allCases) { mode in
                     modeRow(mode, snapshot: snapshot)
                 }
-                if let selectedMode, let value = snapshot.availability(for: selectedMode), snapshot.isAllowed(selectedMode) {
+                if let selectedMode, let value = snapshot.availability(for: selectedMode, processing: processing), snapshot.isAllowed(selectedMode, processing: processing) {
                     Text(String(localized: "\(selectedMode.title) · 남은 시간 \(PlanTimeText.duration(value.seconds)) · \(value.multiplier)배 차감"))
                         .font(.footnote)
                 }
@@ -124,26 +141,32 @@ struct PlanUsageContent: View {
         }
     }
 
-    private func usedTime(_ seconds: Int) -> String {
-        seconds == 0 ? "00:00:00" : PlanTimeText.duration(seconds)
+    private func knownTime(_ seconds: Int?) -> String {
+        seconds.map { PlanTimeText.duration($0) } ?? String(localized: "조회 대기")
+    }
+
+    private func usedTime(_ seconds: Int?) -> String {
+        guard let seconds else { return String(localized: "조회 대기") }
+        return seconds == 0 ? "00:00:00" : PlanTimeText.duration(seconds)
     }
 
     private func modeRow(_ mode: BroadcastPlanMode, snapshot: PlanSnapshot) -> some View {
         Button {
-            if snapshot.isAllowed(mode) { selectedMode = mode }
+            if snapshot.isAllowed(mode, processing: processing) { selectedMode = mode }
             else { showsPlanGuide = true }
         } label: {
             HStack {
-                Image(systemName: snapshot.isAllowed(mode) ? "video" : "lock.fill")
+                Image(systemName: snapshot.isAllowed(mode, processing: processing) ? "video" : "lock.fill")
                 Text(mode.title)
                 Spacer()
-                if let availability = snapshot.availability(for: mode) {
+                if let availability = snapshot.availability(for: mode, processing: processing) {
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(snapshot.isAllowed(mode) ? PlanTimeText.duration(availability.seconds) : String(localized: "잠김"))
+                        Text(snapshot.isAllowed(mode, processing: processing) ? PlanTimeText.duration(availability.seconds) : String(localized: "잠김"))
                         Text(String(localized: "\(availability.multiplier)배 차감")).font(.caption)
                     }
                 } else {
-                    Text(String(localized: "조회 대기"))
+                    Text(processing == .server || snapshot.plan.deviceModes != nil && !snapshot.isAllowed(mode, processing: processing)
+                         ? String(localized: "잠김") : String(localized: "조회 대기"))
                 }
             }.padding(.vertical, 6)
         }.buttonStyle(.plain)

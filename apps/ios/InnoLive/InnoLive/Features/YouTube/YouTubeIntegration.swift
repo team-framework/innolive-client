@@ -43,6 +43,12 @@ final class YouTubeIntegration: ObservableObject {
         return true
     }
 
+    /// Billing follows the server session, including legacy sessions using local AI over server egress.
+    var planProcessingMode: AIProcessingMode {
+        guard let session else { return aiModeProvider() }
+        return AIProcessingMode(rawValue: session.aiProcessing ?? "server") ?? .server
+    }
+
     var preparationPlanMode: BroadcastPlanMode {
         let count = broadcastPreparationTask != nil ? lastPreparationProviders.count : selectedBroadcastProviders.count
         return .current(resolution: broadcastResolution, targetCount: count)
@@ -330,8 +336,8 @@ final class YouTubeIntegration: ObservableObject {
             guard upgradeOffer?.isExpired() == false,
                   upgradeOffer?.options?.contains(upgradeOption) == true else { return false }
         }
-        if let snapshot = planStore.snapshot, !snapshot.canPrepare(.current(resolution: resolution, targetCount: targets.count)) {
-            broadcastModeError = String(localized: "현재 요금제와 남은 시간으로 선택한 송출 방식을 사용할 수 없습니다.", table: "BroadcastMode")
+        if let message = planStore.snapshot?.preparationBlockMessage(.current(resolution: resolution, targetCount: targets.count), processing: planProcessingMode) {
+            broadcastModeError = message
             return false
         }
         let added = targets.subtracting(Set(liveEditingTargets)).sorted { $0.rawValue < $1.rawValue }
@@ -1471,10 +1477,8 @@ final class YouTubeIntegration: ObservableObject {
             showError(.sessionRequired)
             return false
         }
-        if let snapshot = planStore.snapshot, !snapshot.canPrepare(preparationPlanMode) {
-            errorMessage = snapshot.isAllowed(preparationPlanMode)
-                ? String(localized: "이번 달 방송 시간을 모두 사용했습니다.")
-                : String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
+        if let message = planStore.snapshot?.preparationBlockMessage(preparationPlanMode, processing: planProcessingMode) {
+            errorMessage = message
             return false
         }
         let settings = useEditor ? settingsEditor.youtube : broadcastSettings.normalized
@@ -1702,10 +1706,8 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = message
             return message
         }
-        if let snapshot = planStore.snapshot, !snapshot.canPrepare(.current(resolution: broadcastResolution, targetCount: lastPreparationProviders.count)) {
-            errorMessage = snapshot.isAllowed(.current(resolution: broadcastResolution, targetCount: lastPreparationProviders.count))
-                ? String(localized: "이번 달 방송 시간을 모두 사용했습니다.")
-                : String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
+        if let message = planStore.snapshot?.preparationBlockMessage(.current(resolution: broadcastResolution, targetCount: lastPreparationProviders.count), processing: planProcessingMode) {
+            errorMessage = message
             return errorMessage
         }
         return nil
