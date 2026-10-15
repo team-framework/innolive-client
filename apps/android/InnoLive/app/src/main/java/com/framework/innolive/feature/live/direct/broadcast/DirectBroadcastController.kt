@@ -22,7 +22,6 @@ import com.framework.innolive.feature.live.ServerApiException
 import com.framework.innolive.feature.live.SessionNotice
 import com.framework.innolive.feature.live.SessionSnapshot
 import com.framework.innolive.feature.live.WebRtcConnectionState
-import com.framework.innolive.feature.live.broadcastStateAfterServerError
 import com.framework.innolive.feature.live.canPrepare
 import com.framework.innolive.feature.live.canStop
 import com.framework.innolive.feature.live.direct.DirectGoLiveResult
@@ -45,6 +44,7 @@ import com.framework.innolive.feature.live.resolveChzzkSettingsForPrepare
 import com.framework.innolive.feature.live.stoppingState
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /** 하트비트·재연결·생명주기 구현을 바꿔 끼우는 지점입니다. 각 작업이 기본값을 실제 구현으로 바꿉니다. */
 internal class DirectBroadcastDependencies(
@@ -95,6 +95,9 @@ internal class DirectBroadcastController internal constructor(
 
     private val started = AtomicBoolean(false)
     private val closed = AtomicBoolean(false)
+    private val closeLock = Any()
+    private val closeCallbacks = mutableListOf<() -> Unit>()
+    private var closeFinished = false
     private val operation = AtomicBoolean(false)
 
     @Volatile private var broadcastState = BroadcastState.IDLE
@@ -120,6 +123,8 @@ internal class DirectBroadcastController internal constructor(
     private var waitTimeout: Cancellable? = null
     private var pollTask: Cancellable? = null
     private var pollGeneration = 0
+    /** 제어 요청을 시작할 때마다 올립니다. 그 전에 보낸 상태 조회 결과를 버리는 기준입니다. */
+    private val controlEpoch = AtomicInteger()
     private var heartbeatStarted = false
     private var keepAliveStarted = false
     /** 오류 문구를 고를 플랫폼입니다. 동시 송출 준비에서는 지금 요청 중인 플랫폼입니다. */
@@ -179,10 +184,13 @@ internal class DirectBroadcastController internal constructor(
     }
 
     override fun close(onComplete: (() -> Unit)?) {
-        if (!closed.compareAndSet(false, true)) {
-            onComplete?.let { done -> env.callbacks.execute { done() } }
-            return
+        var completeNow: (() -> Unit)? = null
+        val shouldClean = synchronized(closeLock) {
+            onComplete?.let { done -> if (closeFinished) completeNow = done else closeCallbacks += done }
+            closed.compareAndSet(false, true)
         }
+        completeNow?.let { done -> env.callbacks.execute { done() } }
+        if (!shouldClean) return
         env.owner.execute {
             invalidateWait()
             try {
@@ -192,7 +200,12 @@ internal class DirectBroadcastController internal constructor(
                 env.log("close_cleanup_failed type=${exception.javaClass.simpleName}")
             }
             releaseResources()
-            onComplete?.let { done -> env.callbacks.execute { done() } }
+            val callbacks = synchronized(closeLock) {
+                closeFinished = true
+                closeCallbacks.toList().also { closeCallbacks.clear() }
+            }
+            callbacks.forEach { done -> env.callbacks.execute { done() } }
+            env.io.shutdown()
             env.owner.shutdown()
         }
     }
@@ -210,14 +223,17 @@ internal class DirectBroadcastController internal constructor(
         try {
             env.media.setAnonymizationEnabled(enabled)
             anonymizationEnabled = enabled
-            post { onComplete(if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED, null) }
+            val confirmed = anonymizationState(enabled)
+            post { callbacks.onAnonymizationStateConfirmed(confirmed) }
+            post { onComplete(confirmed, null) }
         } catch (_: Exception) {
             post { onComplete(null, AnonymizationFailure.REQUEST) }
         }
     }
 
+    /** 준비·방송 중에는 설정을 잠급니다(youtube-broadcast-v1.md). 일시 중지도 서버 단계는 live입니다. */
     override fun saveBroadcastSettings(settings: BroadcastSettings) {
-        if (BroadcastProvider.YOUTUBE !in config.targets || !beginOperation()) return
+        if (BroadcastProvider.YOUTUBE !in config.targets || !broadcastState.canPrepare || !beginOperation()) return
         env.owner.execute {
             operationProvider = BroadcastProvider.YOUTUBE
             runOperation {
@@ -331,6 +347,7 @@ internal class DirectBroadcastController internal constructor(
             if (waiting) invalidateWait()
             val stopping = if (broadcastState.canStop) broadcastState.stoppingState() else BroadcastState.CANCELLING_PREPARATION
             operation.set(true)
+            controlEpoch.incrementAndGet()
             report(stopping)
             endBroadcast()
             session?.let(::deleteSession)
@@ -504,11 +521,10 @@ internal class DirectBroadcastController internal constructor(
                     session?.let(::deleteSession)
                     finish(BroadcastState.IDLE, DirectEvent.STOPPED_DURING_GO_LIVE.toBroadcastEvent())
                 }
-                // 15회를 다 써도 준비 상태와 송출을 유지해 다시 시도하거나 취소할 수 있게 합니다.
-                else -> failGoLive(
-                    broadcastStateAfterServerError(exception.code, BroadcastState.PREPARED, BroadcastState.GOING_LIVE),
-                    directServerEvent(exception, config.provider),
-                )
+                // 15회를 다 써도 준비 상태와 송출을 유지해 다시 시도하거나 취소할 수 있게 합니다. `broadcast_busy`와
+                // `broadcast_going_live`도 같습니다. 직접 송출은 서버 조회로 방송 상태를 전진시키지 않으므로
+                // GOING_LIVE에 남겨 두면 종료와 재시도가 모두 막힙니다.
+                else -> failGoLive(BroadcastState.PREPARED, directServerEvent(exception, config.provider))
             }
             return
         } catch (exception: Exception) {
@@ -582,7 +598,7 @@ internal class DirectBroadcastController internal constructor(
             }
 
             override fun onPublisherFailed(error: Exception) {
-                env.owner.execute { if (generation == engineGeneration) onPublisherFailed(error) }
+                env.owner.execute { if (generation == engineGeneration) handlePublisherFailed(error) }
             }
         }
         // 프로필은 세션 해상도만 따릅니다. 카메라가 더 작으면 늘리고, 비율이 다르면 여백을 넣습니다.
@@ -671,7 +687,7 @@ internal class DirectBroadcastController internal constructor(
         }
     }
 
-    private fun onPublisherFailed(error: Exception) {
+    private fun handlePublisherFailed(error: Exception) {
         env.log("publisher_failed type=${error.javaClass.simpleName}")
         invalidateWait()
         val hadSession = session
@@ -798,21 +814,25 @@ internal class DirectBroadcastController internal constructor(
     private fun refreshSnapshot() {
         session?.let { created ->
             val generation = pollGeneration
-            env.io.execute { fetchSnapshot(created, generation) }
+            val epoch = controlEpoch.get()
+            env.io.execute { fetchSnapshot(created, generation, epoch) }
         }
     }
 
     private fun pollSession(created: CreatedSession, generation: Int) {
         if (!isActive() || generation != pollGeneration) return
-        env.io.execute { fetchSnapshot(created, generation) }
+        val epoch = controlEpoch.get()
+        env.io.execute { fetchSnapshot(created, generation, epoch) }
         pollTask = env.owner.schedule(SESSION_POLL_MILLIS) { pollSession(created, generation) }
     }
 
-    private fun fetchSnapshot(created: CreatedSession, generation: Int) {
+    private fun fetchSnapshot(created: CreatedSession, generation: Int, epoch: Int) {
         val outcome = runCatching { env.server.fetchSession(created) }
         env.owner.execute {
-            // 제어 요청 중에는 늦게 온 조회가 최신 결과를 덮어쓰지 않게 버립니다.
-            if (!isActive() || generation != pollGeneration || session !== created || operation.get()) return@execute
+            // 제어 요청 중이거나 조회를 보낸 뒤 제어 요청이 시작됐으면 늦게 온 조회가 최신 결과를 덮어쓰지 않게 버립니다.
+            if (!isActive() || generation != pollGeneration || session !== created || operation.get() ||
+                epoch != controlEpoch.get()
+            ) return@execute
             outcome.fold(
                 onSuccess = { applySnapshot(created, it) },
                 onFailure = { error ->
@@ -917,8 +937,14 @@ internal class DirectBroadcastController internal constructor(
     private fun maybeConnected() {
         if (connected || !firstFrame || session == null || !isActive()) return
         connected = true
+        // 서버 확인 대신 첫 가림 처리 프레임을 낸 앱 처리 상태를 확인값으로 알립니다.
+        val confirmed = anonymizationState(anonymizationEnabled)
+        post { callbacks.onAnonymizationStateConfirmed(confirmed) }
         postConnection(WebRtcConnectionState.CONNECTED)
     }
+
+    private fun anonymizationState(enabled: Boolean) =
+        if (enabled) AnonymizationState.ENABLED else AnonymizationState.DISABLED
 
     private fun failStart(exception: Exception) {
         if (terminal) return
@@ -952,7 +978,8 @@ internal class DirectBroadcastController internal constructor(
 
     private fun isActive(): Boolean = !closed.get() && !terminal
 
-    private fun beginOperation(): Boolean = isActive() && operation.compareAndSet(false, true)
+    private fun beginOperation(): Boolean =
+        (isActive() && operation.compareAndSet(false, true)).also { if (it) controlEpoch.incrementAndGet() }
 
     /** 실패하면 서버 오류를 화면 안내로 바꿉니다. [rollback]이면 이번 준비에서 연 연결을 정리합니다. */
     private fun runOperation(rollback: Boolean = false, block: () -> Unit) {
@@ -968,8 +995,9 @@ internal class DirectBroadcastController internal constructor(
             invalidateWait()
             if (rollback) runCatching { rollbackPreparation() }
             val api = exception as? ServerApiException
+            // `broadcast_busy`도 FAILED로 돌려 다시 준비할 수 있게 합니다. 준비 중 상태에 남기면 빠져나올 수 없습니다.
             finish(
-                broadcastStateAfterServerError(api?.code, BroadcastState.FAILED, broadcastState),
+                BroadcastState.FAILED,
                 api?.let { directServerEvent(it, provider) }
                     ?: DirectEvent.REQUEST.toBroadcastEvent(),
             )

@@ -8,6 +8,14 @@ import org.junit.Test
 
 class BroadcastLiveStatusTest {
     @Test
+    fun broadcastResolutionLabelUsesUppercaseFhdAndKeeps720p() {
+        assertEquals("FHD", broadcastResolutionLabel("fhd"))
+        assertEquals("FHD", broadcastResolutionLabel("FHD"))
+        assertEquals("720p", broadcastResolutionLabel("720p"))
+        assertEquals("720p", broadcastResolutionLabel("720P"))
+    }
+
+    @Test
     fun uplinkQualityIsMeasuringUntilTheFirstSample() {
         val tracker = BroadcastUplinkQualityTracker()
 

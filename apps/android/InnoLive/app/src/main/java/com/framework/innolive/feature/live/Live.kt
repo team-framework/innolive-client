@@ -72,7 +72,6 @@ import com.framework.innolive.feature.live.components.validateYouTubeLiveSetting
 import com.framework.innolive.feature.live.direct.broadcast.DirectProviderOrder
 import com.framework.innolive.feature.live.direct.broadcast.labelRes
 import com.framework.innolive.feature.live.direct.broadcast.title
-import com.framework.innolive.feature.live.direct.DirectPublishResolution
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.lifecycle.rememberBroadcastNotificationPermission
@@ -173,7 +172,7 @@ private fun LiveScreenContent(
     }
     val context = LocalContext.current
     val providerPreferences = remember(context) {
-        context.getSharedPreferences("innolive_broadcast_provider", android.content.Context.MODE_PRIVATE)
+        context.getSharedPreferences(BROADCAST_PROVIDER_PREFERENCES, android.content.Context.MODE_PRIVATE)
     }
     var selectedPlatform by rememberSaveable {
         mutableStateOf(providerPreferences.getString("selected", null))
@@ -230,12 +229,11 @@ private fun LiveScreenContent(
             }
         }
     }
-    val isDirectMode = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED
     val isDirectModeLocked = isDirectBroadcastModeLocked(
         webRtcSession.broadcastState, webRtcSession.isPreparingBroadcast,
     )
-    LaunchedEffect(isDirectMode, isDirectModeLocked, props.planUsage, directModeUserSelected) {
-        if (!isDirectMode || isDirectModeLocked) return@LaunchedEffect
+    LaunchedEffect(isDirectModeLocked, props.planUsage, directModeUserSelected) {
+        if (isDirectModeLocked) return@LaunchedEffect
         val reconciled = reconcileDirectBroadcastPlan(
             webRtcSession.directBroadcastPlan, props.planUsage, directModeUserSelected,
         )
@@ -479,7 +477,7 @@ private fun LiveScreenContent(
             val nowElapsedMillis = rememberElapsedRealtime(ticking = directUiState.preparedDeadlineElapsedMillis != null)
             val directWarnings = directStatusWarnings(directUiState, nowElapsedMillis)
             // 방송 전에는 같은 상태 패널에 고른 구성을 보여 줍니다. 구성은 방송 설정 창에서 바꿉니다.
-            val plan = effectiveBroadcastPlan(webRtcSession.directBroadcastPlan, isDirectMode)
+            val plan = webRtcSession.directBroadcastPlan
             val showPlan = !isDirectModeLocked && statusTargets.isEmpty()
             val panelTargets = if (showPlan) directPlanRows(plan) else statusTargets
             if (panelTargets.isNotEmpty() || directWarnings.isNotEmpty()) {
@@ -512,7 +510,7 @@ private fun LiveScreenContent(
                         !props.isYouTubeAccountActionInProgress
                     val chzzkReady = chzzkAccountVerification.canPrepare && !chzzkBusy
                     val broadcastPlanState = directBroadcastModeState(
-                        plan = effectiveBroadcastPlan(webRtcSession.directBroadcastPlan, isDirectMode),
+                        plan = webRtcSession.directBroadcastPlan,
                         planUsage = props.planUsage,
                         accountConnected = { provider ->
                             when (provider) {
@@ -526,7 +524,8 @@ private fun LiveScreenContent(
                     val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
                     // 편집 창이 메뉴를 가리므로 계정 연결 안내는 실제 연결 버튼이 있는 편집 창에 보여 줍니다.
                     val editorGuide = settingsGuide?.takeIf { it.step == BroadcastTutorialStep.CONNECT_ACCOUNT }
-                    if (openSettingsDialog) {
+                    // 하위 설정 창이 열리면 메뉴를 숨기고, 닫으면 다시 메뉴로 돌아옵니다.
+                    if (openSettingsDialog && !editorOpen) {
                         val notSelected = stringResource(R.string.broadcast_menu_not_selected)
                         val needsDetails = stringResource(R.string.broadcast_menu_needs_details)
                         val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
@@ -572,7 +571,7 @@ private fun LiveScreenContent(
                                 onDismiss = { pendingConsentStep = null },
                             )
                         }
-                        val modeSummary = (if (isDirectMode) stringResource(modePlan.resolution.labelRes) + " · " else "") +
+                        val modeSummary = stringResource(modePlan.resolution.labelRes) + " · " +
                             DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
                         BroadcastSettingsMenu(
                             items = listOf(
@@ -600,9 +599,7 @@ private fun LiveScreenContent(
                                         (BroadcastProvider.YOUTUBE !in providers || youtubeReady),
                                 ),
                                 BroadcastSettingsMenuItem(
-                                    title = stringResource(
-                                        if (isDirectMode) R.string.broadcast_menu_mode else R.string.direct_mode_targets_title,
-                                    ),
+                                    title = stringResource(R.string.broadcast_menu_mode),
                                     summary = modeSummary,
                                     onClick = { openModeEditor = true },
                                     iconVector = Icons.Outlined.Tune,
@@ -622,7 +619,7 @@ private fun LiveScreenContent(
                                 openSettingsDialog = false
                                 webRtcSession.dismissServerError()
                             },
-                            guide = settingsGuide.takeIf { !editorOpen },
+                            guide = settingsGuide,
                         )
                     }
                     if (openYouTubeEditor) {
@@ -714,12 +711,9 @@ private fun LiveScreenContent(
                     if (openModeEditor) {
                         BroadcastModeDialog(
                             state = broadcastPlanState,
-                            // 서버 송출은 서버 기본 화질(720p)로 보내므로 화질을 고르지 않습니다.
-                            showResolution = isDirectMode,
-                            onPlanChanged = { selected ->
-                                val plan = storedBroadcastPlan(selected, webRtcSession.directBroadcastPlan, isDirectMode)
+                            onPlanChanged = { plan ->
                                 if (webRtcSession.selectDirectBroadcastPlan(plan)) {
-                                    if (isDirectMode) directModeUserSelected = true
+                                    directModeUserSelected = true
                                     webRtcSession.selectProviders(plan.providers)
                                     selectedPlatform = platformPreferenceOf(plan.providers)
                                 }
@@ -1169,17 +1163,6 @@ private fun BroadcastDialogButton(
 }
 
 private val SimulcastProviders = setOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)
-
-/** 서버 송출은 서버 기본 화질(720p)로 보내므로 표시와 요금제 판단도 720p로 합니다. */
-internal fun effectiveBroadcastPlan(plan: DirectBroadcastPlan, onDevice: Boolean): DirectBroadcastPlan =
-    if (onDevice) plan else plan.copy(resolution = DirectPublishResolution.HD_720)
-
-/** 서버 송출 화면의 720p는 표시용이므로 저장할 때는 온디바이스용으로 고른 화질을 그대로 둡니다. */
-internal fun storedBroadcastPlan(
-    selected: DirectBroadcastPlan,
-    current: DirectBroadcastPlan,
-    onDevice: Boolean,
-): DirectBroadcastPlan = if (onDevice) selected else selected.copy(resolution = current.resolution)
 
 /** 기존 저장값(`YouTube`·`CHZZK`·`SIMULCAST`)과 같은 형식으로 플랫폼 선택을 저장합니다. */
 internal fun platformPreferenceOf(providers: Set<BroadcastProvider>): String = when {

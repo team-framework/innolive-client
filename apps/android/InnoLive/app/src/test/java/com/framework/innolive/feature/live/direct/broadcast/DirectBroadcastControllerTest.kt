@@ -1,10 +1,12 @@
 package com.framework.innolive.feature.live.direct.broadcast
 
 import android.media.AudioDeviceInfo
+import com.framework.innolive.feature.live.AnonymizationFailure
 import com.framework.innolive.feature.live.AnonymizationState
 import com.framework.innolive.feature.live.BroadcastEvent
 import com.framework.innolive.feature.live.BroadcastFailure
 import com.framework.innolive.feature.live.BroadcastProvider
+import com.framework.innolive.feature.live.BroadcastRemainingTime
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.ChzzkBroadcastSettings
@@ -12,6 +14,7 @@ import com.framework.innolive.feature.live.ConnectionFailure
 import com.framework.innolive.feature.live.CreatedSession
 import com.framework.innolive.feature.live.LiveBroadcastCallbacks
 import com.framework.innolive.feature.live.ServerApiException
+import com.framework.innolive.feature.live.SessionNotice
 import com.framework.innolive.feature.live.SessionSnapshot
 import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.direct.DirectGoLiveResult
@@ -48,6 +51,7 @@ class DirectBroadcastControllerTest {
     private val chzzkSettings = ChzzkBroadcastSettings("치지직", "GAME", "game-1", emptyList())
 
     private val scheduler = ManualScheduler()
+    private val io = ImmediateBackgroundExecutor()
     private val server = FakeServer()
     private val recovery = FakeRecovery()
     private val media = FakeMedia()
@@ -60,11 +64,14 @@ class DirectBroadcastControllerTest {
     private val uiStates = mutableListOf<DirectBroadcastUiState>()
     private val snapshots = mutableListOf<SessionSnapshot>()
     private val serverErrors = mutableListOf<String>()
+    private val anonymizationConfirmations = mutableListOf<AnonymizationState>()
     private var now = 1_000L
 
     private fun controller(
         plan: DirectBroadcastPlan = DirectBroadcastPlan(),
         provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
+        io: BackgroundExecutor = this.io,
+        anonymizationEnabled: Boolean = true,
     ) = DirectBroadcastController(
         LiveBroadcastCallbacks(
             onStateChanged = { state, failure -> connections += state to failure },
@@ -72,7 +79,7 @@ class DirectBroadcastControllerTest {
             onLocalMediaReady = { _, _ -> },
             onLocalMediaCleared = {},
             onBroadcastStateChanged = { state, event -> states += state to event },
-            onAnonymizationStateConfirmed = {},
+            onAnonymizationStateConfirmed = { anonymizationConfirmations += it },
             onLocalVideoTrackChanged = {},
             onInitialSignalingStarted = {},
             onSessionSnapshotChanged = { snapshots += it },
@@ -80,7 +87,7 @@ class DirectBroadcastControllerTest {
             onUplinkVideoStats = {},
             onDirectUiStateChanged = { uiStates += it },
         ),
-        DirectBroadcastConfig(plan, provider, anonymizationEnabled = true),
+        DirectBroadcastConfig(plan, provider, anonymizationEnabled = anonymizationEnabled),
         DirectBroadcastEnvironment(
             server = server,
             recovery = recovery,
@@ -96,7 +103,7 @@ class DirectBroadcastControllerTest {
             },
             keepAlive = keepAlive,
             owner = scheduler,
-            io = { it.run() },
+            io = io,
             callbacks = { it.run() },
             elapsedRealtimeMillis = { now },
             log = logs::add,
@@ -232,6 +239,17 @@ class DirectBroadcastControllerTest {
 
         assertTrue("stop:youtube" in server.calls)
         assertEquals(BroadcastState.FAILED, states.last().first)
+    }
+
+    @Test fun publisherFailureEndsPreparedBroadcastAndDeletesSession() {
+        preparedYouTube()
+        media.engine.failPublisher(IllegalStateException("encoder"))
+        scheduler.runUntilIdle()
+
+        assertTrue("delete:session-1" in server.calls)
+        assertTrue(media.engine.closed)
+        assertEquals(BroadcastState.FAILED, states.last().first)
+        assertTrue(logs.any { it.startsWith("publisher_failed") })
     }
 
     @Test fun channelAlreadyLiveAsksForConfirmationAndRetriesConcurrently() {
@@ -567,6 +585,37 @@ class DirectBroadcastControllerTest {
         assertTrue(snapshots.isNotEmpty())
     }
 
+    @Test fun pollRequestedBeforeGoLiveDoesNotEndLiveBroadcast() {
+        val pending = ArrayDeque<Runnable>()
+        val controller = connected(controller(io = DeferredBackgroundExecutor(pending)))
+        // 준비 전 IDLE에서 보낸 조회가 서버 idle 응답으로 방송 시작 뒤에 돌아옵니다.
+        scheduler.advance(2_000)
+        assertEquals(1, pending.size)
+        server.sessionPayload = """{"session_id":"session-1","targets":[{"provider":"youtube","stream":{"status":"idle","broadcast_phase":"idle"}}]}"""
+        val stale = pending.removeFirst()
+
+        assertTrue(controller.prepareBroadcast(settings, false))
+        scheduler.runUntilIdle()
+        media.engine.emit(BroadcastProvider.YOUTUBE, RtmpTargetState.PUBLISHING)
+        scheduler.runUntilIdle()
+        live(controller)
+        assertEquals(BroadcastState.LIVE, states.last().first)
+
+        stale.run()
+        scheduler.runUntilIdle()
+
+        assertEquals(BroadcastState.LIVE, states.last().first)
+        assertFalse("disconnect:youtube" in media.engine.calls)
+        assertFalse("delete:session-1" in server.calls)
+
+        // 폴링은 이어지고, 방송 중에 보낸 조회의 idle 응답은 반영합니다.
+        scheduler.advance(2_000)
+        pending.removeFirst().run()
+        scheduler.runUntilIdle()
+        assertTrue("disconnect:youtube" in media.engine.calls)
+        assertEquals(BroadcastState.IDLE, states.last().first)
+    }
+
     @Test fun reconnectSupervisorDrivesReconnectAndGiveUp() {
         val controller = preparedYouTube()
         live(controller)
@@ -617,6 +666,59 @@ class DirectBroadcastControllerTest {
         assertEquals(false, media.anonymization)
     }
 
+    @Test fun connectionConfirmsInitialAnonymizationEnabled() {
+        val controller = controller()
+        controller.start()
+        scheduler.runUntilIdle()
+        assertEquals(emptyList<AnonymizationState>(), anonymizationConfirmations)
+
+        media.events.onFirstFrame()
+        scheduler.runUntilIdle()
+        assertEquals(listOf(AnonymizationState.ENABLED), anonymizationConfirmations)
+        assertEquals(WebRtcConnectionState.CONNECTED, connections.last().first)
+    }
+
+    @Test fun connectionConfirmsInitialAnonymizationDisabled() {
+        connected(controller(anonymizationEnabled = false))
+        assertEquals(listOf(AnonymizationState.DISABLED), anonymizationConfirmations)
+    }
+
+    @Test fun localAnonymizationToggleUpdatesConfirmedState() {
+        val controller = connected(controller())
+        controller.setAnonymizationEnabled(false) { _, _ -> }
+        scheduler.runUntilIdle()
+        controller.setAnonymizationEnabled(true) { _, _ -> }
+        scheduler.runUntilIdle()
+
+        assertEquals(
+            listOf(AnonymizationState.ENABLED, AnonymizationState.DISABLED, AnonymizationState.ENABLED),
+            anonymizationConfirmations,
+        )
+    }
+
+    @Test fun failedLocalAnonymizationToggleKeepsConfirmedState() {
+        val controller = connected(controller())
+        media.failAnonymization = true
+        var failure: AnonymizationFailure? = null
+        controller.setAnonymizationEnabled(false) { _, error -> failure = error }
+        scheduler.runUntilIdle()
+
+        assertEquals(AnonymizationFailure.REQUEST, failure)
+        assertEquals(listOf(AnonymizationState.ENABLED), anonymizationConfirmations)
+    }
+
+    @Test fun anonymizationIsNotConfirmedAfterClose() {
+        val controller = controller()
+        controller.start()
+        scheduler.runUntilIdle()
+        controller.close()
+        media.events.onFirstFrame()
+        controller.setAnonymizationEnabled(false) { _, _ -> }
+        scheduler.runUntilIdle()
+
+        assertEquals(emptyList<AnonymizationState>(), anonymizationConfirmations)
+    }
+
     @Test fun processingFailureBeforeFirstFrameFailsConnection() {
         val controller = controller()
         controller.start()
@@ -643,12 +745,357 @@ class DirectBroadcastControllerTest {
         assertTrue(supervisor.closed)
     }
 
+    @Test fun closeShutsDownStatusIoExecutor() {
+        val controller = preparedYouTube()
+        var completed = false
+        controller.close { completed = true }
+        assertFalse(io.shutdown)
+        scheduler.runUntilIdle()
+
+        assertTrue(completed)
+        assertTrue(io.shutdown)
+    }
+
+    @Test fun repeatedCloseCompletesOnlyAfterCleanup() {
+        val controller = preparedYouTube()
+        live(controller)
+        val completed = mutableListOf<String>()
+        controller.close { completed += "first" }
+        controller.close {
+            assertTrue(server.closed)
+            assertTrue("delete:session-1" in server.calls)
+            completed += "second"
+        }
+
+        assertEquals(emptyList<String>(), completed)
+        scheduler.runUntilIdle()
+        assertEquals(listOf("first", "second"), completed)
+    }
+
+    @Test fun closeAfterCleanupCompletesImmediately() {
+        val controller = preparedYouTube()
+        live(controller)
+        controller.close()
+        scheduler.runUntilIdle()
+
+        var completed = false
+        controller.close { completed = true }
+        assertTrue(completed)
+    }
+
     @Test fun ingestUrlNeverReachesLogs() {
         val controller = preparedYouTube()
         live(controller)
         controller.stopBroadcast()
         scheduler.runUntilIdle()
         assertTrue(logs.none { "key" in it })
+    }
+
+    // --- 서버 오류 뒤 종료·재시도 가능 여부 ---
+
+    /**
+     * youtube-broadcast-v1.md: 재시도가 끝나도 준비 상태를 유지해 사용자가 다시 시도하거나 취소할 수 있게 한다.
+     * android-broadcast-orientation.md: 방송 시작이 실패해 prepared로 돌아가거나 종료가 성공하면 잠금을 해제한다.
+     * 직접 송출은 서버 스냅샷으로 방송 상태를 전진시키지 않으므로, 서버 오류 뒤에도 종료는 받아야 합니다.
+     */
+    private fun assertStopIsAcceptedAfterGoLiveError(code: String) {
+        val controller = preparedYouTube()
+        server.goLiveFailures += ServerApiException(code, statusCode = 409)
+        assertTrue(controller.goLive {})
+        scheduler.runUntilIdle()
+        assertEquals(1, server.calls.count { it == "golive" })
+
+        controller.stopBroadcast()
+        scheduler.runUntilIdle()
+        assertTrue("$code 응답 뒤 종료가 무시됩니다: ${states.last().first}", "stop:youtube" in server.calls)
+        assertEquals(BroadcastState.IDLE, states.last().first)
+        assertEquals(listOf("starting", "ended"), keepAlive.calls)
+    }
+
+    @Test fun busyGoLiveResponseStillAcceptsStop() = assertStopIsAcceptedAfterGoLiveError("broadcast_busy")
+
+    @Test fun goingLiveResponseStillAcceptsStop() = assertStopIsAcceptedAfterGoLiveError("broadcast_going_live")
+
+    @Test fun busyPrepareResponseStillAcceptsStopAndNewPreparation() {
+        val controller = connected(controller())
+        server.prepareFailures += ServerApiException("broadcast_busy", statusCode = 409)
+        assertTrue(controller.prepareBroadcast(settings, false))
+        scheduler.runUntilIdle()
+        assertEquals(1, server.calls.count { it.startsWith("prepare:") })
+
+        controller.stopBroadcast()
+        scheduler.runUntilIdle()
+        assertTrue("busy 준비 응답 뒤 고착: ${states.last().first}", controller.prepareBroadcast(settings, false))
+    }
+
+    /**
+     * youtube-broadcast-v1.md: live 단계에서는 방송 설정을 잠근다. 일시 중지도 서버 단계는 live이므로
+     * 설정 저장이 라이브 방송을 IDLE로 되돌리면 안 됩니다.
+     */
+    @Test fun savingSettingsWhilePausedDoesNotResetTheLiveBroadcast() {
+        val controller = preparedYouTube()
+        live(controller)
+        controller.pauseBroadcast()
+        scheduler.runUntilIdle()
+        assertEquals(BroadcastState.PAUSED, states.last().first)
+        val settingsCalls = server.calls.count { it == "settings:youtube" }
+
+        controller.saveBroadcastSettings(settings)
+        scheduler.runUntilIdle()
+
+        assertEquals(settingsCalls, server.calls.count { it == "settings:youtube" })
+        assertEquals(BroadcastState.PAUSED, states.last().first)
+        assertEquals(listOf("start:session-1"), heartbeat.calls)
+    }
+
+    // --- 라이브 전환 실패 뒤 복귀 ---
+
+    /** android-broadcast-orientation.md: 방송 시작이 실패해 prepared로 돌아가면 잠금을 해제한다. */
+    @Test fun goLivePublishingWaitTimeoutReturnsToPreparedAndAllowsRetry() {
+        val controller = preparedYouTube()
+        media.orientation = PublishOrientation.PORTRAIT
+        assertTrue(controller.goLive {})
+        scheduler.runUntilIdle()
+        assertEquals(BroadcastState.GOING_LIVE, states.last().first)
+        assertEquals(0, server.calls.count { it == "golive" })
+
+        scheduler.advance(20_000)
+
+        assertEquals(0, server.calls.count { it == "golive" })
+        assertEquals(BroadcastState.PREPARED to DirectEvent.NOT_READY.toBroadcastEvent(), states.last())
+        assertEquals(listOf("starting", "ended"), keepAlive.calls)
+        assertTrue(controller.goLive {})
+    }
+
+    @Test fun goLiveNetworkFailureReturnsToPreparedKeepingRtmpUp() {
+        val controller = preparedYouTube()
+        server.goLiveFailures += IOException("network")
+        assertTrue(controller.goLive {})
+        scheduler.runUntilIdle()
+
+        assertEquals(BroadcastState.PREPARED to DirectEvent.REQUEST.toBroadcastEvent(), states.last())
+        assertFalse("disconnect:youtube" in media.engine.calls)
+        assertEquals(listOf("starting", "ended"), keepAlive.calls)
+        assertTrue(controller.goLive {})
+    }
+
+    // --- 하트비트 종료 사유와 알림 ---
+
+    /** direct-publish-v1.md: 409 heartbeat_not_applicable은 라이브 대상 없음. 모든 연결을 끊고 세션을 끝냅니다. */
+    @Test fun heartbeatNotApplicableEndsEveryTargetWithoutStopAndDeletesSession() {
+        val controller = preparedYouTube()
+        live(controller)
+        heartbeat.listener!!.onStopAll(HeartbeatStopReason.NOT_APPLICABLE)
+        scheduler.runUntilIdle()
+
+        assertFalse("stop:youtube" in server.calls)
+        assertTrue("disconnect:youtube" in media.engine.calls)
+        assertTrue("delete:session-1" in server.calls)
+        assertNull(recovery.stored)
+        assertEquals(BroadcastState.IDLE to DirectEvent.SERVER_STOPPED.toBroadcastEvent(), states.last())
+        assertEquals(listOf("start:session-1", "stop"), heartbeat.calls)
+        assertEquals(listOf("starting", "ended"), keepAlive.calls)
+    }
+
+    /** direct-publish-v1.md: 403 forbidden은 소유권 상실. 지울 수 없는 세션은 기록만 비우고 모든 연결을 끊습니다. */
+    @Test fun heartbeatOwnershipLostForgetsSessionWithoutDeleteOrStop() {
+        val controller = preparedYouTube()
+        live(controller)
+        heartbeat.listener!!.onStopAll(HeartbeatStopReason.OWNERSHIP_LOST)
+        scheduler.runUntilIdle()
+
+        assertFalse("stop:youtube" in server.calls)
+        assertFalse("delete:session-1" in server.calls)
+        assertTrue("disconnect:youtube" in media.engine.calls)
+        assertTrue(media.engine.closed)
+        assertNull(recovery.stored)
+        assertEquals(BroadcastState.IDLE to DirectEvent.SERVER_STOPPED.toBroadcastEvent(), states.last())
+
+        // 다음 방송은 새 세션으로 시작합니다.
+        assertTrue(controller.prepareBroadcast(settings, false))
+        scheduler.runUntilIdle()
+        assertEquals("session-2", recovery.stored?.sessionId)
+    }
+
+    @Test fun heartbeatNoticesAndRemainingTimeUpdateTheSnapshot() {
+        val controller = preparedYouTube()
+        live(controller)
+        heartbeat.listener!!.onNotices(listOf(SessionNotice("broadcast_limit_10m", "2026-10-12T08:30:00Z")), 540)
+        scheduler.runUntilIdle()
+
+        val limited = snapshots.last()
+        assertEquals(listOf("broadcast_limit_10m"), limited.notices!!.map { it.code })
+        assertEquals(BroadcastRemainingTime.Seconds(540), limited.remainingTime)
+        assertEquals(540L, limited.lastRemainingSeconds)
+        assertFalse(limited.isRemainingTimeStale)
+
+        heartbeat.listener!!.onNotices(emptyList(), null)
+        scheduler.runUntilIdle()
+        assertEquals(BroadcastRemainingTime.UnlimitedOrInactive, snapshots.last().remainingTime)
+        assertEquals(540L, snapshots.last().lastRemainingSeconds)
+        assertEquals(emptyList<SessionNotice>(), snapshots.last().notices)
+    }
+
+    // --- 동시 송출의 부분 종료 ---
+
+    private fun liveSimulcast(): DirectBroadcastController {
+        val controller = connected(controller(DirectBroadcastPlan(providers = setOf(BroadcastProvider.YOUTUBE,
+            BroadcastProvider.CHZZK))))
+        assertTrue(controller.prepareDirectBroadcast(settings, chzzkSettings, false))
+        scheduler.runUntilIdle()
+        media.engine.emit(BroadcastProvider.YOUTUBE, RtmpTargetState.PUBLISHING)
+        scheduler.runUntilIdle()
+        server.goLiveResult = DirectGoLiveResult(BroadcastState.LIVE,
+            listOf(DirectIngest(BroadcastProvider.CHZZK, chzzkUrl)), emptyList())
+        live(controller)
+        media.engine.emit(BroadcastProvider.CHZZK, RtmpTargetState.PUBLISHING)
+        scheduler.runUntilIdle()
+        assertEquals(BroadcastState.LIVE, states.last().first)
+        assertEquals(listOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK),
+            heartbeat.inputs!!.current()!!.targets.map { it.provider })
+        return controller
+    }
+
+    /** direct-publish-v1.md: stop_targets[]의 대상만 즉시 끊고, 사용자가 stop하지 않은 다른 대상은 유지합니다. */
+    @Test fun heartbeatStopTargetsForOneProviderKeepsTheOtherLive() {
+        val controller = liveSimulcast()
+        heartbeat.listener!!.onStopTargets(listOf(BroadcastProvider.CHZZK))
+        scheduler.runUntilIdle()
+
+        assertTrue("disconnect:chzzk" in media.engine.calls)
+        assertFalse("disconnect:youtube" in media.engine.calls)
+        assertFalse("stop:chzzk" in server.calls)
+        assertFalse("delete:session-1" in server.calls)
+        assertEquals(
+            BroadcastState.LIVE to DirectBroadcastNotice.TargetStoppedByServer(BroadcastProvider.CHZZK).toBroadcastEvent(),
+            states.last(),
+        )
+        assertEquals(listOf(BroadcastProvider.YOUTUBE), heartbeat.inputs!!.current()!!.targets.map { it.provider })
+        assertEquals(listOf("start:session-1"), heartbeat.calls)
+        assertEquals(listOf(BroadcastProvider.CHZZK), supervisor.removed)
+
+        // 이미 끝난 대상을 서버가 다시 알려도 남은 대상에는 영향이 없습니다.
+        heartbeat.listener!!.onStopTargets(listOf(BroadcastProvider.CHZZK))
+        scheduler.runUntilIdle()
+        assertEquals(BroadcastState.LIVE, states.last().first)
+
+        controller.stopBroadcast()
+        scheduler.runUntilIdle()
+        assertEquals(listOf("stop:youtube", "delete:session-1"), server.calls.takeLast(2))
+        assertEquals(BroadcastState.IDLE, states.last().first)
+    }
+
+    @Test fun reconnectGiveUpForOneProviderKeepsTheOtherLive() {
+        liveSimulcast()
+        media.engine.emit(BroadcastProvider.CHZZK, RtmpTargetState.DISCONNECTED)
+        scheduler.runUntilIdle()
+        assertEquals(LocalTargetStatus.RECONNECTING, uiStates.last().targets[BroadcastProvider.CHZZK])
+        assertEquals(LocalTargetStatus.PUBLISHING, uiStates.last().targets[BroadcastProvider.YOUTUBE])
+
+        supervisor.actions!!.giveUp(BroadcastProvider.CHZZK, RtmpFailure.NETWORK)
+        scheduler.runUntilIdle()
+
+        assertTrue("stop:chzzk" in server.calls)
+        assertTrue("disconnect:chzzk" in media.engine.calls)
+        assertFalse("stop:youtube" in server.calls)
+        assertFalse("delete:session-1" in server.calls)
+        assertEquals(BroadcastState.LIVE to directConnectionLostEvent(BroadcastProvider.CHZZK), states.last())
+        assertEquals(listOf(BroadcastProvider.YOUTUBE), heartbeat.inputs!!.current()!!.targets.map { it.provider })
+        assertNull(uiStates.last().targets[BroadcastProvider.CHZZK])
+        assertEquals(listOf("start:session-1"), heartbeat.calls)
+    }
+
+    @Test fun chzzkFirstConnectFailureDuringSimulcastKeepsYouTubeLive() {
+        val controller = connected(controller(DirectBroadcastPlan(providers = setOf(BroadcastProvider.YOUTUBE,
+            BroadcastProvider.CHZZK))))
+        assertTrue(controller.prepareDirectBroadcast(settings, chzzkSettings, false))
+        scheduler.runUntilIdle()
+        media.engine.emit(BroadcastProvider.YOUTUBE, RtmpTargetState.PUBLISHING)
+        scheduler.runUntilIdle()
+        server.goLiveResult = DirectGoLiveResult(BroadcastState.LIVE,
+            listOf(DirectIngest(BroadcastProvider.CHZZK, chzzkUrl)), emptyList())
+        live(controller)
+        media.engine.emit(BroadcastProvider.CHZZK, RtmpTargetState.FAILED, RtmpFailure.REJECTED)
+        scheduler.runUntilIdle()
+
+        assertTrue("stop:chzzk" in server.calls)
+        assertTrue("disconnect:chzzk" in media.engine.calls)
+        assertFalse("stop:youtube" in server.calls)
+        assertFalse("delete:session-1" in server.calls)
+        assertEquals(BroadcastState.LIVE to DirectEvent.CONNECT_FAILED.toBroadcastEvent(), states.last())
+        assertEquals(listOf(BroadcastProvider.YOUTUBE), heartbeat.inputs!!.current()!!.targets.map { it.provider })
+        // 처음 연결 실패는 재연결 대상이 아닙니다.
+        assertTrue(supervisor.changes.none { it == RtmpTargetState.FAILED })
+    }
+
+    @Test fun supervisorCallbacksAfterStopDoNotReconnectOrSendStop() {
+        val controller = preparedYouTube()
+        live(controller)
+        val actions = supervisor.actions!!
+        controller.stopBroadcast()
+        scheduler.runUntilIdle()
+        val serverCalls = server.calls.toList()
+        val engineCalls = media.engine.calls.toList()
+        val reported = states.size
+
+        actions.reconnect(BroadcastProvider.YOUTUBE)
+        actions.giveUp(BroadcastProvider.YOUTUBE, RtmpFailure.NETWORK)
+        scheduler.runUntilIdle()
+
+        assertEquals(serverCalls, server.calls)
+        assertEquals(engineCalls, media.engine.calls)
+        assertEquals(reported, states.size)
+    }
+
+    // --- 세션 조회 404·일시 오류 ---
+
+    @Test fun polled404WhilePreparedFailsPreparationAndForgetsSession() {
+        val controller = preparedYouTube()
+        server.fetchFailure = ServerApiException("not_found", statusCode = 404)
+        scheduler.advance(2_000)
+
+        assertTrue("disconnect:youtube" in media.engine.calls)
+        assertFalse("stop:youtube" in server.calls)
+        assertFalse("delete:session-1" in server.calls)
+        assertNull(recovery.stored)
+        assertEquals(BroadcastState.FAILED to DirectEvent.PREPARED_EXPIRED.toBroadcastEvent(), states.last())
+
+        server.fetchFailure = null
+        assertTrue(controller.prepareBroadcast(settings, false))
+        scheduler.runUntilIdle()
+        assertEquals("session-2", recovery.stored?.sessionId)
+    }
+
+    @Test fun polled404WhileLiveEndsBroadcastWithoutStopOrDelete() {
+        val controller = preparedYouTube()
+        live(controller)
+        server.fetchFailure = ServerApiException("not_found", statusCode = 404)
+        scheduler.advance(2_000)
+
+        assertFalse("stop:youtube" in server.calls)
+        assertFalse("delete:session-1" in server.calls)
+        assertTrue("disconnect:youtube" in media.engine.calls)
+        assertNull(recovery.stored)
+        assertEquals(BroadcastState.IDLE to DirectEvent.SERVER_STOPPED.toBroadcastEvent(), states.last())
+        assertEquals(listOf("start:session-1", "stop"), heartbeat.calls)
+        assertEquals(listOf("starting", "ended"), keepAlive.calls)
+    }
+
+    @Test fun transientPollFailureMarksRemainingTimeStaleUntilTheNextSuccess() {
+        preparedYouTube()
+        server.sessionPayload = """{"session_id":"session-1","broadcast_remaining_seconds":600}"""
+        scheduler.advance(2_000)
+        assertEquals(BroadcastRemainingTime.Seconds(600), snapshots.last().remainingTime)
+        assertFalse(snapshots.last().isRemainingTimeStale)
+
+        server.fetchFailure = IOException("timeout")
+        scheduler.advance(2_000)
+        assertTrue(snapshots.last().isRemainingTimeStale)
+        assertEquals(BroadcastRemainingTime.Seconds(600), snapshots.last().remainingTime)
+
+        server.fetchFailure = null
+        scheduler.advance(2_000)
+        assertFalse(snapshots.last().isRemainingTimeStale)
     }
 
     // --- 가짜 의존성 ---
@@ -664,6 +1111,7 @@ class DirectBroadcastControllerTest {
         val goLiveFailures = ArrayDeque<Exception>()
         var goLiveResult = DirectGoLiveResult(BroadcastState.LIVE, emptyList(), emptyList())
         var stopFailure: Exception? = null
+        var fetchFailure: Exception? = null
         var savedChzzk: ChzzkBroadcastSettings? = null
         var sessionPayload = """{"session_id":"session-1"}"""
         var closed = false
@@ -717,7 +1165,10 @@ class DirectBroadcastControllerTest {
             calls += "delete:${session.sessionId}"
         }
 
-        override fun fetchSession(session: CreatedSession): String = sessionPayload
+        override fun fetchSession(session: CreatedSession): String {
+            fetchFailure?.let { throw it }
+            return sessionPayload
+        }
 
         override fun close() {
             closed = true
@@ -753,6 +1204,8 @@ class DirectBroadcastControllerTest {
         fun emit(provider: BroadcastProvider, state: RtmpTargetState, failure: RtmpFailure? = null) =
             listener.onTargetStateChanged(provider, state, failure)
 
+        fun failPublisher(error: Exception) = listener.onPublisherFailed(error)
+
         override fun connect(provider: BroadcastProvider, ingestUrl: IngestUrl) {
             calls += "connect:${provider.wireValue}"
             urls[provider] = ingestUrl
@@ -785,6 +1238,7 @@ class DirectBroadcastControllerTest {
         var orientation = PublishOrientation.LANDSCAPE
         var failedFrames = 0L
         var anonymization: Boolean? = null
+        var failAnonymization = false
         var closed = false
 
         override fun open(events: DirectMediaEvents) {
@@ -795,6 +1249,7 @@ class DirectBroadcastControllerTest {
         override val anonymizationFailedFrames: Long get() = failedFrames
 
         override fun setAnonymizationEnabled(enabled: Boolean) {
+            if (failAnonymization) throw IllegalStateException("가림 처리 전환 실패")
             anonymization = enabled
         }
 
@@ -851,6 +1306,20 @@ class DirectBroadcastControllerTest {
     }
 }
 
+/** 받은 작업을 바로 실행하고 종료 여부를 기록합니다. */
+internal class ImmediateBackgroundExecutor : BackgroundExecutor {
+    var shutdown = false
+        private set
+
+    override fun execute(block: () -> Unit) {
+        if (!shutdown) block()
+    }
+
+    override fun shutdown() {
+        shutdown = true
+    }
+}
+
 /** 시간을 직접 옮기는 직렬 실행기입니다. */
 internal class ManualScheduler : SerialScheduler {
     private class Task(val at: Long, val order: Long, val block: () -> Unit, var cancelled: Boolean = false)
@@ -873,7 +1342,11 @@ internal class ManualScheduler : SerialScheduler {
     override fun shutdown() = Unit
 
     fun runUntilIdle() {
-        while (queue.isNotEmpty()) queue.removeFirst()()
+        var steps = 0
+        while (queue.isNotEmpty()) {
+            check(++steps <= 10_000) { "작업이 끝나지 않습니다." }
+            queue.removeFirst()()
+        }
     }
 
     fun advance(millis: Long) {
@@ -889,4 +1362,13 @@ internal class ManualScheduler : SerialScheduler {
         timed.removeAll { it.cancelled }
         now = end
     }
+}
+
+/** 받은 작업을 큐에 보관해 테스트가 실행 시점을 정하게 합니다. */
+internal class DeferredBackgroundExecutor(private val queue: ArrayDeque<Runnable>) : BackgroundExecutor {
+    override fun execute(block: () -> Unit) {
+        queue.addLast(Runnable(block))
+    }
+
+    override fun shutdown() = Unit
 }

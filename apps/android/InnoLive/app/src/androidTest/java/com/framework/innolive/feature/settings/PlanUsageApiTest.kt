@@ -61,13 +61,26 @@ class PlanUsageApiTest {
         }
     }
 
-    @Test fun failedAuthenticationRefreshReturns401ForLoginRecovery() = runBlocking {
+    @Test fun rejectedRefreshTokenReturns401ForLoginRecovery() = runBlocking {
         fixture { 401 to "{}" }.use { api ->
             try {
-                coordinator(api).loadPlanUsage("expired", { throw java.io.IOException("fixture") })
+                coordinator(api).loadPlanUsage("expired", {
+                    throw com.framework.innolive.feature.login.oauth.google.InvalidRefreshTokenException(401)
+                })
                 fail("Expected authentication failure")
             } catch (exception: YouTubeApiException) {
                 assertEquals(401, exception.statusCode)
+            }
+        }
+    }
+
+    @Test fun transientRefreshFailureKeepsTheSessionAsALoadFailure() = runBlocking {
+        fixture { 401 to "{}" }.use { api ->
+            try {
+                coordinator(api).loadPlanUsage("expired", { throw java.io.IOException("fixture") })
+                fail("Expected load failure")
+            } catch (exception: YouTubeApiException) {
+                assertEquals(null, exception.statusCode)
             }
         }
     }

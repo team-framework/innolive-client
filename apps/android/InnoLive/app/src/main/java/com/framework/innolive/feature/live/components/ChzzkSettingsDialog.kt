@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -61,7 +60,10 @@ internal fun ChzzkSettingsDialog(
                     Modifier.padding(16.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(stringResource(R.string.chzzk_settings_title))
+                    BroadcastDialogHeader(
+                        title = stringResource(R.string.chzzk_settings_title),
+                        onClose = onDismiss,
+                    )
                     onChangePlatform?.let { change ->
                         TextButton(onClick = change, enabled = !isBusy) { Text(stringResource(R.string.action_change_platform)) }
                     }
@@ -78,17 +80,24 @@ internal fun ChzzkSettingsDialog(
                         onSearch = onSearch,
                     )
                     val invalidField = settings.validationField()
-                    Row {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         onPrepare?.let { prepare ->
                             Button(
                                 onClick = prepare,
                                 enabled = canPrepare && !isBusy && invalidField == null,
-                                modifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.START_PREPARATION),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .broadcastTutorialAnchor(BroadcastTutorialAnchor.START_PREPARATION),
                             ) {
                                 Text(stringResource(R.string.action_prepare_broadcast))
                             }
                         }
-                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
+                        Button(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.direct_mode_done))
+                        }
                     }
                 }
             }
@@ -123,7 +132,7 @@ internal fun ChzzkSettingsFields(
         }
         OutlinedTextField(settings.title, { onChanged(settings.copy(title = it)) },
             label = { Text(stringResource(R.string.label_broadcast_title)) }, singleLine = true,
-            modifier = Modifier.widthIn(max = 280.dp).fillMaxWidth())
+            modifier = Modifier.fillMaxWidth())
         OutlinedTextField(query, { query = it }, label = { Text(stringResource(R.string.chzzk_label_category_search)) },
             modifier = Modifier.fillMaxWidth())
         Button(onClick = {

@@ -390,6 +390,80 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
 
     private var methods: [String] { SessionLifecycleURLProtocol.requests.compactMap(\.httpMethod) }
 
+    func testScreenBlurUsesAuthenticatedPatchAndConfirmedResponse() async throws {
+        SessionLifecycleURLProtocol.responses = [.created("blur"), .blur(true), .blur(false)]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        XCTAssertFalse(integration.isScreenBlurEnabled)
+        await integration.toggleScreenBlur(accessToken: token)
+        XCTAssertTrue(integration.isScreenBlurEnabled)
+        let request = try XCTUnwrap(SessionLifecycleURLProtocol.requests.last)
+        XCTAssertEqual(request.httpMethod, "PATCH")
+        XCTAssertEqual(request.url?.path, "/sessions/blur/screen-blur")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer \(token)")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-Session-Owner-Token"), "owner")
+        let body = try screenBlurRequestBody(request)
+        XCTAssertEqual(body["enabled"] as? Bool, true)
+        await integration.toggleScreenBlur(accessToken: token)
+        XCTAssertEqual(try screenBlurRequestBody(XCTUnwrap(SessionLifecycleURLProtocol.requests.last))["enabled"] as? Bool, false)
+        XCTAssertFalse(integration.isScreenBlurEnabled)
+        XCTAssertFalse(integration.isTogglingScreenBlur)
+        XCTAssertEqual(methods, ["POST", "PATCH", "PATCH"])
+    }
+
+    func testScreenBlurFailureAndMissingFieldPreserveConfirmedValue() async {
+        SessionLifecycleURLProtocol.responses = [.created("blur"), .blur(true), .empty(503), .snapshot(enabled: true)]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        await integration.toggleScreenBlur(accessToken: token)
+        for _ in 0..<2 {
+            await integration.toggleScreenBlur(accessToken: token)
+            XCTAssertTrue(integration.isScreenBlurEnabled)
+            XCTAssertFalse(integration.isTogglingScreenBlur)
+            XCTAssertNotNil(integration.errorMessage)
+        }
+        let changed = await integration.changeAIProcessingMode(.onDevice, accessToken: token)
+        XCTAssertFalse(changed)
+    }
+
+    func testScreenBlurIgnoresResponseAfterReset() async {
+        SessionLifecycleURLProtocol.responses = [.created("blur"), .blur(true)]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        SessionLifecycleURLProtocol.beforeResponse = { request in
+            if request.httpMethod == "PATCH" { integration.reset() }
+        }
+        await integration.toggleScreenBlur(accessToken: token)
+        XCTAssertNil(integration.session)
+        XCTAssertFalse(integration.isScreenBlurEnabled)
+        XCTAssertFalse(integration.isTogglingScreenBlur)
+    }
+
+    func testScreenBlurUnavailableForOnDeviceProcessing() async {
+        SessionLifecycleURLProtocol.responses = [.created("local"), .snapshot(enabled: false)]
+        let integration = makeIntegration(mode: .onDevice)
+        _ = await integration.prepareSession(accessToken: token)
+        XCTAssertFalse(integration.canToggleScreenBlur)
+        await integration.toggleScreenBlur(accessToken: token)
+        XCTAssertEqual(methods, ["POST", "PATCH"])
+        XCTAssertFalse(integration.isScreenBlurEnabled)
+    }
+
+    private func screenBlurRequestBody(_ request: URLRequest) throws -> [String: Any] {
+        var data = request.httpBody ?? Data()
+        if data.isEmpty, let input = request.httpBodyStream {
+            input.open()
+            defer { input.close() }
+            var buffer = [UInt8](repeating: 0, count: 1024)
+            while input.hasBytesAvailable {
+                let count = input.read(&buffer, maxLength: buffer.count)
+                guard count > 0 else { break }
+                data.append(contentsOf: buffer.prefix(count))
+            }
+        }
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+
     private static func token(_ user: String) -> String {
         "header." + Data("{\"sub\":\"\(user)\"}".utf8).base64EncodedString() + ".signature"
     }
@@ -445,6 +519,9 @@ private final class SessionLifecycleURLProtocol: URLProtocol {
         static func snapshot(enabled: Bool?) -> Self {
             let flag = enabled.map { String($0) } ?? "null"
             return .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"anonymization_enabled\":\(flag)}}")
+        }
+        static func blur(_ enabled: Bool) -> Self {
+            .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"screen_blur_enabled\":\(enabled)}}")
         }
         static func empty(_ status: Int) -> Self { .init(status: status, body: "") }
         static func created(_ id: String, mode: String? = nil) -> Self {

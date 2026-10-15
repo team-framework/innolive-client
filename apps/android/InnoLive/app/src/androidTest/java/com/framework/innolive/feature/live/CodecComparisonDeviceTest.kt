@@ -11,6 +11,8 @@ import androidx.activity.compose.setContent
 import androidx.test.core.app.ActivityScenario
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
+import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
+import com.framework.innolive.feature.live.direct.DirectPublishResolution
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.ui.text.resolve
@@ -88,6 +90,11 @@ class CodecComparisonDeviceTest {
                 onMain {
                     assertTrue(session.selectInitialAIProcessing(context, onDevice))
                     assertTrue(session.selectInitialAnonymization(context, true))
+                    // The server-AI uplink budget follows the plan resolution, so the FHD probe
+                    // creates the session as FHD instead of relying on the later PUT alone.
+                    if (requestedResolution == "fhd") {
+                        assertTrue(session.selectDirectBroadcastPlan(DirectBroadcastPlan(resolution = DirectPublishResolution.FHD)))
+                    }
                 }
                 val initialToken = if (localServer != null) localProbeToken else runBlocking { auth.refreshAccessToken() }
                 var usedInitialToken = false
@@ -304,7 +311,8 @@ class CodecComparisonDeviceTest {
                         .put("protected_frames", protectedFrames.get()))
                     fun percentile(values: List<Double>, fraction: Double): Double {
                         val sorted = synchronized(values) { values.toList().sorted() }
-                        return if(sorted.isEmpty()) Double.NaN else sorted[((sorted.size-1)*fraction).toInt()]
+                        // org.json rejects NaN; the server-AI probe has no local pipeline samples.
+                        return if(sorted.isEmpty()) -1.0 else sorted[((sorted.size-1)*fraction).toInt()]
                     }
                     collecting.set(false)
                     Log.i("ProductionVideoProbe", "ai_summary " + JSONObject().put("mode", mode)

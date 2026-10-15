@@ -13,11 +13,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,7 +47,7 @@ internal class BroadcastSettingsMenuItem(
 )
 
 /**
- * 방송 준비 버튼이 여는 방송 설정 메뉴입니다. YouTube·치지직·방송 화질 및 송출할 플랫폼을 고르면
+ * 방송 준비 버튼이 여는 방송 설정 메뉴입니다. YouTube·치지직·화질 및 플랫폼을 고르면
  * 각 기존 설정 창이 열리고, 닫으면 이 메뉴로 돌아옵니다. 방송 준비는 이 메뉴에서만 시작합니다.
  */
 @Composable
@@ -70,16 +68,11 @@ internal fun BroadcastSettingsMenu(
                 Column(
                     modifier = Modifier.padding(vertical = 16.dp).verticalScroll(rememberScrollState()),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(stringResource(R.string.broadcast_settings_title), style = MaterialTheme.typography.titleLarge)
-                        IconButton(onClick = onDismiss) {
-                            Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_close))
-                        }
-                    }
+                    BroadcastDialogHeader(
+                        title = stringResource(R.string.broadcast_settings_title),
+                        onClose = onDismiss,
+                        modifier = Modifier.padding(start = 20.dp, end = 8.dp),
+                    )
                     items.forEachIndexed { index, item ->
                         if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
                         Row(

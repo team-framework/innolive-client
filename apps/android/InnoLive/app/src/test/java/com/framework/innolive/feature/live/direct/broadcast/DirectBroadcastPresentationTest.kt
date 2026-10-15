@@ -23,8 +23,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import com.framework.innolive.feature.live.effectiveBroadcastPlan
-import com.framework.innolive.feature.live.storedBroadcastPlan
 import org.junit.Test
 
 class DirectBroadcastPresentationTest {
@@ -271,14 +269,5 @@ class DirectBroadcastPresentationTest {
         assertEquals(UiText.Resource(R.string.chzzk_error_settings), chzzkBroadcastErrorMessage("bad_request", null))
         assertEquals(UiText.Resource(R.string.chzzk_error_not_ready), chzzkBroadcastErrorMessage("broadcast_not_prepared", null))
         assertEquals(UiText.Resource(R.string.chzzk_error_request), chzzkBroadcastErrorMessage(null, null))
-    }
-
-    @Test fun serverModePlatformChangeKeepsOnDeviceResolution() {
-        val stored = DirectBroadcastPlan(FHD, setOf(YOUTUBE))
-        val shown = effectiveBroadcastPlan(stored, onDevice = false)
-        assertEquals(HD_720, shown.resolution)
-        val picked = shown.copy(providers = setOf(CHZZK))
-        assertEquals(DirectBroadcastPlan(FHD, setOf(CHZZK)), storedBroadcastPlan(picked, stored, onDevice = false))
-        assertEquals(picked, storedBroadcastPlan(picked, stored, onDevice = true))
     }
 }

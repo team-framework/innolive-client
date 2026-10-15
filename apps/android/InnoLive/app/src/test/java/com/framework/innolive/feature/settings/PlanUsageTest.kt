@@ -11,6 +11,7 @@ import com.framework.innolive.ui.text.serverErrorGuidance
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.File
+import org.json.JSONObject
 
 class PlanUsageTest {
     private val plan = """{"plan":"beam","allowed_modes":["720p_single","fhd_single"],"monthly_broadcast_seconds":432000,"max_per_broadcast_seconds":3600}"""
@@ -148,5 +149,69 @@ class PlanUsageTest {
         assertEquals("01:01:01", formatPlanDuration(3661))
         assertEquals("00:00:00", formatPlanDuration(0))
         assertEquals(ServerErrorAction.PLAN, serverErrorGuidance("monthly_limit_exhausted")!!.action)
+    }
+
+    private fun without(json: String, key: String): String = JSONObject(json).apply { remove(key) }.toString()
+
+    private fun withoutEntryField(usage: String, key: String): String = JSONObject(usage).apply {
+        getJSONArray("available_by_mode").getJSONObject(0).remove(key)
+    }.toString()
+
+    /** plan-usage-v1.md: Missing required time fields fail decoding; they must not silently become unlimited. */
+    @Test fun everyRequiredFieldMustBePresentInPlanAndUsage() {
+        val usage = fixture("allowed")
+        assertNotNull(parsePlanUsage(plan, usage))
+        for (key in listOf("plan", "allowed_modes", "monthly_broadcast_seconds", "max_per_broadcast_seconds")) {
+            assertThrows("plan.$key", Exception::class.java) { parsePlanUsage(without(plan, key), usage) }
+        }
+        for (key in listOf("plan", "used_seconds", "remaining_seconds", "available_by_mode")) {
+            assertThrows("usage.$key", Exception::class.java) { parsePlanUsage(plan, without(usage, key)) }
+        }
+        for (key in listOf("mode", "allowed", "seconds", "multiplier")) {
+            assertThrows("entry.$key", Exception::class.java) { parsePlanUsage(plan, withoutEntryField(usage, key)) }
+        }
+        assertThrows(Exception::class.java) {
+            parsePlanUsage(plan.replace("\"beam\"", "\"\""), usage.replace("\"beam\"", "\"\""))
+        }
+        assertThrows(Exception::class.java) { parsePlanUsage(plan, usage.replace("\"allowed\": true", "\"allowed\": \"true\"")) }
+        assertThrows(Exception::class.java) { parsePlanUsage(plan, usage.replace("\"720p_single\"", "\"\"")) }
+        assertThrows(Exception::class.java) { parsePlanUsage(plan, usage.replace("\"used_seconds\": 0", "\"used_seconds\": -1")) }
+        assertThrows(Exception::class.java) {
+            parsePlanUsage(plan.replace("\"max_per_broadcast_seconds\":3600", "\"max_per_broadcast_seconds\":null"), usage)
+        }
+    }
+
+    /** plan-usage-v1.md: 요금제 한도 0은 무제한, 사용량의 0은 소진이다. */
+    @Test fun zeroPlanLimitsAreUnlimitedWhileZeroUsageIsExhausted() {
+        val unlimitedPlan = """{"plan":"beam","allowed_modes":["720p_single"],"monthly_broadcast_seconds":0,"max_per_broadcast_seconds":0}"""
+        val usage = parsePlanUsage(unlimitedPlan, fixture("allowed"))
+        assertEquals(0L, usage.monthlySeconds)
+        assertEquals(0L, usage.maxBroadcastSeconds)
+        // 방송당 한도가 없으면 월 잔여만 남는다.
+        assertEquals(7200L, usage.previewRemaining(PlanMode.HD_SINGLE))
+
+        val exhausted = parsePlanUsage(plan, fixture("exhausted"))
+        assertEquals(0L, exhausted.usedSeconds)
+        assertEquals(0L, exhausted.remainingSeconds)
+        assertEquals(0L, exhausted.availability(PlanMode.HD_SINGLE)!!.seconds)
+        assertTrue(exhausted.isAllowed(PlanMode.HD_SINGLE))
+        assertEquals(0L, exhausted.previewRemaining(PlanMode.HD_SINGLE))
+    }
+
+    /** plan-usage-v1.md: 알 수 없는 mode는 보존하되 선택 가능한 행이 되지 않고, 추가 필드는 무시한다. */
+    @Test fun unknownModesAreRetainedWithoutBecomingSelectableAndExtraFieldsAreIgnored() {
+        val futurePlan = """{"plan":"beam","allowed_modes":["720p_single","8k_single"],"monthly_broadcast_seconds":10,
+            "max_per_broadcast_seconds":5,"future":{"x":1}}"""
+        val futureUsage = """{"plan":"beam","used_seconds":1,"remaining_seconds":9,"future":true,"available_by_mode":[
+            {"mode":"720p_single","allowed":true,"seconds":9,"multiplier":1,"future":"y"},
+            {"mode":"8k_single","allowed":true,"seconds":3,"multiplier":3}]}"""
+
+        val usage = parsePlanUsage(futurePlan, futureUsage)
+
+        assertEquals(listOf("720p_single", "8k_single"), usage.modes.map { it.mode })
+        assertEquals(listOf(PlanMode.HD_SINGLE), PlanMode.entries.filter(usage::isAllowed))
+        // allowed_modes에만 있고 항목이 없는 mode는 사용할 수 없다.
+        val missingEntry = parsePlanUsage(futurePlan.replace("\"8k_single\"", "\"fhd_single\""), futureUsage)
+        assertFalse(missingEntry.isAllowed(PlanMode.FHD_SINGLE))
     }
 }

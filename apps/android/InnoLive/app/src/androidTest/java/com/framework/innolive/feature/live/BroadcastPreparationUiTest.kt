@@ -88,10 +88,10 @@ class BroadcastPreparationUiTest {
         compose.onNodeWithText(label(R.string.session_usage_warning_test_show)).performClick()
         compose.onNodeWithText(label(R.string.session_notice_monthly_usage_80)).assertIsDisplayed()
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
-        // 방송 준비는 YouTube·치지직·송출할 플랫폼 메뉴를 엽니다(서버 송출은 화질을 고르지 않습니다).
+        // 방송 준비는 YouTube·치지직·방송 화질 및 송출할 플랫폼 메뉴를 엽니다(서버 송출도 화질을 고릅니다).
         compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertIsDisplayed()
         compose.onNodeWithText(label(R.string.broadcast_menu_chzzk)).assertIsDisplayed()
-        compose.onNodeWithText(label(R.string.direct_mode_targets_title)).assertIsDisplayed()
+        compose.onNodeWithText(label(R.string.broadcast_menu_mode)).assertIsDisplayed()
         // 메뉴의 첫 줄이 YouTube입니다. 송출할 플랫폼 줄 요약에도 YouTube가 있어 첫 항목을 고릅니다.
         compose.onAllNodes(hasText("YouTube") and hasClickAction() and hasAnyAncestor(isDialog()))[0].performClick()
         compose.onNodeWithText(label(R.string.live_settings_title)).assertIsDisplayed()
@@ -129,7 +129,7 @@ class BroadcastPreparationUiTest {
         }
         compose.onNodeWithText(label(R.string.audience_required)).performClick()
         compose.onNodeWithText(label(R.string.audience_not_made_for_kids)).performClick()
-        compose.onNodeWithText(label(R.string.action_save_and_close)).performClick()
+        compose.onNodeWithText(label(R.string.direct_mode_done)).performClick()
         compose.onNodeWithText(label(R.string.live_settings_title)).assertDoesNotExist()
         compose.onNode(confirm).performClick()
         compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertDoesNotExist()

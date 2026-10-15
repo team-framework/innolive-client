@@ -54,6 +54,13 @@ final class YouTubeIntegration: ObservableObject {
     @Published private(set) var videoRecoveryStatus: VideoRecoveryStatus?
     @Published private(set) var isAnonymizationEnabled = false
     @Published private(set) var isTogglingAnonymization = false
+    @Published private(set) var isScreenBlurEnabled = false
+    @Published private(set) var isTogglingScreenBlur = false
+
+    var canToggleScreenBlur: Bool {
+        session?.processingMode == .server && !isTogglingScreenBlur
+            && !isChangingAIProcessing && !isTogglingAnonymization && !isAIProcessingUnconfirmed && !isEndingSession
+    }
     @Published private(set) var isChangingAIProcessing = false
     @Published private(set) var isAIProcessingUnconfirmed = false
     @Published private(set) var errorMessage: String?
@@ -1290,7 +1297,7 @@ final class YouTubeIntegration: ObservableObject {
     func changeAIProcessingMode(_ mode: AIProcessingMode, accessToken: String?) async -> Bool {
         guard !isYouTubeBroadcastActive, !isChangingBroadcastMode, !isChangingStreamState, !isPreparingSession,
               !isConnectingVideo, !isEndingSession, !isChangingAIProcessing,
-              !isTogglingAnonymization else { return false }
+              !isTogglingAnonymization, !isTogglingScreenBlur, !isScreenBlurEnabled else { return false }
         clearError()
         if mode == .onDevice && !localModelsAvailable() {
             errorMessage = String(localized: "이 앱에 온디바이스 모델이 포함되어 있지 않습니다.")
@@ -1994,13 +2001,35 @@ final class YouTubeIntegration: ObservableObject {
         if hasObservedActiveScene { shouldResumeAfterBackgroundPause = !backgroundPausedProviders.isEmpty }
     }
 
+    func toggleScreenBlur(accessToken: String?) async {
+        guard canToggleScreenBlur, let session else { return }
+        clearError()
+        guard let accessToken, !accessToken.isEmpty else {
+            showError(.unauthorized)
+            return
+        }
+        isTogglingScreenBlur = true
+        let generation = sessionOperationGeneration
+        defer { if generation == sessionOperationGeneration { isTogglingScreenBlur = false } }
+        do {
+            let response = try await api.toggleScreenBlur(
+                session: session, accessToken: accessToken, enabled: !isScreenBlurEnabled
+            )
+            guard response.media.screenBlurEnabled != nil else { throw YouTubeAPIError.response }
+            applySessionResponse(response, sessionID: session.sessionID, generation: generation)
+        } catch {
+            guard generation == sessionOperationGeneration, self.session?.sessionID == session.sessionID else { return }
+            handle(error)
+        }
+    }
+
     func toggleAnonymization(accessToken: String?) async {
         guard !isAIProcessingUnconfirmed else {
             errorMessage = String(localized: "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요.")
             return
         }
         clearError()
-        guard !isTogglingAnonymization, !isChangingAIProcessing, !isAIProcessingUnconfirmed else { return }
+        guard !isTogglingAnonymization, !isTogglingScreenBlur, !isChangingAIProcessing, !isAIProcessingUnconfirmed else { return }
         guard let accessToken, !accessToken.isEmpty else {
             showError(.unauthorized)
             return
@@ -2192,6 +2221,9 @@ final class YouTubeIntegration: ObservableObject {
         if session?.processingMode == .server, let enabled = responseState.media?.anonymizationEnabled {
             isAnonymizationEnabled = enabled
         }
+        if let enabled = response.media.screenBlurEnabled {
+            isScreenBlurEnabled = enabled
+        }
         if !isYouTubeBroadcastActive && !isChangingBroadcastMode {
             liveStartedAt = nil
             if let generation = ownedOrientationLockGeneration {
@@ -2213,6 +2245,8 @@ final class YouTubeIntegration: ObservableObject {
         stream = nil
         isChangingAIProcessing = false
         isTogglingAnonymization = false
+        isTogglingScreenBlur = false
+        isScreenBlurEnabled = false
     }
 
     private func targetProviders(for action: YouTubeAPI.StreamAction) -> [String?] {

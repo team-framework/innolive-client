@@ -60,7 +60,9 @@ internal fun androidDirectBroadcastEnvironment(
         reconnect = dependencies.reconnect,
         keepAlive = dependencies.keepAlive(request.context),
         owner = ExecutorSerialScheduler(Executors.newSingleThreadScheduledExecutor { Thread(it, "direct-broadcast") }),
-        io = Executors.newSingleThreadExecutor { Thread(it, "direct-broadcast-io").apply { isDaemon = true } },
+        io = ExecutorBackgroundExecutor(
+            Executors.newSingleThreadExecutor { Thread(it, "direct-broadcast-io").apply { isDaemon = true } },
+        ),
         callbacks = { mainHandler.post(it) },
         elapsedRealtimeMillis = SystemClock::elapsedRealtime,
         log = { Log.i(LOG_TAG, it) },
