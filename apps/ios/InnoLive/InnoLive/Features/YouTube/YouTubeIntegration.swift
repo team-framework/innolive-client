@@ -518,7 +518,8 @@ final class YouTubeIntegration: ObservableObject {
     }
     func canDisconnectYouTubeChannel(_ account: StreamingAccountSummary) -> Bool {
         guard !isYouTubeConnectionOperationInProgress, !isChangingStreamState,
-              !isChangingBroadcastMode, !isPreparingSession else { return false }
+              !isChangingBroadcastMode, !isPreparingSession, !isEndingSession,
+              preparationStatus?.isRunning != true, preparationStatus?.phase != .cancelling else { return false }
         if let target = responseState.details.targets?.first(where: { $0.provider == "youtube" }),
            target.stream.broadcastPhaseValue != .idle {
             return target.accountID != nil && target.accountID != account.accountID
