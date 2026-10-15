@@ -236,7 +236,10 @@ final class PlanUsageTests: XCTestCase {
         {"mode":"720p_single","allowed":true,"seconds":7200,"multiplier":1},
         {"mode":"fhd_single","allowed":true,"seconds":3600,"multiplier":2},
         {"mode":"720p_multi","allowed":true,"seconds":3600,"multiplier":2},
-        {"mode":"fhd_multi","allowed":false,"seconds":2400,"multiplier":3}]}
+        {"mode":"fhd_multi","allowed":false,"seconds":2400,"multiplier":3}],
+        "month":"2026-10","broadcasts":[
+        {"session_id":"server-history","started_at":"2026-10-15T01:00:00Z","resolution":"fhd","providers":["youtube"],"ai_processing":"server","broadcast_seconds":3600,"charged_seconds":7200},
+        {"session_id":"device-history","started_at":"2026-10-15T03:00:00Z","resolution":"720p","providers":["chzzk","youtube"],"ai_processing":"on_device","broadcast_seconds":10800,"charged_seconds":21600}]}
         """)
         let api = PlanStub(plan: try plan(), usage: renderedUsage)
         await integration.planStore.refresh(api: api, accessToken: "test")
@@ -245,20 +248,29 @@ final class PlanUsageTests: XCTestCase {
                 api.fails = true
                 await integration.planStore.refresh(api: api, accessToken: "test")
             }
-            let renderer = ImageRenderer(content:
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                .first { $0.activationState == .foregroundActive })
+            let previousWindow = scene.windows.first { $0.isKeyWindow }
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 360, height: 1400)
+            window.overrideUserInterfaceStyle = .light
+            window.rootViewController = UIHostingController(rootView: ScrollView {
                 PlanUsageContent(snapshot: integration.planStore.snapshot, isLoading: false,
                                  errorMessage: integration.planStore.errorMessage,
                                  lastUpdatedAt: integration.planStore.lastUpdatedAt,
                                  currentMode: .hdSingle, onRefresh: {})
-                    .frame(width: 360)
                     .padding(16)
-                    .background(Color.white)
-                    .environment(\.colorScheme, .light)
-            )
-            renderer.scale = 2
-            let image = try XCTUnwrap(renderer.uiImage)
-            XCTAssertGreaterThan(image.size.height, 300)
+            })
+            window.makeKeyAndVisible()
+            try await Task.sleep(for: .milliseconds(200))
+            window.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+            }
             XCTAssertGreaterThan(try XCTUnwrap(image.pngData()).count, 10_000)
+            window.isHidden = true
+            window.rootViewController = nil
+            previousWindow?.makeKeyAndVisible()
             let attachment = XCTAttachment(image: image)
             attachment.name = stale ? "plan-stale" : "plan-usage"
             attachment.lifetime = .keepAlways
