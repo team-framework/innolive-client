@@ -34,7 +34,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
             provider: "youtube",
             channel: YouTubeChannel(id: "known-channel", title: "Known Channel")
         )
-        let store = YouTubePreferencesStore(userDefaults: userDefaults)
+        let store = YouTubePreferencesStore(defaults: userDefaults)
         store.saveConnection(knownConnection)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
@@ -53,7 +53,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
             provider: "youtube",
             channel: YouTubeChannel(id: "known-channel", title: "Known Channel")
         )
-        let store = YouTubePreferencesStore(userDefaults: userDefaults)
+        let store = YouTubePreferencesStore(defaults: userDefaults)
         store.saveConnection(knownConnection)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
@@ -71,7 +71,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
             provider: "youtube",
             channel: YouTubeChannel(id: "known-channel", title: "Known Channel")
         )
-        let store = YouTubePreferencesStore(userDefaults: userDefaults)
+        let store = YouTubePreferencesStore(defaults: userDefaults)
         store.saveConnection(knownConnection)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
@@ -90,7 +90,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
             provider: "youtube",
             channel: YouTubeChannel(id: "known-channel", title: "Known Channel")
         )
-        let store = YouTubePreferencesStore(userDefaults: userDefaults)
+        let store = YouTubePreferencesStore(defaults: userDefaults)
         store.saveConnection(knownConnection)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
@@ -104,7 +104,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
     }
 
     func testPrepareDoesNotStartWhileDisconnectIsInProgress() async throws {
-        let store = YouTubePreferencesStore(userDefaults: userDefaults)
+        let store = YouTubePreferencesStore(defaults: userDefaults)
         store.saveConnection(
             YouTubeConnection(
                 provider: "youtube",
@@ -135,7 +135,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
     }
 
     func testResetIgnoresDelayedRefreshResponse() async throws {
-        let store = YouTubePreferencesStore(userDefaults: userDefaults)
+        let store = YouTubePreferencesStore(defaults: userDefaults)
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
             .init(
@@ -160,6 +160,23 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
 
         XCTAssertNil(integration.connection)
         XCTAssertNil(store.loadConnection())
+    }
+
+    func testChannelSelectionSurvivesRefreshAndDisconnectOnlyRemovesChosenChannel() async throws {
+        let body = Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false},{\"id\":\"b\",\"provider\":\"youtube\",\"channel_id\":\"ucb\",\"channel_title\":\"B\",\"reconnect_required\":false}]".utf8)
+        YouTubeIntegrationAccountURLProtocol.responses = [.init(statusCode: 200, data: body), .init(statusCode: 200, data: body), .init(statusCode: 204, data: Data())]
+        let integration = makeIntegration(store: YouTubePreferencesStore(defaults: userDefaults))
+        await integration.refreshConnection(accessToken: "access")
+        XCTAssertEqual(integration.youtubeAccounts.count, 2)
+        integration.selectYouTubeChannel("b", accessToken: "access")
+        await integration.refreshConnection(accessToken: "access")
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
+        XCTAssertEqual(integration.connection?.channel.title, "B")
+        await integration.disconnectYouTubeAccount(accessToken: "access", accountID: "a")
+        XCTAssertEqual(integration.youtubeAccounts.map(\.accountID), ["b"])
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
+        integration.reset()
+        XCTAssertNil(integration.selectedYouTubeAccountID)
     }
 
     private func makeIntegration(store: YouTubePreferencesStore) -> YouTubeIntegration {

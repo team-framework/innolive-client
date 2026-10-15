@@ -64,6 +64,8 @@ private struct YouTubeBroadcastSettingsRequest: Encodable {
 
 private struct YouTubePrepareStreamRequest: Encodable {
     var provider = "youtube"
+    var accountID: String? = nil
+    enum CodingKeys: String, CodingKey { case provider; case accountID = "account_id" }
 }
 
 private struct YouTubeEmptyRequest: Encodable {}
@@ -90,6 +92,8 @@ struct YouTubeSessionCreateRequest: Encodable, Equatable {
 private struct BroadcastModeRequest: Encodable {
     let resolution: String
     let targets: [String]
+    var accountID: String? = nil
+    enum CodingKeys: String, CodingKey { case resolution, targets; case accountID = "account_id" }
 }
 
 private struct UpgradeOfferSelectionRequest: Encodable {
@@ -220,8 +224,8 @@ final class YouTubeAPI: PlanAPIClient {
         )
     }
 
-    func disconnectStreamingAccount(accessToken: String, provider: String = "youtube") async throws {
-        guard let url = serverURLProvider("/auth/streaming/accounts/\(provider)") else {
+    func disconnectStreamingAccount(accessToken: String, provider: String = "youtube", accountID: String? = nil) async throws {
+        guard let url = serverURLProvider("/auth/streaming/accounts/\(provider)" + (accountID.map { "/" + $0 } ?? "")) else {
             throw YouTubeAPIError.configuration
         }
         var request = URLRequest(url: url)
@@ -320,10 +324,10 @@ final class YouTubeAPI: PlanAPIClient {
     }
 
     func changeBroadcastMode(session: YouTubeBroadcastSession, accessToken: String,
-                             resolution: String, targets: Set<BroadcastSettingsProvider>) async throws -> YouTubeSessionResponse {
+                             resolution: String, targets: Set<BroadcastSettingsProvider>, accountID: String? = nil) async throws -> YouTubeSessionResponse {
         try await request(path: "/sessions/\(session.sessionID)/broadcast-mode", method: "PUT",
                           accessToken: accessToken, ownerToken: session.ownerToken,
-                          body: BroadcastModeRequest(resolution: resolution, targets: targets.map(\.rawValue).sorted()))
+                          body: BroadcastModeRequest(resolution: resolution, targets: targets.map(\.rawValue).sorted(), accountID: accountID))
     }
 
     func selectUpgradeOffer(session: YouTubeBroadcastSession, accessToken: String,
@@ -340,11 +344,11 @@ final class YouTubeAPI: PlanAPIClient {
     }
 
     func broadcastDefaults(session: YouTubeBroadcastSession, accessToken: String,
-                           provider: BroadcastSettingsProvider) async throws -> BroadcastSettingsDefaults {
+                           provider: BroadcastSettingsProvider, accountID: String? = nil) async throws -> BroadcastSettingsDefaults {
         try await request(path: "/sessions/\(session.sessionID)/broadcast/defaults", method: "GET",
                           accessToken: accessToken, ownerToken: session.ownerToken,
                           body: Optional<YouTubeEmptyRequest>.none,
-                          queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)])
+                          queryItems: [URLQueryItem(name: "provider", value: provider.rawValue)] + (accountID.map { [URLQueryItem(name: "account_id", value: $0)] } ?? []))
     }
 
     func youtubeCategories(accessToken: String) async throws -> [YouTubeBroadcastCategory] {
@@ -365,14 +369,15 @@ final class YouTubeAPI: PlanAPIClient {
     func prepareStream(
         session: YouTubeBroadcastSession,
         accessToken: String,
-        provider: BroadcastSettingsProvider = .youtube
+        provider: BroadcastSettingsProvider = .youtube,
+        accountID: String? = nil
     ) async throws -> YouTubeSessionResponse {
         try await request(
             path: "/sessions/\(session.sessionID)/stream/prepare",
             method: "POST",
             accessToken: accessToken,
             ownerToken: session.ownerToken,
-            body: YouTubePrepareStreamRequest(provider: provider.rawValue)
+            body: YouTubePrepareStreamRequest(provider: provider.rawValue, accountID: accountID)
         )
     }
 

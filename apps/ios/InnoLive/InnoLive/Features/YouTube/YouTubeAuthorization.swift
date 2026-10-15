@@ -16,6 +16,7 @@ final class YouTubeAuthorization {
             clientID: clientID,
             serverClientID: configuration.webClientID
         )
+        GIDSignIn.sharedInstance.signOut()
         let result = try await GIDSignIn.sharedInstance.signIn(
             withPresenting: viewController,
             hint: nil,

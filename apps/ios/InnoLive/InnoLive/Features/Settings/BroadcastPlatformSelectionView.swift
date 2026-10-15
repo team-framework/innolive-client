@@ -10,6 +10,7 @@ struct BroadcastPlatformSelectionView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @State private var isShowingDisconnectConfirmation = false
+    @State private var disconnectAccount: StreamingAccountSummary?
     @State private var isShowingCHZZKDisconnectConfirmation = false
 
     private var visiblePlatforms: [BroadcastPlatform] {
@@ -139,133 +140,36 @@ struct BroadcastPlatformSelectionView: View {
     }
 
     private var youTubeRow: some View {
-        Group {
-            if let connection = youtube.connection {
-                connectedYouTubeAccountRow(connection)
-            } else {
-                SettingsGlassRow {
-                    HStack(spacing: 12) {
-                        platformIdentity(.youTube)
-                        Spacer()
-
-                        if youtube.isRefreshingConnection {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Button(action: connectYouTube) {
-                                if youtube.isConnecting {
-                                    ProgressView()
-                                } else {
-                                    Text(String(localized: "계정 연결"))
-                                }
-                            }
-                            .innoLiveGlassButtonStyle(prominent: true)
-                            .tint(.blue)
-                            .disabled(youtube.isYouTubeAccountChangeBlocked)
-                        }
+        VStack(alignment: .leading, spacing: 12) {
+            platformIdentity(.youTube)
+            ForEach(youtube.youtubeAccounts, id: \.channelID) { account in
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(account.displayTitle).font(.callout.weight(.semibold))
+                        if account.reconnectRequired { Text(String(localized: "재연결 필요")).font(.caption) }
                     }
+                    Spacer()
+                    Button(String(localized: "연결 해제"), role: .destructive) {
+                        disconnectAccount = account
+                        isShowingDisconnectConfirmation = true
+                    }
+                    .disabled(!youtube.canDisconnectYouTubeChannel(account))
                 }
             }
+            Button(String(localized: "채널 추가 연결", table: "YouTubeChannels"), action: connectYouTube)
+                .disabled(youtube.isYouTubeAccountChangeBlocked || youtube.youtubeAccounts.count >= 5)
+            if youtube.isYouTubeConnectionOperationInProgress { ProgressView() }
         }
-        .confirmationDialog(
-            String(localized: "YouTube 연결 해제"),
-            isPresented: $isShowingDisconnectConfirmation,
-            titleVisibility: .visible
-        ) {
+        .padding(16)
+        .confirmationDialog(String(localized: "YouTube 연결 해제"),
+                            isPresented: $isShowingDisconnectConfirmation, titleVisibility: .visible) {
             Button(String(localized: "연결 해제"), role: .destructive) {
-                Task {
-                    await youtube.disconnectYouTubeAccount(
-                        accessToken: authentication.currentAccessToken()
-                    )
-                }
+                guard let account = disconnectAccount else { return }
+                Task { await youtube.disconnectYouTubeAccount(accessToken: authentication.currentAccessToken(), accountID: account.accountID) }
             }
-            .disabled(!youtube.canDisconnectYouTubeAccount)
             Button(String(localized: "취소"), role: .cancel) {}
         } message: {
-            Text(String(localized: "연결을 해제하면 다시 방송하기 전에 YouTube 계정을 연결해야 합니다."))
-        }
-    }
-
-    private func connectedYouTubeAccountRow(_ connection: YouTubeConnection) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            platformIdentity(.youTube, allowsWrapping: true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(connection.channel.title)
-                    .font(.callout.weight(.semibold))
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(
-                    connection.requiresReconnection
-                        ? String(localized: "재연결 필요")
-                        : String(localized: "연결됨")
-                )
-                .font(.caption)
-                .foregroundStyle(connection.requiresReconnection ? .orange : .secondary)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-
-                youTubeConnectedAccountActions(requiresReconnection: connection.requiresReconnection)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .innoLiveGlassBackground(cornerRadius: 16)
-    }
-
-    private func youTubeConnectedAccountActions(requiresReconnection: Bool) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                youTubeConnectedAccountActionControls(
-                    requiresReconnection: requiresReconnection,
-                    allowsWrapping: false
-                )
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                youTubeConnectedAccountActionControls(
-                    requiresReconnection: requiresReconnection,
-                    allowsWrapping: true
-                )
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func youTubeConnectedAccountActionControls(
-        requiresReconnection: Bool,
-        allowsWrapping: Bool
-    ) -> some View {
-        if youtube.isConnecting || youtube.isRefreshingConnection || youtube.isDisconnecting {
-            ProgressView()
-                .controlSize(.small)
-        }
-        if requiresReconnection {
-            Button(action: connectYouTube) {
-                youTubeAccountActionLabel(String(localized: "다시 연결"), allowsWrapping: allowsWrapping)
-            }
-            .buttonStyle(.borderless)
-            .disabled(youtube.isYouTubeAccountChangeBlocked)
-        }
-        Button(role: .destructive) {
-            isShowingDisconnectConfirmation = true
-        } label: {
-            youTubeAccountActionLabel(String(localized: "연결 해제"), allowsWrapping: allowsWrapping)
-        }
-        .buttonStyle(.borderless)
-        .disabled(!youtube.canDisconnectYouTubeAccount)
-    }
-
-    @ViewBuilder
-    private func youTubeAccountActionLabel(_ title: String, allowsWrapping: Bool) -> some View {
-        if allowsWrapping {
-            Text(title)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } else {
-            Text(title)
+            Text(disconnectAccount?.displayTitle ?? "YouTube")
         }
     }
 
