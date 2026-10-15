@@ -184,7 +184,7 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         let integration = makeIntegration(store: store)
         YouTubeIntegrationAccountURLProtocol.responses = [
             .init(statusCode: 200, data: Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false}]".utf8)),
-            .init(statusCode: 200, data: Data("{\"provider\":\"youtube\",\"channel\":{\"id\":\"ucb\",\"title\":\"B\"}}".utf8)),
+            .init(statusCode: 200, data: Data("{\"connected\":true,\"provider\":\"youtube\",\"channel\":{\"id\":\"ucb\",\"title\":\"B\"}}".utf8)),
             .init(statusCode: 503, data: Data("{}".utf8))
         ]
         await integration.refreshConnection(accessToken: "access")
