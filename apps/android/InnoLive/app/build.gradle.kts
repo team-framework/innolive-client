@@ -34,8 +34,8 @@ android {
         applicationId = "com.framework.innolive"
         minSdk = 30
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.1.1"
+        versionCode = 6
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("boolean", "PRIVACY_PERF_DIAGNOSTICS", privacyReleaseTest.toString())
