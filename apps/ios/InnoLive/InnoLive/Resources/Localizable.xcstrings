@@ -383,6 +383,12 @@
             "state": "translated",
             "value": "On"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オン"
+          }
         }
       }
     },
@@ -399,6 +405,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフ"
           }
         }
       }
@@ -417,6 +429,12 @@
             "state": "translated",
             "value": "Turn screen blur off"
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしをオフにする"
+          }
         }
       }
     },
@@ -433,6 +451,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Turn screen blur on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしをオンにする"
           }
         }
       }
@@ -451,6 +475,12 @@
             "state": "translated",
             "value": "Blurs the entire preview and broadcast in server processing mode."
           }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー処理モードで、プレビューと配信映像の全体をぼかします。"
+          }
         }
       }
     },
@@ -467,6 +497,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Turn screen blur off before changing AI processing mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしをオフにすると、AIの処理方式を変更できます。"
           }
         }
       }
@@ -789,6 +825,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "リクエストするCHZZK権限"
+          }
+        }
+      }
+    },
+    "유저 조회, 방송 스트림키 조회, 방송 설정 조회·변경 권한을 요청합니다. 네 권한을 모두 허용해야 연결할 수 있으며, 채팅 권한은 요청하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "유저 조회, 방송 스트림키 조회, 방송 설정 조회·변경 권한을 요청합니다. 네 권한을 모두 허용해야 연결할 수 있으며, 채팅 권한은 요청하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We request permissions for user lookup, stream key lookup, and viewing and changing broadcast settings. All four permissions are required to connect. We do not request chat permissions."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ユーザー照会、配信ストリームキー照会、配信設定の照会・変更の権限をリクエストします。4つの権限をすべて許可すると連携できます。チャット権限はリクエストしません。"
           }
         }
       }

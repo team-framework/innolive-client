@@ -73,6 +73,24 @@ final class LocalizationTests: XCTestCase {
         }
     }
 
+    func testBroadcastGuideTableIsTranslatedInEachLanguage() throws {
+        var keysByLanguage: [String: Set<String>] = [:]
+        for language in ["ko", "en", "ja"] {
+            let bundle = try localizedBundle(language)
+            let path = try XCTUnwrap(bundle.path(forResource: "BroadcastGuide", ofType: "strings"), language)
+            let table = try XCTUnwrap(NSDictionary(contentsOfFile: path) as? [String: String], language)
+            keysByLanguage[language] = Set(table.keys)
+            if language != "ko" {
+                for (key, value) in table {
+                    XCTAssertNil(value.range(of: "[가-힣]", options: .regularExpression), "\(language): \(key)")
+                }
+            }
+        }
+        XCTAssertFalse(keysByLanguage["ko", default: []].isEmpty)
+        XCTAssertEqual(keysByLanguage["en"], keysByLanguage["ko"])
+        XCTAssertEqual(keysByLanguage["ja"], keysByLanguage["ko"])
+    }
+
     func testPrivacyPolicyLinkUsesAppLanguage() {
         let language = Bundle.main.preferredLocalizations.first ?? "ko"
         XCTAssertEqual(InnoLiveLinks.privacyPolicyURL?.path, "/\(language)/privacy")

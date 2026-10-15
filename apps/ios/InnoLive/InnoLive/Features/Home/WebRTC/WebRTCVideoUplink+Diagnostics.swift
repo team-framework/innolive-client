@@ -30,12 +30,15 @@ final class UplinkDiagnosticsMonitor {
         resetQualityTracker()
     }
 
-    func noteStats(_ statistics: [(type: String, values: [String: Any])], at: Date = Date()) {
-        guard let sample = UplinkVideoStatsParser.videoOutbound(statistics: statistics) else { return }
+    @discardableResult
+    func noteStats(_ statistics: [(type: String, values: [String: Any])], at: Date = Date()) -> UplinkVideoOutboundStats? {
+        guard let sample = UplinkVideoStatsParser.videoOutbound(statistics: statistics) else { return nil }
         context.noteAlive(at: at)
-        guard let log = tracker.record(sample, at: at) else { return }
-        let line = log.line()
-        logger.notice("\(line, privacy: .public)")
+        if let log = tracker.record(sample, at: at) {
+            let line = log.line()
+            logger.notice("\(line, privacy: .public)")
+        }
+        return sample
     }
 
     func noteDisconnect(trigger: String, at: Date = Date()) {
@@ -122,7 +125,9 @@ extension WebRTCVideoUplink {
                     sender: videoSender
                 )
                 guard !Task.isCancelled, !self.isStopping else { return }
-                self.diagnostics.noteStats(statistics)
+                if let sample = self.diagnostics.noteStats(statistics) {
+                    self.recordUplinkQuality(sample)
+                }
                 try? await Task.sleep(for: .seconds(2))
             }
         }
