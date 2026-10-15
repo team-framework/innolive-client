@@ -505,6 +505,8 @@ final class YouTubeIntegration: ObservableObject {
     }
     var canSelectYouTubeChannel: Bool {
         !isChangingStreamState && !isChangingBroadcastMode && !isPreparingSession
+            && !isEndingSession && !isSavingLiveSettings
+            && preparationStatus?.isRunning != true && preparationStatus?.phase != .cancelling
             && !isYouTubeConnectionOperationInProgress
             && !StreamingAccountPolicy.isInUse("youtube", snapshot: responseState)
     }
