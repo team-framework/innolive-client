@@ -437,6 +437,16 @@ final class YouTubeAPI: PlanAPIClient {
         )
     }
 
+    func toggleScreenBlur(session: YouTubeBroadcastSession, accessToken: String, enabled: Bool) async throws -> YouTubeSessionResponse {
+        try await request(
+            path: "/sessions/\(session.sessionID)/screen-blur",
+            method: "PATCH",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: AnonymizationRequest(enabled: enabled)
+        )
+    }
+
     func sessionStatus(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeSessionResponse {
         try await request(
             path: "/sessions/\(session.sessionID)",

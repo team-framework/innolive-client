@@ -75,12 +75,28 @@ struct BroadcastControllsView: View {
                         .innoLiveGlassButtonStyle()
                         .buttonBorderShape(.circle)
                         .tint(youtube.isAnonymizationEnabled ? .purple : nil)
-                        .disabled(!isBroadcasting || youtube.isTogglingAnonymization)
+                        .disabled(!isBroadcasting || youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur)
                         .accessibilityLabel(
                             youtube.isAnonymizationEnabled ? String(localized: "비식별화 켜짐") : String(localized: "비식별화 꺼짐")
                         )
                         .accessibilityHint(String(localized: "서버 영상 연결을 유지한 채 AI 비식별화 처리를 켜거나 끕니다."))
                     }
+
+                    Button {
+                        Task { await youtube.toggleScreenBlur(accessToken: authentication.currentAccessToken()) }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if youtube.isTogglingScreenBlur { ProgressView().controlSize(.small) }
+                            Label(youtube.isScreenBlurEnabled ? String(localized: "화면 블러 끄기") : String(localized: "화면 블러 켜기"), systemImage: "rectangle.on.rectangle.slash")
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                    }
+                    .innoLiveGlassButtonStyle()
+                    .tint(youtube.isScreenBlurEnabled ? .purple : nil)
+                    .disabled(!isBroadcasting || !youtube.canToggleScreenBlur)
+                    .accessibilityValue(youtube.isScreenBlurEnabled ? String(localized: "켜짐") : String(localized: "꺼짐"))
+                    .accessibilityHint(String(localized: "서버 처리 모드에서 미리보기와 송출 화면 전체를 흐립니다."))
 
                     if canCancelPreparation {
                         Button(role: .destructive, action: cancelPreparation) {

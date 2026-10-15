@@ -393,10 +393,12 @@ extension YouTubeSessionResponse {
 
 struct YouTubeSessionMedia: Decodable, Equatable {
     let anonymizationEnabled: Bool?
+    var screenBlurEnabled: Bool? = nil
     let rawVideoTrack: YouTubeVideoTrackState?
 
     enum CodingKeys: String, CodingKey {
         case anonymizationEnabled = "anonymization_enabled"
+        case screenBlurEnabled = "screen_blur_enabled"
         case rawVideoTrack = "raw_video_track"
     }
 }

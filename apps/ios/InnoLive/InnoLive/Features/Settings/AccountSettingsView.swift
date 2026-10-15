@@ -13,6 +13,7 @@ struct AccountSettingsView: View {
             || youtube.isChangingStreamState
             || youtube.isRecoveringVideoFailure
             || youtube.isTogglingAnonymization
+            || youtube.isTogglingScreenBlur
     }
 
     private var isDeletionBlocked: Bool {
