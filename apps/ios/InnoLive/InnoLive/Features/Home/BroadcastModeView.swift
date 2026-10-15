@@ -28,7 +28,7 @@ struct BroadcastModeView: View {
             && (changesResolution || targets != currentTargets)
             && targets.allSatisfy(youtube.isSettingsAccountConnected)
             && addedTargets.isSubset(of: savedTargets)
-            && planStore.snapshot.map { $0.canPrepare(selectedMode) } != false
+            && planStore.snapshot?.preparationBlockMessage(selectedMode, processing: youtube.planProcessingMode) == nil
     }
 
     var body: some View {
@@ -99,11 +99,8 @@ struct BroadcastModeView: View {
                         }.font(.footnote)
                     }
                 }
-                if let snapshot = planStore.snapshot, !snapshot.canPrepare(selectedMode) {
-                    Text(snapshot.isAllowed(selectedMode)
-                         ? String(localized: "선택한 방식으로 방송할 수 있는 시간이 부족합니다.", table: "BroadcastMode")
-                         : String(localized: "현재 요금제에서 사용할 수 없는 방송 방식입니다.", table: "BroadcastMode"))
-                        .font(.footnote).foregroundStyle(.orange)
+                if let message = planStore.snapshot?.preparationBlockMessage(selectedMode, processing: youtube.planProcessingMode) {
+                    Text(message).font(.footnote).foregroundStyle(.orange)
                 }
                 if youtube.isChangingBroadcastMode {
                     ProgressView(String(localized: "방송 방식 변경 중", table: "BroadcastMode"))

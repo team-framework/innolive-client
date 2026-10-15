@@ -29,6 +29,25 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         super.tearDown()
     }
 
+    func testRejectedFHDPreparationDoesNotKeepStaleResolution() async throws {
+        struct Stub: PlanAPIClient {
+            func userPlan(accessToken: String) async throws -> UserPlan {
+                try JSONDecoder().decode(UserPlan.self, from: Data(#"{"plan":"spark","allowed_modes":[],"monthly_broadcast_seconds":0,"max_per_broadcast_seconds":3600,"device_modes":["720p_single"]}"#.utf8))
+            }
+            func userUsage(accessToken: String) async throws -> UserUsage {
+                try JSONDecoder().decode(UserUsage.self, from: Data(#"{"plan":"spark","used_seconds":0,"remaining_seconds":0,"device_remaining_seconds":3600,"available_by_mode":[]}"#.utf8))
+            }
+        }
+        let integration = makeIntegration(mode: .onDevice)
+        await integration.planStore.refresh(api: Stub(), accessToken: token)
+        let prepared = await prepare(integration)
+        XCTAssertFalse(prepared)
+        XCTAssertTrue(integration.errorMessage?.contains("FHD") == true)
+        XCTAssertTrue(PreparationFlowURLProtocol.requests.isEmpty)
+        XCTAssertEqual(integration.preparationPlanMode, .hdSingle)
+        XCTAssertNil(integration.planStore.snapshot?.preparationBlockMessage(integration.preparationPlanMode, processing: .onDevice))
+    }
+
     func testAccountRefreshAndNilSessionDefaultsDoNotCreateSession() async {
         let integration = makeIntegration()
         PreparationFlowURLProtocol.responses = [.json(Self.accounts)]
@@ -559,7 +578,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         })
     }
 
-    private func makeIntegration(connected: Bool = true) -> YouTubeIntegration {
+    private func makeIntegration(connected: Bool = true, mode: AIProcessingMode = .server) -> YouTubeIntegration {
         let preferences = YouTubePreferencesStore(userDefaults: defaults)
         if connected {
             preferences.saveConnection(YouTubeConnection(provider: "youtube", channel: YouTubeChannel(id: "yt", title: "YT")))
@@ -571,7 +590,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
             api: makeAPI(),
             sessionStore: store,
             pollingInterval: .seconds(300),
-            aiModeProvider: { .server },
+            aiModeProvider: { mode },
             localModelsAvailable: { true },
             persistAIProcessingMode: { _ in }
         )

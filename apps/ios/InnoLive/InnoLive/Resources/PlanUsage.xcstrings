@@ -1,0 +1,160 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "이번 방송 최대 시간은 월 잔여 시간과 1회 한도 중 작은 값입니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 방송 최대 시간은 월 잔여 시간과 1회 한도 중 작은 값입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The maximum for this broadcast is the smaller of your monthly remaining time and per-broadcast limit."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今回の配信上限は、月の残り時間と1回の上限のうち短い方です。"
+          }
+        }
+      }
+    },
+    "이번 방송 최대": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이번 방송 최대"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum for this broadcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今回の配信上限"
+          }
+        }
+      }
+    },
+    "방송별 사용 내역": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송별 사용 내역"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast usage history"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信ごとの使用履歴"
+          }
+        }
+      }
+    },
+    "실제 방송 시간": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실제 방송 시간"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "実際の配信時間"
+          }
+        }
+      }
+    },
+    "차감 시간": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "차감 시간"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charged time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "消費時間"
+          }
+        }
+      }
+    },
+    "온디바이스로 방송하기": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온디바이스로 방송하기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prepare on-device broadcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オンデバイス配信を準備"
+          }
+        }
+      }
+    },
+    "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 카메라 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 카메라 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan does not support the selected FHD broadcast mode. Choose 720p in camera settings or reduce the number of destinations."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランは選択したFHD配信方式に対応していません。カメラ設定で720pを選択するか、配信先を減らしてください。"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

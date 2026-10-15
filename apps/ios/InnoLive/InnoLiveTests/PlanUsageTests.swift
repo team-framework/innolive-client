@@ -15,6 +15,150 @@ final class PlanUsageTests: XCTestCase {
     private func plan() throws -> UserPlan { try JSONDecoder().decode(UserPlan.self, from: Data(planJSON.utf8)) }
     private func usage(_ json: String) throws -> UserUsage { try JSONDecoder().decode(UserUsage.self, from: Data(json.utf8)) }
 
+    private struct ProcessingFixture: Decodable { let plan: UserPlan; let usage: UserUsage }
+    private func processingSnapshots() throws -> [PlanSnapshot] {
+        try JSONDecoder().decode([ProcessingFixture].self,
+            from: ContractTestFixtures.data(named: "plan-usage-processing.v1"))
+            .map { PlanSnapshot(plan: $0.plan, usage: $0.usage) }
+    }
+
+    func testMaximumUsesServerSecondsAndPerBroadcastCap() throws {
+        let capped = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "80000")))
+        XCTAssertEqual(capped.maximumBroadcastAvailability(for: .hdSingle, processing: .server)?.seconds, 28800)
+        let shorter = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "123")))
+        XCTAssertEqual(shorter.maximumBroadcastAvailability(for: .hdSingle, processing: .server)?.seconds, 123)
+        let apiCap = usageJSON(seconds: "80000").replacingOccurrences(of: "\"used_seconds\":12", with: "\"used_seconds\":12,\"max_per_broadcast_seconds\":600")
+        XCTAssertEqual(PlanSnapshot(plan: try plan(), usage: try usage(apiCap)).maximumBroadcastAvailability(for: .hdSingle, processing: .server)?.seconds, 600)
+    }
+
+    func testDeviceNullMeansUnlimitedButAbsentStaysUnknown() throws {
+        var policy = try plan()
+        policy.deviceModes = ["720p_single"]
+        let raw = usageJSON().replacingOccurrences(of: "\"used_seconds\":12", with: "\"used_seconds\":12,\"device_limit_seconds\":null,\"device_remaining_seconds\":null")
+        let snapshot = PlanSnapshot(plan: policy, usage: try usage(raw))
+        XCTAssertTrue(snapshot.usage.hasDeviceLimitSeconds)
+        XCTAssertTrue(snapshot.canPrepare(.hdSingle, processing: .onDevice))
+        XCTAssertNil(snapshot.availability(for: .hdSingle, processing: .onDevice)?.seconds)
+        XCTAssertEqual(snapshot.maximumBroadcastAvailability(for: .hdSingle, processing: .onDevice)?.seconds, 28800)
+        XCTAssertNil(PlanSnapshot(plan: policy, usage: try usage(usageJSON())).maximumBroadcastAvailability(for: .hdSingle, processing: .onDevice))
+    }
+
+    func testBroadcastHistoryDecodesBothProcessingLocations() throws {
+        let raw = usageJSON().replacingOccurrences(of: "\"used_seconds\":12", with: """
+        "used_seconds":12,"month":"2026-10","broadcasts":[
+        {"session_id":"one","started_at":"2026-10-15T01:00:00Z","resolution":"fhd","providers":["youtube"],"ai_processing":"server","broadcast_seconds":3600,"charged_seconds":7200},
+        {"session_id":"two","started_at":"2026-10-15T03:00:00Z","resolution":"720p","providers":["chzzk","youtube"],"ai_processing":"on_device","broadcast_seconds":10800,"charged_seconds":21600}]
+        """)
+        let result = try usage(raw)
+        XCTAssertEqual(result.month, "2026-10")
+        XCTAssertEqual(result.broadcasts.map(\.aiProcessing), ["server", "on_device"])
+        XCTAssertEqual(result.broadcasts.map(\.chargedSeconds), [7200, 21600])
+        XCTAssertNotNil(result.broadcasts.first?.startDate)
+    }
+
+    func testNewPlansSeparateServerAndDeviceBudgetsAndModes() throws {
+        let snapshots = try processingSnapshots()
+        XCTAssertEqual(snapshots.map { $0.plan.monthlyDeviceSeconds }, [18000, 216000, 432000, 1080000])
+        for snapshot in snapshots {
+            XCTAssertFalse(snapshot.canPrepare(.hdSingle, processing: .server))
+            XCTAssertTrue(snapshot.canPrepare(.hdSingle, processing: .onDevice))
+            XCTAssertNotNil(snapshot.preparationBlockMessage(.hdSingle, processing: .server))
+            XCTAssertNil(snapshot.preparationBlockMessage(.hdSingle, processing: .onDevice))
+            for mode in BroadcastPlanMode.allCases {
+                XCTAssertEqual(snapshot.availability(for: mode, processing: .onDevice)?.seconds,
+                               snapshot.usage.deviceRemainingSeconds! / mode.referenceMultiplier)
+            }
+        }
+        XCTAssertFalse(snapshots[0].isAllowed(.fhdSingle, processing: .onDevice))
+        XCTAssertTrue(snapshots[1].isAllowed(.fhdSingle, processing: .onDevice))
+        XCTAssertFalse(snapshots[1].isAllowed(.hdMulti, processing: .onDevice))
+        XCTAssertFalse(snapshots[2].isAllowed(.fhdMulti, processing: .onDevice))
+        XCTAssertTrue(snapshots[3].isAllowed(.fhdMulti, processing: .onDevice))
+    }
+
+    func testDeviceExhaustionDoesNotBlockServerAndMissingFieldsStayUnknown() throws {
+        var policy = try plan()
+        policy.deviceModes = ["720p_single", "fhd_single"]
+        let exhaustedJSON = usageJSON().replacingOccurrences(of: "\"used_seconds\":12",
+            with: "\"used_seconds\":12,\"device_remaining_seconds\":0")
+        let exhausted = PlanSnapshot(plan: policy, usage: try usage(exhaustedJSON))
+        XCTAssertTrue(exhausted.canPrepare(.hdSingle, processing: .server))
+        XCTAssertFalse(exhausted.canPrepare(.hdSingle, processing: .onDevice))
+        XCTAssertNotNil(exhausted.preparationBlockMessage(.hdSingle, processing: .onDevice))
+        for raw in [usageJSON()] {
+            let unknown = PlanSnapshot(plan: policy, usage: try usage(raw))
+            XCTAssertNil(unknown.availability(for: .hdSingle, processing: .onDevice))
+            XCTAssertNil(unknown.preparationBlockMessage(.hdSingle, processing: .onDevice))
+        }
+        let fractional = PlanSnapshot(plan: policy, usage: try usage(exhaustedJSON.replacingOccurrences(of: "\"device_remaining_seconds\":0", with: "\"device_remaining_seconds\":1")))
+        XCTAssertTrue(fractional.canPrepare(.hdSingle, processing: .onDevice))
+        XCTAssertFalse(fractional.canPrepare(.fhdSingle, processing: .onDevice))
+        XCTAssertThrowsError(try usage(exhaustedJSON.replacingOccurrences(of: "\"device_remaining_seconds\":0", with: "\"device_remaining_seconds\":-1")))
+    }
+
+    func testBillingUsesSessionProcessingInsteadOfLocalInferenceOverride() throws {
+        let suite = "plan-processing-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), aiModeProvider: { .onDevice })
+        XCTAssertEqual(integration.planProcessingMode, .onDevice)
+        var session = try JSONDecoder().decode(YouTubeBroadcastSession.self, from: Data("""
+        {"session_id":"test", "owner_token":"test", "ai_processing":"server", "stream":{"status":"idle","publisher_active":false,"reconnect_attempts":0}}
+        """.utf8))
+        session.clientProcessingMode = .onDevice
+        integration.seedPreparedVideoSessionForTesting(
+            connection: YouTubeConnection(provider: "youtube", channel: YouTubeChannel(id: "test", title: "Test")),
+            session: session, videoTrack: YouTubeVideoTrackState(id: "test", kind: "video", readyState: "live"))
+        XCTAssertEqual(integration.planProcessingMode, .server)
+        session.aiProcessing = "on_device"
+        integration.seedPreparedVideoSessionForTesting(
+            connection: YouTubeConnection(provider: "youtube", channel: YouTubeChannel(id: "test", title: "Test")),
+            session: session, videoTrack: YouTubeVideoTrackState(id: "test", kind: "video", readyState: "live"))
+        XCTAssertEqual(integration.planProcessingMode, .onDevice)
+    }
+
+    func testPlanErrorsAndNoticesHaveActionableMessages() {
+        for code in ["plan_server_streaming_not_allowed", "plan_resolution_not_allowed", "plan_simulcast_not_allowed", "monthly_limit_exhausted", "broadcast_limit_reached"] {
+            XCTAssertNotEqual(YouTubeAPIError.api(code: code, fallback: "", helpURL: nil).userMessage,
+                              String(localized: "YouTube 요청을 처리하지 못했습니다."))
+        }
+        for code in ["monthly_usage_80", "monthly_usage_100", "monthly_limit_reached", "broadcast_limit_30m", "broadcast_limit_10m", "broadcast_limit_reached", "no_input_stopped"] {
+            XCTAssertNotNil(BroadcastNotice(code: code, at: "test").planMessage)
+        }
+        XCTAssertNil(BroadcastNotice(code: "future", at: "test").planMessage)
+    }
+
+    func testRenderDeviceAndUnsupportedServerUsage() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive })
+        let previousWindow = scene.windows.first { $0.isKeyWindow }
+        for snapshot in try processingSnapshots() {
+            for processing in AIProcessingMode.allCases {
+                let window = UIWindow(windowScene: scene)
+                window.frame = CGRect(x: 0, y: 0, width: 360, height: 800)
+                window.overrideUserInterfaceStyle = .light
+                window.rootViewController = UIHostingController(rootView: ScrollView {
+                    PlanUsageContent(snapshot: snapshot, isLoading: false, errorMessage: nil,
+                        lastUpdatedAt: nil, currentMode: .hdSingle, currentProcessing: processing, onRefresh: {})
+                        .padding(16)
+                })
+                window.makeKeyAndVisible()
+                try await Task.sleep(for: .milliseconds(200))
+                window.layoutIfNeeded()
+                let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                    XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+                }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "bm-\(snapshot.plan.plan)-\(processing.rawValue)"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+                window.isHidden = true
+                window.rootViewController = nil
+                previousWindow?.makeKeyAndVisible()
+            }
+        }
+    }
+
     func testServerValuesOverrideReferenceMultiplier() throws {
         let snapshot = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON()))
         XCTAssertTrue(snapshot.canPrepare(.hdSingle))
@@ -92,7 +236,10 @@ final class PlanUsageTests: XCTestCase {
         {"mode":"720p_single","allowed":true,"seconds":7200,"multiplier":1},
         {"mode":"fhd_single","allowed":true,"seconds":3600,"multiplier":2},
         {"mode":"720p_multi","allowed":true,"seconds":3600,"multiplier":2},
-        {"mode":"fhd_multi","allowed":false,"seconds":2400,"multiplier":3}]}
+        {"mode":"fhd_multi","allowed":false,"seconds":2400,"multiplier":3}],
+        "month":"2026-10","broadcasts":[
+        {"session_id":"server-history","started_at":"2026-10-15T01:00:00Z","resolution":"fhd","providers":["youtube"],"ai_processing":"server","broadcast_seconds":3600,"charged_seconds":7200},
+        {"session_id":"device-history","started_at":"2026-10-15T03:00:00Z","resolution":"720p","providers":["chzzk","youtube"],"ai_processing":"on_device","broadcast_seconds":10800,"charged_seconds":21600}]}
         """)
         let api = PlanStub(plan: try plan(), usage: renderedUsage)
         await integration.planStore.refresh(api: api, accessToken: "test")
@@ -101,20 +248,29 @@ final class PlanUsageTests: XCTestCase {
                 api.fails = true
                 await integration.planStore.refresh(api: api, accessToken: "test")
             }
-            let renderer = ImageRenderer(content:
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+                .first { $0.activationState == .foregroundActive })
+            let previousWindow = scene.windows.first { $0.isKeyWindow }
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 360, height: 1400)
+            window.overrideUserInterfaceStyle = .light
+            window.rootViewController = UIHostingController(rootView: ScrollView {
                 PlanUsageContent(snapshot: integration.planStore.snapshot, isLoading: false,
                                  errorMessage: integration.planStore.errorMessage,
                                  lastUpdatedAt: integration.planStore.lastUpdatedAt,
                                  currentMode: .hdSingle, onRefresh: {})
-                    .frame(width: 360)
                     .padding(16)
-                    .background(Color.white)
-                    .environment(\.colorScheme, .light)
-            )
-            renderer.scale = 2
-            let image = try XCTUnwrap(renderer.uiImage)
-            XCTAssertGreaterThan(image.size.height, 300)
+            })
+            window.makeKeyAndVisible()
+            try await Task.sleep(for: .milliseconds(200))
+            window.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+            }
             XCTAssertGreaterThan(try XCTUnwrap(image.pngData()).count, 10_000)
+            window.isHidden = true
+            window.rootViewController = nil
+            previousWindow?.makeKeyAndVisible()
             let attachment = XCTAttachment(image: image)
             attachment.name = stale ? "plan-stale" : "plan-usage"
             attachment.lifetime = .keepAlways
