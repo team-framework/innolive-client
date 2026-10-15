@@ -45,13 +45,51 @@ final class YouTubeIntegration: ObservableObject {
 
     /// Billing follows the server session, including legacy sessions using local AI over server egress.
     var planProcessingMode: AIProcessingMode {
-        guard let session else { return aiModeProvider() }
+        guard let session else { return preparationProcessingOverride ?? aiModeProvider() }
         return AIProcessingMode(rawValue: session.aiProcessing ?? "server") ?? .server
+    }
+
+    @Published private(set) var isSwitchingToOnDevice = false
+    @Published private(set) var serverPlanPreparationRejected = false
+    private var preparationProcessingOverride: AIProcessingMode?
+    private var preparationResolution: String?
+    private var processingSwitchID = UUID()
+
+    var offersOnDevicePreparation: Bool {
+        planProcessingMode == .server && !statePolicy.isBroadcastActive
+            && (serverPlanPreparationRejected || planStore.snapshot?.serverUnavailable == true)
+            && planStore.snapshot?.preparationBlockMessage(preparationPlanMode, processing: .onDevice) == nil
+    }
+
+    /// End the old session before preparing a new one; the caller reuses the normal consent/camera flow.
+    func switchPreparationToOnDevice(accessToken: String?) async -> Bool {
+        guard offersOnDevicePreparation, !isSwitchingToOnDevice, !isChangingStreamState,
+              !isChangingAIProcessing, !isPreparingSession, !isConnectingVideo, !isEndingSession,
+              !isChangingBroadcastMode, !isTogglingAnonymization, !isTogglingScreenBlur,
+              broadcastPreparationTask == nil, let accessToken, !accessToken.isEmpty else { return false }
+        guard localModelsAvailable() else {
+            errorMessage = String(localized: "이 앱에 온디바이스 모델이 포함되어 있지 않습니다.")
+            return false
+        }
+        isSwitchingToOnDevice = true
+        let switchID = UUID()
+        processingSwitchID = switchID
+        defer { if processingSwitchID == switchID { isSwitchingToOnDevice = false } }
+        await cancelBroadcastPreparation(accessToken: accessToken)
+        guard processingSwitchID == switchID, session == nil,
+              retainedSessionRecord(accessToken: accessToken) == nil else { return false }
+        preparationProcessingOverride = .onDevice
+        persistAIProcessingMode(.onDevice)
+        serverPlanPreparationRejected = false
+        lastPreparationProviders = []
+        preparationFailures = [:]
+        clearError()
+        return true
     }
 
     var preparationPlanMode: BroadcastPlanMode {
         let count = broadcastPreparationTask != nil ? lastPreparationProviders.count : selectedBroadcastProviders.count
-        return .current(resolution: broadcastResolution, targetCount: count)
+        return .current(resolution: broadcastResolution ?? preparationResolution, targetCount: count)
     }
 
     @Published private(set) var lastPreparationProvider: BroadcastSettingsProvider?
@@ -1063,8 +1101,8 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
-    func prepareSession(accessToken: String?) async -> Bool {
-        guard !isEndingSession else { return false }
+    func prepareSession(accessToken: String?, broadcastResolution: String? = nil) async -> Bool {
+        guard !isEndingSession, !isSwitchingToOnDevice else { return false }
         if let task = sessionPreparationTask {
             let generation = sessionOperationGeneration
             let result = await task.value
@@ -1081,7 +1119,7 @@ final class YouTubeIntegration: ObservableObject {
         }
 
         let generation = sessionOperationGeneration
-        let requestedMode = aiModeProvider()
+        let requestedMode = preparationProcessingOverride ?? aiModeProvider()
         isPreparingSession = true
         let task = Task { [self] in
             guard sessionOperationGeneration == generation else { return false }
@@ -1091,7 +1129,7 @@ final class YouTubeIntegration: ObservableObject {
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
                 // 온디바이스 선택은 앱 직접 송출 세션으로 만든다(server #438). 서버가 처리 방식을
                 // 받지 않으면 기존처럼 서버 세션에서 서버 AI를 끄고 중계 송출한다.
-                var created = try await api.createSession(accessToken: accessToken, mode: requestedMode)
+                var created = try await api.createSession(accessToken: accessToken, mode: requestedMode, broadcastResolution: broadcastResolution)
                 let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
                 // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
                 do {
@@ -1301,7 +1339,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func changeAIProcessingMode(_ mode: AIProcessingMode, accessToken: String?) async -> Bool {
-        guard !isYouTubeBroadcastActive, !isChangingBroadcastMode, !isChangingStreamState, !isPreparingSession,
+        guard !isYouTubeBroadcastActive, !isSwitchingToOnDevice, !isChangingBroadcastMode, !isChangingStreamState, !isPreparingSession,
               !isConnectingVideo, !isEndingSession, !isChangingAIProcessing,
               !isTogglingAnonymization, !isTogglingScreenBlur, !isScreenBlurEnabled else { return false }
         clearError()
@@ -1310,6 +1348,7 @@ final class YouTubeIntegration: ObservableObject {
             return false
         }
         guard let current = session else {
+            preparationProcessingOverride = nil
             persistAIProcessingMode(mode)
             return true
         }
@@ -1547,7 +1586,7 @@ final class YouTubeIntegration: ObservableObject {
         if let task = broadcastPreparationTask {
             return await task.value
         }
-        guard !isYouTubeConnectionOperationInProgress else { return false }
+        guard !isYouTubeConnectionOperationInProgress, !isSwitchingToOnDevice else { return false }
         let chosen = providers ?? [provider]
         let targets = preparationStatus?.isFailed == true && !lastPreparationProviders.isEmpty ? lastPreparationProviders : chosen
         let task = Task { @MainActor in
@@ -1635,10 +1674,12 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = String(localized: "방송할 플랫폼을 하나 이상 선택해 주세요.", table: "Simulcast")
             return false
         }
+        preparationResolution = planProcessingMode == .onDevice ? (preferredVideoQuality.height == 1080 ? "fhd" : "720p") : nil
         lastPreparationProviders = providers
         lastPreparationProvider = providers.first
         for provider in providers {
             if preparationBlocker(provider: provider, accessToken: accessToken, useEditor: useEditor, permissions: permissions) != nil {
+                preparationResolution = nil
                 return false
             }
         }
@@ -1706,7 +1747,7 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = message
             return message
         }
-        if let message = planStore.snapshot?.preparationBlockMessage(.current(resolution: broadcastResolution, targetCount: lastPreparationProviders.count), processing: planProcessingMode) {
+        if let message = planStore.snapshot?.preparationBlockMessage(.current(resolution: broadcastResolution ?? preparationResolution, targetCount: lastPreparationProviders.count), processing: planProcessingMode) {
             errorMessage = message
             return errorMessage
         }
@@ -1726,7 +1767,7 @@ final class YouTubeIntegration: ObservableObject {
         videoConnector: (() async -> Bool)?
     ) async -> Bool {
         preparationStatus = BroadcastPreparationStatus(phase: .creatingSession)
-        guard await prepareSession(accessToken: accessToken) else {
+        guard await prepareSession(accessToken: accessToken, broadcastResolution: preparationResolution) else {
             guard preparationGeneration == generation else { return false }
             failPreparation(.creatingSession)
             return false
@@ -2064,6 +2105,11 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        processingSwitchID = UUID()
+        isSwitchingToOnDevice = false
+        preparationProcessingOverride = nil
+        preparationResolution = nil
+        serverPlanPreparationRejected = false
         planStore.reset()
         settingsEditor.reset()
         resetLiveEditing()
@@ -2555,6 +2601,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private func handleSettingsError(_ error: Error, provider: BroadcastSettingsProvider) {
         if provider == .chzzk, let error = error as? YouTubeAPIError {
+            showError(error)
             errorMessage = error.userMessage.replacingOccurrences(of: "YouTube", with: provider.title)
             helpURL = error.helpURL
         } else {
@@ -2576,6 +2623,10 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func showError(_ error: YouTubeAPIError) {
+        if case .api(let code, _, _) = error, planProcessingMode == .server,
+           ["monthly_limit_exhausted", "plan_server_streaming_not_allowed"].contains(code) {
+            serverPlanPreparationRejected = true
+        }
         errorMessage = error.userMessage
         helpURL = error.helpURL
     }

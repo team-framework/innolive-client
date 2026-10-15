@@ -50,6 +50,14 @@ struct UserUsage: Decodable, Equatable {
     let usedSeconds: Int
     let remainingSeconds: Int?
     let availableByMode: [ModeAvailability]
+    let month: String?
+    let limitSeconds: Int?
+    let hasLimitSeconds: Bool
+    let maxPerBroadcastSeconds: Int?
+    let hasMaxPerBroadcastSeconds: Bool
+    let hasDeviceLimitSeconds: Bool
+    let hasDeviceRemainingSeconds: Bool
+    let broadcasts: [UsageBroadcast]
     let deviceLimitSeconds: Int?
     let deviceUsedSeconds: Int?
     let deviceRemainingSeconds: Int?
@@ -59,6 +67,14 @@ struct UserUsage: Decodable, Equatable {
         usedSeconds = try c.decode(Int.self, forKey: .usedSeconds)
         remainingSeconds = try c.decode(Int?.self, forKey: .remainingSeconds)
         availableByMode = try c.decode([ModeAvailability].self, forKey: .availableByMode)
+        month = try c.decodeIfPresent(String.self, forKey: .month)
+        limitSeconds = try c.decodeIfPresent(Int.self, forKey: .limitSeconds)
+        hasLimitSeconds = c.contains(.limitSeconds)
+        maxPerBroadcastSeconds = try c.decodeIfPresent(Int.self, forKey: .maxPerBroadcastSeconds)
+        hasMaxPerBroadcastSeconds = c.contains(.maxPerBroadcastSeconds)
+        hasDeviceLimitSeconds = c.contains(.deviceLimitSeconds)
+        hasDeviceRemainingSeconds = c.contains(.deviceRemainingSeconds)
+        broadcasts = try c.decodeIfPresent([UsageBroadcast].self, forKey: .broadcasts) ?? []
         deviceLimitSeconds = try c.decodeIfPresent(Int.self, forKey: .deviceLimitSeconds)
         deviceUsedSeconds = try c.decodeIfPresent(Int.self, forKey: .deviceUsedSeconds)
         deviceRemainingSeconds = try c.decodeIfPresent(Int.self, forKey: .deviceRemainingSeconds)
@@ -68,12 +84,43 @@ struct UserUsage: Decodable, Equatable {
     }
     enum CodingKeys: String, CodingKey {
         case plan
+        case month, broadcasts
+        case limitSeconds = "limit_seconds"
+        case maxPerBroadcastSeconds = "max_per_broadcast_seconds"
         case usedSeconds = "used_seconds"
         case remainingSeconds = "remaining_seconds"
         case availableByMode = "available_by_mode"
         case deviceLimitSeconds = "device_limit_seconds"
         case deviceUsedSeconds = "device_used_seconds"
         case deviceRemainingSeconds = "device_remaining_seconds"
+    }
+}
+
+struct UsageBroadcast: Decodable, Equatable, Identifiable {
+    let sessionID: String
+    let startedAt: String
+    let resolution: String
+    let providers: [String]
+    let aiProcessing: String?
+    let broadcastSeconds: Int
+    let chargedSeconds: Int
+    var id: String { sessionID }
+    var startDate: Date? {
+        let formatter = ISO8601DateFormatter()
+        if let date = formatter.date(from: startedAt) { return date }
+        formatter.formatOptions.insert(.withFractionalSeconds)
+        return formatter.date(from: startedAt)
+    }
+    var processingTitle: String {
+        switch aiProcessing {
+        case "server": String(localized: "서버")
+        case "on_device": String(localized: "온디바이스")
+        default: String(localized: "조회 대기")
+        }
+    }
+    enum CodingKeys: String, CodingKey {
+        case sessionID = "session_id", startedAt = "started_at", resolution, providers
+        case aiProcessing = "ai_processing", broadcastSeconds = "broadcast_seconds", chargedSeconds = "charged_seconds"
     }
 }
 
@@ -106,13 +153,34 @@ struct PlanSnapshot: Equatable {
     let usage: UserUsage
     func availability(for mode: BroadcastPlanMode, processing: AIProcessingMode = .server) -> ModeAvailability? {
         if processing == .server { return usage.availableByMode.first { $0.mode == mode.rawValue } }
-        guard let modes = plan.deviceModes, let remaining = usage.deviceRemainingSeconds else { return nil }
+        guard let modes = plan.deviceModes, usage.hasDeviceRemainingSeconds else { return nil }
         return ModeAvailability(mode: mode.rawValue, allowed: modes.contains(mode.rawValue),
-                                seconds: remaining / mode.referenceMultiplier, multiplier: mode.referenceMultiplier)
+                                seconds: usage.deviceRemainingSeconds.map { $0 / mode.referenceMultiplier }, multiplier: mode.referenceMultiplier)
+    }
+    var perBroadcastLimit: Int? {
+        usage.hasMaxPerBroadcastSeconds ? usage.maxPerBroadcastSeconds
+            : (plan.maxPerBroadcastSeconds == 0 ? nil : plan.maxPerBroadcastSeconds)
+    }
+    func maximumBroadcastAvailability(for mode: BroadcastPlanMode, processing: AIProcessingMode) -> ModeAvailability? {
+        guard let monthly = availability(for: mode, processing: processing) else { return nil }
+        let cap = perBroadcastLimit
+        let seconds: Int?
+        switch (monthly.seconds, cap) {
+        case let (.some(month), .some(cap)): seconds = min(month, cap)
+        case let (.some(month), nil): seconds = month
+        case let (nil, .some(cap)): seconds = cap
+        case (nil, nil): seconds = nil
+        }
+        return ModeAvailability(mode: monthly.mode, allowed: monthly.allowed, seconds: seconds, multiplier: monthly.multiplier)
+    }
+    var serverUnavailable: Bool {
+        plan.monthlyBroadcastSeconds == 0 || plan.allowedModes.isEmpty
+            || (usage.hasLimitSeconds && usage.limitSeconds == nil) || usage.remainingSeconds == 0
     }
     func isAllowed(_ mode: BroadcastPlanMode, processing: AIProcessingMode = .server) -> Bool {
         if processing == .onDevice { return plan.deviceModes?.contains(mode.rawValue) == true }
-        return plan.monthlyBroadcastSeconds > 0 && plan.allowedModes.contains(mode.rawValue)
+        return !(usage.hasLimitSeconds && usage.limitSeconds == nil)
+            && plan.monthlyBroadcastSeconds > 0 && plan.allowedModes.contains(mode.rawValue)
             && availability(for: mode)?.allowed == true
     }
     func canPrepare(_ mode: BroadcastPlanMode, processing: AIProcessingMode = .server) -> Bool {
@@ -126,6 +194,9 @@ struct PlanSnapshot: Equatable {
         }
         if processing == .onDevice && plan.deviceModes == nil { return nil }
         if !isAllowed(mode, processing: processing) {
+            if processing == .onDevice && (mode == .fhdSingle || mode == .fhdMulti) {
+                return String(localized: "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 카메라 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요.", table: "PlanUsage")
+            }
             return String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
         }
         guard let value = availability(for: mode, processing: processing), let seconds = value.seconds, seconds == 0 else { return nil }

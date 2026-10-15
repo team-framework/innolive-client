@@ -85,6 +85,18 @@ struct BroadcastSettingsView: View {
                     .pickerStyle(.segmented)
                     .disabled(youtube.isBroadcastSettingsLocked)
 
+                    if onPrepare != nil && youtube.offersOnDevicePreparation {
+                        Button(String(localized: "온디바이스로 방송하기", table: "PlanUsage")) {
+                            let provider = editor.provider
+                            Task {
+                                if await youtube.switchPreparationToOnDevice(accessToken: authentication.currentAccessToken()) {
+                                    onPrepare?(provider)
+                                }
+                            }
+                        }
+                        .disabled(youtube.isSwitchingToOnDevice || youtube.preparationStatus?.isRunning == true)
+                        .accessibilityIdentifier("prepare-on-device")
+                    }
                     preparationSection
 
                     PlanUsageSection(authentication: authentication, youtube: youtube)

@@ -65,30 +65,49 @@ struct PlanUsageContent: View {
                     Text(String(localized: "서버")).tag(AIProcessingMode.server)
                     Text(String(localized: "온디바이스")).tag(AIProcessingMode.onDevice)
                 }.pickerStyle(.segmented)
-                if processing == .server && snapshot.plan.monthlyBroadcastSeconds == 0 {
+                if processing == .server && (snapshot.plan.monthlyBroadcastSeconds == 0 || (snapshot.usage.hasLimitSeconds && snapshot.usage.limitSeconds == nil)) {
                     Text(String(localized: "이 요금제는 서버 송출을 지원하지 않습니다."))
                         .font(.subheadline).foregroundStyle(.secondary)
                 } else {
-                    timeRow(String(localized: "월 방송 한도"), value: knownTime(processing == .server
-                        ? snapshot.plan.monthlyBroadcastSeconds : snapshot.usage.deviceLimitSeconds))
+                    timeRow(String(localized: "월 방송 한도"), value: processing == .server ? knownTime(snapshot.plan.monthlyBroadcastSeconds)
+                        : nullableTime(snapshot.usage.deviceLimitSeconds, present: snapshot.usage.hasDeviceLimitSeconds))
                     timeRow(String(localized: "이번 달 차감 시간"), value: usedTime(processing == .server
                         ? snapshot.usage.usedSeconds : snapshot.usage.deviceUsedSeconds))
                     timeRow(String(localized: "이번 달 남은 시간"), value: processing == .server
-                        ? PlanTimeText.duration(snapshot.usage.remainingSeconds) : knownTime(snapshot.usage.deviceRemainingSeconds))
+                        ? PlanTimeText.duration(snapshot.usage.remainingSeconds) : nullableTime(snapshot.usage.deviceRemainingSeconds, present: snapshot.usage.hasDeviceRemainingSeconds))
                 }
                 timeRow(String(localized: "1회 방송 한도"), value: PlanTimeText.duration(
-                    snapshot.plan.maxPerBroadcastSeconds == 0 ? nil : snapshot.plan.maxPerBroadcastSeconds))
+                    snapshot.perBroadcastLimit))
                 Text(String(localized: "현재 방송 방식: \(currentMode.title)"))
                     .font(.subheadline.weight(.semibold))
+                Text(String(localized: "이번 방송 최대", table: "PlanUsage")).font(.subheadline.bold())
                 ForEach(BroadcastPlanMode.allCases) { mode in
                     modeRow(mode, snapshot: snapshot)
                 }
-                if let selectedMode, let value = snapshot.availability(for: selectedMode, processing: processing), snapshot.isAllowed(selectedMode, processing: processing) {
+                if let selectedMode, let value = snapshot.maximumBroadcastAvailability(for: selectedMode, processing: processing), snapshot.isAllowed(selectedMode, processing: processing) {
                     Text(String(localized: "\(selectedMode.title) · 남은 시간 \(PlanTimeText.duration(value.seconds)) · \(value.multiplier)배 차감"))
                         .font(.footnote)
                 }
-                Text(String(localized: "방식별 남은 시간은 월 잔여 기준입니다. 1회 방송 한도는 별도로 적용됩니다."))
+                Text(String(localized: "이번 방송 최대 시간은 월 잔여 시간과 1회 한도 중 작은 값입니다.", table: "PlanUsage"))
                     .font(.caption).foregroundStyle(.secondary)
+                if !snapshot.usage.broadcasts.isEmpty {
+                    Divider()
+                    Text(String(localized: "방송별 사용 내역", table: "PlanUsage")).font(.headline)
+                    if let month = snapshot.usage.month { Text(month).font(.caption).foregroundStyle(.secondary) }
+                    ForEach(snapshot.usage.broadcasts) { broadcast in
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(broadcast.processingTitle).font(.caption.bold()).padding(5).background(.quaternary, in: Capsule())
+                                Text(broadcast.resolution.uppercased() + " · " + broadcast.providers.joined(separator: "+")).font(.caption)
+                            }
+                            if let date = broadcast.startDate {
+                                Text(date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                            }
+                            timeRow(String(localized: "실제 방송 시간", table: "PlanUsage"), value: usedTime(broadcast.broadcastSeconds))
+                            timeRow(String(localized: "차감 시간", table: "PlanUsage"), value: usedTime(broadcast.chargedSeconds))
+                        }.padding(.vertical, 6)
+                    }
+                }
             } else if !isLoading && errorMessage == nil {
                 Text(String(localized: "요금제 조회 대기"))
                     .foregroundStyle(.secondary)
@@ -141,6 +160,10 @@ struct PlanUsageContent: View {
         }
     }
 
+    private func nullableTime(_ seconds: Int?, present: Bool) -> String {
+        present ? PlanTimeText.duration(seconds) : String(localized: "조회 대기")
+    }
+
     private func knownTime(_ seconds: Int?) -> String {
         seconds.map { PlanTimeText.duration($0) } ?? String(localized: "조회 대기")
     }
@@ -159,7 +182,7 @@ struct PlanUsageContent: View {
                 Image(systemName: snapshot.isAllowed(mode, processing: processing) ? "video" : "lock.fill")
                 Text(mode.title)
                 Spacer()
-                if let availability = snapshot.availability(for: mode, processing: processing) {
+                if let availability = snapshot.maximumBroadcastAvailability(for: mode, processing: processing) {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(snapshot.isAllowed(mode, processing: processing) ? PlanTimeText.duration(availability.seconds) : String(localized: "잠김"))
                         Text(String(localized: "\(availability.multiplier)배 차감")).font(.caption)
