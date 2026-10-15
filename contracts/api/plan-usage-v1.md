@@ -3,12 +3,12 @@
 The iOS and Android clients read the existing authenticated `GET /users/me/plan` and
 `GET /users/me/usage` endpoints. Requests use the account Bearer token, without
 a session owner token. Existing authentication refresh and account-generation
-checks apply. No request or signaling fields change.
+checks apply. Signaling is unchanged.
 
 ## Processing-specific budgets (2026-10-15)
 
 Source: [server BM specification](https://app.notion.com/p/3faba097c65980fbaa2de8f8fa55e015).
-This is an additive response update; requests and signaling are unchanged.
+This consumes additive response fields. On-device session creation also sends the existing `broadcast_resolution` field matching the selected capture preset. Server-processing creation remains unchanged.
 
 | Response | Server fields | On-device fields |
 | --- | --- | --- |
@@ -36,14 +36,13 @@ Device availability uses `device_modes` membership and integer division of
 be combined or substituted for each other. Unknown modes do not add UI rows.
 
 `broadcasts[].ai_processing` identifies the ledger location (`server` or
-`on_device`). iOS currently shows aggregate usage and does not render broadcast
-history. Existing historical fixtures remain for backward-compatible decoding;
+`on_device`). iOS renders history with month, start date, resolution, providers, actual broadcast seconds and charged seconds. Existing historical fixtures remain for backward-compatible decoding;
 `plan-usage-processing.v1.json` covers all four current plans with exhausted
 server budgets and independently available device budgets.
 
 iOS tolerates missing additive device fields in older responses, displays
 unknown values as pending, and delegates unknown-budget validation to the server.
-Null device values do not imply unlimited usage. Negative device values fail
+Explicit null device limit/remaining values mean unlimited; absent keys remain unknown. Negative device values fail
 decoding. Plan and usage are published together only when `plan` agrees; a failed
 refresh preserves the last complete snapshot and offers retry. Account reset
 rejects stale responses.
@@ -55,8 +54,7 @@ preparation, while a live broadcast is not stopped locally when a budget reaches
 zero. The server enforces Spark's immediate monthly stop and all per-broadcast
 stops. Server exhaustion must not block on-device preparation, and vice versa.
 
-Errors: `plan_server_streaming_not_allowed` guides users to cancel preparation
-and choose on-device mode; `plan_resolution_not_allowed` and
+Errors: `plan_server_streaming_not_allowed` and server `monthly_limit_exhausted` offer an on-device preparation button. It deletes the prior session first, blocks on cleanup failure, discards account-reset responses, then invokes the ordinary consent/save/prepare flow without go-live; `plan_resolution_not_allowed` and
 `plan_simulcast_not_allowed` explain mode restrictions; `monthly_limit_exhausted`
 explains the current location's budget; `broadcast_limit_reached` requires a new
 session. Existing HTTP statuses and error envelopes are unchanged.
@@ -87,3 +85,5 @@ The remaining value is the minimum of the current location's monthly balance
 `no_input_stopped` share localized iOS messages. A heartbeat `stop_targets` list
 remains the authority for stopping direct publishers; notices alone do not stop
 paid-plan broadcasts.
+
+Before preparation, each mode displays the minimum of monthly availability and `usage.max_per_broadcast_seconds` (explicit null means no cap). Older responses missing that key fall back to the plan cap. Server monthly availability uses API seconds directly; on-device uses integer division.

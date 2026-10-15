@@ -144,6 +144,33 @@
           "seconds": 0,
           "allowed": false
         }
+      ],
+      "month": "2026-10",
+      "max_per_broadcast_seconds": 43200,
+      "broadcasts": [
+        {
+          "session_id": "example-server",
+          "started_at": "2026-10-15T01:00:00Z",
+          "resolution": "fhd",
+          "providers": [
+            "youtube"
+          ],
+          "ai_processing": "server",
+          "broadcast_seconds": 3600,
+          "charged_seconds": 7200
+        },
+        {
+          "session_id": "example-device",
+          "started_at": "2026-10-15T03:00:00Z",
+          "resolution": "720p",
+          "providers": [
+            "chzzk",
+            "youtube"
+          ],
+          "ai_processing": "on_device",
+          "broadcast_seconds": 10800,
+          "charged_seconds": 21600
+        }
       ]
     }
   },
