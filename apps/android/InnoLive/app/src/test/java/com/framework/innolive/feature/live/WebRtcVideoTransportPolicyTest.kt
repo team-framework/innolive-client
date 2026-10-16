@@ -38,4 +38,16 @@ class WebRtcVideoTransportPolicyTest {
         assertEquals(1.0,encoding.scaleResolutionDownBy!!,0.0)
         assertTrue(encoding.active)
     }
+    @Test fun sendFormatCapsLongEdgeAtServerSessionResolution() {
+        assertEquals(720 to 1280,videoSendFormatFor(1080,1920,DirectPublishResolution.HD_720))
+        assertEquals(1280 to 720,videoSendFormatFor(1920,1080,DirectPublishResolution.HD_720))
+        assertEquals(1080 to 1920,videoSendFormatFor(1080,1920,DirectPublishResolution.FHD))
+        assertEquals(1080 to 1920,videoSendFormatFor(2160,3840,DirectPublishResolution.FHD))
+    }
+    @Test fun sendFormatKeepsAspectRatioWithEvenDimensionsAndNeverUpscales() {
+        assertEquals(960 to 1280,videoSendFormatFor(1080,1440,DirectPublishResolution.HD_720))
+        assertEquals(1280 to 576,videoSendFormatFor(2400,1080,DirectPublishResolution.HD_720))
+        assertEquals(720 to 1280,videoSendFormatFor(720,1280,DirectPublishResolution.FHD))
+        assertEquals(480 to 640,videoSendFormatFor(480,640,DirectPublishResolution.HD_720))
+    }
 }
