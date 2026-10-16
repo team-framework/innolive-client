@@ -375,11 +375,19 @@ class WebRtcSessionViewModel internal constructor(
                                 state = state,
                                 nowMillis = SystemClock.elapsedRealtime(),
                             )
+                            val preparationCancelled = broadcastState == BroadcastState.CANCELLING_PREPARATION &&
+                                state != BroadcastState.CANCELLING_PREPARATION
                             broadcastState = state
                             if (event is BroadcastEvent.ApiFailure) serverError = event.guidance
                             val feedback = broadcastUserMessage(state, event)
                             broadcastStatus = feedback.text
                             isBroadcastStatusDefault = feedback.isStateDescription
+                            // 준비를 취소하면 취소 요청의 성공 여부와 관계없이 연결을 닫아
+                            // 비식별화 미리보기와 서버 세션을 남기지 않습니다. iOS와 같은 동작입니다.
+                            // 송출 경로의 콜백 안에서 닫지 않도록 다음 메인 루프로 미룹니다.
+                            if (preparationCancelled) {
+                                mainHandler.post { if (isCurrentGeneration(generation)) close() }
+                            }
                         }
                     },
                     onDirectUiStateChanged = { state ->
