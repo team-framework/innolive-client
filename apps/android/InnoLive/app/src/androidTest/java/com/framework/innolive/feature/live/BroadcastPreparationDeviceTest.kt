@@ -48,7 +48,8 @@ class BroadcastPreparationDeviceTest {
                 compose.runOnIdle {
                     assertEquals(AnonymizationState.DISABLED, session.anonymizationState)
                     assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
-                    assertNotNull(session.remoteVideoTrack)
+                    // 직접 송출은 원격 영상 없이 기기에서 비식별화한 미리보기를 씁니다.
+                    assertNotNull(session.frameAnalyzer)
                     Log.i("BroadcastPreparationDeviceTest", "비공개 방송 준비 $attempt 성공: Off 및 연결 유지")
                     session.stopBroadcast()
                 }
@@ -59,6 +60,8 @@ class BroadcastPreparationDeviceTest {
                 compose.runOnIdle {
                     // 취소가 끝나면 비식별화 미리보기와 서버 세션을 남기지 않도록 연결을 닫습니다.
                     assertEquals(BroadcastState.IDLE, session.broadcastState)
+                    assertEquals(WebRtcConnectionState.IDLE, session.connectionState)
+                    assertNull(session.frameAnalyzer)
                     assertNull(session.remoteVideoTrack)
                     if (attempt == 1) {
                         assertTrue(session.prepareBroadcast(compose.activity, settings, auth::refreshAccessToken))
