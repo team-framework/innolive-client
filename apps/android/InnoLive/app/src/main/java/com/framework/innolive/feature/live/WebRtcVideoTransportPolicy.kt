@@ -12,6 +12,25 @@ internal fun videoSendBitrateFor(resolution: DirectPublishResolution) = when (re
     DirectPublishResolution.FHD -> VideoSendBitrate(minBps = 3_000_000, maxBps = 6_000_000)
 }
 
+/** 서버 디코더 장변과 같습니다. 720p 세션은 1280, FHD 세션은 1920입니다. */
+internal fun videoSendLongEdgeFor(resolution: DirectPublishResolution) = when (resolution) {
+    DirectPublishResolution.HD_720 -> 1280
+    DirectPublishResolution.FHD -> 1920
+}
+
+/**
+ * 서버가 디코딩 직후 세션 장변으로 줄이므로 그보다 큰 캡처는 업링크와 서버 디코딩만 늘립니다.
+ * 캡처 비율을 유지한 채 장변을 세션 장변 이하로 줄이고, 작은 캡처는 확대하지 않습니다.
+ */
+internal fun videoSendFormatFor(width: Int, height: Int, resolution: DirectPublishResolution): Pair<Int, Int> {
+    val longEdge = maxOf(width, height)
+    val cap = videoSendLongEdgeFor(resolution)
+    if (longEdge <= cap) return width to height
+    // yuv420 인코더가 짝수 치수를 요구하므로 짧은 변을 짝수로 내립니다.
+    val shortEdge = (minOf(width, height).toLong() * cap / longEdge).toInt() / 2 * 2
+    return if (width >= height) cap to shortEdge else shortEdge to cap
+}
+
 /**
  * 기본값은 초기 대역폭 추정과 CPU 부하에 해상도를 먼저 깎아 180×320부터 시작합니다.
  * 해상도를 유지하고 하한 비트레이트로 초기 구간을 끌어올립니다.

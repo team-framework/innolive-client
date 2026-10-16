@@ -404,7 +404,12 @@ internal class WebRtcConnection(
             },
             onCaptureFormat = { width, height ->
                 executeOnOwner {
-                    if (isActive()) videoSource?.adaptOutputFormat(width, height, 30)
+                    if (isActive()) {
+                        val (sendWidth, sendHeight) = videoSendFormatFor(width, height, broadcastResolution)
+                        videoSource?.adaptOutputFormat(sendWidth, sendHeight, 30)
+                        Log.i("PrivacyPipeline", "video_send_format capture=${width}x$height " +
+                            "send=${sendWidth}x$sendHeight resolution=${broadcastResolution.wireValue}")
+                    }
                 }
             },
         ).also { analyzer ->
