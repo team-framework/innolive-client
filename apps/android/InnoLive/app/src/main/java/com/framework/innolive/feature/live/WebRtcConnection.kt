@@ -1203,7 +1203,13 @@ internal class WebRtcConnection(
                 "video_codec_preference=${preference.first().name}")
             else Log.w("PrivacyPipeline", "video_codec_preference=default")
         }
-        videoSender = transceiver.sender
+        val sender = transceiver.sender
+        val parameters = sender.parameters
+        applyVideoSendPolicy(parameters, broadcastResolution)
+        if (sender.setParameters(parameters)) Log.i("PrivacyPipeline",
+            "video_send_policy=maintain_resolution resolution=${broadcastResolution.wireValue}")
+        else Log.w("PrivacyPipeline", "video_send_policy=default")
+        videoSender = sender
     }
 
     /** Applied before the offer so the first keyframe already uses the session's bitrate budget. */
