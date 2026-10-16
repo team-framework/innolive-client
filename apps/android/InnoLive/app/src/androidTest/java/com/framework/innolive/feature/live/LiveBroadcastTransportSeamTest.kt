@@ -12,6 +12,7 @@ import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.broadcast.LocalTargetStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -32,7 +33,10 @@ class LiveBroadcastTransportSeamTest {
         }
     }
 
-    private class FakeTransport(val request: LiveBroadcastTransportRequest) : LiveBroadcastTransport {
+    private class FakeTransport(
+        val request: LiveBroadcastTransportRequest,
+        private val stopResult: BroadcastState = BroadcastState.IDLE,
+    ) : LiveBroadcastTransport {
         val calls = mutableListOf<String>()
 
         override fun start() {
@@ -72,7 +76,11 @@ class LiveBroadcastTransportSeamTest {
 
         override fun resumeBroadcast() = Unit
 
-        override fun stopBroadcast() = Unit
+        override fun stopBroadcast() {
+            calls += "stop"
+            request.callbacks.onBroadcastStateChanged(BroadcastState.CANCELLING_PREPARATION, null)
+            request.callbacks.onBroadcastStateChanged(stopResult, null)
+        }
     }
 
     private val settings = BroadcastSettings("검증 방송", "검증 설명", "private", false, "22")
@@ -100,6 +108,44 @@ class LiveBroadcastTransportSeamTest {
             session.close()
             assertEquals("close", transport.calls.last())
             assertEquals(DirectBroadcastUiState(), session.directBroadcastUiState)
+        }
+    }
+
+    @Test fun cancellingPreparationClosesConnection() {
+        val created = mutableListOf<FakeTransport>()
+        lateinit var session: WebRtcSessionViewModel
+        compose.runOnIdle {
+            session = WebRtcSessionViewModel { request -> FakeTransport(request).also(created::add) }
+            assertTrue(session.prepareBroadcast(compose.activity, settings) { "access-token" })
+        }
+        compose.waitUntil(10_000) { session.broadcastState == BroadcastState.PREPARED }
+        compose.runOnIdle { session.stopBroadcast() }
+        compose.waitUntil(10_000) { session.connectionState == WebRtcConnectionState.IDLE }
+        compose.runOnIdle {
+            // 취소가 끝나면 비식별화 미리보기와 서버 세션을 남기지 않도록 연결을 닫습니다.
+            assertEquals(listOf("start", "prepare:검증 방송", "stop", "close"), created.single().calls)
+            assertEquals(BroadcastState.IDLE, session.broadcastState)
+            assertNull(session.remoteVideoTrack)
+        }
+    }
+
+    @Test fun failedCancellationKeepsPreparedConnection() {
+        val created = mutableListOf<FakeTransport>()
+        lateinit var session: WebRtcSessionViewModel
+        compose.runOnIdle {
+            session = WebRtcSessionViewModel { request ->
+                FakeTransport(request, stopResult = BroadcastState.PREPARED).also(created::add)
+            }
+            assertTrue(session.prepareBroadcast(compose.activity, settings) { "access-token" })
+        }
+        compose.waitUntil(10_000) { session.broadcastState == BroadcastState.PREPARED }
+        compose.runOnIdle { session.stopBroadcast() }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertEquals(listOf("start", "prepare:검증 방송", "stop"), created.single().calls)
+            assertEquals(BroadcastState.PREPARED, session.broadcastState)
+            assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
+            session.close()
         }
     }
 

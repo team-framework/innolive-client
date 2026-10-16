@@ -18,7 +18,7 @@ class BroadcastPreparationDeviceTest {
     @get:Rule val broadcastConsents = BroadcastConsentRule()
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
-    @Test fun offPreparationConnectsAutomaticallyAndCanPrepareAgainAfterCancellation() {
+    @Test fun offPreparationConnectsAutomaticallyAndReconnectsAfterCancellation() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("liveBroadcastPreparation") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         for (permission in listOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)) {
@@ -44,20 +44,22 @@ class BroadcastPreparationDeviceTest {
                 assertFalse(session.prepareBroadcast(compose.activity, settings, auth::refreshAccessToken))
             }
             waitForPrepared(session)
-            val originalTrack = session.remoteVideoTrack
             for (attempt in 1..2) {
                 compose.runOnIdle {
                     assertEquals(AnonymizationState.DISABLED, session.anonymizationState)
                     assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
                     assertNotNull(session.remoteVideoTrack)
-                    assertSame(originalTrack, session.remoteVideoTrack)
                     Log.i("BroadcastPreparationDeviceTest", "비공개 방송 준비 $attempt 성공: Off 및 연결 유지")
                     session.stopBroadcast()
                 }
-                compose.waitUntil(25_000) { session.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED) }
+                compose.waitUntil(25_000) {
+                    session.broadcastState == BroadcastState.FAILED ||
+                        session.connectionState == WebRtcConnectionState.IDLE
+                }
                 compose.runOnIdle {
+                    // 취소가 끝나면 비식별화 미리보기와 서버 세션을 남기지 않도록 연결을 닫습니다.
                     assertEquals(BroadcastState.IDLE, session.broadcastState)
-                    assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
+                    assertNull(session.remoteVideoTrack)
                     if (attempt == 1) {
                         assertTrue(session.prepareBroadcast(compose.activity, settings, auth::refreshAccessToken))
                     }
