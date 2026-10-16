@@ -129,7 +129,7 @@ class LiveBroadcastTransportSeamTest {
         }
     }
 
-    @Test fun failedCancellationKeepsPreparedConnection() {
+    @Test fun failedCancellationStillClosesConnection() {
         val created = mutableListOf<FakeTransport>()
         lateinit var session: WebRtcSessionViewModel
         compose.runOnIdle {
@@ -140,12 +140,12 @@ class LiveBroadcastTransportSeamTest {
         }
         compose.waitUntil(10_000) { session.broadcastState == BroadcastState.PREPARED }
         compose.runOnIdle { session.stopBroadcast() }
-        compose.waitForIdle()
+        compose.waitUntil(10_000) { session.connectionState == WebRtcConnectionState.IDLE }
         compose.runOnIdle {
-            assertEquals(listOf("start", "prepare:검증 방송", "stop"), created.single().calls)
-            assertEquals(BroadcastState.PREPARED, session.broadcastState)
-            assertEquals(WebRtcConnectionState.CONNECTED, session.connectionState)
-            session.close()
+            // 취소 요청이 실패해도 iOS처럼 연결과 서버 세션을 남기지 않습니다.
+            assertEquals(listOf("start", "prepare:검증 방송", "stop", "close"), created.single().calls)
+            assertEquals(BroadcastState.IDLE, session.broadcastState)
+            assertNull(session.remoteVideoTrack)
         }
     }
 
