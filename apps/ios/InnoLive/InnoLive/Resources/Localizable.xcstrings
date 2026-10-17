@@ -11431,6 +11431,144 @@
           }
         }
       }
+    },
+    "방송 시작까지": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 시작까지"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast starts in"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信開始まで"
+          }
+        }
+      }
+    },
+    "가로 방향으로 방송합니다": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가로 방향으로 방송합니다"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcasting in landscape"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "横向きで配信します"
+          }
+        }
+      }
+    },
+    "세로 방향으로 방송합니다": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "세로 방향으로 방송합니다"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcasting in portrait"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "縦向きで配信します"
+          }
+        }
+      }
+    },
+    "플랫폼의 시작 응답을 기다리고 있어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼의 시작 응답을 기다리고 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the platform to start the broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームの配信開始を待っています。"
+          }
+        }
+      }
+    },
+    "방송을 시작하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 시작하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not start the broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を開始できませんでした。"
+          }
+        }
+      }
+    },
+    "방송을 준비하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 준비하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not prepare the broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を準備できませんでした。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -40,6 +40,11 @@ final class BroadcastLifecycle: ObservableObject {
     private(set) var startedAt: Date?
     private var activeTargets: Set<String> = []
 
+    var isPresentingStart: Bool {
+        if case .countdown = phase { return true }
+        return phase == .starting
+    }
+
     func isCurrent(_ generation: UInt) -> Bool { self.generation == generation }
 
     @discardableResult
