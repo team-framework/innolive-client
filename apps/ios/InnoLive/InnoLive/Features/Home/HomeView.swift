@@ -176,6 +176,17 @@ struct HomeView: View {
                 )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityHidden(youtube.preparationStatus != nil)
+        .overlay {
+            if let status = youtube.preparationStatus {
+                BroadcastPreparationOverlay(status: status) {
+                    guard let provider = youtube.lastPreparationProvider else { return }
+                    await beginBroadcastPreparation(provider)
+                } onCancel: {
+                    await cancelBroadcastPreparation()
+                }
+            }
+        }
         .broadcastTutorialHost(tutorial, host: .home)
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
         .task(id: canStartTutorial) {
