@@ -34,6 +34,7 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     private struct AudioPacket: @unchecked Sendable { let buffer: AVAudioPCMBuffer; let time: CMTime }
     private struct VideoPacket: @unchecked Sendable { let buffer: CVPixelBuffer; let rotation: Int; let time: CMTime }
     #if DEBUG
+    var validationDroppedVideoFrames: Int { lock.withLock { dropped } }
     private var validationVideoAdmission: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?
     func setValidationVideoAdmission(_ observer: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?) {
         lock.withLock { validationVideoAdmission = observer }
@@ -72,6 +73,7 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     private let converter = DirectFrameConverter()
     private let context = CIContext(options: [.cacheIntermediates: false])
     private var dimensions: CMVideoDimensions?
+    private var fittedBufferPool: CVPixelBufferPool?
     private var videoFrames = 0
     private var audioFrames = 0
     private var lastVideoTime = CMTime.invalid
@@ -359,9 +361,23 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     }
 
     private func fitted(_ buffer: CVPixelBuffer, width: Int, height: Int) throws -> CVPixelBuffer {
+        // The writer's output dimensions stay fixed for this recorder's lifetime.
+        // The pool reuses buffers only after their previous writer references are released.
+        if fittedBufferPool == nil {
+            let attributes: [CFString: Any] = [
+                kCVPixelBufferWidthKey: width,
+                kCVPixelBufferHeightKey: height,
+                kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferIOSurfacePropertiesKey: [:]
+            ]
+            guard CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes as CFDictionary,
+                                          &fittedBufferPool) == kCVReturnSuccess else {
+                throw LocalBroadcastRecordingError.conversion
+            }
+        }
         var output: CVPixelBuffer?
-        let attributes = [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary
-        guard CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA, attributes, &output) == kCVReturnSuccess,
+        guard let fittedBufferPool,
+              CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, fittedBufferPool, &output) == kCVReturnSuccess,
               let output else { throw LocalBroadcastRecordingError.conversion }
         let image = CIImage(cvPixelBuffer: buffer)
         let scale = min(CGFloat(width) / image.extent.width, CGFloat(height) / image.extent.height)
