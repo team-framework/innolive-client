@@ -70,17 +70,17 @@ private struct YouTubePrepareStreamRequest: Encodable {
 
 private struct YouTubeEmptyRequest: Encodable {}
 
-/// `POST /sessions` 본문이다. 서버 처리는 기존처럼 빈 본문을 보낸다.
+/// `POST /sessions` 본문이다. 서버 처리는 처리 방식 필드를 보내지 않는다.
 /// 온디바이스는 공유 계약(direct-publish-v1)의 최상위 `ai_processing`을 보낸다. 처리 방식을
 /// 돌려주지 않는 구 서버와 협상하도록 `metadata.ai_processing`도 함께 보낸다(서버는 최상위 값을 먼저 쓴다).
-/// 서버 송출은 기본 해상도를 사용하고 온디바이스 송출은 선택한 카메라 해상도를 전달한다.
+/// 해상도는 처리 방식과 관계없이 선택한 카메라 화질을 보낸다. 생략하면 서버 기본값(720p) 세션이 된다.
 struct YouTubeSessionCreateRequest: Encodable, Equatable {
     let aiProcessing: String?
     let broadcastResolution: String?
     let metadata: [String: String]?
 
     init(mode: AIProcessingMode, broadcastResolution: String? = nil) {
-        self.broadcastResolution = mode == .onDevice ? broadcastResolution : nil
+        self.broadcastResolution = broadcastResolution
         aiProcessing = mode == .server ? nil : mode.rawValue
         metadata = mode == .server ? nil : ["ai_processing": mode.rawValue]
     }
