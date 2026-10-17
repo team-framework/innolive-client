@@ -1217,7 +1217,10 @@ internal class WebRtcConnection(
         videoSender = sender
     }
 
-    /** Applied before the offer so the first keyframe already uses the session's bitrate budget. */
+    /**
+     * Applied before the offer so the first keyframe already uses the session's bitrate budget,
+     * and again after network recovery to reseed the estimator at the session's start bitrate.
+     */
     private fun applyUplinkPolicy(connection: PeerConnection) {
         val sender = videoSender ?: return
         val preference = uplinkDegradationPreferenceForAI(onDeviceProcessing)
@@ -1668,6 +1671,8 @@ internal class WebRtcConnection(
         if (recoveryWindow.deadlineMillis != null) {
             cancelRecoveryWork()
             Log.i("LiveConnection", "network_recovery_succeeded")
+            // The estimate collapses during the outage and otherwise climbs back for minutes.
+            peerConnection?.let(::applyUplinkPolicy)
         }
         updateState(WebRtcConnectionState.CONNECTED)
         startUplinkStats()
