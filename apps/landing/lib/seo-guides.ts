@@ -1,3 +1,4 @@
+import { koreanComparisonGuide } from "@/lib/seo-comparison";
 import { englishSeoGuides } from "@/lib/seo-guides.en";
 import { getMessages } from "@/lib/messages";
 import { getPersonalPlans } from "@/lib/plans";
@@ -12,12 +13,21 @@ export type SeoGuide = {
   faq?: { question: string; answer: string }[];
   related: string[];
   showPersonalPlans?: boolean;
+  comparison?: {
+    checkedAt: string;
+    disclosure: string;
+    caption: string;
+    columns: string[];
+    rows: { label: string; cells: string[] }[];
+    sources: { name: string; url: string }[];
+  };
 };
 
 const spark = getPersonalPlans(getMessages("ko"), "ko")[0];
 const sparkLimits = spark.features.slice(1).map(({ text }) => text).join(", ");
 
 export const seoGuides: SeoGuide[] = [
+  koreanComparisonGuide,
   {
     path: "/live-mosaic",
     title: "실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive",
@@ -126,7 +136,7 @@ export const seoGuides: SeoGuide[] = [
             "answer": "InnoLive는 얼굴을 감지해 블러로 가립니다. 공개할 출연자는 얼굴 등록으로 구분합니다. 이름·차량 번호판·음성은 자동으로 가리지 않으며, 방송 전에 처리 결과를 확인해야 합니다."
       }
 ],
-    related: ["/face-mosaic", "/live-mosaic", "/free-face-blur", "/blog/automatic-mosaic"],
+    related: ["/compare/live-face-blur-apps", "/face-mosaic", "/live-mosaic", "/free-face-blur", "/blog/automatic-mosaic"],
   },
   {
     path: "/free-face-blur",

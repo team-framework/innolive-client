@@ -98,6 +98,12 @@ def check_page(base, path, robots):
         assert webpage["inLanguage"] == path.split("/")[1], "schema language"
         paragraphs = [normalized(node.text()) for node in find(lambda node: node.tag == "p")]
         assert normalized(webpage["description"]) in paragraphs, "schema description missing from body"
+        if "/compare/" in path:
+            assert find(lambda node: node.tag == "table"), "comparison table missing"
+            assert find(lambda node: node.tag == "time" and node.attrs.get("datetime") == webpage["dateModified"]), "comparison date missing from body"
+            links = {node.attrs.get("href") for node in find(lambda node: node.tag == "a")}
+            assert len(webpage["citation"]) >= 3 and set(webpage["citation"]) <= links, "comparison citations missing from body"
+            assert webpage["author"]["@id"] == ORIGIN + "/#organization", "comparison publisher disclosure"
         software = next(node for node in graph if node["@type"] == "SoftwareApplication")
         assert software["@id"] == ORIGIN + "/#software", "product identity"
         for faq in (node for node in graph if node["@type"] == "FAQPage"):

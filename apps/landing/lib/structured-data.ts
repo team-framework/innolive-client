@@ -81,6 +81,11 @@ export function guideStructuredData(guide: SeoGuide, locale: "ko" | "en" = "ko")
         name: guide.heading, description: guide.intro, inLanguage: locale,
         isPartOf: { "@id": websiteId }, about: { "@id": softwareId },
         breadcrumb: { "@id": `${url}#breadcrumb` },
+        ...(guide.comparison ? {
+          author: { "@id": organizationId },
+          dateModified: guide.comparison.checkedAt,
+          citation: guide.comparison.sources.map(({ url }) => url),
+        } : {}),
         ...(guide.path === "/mosaic-software" ? { mainEntity: { "@id": softwareId } } : {}),
         ...(isArticle ? { mainEntity: { "@id": `${url}#article` } } : {}),
         ...(faq.length ? { hasPart: { "@id": `${url}#faq` } } : {}),
