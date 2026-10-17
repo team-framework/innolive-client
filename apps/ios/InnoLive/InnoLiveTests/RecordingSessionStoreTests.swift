@@ -57,8 +57,8 @@ import XCTest
         let store = makeStore(directory)
         let recorder = try store.begin(sessionID: "retry")
         try await feed(recorder)
-        let partial = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasSuffix(".partial.mp4") })
-        let stem = partial.lastPathComponent.replacingOccurrences(of: ".partial.mp4", with: "")
+        let journal = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasSuffix(".pending.json") })
+        let stem = journal.lastPathComponent.replacingOccurrences(of: ".pending.json", with: "")
         let blockedMetadata = directory.appendingPathComponent("\(stem).json")
         try FileManager.default.createDirectory(at: blockedMetadata, withIntermediateDirectories: true)
         do { _ = try await store.finish(sessionID: "retry"); XCTFail("Expected metadata write failure") } catch {}
