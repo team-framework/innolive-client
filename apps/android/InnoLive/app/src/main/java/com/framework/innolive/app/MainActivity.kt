@@ -68,6 +68,7 @@ import com.framework.innolive.feature.live.tutorial.BroadcastTutorialViewModel
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
+import com.framework.innolive.feature.live.recording.BroadcastRecordingLibraryScreen
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.feature.settings.PlanUsage
@@ -120,6 +121,8 @@ data object SettingsRoute : AppRoute
 data object CameraSettingRoute : AppRoute
 
 data object BroadcastSettingRoute : AppRoute
+
+data object RecordingsRoute : AppRoute
 
 enum class SettingOptionType {
     CAMERA_RESOLUTION,
@@ -1001,7 +1004,18 @@ fun AppNavigation(
                                     broadcastTutorial.restart()
                                     onBack()
                                 },
+                                onOpenRecordings = { backStack.add(RecordingsRoute) },
                             ),
+                        )
+                    }
+                }
+
+                RecordingsRoute -> {
+                    NavEntry(route) {
+                        // 방송 중에는 인코더·저장소를 송출에 남기려고 내보내기를 막습니다. 목록 확인과 삭제는 허용합니다.
+                        BroadcastRecordingLibraryScreen(
+                            canExport = !isBroadcastActive && webRtcSession.broadcastState == BroadcastState.IDLE,
+                            onBack = onBack,
                         )
                     }
                 }

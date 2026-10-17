@@ -107,6 +107,9 @@ fun SettingsScreen(props: SettingsScreenProps) {
             TextButton(onClick = props.onOpenBroadcastSettings, enabled = enabled) {
                 Text(stringResource(R.string.settings_broadcast))
             }
+            TextButton(onClick = props.onOpenRecordings, enabled = enabled) {
+                Text(stringResource(R.string.settings_recordings))
+            }
             SettingsDivider()
             PlanUsageSettings(props)
             AIProcessingSettings(props)

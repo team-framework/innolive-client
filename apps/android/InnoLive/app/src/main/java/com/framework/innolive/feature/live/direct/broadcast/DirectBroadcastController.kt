@@ -214,6 +214,11 @@ internal class DirectBroadcastController internal constructor(
         if (isActive()) env.media.setPreferredAudioInput(audioInput)
     }
 
+    /** 녹화 종료 전에 끊어야 하므로 작업 스레드를 거치지 않고 바로 바꿉니다. */
+    override fun setRecordingAudioSink(sink: com.framework.innolive.feature.live.recording.RecordingAudioSink?) {
+        if (!closed.get()) env.media.setRecordingAudioSink(sink)
+    }
+
     /** 서버 PATCH는 직접 송출 세션에서 409이므로 앱 가림 처리만 바꿉니다. */
     override fun setAnonymizationEnabled(
         enabled: Boolean,
