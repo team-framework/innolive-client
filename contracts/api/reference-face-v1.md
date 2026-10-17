@@ -36,21 +36,22 @@ The multipart body contains one JPEG file:
 
 Client image preparation:
 
+- show, detect, and upload the same centered square crop;
 - require a source whose shorter edge is at least 500 pixels;
 - resize the crop to 500 x 500 pixels;
 - encode it as JPEG at quality 0.9;
-- detect exactly one face in the final crop locally before uploading;
+- detect exactly one stable face locally before uploading;
 - block duplicate uploads while a request is in flight.
 
-Centered capture shows, detects, and uploads the same centered square crop after
-one stable face. iOS tapped-face registration instead uploads a crop around the
-face the user tapped:
+iOS one-tap registration from the broadcast screen keeps the 500 x 500 JPEG rules
+but uploads a crop around the face the user tapped instead of the centered crop:
 
 - only faces whose shorter side is at least 100 source pixels are selectable;
 - the square crop is centered on the face box and twice its longer side, with
   black padding outside the frame;
 - every other face detected in the frame or in the enlarged crop is filled with
-  black, and the selected face stays unmasked.
+  black, and the selected face stays unmasked;
+- the client checks for exactly one face in the final crop before uploading.
 
 The server also accepts JPEG, PNG, or WebP uploads up to 10 MiB each. The
 broader server limits are defensive and do not replace the client preparation
@@ -64,7 +65,8 @@ operation as successful only when the response is 2xx and `registered` is
 
 The multipart field `images` appends files to the current set. The server
 accepts at most 20 files in one request. iOS multiple-person registration sends one `images` file per registration, preserving
-previously registered people. The 500 x 500 tapped-face crop above applies.
+previously registered people. The original 500 x 500 crop and stable-face detection
+flow still applies; iOS one-tap registration uses the tapped-face crop above.
 The singular `image` field remains a replacement operation.
 
 An optional text field `name` labels a single image. The server trims whitespace,
