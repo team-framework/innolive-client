@@ -191,7 +191,7 @@
           "Up to FHD quality",
           "720p simulcast to two platforms*",
           "Server-side processing less dependent on device performance*",
-          "Up to 12 hours of continuous broadcasting",
+          "Up to 8 hours of continuous broadcasting",
           "Fast queue*",
           "Register up to 5 faces"
         ],
@@ -241,7 +241,7 @@
     "pay": "Subscribe to Glow",
     "termsNote": "*Terms apply.",
     "termsLink": "Learn more",
-    "body": "Glow anonymizes faces and license plates on your device before streaming. It costs ₩9,900/month, or ₩0/month during the beta. You can stream up to FHD to one platform for 60 hours a month, up to 8 hours per broadcast; processing speed depends on your device."
+    "body": "Glow anonymizes faces and license plates on your device before streaming. It costs ₩7,900/month, or ₩0/month during the beta. You can stream up to FHD to one platform for 60 hours a month, up to 8 hours per broadcast; processing speed depends on your device."
   },
   "tryOut": {
     "ariaLabel": "The moment it appears, protection starts",
