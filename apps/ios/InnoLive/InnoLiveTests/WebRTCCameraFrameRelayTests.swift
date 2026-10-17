@@ -234,6 +234,57 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testServerRecordingUsesCameraPixelsBeforeColorCorrection() async throws {
+        try await assertOriginalRecording(mode: .server)
+    }
+
+    @MainActor
+    func testOnDeviceRecordingDoesNotWaitForAIProcessing() async throws {
+        // Admission must occur synchronously before asynchronous AI processing finishes.
+        try await assertOriginalRecording(mode: .onDevice)
+    }
+
+    @MainActor
+    func testRecordingContinuesWhileUplinkRouteIsStopped() async throws {
+        try await assertOriginalRecording(mode: .server, stopRoute: true)
+    }
+
+    @MainActor
+    private func assertOriginalRecording(mode: AIProcessingMode, stopRoute: Bool = false) async throws {
+        let target = ColorRecordingVideoTarget()
+        let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: .back, processingMode: mode)
+        relay.setLockedInterfaceOrientation(.portrait)
+        relay.setColor(warmth: 1, saturation: 0)
+        relay.setExposureEV(1)
+        if stopRoute { relay.stopProcessing() }
+        defer { relay.stopProcessing() }
+        let recorder = LocalBroadcastRecorder()
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("raw-\(UUID().uuidString).mp4")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let epoch = CMClockGetTime(CMClockGetHostTimeClock())
+        try recorder.start(url: url, epoch: epoch)
+        let admitted = OriginalRecordingAdmission()
+        recorder.setValidationVideoAdmission { buffer, rotation, timestamp in
+            admitted.record(buffer, rotation: rotation, timestamp: timestamp)
+        }
+        relay.setRecordingSink(recorder)
+        let timestamp = CMTimeConvertScale(epoch, timescale: 1_000_000_000, method: .default).value
+        let frame = try makeFrame(rotation: 0, timeStampNs: timestamp)
+        let source = try XCTUnwrap((frame.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer)
+        relay.capturer(LKRTCVideoCapturer(delegate: target), didCapture: frame)
+        let snapshot = admitted.snapshot
+        XCTAssertEqual(snapshot.count, 1)
+        XCTAssertTrue(snapshot.buffer === source)
+        XCTAssertEqual(snapshot.rotation, 90)
+        XCTAssertEqual(snapshot.timestamp, timestamp)
+        XCTAssertEqual(try firstPixel(source), [40, 120, 220, 255])
+        relay.setRecordingSink(nil)
+        relay.capturer(LKRTCVideoCapturer(delegate: target), didCapture: frame)
+        XCTAssertEqual(admitted.snapshot.count, 1, "Detached recorders must not receive another frame")
+        _ = try? await recorder.stop() // Video-only admission test; no microphone input.
+    }
+
     private func firstPixel(_ buffer: CVPixelBuffer) throws -> [UInt8] {
         XCTAssertEqual(CVPixelBufferLockBaseAddress(buffer, .readOnly), kCVReturnSuccess)
         defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
@@ -348,5 +399,16 @@ nonisolated private final class RecordingVideoTarget: NSObject, LKRTCVideoCaptur
         recordedTimeStamps90kHz.append(frame.timeStamp)
         recordedWidths.append(Int(frame.width))
         lock.unlock()
+    }
+}
+
+nonisolated private final class OriginalRecordingAdmission: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: (count: Int, buffer: CVPixelBuffer?, rotation: Int, timestamp: Int64) = (0, nil, 0, 0)
+    var snapshot: (count: Int, buffer: CVPixelBuffer?, rotation: Int, timestamp: Int64) {
+        lock.withLock { value }
+    }
+    func record(_ buffer: CVPixelBuffer, rotation: Int, timestamp: Int64) {
+        lock.withLock { value = (value.count + 1, buffer, rotation, timestamp) }
     }
 }
