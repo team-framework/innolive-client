@@ -41,6 +41,7 @@ struct PlanUsageContent: View {
     let lastUpdatedAt: Date?
     let currentMode: BroadcastPlanMode
     var currentProcessing: AIProcessingMode = .server
+    @State var showsBroadcastHistory = false
     let onRefresh: () -> Void
     @State private var selectedProcessing: AIProcessingMode?
     @State private var selectedMode: BroadcastPlanMode?
@@ -92,21 +93,33 @@ struct PlanUsageContent: View {
                     .font(.caption).foregroundStyle(.secondary)
                 if !snapshot.usage.broadcasts.isEmpty {
                     Divider()
-                    Text(String(localized: "방송별 사용 내역", table: "PlanUsage")).font(.headline)
-                    if let month = snapshot.usage.month { Text(month).font(.caption).foregroundStyle(.secondary) }
-                    ForEach(snapshot.usage.broadcasts) { broadcast in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(broadcast.processingTitle).font(.caption.bold()).padding(5).background(.quaternary, in: Capsule())
-                                Text(broadcast.resolution.uppercased() + " · " + broadcast.providers.joined(separator: "+")).font(.caption)
+                    DisclosureGroup(isExpanded: $showsBroadcastHistory) {
+                        ForEach(snapshot.usage.broadcasts) { broadcast in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(broadcast.processingTitle).font(.caption.bold()).padding(5).background(.quaternary, in: Capsule())
+                                    Text(broadcast.resolution.uppercased() + " · " + broadcast.providers.joined(separator: "+")).font(.caption)
+                                }
+                                if let date = broadcast.startDate {
+                                    Text(date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                                }
+                                timeRow(String(localized: "실제 방송 시간", table: "PlanUsage"), value: usedTime(broadcast.broadcastSeconds))
+                                timeRow(String(localized: "차감 시간", table: "PlanUsage"), value: usedTime(broadcast.chargedSeconds))
+                            }.padding(.vertical, 6)
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(String(localized: "방송별 사용 내역", table: "PlanUsage")).font(.headline)
+                                Text("\(snapshot.usage.broadcasts.count)")
+                                    .font(.caption.bold().monospacedDigit())
+                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .background(.quaternary, in: Capsule())
                             }
-                            if let date = broadcast.startDate {
-                                Text(date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
-                            }
-                            timeRow(String(localized: "실제 방송 시간", table: "PlanUsage"), value: usedTime(broadcast.broadcastSeconds))
-                            timeRow(String(localized: "차감 시간", table: "PlanUsage"), value: usedTime(broadcast.chargedSeconds))
-                        }.padding(.vertical, 6)
+                            if let month = snapshot.usage.month { Text(month).font(.caption).foregroundStyle(.secondary) }
+                        }
                     }
+                    .tint(.primary)
                 }
             } else if !isLoading && errorMessage == nil {
                 Text(String(localized: "요금제 조회 대기"))
