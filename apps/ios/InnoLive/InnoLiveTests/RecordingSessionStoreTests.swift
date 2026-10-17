@@ -57,8 +57,8 @@ import XCTest
         let store = makeStore(directory)
         let recorder = try store.begin(sessionID: "retry")
         try await feed(recorder)
-        let partial = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasSuffix(".partial.mp4") })
-        let stem = partial.lastPathComponent.replacingOccurrences(of: ".partial.mp4", with: "")
+        let journal = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first { $0.lastPathComponent.hasSuffix(".pending.json") })
+        let stem = journal.lastPathComponent.replacingOccurrences(of: ".pending.json", with: "")
         let blockedMetadata = directory.appendingPathComponent("\(stem).json")
         try FileManager.default.createDirectory(at: blockedMetadata, withIntermediateDirectories: true)
         do { _ = try await store.finish(sessionID: "retry"); XCTFail("Expected metadata write failure") } catch {}
@@ -91,6 +91,95 @@ import XCTest
         guard case let .failed(_, canRetry) = store.state else { return XCTFail("Missing failed state") }
         XCTAssertFalse(canRetry)
         XCTAssertTrue(store.recordings.isEmpty)
+    }
+
+    func testDeleteReleasesVideoAndMetadataAndSurvivesReload() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let recorder = try store.begin(sessionID: "delete")
+        try await feed(recorder)
+        let result = try await store.finish(sessionID: "delete")
+        let saved = try XCTUnwrap(result)
+        let exportedCopy = directory.appendingPathComponent("exported-copy.mp4")
+        try FileManager.default.copyItem(at: store.fileURL(for: saved), to: exportedCopy)
+        try store.delete(saved)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.fileURL(for: saved).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent("\(saved.id).json").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: exportedCopy.path))
+        XCTAssertEqual(store.state, .idle)
+        XCTAssertTrue(store.recordings.isEmpty)
+        let reloaded = makeStore(directory)
+        await reloaded.reloadLibrary()
+        XCTAssertTrue(reloaded.recordings.isEmpty)
+    }
+
+    func testDeleteDuringReloadDoesNotRestoreEntry() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let recorder = try store.begin(sessionID: "delete-reload")
+        try await feed(recorder)
+        let result = try await store.finish(sessionID: "delete-reload")
+        let saved = try XCTUnwrap(result)
+        let reload = Task { await store.reloadLibrary() }
+        await Task.yield()
+        try store.delete(saved)
+        await reload.value
+        XCTAssertTrue(store.recordings.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.fileURL(for: saved).path))
+    }
+
+    func testDeleteRejectsUnknownEntryAndPreservesActiveRecording() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let recorder = try store.begin(sessionID: "active")
+        try await feed(recorder)
+        let unknown = SavedBroadcastRecording(id: UUID(), sessionID: "active", createdAt: Date(),
+            duration: 1, fileName: "../other.mp4", bytes: 1, videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil)
+        XCTAssertThrowsError(try store.delete(unknown))
+        XCTAssertEqual(store.state, .recording)
+        let result = try await store.finish(sessionID: "active")
+        XCTAssertNotNil(result)
+    }
+
+    func testDeletionFailureKeepsFileAndLibraryEntry() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let manager = FileManager.default
+        defer {
+            try? manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+            try? manager.removeItem(at: directory)
+        }
+        let store = makeStore(directory)
+        let recorder = try store.begin(sessionID: "delete-denied")
+        try await feed(recorder)
+        let result = try await store.finish(sessionID: "delete-denied")
+        let saved = try XCTUnwrap(result)
+        let original = try Data(contentsOf: store.fileURL(for: saved))
+        try manager.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
+        XCTAssertThrowsError(try store.delete(saved))
+        XCTAssertEqual(store.recordings, [saved])
+        XCTAssertEqual(store.state, .saved(saved))
+        XCTAssertEqual(try Data(contentsOf: store.fileURL(for: saved)), original)
+    }
+
+    func testDeletingPreviousRecordingDoesNotStopActiveSession() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let firstRecorder = try store.begin(sessionID: "previous")
+        try await feed(firstRecorder)
+        let firstResult = try await store.finish(sessionID: "previous")
+        let previous = try XCTUnwrap(firstResult)
+        let activeRecorder = try store.begin(sessionID: "active")
+        try await feed(activeRecorder)
+        try store.delete(previous)
+        XCTAssertEqual(store.state, .recording)
+        let activeResult = try await store.finish(sessionID: "active")
+        let saved = try XCTUnwrap(activeResult)
+        XCTAssertEqual(store.recordings, [saved])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.fileURL(for: saved).path))
     }
 
     private func makeStore(_ directory: URL) -> RecordingSessionStore {

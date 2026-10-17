@@ -52,9 +52,11 @@ final class RecordingLibraryRenderingTests: XCTestCase {
         }
         let recorder = try fixture.store.begin(sessionID: "retry-render")
         try await fixture.feed(recorder)
-        let partial = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: fixture.directory, includingPropertiesForKeys: nil)
-            .first { $0.lastPathComponent.hasSuffix(".partial.mp4") })
-        let stem = partial.lastPathComponent.replacingOccurrences(of: ".partial.mp4", with: "")
+        // begin() writes the journal synchronously; AVAssetWriter creates its MP4 asynchronously.
+        // Block the metadata destination using the session identity, without racing the writer.
+        let journal = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: fixture.directory, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasSuffix(".pending.json") })
+        let stem = journal.lastPathComponent.replacingOccurrences(of: ".pending.json", with: "")
         try FileManager.default.createDirectory(at: fixture.directory.appendingPathComponent(stem + ".json"), withIntermediateDirectories: true)
         do { _ = try await fixture.store.finish(sessionID: "retry-render"); XCTFail("Expected blocked metadata destination") } catch {}
         guard case let .failed(message, canRetry) = fixture.store.state else { return XCTFail("Expected actual commit failure") }

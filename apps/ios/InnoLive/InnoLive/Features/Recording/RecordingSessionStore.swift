@@ -44,6 +44,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
     @Published private(set) var preservedRecordings: [PreservedBroadcastRecording] = []
     private static var ownedPaths: Set<String> = []
     private var isReloadingLibrary = false
+    private var deletedRecordingIDs: Set<UUID> = []
     private struct Session {
         let generation: UUID
         let id: UUID
@@ -225,6 +226,26 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         }
     }
 
+    /// Delete only a completed library entry; active and unfinished recordings are excluded.
+    func delete(_ recording: SavedBroadcastRecording) throws {
+        guard recordings.contains(where: { $0.id == recording.id }),
+              recording.fileName == "\(recording.id.uuidString).mp4",
+              active?.id != recording.id, pendingCommits[recording.id] == nil else {
+            throw RecordingSessionStoreError.invalidFile
+        }
+        let url = fileURL(for: recording)
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+        // A reload can be suspended in asset validation. Do not let it restore this entry.
+        deletedRecordingIDs.insert(recording.id)
+        recordings.removeAll { $0.id == recording.id }
+        if case .saved(let saved) = state, saved.id == recording.id { state = .idle }
+        // Metadata alone cannot restore a deleted video. File deletion errors above remain visible.
+        try? FileManager.default.removeItem(at: directory.appendingPathComponent("\(recording.id.uuidString).json"))
+        try? FileManager.default.removeItem(at: journalURL(recording.id))
+    }
+
     /// Validate durable MP4s on startup. A crash after rename but before metadata write is recoverable.
     /// Partial files are retained but never listed as saved recordings.
     func reloadLibrary() async {
@@ -243,6 +264,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                 guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent) else { continue }
                 do {
                     let duration = try await validate(url)
+                    guard !deletedRecordingIDs.contains(id) else { continue }
                     let metadataURL = directory.appendingPathComponent("\(id.uuidString).json")
                     let metadata = try? JSONDecoder().decode(SavedBroadcastRecording.self, from: Data(contentsOf: metadataURL))
                     let attributes = try url.resourceValues(forKeys: [.creationDateKey, .fileSizeKey])
@@ -259,12 +281,12 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                     }
                     try JSONEncoder().encode(entry).write(to: metadataURL, options: .atomic)
                     recovered.append(entry)
-                } catch { rejected += 1 }
+                } catch { if !deletedRecordingIDs.contains(id) { rejected += 1 } }
             }
             // Preserve entries finalized while asynchronous validation was running.
             let completedDuringReload = recordings.filter { !existingIDs.contains($0.id) }
             let merged = Dictionary((recovered + completedDuringReload).map { ($0.id, $0) }, uniquingKeysWith: { _, new in new })
-            recordings = merged.values.sorted { $0.createdAt > $1.createdAt }
+            recordings = merged.values.filter { !deletedRecordingIDs.contains($0.id) }.sorted { $0.createdAt > $1.createdAt }
             let messages = [
                 rejected == 0 ? nil : String(format: String(localized: "녹화 파일 %lld개를 확인하지 못했습니다."), Int64(rejected)),
                 preservedRecordings.isEmpty ? nil : String(format: String(localized: "완료하지 못한 원본 %lld개를 기기에 보관하고 있습니다."), Int64(preservedRecordings.count))

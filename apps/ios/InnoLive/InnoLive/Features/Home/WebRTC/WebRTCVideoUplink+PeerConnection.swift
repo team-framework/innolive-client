@@ -85,7 +85,8 @@ extension WebRTCVideoUplink {
         self.peerConnection = peerConnection
         audioSender = audioTransceiver.sender
         videoSender = transceiver.sender
-        if isDirectPublishBitrateLimited { applyDirectPublishBitrateLimit() }
+        // offer 전에 적용해 첫 키프레임부터 세션 해상도의 송신 범위를 쓴다. 직접 송출 제한도 여기서 다시 적용된다.
+        applyVideoSendPolicy(startingConnection: true)
     }
 
     func createAndSendOffer() {
