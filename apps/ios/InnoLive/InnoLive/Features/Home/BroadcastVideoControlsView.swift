@@ -3,9 +3,14 @@ import Combine
 
 struct BroadcastVideoControlsView: View {
     @ObservedObject var uplink: WebRTCVideoUplink
+    @ObservedObject var youtube: YouTubeIntegration
+    let accessToken: () -> String?
     @Environment(CameraManager.self) private var cameraManager
     @Environment(\.dismiss) private var dismiss
     @StateObject private var previews = PresetPreviewModel()
+    // 슬라이더를 움직이는 동안의 값이다. 손을 떼면 서버로 보내고, 응답 후에는 확정값을 보인다.
+    @State private var mosaicDraft: MosaicDraft?
+    @State private var isEditingMosaic = false
 
     var body: some View {
         NavigationStack {
@@ -59,6 +64,10 @@ struct BroadcastVideoControlsView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+
+                    Divider()
+
+                    mosaicSection
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
@@ -76,6 +85,112 @@ struct BroadcastVideoControlsView: View {
             .onChange(of: uplink.isCapturingMedia) { _, _ in
                 startPresetPreviews()
             }
+        }
+    }
+
+    private var mosaicSection: some View {
+        let available = youtube.canChangeMosaicConfig
+        let shown = mosaicDraft ?? MosaicDraft(youtube.mosaicConfig)
+        return VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(localized: "모자이크"))
+                    .font(.body.weight(.semibold))
+                if let note = mosaicNote(available: available) {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            control(
+                title: String(localized: "블러 강도"),
+                value: "\(shown.blurRadius)",
+                binding: mosaicBinding(\.blurRadius),
+                range: Double(BroadcastMosaicConfig.blurRadiusRange.lowerBound)...Double(BroadcastMosaicConfig.blurRadiusRange.upperBound),
+                step: 1,
+                leading: String(localized: "약하게"),
+                trailing: String(localized: "강하게"),
+                onEditingChanged: mosaicEditingChanged
+            )
+            .disabled(!available)
+
+            control(
+                title: String(localized: "가림 영역 너비"),
+                value: "\(shown.maskMargin)px",
+                binding: mosaicBinding(\.maskMargin),
+                range: Double(BroadcastMosaicConfig.maskMarginRange.lowerBound)...Double(BroadcastMosaicConfig.maskMarginRange.upperBound),
+                step: 1,
+                leading: String(localized: "좁게"),
+                trailing: String(localized: "넓게"),
+                onEditingChanged: mosaicEditingChanged
+            )
+            .disabled(!available)
+
+            if let message = youtube.mosaicConfigErrorMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            Button {
+                mosaicDraft = nil
+                submitMosaic(youtube.mosaicConfig.adjusted(blurRadius: nil, maskMargin: nil))
+            } label: {
+                HStack(spacing: 8) {
+                    if youtube.isChangingMosaicConfig { ProgressView().controlSize(.small) }
+                    Label(String(localized: "모자이크 기본값"), systemImage: "arrow.counterclockwise")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .disabled(!available)
+        }
+    }
+
+    private func mosaicNote(available: Bool) -> String? {
+        guard let session = youtube.session else {
+            return String(localized: "방송을 준비하면 조절할 수 있습니다.")
+        }
+        if session.processingMode != .server {
+            return String(localized: "서버 AI 처리에서만 조절할 수 있습니다.")
+        }
+        if available && !youtube.isAnonymizationEnabled {
+            return String(localized: "비식별화가 켜져 있을 때 적용됩니다.")
+        }
+        return nil
+    }
+
+    private func mosaicBinding(_ keyPath: WritableKeyPath<MosaicDraft, Int>) -> Binding<Double> {
+        Binding(
+            get: { Double((mosaicDraft ?? MosaicDraft(youtube.mosaicConfig))[keyPath: keyPath]) },
+            set: { value in
+                var draft = mosaicDraft ?? MosaicDraft(youtube.mosaicConfig)
+                draft[keyPath: keyPath] = Int(value.rounded())
+                mosaicDraft = draft
+                // VoiceOver 조절처럼 드래그 없이 바뀐 값은 바로 보낸다.
+                if !isEditingMosaic { commitMosaicDraft() }
+            }
+        )
+    }
+
+    private func mosaicEditingChanged(_ editing: Bool) {
+        isEditingMosaic = editing
+        if !editing { commitMosaicDraft() }
+    }
+
+    private func commitMosaicDraft() {
+        guard let draft = mosaicDraft else { return }
+        submitMosaic(youtube.mosaicConfig.adjusted(blurRadius: draft.blurRadius, maskMargin: draft.maskMargin))
+    }
+
+    private func submitMosaic(_ config: BroadcastMosaicConfig) {
+        guard config != youtube.mosaicConfig || youtube.isChangingMosaicConfig else {
+            mosaicDraft = nil
+            return
+        }
+        Task {
+            await youtube.updateMosaicConfig(config, accessToken: accessToken())
+            if !youtube.isChangingMosaicConfig && !isEditingMosaic { mosaicDraft = nil }
         }
     }
 
@@ -169,7 +284,8 @@ struct BroadcastVideoControlsView: View {
         range: ClosedRange<Double>,
         step: Double,
         leading: String,
-        trailing: String
+        trailing: String,
+        onEditingChanged: @escaping (Bool) -> Void = { _ in }
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -181,7 +297,7 @@ struct BroadcastVideoControlsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Slider(value: binding, in: range, step: step)
+            Slider(value: binding, in: range, step: step, onEditingChanged: onEditingChanged)
                 .accessibilityLabel(title)
                 .accessibilityValue(value)
 
@@ -193,6 +309,16 @@ struct BroadcastVideoControlsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct MosaicDraft: Equatable {
+    var blurRadius: Int
+    var maskMargin: Int
+
+    init(_ config: BroadcastMosaicConfig) {
+        blurRadius = config.effectiveBlurRadius
+        maskMargin = config.effectiveMaskMargin
     }
 }
 
