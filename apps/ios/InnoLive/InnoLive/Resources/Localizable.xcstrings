@@ -3852,25 +3852,25 @@
         }
       }
     },
-    "YouTube 연결을 완료하지 못했습니다. 다시 시도해 주세요.": {
+    "방송 연결을 완료하지 못했습니다. 다시 시도해 주세요.": {
       "extractionState": "manual",
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTube 연결을 완료하지 못했습니다. 다시 시도해 주세요."
+            "value": "방송 연결을 완료하지 못했습니다. 다시 시도해 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Could not complete the YouTube connection. Please try again."
+            "value": "Could not complete the broadcast connection. Please try again."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "YouTubeへの接続を完了できませんでした。もう一度お試しください。"
+            "value": "配信の接続を完了できませんでした。もう一度お試しください。"
           }
         }
       }

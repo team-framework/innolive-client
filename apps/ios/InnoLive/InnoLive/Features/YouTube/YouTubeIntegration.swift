@@ -2993,7 +2993,16 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = uplinkError
             return
         }
-        errorMessage = String(localized: "YouTube 연결을 완료하지 못했습니다. 다시 시도해 주세요.")
+        // 사용자에게 보일 문구가 있는 오류는 대체 문구로 가리지 않는다.
+        if case let .failed(message) = error as? WebRTCVideoUplinkError {
+            errorMessage = message
+            return
+        }
+        if let error = error as? DirectPublishError, let message = error.errorDescription {
+            errorMessage = message
+            return
+        }
+        errorMessage = String(localized: "방송 연결을 완료하지 못했습니다. 다시 시도해 주세요.")
     }
 
     private func showError(_ error: YouTubeAPIError) {
