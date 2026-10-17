@@ -6,7 +6,7 @@ import { useLocale } from "@/components/locale-provider";
 import { socialLinks } from "@/lib/site";
 
 export function Footer() {
-  const { href, messages } = useLocale();
+  const { href, messages, locale } = useLocale();
 
   return (
     <footer className="w-full bg-background-footer">
@@ -55,6 +55,9 @@ export function Footer() {
                 <Link href={href("/terms")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
                   {messages.footer.terms}
                 </Link>
+                {locale !== "ja" && <Link href={href("/mosaic-software")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                  {locale === "en" ? "Live face blur app" : "실시간 방송 모자이크 앱"}
+                </Link>}
                 <Link href={href("/support")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
                   {messages.footer.support}
                 </Link>

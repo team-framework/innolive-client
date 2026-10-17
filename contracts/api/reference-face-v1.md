@@ -43,6 +43,16 @@ Client image preparation:
 - detect exactly one stable face locally before uploading;
 - block duplicate uploads while a request is in flight.
 
+iOS one-tap registration from the broadcast screen keeps the 500 x 500 JPEG rules
+but uploads a crop around the face the user tapped instead of the centered crop:
+
+- only faces whose shorter side is at least 100 source pixels are selectable;
+- the square crop is centered on the face box and twice its longer side, with
+  black padding outside the frame;
+- every other face detected in the frame or in the enlarged crop is filled with
+  black, and the selected face stays unmasked;
+- the client checks for exactly one face in the final crop before uploading.
+
 The server also accepts JPEG, PNG, or WebP uploads up to 10 MiB each. The
 broader server limits are defensive and do not replace the client preparation
 rules above.
@@ -56,7 +66,8 @@ operation as successful only when the response is 2xx and `registered` is
 The multipart field `images` appends files to the current set. The server
 accepts at most 20 files in one request. iOS multiple-person registration sends one `images` file per registration, preserving
 previously registered people. The original 500 x 500 crop and stable-face detection
-flow still applies. The singular `image` field remains a replacement operation.
+flow still applies; iOS one-tap registration uses the tapped-face crop above.
+The singular `image` field remains a replacement operation.
 
 An optional text field `name` labels a single image. The server trims whitespace,
 accepts at most 40 Unicode scalars, and rejects CR, LF, NUL, invalid UTF-8, or a

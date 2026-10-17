@@ -26,6 +26,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     let encoder = JSONEncoder()
     let decoder = JSONDecoder()
     let peerConnectionFactory: LKRTCPeerConnectionFactory
+    let recordingAudioTap: WebRTCRecordingAudioTap
+    let recordingAudioProcessingModule: LKRTCDefaultAudioProcessingModule
+    var recordingSink: LocalBroadcastRecorder?
     var peerConnection: LKRTCPeerConnection?
     var cameraCapturer: LKRTCCameraVideoCapturer?
     var fileVideoCapturer: LKRTCFileVideoCapturer?
@@ -83,9 +86,17 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         _ = Self.sslInitialized
         let encoderFactory = LKRTCDefaultVideoEncoderFactory()
         let decoderFactory = LKRTCDefaultVideoDecoderFactory()
+        let tap = WebRTCRecordingAudioTap()
+        recordingAudioTap = tap
+        let module = LKRTCDefaultAudioProcessingModule(config: nil,
+            capturePostProcessingDelegate: nil, renderPreProcessingDelegate: nil)
+        // The upstream adapter initializer ignores its delegate argument; the setter binds it.
+        module.capturePostProcessingDelegate = tap
+        recordingAudioProcessingModule = module
         peerConnectionFactory = LKRTCPeerConnectionFactory(
-            encoderFactory: encoderFactory,
-            decoderFactory: decoderFactory
+            audioDeviceModuleType: .platformDefault, bypassVoiceProcessing: false,
+            encoderFactory: encoderFactory, decoderFactory: decoderFactory,
+            audioProcessingModule: module
         )
         super.init()
         diagnostics.start(
@@ -423,6 +434,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         }
 
         detachTracksFromRenderers()
+        recordingAudioTap.setMuted(true)
         localAudioTrack?.isEnabled = false
         localVideoTrack?.isEnabled = false
         rawPreviewTrack?.isEnabled = false

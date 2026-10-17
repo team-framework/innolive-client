@@ -2,6 +2,7 @@ import { getHomeFaq, type FaqItem } from "@/lib/faq";
 import { localePath, locales, type Locale } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
 import { siteOrigin } from "@/lib/seo";
+import { downloadPlatforms } from "@/lib/site";
 import { seoCopy } from "@/lib/seo-copy";
 import type { SeoGuide } from "@/lib/seo-guides";
 
@@ -31,6 +32,8 @@ function siteEntities(locale: Locale) {
       name: "InnoLive", applicationCategory: "MultimediaApplication",
       url: `${siteOrigin}${localePath(locale, "/")}`,
       description: seoCopy[locale].home.description,
+      operatingSystem: downloadPlatforms.map((platform) => platform.minOs),
+      installUrl: downloadPlatforms.flatMap((platform) => platform.href ? [platform.href] : []),
       publisher: { "@id": organizationId },
     },
   ];
@@ -65,35 +68,41 @@ export function homeStructuredData(locale: Locale) {
   };
 }
 
-export function guideStructuredData(guide: SeoGuide) {
-  const url = `${siteOrigin}/ko${guide.path}`;
+export function guideStructuredData(guide: SeoGuide, locale: "ko" | "en" = "ko") {
+  const url = `${siteOrigin}/${locale}${guide.path}`;
   const isArticle = guide.path.startsWith("/blog/");
   const faq = guide.faq ?? [];
   return {
     "@context": "https://schema.org",
     "@graph": [
-      ...siteEntities("ko"),
+      ...siteEntities(locale),
       {
         "@type": "WebPage", "@id": `${url}#webpage`, url,
-        name: guide.heading, description: guide.intro, inLanguage: "ko",
+        name: guide.heading, description: guide.intro, inLanguage: locale,
         isPartOf: { "@id": websiteId }, about: { "@id": softwareId },
         breadcrumb: { "@id": `${url}#breadcrumb` },
+        ...(guide.comparison ? {
+          author: { "@id": organizationId },
+          dateModified: guide.comparison.checkedAt,
+          citation: guide.comparison.sources.map(({ url }) => url),
+        } : {}),
+        ...(guide.path === "/mosaic-software" ? { mainEntity: { "@id": softwareId } } : {}),
         ...(isArticle ? { mainEntity: { "@id": `${url}#article` } } : {}),
         ...(faq.length ? { hasPart: { "@id": `${url}#faq` } } : {}),
       },
       {
         "@type": "BreadcrumbList", "@id": `${url}#breadcrumb`,
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "InnoLive", item: `${siteOrigin}/ko` },
+          { "@type": "ListItem", position: 1, name: "InnoLive", item: `${siteOrigin}/${locale}` },
           { "@type": "ListItem", position: 2, name: guide.heading, item: url },
         ],
       },
       ...(isArticle ? [{
         "@type": "Article", "@id": `${url}#article`, headline: guide.heading,
-        description: guide.intro, inLanguage: "ko",
+        description: guide.intro, inLanguage: locale,
         mainEntityOfPage: { "@id": `${url}#webpage` }, about: { "@id": softwareId },
       }] : []),
-      ...(faq.length ? [faqEntity(url, "ko", faq)] : []),
+      ...(faq.length ? [faqEntity(url, locale, faq)] : []),
     ],
   };
 }

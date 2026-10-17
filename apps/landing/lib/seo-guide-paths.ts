@@ -1,8 +1,9 @@
-// Korean search guides have no translated equivalent yet.
+// Only advertise languages with complete guide translations.
+export const seoGuideLocales = ["ko", "en"] as const;
 export const seoGuidePaths = [
   "/live-mosaic", "/face-mosaic", "/live-privacy", "/youtube", "/chzzk",
   "/mosaic-software", "/blog/live-face-blur", "/blog/automatic-mosaic",
-  "/free-face-blur", "/mobile-live-face-blur",
+  "/compare/live-face-blur-apps", "/free-face-blur", "/mobile-live-face-blur",
 ] as const;
 
 export function isSeoGuidePath(path: string): boolean {

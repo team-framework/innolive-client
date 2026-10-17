@@ -1,3 +1,5 @@
+import { koreanComparisonGuide } from "@/lib/seo-comparison";
+import { englishSeoGuides } from "@/lib/seo-guides.en";
 import { getMessages } from "@/lib/messages";
 import { getPersonalPlans } from "@/lib/plans";
 
@@ -11,12 +13,21 @@ export type SeoGuide = {
   faq?: { question: string; answer: string }[];
   related: string[];
   showPersonalPlans?: boolean;
+  comparison?: {
+    checkedAt: string;
+    disclosure: string;
+    caption: string;
+    columns: string[];
+    rows: { label: string; cells: string[] }[];
+    sources: { name: string; url: string }[];
+  };
 };
 
 const spark = getPersonalPlans(getMessages("ko"), "ko")[0];
 const sparkLimits = spark.features.slice(1).map(({ text }) => text).join(", ");
 
 export const seoGuides: SeoGuide[] = [
+  koreanComparisonGuide,
   {
     path: "/live-mosaic",
     title: "실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive",
@@ -102,16 +113,30 @@ export const seoGuides: SeoGuide[] = [
   },
   {
     path: "/mosaic-software",
-    title: "실시간 자동 모자이크 프로그램 | InnoLive",
+    title: "실시간 방송 모자이크 애플리케이션 | InnoLive",
     description: "라이브 방송에서 얼굴을 실시간으로 감지하고 블러로 가리세요. InnoLive에서 공개할 얼굴을 등록하고 유튜브·치지직으로 송출할 수 있습니다.",
-    heading: "라이브 방송용 자동 모자이크 프로그램",
-    intro: "라이브 카메라 영상에서 미등록 얼굴을 실시간 블러로 가립니다. 공개할 얼굴을 등록하고 유튜브·치지직(CHZZK)으로 처리한 영상을 송출할 수 있습니다. 웹 체험에서는 얼굴 블러 결과를 확인하고, 실제 방송은 앱에서 준비하세요.",
+    heading: "실시간 방송 모자이크 애플리케이션 InnoLive",
+    intro: "InnoLive는 Android와 iOS에서 사용하는 실시간 방송 모자이크 애플리케이션입니다. 라이브 카메라 영상에서 미등록 얼굴을 자동 감지하고 블러로 가립니다. 공개할 얼굴을 등록하고 유튜브·치지직(CHZZK)으로 처리한 영상을 송출할 수 있습니다. 웹 체험에서는 얼굴 블러 결과를 확인하고, 실제 방송은 앱에서 준비하세요.",
     sections: [
       { heading: "얼굴 자동 모자이크와 공개 대상자 등록", paragraphs: ["얼굴 감지와 공개 대상자 등록을 함께 사용해 출연자와 주변 사람을 구분합니다. 얼굴 감지는 화면 속 얼굴을 찾고, 공개 대상자 등록은 방송에 보여 줄 얼굴을 정하는 기능입니다.", "현재 얼굴을 가리는 방식은 블러입니다. 픽셀 블록 처리가 필요한 경우에는 처리 방식부터 확인하세요."] },
       { heading: "카메라 입력에서 방송 송출까지", paragraphs: ["방송 앱에서 계정을 연결하고 출연자의 얼굴을 등록하세요. 방송 설정을 저장하고 비식별화 결과를 확인한 다음 유튜브 또는 치지직(CHZZK) 송출을 시작하세요.", "얼굴을 가리는 효과는 실제로 전달되는 화면에서 확인해야 합니다. 방송 시작 전 준비 화면과 플랫폼별 시작 절차를 점검하세요."] },
       { heading: "웹에서 얼굴 처리 결과를 체험하세요", paragraphs: ["웹 체험에서는 카메라를 사용해 얼굴 감지와 가리기 결과를 확인할 수 있습니다. 얼굴 등록 전후의 차이를 확인하세요.", "라이브 카메라 영상을 실시간으로 처리합니다. 녹화 파일 업로드, 일괄 편집, 편집 파일 내보내기 기능은 제공하지 않습니다. 사용량과 얼굴 등록 수는 요금제에서 확인하세요."] },
     ],
-    related: ["/face-mosaic", "/live-mosaic", "/free-face-blur", "/blog/automatic-mosaic"],
+    faq: [
+      {
+            "question": "실시간 방송 모자이크 애플리케이션으로 무엇을 사용할 수 있나요?",
+            "answer": "InnoLive는 Android·iOS용 실시간 방송 모자이크 앱입니다. 미등록 얼굴을 자동 감지해 블러로 가리고, 등록한 출연자의 얼굴은 보여 줍니다. 처리한 영상을 유튜브·치지직(CHZZK)으로 송출할 수 있습니다."
+      },
+      {
+            "question": "InnoLive 앱은 어디에서 설치하나요?",
+            "answer": "Android 앱은 ONE store, iOS 앱은 App Store에서 설치할 수 있습니다. Android 11 이상 또는 iOS 18 이상이 필요합니다. 이 페이지의 앱 설치 링크에서 해당 스토어로 이동하세요."
+      },
+      {
+            "question": "방송 화면의 어떤 정보를 가릴 수 있나요?",
+            "answer": "InnoLive는 얼굴을 감지해 블러로 가립니다. 공개할 출연자는 얼굴 등록으로 구분합니다. 이름·차량 번호판·음성은 자동으로 가리지 않으며, 방송 전에 처리 결과를 확인해야 합니다."
+      }
+],
+    related: ["/compare/live-face-blur-apps", "/face-mosaic", "/live-mosaic", "/free-face-blur", "/blog/automatic-mosaic"],
   },
   {
     path: "/free-face-blur",
@@ -185,6 +210,6 @@ export const seoGuides: SeoGuide[] = [
   },
 ];
 
-export function findSeoGuide(path: string) {
-  return seoGuides.find((guide) => guide.path === path);
+export function findSeoGuide(path: string, locale: "ko" | "en" = "ko") {
+  return (locale === "en" ? englishSeoGuides : seoGuides).find((guide) => guide.path === path);
 }

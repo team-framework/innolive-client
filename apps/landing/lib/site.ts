@@ -39,7 +39,7 @@ export const downloadPlatforms: DownloadPlatform[] = [
   {
     id: "ios",
     name: "iOS",
-    minOs: "iOS 26+",
+    minOs: "iOS 18+",
     iconSrc: "/icons/apple.svg",
     iconWidth: 26,
     iconHeight: 26,

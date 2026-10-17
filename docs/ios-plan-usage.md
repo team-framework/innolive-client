@@ -1,7 +1,7 @@
 # iOS 요금제와 방송 가능 시간
 
 대상은 iOS의 요금제 조회·표시와 방송 준비 제한이다. 기존 HTTP 응답을
-추가로 읽으며 온디바이스 세션 생성에는 선택한 캡처 해상도에 맞는 `broadcast_resolution`을 보낸다. WebRTC signaling은 유지한다.
+추가로 읽으며 세션 생성에는 선택한 캡처 해상도에 맞는 `broadcast_resolution`을 보낸다. 서버가 요금제를 이유로 서버 세션의 FHD를 거절하면 720p로 한 번 다시 만든다. WebRTC signaling은 유지한다.
 [계약](../contracts/api/plan-usage-v1.md)은 서버의 plan.go와 usage.go를 기준으로 작성했다.
 
 설정과 방송 준비 화면의 ‘요금제 및 사용량’에서 서버·온디바이스를 선택해

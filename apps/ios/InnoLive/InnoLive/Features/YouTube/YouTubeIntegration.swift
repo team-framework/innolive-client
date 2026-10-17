@@ -1,13 +1,28 @@
 import Combine
 import Foundation
 import UIKit
+#if DEBUG
+import os
+#endif
 
 @MainActor
 final class YouTubeIntegration: ObservableObject {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
     nonisolated deinit {}
 
+    #if DEBUG
+    /// 화질 진단용이다. Console에서 `category:quality`로 세션 해상도와 카메라 화질 전환을 본다.
+    private static let qualityLogger = Logger(subsystem: "com.framework.innolive", category: "quality")
+    #endif
+
     let lifecycle = BroadcastLifecycle()
+    let recordingStore: RecordingSessionStore
+    lazy var recordingCoordinator = BroadcastRecordingCoordinator(store: recordingStore, lifecycle: lifecycle) { [weak self] recorder in
+        self?.videoUplink.setRecordingSink(recorder)
+        self?.directPublisher.setRecordingSink(recorder)
+    }
+    private var recordingSubscription: AnyCancellable?
+    private var recordingStoreSubscription: AnyCancellable?
     private var lifecycleSubscription: AnyCancellable?
     private var countdownTask: Task<Void, Never>?
     private let countdownSleep: @MainActor () async throws -> Void
@@ -555,6 +570,9 @@ final class YouTubeIntegration: ObservableObject {
             ? (active.framesPerSecond == 24 ? .fullHD24 : .fullHD30)
             : (active.framesPerSecond == 24 ? .hd24 : .hd30)
         guard active != quality else { return }
+        #if DEBUG
+        Self.qualityLogger.notice("camera quality switch session=\(resolution, privacy: .public) from=\(active.rawValue, privacy: .public) to=\(quality.rawValue, privacy: .public)")
+        #endif
         let generation = sessionOperationGeneration
         let request = UUID()
         broadcastModeQualityRequest = request
@@ -568,7 +586,13 @@ final class YouTubeIntegration: ObservableObject {
             }
             do {
                 try await videoUplink.switchVideoQuality(to: quality)
+                #if DEBUG
+                Self.qualityLogger.notice("camera quality switch done to=\(quality.rawValue, privacy: .public)")
+                #endif
             } catch {
+                #if DEBUG
+                Self.qualityLogger.notice("camera quality switch failed to=\(quality.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+                #endif
                 guard !Task.isCancelled, generation == sessionOperationGeneration,
                       session?.sessionID == current.sessionID, broadcastModeQualityRequest == request else { return }
                 broadcastModeError = String(localized: "서버 해상도에 맞춰 카메라 화질을 변경하지 못했습니다. 카메라 상태를 확인해 주세요.", table: "BroadcastMode")
@@ -702,8 +726,10 @@ final class YouTubeIntegration: ObservableObject {
         },
         directPublisher: (any DirectBroadcastPublishing)? = nil,
         heartbeatInterval: Duration = .seconds(15),
+        recordingStore: RecordingSessionStore? = nil,
         countdownSleep: @escaping @MainActor () async throws -> Void = { try await Task.sleep(for: .seconds(1)) }
     ) {
+        self.recordingStore = recordingStore ?? RecordingSessionStore()
         self.countdownSleep = countdownSleep
         self.directPublisher = directPublisher ?? DirectBroadcastPublisher()
         self.heartbeatInterval = heartbeatInterval
@@ -726,6 +752,8 @@ final class YouTubeIntegration: ObservableObject {
         connection = preferencesStore.loadConnection()
         hasAcknowledgedYouTubeTransmission = consentStore.hasAcknowledgedYouTubeTransmission
         hasAcknowledgedCHZZKTransmission = consentStore.hasAcknowledgedCHZZKTransmission
+        recordingSubscription = recordingCoordinator.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        recordingStoreSubscription = self.recordingStore.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         lifecycleSubscription = lifecycle.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
@@ -937,6 +965,8 @@ final class YouTubeIntegration: ObservableObject {
     var visibleBroadcastTargets: [BroadcastTargetState] { statePolicy.visibleTargets }
     var broadcastRemainingTime: BroadcastRemainingTime { responseState.details.remainingTime }
     var broadcastResolution: String? { responseState.details.broadcastResolution }
+    /// 업링크 송신 정책의 해상도. 서버가 값을 주지 않으면 서버 기본값 720p다.
+    private var uplinkResolution: VideoUplinkResolution { VideoUplinkResolution(serverValue: broadcastResolution) ?? .hd720 }
 
     var broadcastPhase: String {
         statePolicy.broadcastPhase.rawValue
@@ -1228,7 +1258,21 @@ final class YouTubeIntegration: ObservableObject {
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
                 // 온디바이스 직접 송출은 앱 직접 송출 세션으로 만든다(server #438). 서버 송출을 고르거나
                 // 서버가 처리 방식을 받지 않으면 서버 세션에서 서버 AI를 끄고 중계 송출한다.
-                var created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution)
+                var created: YouTubeBroadcastSession
+                do {
+                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution)
+                } catch YouTubeAPIError.api("plan_resolution_not_allowed"?, _, _) where sessionMode == .server && broadcastResolution == "fhd" {
+                    // 요금제가 FHD를 막으면 서버 세션은 720p로 다시 만든다. 카메라는 세션 응답 해상도에 맞춰진다.
+                    // 온디바이스 세션은 준비 전 요금제 검사가 안내하므로 그대로 실패시킨다.
+                    #if DEBUG
+                    Self.qualityLogger.notice("session fhd rejected by plan; retrying 720p")
+                    #endif
+                    guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
+                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: "720p")
+                }
+                #if DEBUG
+                Self.qualityLogger.notice("session created mode=\(sessionMode.rawValue, privacy: .public) requested=\(broadcastResolution ?? "none", privacy: .public) response=\(created.details.broadcastResolution ?? "none", privacy: .public)")
+                #endif
                 let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
                 // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
                 do {
@@ -1346,7 +1390,8 @@ final class YouTubeIntegration: ObservableObject {
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
                     session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled,
-                                                      sendsMicrophoneToServer: !Self.isDirectPublish(session)),
+                                                      sendsMicrophoneToServer: !Self.isDirectPublish(session),
+                                                      isDirectPublish: Self.isDirectPublish(session), broadcastResolution: uplinkResolution),
                     accessToken: refreshedAccessToken,
                     serverURL: serverURL,
                     iceServers: iceServers,
@@ -1502,8 +1547,11 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func endBroadcast(accessToken: String?) async {
-        invalidateBroadcastLifecycle()
         guard !isEndingSession else { return }
+        cancelBroadcastCountdown()
+        countdownTask?.cancel()
+        countdownTask = nil
+        let wasAwaitingStart = lifecycle.phase == .starting
         isEndingSession = true
         defer { isEndingSession = false }
         sessionOperationGeneration &+= 1
@@ -1513,8 +1561,12 @@ final class YouTubeIntegration: ObservableObject {
         if isYouTubeBroadcastActive {
             await stopYouTubeStream(accessToken: accessToken)
         }
+        let terminationWarning = currentLifecycleTargets.isEmpty && !wasAwaitingStart ? nil
+            : String(localized: "기기 송출은 중단했지만 플랫폼 종료를 확인하지 못했습니다.")
         await stopAllDirectPublish()
         await videoUplink.stopAndWait()
+        lifecycle.finishLocalSession(warning: terminationWarning)
+        recordingCoordinator.endLocally()
         reconnectTask?.cancel()
         reconnectTask = nil
         videoConnectionConfiguration = nil
@@ -1531,8 +1583,10 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func recoverFromVideoUplinkFailure(accessToken: String?) async {
-        invalidateBroadcastLifecycle()
         guard !isRecoveringVideoFailure, !isEndingSession else { return }
+        cancelBroadcastCountdown()
+        countdownTask?.cancel()
+        countdownTask = nil
         isEndingSession = true
         defer { isEndingSession = false }
         isRecoveringVideoFailure = true
@@ -1547,6 +1601,8 @@ final class YouTubeIntegration: ObservableObject {
 
         await stopAllDirectPublish()
         await videoUplink.stopAndWait()
+        lifecycle.finishLocalSession(warning: String(localized: "연결이 끊겨 기기 송출을 중단했습니다. 플랫폼 종료 상태를 확인해 주세요."))
+        recordingCoordinator.endLocally()
         reconnectTask?.cancel()
         reconnectTask = nil
         videoConnectionConfiguration = nil
@@ -1788,7 +1844,7 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = String(localized: "방송할 플랫폼을 하나 이상 선택해 주세요.", table: "Simulcast")
             return false
         }
-        preparationResolution = planProcessingMode == .onDevice ? (preferredVideoQuality.height == 1080 ? "fhd" : "720p") : nil
+        preparationResolution = planProcessingMode == .onDevice ? Self.sessionResolution(for: preferredVideoQuality) : nil
         lastPreparationProviders = providers
         lastPreparationProvider = providers.first
         for provider in providers {
@@ -1868,6 +1924,11 @@ final class YouTubeIntegration: ObservableObject {
         return nil
     }
 
+    /// 세션 생성 `broadcast_resolution` 값이다. 처리 위치와 관계없이 카메라 화질 설정을 따른다.
+    private static func sessionResolution(for quality: CameraQualityPreset) -> String {
+        quality.height == 1080 ? "fhd" : "720p"
+    }
+
     private func createAndConnectForPreparation(
         accessToken: String?,
         providers: [BroadcastSettingsProvider],
@@ -1881,7 +1942,8 @@ final class YouTubeIntegration: ObservableObject {
         videoConnector: (() async -> Bool)?
     ) async -> Bool {
         preparationStatus = BroadcastPreparationStatus(phase: .creatingSession)
-        guard await prepareSession(accessToken: accessToken, broadcastResolution: preparationResolution) else {
+        // 서버 세션도 선택한 화질을 요청한다. 요금제 사전 검사에는 넣지 않고, FHD 거절(403)은 720p로 다시 만든다.
+        guard await prepareSession(accessToken: accessToken, broadcastResolution: Self.sessionResolution(for: preferredVideoQuality)) else {
             guard preparationGeneration == generation else { return false }
             failPreparation(.creatingSession)
             return false
@@ -2054,6 +2116,7 @@ final class YouTubeIntegration: ObservableObject {
                 guard self.lifecycle.isCurrent(generation) else { return }
                 self.synchronizeBroadcastLifecycle()
                 if !self.hasStartedYouTubeBroadcast && self.broadcastPhase != "going_live" {
+                    self.recordingCoordinator.abortFailedStart(sessionID: sessionID)
                     self.lifecycle.startFailed(generation: generation,
                         message: self.errorMessage ?? String(localized: "방송을 시작하지 못했습니다."))
                     if let lock { self.releaseBroadcastOrientationLock(generation: lock) }
@@ -2079,20 +2142,24 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func invalidateBroadcastLifecycle() {
+        // Confirmed recordings finish in the library; an unconfirmed start discards its provisional file.
+        recordingCoordinator.reset()
         countdownTask?.cancel()
         countdownTask = nil
         lifecycle.reset()
     }
 
-    private func synchronizeBroadcastLifecycle() {
-        let targets: Set<String>
+    private var currentLifecycleTargets: Set<String> {
         if let snapshot = responseState.details.targets {
-            targets = Set(snapshot.filter {
+            return Set(snapshot.filter {
                 YouTubeBroadcastStatePolicy(stream: $0.stream, isChangingStreamState: false).hasStartedBroadcast
             }.map(\.provider))
-        } else {
-            targets = hasStartedYouTubeBroadcast ? [responseState.details.provider ?? "youtube"] : []
         }
+        return hasStartedYouTubeBroadcast ? [responseState.details.provider ?? "youtube"] : []
+    }
+
+    private func synchronizeBroadcastLifecycle() {
+        let targets = currentLifecycleTargets
         if targets.isEmpty && (isChangingBroadcastMode || responseState.details.resolutionSwitch?.status == "switching") { return }
         if case .countdown = lifecycle.phase, broadcastPhase != "prepared" {
             cancelBroadcastCountdown()
@@ -2121,6 +2188,7 @@ final class YouTubeIntegration: ObservableObject {
             if !pending && explicitlyEnded {
                 let message = errorMessage ?? String(localized: "방송을 시작하지 못했습니다.")
                 errorMessage = message
+                if let sessionID = session?.sessionID { recordingCoordinator.abortFailedStart(sessionID: sessionID) }
                 lifecycle.startFailed(generation: lifecycle.generation, message: message)
                 forceReleaseBroadcastOrientationLock()
                 return
@@ -2129,6 +2197,7 @@ final class YouTubeIntegration: ObservableObject {
         // A pending platform must not make a still-starting operation look terminated.
         if targets.isEmpty && broadcastPhase == "going_live" { return }
         lifecycle.reconcileTargets(targets, generation: lifecycle.generation)
+        if let sessionID = session?.sessionID { recordingCoordinator.reconcile(targets: targets, sessionID: sessionID) }
     }
 
     func goLiveYouTubeStream(accessToken: String?) async {
@@ -2164,6 +2233,7 @@ final class YouTubeIntegration: ObservableObject {
                 synchronizeBroadcastLifecycle()
             }
         }
+        recordingCoordinator.arm(sessionID: session.sessionID)
         do {
             let liveResponse = try await goLiveWithRetry(
                 session: session,
@@ -2492,6 +2562,10 @@ final class YouTubeIntegration: ObservableObject {
         broadcastModeAwaitingStatus = false
         reconcileBroadcastModeState()
         synchronizeBroadcastModeQuality()
+        // 해상도가 빠진 스냅샷은 무시한다. 카메라 화질 동기화와 같은 값을 따른다.
+        if let resolution = VideoUplinkResolution(serverValue: broadcastResolution) {
+            videoUplink.setBroadcastResolution(resolution)
+        }
         stream = responseState.stream
         unavailableLiveProviders.subtract(Set(liveEditingTargets).subtracting(previouslyLive))
         // 준비·저장 스냅샷은 트랙을 빠뜨릴 수 있다. 이미 확인한 라이브 입력은 유지한다.
@@ -2677,7 +2751,9 @@ final class YouTubeIntegration: ObservableObject {
                             sessionID: session.sessionID,
                             ownerToken: session.ownerToken,
                             processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled,
-                            sendsMicrophoneToServer: !Self.isDirectPublish(session)
+                            sendsMicrophoneToServer: !Self.isDirectPublish(session),
+                            isDirectPublish: Self.isDirectPublish(session),
+                            broadcastResolution: self.uplinkResolution
                         ),
                         accessToken: self.api.currentAccessToken(fallback: accessToken),
                         serverURL: serverURL,
@@ -2786,10 +2862,10 @@ final class YouTubeIntegration: ObservableObject {
 
     private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, provider: BroadcastSettingsProvider?) async {
         let providers = targetProviders(for: action).filter { provider == nil || providerKey($0) == provider?.rawValue }
-        await changeTargets(action, accessToken: accessToken, providers: providers)
+        await changeTargets(action, accessToken: accessToken, providers: providers, presentsEnding: action == .stop && provider == nil)
     }
 
-    private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, providers: [String?]) async {
+    private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, providers: [String?], presentsEnding: Bool = false) async {
         guard !isChangingStreamState, (!isChangingBroadcastMode || action == .stop), (!isHandlingUpgradeOffer || action == .stop),
               !broadcastModeRequestInFlight, backgroundPauseTask == nil else { return }
         clearError()
@@ -2797,8 +2873,18 @@ final class YouTubeIntegration: ObservableObject {
         guard let session, !providers.isEmpty else { return }
         let operationGeneration = beginBroadcastOperation()
         let generation = sessionOperationGeneration
+        let lifecycleGeneration = lifecycle.generation
+        let presentsEndProgress = presentsEnding && lifecycle.beginEnding()
         isChangingStreamState = true
-        defer { if isCurrentBroadcastOperation(operationGeneration) { isChangingStreamState = false } }
+        defer {
+            if isCurrentBroadcastOperation(operationGeneration) {
+                isChangingStreamState = false
+                if presentsEndProgress {
+                    lifecycle.finishEnding(remainingTargets: currentLifecycleTargets,
+                        generation: lifecycleGeneration, error: errorMessage)
+                }
+            }
+        }
         for provider in providers {
             let key = providerKey(provider)
             targetActionErrors[key] = nil

@@ -43,6 +43,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.CameraFrameAnalyzer
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.privacy.PrivacyFaceService
 import com.framework.innolive.feature.live.privacy.PrivacyFaceLibrary
@@ -57,6 +58,7 @@ internal fun LocalFaceManagementScreen(
     accountScope: String?,
     onBack: () -> Unit,
     onChanged: () -> Unit,
+    broadcastCamera: CameraFrameAnalyzer? = null,
 ) {
     val context = LocalContext.current
     val service = remember(context) { PrivacyFaceService.get(context) }
@@ -94,6 +96,7 @@ internal fun LocalFaceManagementScreen(
             name = selectedName,
             service = service,
             library = library,
+            broadcastCamera = broadcastCamera,
             onBack = { enrollingName = null },
             onRegistered = {
                 name = ""
@@ -183,6 +186,7 @@ private fun LocalFaceRegistrationScreen(
     name: String,
     service: PrivacyFaceService,
     library: PrivacyFaceLibrary?,
+    broadcastCamera: CameraFrameAnalyzer?,
     onBack: () -> Unit,
     onRegistered: () -> Unit,
 ) {
@@ -228,7 +232,8 @@ private fun LocalFaceRegistrationScreen(
     BackHandler(onBack = close)
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         val currentGeneration = generation
-        FaceCaptureCamera(
+        FaceCaptureFrames(
+            broadcastCamera = broadcastCamera,
             cameraLensFacing = lensFacing,
             enabled = active && capturing,
             onFrame = { bitmap ->
@@ -296,18 +301,21 @@ private fun LocalFaceRegistrationScreen(
                 message = context.getString(R.string.face_registration_instruction)
             }) { Text(stringResource(R.string.action_capture_again)) }
         }
-        FaceCameraSwitchButton(
-            enabled = active && capturing,
-            onSwitchCamera = {
-                if (capturing) {
-                    generation++
-                    detector.reset()
-                    latest = null
-                    lensFacing = lensFacing.toggled()
-                    message = context.getString(R.string.face_registration_instruction)
-                }
-            },
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
-        )
+        // 방송 중에는 송출 카메라를 그대로 쓰므로 등록 화면에서 카메라를 바꾸지 않습니다.
+        if (broadcastCamera == null) {
+            FaceCameraSwitchButton(
+                enabled = active && capturing,
+                onSwitchCamera = {
+                    if (capturing) {
+                        generation++
+                        detector.reset()
+                        latest = null
+                        lensFacing = lensFacing.toggled()
+                        message = context.getString(R.string.face_registration_instruction)
+                    }
+                },
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
+            )
+        }
     }
 }

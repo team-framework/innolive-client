@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.CameraFrameAnalyzer
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.asString
@@ -68,6 +69,7 @@ internal fun FaceManagementScreen(
     onRefreshAccessToken: suspend () -> String,
     onBack: () -> Unit,
     profileEmail: String = "",
+    broadcastCamera: CameraFrameAnalyzer? = null,
     repositoryFactory: (Context) -> ReferenceFaceRepository = { context ->
         ReferenceFaceRepository(context)
     },
@@ -253,6 +255,7 @@ internal fun FaceManagementScreen(
             onRegistrationSuccess = onBack,
             profileEmail = profileEmail,
             existingFaces = faceStatus?.faces.orEmpty(),
+            broadcastCamera = broadcastCamera,
         )
         return
     }

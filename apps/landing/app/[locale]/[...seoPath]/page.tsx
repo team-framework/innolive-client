@@ -13,22 +13,17 @@ export function generateStaticParams() {
 
 async function resolveGuide(params: Props["params"]) {
   const { locale, seoPath } = await params;
-  const guide = findSeoGuide(`/${seoPath.join("/")}`);
+  const guide = findSeoGuide(`/${seoPath.join("/")}`, locale === "en" ? "en" : "ko");
   if (!guide) notFound();
-  if (locale !== "ko") permanentRedirect(`/ko${guide.path}`);
-  return guide;
+  if (locale !== "ko" && locale !== "en") permanentRedirect(`/ko${guide.path}`);
+  return { guide, locale: locale as "ko" | "en" };
 }
 
 export async function generateMetadata({ params }: Props) {
-  const guide = await resolveGuide(params);
-  const metadata = pageMetadata("ko", guide.path, { title: guide.title, description: guide.description });
-  return {
-    ...metadata,
-    alternates: { canonical: metadata.alternates?.canonical },
-    openGraph: { ...metadata.openGraph, alternateLocale: [] },
-  };
+  const { guide, locale } = await resolveGuide(params);
+  return pageMetadata(locale, guide.path, { title: guide.title, description: guide.description });
 }
 
 export default async function Page({ params }: Props) {
-  return <SeoGuidePage guide={await resolveGuide(params)} />;
+  return <SeoGuidePage {...await resolveGuide(params)} />;
 }

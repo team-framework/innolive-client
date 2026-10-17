@@ -16,14 +16,101 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.core.content.ContextCompat
+import com.framework.innolive.feature.live.CameraFrameAnalyzer
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.isWithinCameraResolutionLimit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 private const val TARGET_WIDTH = 1_280
 private const val TARGET_HEIGHT = 720
 private const val FRAME_INTERVAL_NANOS = 180_000_000L
+
+/**
+ * 얼굴 등록 프레임을 공급합니다. [broadcastCamera]가 있으면 방송 카메라를 끄지 않고 그 프레임을 나눠 받고,
+ * 없으면 얼굴 등록 전용 카메라를 엽니다.
+ */
+@Composable
+internal fun FaceCaptureFrames(
+    broadcastCamera: CameraFrameAnalyzer?,
+    cameraLensFacing: CameraLensFacing,
+    enabled: Boolean,
+    onFrame: (Bitmap) -> Unit,
+    onSourceTooSmall: () -> Unit,
+    onCameraError: () -> Unit,
+) {
+    if (broadcastCamera != null) {
+        BroadcastCameraFaceFrames(broadcastCamera, enabled, onFrame, onSourceTooSmall, onCameraError)
+    } else {
+        FaceCaptureCamera(cameraLensFacing, enabled, onFrame, onSourceTooSmall, onCameraError)
+    }
+}
+
+@Composable
+private fun BroadcastCameraFaceFrames(
+    analyzer: CameraFrameAnalyzer,
+    enabled: Boolean,
+    onFrame: (Bitmap) -> Unit,
+    onSourceTooSmall: () -> Unit,
+    onCameraError: () -> Unit,
+) {
+    val currentOnFrame by rememberUpdatedState(onFrame)
+    val currentOnSourceTooSmall by rememberUpdatedState(onSourceTooSmall)
+    val currentOnCameraError by rememberUpdatedState(onCameraError)
+
+    if (!enabled) return
+
+    DisposableEffect(analyzer) {
+        // 회전·자르기·축소는 송출 분석 스레드를 붙잡지 않도록 별도 스레드에서 합니다.
+        val conversionExecutor = Executors.newSingleThreadExecutor()
+        val isDisposed = AtomicBoolean(false)
+        val isConverting = AtomicBoolean(false)
+        var nextFrameAtNanos = 0L
+        val tap: (ImageProxy) -> Unit = tap@{ image ->
+            if (isDisposed.get()) return@tap
+            val now = System.nanoTime()
+            if (now < nextFrameAtNanos || !isConverting.compareAndSet(false, true)) return@tap
+            nextFrameAtNanos = now + FRAME_INTERVAL_NANOS
+            val rotation = image.imageInfo.rotationDegrees
+            val source = try {
+                image.toBitmap()
+            } catch (error: Exception) {
+                isConverting.set(false)
+                Log.e("FaceCaptureCamera", "Broadcast face frame conversion failed", error)
+                if (!isDisposed.get()) currentOnCameraError()
+                return@tap
+            }
+            try {
+                conversionExecutor.execute {
+                    try {
+                        val bitmap = source.toReferenceFaceBitmap(rotation)
+                        when {
+                            bitmap == null -> if (!isDisposed.get()) currentOnSourceTooSmall()
+                            isDisposed.get() -> bitmap.recycle()
+                            else -> currentOnFrame(bitmap)
+                        }
+                    } catch (error: Exception) {
+                        Log.e("FaceCaptureCamera", "Broadcast face frame conversion failed", error)
+                        if (!isDisposed.get()) currentOnCameraError()
+                    } finally {
+                        isConverting.set(false)
+                    }
+                }
+            } catch (_: RejectedExecutionException) {
+                source.recycle()
+                isConverting.set(false)
+            }
+        }
+        analyzer.setFaceFrameTap(tap)
+
+        onDispose {
+            isDisposed.set(true)
+            analyzer.clearFaceFrameTap(tap)
+            conversionExecutor.shutdown()
+        }
+    }
+}
 
 @Composable
 internal fun FaceCaptureCamera(

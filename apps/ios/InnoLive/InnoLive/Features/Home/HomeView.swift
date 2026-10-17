@@ -15,6 +15,10 @@ struct HomeView: View {
     @State private var isShowingCameraPermissionAlert = false
     @State private var isSwitchingCamera = false
     @State private var isShowingVideoControls = false
+    @State private var isShowingRecordings = false
+    @State private var isSelectingFace = false
+    @State private var recordingPlayback: BroadcastRecordingPlayback?
+    @State private var recordingExport: BroadcastRecordingPlayback?
     @State private var isShowingMicrophonePermissionAlert = false
     @State private var pendingPreparationProvider: BroadcastSettingsProvider?
     @State private var cameraSwitchErrorMessage: String?
@@ -26,6 +30,7 @@ struct HomeView: View {
     @State private var bottomReservedHeight: CGFloat = 56
     @GestureState private var pinchStartZoom: CGFloat?
     @StateObject private var tutorial = BroadcastTutorialCoordinator()
+    @StateObject private var guestRegistrar = GuestFaceRegistrar()
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject private var broadcastOrientation = BroadcastOrientationController.shared
@@ -45,7 +50,26 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            zoomableRemoteStream
+            // Face selection swaps the views: the original takes the main area and the broadcast the corner.
+            if isSelectingFace {
+                FaceSelectionLayer(
+                    videoUplink: youtube.videoUplink,
+                    usesUplinkCamera: localPreviewPresentation == .webrtcLocal,
+                    bottomInset: bottomReservedHeight + 24
+                ) { frame, faceIndex in
+                    // Register in the background and go straight back to the broadcast view.
+                    guestRegistrar.register(
+                        frame: frame,
+                        faceIndex: faceIndex,
+                        name: GuestFaceName.make(),
+                        mode: .selected,
+                        authentication: authentication
+                    )
+                    isSelectingFace = false
+                }
+            } else {
+                zoomableRemoteStream
+            }
 
             if localPreviewPresentation != .hidden {
                 GeometryReader { geo in
@@ -62,7 +86,15 @@ struct HomeView: View {
                         )
                     )
 
-                    originalPreview(for: localPreviewPresentation)
+                    Group {
+                        if isSelectingFace {
+                            OriginalPreviewFrame {
+                                CompactRemoteStreamView(uplink: youtube.videoUplink)
+                            }
+                        } else {
+                            originalPreview(for: localPreviewPresentation)
+                        }
+                    }
                     .frame(width: previewSize.width, height: previewSize.height)
                     .position(
                         x: draggedOrigin.x + previewSize.width / 2,
@@ -127,6 +159,23 @@ struct HomeView: View {
                 .buttonBorderShape(.circle)
                 .accessibilityLabel(String(localized: "영상 조절"))
 
+                Button { isShowingRecordings = true } label: {
+                    Image(systemName: "film.stack")
+                        .font(.title3.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                }
+                .innoLiveGlassButtonStyle()
+                .buttonBorderShape(.circle)
+                .accessibilityLabel(String(localized: "저장된 방송"))
+                .accessibilityIdentifier("broadcast-recordings-library")
+                .disabled(youtube.isYouTubeBroadcastActive || youtube.lifecycle.isPresentingStart || youtube.isChangingStreamState)
+
+                QuickFaceRegistrationButton(
+                    videoUplink: youtube.videoUplink,
+                    isSelecting: $isSelectingFace,
+                    isEnabled: !usesSimulatorVideo && !isSwitchingCamera
+                )
+
                 if isCameraAccessDenied {
                     Button {
                         isShowingCameraPermissionAlert = true
@@ -153,6 +202,16 @@ struct HomeView: View {
                 alignment: .topTrailing
             )
 
+            if !isSelectingFace {
+                GuestRegistrationToast(registrar: guestRegistrar) {
+                    isSelectingFace = true
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, bottomReservedHeight + 24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .animation(.easeOut(duration: 0.2), value: guestRegistrar.status)
+            }
+
             BroadcastControllsView(
                 isBroadcasting: $isBroadcasting,
                 previewTransition: $previewTransition,
@@ -176,7 +235,7 @@ struct HomeView: View {
                 )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityHidden(youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart)
+        .accessibilityHidden(youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd)
         .overlay {
             if let status = youtube.preparationStatus {
                 BroadcastPreparationOverlay(status: status) {
@@ -191,6 +250,29 @@ struct HomeView: View {
             BroadcastStartOverlay(lifecycle: youtube.lifecycle,
                                   orientation: broadcastOrientation.lockedOrientation,
                                   onCancel: youtube.cancelBroadcastCountdown)
+        }
+        .overlay {
+            BroadcastEndPresentation(lifecycle: youtube.lifecycle, isRecordingEnabled: true,
+                onPlay: { recordingPlayback = BroadcastRecordingPlayback(url: $0) },
+                onSave: { recordingExport = BroadcastRecordingPlayback(url: $0) },
+                onRetrySaving: youtube.recordingCoordinator.canRetry ? {
+                    Task { await youtube.recordingCoordinator.retrySaving() }
+                } : nil)
+        }
+        .sheet(isPresented: $isShowingRecordings) {
+            NavigationStack { BroadcastRecordingLibraryView(store: youtube.recordingStore) }
+        }
+        .sheet(item: $recordingPlayback) { item in
+            NavigationStack { BroadcastRecordingPlayerView(url: item.url) }
+        }
+        .sheet(item: $recordingExport) { item in
+            BroadcastRecordingExportSheet(sourceURL: item.url)
+        }
+        .onChange(of: youtube.isYouTubeBroadcastActive) { _, active in
+            if active {
+                isShowingRecordings = false
+                recordingPlayback = nil
+            }
         }
         .broadcastTutorialHost(tutorial, host: .home)
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
@@ -213,6 +295,11 @@ struct HomeView: View {
             BroadcastVideoControlsView(uplink: youtube.videoUplink)
                 .presentationDetents([.height(630), .large])
                 .presentationDragIndicator(.visible)
+        }
+        .onChange(of: localPreviewPresentation) { _, presentation in
+            if presentation == .hidden {
+                isSelectingFace = false
+            }
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
             guard !usesSimulatorVideo else { return }

@@ -32,7 +32,10 @@ export async function generateMetadata({
     metadataBase: new URL(siteOrigin),
     verification: {
       google: "J-BWZsWvCgeHZuOUFzYDyXDBIqTkKECI0MxWfgG1Uzo",
-      other: { "naver-site-verification": "cbbd23aaf2e26c9acc29f017f3809f4b5badf6bc" },
+      other: {
+        "naver-site-verification": "cbbd23aaf2e26c9acc29f017f3809f4b5badf6bc",
+        "msvalidate.01": "5BE3C19CC7F6E87D13A75F7BA8B032C4",
+      },
     },
     ...seoCopy[isLocale(locale) ? locale : defaultLocale].home,
   };

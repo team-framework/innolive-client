@@ -7,6 +7,28 @@ nonisolated struct UplinkVideoOutboundStats: Equatable, Sendable {
     var framesPerSecond: Double?
 }
 
+#if DEBUG
+/// 송신 정책이 인코더 목표까지 닿았는지 실기기에서 보는 상세 값. 샘플마다(2초) 한 줄을 남긴다.
+nonisolated struct UplinkVideoEncoderStats: Equatable, Sendable {
+    var outbound: UplinkVideoOutboundStats
+    var targetBitrate: Double?
+    var encoderImplementation: String?
+    var qualityLimitationResolutionChanges: Int?
+
+    func line(at: Date) -> String {
+        let fps = outbound.framesPerSecond.map { value in
+            String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), value)
+        } ?? "-"
+        let size = outbound.width.flatMap { width in outbound.height.map { "\(width)x\($0)" } } ?? "-"
+        return """
+        uplink video at=\(UplinkQualityLog.timestamp(at)) reason=\(outbound.reason) size=\(size) fps=\(fps) \
+        targetBitrate=\(targetBitrate.map { String(Int($0)) } ?? "-") encoder=\(encoderImplementation ?? "-") \
+        resolutionChanges=\(qualityLimitationResolutionChanges.map(String.init) ?? "-")
+        """
+    }
+}
+#endif
+
 nonisolated enum UplinkQualityKind: String, Equatable, Sendable {
     case limitation
     case resolution
@@ -107,19 +129,35 @@ nonisolated struct UplinkQualityTracker: Sendable {
 
 nonisolated enum UplinkVideoStatsParser {
     static func videoOutbound(statistics: [(type: String, values: [String: Any])]) -> UplinkVideoOutboundStats? {
-        let video = statistics.first { entry in
+        guard let video = videoOutboundValues(statistics) else { return nil }
+        let reason = stringValue(video["qualityLimitationReason"]).flatMap { $0.isEmpty ? nil : $0 } ?? "none"
+        return UplinkVideoOutboundStats(
+            reason: reason,
+            width: intValue(video["frameWidth"]),
+            height: intValue(video["frameHeight"]),
+            framesPerSecond: doubleValue(video["framesPerSecond"])
+        )
+    }
+
+    #if DEBUG
+    static func videoEncoder(statistics: [(type: String, values: [String: Any])]) -> UplinkVideoEncoderStats? {
+        guard let outbound = videoOutbound(statistics: statistics),
+              let video = videoOutboundValues(statistics) else { return nil }
+        return UplinkVideoEncoderStats(
+            outbound: outbound,
+            targetBitrate: doubleValue(video["targetBitrate"]),
+            encoderImplementation: stringValue(video["encoderImplementation"]),
+            qualityLimitationResolutionChanges: intValue(video["qualityLimitationResolutionChanges"])
+        )
+    }
+    #endif
+
+    private static func videoOutboundValues(_ statistics: [(type: String, values: [String: Any])]) -> [String: Any]? {
+        statistics.first { entry in
             guard entry.type == "outbound-rtp" else { return false }
             let kind = stringValue(entry.values["kind"]) ?? stringValue(entry.values["mediaType"])
             return kind == "video"
-        }
-        guard let video else { return nil }
-        let reason = stringValue(video.values["qualityLimitationReason"]).flatMap { $0.isEmpty ? nil : $0 } ?? "none"
-        return UplinkVideoOutboundStats(
-            reason: reason,
-            width: intValue(video.values["frameWidth"]),
-            height: intValue(video.values["frameHeight"]),
-            framesPerSecond: doubleValue(video.values["framesPerSecond"])
-        )
+        }?.values
     }
 
     private static func stringValue(_ value: Any?) -> String? {

@@ -20,7 +20,7 @@ export function LanguageSwitch({ className }: { className?: string }) {
           if (!isLocale(next) || next === locale) return;
           document.cookie = `NEXT_LOCALE=${next}; Path=/; SameSite=Lax`;
           router.push(
-            isSeoGuidePath(stripLocalePrefix(window.location.pathname))
+            isSeoGuidePath(stripLocalePrefix(window.location.pathname)) && next === "ja"
               ? switchLocalePath("/", next)
               : switchLocalePath(window.location.pathname, next, window.location.search, window.location.hash),
             { scroll: false },

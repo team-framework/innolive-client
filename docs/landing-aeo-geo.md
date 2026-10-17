@@ -4,7 +4,7 @@
 
 공개 웹사이트 `apps/landing`에서 제품 동작과 사용 방법을 설명하고, 검색·AI 답변에서
 공식 페이지를 출처로 사용할 수 있도록 본문과 구조화 데이터를 정리한다.
-대상은 한국어·영어·일본어 홈 3개와 한국어 기능·사용 방법 페이지 10개다.
+대상은 한국어·영어·일본어 홈 3개와 한국어·영어 기능·사용 방법 페이지 각 10개다.
 HTTP API·WebRTC signaling 계약 영향은 없다.
 
 사용자가 정한 목표는 제품명을 넣지 않은 질문에 ChatGPT·Gemini·Claude가 InnoLive를
@@ -14,11 +14,11 @@ HTTP API·WebRTC signaling 계약 영향은 없다.
 ## 본문과 제품 정보
 
 - 홈 첫 화면은 기존 한영일 카피를 유지한다. 기능·검색어 설명은 메타데이터와 사용 가이드에 둔다.
-- 한국어 안내 페이지 첫 문장에서 기능 또는 사용 순서에 답한다. 현재 처리 방식은 블러로 명시한다.
+- 한국어·영어 안내 페이지 첫 문장에서 기능 또는 사용 순서에 답한다. 현재 처리 방식은 블러로 명시한다.
 - 홈 FAQ는 `lib/faq.ts`의 질문·답변을 화면과 JSON-LD에서 함께 사용한다. 개인정보 처리방침 링크를 유지한다.
 - `lib/structured-data.ts`에서 Organization·WebSite·SoftwareApplication의 공통 `@id`를 사용한다.
-- 13개 페이지의 WebPage를 사이트·제품과 연결하고, 안내 페이지의 BreadcrumbList를 표시한 탐색 경로와 일치시킨다.
-- 사용 방법 글 2개는 Article로 연결한다. FAQ 질문에는 화면의 `#faq-N` 위치를 연결한다.
+- 23개 페이지의 WebPage를 사이트·제품과 연결하고, 안내 페이지의 BreadcrumbList를 표시한 탐색 경로와 일치시킨다.
+- 사용 방법 글은 언어별 2개씩 Article로 연결한다. FAQ 질문에는 화면의 `#faq-N` 위치를 연결한다.
 - 무료 이용 안내는 가격 페이지와 같은 요금제 데이터를 사용한다. 평점·출시일·성능 수치를 만들지 않는다.
 - 다운로드 메뉴의 Android 최소 OS를 앱의 `minSdk=30`과 기존 FAQ에 맞춰 Android 11+로 정정한다.
 - 무료 이용·휴대폰 야외방송 안내 2개를 추가하고 관련 안내·sitemap에 연결한다. 홈 푸터의 사용 가이드에서 안내 페이지로 이동한다.
@@ -47,8 +47,8 @@ FAQPage는 공개한 질문·답변을 설명하는 schema.org 형식으로 사�
 
 ## 크롤러 접근
 
-기존 robots.txt의 공개 페이지 허용·API 경로 제외 규칙을 유지하고 sitemap은 29개에서
-31개 URL로 늘린다. Googlebot·Google-Extended·bingbot·OAI-SearchBot·Claude-SearchBot·
+기존 robots.txt의 공개 페이지 허용·API 경로 제외 규칙을 유지하고 sitemap은 영어 안내 10개를 포함해
+41개 URL을 제공한다. Googlebot·Google-Extended·bingbot·OAI-SearchBot·Claude-SearchBot·
 Claude-User·PerplexityBot에 대해 공개 페이지 허용과 API 제외를 검사한다.
 OAI-SearchBot user agent로 운영 HTML의 HTTP 200을 확인했다. 실제 크롤러 IP에서의
 접근과 수집 여부는 서버·CDN 로그로 별도 확인한다.
@@ -76,8 +76,8 @@ python3 scripts/check-aeo.py --base-url http://127.0.0.1:3107 --report /tmp/land
 ```
 
 `check-aeo.py`는 JavaScript를 실행하지 않고 응답 HTML을 파싱한다.
-사이트맵 전체의 HTTP 200·canonical·언어·h1·색인 차단 지시를 검사하고, 대상 13개 페이지의
-schema와 본문 설명, FAQ 질문·답변·앵커의 일치를 검사한다. 43개 질문의 제품명 미포함과
+사이트맵 전체의 HTTP 200·canonical·언어·h1·색인 차단 지시를 검사하고, 대상 23개 페이지의
+schema와 본문 설명, FAQ 질문·답변·앵커의 일치를 검사한다. 한국어·영어 각 43개 질문의 제품명 미포함과
 근거 페이지의 sitemap 등록도 검사한다.
 
 2026-10-03 로컬 결과:
@@ -168,3 +168,42 @@ Search generative AI의 `Current control: Include`를 확인했다. 사이트는
 표시되었다. 이 확인은 페이지별 색인 완료나 AI 인용 횟수 측정에 해당하지 않는다.
 
 실제 AI 인용 증가·색인 완료·운영 배포는 로컬 검증 결과에 포함하지 않는다.
+
+
+## 영어 확대 및 로컬 검증 (2026-10-17)
+
+- 영어 안내 10개에 WebPage·BreadcrumbList와 공통 사이트·제품 식별자를 적용했다. 영어 사용 방법 글 2개에는 Article, FAQ가 있는 6개 안내에는 화면과 같은 질문·답변 15개를 제공한다.
+- [영어 측정 질문](fixtures/landing-aeo-queries.en.json)에 영어 검색어·질문 43개와 영어 근거 URL을 추가했다. 한국어 목록과 같은 ID·검색 의도·기능 적합도 분류를 유지한다. 영어 검색량을 조사하거나 AI 답변을 측정한 결과는 아니다.
+- `check-aeo.py`에서 한영 안내의 hreflang·schema 언어·FAQ 일치, 영어 본문의 한국어 잔여 문구·한국어 내부 링크, 두 언어의 질문 목록을 검사한다.
+- 로컬 production 서버 검사: sitemap 41개 URL, 구조화 데이터 대상 23개 페이지, 본문과 일치하는 FAQ 답변 48개, 크롤러 정책 7개 통과.
+- build·TypeScript·lint와 구조화 데이터 4개·번역 3개 테스트 통과. 브라우저에서 영어 무료 안내 본문·요금표·FAQ·관련 링크와 한국어 대응 페이지 전환을 확인했다.
+
+운영 배포·검색엔진 제출·영어 AI 추천 및 인용 성과는 미검증이다. API·signaling 계약 영향은 없다.
+
+### 영어 de-identification 질문 확장 (2026-10-17)
+
+영어 측정 질문을 43개에서 47개로 늘렸다. 사용자 지정 `realtime de identification service`,
+`realtime de identification application`, `realtime blur application`,
+`live stream realtime blur application`을 검색어로 보존하고 자연어 질문과 근거 안내를 연결했다.
+47개 질문에는 제품명을 넣지 않았다. 별도 SEO 대상 목록의 `InnoLive` 브랜드 검색은
+비브랜드 AI 추천 측정에 포함하지 않는다. 목록 작성은 실제 AI 답변 측정이나 추천 성과를 뜻하지 않는다.
+
+
+### 최신 main 통합
+
+2026-10-15 한국어 라이브 안내의 4단계 방송 준비와 추가 FAQ를 영어에도 반영했다.
+최신 main 통합 후 영어 안내 FAQ는 18개, 전체 검사 대상의 FAQ 답변은 55개다.
+이전 48개 결과는 통합 전 로컬 검증 기록이다. Bing 공개 소유 확인 태그와 IndexNow
+공개 확인 파일을 추가했으며 실제 접수와 검색 노출은 배포 이후 별도 검증한다.
+
+### 한국어 방송 앱 질문의 제품 근거 보강 (2026-10-17)
+
+- `/ko/mosaic-software`의 제목과 첫 문단에 실시간 방송 모자이크 애플리케이션, InnoLive, Android·iOS를 명시했다. 한영 제품 페이지에 설치 링크와 지원 OS, 사용 목적을 서버 렌더링으로 제공하고 공통 푸터에서 연결한다.
+- 본문과 같은 제품 정보로 SoftwareApplication의 operatingSystem·installUrl을 제공한다. 제품 페이지의 mainEntity는 공통 제품 ID를 참조한다. 설치 URL은 다운로드 메뉴와 같은 공개 환경변수에서 가져온다. iOS 최소 버전은 App Store와 앱 배포 설정에 맞춰 18로 수정했다.
+- 제품 FAQ를 언어별 3개 추가했다. 블러 처리, 공개 대상자 등록, 송출 대상과 처리 범위를 설명한다. 한국어 측정 질문은 44개이며 사용자 지정 질문을 primaryPrompt로 보존했다.
+
+개선 전 확인에서 Gemini는 제품 안내를 인용했지만 ChatGPT에서는 추천을 확인하지 못했다.
+Claude 테스트에서는 웹 검색이 비활성화되어 검색을 통한 제품 발견을 평가하지 못했다.
+본문·schema 개선은 추천 순위나 인용을 보장하지 않으며 검색을 켠 동일 질문으로 별도 측정한다.
+
+로컬 production 검사: 41 URL·23 구조화 페이지·61 FAQ 일치·7 크롤러 정책 통과. build·lint·구조화 데이터 4개·번역 3개 테스트 통과.
