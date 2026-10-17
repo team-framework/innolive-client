@@ -118,6 +118,9 @@ struct BroadcastControllsView: View {
                 }
             }
         }
+        .onChange(of: youtube.preparationStatus) { _, status in
+            if status?.isRunning == true { isShowingBroadcastSettings = false }
+        }
         .sheet(isPresented: $isShowingBroadcastSettings) {
             NavigationStack {
                 BroadcastSettingsView(

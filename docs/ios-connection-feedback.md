@@ -23,7 +23,7 @@
 
 Android는 준비 취소 뒤 서버 연결을 유지해 다시 준비할 수 있다. iOS는 취소할 때 WebRTC와 세션을 정리한다. 플랫폼 차이는 [platform matrix](platform-matrix.md)의 연결 시점을 본다.
 
-- 연결 진행 상태는 큰 검은 원격 영상 영역의 원래 로딩 표시와 텍스트, 그리고 하단 방송 준비 버튼에 표시한다. 원래 `ProgressView`, 단계별 제목·설명, 흰 글자, 간격, 접근성 문구는 유지하고 유리 효과 박스는 표시하지 않는다.
+- 방송 준비 단계는 미리보기 위의 전체 화면 오버레이에 진행 표시·단계별 제목·설명으로 표시한다. 설정 검증과 동의를 마치고 준비를 시작하면 설정 시트를 닫는다. 실패 시 같은 화면에서 다시 시도·준비 취소를 제공한다. 취소 중에는 중복 입력을 막는다. Liquid Glass는 버튼에 적용하며 iOS 18은 공통 대체 스타일을 사용한다. 재연결의 기존 영상 영역 피드백은 유지한다.
 - 서버 영상이 도착하면 기존 원격 영상 영역에 표시한다. 연결 단계가 아니고 원격 영상도 없으면 원래 `ContentUnavailableView` 대기 안내를 표시한다. 서버에 연결하기 전에는 로컬 카메라 미리보기를 표시한다.
 - 홈 오류 배너는 연결 또는 복구가 끝난 뒤 `YouTubeIntegration.errorMessage`에 확정된 오류를 한 번 표시한다.
 - 홈 화면은 업링크 상태 publisher를 직접 구독해 연결 실패 시 복구를 실행한다.
@@ -102,3 +102,5 @@ xcodebuild test -project apps/ios/InnoLive/InnoLive.xcodeproj \
   -only-testing:InnoLiveTests/YouTubeBackgroundPauseTests \
   -parallel-testing-enabled NO
 ```
+
+2026-10-17 검증: iPhone 16 실기기에서 BroadcastPreparationFlowTests 및 BroadcastPreparationOverlayRenderingTests 26개 통과. 준비 단계·실패·취소·큰 글씨·고대비 화면의 XCTest 첨부 이미지 확인. API 응답은 URLProtocol fixture이며 실제 공개 방송 검증과 구분한다.
