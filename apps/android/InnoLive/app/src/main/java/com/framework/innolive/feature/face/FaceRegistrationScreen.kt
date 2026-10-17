@@ -48,6 +48,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.CameraFrameAnalyzer
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.asString
@@ -75,6 +76,7 @@ internal fun FaceRegistrationScreen(
     onRegistrationSuccess: () -> Unit = {},
     profileEmail: String = "",
     existingFaces: List<ReferenceFace> = emptyList(),
+    broadcastCamera: CameraFrameAnalyzer? = null,
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -263,7 +265,8 @@ internal fun FaceRegistrationScreen(
             .fillMaxSize()
             .background(Color.Black),
     ) {
-        FaceCaptureCamera(
+        FaceCaptureFrames(
+            broadcastCamera = broadcastCamera,
             cameraLensFacing = lensFacing,
             enabled = isLifecycleActive && phase == FaceRegistrationPhase.CAPTURING,
             onFrame = { bitmap ->
@@ -439,13 +442,16 @@ internal fun FaceRegistrationScreen(
                 }
             }
         }
-        FaceCameraSwitchButton(
-            enabled = isLifecycleActive && phase == FaceRegistrationPhase.CAPTURING,
-            onSwitchCamera = ::switchCamera,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 16.dp),
-        )
+        // 방송 중에는 송출 카메라를 그대로 쓰므로 등록 화면에서 카메라를 바꾸지 않습니다.
+        if (broadcastCamera == null) {
+            FaceCameraSwitchButton(
+                enabled = isLifecycleActive && phase == FaceRegistrationPhase.CAPTURING,
+                onSwitchCamera = ::switchCamera,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 16.dp),
+            )
+        }
     }
 }
 
