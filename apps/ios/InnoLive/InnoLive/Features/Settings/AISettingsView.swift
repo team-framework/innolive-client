@@ -34,6 +34,9 @@ struct AISettingsView: View {
                     .buttonStyle(.plain)
                     .disabled(isChanging || youtube.isScreenBlurEnabled || youtube.isTogglingScreenBlur || youtube.isYouTubeBroadcastActive || youtube.isChangingBroadcastMode || youtube.isChangingStreamState || youtube.isPreparingSession || youtube.isConnectingVideo)
                 }
+                if mode == .onDevice {
+                    OnDeviceTransportSection(youtube: youtube, planStore: youtube.planStore, isChangingMode: isChanging)
+                }
                 if isChanging { ProgressView() }
                 if youtube.isScreenBlurEnabled {
                     Text(String(localized: "화면 블러를 끈 뒤 AI 처리 방식을 변경할 수 있습니다."))
@@ -60,5 +63,48 @@ struct AISettingsView: View {
         }
         .navigationTitle(String(localized: "AI & Faces Setting"))
         .navigationBarTitleDisplayMode(.inline)
+        .task { await youtube.refreshPlan(accessToken: authentication.currentAccessToken()) }
+    }
+}
+
+/// 온디바이스 AI 영상을 앱이 직접 보낼지 서버를 거칠지 고른다. 다음 방송 준비부터 적용한다.
+private struct OnDeviceTransportSection: View {
+    @ObservedObject var youtube: YouTubeIntegration
+    @ObservedObject var planStore: PlanStore
+    let isChangingMode: Bool
+    @State private var transport = OnDeviceTransport.selected
+
+    private var serverUnsupported: Bool { planStore.snapshot?.supportsServerBroadcast == false }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(String(localized: "송출 경로")).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+            ForEach(OnDeviceTransport.allCases) { option in
+                Button {
+                    guard transport != option else { return }
+                    _ = youtube.changeOnDeviceTransport(option)
+                    transport = OnDeviceTransport.selected
+                } label: {
+                    SettingsGlassRow {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(option.title).font(.body.weight(.semibold))
+                                Text(option.detail).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if option == transport { Image(systemName: "checkmark.circle.fill").foregroundStyle(.blue) }
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(isChangingMode || youtube.isYouTubeBroadcastActive || youtube.isPreparingSession || youtube.isConnectingVideo
+                          || (option == .server && serverUnsupported))
+                .accessibilityIdentifier("on-device-transport-\(option.rawValue)")
+            }
+            if serverUnsupported {
+                Text(String(localized: "현재 요금제는 서버 송출을 지원하지 않습니다."))
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
     }
 }

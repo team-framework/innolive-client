@@ -173,8 +173,10 @@ struct PlanSnapshot: Equatable {
         }
         return ModeAvailability(mode: monthly.mode, allowed: monthly.allowed, seconds: seconds, multiplier: monthly.multiplier)
     }
+    /// 요금제 자체가 서버 송출을 허용하는지다. 이번 달 소진 여부는 `serverUnavailable`이 함께 본다.
+    var supportsServerBroadcast: Bool { plan.monthlyBroadcastSeconds > 0 && !plan.allowedModes.isEmpty }
     var serverUnavailable: Bool {
-        plan.monthlyBroadcastSeconds == 0 || plan.allowedModes.isEmpty
+        !supportsServerBroadcast
             || (usage.hasLimitSeconds && usage.limitSeconds == nil) || usage.remainingSeconds == 0
     }
     func isAllowed(_ mode: BroadcastPlanMode, processing: AIProcessingMode = .server) -> Bool {
@@ -189,7 +191,7 @@ struct PlanSnapshot: Equatable {
     }
     // Missing additive fields are unknown: let the server validate instead of reporting exhaustion.
     func preparationBlockMessage(_ mode: BroadcastPlanMode, processing: AIProcessingMode) -> String? {
-        if processing == .server && (plan.monthlyBroadcastSeconds == 0 || plan.allowedModes.isEmpty) {
+        if processing == .server && !supportsServerBroadcast {
             return String(localized: "이 요금제는 서버 송출을 지원하지 않습니다. 방송 준비를 취소한 뒤 온디바이스 방식을 선택해 주세요.")
         }
         if processing == .onDevice && plan.deviceModes == nil { return nil }

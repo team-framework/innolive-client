@@ -45,8 +45,33 @@ final class YouTubeIntegration: ObservableObject {
 
     /// Billing follows the server session, including legacy sessions using local AI over server egress.
     var planProcessingMode: AIProcessingMode {
-        guard let session else { return preparationProcessingOverride ?? aiModeProvider() }
+        guard let session else { return requestedSessionMode }
         return AIProcessingMode(rawValue: session.aiProcessing ?? "server") ?? .server
+    }
+
+    /// 새 세션의 처리 방식이다. 서버 송출을 고른 온디바이스는 `server` 세션에서 서버 AI만 끈다.
+    /// 서버 시간 소진 뒤의 온디바이스 전환(`preparationProcessingOverride`)은 항상 앱 직접 송출이다.
+    private var requestedSessionMode: AIProcessingMode {
+        if let preparationProcessingOverride { return preparationProcessingOverride }
+        let mode = aiModeProvider()
+        return mode == .onDevice && transportProvider() == .server ? .server : mode
+    }
+
+    /// 송출 경로는 다음 세션부터 적용한다. 온디바이스 세션은 경로에 따라 서버 세션 종류가 달라 그대로 바꿀 수 없다.
+    func changeOnDeviceTransport(_ transport: OnDeviceTransport) -> Bool {
+        guard !isYouTubeBroadcastActive, !isSwitchingToOnDevice, !isPreparingSession, !isConnectingVideo,
+              !isEndingSession, !isChangingAIProcessing else { return false }
+        clearError()
+        guard session?.processingMode != .onDevice else {
+            errorMessage = String(localized: "방송 준비를 취소한 뒤 송출 경로를 변경할 수 있습니다.")
+            return false
+        }
+        if transport == .server, planStore.snapshot?.supportsServerBroadcast == false {
+            errorMessage = String(localized: "현재 요금제는 서버 송출을 지원하지 않습니다.")
+            return false
+        }
+        persistTransport(transport)
+        return true
     }
 
     @Published private(set) var isSwitchingToOnDevice = false
@@ -605,6 +630,8 @@ final class YouTubeIntegration: ObservableObject {
     private let aiModeProvider: () -> AIProcessingMode
     private let localModelsAvailable: () -> Bool
     private let persistAIProcessingMode: (AIProcessingMode) -> Void
+    private let transportProvider: () -> OnDeviceTransport
+    private let persistTransport: (OnDeviceTransport) -> Void
     private let api: YouTubeAPI
     private let sessionStore: any BroadcastSessionStoring
     private var sessionScope: BroadcastSessionScope?
@@ -664,6 +691,10 @@ final class YouTubeIntegration: ObservableObject {
         persistAIProcessingMode: @escaping (AIProcessingMode) -> Void = {
             UserDefaults.standard.set($0.rawValue, forKey: AIProcessingMode.storageKey)
         },
+        transportProvider: @escaping () -> OnDeviceTransport = { .selected },
+        persistTransport: @escaping (OnDeviceTransport) -> Void = {
+            UserDefaults.standard.set($0.rawValue, forKey: OnDeviceTransport.storageKey)
+        },
         directPublisher: (any DirectBroadcastPublishing)? = nil,
         heartbeatInterval: Duration = .seconds(15)
     ) {
@@ -672,6 +703,8 @@ final class YouTubeIntegration: ObservableObject {
         self.aiModeProvider = aiModeProvider
         self.localModelsAvailable = localModelsAvailable
         self.persistAIProcessingMode = persistAIProcessingMode
+        self.transportProvider = transportProvider
+        self.persistTransport = persistTransport
         let resolvedAPI = api ?? YouTubeAPI()
         self.api = resolvedAPI
         self.chzzkAuthorization = chzzkAuthorization ?? CHZZKAuthorization()
@@ -1175,6 +1208,7 @@ final class YouTubeIntegration: ObservableObject {
 
         let generation = sessionOperationGeneration
         let requestedMode = preparationProcessingOverride ?? aiModeProvider()
+        let sessionMode = requestedSessionMode
         isPreparingSession = true
         let task = Task { [self] in
             guard sessionOperationGeneration == generation else { return false }
@@ -1182,9 +1216,9 @@ final class YouTubeIntegration: ObservableObject {
                 let scope = try api.broadcastSessionScope(accessToken: accessToken)
                 try await removePreviousSession(scope: scope, accessToken: accessToken)
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                // 온디바이스 선택은 앱 직접 송출 세션으로 만든다(server #438). 서버가 처리 방식을
-                // 받지 않으면 기존처럼 서버 세션에서 서버 AI를 끄고 중계 송출한다.
-                var created = try await api.createSession(accessToken: accessToken, mode: requestedMode, broadcastResolution: broadcastResolution)
+                // 온디바이스 직접 송출은 앱 직접 송출 세션으로 만든다(server #438). 서버 송출을 고르거나
+                // 서버가 처리 방식을 받지 않으면 서버 세션에서 서버 AI를 끄고 중계 송출한다.
+                var created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution)
                 let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
                 // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
                 do {
@@ -1199,7 +1233,7 @@ final class YouTubeIntegration: ObservableObject {
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
                 let createdOnDevice = created.aiProcessing == AIProcessingMode.onDevice.rawValue
                 guard created.aiProcessing == nil || created.aiProcessing == AIProcessingMode.server.rawValue
-                        || (createdOnDevice && requestedMode == .onDevice) else {
+                        || (createdOnDevice && sessionMode == .onDevice) else {
                     try? await removePreviousSession(scope: scope, accessToken: accessToken)
                     throw WebRTCVideoUplinkError.failed(String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다."))
                 }
@@ -1416,6 +1450,11 @@ final class YouTubeIntegration: ObservableObject {
         }
         guard current.aiProcessing == nil || current.aiProcessing == AIProcessingMode.server.rawValue else {
             errorMessage = String(localized: "현재 서버에서 선택한 AI 처리 방식을 사용할 수 없습니다.")
+            return false
+        }
+        if mode == .onDevice, current.processingMode == .server, transportProvider() == .direct {
+            // 연결 유지 전환은 서버 송출이 된다. 앱 직접 송출을 고른 경우 서버 시간으로 차감되지 않게 새 세션을 요구한다.
+            errorMessage = String(localized: "앱 직접 송출은 새 방송 준비가 필요합니다. 방송 준비를 취소한 뒤 다시 선택해 주세요.")
             return false
         }
         let generation = sessionOperationGeneration

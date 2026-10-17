@@ -1,6 +1,190 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "송출 경로": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "송출 경로"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streaming route"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信経路"
+          }
+        }
+      }
+    },
+    "앱 직접 송출": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 직접 송출"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct from app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ直接配信"
+          }
+        }
+      }
+    },
+    "서버 송출": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 송출"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server streaming"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー配信"
+          }
+        }
+      }
+    },
+    "이 기기에서 YouTube·치지직으로 바로 보냅니다. 온디바이스 시간에서 차감됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에서 YouTube·치지직으로 바로 보냅니다. 온디바이스 시간에서 차감됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams from this device straight to YouTube and CHZZK. Uses on-device time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデバイスからYouTube・CHZZKへ直接送ります。オンデバイス時間から差し引かれます。"
+          }
+        }
+      }
+    },
+    "서버를 거쳐 보냅니다. 방송 중 일시 중지와 방송 방식 변경을 쓸 수 있고 서버 시간에서 차감됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버를 거쳐 보냅니다. 방송 중 일시 중지와 방송 방식 변경을 쓸 수 있고 서버 시간에서 차감됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Streams through the server. You can pause and change the broadcast mode while live. Uses server time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー経由で送ります。配信中の一時停止と配信方式の変更を利用でき、サーバー時間から差し引かれます。"
+          }
+        }
+      }
+    },
+    "방송 준비를 취소한 뒤 송출 경로를 변경할 수 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 준비를 취소한 뒤 송출 경로를 변경할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel broadcast preparation before changing the streaming route."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信準備をキャンセルすると、配信経路を変更できます。"
+          }
+        }
+      }
+    },
+    "현재 요금제는 서버 송출을 지원하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 요금제는 서버 송출을 지원하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your current plan does not include server streaming."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランではサーバー配信を利用できません。"
+          }
+        }
+      }
+    },
+    "앱 직접 송출은 새 방송 준비가 필요합니다. 방송 준비를 취소한 뒤 다시 선택해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 직접 송출은 새 방송 준비가 필요합니다. 방송 준비를 취소한 뒤 다시 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Direct streaming from the app needs a new broadcast preparation. Cancel broadcast preparation, then choose again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ直接配信には新しい配信準備が必要です。配信準備をキャンセルしてから選び直してください。"
+          }
+        }
+      }
+    },
     "사용량 구분": {
       "extractionState": "manual",
       "localizations": {

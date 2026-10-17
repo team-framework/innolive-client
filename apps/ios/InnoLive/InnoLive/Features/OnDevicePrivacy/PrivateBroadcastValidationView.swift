@@ -16,7 +16,10 @@ struct PrivateBroadcastValidationView: View {
         _youtube = StateObject(wrappedValue: YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(), api: api,
             aiModeProvider: { (ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") || ProcessInfo.processInfo.arguments.contains("--live-broadcast-edit-test")) ? .server : .onDevice },
-            persistAIProcessingMode: { _ in }
+            persistAIProcessingMode: { _ in },
+            // 전환 시험은 같은 서버 세션에서 처리 위치를 바꾸므로 서버 송출 경로를 쓴다.
+            transportProvider: { ProcessInfo.processInfo.arguments.contains("--ai-mode-switch-test") ? .server : .direct },
+            persistTransport: { _ in }
         ))
     }
 
