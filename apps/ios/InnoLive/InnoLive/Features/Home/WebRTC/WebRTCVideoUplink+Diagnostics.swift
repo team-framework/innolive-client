@@ -38,8 +38,20 @@ final class UplinkDiagnosticsMonitor {
             let line = log.line()
             logger.notice("\(line, privacy: .public)")
         }
+        #if DEBUG
+        if let encoder = UplinkVideoStatsParser.videoEncoder(statistics: statistics) {
+            let line = encoder.line(at: at)
+            logger.notice("\(line, privacy: .public)")
+        }
+        #endif
         return sample
     }
+
+    #if DEBUG
+    func noteSendPolicy(_ line: String) {
+        logger.notice("\(line, privacy: .public)")
+    }
+    #endif
 
     func noteDisconnect(trigger: String, at: Date = Date()) {
         guard let log = context.disconnect(trigger: trigger, at: at) else { return }
