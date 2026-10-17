@@ -221,7 +221,9 @@ struct BroadcastControllsView: View {
 
     private var isPrimaryActionDisabled: Bool {
         let preparationFailed = youtube.preparationStatus?.isFailed == true
-        return (!preparationFailed && isPreparingConnection)
+        return youtube.lifecycle.phase == .starting
+            || { if case .countdown = youtube.lifecycle.phase { return true }; return false }()
+            || (!preparationFailed && isPreparingConnection)
             || youtube.videoUplink.isSwitchingCamera
             || youtube.isChangingStreamState
             || previewTransition == .stopping
@@ -287,7 +289,7 @@ struct BroadcastControllsView: View {
             isShowingBroadcastActions = true
         } else if youtube.broadcastPhase == "prepared" {
             Task {
-                await youtube.goLiveYouTubeStream(accessToken: authentication.currentAccessToken())
+                await youtube.startBroadcastCountdown(accessToken: authentication.currentAccessToken())
             }
         } else {
             isShowingBroadcastSettings = true

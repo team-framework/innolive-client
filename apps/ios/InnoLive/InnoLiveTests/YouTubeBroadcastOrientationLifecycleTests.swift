@@ -329,9 +329,100 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         XCTAssertTrue(integration.videoUplink.isReconnectInProgress)
     }
 
+    func testCountdownWaitsForThreeIntervalsBeforeSingleGoLive() async throws {
+        var intervals = 0
+        let integration = try makePreparedIntegration(countdownSleep: {
+            XCTAssertTrue(YouTubeBroadcastOrientationURLProtocol.requests.isEmpty)
+            intervals += 1
+        })
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming"))
+        ]
+        await integration.startBroadcastCountdown(accessToken: "access-token")
+        XCTAssertEqual(intervals, 3)
+        XCTAssertEqual(YouTubeBroadcastOrientationURLProtocol.requests.filter {
+            $0.url?.path.hasSuffix("/stream/golive") == true
+        }.count, 1)
+        XCTAssertEqual(integration.lifecycle.phase, .live)
+        XCTAssertEqual(locker.lockCallCount, 1)
+    }
+
+    func testCountdownCancellationCannotStartEvenWhenSleepIgnoresCancellation() async throws {
+        var integration: YouTubeIntegration!
+        var intervals = 0
+        integration = try makePreparedIntegration(countdownSleep: {
+            intervals += 1
+            integration.cancelBroadcastCountdown()
+        })
+        await integration.startBroadcastCountdown(accessToken: "access-token")
+        XCTAssertEqual(intervals, 1)
+        XCTAssertTrue(YouTubeBroadcastOrientationURLProtocol.requests.isEmpty)
+        XCTAssertEqual(integration.lifecycle.phase, .prepared)
+        XCTAssertEqual(integration.lifecycle.recording, .idle)
+        XCTAssertFalse(locker.isLocked)
+    }
+
+    func testBackgroundCancelsCountdownBeforeNetwork() async throws {
+        var integration: YouTubeIntegration!
+        integration = try makePreparedIntegration(countdownSleep: {
+            await integration.handleAppMovedToBackground(accessToken: "access-token")
+        })
+        await integration.startBroadcastCountdown(accessToken: "access-token")
+        XCTAssertTrue(YouTubeBroadcastOrientationURLProtocol.requests.isEmpty)
+        XCTAssertEqual(integration.lifecycle.phase, .prepared)
+        XCTAssertFalse(locker.isLocked)
+    }
+
+    func testCountdownResetRejectsOldSessionAndReleasesOrientation() async throws {
+        var integration: YouTubeIntegration!
+        integration = try makePreparedIntegration(countdownSleep: { integration.reset() })
+        await integration.startBroadcastCountdown(accessToken: "access-token")
+        XCTAssertTrue(YouTubeBroadcastOrientationURLProtocol.requests.isEmpty)
+        XCTAssertEqual(integration.lifecycle.phase, .idle)
+        XCTAssertFalse(locker.isLocked)
+    }
+
+    func testStartingIgnoresStalePreparedSnapshotButAcceptsTerminalStop() throws {
+        let integration = try makePreparedIntegration()
+        let preparation = integration.lifecycle.beginPreparation()
+        integration.lifecycle.finishPreparation(generation: preparation)
+        let generation = try XCTUnwrap(integration.lifecycle.beginCountdown())
+        integration.lifecycle.advanceCountdown(generation: generation)
+        integration.lifecycle.advanceCountdown(generation: generation)
+        XCTAssertTrue(integration.lifecycle.beginStarting(generation: generation))
+        let stale = try JSONDecoder().decode(YouTubeSessionResponse.self,
+            from: sessionSnapshot(phase: "prepared", status: "idle"))
+        integration.applyLiveEditingSnapshotForTesting(stale)
+        XCTAssertEqual(integration.lifecycle.phase, .starting)
+        let pending = try JSONDecoder().decode(YouTubeSessionResponse.self,
+            from: sessionSnapshot(phase: "going_live", status: "idle"))
+        integration.applyLiveEditingSnapshotForTesting(pending)
+        XCTAssertEqual(integration.lifecycle.phase, .starting)
+        let terminal = try JSONDecoder().decode(YouTubeSessionResponse.self,
+            from: sessionSnapshot(phase: "idle", status: "stopped"))
+        integration.applyLiveEditingSnapshotForTesting(terminal)
+        XCTAssertEqual(integration.lifecycle.phase, .prepared)
+        XCTAssertEqual(integration.lifecycle.recording, .idle)
+        XCTAssertFalse(integration.lifecycle.isCurrent(generation))
+    }
+
+    func testTerminalSnapshotDuringCountdownCancelsWithoutGoLive() async throws {
+        var integration: YouTubeIntegration!
+        integration = try makePreparedIntegration(countdownSleep: {
+            let terminal = try JSONDecoder().decode(YouTubeSessionResponse.self,
+                from: self.sessionSnapshot(phase: "idle", status: "stopped"))
+            integration.applyLiveEditingSnapshotForTesting(terminal)
+        })
+        await integration.startBroadcastCountdown(accessToken: "access-token")
+        XCTAssertTrue(YouTubeBroadcastOrientationURLProtocol.requests.isEmpty)
+        XCTAssertFalse(integration.lifecycle.isPresentingStart)
+        XCTAssertFalse(locker.isLocked)
+    }
+
     private func makePreparedIntegration(
         phase: String = "prepared",
-        locker: FakeBroadcastOrientationLock? = nil
+        locker: FakeBroadcastOrientationLock? = nil,
+        countdownSleep: @escaping @MainActor () async throws -> Void = { try await Task.sleep(for: .seconds(1)) }
     ) throws -> YouTubeIntegration {
         let store = YouTubePreferencesStore(userDefaults: userDefaults)
         let configuration = URLSessionConfiguration.ephemeral
@@ -344,7 +435,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = YouTubeIntegration(
             preferencesStore: store,
             api: api,
-            orientationLock: locker ?? self.locker
+            orientationLock: locker ?? self.locker,
+            countdownSleep: countdownSleep
         )
         let broadcastSession = try decodeSession(phase: phase)
         integration.seedPreparedVideoSessionForTesting(

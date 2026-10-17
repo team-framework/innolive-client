@@ -7,6 +7,11 @@ final class YouTubeIntegration: ObservableObject {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
     nonisolated deinit {}
 
+    let lifecycle = BroadcastLifecycle()
+    private var lifecycleSubscription: AnyCancellable?
+    private var countdownTask: Task<Void, Never>?
+    private let countdownSleep: @MainActor () async throws -> Void
+
     @Published private(set) var connection: YouTubeConnection?
     @Published private(set) var session: YouTubeBroadcastSession?
     @Published private(set) var stream: YouTubeStreamState?
@@ -696,8 +701,10 @@ final class YouTubeIntegration: ObservableObject {
             UserDefaults.standard.set($0.rawValue, forKey: OnDeviceTransport.storageKey)
         },
         directPublisher: (any DirectBroadcastPublishing)? = nil,
-        heartbeatInterval: Duration = .seconds(15)
+        heartbeatInterval: Duration = .seconds(15),
+        countdownSleep: @escaping @MainActor () async throws -> Void = { try await Task.sleep(for: .seconds(1)) }
     ) {
+        self.countdownSleep = countdownSleep
         self.directPublisher = directPublisher ?? DirectBroadcastPublisher()
         self.heartbeatInterval = heartbeatInterval
         self.aiModeProvider = aiModeProvider
@@ -719,6 +726,9 @@ final class YouTubeIntegration: ObservableObject {
         connection = preferencesStore.loadConnection()
         hasAcknowledgedYouTubeTransmission = consentStore.hasAcknowledgedYouTubeTransmission
         hasAcknowledgedCHZZKTransmission = consentStore.hasAcknowledgedCHZZKTransmission
+        lifecycleSubscription = lifecycle.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
         videoUplink.onConnectionInterrupted = { [weak self] in
             self?.reconnectVideoUsingExistingSession()
         }
@@ -1492,6 +1502,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func endBroadcast(accessToken: String?) async {
+        invalidateBroadcastLifecycle()
         guard !isEndingSession else { return }
         isEndingSession = true
         defer { isEndingSession = false }
@@ -1520,6 +1531,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func recoverFromVideoUplinkFailure(accessToken: String?) async {
+        invalidateBroadcastLifecycle()
         guard !isRecoveringVideoFailure, !isEndingSession else { return }
         isEndingSession = true
         defer { isEndingSession = false }
@@ -1682,6 +1694,8 @@ final class YouTubeIntegration: ObservableObject {
             return await task.value
         }
         guard !isYouTubeConnectionOperationInProgress, !isSwitchingToOnDevice else { return false }
+        cancelBroadcastCountdown()
+        let lifecycleGeneration = hasStartedYouTubeBroadcast ? nil : lifecycle.beginPreparation()
         let chosen = providers ?? [provider]
         let targets = preparationStatus?.isFailed == true && !lastPreparationProviders.isEmpty ? lastPreparationProviders : chosen
         let task = Task { @MainActor in
@@ -1700,6 +1714,10 @@ final class YouTubeIntegration: ObservableObject {
         }
         broadcastPreparationTask = task
         let result = await task.value
+        if let lifecycleGeneration {
+            lifecycle.finishPreparation(generation: lifecycleGeneration,
+                error: result ? nil : (errorMessage ?? String(localized: "방송을 준비하지 못했습니다.")))
+        }
         if broadcastPreparationTask == task {
             broadcastPreparationTask = nil
         }
@@ -1707,6 +1725,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func cancelBroadcastPreparation(accessToken: String?) async {
+        invalidateBroadcastLifecycle()
         let hasWork = preparationStatus != nil
             || broadcastPreparationTask != nil
             || session != nil
@@ -1994,6 +2013,124 @@ final class YouTubeIntegration: ObservableObject {
         preparationStatus = BroadcastPreparationStatus(phase: phase, failedPhase: phase, message: errorMessage)
     }
 
+    /// The first start counts down; retrying a prepared simulcast target keeps the live UI.
+    func startBroadcastCountdown(accessToken: String?) async {
+        if hasStartedYouTubeBroadcast {
+            await goLiveYouTubeStream(accessToken: accessToken)
+            return
+        }
+        guard countdownTask == nil, !isChangingStreamState, !isEndingSession,
+              !isChangingBroadcastMode, !isHandlingUpgradeOffer,
+              preparationStatus?.isFailed != true, broadcastPhase == "prepared",
+              let sessionID = session?.sessionID, let accessToken, !accessToken.isEmpty else { return }
+        if lifecycle.phase != .prepared {
+            let preparation = lifecycle.beginPreparation()
+            lifecycle.finishPreparation(generation: preparation)
+        }
+        guard let generation = lifecycle.beginCountdown() else { return }
+        let sessionGeneration = sessionOperationGeneration
+        let lock = lockBroadcastOrientationIfNeeded()
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                // Polling or a context change can invalidate a prepared broadcast mid-countdown.
+                if self.lifecycle.isCurrent(generation), case .countdown = self.lifecycle.phase {
+                    self.lifecycle.cancelCountdown()
+                    if let lock { self.releaseBroadcastOrientationLock(generation: lock) }
+                }
+            }
+            do {
+                for step in 0..<3 {
+                    try await self.countdownSleep()
+                    try Task.checkCancellation()
+                    guard self.lifecycle.isCurrent(generation),
+                          self.session?.sessionID == sessionID,
+                          self.sessionOperationGeneration == sessionGeneration else { return }
+                    if step < 2 { self.lifecycle.advanceCountdown(generation: generation) }
+                }
+                guard self.broadcastPhase == "prepared", !self.isEndingSession,
+                      self.lifecycle.beginStarting(generation: generation) else { return }
+                await self.goLiveYouTubeStream(accessToken: accessToken)
+                guard self.lifecycle.isCurrent(generation) else { return }
+                self.synchronizeBroadcastLifecycle()
+                if !self.hasStartedYouTubeBroadcast && self.broadcastPhase != "going_live" {
+                    self.lifecycle.startFailed(generation: generation,
+                        message: self.errorMessage ?? String(localized: "방송을 시작하지 못했습니다."))
+                    if let lock { self.releaseBroadcastOrientationLock(generation: lock) }
+                }
+            } catch {
+                if self.lifecycle.isCurrent(generation) {
+                    self.lifecycle.cancelCountdown()
+                    if let lock { self.releaseBroadcastOrientationLock(generation: lock) }
+                }
+            }
+        }
+        countdownTask = task
+        await task.value
+        if countdownTask == task { countdownTask = nil }
+    }
+
+    func cancelBroadcastCountdown() {
+        guard case .countdown = lifecycle.phase else { return }
+        countdownTask?.cancel()
+        countdownTask = nil
+        lifecycle.cancelCountdown()
+        forceReleaseBroadcastOrientationLock()
+    }
+
+    private func invalidateBroadcastLifecycle() {
+        countdownTask?.cancel()
+        countdownTask = nil
+        lifecycle.reset()
+    }
+
+    private func synchronizeBroadcastLifecycle() {
+        let targets: Set<String>
+        if let snapshot = responseState.details.targets {
+            targets = Set(snapshot.filter {
+                YouTubeBroadcastStatePolicy(stream: $0.stream, isChangingStreamState: false).hasStartedBroadcast
+            }.map(\.provider))
+        } else {
+            targets = hasStartedYouTubeBroadcast ? [responseState.details.provider ?? "youtube"] : []
+        }
+        if targets.isEmpty && (isChangingBroadcastMode || responseState.details.resolutionSwitch?.status == "switching") { return }
+        if case .countdown = lifecycle.phase, broadcastPhase != "prepared" {
+            cancelBroadcastCountdown()
+            return
+        }
+        // Only explicit terminal evidence after the request finishes can fail a pending start.
+        // A stale prepared snapshot, empty partial response or failed fetch is not termination.
+        if lifecycle.phase == .starting, targets.isEmpty, !isChangingStreamState {
+            let snapshot = responseState.details.targets
+            let pending = snapshot?.contains {
+                $0.stream.statusValue != .stopped &&
+                    ($0.stream.broadcastPhaseValue == .goingLive || $0.stream.broadcastPhaseValue == .preparing)
+            } ?? (broadcastPhase == "going_live" || broadcastPhase == "preparing")
+            let failedProviders = Set(responseState.details.failedTargets.map(\.provider))
+            let explicitlyEnded: Bool
+            if let snapshot, !snapshot.isEmpty {
+                explicitlyEnded = snapshot.allSatisfy { target in
+                    target.stream.statusValue == .stopped || failedProviders.contains(target.provider)
+                }
+            } else if snapshot == nil {
+                explicitlyEnded = stream?.statusValue == .stopped ||
+                    failedProviders.contains(responseState.details.provider ?? "youtube")
+            } else {
+                explicitlyEnded = !failedProviders.isEmpty
+            }
+            if !pending && explicitlyEnded {
+                let message = errorMessage ?? String(localized: "방송을 시작하지 못했습니다.")
+                errorMessage = message
+                lifecycle.startFailed(generation: lifecycle.generation, message: message)
+                forceReleaseBroadcastOrientationLock()
+                return
+            }
+        }
+        // A pending platform must not make a still-starting operation look terminated.
+        if targets.isEmpty && broadcastPhase == "going_live" { return }
+        lifecycle.reconcileTargets(targets, generation: lifecycle.generation)
+    }
+
     func goLiveYouTubeStream(accessToken: String?) async {
         guard !isChangingBroadcastMode, !isHandlingUpgradeOffer else { return }
         clearError()
@@ -2024,6 +2161,7 @@ final class YouTubeIntegration: ObservableObject {
         defer {
             if isCurrentBroadcastOperation(operationGeneration) {
                 isChangingStreamState = false
+                synchronizeBroadcastLifecycle()
             }
         }
         do {
@@ -2100,6 +2238,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func handleAppMovedToBackground(accessToken: String?) async {
+        cancelBroadcastCountdown()
         shouldResumeAfterBackgroundPause = false
         let shouldPauseForBackground = hasObservedActiveScene && canPauseYouTubeBroadcast
         hasObservedActiveScene = false
@@ -2200,6 +2339,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        invalidateBroadcastLifecycle()
         processingSwitchID = UUID()
         isSwitchingToOnDevice = false
         preparationProcessingOverride = nil
@@ -2368,6 +2508,7 @@ final class YouTubeIntegration: ObservableObject {
         if let enabled = response.media.screenBlurEnabled {
             isScreenBlurEnabled = enabled
         }
+        synchronizeBroadcastLifecycle()
         if !isYouTubeBroadcastActive && !isChangingBroadcastMode {
             liveStartedAt = nil
             if let generation = ownedOrientationLockGeneration {
