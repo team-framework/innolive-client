@@ -134,6 +134,7 @@ final class RecordingLibraryRenderingTests: XCTestCase {
 }
 
 @MainActor private final class RecordingRenderFixture {
+    nonisolated deinit {}
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent("recording-ui-\(UUID().uuidString)")
     let store: RecordingSessionStore
     init() { store = RecordingSessionStore(directory: directory, availableCapacity: { _ in 1_000_000_000 }) }

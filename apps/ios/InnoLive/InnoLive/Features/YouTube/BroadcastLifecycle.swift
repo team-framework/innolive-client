@@ -33,6 +33,8 @@ struct BroadcastLifecycleResult: Equatable {
 /// A generation must accompany delayed work so cancellation cannot start an old session.
 @MainActor
 final class BroadcastLifecycle: ObservableObject {
+    // iOS 18 객체 해제 호환성: docs/ios-version-support.md 참고.
+    nonisolated deinit {}
     @Published private(set) var phase: BroadcastLifecyclePhase = .idle
     @Published private(set) var recording: BroadcastRecordingState = .idle
     @Published private(set) var result: BroadcastLifecycleResult?

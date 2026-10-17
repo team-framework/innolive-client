@@ -51,6 +51,142 @@ final class WebRTCRecordingDeviceTests: XCTestCase {
         }
     }
 
+    /// Production tap mute flag only. Sender track remains enabled; this does not exercise UI mute.
+    /// Speak continuously throughout all three stages; silent outer stages must fail.
+    func testProductionTapMuteWritesSilenceAndUnmuteRestoresRealMicrophone() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Requires the assigned physical iPhone microphone")
+        #endif
+        guard await AVAudioApplication.requestRecordPermission() else {
+            return XCTFail("Microphone permission is required")
+        }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("recording-mute-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try await RecordingMicrophoneLoopback.withConnectedPeers { tap, receiver in
+            let url = directory.appendingPathComponent("tap-mute-unmute.mp4")
+            let recorder = LocalBroadcastRecorder()
+            let epoch = CMClockGetTime(CMClockGetHostTimeClock())
+            try recorder.start(url: url, epoch: epoch)
+            tap.setMuted(false)
+            tap.setRecordingSink(recorder)
+            defer { tap.setRecordingSink(nil); tap.setMuted(false) }
+            var frameIndex = 0
+            var boundaries: [Double] = []
+            var remoteFrames: [Int] = []
+            do {
+                for muted in [false, true, false] {
+                    tap.setMuted(muted)
+                    let stageStart = CMClockGetTime(CMClockGetHostTimeClock())
+                    boundaries.append(CMTimeGetSeconds(CMTimeSubtract(stageStart, epoch)))
+                    let remoteBefore = receiver.renderer.snapshot.frames
+                    while CMTimeGetSeconds(CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), stageStart)) < 2 {
+                        let timestamp = CMClockGetTime(CMClockGetHostTimeClock())
+                        recorder.appendVideo(pixelBuffer: try self.pixel(frameIndex), rotation: 0,
+                            timestampNs: CMTimeConvertScale(timestamp, timescale: 1_000_000_000, method: .default).value)
+                        frameIndex += 1
+                        try await Task.sleep(for: .milliseconds(33))
+                    }
+                    remoteFrames.append(receiver.renderer.snapshot.frames - remoteBefore)
+                }
+                boundaries.append(CMTimeGetSeconds(CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), epoch)))
+                tap.setRecordingSink(nil)
+                let result = try await recorder.stop()
+                XCTAssertGreaterThan(result.audioFrames, 270_000, "Mute must retain continuous PCM admission")
+            } catch {
+                tap.setRecordingSink(nil)
+                _ = try? await recorder.stop()
+                throw error
+            }
+            let fullReport = try await self.inspect(url, expectedDuration: boundaries[3])
+            // Exclude 350 ms on both sides of transitions for callback timestamp phase and
+            // AAC overlap/priming. The remaining >1.2 seconds must contain actual decoded PCM.
+            var segments: [MuteSegmentMetrics] = []
+            for index in 0..<3 {
+                let start = boundaries[index] + 0.35
+                let end = boundaries[index + 1] - 0.35
+                let segment = try await self.decodeMuteSegment(url, start: start, end: end)
+                XCTAssertGreaterThan(segment.frames, Int((end - start - 0.03) * 48_000),
+                                     "A missing middle segment cannot count as recorded silence")
+                XCTAssertTrue(segment.allFinite)
+                XCTAssertGreaterThan(remoteFrames[index], 70_000,
+                                     "Sender capture must remain active through the tap-only mute interval")
+                segments.append(segment)
+            }
+            XCTAssertGreaterThan(segments[0].peak, 0.0001, "First stage needs real audible microphone input")
+            XCTAssertGreaterThan(segments[0].rms, 0.00001)
+            XCTAssertLessThan(segments[1].peak, 0.0001, "Muted tap PCM must decode as silence")
+            XCTAssertLessThan(segments[1].rms, 0.00001)
+            XCTAssertGreaterThan(segments[2].peak, 0.0001, "Unmute must restore real microphone input")
+            XCTAssertGreaterThan(segments[2].rms, 0.00001)
+            XCTAssertLessThan(segments[1].rms, min(segments[0].rms, segments[2].rms) * 0.01,
+                              "Mute must attenuate both audible stages by at least 40 dB")
+            self.attachFile(url, name: "physical-microphone-tap-mute-unmute.mp4")
+            let report = "scope=productionTapFlagOnly,senderTrackEnabled=true,uiMute=notTested,boundaries=\(boundaries),segmentFrames=\(segments.map(\.frames)),segmentPeaks=\(segments.map(\.peak)),segmentRMS=\(segments.map(\.rms)),remoteStageFrames=\(remoteFrames),\(fullReport)"
+            print("PRODUCTION_RECORDING_TAP_MUTE \(report)")
+            let attachment = XCTAttachment(string: report)
+            attachment.name = "Production tap mute and unmute metrics"
+            attachment.lifetime = .keepAlways
+            self.add(attachment)
+        }
+    }
+
+    private struct MuteSegmentMetrics {
+        let frames: Int
+        let peak: Float
+        let rms: Double
+        let allFinite: Bool
+    }
+
+    private func decodeMuteSegment(_ url: URL, start: Double, end: Double) async throws -> MuteSegmentMetrics {
+        let asset = AVURLAsset(url: url)
+        let tracks = try await asset.loadTracks(withMediaType: .audio)
+        let track = try XCTUnwrap(tracks.first)
+        let reader = try AVAssetReader(asset: asset)
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
+            AVFormatIDKey: kAudioFormatLinearPCM, AVLinearPCMIsFloatKey: true,
+            AVLinearPCMBitDepthKey: 32, AVLinearPCMIsNonInterleaved: false,
+        ])
+        reader.add(output)
+        XCTAssertTrue(reader.startReading())
+        var frames = 0
+        var peak: Float = 0
+        var squares = 0.0
+        var allFinite = true
+        while let sample = output.copyNextSampleBuffer() {
+            let time = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample))
+            let sampleFrames = CMSampleBufferGetNumSamples(sample)
+            let description = try XCTUnwrap(CMSampleBufferGetFormatDescription(sample))
+            let asbd = try XCTUnwrap(CMAudioFormatDescriptionGetStreamBasicDescription(description))
+            XCTAssertEqual(asbd.pointee.mSampleRate, 48_000)
+            XCTAssertEqual(asbd.pointee.mChannelsPerFrame, 2)
+            let block = try XCTUnwrap(CMSampleBufferGetDataBuffer(sample))
+            var values = [Float](repeating: 0, count: sampleFrames * 2)
+            let bytes = values.count * MemoryLayout<Float>.size
+            XCTAssertEqual(CMBlockBufferGetDataLength(block), bytes)
+            let status = values.withUnsafeMutableBytes { buffer in
+                CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: bytes, destination: buffer.baseAddress!)
+            }
+            XCTAssertEqual(status, noErr)
+            guard status == noErr else { throw NSError(domain: "MuteSegmentDecode", code: Int(status)) }
+            for frame in 0..<sampleFrames {
+                let frameTime = time + Double(frame) / 48_000
+                guard frameTime >= start, frameTime < end else { continue }
+                frames += 1
+                for channel in 0..<2 {
+                    let value = values[frame * 2 + channel]
+                    allFinite = allFinite && value.isFinite
+                    guard value.isFinite else { continue }
+                    peak = max(peak, abs(value))
+                    squares += Double(value) * Double(value)
+                }
+            }
+        }
+        XCTAssertEqual(reader.status, .completed, reader.error?.localizedDescription ?? "AAC segment decode failed")
+        return MuteSegmentMetrics(frames: frames, peak: peak,
+                                  rms: sqrt(squares / Double(max(1, frames * 2))), allFinite: allFinite)
+    }
+
     private func capture(tap: WebRTCRecordingAudioTap, url: URL, seconds: Double) async throws -> LocalBroadcastRecordingResult {
         let recorder = LocalBroadcastRecorder()
         let epoch = CMClockGetTime(CMClockGetHostTimeClock())

@@ -18,6 +18,7 @@ struct HomeView: View {
     @State private var isShowingRecordings = false
     @State private var isSelectingFace = false
     @State private var recordingPlayback: BroadcastRecordingPlayback?
+    @State private var recordingExport: BroadcastRecordingPlayback?
     @State private var isShowingMicrophonePermissionAlert = false
     @State private var pendingPreparationProvider: BroadcastSettingsProvider?
     @State private var cameraSwitchErrorMessage: String?
@@ -253,6 +254,7 @@ struct HomeView: View {
         .overlay {
             BroadcastEndPresentation(lifecycle: youtube.lifecycle, isRecordingEnabled: true,
                 onPlay: { recordingPlayback = BroadcastRecordingPlayback(url: $0) },
+                onSave: { recordingExport = BroadcastRecordingPlayback(url: $0) },
                 onRetrySaving: youtube.recordingCoordinator.canRetry ? {
                     Task { await youtube.recordingCoordinator.retrySaving() }
                 } : nil)
@@ -262,6 +264,9 @@ struct HomeView: View {
         }
         .sheet(item: $recordingPlayback) { item in
             NavigationStack { BroadcastRecordingPlayerView(url: item.url) }
+        }
+        .sheet(item: $recordingExport) { item in
+            BroadcastRecordingExportSheet(sourceURL: item.url)
         }
         .onChange(of: youtube.isYouTubeBroadcastActive) { _, active in
             if active {

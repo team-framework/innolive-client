@@ -174,6 +174,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
 }
 
 @MainActor private final class Fixture {
+    nonisolated deinit {}
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent("recording-coordinator-\(UUID().uuidString)")
     let lifecycle = BroadcastLifecycle()
     let sink = Sink()
@@ -204,6 +205,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
 }
 
 @MainActor private final class Sink {
+    nonisolated deinit {}
     var recorder: LocalBroadcastRecorder?
     var attachments = 0
     func attach(_ recorder: LocalBroadcastRecorder?) {
