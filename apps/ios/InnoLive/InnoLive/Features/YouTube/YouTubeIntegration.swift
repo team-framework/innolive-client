@@ -965,6 +965,8 @@ final class YouTubeIntegration: ObservableObject {
     var visibleBroadcastTargets: [BroadcastTargetState] { statePolicy.visibleTargets }
     var broadcastRemainingTime: BroadcastRemainingTime { responseState.details.remainingTime }
     var broadcastResolution: String? { responseState.details.broadcastResolution }
+    /// 업링크 송신 정책의 해상도. 서버가 값을 주지 않으면 서버 기본값 720p다.
+    private var uplinkResolution: VideoUplinkResolution { VideoUplinkResolution(serverValue: broadcastResolution) ?? .hd720 }
 
     var broadcastPhase: String {
         statePolicy.broadcastPhase.rawValue
@@ -1388,7 +1390,8 @@ final class YouTubeIntegration: ObservableObject {
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
                     session: WebRTCSessionCredentials(sessionID: session.sessionID, ownerToken: session.ownerToken, processingMode: session.processingMode, localAnonymizationEnabled: isAnonymizationEnabled,
-                                                      sendsMicrophoneToServer: !Self.isDirectPublish(session)),
+                                                      sendsMicrophoneToServer: !Self.isDirectPublish(session),
+                                                      isDirectPublish: Self.isDirectPublish(session), broadcastResolution: uplinkResolution),
                     accessToken: refreshedAccessToken,
                     serverURL: serverURL,
                     iceServers: iceServers,
@@ -2559,6 +2562,10 @@ final class YouTubeIntegration: ObservableObject {
         broadcastModeAwaitingStatus = false
         reconcileBroadcastModeState()
         synchronizeBroadcastModeQuality()
+        // 해상도가 빠진 스냅샷은 무시한다. 카메라 화질 동기화와 같은 값을 따른다.
+        if let resolution = VideoUplinkResolution(serverValue: broadcastResolution) {
+            videoUplink.setBroadcastResolution(resolution)
+        }
         stream = responseState.stream
         unavailableLiveProviders.subtract(Set(liveEditingTargets).subtracting(previouslyLive))
         // 준비·저장 스냅샷은 트랙을 빠뜨릴 수 있다. 이미 확인한 라이브 입력은 유지한다.
@@ -2744,7 +2751,9 @@ final class YouTubeIntegration: ObservableObject {
                             sessionID: session.sessionID,
                             ownerToken: session.ownerToken,
                             processingMode: session.processingMode, localAnonymizationEnabled: self.isAnonymizationEnabled,
-                            sendsMicrophoneToServer: !Self.isDirectPublish(session)
+                            sendsMicrophoneToServer: !Self.isDirectPublish(session),
+                            isDirectPublish: Self.isDirectPublish(session),
+                            broadcastResolution: self.uplinkResolution
                         ),
                         accessToken: self.api.currentAccessToken(fallback: accessToken),
                         serverURL: serverURL,

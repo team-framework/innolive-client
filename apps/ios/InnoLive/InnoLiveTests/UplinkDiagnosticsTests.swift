@@ -20,6 +20,40 @@ final class UplinkDiagnosticsTests: XCTestCase {
         XCTAssertEqual(stats?.framesPerSecond ?? 0, 24.5, accuracy: 0.001)
     }
 
+    #if DEBUG
+    func testDebugParserReadsEncoderTargetAndResolutionChanges() throws {
+        let stats = try XCTUnwrap(UplinkVideoStatsParser.videoEncoder(statistics: [
+            (type: "outbound-rtp", values: ["kind": "audio", "targetBitrate": NSNumber(value: 32_000)]),
+            (type: "outbound-rtp", values: [
+                "kind": "video",
+                "qualityLimitationReason": "bandwidth",
+                "frameWidth": NSNumber(value: 1080),
+                "frameHeight": NSNumber(value: 1920),
+                "framesPerSecond": NSNumber(value: 29.5),
+                "targetBitrate": NSNumber(value: 4_812_000.0),
+                "encoderImplementation": "libvpx",
+                "qualityLimitationResolutionChanges": NSNumber(value: 3)
+            ])
+        ]))
+        XCTAssertEqual(stats.outbound.reason, "bandwidth")
+        XCTAssertEqual(stats.targetBitrate ?? 0, 4_812_000, accuracy: 0.5)
+        XCTAssertEqual(stats.encoderImplementation, "libvpx")
+        XCTAssertEqual(stats.qualityLimitationResolutionChanges, 3)
+        let line = stats.line(at: Date(timeIntervalSince1970: 1_000))
+        XCTAssertTrue(line.contains("reason=bandwidth size=1080x1920 fps=29.5 targetBitrate=4812000 encoder=libvpx resolutionChanges=3"), line)
+    }
+
+    func testDebugParserLeavesMissingEncoderFieldsEmpty() throws {
+        let stats = try XCTUnwrap(UplinkVideoStatsParser.videoEncoder(statistics: [
+            (type: "outbound-rtp", values: ["kind": "video"])
+        ]))
+        XCTAssertNil(stats.targetBitrate)
+        XCTAssertNil(stats.encoderImplementation)
+        XCTAssertNil(stats.qualityLimitationResolutionChanges)
+        XCTAssertTrue(stats.line(at: Date()).hasSuffix("size=- fps=- targetBitrate=- encoder=- resolutionChanges=-"))
+    }
+    #endif
+
     func testParserIgnoresMissingVideoAndDefaultsReasonToNone() {
         XCTAssertNil(UplinkVideoStatsParser.videoOutbound(statistics: [
             (type: "outbound-rtp", values: ["kind": "audio"])
