@@ -1,0 +1,268 @@
+{
+  "schemaVersion": 1,
+  "locale": "en-US",
+  "status": "unmeasured",
+  "notes": "User-supplied queries and editorial English equivalents, not measured search volume or ranking. Mosaic translations describe search intent; InnoLive currently uses blur. Track branded and unbranded queries separately.",
+  "targets": [
+    {
+      "id": "k01",
+      "sourceKeyword": "라이브 방송 모자이크",
+      "literalTranslation": "live stream face mosaic",
+      "englishQuery": "live stream face blur",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    },
+    {
+      "id": "k02",
+      "sourceKeyword": "라이브 방송 얼굴 모자이크",
+      "literalTranslation": "live stream face pixelation",
+      "englishQuery": "live stream face blur",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    },
+    {
+      "id": "k03",
+      "sourceKeyword": "라이브 방송 얼굴 블러",
+      "literalTranslation": "live stream face blur",
+      "englishQuery": "live stream face blur",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    },
+    {
+      "id": "k04",
+      "sourceKeyword": "라이브 방송 실시간 모자이크",
+      "literalTranslation": "real-time mosaic for live streaming",
+      "englishQuery": "real-time face blur for live streaming",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    },
+    {
+      "id": "k05",
+      "sourceKeyword": "라이브 방송 자동 모자이크",
+      "literalTranslation": "automatic mosaic for live streaming",
+      "englishQuery": "automatic face blur for live streaming",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    },
+    {
+      "id": "k06",
+      "sourceKeyword": "야외 방송 모자이크",
+      "literalTranslation": "outdoor stream mosaic",
+      "englishQuery": "outdoor stream face blur",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k07",
+      "sourceKeyword": "야외 방송 얼굴 모자이크",
+      "literalTranslation": "outdoor stream face mosaic",
+      "englishQuery": "outdoor stream face blur",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k08",
+      "sourceKeyword": "야외 방송 실시간 모자이크",
+      "literalTranslation": "real-time mosaic for outdoor streaming",
+      "englishQuery": "real-time face blur for outdoor streaming",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k09",
+      "sourceKeyword": "야외 방송 자동 모자이크",
+      "literalTranslation": "automatic mosaic for outdoor streaming",
+      "englishQuery": "automatic face blur for outdoor streaming",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k10",
+      "sourceKeyword": "유튜브 실시간 모자이크",
+      "literalTranslation": "YouTube real-time mosaic",
+      "englishQuery": "YouTube real-time face blur",
+      "sourcePath": "/en/youtube",
+      "branded": false
+    },
+    {
+      "id": "k11",
+      "sourceKeyword": "유튜브 실시간 얼굴 모자이크",
+      "literalTranslation": "YouTube real-time face mosaic",
+      "englishQuery": "YouTube real-time face blur",
+      "sourcePath": "/en/youtube",
+      "branded": false
+    },
+    {
+      "id": "k12",
+      "sourceKeyword": "치지직 모자이크",
+      "literalTranslation": "CHZZK mosaic",
+      "englishQuery": "CHZZK face blur",
+      "sourcePath": "/en/chzzk",
+      "branded": false
+    },
+    {
+      "id": "k13",
+      "sourceKeyword": "치지직 실시간 모자이크",
+      "literalTranslation": "CHZZK real-time mosaic",
+      "englishQuery": "CHZZK real-time face blur",
+      "sourcePath": "/en/chzzk",
+      "branded": false
+    },
+    {
+      "id": "k14",
+      "sourceKeyword": "치지직 자동 모자이크",
+      "literalTranslation": "CHZZK automatic mosaic",
+      "englishQuery": "CHZZK automatic face blur",
+      "sourcePath": "/en/chzzk",
+      "branded": false
+    },
+    {
+      "id": "k15",
+      "sourceKeyword": "치지직 자동 얼굴 모자이크",
+      "literalTranslation": "CHZZK automatic face mosaic",
+      "englishQuery": "CHZZK automatic face blur",
+      "sourcePath": "/en/chzzk",
+      "branded": false
+    },
+    {
+      "id": "k16",
+      "sourceKeyword": "실시간 얼굴 블러 프로그램",
+      "literalTranslation": "real-time face blur software",
+      "englishQuery": "real-time face blur software",
+      "sourcePath": "/en/mosaic-software",
+      "branded": false
+    },
+    {
+      "id": "k17",
+      "sourceKeyword": "치지직 실시간 얼굴 모자이크",
+      "literalTranslation": "CHZZK real-time face mosaic",
+      "englishQuery": "CHZZK real-time face blur",
+      "sourcePath": "/en/chzzk",
+      "branded": false
+    },
+    {
+      "id": "k18",
+      "sourceKeyword": "라이브 방송 자동 얼굴 모자이크",
+      "literalTranslation": "automatic face mosaic for live streaming",
+      "englishQuery": "automatic face blur for live streaming",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    },
+    {
+      "id": "k19",
+      "sourceKeyword": "야외 방송 얼굴 블러",
+      "literalTranslation": "outdoor stream face blur",
+      "englishQuery": "outdoor stream face blur",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k20",
+      "sourceKeyword": "치지직 자동 얼굴 블러",
+      "literalTranslation": "CHZZK automatic face blur",
+      "englishQuery": "CHZZK automatic face blur",
+      "sourcePath": "/en/chzzk",
+      "branded": false
+    },
+    {
+      "id": "k21",
+      "sourceKeyword": "InnoLive",
+      "literalTranslation": "InnoLive",
+      "englishQuery": "InnoLive",
+      "sourcePath": "/en",
+      "branded": true
+    },
+    {
+      "id": "k22",
+      "sourceKeyword": "야외 방송 실시간 얼굴 모자이크",
+      "literalTranslation": "real-time face mosaic for outdoor streaming",
+      "englishQuery": "real-time face blur for outdoor streaming",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k23",
+      "sourceKeyword": "치지직 실시간 얼굴 블러",
+      "literalTranslation": "CHZZK real-time face blur",
+      "englishQuery": "CHZZK real-time face blur",
+      "sourcePath": "/en/chzzk",
+      "branded": false
+    },
+    {
+      "id": "k24",
+      "sourceKeyword": "치지직 얼굴 모자이크",
+      "literalTranslation": "CHZZK face mosaic",
+      "englishQuery": "CHZZK face blur",
+      "sourcePath": "/en/chzzk",
+      "branded": false
+    },
+    {
+      "id": "k25",
+      "sourceKeyword": "야외 방송 실시간 얼굴 블러",
+      "literalTranslation": "real-time face blur for outdoor streaming",
+      "englishQuery": "real-time face blur for outdoor streaming",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k26",
+      "sourceKeyword": "야외 방송 자동 얼굴 모자이크",
+      "literalTranslation": "automatic face mosaic for outdoor streaming",
+      "englishQuery": "automatic face blur for outdoor streaming",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k27",
+      "sourceKeyword": "야외 방송 자동 얼굴 블러",
+      "literalTranslation": "automatic face blur for outdoor streaming",
+      "englishQuery": "automatic face blur for outdoor streaming",
+      "sourcePath": "/en/live-privacy",
+      "branded": false
+    },
+    {
+      "id": "k28",
+      "sourceKeyword": "실시간 모자이크",
+      "literalTranslation": "real-time mosaic",
+      "englishQuery": "real-time face blur",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    },
+    {
+      "id": "k29",
+      "sourceKeyword": "실시간 얼굴 블러",
+      "literalTranslation": "real-time face blur",
+      "englishQuery": "real-time face blur",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    },
+    {
+      "id": "e01",
+      "sourceKeyword": "realtime de identification service",
+      "englishQuery": "real-time de-identification service",
+      "sourcePath": "/en/mosaic-software",
+      "branded": false
+    },
+    {
+      "id": "e02",
+      "sourceKeyword": "realtime de identification application",
+      "englishQuery": "real-time de-identification application",
+      "sourcePath": "/en/mosaic-software",
+      "branded": false
+    },
+    {
+      "id": "e03",
+      "sourceKeyword": "realtime blur application",
+      "englishQuery": "real-time blur application",
+      "sourcePath": "/en/mobile-live-face-blur",
+      "branded": false
+    },
+    {
+      "id": "e04",
+      "sourceKeyword": "live stream realtime blur application",
+      "englishQuery": "real-time face blur application for live streaming",
+      "sourcePath": "/en/live-mosaic",
+      "branded": false
+    }
+  ]
+}

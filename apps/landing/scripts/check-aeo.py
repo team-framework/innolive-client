@@ -12,7 +12,7 @@ ORIGIN = "https://innolive.studio"
 AGENTS = ["Googlebot", "Google-Extended", "bingbot", "OAI-SearchBot", "Claude-SearchBot", "Claude-User", "PerplexityBot"]
 # The same path registry drives language navigation and this verification.
 GUIDES = re.findall(r'"(/[^" ]+)"', (Path(__file__).resolve().parents[1] / "lib/seo-guide-paths.ts").read_text())
-TARGETS = {"/ko", "/en", "/ja", *(f"/ko{path}" for path in GUIDES)}
+TARGETS = {"/ko", "/en", "/ja", *(f"/{locale}{path}" for locale in ("ko", "en") for path in GUIDES)}
 
 
 class Node:
@@ -76,6 +76,16 @@ def check_page(base, path, robots):
     assert len(canonical) == 1 and canonical[0].attrs.get("href") == expected_url, "canonical mismatch"
     assert len(find(lambda node: node.tag == "h1")) == 1, "h1 count"
     assert find(lambda node: node.tag == "html")[0].attrs.get("lang") == path.split("/")[1], "HTML language"
+    if path.removeprefix("/ko").removeprefix("/en") in GUIDES:
+        guide_path = "/" + path.split("/", 2)[2]
+        alternates = {node.attrs.get("hreflang"): node.attrs.get("href") for node in find(lambda node: node.tag == "link" and node.attrs.get("rel") == "alternate" and node.attrs.get("hreflang"))}
+        assert alternates == {"ko": ORIGIN + "/ko" + guide_path, "en": ORIGIN + "/en" + guide_path, "x-default": ORIGIN + "/ko" + guide_path}, "guide alternates"
+        if path.startswith("/en/"):
+            article = find(lambda node: node.tag == "article")[0]
+            assert not re.search(r"[가-힣]", article.text()), "Korean copy in English guide"
+            for link in article.find(lambda node: node.tag == "a"):
+                href = link.attrs.get("href", "")
+                assert not href.startswith("/ko"), "Korean link in English guide"
     graphs = [json.loads(node.text())["@graph"] for node in find(lambda node: node.tag == "script" and node.attrs.get("type") == "application/ld+json")]
     graph = [node for nodes in graphs for node in nodes]
     count = 0
@@ -85,6 +95,7 @@ def check_page(base, path, robots):
             assert types.count(expected) == 1, f"{expected} count"
         webpage = next(node for node in graph if node["@type"] == "WebPage")
         assert webpage["url"] == expected_url, "schema URL"
+        assert webpage["inLanguage"] == path.split("/")[1], "schema language"
         paragraphs = [normalized(node.text()) for node in find(lambda node: node.tag == "p")]
         assert normalized(webpage["description"]) in paragraphs, "schema description missing from body"
         software = next(node for node in graph if node["@type"] == "SoftwareApplication")
@@ -126,11 +137,17 @@ def main():
     assert all(url.startswith(ORIGIN + "/") for url in urls), "sitemap origin"
     paths = [url.removeprefix(ORIGIN) for url in urls]
     assert TARGETS <= set(paths), "missing AEO page in sitemap"
-    queries = json.loads((Path(__file__).resolve().parents[3] / "docs/fixtures/landing-aeo-queries.ko.json").read_text())
-    assert len(queries["queries"]) == 43, "keyword inventory count"
-    assert len({query["keyword"] for query in queries["queries"]}) == 43, "duplicate keyword"
-    assert all("innolive" not in query["prompt"].lower() for query in queries["queries"]), "branded benchmark prompt"
-    assert all(query["sourcePath"] in paths for query in queries["queries"]), "benchmark source missing from sitemap"
+    for locale in ("ko", "en"):
+        queries = json.loads((Path(__file__).resolve().parents[3] / f"docs/fixtures/landing-aeo-queries.{locale}.json").read_text())
+        expected_count = 43 if locale == "ko" else 47
+        assert len(queries["queries"]) == expected_count, "keyword inventory count"
+        assert len({query["keyword"] for query in queries["queries"]}) == expected_count, "duplicate keyword"
+        assert all("innolive" not in query["prompt"].lower() for query in queries["queries"]), "branded benchmark prompt"
+        assert all(query["sourcePath"] in paths for query in queries["queries"]), "benchmark source missing from sitemap"
+    targets = json.loads((Path(__file__).resolve().parents[3] / "docs/fixtures/landing-seo-targets.en.json").read_text())["targets"]
+    assert len(targets) == 33 and len({item["sourceKeyword"] for item in targets}) == 33, "user keyword coverage"
+    assert all(item["sourcePath"] in paths for item in targets), "target source missing from sitemap"
+    assert sum(item["branded"] for item in targets) == 1, "brand query separation"
     pages = [check_page(base, path, robots) for path in paths]
     report = {"base_url": base, "sitemap_urls": len(urls), "structured_pages": len(TARGETS), "faq_answers": sum(page["faq_answers"] for page in pages), "pages": pages}
     if args.report:

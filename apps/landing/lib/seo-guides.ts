@@ -1,3 +1,4 @@
+import { englishSeoGuides } from "@/lib/seo-guides.en";
 import { getMessages } from "@/lib/messages";
 import { getPersonalPlans } from "@/lib/plans";
 
@@ -185,6 +186,6 @@ export const seoGuides: SeoGuide[] = [
   },
 ];
 
-export function findSeoGuide(path: string) {
-  return seoGuides.find((guide) => guide.path === path);
+export function findSeoGuide(path: string, locale: "ko" | "en" = "ko") {
+  return (locale === "en" ? englishSeoGuides : seoGuides).find((guide) => guide.path === path);
 }
