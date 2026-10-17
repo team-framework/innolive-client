@@ -3,6 +3,8 @@
 -keep class com.framework.innolive.feature.live.privacy.PrivacyNativeGpuModel { *; }
 -keep class com.framework.innolive.feature.live.privacy.PrivacyNativeGpuFence { *; }
 -keep class com.framework.innolive.feature.live.privacy.PrivacyNativePostprocessor$Native { *; }
+# ONNX Runtime JNI constructs NodeInfo, TensorInfo, OnnxTensor and friends by name; the AAR ships no consumer rules.
+-keep class ai.onnxruntime.** { *; }
 # WorkManager's Room database is instantiated by its generated class name.
 -keep class androidx.work.impl.WorkDatabase { *; }
 -keep class androidx.work.impl.WorkDatabase_Impl { *; }
