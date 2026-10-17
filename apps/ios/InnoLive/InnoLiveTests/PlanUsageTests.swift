@@ -278,6 +278,40 @@ final class PlanUsageTests: XCTestCase {
         }
     }
 
+    func testBroadcastHistoryStartsCollapsedAndExpandsOnDemand() throws {
+        let snapshot = PlanSnapshot(plan: try plan(), usage: try usage("""
+        {"plan":"beam","used_seconds":3600,"remaining_seconds":7200,"available_by_mode":[],
+        "month":"2026-10","broadcasts":[
+        {"session_id":"a","started_at":"2026-10-15T01:00:00Z","resolution":"fhd","providers":["youtube"],"ai_processing":"server","broadcast_seconds":3600,"charged_seconds":7200},
+        {"session_id":"b","started_at":"2026-10-15T03:00:00Z","resolution":"720p","providers":["chzzk"],"ai_processing":"on_device","broadcast_seconds":10800,"charged_seconds":21600}]}
+        """))
+        func height(expanded: Bool?) -> CGFloat {
+            let content = expanded.map {
+                PlanUsageContent(snapshot: snapshot, isLoading: false, errorMessage: nil, lastUpdatedAt: nil,
+                                 currentMode: .hdSingle, showsBroadcastHistory: $0, onRefresh: {})
+            } ?? PlanUsageContent(snapshot: snapshot, isLoading: false, errorMessage: nil, lastUpdatedAt: nil,
+                                  currentMode: .hdSingle, onRefresh: {})
+            return UIHostingController(rootView: content)
+                .sizeThatFits(in: CGSize(width: 360, height: CGFloat.greatestFiniteMagnitude)).height
+        }
+        let collapsed = height(expanded: false)
+        XCTAssertEqual(height(expanded: nil), collapsed)
+        XCTAssertGreaterThan(height(expanded: true), collapsed + 100)
+        for expanded in [false, true] {
+            let controller = UIHostingController(rootView: PlanUsageContent(snapshot: snapshot, isLoading: false,
+                errorMessage: nil, lastUpdatedAt: nil, currentMode: .hdSingle, showsBroadcastHistory: expanded, onRefresh: {}))
+            controller.overrideUserInterfaceStyle = .light
+            controller.view.frame = CGRect(origin: .zero, size: CGSize(width: 360, height: height(expanded: expanded)))
+            controller.view.layoutIfNeeded()
+            let attachment = XCTAttachment(image: UIGraphicsImageRenderer(bounds: controller.view.bounds).image { _ in
+                controller.view.drawHierarchy(in: controller.view.bounds, afterScreenUpdates: true)
+            })
+            attachment.name = expanded ? "history-expanded" : "history-collapsed"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+    }
+
     func testMismatchedPlanAndUsageDoesNotReplaceSnapshot() async throws {
         let api = PlanStub(plan: try plan(), usage: try usage(usageJSON().replacingOccurrences(of: "beam", with: "spark")))
         let store = PlanStore()
