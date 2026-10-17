@@ -429,6 +429,89 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(methods, ["POST"])
     }
 
+    func testServerTransportCreatesServerSessionAndConfirmsServerAIOff() async throws {
+        SessionLifecycleURLProtocol.responses = [.created("relay", mode: "server"), .snapshot(enabled: false)]
+        let integration = makeIntegration(mode: .onDevice, transport: .server)
+        XCTAssertEqual(integration.planProcessingMode, .server)
+        let ready = await integration.prepareSession(accessToken: token, broadcastResolution: "fhd")
+        XCTAssertTrue(ready)
+        XCTAssertEqual(methods, ["POST", "PATCH"])
+        let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
+        XCTAssertFalse(body.contains("ai_processing"))
+        XCTAssertFalse(body.contains("broadcast_resolution"))
+        let patch = SessionLifecycleURLProtocol.requests[1]
+        XCTAssertEqual(patch.url?.path, "/sessions/relay/anonymization")
+        XCTAssertEqual(try screenBlurRequestBody(patch)["enabled"] as? Bool, false)
+        XCTAssertFalse(integration.isDirectPublishSession)
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertTrue(integration.isAnonymizationEnabled)
+        XCTAssertEqual(integration.planProcessingMode, .server)
+    }
+
+    func testServerTransportRejectsDirectPublishSessionResponse() async {
+        SessionLifecycleURLProtocol.responses = [.created("direct", mode: "on_device"), .empty(204)]
+        let integration = makeIntegration(mode: .onDevice, transport: .server)
+        let ready = await integration.prepareSession(accessToken: token)
+        XCTAssertFalse(ready)
+        XCTAssertNil(integration.session)
+        XCTAssertEqual(methods, ["POST", "DELETE"])
+    }
+
+    func testDirectTransportBillsDeviceTimeBeforeSessionExists() {
+        XCTAssertEqual(makeIntegration(mode: .onDevice, transport: .direct).planProcessingMode, .onDevice)
+        XCTAssertEqual(makeIntegration(mode: .server, transport: .server).planProcessingMode, .server)
+    }
+
+    func testServerTimeFallbackUsesDirectPublishEvenWithServerTransport() async throws {
+        let integration = makeIntegration(mode: .onDevice, transport: .server)
+        try await seedExhaustedPlan(integration)
+        XCTAssertTrue(integration.offersOnDevicePreparation)
+        let switched = await integration.switchPreparationToOnDevice(accessToken: token)
+        XCTAssertTrue(switched)
+        XCTAssertEqual(integration.planProcessingMode, .onDevice)
+        SessionLifecycleURLProtocol.responses = [.created("device", mode: "on_device")]
+        let created = await integration.prepareSession(accessToken: token)
+        XCTAssertTrue(created)
+        let json = try screenBlurRequestBody(XCTUnwrap(SessionLifecycleURLProtocol.requests.last))
+        XCTAssertEqual(json["ai_processing"] as? String, "on_device")
+        XCTAssertTrue(integration.isDirectPublishSession)
+    }
+
+    func testDirectTransportBlocksInPlaceSwitchOfServerSessionToOnDevice() async {
+        SessionLifecycleURLProtocol.responses = [.created("same", mode: "server")]
+        let integration = makeIntegration(transport: .direct)
+        _ = await integration.prepareSession(accessToken: token)
+        let changed = await integration.changeAIProcessingMode(.onDevice, accessToken: token)
+        XCTAssertFalse(changed)
+        XCTAssertNotNil(integration.errorMessage)
+        XCTAssertEqual(integration.session?.processingMode, .server)
+        XCTAssertNil(defaults.string(forKey: AIProcessingMode.storageKey))
+        XCTAssertEqual(methods, ["POST"])
+    }
+
+    func testTransportChangeIsSavedOnlyWithoutOnDeviceSession() async {
+        let integration = makeIntegration(mode: .onDevice, transport: .direct)
+        XCTAssertTrue(integration.changeOnDeviceTransport(.server))
+        XCTAssertEqual(defaults.string(forKey: OnDeviceTransport.storageKey), "server")
+        XCTAssertEqual(integration.planProcessingMode, .server)
+
+        SessionLifecycleURLProtocol.responses = [.created("relay", mode: "server"), .snapshot(enabled: false)]
+        _ = await integration.prepareSession(accessToken: token)
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertFalse(integration.changeOnDeviceTransport(.direct))
+        XCTAssertNotNil(integration.errorMessage)
+        XCTAssertEqual(defaults.string(forKey: OnDeviceTransport.storageKey), "server")
+    }
+
+    func testServerTransportIsRejectedForPlanWithoutServerTime() async throws {
+        let integration = makeIntegration(mode: .onDevice, transport: .direct)
+        await integration.planStore.refresh(api: try DeviceOnlyPlanStub(), accessToken: token)
+        XCTAssertFalse(integration.changeOnDeviceTransport(.server))
+        XCTAssertNotNil(integration.errorMessage)
+        XCTAssertNil(defaults.string(forKey: OnDeviceTransport.storageKey))
+        XCTAssertTrue(integration.changeOnDeviceTransport(.direct))
+    }
+
     private static func body(_ request: URLRequest) -> String? {
         if let data = request.httpBody { return String(decoding: data, as: UTF8.self) }
         guard let stream = request.httpBodyStream else { return nil }
@@ -446,7 +529,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
 
     func testChangingModeKeepsSessionAndStoredCredentialsInBothDirections() async throws {
         SessionLifecycleURLProtocol.responses = [.created("same", mode: "server"), .snapshot(enabled: true), .snapshot(enabled: false), .snapshot(enabled: true)]
-        let integration = makeIntegration()
+        let integration = makeIntegration(transport: .server)
         _ = await integration.prepareSession(accessToken: token)
         await integration.toggleAnonymization(accessToken: token)
         let local = await integration.changeAIProcessingMode(.onDevice, accessToken: token)
@@ -464,7 +547,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
 
     func testFailedServerOffKeepsLocalProtectionAndAllowsSameModeRetry() async {
         SessionLifecycleURLProtocol.responses = [.created("same"), .snapshot(enabled: true), .empty(503), .snapshot(enabled: false)]
-        let integration = makeIntegration()
+        let integration = makeIntegration(transport: .server)
         _ = await integration.prepareSession(accessToken: token)
         await integration.toggleAnonymization(accessToken: token)
         let failed = await integration.changeAIProcessingMode(.onDevice, accessToken: token)
@@ -532,7 +615,7 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
 
     func testScreenBlurFailureAndMissingFieldPreserveConfirmedValue() async {
         SessionLifecycleURLProtocol.responses = [.created("blur"), .blur(true), .empty(503), .snapshot(enabled: true)]
-        let integration = makeIntegration()
+        let integration = makeIntegration(transport: .server)
         _ = await integration.prepareSession(accessToken: token)
         await integration.toggleScreenBlur(accessToken: token)
         for _ in 0..<2 {
@@ -599,10 +682,27 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         })
     }
 
-    private func makeIntegration(api: YouTubeAPI? = nil, mode: AIProcessingMode = .server) -> YouTubeIntegration {
+    private func makeIntegration(api: YouTubeAPI? = nil, mode: AIProcessingMode = .server, transport: OnDeviceTransport = .direct) -> YouTubeIntegration {
         YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api ?? makeAPI(), sessionStore: store, aiModeProvider: { mode }, localModelsAvailable: { true },
-                           persistAIProcessingMode: { [defaults = defaults!] mode in defaults.set(mode.rawValue, forKey: AIProcessingMode.storageKey) })
+                           persistAIProcessingMode: { [defaults = defaults!] mode in defaults.set(mode.rawValue, forKey: AIProcessingMode.storageKey) },
+                           transportProvider: { [defaults = defaults!] in
+                               OnDeviceTransport(rawValue: defaults.string(forKey: OnDeviceTransport.storageKey) ?? "") ?? transport
+                           },
+                           persistTransport: { [defaults = defaults!] in defaults.set($0.rawValue, forKey: OnDeviceTransport.storageKey) })
     }
+}
+
+/// 서버 시간이 없는 Glow 요금제다(공유 fixture).
+private final class DeviceOnlyPlanStub: PlanAPIClient {
+    let snapshot: PlanSnapshot
+    init() throws {
+        struct Fixture: Decodable { let plan: UserPlan; let usage: UserUsage }
+        let fixtures = try JSONDecoder().decode([Fixture].self, from: ContractTestFixtures.data(named: "plan-usage-processing.v1"))
+        let glow = try XCTUnwrap(fixtures.first { $0.plan.plan == "glow" })
+        snapshot = PlanSnapshot(plan: glow.plan, usage: glow.usage)
+    }
+    func userPlan(accessToken: String) async throws -> UserPlan { snapshot.plan }
+    func userUsage(accessToken: String) async throws -> UserUsage { snapshot.usage }
 }
 
 @MainActor
