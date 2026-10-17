@@ -419,6 +419,82 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         XCTAssertFalse(locker.isLocked)
     }
 
+    func testLifecycleAllStopShowsConfirmedResult() async throws {
+        let integration = try makeLifecycleLiveIntegration()
+        let generation = integration.lifecycle.generation
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped"))
+        ]
+        await integration.stopYouTubeStream(accessToken: "access-token")
+        XCTAssertEqual(integration.lifecycle.phase, .result)
+        XCTAssertNotNil(integration.lifecycle.result)
+        XCTAssertNil(integration.lifecycle.result?.terminationWarning)
+        XCTAssertTrue(integration.lifecycle.isPresentingEnd)
+        integration.lifecycle.dismissResult()
+        XCTAssertFalse(integration.lifecycle.isPresentingEnd)
+        XCTAssertEqual(integration.lifecycle.generation, generation)
+    }
+
+    func testLifecycleFailedStopKeepsLiveAndReportsError() async throws {
+        let integration = try makeLifecycleLiveIntegration()
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8))
+        ]
+        await integration.stopYouTubeStream(accessToken: "access-token")
+        XCTAssertEqual(integration.lifecycle.phase, .live)
+        XCTAssertNil(integration.lifecycle.result)
+        XCTAssertNotNil(integration.lifecycle.errorMessage)
+        XCTAssertNotNil(integration.errorMessage)
+        XCTAssertFalse(integration.lifecycle.isPresentingEnd)
+    }
+
+    func testLifecycleIndividualStopKeepsOtherTargetUntilLastStops() async throws {
+        let integration = try makeLifecycleLiveIntegration(providers: ["youtube", "chzzk"])
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped")),
+            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped"))
+        ]
+        await integration.stopYouTubeStream(accessToken: "access-token", provider: .youtube)
+        XCTAssertEqual(integration.lifecycle.phase, .live)
+        XCTAssertNil(integration.lifecycle.result)
+        await integration.stopYouTubeStream(accessToken: "access-token", provider: .chzzk)
+        XCTAssertEqual(integration.lifecycle.phase, .result)
+        XCTAssertNotNil(integration.lifecycle.result)
+    }
+
+    func testLifecycleLocalShutdownPreservesResultWithRemoteUncertainty() async throws {
+        let integration = try makeLifecycleLiveIntegration()
+        let generation = integration.lifecycle.generation
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8)),
+            .init(statusCode: 204, data: Data())
+        ]
+        await integration.endBroadcast(accessToken: "access-token")
+        XCTAssertEqual(integration.lifecycle.phase, .result)
+        XCTAssertNotNil(integration.lifecycle.result?.terminationWarning)
+        XCTAssertEqual(integration.lifecycle.generation, generation)
+        XCTAssertNil(integration.session)
+    }
+
+    private func makeLifecycleLiveIntegration(providers: [String]? = nil) throws -> YouTubeIntegration {
+        let integration = try makePreparedIntegration()
+        let preparation = integration.lifecycle.beginPreparation()
+        integration.lifecycle.finishPreparation(generation: preparation)
+        let generation = try XCTUnwrap(integration.lifecycle.beginCountdown())
+        integration.lifecycle.advanceCountdown(generation: generation)
+        integration.lifecycle.advanceCountdown(generation: generation)
+        XCTAssertTrue(integration.lifecycle.beginStarting(generation: generation))
+        var payload = try XCTUnwrap(JSONSerialization.jsonObject(with: sessionSnapshot(phase: "live", status: "streaming")) as? [String: Any])
+        if let providers {
+            let stream = try JSONSerialization.jsonObject(with: streamState(phase: "live", status: "streaming"))
+            payload["targets"] = providers.map { ["provider": $0, "stream": stream] }
+        }
+        let snapshot = try JSONDecoder().decode(YouTubeSessionResponse.self, from: JSONSerialization.data(withJSONObject: payload))
+        integration.applyLiveEditingSnapshotForTesting(snapshot)
+        XCTAssertEqual(integration.lifecycle.phase, .live)
+        return integration
+    }
+
     private func makePreparedIntegration(
         phase: String = "prepared",
         locker: FakeBroadcastOrientationLock? = nil,
