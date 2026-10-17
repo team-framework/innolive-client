@@ -139,7 +139,7 @@ def main():
     assert TARGETS <= set(paths), "missing AEO page in sitemap"
     for locale in ("ko", "en"):
         queries = json.loads((Path(__file__).resolve().parents[3] / f"docs/fixtures/landing-aeo-queries.{locale}.json").read_text())
-        expected_count = 43 if locale == "ko" else 47
+        expected_count = 44 if locale == "ko" else 47
         assert len(queries["queries"]) == expected_count, "keyword inventory count"
         assert len({query["keyword"] for query in queries["queries"]}) == expected_count, "duplicate keyword"
         assert all("innolive" not in query["prompt"].lower() for query in queries["queries"]), "branded benchmark prompt"

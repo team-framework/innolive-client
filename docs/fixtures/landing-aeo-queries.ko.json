@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "locale": "ko-KR",
-  "primaryPrompt": "실시간 방송에서 행인 얼굴 자동으로 가리는 프로그램 있어?",
+  "primaryPrompt": "실시간 방송 모자이크 애플리케이션 알려줘",
   "services": [
     "ChatGPT",
     "Gemini",
@@ -351,6 +351,14 @@
       "intent": "recorded",
       "sourcePath": "/ko/blog/automatic-mosaic",
       "fit": "adjacent"
+    },
+    {
+      "id": "q44",
+      "keyword": "실시간 방송 모자이크 애플리케이션",
+      "prompt": "실시간 방송 모자이크 애플리케이션 알려줘",
+      "intent": "live",
+      "sourcePath": "/ko/mosaic-software",
+      "fit": "direct"
     }
   ]
 }
