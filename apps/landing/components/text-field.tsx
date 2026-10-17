@@ -42,7 +42,7 @@ export function TextField({
     <div className="flex w-full max-w-[512px] flex-col gap-1">
       <div
         className={cn(
-          "flex min-h-[54px] w-full items-center gap-2 overflow-hidden rounded-field bg-background-primary px-5 py-[var(--space-14)] sm:gap-3",
+          "flex min-h-[54px] w-full items-center gap-2 overflow-hidden rounded-field bg-background-primary px-5 py-[var(--space-14)] max-lg:border max-lg:border-border-control sm:gap-3",
           className,
         )}
       >
@@ -66,13 +66,13 @@ export function TextField({
           placeholder={label}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className="min-w-0 flex-1 bg-transparent text-base font-medium leading-[1.3] text-text-primary placeholder:text-text-secondary sm:text-xl"
+          className="min-w-0 flex-1 bg-transparent text-[16px] max-lg:-my-[var(--space-14)] max-lg:self-stretch max-lg:py-[var(--space-14)] font-medium leading-[1.3] text-text-primary placeholder:text-text-secondary sm:text-xl"
           {...props}
         />
         {revealable ? (
           <button
             type="button"
-            className="shrink-0 text-sm font-medium text-text-secondary"
+            className="shrink-0 text-sm font-medium text-text-secondary max-lg:-my-[8px] max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:text-[13px]"
             aria-pressed={visible}
             aria-label={visible ? messages.auth.hidePasswordLabel : messages.auth.showPasswordLabel}
             onClick={() => setVisible((current) => !current)}
@@ -82,7 +82,7 @@ export function TextField({
         ) : null}
       </div>
       {error ? (
-        <p id={errorId} role="alert" className="px-2 text-sm text-text-primary">
+        <p id={errorId} role="alert" className="px-2 text-sm text-text-primary max-lg:text-[13px]">
           {error}
         </p>
       ) : null}

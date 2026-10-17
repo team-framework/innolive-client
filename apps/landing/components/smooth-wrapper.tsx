@@ -41,7 +41,8 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
         wrapper: wrapperRef.current,
         content: contentRef.current,
         smooth: 1,
-        smoothTouch: 0.1,
+        // smoothTouch only affects touch devices; honor reduced motion there with native scrolling.
+        smoothTouch: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : 0.1,
         effects: true,
         normalizeScroll: false,
       });

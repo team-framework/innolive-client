@@ -12,11 +12,11 @@ const chevrons = {
 } as const;
 
 const baseClass =
-  "inline-flex max-w-[358.4px] min-h-11 min-w-[70px] items-center justify-center gap-[8.4px] overflow-hidden rounded-pill px-[22.4px] py-[9.91px] text-left text-xl font-semibold leading-none shadow-button transition-colors md:max-w-[512px] md:min-h-14 md:min-w-[100px] md:gap-3 md:px-8 md:py-[var(--space-18)]";
+  "inline-flex max-w-[358.4px] min-h-[44px] min-w-[70px] items-center justify-center gap-[8.4px] overflow-hidden rounded-pill px-[22.4px] py-[9.91px] text-left text-xl font-semibold leading-none shadow-button transition-colors md:max-w-[512px] md:min-h-14 md:min-w-[100px] md:gap-3 md:px-8 md:py-[var(--space-18)]";
 
 const variantClass = {
   primary:
-    "bg-button-primary text-text-primary hover:bg-button-primary-hover active:bg-button-primary-pressed disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none aria-disabled:opacity-60",
+    "bg-button-primary text-text-primary max-lg:border max-lg:border-border-control hover:bg-button-primary-hover active:bg-button-primary-pressed disabled:cursor-not-allowed disabled:opacity-60 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none aria-disabled:opacity-60",
   secondary:
     "bg-button-secondary text-text-reversed hover:bg-button-secondary-hover active:bg-button-secondary-pressed disabled:cursor-not-allowed disabled:bg-button-secondary-disabled disabled:text-text-secondary disabled:opacity-100 aria-disabled:cursor-not-allowed aria-disabled:pointer-events-none aria-disabled:bg-button-secondary-disabled aria-disabled:text-text-secondary aria-disabled:opacity-100",
 } as const;

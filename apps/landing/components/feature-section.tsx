@@ -163,7 +163,7 @@ export function FeatureSection() {
             >
               <div
                 data-feature-card
-                className={`${cardClass} flex min-h-[14.5rem] w-full flex-col items-center justify-center gap-[15px] bg-gradient-to-b from-[#2563eb] to-[#b3bed7] p-8 lg:min-h-[23.125rem] lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[518px] min-[106.5rem]:flex-none min-[106.5rem]:p-8`}
+                className={`${cardClass} flex min-h-[14.5rem] w-full flex-col items-center justify-center gap-[15px] bg-gradient-to-b from-[#2563eb] to-[#b3bed7] p-8 max-lg:via-[#2563eb] max-lg:via-80% lg:min-h-[23.125rem] lg:flex-1 lg:min-w-0 min-[106.5rem]:h-[370px] min-[106.5rem]:max-w-[518px] min-[106.5rem]:flex-none min-[106.5rem]:p-8`}
               >
                 <div data-feature-content className="flex flex-col items-center gap-[15px]">
                   <p className="text-[clamp(3.5rem,1.6rem+8vw,7.5rem)] font-extrabold leading-none text-text-reversed">
