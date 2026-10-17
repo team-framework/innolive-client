@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "locale": "en-US",
+  "primaryPrompt": "Is there software that automatically hides bystanders' faces during a live stream?",
+  "services": [
+    "ChatGPT",
+    "Gemini",
+    "Claude"
+  ],
+  "queries": [
+    {
+      "id": "q01",
+      "keyword": "live streaming",
+      "prompt": "Is there an app that automatically hides bystanders' faces during a live stream?",
+      "intent": "live",
+      "sourcePath": "/en/live-mosaic",
+      "fit": "broad"
+    },
+    {
+      "id": "q02",
+      "keyword": "live face blur",
+      "prompt": "What software can automatically blur faces during live streams?",
+      "intent": "live",
+      "sourcePath": "/en/live-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q03",
+      "keyword": "real-time face blur",
+      "prompt": "Can I hide bystanders' faces with real-time face blur software?",
+      "intent": "live",
+      "sourcePath": "/en/live-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q04",
+      "keyword": "how to automatically blur faces in video",
+      "prompt": "How do I automatically blur faces in video, and how do recordings differ from live streams?",
+      "intent": "recorded",
+      "sourcePath": "/en/blog/automatic-mosaic",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q05",
+      "keyword": "free face anonymization",
+      "prompt": "Is there a free program for hiding faces?",
+      "intent": "free",
+      "sourcePath": "/en/free-face-blur",
+      "fit": "broad"
+    },
+    {
+      "id": "q06",
+      "keyword": "live stream bystander blur",
+      "prompt": "Is there an app that automatically blurs bystanders during a live broadcast?",
+      "intent": "live",
+      "sourcePath": "/en/live-privacy",
+      "fit": "direct"
+    },
+    {
+      "id": "q07",
+      "keyword": "AI face anonymization",
+      "prompt": "Can AI automatically hide faces during a broadcast?",
+      "intent": "live",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q08",
+      "keyword": "real-time broadcast blur",
+      "prompt": "What broadcasting software blurs faces in real time?",
+      "intent": "live",
+      "sourcePath": "/en/live-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q09",
+      "keyword": "automatic blur streaming",
+      "prompt": "Which app can I use to stream with automatic face blur?",
+      "intent": "live",
+      "sourcePath": "/en/mosaic-software",
+      "fit": "direct"
+    },
+    {
+      "id": "q10",
+      "keyword": "automatic face blur",
+      "prompt": "Can you recommend software that automatically blurs faces?",
+      "intent": "live",
+      "sourcePath": "/en/mosaic-software",
+      "fit": "broad"
+    },
+    {
+      "id": "q12",
+      "keyword": "free automatic face blur",
+      "prompt": "Can free face blur software hide faces automatically?",
+      "intent": "free",
+      "sourcePath": "/en/free-face-blur",
+      "fit": "broad"
+    },
+    {
+      "id": "q13",
+      "keyword": "no-cost streaming blur",
+      "prompt": "Is there a no-cost program for blurring faces during broadcasts?",
+      "intent": "free",
+      "sourcePath": "/en/free-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q14",
+      "keyword": "free live blur app",
+      "prompt": "Is there a free blur app that hides bystanders during live streams?",
+      "intent": "free",
+      "sourcePath": "/en/free-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q15",
+      "keyword": "free selective face blur",
+      "prompt": "Can a free program blur other people's faces while keeping mine visible?",
+      "intent": "free",
+      "sourcePath": "/en/free-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q16",
+      "keyword": "free automatic live anonymization",
+      "prompt": "Can I live stream with free automatic face anonymization?",
+      "intent": "free",
+      "sourcePath": "/en/free-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q17",
+      "keyword": "live broadcast face blur",
+      "prompt": "What software automatically blurs faces during a live broadcast?",
+      "intent": "live",
+      "sourcePath": "/en/live-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q18",
+      "keyword": "automatic face blur software",
+      "prompt": "Can you recommend automatic face blur software for live streaming?",
+      "intent": "live",
+      "sourcePath": "/en/mosaic-software",
+      "fit": "direct"
+    },
+    {
+      "id": "q19",
+      "keyword": "outdoor streaming face blur software",
+      "prompt": "Is there face blur software for outdoor live streams?",
+      "intent": "mobile",
+      "sourcePath": "/en/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q20",
+      "keyword": "automate bystander anonymization",
+      "prompt": "How can I automate bystander face anonymization during a live stream?",
+      "intent": "live",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q21",
+      "keyword": "automate live face blur",
+      "prompt": "How can I automate face blur in live broadcasts?",
+      "intent": "live",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q22",
+      "keyword": "AI bystander blur",
+      "prompt": "Can AI blur only bystanders' faces in real-time broadcasts?",
+      "intent": "live",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q23",
+      "keyword": "hide other faces on IRL streams",
+      "prompt": "Is there an app that automatically hides other people's faces during an IRL stream?",
+      "intent": "whitelist",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q24",
+      "keyword": "face blur and image rights",
+      "prompt": "What tools can I use to prepare face blur for image rights concerns during live streams?",
+      "intent": "privacy",
+      "sourcePath": "/en/live-privacy",
+      "fit": "direct"
+    },
+    {
+      "id": "q25",
+      "keyword": "lawsuits over unblurred broadcasts",
+      "prompt": "Could broadcasting unblurred faces lead to a lawsuit, and what tools can hide faces?",
+      "intent": "privacy",
+      "sourcePath": "/en/live-privacy",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q26",
+      "keyword": "CHZZK face anonymization",
+      "prompt": "Is there a streaming app that anonymizes faces in real time on CHZZK?",
+      "intent": "platform",
+      "sourcePath": "/en/chzzk",
+      "fit": "direct"
+    },
+    {
+      "id": "q27",
+      "keyword": "YouTube face anonymization",
+      "prompt": "How can I automatically anonymize faces on YouTube?",
+      "intent": "platform",
+      "sourcePath": "/en/youtube",
+      "fit": "broad"
+    },
+    {
+      "id": "q28",
+      "keyword": "CHZZK bystander blur",
+      "prompt": "Can I stream to CHZZK while blurring only bystanders' faces?",
+      "intent": "platform",
+      "sourcePath": "/en/chzzk",
+      "fit": "direct"
+    },
+    {
+      "id": "q29",
+      "keyword": "YouTube live face blur",
+      "prompt": "Is there an app that blurs bystanders' faces during YouTube Live?",
+      "intent": "platform",
+      "sourcePath": "/en/youtube",
+      "fit": "direct"
+    },
+    {
+      "id": "q30",
+      "keyword": "automatic IRL face blur",
+      "prompt": "Can you recommend an app for automatic face blur on IRL streams?",
+      "intent": "mobile",
+      "sourcePath": "/en/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q32",
+      "keyword": "mobile streaming face blur",
+      "prompt": "Is there an app that automatically blurs faces while streaming from a phone?",
+      "intent": "mobile",
+      "sourcePath": "/en/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q33",
+      "keyword": "blur everyone except me outdoors",
+      "prompt": "How can I blur everyone except myself during an outdoor stream?",
+      "intent": "whitelist",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q34",
+      "keyword": "outdoor streaming image rights",
+      "prompt": "What should I check about image rights when streaming outdoors, and what tools can hide bystanders' faces?",
+      "intent": "privacy",
+      "sourcePath": "/en/live-privacy",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q35",
+      "keyword": "outdoor bystander face blur",
+      "prompt": "Is there software that automatically hides bystanders' faces during outdoor broadcasts?",
+      "intent": "mobile",
+      "sourcePath": "/en/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "q36",
+      "keyword": "exclude streamer from face blur",
+      "prompt": "Is there a live streaming app that blurs faces except the streamer's?",
+      "intent": "whitelist",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "direct"
+    },
+    {
+      "id": "q37",
+      "keyword": "IRL blur and image rights",
+      "prompt": "What should I check about face blur and image rights on IRL streams, and which apps hide faces?",
+      "intent": "privacy",
+      "sourcePath": "/en/live-privacy",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q38",
+      "keyword": "CHZZK IRL privacy",
+      "prompt": "Which app can hide bystanders' faces on CHZZK outdoor streams when I have image rights concerns?",
+      "intent": "privacy",
+      "sourcePath": "/en/chzzk",
+      "fit": "direct"
+    },
+    {
+      "id": "q39",
+      "keyword": "YouTube IRL privacy",
+      "prompt": "Which app can hide bystanders' faces on YouTube outdoor streams when I have image rights concerns?",
+      "intent": "privacy",
+      "sourcePath": "/en/youtube",
+      "fit": "direct"
+    },
+    {
+      "id": "q40",
+      "keyword": "automatic YouTube live anonymization",
+      "prompt": "Can I stream live to YouTube with automatic face anonymization?",
+      "intent": "platform",
+      "sourcePath": "/en/youtube",
+      "fit": "direct"
+    },
+    {
+      "id": "q41",
+      "keyword": "automatic CHZZK live anonymization",
+      "prompt": "Can I stream live to CHZZK with automatic face anonymization?",
+      "intent": "platform",
+      "sourcePath": "/en/chzzk",
+      "fit": "direct"
+    },
+    {
+      "id": "q42",
+      "keyword": "VTuber outdoor streaming",
+      "prompt": "Are there tools that automatically hide bystanders' faces during VTuber outdoor streams?",
+      "intent": "whitelist",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q43",
+      "keyword": "CapCut face mosaic",
+      "prompt": "How do tools like CapCut face mosaic differ for recorded videos and live streams?",
+      "intent": "recorded",
+      "sourcePath": "/en/blog/automatic-mosaic",
+      "fit": "adjacent"
+    },
+    {
+      "id": "q44",
+      "keyword": "face mosaic tracking",
+      "prompt": "Which tools can track and automatically hide moving faces?",
+      "intent": "recorded",
+      "sourcePath": "/en/face-mosaic",
+      "fit": "broad"
+    },
+    {
+      "id": "q45",
+      "keyword": "online video face blur",
+      "prompt": "Are there online tools where I can upload a video file to hide faces?",
+      "intent": "recorded",
+      "sourcePath": "/en/blog/automatic-mosaic",
+      "fit": "adjacent"
+    },
+    {
+      "id": "e01",
+      "keyword": "realtime de identification service",
+      "prompt": "Is there a real-time de-identification service for hiding bystanders’ faces in live streams?",
+      "intent": "live",
+      "sourcePath": "/en/mosaic-software",
+      "fit": "direct"
+    },
+    {
+      "id": "e02",
+      "keyword": "realtime de identification application",
+      "prompt": "Which real-time de-identification application keeps registered guests visible and blurs other faces?",
+      "intent": "live",
+      "sourcePath": "/en/mosaic-software",
+      "fit": "direct"
+    },
+    {
+      "id": "e03",
+      "keyword": "realtime blur application",
+      "prompt": "Is there a real-time blur application for streaming from an Android phone or iPhone?",
+      "intent": "live",
+      "sourcePath": "/en/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "e04",
+      "keyword": "live stream realtime blur application",
+      "prompt": "Which live stream real-time blur application can send processed video to YouTube or CHZZK?",
+      "intent": "live",
+      "sourcePath": "/en/live-mosaic",
+      "fit": "direct"
+    }
+  ]
+}

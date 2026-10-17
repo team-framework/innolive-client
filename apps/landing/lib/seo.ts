@@ -1,3 +1,4 @@
+import { isSeoGuidePath, seoGuideLocales } from "@/lib/seo-guide-paths";
 import type { Metadata } from "next";
 import { defaultLocale, isLocale, localePath, locales } from "@/lib/locales";
 
@@ -10,7 +11,7 @@ export function pageAlternates(locale: string, path: string) {
   return {
     canonical: `${siteOrigin}${localePath(resolvedLocale, path)}`,
     languages: Object.fromEntries([
-      ...locales.map((language) => [language, `${siteOrigin}${localePath(language, path)}`]),
+      ...(isSeoGuidePath(path) ? seoGuideLocales : locales).map((language) => [language, `${siteOrigin}${localePath(language, path)}`]),
       ["x-default", `${siteOrigin}${localePath(defaultLocale, path)}`],
     ]),
   };
@@ -33,7 +34,7 @@ export function pageMetadata(
       siteName: "InnoLive",
       url: alternates.canonical,
       locale: ogLocales[resolvedLocale],
-      alternateLocale: locales.filter((language) => language !== resolvedLocale).map((language) => ogLocales[language]),
+      alternateLocale: (isSeoGuidePath(path) ? seoGuideLocales : locales).filter((language) => language !== resolvedLocale).map((language) => ogLocales[language]),
       images: [{
         url: `${siteOrigin}/brand/opengraph.png`,
         width: 1200,

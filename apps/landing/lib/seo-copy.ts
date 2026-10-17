@@ -23,12 +23,12 @@ export const seoCopy: Record<Locale, SearchCopy> = {
   },
   en: {
     home: {
-      title: "InnoLive | Real-time face blur for live streaming",
-      description: "Blur unregistered faces in your live stream with InnoLive's real-time AI de-identification. Keep registered participants visible and try face privacy protection in your browser.",
+      title: "Real-time De-identification & Face Blur App | InnoLive",
+      description: "Use InnoLive’s real-time de-identification app to blur bystanders on YouTube and CHZZK live streams while keeping registered faces visible.",
     },
     pricing: {
-      title: "Live streaming face blur plans | InnoLive",
-      description: "Compare InnoLive plans for real-time face de-identification. Explore the free web demo and plans for your streaming time and registered participants.",
+      title: "Real-time Face Blur App Plans | InnoLive",
+      description: "Compare plans for InnoLive’s real-time de-identification service. Check free access, streaming time and face registration limits.",
     },
     tryOut: {
       title: "Try real-time face blur and de-identification | InnoLive",
