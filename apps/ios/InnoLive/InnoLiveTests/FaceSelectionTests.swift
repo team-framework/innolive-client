@@ -46,6 +46,30 @@ final class FaceSelectionTests: XCTestCase {
         XCTAssertEqual(candidates.map(\.isSelectable), [true, false, true, false])
     }
 
+    func testFullScreenPreviewChangesWhichFacesAreVisible() {
+        let fullScreen: CGFloat = 393.0 / 852.0
+        let edge = CGRect(x: 0, y: 0.45, width: 0.12, height: 0.07)   // left edge, middle height
+        let top = CGRect(x: 0.45, y: 0.05, width: 0.12, height: 0.07)   // top, middle width
+        let square = FaceSelectionGeometry.candidates(for: [edge, top], imageSize: portrait, previewAspectRatio: 1)
+        let tall = FaceSelectionGeometry.candidates(for: [edge, top], imageSize: portrait, previewAspectRatio: fullScreen)
+        XCTAssertEqual(square.map(\.isSelectable), [true, false])
+        XCTAssertEqual(tall.map(\.isSelectable), [false, true])
+    }
+
+    func testGuestNameUsesMonthDayHourAndPassesNameRules() {
+        let date = ISO8601DateFormatter().date(from: "2026-10-17T06:40:00Z")!
+        let name = GuestFaceName.make(
+            at: date,
+            locale: Locale(identifier: "ko"),
+            timeZone: TimeZone(identifier: "Asia/Seoul")!
+        )
+        XCTAssertEqual(name, "10월 17일 오후 3시 - \(String(localized: "게스트"))")
+        XCTAssertTrue(ReferenceFaceName.isValid(name))
+        for language in ["en", "ja"] {
+            XCTAssertTrue(ReferenceFaceName.isValid(GuestFaceName.make(at: date, locale: Locale(identifier: language))))
+        }
+    }
+
     func testRegistrationCropDoublesTheLongerFaceSide() {
         let crop = FaceSelectionGeometry.registrationCropRect(around: CGRect(x: 100, y: 200, width: 80, height: 120))
         XCTAssertEqual(crop, CGRect(x: 20, y: 140, width: 240, height: 240))

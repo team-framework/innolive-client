@@ -201,6 +201,42 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         XCTAssertFalse(fixture.youtube.videoUplink.isActive)
     }
 
+    func testQuickFaceRegistrationButtonRendersBelowVideoControls() async throws {
+        let fixture = RenderingFixture()
+        defer { fixture.removePreferences() }
+        XCTAssertFalse(fixture.youtube.videoUplink.isFaceRegistrationCameraTransitioning)
+
+        for appearance in appearances {
+            // Mirrors the home screen's top-trailing column without starting the camera.
+            try await render("quick-face-registration-button", appearance: appearance) {
+                ScrollView {
+                    ZStack(alignment: .topTrailing) {
+                        LinearGradient(colors: [.indigo, .teal, .black],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                        VStack(alignment: .trailing, spacing: 12) {
+                            Button {} label: {
+                                Image(systemName: "camera.filters")
+                                    .font(.title3.weight(.semibold))
+                                    .frame(width: 44, height: 44)
+                            }
+                            .innoLiveGlassButtonStyle()
+                            .buttonBorderShape(.circle)
+
+                            QuickFaceRegistrationButton(authentication: fixture.authentication,
+                                                        videoUplink: fixture.youtube.videoUplink,
+                                                        isEnabled: true)
+                        }
+                        .padding(24)
+                    }
+                    .frame(height: 400)
+                }
+                .environment(fixture.camera)
+            }
+        }
+        XCTAssertFalse(fixture.camera.session.isRunning)
+        XCTAssertFalse(fixture.youtube.videoUplink.isActive)
+    }
+
     func testFaceSelectionBracketsAndFrozenSelectionRender() async throws {
         let imageSize = CGSize(width: 1080, height: 1920)
         let faces = [
