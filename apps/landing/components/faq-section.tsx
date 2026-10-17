@@ -105,7 +105,7 @@ export function FAQSection() {
                   {item.answerLink ? (
                     <>
                       {item.answerLink.before}
-                      <Link href={item.answerLink.href} className="underline [text-underline-position:from-font]">
+                      <Link href={item.answerLink.href} className="underline [text-underline-position:from-font] max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                         {item.answerLink.label}
                       </Link>
                       {item.answerLink.after}

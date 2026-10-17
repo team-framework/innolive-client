@@ -184,7 +184,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
                   {agreeBefore}
                   <Link
                     href={href("/terms")}
-                    className="underline [text-underline-position:from-font]"
+                    className="underline [text-underline-position:from-font] max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center"
                     onClick={(event) => {
                       if (!hasAcceptedTerms) {
                         event.preventDefault();

@@ -78,7 +78,7 @@ export function Header() {
             aria-controls="mobile-navigation"
             aria-expanded={mobileMenuOpen}
             aria-label={mobileMenuOpen ? messages.header.closeMenu : messages.header.openMenu}
-            className="inline-flex size-11 items-center max-md:-m-[6px] max-md:size-[44px] justify-center rounded-full text-text-primary transition-colors hover:bg-background-primary"
+            className="inline-flex size-11 items-center max-md:-my-[6px] max-md:size-[44px] justify-center rounded-full text-text-primary transition-colors hover:bg-background-primary"
             onClick={() => setMobileMenuOpen((open) => !open)}
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none">
