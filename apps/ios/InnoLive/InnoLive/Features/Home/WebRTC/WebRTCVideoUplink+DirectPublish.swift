@@ -12,16 +12,6 @@ extension WebRTCVideoUplink {
     /// 업로드가 두 배가 되지 않도록 서버 쪽 영상 비트레이트를 낮춘다.
     func setDirectPublishBitrateLimited(_ limited: Bool) {
         isDirectPublishBitrateLimited = limited
-        applyDirectPublishBitrateLimit()
-    }
-
-    func applyDirectPublishBitrateLimit() {
-        guard let videoSender else { return }
-        let parameters = videoSender.parameters
-        for encoding in parameters.encodings {
-            encoding.maxBitrateBps = isDirectPublishBitrateLimited ? NSNumber(value: 300_000) : nil
-            encoding.maxFramerate = isDirectPublishBitrateLimited ? NSNumber(value: 15) : nil
-        }
-        videoSender.parameters = parameters
+        applyVideoSendParameters()
     }
 }
