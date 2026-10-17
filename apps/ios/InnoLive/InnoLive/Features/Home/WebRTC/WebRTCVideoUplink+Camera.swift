@@ -150,7 +150,11 @@ extension WebRTCVideoUplink {
         if let lockedBroadcastOrientation {
             frameRelay.setLockedInterfaceOrientation(lockedBroadcastOrientation)
         }
-        let capturer = LKRTCCameraVideoCapturer(delegate: frameRelay)
+        // InnoLive captures one camera at a time. The SDK's default shared MultiCam
+        // session rejects otherwise valid single-camera formats on devices such as iPhone XR.
+        let captureSession = AVCaptureSession()
+        captureSession.automaticallyConfiguresApplicationAudioSession = false
+        let capturer = LKRTCCameraVideoCapturer(delegate: frameRelay, captureSession: captureSession)
         let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
         track.isEnabled = true
         videoSource = source
@@ -197,6 +201,7 @@ extension WebRTCVideoUplink {
         )
         relay.setUnprocessedPreviewHandler(unprocessedPreviewHandler)
         relay.setDirectMediaSink(directMediaSink)
+        relay.setRecordingSink(recordingSink)
         return relay
     }
 
@@ -311,6 +316,11 @@ extension WebRTCVideoUplink {
                     continuation.resume()
                 }
             }
+        }
+        // The SDK can complete with nil even when AVCaptureSession rejected the format.
+        guard capturer.captureSession.isRunning else {
+            await stopCapture(capturer)
+            throw WebRTCVideoUplinkError.failed(String(localized: "카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요."))
         }
         applyCaptureAdjustments(capturer: capturer, device: device)
     }
@@ -458,6 +468,28 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private var lastDeliveryTime: TimeInterval = 0
     private var unprocessedPreviewHandler: (@Sendable (CVPixelBuffer, Int) -> Void)?
     private weak var directMediaSink: (any DirectMediaSink)?
+    #if DEBUG
+    private var validationCapturedFrames = 0
+    private var validationColorFailures = 0
+    private var validationPreviewFrames = 0
+    private var validationRouteTickets = 0
+    private var validationLastColorError = "none"
+    private var validationLastRouteMode = "no-ticket"
+    var validationCaptureDiagnostics: String {
+        lock.withLock {
+            "captured=\(validationCapturedFrames),colorFailures=\(validationColorFailures),previewFrames=\(validationPreviewFrames),routeTickets=\(validationRouteTickets),routeMode=\(validationLastRouteMode),colorError=\(validationLastColorError)"
+        }
+    }
+    private var validationVideoDelivery: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?
+    func setValidationVideoDelivery(_ observer: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?) {
+        lock.withLock { validationVideoDelivery = observer }
+    }
+    #endif
+    private var recordingSink: LocalBroadcastRecorder?
+
+    func setRecordingSink(_ recorder: LocalBroadcastRecorder?) {
+        lock.withLock { recordingSink = recorder }
+    }
 
     init(target: LKRTCVideoCapturerDelegate, cameraPosition: AVCaptureDevice.Position,
          processingMode: AIProcessingMode = .server, previewTarget: LKRTCVideoCapturerDelegate? = nil,
@@ -538,6 +570,11 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         let warmth = warmth
         let saturation = saturation
         let exposureEV = exposureEV
+        let recorder = recordingSink
+        #if DEBUG
+        let deliveryObserver = validationVideoDelivery
+        validationCapturedFrames += 1
+        #endif
         lock.unlock()
 
         let outgoing = outgoingFrame(
@@ -555,16 +592,32 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                 saturation: saturation
             )
         } catch {
+            #if DEBUG
+            lock.withLock {
+                validationColorFailures += 1
+                let diagnostic = error as NSError
+                validationLastColorError = "\(diagnostic.domain):\(diagnostic.code)"
+            }
+            #endif
             return
         }
+        #if DEBUG
+        lock.withLock { validationPreviewFrames += 1 }
+        #endif
         previewTarget?.capturer(capturer, didCapture: coloredPreview)
         lock.lock()
         let directSink = directMediaSink
         lock.unlock()
         if let ticket = route.ticket() {
+            #if DEBUG
+            lock.withLock {
+                validationRouteTickets += 1
+                validationLastRouteMode = String(describing: ticket.mode)
+            }
+            #endif
             if ticket.mode == .onDevice {
                 let colorProcessor = uplinkColorProcessor
-                processor.submit(outgoing) { [target, route, colorProcessor, directSink] result in
+                processor.submit(outgoing) { [target, route, colorProcessor, directSink, recorder] result in
                     let coloredUplink: LKRTCVideoFrame
                     do {
                         coloredUplink = try colorProcessor.process(
@@ -579,13 +632,20 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                     var delivered = false
                     route.deliver(ticket) {
                         target.capturer(capturer, didCapture: coloredUplink)
+                    #if DEBUG
+                    if let buffer = (coloredUplink.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
+                        deliveryObserver?(buffer, Int(coloredUplink.rotation.rawValue), coloredUplink.timeStampNs)
+                    }
+                    #endif
                         delivered = true
                     }
                     // 무효화된 경로의 결과는 직접 송출에도 넘기지 않는다. 변환은 경로 잠금 밖에서 한다.
                     // 송출 대상이 없어도 넘긴다. 첫 연결 때 인코더 크기를 실제 프레임 크기로 정한다.
-                    if delivered, let directSink,
-                       let buffer = (coloredUplink.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
-                        directSink.appendVideo(
+                    if delivered, let buffer = (coloredUplink.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
+                        // Same successful delivery and source frame; recorder admission is bounded.
+                        recorder?.appendVideo(pixelBuffer: buffer,
+                            rotation: Int(coloredUplink.rotation.rawValue), timestampNs: coloredUplink.timeStampNs)
+                        directSink?.appendVideo(
                             pixelBuffer: buffer,
                             rotation: Int(coloredUplink.rotation.rawValue),
                             timestampNs: coloredUplink.timeStampNs
@@ -593,7 +653,21 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                     }
                 }
             } else {
-                route.deliver(ticket) { target.capturer(capturer, didCapture: coloredPreview) }
+                var delivered = false
+                route.deliver(ticket) {
+                    target.capturer(capturer, didCapture: coloredPreview)
+                    #if DEBUG
+                    if let buffer = (coloredPreview.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
+                        deliveryObserver?(buffer, Int(coloredPreview.rotation.rawValue), coloredPreview.timeStampNs)
+                    }
+                    #endif
+                    delivered = true
+                }
+                // Conversion/copying stays outside the route lock, never records a rejected ticket.
+                if delivered, let buffer = (coloredPreview.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
+                    recorder?.appendVideo(pixelBuffer: buffer,
+                        rotation: Int(coloredPreview.rotation.rawValue), timestampNs: coloredPreview.timeStampNs)
+                }
             }
         }
 

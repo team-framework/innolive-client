@@ -131,7 +131,8 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
     }
 
     /// 마이크 음성이다. `audioFormat` 형식이어야 한다.
-    func appendAudio(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) {
+    @discardableResult
+    func appendAudio(_ buffer: AVAudioPCMBuffer, when: AVAudioTime) -> Bool {
         lock.lock()
         let now = Self.hostSeconds()
         lastMicrophoneAudioAt = now
@@ -139,6 +140,7 @@ nonisolated final class DirectMediaFanout: DirectMediaSink, @unchecked Sendable 
         let targets = outputs.filter { !pausedProviders.contains($0.key) }.map(\.value)
         lock.unlock()
         targets.forEach { $0.appendAudio(buffer, when: when) }
+        return !targets.isEmpty
     }
 
     private func updateAudioKeeperTimer() {

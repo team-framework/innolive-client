@@ -25,6 +25,7 @@ enum BroadcastRecordingState: Equatable {
 struct BroadcastLifecycleResult: Equatable {
     let startedAt: Date
     let endedAt: Date
+    var terminationWarning: String? = nil
     var duration: TimeInterval { max(0, endedAt.timeIntervalSince(startedAt)) }
 }
 
@@ -32,13 +33,43 @@ struct BroadcastLifecycleResult: Equatable {
 /// A generation must accompany delayed work so cancellation cannot start an old session.
 @MainActor
 final class BroadcastLifecycle: ObservableObject {
+    // iOS 18 객체 해제 호환성: docs/ios-version-support.md 참고.
+    nonisolated deinit {}
     @Published private(set) var phase: BroadcastLifecyclePhase = .idle
     @Published private(set) var recording: BroadcastRecordingState = .idle
     @Published private(set) var result: BroadcastLifecycleResult?
     @Published private(set) var errorMessage: String?
+    @Published private(set) var resultDismissed = false
     private(set) var generation: UInt = 0
     private(set) var startedAt: Date?
     private var activeTargets: Set<String> = []
+
+    var isPresentingStart: Bool {
+        if case .countdown = phase { return true }
+        return phase == .starting
+    }
+
+    var isPresentingEnd: Bool { phase == .ending || (phase == .result && !resultDismissed) }
+
+    func dismissResult() {
+        guard phase == .result else { return }
+        resultDismissed = true
+    }
+
+    /// Local teardown can finish capture while remote stop acknowledgement is unavailable.
+    /// Preserve generation so the pending writer can still finish after this screen closes.
+    func finishLocalSession(warning: String?, at date: Date = Date()) {
+        if phase == .result {
+            if let warning { result?.terminationWarning = warning }
+            return
+        }
+        guard let startedAt, phase == .live || phase == .ending || phase == .starting else { return }
+        result = BroadcastLifecycleResult(startedAt: startedAt, endedAt: date, terminationWarning: warning)
+        resultDismissed = false
+        activeTargets = []
+        phase = .result
+        if recording == .armed || recording == .recording { recording = .finalizing }
+    }
 
     func isCurrent(_ generation: UInt) -> Bool { self.generation == generation }
 
@@ -105,6 +136,7 @@ final class BroadcastLifecycle: ObservableObject {
         if !targets.isEmpty {
             if phase != .ending { phase = .live }
         } else if phase != .starting, let startedAt {
+            resultDismissed = false
             result = BroadcastLifecycleResult(startedAt: startedAt, endedAt: date)
             phase = .result
             if recording == .armed || recording == .recording { recording = .finalizing }
@@ -133,6 +165,12 @@ final class BroadcastLifecycle: ObservableObject {
         recording = .recording
     }
 
+    func recordingFinalizing(generation: UInt) {
+        guard isCurrent(generation), recording != .idle else { return }
+        if case .saved = recording { return }
+        recording = .finalizing
+    }
+
     /// The writer calls this only after closing and verifying the playable file.
     func recordingSaved(_ url: URL, generation: UInt) {
         guard isCurrent(generation), recording == .finalizing else { return }
@@ -149,6 +187,7 @@ final class BroadcastLifecycle: ObservableObject {
         phase = .idle
         recording = .idle
         result = nil
+        resultDismissed = false
         errorMessage = nil
         startedAt = nil
         activeTargets = []

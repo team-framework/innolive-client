@@ -4,6 +4,7 @@ import Foundation
 // 동일 편집기를 방송 준비와 추가 플랫폼 설정 화면에서 재사용한다.
 @MainActor
 final class BroadcastSettingsEditor: ObservableObject {
+    nonisolated deinit {}
     @Published var provider: BroadcastSettingsProvider = .youtube
     @Published private(set) var youtube = YouTubeBroadcastSettings.defaultValue
     @Published private(set) var chzzk = CHZZKBroadcastSettings()

@@ -16,9 +16,15 @@ protocol DirectBroadcastPublishing: AnyObject {
     func start(provider: String, endpoint: DirectIngestEndpoint, quality: CameraQualityPreset) async throws
     func stop(provider: String) async
     func stopAll() async
+    func setRecordingSink(_ recorder: LocalBroadcastRecorder?)
     func setPaused(_ paused: Bool, provider: String)
     /// 하트비트에 싣는 대상별 연결 상태와 누적 지표다.
     func heartbeatStatus() async -> DirectPublishStatus
+}
+
+// Existing test doubles can opt out until recording-specific assertions are added.
+extension DirectBroadcastPublishing {
+    func setRecordingSink(_ recorder: LocalBroadcastRecorder?) {}
 }
 
 struct DirectPublishTargetStatus: Equatable {
@@ -64,6 +70,7 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
 
     private let fanout = DirectMediaFanout()
     private let microphone: any DirectAudioCapturing
+    private let recordingSlot = BroadcastRecordingSinkSlot()
     /// 마이크 녹음을 시작했고 아직 멈추지 않았다. 시작에 실패해도 녹음기는 다시 열기를 시도하므로 멈춰야 한다.
     private var isMicrophoneActive = false
     private var outputs: [String: RTMPDirectOutput] = [:]
@@ -116,6 +123,8 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
         for provider in providers { await stop(provider: provider) }
     }
 
+    func setRecordingSink(_ recorder: LocalBroadcastRecorder?) { recordingSlot.set(recorder) }
+
     func setPaused(_ paused: Bool, provider: String) {
         guard let state = states[provider] else { return }
         fanout.setPaused(paused, provider: provider)
@@ -165,8 +174,18 @@ final class DirectBroadcastPublisher: ObservableObject, DirectBroadcastPublishin
         guard !isMicrophoneActive else { return }
         isMicrophoneActive = true
         let fanout = fanout
+        let recordingSlot = recordingSlot
         isMicrophoneUnavailable = !microphone.start { buffer, when in
-            fanout.appendAudio(buffer, when: when)
+            let recorder = recordingSlot.snapshot()
+            let audible = fanout.appendAudio(buffer, when: when)
+            guard let recorder else { return }
+            if audible {
+                recorder.appendAudio(buffer, when: when)
+            } else if let silence = DirectMediaFanout.silence(format: buffer.format,
+                duration: Double(buffer.frameLength) / buffer.format.sampleRate) {
+                // When every target is paused, do not store the microphone they do not receive.
+                recorder.appendAudio(silence, when: when)
+            }
         }
     }
 

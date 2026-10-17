@@ -13,6 +13,12 @@ struct InnoLiveApp: App {
     @UIApplicationDelegateAdaptor(InnoLiveAppDelegate.self) private var appDelegate
     @State private var cameraManager = CameraManager()
 
+    private static let cleanStaleRecordingExports: Void = {
+        _ = try? BroadcastRecordingExporter.cleanupStaleExportsOnColdStart()
+    }()
+
+    init() { _ = Self.cleanStaleRecordingExports }
+
     var body: some Scene {
         WindowGroup {
             rootView

@@ -67,10 +67,18 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         let refusedCamera = BroadcastPreparationPermissions(
             hasMediaTransmissionConsent: true, cameraAuthorized: false, microphoneAuthorized: true
         )
+        let refusedMicrophone = BroadcastPreparationPermissions(
+            hasMediaTransmissionConsent: true, cameraAuthorized: true, microphoneAuthorized: false
+        )
         let refusedConsentResult = await prepare(integration, permissions: refusedConsent)
         let refusedCameraResult = await prepare(integration, permissions: refusedCamera)
+        let refusedMicrophoneResult = await prepare(integration, permissions: refusedMicrophone)
         XCTAssertFalse(refusedConsentResult)
         XCTAssertFalse(refusedCameraResult)
+        XCTAssertFalse(refusedMicrophoneResult)
+        XCTAssertTrue(PreparationFlowURLProtocol.requests.isEmpty)
+        XCTAssertNil(integration.session)
+        XCTAssertNil(integration.preparationStatus)
         integration.settingsEditor.editYouTube { $0.title = " " }
         let invalidTitle = await prepare(integration)
         XCTAssertFalse(invalidTitle)
@@ -603,6 +611,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
 }
 
 private final class PreparationProbe {
+    nonisolated deinit {}
     var calls = 0
     var pathsAtCall: [String] = []
 }
