@@ -14,6 +14,7 @@ struct AccountSettingsView: View {
             || youtube.isRecoveringVideoFailure
             || youtube.isTogglingAnonymization
             || youtube.isTogglingScreenBlur
+            || youtube.isChangingMosaicConfig
     }
 
     private var isDeletionBlocked: Bool {

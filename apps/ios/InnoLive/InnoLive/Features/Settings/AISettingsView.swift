@@ -32,7 +32,7 @@ struct AISettingsView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .disabled(isChanging || youtube.isScreenBlurEnabled || youtube.isTogglingScreenBlur || youtube.isYouTubeBroadcastActive || youtube.isChangingBroadcastMode || youtube.isChangingStreamState || youtube.isPreparingSession || youtube.isConnectingVideo)
+                    .disabled(isChanging || youtube.isScreenBlurEnabled || youtube.isTogglingScreenBlur || youtube.isChangingMosaicConfig || youtube.isYouTubeBroadcastActive || youtube.isChangingBroadcastMode || youtube.isChangingStreamState || youtube.isPreparingSession || youtube.isConnectingVideo)
                 }
                 if mode == .onDevice {
                     OnDeviceTransportSection(youtube: youtube, planStore: youtube.planStore, isChangingMode: isChanging)

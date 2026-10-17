@@ -455,6 +455,17 @@ final class YouTubeAPI: PlanAPIClient {
         )
     }
 
+    func updateMosaicConfig(session: YouTubeBroadcastSession, accessToken: String,
+                            config: BroadcastMosaicConfig) async throws -> YouTubeSessionResponse {
+        try await request(
+            path: "/sessions/\(session.sessionID)/mosaic-config",
+            method: "PUT",
+            accessToken: accessToken,
+            ownerToken: session.ownerToken,
+            body: config
+        )
+    }
+
     func sessionStatus(session: YouTubeBroadcastSession, accessToken: String) async throws -> YouTubeSessionResponse {
         try await request(
             path: "/sessions/\(session.sessionID)",
