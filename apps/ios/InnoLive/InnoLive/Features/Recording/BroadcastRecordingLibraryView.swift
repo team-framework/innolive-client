@@ -56,9 +56,9 @@ struct BroadcastRecordingLibraryView: View {
                 Button(String(localized: "닫기")) { dismiss() }
             }
         }
-        .confirmationDialog(String(localized: "저장된 방송을 삭제할까요?"),
+        .alert(String(localized: "저장된 방송을 삭제할까요?"),
             isPresented: Binding(get: { recordingToDelete != nil }, set: { if !$0 { recordingToDelete = nil } }),
-            titleVisibility: .visible, presenting: recordingToDelete) { recording in
+            presenting: recordingToDelete) { recording in
             Button(String(localized: "삭제"), role: .destructive) {
                 do { try store.delete(recording) }
                 catch { deletionError = error.localizedDescription }
