@@ -459,6 +459,12 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private var lastDeliveryTime: TimeInterval = 0
     private var unprocessedPreviewHandler: (@Sendable (CVPixelBuffer, Int) -> Void)?
     private weak var directMediaSink: (any DirectMediaSink)?
+    #if DEBUG
+    private var validationVideoDelivery: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?
+    func setValidationVideoDelivery(_ observer: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?) {
+        lock.withLock { validationVideoDelivery = observer }
+    }
+    #endif
     private var recordingSink: LocalBroadcastRecorder?
 
     func setRecordingSink(_ recorder: LocalBroadcastRecorder?) {
@@ -545,6 +551,9 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         let saturation = saturation
         let exposureEV = exposureEV
         let recorder = recordingSink
+        #if DEBUG
+        let deliveryObserver = validationVideoDelivery
+        #endif
         lock.unlock()
 
         let outgoing = outgoingFrame(
@@ -586,6 +595,11 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                     var delivered = false
                     route.deliver(ticket) {
                         target.capturer(capturer, didCapture: coloredUplink)
+                    #if DEBUG
+                    if let buffer = (coloredUplink.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
+                        deliveryObserver?(buffer, Int(coloredUplink.rotation.rawValue), coloredUplink.timeStampNs)
+                    }
+                    #endif
                         delivered = true
                     }
                     // 무효화된 경로의 결과는 직접 송출에도 넘기지 않는다. 변환은 경로 잠금 밖에서 한다.
@@ -605,6 +619,11 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                 var delivered = false
                 route.deliver(ticket) {
                     target.capturer(capturer, didCapture: coloredPreview)
+                    #if DEBUG
+                    if let buffer = (coloredPreview.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
+                        deliveryObserver?(buffer, Int(coloredPreview.rotation.rawValue), coloredPreview.timeStampNs)
+                    }
+                    #endif
                     delivered = true
                 }
                 // Conversion/copying stays outside the route lock, never records a rejected ticket.
