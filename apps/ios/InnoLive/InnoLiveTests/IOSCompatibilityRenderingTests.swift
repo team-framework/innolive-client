@@ -186,20 +186,53 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
 
         for appearance in appearances {
             // The empty token store stops ReferenceFaceAPI before any network request.
-            // This covers the registration form and signed-out error, not stored faces.
+            // This covers the management screen and signed-out error, not stored faces.
             try await render("face-management-signed-out", appearance: appearance,
                              title: String(localized: "얼굴 관리")) {
                 FaceManagementView(authentication: fixture.authentication,
                                    youtube: fixture.youtube, mode: .server)
                     .environment(fixture.camera)
             } inspect: { window in
-                let name = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextField }.first)
-                assertVisible(name, in: window)
-                XCTAssertTrue(name.isEnabled)
+                XCTAssertTrue(descendants(of: window).compactMap { $0 as? UITextField }.isEmpty,
+                              "The name is entered after tapping a face in the camera")
             }
         }
         XCTAssertFalse(fixture.camera.session.isRunning)
         XCTAssertFalse(fixture.youtube.videoUplink.isActive)
+    }
+
+    func testFaceSelectionBracketsAndFrozenSelectionRender() async throws {
+        let imageSize = CGSize(width: 1080, height: 1920)
+        let faces = [
+            FaceSelectionCandidate(rect: CGRect(x: 0.12, y: 0.42, width: 0.26, height: 0.15), isSelectable: true),
+            FaceSelectionCandidate(rect: CGRect(x: 0.58, y: 0.44, width: 0.24, height: 0.14), isSelectable: true),
+            FaceSelectionCandidate(rect: CGRect(x: 0.44, y: 0.66, width: 0.06, height: 0.035), isSelectable: false)
+        ]
+        let frame = try XCTUnwrap(CIContext().createCGImage(
+            CIImage(color: CIColor(red: 0.32, green: 0.36, blue: 0.42)).cropped(to: CGRect(origin: .zero, size: imageSize)),
+            from: CGRect(origin: .zero, size: imageSize)
+        ))
+
+        for appearance in appearances {
+            try await render("face-selection", appearance: appearance) {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        ZStack {
+                            LinearGradient(colors: [.gray, .black], startPoint: .top, endPoint: .bottom)
+                            FaceSelectionOverlay(faces: faces, imageSize: imageSize) { _ in }
+                        }
+                        .aspectRatio(FaceSelectionGeometry.previewAspectRatio, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+
+                        FrozenFaceSelectionView(image: frame, faceRect: faces[0].rect)
+                            .aspectRatio(FaceSelectionGeometry.previewAspectRatio, contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    }
+                    .padding(24)
+                }
+                .background(Color.black)
+            }
+        }
     }
 
     func testSettingsRemainScrollableWithAccessibilityTextSize() async throws {
