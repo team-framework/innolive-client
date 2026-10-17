@@ -48,3 +48,17 @@
 현재 종료 화면에는 녹화기가 연결되지 않았다. 저장 중·저장 완료 문구와 재생·내보내기 동작은 실제 녹화 연결 시 활성화한다. 이 단계에서는 파일을 저장했다고 안내하지 않는다. 전체 종료 확인창의 실제 탭 검증과 기기 실행 결과는 별도 검증 기록에 남긴다.
 
 검증: iPhone 16에서 모델·통합 테스트 32개와 종료 화면 렌더링 테스트 3개 통과. 밝은/어두운 화면, 큰 글자, 저장 상태별 13개 화면 첨부 확인. 실제 서버 종료 요청과 확인창 직접 탭은 이 검증에 포함하지 않는다.
+
+## 송출 미디어 녹화
+
+`LocalBroadcastRecorder`는 성공적으로 전달한 송출 프레임과 마이크 PCM을 H.264 + AAC 48 kHz stereo MP4에 기록한다. 카메라 relay는 색상 보정과 기기 AI 처리 후 WebRTC에 전달한 pixel buffer·rotation·timestamp를 같은 녹화기에 전달한다. 서버 처리 모드에서는 서버로 보내는 입력 프레임을 저장하므로 서버에서 후처리한 결과와 다를 수 있다.
+
+WebRTC 마이크는 기본 audio device module의 capture postprocessing callback에서 복사한다. LiveKit의 FloatS16을 Float32로 정규화하며, mono는 두 채널로 복사한다. `capturePostProcessingDelegate`는 audio processing module 생성 후 setter로 연결한다. 초기화 인자만 전달하면 현재 의존성의 native adapter가 callback을 연결하지 않는다. 별도의 마이크 장치를 열거나 audio session의 manual 설정을 바꾸지 않는다.
+
+직접 송출 모드에서는 기존 microphone callback의 PCM과 host time을 사용한다. 대상이 모두 일시 중단된 동안에는 같은 길이의 무음을 저장한다. 공통 입력 녹화 한 개를 유지하므로 플랫폼별 pause slate 등 downstream 변형은 포함하지 않는다.
+
+녹화기는 첫 영상 크기를 유지하고 카메라 방향·크기 변경 시 비율을 유지해 맞춘다. 영상 대기는 4개, 음성 대기는 200개 버퍼·96,000프레임 중 먼저 도달하는 한도로 제한한다. 영상 writer 지연은 누락 수로 집계하고, 음성 한도 초과와 인코더 오류는 실패 callback을 한 번 전달한다. 음성 writer의 일시적인 대기는 queue에서 처리하며 종료 시 최대 15초 동안 남은 음성을 마무리한다. 캡처 공백에는 무음을 넣어 시간축을 유지한다.
+
+WebRTC 음성 callback에는 하드웨어 timestamp가 없어 첫 host time과 누적 sample 수로 시간축을 만든다. 긴 입력 공백은 host time으로 다시 맞춘다. 파일 트랙 시간 비교와 실제 영상·음성 내용의 동기 검증은 별도 검증 항목이다.
+
+검증: iPhone 16 Pro에서 녹화기 8개·실제 마이크 녹화 1개·기존 직접 송출/relay 회귀 38개 테스트 통과. 실제 마이크 녹화 파일은 8.030초, 영상 끝 8.023초, 디코딩된 음성 385,440프레임, peak 0.0501, RMS 0.00126, clipping 0%. 새 녹화기 교체 후 이전 파일 바이트 불변 확인. 해당 테스트의 영상은 음성 경로 분리 검증용 합성 프레임이며 실제 카메라·콘텐츠 동기는 별도 기기 검증 대상이다.
