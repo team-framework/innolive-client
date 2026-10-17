@@ -394,12 +394,45 @@ extension YouTubeSessionResponse {
 struct YouTubeSessionMedia: Decodable, Equatable {
     let anonymizationEnabled: Bool?
     var screenBlurEnabled: Bool? = nil
+    var mosaicConfig: BroadcastMosaicConfig? = nil
     let rawVideoTrack: YouTubeVideoTrackState?
 
     enum CodingKeys: String, CodingKey {
         case anonymizationEnabled = "anonymization_enabled"
         case screenBlurEnabled = "screen_blur_enabled"
+        case mosaicConfig = "mosaic_config"
         case rawVideoTrack = "raw_video_track"
+    }
+}
+
+/// 서버 세션의 얼굴·번호판 블러 강도와 영역이다(server #484). nil 필드는 서버 AI
+/// 기본값이며 0과 다르다. 요청에서도 nil 필드는 빠져 기본값으로 돌아간다.
+struct BroadcastMosaicConfig: Codable, Equatable {
+    static let defaultBlurRadius = 24
+    static let defaultMaskMargin = 8
+    // 서버는 blur_radius를 0 초과 64 이하로 받는다. 슬라이더는 정수 1~64만 쓴다.
+    static let blurRadiusRange = 1...64
+    static let maskMarginRange = 0...64
+
+    var blurRadius: Double?
+    var pixelSize: Int?
+    var maskMargin: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case blurRadius = "blur_radius"
+        case pixelSize = "pixel_size"
+        case maskMargin = "mask_margin"
+    }
+
+    var effectiveBlurRadius: Int { blurRadius.map { Int($0.rounded()) } ?? Self.defaultBlurRadius }
+    var effectiveMaskMargin: Int { maskMargin ?? Self.defaultMaskMargin }
+
+    /// 슬라이더 값을 서버 허용 범위로 맞춘다. pixel_size는 iOS에서 바꾸지 않고 유지한다.
+    func adjusted(blurRadius radius: Int?, maskMargin margin: Int?) -> Self {
+        var config = self
+        config.blurRadius = radius.map { Double(min(max($0, Self.blurRadiusRange.lowerBound), Self.blurRadiusRange.upperBound)) }
+        config.maskMargin = margin.map { min(max($0, Self.maskMarginRange.lowerBound), Self.maskMarginRange.upperBound) }
+        return config
     }
 }
 

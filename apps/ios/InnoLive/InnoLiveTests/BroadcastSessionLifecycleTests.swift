@@ -686,6 +686,112 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertFalse(integration.isScreenBlurEnabled)
     }
 
+    func testMosaicConfigFixtureDecodesNullAsServerDefault() throws {
+        let response = try JSONDecoder().decode(YouTubeSessionResponse.self, from: ContractTestFixtures.data(named: "session-mosaic-config.v1"))
+        let config = try XCTUnwrap(response.media.mosaicConfig)
+        XCTAssertEqual(config, BroadcastMosaicConfig(blurRadius: 40, pixelSize: nil, maskMargin: 16))
+        XCTAssertEqual(BroadcastMosaicConfig().effectiveBlurRadius, 24)
+        XCTAssertEqual(BroadcastMosaicConfig().effectiveMaskMargin, 8)
+        let legacy = try JSONDecoder().decode(YouTubeSessionResponse.self, from: Data(SessionLifecycleURLProtocol.Response.blur(false).body.utf8))
+        XCTAssertNil(legacy.media.mosaicConfig)
+    }
+
+    func testMosaicConfigUsesAuthenticatedPutAndKeepsPixelSize() async throws {
+        SessionLifecycleURLProtocol.responses = [
+            .created("mosaic"),
+            .mosaic("{\"blur_radius\":null,\"pixel_size\":4,\"mask_margin\":null}"),
+            .mosaic("{\"blur_radius\":64,\"pixel_size\":4,\"mask_margin\":0}"),
+        ]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        XCTAssertTrue(integration.canChangeMosaicConfig)
+        await integration.updateMosaicConfig(BroadcastMosaicConfig(pixelSize: 4), accessToken: token)
+        XCTAssertEqual(integration.mosaicConfig.pixelSize, 4)
+        await integration.updateMosaicConfig(integration.mosaicConfig.adjusted(blurRadius: 99, maskMargin: -3), accessToken: token)
+        let request = try XCTUnwrap(SessionLifecycleURLProtocol.requests.last)
+        XCTAssertEqual(request.httpMethod, "PUT")
+        XCTAssertEqual(request.url?.path, "/sessions/mosaic/mosaic-config")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer \(token)")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "X-Session-Owner-Token"), "owner")
+        let body = try screenBlurRequestBody(request)
+        XCTAssertEqual(body["blur_radius"] as? Double, 64)
+        XCTAssertEqual(body["pixel_size"] as? Int, 4)
+        XCTAssertEqual(body["mask_margin"] as? Int, 0)
+        XCTAssertEqual(integration.mosaicConfig, BroadcastMosaicConfig(blurRadius: 64, pixelSize: 4, maskMargin: 0))
+        XCTAssertFalse(integration.isChangingMosaicConfig)
+        XCTAssertEqual(methods, ["POST", "PUT", "PUT"])
+    }
+
+    func testMosaicConfigDefaultsOmitFields() async throws {
+        SessionLifecycleURLProtocol.responses = [.created("mosaic"), .mosaic("{\"blur_radius\":null,\"pixel_size\":null,\"mask_margin\":null}")]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        await integration.updateMosaicConfig(BroadcastMosaicConfig(blurRadius: 30).adjusted(blurRadius: nil, maskMargin: nil), accessToken: token)
+        XCTAssertEqual(try screenBlurRequestBody(XCTUnwrap(SessionLifecycleURLProtocol.requests.last)).count, 0)
+        XCTAssertEqual(integration.mosaicConfig, BroadcastMosaicConfig())
+    }
+
+    func testMosaicConfigFailureAndMissingFieldPreserveConfirmedValue() async {
+        SessionLifecycleURLProtocol.responses = [
+            .created("mosaic"),
+            .mosaic("{\"blur_radius\":40,\"pixel_size\":null,\"mask_margin\":16}"),
+            .empty(400),
+            .blur(false),
+        ]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        await integration.updateMosaicConfig(BroadcastMosaicConfig(blurRadius: 40, maskMargin: 16), accessToken: token)
+        for _ in 0..<2 {
+            await integration.updateMosaicConfig(BroadcastMosaicConfig(blurRadius: 10, maskMargin: 2), accessToken: token)
+            XCTAssertEqual(integration.mosaicConfig, BroadcastMosaicConfig(blurRadius: 40, maskMargin: 16))
+            XCTAssertFalse(integration.isChangingMosaicConfig)
+            XCTAssertNotNil(integration.mosaicConfigErrorMessage)
+        }
+    }
+
+    func testMosaicConfigSendsLatestValueQueuedDuringRequest() async throws {
+        SessionLifecycleURLProtocol.responses = [
+            .created("mosaic"),
+            .mosaic("{\"blur_radius\":30,\"pixel_size\":null,\"mask_margin\":null}"),
+            .mosaic("{\"blur_radius\":50,\"pixel_size\":null,\"mask_margin\":20}"),
+        ]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        SessionLifecycleURLProtocol.beforeResponse = { [token] request in
+            guard request.httpMethod == "PUT", SessionLifecycleURLProtocol.requests.count == 2 else { return }
+            await integration.updateMosaicConfig(BroadcastMosaicConfig(blurRadius: 40), accessToken: token)
+            await integration.updateMosaicConfig(BroadcastMosaicConfig(blurRadius: 50, maskMargin: 20), accessToken: token)
+        }
+        await integration.updateMosaicConfig(BroadcastMosaicConfig(blurRadius: 30), accessToken: token)
+        XCTAssertEqual(methods, ["POST", "PUT", "PUT"])
+        XCTAssertEqual(try screenBlurRequestBody(XCTUnwrap(SessionLifecycleURLProtocol.requests.last))["blur_radius"] as? Double, 50)
+        XCTAssertEqual(integration.mosaicConfig, BroadcastMosaicConfig(blurRadius: 50, maskMargin: 20))
+        XCTAssertFalse(integration.isChangingMosaicConfig)
+    }
+
+    func testMosaicConfigIgnoresResponseAfterReset() async {
+        SessionLifecycleURLProtocol.responses = [.created("mosaic"), .mosaic("{\"blur_radius\":40,\"pixel_size\":null,\"mask_margin\":null}")]
+        let integration = makeIntegration()
+        _ = await integration.prepareSession(accessToken: token)
+        SessionLifecycleURLProtocol.beforeResponse = { request in
+            if request.httpMethod == "PUT" { integration.reset() }
+        }
+        await integration.updateMosaicConfig(BroadcastMosaicConfig(blurRadius: 40), accessToken: token)
+        XCTAssertNil(integration.session)
+        XCTAssertEqual(integration.mosaicConfig, BroadcastMosaicConfig())
+        XCTAssertFalse(integration.isChangingMosaicConfig)
+    }
+
+    func testMosaicConfigUnavailableForOnDeviceProcessing() async {
+        SessionLifecycleURLProtocol.responses = [.created("local"), .snapshot(enabled: false)]
+        let integration = makeIntegration(mode: .onDevice)
+        _ = await integration.prepareSession(accessToken: token)
+        XCTAssertFalse(integration.canChangeMosaicConfig)
+        await integration.updateMosaicConfig(BroadcastMosaicConfig(blurRadius: 40), accessToken: token)
+        XCTAssertEqual(methods, ["POST", "PATCH"])
+        XCTAssertEqual(integration.mosaicConfig, BroadcastMosaicConfig())
+    }
+
     private func screenBlurRequestBody(_ request: URLRequest) throws -> [String: Any] {
         var data = request.httpBody ?? Data()
         if data.isEmpty, let input = request.httpBodyStream {
@@ -776,6 +882,9 @@ private final class SessionLifecycleURLProtocol: URLProtocol {
         }
         static func blur(_ enabled: Bool) -> Self {
             .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"screen_blur_enabled\":\(enabled)}}")
+        }
+        static func mosaic(_ config: String) -> Self {
+            .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"mosaic_config\":\(config)}}")
         }
         static func empty(_ status: Int) -> Self { .init(status: status, body: "") }
         static let planResolutionRejected = Self(status: 403, body: "{\"error\":{\"code\":\"plan_resolution_not_allowed\"}}")

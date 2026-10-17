@@ -161,6 +161,15 @@ final class YouTubeIntegration: ObservableObject {
         session?.processingMode == .server && !isTogglingScreenBlur
             && !isChangingAIProcessing && !isTogglingAnonymization && !isAIProcessingUnconfirmed && !isEndingSession
     }
+    /// 서버가 확정한 블러 강도·영역이다. 새 세션은 서버 AI 기본값으로 시작한다.
+    @Published private(set) var mosaicConfig = BroadcastMosaicConfig()
+    @Published private(set) var isChangingMosaicConfig = false
+    @Published private(set) var mosaicConfigErrorMessage: String?
+    private var pendingMosaicConfig: BroadcastMosaicConfig?
+
+    var canChangeMosaicConfig: Bool {
+        session?.processingMode == .server && !isChangingAIProcessing && !isAIProcessingUnconfirmed && !isEndingSession
+    }
     @Published private(set) var isChangingAIProcessing = false
     @Published private(set) var isAIProcessingUnconfirmed = false
     @Published private(set) var errorMessage: String?
@@ -1485,7 +1494,7 @@ final class YouTubeIntegration: ObservableObject {
     func changeAIProcessingMode(_ mode: AIProcessingMode, accessToken: String?) async -> Bool {
         guard !isYouTubeBroadcastActive, !isSwitchingToOnDevice, !isChangingBroadcastMode, !isChangingStreamState, !isPreparingSession,
               !isConnectingVideo, !isEndingSession, !isChangingAIProcessing,
-              !isTogglingAnonymization, !isTogglingScreenBlur, !isScreenBlurEnabled else { return false }
+              !isTogglingAnonymization, !isTogglingScreenBlur, !isScreenBlurEnabled, !isChangingMosaicConfig else { return false }
         clearError()
         if mode == .onDevice && !localModelsAvailable() {
             errorMessage = String(localized: "이 앱에 온디바이스 모델이 포함되어 있지 않습니다.")
@@ -2370,6 +2379,41 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
+    /// 송출을 유지한 채 다음 프레임부터 블러 강도·영역을 바꾼다. 요청 중에 들어온 값은
+    /// 마지막 것만 이어서 보낸다.
+    func updateMosaicConfig(_ config: BroadcastMosaicConfig, accessToken: String?) async {
+        guard canChangeMosaicConfig, let session else { return }
+        guard !isChangingMosaicConfig else {
+            pendingMosaicConfig = config
+            return
+        }
+        mosaicConfigErrorMessage = nil
+        guard let accessToken, !accessToken.isEmpty else {
+            showError(.unauthorized)
+            mosaicConfigErrorMessage = errorMessage
+            return
+        }
+        isChangingMosaicConfig = true
+        let generation = sessionOperationGeneration
+        defer { if generation == sessionOperationGeneration { isChangingMosaicConfig = false } }
+        var next: BroadcastMosaicConfig? = config
+        while let request = next {
+            pendingMosaicConfig = nil
+            do {
+                let response = try await api.updateMosaicConfig(session: session, accessToken: accessToken, config: request)
+                guard response.media.mosaicConfig != nil else { throw YouTubeAPIError.response }
+                guard applySessionResponse(response, sessionID: session.sessionID, generation: generation) else { return }
+            } catch {
+                guard generation == sessionOperationGeneration, self.session?.sessionID == session.sessionID else { return }
+                pendingMosaicConfig = nil
+                handle(error)
+                mosaicConfigErrorMessage = errorMessage
+                return
+            }
+            next = pendingMosaicConfig.flatMap { $0 == mosaicConfig ? nil : $0 }
+        }
+    }
+
     func toggleAnonymization(accessToken: String?) async {
         guard !isAIProcessingUnconfirmed else {
             errorMessage = String(localized: "AI 전환을 확인하지 못했습니다. 현재 비식별화 경로를 유지합니다. 사용할 방식을 다시 선택해 주세요.")
@@ -2582,6 +2626,9 @@ final class YouTubeIntegration: ObservableObject {
         if let enabled = response.media.screenBlurEnabled {
             isScreenBlurEnabled = enabled
         }
+        if let config = response.media.mosaicConfig {
+            mosaicConfig = config
+        }
         synchronizeBroadcastLifecycle()
         if !isYouTubeBroadcastActive && !isChangingBroadcastMode {
             liveStartedAt = nil
@@ -2606,6 +2653,10 @@ final class YouTubeIntegration: ObservableObject {
         isTogglingAnonymization = false
         isTogglingScreenBlur = false
         isScreenBlurEnabled = false
+        isChangingMosaicConfig = false
+        pendingMosaicConfig = nil
+        mosaicConfig = BroadcastMosaicConfig()
+        mosaicConfigErrorMessage = nil
     }
 
     private func targetProviders(for action: YouTubeAPI.StreamAction) -> [String?] {
@@ -2942,7 +2993,16 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = uplinkError
             return
         }
-        errorMessage = String(localized: "YouTube 연결을 완료하지 못했습니다. 다시 시도해 주세요.")
+        // 사용자에게 보일 문구가 있는 오류는 대체 문구로 가리지 않는다.
+        if case let .failed(message) = error as? WebRTCVideoUplinkError {
+            errorMessage = message
+            return
+        }
+        if let error = error as? DirectPublishError, let message = error.errorDescription {
+            errorMessage = message
+            return
+        }
+        errorMessage = String(localized: "방송 연결을 완료하지 못했습니다. 다시 시도해 주세요.")
     }
 
     private func showError(_ error: YouTubeAPIError) {
