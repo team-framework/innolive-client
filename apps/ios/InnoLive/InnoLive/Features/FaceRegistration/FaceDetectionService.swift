@@ -73,7 +73,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
     }
 
     private func analyzePreparedCrop(_ crop: CGImage) -> FaceDetectionOutcome {
-        let request = VNDetectFaceRectanglesRequest()
+        let request = Self.faceRectanglesRequest()
         do {
             try VNImageRequestHandler(cgImage: crop, orientation: .up).perform([request])
         } catch {
@@ -138,6 +138,20 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
 
     private func jpegData(from image: CGImage) -> Data? {
         UIImage(cgImage: image).jpegData(compressionQuality: 0.9)
+    }
+
+    private static func faceRectanglesRequest() -> VNDetectFaceRectanglesRequest {
+        let request = VNDetectFaceRectanglesRequest()
+        #if targetEnvironment(simulator)
+        // The Simulator cannot create Vision's default inference context.
+        if let cpu = try? request.supportedComputeStageDevices[.main]?.first(where: {
+            if case .cpu = $0 { return true }
+            return false
+        }) {
+            request.setComputeDevice(cpu, for: .main)
+        }
+        #endif
+        return request
     }
 
     private func imageOrientation(
