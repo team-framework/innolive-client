@@ -11,6 +11,7 @@ struct BroadcastEndOverlay: View {
     let onClose: () -> Void
     var onPlay: ((URL) -> Void)?
     var onSave: ((URL) -> Void)?
+    var onRetrySaving: (() -> Void)?
 
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
@@ -118,6 +119,12 @@ struct BroadcastEndOverlay: View {
                         .disabled(savedURL == nil)
                         .accessibilityIdentifier("broadcast-result-export")
                     }
+                    if let onRetrySaving {
+                        Button(String(localized: "저장 다시 시도"), action: onRetrySaving)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .innoLiveGlassButtonStyle(prominent: true)
+                            .accessibilityIdentifier("broadcast-result-retry-saving")
+                    }
                     Button(action: onClose) {
                         Text(String(localized: "닫기"))
                             .frame(maxWidth: .infinity, minHeight: 44)
@@ -190,6 +197,7 @@ struct BroadcastEndPresentation: View {
     var onClose: () -> Void = {}
     var onPlay: ((URL) -> Void)?
     var onSave: ((URL) -> Void)?
+    var onRetrySaving: (() -> Void)?
 
     var body: some View {
         if lifecycle.isPresentingEnd {
@@ -200,7 +208,7 @@ struct BroadcastEndPresentation: View {
                     lifecycle.dismissResult()
                     onClose()
                 },
-                onPlay: onPlay, onSave: onSave
+                onPlay: onPlay, onSave: onSave, onRetrySaving: onRetrySaving
             )
         }
     }

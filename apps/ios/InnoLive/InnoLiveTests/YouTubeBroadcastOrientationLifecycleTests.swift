@@ -26,6 +26,9 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         if let suiteName {
             userDefaults.removePersistentDomain(forName: suiteName)
         }
+        if let suiteName {
+            try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory.appendingPathComponent(suiteName))
+        }
         userDefaults = nil
         suiteName = nil
         locker = nil
@@ -495,6 +498,21 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         return integration
     }
 
+    func testMockedBroadcastEndWithoutSamplesDoesNotClaimSaved() async throws {
+        let integration = try makePreparedIntegration(countdownSleep: {})
+        YouTubeBroadcastOrientationURLProtocol.responses = [
+            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped"))
+        ]
+        await integration.startBroadcastCountdown(accessToken: "access-token")
+        XCTAssertEqual(integration.lifecycle.phase, .live)
+        await integration.stopYouTubeStream(accessToken: "access-token")
+        await integration.recordingCoordinator.waitForPendingWork()
+        XCTAssertEqual(integration.lifecycle.phase, .result)
+        guard case .failed = integration.lifecycle.recording else { return XCTFail("Missing capture samples must fail recording") }
+        XCTAssertTrue(integration.recordingStore.recordings.isEmpty)
+    }
+
     private func makePreparedIntegration(
         phase: String = "prepared",
         locker: FakeBroadcastOrientationLock? = nil,
@@ -512,6 +530,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
             preferencesStore: store,
             api: api,
             orientationLock: locker ?? self.locker,
+            recordingStore: RecordingSessionStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent(suiteName),
+                availableCapacity: { _ in 1_000_000_000 }),
             countdownSleep: countdownSleep
         )
         let broadcastSession = try decodeSession(phase: phase)

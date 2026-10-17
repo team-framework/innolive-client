@@ -8,6 +8,13 @@ final class YouTubeIntegration: ObservableObject {
     nonisolated deinit {}
 
     let lifecycle = BroadcastLifecycle()
+    let recordingStore: RecordingSessionStore
+    lazy var recordingCoordinator = BroadcastRecordingCoordinator(store: recordingStore, lifecycle: lifecycle) { [weak self] recorder in
+        self?.videoUplink.setRecordingSink(recorder)
+        self?.directPublisher.setRecordingSink(recorder)
+    }
+    private var recordingSubscription: AnyCancellable?
+    private var recordingStoreSubscription: AnyCancellable?
     private var lifecycleSubscription: AnyCancellable?
     private var countdownTask: Task<Void, Never>?
     private let countdownSleep: @MainActor () async throws -> Void
@@ -702,8 +709,10 @@ final class YouTubeIntegration: ObservableObject {
         },
         directPublisher: (any DirectBroadcastPublishing)? = nil,
         heartbeatInterval: Duration = .seconds(15),
+        recordingStore: RecordingSessionStore? = nil,
         countdownSleep: @escaping @MainActor () async throws -> Void = { try await Task.sleep(for: .seconds(1)) }
     ) {
+        self.recordingStore = recordingStore ?? RecordingSessionStore()
         self.countdownSleep = countdownSleep
         self.directPublisher = directPublisher ?? DirectBroadcastPublisher()
         self.heartbeatInterval = heartbeatInterval
@@ -726,6 +735,8 @@ final class YouTubeIntegration: ObservableObject {
         connection = preferencesStore.loadConnection()
         hasAcknowledgedYouTubeTransmission = consentStore.hasAcknowledgedYouTubeTransmission
         hasAcknowledgedCHZZKTransmission = consentStore.hasAcknowledgedCHZZKTransmission
+        recordingSubscription = recordingCoordinator.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        recordingStoreSubscription = self.recordingStore.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         lifecycleSubscription = lifecycle.objectWillChange.sink { [weak self] _ in
             self?.objectWillChange.send()
         }
@@ -1521,6 +1532,7 @@ final class YouTubeIntegration: ObservableObject {
         await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         lifecycle.finishLocalSession(warning: terminationWarning)
+        recordingCoordinator.endLocally()
         reconnectTask?.cancel()
         reconnectTask = nil
         videoConnectionConfiguration = nil
@@ -1556,6 +1568,7 @@ final class YouTubeIntegration: ObservableObject {
         await stopAllDirectPublish()
         await videoUplink.stopAndWait()
         lifecycle.finishLocalSession(warning: String(localized: "연결이 끊겨 기기 송출을 중단했습니다. 플랫폼 종료 상태를 확인해 주세요."))
+        recordingCoordinator.endLocally()
         reconnectTask?.cancel()
         reconnectTask = nil
         videoConnectionConfiguration = nil
@@ -2063,6 +2076,7 @@ final class YouTubeIntegration: ObservableObject {
                 guard self.lifecycle.isCurrent(generation) else { return }
                 self.synchronizeBroadcastLifecycle()
                 if !self.hasStartedYouTubeBroadcast && self.broadcastPhase != "going_live" {
+                    self.recordingCoordinator.abortFailedStart(sessionID: sessionID)
                     self.lifecycle.startFailed(generation: generation,
                         message: self.errorMessage ?? String(localized: "방송을 시작하지 못했습니다."))
                     if let lock { self.releaseBroadcastOrientationLock(generation: lock) }
@@ -2088,6 +2102,8 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func invalidateBroadcastLifecycle() {
+        // Confirmed recordings finish in the library; an unconfirmed start discards its provisional file.
+        recordingCoordinator.reset()
         countdownTask?.cancel()
         countdownTask = nil
         lifecycle.reset()
@@ -2132,6 +2148,7 @@ final class YouTubeIntegration: ObservableObject {
             if !pending && explicitlyEnded {
                 let message = errorMessage ?? String(localized: "방송을 시작하지 못했습니다.")
                 errorMessage = message
+                if let sessionID = session?.sessionID { recordingCoordinator.abortFailedStart(sessionID: sessionID) }
                 lifecycle.startFailed(generation: lifecycle.generation, message: message)
                 forceReleaseBroadcastOrientationLock()
                 return
@@ -2140,6 +2157,7 @@ final class YouTubeIntegration: ObservableObject {
         // A pending platform must not make a still-starting operation look terminated.
         if targets.isEmpty && broadcastPhase == "going_live" { return }
         lifecycle.reconcileTargets(targets, generation: lifecycle.generation)
+        if let sessionID = session?.sessionID { recordingCoordinator.reconcile(targets: targets, sessionID: sessionID) }
     }
 
     func goLiveYouTubeStream(accessToken: String?) async {
@@ -2175,6 +2193,7 @@ final class YouTubeIntegration: ObservableObject {
                 synchronizeBroadcastLifecycle()
             }
         }
+        recordingCoordinator.arm(sessionID: session.sessionID)
         do {
             let liveResponse = try await goLiveWithRetry(
                 session: session,

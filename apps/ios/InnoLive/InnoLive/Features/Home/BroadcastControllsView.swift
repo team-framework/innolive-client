@@ -34,6 +34,13 @@ struct BroadcastControllsView: View {
                 }
             }
 
+            if let message = youtube.recordingCoordinator.notice {
+                Label(String(localized: "원본 저장") + ": " + message, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .accessibilityIdentifier("broadcast-recording-error")
+            }
+
             InnoLiveGlassContainer {
                 VStack(spacing: 8) {
                     HStack(spacing: 10) {
