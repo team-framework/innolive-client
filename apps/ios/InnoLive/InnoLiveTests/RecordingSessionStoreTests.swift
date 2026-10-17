@@ -144,6 +144,44 @@ import XCTest
         XCTAssertNotNil(result)
     }
 
+    func testDeletionFailureKeepsFileAndLibraryEntry() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let manager = FileManager.default
+        defer {
+            try? manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+            try? manager.removeItem(at: directory)
+        }
+        let store = makeStore(directory)
+        let recorder = try store.begin(sessionID: "delete-denied")
+        try await feed(recorder)
+        let result = try await store.finish(sessionID: "delete-denied")
+        let saved = try XCTUnwrap(result)
+        let original = try Data(contentsOf: store.fileURL(for: saved))
+        try manager.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
+        XCTAssertThrowsError(try store.delete(saved))
+        XCTAssertEqual(store.recordings, [saved])
+        XCTAssertEqual(store.state, .saved(saved))
+        XCTAssertEqual(try Data(contentsOf: store.fileURL(for: saved)), original)
+    }
+
+    func testDeletingPreviousRecordingDoesNotStopActiveSession() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let firstRecorder = try store.begin(sessionID: "previous")
+        try await feed(firstRecorder)
+        let firstResult = try await store.finish(sessionID: "previous")
+        let previous = try XCTUnwrap(firstResult)
+        let activeRecorder = try store.begin(sessionID: "active")
+        try await feed(activeRecorder)
+        try store.delete(previous)
+        XCTAssertEqual(store.state, .recording)
+        let activeResult = try await store.finish(sessionID: "active")
+        let saved = try XCTUnwrap(activeResult)
+        XCTAssertEqual(store.recordings, [saved])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.fileURL(for: saved).path))
+    }
+
     private func makeStore(_ directory: URL) -> RecordingSessionStore {
         RecordingSessionStore(directory: directory, availableCapacity: { _ in 1_000_000_000 })
     }
