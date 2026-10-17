@@ -1502,8 +1502,11 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func endBroadcast(accessToken: String?) async {
-        invalidateBroadcastLifecycle()
         guard !isEndingSession else { return }
+        cancelBroadcastCountdown()
+        countdownTask?.cancel()
+        countdownTask = nil
+        let wasAwaitingStart = lifecycle.phase == .starting
         isEndingSession = true
         defer { isEndingSession = false }
         sessionOperationGeneration &+= 1
@@ -1513,8 +1516,11 @@ final class YouTubeIntegration: ObservableObject {
         if isYouTubeBroadcastActive {
             await stopYouTubeStream(accessToken: accessToken)
         }
+        let terminationWarning = currentLifecycleTargets.isEmpty && !wasAwaitingStart ? nil
+            : String(localized: "기기 송출은 중단했지만 플랫폼 종료를 확인하지 못했습니다.")
         await stopAllDirectPublish()
         await videoUplink.stopAndWait()
+        lifecycle.finishLocalSession(warning: terminationWarning)
         reconnectTask?.cancel()
         reconnectTask = nil
         videoConnectionConfiguration = nil
@@ -1531,8 +1537,10 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func recoverFromVideoUplinkFailure(accessToken: String?) async {
-        invalidateBroadcastLifecycle()
         guard !isRecoveringVideoFailure, !isEndingSession else { return }
+        cancelBroadcastCountdown()
+        countdownTask?.cancel()
+        countdownTask = nil
         isEndingSession = true
         defer { isEndingSession = false }
         isRecoveringVideoFailure = true
@@ -1547,6 +1555,7 @@ final class YouTubeIntegration: ObservableObject {
 
         await stopAllDirectPublish()
         await videoUplink.stopAndWait()
+        lifecycle.finishLocalSession(warning: String(localized: "연결이 끊겨 기기 송출을 중단했습니다. 플랫폼 종료 상태를 확인해 주세요."))
         reconnectTask?.cancel()
         reconnectTask = nil
         videoConnectionConfiguration = nil
@@ -2084,15 +2093,17 @@ final class YouTubeIntegration: ObservableObject {
         lifecycle.reset()
     }
 
-    private func synchronizeBroadcastLifecycle() {
-        let targets: Set<String>
+    private var currentLifecycleTargets: Set<String> {
         if let snapshot = responseState.details.targets {
-            targets = Set(snapshot.filter {
+            return Set(snapshot.filter {
                 YouTubeBroadcastStatePolicy(stream: $0.stream, isChangingStreamState: false).hasStartedBroadcast
             }.map(\.provider))
-        } else {
-            targets = hasStartedYouTubeBroadcast ? [responseState.details.provider ?? "youtube"] : []
         }
+        return hasStartedYouTubeBroadcast ? [responseState.details.provider ?? "youtube"] : []
+    }
+
+    private func synchronizeBroadcastLifecycle() {
+        let targets = currentLifecycleTargets
         if targets.isEmpty && (isChangingBroadcastMode || responseState.details.resolutionSwitch?.status == "switching") { return }
         if case .countdown = lifecycle.phase, broadcastPhase != "prepared" {
             cancelBroadcastCountdown()
@@ -2786,10 +2797,10 @@ final class YouTubeIntegration: ObservableObject {
 
     private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, provider: BroadcastSettingsProvider?) async {
         let providers = targetProviders(for: action).filter { provider == nil || providerKey($0) == provider?.rawValue }
-        await changeTargets(action, accessToken: accessToken, providers: providers)
+        await changeTargets(action, accessToken: accessToken, providers: providers, presentsEnding: action == .stop && provider == nil)
     }
 
-    private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, providers: [String?]) async {
+    private func changeTargets(_ action: YouTubeAPI.StreamAction, accessToken: String?, providers: [String?], presentsEnding: Bool = false) async {
         guard !isChangingStreamState, (!isChangingBroadcastMode || action == .stop), (!isHandlingUpgradeOffer || action == .stop),
               !broadcastModeRequestInFlight, backgroundPauseTask == nil else { return }
         clearError()
@@ -2797,8 +2808,18 @@ final class YouTubeIntegration: ObservableObject {
         guard let session, !providers.isEmpty else { return }
         let operationGeneration = beginBroadcastOperation()
         let generation = sessionOperationGeneration
+        let lifecycleGeneration = lifecycle.generation
+        let presentsEndProgress = presentsEnding && lifecycle.beginEnding()
         isChangingStreamState = true
-        defer { if isCurrentBroadcastOperation(operationGeneration) { isChangingStreamState = false } }
+        defer {
+            if isCurrentBroadcastOperation(operationGeneration) {
+                isChangingStreamState = false
+                if presentsEndProgress {
+                    lifecycle.finishEnding(remainingTargets: currentLifecycleTargets,
+                        generation: lifecycleGeneration, error: errorMessage)
+                }
+            }
+        }
         for provider in providers {
             let key = providerKey(provider)
             targetActionErrors[key] = nil

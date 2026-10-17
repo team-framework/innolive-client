@@ -95,6 +95,34 @@ final class BroadcastLifecycleTests: XCTestCase {
         XCTAssertEqual(lifecycle.errorMessage, "offline")
     }
 
+    func testDismissedResultKeepsGenerationForWriterCompletion() throws {
+        let lifecycle = try startingLifecycle()
+        let generation = lifecycle.generation
+        lifecycle.reconcileTargets(["youtube"], generation: generation)
+        lifecycle.reconcileTargets([], generation: generation)
+        XCTAssertTrue(lifecycle.isPresentingEnd)
+        lifecycle.dismissResult()
+        XCTAssertFalse(lifecycle.isPresentingEnd)
+        XCTAssertEqual(lifecycle.generation, generation)
+        let url = URL(fileURLWithPath: "/finished.mp4")
+        lifecycle.recordingSaved(url, generation: generation)
+        XCTAssertEqual(lifecycle.recording, .saved(url))
+        XCTAssertFalse(lifecycle.isPresentingEnd)
+        _ = lifecycle.beginPreparation()
+        XCTAssertFalse(lifecycle.resultDismissed)
+    }
+
+    func testLocalTerminationRecordsUnconfirmedRemoteStopWithoutReset() throws {
+        let lifecycle = try startingLifecycle()
+        let generation = lifecycle.generation
+        lifecycle.reconcileTargets(["youtube"], generation: generation)
+        lifecycle.finishLocalSession(warning: "remote stop unconfirmed", at: Date(timeIntervalSince1970: 130))
+        XCTAssertEqual(lifecycle.result?.duration, 30)
+        XCTAssertEqual(lifecycle.result?.terminationWarning, "remote stop unconfirmed")
+        XCTAssertEqual(lifecycle.recording, .finalizing)
+        XCTAssertEqual(lifecycle.generation, generation)
+    }
+
     private func preparedLifecycle() -> BroadcastLifecycle {
         let lifecycle = BroadcastLifecycle()
         let generation = lifecycle.beginPreparation()

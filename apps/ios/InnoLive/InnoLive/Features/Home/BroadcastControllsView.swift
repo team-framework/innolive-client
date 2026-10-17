@@ -18,6 +18,7 @@ struct BroadcastControllsView: View {
 
     @State private var isShowingBroadcastSettings = false
     @State private var isShowingBroadcastActions = false
+    @State private var isConfirmingBroadcastEnd = false
 
     var body: some View {
         VStack(spacing: 10) {
@@ -171,10 +172,16 @@ struct BroadcastControllsView: View {
                     }
                 }
             }
-            Button(String(localized: "전체 방송 종료", table: "Simulcast"), role: .destructive, action: stopYouTubeStream)
+            Button(String(localized: "전체 방송 종료", table: "Simulcast"), role: .destructive) { isConfirmingBroadcastEnd = true }
             Button(String(localized: "취소"), role: .cancel) { }
         } message: {
             Text(String(localized: "방송 플랫폼에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
+        }
+        .alert(String(localized: "방송을 종료할까요?"), isPresented: $isConfirmingBroadcastEnd) {
+            Button(String(localized: "취소"), role: .cancel) {}
+            Button(String(localized: "방송 종료"), role: .destructive, action: stopYouTubeStream)
+        } message: {
+            Text(String(localized: "방송 중인 모든 플랫폼의 송출을 종료합니다."))
         }
         .onChange(of: tutorialSnapshot, initial: true) { _, snapshot in
             tutorial?.update(snapshot)

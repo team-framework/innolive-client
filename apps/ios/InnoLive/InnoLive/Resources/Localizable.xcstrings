@@ -1,6 +1,351 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "방송을 종료할까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 종료할까요?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End the broadcast?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を終了しますか？"
+          }
+        }
+      }
+    },
+    "방송 중인 모든 플랫폼의 송출을 종료합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 중인 모든 플랫폼의 송출을 종료합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This ends the broadcast on all live platforms."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信中のすべてのプラットフォームで配信を終了します。"
+          }
+        }
+      }
+    },
+    "방송을 종료하는 중": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 종료하는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ending broadcast"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を終了中"
+          }
+        }
+      }
+    },
+    "플랫폼의 종료 응답을 기다리고 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼의 종료 응답을 기다리고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the platforms to confirm the end."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームからの終了応答を待っています。"
+          }
+        }
+      }
+    },
+    "방송을 종료했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 종료했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast ended"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を終了しました"
+          }
+        }
+      }
+    },
+    "기기 송출을 중단했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 송출을 중단했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device broadcast stopped"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末からの配信を停止しました"
+          }
+        }
+      }
+    },
+    "기기 송출은 중단했지만 플랫폼 종료를 확인하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 송출은 중단했지만 플랫폼 종료를 확인하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device broadcasting stopped, but the platform has not confirmed the end."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末からの配信を停止しましたが、プラットフォームでの終了は確認できませんでした。"
+          }
+        }
+      }
+    },
+    "연결이 끊겨 기기 송출을 중단했습니다. 플랫폼 종료 상태를 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결이 끊겨 기기 송출을 중단했습니다. 플랫폼 종료 상태를 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The connection was lost and device broadcasting stopped. Check the broadcast status on the platform."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "接続が切れたため、この端末からの配信を停止しました。プラットフォームで配信の終了状況を確認してください。"
+          }
+        }
+      }
+    },
+    "저장된 방송 영상 미리보기": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장된 방송 영상 미리보기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved broadcast preview"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存した配信動画のプレビュー"
+          }
+        }
+      }
+    },
+    "영상 재생": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상 재생"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play video"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画を再生"
+          }
+        }
+      }
+    },
+    "내보내기": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보내기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "書き出す"
+          }
+        }
+      }
+    },
+    "영상을 저장하는 중": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상을 저장하는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving video"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画を保存中"
+          }
+        }
+      }
+    },
+    "원본 영상을 앱에 저장했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원본 영상을 앱에 저장했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Original video saved in the app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元の動画をアプリに保存しました"
+          }
+        }
+      }
+    },
+    "저장된 파일을 찾을 수 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장된 파일을 찾을 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved file could not be found."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存したファイルが見つかりません。"
+          }
+        }
+      }
+    },
+    "영상을 저장하지 못했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상을 저장하지 못했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save the video"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画を保存できませんでした"
+          }
+        }
+      }
+    },
     "송출 경로": {
       "extractionState": "manual",
       "localizations": {

@@ -176,7 +176,7 @@ struct HomeView: View {
                 )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityHidden(youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart)
+        .accessibilityHidden(youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd)
         .overlay {
             if let status = youtube.preparationStatus {
                 BroadcastPreparationOverlay(status: status) {
@@ -192,6 +192,7 @@ struct HomeView: View {
                                   orientation: broadcastOrientation.lockedOrientation,
                                   onCancel: youtube.cancelBroadcastCountdown)
         }
+        .overlay { BroadcastEndPresentation(lifecycle: youtube.lifecycle) }
         .broadcastTutorialHost(tutorial, host: .home)
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
         .task(id: canStartTutorial) {
