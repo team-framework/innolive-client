@@ -236,6 +236,7 @@ class CameraFrameAnalyzer(
                 localProcessor?.close()
                 localProcessor = null
                 cameraBuffers.close()
+                colorProcessor.close()
             }
         }
         worker.shutdown()

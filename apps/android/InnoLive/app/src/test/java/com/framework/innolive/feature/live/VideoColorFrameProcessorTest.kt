@@ -56,6 +56,25 @@ class VideoColorFrameProcessorTest {
         for (index in listOf(0, 1, 4, 5, 6, 9)) assertEquals(42, target.get(index).toInt())
     }
 
+    @Test fun rowMappedChromaMatchesPerSampleLookupForEveryByteValue() {
+        val random = java.util.Random(7)
+        val width = 37
+        val height = 5
+        val sourceStride = 41
+        val targetStride = 40
+        val source = ByteBuffer.allocateDirect(sourceStride * height).apply {
+            repeat(capacity()) { put(it, random.nextInt(256).toByte()) }
+            repeat(256) { put(it % (sourceStride * height), it.toByte()) }
+        }
+        val target = ByteBuffer.allocateDirect(targetStride * height)
+        val transform = VideoColorTransform(0.6f, 1.7f)
+        transform.applyChroma(source, sourceStride, target, targetStride, width, height, transform.v)
+        for (row in 0 until height) for (column in 0 until width) {
+            val input = source.get(row * sourceStride + column).toInt() and 0xff
+            assertEquals(transform.v[input], target.get(row * targetStride + column).toInt() and 0xff)
+        }
+    }
+
     @Test fun lumaCopyRespectsDifferentStridesAndLeavesCameraBuffersUntouched() {
         val source = ByteBuffer.wrap(byteArrayOf(9, 16, 17, 18, 99, 19, 20, 21)).apply { position(1) }
         val target = ByteBuffer.wrap(ByteArray(12) { 42 }).apply { position(2) }

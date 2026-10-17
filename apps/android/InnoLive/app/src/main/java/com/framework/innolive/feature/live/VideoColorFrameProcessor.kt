@@ -1,13 +1,14 @@
 package com.framework.innolive.feature.live
 
-import org.webrtc.JavaI420Buffer
 import org.webrtc.VideoFrame
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
 
 /** Applies color before the WebRTC source so the sender and local track share the same pixels. */
-internal class VideoColorFrameProcessor {
+internal class VideoColorFrameProcessor : AutoCloseable {
     private var cachedTransform = VideoColorTransform(0f, 1f)
+    // The encoder and local renderers release frames after the next capture may arrive.
+    private val outputs = PrivacyCameraBufferPool(maxIdle = 3)
 
     /** The caller owns the returned reference, including the unchanged-frame fast path. */
     fun process(frame: VideoFrame, settings: BroadcastVideoQualitySettings): VideoFrame {
@@ -23,7 +24,7 @@ internal class VideoColorFrameProcessor {
 
         val source = checkNotNull(frame.buffer.toI420()) { "I420 conversion failed" }
         try {
-            val output = JavaI420Buffer.allocate(source.width, source.height)
+            val output = outputs.acquire(source.width, source.height)
             try {
                 copyVideoPlane(source.dataY, source.strideY, output.dataY, output.strideY, source.width, source.height)
                 val chromaWidth = (source.width + 1) / 2
@@ -45,6 +46,8 @@ internal class VideoColorFrameProcessor {
             source.release()
         }
     }
+
+    override fun close() = outputs.close()
 }
 
 /**
@@ -68,6 +71,7 @@ internal class VideoColorTransform(private val warmth: Float, private val satura
         (128f + (value - 128f + warmthOffset) * saturation).roundToInt().coerceIn(0, 255)
     }
 
+    /** Maps whole rows through a heap array; per-sample ByteBuffer access dominated a 1080p frame. */
     fun applyChroma(
         source: ByteBuffer,
         sourceStride: Int,
@@ -77,14 +81,19 @@ internal class VideoColorTransform(private val warmth: Float, private val satura
         height: Int,
         table: IntArray,
     ) {
-        val sourceStart = source.position()
-        val targetStart = target.position()
-        repeat(height) { row ->
-            val sourceRow = sourceStart + row * sourceStride
-            val targetRow = targetStart + row * targetStride
-            repeat(width) { column ->
-                target.put(targetRow + column, table[source.get(sourceRow + column).toInt() and 0xff].toByte())
-            }
+        val lookup = ByteArray(256) { table[it].toByte() }
+        val scratch = ByteArray(width)
+        val input = source.duplicate()
+        val output = target.duplicate()
+        val sourceStart = input.position()
+        val targetStart = output.position()
+        repeat(height) { index ->
+            input.limit(source.limit())
+            input.position(sourceStart + index * sourceStride)
+            input.get(scratch, 0, width)
+            for (column in 0 until width) scratch[column] = lookup[scratch[column].toInt() and 0xff]
+            output.position(targetStart + index * targetStride)
+            output.put(scratch, 0, width)
         }
     }
 }
