@@ -57,6 +57,7 @@ import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import org.webrtc.VideoTrack
 import org.webrtc.audio.JavaAudioDeviceModule
+import com.framework.innolive.feature.live.recording.RecordingAudioSink
 import java.io.IOException
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
@@ -244,6 +245,8 @@ internal class WebRtcConnection(
     @Volatile
     private var session: CreatedSession? = null
 
+    /** WebRTC 녹음 콜백의 PCM을 받는 녹화 싱크입니다. 처리(에코 제거) 전 마이크 입력입니다. */
+    @Volatile private var recordingAudioSink: RecordingAudioSink? = null
     private var audioRecordingStarted = false
     private var audioInputVerified = false
     private var audioRouteRetryAttempted = false
@@ -1135,9 +1138,23 @@ internal class WebRtcConnection(
         }
     }
 
+    override fun setRecordingAudioSink(sink: RecordingAudioSink?) {
+        recordingAudioSink = sink
+    }
+
     private fun createAudioDeviceModule(): JavaAudioDeviceModule = JavaAudioDeviceModule
         .builder(applicationContext)
         .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+        .setSamplesReadyCallback { samples ->
+            val sink = recordingAudioSink ?: return@setSamplesReadyCallback
+            if (samples.audioFormat != android.media.AudioFormat.ENCODING_PCM_16BIT) return@setSamplesReadyCallback
+            val data = samples.data
+            val bytesPerSecond = samples.sampleRate.toLong() * samples.channelCount * 2
+            if (bytesPerSecond <= 0 || data.isEmpty()) return@setSamplesReadyCallback
+            // 콜백에는 캡처 시각이 없어 도착 시각에서 청크 길이를 뺀 값을 첫 샘플 시각으로 씁니다.
+            val durationUs = data.size * 1_000_000L / bytesPerSecond
+            sink.onPcm(data, data.size, samples.sampleRate, samples.channelCount, System.nanoTime() / 1000 - durationUs)
+        }
         .setAudioRecordStateCallback(
             object : JavaAudioDeviceModule.AudioRecordStateCallback {
                 override fun onWebRtcAudioRecordStart() {

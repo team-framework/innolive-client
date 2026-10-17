@@ -33,4 +33,5 @@ data class SettingsScreenProps(
     val onRefreshPlan: () -> Unit = {},
     val canReplayBroadcastGuide: Boolean = false,
     val onReplayBroadcastGuide: () -> Unit = {},
+    val onOpenRecordings: () -> Unit = {},
 )

@@ -835,6 +835,16 @@ private fun LiveScreenContent(
                     )
                 }
             }
+            webRtcSession.recordingState.message?.let { message ->
+                Text(
+                    text = message.asString(),
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
             webRtcSession.anonymizationChange.errorMessage?.let { error ->
                 Text(
                     text = stringResource(R.string.anonymization_error_retry, error.asString()),
