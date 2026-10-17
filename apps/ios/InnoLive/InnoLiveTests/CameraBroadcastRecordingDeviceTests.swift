@@ -7,19 +7,48 @@ import XCTest
 /// Physical camera + microphone only. No account, server, STUN, or public broadcast.
 /// Keep the phone unlocked; point at a detailed scene and speak/clap during capture.
 @MainActor final class CameraBroadcastRecordingDeviceTests: XCTestCase {
-    func testRealCameraMicrophoneSwitchRotationAndRelayRecreationThirtySeconds() async throws {
+    func testRealCameraMicrophoneSwitchRotationAndRelayRecreation() async throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("This suite requires a real camera and microphone on the assigned iPhone")
         #endif
+        try await requireForeground()
         guard await AVCaptureDevice.requestAccess(for: .video), await AVAudioApplication.requestRecordPermission() else {
             return XCTFail("Camera and microphone permission are required")
         }
         // Each of three stages defaults to 10 seconds; 100 gives a five-minute run.
         let requestedStageSeconds = Double(ProcessInfo.processInfo.environment["INNOLIVE_RECORDING_STAGE_SECONDS"] ?? "") ?? 10
         let stageSeconds = requestedStageSeconds.isFinite ? min(600, max(10, requestedStageSeconds)) : 10
+        print("PHYSICAL_CAMERA_START device=\(UIDevice.current.model),stageSeconds=\(stageSeconds),appState=\(UIApplication.shared.applicationState.rawValue)")
         let uplink = WebRTCVideoUplink()
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("physical-camera-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
+        // Subscribe before AVCaptureSession.startRunning; startup failures can precede
+        // prepareNativeCamera's completion and no longer appear in a preflight-only observer.
+        let captureDiagnostics = CameraCaptureNotificationDiagnostics(session: nil)
+        defer {
+            captureDiagnostics.stop()
+            print("PHYSICAL_CAMERA_SESSION_EVENTS \(captureDiagnostics.snapshot)")
+        }
+        let logDirectory = directory.appendingPathComponent("webrtc-camera-logs")
+        try FileManager.default.createDirectory(at: logDirectory, withIntermediateDirectories: true)
+        let cameraLogger = LKRTCFileLogger(dirPath: logDirectory.path, maxFileSize: 128 * 1024)
+        cameraLogger.severity = .warning
+        cameraLogger.start()
+        defer {
+            cameraLogger.stop()
+            if let data = cameraLogger.logData(), let text = String(data: data, encoding: .utf8) {
+                let lines = text.split(separator: "\n").filter {
+                    let lower = $0.lowercased()
+                    return lower.contains("camera") || lower.contains("capture") || lower.contains("startrunning")
+                }.prefix(80)
+                let filtered = lines.joined(separator: "\n")
+                print("PHYSICAL_CAMERA_NATIVE_WARNINGS \(filtered)")
+                let attachment = XCTAttachment(string: filtered)
+                attachment.name = "Native camera warning and error logs"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+            }
+        }
         let store = RecordingSessionStore(directory: directory.appendingPathComponent("recordings"))
         let lifecycle = BroadcastLifecycle()
         let sessionID = "local-camera-validation-\(UUID().uuidString)"
@@ -53,6 +82,7 @@ import XCTest
                 uplink.applyBroadcastOrientationLock(.portrait)
                 uplink.localVideoTrack?.add(frameObserver)
                 defer { uplink.localVideoTrack?.remove(frameObserver) }
+                try await self.requireVideoPreflight(uplink: uplink, diagnostics: captureDiagnostics, local: frameObserver, remote: remote, stage: "initial")
                 let generation = try XCTUnwrap(lifecycle.beginCountdown())
                 lifecycle.advanceCountdown(generation: generation)
                 lifecycle.advanceCountdown(generation: generation)
@@ -66,7 +96,7 @@ import XCTest
                 lifecycle.reconcileTargets(["local-loopback"], generation: generation)
                 coordinator.reconcile(targets: ["local-loopback"], sessionID: sessionID)
                 XCTAssertEqual(lifecycle.phase, .live)
-                try await Task.sleep(for: .seconds(stageSeconds))
+                try await self.captureStage("portrait", seconds: stageSeconds, local: frameObserver, remote: remote, recorder: try XCTUnwrap(recorder))
                 let current = try XCTUnwrap(uplink.activeCameraID)
                 let currentDevice = try XCTUnwrap(AVCaptureDevice(uniqueID: current))
                 let other = try XCTUnwrap(LKRTCCameraVideoCapturer.captureDevices().first {
@@ -75,7 +105,7 @@ import XCTest
                 try await uplink.switchCamera(to: other.uniqueID)
                 XCTAssertEqual(uplink.activeCameraID, other.uniqueID)
                 uplink.applyBroadcastOrientationLock(.landscapeLeft)
-                try await Task.sleep(for: .seconds(stageSeconds))
+                try await self.captureStage("switched-landscape", seconds: stageSeconds, local: frameObserver, remote: remote, recorder: try XCTUnwrap(recorder))
                 receivedAudioFrames += remote.renderer.snapshot.frames
                 receivedVideoFrames += remote.videoRenderer.count
                 XCTAssertGreaterThan(remote.videoRenderer.count, Int(stageSeconds * 10),
@@ -100,7 +130,8 @@ import XCTest
             try await CameraRecordingLoopback.withConnectedPeers(uplink) { remote in
                 uplink.localVideoTrack?.add(frameObserver)
                 defer { uplink.localVideoTrack?.remove(frameObserver) }
-                try await Task.sleep(for: .seconds(stageSeconds))
+                try await self.requireVideoPreflight(uplink: uplink, diagnostics: captureDiagnostics, local: frameObserver, remote: remote, stage: "recreated")
+                try await self.captureStage("recreated", seconds: stageSeconds, local: frameObserver, remote: remote, recorder: try XCTUnwrap(recorder))
                 receivedAudioFrames += remote.renderer.snapshot.frames
                 receivedVideoFrames += remote.videoRenderer.count
                 XCTAssertGreaterThan(remote.videoRenderer.count, Int(stageSeconds * 10),
@@ -160,6 +191,79 @@ import XCTest
         }
     }
 
+    private func requireForeground() async throws {
+        print("PHYSICAL_CAMERA_WAIT_FOREGROUND state=\(UIApplication.shared.applicationState.rawValue),timeoutSeconds=30")
+        let deadline = ProcessInfo.processInfo.systemUptime + 30
+        while UIApplication.shared.applicationState != .active,
+              ProcessInfo.processInfo.systemUptime < deadline {
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        guard UIApplication.shared.applicationState == .active else {
+            let message = "Physical camera test requires an unlocked foreground app; timed out after 30 seconds"
+            XCTFail(message)
+            throw NSError(domain: "CameraRecordingPreflight", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: message])
+        }
+        print("PHYSICAL_CAMERA_FOREGROUND_READY")
+    }
+
+    private func requireVideoPreflight(uplink: WebRTCVideoUplink, diagnostics: CameraCaptureNotificationDiagnostics, local: CameraRecordingFrameObserver,
+                                       remote: CameraRecordingPeerDelegate, stage: String) async throws {
+        let rawObserver = CameraRecordingFrameObserver()
+        let rawTrack = uplink.rawPreviewTrack
+        rawTrack?.add(rawObserver)
+        defer { rawTrack?.remove(rawObserver) }
+        printCaptureDiagnostics(uplink, stage: stage, rawFrames: rawObserver.count, events: diagnostics.snapshot)
+        let localStart = local.count
+        let remoteStart = remote.videoRenderer.count
+        let deadline = ProcessInfo.processInfo.systemUptime + 5
+        print("PHYSICAL_CAMERA_PREFLIGHT stage=\(stage),local=\(localStart),remote=\(remoteStart),timeoutSeconds=5")
+        while ProcessInfo.processInfo.systemUptime < deadline {
+            let localDelta = local.count - localStart
+            let remoteDelta = remote.videoRenderer.count - remoteStart
+            if UIApplication.shared.applicationState == .active, localDelta >= 3, remoteDelta >= 3 {
+                printCaptureDiagnostics(uplink, stage: stage, rawFrames: rawObserver.count, events: diagnostics.snapshot)
+                print("PHYSICAL_CAMERA_PREFLIGHT_READY stage=\(stage),localDelta=\(localDelta),remoteDelta=\(remoteDelta)")
+                return
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        printCaptureDiagnostics(uplink, stage: stage, rawFrames: rawObserver.count, events: diagnostics.snapshot)
+        let message = "Video preflight failed: stage=\(stage),appState=\(UIApplication.shared.applicationState.rawValue),localDelta=\(local.count - localStart),remoteDelta=\(remote.videoRenderer.count - remoteStart)"
+        XCTFail(message)
+        throw NSError(domain: "CameraRecordingPreflight", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey: message])
+    }
+
+    private func printCaptureDiagnostics(_ uplink: WebRTCVideoUplink, stage: String, rawFrames: Int, events: String) {
+        let session = uplink.cameraCapturer?.captureSession
+        let device = uplink.activeCameraID.flatMap { AVCaptureDevice(uniqueID: $0) }
+        let format = device.map { CMVideoFormatDescriptionGetDimensions($0.activeFormat.formatDescription) }
+        let minDuration = device.map { CMTimeGetSeconds($0.activeVideoMinFrameDuration) } ?? 0
+        let maxDuration = device.map { CMTimeGetSeconds($0.activeVideoMaxFrameDuration) } ?? 0
+        let dimensions = format.map { "\($0.width)x\($0.height)" } ?? "none"
+        let sessionType = session.map { String(describing: type(of: $0)) } ?? "none"
+        let formatMultiCam = device?.activeFormat.isMultiCamSupported ?? false
+        let subtype = device.map { CMFormatDescriptionGetMediaSubType($0.activeFormat.formatDescription) } ?? 0
+        let ranges = device?.activeFormat.videoSupportedFrameRateRanges.map { "\($0.minFrameRate)...\($0.maxFrameRate)" }.joined(separator: ";") ?? "none"
+        print("PHYSICAL_CAMERA_DIAGNOSTICS stage=\(stage),sessionType=\(sessionType),deviceMultiCamSupported=\(AVCaptureMultiCamSession.isMultiCamSupported),formatMultiCamSupported=\(formatMultiCam),formatSubtype=\(subtype),running=\(session?.isRunning ?? false),interrupted=\(session?.isInterrupted ?? false),inputs=\(session?.inputs.count ?? 0),outputs=\(session?.outputs.count ?? 0),position=\(device?.position.rawValue ?? -1),format=\(dimensions),frameDuration=\(minDuration)...\(maxDuration),supportedFPS=\(ranges),rawPreview=\(rawFrames),localEnabled=\(uplink.localVideoTrack?.isEnabled ?? false),rawEnabled=\(uplink.rawPreviewTrack?.isEnabled ?? false),relay={\(uplink.cameraFrameRelay?.validationCaptureDiagnostics ?? "none")},events={\(events)}")
+    }
+
+    private func captureStage(_ stage: String, seconds: Double, local: CameraRecordingFrameObserver,
+                              remote: CameraRecordingPeerDelegate, recorder: LocalBroadcastRecorder) async throws {
+        let start = ProcessInfo.processInfo.systemUptime
+        let localStart = local.count
+        let remoteStart = remote.videoRenderer.count
+        let droppedStart = recorder.validationDroppedVideoFrames
+        print("PHYSICAL_CAMERA_STAGE_START stage=\(stage),seconds=\(seconds),local=\(localStart),remote=\(remoteStart),droppedTotal=\(droppedStart)")
+        while ProcessInfo.processInfo.systemUptime - start < seconds {
+            let remaining = seconds - (ProcessInfo.processInfo.systemUptime - start)
+            if remaining <= 0 { break }
+            try await Task.sleep(for: .seconds(min(10, remaining)))
+            print("PHYSICAL_CAMERA_STAGE_PROGRESS stage=\(stage),elapsed=\(ProcessInfo.processInfo.systemUptime - start),localDelta=\(local.count - localStart),remoteDelta=\(remote.videoRenderer.count - remoteStart),remoteAudio=\(remote.renderer.snapshot.frames),droppedDelta=\(recorder.validationDroppedVideoFrames - droppedStart),droppedTotal=\(recorder.validationDroppedVideoFrames),appState=\(UIApplication.shared.applicationState.rawValue)")
+        }
+    }
+
     private func inspectExports(_ url: URL, directory: URL) async throws -> String {
         let exporter = BroadcastRecordingExporter(root: directory.appendingPathComponent("exports"))
         let original = try await exporter.original(url)
@@ -213,6 +317,8 @@ import XCTest
         try await uplink.prepareNativeCamera(preferredCameraID: nil, preferredVideoQuality: .hd30,
                                              operationGeneration: generation)
         XCTAssertNotNil(uplink.cameraCapturer, "A physical camera capturer is mandatory")
+        XCTAssertFalse(uplink.cameraCapturer?.captureSession is AVCaptureMultiCamSession,
+                       "A single-camera broadcast must not inherit the SDK shared MultiCam session")
         XCTAssertNil(uplink.fileVideoCapturer, "Fixture/file video is prohibited in this physical-camera test")
     }
 
@@ -503,5 +609,34 @@ nonisolated private final class CameraRecordingPathAudit: @unchecked Sendable {
     }
     var snapshot: (matches: Int, mismatches: Int, initialAdmissions: Int) {
         lock.withLock { (matches, mismatches, initialAdmissions) }
+    }
+}
+
+/// At most eight metadata-only AVCapture events; no captured image or audio content.
+nonisolated private final class CameraCaptureNotificationDiagnostics: @unchecked Sendable {
+    private let lock = NSLock()
+    private var events: [String] = []
+    private var tokens: [NSObjectProtocol] = []
+    init(session: AVCaptureSession?) {
+        // A nil session observes all AVCapture sessions, including startup before the
+        // newly constructed production capturer becomes available to this test.
+        for name in [AVCaptureSession.runtimeErrorNotification, AVCaptureSession.wasInterruptedNotification,
+                     AVCaptureSession.interruptionEndedNotification, AVCaptureSession.didStartRunningNotification,
+                     AVCaptureSession.didStopRunningNotification] {
+            tokens.append(NotificationCenter.default.addObserver(forName: name, object: session, queue: nil) { [weak self] note in
+                let error = note.userInfo?[AVCaptureSessionErrorKey] as? NSError
+                let reason = note.userInfo?[AVCaptureSessionInterruptionReasonKey] as? NSNumber
+                let value = "\(note.name.rawValue):error=\(error?.domain ?? "none")/\(error?.code ?? 0),reason=\(reason?.intValue ?? -1)"
+                self?.lock.withLock {
+                    guard let self, self.events.count < 8 else { return }
+                    self.events.append(value)
+                }
+            })
+        }
+    }
+    var snapshot: String { lock.withLock { events.joined(separator: ";") } }
+    func stop() {
+        tokens.forEach { NotificationCenter.default.removeObserver($0) }
+        tokens.removeAll()
     }
 }

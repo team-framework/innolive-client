@@ -150,7 +150,11 @@ extension WebRTCVideoUplink {
         if let lockedBroadcastOrientation {
             frameRelay.setLockedInterfaceOrientation(lockedBroadcastOrientation)
         }
-        let capturer = LKRTCCameraVideoCapturer(delegate: frameRelay)
+        // InnoLive captures one camera at a time. The SDK's default shared MultiCam
+        // session rejects otherwise valid single-camera formats on devices such as iPhone XR.
+        let captureSession = AVCaptureSession()
+        captureSession.automaticallyConfiguresApplicationAudioSession = false
+        let capturer = LKRTCCameraVideoCapturer(delegate: frameRelay, captureSession: captureSession)
         let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
         track.isEnabled = true
         videoSource = source
@@ -313,6 +317,11 @@ extension WebRTCVideoUplink {
                 }
             }
         }
+        // The SDK can complete with nil even when AVCaptureSession rejected the format.
+        guard capturer.captureSession.isRunning else {
+            await stopCapture(capturer)
+            throw WebRTCVideoUplinkError.failed(String(localized: "카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요."))
+        }
         applyCaptureAdjustments(capturer: capturer, device: device)
     }
 
@@ -460,6 +469,17 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
     private var unprocessedPreviewHandler: (@Sendable (CVPixelBuffer, Int) -> Void)?
     private weak var directMediaSink: (any DirectMediaSink)?
     #if DEBUG
+    private var validationCapturedFrames = 0
+    private var validationColorFailures = 0
+    private var validationPreviewFrames = 0
+    private var validationRouteTickets = 0
+    private var validationLastColorError = "none"
+    private var validationLastRouteMode = "no-ticket"
+    var validationCaptureDiagnostics: String {
+        lock.withLock {
+            "captured=\(validationCapturedFrames),colorFailures=\(validationColorFailures),previewFrames=\(validationPreviewFrames),routeTickets=\(validationRouteTickets),routeMode=\(validationLastRouteMode),colorError=\(validationLastColorError)"
+        }
+    }
     private var validationVideoDelivery: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?
     func setValidationVideoDelivery(_ observer: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?) {
         lock.withLock { validationVideoDelivery = observer }
@@ -553,6 +573,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         let recorder = recordingSink
         #if DEBUG
         let deliveryObserver = validationVideoDelivery
+        validationCapturedFrames += 1
         #endif
         lock.unlock()
 
@@ -571,13 +592,29 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                 saturation: saturation
             )
         } catch {
+            #if DEBUG
+            lock.withLock {
+                validationColorFailures += 1
+                let diagnostic = error as NSError
+                validationLastColorError = "\(diagnostic.domain):\(diagnostic.code)"
+            }
+            #endif
             return
         }
+        #if DEBUG
+        lock.withLock { validationPreviewFrames += 1 }
+        #endif
         previewTarget?.capturer(capturer, didCapture: coloredPreview)
         lock.lock()
         let directSink = directMediaSink
         lock.unlock()
         if let ticket = route.ticket() {
+            #if DEBUG
+            lock.withLock {
+                validationRouteTickets += 1
+                validationLastRouteMode = String(describing: ticket.mode)
+            }
+            #endif
             if ticket.mode == .onDevice {
                 let colorProcessor = uplinkColorProcessor
                 processor.submit(outgoing) { [target, route, colorProcessor, directSink, recorder] result in
