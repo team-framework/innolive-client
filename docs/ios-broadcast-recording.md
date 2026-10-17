@@ -6,14 +6,14 @@
 
 `BroadcastLifecycle`은 준비, 카운트다운, 시작 요청, 방송, 종료 요청, 결과의 클라이언트 상태를 관리한다.
 `BroadcastRecordingState`는 녹화 대기, 입력 수신, 파일 마무리, 저장 성공, 실패를 따로 관리한다.
-준비 오버레이와 시작 카운트다운을 실제 준비·golive 경로에 연결했다. 종료 화면과 녹화기 연결은 후속 구현이다.
+준비 오버레이·시작 카운트다운·종료 결과 화면을 방송 경로에 연결했다. 송출 입력을 녹화하고 마지막 대상 종료 시 자동 저장한다.
 
 ## 전이와 호출 규칙
 
 - 준비 시작 시 `beginPreparation`, 성공·실패 시 같은 generation으로 `finishPreparation`을 호출한다.
 - 준비 완료에서 `beginCountdown`을 호출한다. 호출자는 각 숫자를 1초 표시하고 `advanceCountdown`을 호출한다. 숫자 1의 표시 시간이 끝나면 `beginStarting`을 호출한다.
 - 취소 시 `cancelCountdown`을 호출한다. 화면 이탈, 백그라운드 이동, 세션 교체 시 실행 중인 타이머도 취소한다. 세션 교체·로그아웃은 `reset`으로 이전 generation을 무효화한다.
-- `beginStarting` 성공 직후 녹화기를 준비하고 golive를 요청한다. 같은 입력을 받기 위한 준비이며 녹화기 구현은 아직 연결하지 않았다.
+- `beginStarting` 성공 직후 녹화기를 준비하고 golive를 요청한다. 카운트다운을 제외하고 요청 직전부터 같은 송출 입력을 기록한다.
 - 실제 응답을 반영한 뒤 `reconcileTargets`에 활성 대상 집합을 전달한다. live·paused·재연결 중인 live 대상을 포함하고, prepared 대상은 제외한다. 상태 조회 실패를 빈 집합으로 바꾸면 안 된다.
 - 시작 중 빈 집합은 아직 시작을 확인하지 못한 상태다. 전체 시작 실패를 확인한 경우 `startFailed`로 돌아간다. 일부 대상이 성공했다면 해당 대상 집합으로 방송 상태를 유지한다.
 - 종료 요청 전 `beginEnding`, 응답 적용 후 `finishEnding`을 호출한다. 남은 대상이 있으면 방송과 녹화를 유지한다. 마지막 활성 대상 종료를 확인하면 결과와 파일 마무리 상태로 전환한다.
@@ -32,7 +32,7 @@
 
 `BroadcastLifecycleTests`는 취소 뒤 늦은 작업, 중복 시작 방지, 전체 시작 실패, 일부 대상 종료 실패, 마지막 대상 종료, 저장 실패 분리, 새 세션의 이전 결과 거부를 검증한다. 이 테스트는 API·기기 녹화 성공을 증명하지 않는다.
 
-후속 화면·미디어 검증은 iPhone 16과 iPhone 16 Pro에 항목을 나누어 진행하고, 최종 통합 검증은 iPhone XR에서 수행한다. iOS 26은 기존 Liquid Glass를, iOS 18은 동일 컴포넌트의 material fallback을 사용한다. 각 실기기의 실행 결과는 검증 후 기록한다.
+화면·미디어 검증은 iPhone 16과 iPhone 16 Pro에 항목을 나누어 진행했으며, 최종 통합 검증은 iPhone XR에서 수행했다. iOS 26 이상은 기존 Liquid Glass를, iOS 18은 동일 컴포넌트의 material fallback을 사용한다.
 
 ### 시작 화면 검증
 
@@ -92,3 +92,30 @@ WebRTC 음성 callback에는 하드웨어 timestamp가 없어 첫 host time과 �
 녹화별 journal은 시작 대기·방송 확인·최종화·writer 완료·실패·폐기를 구분한다. 보관함은 방송을 확인한 세션의 남은 partial에 한해 영상·음성 전체를 디코딩하고, 검증 전후 크기·수정 시각이 같으면 최종 파일로 복구한다. 활성 writer의 경로는 symlink를 해석해 제외한다. 확인할 수 없는 파일은 삭제하지 않고 보관 개수를 안내한다. 이 복구는 iOS가 중단된 MP4의 구조를 완성해 준다는 보장이 아니다.
 
 자동 저장에는 Photos 권한이 필요 없다. 사진 앱 저장은 별도 사용자 동작이다. 용량 조회 실패·공간 부족은 녹화 실패로 표시하고 방송 시작 요청을 계속할 수 있다. 검증에서 사용한 공간 부족은 용량 조회 주입이며 기기의 저장소를 실제로 채우지 않는다.
+
+## iOS 18과 단일 카메라 호환성
+
+XR 실기기에서 상태 모델·방송 설정 객체를 해제할 때 `swift_task_deinitOnExecutorMainActorBackDeploy`에서 malloc 오류가 발생했다. 기존 [iOS 18 객체 해제 규칙](ios-version-support.md)에 맞춰 새 MainActor 객체와 테스트 fixture에 빈 `nonisolated deinit`을 명시했다. 실제 crash stack에 `BroadcastSettingsEditor.__deallocating_deinit`이 포함됐으며 수정 후 해당 동기 상태 테스트와 설정 화면 렌더링이 통과했다.
+
+또한 XR 전면 1280×720 30fps 형식은 단일 카메라 캡처를 지원하지만 MultiCam 형식은 아니었다. [사용 중인 WebRTC 구현](https://github.com/webrtc-sdk/webrtc/blob/30d5e63ae91da483e06577b5c35ee91cc5e5c3db/sdk/objc/components/capturer/RTCCameraVideoCapturer.m#L508-L529)은 지원 기기에서 공유 MultiCam 세션을 기본으로 생성한다. 이 조합에서 AVFoundation -11873과 입력 프레임 0개를 확인했다. 앱은 한 번에 한 카메라를 사용하므로 명시적 `AVCaptureSession`을 전달하고 기존 audio session 자동 구성 금지 설정을 유지한다. native 시작 콜백 뒤 실제 session 실행 여부를 확인해 실행되지 않은 카메라를 준비 완료로 처리하지 않는다.
+
+카메라 방향 변경으로 출력 캔버스와 크기가 달라지면 고정 크기 pixel buffer pool을 재사용한다. 대기열은 기존 4프레임 한도를 유지하며 누락 수를 저장 메타데이터와 실기기 검증에 기록한다.
+
+
+## 최종 실기기 검증 (2026-10-17)
+
+| 기기 | 검증 범위 | 결과 |
+| --- | --- | --- |
+| iPhone 16 Pro | 녹화기·실제 WebRTC 마이크·기존 직접 송출과 relay | 47개 통과, 8.030초 음성 포함 MP4 검증 |
+| iPhone 16 | 최종 카메라 세션·buffer pool 적용 후 녹화기 및 실제 카메라 | 9개 통과, 33.105초 MP4·분리 파일 전체 디코딩, 영상 누락 4프레임 |
+| iPhone XR / iOS 18.5 | 최종 상태·화면·저장·복구·내보내기·실제 카메라 및 음성 | 159개 통과, 실패 0개, 302.8초 실제 카메라 녹화 |
+
+XR에서 세로, 카메라 전환과 가로 방향, relay·peer 재생성 구간을 각각 100초 실행했다. 녹화 시간은 302.7785초이며 원본과 분리 MP4의 영상 8,808프레임, 원본과 분리 M4A의 음성 14,533,368프레임을 전체 디코딩했다. 원본 URL과 바이트를 보존했으며 영상 종료 302.7200초와 음성 종료 302.7785초의 차이는 58.5ms였다. 송출·녹화의 buffer·rotation·timestamp 비교 8,807건에서 불일치 0건을 확인했다. observer 연결 전 최초 1건은 비교 대상에서 제외했다.
+
+XR의 writer 누락 집계는 203프레임이다. 세로 구간 53개, 카메라 전환 구간 2개, relay 재생성 구간 148개였으며 누락 없이 저장했다고 주장하지 않는다. 같은 테스트의 원격 peer는 영상 8,839프레임과 음성 13,968,960프레임을 수신했다. 이는 기기 내부 WebRTC loopback 증거이며 실제 서버 재연결이나 공개 방송의 품질 측정은 아니다.
+
+트랙 종료 시각 비교는 박수·입 모양 등 콘텐츠 기준 동기 검증을 대신하지 않는다. 실제 서버·플랫폼 공개 방송, 네트워크 단절 후 서버 재연결, 사용자 Files destination 선택 및 Photos 저장 완료는 이번 실기기 검증에 포함하지 않았다. 백그라운드 시간 만료·저장 공간 부족·다중 대상 종료는 주입 테스트로 검증했다. 실제 촬영·녹음 파일은 로컬 xcresult에만 보관하며 저장소와 PR에 업로드하지 않는다.
+
+XR의 production recording tap 음소거 검증은 2초 입력·2초 음소거·2초 입력 순서로 실행했다. 중간 구간의 디코딩 음성 peak·RMS는 0이며 전후 실제 마이크 입력과 원격 음성 수신이 유지됐다. sender track은 켠 상태로 recording tap flag만 검증했으므로 실제 UI 음소거 조작의 E2E 결과와 구분한다.
+
+XR UI 렌더링에서 첨부 PNG 59개를 생성했고, 큰 글자 내보내기·저장 목록 대표 화면을 확인했다. 스크롤 화면의 화면 밖 콘텐츠와 native navigation 제목 줄임은 별도 잘림 오류로 집계하지 않았다.
