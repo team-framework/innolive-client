@@ -93,6 +93,57 @@ import XCTest
         XCTAssertTrue(store.recordings.isEmpty)
     }
 
+    func testDeleteReleasesVideoAndMetadataAndSurvivesReload() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let recorder = try store.begin(sessionID: "delete")
+        try await feed(recorder)
+        let result = try await store.finish(sessionID: "delete")
+        let saved = try XCTUnwrap(result)
+        let exportedCopy = directory.appendingPathComponent("exported-copy.mp4")
+        try FileManager.default.copyItem(at: store.fileURL(for: saved), to: exportedCopy)
+        try store.delete(saved)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.fileURL(for: saved).path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appendingPathComponent("\(saved.id).json").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: exportedCopy.path))
+        XCTAssertEqual(store.state, .idle)
+        XCTAssertTrue(store.recordings.isEmpty)
+        let reloaded = makeStore(directory)
+        await reloaded.reloadLibrary()
+        XCTAssertTrue(reloaded.recordings.isEmpty)
+    }
+
+    func testDeleteDuringReloadDoesNotRestoreEntry() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let recorder = try store.begin(sessionID: "delete-reload")
+        try await feed(recorder)
+        let result = try await store.finish(sessionID: "delete-reload")
+        let saved = try XCTUnwrap(result)
+        let reload = Task { await store.reloadLibrary() }
+        await Task.yield()
+        try store.delete(saved)
+        await reload.value
+        XCTAssertTrue(store.recordings.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.fileURL(for: saved).path))
+    }
+
+    func testDeleteRejectsUnknownEntryAndPreservesActiveRecording() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let recorder = try store.begin(sessionID: "active")
+        try await feed(recorder)
+        let unknown = SavedBroadcastRecording(id: UUID(), sessionID: "active", createdAt: Date(),
+            duration: 1, fileName: "../other.mp4", bytes: 1, videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil)
+        XCTAssertThrowsError(try store.delete(unknown))
+        XCTAssertEqual(store.state, .recording)
+        let result = try await store.finish(sessionID: "active")
+        XCTAssertNotNil(result)
+    }
+
     private func makeStore(_ directory: URL) -> RecordingSessionStore {
         RecordingSessionStore(directory: directory, availableCapacity: { _ in 1_000_000_000 })
     }
