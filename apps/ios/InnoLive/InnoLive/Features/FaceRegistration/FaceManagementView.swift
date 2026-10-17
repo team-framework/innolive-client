@@ -16,7 +16,10 @@ struct FaceManagementView: View {
     }
 
     private var isCameraTransitioning: Bool {
-        youtube.videoUplink.isFaceRegistrationCameraTransitioning
+        let videoUplink = youtube.videoUplink
+        return videoUplink.isSwitchingCamera
+            || videoUplink.isReleasingCamera
+            || (videoUplink.isActive && !videoUplink.canProvideFaceRegistrationFrames)
     }
 
     private var hasRegisteredFaces: Bool {
@@ -30,6 +33,10 @@ struct FaceManagementView: View {
                     introductionCard
                     Text(model.mode == .server ? String(localized: "서버에 등록한 얼굴") : String(localized: "이 기기에만 저장한 얼굴"))
                         .font(.subheadline).foregroundStyle(.secondary)
+                    TextField(String(localized: "이름"), text: $model.name)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.done)
+                        .disabled(model.phase == .registering)
 
                     if !hasRegisteredFaces {
                         statusCard
@@ -58,7 +65,7 @@ struct FaceManagementView: View {
                     .innoLiveGlassButtonStyle(prominent: true)
                     .tint(.blue)
                     .disabled(
-                        isCameraTransitioning
+                        !model.canRegister || isCameraTransitioning
                             || model.isDeleting
                             || cameraManager.authorizationStatus != .authorized
                     )

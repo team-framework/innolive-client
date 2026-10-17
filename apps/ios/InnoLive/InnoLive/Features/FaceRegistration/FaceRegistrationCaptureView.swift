@@ -7,61 +7,39 @@ struct FaceRegistrationCaptureView: View {
     @ObservedObject var model: FaceRegistrationViewModel
     @ObservedObject var videoUplink: WebRTCVideoUplink
     @State private var lifecycleSessionID = UUID()
-    @FocusState private var isNameFocused: Bool
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
                 Spacer(minLength: 12)
 
-                // The name card needs the room while the keyboard is up.
-                if model.selection == nil {
-                    VStack(spacing: 8) {
-                        Text(String(localized: "얼굴 등록"))
-                            .font(.largeTitle.weight(.bold))
-                        Text(String(localized: "화면에 보이는 얼굴을 탭하면 바로 등록할 수 있어요."))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
+                VStack(spacing: 8) {
+                    Text(String(localized: "얼굴 등록"))
+                        .font(.largeTitle.weight(.bold))
+                    Text(String(localized: "얼굴을 가운데 영역에 맞춰 주세요."))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
 
-                ZStack {
-                    Group {
-                        if model.isUsingWebRTCFrames {
-                            WebRTCFaceRegistrationPreview(videoUplink: videoUplink)
-                        } else {
-                            CameraPreview(
-                                session: cameraManager.session,
-                                cameraID: cameraManager.currentCameraID,
-                                videoGravity: .resizeAspectFill
-                            )
-                        }
-                    }
-
-                    if let selection = model.selection {
-                        FrozenFaceSelectionView(image: selection.previewImage, faceRect: selection.faceRect)
-                    } else if case .detecting = model.phase {
-                        FaceSelectionOverlay(faces: model.faces, imageSize: model.frameSize) { index in
-                            Task {
-                                await model.selectFace(
-                                    at: index,
-                                    lifecycleSessionID: lifecycleSessionID,
-                                    using: cameraManager,
-                                    videoUplink: videoUplink
-                                )
-                            }
-                        }
+                Group {
+                    if model.isUsingWebRTCFrames {
+                        WebRTCFaceRegistrationPreview(videoUplink: videoUplink)
+                    } else {
+                        CameraPreview(
+                            session: cameraManager.session,
+                            cameraID: cameraManager.currentCameraID,
+                            videoGravity: .resizeAspectFill
+                        )
                     }
                 }
-                .aspectRatio(FaceSelectionGeometry.previewAspectRatio, contentMode: .fit)
+                .aspectRatio(1, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
                         .stroke(previewBorderColor, lineWidth: 3)
-                        .allowsHitTesting(false)
                 }
                 .overlay {
                     if phaseBlocksPreview {
@@ -73,11 +51,6 @@ struct FaceRegistrationCaptureView: View {
 
                 statusGlass
                     .padding(.horizontal, 24)
-
-                if model.selection != nil {
-                    namingCard
-                        .padding(.horizontal, 24)
-                }
 
                 actionButton
                     .padding(.horizontal, 24)
@@ -111,8 +84,6 @@ struct FaceRegistrationCaptureView: View {
         .onChange(of: model.phase) { _, phase in
             if phase == .success {
                 dismiss()
-            } else if phase == .naming {
-                isNameFocused = true
             }
         }
         .onChange(of: videoUplink.canProvideFaceRegistrationFrames) { _, isAvailable in
@@ -148,59 +119,6 @@ struct FaceRegistrationCaptureView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var namingCard: some View {
-        VStack(spacing: 12) {
-            TextField(String(localized: "이름"), text: $model.name)
-                .textFieldStyle(.roundedBorder)
-                .submitLabel(.done)
-                .focused($isNameFocused)
-                .onSubmit(confirmSelection)
-                .disabled(model.phase == .registering)
-
-            if let message = model.selectionErrorMessage {
-                Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            HStack(spacing: 12) {
-                Button {
-                    Task {
-                        await model.reselectFace(
-                            lifecycleSessionID: lifecycleSessionID,
-                            using: cameraManager,
-                            videoUplink: videoUplink
-                        )
-                    }
-                } label: {
-                    Text(String(localized: "다시 선택"))
-                        .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                }
-                .innoLiveGlassButtonStyle()
-
-                Button(action: confirmSelection) {
-                    Text(String(localized: "확인"))
-                        .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                }
-                .innoLiveGlassButtonStyle(prominent: true)
-                .tint(.blue)
-                .disabled(!model.canConfirmName)
-            }
-            .disabled(model.phase == .registering)
-        }
-        // The sheet background is always black, so keep the field readable in light mode.
-        .environment(\.colorScheme, .dark)
-    }
-
-    private func confirmSelection() {
-        model.confirmSelection(lifecycleSessionID: lifecycleSessionID)
-    }
-
     @ViewBuilder
     private var phaseIcon: some View {
         switch model.phase {
@@ -213,9 +131,6 @@ struct FaceRegistrationCaptureView: View {
         case .failed:
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-        case .naming:
-            Image(systemName: "person.crop.square")
-                .foregroundStyle(.blue)
         case .idle, .detecting:
             Image(systemName: "viewfinder")
                 .foregroundStyle(.blue)
@@ -253,8 +168,6 @@ struct FaceRegistrationCaptureView: View {
             return String(localized: "카메라를 준비하고 있어요.")
         case let .detecting(message):
             return message
-        case .naming:
-            return String(localized: "이름을 입력하고 확인을 눌러 주세요.")
         case .registering:
             return String(localized: "얼굴을 등록하고 있어요. 잠시만 기다려 주세요.")
         case .success:
@@ -268,7 +181,6 @@ struct FaceRegistrationCaptureView: View {
         switch model.phase {
         case .success: return .green
         case .failed: return .orange
-        case .naming, .registering: return .blue
         default: return .white.opacity(0.7)
         }
     }
@@ -276,7 +188,7 @@ struct FaceRegistrationCaptureView: View {
     private var phaseBlocksPreview: Bool {
         switch model.phase {
         case .preparing, .registering, .failed, .success: return true
-        case .idle, .detecting, .naming: return false
+        case .idle, .detecting: return false
         }
     }
 }

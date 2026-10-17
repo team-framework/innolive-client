@@ -139,29 +139,6 @@
         }
       }
     },
-    "화면에 보이는 얼굴을 탭하면 바로 등록할 수 있어요.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "화면에 보이는 얼굴을 탭하면 바로 등록할 수 있어요."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tap a face on screen to register it right away."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "画面に映る顔をタップすると、すぐに登録できます。"
-          }
-        }
-      }
-    },
     "얼굴 %lld 선택": {
       "extractionState": "manual",
       "localizations": {
@@ -250,29 +227,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "選び直す"
-          }
-        }
-      }
-    },
-    "이름을 입력하고 확인을 눌러 주세요.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이름을 입력하고 확인을 눌러 주세요."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter a name, then tap OK."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "名前を入力して「確認」をタップしてください。"
           }
         }
       }
@@ -6750,6 +6704,29 @@
         }
       }
     },
+    "얼굴을 가운데 영역에 보여 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴을 가운데 영역에 보여 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show your face in the center area."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中央の枠に顔を映してください。"
+          }
+        }
+      }
+    },
     "얼굴을 등록하고 있어요. 잠시만 기다려 주세요.": {
       "extractionState": "manual",
       "localizations": {
@@ -6792,6 +6769,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "顔を登録するにはカメラの権限が必要です。"
+          }
+        }
+      }
+    },
+    "얼굴을 분석하지 못했습니다. 다시 시도해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴을 분석하지 못했습니다. 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not analyze the face. Please try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔を分析できませんでした。もう一度お試しください。"
           }
         }
       }
@@ -9299,6 +9299,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "必須"
+          }
+        }
+      }
+    },
+    "한 명의 얼굴만 화면에 보여 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "한 명의 얼굴만 화면에 보여 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show only one face on screen."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面には1人の顔だけを映してください。"
           }
         }
       }

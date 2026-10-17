@@ -60,13 +60,13 @@ struct QuickFaceRegistrationButton: View {
 private struct QuickFaceRegistrationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(CameraManager.self) private var cameraManager
-    @StateObject private var model: FaceRegistrationViewModel
+    @StateObject private var model: QuickFaceRegistrationViewModel
     @ObservedObject var videoUplink: WebRTCVideoUplink
     @State private var lifecycleSessionID = UUID()
 
     init(authentication: AuthSession, videoUplink: WebRTCVideoUplink) {
         // Registers into the store the current AI setting uses, like the settings screen.
-        _model = StateObject(wrappedValue: FaceRegistrationViewModel(
+        _model = StateObject(wrappedValue: QuickFaceRegistrationViewModel(
             authentication: authentication,
             mode: .selected
         ))
@@ -207,7 +207,7 @@ private struct QuickFaceRegistrationView: View {
         case .success:
             Image(systemName: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-        case .failed, .naming:
+        case .failed, .registrationFailed:
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
         case .idle, .detecting:
@@ -222,10 +222,8 @@ private struct QuickFaceRegistrationView: View {
             return String(localized: "카메라를 준비하고 있어요.")
         case let .detecting(message):
             return message
-        case .naming:
-            // One-tap registration only returns to the frozen face after a failed attempt.
-            return model.selectionErrorMessage
-                ?? String(localized: "얼굴 관리 요청을 처리하지 못했습니다. 다시 시도해 주세요.")
+        case let .registrationFailed(message):
+            return message
         case .registering:
             return String(localized: "얼굴을 등록하고 있어요. 잠시만 기다려 주세요.")
         case .success:
@@ -238,11 +236,11 @@ private struct QuickFaceRegistrationView: View {
     @ViewBuilder
     private var actionButtons: some View {
         switch model.phase {
-        case .naming:
+        case .registrationFailed:
             HStack(spacing: 12) {
                 Button {
                     Task {
-                        await model.reselectFace(
+                        await model.retryDetection(
                             lifecycleSessionID: lifecycleSessionID,
                             using: cameraManager,
                             videoUplink: videoUplink
@@ -257,7 +255,7 @@ private struct QuickFaceRegistrationView: View {
                 .innoLiveGlassButtonStyle()
 
                 Button {
-                    model.confirmSelection(lifecycleSessionID: lifecycleSessionID)
+                    model.retryRegistration(lifecycleSessionID: lifecycleSessionID)
                 } label: {
                     Text(String(localized: "다시 시도"))
                         .font(.body.weight(.semibold))

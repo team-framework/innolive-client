@@ -24,6 +24,7 @@ nonisolated struct FaceSelectionFrame: @unchecked Sendable {
 
 nonisolated final class FaceDetectionService: @unchecked Sendable {
     private static let outputSize = 500
+    private static let detectionInterval: TimeInterval = 0.35
     // Fast enough for brackets to follow a face; Vision runs off the main thread.
     private static let selectionInterval: TimeInterval = 0.1
 
@@ -44,6 +45,45 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         analysisLock.lock()
         previewAspectRatio = ratio
         analysisLock.unlock()
+    }
+
+    func analyze(
+        sampleBuffer: CMSampleBuffer,
+        cameraPosition: AVCaptureDevice.Position,
+        deviceOrientation: UIDeviceOrientation
+    ) -> FaceDetectionOutcome? {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            return .failed
+        }
+        return analyze(
+            pixelBuffer: pixelBuffer,
+            cameraPosition: cameraPosition,
+            deviceOrientation: deviceOrientation
+        )
+    }
+
+    func analyze(
+        pixelBuffer: CVPixelBuffer,
+        cameraPosition: AVCaptureDevice.Position,
+        deviceOrientation: UIDeviceOrientation
+    ) -> FaceDetectionOutcome? {
+        analysisLock.lock()
+        defer { analysisLock.unlock() }
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastDetectionTime >= Self.detectionInterval else { return nil }
+        lastDetectionTime = now
+
+        guard let crop = makeCenteredCrop(
+            pixelBuffer: pixelBuffer,
+            orientation: imageOrientation(
+                deviceOrientation: deviceOrientation,
+                cameraPosition: cameraPosition
+            )
+        ) else {
+            return .failed
+        }
+
+        return analyzePreparedCrop(crop)
     }
 
     func detectFaces(
@@ -241,6 +281,13 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
 
         guard let jpegData = jpegData(from: crop) else { return .failed }
         return .ready(jpegData)
+    }
+
+    private func makeCenteredCrop(
+        pixelBuffer: CVPixelBuffer,
+        orientation: CGImagePropertyOrientation
+    ) -> CGImage? {
+        makeCenteredCrop(image: CIImage(cvPixelBuffer: pixelBuffer).oriented(orientation))
     }
 
     private func makeCenteredCrop(image orientedImage: CIImage) -> CGImage? {
