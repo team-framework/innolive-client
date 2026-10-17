@@ -4,6 +4,7 @@ import Foundation
 /// Couples confirmed broadcast lifetime to one local writer, without making recording errors stop live video.
 @MainActor
 final class BroadcastRecordingCoordinator: ObservableObject {
+    nonisolated deinit {}
     @Published private(set) var notice: String?
     let store: RecordingSessionStore
     private let lifecycle: BroadcastLifecycle

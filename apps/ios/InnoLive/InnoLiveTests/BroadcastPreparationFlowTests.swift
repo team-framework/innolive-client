@@ -611,6 +611,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
 }
 
 private final class PreparationProbe {
+    nonisolated deinit {}
     var calls = 0
     var pathsAtCall: [String] = []
 }

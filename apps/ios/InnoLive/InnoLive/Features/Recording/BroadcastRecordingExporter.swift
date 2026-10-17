@@ -22,6 +22,7 @@ enum BroadcastRecordingExportError: LocalizedError {
 /// Owns only its UUID export folders. Never removes the app's recording source.
 @MainActor
 final class BroadcastRecordingExporter {
+    nonisolated deinit {}
     nonisolated static let defaultRoot = FileManager.default.temporaryDirectory.appendingPathComponent("BroadcastExports", isDirectory: true)
     private static let ownershipMarker = ".innolive-export-v1"
     private static let ownershipContents = "InnoLive broadcast export v1"

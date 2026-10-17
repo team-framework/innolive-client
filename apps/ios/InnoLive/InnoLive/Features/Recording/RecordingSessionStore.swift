@@ -30,6 +30,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
 }
 
 @MainActor final class RecordingSessionStore: ObservableObject {
+    nonisolated deinit {}
     enum State: Equatable {
         case idle
         case recording

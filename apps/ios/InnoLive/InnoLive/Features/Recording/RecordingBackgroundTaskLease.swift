@@ -12,6 +12,7 @@ typealias RecordingBackgroundLeaseFactory = @MainActor (String, @escaping @MainA
 
 /// A finite UIKit assertion, not a promise that iOS will permit arbitrary background recording.
 @MainActor final class RecordingBackgroundTaskLease: RecordingBackgroundLease {
+    nonisolated deinit {}
     private(set) var isExpired = false
     private var hasEnded = false
     private let onExpiration: @MainActor () -> Void

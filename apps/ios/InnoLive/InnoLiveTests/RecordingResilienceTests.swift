@@ -263,6 +263,7 @@ import XCTest
 }
 
 @MainActor private final class FakeLease: RecordingBackgroundLease {
+    nonisolated deinit {}
     var isExpired = false
     var ended = false
     let callback: @MainActor () -> Void
