@@ -202,7 +202,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
               <p
                 id="signup-agree-error"
                 role="alert"
-                className="text-sm text-text-primary"
+                className="text-sm text-text-primary max-lg:text-[13px]"
               >
                 {errors.agreed}
               </p>

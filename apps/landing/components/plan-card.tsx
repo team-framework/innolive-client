@@ -134,7 +134,7 @@ export function PlanCard({
                 variant="primary"
                 disabled
                 showChevron={false}
-                className="w-full max-w-none border border-button-secondary"
+                className="w-full max-w-none border border-button-secondary max-lg:border-button-secondary"
               >
                 {isLoading ? messages.common.loading : plan.cta.label}
               </Button>

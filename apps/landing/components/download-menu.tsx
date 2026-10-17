@@ -69,7 +69,7 @@ export function DownloadMenu({ trigger = "default" }: DownloadMenuProps) {
       ) : (
         <button
           type="button"
-          className="inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline md:text-2xl"
+          className="inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:-mx-[6px] max-md:-my-[7.5px] max-md:min-h-[44px] max-md:px-[6px] md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]"
           {...triggerProps}
         >
           Download
@@ -106,7 +106,7 @@ export function DownloadMenu({ trigger = "default" }: DownloadMenuProps) {
                   <span className="text-base font-semibold leading-none text-text-primary">
                     {platform.name}
                   </span>
-                  <span className="text-sm font-semibold leading-none text-text-secondary">
+                  <span className="text-sm font-semibold leading-none text-text-secondary max-lg:text-[12px]">
                     {unavailable ? messages.download.unavailable : platform.minOs}
                   </span>
                 </span>

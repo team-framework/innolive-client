@@ -26,7 +26,7 @@ export function OnDeviceOverlay() {
           >
             {messages.onDevice.pay}
           </Button>
-          <p className="text-center text-xs leading-[1.3] text-text-secondary">
+          <p className="text-center text-xs leading-[1.3] text-text-secondary max-lg:text-[12px]">
             {messages.onDevice.termsNote}{" "}
             <Link
               href={href("/terms")}

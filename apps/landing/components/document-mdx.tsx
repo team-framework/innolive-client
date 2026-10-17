@@ -118,7 +118,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
         className={scrollRegionClassName}
       >
         <table
-          className="w-full border-collapse text-left text-[clamp(0.875rem,0.8rem+0.3vw,1rem)] leading-[1.4]"
+          className="w-full border-collapse text-left text-[clamp(0.875rem,0.8rem+0.3vw,1rem)] leading-[1.4] max-md:text-[13px]"
           {...props}
         >
           {children}
@@ -151,7 +151,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
         role="region"
         aria-label={preRegionLabel[locale]}
         tabIndex={0}
-        className={`${scrollRegionClassName} whitespace-pre rounded-[var(--radius-control)] bg-surface-primary p-4 text-[0.875rem] leading-[1.45] [&_code]:bg-transparent [&_code]:p-0`}
+        className={`${scrollRegionClassName} whitespace-pre rounded-[var(--radius-control)] bg-surface-primary p-4 text-[0.875rem] leading-[1.45] max-md:text-[13px] [&_code]:bg-transparent [&_code]:p-0`}
         {...props}
       >
         {children}
@@ -159,7 +159,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     code: ({ children, ...props }: ComponentPropsWithoutRef<"code">) => (
       <code
-        className="break-all rounded-[var(--radius-control)] bg-surface-primary px-1 py-0.5 font-mono text-[0.875rem]"
+        className="break-all rounded-[var(--radius-control)] bg-surface-primary px-1 py-0.5 font-mono text-[0.875rem] max-md:text-[13px]"
         {...props}
       >
         {children}

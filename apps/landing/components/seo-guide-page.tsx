@@ -13,8 +13,8 @@ export function SeoGuidePage({ guide }: { guide: SeoGuide }) {
     <main id="main" tabIndex={-1} className="page-top-spacing min-h-dvh bg-background-primary px-[var(--page-gutter)] pb-20">
       <StructuredData data={guideStructuredData(guide)} />
       <article className="mx-auto flex max-w-[72rem] min-w-0 flex-col gap-12 break-keep">
-        <nav aria-label="현재 위치" className="flex flex-wrap gap-3 text-base leading-relaxed text-text-secondary">
-          <Link href="/ko" className="underline">InnoLive</Link>
+        <nav aria-label="현재 위치" className="flex flex-wrap gap-3 max-lg:items-center text-base leading-relaxed text-text-secondary">
+          <Link href="/ko" className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">InnoLive</Link>
           <span aria-hidden="true">/</span>
           <span aria-current="page">{guide.heading}</span>
         </nav>
@@ -72,11 +72,11 @@ export function SeoGuidePage({ guide }: { guide: SeoGuide }) {
             ))}
           </section>
         )}
-        <nav aria-label="관련 기능과 사용 방법" className="flex flex-col gap-4 border-t border-surface-primary pt-8">
+        <nav aria-label="관련 기능과 사용 방법" className="flex flex-col gap-4 border-t border-surface-primary pt-8 max-lg:gap-1">
           <h2 className="text-2xl font-semibold">관련 기능과 사용 방법</h2>
           {guide.related.map((path) => {
             const related = findSeoGuide(path);
-            return related && <Link key={path} href={`/ko${path}`} className="text-body leading-relaxed underline underline-offset-4">{related.heading}</Link>;
+            return related && <Link key={path} href={`/ko${path}`} className="text-body leading-relaxed underline underline-offset-4 max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{related.heading}</Link>;
           })}
         </nav>
       </article>

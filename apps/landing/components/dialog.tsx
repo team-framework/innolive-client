@@ -59,7 +59,7 @@ export function Dialog({ open, onClose, label, children, className = "" }: Dialo
       <div className="sticky top-0 z-10 flex justify-end p-2">
         <button
           type="button"
-          className="rounded-pill bg-background-secondary px-3 py-1 text-sm text-text-primary shadow-button"
+          className="rounded-pill bg-background-secondary px-3 py-1 text-sm text-text-primary shadow-button max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:px-4 max-lg:text-[14px]"
           onClick={onClose}
         >
           {messages.common.close}

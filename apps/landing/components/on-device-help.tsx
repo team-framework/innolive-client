@@ -12,7 +12,7 @@ export function OnDeviceHelp({ label }: { label: string }) {
     <>
       <button
         type="button"
-        className="relative size-7 shrink-0"
+        className="relative size-7 shrink-0 max-lg:-m-[12px] max-lg:flex max-lg:size-[44px] max-lg:items-center max-lg:justify-center"
         aria-label={label}
         aria-haspopup="dialog"
         aria-expanded={open}
