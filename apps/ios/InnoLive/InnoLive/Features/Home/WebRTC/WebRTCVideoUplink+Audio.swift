@@ -62,6 +62,7 @@ extension WebRTCVideoUplink {
         let source = peerConnectionFactory.audioSource(with: constraints)
         let track = peerConnectionFactory.audioTrack(with: source, trackId: "innolive-microphone")
         track.isEnabled = true
+        recordingAudioTap.setMuted(false)
         audioSource = source
         localAudioTrack = track
     }

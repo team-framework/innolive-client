@@ -184,7 +184,7 @@ struct BroadcastSessionStatusView: View {
             if youtube.hasStartedYouTubeBroadcast,
                youtube.visibleBroadcastTargets.contains(where: { $0.stream.broadcastPhaseValue == .prepared && $0.stream.statusValue != .stopped }) {
                 Button(String(localized: "준비된 대상 다시 시작", table: "Simulcast")) {
-                    Task { await youtube.goLiveYouTubeStream(accessToken: authentication.currentAccessToken()) }
+                    Task { await youtube.startBroadcastCountdown(accessToken: authentication.currentAccessToken()) }
                 }
                 .disabled(youtube.isChangingStreamState)
             }

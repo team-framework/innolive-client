@@ -15,6 +15,8 @@ struct HomeView: View {
     @State private var isShowingCameraPermissionAlert = false
     @State private var isSwitchingCamera = false
     @State private var isShowingVideoControls = false
+    @State private var isShowingRecordings = false
+    @State private var recordingPlayback: BroadcastRecordingPlayback?
     @State private var isShowingMicrophonePermissionAlert = false
     @State private var pendingPreparationProvider: BroadcastSettingsProvider?
     @State private var cameraSwitchErrorMessage: String?
@@ -127,6 +129,17 @@ struct HomeView: View {
                 .buttonBorderShape(.circle)
                 .accessibilityLabel(String(localized: "영상 조절"))
 
+                Button { isShowingRecordings = true } label: {
+                    Image(systemName: "film.stack")
+                        .font(.title3.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                }
+                .innoLiveGlassButtonStyle()
+                .buttonBorderShape(.circle)
+                .accessibilityLabel(String(localized: "저장된 방송"))
+                .accessibilityIdentifier("broadcast-recordings-library")
+                .disabled(youtube.isYouTubeBroadcastActive || youtube.lifecycle.isPresentingStart || youtube.isChangingStreamState)
+
                 QuickFaceRegistrationButton(
                     authentication: authentication,
                     videoUplink: youtube.videoUplink,
@@ -182,6 +195,41 @@ struct HomeView: View {
                 )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityHidden(youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd)
+        .overlay {
+            if let status = youtube.preparationStatus {
+                BroadcastPreparationOverlay(status: status) {
+                    guard let provider = youtube.lastPreparationProvider else { return }
+                    await beginBroadcastPreparation(provider)
+                } onCancel: {
+                    await cancelBroadcastPreparation()
+                }
+            }
+        }
+        .overlay {
+            BroadcastStartOverlay(lifecycle: youtube.lifecycle,
+                                  orientation: broadcastOrientation.lockedOrientation,
+                                  onCancel: youtube.cancelBroadcastCountdown)
+        }
+        .overlay {
+            BroadcastEndPresentation(lifecycle: youtube.lifecycle, isRecordingEnabled: true,
+                onPlay: { recordingPlayback = BroadcastRecordingPlayback(url: $0) },
+                onRetrySaving: youtube.recordingCoordinator.canRetry ? {
+                    Task { await youtube.recordingCoordinator.retrySaving() }
+                } : nil)
+        }
+        .sheet(isPresented: $isShowingRecordings) {
+            NavigationStack { BroadcastRecordingLibraryView(store: youtube.recordingStore) }
+        }
+        .sheet(item: $recordingPlayback) { item in
+            NavigationStack { BroadcastRecordingPlayerView(url: item.url) }
+        }
+        .onChange(of: youtube.isYouTubeBroadcastActive) { _, active in
+            if active {
+                isShowingRecordings = false
+                recordingPlayback = nil
+            }
+        }
         .broadcastTutorialHost(tutorial, host: .home)
         .toolbar(.hidden, for: .navigationBar) // 네비게이션 바를 숨김
         .task(id: canStartTutorial) {
@@ -197,6 +245,7 @@ struct HomeView: View {
         }
         .onDisappear {
             isHomeVisible = false
+            youtube.cancelBroadcastCountdown()
         }
         .sheet(isPresented: $isShowingVideoControls, onDismiss: restorePreviewCornerAfterVideoControls) {
             BroadcastVideoControlsView(uplink: youtube.videoUplink)
