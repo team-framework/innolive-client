@@ -1,11 +1,19 @@
 import Combine
 import Foundation
 import UIKit
+#if DEBUG
+import os
+#endif
 
 @MainActor
 final class YouTubeIntegration: ObservableObject {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
     nonisolated deinit {}
+
+    #if DEBUG
+    /// 화질 진단용이다. Console에서 `category:quality`로 세션 해상도와 카메라 화질 전환을 본다.
+    private static let qualityLogger = Logger(subsystem: "com.framework.innolive", category: "quality")
+    #endif
 
     let lifecycle = BroadcastLifecycle()
     let recordingStore: RecordingSessionStore
@@ -562,6 +570,9 @@ final class YouTubeIntegration: ObservableObject {
             ? (active.framesPerSecond == 24 ? .fullHD24 : .fullHD30)
             : (active.framesPerSecond == 24 ? .hd24 : .hd30)
         guard active != quality else { return }
+        #if DEBUG
+        Self.qualityLogger.notice("camera quality switch session=\(resolution, privacy: .public) from=\(active.rawValue, privacy: .public) to=\(quality.rawValue, privacy: .public)")
+        #endif
         let generation = sessionOperationGeneration
         let request = UUID()
         broadcastModeQualityRequest = request
@@ -575,7 +586,13 @@ final class YouTubeIntegration: ObservableObject {
             }
             do {
                 try await videoUplink.switchVideoQuality(to: quality)
+                #if DEBUG
+                Self.qualityLogger.notice("camera quality switch done to=\(quality.rawValue, privacy: .public)")
+                #endif
             } catch {
+                #if DEBUG
+                Self.qualityLogger.notice("camera quality switch failed to=\(quality.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+                #endif
                 guard !Task.isCancelled, generation == sessionOperationGeneration,
                       session?.sessionID == current.sessionID, broadcastModeQualityRequest == request else { return }
                 broadcastModeError = String(localized: "서버 해상도에 맞춰 카메라 화질을 변경하지 못했습니다. 카메라 상태를 확인해 주세요.", table: "BroadcastMode")
@@ -1239,7 +1256,21 @@ final class YouTubeIntegration: ObservableObject {
                 guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
                 // 온디바이스 직접 송출은 앱 직접 송출 세션으로 만든다(server #438). 서버 송출을 고르거나
                 // 서버가 처리 방식을 받지 않으면 서버 세션에서 서버 AI를 끄고 중계 송출한다.
-                var created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution)
+                var created: YouTubeBroadcastSession
+                do {
+                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution)
+                } catch YouTubeAPIError.api("plan_resolution_not_allowed"?, _, _) where sessionMode == .server && broadcastResolution == "fhd" {
+                    // 요금제가 FHD를 막으면 서버 세션은 720p로 다시 만든다. 카메라는 세션 응답 해상도에 맞춰진다.
+                    // 온디바이스 세션은 준비 전 요금제 검사가 안내하므로 그대로 실패시킨다.
+                    #if DEBUG
+                    Self.qualityLogger.notice("session fhd rejected by plan; retrying 720p")
+                    #endif
+                    guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
+                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: "720p")
+                }
+                #if DEBUG
+                Self.qualityLogger.notice("session created mode=\(sessionMode.rawValue, privacy: .public) requested=\(broadcastResolution ?? "none", privacy: .public) response=\(created.details.broadcastResolution ?? "none", privacy: .public)")
+                #endif
                 let record = StoredBroadcastSession(sessionID: created.sessionID, ownerToken: created.ownerToken)
                 // 초기화 중 도착한 생성 응답도 기록해 다음 연결에서 정리한다.
                 do {
@@ -1810,7 +1841,7 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = String(localized: "방송할 플랫폼을 하나 이상 선택해 주세요.", table: "Simulcast")
             return false
         }
-        preparationResolution = planProcessingMode == .onDevice ? (preferredVideoQuality.height == 1080 ? "fhd" : "720p") : nil
+        preparationResolution = planProcessingMode == .onDevice ? Self.sessionResolution(for: preferredVideoQuality) : nil
         lastPreparationProviders = providers
         lastPreparationProvider = providers.first
         for provider in providers {
@@ -1890,6 +1921,11 @@ final class YouTubeIntegration: ObservableObject {
         return nil
     }
 
+    /// 세션 생성 `broadcast_resolution` 값이다. 처리 위치와 관계없이 카메라 화질 설정을 따른다.
+    private static func sessionResolution(for quality: CameraQualityPreset) -> String {
+        quality.height == 1080 ? "fhd" : "720p"
+    }
+
     private func createAndConnectForPreparation(
         accessToken: String?,
         providers: [BroadcastSettingsProvider],
@@ -1903,7 +1939,8 @@ final class YouTubeIntegration: ObservableObject {
         videoConnector: (() async -> Bool)?
     ) async -> Bool {
         preparationStatus = BroadcastPreparationStatus(phase: .creatingSession)
-        guard await prepareSession(accessToken: accessToken, broadcastResolution: preparationResolution) else {
+        // 서버 세션도 선택한 화질을 요청한다. 요금제 사전 검사에는 넣지 않고, FHD 거절(403)은 720p로 다시 만든다.
+        guard await prepareSession(accessToken: accessToken, broadcastResolution: Self.sessionResolution(for: preferredVideoQuality)) else {
             guard preparationGeneration == generation else { return false }
             failPreparation(.creatingSession)
             return false
