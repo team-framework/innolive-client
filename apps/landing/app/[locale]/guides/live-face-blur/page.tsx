@@ -28,10 +28,10 @@ export default async function LiveFaceBlurGuide({ params }: PageProps) {
             {section.steps && <ol className="mt-4 list-decimal space-y-3 pl-6 text-lg leading-relaxed">{section.steps.map((step) => <li key={step}>{step}</li>)}</ol>}
           </section>
         ))}
-        <nav className="mt-12 flex flex-wrap gap-6 text-lg">
-          {(locale === "ko" || locale === "en") && <Link href={localePath(locale, "/live-mosaic")} className="underline">{locale === "en" ? "Live face blur guide" : "실시간 얼굴 가리기 가이드"}</Link>}
-          <Link href={localePath(locale, "/try-out")} className="underline">{guide.demo}</Link>
-          <Link href={localePath(locale, "/support")} className="underline">{guide.support}</Link>
+        <nav className="mt-12 flex flex-wrap gap-6 text-lg max-lg:gap-x-6 max-lg:gap-y-0">
+          {(locale === "ko" || locale === "en") && <Link href={localePath(locale, "/live-mosaic")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{locale === "en" ? "Live face blur guide" : "실시간 얼굴 가리기 가이드"}</Link>}
+          <Link href={localePath(locale, "/try-out")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{guide.demo}</Link>
+          <Link href={localePath(locale, "/support")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{guide.support}</Link>
         </nav>
       </article>
     </main>

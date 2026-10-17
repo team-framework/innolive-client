@@ -79,7 +79,7 @@ export function LoginForm() {
         <div className="flex w-full justify-end px-2">
           <button
             type="button"
-            className="text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font]"
+            className="text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font] max-lg:min-h-[44px]"
             onClick={() => setNotice(copy.forgotPending)}
           >
             {copy.forgotPassword}

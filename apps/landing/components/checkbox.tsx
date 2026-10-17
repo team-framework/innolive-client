@@ -24,7 +24,7 @@ export function Checkbox({
   return (
     <label
       htmlFor={inputId}
-      className={cn("flex min-w-0 items-start gap-2 break-keep", className)}
+      className={cn("flex min-w-0 items-start gap-2 break-keep max-lg:min-h-[44px] max-lg:items-center", className)}
     >
       <input
         id={inputId}
@@ -32,7 +32,7 @@ export function Checkbox({
         className="peer sr-only focus:outline-none focus-visible:outline-none"
         {...props}
       />
-      <span className="relative mt-0.5 inline-flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-control bg-surface-primary peer-checked:bg-button-secondary peer-checked:[&_img]:opacity-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-text-primary">
+      <span className="relative mt-0.5 inline-flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-control bg-surface-primary max-lg:mt-0 max-lg:size-[20px] max-lg:border max-lg:border-border-control max-lg:peer-checked:border-button-secondary peer-checked:bg-button-secondary peer-checked:[&_img]:opacity-100 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-text-primary">
         <Image
           src="/icons/checkbox-check.svg"
           alt=""
@@ -44,7 +44,7 @@ export function Checkbox({
         />
       </span>
       {label ? (
-        <span className="min-w-0 break-keep text-caption font-normal text-text-secondary">
+        <span className="min-w-0 break-keep text-caption font-normal text-text-secondary max-lg:text-[13px]">
           {label}
         </span>
       ) : null}
