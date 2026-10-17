@@ -7,20 +7,7 @@ enum QuickFaceRegistrationPhase: Equatable {
     case idle
     case preparing
     case detecting(String)
-    case registering
-    case success
-    /// Registration failed after a tap; the frozen face stays for a retry.
-    case registrationFailed(String)
     case failed(String)
-}
-
-/// The face the user tapped, frozen together with the frame it came from.
-struct FaceRegistrationSelection {
-    let frame: FaceSelectionFrame
-    let faceIndex: Int
-    let previewImage: CGImage
-
-    var faceRect: CGRect { frame.faces[faceIndex].rect }
 }
 
 private enum QuickFaceRegistrationFrameSource: Equatable {
@@ -28,37 +15,36 @@ private enum QuickFaceRegistrationFrameSource: Equatable {
     case webRTC
 }
 
-/// One-tap registration from the broadcast screen: tap a detected face and it registers
-/// under a generated name. The settings screen keeps `FaceRegistrationViewModel`.
+/// Finds selectable faces in the original camera for one-tap registration on the home screen.
+/// `GuestFaceRegistrar` registers the tapped face, so selection can end immediately.
+/// The settings screen keeps `FaceRegistrationViewModel`.
 @MainActor
 final class QuickFaceRegistrationViewModel: ObservableObject {
     // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
     nonisolated deinit {}
 
-    let mode: AIProcessingMode
     @Published private(set) var phase: QuickFaceRegistrationPhase = .idle
     @Published private(set) var isUsingWebRTCFrames = false
     @Published private(set) var faces: [FaceSelectionCandidate] = []
     @Published private(set) var frameSize: CGSize = .zero
-    @Published private(set) var selection: FaceRegistrationSelection?
 
-    private let api: ReferenceFaceAPI
     private let detector = FaceDetectionService()
     private var latestFrame: FaceSelectionFrame?
-    private var selectionName = ""
-    private var isFreezingSelection = false
     private var activeFrameSource: QuickFaceRegistrationFrameSource?
     private var detectionGeneration: UInt = 0
-    private var registrationTask: Task<Void, Never>?
     private var activeLifecycleSessionID: UUID?
-
-    init(authentication: AuthSession, mode: AIProcessingMode = .selected) {
-        self.mode = mode
-        api = ReferenceFaceAPI(authentication: authentication)
-    }
 
     func setPreviewAspectRatio(_ ratio: CGFloat) {
         detector.setPreviewAspectRatio(ratio)
+    }
+
+    /// The frame whose faces are on screen, if `index` is a face the user may pick.
+    func frameForSelection(at index: Int) -> FaceSelectionFrame? {
+        guard case .detecting = phase,
+              let frame = latestFrame,
+              frame.faces.indices.contains(index),
+              frame.faces[index].isSelectable else { return nil }
+        return frame
     }
 
     func beginDetection(
@@ -67,9 +53,9 @@ final class QuickFaceRegistrationViewModel: ObservableObject {
         videoUplink: WebRTCVideoUplink
     ) async {
         activeLifecycleSessionID = lifecycleSessionID
-        invalidateDetection()
+        detectionGeneration &+= 1
         let generation = detectionGeneration
-        clearSelection()
+        clearFaces()
         detector.reset()
         phase = .preparing
         await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
@@ -155,72 +141,13 @@ final class QuickFaceRegistrationViewModel: ObservableObject {
         videoUplink: WebRTCVideoUplink
     ) async {
         guard activeLifecycleSessionID == lifecycleSessionID else { return }
-        invalidateDetection()
+        detectionGeneration &+= 1
         let generation = detectionGeneration
         await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
         guard isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
         activeLifecycleSessionID = nil
-        clearSelection()
-        if phase != .success {
-            phase = .idle
-        }
-    }
-
-    func retryDetection(
-        lifecycleSessionID: UUID,
-        using cameraManager: CameraManager,
-        videoUplink: WebRTCVideoUplink
-    ) async {
-        guard activeLifecycleSessionID == lifecycleSessionID else { return }
-        await beginDetection(
-            lifecycleSessionID: lifecycleSessionID,
-            using: cameraManager,
-            videoUplink: videoUplink
-        )
-    }
-
-    /// Freezes the tapped frame, then registers that face at once under `name`.
-    func registerFace(
-        at index: Int,
-        name: String,
-        lifecycleSessionID: UUID,
-        using cameraManager: CameraManager,
-        videoUplink: WebRTCVideoUplink
-    ) async {
-        guard activeLifecycleSessionID == lifecycleSessionID,
-              case .detecting = phase,
-              !isFreezingSelection,
-              ReferenceFaceName.isValid(name),
-              let frame = latestFrame,
-              frame.faces.indices.contains(index),
-              frame.faces[index].isSelectable else { return }
-        isFreezingSelection = true
-        defer { isFreezingSelection = false }
-        invalidateDetection()
-        let generation = detectionGeneration
-        await stopActiveDetection(using: cameraManager, videoUplink: videoUplink)
-        guard !Task.isCancelled,
-              isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
-
-        let detector = detector
-        let previewImage = await Task.detached(priority: .userInitiated) {
-            detector.previewImage(from: frame)
-        }.value
-        guard !Task.isCancelled,
-              isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) else { return }
-        guard let previewImage else {
-            phase = .failed(String(localized: "선택한 얼굴을 준비하지 못했습니다. 다시 시도해 주세요."))
-            return
-        }
-        selection = FaceRegistrationSelection(frame: frame, faceIndex: index, previewImage: previewImage)
-        selectionName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        register(lifecycleSessionID: lifecycleSessionID, generation: generation)
-    }
-
-    func retryRegistration(lifecycleSessionID: UUID) {
-        guard activeLifecycleSessionID == lifecycleSessionID,
-              case .registrationFailed = phase else { return }
-        register(lifecycleSessionID: lifecycleSessionID, generation: detectionGeneration)
+        clearFaces()
+        phase = .idle
     }
 
     func handleWebRTCFrameSourceUnavailable(
@@ -230,66 +157,17 @@ final class QuickFaceRegistrationViewModel: ObservableObject {
         guard activeLifecycleSessionID == lifecycleSessionID,
               activeFrameSource == .webRTC,
               isUsingWebRTCFrames else { return }
-        invalidateDetection()
+        detectionGeneration &+= 1
         activeFrameSource = nil
         isUsingWebRTCFrames = false
         videoUplink.stopFaceFrameDelivery()
-        clearSelection()
+        clearFaces()
         phase = .failed(String(localized: "서버 카메라 연결이 변경되었습니다. 다시 시도해 주세요."))
-    }
-
-    private func register(lifecycleSessionID: UUID, generation: UInt) {
-        guard registrationTask == nil, let selection else { return }
-        let name = selectionName
-        let frame = selection.frame
-        let faceIndex = selection.faceIndex
-        let detector = detector
-        phase = .registering
-
-        let task = Task { @MainActor [weak self] in
-            guard let self else { return }
-            defer {
-                if self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation) {
-                    self.registrationTask = nil
-                }
-            }
-
-            let jpegData = await Task.detached(priority: .userInitiated) {
-                detector.registrationJPEG(from: frame, faceIndex: faceIndex)
-            }.value
-            guard !Task.isCancelled,
-                  self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
-                  case .registering = self.phase else { return }
-            guard let jpegData else {
-                self.phase = .registrationFailed(
-                    String(localized: "선택한 얼굴을 확인하지 못했습니다. 다시 선택해 주세요.")
-                )
-                return
-            }
-
-            do {
-                _ = try await self.mode == .server
-                    ? self.api.register(jpegData: jpegData, name: name)
-                    : LocalFaceRegistrationStore.shared.register(jpegData: jpegData, name: name)
-                guard !Task.isCancelled,
-                      self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
-                      case .registering = self.phase else { return }
-                self.phase = .success
-            } catch {
-                guard !Task.isCancelled,
-                      self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
-                      case .registering = self.phase else { return }
-                self.phase = .registrationFailed(self.message(for: error))
-            }
-        }
-        registrationTask = task
     }
 
     private func handle(_ frame: FaceSelectionFrame, lifecycleSessionID: UUID, generation: UInt) {
         guard !Task.isCancelled,
               isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
-              !isFreezingSelection,
-              selection == nil,
               case .detecting = phase else { return }
         latestFrame = frame
         faces = frame.faces
@@ -303,17 +181,9 @@ final class QuickFaceRegistrationViewModel: ObservableObject {
         }
     }
 
-    private func clearSelection() {
+    private func clearFaces() {
         latestFrame = nil
         faces = []
-        selection = nil
-        selectionName = ""
-    }
-
-    private func invalidateDetection() {
-        detectionGeneration &+= 1
-        registrationTask?.cancel()
-        registrationTask = nil
     }
 
     private func stopActiveDetection(
@@ -336,11 +206,5 @@ final class QuickFaceRegistrationViewModel: ObservableObject {
 
     private func isCurrent(lifecycleSessionID: UUID, generation: UInt) -> Bool {
         activeLifecycleSessionID == lifecycleSessionID && detectionGeneration == generation
-    }
-
-    private func message(for error: Error) -> String {
-        (error as? ReferenceFaceAPIError)?.userMessage
-            ?? (error as? LocalizedError)?.errorDescription
-            ?? String(localized: "얼굴 관리 요청을 처리하지 못했습니다. 다시 시도해 주세요.")
     }
 }

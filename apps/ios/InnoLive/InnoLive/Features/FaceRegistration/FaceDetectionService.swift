@@ -114,7 +114,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
             deviceOrientation: deviceOrientation,
             cameraPosition: cameraPosition
         )
-        let request = Self.faceRectanglesRequest()
+        let request = Self.faceLandmarksRequest()
         do {
             try VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: orientation).perform([request])
         } catch {
@@ -128,7 +128,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
     }
 
     func detectFaces(uprightImage image: CGImage) -> FaceSelectionFrame? {
-        let request = Self.faceRectanglesRequest()
+        let request = Self.faceLandmarksRequest()
         do {
             try VNImageRequestHandler(cgImage: image, orientation: .up).perform([request])
         } catch {
@@ -144,7 +144,7 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         )
     }
 
-    /// The frozen frame shown while the user names the selected face.
+    /// The frozen frame shown while the selected face registers.
     func previewImage(from frame: FaceSelectionFrame) -> CGImage? {
         context.createCGImage(frame.image, from: frame.image.extent)
     }
@@ -230,14 +230,31 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         observations: [VNFaceObservation],
         previewAspectRatio: CGFloat
     ) -> FaceSelectionFrame {
-        FaceSelectionFrame(
-            image: image,
-            faces: FaceSelectionGeometry.candidates(
-                for: observations.map(Self.topLeftRect),
-                imageSize: image.extent.size,
-                previewAspectRatio: previewAspectRatio
-            )
+        let candidates = FaceSelectionGeometry.candidates(
+            for: observations.map(Self.topLeftRect),
+            imageSize: image.extent.size,
+            previewAspectRatio: previewAspectRatio
         )
+        return FaceSelectionFrame(
+            image: image,
+            faces: zip(candidates, observations).map { candidate, observation in
+                var candidate = candidate
+                candidate.contour = Self.jawline(of: observation)
+                return candidate
+            }
+        )
+    }
+
+    /// Vision gives landmark points relative to the face box with a bottom-left origin.
+    private static func jawline(of observation: VNFaceObservation) -> [CGPoint] {
+        guard let points = observation.landmarks?.faceContour?.normalizedPoints else { return [] }
+        let box = observation.boundingBox
+        return points.map { point in
+            CGPoint(
+                x: box.minX + point.x * box.width,
+                y: 1 - (box.minY + point.y * box.height)
+            )
+        }
     }
 
     // Vision uses a bottom-left origin; the preview overlay uses top-left.
@@ -320,14 +337,23 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
     }
 
     private static func faceRectanglesRequest() -> VNDetectFaceRectanglesRequest {
-        let request = VNDetectFaceRectanglesRequest()
+        runningOnSimulatorCPU(VNDetectFaceRectanglesRequest())
+    }
+
+    private static func faceLandmarksRequest() -> VNDetectFaceLandmarksRequest {
+        runningOnSimulatorCPU(VNDetectFaceLandmarksRequest())
+    }
+
+    private static func runningOnSimulatorCPU<Request: VNImageBasedRequest>(_ request: Request) -> Request {
         #if targetEnvironment(simulator)
         // The Simulator cannot create Vision's default inference context.
-        if let cpu = try? request.supportedComputeStageDevices[.main]?.first(where: {
-            if case .cpu = $0 { return true }
-            return false
-        }) {
-            request.setComputeDevice(cpu, for: .main)
+        for (stage, devices) in (try? request.supportedComputeStageDevices) ?? [:] {
+            if let cpu = devices.first(where: {
+                if case .cpu = $0 { return true }
+                return false
+            }) {
+                request.setComputeDevice(cpu, for: stage)
+            }
         }
         #endif
         return request

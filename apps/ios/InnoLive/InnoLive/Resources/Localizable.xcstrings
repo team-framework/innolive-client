@@ -1,6 +1,98 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "게스트를 등록하고 있어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게스트를 등록하고 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registering the guest."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ゲストを登録しています。"
+          }
+        }
+      }
+    },
+    "얼굴 선택 취소": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 선택 취소"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel face selection"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔の選択をキャンセル"
+          }
+        }
+      }
+    },
+    "원본은 송출되지 않아요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원본은 송출되지 않아요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The original is not broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元の映像は配信されません。"
+          }
+        }
+      }
+    },
+    "방송 송출 화면": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 송출 화면"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast output"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信画面"
+          }
+        }
+      }
+    },
     "게스트": {
       "extractionState": "manual",
       "localizations": {
@@ -43,29 +135,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "ゲストとして登録しました。"
-          }
-        }
-      }
-    },
-    "이 화면은 송출되지 않아요.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 화면은 송출되지 않아요."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This screen is not broadcast."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "この画面は配信されません。"
           }
         }
       }
@@ -185,29 +254,6 @@
         }
       }
     },
-    "선택한 얼굴": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "선택한 얼굴"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Selected face"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選択した顔"
-          }
-        }
-      }
-    },
     "다시 선택": {
       "extractionState": "manual",
       "localizations": {
@@ -227,29 +273,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "選び直す"
-          }
-        }
-      }
-    },
-    "선택한 얼굴을 준비하지 못했습니다. 다시 시도해 주세요.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "선택한 얼굴을 준비하지 못했습니다. 다시 시도해 주세요."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Could not prepare the selected face. Please try again."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選択した顔を準備できませんでした。もう一度お試しください。"
           }
         }
       }

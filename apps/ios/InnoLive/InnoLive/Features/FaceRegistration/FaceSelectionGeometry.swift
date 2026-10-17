@@ -4,6 +4,8 @@ nonisolated struct FaceSelectionCandidate: Equatable, Sendable {
     /// Upright frame coordinates normalized with a top-left origin.
     let rect: CGRect
     let isSelectable: Bool
+    /// Jawline points in the same coordinates, ear to ear. Empty when Vision found no landmarks.
+    var contour: [CGPoint] = []
 }
 
 /// Coordinates shared by face detection, the aspect-fill preview, and the registration crop.
@@ -61,6 +63,15 @@ nonisolated enum FaceSelectionGeometry {
             width: normalized.width * displayed.width,
             height: normalized.height * displayed.height
         )
+    }
+
+    static func displayPoint(for normalized: CGPoint, imageSize: CGSize, in viewSize: CGSize) -> CGPoint {
+        let rect = displayRect(
+            for: CGRect(origin: normalized, size: .zero),
+            imageSize: imageSize,
+            in: viewSize
+        )
+        return rect.origin
     }
 
     /// Core Image pixel rect (bottom-left origin) scaled around the face center.
