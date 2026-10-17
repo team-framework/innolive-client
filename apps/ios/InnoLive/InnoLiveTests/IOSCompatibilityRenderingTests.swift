@@ -186,15 +186,16 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
 
         for appearance in appearances {
             // The empty token store stops ReferenceFaceAPI before any network request.
-            // This covers the management screen and signed-out error, not stored faces.
+            // This covers the registration form and signed-out error, not stored faces.
             try await render("face-management-signed-out", appearance: appearance,
                              title: String(localized: "얼굴 관리")) {
                 FaceManagementView(authentication: fixture.authentication,
                                    youtube: fixture.youtube, mode: .server)
                     .environment(fixture.camera)
             } inspect: { window in
-                XCTAssertTrue(descendants(of: window).compactMap { $0 as? UITextField }.isEmpty,
-                              "The name is entered after tapping a face in the camera")
+                let name = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextField }.first)
+                assertVisible(name, in: window)
+                XCTAssertTrue(name.isEnabled)
             }
         }
         XCTAssertFalse(fixture.camera.session.isRunning)
