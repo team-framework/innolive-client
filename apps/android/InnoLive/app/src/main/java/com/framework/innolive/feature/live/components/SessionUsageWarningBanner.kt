@@ -53,6 +53,11 @@ fun SessionUsageWarningBanner(
     modifier: Modifier = Modifier,
 ) {
     val messageResource = noticeCode?.let(::sessionNoticeMessageResource)
+    // AnimatedVisibility keeps composing its content during the exit animation after the notice clears.
+    var displayedMessageResource by remember { mutableStateOf(messageResource) }
+    if (messageResource != null && messageResource != displayedMessageResource) {
+        displayedMessageResource = messageResource
+    }
     val density = LocalDensity.current
     val swipeDismissThresholdPx = with(density) { 48.dp.toPx() }
     val fastSwipeThresholdPx = with(density) { 800.dp.toPx() }
@@ -112,16 +117,18 @@ fun SessionUsageWarningBanner(
             color = Color.White.copy(alpha = 0.9f),
             contentColor = Color.Black,
         ) {
-            Text(
-                text = stringResource(checkNotNull(messageResource)),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 18.sp,
-                    lineHeight = 22.sp,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = 0.sp,
-                ),
-            )
+            displayedMessageResource?.let { resource ->
+                Text(
+                    text = stringResource(resource),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 18.sp,
+                        lineHeight = 22.sp,
+                        fontWeight = FontWeight.Normal,
+                        letterSpacing = 0.sp,
+                    ),
+                )
+            }
         }
     }
 }
