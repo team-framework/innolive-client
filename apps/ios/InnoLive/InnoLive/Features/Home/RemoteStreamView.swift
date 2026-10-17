@@ -83,6 +83,30 @@ struct RemoteStreamView: View {
     }
 }
 
+/// The broadcast output shrunk into the corner while face selection takes the main area.
+/// Only one remote renderer exists at a time, so this replaces `RemoteStreamView` instead of copying it.
+struct CompactRemoteStreamView: View {
+    @ObservedObject var uplink: WebRTCVideoUplink
+
+    var body: some View {
+        ZStack {
+            Color.black
+
+            if uplink.isCapturingMedia, !uplink.isReleasingCamera {
+                WebRTCRemoteVideoView(uplink: uplink)
+            }
+
+            if !uplink.hasRemoteVideo {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.title3)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(String(localized: "방송 송출 화면"))
+    }
+}
+
 private enum BroadcastConnectionPhase {
     case preparingSession
     case preparation(BroadcastPreparationPhase)

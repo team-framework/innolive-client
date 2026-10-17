@@ -16,6 +16,7 @@ struct HomeView: View {
     @State private var isSwitchingCamera = false
     @State private var isShowingVideoControls = false
     @State private var isShowingRecordings = false
+    @State private var isSelectingFace = false
     @State private var recordingPlayback: BroadcastRecordingPlayback?
     @State private var recordingExport: BroadcastRecordingPlayback?
     @State private var isShowingMicrophonePermissionAlert = false
@@ -29,6 +30,7 @@ struct HomeView: View {
     @State private var bottomReservedHeight: CGFloat = 56
     @GestureState private var pinchStartZoom: CGFloat?
     @StateObject private var tutorial = BroadcastTutorialCoordinator()
+    @StateObject private var guestRegistrar = GuestFaceRegistrar()
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject private var broadcastOrientation = BroadcastOrientationController.shared
@@ -48,7 +50,26 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            zoomableRemoteStream
+            // Face selection swaps the views: the original takes the main area and the broadcast the corner.
+            if isSelectingFace {
+                FaceSelectionLayer(
+                    videoUplink: youtube.videoUplink,
+                    usesUplinkCamera: localPreviewPresentation == .webrtcLocal,
+                    bottomInset: bottomReservedHeight + 24
+                ) { frame, faceIndex in
+                    // Register in the background and go straight back to the broadcast view.
+                    guestRegistrar.register(
+                        frame: frame,
+                        faceIndex: faceIndex,
+                        name: GuestFaceName.make(),
+                        mode: .selected,
+                        authentication: authentication
+                    )
+                    isSelectingFace = false
+                }
+            } else {
+                zoomableRemoteStream
+            }
 
             if localPreviewPresentation != .hidden {
                 GeometryReader { geo in
@@ -65,7 +86,15 @@ struct HomeView: View {
                         )
                     )
 
-                    originalPreview(for: localPreviewPresentation)
+                    Group {
+                        if isSelectingFace {
+                            OriginalPreviewFrame {
+                                CompactRemoteStreamView(uplink: youtube.videoUplink)
+                            }
+                        } else {
+                            originalPreview(for: localPreviewPresentation)
+                        }
+                    }
                     .frame(width: previewSize.width, height: previewSize.height)
                     .position(
                         x: draggedOrigin.x + previewSize.width / 2,
@@ -141,6 +170,12 @@ struct HomeView: View {
                 .accessibilityIdentifier("broadcast-recordings-library")
                 .disabled(youtube.isYouTubeBroadcastActive || youtube.lifecycle.isPresentingStart || youtube.isChangingStreamState)
 
+                QuickFaceRegistrationButton(
+                    videoUplink: youtube.videoUplink,
+                    isSelecting: $isSelectingFace,
+                    isEnabled: !usesSimulatorVideo && !isSwitchingCamera
+                )
+
                 if isCameraAccessDenied {
                     Button {
                         isShowingCameraPermissionAlert = true
@@ -166,6 +201,16 @@ struct HomeView: View {
                 maxHeight: .infinity,
                 alignment: .topTrailing
             )
+
+            if !isSelectingFace {
+                GuestRegistrationToast(registrar: guestRegistrar) {
+                    isSelectingFace = true
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, bottomReservedHeight + 24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .animation(.easeOut(duration: 0.2), value: guestRegistrar.status)
+            }
 
             BroadcastControllsView(
                 isBroadcasting: $isBroadcasting,
@@ -250,6 +295,11 @@ struct HomeView: View {
             BroadcastVideoControlsView(uplink: youtube.videoUplink)
                 .presentationDetents([.height(630), .large])
                 .presentationDragIndicator(.visible)
+        }
+        .onChange(of: localPreviewPresentation) { _, presentation in
+            if presentation == .hidden {
+                isSelectingFace = false
+            }
         }
         .onChange(of: cameraManager.authorizationStatus) { _, status in
             guard !usesSimulatorVideo else { return }

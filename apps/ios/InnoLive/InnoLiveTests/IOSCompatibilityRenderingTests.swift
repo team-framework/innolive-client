@@ -202,6 +202,72 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         XCTAssertFalse(fixture.youtube.videoUplink.isActive)
     }
 
+    func testQuickFaceRegistrationButtonRendersBelowVideoControls() async throws {
+        let fixture = RenderingFixture()
+        defer { fixture.removePreferences() }
+        XCTAssertFalse(fixture.youtube.videoUplink.isFaceRegistrationCameraTransitioning)
+
+        for appearance in appearances {
+            // Mirrors the home screen's top-trailing column without starting the camera.
+            try await render("quick-face-registration-button", appearance: appearance) {
+                ScrollView {
+                    ZStack(alignment: .topTrailing) {
+                        LinearGradient(colors: [.indigo, .teal, .black],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                        VStack(alignment: .trailing, spacing: 12) {
+                            Button {} label: {
+                                Image(systemName: "camera.filters")
+                                    .font(.title3.weight(.semibold))
+                                    .frame(width: 44, height: 44)
+                            }
+                            .innoLiveGlassButtonStyle()
+                            .buttonBorderShape(.circle)
+
+                            QuickFaceRegistrationButton(videoUplink: fixture.youtube.videoUplink,
+                                                        isSelecting: .constant(false),
+                                                        isEnabled: true)
+                        }
+                        .padding(24)
+                    }
+                    .frame(height: 400)
+                }
+                .environment(fixture.camera)
+            }
+        }
+        XCTAssertFalse(fixture.camera.session.isRunning)
+        XCTAssertFalse(fixture.youtube.videoUplink.isActive)
+    }
+
+    func testFaceSelectionOutlinesRender() async throws {
+        let imageSize = CGSize(width: 1080, height: 1920)
+        let faces = [
+            FaceSelectionCandidate(rect: CGRect(x: 0.12, y: 0.42, width: 0.26, height: 0.15), isSelectable: true,
+                                   contour: (0...16).map { index in
+                                       // A jaw-shaped arc from ear to ear under the face box.
+                                       let angle = Double.pi * Double(index) / 16
+                                       return CGPoint(x: 0.25 - 0.13 * cos(angle), y: 0.47 + 0.095 * sin(angle))
+                                   }),
+            FaceSelectionCandidate(rect: CGRect(x: 0.58, y: 0.44, width: 0.24, height: 0.14), isSelectable: true),
+            FaceSelectionCandidate(rect: CGRect(x: 0.44, y: 0.66, width: 0.06, height: 0.035), isSelectable: false)
+        ]
+        for appearance in appearances {
+            try await render("face-selection", appearance: appearance) {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        ZStack {
+                            LinearGradient(colors: [.gray, .black], startPoint: .top, endPoint: .bottom)
+                            FaceSelectionOverlay(faces: faces, imageSize: imageSize) { _ in }
+                        }
+                        .aspectRatio(FaceSelectionGeometry.previewAspectRatio, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+                    }
+                    .padding(24)
+                }
+                .background(Color.black)
+            }
+        }
+    }
+
     func testSettingsRemainScrollableWithAccessibilityTextSize() async throws {
         let fixture = RenderingFixture()
         defer { fixture.removePreferences() }
