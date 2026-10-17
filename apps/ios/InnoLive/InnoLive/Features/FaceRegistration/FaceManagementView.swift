@@ -33,10 +33,6 @@ struct FaceManagementView: View {
                     introductionCard
                     Text(model.mode == .server ? String(localized: "서버에 등록한 얼굴") : String(localized: "이 기기에만 저장한 얼굴"))
                         .font(.subheadline).foregroundStyle(.secondary)
-                    TextField(String(localized: "이름"), text: $model.name)
-                        .textFieldStyle(.roundedBorder)
-                        .submitLabel(.done)
-                        .disabled(model.phase == .registering)
 
                     if !hasRegisteredFaces {
                         statusCard
@@ -65,7 +61,7 @@ struct FaceManagementView: View {
                     .innoLiveGlassButtonStyle(prominent: true)
                     .tint(.blue)
                     .disabled(
-                        !model.canRegister || isCameraTransitioning
+                        isCameraTransitioning
                             || model.isDeleting
                             || cameraManager.authorizationStatus != .authorized
                     )
