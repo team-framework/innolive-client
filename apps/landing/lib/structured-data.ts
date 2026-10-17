@@ -2,6 +2,7 @@ import { getHomeFaq, type FaqItem } from "@/lib/faq";
 import { localePath, locales, type Locale } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
 import { siteOrigin } from "@/lib/seo";
+import { downloadPlatforms } from "@/lib/site";
 import { seoCopy } from "@/lib/seo-copy";
 import type { SeoGuide } from "@/lib/seo-guides";
 
@@ -31,6 +32,8 @@ function siteEntities(locale: Locale) {
       name: "InnoLive", applicationCategory: "MultimediaApplication",
       url: `${siteOrigin}${localePath(locale, "/")}`,
       description: seoCopy[locale].home.description,
+      operatingSystem: downloadPlatforms.map((platform) => platform.minOs),
+      installUrl: downloadPlatforms.flatMap((platform) => platform.href ? [platform.href] : []),
       publisher: { "@id": organizationId },
     },
   ];
@@ -78,6 +81,7 @@ export function guideStructuredData(guide: SeoGuide, locale: "ko" | "en" = "ko")
         name: guide.heading, description: guide.intro, inLanguage: locale,
         isPartOf: { "@id": websiteId }, about: { "@id": softwareId },
         breadcrumb: { "@id": `${url}#breadcrumb` },
+        ...(guide.path === "/mosaic-software" ? { mainEntity: { "@id": softwareId } } : {}),
         ...(isArticle ? { mainEntity: { "@id": `${url}#article` } } : {}),
         ...(faq.length ? { hasPart: { "@id": `${url}#faq` } } : {}),
       },

@@ -5,6 +5,7 @@ import { findSeoGuide, type SeoGuide } from "@/lib/seo-guides";
 import { StructuredData } from "@/components/structured-data";
 import { guideStructuredData } from "@/lib/structured-data";
 import { getMessages } from "@/lib/messages";
+import { downloadPlatforms } from "@/lib/site";
 import { getPersonalPlans } from "@/lib/plans";
 
 export function SeoGuidePage({ guide, locale = "ko" }: { guide: SeoGuide; locale?: "ko" | "en" }) {
@@ -32,6 +33,21 @@ export function SeoGuidePage({ guide, locale = "ko" }: { guide: SeoGuide; locale
             <Image src="/mockups/hero-face-registration.webp" alt={en ? "Registering a face to keep visible in an InnoLive broadcast" : "InnoLive에서 방송에 공개할 얼굴을 등록하는 화면"} width={640} height={960} className="h-auto max-h-[32rem] w-full rounded-card bg-background-secondary object-contain" />
             <figcaption className="text-base leading-relaxed text-text-secondary">{en ? "Register the faces you want to show, then check that other faces are blurred before streaming." : "공개할 얼굴을 등록하고, 방송 전에 다른 얼굴의 블러 처리 결과를 확인하세요."}</figcaption>
           </figure>
+        )}
+        {guide.path === "/mosaic-software" && (
+          <section id="install" aria-labelledby="install-heading" className="flex flex-col gap-4 rounded-card bg-background-secondary p-6">
+            <h2 id="install-heading" className="text-2xl font-semibold md:text-3xl">{en ? "Install the InnoLive broadcasting app" : "InnoLive 방송 앱 설치"}</h2>
+            <p className="text-body leading-relaxed">{en ? "Stream live camera video with automatic face blur to YouTube or CHZZK. Register guests to keep them visible and check the result before broadcasting." : "카메라 영상의 얼굴을 자동으로 블러 처리하고 유튜브·치지직(CHZZK)으로 실시간 송출하세요. 공개할 출연자를 등록하고 방송 전에 처리 결과를 확인하세요."}</p>
+            <ul className="flex flex-col gap-3 text-body leading-relaxed">
+              {downloadPlatforms.map((platform) => (
+                <li key={platform.id}>
+                  <span>{platform.name} · {platform.minOs} · </span>
+                  {platform.href ? <a href={platform.href} className="underline underline-offset-4">{platform.id === "ios" ? "App Store" : "ONE store"}{en ? " download" : "에서 설치"}</a> : <span>{en ? "Download link unavailable" : "설치 링크 준비 중"}</span>}
+                </li>
+              ))}
+            </ul>
+            <p className="text-base leading-relaxed text-text-secondary">{en ? "The web demo previews face blur. Broadcast from the mobile app; check pricing for streaming time and feature limits." : "웹 체험에서 얼굴 블러 결과를 확인할 수 있습니다. 실제 방송은 모바일 앱에서 진행하며, 방송 시간과 기능 한도는 요금제에서 확인하세요."}</p>
+          </section>
         )}
         {guide.sections.map((section) => (
           <section key={section.heading} className="flex flex-col gap-4">

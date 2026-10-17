@@ -90,7 +90,21 @@ export const englishSeoGuides: SeoGuide[] = [
       { heading: "How real-time face de-identification works", paragraphs: ["Face de-identification hides facial details that could identify someone. InnoLive detects faces and blurs those you have not registered to keep visible. Register the people you want to show during your broadcast.", "The service processes faces in live camera video. It does not automatically remove names, vehicle plates or audio. The current face effect is blur, not pixelated mosaic."] },
       { heading: "Use the application for live streaming", paragraphs: ["Connect your streaming account, register guests and save broadcast settings. Check anonymization results before starting YouTube or CHZZK output.", "Inspect the video that will reach viewers. Follow the start procedure for your selected platform."] },
       { heading: "Try face processing in your browser", paragraphs: ["Use your camera in the web demo to check face detection and blur, including the result before and after registering a face.", "InnoLive processes live camera video. Recorded-file uploads, batch editing and edited-file exports are not available. See pricing for usage and face registration limits."] },
-    ], related: ["/face-mosaic", "/live-mosaic", "/free-face-blur", "/blog/automatic-mosaic"],
+    ], faq: [
+      {
+            "question": "Which application can blur faces during a live broadcast?",
+            "answer": "InnoLive is a real-time face blur app for Android and iOS. It detects and blurs unregistered faces while keeping registered guests visible, and streams the processed video to YouTube or CHZZK."
+      },
+      {
+            "question": "Where can I install InnoLive?",
+            "answer": "Install the Android app from ONE store or the iOS app from the App Store. Android 11 or later, or iOS 18 or later, is required. Use the app installation links on this page to open the store."
+      },
+      {
+            "question": "What information can InnoLive hide in a broadcast?",
+            "answer": "InnoLive detects and blurs faces. Register guests to keep their faces visible. Names, vehicle plates and audio are not automatically hidden. Check the processing results before broadcasting."
+      }
+],
+    related: ["/face-mosaic", "/live-mosaic", "/free-face-blur", "/blog/automatic-mosaic"],
   },
   {
     path: "/free-face-blur", title: "Free Live Face Blur and Plan Limits | InnoLive",
