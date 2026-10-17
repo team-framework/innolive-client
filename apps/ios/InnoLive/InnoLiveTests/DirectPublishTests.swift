@@ -72,6 +72,9 @@ final class DirectPublishSharedContractTests: XCTestCase {
         // 처리 방식을 돌려주지 않는 구 서버와의 협상용이다. 서버는 최상위 값을 먼저 쓴다.
         XCTAssertEqual((onDevice["metadata"] as? [String: String])?["ai_processing"], "on_device")
         XCTAssertTrue(try encodedObject(YouTubeSessionCreateRequest(mode: .server)).isEmpty)
+        // 서버 처리도 해상도는 보낸다. 처리 방식 필드는 넣지 않는다.
+        let server = try encodedObject(YouTubeSessionCreateRequest(mode: .server, broadcastResolution: "fhd"))
+        XCTAssertEqual(server as? [String: String], ["broadcast_resolution": "fhd"])
     }
 
     func testHeartbeatRequestKeysMatchSharedFixture() throws {

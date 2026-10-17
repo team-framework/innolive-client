@@ -438,7 +438,8 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(methods, ["POST", "PATCH"])
         let body = try XCTUnwrap(SessionLifecycleURLProtocol.requests.first.flatMap(Self.body))
         XCTAssertFalse(body.contains("ai_processing"))
-        XCTAssertFalse(body.contains("broadcast_resolution"))
+        // 서버 송출도 선택한 카메라 화질로 세션을 만든다. 생략하면 서버 기본값 720p 세션이 된다.
+        XCTAssertEqual(try screenBlurRequestBody(SessionLifecycleURLProtocol.requests[0])["broadcast_resolution"] as? String, "fhd")
         let patch = SessionLifecycleURLProtocol.requests[1]
         XCTAssertEqual(patch.url?.path, "/sessions/relay/anonymization")
         XCTAssertEqual(try screenBlurRequestBody(patch)["enabled"] as? Bool, false)
@@ -446,6 +447,40 @@ final class BroadcastSessionLifecycleTests: XCTestCase {
         XCTAssertEqual(integration.session?.processingMode, .onDevice)
         XCTAssertTrue(integration.isAnonymizationEnabled)
         XCTAssertEqual(integration.planProcessingMode, .server)
+    }
+
+    func testServerSessionRetriesAt720pWhenPlanRejectsFHD() async throws {
+        SessionLifecycleURLProtocol.responses = [.planResolutionRejected, .created("server", mode: "server")]
+        let integration = makeIntegration(mode: .server)
+        let ready = await integration.prepareSession(accessToken: token, broadcastResolution: "fhd")
+        XCTAssertTrue(ready)
+        XCTAssertEqual(methods, ["POST", "POST"])
+        let resolutions = try SessionLifecycleURLProtocol.requests.map { try screenBlurRequestBody($0)["broadcast_resolution"] as? String }
+        XCTAssertEqual(resolutions, ["fhd", "720p"])
+        XCTAssertEqual(integration.session?.sessionID, "server")
+        XCTAssertNil(integration.errorMessage)
+    }
+
+    func testServerTransportRetriesAt720pWhenPlanRejectsFHD() async throws {
+        SessionLifecycleURLProtocol.responses = [.planResolutionRejected, .created("relay", mode: "server"), .snapshot(enabled: false)]
+        let integration = makeIntegration(mode: .onDevice, transport: .server)
+        let ready = await integration.prepareSession(accessToken: token, broadcastResolution: "fhd")
+        XCTAssertTrue(ready)
+        XCTAssertEqual(methods, ["POST", "POST", "PATCH"])
+        let resolutions = try SessionLifecycleURLProtocol.requests.prefix(2).map { try screenBlurRequestBody($0)["broadcast_resolution"] as? String }
+        XCTAssertEqual(resolutions, ["fhd", "720p"])
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertNil(integration.errorMessage)
+    }
+
+    func testDirectPublishSessionKeepsPlanRejectionWithoutRetry() async {
+        SessionLifecycleURLProtocol.responses = [.planResolutionRejected]
+        let integration = makeIntegration(mode: .onDevice)
+        let ready = await integration.prepareSession(accessToken: token, broadcastResolution: "fhd")
+        XCTAssertFalse(ready)
+        XCTAssertEqual(methods, ["POST"])
+        XCTAssertNil(integration.session)
+        XCTAssertNotNil(integration.errorMessage)
     }
 
     func testServerTransportRejectsDirectPublishSessionResponse() async {
@@ -743,6 +778,7 @@ private final class SessionLifecycleURLProtocol: URLProtocol {
             .init(status: 200, body: "{\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0},\"media\":{\"screen_blur_enabled\":\(enabled)}}")
         }
         static func empty(_ status: Int) -> Self { .init(status: status, body: "") }
+        static let planResolutionRejected = Self(status: 403, body: "{\"error\":{\"code\":\"plan_resolution_not_allowed\"}}")
         static func created(_ id: String, mode: String? = nil) -> Self {
             let extra = mode.map { "\"ai_processing\":\"\($0)\"," } ?? ""
             return .init(status: 201, body: "{\(extra)\"session_id\":\"\(id)\",\"owner_token\":\"owner\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}")
