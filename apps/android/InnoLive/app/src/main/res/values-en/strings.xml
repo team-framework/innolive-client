@@ -64,4 +64,7 @@
     <string name="direct_broadcast_notification_text">While you use another app or the screen is off, a standby image and silence are sent instead of the camera.</string>
     <string name="direct_broadcast_notification_stop">End broadcast</string>
     <string name="direct_broadcast_notification_hidden">Notifications are off, so the live notification will not appear. Your broadcast continues.</string>
+    <string name="viewer_chat_title">Viewer chat</string>
+    <string name="viewer_chat_notice">View only · Chat may be unavailable for private broadcasts.</string>
+    <string name="viewer_chat_load_failed">Could not load chat.</string>
 </resources>
