@@ -130,6 +130,7 @@ internal class WebRtcConnection(
     private var privacyStatsTask: ScheduledFuture<*>? = null
     private var uplinkStatsTask: ScheduledFuture<*>? = null
     private var previousPrivacyVideoStats: PrivacyVideoStats? = null
+    private var previousUplinkVideoStats: PrivacyVideoStats? = null
     private val recoveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val httpClient = OkHttpClient.Builder()
         .callTimeout(15, TimeUnit.SECONDS)
@@ -1696,10 +1697,21 @@ internal class WebRtcConnection(
                 val outbound = report.statsMap.values.firstOrNull { it.type == "outbound-rtp" &&
                     (it.members["kind"] == "video" || it.members["mediaType"] == "video") } ?: return@getStats
                 val sample = UplinkVideoStats.from(outbound.members)
-                if (BuildConfig.DEBUG) Log.i("PrivacyPipeline", "uplink_video reason=${sample.reason} " +
-                    "size=${sample.width}x${sample.height} fps=${sample.framesPerSecond} " +
-                    "encoder=${outbound.members["encoderImplementation"]} " +
-                    "target_bitrate=${outbound.members["targetBitrate"]}")
+                if (BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) {
+                    val current = PrivacyVideoStats.from(outbound.members, System.nanoTime())
+                    executeOnOwner {
+                        val previous = previousUplinkVideoStats
+                        previousUplinkVideoStats = current
+                        // framesEncoded와 분석기 delivered_total의 차이가 캡처 이후 WebRTC 안에서 버린 프레임입니다.
+                        Log.i("PrivacyPipeline", "uplink_video reason=${sample.reason} " +
+                            "size=${sample.width}x${sample.height} fps=${sample.framesPerSecond} " +
+                            "${current.interval(previous)} " +
+                            "limitation_durations=${outbound.members["qualityLimitationDurations"]} " +
+                            "limitation_changes=${outbound.members["qualityLimitationResolutionChanges"]} " +
+                            "encoder=${outbound.members["encoderImplementation"]} " +
+                            "target_bitrate=${outbound.members["targetBitrate"]}")
+                    }
+                }
                 mainHandler.post { if (isActive()) onUplinkVideoStats(sample) }
             }
         }

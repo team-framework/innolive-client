@@ -75,6 +75,8 @@ class CameraFrameAnalyzer(
     private var lastLogNs = System.nanoTime()
     private var lastCaptureFormat: Pair<Int, Int>? = null
     private var lastStagesLogNs = System.nanoTime()
+    private val cadence = AnalyzerFrameCadence()
+    private var lastCadenceLogNs = System.nanoTime()
     internal var onFrameDiagnostics: ((PrivacyCaptureDiagnostics) -> Unit)? = null
     private val processorLock = Any()
     private val cameraBuffers = PrivacyCameraBufferPool()
@@ -250,6 +252,7 @@ class CameraFrameAnalyzer(
     }
 
     override fun analyze(image: ImageProxy) {
+        val analyzeStartedNs = System.nanoTime()
         var ticket: PrivacyFrameRoute.Ticket? = null
         var reserved = false
         var transferredImage = false
@@ -342,16 +345,19 @@ class CameraFrameAnalyzer(
                         throw error
                     }
                 } else {
+                    var deliveredFrame = false
                     try {
                         route.deliver(currentTicket) {
                             relayAdjustedFrame(frame) { adjusted ->
                                 previewSink?.onFrame(adjusted)
                                 capturerObserver?.onFrameCaptured(adjusted)
                                 if (currentTicket.mode == PrivacyFrameMode.LOCAL_RAW) deliverToDirectPublish(adjusted)
+                                deliveredFrame = true
                             }
                         }
                     } finally {
                         frame.release()
+                        recordCadence(currentTicket.mode, image.imageInfo.timestamp, analyzeStartedNs, deliveredFrame)
                     }
                 }
             } finally {
@@ -449,6 +455,18 @@ class CameraFrameAnalyzer(
             reportedColorFailure = true
             Log.w("CameraFrameAnalyzer", "video_adjustment_frame_dropped type=${error.javaClass.simpleName}")
         }
+    }
+
+    /** 서버 가림 처리와 원본 송출 경로의 분석기 드롭과 처리 시간입니다. 진단 빌드에서만 기록합니다. */
+    private fun recordCadence(mode: PrivacyFrameMode, timestampNs: Long, startedNs: Long, delivered: Boolean) {
+        if (!BuildConfig.DEBUG && !BuildConfig.PRIVACY_PERF_DIAGNOSTICS) return
+        val now = System.nanoTime()
+        cadence.record(timestampNs, now - startedNs, delivered)
+        if (now - lastCadenceLogNs < 5_000_000_000L) return
+        lastCadenceLogNs = now
+        Log.i("PrivacyPipeline", "analyzer_cadence mode=${mode.name.lowercase()} " +
+            "color_neutral=${settings.get().let { it.warmth == 0f && it.saturation == 1f }} " +
+            "${cadence.drain()}")
     }
 
     private fun logCounts() {
