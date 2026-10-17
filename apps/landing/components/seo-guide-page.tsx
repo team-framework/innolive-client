@@ -49,6 +49,31 @@ export function SeoGuidePage({ guide, locale = "ko" }: { guide: SeoGuide; locale
             <p className="text-base leading-relaxed text-text-secondary">{en ? "The web demo previews face blur. Broadcast from the mobile app; check pricing for streaming time and feature limits." : "웹 체험에서 얼굴 블러 결과를 확인할 수 있습니다. 실제 방송은 모바일 앱에서 진행하며, 방송 시간과 기능 한도는 요금제에서 확인하세요."}</p>
           </section>
         )}
+        {guide.comparison && (
+          <section aria-labelledby="comparison-heading" className="flex min-w-0 flex-col gap-4">
+            <h2 id="comparison-heading" className="text-2xl font-semibold md:text-3xl">{en ? "Compare the published features" : "공식 설명으로 기능 비교"}</h2>
+            <p className="text-base leading-relaxed text-text-secondary">{guide.comparison.disclosure}</p>
+            <p className="text-base text-text-secondary">{en ? "Sources checked: " : "출처 확인일: "}<time dateTime={guide.comparison.checkedAt}>{guide.comparison.checkedAt}</time></p>
+            <div role="region" aria-label={guide.comparison.caption} tabIndex={0} className="overflow-x-auto rounded-card border border-surface-primary focus-visible:outline-2">
+              <table className="w-full min-w-[48rem] text-left text-base leading-relaxed">
+                <caption className="sr-only">{guide.comparison.caption}</caption>
+                <thead><tr>{guide.comparison.columns.map((column) => <th key={column} scope="col" className="px-4 py-4">{column}</th>)}</tr></thead>
+                <tbody>{guide.comparison.rows.map((row) => (
+                  <tr key={row.label} className="border-t border-surface-primary align-top">
+                    <th scope="row" className="px-4 py-4">{row.label}</th>
+                    {row.cells.map((cell, index) => <td key={index} className="px-4 py-4">{cell}</td>)}
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <h3 className="text-xl font-semibold">{en ? "Official sources" : "공식 출처"}</h3>
+            <ul className="flex flex-wrap gap-x-6 gap-y-3 text-base leading-relaxed">
+              {guide.comparison.sources.map((source) => <li key={source.url}><a href={source.url} className="underline underline-offset-4">{source.name}</a></li>)}
+              <li><Link href={`/${locale}/mosaic-software`} className="underline underline-offset-4">{en ? "InnoLive app and installation" : "InnoLive 앱·설치 안내"}</Link></li>
+              <li><Link href={`/${locale}/pricing`} className="underline underline-offset-4">{en ? "InnoLive plans" : "InnoLive 요금제"}</Link></li>
+            </ul>
+          </section>
+        )}
         {guide.sections.map((section) => (
           <section key={section.heading} className="flex flex-col gap-4">
             <h2 className="text-2xl font-semibold leading-snug md:text-3xl">{section.heading}</h2>
