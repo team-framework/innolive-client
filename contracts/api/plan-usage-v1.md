@@ -8,7 +8,7 @@ checks apply. Signaling is unchanged.
 ## Processing-specific budgets (2026-10-15)
 
 Source: [server BM specification](https://app.notion.com/p/3faba097c65980fbaa2de8f8fa55e015).
-This consumes additive response fields. On-device session creation also sends the existing `broadcast_resolution` field matching the selected capture preset. Server-processing creation remains unchanged.
+This consumes additive response fields. Session creation also sends the existing `broadcast_resolution` field matching the selected capture preset. On iOS, a server session that receives `plan_resolution_not_allowed` for `fhd` retries once with `720p` ([AI processing](ai-processing-v1.md#ios-연결을-유지하는-전환)).
 
 | Response | Server fields | On-device fields |
 | --- | --- | --- |

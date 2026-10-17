@@ -75,7 +75,7 @@ import XCTest
             try await prepareCapture(uplink)
             lifecycle.finishPreparation(generation: preparation)
             XCTAssertEqual(lifecycle.phase, .prepared)
-            uplink.cameraFrameRelay?.setValidationVideoDelivery { buffer, rotation, time in
+            uplink.cameraFrameRelay?.setValidationRecordingSource { buffer, rotation, time in
                 pathAudit.delivered(buffer, rotation: rotation, time: time)
             }
             try await CameraRecordingLoopback.withConnectedPeers(uplink) { remote in
@@ -121,7 +121,7 @@ import XCTest
             // that observable instrumentation window separately from actual input mismatches.
             pathAudit.beginRelayInstallation()
             try await prepareCapture(uplink)
-            uplink.cameraFrameRelay?.setValidationVideoDelivery { buffer, rotation, time in
+            uplink.cameraFrameRelay?.setValidationRecordingSource { buffer, rotation, time in
                 pathAudit.delivered(buffer, rotation: rotation, time: time)
             }
             recreatedRelay = uplink.cameraFrameRelay !== originalRelay
@@ -160,7 +160,7 @@ import XCTest
             let recordedAudio = try XCTUnwrap(result.audioFrames)
             let droppedVideo = try XCTUnwrap(result.droppedVideoFrames)
             let paths = pathAudit.snapshot
-            XCTAssertEqual(paths.mismatches, 0, "Recorder must admit the same buffer, rotation, and timestamp delivered to WebRTC")
+            XCTAssertEqual(paths.mismatches, 0, "Recorder must admit the same buffer, rotation, and timestamp captured before color correction and AI processing")
             XCTAssertGreaterThan(paths.matches, 450)
             XCTAssertGreaterThan(recordedVideo, 450, "Real camera relay must supply most 30 fps frames")
             XCTAssertGreaterThan(recordedAudio, 1_200_000)

@@ -110,6 +110,21 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         XCTAssertTrue(integration.isVideoConnected)
         XCTAssertEqual(integration.session?.sessionID, "new")
         XCTAssertFalse(paths.contains { $0.contains("golive") })
+        // 서버 세션도 카메라 화질(기본 1080p30)을 세션 해상도로 요청한다.
+        XCTAssertEqual(try jsonBody(PreparationFlowURLProtocol.requests[0])["broadcast_resolution"] as? String, "fhd")
+    }
+
+    func testServerPreparationRequests720pForHDCameraQuality() async throws {
+        let integration = makeIntegration()
+        integration.configureSettingsEditor(accessToken: token)
+        integration.settingsEditor.setUsesDefaults(false, provider: .youtube)
+        PreparationFlowURLProtocol.responses = [.created("new"), .snapshot(phase: "idle"), .snapshot(phase: "prepared")]
+        let prepared = await prepare(integration, quality: .hd24)
+        XCTAssertTrue(prepared)
+        let body = try jsonBody(PreparationFlowURLProtocol.requests[0])
+        XCTAssertEqual(PreparationFlowURLProtocol.requests[0].url?.path, "/sessions")
+        XCTAssertEqual(body["broadcast_resolution"] as? String, "720p")
+        XCTAssertNil(body["ai_processing"])
     }
 
     func testDefaultsLoadAfterSessionAndBeforeVideo() async throws {
@@ -524,6 +539,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         probe: PreparationProbe? = nil,
         permissions: BroadcastPreparationPermissions? = nil,
         markReady: Bool = true,
+        quality: CameraQualityPreset = .defaultValue,
         connector: ((YouTubeIntegration) async -> Bool)? = nil
     ) async -> Bool {
         let probe = probe ?? PreparationProbe()
@@ -531,6 +547,7 @@ final class BroadcastPreparationFlowTests: XCTestCase {
             accessToken: token,
             providers: BroadcastSettingsProvider.allCases.filter(integration.selectedBroadcastProviders.contains),
             permissions: permissions ?? allowed,
+            preferredVideoQuality: quality,
             videoConnector: {
                 probe.calls += 1
                 probe.pathsAtCall = PreparationFlowURLProtocol.requests.compactMap { $0.url?.path }
