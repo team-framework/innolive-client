@@ -53,6 +53,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
@@ -127,6 +128,8 @@ private fun LiveScreenContent(
 ) {
     var openVideoControls by remember { mutableStateOf(false) }
     var openFaceManagement by remember { mutableStateOf(false) }
+    // 방송 카메라가 켜진 뒤 연 얼굴 관리는 방송을 끊지 않고 그 위에 띄웁니다.
+    var faceManagementUsesBroadcastCamera by remember { mutableStateOf(false) }
     // 방송 설정 창 하나에서 화질·플랫폼·플랫폼별 설정을 고릅니다. 탭은 열 때 보여 줄 플랫폼입니다.
     var openSettingsDialog by remember { mutableStateOf(false) }
     var openYouTubeEditor by remember { mutableStateOf(false) }
@@ -330,25 +333,13 @@ private fun LiveScreenContent(
         tutorial.startIfNeeded()
     }
 
-    if (openFaceManagement) {
-        if (webRtcSession.selectedOnDeviceProcessing) {
-            LocalFaceManagementScreen(
-                cameraLensFacing = props.cameraLensFacing,
-                accountScope = props.onGetAccessToken()?.let { token ->
-                    runCatching { sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, token).storageKey }.getOrNull()
-                },
-                onBack = { openFaceManagement = false; webRtcSession.localFacesChanged() },
-                onChanged = webRtcSession::localFacesChanged,
-            )
-        } else {
-            FaceManagementScreen(
-                cameraLensFacing = props.cameraLensFacing,
-                onGetAccessToken = props.onGetAccessToken,
-                onRefreshAccessToken = props.onRefreshAccessToken,
-                onBack = { openFaceManagement = false },
-                profileEmail = props.profileEmail,
-            )
-        }
+    if (openFaceManagement && !faceManagementUsesBroadcastCamera) {
+        LiveFaceManagement(
+            props = props,
+            webRtcSession = webRtcSession,
+            broadcastCamera = null,
+            onClose = { openFaceManagement = false },
+        )
         return
     }
 
@@ -363,7 +354,12 @@ private fun LiveScreenContent(
         )
     }
 
-    val canManageFace =
+    val canManageFaceWithBroadcastCamera =
+        webRtcSession.frameAnalyzer != null &&
+            webRtcSession.connectionState == WebRtcConnectionState.CONNECTED &&
+            !webRtcSession.isPreparingBroadcast &&
+            webRtcSession.broadcastState in FaceManagementBroadcastStates
+    val canManageFace = canManageFaceWithBroadcastCamera ||
         webRtcSession.connectionState in setOf(
             WebRtcConnectionState.IDLE,
             WebRtcConnectionState.FAILED,
@@ -438,7 +434,11 @@ private fun LiveScreenContent(
             onOpenVideoControls = { openVideoControls = true },
             onSwitchCamera = props.onSwitchCamera,
             onOpenFaceManagement = {
-                if (webRtcSession.connectionState != WebRtcConnectionState.CONNECTED) {
+                faceManagementUsesBroadcastCamera = canManageFaceWithBroadcastCamera
+                if (
+                    !canManageFaceWithBroadcastCamera &&
+                    webRtcSession.connectionState != WebRtcConnectionState.CONNECTED
+                ) {
                     webRtcSession.close()
                 }
                 openFaceManagement = true
@@ -881,6 +881,20 @@ private fun LiveScreenContent(
             )
         }
     }
+    if (openFaceManagement && faceManagementUsesBroadcastCamera) {
+        // iOS처럼 방송 화면과 카메라는 그대로 두고, 송출 중인 카메라 프레임으로 얼굴을 등록합니다.
+        Dialog(
+            onDismissRequest = { openFaceManagement = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            LiveFaceManagement(
+                props = props,
+                webRtcSession = webRtcSession,
+                broadcastCamera = frameAnalyzer,
+                onClose = { openFaceManagement = false },
+            )
+        }
+    }
     webRtcSession.serverError?.takeIf { it.action != ServerErrorAction.EDIT_SETTINGS }?.let { guidance ->
         ServerErrorDialog(
             guidance = guidance,
@@ -905,6 +919,43 @@ private fun LiveScreenContent(
                     else -> webRtcSession.dismissServerError()
                 }
             },
+        )
+    }
+}
+
+/** 방송 카메라 프레임을 계속 받을 수 있는 방송 단계입니다. 전환 중에는 카메라가 바뀔 수 있어 제외합니다. */
+private val FaceManagementBroadcastStates = setOf(
+    BroadcastState.IDLE,
+    BroadcastState.PREPARED,
+    BroadcastState.LIVE,
+    BroadcastState.PAUSED,
+)
+
+@Composable
+private fun LiveFaceManagement(
+    props: LiveScreenProps,
+    webRtcSession: WebRtcSessionViewModel,
+    broadcastCamera: CameraFrameAnalyzer?,
+    onClose: () -> Unit,
+) {
+    if (webRtcSession.selectedOnDeviceProcessing) {
+        LocalFaceManagementScreen(
+            cameraLensFacing = props.cameraLensFacing,
+            accountScope = props.onGetAccessToken()?.let { token ->
+                runCatching { sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, token).storageKey }.getOrNull()
+            },
+            onBack = { onClose(); webRtcSession.localFacesChanged() },
+            onChanged = webRtcSession::localFacesChanged,
+            broadcastCamera = broadcastCamera,
+        )
+    } else {
+        FaceManagementScreen(
+            cameraLensFacing = props.cameraLensFacing,
+            onGetAccessToken = props.onGetAccessToken,
+            onRefreshAccessToken = props.onRefreshAccessToken,
+            onBack = onClose,
+            profileEmail = props.profileEmail,
+            broadcastCamera = broadcastCamera,
         )
     }
 }

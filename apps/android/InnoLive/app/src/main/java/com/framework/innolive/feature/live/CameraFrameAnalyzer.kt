@@ -50,6 +50,7 @@ class CameraFrameAnalyzer(
     val lookPreviews: StateFlow<VideoLookPreviews?> = previewRenderer.previews
     @Volatile private var previewSink: VideoSink? = null
     @Volatile private var directPublishSink: VideoSink? = null
+    private val faceFrameTap = AtomicReference<((ImageProxy) -> Unit)?>(null)
     private val anonymizationFailures = AtomicLong()
     private var reportedColorFailure = false
 
@@ -171,6 +172,30 @@ class CameraFrameAnalyzer(
         directPublishSink = if (stopped.get()) null else sink
     }
 
+    /**
+     * 방송 카메라를 끄지 않고 얼굴을 등록하도록 가림 처리 전 원본 프레임을 빌려 줍니다.
+     * [tap]은 분석 스레드에서 바로 호출되므로 프레임을 오래 붙잡지 말고 반환 전에 복사해야 합니다.
+     */
+    internal fun setFaceFrameTap(tap: (ImageProxy) -> Unit) {
+        if (!stopped.get()) faceFrameTap.set(tap)
+    }
+
+    /** 다른 화면이 새로 등록한 탭을 지우지 않도록 [tap]이 현재 탭일 때만 해제합니다. */
+    internal fun clearFaceFrameTap(tap: (ImageProxy) -> Unit) {
+        faceFrameTap.compareAndSet(tap, null)
+    }
+
+    private fun deliverToFaceFrameTap(image: ImageProxy) {
+        if (stopped.get()) return
+        val tap = faceFrameTap.get() ?: return
+        // 얼굴 등록 오류가 송출 프레임 처리로 번지지 않게 합니다.
+        try {
+            tap(image)
+        } catch (error: Exception) {
+            Log.w("CameraFrameAnalyzer", "face_frame_tap_failed type=${error.javaClass.simpleName}")
+        }
+    }
+
     /** 가림 처리에 실패해 내보내지 않은 누적 프레임 수입니다. 하트비트 `anonymization.failed_frames`입니다. */
     val anonymizationFailedFrames: Long get() = anonymizationFailures.get()
 
@@ -220,6 +245,7 @@ class CameraFrameAnalyzer(
             directPublishSink = null
             previewRenderer.close()
         }
+        faceFrameTap.set(null)
         stop()
     }
 
@@ -228,6 +254,8 @@ class CameraFrameAnalyzer(
         var reserved = false
         var transferredImage = false
         try {
+            // 가림 처리 경로가 이미지를 작업 스레드로 넘기기 전에 원본을 빌려 줍니다.
+            deliverToFaceFrameTap(image)
             synchronized(captureLock) {
                 if (!stopped.get() && (enabled.get() || previewRenderer.isEnabled || previewSink != null)) {
                     val currentSettings = settings.get()
