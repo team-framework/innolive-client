@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -65,6 +66,7 @@ import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.components.logoRes
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
+import com.framework.innolive.feature.live.components.YouTubeViewerChatDialog
 import com.framework.innolive.feature.live.consent.BroadcastConsentDialog
 import com.framework.innolive.feature.live.consent.BroadcastConsentStep
 import com.framework.innolive.feature.live.consent.BroadcastConsentStore
@@ -154,6 +156,10 @@ private fun LiveScreenContent(
     var chzzkBusy by remember { mutableStateOf(false) }
     var chzzkMessage by remember { mutableStateOf<UiText?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
+    // 보기 전용 시청자 채팅입니다. 주소가 사라지면(방송 종료·대상 제거·세션 종료) 창을 닫습니다.
+    var openViewerChat by remember { mutableStateOf(false) }
+    val viewerChatUrl = webRtcSession.viewerChatUrl
+    LaunchedEffect(viewerChatUrl) { if (viewerChatUrl == null) openViewerChat = false }
     // 방송 준비 중 표시할 동의·안내입니다. 수락하면 다음 단계로 이어서 진행합니다.
     var pendingConsentStep by remember { mutableStateOf<BroadcastConsentStep?>(null) }
     var testUsageWarningOverride by remember { mutableStateOf(false) }
@@ -433,6 +439,8 @@ private fun LiveScreenContent(
             onOpenSettings = props.onOpenSettings,
             onOpenVideoControls = { openVideoControls = true },
             onSwitchCamera = props.onSwitchCamera,
+            canOpenViewerChat = viewerChatUrl != null,
+            onOpenViewerChat = { openViewerChat = true },
             onOpenFaceManagement = {
                 faceManagementUsesBroadcastCamera = canManageFaceWithBroadcastCamera
                 if (
@@ -881,6 +889,9 @@ private fun LiveScreenContent(
             )
         }
     }
+    if (openViewerChat && viewerChatUrl != null) {
+        YouTubeViewerChatDialog(url = viewerChatUrl, onDismiss = { openViewerChat = false })
+    }
     if (openFaceManagement && faceManagementUsesBroadcastCamera) {
         // iOS처럼 방송 화면과 카메라는 그대로 두고, 송출 중인 카메라 프레임으로 얼굴을 등록합니다.
         Dialog(
@@ -972,6 +983,9 @@ internal fun LiveSideControls(
     onOpenFaceManagement: () -> Unit,
     anonymizationState: AnonymizationControlsState,
     onAnonymizationSelect: (Boolean) -> Unit,
+    /** 라이브 YouTube 대상의 채팅 주소가 있을 때만 버튼을 보여 줍니다(iOS와 같음). */
+    canOpenViewerChat: Boolean = false,
+    onOpenViewerChat: () -> Unit = {},
 ) {
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
@@ -1008,6 +1022,16 @@ internal fun LiveSideControls(
                 modifier = Modifier.size(32.dp),
                 tint = Color.White,
             )
+        }
+        if (canOpenViewerChat) {
+            IconButton(onClick = onOpenViewerChat, modifier = Modifier.size(48.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.ChatBubbleOutline,
+                    contentDescription = stringResource(R.string.viewer_chat_title),
+                    modifier = Modifier.size(28.dp),
+                    tint = Color.White,
+                )
+            }
         }
         Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             AnonymizationControls(

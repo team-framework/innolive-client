@@ -64,4 +64,7 @@
     <string name="direct_broadcast_notification_text">他のアプリを使用中や画面オフの間は、カメラの代わりに待機画面と無音を配信します。</string>
     <string name="direct_broadcast_notification_stop">配信を終了</string>
     <string name="direct_broadcast_notification_hidden">通知がオフのため、配信中の通知は表示されません。配信はそのまま続きます。</string>
+    <string name="viewer_chat_title">視聴者チャット</string>
+    <string name="viewer_chat_notice">閲覧専用 · 非公開配信のチャットは表示されない場合があります。</string>
+    <string name="viewer_chat_load_failed">チャットを読み込めませんでした。</string>
 </resources>
