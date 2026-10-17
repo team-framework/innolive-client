@@ -256,6 +256,7 @@ extension WebRTCVideoUplink {
             try await startCapture(capturer, device: device, setting: newSetting)
             try ensureCurrentCameraOperation(operationGeneration, capturer: capturer)
             activeVideoQuality = quality
+            applyUplinkBitratePolicy()
             reapplyTargetZoom()
         } catch {
             guard isCurrentCameraOperation(operationGeneration, capturer: capturer) else {

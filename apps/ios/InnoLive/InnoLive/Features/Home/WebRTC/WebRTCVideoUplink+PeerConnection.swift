@@ -85,6 +85,8 @@ extension WebRTCVideoUplink {
         self.peerConnection = peerConnection
         audioSender = audioTransceiver.sender
         videoSender = transceiver.sender
+        // 재연결도 새 연결을 만들므로 여기서 매번 추정기 시작값을 다시 맞춘다.
+        applyUplinkBitratePolicy()
         if isDirectPublishBitrateLimited { applyDirectPublishBitrateLimit() }
     }
 

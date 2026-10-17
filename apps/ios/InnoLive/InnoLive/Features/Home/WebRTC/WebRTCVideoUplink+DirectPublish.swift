@@ -19,7 +19,9 @@ extension WebRTCVideoUplink {
         guard let videoSender else { return }
         let parameters = videoSender.parameters
         for encoding in parameters.encodings {
-            encoding.maxBitrateBps = isDirectPublishBitrateLimited ? NSNumber(value: 300_000) : nil
+            encoding.maxBitrateBps = isDirectPublishBitrateLimited
+                ? NSNumber(value: 300_000)
+                : uplinkBitratePolicy.map { NSNumber(value: $0.maxBps) }
             encoding.maxFramerate = isDirectPublishBitrateLimited ? NSNumber(value: 15) : nil
         }
         videoSender.parameters = parameters
