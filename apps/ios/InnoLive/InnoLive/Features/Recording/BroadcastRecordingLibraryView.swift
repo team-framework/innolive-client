@@ -58,6 +58,7 @@ struct BroadcastRecordingPlayerView: View {
     let url: URL
     var onExport: ((URL) -> Void)?
     @State private var player: AVPlayer?
+    @State private var isShowingExport = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -75,13 +76,17 @@ struct BroadcastRecordingPlayerView: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button(String(localized: "닫기")) { dismiss() }
             }
-            if let onExport {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(String(localized: "내보내기")) { onExport(url) }
-                        .disabled(player == nil)
+            ToolbarItem(placement: .primaryAction) {
+                Button(String(localized: "내보내기")) {
+                    player?.pause()
+                    if let onExport { onExport(url) }
+                    else { isShowingExport = true }
                 }
+                .disabled(player == nil)
+                .accessibilityIdentifier("broadcast-recording-player-export")
             }
         }
+        .sheet(isPresented: $isShowingExport) { BroadcastRecordingExportSheet(sourceURL: url) }
         .task(id: url) {
             guard url.isFileURL, FileManager.default.fileExists(atPath: url.path) else { player = nil; return }
             player = AVPlayer(url: url)

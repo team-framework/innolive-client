@@ -46,6 +46,29 @@
           }
         }
       }
+    },
+    "NSPhotoLibraryAddUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 영상을 사진 앱에 저장하기 위해 사진 추가 권한이 필요합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Photo add access is used to save your broadcast video to Photos."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信動画を写真アプリに保存するため、写真の追加を許可してください。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
