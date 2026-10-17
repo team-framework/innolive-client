@@ -293,8 +293,6 @@ struct HomeView: View {
         }
         .sheet(isPresented: $isShowingVideoControls, onDismiss: restorePreviewCornerAfterVideoControls) {
             BroadcastVideoControlsView(uplink: youtube.videoUplink, youtube: youtube, accessToken: authentication.currentAccessToken)
-                .presentationDetents([.height(630), .large])
-                .presentationDragIndicator(.visible)
         }
         .onChange(of: localPreviewPresentation) { _, presentation in
             if presentation == .hidden {
