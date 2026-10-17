@@ -16,6 +16,10 @@ struct BroadcastVideoControlsView: View {
         NavigationStack {
             ScrollView {
                VStack(alignment: .leading, spacing: 20) {
+                    mosaicSection
+
+                    Divider()
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text(String(localized: "프리셋"))
                             .font(.body.weight(.semibold))
@@ -64,10 +68,6 @@ struct BroadcastVideoControlsView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-
-                    Divider()
-
-                    mosaicSection
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
