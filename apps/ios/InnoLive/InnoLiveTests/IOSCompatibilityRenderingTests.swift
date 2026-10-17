@@ -223,8 +223,8 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                             .innoLiveGlassButtonStyle()
                             .buttonBorderShape(.circle)
 
-                            QuickFaceRegistrationButton(authentication: fixture.authentication,
-                                                        videoUplink: fixture.youtube.videoUplink,
+                            QuickFaceRegistrationButton(videoUplink: fixture.youtube.videoUplink,
+                                                        isSelecting: .constant(false),
                                                         isEnabled: true)
                         }
                         .padding(24)
@@ -238,18 +238,18 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         XCTAssertFalse(fixture.youtube.videoUplink.isActive)
     }
 
-    func testFaceSelectionBracketsAndFrozenSelectionRender() async throws {
+    func testFaceSelectionOutlinesRender() async throws {
         let imageSize = CGSize(width: 1080, height: 1920)
         let faces = [
-            FaceSelectionCandidate(rect: CGRect(x: 0.12, y: 0.42, width: 0.26, height: 0.15), isSelectable: true),
+            FaceSelectionCandidate(rect: CGRect(x: 0.12, y: 0.42, width: 0.26, height: 0.15), isSelectable: true,
+                                   contour: (0...16).map { index in
+                                       // A jaw-shaped arc from ear to ear under the face box.
+                                       let angle = Double.pi * Double(index) / 16
+                                       return CGPoint(x: 0.25 - 0.13 * cos(angle), y: 0.47 + 0.095 * sin(angle))
+                                   }),
             FaceSelectionCandidate(rect: CGRect(x: 0.58, y: 0.44, width: 0.24, height: 0.14), isSelectable: true),
             FaceSelectionCandidate(rect: CGRect(x: 0.44, y: 0.66, width: 0.06, height: 0.035), isSelectable: false)
         ]
-        let frame = try XCTUnwrap(CIContext().createCGImage(
-            CIImage(color: CIColor(red: 0.32, green: 0.36, blue: 0.42)).cropped(to: CGRect(origin: .zero, size: imageSize)),
-            from: CGRect(origin: .zero, size: imageSize)
-        ))
-
         for appearance in appearances {
             try await render("face-selection", appearance: appearance) {
                 ScrollView {
@@ -260,10 +260,6 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                         }
                         .aspectRatio(FaceSelectionGeometry.previewAspectRatio, contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-
-                        FrozenFaceSelectionView(image: frame, faceRect: faces[0].rect)
-                            .aspectRatio(FaceSelectionGeometry.previewAspectRatio, contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
                     }
                     .padding(24)
                 }
