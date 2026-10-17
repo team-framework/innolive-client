@@ -12834,6 +12834,98 @@
           }
         }
       }
+    },
+    "저장된 방송을 삭제할까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장된 방송을 삭제할까요?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this saved broadcast?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存した配信を削除しますか？"
+          }
+        }
+      }
+    },
+    "앱에 저장된 영상 %@를 삭제합니다. 복구할 수 없으며, 사진이나 파일 앱으로 내보낸 사본은 유지됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱에 저장된 영상 %@를 삭제합니다. 복구할 수 없으며, 사진이나 파일 앱으로 내보낸 사본은 유지됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete %@ of video stored in this app. This cannot be undone. Copies exported to Photos or Files will be kept."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ内の動画（%@）を削除します。元に戻せません。写真やファイルに書き出したコピーは残ります。"
+          }
+        }
+      }
+    },
+    "영상을 삭제하지 못했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상을 삭제하지 못했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not delete the video"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画を削除できませんでした"
+          }
+        }
+      }
+    },
+    "삭제": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "삭제"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "削除"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
