@@ -7,14 +7,14 @@ nonisolated enum LocalBroadcastRecordingError: LocalizedError {
     case writer(String)
     var errorDescription: String? {
         switch self {
-        case .alreadyStarted: "이미 녹화를 시작했습니다."
-        case .notStarted: "녹화를 시작하지 않았습니다."
-        case .noVideo: "저장할 영상 프레임이 없습니다."
-        case .noAudio: "음성을 받지 못해 녹화를 완료하지 못했습니다."
-        case .audioOverflow: "저장 속도가 느려 음성을 기록하지 못했습니다."
-        case .invalidAudio: "녹화 음성 형식이 올바르지 않습니다."
-        case .conversion: "녹화 프레임을 변환하지 못했습니다."
-        case .nonMonotonicAudio: "녹화 음성 시간 정보가 겹칩니다."
+        case .alreadyStarted: String(localized: "이미 녹화를 시작했습니다.")
+        case .notStarted: String(localized: "녹화를 시작하지 않았습니다.")
+        case .noVideo: String(localized: "저장할 영상 프레임이 없습니다.")
+        case .noAudio: String(localized: "음성을 받지 못해 녹화를 완료하지 못했습니다.")
+        case .audioOverflow: String(localized: "저장 속도가 느려 음성을 기록하지 못했습니다.")
+        case .invalidAudio: String(localized: "녹화 음성 형식이 올바르지 않습니다.")
+        case .conversion: String(localized: "녹화 프레임을 변환하지 못했습니다.")
+        case .nonMonotonicAudio: String(localized: "녹화 음성 시간 정보가 겹칩니다.")
         case let .writer(message): message
         }
     }
@@ -33,6 +33,12 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     private enum Phase { case idle, recording, finishing, finished }
     private struct AudioPacket: @unchecked Sendable { let buffer: AVAudioPCMBuffer; let time: CMTime }
     private struct VideoPacket: @unchecked Sendable { let buffer: CVPixelBuffer; let rotation: Int; let time: CMTime }
+    #if DEBUG
+    private var validationVideoAdmission: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?
+    func setValidationVideoAdmission(_ observer: (@Sendable (CVPixelBuffer, Int, Int64) -> Void)?) {
+        lock.withLock { validationVideoAdmission = observer }
+    }
+    #endif
     private let lock = NSLock()
     private let admittedCallbacks = DispatchGroup()
     private let queue = DispatchQueue(label: "com.innolive.recording.writer", qos: .utility)
@@ -92,6 +98,10 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
         }
         guard accepted else { scheduleAdmissionFailureIfNeeded(); return }
         defer { admittedCallbacks.leave() }
+        #if DEBUG
+        let observer = lock.withLock { validationVideoAdmission }
+        observer?(pixelBuffer, rotation, timestampNs)
+        #endif
         let packet = VideoPacket(buffer: pixelBuffer, rotation: rotation,
             time: CMTime(value: timestampNs, timescale: 1_000_000_000))
         queue.async { [self] in
@@ -244,7 +254,7 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
         if failure == nil, videoFrames == 0 { failure = LocalBroadcastRecordingError.noVideo }
         if failure == nil, !audioPackets.isEmpty {
             if let stopDeadline, DispatchTime.now() > stopDeadline {
-                failure = LocalBroadcastRecordingError.writer("음성 저장을 마무리하는 시간이 초과되었습니다.")
+                failure = LocalBroadcastRecordingError.writer(String(localized: "음성 저장을 마무리하는 시간이 초과되었습니다."))
             } else { startAudioPumpIfNeeded(); return }
         }
         if failure == nil, audioFrames == 0 { failure = LocalBroadcastRecordingError.noAudio }

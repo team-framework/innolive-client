@@ -109,8 +109,12 @@ final class BroadcastRecordingCoordinator: ObservableObject {
     func retrySaving() async {
         guard canRetry, let generation = retryGeneration else { return }
         lifecycle.recordingFinalizing(generation: generation)
+        let observation = observeFinalizationFailure(generation: generation)
+        defer { observation.cancel() }
         do {
             let saved = try await store.retryFinalization()
+            // A finite background lease may expire before the verified commit finishes.
+            lifecycle.recordingFinalizing(generation: generation)
             lifecycle.recordingSaved(store.fileURL(for: saved), generation: generation)
             if lifecycle.isCurrent(generation) { notice = nil }
         } catch { reportFailure(error, generation: generation) }
@@ -129,13 +133,19 @@ final class BroadcastRecordingCoordinator: ObservableObject {
         active = nil
         guard binding.recorder != nil else { return }
         lifecycle.recordingFinalizing(generation: binding.generation)
+        let observation = observeFinalizationFailure(generation: binding.generation)
         do {
             guard let task = try store.beginFinalization(sessionID: binding.sessionID,
-                                                        forceLocalEnd: forceLocalEnd) else { return }
+                                                        forceLocalEnd: forceLocalEnd) else {
+                observation.cancel()
+                return
+            }
             track {
+                defer { observation.cancel() }
                 do {
                     let saved = try await task.value
                     // The store has decoded actual audio and video samples before reporting saved.
+                    self.lifecycle.recordingFinalizing(generation: binding.generation)
                     self.lifecycle.recordingSaved(self.store.fileURL(for: saved), generation: binding.generation)
                     if self.lifecycle.isCurrent(binding.generation) { self.notice = nil }
                 } catch {
@@ -143,7 +153,21 @@ final class BroadcastRecordingCoordinator: ObservableObject {
                     self.reportFailure(error, generation: binding.generation)
                 }
             }
-        } catch { reportFailure(error, generation: binding.generation) }
+        } catch {
+            observation.cancel()
+            reportFailure(error, generation: binding.generation)
+        }
+    }
+
+    /// Store state is published synchronously on MainActor. Observe only this operation's
+    /// new values, so an earlier failed session cannot leak into a new finalization.
+    private func observeFinalizationFailure(generation: UInt) -> AnyCancellable {
+        store.$state.dropFirst().sink { [weak self] state in
+            guard let self, self.lifecycle.isCurrent(generation),
+                  case .failed(let message, _) = state else { return }
+            self.notice = message
+            self.lifecycle.recordingFailed(message, generation: generation)
+        }
     }
 
     private func reportFailure(_ error: Error, generation: UInt) {

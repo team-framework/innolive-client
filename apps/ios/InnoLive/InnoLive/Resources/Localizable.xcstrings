@@ -12029,6 +12029,512 @@
           }
         }
       }
+    },
+    "이미 녹화를 시작했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 녹화를 시작했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording has already started."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画はすでに開始しています。"
+          }
+        }
+      }
+    },
+    "녹화를 시작하지 않았습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화를 시작하지 않았습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording has not started."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画が開始されていません。"
+          }
+        }
+      }
+    },
+    "저장할 영상 프레임이 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장할 영상 프레임이 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no video frames to save."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存する映像フレームがありません。"
+          }
+        }
+      }
+    },
+    "음성을 받지 못해 녹화를 완료하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "음성을 받지 못해 녹화를 완료하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording could not finish because no audio was received."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音声を受信できなかったため、録画を完了できませんでした。"
+          }
+        }
+      }
+    },
+    "저장 속도가 느려 음성을 기록하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장 속도가 느려 음성을 기록하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio could not be recorded because storage was too slow."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存速度が遅いため、音声を記録できませんでした。"
+          }
+        }
+      }
+    },
+    "녹화 음성 형식이 올바르지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 음성 형식이 올바르지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The recording audio format is invalid."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画音声の形式が正しくありません。"
+          }
+        }
+      }
+    },
+    "녹화 프레임을 변환하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 프레임을 변환하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A recording frame could not be converted."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画フレームを変換できませんでした。"
+          }
+        }
+      }
+    },
+    "녹화 음성 시간 정보가 겹칩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 음성 시간 정보가 겹칩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording audio timestamps overlap."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画音声のタイムスタンプが重複しています。"
+          }
+        }
+      }
+    },
+    "음성 저장을 마무리하는 시간이 초과되었습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "음성 저장을 마무리하는 시간이 초과되었습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finishing the audio recording timed out."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "音声の保存を完了するまでの待機時間を超えました。"
+          }
+        }
+      }
+    },
+    "이미 진행 중인 녹화가 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 진행 중인 녹화가 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another recording is already in progress."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すでに録画が進行中です。"
+          }
+        }
+      }
+    },
+    "원본 영상을 저장할 공간이 부족합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "원본 영상을 저장할 공간이 부족합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is not enough space to save the original video."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "元の動画を保存する空き容量が不足しています。"
+          }
+        }
+      }
+    },
+    "녹화에 필요한 저장 공간을 확인하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화에 필요한 저장 공간을 확인하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Available storage for recording could not be checked."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画に必要な空き容量を確認できませんでした。"
+          }
+        }
+      }
+    },
+    "현재 방송과 녹화 세션이 일치하지 않습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 방송과 녹화 세션이 일치하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The recording session does not match the current broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画セッションが現在の配信と一致しません。"
+          }
+        }
+      }
+    },
+    "저장한 영상과 음성 파일을 확인하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장한 영상과 음성 파일을 확인하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved video and audio could not be verified."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存した映像と音声を確認できませんでした。"
+          }
+        }
+      }
+    },
+    "다시 저장할 수 있는 완료 파일이 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 저장할 수 있는 완료 파일이 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no completed file available to save again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再保存できる完成済みファイルがありません。"
+          }
+        }
+      }
+    },
+    "녹화 파일 %lld개를 확인하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 파일 %lld개를 확인하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recordings that could not be verified: %lld."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画ファイル%lld件を確認できませんでした。"
+          }
+        }
+      }
+    },
+    "백그라운드 저장 시간이 끝났습니다. 앱을 열면 저장 상태를 확인합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "백그라운드 저장 시간이 끝났습니다. 앱을 열면 저장 상태를 확인합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background saving time has expired. Open the app to check the save status."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バックグラウンドでの保存時間が終了しました。アプリを開くと保存状況を確認します。"
+          }
+        }
+      }
+    },
+    "완료하지 못한 원본 %lld개를 기기에 보관하고 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료하지 못한 원본 %lld개를 기기에 보관하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld unfinished original recordings are kept on this device."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存が完了していない元の録画を%lld件、デバイスに保持しています。"
+          }
+        }
+      }
+    },
+    "저장이 완료되지 않은 원본을 보관하고 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저장이 완료되지 않은 원본을 보관하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The original recording is kept because saving has not completed."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存が完了していない元の録画を保持しています。"
+          }
+        }
+      }
+    },
+    "완료 여부를 확인하지 못한 원본을 보관하고 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "완료 여부를 확인하지 못한 원본을 보관하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The original recording is kept because its completion could not be verified."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存の完了を確認できなかった元の録画を保持しています。"
+          }
+        }
+      }
+    },
+    "같은 이름의 저장 파일이 있어 임시 원본도 보관하고 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "같은 이름의 저장 파일이 있어 임시 원본도 보관하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The temporary original is also kept because a saved file with the same name exists."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同じ名前の保存済みファイルがあるため、一時的な元の録画も保持しています。"
+          }
+        }
+      }
+    },
+    "방송 시작 또는 저장 완료를 확인하지 못한 원본을 보관하고 있습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 시작 또는 저장 완료를 확인하지 못한 원본을 보관하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The original recording is kept because the broadcast start or save completion could not be verified."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信開始または保存完了を確認できなかった元の録画を保持しています。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
