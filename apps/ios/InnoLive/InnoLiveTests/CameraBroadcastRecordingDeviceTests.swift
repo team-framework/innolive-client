@@ -541,7 +541,7 @@ nonisolated private final class CameraRecordingPeerDelegate: NSObject, LKRTCPeer
         pending.forEach { target.add($0) { _ in } }
     }
     func peerConnection(_ peerConnection: LKRTCPeerConnection, didGenerate candidate: LKRTCIceCandidate) {
-        let target = lock.withLock { if target == nil { candidates.append(candidate) }; return target }
+        let target = lock.withLock { if self.target == nil { candidates.append(candidate) }; return self.target }
         target?.add(candidate) { _ in }
     }
     func peerConnection(_ peerConnection: LKRTCPeerConnection, didAdd stream: LKRTCMediaStream) {
