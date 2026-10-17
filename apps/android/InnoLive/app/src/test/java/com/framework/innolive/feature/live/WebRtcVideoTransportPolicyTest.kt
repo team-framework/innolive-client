@@ -25,14 +25,20 @@ class WebRtcVideoTransportPolicyTest {
         assertEquals(SEND_RECV,videoDirectionForAI(false,false))
     }
     @Test fun sendBitrateRangeFollowsServerSessionResolution() {
-        assertEquals(VideoSendBitrate(1_500_000,3_000_000),videoSendBitrateFor(DirectPublishResolution.HD_720))
-        assertEquals(VideoSendBitrate(3_000_000,6_000_000),videoSendBitrateFor(DirectPublishResolution.FHD))
+        assertEquals(VideoSendBitrate(500_000,3_000_000),videoSendBitrateFor(DirectPublishResolution.HD_720))
+        assertEquals(VideoSendBitrate(1_000_000,6_000_000),videoSendBitrateFor(DirectPublishResolution.FHD))
+    }
+    @Test fun sendFloorStaysBelowStartBitrate() {
+        for (resolution in DirectPublishResolution.entries) {
+            val start=uplinkBitratePolicyForAI(false,resolution)!!.startBps
+            assertTrue(videoSendBitrateFor(resolution).minBps<=start/2)
+        }
     }
     @Test fun sendEncodingsKeepFullResolutionWithinTheRange() {
         val encodings=listOf(RtpParameters.Encoding(null,true,2.0))
         applyVideoSendEncodings(encodings,DirectPublishResolution.FHD)
         val encoding=encodings.single()
-        assertEquals(3_000_000,encoding.minBitrateBps)
+        assertEquals(1_000_000,encoding.minBitrateBps)
         assertEquals(6_000_000,encoding.maxBitrateBps)
         assertEquals(30,encoding.maxFramerate)
         assertEquals(1.0,encoding.scaleResolutionDownBy!!,0.0)
