@@ -351,6 +351,38 @@
       "intent": "recorded",
       "sourcePath": "/en/blog/automatic-mosaic",
       "fit": "adjacent"
+    },
+    {
+      "id": "e01",
+      "keyword": "realtime de identification service",
+      "prompt": "Is there a real-time de-identification service for hiding bystanders’ faces in live streams?",
+      "intent": "live",
+      "sourcePath": "/en/mosaic-software",
+      "fit": "direct"
+    },
+    {
+      "id": "e02",
+      "keyword": "realtime de identification application",
+      "prompt": "Which real-time de-identification application keeps registered guests visible and blurs other faces?",
+      "intent": "live",
+      "sourcePath": "/en/mosaic-software",
+      "fit": "direct"
+    },
+    {
+      "id": "e03",
+      "keyword": "realtime blur application",
+      "prompt": "Is there a real-time blur application for streaming from an Android phone or iPhone?",
+      "intent": "live",
+      "sourcePath": "/en/mobile-live-face-blur",
+      "fit": "direct"
+    },
+    {
+      "id": "e04",
+      "keyword": "live stream realtime blur application",
+      "prompt": "Which live stream real-time blur application can send processed video to YouTube or CHZZK?",
+      "intent": "live",
+      "sourcePath": "/en/live-mosaic",
+      "fit": "direct"
     }
   ]
 }

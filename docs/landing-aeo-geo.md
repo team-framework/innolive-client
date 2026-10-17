@@ -179,3 +179,19 @@ Search generative AI의 `Current control: Include`를 확인했다. 사이트는
 - build·TypeScript·lint와 구조화 데이터 4개·번역 3개 테스트 통과. 브라우저에서 영어 무료 안내 본문·요금표·FAQ·관련 링크와 한국어 대응 페이지 전환을 확인했다.
 
 운영 배포·검색엔진 제출·영어 AI 추천 및 인용 성과는 미검증이다. API·signaling 계약 영향은 없다.
+
+### 영어 de-identification 질문 확장 (2026-10-17)
+
+영어 측정 질문을 43개에서 47개로 늘렸다. 사용자 지정 `realtime de identification service`,
+`realtime de identification application`, `realtime blur application`,
+`live stream realtime blur application`을 검색어로 보존하고 자연어 질문과 근거 안내를 연결했다.
+47개 질문에는 제품명을 넣지 않았다. 별도 SEO 대상 목록의 `InnoLive` 브랜드 검색은
+비브랜드 AI 추천 측정에 포함하지 않는다. 목록 작성은 실제 AI 답변 측정이나 추천 성과를 뜻하지 않는다.
+
+
+### 최신 main 통합
+
+2026-10-15 한국어 라이브 안내의 4단계 방송 준비와 추가 FAQ를 영어에도 반영했다.
+최신 main 통합 후 영어 안내 FAQ는 18개, 전체 검사 대상의 FAQ 답변은 54개다.
+이전 48개 결과는 통합 전 로컬 검증 기록이다. Bing 공개 소유 확인 태그와 IndexNow
+공개 확인 파일을 추가했으며 실제 접수와 검색 노출은 배포 이후 별도 검증한다.

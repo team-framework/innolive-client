@@ -139,10 +139,15 @@ def main():
     assert TARGETS <= set(paths), "missing AEO page in sitemap"
     for locale in ("ko", "en"):
         queries = json.loads((Path(__file__).resolve().parents[3] / f"docs/fixtures/landing-aeo-queries.{locale}.json").read_text())
-        assert len(queries["queries"]) == 43, "keyword inventory count"
-        assert len({query["keyword"] for query in queries["queries"]}) == 43, "duplicate keyword"
+        expected_count = 43 if locale == "ko" else 47
+        assert len(queries["queries"]) == expected_count, "keyword inventory count"
+        assert len({query["keyword"] for query in queries["queries"]}) == expected_count, "duplicate keyword"
         assert all("innolive" not in query["prompt"].lower() for query in queries["queries"]), "branded benchmark prompt"
         assert all(query["sourcePath"] in paths for query in queries["queries"]), "benchmark source missing from sitemap"
+    targets = json.loads((Path(__file__).resolve().parents[3] / "docs/fixtures/landing-seo-targets.en.json").read_text())["targets"]
+    assert len(targets) == 33 and len({item["sourceKeyword"] for item in targets}) == 33, "user keyword coverage"
+    assert all(item["sourcePath"] in paths for item in targets), "target source missing from sitemap"
+    assert sum(item["branded"] for item in targets) == 1, "brand query separation"
     pages = [check_page(base, path, robots) for path in paths]
     report = {"base_url": base, "sitemap_urls": len(urls), "structured_pages": len(TARGETS), "faq_answers": sum(page["faq_answers"] for page in pages), "pages": pages}
     if args.report:

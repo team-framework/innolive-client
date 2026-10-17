@@ -163,3 +163,21 @@ sitemap은 기존 21개 URL에 한국어 신규 페이지 8개를 더해 총 29�
 - 로컬 production build·TypeScript·lint·구조화 데이터 테스트 4개·번역 테스트 3개 통과. 초기 HTML 검사에서 41개 페이지의 응답·canonical·언어·h1 및 한영 안내의 hreflang 일치 확인.
 
 대상은 공개 웹사이트 `apps/landing`이다. API·signaling 계약 영향은 없다. 운영 배포·색인·검색 순위는 이번 로컬 검증에 포함하지 않는다.
+
+### 영어 검색어 확장 (2026-10-17)
+
+- 사용자 지정 한국어 검색어 29개와 영어 예시 4개를 [영어 검색 대상](fixtures/landing-seo-targets.en.json)에 보존했다. 원문·직역·제품 동작에 맞는 영어 검색어·대응 URL을 연결했다. 검색량과 순위는 미측정이다.
+- 영어 홈은 `Real-time De-identification & Face Blur App`, 앱 소개는 `Real-time De-identification Service & App`을 제목으로 사용한다. 본문은 얼굴 감지·등록 얼굴 공개·미등록 얼굴 블러로 서비스 범위를 설명한다.
+- 라이브 안내는 `real-time face blur application for live streaming`, 야외·휴대폰 안내는 `real-time blur app`, 플랫폼 안내는 YouTube·CHZZK의 실시간 자동 얼굴 블러 검색 의도를 다룬다.
+- 모자이크의 직역 검색어도 측정 목록에 남긴다. 공개 문구는 현재 지원하는 blur를 중심으로 작성하고, pixelated mosaic 지원으로 설명하지 않는다. 기존 홈 화면 카피는 유지한다.
+- `InnoLive` 브랜드 검색은 일반 검색어와 구분한다. 사용자 입력의 `realtime de identification` 표기는 측정 목록에 보존하고 공개 문구는 `real-time de-identification`으로 작성한다.
+- build·TypeScript·lint·기존 테스트 7개 통과. 로컬 HTML에서 41개 URL, 23개 구조화 페이지, FAQ 48개 일치 및 검색 대상 URL의 sitemap 등록을 검사한다. 운영 배포·검색 순위·영어 AI 추천 성과는 별도 확인 대상이다.
+
+
+### 검색엔진 소유 확인과 변경 알림
+
+Bing Webmaster Tools에서 발급한 공개 `msvalidate.01` 메타 태그를 한영일 페이지의
+공통 head에 추가했다. IndexNow 소유 확인용 공개 텍스트 파일을 사이트 루트에 제공한다.
+배포 후 파일 내용과 메타 태그를 확인한 다음 Bing 소유 확인과 변경 URL 알림을 진행한다.
+IndexNow 접수는 참여 검색엔진에 URL 변경을 알리는 단계이며 색인이나 순위 보장이 아니다.
+[공식 IndexNow 규격](https://www.indexnow.org/documentation).
