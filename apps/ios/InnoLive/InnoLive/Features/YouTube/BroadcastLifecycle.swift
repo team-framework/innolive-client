@@ -163,6 +163,12 @@ final class BroadcastLifecycle: ObservableObject {
         recording = .recording
     }
 
+    func recordingFinalizing(generation: UInt) {
+        guard isCurrent(generation), recording != .idle else { return }
+        if case .saved = recording { return }
+        recording = .finalizing
+    }
+
     /// The writer calls this only after closing and verifying the playable file.
     func recordingSaved(_ url: URL, generation: UInt) {
         guard isCurrent(generation), recording == .finalizing else { return }
