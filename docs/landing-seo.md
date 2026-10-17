@@ -21,7 +21,7 @@
 
 `/robots.txt`는 공개 페이지를 허용하고 API 경로를 제외하며 `/sitemap.xml`을 안내한다.
 sitemap에는 홈·요금제·체험 안내·고객 지원·개인정보 처리방침·이용약관의 3개 언어,
-18개 URL과 라이브 블러 안내 3개, 한국어 검색 의도 페이지 10개를 포함해 총 31개 URL을 제공한다. 로그인·회원가입·카메라 체험 실행 경로는
+18개 URL과 라이브 블러 안내 3개, 한국어·영어 검색 의도 페이지 각 10개를 포함해 총 41개 URL을 제공한다. 로그인·회원가입·카메라 체험 실행 경로는
 사이트를 소개하는 sitemap에서 제외한다. 이 작업은 해당 페이지의 색인 정책을 바꾸지 않는다.
 `lastModified`는 실제 콘텐츠 변경 시점을 관리할 때만 추가한다.
 
@@ -29,7 +29,7 @@ sitemap에는 홈·요금제·체험 안내·고객 지원·개인정보 처리�
 
 - production build 후 sitemap의 공개 페이지 응답, canonical, 해당 언어의 hreflang, 공유 제목·설명을 검사한다.
 - JavaScript 실행 전 홈 HTML에 제목과 3개 검색 의도 FAQ, h1 문구가 있는지 검사한다.
-- sitemap의 31개 URL과 robots.txt의 sitemap 선언을 검사한다.
+- sitemap의 41개 URL과 robots.txt의 sitemap 선언을 검사한다.
 - 브라우저에서 FAQ를 열고 답변과 기존 타이핑 애니메이션을 확인한다.
 - 배포 후 Google Search Console에서 sitemap과 주요 URL을 제출하고 색인 여부를 확인한다.
 - 이후 검색어별 노출·클릭·CTR을 비교한다. 코드 반영만으로 순위나 노출을 보장하지 않는다.
@@ -152,3 +152,14 @@ sitemap은 기존 21개 URL에 한국어 신규 페이지 8개를 더해 총 29�
 - 운영 배포와 순위 상승은 별도 확인. 배포 후 Search Console에서 대상 URL 색인 상태와 검색어별 노출·클릭·CTR·평균 게재순위를 같은 기간·국가·기기 조건으로 비교.
 
 근거: [Google 제목 링크 안내](https://developers.google.com/search/docs/appearance/title-link), [검색 스니펫 안내](https://developers.google.com/search/docs/appearance/snippet).
+
+## 영어 검색 의도 페이지 (2026-10-17)
+
+- 한국어 안내 10개의 영어 대응 페이지를 `/en`에 추가했다. 영어 제목·설명·본문·FAQ는 `apps/landing/lib/seo-guides.en.ts`에서 관리한다.
+- 각 영어 URL은 HTTP 200과 자기 canonical을 제공한다. 한영 페이지의 hreflang은 `ko`·`en`·`x-default`를 상호 연결하며, `x-default`는 한국어를 가리킨다. OpenGraph와 Twitter도 영어 메타데이터를 사용한다.
+- 한영 언어 전환은 같은 안내 경로와 query·hash를 유지한다. 일본어를 선택하면 일본어 홈으로 이동한다. 직접 접근한 `/ja` 안내와 언어 접두사가 없는 안내의 기존 한국어 308 이동은 유지한다.
+- 영어 사용 가이드에서 신규 안내로 진입하고, 관련 안내·체험·가격 링크도 영어 경로로 연결한다. sitemap은 31개에서 41개 URL로 늘었다.
+- 무료 안내는 영어 가격 페이지와 같은 요금제 데이터를 사용하고 원화는 KRW로 표시한다. 블러 방식, 등록 얼굴 공개, 앱 송출·웹 체험 범위, YouTube·CHZZK 시작 절차를 유지한다.
+- 로컬 production build·TypeScript·lint·구조화 데이터 테스트 4개·번역 테스트 3개 통과. 초기 HTML 검사에서 41개 페이지의 응답·canonical·언어·h1 및 한영 안내의 hreflang 일치 확인.
+
+대상은 공개 웹사이트 `apps/landing`이다. API·signaling 계약 영향은 없다. 운영 배포·색인·검색 순위는 이번 로컬 검증에 포함하지 않는다.

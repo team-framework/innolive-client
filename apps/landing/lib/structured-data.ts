@@ -65,17 +65,17 @@ export function homeStructuredData(locale: Locale) {
   };
 }
 
-export function guideStructuredData(guide: SeoGuide) {
-  const url = `${siteOrigin}/ko${guide.path}`;
+export function guideStructuredData(guide: SeoGuide, locale: "ko" | "en" = "ko") {
+  const url = `${siteOrigin}/${locale}${guide.path}`;
   const isArticle = guide.path.startsWith("/blog/");
   const faq = guide.faq ?? [];
   return {
     "@context": "https://schema.org",
     "@graph": [
-      ...siteEntities("ko"),
+      ...siteEntities(locale),
       {
         "@type": "WebPage", "@id": `${url}#webpage`, url,
-        name: guide.heading, description: guide.intro, inLanguage: "ko",
+        name: guide.heading, description: guide.intro, inLanguage: locale,
         isPartOf: { "@id": websiteId }, about: { "@id": softwareId },
         breadcrumb: { "@id": `${url}#breadcrumb` },
         ...(isArticle ? { mainEntity: { "@id": `${url}#article` } } : {}),
@@ -84,16 +84,16 @@ export function guideStructuredData(guide: SeoGuide) {
       {
         "@type": "BreadcrumbList", "@id": `${url}#breadcrumb`,
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "InnoLive", item: `${siteOrigin}/ko` },
+          { "@type": "ListItem", position: 1, name: "InnoLive", item: `${siteOrigin}/${locale}` },
           { "@type": "ListItem", position: 2, name: guide.heading, item: url },
         ],
       },
       ...(isArticle ? [{
         "@type": "Article", "@id": `${url}#article`, headline: guide.heading,
-        description: guide.intro, inLanguage: "ko",
+        description: guide.intro, inLanguage: locale,
         mainEntityOfPage: { "@id": `${url}#webpage` }, about: { "@id": softwareId },
       }] : []),
-      ...(faq.length ? [faqEntity(url, "ko", faq)] : []),
+      ...(faq.length ? [faqEntity(url, locale, faq)] : []),
     ],
   };
 }
