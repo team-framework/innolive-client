@@ -16,10 +16,7 @@ struct FaceManagementView: View {
     }
 
     private var isCameraTransitioning: Bool {
-        let videoUplink = youtube.videoUplink
-        return videoUplink.isSwitchingCamera
-            || videoUplink.isReleasingCamera
-            || (videoUplink.isActive && !videoUplink.canProvideFaceRegistrationFrames)
+        youtube.videoUplink.isFaceRegistrationCameraTransitioning
     }
 
     private var hasRegisteredFaces: Bool {

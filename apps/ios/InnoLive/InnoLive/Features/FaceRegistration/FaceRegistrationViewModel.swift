@@ -233,6 +233,29 @@ final class FaceRegistrationViewModel: ObservableObject {
         phase = .naming
     }
 
+    /// One-tap registration: freezes the tapped face and registers it under a generated name.
+    func registerFace(
+        at index: Int,
+        name: String,
+        lifecycleSessionID: UUID,
+        using cameraManager: CameraManager,
+        videoUplink: WebRTCVideoUplink
+    ) async {
+        await selectFace(
+            at: index,
+            lifecycleSessionID: lifecycleSessionID,
+            using: cameraManager,
+            videoUplink: videoUplink
+        )
+        guard activeLifecycleSessionID == lifecycleSessionID, phase == .naming else { return }
+        self.name = name
+        confirmSelection(lifecycleSessionID: lifecycleSessionID)
+    }
+
+    func setPreviewAspectRatio(_ ratio: CGFloat) {
+        detector.setPreviewAspectRatio(ratio)
+    }
+
     func reselectFace(
         lifecycleSessionID: UUID,
         using cameraManager: CameraManager,

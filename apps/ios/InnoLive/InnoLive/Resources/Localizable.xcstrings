@@ -1,6 +1,98 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "게스트": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게스트"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guest"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ゲスト"
+          }
+        }
+      }
+    },
+    "게스트로 등록했어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "게스트로 등록했어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registered as a guest."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ゲストとして登録しました。"
+          }
+        }
+      }
+    },
+    "이 화면은 송출되지 않아요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 화면은 송출되지 않아요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This screen is not broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この画面は配信されません。"
+          }
+        }
+      }
+    },
+    "화면에 보이는 얼굴을 탭해 비식별화에서 제외합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화면에 보이는 얼굴을 탭해 비식별화에서 제외합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap a face on screen to keep it out of anonymization."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面に映る顔をタップして、匿名化の対象から外します。"
+          }
+        }
+      }
+    },
     "얼굴이 화면에 보이도록 비춰 주세요.": {
       "extractionState": "manual",
       "localizations": {

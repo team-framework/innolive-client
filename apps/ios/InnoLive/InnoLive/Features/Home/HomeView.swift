@@ -127,6 +127,12 @@ struct HomeView: View {
                 .buttonBorderShape(.circle)
                 .accessibilityLabel(String(localized: "영상 조절"))
 
+                QuickFaceRegistrationButton(
+                    authentication: authentication,
+                    videoUplink: youtube.videoUplink,
+                    isEnabled: !usesSimulatorVideo && !isSwitchingCamera
+                )
+
                 if isCameraAccessDenied {
                     Button {
                         isShowingCameraPermissionAlert = true

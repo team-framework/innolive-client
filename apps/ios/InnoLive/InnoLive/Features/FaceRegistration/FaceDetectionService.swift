@@ -30,10 +30,19 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let analysisLock = NSLock()
     private var lastDetectionTime: TimeInterval = 0
+    private var previewAspectRatio = FaceSelectionGeometry.previewAspectRatio
 
     func reset() {
         analysisLock.lock()
         lastDetectionTime = 0
+        analysisLock.unlock()
+    }
+
+    /// Width / height of the aspect-fill preview, so only faces the user can see are selectable.
+    func setPreviewAspectRatio(_ ratio: CGFloat) {
+        guard ratio.isFinite, ratio > 0 else { return }
+        analysisLock.lock()
+        previewAspectRatio = ratio
         analysisLock.unlock()
     }
 
@@ -73,7 +82,8 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         }
         return selectionFrame(
             image: CIImage(cvPixelBuffer: pixelBuffer).oriented(orientation),
-            observations: request.results ?? []
+            observations: request.results ?? [],
+            previewAspectRatio: previewAspectRatio
         )
     }
 
@@ -84,7 +94,14 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         } catch {
             return nil
         }
-        return selectionFrame(image: CIImage(cgImage: image), observations: request.results ?? [])
+        analysisLock.lock()
+        let previewAspectRatio = previewAspectRatio
+        analysisLock.unlock()
+        return selectionFrame(
+            image: CIImage(cgImage: image),
+            observations: request.results ?? [],
+            previewAspectRatio: previewAspectRatio
+        )
     }
 
     /// The frozen frame shown while the user names the selected face.
@@ -168,12 +185,17 @@ nonisolated final class FaceDetectionService: @unchecked Sendable {
         return (request.results ?? []).map(Self.topLeftRect)
     }
 
-    private func selectionFrame(image: CIImage, observations: [VNFaceObservation]) -> FaceSelectionFrame {
+    private func selectionFrame(
+        image: CIImage,
+        observations: [VNFaceObservation],
+        previewAspectRatio: CGFloat
+    ) -> FaceSelectionFrame {
         FaceSelectionFrame(
             image: image,
             faces: FaceSelectionGeometry.candidates(
                 for: observations.map(Self.topLeftRect),
-                imageSize: image.extent.size
+                imageSize: image.extent.size,
+                previewAspectRatio: previewAspectRatio
             )
         )
     }
