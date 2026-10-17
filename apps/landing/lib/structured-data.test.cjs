@@ -20,7 +20,7 @@ function load(file) {
   const localRequire = (id) => {
     if (!id.startsWith("@/")) return require(id);
     const target = path.join(appRoot, id.slice(2));
-    return load(path.extname(target) ? target : `${target}.ts`);
+    return load(fs.existsSync(target) ? target : `${target}.ts`);
   };
   vm.runInThisContext(`(function(require, module, exports) {\n${source}\n})`, { filename: file })(localRequire, loadedModule, loadedModule.exports);
   return loadedModule.exports;
@@ -54,5 +54,28 @@ test("안내의 경로·언어 탐색·관련 링크가 실제 페이지와 일�
   assert.deepEqual([...paths].sort(), [...seoGuidePaths].sort());
   for (const guide of seoGuides) {
     for (const related of guide.related) assert.ok(paths.includes(related), `${guide.path}: ${related}`);
+  }
+});
+
+const { englishSeoGuides } = load(path.join(__dirname, "seo-guides.en.ts"));
+const { pageAlternates } = load(path.join(__dirname, "seo.ts"));
+test("English guides have complete routes, localized schema and reciprocal alternates", () => {
+  assert.deepEqual(englishSeoGuides.map(g => g.path).sort(), seoGuides.map(g => g.path).sort());
+  for (const guide of englishSeoGuides) {
+    const korean = seoGuides.find(g => g.path === guide.path);
+    assert.equal(guide.sections.length, korean.sections.length);
+    assert.equal(guide.faq?.length ?? 0, korean.faq?.length ?? 0);
+    assert.ok(!/[가-힣]/.test(JSON.stringify(guide)));
+    for (const related of guide.related) assert.ok(englishSeoGuides.some(g => g.path === related));
+    const graph = guideStructuredData(guide, "en")["@graph"];
+    const page = graph.find(n => n["@type"] === "WebPage");
+    assert.equal(page.inLanguage, "en");
+    assert.equal(page.url, `https://innolive.studio/en${guide.path}`);
+    assert.equal(page.description, guide.intro);
+    for (const node of graph.filter(n => n.inLanguage && n["@type"] !== "WebSite")) assert.equal(node.inLanguage, "en");
+    const en = pageAlternates("en", guide.path);
+    assert.equal(en.canonical, page.url);
+    assert.deepEqual(en.languages, pageAlternates("ko", guide.path).languages);
+    assert.deepEqual(Object.keys(en.languages).sort(), ["en", "ko", "x-default"]);
   }
 });
