@@ -166,15 +166,18 @@ internal class StableFaceTracker(
         abs(first - second) / first.coerceAtLeast(0.001f)
 }
 
-internal fun ImageProxy.toReferenceFaceBitmap(): Bitmap? {
-    val source = toBitmap()
+internal fun ImageProxy.toReferenceFaceBitmap(): Bitmap? =
+    toBitmap().toReferenceFaceBitmap(imageInfo.rotationDegrees)
+
+/** 카메라 원본 비트맵을 회전·정사각형 자르기·축소해 등록용 얼굴 이미지로 만듭니다. 원본은 재활용합니다. */
+internal fun Bitmap.toReferenceFaceBitmap(rotation: Int): Bitmap? {
+    val source = this
     if (minOf(source.width, source.height) < REFERENCE_FACE_SIZE) {
         source.recycle()
         return null
     }
 
     var current = source
-    val rotation = imageInfo.rotationDegrees
     if (rotation != 0) {
         val rotated = Bitmap.createBitmap(
             current,
