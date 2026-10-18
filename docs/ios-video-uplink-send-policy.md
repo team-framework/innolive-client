@@ -1,6 +1,6 @@
 # iOS 영상 업링크 송신 정책
 
-관련: Android client #557(서버 AI 비트레이트), #580(송신 해상도 유지). 측정 기록은
+관련: Android client #557(서버 AI 비트레이트), #580(송신 해상도 유지), #627(Android 송신 하한 하향). 측정 기록은
 [Android 온디바이스 AI 문서](android-on-device-ai.md)의 "서버 AI 업링크 비트레이트와 해상도 고정"에 있다.
 
 ## 배경
@@ -19,12 +19,23 @@ iOS는 서버 세션 WebRTC 업링크에 비트레이트와 degradation을 설�
 | 720p | 2Mbps | 1.5~3Mbps | 30 | MAINTAIN_RESOLUTION |
 | FHD | 4Mbps | 3~6Mbps | 30 | MAINTAIN_RESOLUTION |
 
-- 시작값은 Android `WebRtcUplinkBitratePolicy.kt`, 최소·최대·fps·`scaleResolutionDownBy` 1.0은
+- 시작값은 Android `WebRtcUplinkBitratePolicy.kt`, 최대·fps·`scaleResolutionDownBy` 1.0은
   `WebRtcVideoTransportPolicy.kt`와 같다.
+- 최소는 의도적으로 다르다. Android는 client #627부터 FHD 1Mbps, 720p 0.5Mbps로 낮춰 혼잡 구간에서
+  추정기가 하한 아래로 내려갈 여지를 둔다. iOS는 3Mbps·1.5Mbps를 유지한다.
+
+| 플랫폼 | 720p 최소 | FHD 최소 |
+| --- | --- | --- |
+| iOS | 1.5Mbps | 3Mbps |
+| Android (#627 이후) | 0.5Mbps | 1Mbps |
+
 - 서버 AI와 온디바이스 + 서버 송출에 같은 값을 쓴다. Android는 온디바이스면 항상 앱 직접 송출이라
   대응 경로가 없다. 서버가 두 경우 모두 같은 방식으로 재인코딩하므로 서버 AI 값을 따랐다.
 - 앱 직접 송출 세션은 정책을 적용하지 않는다. 송출 중에는 기존대로 서버행 영상을 300kbps·15fps로
   제한하고(client #481), 제한을 풀면 라이브러리 기본값으로 돌아간다.
+- Android는 이 부분도 다르다. 온디바이스(앱 직접 송출) 세션에도 최소·최대·30fps·해상도 유지를 그대로 넣고
+  (`WebRtcConnection.addVideoTransceiver`), 추정기 시작값·상한(`setBitrate`)만 생략한다. 300kbps·15fps 제한은 없다.
+  이 차이도 의도한 것으로 유지한다.
 - 서버가 `broadcast_resolution`을 주지 않으면 서버 기본값 720p로 시작한다. 방송 중 값이 빠진
   스냅샷은 무시한다.
 
@@ -76,7 +87,7 @@ Release 빌드에도 `uplink quality`는 남는다. 제한 사유나 해상도�
 | 관찰 | 원인 |
 | --- | --- |
 | `reason=cpu`, `encoder=libvpx` | VP8 소프트웨어 인코딩 CPU 적응. `maintainResolution`이라 해상도 대신 fps를 깎는다 |
-| `reason=bandwidth`, `targetBitrate`가 3Mbps 하한 근처 | 업로드 대역폭 |
+| `reason=bandwidth`, `targetBitrate`가 FHD 하한 근처(iOS 3Mbps, Android 1Mbps) | 업로드 대역폭 |
 | `reason=none`인데 fps 저하 | 인코더 앞단(캡처 콜백)에서 프레임 유실 |
 
 - 렌즈 프리셋: 색 조정이 중립이 아니면 캡처 콜백에서 CoreImage로 BGRA를 새로 그린다. 중립 프리셋과 비교한다.
