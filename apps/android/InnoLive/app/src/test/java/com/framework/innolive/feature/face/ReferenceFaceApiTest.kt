@@ -149,6 +149,31 @@ class ReferenceFaceApiTest {
     }
 
     @Test
+    fun appendSendsTheGuestNameAsAFormFieldBeforeTheImages() {
+        val requests = mutableListOf<Request>()
+        val client = clientWithResponse { request ->
+            requests += request
+            response(request, 201, """{"registered": true, "count": 1, "faces": [{"face_id": "face-1"}]}""")
+        }
+        val api = ReferenceFaceApi("https://example.com", client)
+
+        try {
+            runBlocking {
+                api.append(listOf(image), "access-token", name = "10월 17일 오후 3시 - 게스트") { error("refresh must not run") }
+                api.append(listOf(image), "access-token", name = " ") { error("refresh must not run") }
+            }
+
+            val named = requestBodyBytes(requests[0]).toString(Charsets.UTF_8)
+            assertTrue(named.contains("name=\"name\""))
+            assertTrue(named.indexOf("10월 17일 오후 3시 - 게스트") < named.indexOf("name=\"images\""))
+            val unnamed = requestBodyBytes(requests[1]).toString(Charsets.UTF_8)
+            assertTrue(!unnamed.contains("name=\"name\""))
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
+    @Test
     fun refreshesOnceAfterFirst401AndRetriesWithTheNewBearerToken() {
         val requests = mutableListOf<Request>()
         val callCount = AtomicInteger()
