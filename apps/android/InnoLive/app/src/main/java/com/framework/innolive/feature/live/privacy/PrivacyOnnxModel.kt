@@ -67,7 +67,7 @@ internal class PrivacyOnnxModel(private val context: Context,
                 ?.contentEquals(longArrayOf(1, 32, 160, 160)) == true)
             session = candidate
             return candidate
-        } catch (error: Exception) { candidate.close(); throw error }
+        } catch (error: Throwable) { candidate.close(); throw error }
     }
 
     internal val retainsCpuSession: Boolean get() = session != null
@@ -136,7 +136,8 @@ internal class PrivacyOnnxModel(private val context: Context,
                 nativeOutputs = true
                 null
             } else checkedOutput(checkNotNull(gpuGraph).predictNativeInput())
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
+            if (!error.isPrivacyProcessingFailure()) throw error
             nativeInputActive = false
             checkNotNull(gpuGraph).disableNativeInput()
             PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
@@ -203,13 +204,15 @@ internal class PrivacyOnnxModel(private val context: Context,
                 engine.predict(gpuInput,validateOutput=false)
             }
             checkedOutput(output)
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
+            if (!error.isPrivacyProcessingFailure()) throw error
             if (nnapi != null) {
                 nnapi?.close(); nnapi = null
                 Log.w("PrivacyDetector", "nnapi_runtime_fallback type=${error.javaClass.simpleName}")
                 try {
                     checkedOutput(gpu?.predict(gpuInput,validateOutput=false) ?: runOnnx())
-                } catch (_: Exception) {
+                } catch (fallbackError: Throwable) {
+                    if (!fallbackError.isPrivacyProcessingFailure()) throw fallbackError
                     runCatching { gpu?.close() }; gpu = null
                     checkedOutput(runOnnx())
                 }

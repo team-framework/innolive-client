@@ -75,8 +75,9 @@ internal class PrivacyNnapiDetectorEngine private constructor(context: Context) 
                 check(nnapiNs < baselineNs * .9) { "insufficient_speed baseline_ms=${baselineNs / 3e6} nnapi_ms=${nnapiNs / 3e6}" }
                 Log.i("PrivacyDetector", "nnapi_validated baseline_ms=${baselineNs / 3e6} nnapi_ms=${nnapiNs / 3e6}")
                 return candidate
-            } catch (error: Exception) {
-                candidate?.close()
+            } catch (error: Throwable) {
+                if (!error.isPrivacyProcessingFailure()) throw error
+                runCatching { candidate?.close() }
                 Log.i("PrivacyDetector", "nnapi_rejected type=${error.javaClass.simpleName}")
                 return null
             }

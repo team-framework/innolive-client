@@ -396,7 +396,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             // diagnostics, not a permanent veto of the camera's steady-state input path.
             Log.i("PrivacyDetector","gpu_input_validated legacy_ms=${old/1e6} direct_ms=${direct/1e6} wins=$wins/12 managed_input_sync=$nativeInputUsesManagedSync")
             } else Log.i("PrivacyDetector", "gpu_input_validated patterns=3 managed_input_sync=$nativeInputUsesManagedSync")
-        } catch(error: Exception) {
+        } catch(error: Throwable) {
+            if(!error.isPrivacyProcessingFailure()) throw error
             onGl { if(nativeModel!=0L) { PrivacyNativeGpuModel.destroy(nativeModel);nativeModel=0L;egl.makeCurrent() } }
             Log.i("PrivacyDetector","gpu_input_rejected type=${error.javaClass.simpleName} detail=${error.message?.take(120)}")
         } finally {

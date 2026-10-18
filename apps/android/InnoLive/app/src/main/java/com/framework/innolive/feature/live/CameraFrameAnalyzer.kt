@@ -18,8 +18,8 @@ import org.webrtc.VideoSink
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.atomic.AtomicReference
 import org.webrtc.EglBase
-import com.framework.innolive.feature.live.privacy.PrivacyGpuBackpressureException
 import com.framework.innolive.feature.live.privacy.PrivacyCameraInput
+import com.framework.innolive.feature.live.privacy.isPrivacyProcessingFailure
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import java.util.concurrent.CountDownLatch
@@ -104,7 +104,8 @@ class CameraFrameAnalyzer(
             try {
                 synchronized(processorLock) {processor().prepare()}
                 if (!stopped.get()) protectedPrepared=true
-            } catch(error:Exception) {
+            } catch(error:Throwable) {
+                if(!error.isPrivacyProcessingFailure()) throw error
                 Log.w("PrivacyPipeline","prepare_failed type=${error.javaClass.simpleName}")
                 route.ticket()?.takeIf {it.mode==PrivacyFrameMode.LOCAL_PROTECTED}?.let {
                     route.deliver(it,onProcessingFailure)
@@ -357,7 +358,8 @@ class CameraFrameAnalyzer(
             } finally {
                 source.release()
             }
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
+            if (!error.isPrivacyProcessingFailure()) throw error
             reportVideoAdjustmentFailure(error)
             if (ticket?.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
                 anonymizationFailures.incrementAndGet()
@@ -394,48 +396,61 @@ class CameraFrameAnalyzer(
         receivedAtNs:Long=System.nanoTime()) {
         try {
             if(!route.deliver(ticket) {}) return
-            val outgoing = synchronized(processorLock) {
-                val processor = processor()
-                if (resetPending.getAndSet(false)) processor.resetFaceExceptions()
-                transform(processor)
-            }
-            try {
-                val deliveryStarted = System.nanoTime()
-                val wasDelivered = route.deliver(ticket) {
-                    relayAdjustedFrame(outgoing) { adjusted ->
-                        previewSink?.onFrame(adjusted)
-                        capturerObserver?.onFrameCaptured(adjusted)
-                        deliverToDirectPublish(adjusted)
-                        delivered.incrementAndGet()
-                        if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
+            // 처리에 실패한 프레임은 원본으로 대신하지 않고 버립니다(iOS PrivacyUplinkProcessor와 같은 정책).
+            val outcome = deliverProtectedFrame(
+                process = {
+                    synchronized(processorLock) {
+                        val processor = processor()
+                        if (resetPending.getAndSet(false)) processor.resetFaceExceptions()
+                        transform(processor)
                     }
-                }
-                val completed = System.nanoTime()
-                if ((BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) && wasDelivered) {
-                    localProcessor?.let { processor ->
-                        val timings = processor.lastTimings
-                        val analysis = processor.lastAnalysis
-                        if (timings != null && analysis != null) onFrameDiagnostics?.invoke(
-                            PrivacyCaptureDiagnostics(cameraCopyMs, (completed - deliveryStarted) / 1e6,
-                                timings, analysis, processor.lastCameraCopiedPlanes,
-                                (completed-receivedAtNs)/1e6))
+                },
+                deliver = { outgoing ->
+                    val deliveryStarted = System.nanoTime()
+                    val wasDelivered = route.deliver(ticket) {
+                        relayAdjustedFrame(outgoing) { adjusted ->
+                            previewSink?.onFrame(adjusted)
+                            capturerObserver?.onFrameCaptured(adjusted)
+                            deliverToDirectPublish(adjusted)
+                            delivered.incrementAndGet()
+                            if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
+                        }
                     }
-                }
-                if (BuildConfig.DEBUG && completed - lastStagesLogNs >= 5_000_000_000L) {
-                    lastStagesLogNs = completed
-                    Log.i("PrivacyPipeline", "camera_copy_ms=$cameraCopyMs " +
-                        "delivery_ms=${(completed - deliveryStarted) / 1e6}")
-                }
-            } finally { outgoing.release() }
-        } catch (_: PrivacyGpuBackpressureException) {
-            dropped.incrementAndGet()
-        } catch (_: Exception) {
-            anonymizationFailures.incrementAndGet()
-            route.deliver(ticket, onProcessingFailure)
+                    reportDelivery(wasDelivered, cameraCopyMs, deliveryStarted, receivedAtNs)
+                    wasDelivered
+                },
+                release = VideoFrame::release,
+                onFailure = { error ->
+                    if (anonymizationFailures.incrementAndGet() == 1L) {
+                        Log.w("PrivacyPipeline", "protected_frame_dropped type=${error.javaClass.simpleName}")
+                    }
+                    route.deliver(ticket, onProcessingFailure)
+                },
+            )
+            if (outcome == ProtectedFrameOutcome.BUSY) dropped.incrementAndGet()
         } finally {
             releaseInput()
             if(releaseSlot) processing.set(false)
             logCounts()
+        }
+    }
+
+    private fun reportDelivery(wasDelivered: Boolean, cameraCopyMs: Double, deliveryStarted: Long, receivedAtNs: Long) {
+        val completed = System.nanoTime()
+        if ((BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) && wasDelivered) {
+            localProcessor?.let { processor ->
+                val timings = processor.lastTimings
+                val analysis = processor.lastAnalysis
+                if (timings != null && analysis != null) onFrameDiagnostics?.invoke(
+                    PrivacyCaptureDiagnostics(cameraCopyMs, (completed - deliveryStarted) / 1e6,
+                        timings, analysis, processor.lastCameraCopiedPlanes,
+                        (completed-receivedAtNs)/1e6))
+            }
+        }
+        if (BuildConfig.DEBUG && completed - lastStagesLogNs >= 5_000_000_000L) {
+            lastStagesLogNs = completed
+            Log.i("PrivacyPipeline", "camera_copy_ms=$cameraCopyMs " +
+                "delivery_ms=${(completed - deliveryStarted) / 1e6}")
         }
     }
 
@@ -444,7 +459,7 @@ class CameraFrameAnalyzer(
         reportedColorFailure = false
     }
 
-    private fun reportVideoAdjustmentFailure(error: Exception) {
+    private fun reportVideoAdjustmentFailure(error: Throwable) {
         if (!reportedColorFailure) {
             reportedColorFailure = true
             Log.w("CameraFrameAnalyzer", "video_adjustment_frame_dropped type=${error.javaClass.simpleName}")
