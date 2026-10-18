@@ -113,7 +113,8 @@
   /* The 15px floor only applies below ~560px wide, where the root font shrinks to ~11.5px. */
   --text-body-lg: max(15px, clamp(1rem, 0.82rem + 0.8vw, 1.5rem));
   --text-body-lg--line-height: 1.15;
-  --text-body: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);
+  /* Same small-screen floor as body-lg: long-form guide copy otherwise drops to ~13px on phones. */
+  --text-body: max(15px, clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem));
   --text-body--line-height: 1;
   --text-caption: max(13px, 1rem);
   --text-caption--line-height: 1.3;
