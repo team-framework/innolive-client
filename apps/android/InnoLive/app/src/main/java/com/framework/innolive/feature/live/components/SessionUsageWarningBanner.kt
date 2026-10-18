@@ -21,6 +21,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -54,9 +55,12 @@ fun SessionUsageWarningBanner(
 ) {
     val messageResource = noticeCode?.let(::sessionNoticeMessageResource)
     // AnimatedVisibility keeps composing its content during the exit animation after the notice clears.
-    var displayedMessageResource by remember { mutableStateOf(messageResource) }
-    if (messageResource != null && messageResource != displayedMessageResource) {
-        displayedMessageResource = messageResource
+    // The last message is read only while the notice is cleared, so recording it after composition
+    // does not trigger another recomposition.
+    val lastMessageResource = remember { mutableStateOf<Int?>(null) }
+    val displayedMessageResource = messageResource ?: lastMessageResource.value
+    SideEffect {
+        if (messageResource != null) lastMessageResource.value = messageResource
     }
     val density = LocalDensity.current
     val swipeDismissThresholdPx = with(density) { 48.dp.toPx() }
