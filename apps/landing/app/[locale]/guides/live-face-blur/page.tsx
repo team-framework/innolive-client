@@ -18,12 +18,12 @@ export default async function LiveFaceBlurGuide({ params }: PageProps) {
   const guide = liveFaceBlurGuide[locale];
   return (
     <main id="main" tabIndex={-1} className="page-top-spacing bg-background-primary px-[var(--page-gutter)] pb-16 lg:pb-24">
-      <article className="mx-auto max-w-[72rem] text-text-primary">
-        <h1 className="break-keep text-3xl font-bold leading-snug lg:text-5xl">{guide.heading}</h1>
+      <article className="mx-auto max-w-[72rem] break-keep text-text-primary">
+        <h1 className="text-balance text-3xl font-bold leading-snug lg:text-5xl">{guide.heading}</h1>
         <p className="mt-8 text-lg leading-relaxed max-md:text-[15px]">{guide.intro}</p>
         {guide.sections.map((section) => (
           <section key={section.heading} className="mt-12">
-            <h2 className="break-keep text-2xl font-semibold leading-snug">{section.heading}</h2>
+            <h2 className="text-balance text-2xl font-semibold leading-snug">{section.heading}</h2>
             {section.paragraphs.map((paragraph) => <p key={paragraph} className="mt-4 text-lg leading-relaxed max-md:text-[15px]">{paragraph}</p>)}
             {section.steps && <ol className="mt-4 list-decimal space-y-3 pl-6 text-lg leading-relaxed max-md:text-[15px]">{section.steps.map((step) => <li key={step}>{step}</li>)}</ol>}
           </section>
