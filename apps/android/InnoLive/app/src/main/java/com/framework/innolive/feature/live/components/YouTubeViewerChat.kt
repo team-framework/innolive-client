@@ -41,9 +41,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.framework.innolive.R
-import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.SessionSnapshot
-import com.framework.innolive.feature.live.broadcastState
 import kotlinx.coroutines.delay
 import java.net.URI
 import java.net.URLDecoder
@@ -63,11 +61,14 @@ object YouTubeViewerChatPolicy {
         return "https://$HOST$PATH?is_popout=1&v=$videoId"
     }
 
-    /** 라이브·일시 중지 중인 YouTube 대상의 채팅 주소입니다. 종료·제거된 대상과 세션 없음은 null입니다. */
+    /**
+     * 라이브가 시작된 YouTube 대상의 채팅 주소입니다. iOS `hasStartedBroadcast`와 같이 `broadcast_phase`가
+     * `live`이고 `status`가 `stopped`가 아니면 보여 줍니다. 직접 송출은 라이브 중에도 `status`가 `idle`이므로
+     * (direct-publish-v1.md) `broadcastState()` 대신 이 규칙을 씁니다. 종료·제거된 대상과 세션 없음은 null입니다.
+     */
     fun activeUrl(snapshot: SessionSnapshot?): String? {
         val target = snapshot?.targets?.firstOrNull { it.provider == "youtube" } ?: return null
-        val state = target.broadcastState()
-        if (state != BroadcastState.LIVE && state != BroadcastState.PAUSED) return null
+        if (target.broadcastPhase != "live" || target.status == "stopped") return null
         return url(target.videoId)
     }
 
