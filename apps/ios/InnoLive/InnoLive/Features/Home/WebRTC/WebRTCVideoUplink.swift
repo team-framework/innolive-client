@@ -49,7 +49,9 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     var activeVideoQuality: CameraQualityPreset?
     var isAudioSessionActivated = false
     weak var localRenderer: LKRTCMTLVideoView?
-    weak var remoteRenderer: LKRTCMTLVideoView?
+    // Every view still on screen keeps rendering. With a single slot, a late update from the
+    // view being removed took the slot back and left the broadcast view black after face selection.
+    let remoteRenderers = NSHashTable<LKRTCMTLVideoView>.weakObjects()
     weak var faceRegistrationRenderer: LKRTCMTLVideoView?
 
     var webSocketTask: URLSessionWebSocketTask?

@@ -84,7 +84,7 @@ struct RemoteStreamView: View {
 }
 
 /// The broadcast output shrunk into the corner while face selection takes the main area.
-/// Only one remote renderer exists at a time, so this replaces `RemoteStreamView` instead of copying it.
+/// It replaces `RemoteStreamView` instead of copying it; during the swap both may briefly render.
 struct CompactRemoteStreamView: View {
     @ObservedObject var uplink: WebRTCVideoUplink
 
