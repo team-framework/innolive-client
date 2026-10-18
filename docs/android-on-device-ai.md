@@ -933,4 +933,6 @@ encode(반환 libx264) 41.4ms로 둘 다 33.3ms 예산을 넘고, 반환 인코�
   ROI 블러 scissor 여유는 고정 192px 대신 축소 커널 반경에 맞춰 계산한다.
 
 검증: `PrivacyBroadcastBlurTest`(sigma·축소 크기·RenderEffect 반경·shader 생성)와 기존
-privacy 단위 테스트를 실행했다. 실기기 블러 일렁임 감소와 1080p 렌더 시간은 별도로 확인한다.
+privacy 단위 테스트를 실행했다. 2026-10-18 SM-S931N debug 빌드를 온디바이스 FHD 전면 카메라로
+실행해 GPU 보호 경로(`image_gpu=true`, fallback 없음)와 블러 일렁임 감소를 육안으로 확인했다.
+1080p 렌더 시간과 장시간 발열은 별도로 측정한다.
