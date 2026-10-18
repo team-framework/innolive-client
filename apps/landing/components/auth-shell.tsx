@@ -37,18 +37,18 @@ export function AuthShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav
-          className="mt-8 flex flex-wrap items-center justify-center gap-2 text-base font-medium text-text-primary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2"
+          className="mt-8 flex flex-wrap items-center justify-center gap-2 max-lg:gap-x-4 text-base font-medium text-text-primary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2"
           aria-label={messages.auth.policyNav}
         >
           <Link
             href={href("/privacy")}
-            className="underline [text-underline-position:from-font]"
+            className="underline [text-underline-position:from-font] max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center"
           >
             {messages.auth.privacy}
           </Link>
           <Link
             href={href("/terms")}
-            className="underline [text-underline-position:from-font]"
+            className="underline [text-underline-position:from-font] max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center"
           >
             {messages.auth.terms}
           </Link>

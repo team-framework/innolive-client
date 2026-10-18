@@ -12,8 +12,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       alternates: { languages: alternates.languages },
     };
   }));
-  return [...localizedPages, ...seoGuides.flatMap(({ path }) => seoGuideLocales.map((locale) => {
+  return [...localizedPages, ...seoGuides.flatMap(({ path, comparison }) => seoGuideLocales.map((locale) => {
     const alternates = pageAlternates(locale, path);
-    return { url: alternates.canonical, alternates: { languages: alternates.languages } };
+    return { url: alternates.canonical, alternates: { languages: alternates.languages }, ...(comparison ? { lastModified: comparison.checkedAt } : {}) };
   }))];
 }

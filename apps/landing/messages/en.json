@@ -145,7 +145,7 @@
     "loginCta": "Log in to use the free plan",
     "scrollLeft": "Scroll left",
     "scrollRight": "Scroll right",
-    "usageNote": "* Monthly time is deducted at 1× for 720p single, 2× for FHD single or 720p simulcast, and 3× for FHD simulcast. Per-broadcast limits use actual elapsed time."
+    "usageNote": "* Monthly time is deducted at 1× for 720p single, 2× for FHD single or 720p simulcast, and 3× for FHD simulcast. Server-processed and on-device time are counted separately. Per-broadcast limits use actual elapsed time."
   },
   "plans": {
     "periodMonth": "month",
@@ -158,21 +158,21 @@
         "features": [
           "Real-time face and license-plate anonymization",
           "5 broadcast hours/month",
-          "HD streaming to one platform",
-          "Up to 2 hours of continuous broadcasting",
+          "On-device processing, HD streaming to one platform",
+          "Up to 1 hour of continuous broadcasting",
           "Register up to 2 faces",
           "Android and iOS apps"
         ]
       },
       "glow": {
-        "description": "On your device, without time limits",
+        "description": "On your device, longer and sharper",
         "cta": "Subscribe to Glow",
         "features": [
           "Real-time face and license-plate anonymization",
-          "Unlimited broadcast time",
-          "Process on your device, stream to one platform",
+          "60 broadcast hours/month",
+          "Process on your device, stream up to FHD to one platform",
           "Broadcast regardless of server congestion",
-          "No limit on continuous broadcast time",
+          "Up to 8 hours of continuous broadcasting",
           "Register up to 2 faces",
           "Android and iOS apps"
         ],
@@ -186,7 +186,8 @@
         "cta": "Subscribe to Beam",
         "features": [
           "All Spark features",
-          "120 broadcast hours/month",
+          "40 server-processed hours/month",
+          "120 on-device hours/month",
           "Up to FHD quality",
           "720p simulcast to two platforms*",
           "Server-side processing less dependent on device performance*",
@@ -206,10 +207,11 @@
         "cta": "Subscribe to Plasma",
         "features": [
           "All Beam features",
-          "240 broadcast hours/month",
+          "80 server-processed hours/month",
+          "300 on-device hours/month",
           "Up to FHD quality",
           "FHD simulcast to two platforms",
-          "12 hours of continuous broadcasting",
+          "Up to 12 hours of continuous broadcasting",
           "Highest-priority queue*",
           "Register up to 10 faces"
         ],
@@ -239,7 +241,7 @@
     "pay": "Subscribe to Glow",
     "termsNote": "*Terms apply.",
     "termsLink": "Learn more",
-    "body": "Glow anonymizes faces and license plates on your device before streaming. It costs ₩9,900/month, or ₩0/month during the beta. Broadcast time is unlimited; processing speed depends on your device."
+    "body": "Glow anonymizes faces and license plates on your device before streaming. It costs ₩7,900/month, or ₩0/month during the beta. You can stream up to FHD to one platform for 60 hours a month, up to 8 hours per broadcast; processing speed depends on your device."
   },
   "tryOut": {
     "ariaLabel": "The moment it appears, protection starts",

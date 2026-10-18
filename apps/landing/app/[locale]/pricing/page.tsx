@@ -19,19 +19,22 @@ const Arrow = ({
   onClick: () => void;
   label: string;
 }) => {
+  // Below lg the plans are swiped natively; the arrows would only narrow the cards.
   return (
-    <div
-      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-200 ease-linear hover:bg-[#00000080]`}
+    <button
+      type="button"
+      aria-label={label}
+      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-200 ease-linear hover:bg-[#00000080] max-lg:hidden`}
       onClick={onClick}
     >
       <Image
         width={28}
         height={28}
         src={`/icons/arrow-${direction}.svg`}
-        alt={label}
+        alt=""
         className="transition-[filter] group-hover:invert"
       />
-    </div>
+    </button>
   );
 };
 
@@ -85,7 +88,7 @@ function PlanScroller({
         {plans.map((plan: Plan) => (
           <div
             key={plan.id}
-            className="w-[min(100%,30rem)] shrink-0 snap-start"
+            className="w-[min(100%,30rem)] shrink-0 snap-start max-lg:w-[min(85%,30rem)]"
           >
             <PlanCard
               plan={plan}
@@ -114,7 +117,7 @@ function TermsNote() {
       <span className="text-text-primary">{messages.pricing.termsNote}</span>
       <Link
         href={href("/terms")}
-        className="text-text-secondary underline [text-underline-position:from-font]"
+        className="text-text-secondary underline [text-underline-position:from-font] max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center"
       >
         {messages.pricing.termsLink}
       </Link>

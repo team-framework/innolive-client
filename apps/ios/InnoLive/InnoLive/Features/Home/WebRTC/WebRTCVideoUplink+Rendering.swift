@@ -27,18 +27,14 @@ extension WebRTCVideoUplink {
     }
 
     func attachRemoteRenderer(_ renderer: LKRTCMTLVideoView) {
-        if remoteRenderer !== renderer {
-            if let remoteRenderer {
-                remoteVideoTrack?.remove(remoteRenderer)
-            }
-            remoteRenderer = renderer
-            remoteVideoTrack?.add(renderer)
-        }
+        guard !remoteRenderers.contains(renderer) else { return }
+        remoteRenderers.add(renderer)
+        remoteVideoTrack?.add(renderer)
     }
 
     func detachRemoteRenderer(_ renderer: LKRTCMTLVideoView) {
         remoteVideoTrack?.remove(renderer)
-        if remoteRenderer === renderer { remoteRenderer = nil }
+        remoteRenderers.remove(renderer)
     }
 
     func attachFaceRegistrationRenderer(_ renderer: LKRTCMTLVideoView) {
@@ -58,12 +54,13 @@ extension WebRTCVideoUplink {
     }
 
     func setRemoteVideoTrack(_ track: LKRTCVideoTrack) {
-        if let remoteRenderer {
-            remoteVideoTrack?.remove(remoteRenderer)
+        let renderers = remoteRenderers.allObjects
+        for renderer in renderers {
+            remoteVideoTrack?.remove(renderer)
         }
         remoteVideoTrack = track
-        if let remoteRenderer {
-            track.add(remoteRenderer)
+        for renderer in renderers {
+            track.add(renderer)
         }
         setRemoteVideoAvailable(true)
     }
@@ -72,14 +69,14 @@ extension WebRTCVideoUplink {
         if let localRenderer {
             renderingLocalTrack?.remove(localRenderer)
         }
-        if let remoteRenderer {
-            remoteVideoTrack?.remove(remoteRenderer)
+        for renderer in remoteRenderers.allObjects {
+            remoteVideoTrack?.remove(renderer)
         }
         if let faceRegistrationRenderer {
             renderingLocalTrack?.remove(faceRegistrationRenderer)
         }
         localRenderer = nil
-        remoteRenderer = nil
+        remoteRenderers.removeAllObjects()
         faceRegistrationRenderer = nil
     }
 

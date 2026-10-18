@@ -1,0 +1,10 @@
+{
+  "session_id": "fixture-mosaic-config",
+  "ai_processing": "server",
+  "stream": { "status": "streaming", "publisher_active": true, "reconnect_attempts": 0 },
+  "media": {
+    "anonymization_enabled": true,
+    "screen_blur_enabled": false,
+    "mosaic_config": { "blur_radius": 40, "pixel_size": null, "mask_margin": 16 }
+  }
+}

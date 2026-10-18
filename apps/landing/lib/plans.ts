@@ -54,9 +54,9 @@ export function getPersonalPlans(messages: Messages, locale: Locale): Plan[] {
   const signup = localePath(locale, "/signup");
   const definitions: Array<{ id: string; name: string; amount: string; copy: PlanCopy }> = [
     { id: "spark", name: "Spark", amount: "0", copy: copy.spark },
-    { id: "glow", name: "Glow", amount: "9,900", copy: copy.glow },
-    { id: "beam", name: "Beam", amount: "19,900", copy: copy.beam },
-    { id: "plasma", name: "Plasma", amount: "39,000", copy: copy.plasma },
+    { id: "glow", name: "Glow", amount: "7,900", copy: copy.glow },
+    { id: "beam", name: "Beam", amount: "14,900", copy: copy.beam },
+    { id: "plasma", name: "Plasma", amount: "29,500", copy: copy.plasma },
   ];
   return definitions.map((definition): Plan => ({
     id: definition.id,
