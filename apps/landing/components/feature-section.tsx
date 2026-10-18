@@ -322,7 +322,7 @@ export function FeatureSection() {
             </div>
           </div>
 
-          <div className="flex w-full flex-col break-keep text-[length:clamp(1rem,0.9rem+0.4vw,1.25rem)] font-normal leading-[1.3] tracking-tight text-text-secondary">
+          <div className="flex w-full flex-col break-keep text-[length:clamp(max(13px,1rem),0.9rem+0.4vw,1.25rem)] font-normal leading-[1.3] tracking-tight text-text-secondary">
             <p>{messages.features.note1}</p>
             <p>{messages.features.note2}</p>
           </div>

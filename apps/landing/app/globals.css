@@ -115,8 +115,12 @@
   --text-body-lg--line-height: 1.15;
   --text-body: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);
   --text-body--line-height: 1;
-  --text-caption: 1rem;
+  --text-caption: max(13px, 1rem);
   --text-caption--line-height: 1.3;
+  /* Below ~580px wide the root font shrinks to ~11.2px, which would put body copy, footer and
+     nav labels near 11px and fine print near 10px. The floors are no-ops at tablet/desktop widths. */
+  --text-base: max(13px, 1rem);
+  --text-sm: max(12px, 0.875rem);
 }
 
 @layer base {
