@@ -37,7 +37,26 @@ iOS는 서버 세션 WebRTC 업링크에 비트레이트와 degradation을 설�
 - 세션 해상도 변경: 세션 응답을 반영할 때마다 `setBroadcastResolution`을 부른다. 값이 바뀌면 같은
   연결의 encoding 범위와 추정기 상한만 바꾸고 시작값은 다시 주지 않는다. 쌓인 추정치를 버리지 않기
   위해서다.
-- 코덱 순서(VP8 우선)는 바꾸지 않았다.
+
+## 코덱 순서
+
+`VideoUplinkCodecPreference.ordered`가 영상 transceiver의 코덱 순서를 정한다. 서버는 offer 순서대로 처음
+받아들인 코덱 하나로 업링크와 반환 영상을 함께 묶는다(innolive-server `internal/session/video_codec.go`).
+
+| 세션 | 순서 | 업링크 인코딩·반환 디코딩 |
+| --- | --- | --- |
+| 서버 AI | H.264 Constrained Baseline, VP8, 나머지 | VideoToolbox 하드웨어 |
+| 온디바이스(서버 송출·앱 직접 송출) | VP8, 나머지 | libvpx 소프트웨어 |
+
+- Baseline 조건은 `profile-level-id`가 `42e0`로 시작하고 `packetization-mode=1`, level 4.0 이상이다.
+  pion v4.1.2는 profile 두 바이트만 비교하고 level은 보지 않는다. LiveKitWebRTC 144는 Baseline level을
+  VideoToolbox 조회값(기기표 fallback 최소 4.1)으로 광고하므로 Android처럼 `42e01f`로 고정하지 않는다.
+  level 3.1은 1080p를 약 13fps로 묶어 VideoToolbox가 1080p30을 거부할 수 있으므로 VP8로 넘긴다.
+- Constrained High(`640c..`)가 앞에 오면 서버가 answer를 만든 뒤 RTP를 버려 OnTrack이 열리지 않는다
+  (2026-10-18 서버 로컬 재현). 그래서 libwebrtc 기본 순서를 그대로 쓰지 않는다.
+- 코덱은 offer에서 정해진다. 연결 중 AI 처리 위치를 바꾸면 다음 PeerConnection 재생성부터 새 순서를 쓴다.
+- 변경 배경은 client #643이다. VP8 우선일 때 FHD 서버 세션에서 libvpx 인코딩과 1080×1920 반환 VP8 디코딩이
+  모두 CPU에서 돌았고, 송신이 4~12fps로 떨어진 세션이 있었다.
 
 ## 진단 로그 (DEBUG 빌드만)
 
@@ -47,6 +66,25 @@ Console에서 subsystem `com.framework.innolive`, category `uplink`로 본다. R
   fps, 축소 배율과 `setBweMinBitrateBps` 결과를 남긴다.
 - `uplink video`: 2초 샘플마다 `qualityLimitationReason`, 송신 크기, fps, `targetBitrate`,
   `encoderImplementation`, `qualityLimitationResolutionChanges`를 남긴다.
+
+Release 빌드에도 `uplink quality`는 남는다. 제한 사유나 해상도가 바뀔 때, 제한이 이어지면 30초마다 한 줄이다.
+
+## FHD 송신 프레임률 저하 판별
+
+같은 기기·장소에서 FHD 서버 AI 세션을 조건 하나씩만 바꿔 2분 이상 비교한다. fps가 떨어진 구간의 값으로 가른다.
+
+| 관찰 | 원인 |
+| --- | --- |
+| `reason=cpu`, `encoder=libvpx` | VP8 소프트웨어 인코딩 CPU 적응. `maintainResolution`이라 해상도 대신 fps를 깎는다 |
+| `reason=bandwidth`, `targetBitrate`가 3Mbps 하한 근처 | 업로드 대역폭 |
+| `reason=none`인데 fps 저하 | 인코더 앞단(캡처 콜백)에서 프레임 유실 |
+
+- 렌즈 프리셋: 색 조정이 중립이 아니면 캡처 콜백에서 CoreImage로 BGRA를 새로 그린다. 중립 프리셋과 비교한다.
+- 회전: 서버가 video-orientation 확장을 협상하지 않아 세로(`size=1080x1920`)는 libwebrtc가 매 프레임 I420
+  변환과 회전을 CPU로 한다. 가로 잠금과 비교한다.
+- go-live 로컬 녹화: 녹화는 go-live 직전에 시작한다. 같은 세션의 준비 구간과 go-live 직후를 비교한다.
+- 코덱: H.264 빌드에서 `encoder=VideoToolbox`로 같은 조건을 다시 잰다. VP8에서만 `reason=cpu`면 코덱 원인이다.
+- 720p로 되돌린 뒤에도 `reason=cpu`가 남으면 CPU 적응의 fps 복구 대기가 길어진 상태다.
 
 ## 검증 상태
 

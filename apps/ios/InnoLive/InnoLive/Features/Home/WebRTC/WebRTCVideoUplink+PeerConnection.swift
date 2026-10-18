@@ -63,19 +63,22 @@ extension WebRTCVideoUplink {
             throw WebRTCVideoUplinkError.failed(String(localized: "카메라 영상 송신기를 만들지 못했습니다."))
         }
 
-        // 프로덕션 Pion 서버가 실제 RTP 수신까지 검증한 VP8을 첫 번째로 제안한다.
-        // iOS WebRTC의 기본 H.264 High Profile은 서버에 등록된 Baseline Profile과
-        // 일치하지 않아 ICE 연결 후에도 서버 OnTrack이 호출되지 않는다.
+        // 서버 AI 세션은 하드웨어 H.264 Constrained Baseline, 그다음 VP8을 제안한다.
+        // iOS WebRTC 기본 순서의 첫 코덱인 H.264 Constrained High는 서버 OnTrack이 열리지 않으므로 앞에 두지 않는다.
         let videoCodecs = peerConnectionFactory
             .rtpSenderCapabilities(forKind: kLKRTCMediaStreamTrackKindVideo)
             .codecs
-        let vp8Codecs = videoCodecs.filter { $0.name.caseInsensitiveCompare("VP8") == .orderedSame }
-        guard !vp8Codecs.isEmpty else {
+        guard let preferredVideoCodecs = VideoUplinkCodecPreference.ordered(
+            videoCodecs,
+            for: credentials?.uplinkSessionMode ?? .serverAI,
+            name: \.name,
+            parameters: \.parameters
+        ) else {
             throw WebRTCVideoUplinkError.failed(String(localized: "서버와 호환되는 VP8 영상 코덱을 찾지 못했습니다."))
         }
         do {
             try transceiver.setCodecPreferences(
-                vp8Codecs + videoCodecs.filter { $0.name.caseInsensitiveCompare("VP8") != .orderedSame },
+                preferredVideoCodecs,
                 error: ()
             )
         } catch {
