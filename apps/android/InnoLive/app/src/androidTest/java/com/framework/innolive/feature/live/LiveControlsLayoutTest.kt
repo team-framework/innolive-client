@@ -22,6 +22,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -54,6 +55,28 @@ class LiveControlsLayoutTest {
         compose.onNodeWithContentDescription(compose.activity.getString(R.string.anonymization_enable))
             .performScrollTo()
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun viewerChatButtonJoinsRightRailOnlyWhenChatIsAvailable() {
+        var canOpenViewerChat by mutableStateOf(false)
+        var opened = 0
+        showSideControls(360.dp, 800.dp, canOpenViewerChat = { canOpenViewerChat }, onOpenViewerChat = { opened++ })
+        val chat = compose.activity.getString(R.string.viewer_chat_title)
+        compose.onNodeWithContentDescription(chat).assertDoesNotExist()
+
+        compose.runOnIdle { canOpenViewerChat = true }
+        compose.onNodeWithContentDescription(chat).assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, opened) }
+        val settings = compose.onNodeWithContentDescription(compose.activity.getString(R.string.content_description_settings))
+            .getUnclippedBoundsInRoot()
+        val button = compose.onNodeWithContentDescription(chat).getUnclippedBoundsInRoot()
+        val container = compose.onNodeWithTag("container").getUnclippedBoundsInRoot()
+        assertEquals(((settings.left + settings.right) / 2f).value, ((button.left + button.right) / 2f).value, 0.5f)
+        assertTrue(button.right <= container.right - 16.dp)
+
+        compose.runOnIdle { canOpenViewerChat = false }
+        compose.onNodeWithContentDescription(chat).assertDoesNotExist()
     }
 
     @Test
@@ -91,7 +114,12 @@ class LiveControlsLayoutTest {
         assertTrue(container.bottom - after.bottom <= 36.dp)
     }
 
-    private fun showSideControls(width: Dp, height: Dp) {
+    private fun showSideControls(
+        width: Dp,
+        height: Dp,
+        canOpenViewerChat: () -> Boolean = { false },
+        onOpenViewerChat: () -> Unit = {},
+    ) {
         compose.setContent {
             MaterialTheme {
                 Box(Modifier.width(width).height(height).testTag("container")) {
@@ -111,6 +139,8 @@ class LiveControlsLayoutTest {
                             canChange = true,
                         ),
                         onAnonymizationSelect = {},
+                        canOpenViewerChat = canOpenViewerChat(),
+                        onOpenViewerChat = onOpenViewerChat,
                     )
                 }
             }
