@@ -70,7 +70,7 @@ export function TryOutView() {
                   <Button
                     href={href("/try-out/experience")}
                     showChevron={false}
-                    className="w-[14.375rem] max-w-[14.375rem] max-md:w-auto max-md:min-w-[14.375rem] max-md:max-w-full max-md:break-keep"
+                    className="min-w-[14.375rem] max-w-full whitespace-nowrap max-md:whitespace-normal max-md:break-keep"
                     disabled={isLoading}
                     aria-describedby={notice ? noticeId : undefined}
                   >
@@ -85,7 +85,7 @@ export function TryOutView() {
                       variant="secondary"
                       href={href("/login")}
                       showChevron={false}
-                      className="w-[14.375rem] max-w-[14.375rem] max-md:w-auto max-md:min-w-[14.375rem] max-md:max-w-full max-md:break-keep"
+                      className="min-w-[14.375rem] max-w-full whitespace-nowrap max-md:whitespace-normal max-md:break-keep"
                     >
                       {messages.tryOut.loginOrSignup}
                     </Button>
