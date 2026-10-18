@@ -1,0 +1,27 @@
+# Classes, constructors and fields that native libraries look up by name, in R8 seeds.txt notation.
+# verifyReleaseJniKeeps fails the release build when keep rules no longer cover one of them.
+
+# ONNX Runtime 1.23.2 (libonnxruntime4j_jni.so)
+ai.onnxruntime.NodeInfo: NodeInfo(java.lang.String,ai.onnxruntime.ValueInfo)
+ai.onnxruntime.TensorInfo: TensorInfo(long[],java.lang.String[],int)
+ai.onnxruntime.MapInfo: MapInfo(int,int,int)
+ai.onnxruntime.SequenceInfo: SequenceInfo(int,int)
+ai.onnxruntime.SequenceInfo: SequenceInfo(int,ai.onnxruntime.MapInfo)
+ai.onnxruntime.OnnxTensor: OnnxTensor(long,long,ai.onnxruntime.TensorInfo)
+ai.onnxruntime.OnnxSparseTensor: OnnxSparseTensor(long,long,int,ai.onnxruntime.TensorInfo)
+ai.onnxruntime.OnnxSequence: OnnxSequence(long,long,ai.onnxruntime.SequenceInfo)
+ai.onnxruntime.OnnxMap
+ai.onnxruntime.OnnxModelMetadata: OnnxModelMetadata(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,long,java.lang.String[])
+ai.onnxruntime.OrtException: OrtException(int,java.lang.String)
+
+# LiteRT 2.2.0 (liblitert_jni.so)
+com.google.ai.edge.litert.TensorType: TensorType(com.google.ai.edge.litert.TensorType$ElementType,com.google.ai.edge.litert.TensorType$Layout)
+com.google.ai.edge.litert.TensorType$Layout: TensorType$Layout(int[])
+com.google.ai.edge.litert.TensorType$Layout: TensorType$Layout(int[],int[])
+com.google.ai.edge.litert.TensorType$ElementType: com.google.ai.edge.litert.TensorType$ElementType INT
+com.google.ai.edge.litert.TensorType$ElementType: com.google.ai.edge.litert.TensorType$ElementType FLOAT
+com.google.ai.edge.litert.TensorType$ElementType: com.google.ai.edge.litert.TensorType$ElementType INT8
+com.google.ai.edge.litert.TensorType$ElementType: com.google.ai.edge.litert.TensorType$ElementType BOOLEAN
+com.google.ai.edge.litert.TensorType$ElementType: com.google.ai.edge.litert.TensorType$ElementType INT64
+com.google.ai.edge.litert.TensorBufferRequirements: TensorBufferRequirements(int[],int,int[])
+com.google.ai.edge.litert.LiteRtException: LiteRtException(int,java.lang.String)

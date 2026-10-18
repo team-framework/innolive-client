@@ -1,3 +1,4 @@
+import com.android.build.api.artifact.SingleArtifact
 import java.util.Properties
 
 plugins {
@@ -112,6 +113,21 @@ dependencies {
     if (privacyReleaseTest) implementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+// R8 결과에서 네이티브 라이브러리가 이름으로 찾는 클래스·생성자가 빠지면 release 빌드를 실패시킵니다.
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        val suffix = variant.name.replaceFirstChar(Char::uppercaseChar)
+        val verify = tasks.register<VerifyJniKeepsTask>("verify${suffix}JniKeeps") {
+            // R8 writes seeds.txt next to the mapping artifact; the provider keeps the R8 task dependency.
+            seedsFile.set(layout.file(variant.artifacts.get(SingleArtifact.OBFUSCATION_MAPPING_FILE)
+                .map { it.asFile.resolveSibling("seeds.txt") }))
+            contractFile.set(layout.projectDirectory.file("jni-keep-contract.txt"))
+            reportFile.set(layout.buildDirectory.file("reports/jni-keeps/${variant.name}.txt"))
+        }
+        tasks.matching { it.name == "minify${suffix}WithR8" }.configureEach { finalizedBy(verify) }
+    }
 }
 
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
