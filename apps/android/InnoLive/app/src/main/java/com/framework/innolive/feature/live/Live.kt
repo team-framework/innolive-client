@@ -66,7 +66,7 @@ import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.components.logoRes
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
-import com.framework.innolive.feature.live.components.YouTubeViewerChatDialog
+import com.framework.innolive.feature.live.components.YouTubeViewerChatHost
 import com.framework.innolive.feature.live.consent.BroadcastConsentDialog
 import com.framework.innolive.feature.live.consent.BroadcastConsentStep
 import com.framework.innolive.feature.live.consent.BroadcastConsentStore
@@ -156,10 +156,9 @@ private fun LiveScreenContent(
     var chzzkBusy by remember { mutableStateOf(false) }
     var chzzkMessage by remember { mutableStateOf<UiText?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
-    // 보기 전용 시청자 채팅입니다. 주소가 사라지면(방송 종료·대상 제거·세션 종료) 창을 닫습니다.
+    // 보기 전용 시청자 채팅입니다. 주소가 사라지면(방송 종료·대상 제거·세션 종료) YouTubeViewerChatHost가 창을 닫습니다.
     var openViewerChat by remember { mutableStateOf(false) }
     val viewerChatUrl = webRtcSession.viewerChatUrl
-    LaunchedEffect(viewerChatUrl) { if (viewerChatUrl == null) openViewerChat = false }
     // 방송 준비 중 표시할 동의·안내입니다. 수락하면 다음 단계로 이어서 진행합니다.
     var pendingConsentStep by remember { mutableStateOf<BroadcastConsentStep?>(null) }
     var testUsageWarningOverride by remember { mutableStateOf(false) }
@@ -889,9 +888,7 @@ private fun LiveScreenContent(
             )
         }
     }
-    if (openViewerChat && viewerChatUrl != null) {
-        YouTubeViewerChatDialog(url = viewerChatUrl, onDismiss = { openViewerChat = false })
-    }
+    YouTubeViewerChatHost(url = viewerChatUrl, isOpen = openViewerChat, onDismiss = { openViewerChat = false })
     if (openFaceManagement && faceManagementUsesBroadcastCamera) {
         // iOS처럼 방송 화면과 카메라는 그대로 두고, 송출 중인 카메라 프레임으로 얼굴을 등록합니다.
         Dialog(
