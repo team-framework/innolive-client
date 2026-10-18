@@ -38,7 +38,7 @@ export function Footer() {
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
                 <p>{messages.footer.ceo}</p>
                 <p>{messages.footer.dpo}</p>
-                <a className="underline" href="mailto:contact@innolive.studio">
+                <a className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center" href="mailto:contact@innolive.studio">
                   contact@innolive.studio
                 </a>
                 <p>Hosted by Framework</p>
@@ -48,28 +48,28 @@ export function Footer() {
                 <p>{messages.footer.address}</p>
                 <p>{messages.footer.copyright}</p>
               </div>
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-text-secondary">
-                <Link href={href("/privacy")} className="font-semibold underline">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-text-secondary max-lg:gap-y-0">
+                <Link href={href("/privacy")} className="font-semibold underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
                   {messages.footer.privacy}
                 </Link>
-                <Link href={href("/terms")} className="underline">
+                <Link href={href("/terms")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
                   {messages.footer.terms}
                 </Link>
-                {locale !== "ja" && <Link href={href("/mosaic-software")} className="underline">
+                {locale !== "ja" && <Link href={href("/mosaic-software")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
                   {locale === "en" ? "Live face blur app" : "실시간 방송 모자이크 앱"}
                 </Link>}
-                <Link href={href("/support")} className="underline">
+                <Link href={href("/support")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
                   {messages.footer.support}
                 </Link>
-                <Link href={href("/guides/live-face-blur")} className="underline">
+                <Link href={href("/guides/live-face-blur")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
                   {messages.footer.guide}
                 </Link>
-                <Link href={href("/#faq")} scroll={false} className="underline">
+                <Link href={href("/#faq")} scroll={false} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
                   {messages.footer.faq}
                 </Link>
               </div>
             </div>
-            <ul className="flex flex-wrap items-start gap-2.5">
+            <ul className="flex flex-wrap items-start gap-2.5 max-lg:-mx-[10.5px] max-lg:gap-0">
               {socialLinks.map((social) => {
                 const icon = (
                   <Image
@@ -78,6 +78,7 @@ export function Footer() {
                     width={32}
                     height={32}
                     aria-hidden="true"
+                    className="max-lg:size-8"
                   />
                 );
 
@@ -88,7 +89,7 @@ export function Footer() {
                       target="_blank"
                       rel="noreferrer"
                       aria-label={social.name}
-                      className="block size-8"
+                      className="block size-8 max-lg:flex max-lg:size-[44px] max-lg:items-center max-lg:justify-center"
                     >
                       {icon}
                     </a>

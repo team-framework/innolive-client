@@ -87,7 +87,7 @@ export function FAQSection() {
               open={false}
               className="flex w-full flex-col gap-2.5 py-2 open:[&_summary_img]:rotate-180"
             >
-              <summary className="flex w-full cursor-pointer list-none items-center gap-2.5 py-2 [&::-webkit-details-marker]:hidden [&::marker]:content-none">
+              <summary className="flex w-full cursor-pointer list-none items-center gap-2.5 py-2 max-lg:min-h-[44px] [&::-webkit-details-marker]:hidden [&::marker]:content-none">
                 <span className="min-w-0 flex-1 break-keep text-left text-[clamp(1.125rem,0.95rem+0.85vw,1.625rem)] font-medium leading-[1.15] text-text-primary">
                   {item.question}
                 </span>
@@ -105,7 +105,7 @@ export function FAQSection() {
                   {item.answerLink ? (
                     <>
                       {item.answerLink.before}
-                      <Link href={item.answerLink.href} className="underline [text-underline-position:from-font]">
+                      <Link href={item.answerLink.href} className="underline [text-underline-position:from-font] max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                         {item.answerLink.label}
                       </Link>
                       {item.answerLink.after}

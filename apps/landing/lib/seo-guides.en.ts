@@ -1,3 +1,4 @@
+import { englishComparisonGuide } from "@/lib/seo-comparison";
 import type { SeoGuide } from "@/lib/seo-guides";
 import { getMessages } from "@/lib/messages";
 import { getPersonalPlans } from "@/lib/plans";
@@ -6,6 +7,7 @@ const spark = getPersonalPlans(getMessages("en"), "en")[0];
 const limits = spark.features.slice(1).map(({ text }) => text).join(", ");
 
 export const englishSeoGuides: SeoGuide[] = [
+  englishComparisonGuide,
   {
     path: "/live-mosaic",
     title: "Real-time Face Blur for Live Streaming | InnoLive",
@@ -104,7 +106,7 @@ export const englishSeoGuides: SeoGuide[] = [
             "answer": "InnoLive detects and blurs faces. Register guests to keep their faces visible. Names, vehicle plates and audio are not automatically hidden. Check the processing results before broadcasting."
       }
 ],
-    related: ["/face-mosaic", "/live-mosaic", "/free-face-blur", "/blog/automatic-mosaic"],
+    related: ["/compare/live-face-blur-apps", "/face-mosaic", "/live-mosaic", "/free-face-blur", "/blog/automatic-mosaic"],
   },
   {
     path: "/free-face-blur", title: "Free Live Face Blur and Plan Limits | InnoLive",

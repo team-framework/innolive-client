@@ -33,7 +33,7 @@ export function TryOutView() {
       aria-labelledby="try-out-heading"
     >
       <div className="flex w-full max-w-[100rem] flex-col items-center gap-10">
-        <div className="flex flex-col items-center gap-4 text-center text-text-primary">
+        <div className="flex flex-col items-center gap-4 text-center text-text-primary max-lg:max-w-full">
           <SequentialHeroHeading
             segments={[
               {
