@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.framework.innolive.feature.live.components.YouTubeViewerChatWebData
 import com.framework.innolive.feature.login.account.AccountDeletionApi
 import com.framework.innolive.feature.login.account.AccountDeletionCoordinator
 import com.framework.innolive.feature.login.account.AccountDeletionCleanupStore
@@ -93,6 +94,7 @@ class AuthenticationSessionViewModel(
         clearAuthentication = {
             emailSignupSession.cancel()
             repository.clear()
+            YouTubeViewerChatWebData.clearAppWebData()
         },
         initialPendingDeletion = initialPendingDeletion,
         persistPendingDeletion = { session, phase ->
@@ -151,6 +153,8 @@ class AuthenticationSessionViewModel(
     fun clear() {
         emailSignupSession.cancel()
         repository.clear()
+        // 시청자 채팅 WebView가 남긴 YouTube 쿠키·WebStorage는 로그아웃 계정과 함께 지운다(android-viewer-chat.md).
+        YouTubeViewerChatWebData.clearAppWebData()
         syncAccountDeletionState()
     }
 

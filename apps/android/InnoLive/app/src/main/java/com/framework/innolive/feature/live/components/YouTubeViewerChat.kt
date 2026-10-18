@@ -2,12 +2,15 @@ package com.framework.innolive.feature.live.components
 
 import android.graphics.Bitmap
 import android.net.http.SslError
+import android.os.Handler
+import android.os.Looper
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -92,8 +96,73 @@ object YouTubeViewerChatPolicy {
 }
 
 /**
+ * 채팅 WebView가 남긴 YouTube 쿠키와 WebStorage를 지웁니다. Android WebView는 iOS의 비영속 저장소와 달리 앱 전체
+ * 저장소를 공유하므로 창을 닫을 때와 로그아웃·계정 삭제 때 정리합니다. 치지직 OAuth 등 다른 WebView의 쿠키는
+ * 남기도록 YouTube 도메인만 지웁니다.
+ */
+internal object YouTubeViewerChatWebData {
+    internal val cookieUrls = listOf(
+        "https://www.youtube.com/",
+        "https://www.youtube.com/live_chat",
+        "https://youtube.com/",
+        "https://m.youtube.com/",
+        "https://consent.youtube.com/",
+    )
+    internal val storageOrigins = listOf(
+        "https://www.youtube.com",
+        "https://youtube.com",
+        "https://m.youtube.com",
+        "https://consent.youtube.com",
+    )
+    private const val COOKIE_DOMAIN = ".youtube.com"
+    private val cookiePaths = listOf("/", "/live_chat")
+
+    interface Store {
+        fun cookies(url: String): String?
+        fun setCookie(url: String, value: String)
+        fun flushCookies()
+        fun deleteStorage(origin: String)
+    }
+
+    fun clear(store: Store) {
+        for (url in cookieUrls) {
+            for (name in cookieNames(store.cookies(url))) {
+                expiredCookies(name).forEach { store.setCookie(url, it) }
+            }
+        }
+        store.flushCookies()
+        storageOrigins.forEach(store::deleteStorage)
+    }
+
+    /** `CookieManager.getCookie`의 `a=1; b=2` 형식에서 이름만 꺼냅니다. */
+    internal fun cookieNames(header: String?): Set<String> =
+        header.orEmpty().split(';').map { it.substringBefore('=').trim() }.filter { it.isNotEmpty() }.toSet()
+
+    /** 이름만으로는 쿠키의 도메인·경로를 알 수 없으므로 호스트 전용과 `.youtube.com`, 루트와 채팅 경로를 모두 만료합니다. */
+    internal fun expiredCookies(name: String): List<String> = cookiePaths.flatMap { path ->
+        val expired = "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=$path; Secure"
+        listOf(expired, "$expired; Domain=$COOKIE_DOMAIN")
+    }
+
+    /**
+     * 앱 WebView 저장소를 지웁니다. WebView API는 UI 스레드에서 부르며, 닫힌 창의 WebView 정리가 끝난 뒤 실행되도록
+     * 메시지로 미룹니다. WebView가 없는 기기에서는 건너뜁니다.
+     */
+    fun clearAppWebData() {
+        Handler(Looper.getMainLooper()).post { runCatching { clear(AndroidStore) } }
+    }
+
+    private object AndroidStore : Store {
+        override fun cookies(url: String): String? = CookieManager.getInstance().getCookie(url)
+        override fun setCookie(url: String, value: String) = CookieManager.getInstance().setCookie(url, value)
+        override fun flushCookies() = CookieManager.getInstance().flush()
+        override fun deleteStorage(origin: String) = WebStorage.getInstance().deleteOrigin(origin)
+    }
+}
+
+/**
  * 보기 전용 시청자 채팅 창입니다. 앱의 액세스 토큰이나 세션 토큰을 WebView에 넣지 않으며 로그인·링크·폼·
- * 새 창 이동을 막습니다. [url]이 바뀌면 새 문서를 읽습니다.
+ * 새 창 이동을 막습니다. [url]이 바뀌면 새 문서를 읽고, 창이 닫히면 YouTube 쿠키와 WebStorage를 지웁니다.
  */
 @Composable
 internal fun YouTubeViewerChatDialog(url: String, onDismiss: () -> Unit) {
@@ -108,6 +177,7 @@ internal fun YouTubeViewerChatDialog(url: String, onDismiss: () -> Unit) {
             loading = false
         }
     }
+    DisposableEffect(Unit) { onDispose { YouTubeViewerChatWebData.clearAppWebData() } }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
