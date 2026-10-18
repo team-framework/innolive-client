@@ -35,7 +35,7 @@ internal object PrivacyMaskRenderer {
     }
 
     fun render(upright: Bitmap, mask: ByteArray, layout: PrivacySegmentation.Letterbox,
-               filter: (Bitmap) -> Bitmap = ::pixelatedBlur): Bitmap {
+               filter: (Bitmap) -> Bitmap = ::broadcastBlur): Bitmap {
         require(upright.width == layout.sourceWidth && upright.height == layout.sourceHeight)
         require(mask.size == PrivacySegmentation.MASK_SIZE * PrivacySegmentation.MASK_SIZE)
         val width = upright.width
@@ -63,24 +63,40 @@ internal object PrivacyMaskRenderer {
         return ByteArray(mask.size) { if (core[it].toInt() != 0) -1 else (blurred[it] and 255).toByte() }
     }
 
-    /** Pixelate first, then Gaussian blur at quarter resolution (24px full-frame sigma).
-     * The mask remains at its original resolution; this only reduces filter work. */
-    internal fun pixelatedBlur(upright: Bitmap): Bitmap {
-        val small = Bitmap.createBitmap(max(1, upright.width / 24), max(1, upright.height / 24), Bitmap.Config.ARGB_8888)
-        val filtered = Bitmap.createBitmap(max(1, (upright.width + 3) / 4),
-            max(1, (upright.height + 3) / 4), Bitmap.Config.ARGB_8888)
+    /** iOS broadcastStyleBlur on the CPU: area-average reduction to 1/4, a Gaussian with the
+     * reduced sigma, then scaling back. No pixelation grid: a point-sampled block grid shimmers
+     * between frames. The mask remains at its original resolution; this only reduces filter work. */
+    internal fun broadcastBlur(upright: Bitmap): Bitmap {
+        val reduced = reduce(upright)
         try {
-            Canvas(small).drawBitmap(upright, null, Rect(0, 0, small.width, small.height), Paint(Paint.FILTER_BITMAP_FLAG))
-            Canvas(filtered).drawBitmap(small, null, Rect(0, 0, filtered.width, filtered.height), null)
-            val pixels = IntArray(filtered.width * filtered.height)
-            filtered.getPixels(pixels, 0, filtered.width, 0, 0, filtered.width, filtered.height)
-            val blurred = PrivacyGaussianBlur.apply(pixels, filtered.width, filtered.height, 6.0)
-            filtered.setPixels(blurred, 0, filtered.width, 0, 0, filtered.width, filtered.height)
+            val pixels = IntArray(reduced.width * reduced.height)
+            reduced.getPixels(pixels, 0, reduced.width, 0, 0, reduced.width, reduced.height)
+            val blurred = PrivacyGaussianBlur.apply(pixels, reduced.width, reduced.height,
+                PrivacyBroadcastBlur.reducedSigma(upright.width, upright.height))
+            reduced.setPixels(blurred, 0, reduced.width, 0, 0, reduced.width, reduced.height)
             val output = Bitmap.createBitmap(upright.width, upright.height, Bitmap.Config.ARGB_8888)
             try {
-                Canvas(output).drawBitmap(filtered, null, Rect(0, 0, output.width, output.height), Paint(Paint.FILTER_BITMAP_FLAG))
+                Canvas(output).drawBitmap(reduced, null, Rect(0, 0, output.width, output.height), Paint(Paint.FILTER_BITMAP_FLAG))
                 return output
             } catch (error: Throwable) { output.recycle(); throw error }
-        } finally { small.recycle(); filtered.recycle() }
+        } finally { reduced.recycle() }
+    }
+
+    /** Reduce to 1/4 with two bilinear half steps; each is an exact 2x2 average, so every source
+     * pixel contributes. One 1/4 bilinear draw would sample only two of every four texels. */
+    internal fun reduce(source: Bitmap): Bitmap {
+        var current = source
+        repeat(2) {
+            val next = Bitmap.createBitmap(max(1, (current.width + 1) / 2), max(1, (current.height + 1) / 2),
+                Bitmap.Config.ARGB_8888)
+            try {
+                Canvas(next).drawBitmap(current, null, Rect(0, 0, next.width, next.height), Paint(Paint.FILTER_BITMAP_FLAG))
+            } catch (error: Throwable) { next.recycle(); throw error }
+            finally { if (current !== source) current.recycle() }
+            current = next
+        }
+        check(current.width == PrivacyBroadcastBlur.reducedSize(source.width) &&
+            current.height == PrivacyBroadcastBlur.reducedSize(source.height))
+        return current
     }
 }
