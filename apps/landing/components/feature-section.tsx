@@ -115,7 +115,8 @@ export function FeatureSection() {
                 duration: 0.8,
                 ease: "power2.out",
                 scrollTrigger: {
-                  start: "top 70%",
+                  // Reveal as each card enters; a 70% start left the lower third of phones blank.
+                  start: "top 92%",
                   toggleActions: "restart none restart reverse",
                   trigger: card,
                 },
