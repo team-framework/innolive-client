@@ -5,6 +5,10 @@
 -keep class com.framework.innolive.feature.live.privacy.PrivacyNativePostprocessor$Native { *; }
 # ONNX Runtime JNI constructs NodeInfo, TensorInfo, OnnxTensor and friends by name; the AAR ships no consumer rules.
 -keep class ai.onnxruntime.** { *; }
+# LiteRT JNI (liblitert_jni.so) constructs TensorType, TensorType$Layout, TensorBufferRequirements and
+# LiteRtException by name and reads TensorType$ElementType constants; the AAR keeps only @UsedByReflection.
+-keep class com.google.ai.edge.litert.** { *; }
+# Every class and constructor native code looks up is listed in jni-keep-contract.txt and checked after R8.
 # WorkManager's Room database is instantiated by its generated class name.
 -keep class androidx.work.impl.WorkDatabase { *; }
 -keep class androidx.work.impl.WorkDatabase_Impl { *; }
