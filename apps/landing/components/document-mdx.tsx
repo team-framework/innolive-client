@@ -47,7 +47,7 @@ function MdxAnchor({
 
 export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
   const wrapClassName =
-    locale === "ja" ? "break-normal break-words" : "break-keep";
+    locale === "ja" ? "break-words" : "break-keep";
 
   return {
     h1: ({ children, id, ...props }: ComponentPropsWithoutRef<"h1">) => (

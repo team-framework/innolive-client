@@ -185,11 +185,12 @@
 }
 
 /* Japanese has no spaces between words, so keep-all leaves whole sentences unbreakable
-   and they overflow narrow screens (document-mdx already opts ja out of break-keep). */
-@media (max-width: 63.999rem) {
-  :lang(ja) .break-keep,
-  :lang(ja) .max-md\:break-keep {
-    word-break: normal;
-    line-break: strict;
-  }
+   and they overflow their boxes (document-mdx also leaves ja out of break-keep).
+   auto-phrase breaks between phrases where supported; other browsers keep normal. */
+html:lang(ja),
+:lang(ja) .break-keep,
+:lang(ja) .max-md\:break-keep {
+  word-break: normal;
+  word-break: auto-phrase;
+  line-break: strict;
 }
