@@ -29,20 +29,19 @@ class PrivacyMaskRendererDeviceTest {
             }
         }
     }
-    @Test fun protectedPixelsContainGaussianBlurAfterPixelation() {
+    @Test fun protectedPixelsContainWideGaussianWithoutBlockGrid() {
         val bitmap = Bitmap.createBitmap(384, 192, Bitmap.Config.ARGB_8888)
         bitmap.setPixels(IntArray(384 * 192) { if (it % 384 < 192) Color.BLACK else Color.WHITE },
             0, 384, 0, 0, 384, 192)
-        val small = Bitmap.createScaledBitmap(bitmap, 16, 8, true)
-        val pixelated = Bitmap.createScaledBitmap(small, 384, 192, false)
-        try { assertEquals(Color.BLACK, pixelated.getPixel(168, 96)) }
-        finally { pixelated.recycle(); small.recycle() }
         val output = PrivacyMaskRenderer.render(bitmap, ByteArray(160 * 160) { -1 },
             PrivacySegmentation.Letterbox(384, 192))
         try {
-            // Pure pixelation leaves x=168 black; Gaussian must soften the block boundary.
+            // Sigma 48 (the minimum) spreads the edge over about 4 sigma on each side with no block steps.
             assertTrue(Color.red(output.getPixel(168, 96)) in 1..127)
             assertTrue(Color.red(output.getPixel(216, 96)) in 128..254)
+            val ramp = (120..264 step 8).map { Color.red(output.getPixel(it, 96)) }
+            assertEquals(ramp, ramp.sorted())
+            assertTrue(ramp.zipWithNext().all { (a, b) -> b - a < 40 })
             assertEquals(Color.BLACK, output.getPixel(0, 96))
             assertEquals(Color.WHITE, output.getPixel(383, 96))
         } finally { output.recycle(); bitmap.recycle() }
