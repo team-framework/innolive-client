@@ -37,6 +37,8 @@ fun LiveVideoPanels(
     originalIsMain: Boolean = false,
     /** 메인 영역과 같은 크기로 그 위에 그릴 내용입니다. 얼굴 선택 윤곽이 메인 영상 좌표에 맞도록 씁니다. */
     mainOverlay: (@Composable BoxScope.() -> Unit)? = null,
+    /** 원본 카메라가 열릴 때마다 그 카메라 방향으로 불립니다. */
+    onCameraOpened: (CameraLensFacing) -> Unit = {},
 ) {
     BoxWithConstraints(modifier = modifier) {
         val aspectRatio = if (maxWidth > maxHeight) 16f / 9f else 9f / 16f
@@ -89,6 +91,7 @@ fun LiveVideoPanels(
                 // 분석기의 가림 처리 미리보기 출력은 하나뿐이므로 메인이 쓰는 동안 작은 창은 원본만 보여 줍니다.
                 showAdjustedColorPreview = if (isDirectPublish) !directProcessedMain else localVideoTrack == null,
                 processedPreviewEglContext = if (isDirectPublish) eglContext else null,
+                onCameraOpened = onCameraOpened,
                 modifier = Modifier.fillMaxSize(),
             )
             if (isConnected && !onDeviceProcessing && localVideoTrack != null) {

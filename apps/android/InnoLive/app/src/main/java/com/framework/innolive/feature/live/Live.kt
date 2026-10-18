@@ -139,6 +139,8 @@ private fun LiveScreenContent(
     var faceManagementUsesBroadcastCamera by remember { mutableStateOf(false) }
     // 홈 화면 원탭 얼굴 등록입니다. 선택 중에는 원본 카메라를 메인에 두고 송출 화면을 작은 창으로 보냅니다.
     var isSelectingFace by remember { mutableStateOf(false) }
+    // 마지막으로 열린 카메라 방향입니다. 고른 방향과 다르면 카메라를 바꾸는 중입니다.
+    var openedCameraLensFacing by remember { mutableStateOf<CameraLensFacing?>(null) }
     // 방송 설정 창 하나에서 화질·플랫폼·플랫폼별 설정을 고릅니다. 탭은 열 때 보여 줄 플랫폼입니다.
     var openSettingsDialog by remember { mutableStateOf(false) }
     var openYouTubeEditor by remember { mutableStateOf(false) }
@@ -378,8 +380,11 @@ private fun LiveScreenContent(
             WebRtcConnectionState.CONNECTED,
         ) && !webRtcSession.isPreparingBroadcast &&
             webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
+    val isSwitchingCamera = openedCameraLensFacing.let { it != null && it != props.cameraLensFacing }
     // 송출 카메라 프레임이 계속 들어오는 동안만 얼굴을 고릅니다. 연결·준비 중에는 카메라가 바뀔 수 있어 선택을 끝냅니다.
+    // iOS처럼 카메라를 바꾸는 동안에는 선택을 시작하지 않습니다.
     val canSelectFace = mediaPermissionState.hasCameraPermission &&
+        !isSwitchingCamera &&
         !presentation.isConnecting &&
         !webRtcSession.isPreparingBroadcast &&
         webRtcSession.broadcastState in FaceSelectionBroadcastStates
@@ -426,6 +431,7 @@ private fun LiveScreenContent(
                 isDirectPublish = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
                 modifier = Modifier.fillMaxSize(),
                 originalIsMain = isSelectingFace,
+                onCameraOpened = { openedCameraLensFacing = it },
                 mainOverlay = if (isSelectingFace) {
                     {
                         // iOS처럼 원본 위에서 얼굴을 고르면 백그라운드로 등록하고 바로 송출 화면으로 돌아갑니다.
@@ -490,7 +496,8 @@ private fun LiveScreenContent(
                 .align(Alignment.CenterEnd)
                 .padding(end = 16.dp),
             canOpenSettings = !presentation.isConnecting,
-            canSwitchCamera = props.canSwitchCamera && !presentation.isConnecting,
+            // 선택 중 카메라가 바뀌면 고르던 얼굴 좌표와 좌우 반전이 맞지 않으므로 전환을 막습니다.
+            canSwitchCamera = props.canSwitchCamera && !presentation.isConnecting && !isSelectingFace,
             canManageFace = canManageFace,
             onOpenSettings = props.onOpenSettings,
             onOpenVideoControls = { openVideoControls = true },
