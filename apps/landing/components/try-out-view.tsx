@@ -4,14 +4,13 @@ import { useId, useState } from "react";
 import { Button } from "@/components/button";
 import { TryOutVideoPanels } from "@/components/try-out-video-panels";
 import { Dialog } from "@/components/dialog";
-import { FaceRegistrationOverlay } from "@/components/face-registration-overlay";
 import { WaitingOverlay } from "@/components/waiting-overlay";
 import { SequentialHeroHeading } from "@/components/sequential-hero-heading";
 import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
 
 type Preview = "guest" | "active" | "member";
-type Overlay = "none" | "face" | "waiting";
+type Overlay = "none" | "waiting";
 
 export function TryOutView() {
   const { href, messages } = useLocale();
@@ -104,14 +103,6 @@ export function TryOutView() {
                   >
                     {messages.tryOut.stop}
                   </Button>
-                  <Button
-                    variant="secondary"
-                    showChevron={false}
-                    className="w-[8.6875rem] max-w-[8.6875rem]"
-                    onClick={() => setOverlay("face")}
-                  >
-                    {messages.tryOut.registerFace}
-                  </Button>
                 </>
               ) : null}
               {preview === "member" ? (
@@ -152,13 +143,6 @@ export function TryOutView() {
         label={messages.tryOut.waitingPreview}
       >
         <WaitingOverlay />
-      </Dialog>
-      <Dialog
-        open={overlay === "face"}
-        onClose={closeOverlay}
-        label={messages.tryOut.facePreview}
-      >
-        <FaceRegistrationOverlay />
       </Dialog>
     </section>
   );
