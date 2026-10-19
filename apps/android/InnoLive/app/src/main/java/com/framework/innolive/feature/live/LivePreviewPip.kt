@@ -72,6 +72,10 @@ class LivePreviewPipState internal constructor(alignEnd: Boolean, verticalFracti
     internal var bottomControlsHeightPx by mutableFloatStateOf(0f)
     /** 가로 화면에서 오른쪽 열에 놓인 방송 버튼 묶음의 폭입니다. 세로 화면에서는 0입니다. */
     internal var rightControlsWidthPx by mutableFloatStateOf(0f)
+    /** 가로 화면에서 왼쪽 열에 놓인 카메라 도구의 폭입니다. 세로 화면에서는 0입니다. */
+    internal var leftControlsWidthPx by mutableFloatStateOf(0f)
+    /** 상단 바 아래 안내·상태 칩이 끝나는 높이입니다. 작은 창은 그 아래부터 둡니다. */
+    internal var topReservePx by mutableFloatStateOf(0f)
 
     /** 작은 창과 카메라 도구가 비워 둘 하단 높이입니다. 측정 전에는 기본 높이를 씁니다. */
     internal fun bottomReservePx(density: Density): Float =

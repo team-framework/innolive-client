@@ -73,13 +73,15 @@ fun LiveVideoPanels(
         val pipArea = with(density) {
             val size = Size(pipWidth.toPx(), pipHeight.toPx())
             val margin = PipMargin.toPx()
-            val minY = (LiveStudioTopInset + PipTopGap).toPx()
+            val minY = maxOf((LiveStudioTopInset + PipTopGap).toPx(), pipState.topReservePx + PipTopGap.toPx())
+            // 가로 화면에서는 왼쪽 열의 카메라 도구 오른쪽부터 둡니다.
+            val minX = margin + pipState.leftControlsWidthPx
             LivePreviewPipArea(
                 size = size,
-                minX = margin,
+                minX = minX,
                 // 가로 화면에서는 오른쪽 열의 방송 버튼과 겹치지 않게 그 왼쪽까지만 둡니다.
                 maxX = (constraints.maxWidth - size.width - margin - pipState.rightControlsWidthPx)
-                    .coerceAtLeast(margin),
+                    .coerceAtLeast(minX),
                 minY = minY,
                 // 기본 화면 하단의 방송 버튼과 상태 패널은 가리지 않는 높이까지 내립니다.
                 maxY = (constraints.maxHeight - size.height - pipState.bottomReservePx(this) - margin)

@@ -7,6 +7,9 @@ import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.outlined.Sensors
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
@@ -31,6 +34,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -120,7 +124,8 @@ import com.framework.innolive.feature.live.direct.broadcast.directTargetRows
 import com.framework.innolive.feature.live.direct.broadcast.isDirectBroadcastModeLocked
 import com.framework.innolive.feature.live.direct.broadcast.reconcileDirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.withSelectedPlatform
-import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
+import com.framework.innolive.feature.live.status.BroadcastLiveStatusChip
+import com.framework.innolive.feature.live.status.BroadcastLiveStatusWarnings
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchors
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
@@ -458,6 +463,29 @@ private fun LiveScreenContent(
         openFaceManagement = true
     }
 
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // 방송 상태는 상단의 칩 하나로 보여 줍니다. 방송 전에는 고른 구성을, 방송 중에는 플랫폼별 송출 상태를 보여 줍니다.
+    val directUiState = webRtcSession.directBroadcastUiState
+    val statusTargets = directTargetRows(sessionSnapshot?.visibleTargets.orEmpty(), directUiState)
+    val nowElapsedMillis = rememberElapsedRealtime(ticking = directUiState.preparedDeadlineElapsedMillis != null)
+    val directWarnings = directStatusWarnings(directUiState, nowElapsedMillis)
+    val statusPlan = webRtcSession.directBroadcastPlan
+    val showPlan = !isDirectModeLocked && statusTargets.isEmpty()
+    val statusRows = if (showPlan) directPlanRows(statusPlan) else statusTargets
+    val statusResolution = if (showPlan) statusPlan.resolution.wireValue
+        else sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected }
+    val statusUplink = webRtcSession.uplinkQuality.takeIf { presentation.isConnected && !showPlan }
+    val statusChip: @Composable (Modifier) -> Unit = { chipModifier ->
+        if (statusRows.isNotEmpty()) {
+            BroadcastLiveStatusChip(
+                targets = statusRows,
+                broadcastResolution = statusResolution,
+                uplinkQuality = statusUplink,
+                modifier = chipModifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
+            )
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -515,41 +543,60 @@ private fun LiveScreenContent(
                     )
                 }
             },
-            // 설정은 왼쪽으로 넘겨 열고, 상단에는 방송 시간만 둡니다.
+            // 설정은 왼쪽으로 넘겨 열고, 상단에는 방송 시간을 둡니다. 가로 화면은 높이가 낮아 그 옆에 방송 상태를 붙입니다.
             topBar = {
                 val isRemainingTimeStale = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null &&
                     sessionSnapshot?.isRemainingTimeStale == true
-                BroadcastTimeDisplay(
-                    uptime = broadcastDurationText,
-                    remaining = rememberRemainingCountdown(
-                        remaining = displayedRemainingTime(
-                            webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null, sessionSnapshot, props.planUsage,
-                        ),
-                        // 송출 중인 세션 값만 줄인다. 요금제 미리보기나 일시 중지·갱신 지연 중에는 그대로 둔다.
-                        counting = webRtcSession.broadcastState == BroadcastState.LIVE && !isRemainingTimeStale &&
-                            sessionSnapshot?.remainingTime is BroadcastRemainingTime.Seconds,
+                val remaining = rememberRemainingCountdown(
+                    remaining = displayedRemainingTime(
+                        webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null, sessionSnapshot, props.planUsage,
                     ),
-                    isStale = isRemainingTimeStale,
-                    onOpenPlan = props.onOpenPlan,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(horizontal = 16.dp),
+                    // 송출 중인 세션 값만 줄인다. 요금제 미리보기나 일시 중지·갱신 지연 중에는 그대로 둔다.
+                    counting = webRtcSession.broadcastState == BroadcastState.LIVE && !isRemainingTimeStale &&
+                        sessionSnapshot?.remainingTime is BroadcastRemainingTime.Seconds,
                 )
+                if (landscape) {
+                    Row(
+                        modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        BroadcastTimeDisplay(
+                            uptime = broadcastDurationText,
+                            remaining = remaining,
+                            isStale = isRemainingTimeStale,
+                            onOpenPlan = props.onOpenPlan,
+                            compact = true,
+                        )
+                        statusChip(Modifier)
+                    }
+                } else {
+                    BroadcastTimeDisplay(
+                        uptime = broadcastDurationText,
+                        remaining = remaining,
+                        isStale = isRemainingTimeStale,
+                        onOpenPlan = props.onOpenPlan,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 16.dp),
+                    )
+                }
             },
             // 카메라 화면은 조작 요소 없이 미리보기만 보여 줍니다.
             cameraPage = {},
             homePage = {
-                // 카메라 도구는 사용량 안내 아래에 두고, 오른쪽에 붙은 작은 창과 겹치면 창 아래나 왼쪽으로 비켜 둡니다.
-                // 안내 높이와 작은 창 자리가 바뀌면 같은 스프링으로 따라 움직여 위치가 한 번에 튀지 않습니다.
                 val density = LocalDensity.current
-                val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 var pageSize by remember { mutableStateOf(IntSize.Zero) }
-                var bannerHeightPx by remember { mutableIntStateOf(0) }
+                var noticeHeightPx by remember { mutableIntStateOf(0) }
+                var chipHeightPx by remember { mutableIntStateOf(0) }
                 var toolsHeightPx by remember { mutableIntStateOf(0) }
                 Box(Modifier.matchParentSize().onSizeChanged { pageSize = it })
-                Box(
-                    Modifier.align(Alignment.TopCenter).padding(top = LiveStudioTopInset).fillMaxWidth()
-                        .onSizeChanged { bannerHeightPx = it.height },
+                // 사용량 안내와 방송 주의 안내는 상단 바 바로 아래 가운데에 모읍니다.
+                Column(
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = LiveStudioTopInset).fillMaxWidth()
+                        .onSizeChanged { noticeHeightPx = it.height },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     SessionUsageWarningBanner(
                         noticeCode = activeNoticeCode,
@@ -557,9 +604,28 @@ private fun LiveScreenContent(
                             dismissedNoticeCodes = dismissedNoticeCodes + code
                             if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
                         },
-                        modifier = Modifier.align(Alignment.TopCenter).widthIn(max = LandscapeStatusMaxWidth + 160.dp)
-                            .padding(horizontal = 10.dp),
+                        modifier = Modifier.widthIn(max = 560.dp).padding(horizontal = 10.dp),
                     )
+                    BroadcastLiveStatusWarnings(
+                        warnings = directWarnings,
+                        uplinkQuality = statusUplink,
+                        modifier = Modifier.padding(horizontal = 16.dp).widthIn(max = 420.dp),
+                    )
+                }
+                val noticeBottomPx = with(density) { LiveStudioTopInset.toPx() } + noticeHeightPx
+                val rowTopPx = noticeBottomPx + with(density) { 8.dp.toPx() }
+                // 세로 화면은 상태 칩을 왼쪽 위에, 카메라 도구를 오른쪽 위에 같은 높이로 둡니다.
+                if (!landscape) {
+                    Box(
+                        Modifier.align(Alignment.TopStart)
+                            .offset { IntOffset(0, rowTopPx.roundToInt()) }
+                            .onSizeChanged { chipHeightPx = it.height }
+                            .padding(start = 16.dp, end = 120.dp),
+                    ) { statusChip(Modifier) }
+                }
+                // 작은 창은 안내와 상태 칩 아래에만 놓아 서로 가리지 않게 합니다.
+                SideEffect {
+                    pipState.topReservePx = if (!landscape && chipHeightPx > 0) rowTopPx + chipHeightPx else noticeBottomPx
                 }
                 if (!isSelectingFace) {
                     GuestRegistrationToast(
@@ -567,37 +633,54 @@ private fun LiveScreenContent(
                         onReselect = { if (canSelectFace) isSelectingFace = true },
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(start = 24.dp, top = LiveStudioTopInset + 32.dp, end = 24.dp),
+                            .offset { IntOffset(0, rowTopPx.roundToInt()) }
+                            .padding(horizontal = 24.dp),
                     )
                 }
-                val toolsTarget = with(density) {
-                    cameraToolsPlacement(
-                        naturalTop = LiveStudioTopInset.toPx() + bannerHeightPx + 8.dp.toPx(),
-                        toolsHeight = toolsHeightPx.toFloat(),
-                        toolsRight = pageSize.width - 16.dp.toPx() - pipState.rightControlsWidthPx,
-                        maxTop = pageSize.height - pipState.bottomReservePx(this) - 12.dp.toPx() - toolsHeightPx,
-                        pipBounds = pipState.restingBounds.takeIf { pipState.isVisible && pipState.alignEnd },
-                        gap = 12.dp.toPx(),
+                if (landscape) {
+                    // 가로 화면은 왼쪽 띠에 카메라 도구를 세로로 두어 왼손 엄지가 닿게 하고, 영상은 가리지 않습니다.
+                    LiveCameraTools(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .onSizeChanged { pipState.leftControlsWidthPx = it.width.toFloat() }
+                            .padding(start = 12.dp, end = 4.dp, top = LiveStudioTopInset, bottom = 12.dp),
+                        canManageFace = canManageFace,
+                        onOpenVideoControls = { openVideoControls = true },
+                        onOpenFaceManagement = openFaceManagementScreen,
+                        canSelectFace = canSelectFace,
+                        isSelectingFace = isSelectingFace,
+                        onToggleFaceSelection = { isSelectingFace = !isSelectingFace },
+                    )
+                } else {
+                    SideEffect { pipState.leftControlsWidthPx = 0f }
+                    // 오른쪽에 붙은 작은 창과 겹치면 창 아래나 왼쪽으로 비키고, 같은 스프링으로 따라 움직입니다.
+                    val toolsTarget = with(density) {
+                        cameraToolsPlacement(
+                            naturalTop = rowTopPx,
+                            toolsHeight = toolsHeightPx.toFloat(),
+                            toolsRight = pageSize.width - 16.dp.toPx(),
+                            maxTop = pageSize.height - pipState.bottomReservePx(this) - 12.dp.toPx() - toolsHeightPx,
+                            pipBounds = pipState.restingBounds.takeIf { pipState.isVisible && pipState.alignEnd },
+                            gap = 12.dp.toPx(),
+                        )
+                    }
+                    val toolsSpring = spring<Float>(stiffness = Spring.StiffnessMediumLow)
+                    val toolsTop by animateFloatAsState(toolsTarget.top, toolsSpring, label = "cameraToolsTop")
+                    val toolsShiftLeft by animateFloatAsState(toolsTarget.shiftLeft, toolsSpring, label = "cameraToolsShift")
+                    LiveCameraTools(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset { IntOffset(-toolsShiftLeft.roundToInt(), toolsTop.roundToInt()) }
+                            .padding(end = 12.dp)
+                            .onSizeChanged { toolsHeightPx = it.height },
+                        canManageFace = canManageFace,
+                        onOpenVideoControls = { openVideoControls = true },
+                        onOpenFaceManagement = openFaceManagementScreen,
+                        canSelectFace = canSelectFace,
+                        isSelectingFace = isSelectingFace,
+                        onToggleFaceSelection = { isSelectingFace = !isSelectingFace },
                     )
                 }
-                val toolsSpring = spring<Float>(stiffness = Spring.StiffnessMediumLow)
-                val toolsTop by animateFloatAsState(toolsTarget.top, toolsSpring, label = "cameraToolsTop")
-                val toolsShiftLeft by animateFloatAsState(toolsTarget.shiftLeft, toolsSpring, label = "cameraToolsShift")
-                LiveCameraTools(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset {
-                            IntOffset(-(toolsShiftLeft + pipState.rightControlsWidthPx).roundToInt(), toolsTop.roundToInt())
-                        }
-                        .padding(end = 16.dp)
-                        .onSizeChanged { toolsHeightPx = it.height },
-                    canManageFace = canManageFace,
-                    onOpenVideoControls = { openVideoControls = true },
-                    onOpenFaceManagement = openFaceManagementScreen,
-                    canSelectFace = canSelectFace,
-                    isSelectingFace = isSelectingFace,
-                    onToggleFaceSelection = { isSelectingFace = !isSelectingFace },
-                )
 
                 val switchCameraButton: @Composable () -> Unit = {
                     IconButton(
@@ -955,16 +1038,17 @@ private fun LiveScreenContent(
                     )
                 }
                 // 가로에서는 세로 하단 바를 기기 오른쪽 끝으로 옮깁니다. 기기를 돌렸을 때 세로 하단이 놓이는 자리입니다.
+                // 오른손 엄지가 닿는 가운데에 방송 버튼을 두고, 익명화와 카메라 전환을 위아래 끝에 둡니다.
                 if (landscape) {
-                    // 오른손 엄지가 닿는 세로 가운데에 방송 버튼을 두고, 높이가 모자라면 잘리지 않게 스크롤합니다.
                     Column(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
                             .onSizeChanged { pipState.rightControlsWidthPx = it.width.toFloat() }
-                            .padding(end = 16.dp, top = 8.dp, bottom = 8.dp)
-                            .verticalScroll(rememberScrollState()),
+                            .padding(start = 4.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
+                            .widthIn(min = 72.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
                     ) {
                         anonymizationButton()
                         broadcastControls(Modifier)
@@ -976,12 +1060,12 @@ private fun LiveScreenContent(
 
                 Column(
                     modifier = Modifier
-                        .align(if (landscape) Alignment.BottomStart else Alignment.BottomCenter)
+                        .align(Alignment.BottomCenter)
                         // 작은 창과 카메라 도구가 이 높이 위에만 놓이도록 실제 하단 영역 높이를 알려 줍니다.
                         .onSizeChanged { pipState.bottomControlsHeightPx = it.height.toFloat() }
-                        .then(if (landscape) Modifier.widthIn(max = LandscapeStatusMaxWidth) else Modifier)
+                        .then(if (landscape) Modifier.widthIn(max = 420.dp) else Modifier)
                         .padding(vertical = 12.dp),
-                    horizontalAlignment = if (landscape) Alignment.Start else Alignment.CenterHorizontally,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     if (BuildConfig.DEBUG) {
@@ -995,29 +1079,6 @@ private fun LiveScreenContent(
                                 ),
                             )
                         }
-                    }
-                    val directUiState = webRtcSession.directBroadcastUiState
-                    val statusTargets = directTargetRows(sessionSnapshot?.visibleTargets.orEmpty(), directUiState)
-                    val nowElapsedMillis = rememberElapsedRealtime(ticking = directUiState.preparedDeadlineElapsedMillis != null)
-                    val directWarnings = directStatusWarnings(directUiState, nowElapsedMillis)
-                    // 방송 전에는 같은 상태 패널에 고른 구성을 보여 줍니다. 구성은 방송 설정 창에서 바꿉니다.
-                    val plan = webRtcSession.directBroadcastPlan
-                    val showPlan = !isDirectModeLocked && statusTargets.isEmpty()
-                    val panelTargets = if (showPlan) directPlanRows(plan) else statusTargets
-                    if (panelTargets.isNotEmpty() || directWarnings.isNotEmpty()) {
-                        BroadcastLiveStatusPanel(
-                            targets = panelTargets,
-                            warnings = directWarnings,
-                            broadcastResolution = if (showPlan) plan.resolution.wireValue
-                            else sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected },
-                            uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected && !showPlan },
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp)
-                                // 가로 화면에서는 플랫폼과 상태가 너무 멀어지지 않게 폭을 좁힙니다.
-                                .widthIn(max = if (landscape) 300.dp else 360.dp)
-                                .fillMaxWidth()
-                                .broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
-                        )
                     }
                     // Figma 기본 화면처럼 카메라 전환·방송 버튼·익명화를 한 줄에 둡니다. 가로에서는 오른쪽 열로 옮깁니다.
                     if (!landscape) {
@@ -1190,17 +1251,17 @@ internal fun LiveCameraTools(
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         LiveCameraToolButton(
             label = stringResource(R.string.video_controls_title),
             onClick = onOpenVideoControls,
-        ) { Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.size(26.dp)) }
+        ) { Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.size(22.dp)) }
         LiveCameraToolButton(
             label = stringResource(R.string.face_management),
             onClick = onOpenFaceManagement,
             enabled = canManageFace,
-        ) { Icon(Icons.Default.Face, contentDescription = null, modifier = Modifier.size(28.dp)) }
+        ) { Icon(Icons.Default.Face, contentDescription = null, modifier = Modifier.size(24.dp)) }
         // 홈 화면 원탭 등록 토글입니다. 선택 중에는 취소 버튼이 됩니다.
         LiveCameraToolButton(
             label = stringResource(
@@ -1212,13 +1273,16 @@ internal fun LiveCameraTools(
             Icon(
                 imageVector = if (isSelectingFace) Icons.Default.Close else Icons.Default.PersonAdd,
                 contentDescription = null,
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier.size(22.dp),
             )
         }
     }
 }
 
-/** PRISM 스튜디오 도구처럼 흰 원형 버튼과 이름을 한 덩어리로 누릅니다. */
+/**
+ * 영상 위에 놓이는 보조 도구라 흰 원 대신 반투명한 어두운 원으로 가볍게 두고, 흰 바탕은 방송 버튼에만 씁니다.
+ * 아이콘과 이름을 한 덩어리로 누릅니다.
+ */
 @Composable
 private fun LiveCameraToolButton(
     label: String,
@@ -1226,31 +1290,34 @@ private fun LiveCameraToolButton(
     enabled: Boolean = true,
     icon: @Composable () -> Unit,
 ) {
+    val contentColor = if (enabled) Color.White else Color.White.copy(alpha = 0.45f)
     Column(
         modifier = Modifier
-            .widthIn(min = 72.dp)
+            .widthIn(min = 64.dp, max = 96.dp)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Surface(
-            modifier = Modifier.size(52.dp),
+            modifier = Modifier.size(44.dp),
             shape = CircleShape,
-            color = if (enabled) Color.White else Color.White.copy(alpha = 0.45f),
-            contentColor = Color.Black,
+            color = Color.Black.copy(alpha = 0.45f),
+            contentColor = contentColor,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
         ) {
             Box(contentAlignment = Alignment.Center) { icon() }
         }
         // 밝은 장면 위에서도 읽히도록 이름 뒤에 반투명한 어두운 바탕을 깝니다.
         Text(
             text = label,
-            color = if (enabled) Color.White else Color.White.copy(alpha = 0.6f),
-            style = MaterialTheme.typography.labelMedium.copy(shadow = LiveLabelShadow),
+            color = contentColor,
+            style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.Center,
+            maxLines = 2,
             modifier = Modifier
-                .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50))
-                .padding(horizontal = 8.dp, vertical = 2.dp),
+                .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
 }
@@ -1325,21 +1392,67 @@ internal fun BroadcastActionControls(
         contentAlignment = Alignment.Center,
     ) {
         centerOverlay()
-        // 가로 화면에서도 글자를 돌리지 않고 바로 읽히도록 폭만 줄인 같은 버튼을 씁니다.
-        VerticalHeroButton(
-            text = stringResource(presentation.broadcastButtonTextRes),
-            enabled = presentation.isBroadcastButtonEnabled,
-            onClick = onBroadcastAction,
-            modifier = if (vertical) buttonModifier.width(LandscapeHeroWidth) else buttonModifier,
-        )
+        if (vertical) {
+            // 가로 화면은 카메라 셔터처럼 엄지가 닿는 둥근 버튼을 두고, 상태 이름은 그 아래에 바로 읽히게 적습니다.
+            LandscapeHeroButton(
+                text = stringResource(presentation.broadcastButtonTextRes),
+                enabled = presentation.isBroadcastButtonEnabled,
+                live = presentation.isBroadcastLive,
+                onClick = onBroadcastAction,
+                buttonModifier = buttonModifier,
+            )
+        } else {
+            VerticalHeroButton(
+                text = stringResource(presentation.broadcastButtonTextRes),
+                enabled = presentation.isBroadcastButtonEnabled,
+                onClick = onBroadcastAction,
+                modifier = buttonModifier,
+            )
+        }
     }
 }
 
-/** 가로 화면에서 상태 패널과 안내가 차지할 최대 폭입니다. */
-private val LandscapeStatusMaxWidth = 400.dp
 
-/** 가로 화면 오른쪽 열의 방송 버튼 폭입니다. 긴 문구는 두 줄로 나눠 보여 줍니다. */
-private val LandscapeHeroWidth = 156.dp
+@Composable
+private fun LandscapeHeroButton(
+    text: String,
+    enabled: Boolean,
+    live: Boolean,
+    onClick: () -> Unit,
+    buttonModifier: Modifier,
+) {
+    Column(
+        modifier = Modifier
+            .widthIn(max = 112.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Surface(
+            modifier = buttonModifier.size(68.dp),
+            shape = CircleShape,
+            // 방송 중에는 빨간 버튼으로 바꿔 지금 송출 중임을 멀리서도 알게 합니다.
+            color = when {
+                !enabled -> Color(0xFF8A8A8A)
+                live -> Color(0xFFE53935)
+                else -> Color.White
+            },
+            contentColor = if (live) Color.White else Color.Black,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Sensors, contentDescription = null, modifier = Modifier.size(30.dp))
+            }
+        }
+        Text(
+            text = text,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge.copy(shadow = LiveLabelShadow),
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+        )
+    }
+}
 
 @Composable
 internal fun BroadcastActionDialog(
