@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,10 +42,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.SessionSnapshot
+import com.framework.innolive.ui.theme.InnoLiveDialog
+import com.framework.innolive.ui.theme.ModalSurface
 import kotlinx.coroutines.delay
 import java.io.ByteArrayInputStream
 import java.net.URI
@@ -316,11 +316,9 @@ internal fun YouTubeViewerChatDialog(url: String, onDismiss: () -> Unit) {
         }
     }
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.85f),
-            shape = MaterialTheme.shapes.large,
-        ) {
+    // 다른 방송 모달과 같은 흰 유리 창으로 띄우고 뒤 방송 화면은 흐리게 합니다.
+    InnoLiveDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        ModalSurface(modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.85f)) {
             Column(
                 Modifier.fillMaxSize().padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
