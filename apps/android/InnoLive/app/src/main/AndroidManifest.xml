@@ -46,6 +46,16 @@
             android:name=".feature.live.recording.BroadcastRecordingSaveService"
             android:exported="false"
             android:foregroundServiceType="shortService" />
+        <!-- 저장된 방송을 공유 시트로 넘깁니다. 캐시의 공유 폴더만 노출합니다. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.recordings"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/recording_share_paths" />
+        </provider>
     </application>
 
 </manifest>

@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live.recording
 
+import android.content.ActivityNotFoundException
 import android.text.format.DateFormat
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -22,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -39,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -53,28 +57,38 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 
 /**
- * 저장된 방송 목록입니다. 각 항목을 5가지 형식(블러 전·후 × 오디오 유무, 오디오만)으로 다운로드 폴더에
- * 내보내거나 삭제합니다. 방송 중에는 송출 자원을 지키려고 내보내기를 막습니다.
+ * 저장된 방송 목록입니다(iOS `BroadcastRecordingLibraryView`). 열 때 앱 종료로 마치지 못한 녹화를 복구하고,
+ * 각 항목을 블러 전·후 중 하나로 골라 iOS와 같은 세 동작(영상과 음성 공유, 분리 공유, 갤러리 저장)으로
+ * 내보내거나 삭제합니다. 방송 준비·방송 중에는 이 화면에 들어올 수 없습니다.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BroadcastRecordingLibraryScreen(
-    canExport: Boolean,
+    isSaving: Boolean,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val store = remember(context) { BroadcastRecordingStore(BroadcastRecordingStore.defaultRoot(context)) }
     val exporter = remember(store) { BroadcastRecordingExporter(context.applicationContext, store) }
     val scope = rememberCoroutineScope()
-    var recordings by remember { mutableStateOf<List<SavedBroadcastRecording>?>(null) }
+    var library by remember { mutableStateOf<BroadcastRecordingLibrary?>(null) }
     var reloadKey by remember { mutableIntStateOf(0) }
     var exportTarget by remember { mutableStateOf<SavedBroadcastRecording?>(null) }
     var deleteTarget by remember { mutableStateOf<SavedBroadcastRecording?>(null) }
+    var deletePreserved by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<UiText?>(null) }
 
-    LaunchedEffect(reloadKey) {
-        recordings = withContext(Dispatchers.IO) { runCatching { store.list() }.getOrDefault(emptyList()) }
+    // 저장이 끝나면 목록을 다시 읽습니다.
+    LaunchedEffect(reloadKey, isSaving) {
+        val loaded = withContext(Dispatchers.IO) {
+            runCatching { exporter.cleanupStaleShares() }
+            runCatching { store.load() }.getOrDefault(BroadcastRecordingLibrary(emptyList(), emptyList()))
+        }
+        library = loaded
+        if (loaded.recoveredCount > 0) {
+            message = UiText.Resource(R.string.recording_library_recovered, listOf(loaded.recoveredCount))
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -93,14 +107,34 @@ fun BroadcastRecordingLibraryScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
-        if (!canExport) {
-            Text(
-                stringResource(R.string.recording_export_unavailable_live),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.bodySmall,
-            )
+        if (isSaving) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(modifier = Modifier.padding(2.dp))
+                Text(stringResource(R.string.recording_library_saving), style = MaterialTheme.typography.bodyMedium)
+            }
         }
-        val list = recordings
+        val preserved = library?.preserved.orEmpty()
+        if (preserved.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("recording-preserved"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.recording_library_preserved, preserved.size,
+                        Formatter.formatShortFileSize(context, preserved.sumOf { it.bytes })),
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                TextButton(onClick = { deletePreserved = true }, enabled = !busy) {
+                    Text(stringResource(R.string.recording_library_preserved_delete))
+                }
+            }
+        }
+        val list = library?.recordings
         when {
             list == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             list.isEmpty() -> Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -115,19 +149,21 @@ fun BroadcastRecordingLibraryScreen(
                                 DateFormat.getTimeFormat(context).format(Date(recording.createdAtMillis)))
                         },
                         supportingContent = {
-                            Text(
-                                formatBroadcastDuration(recording.durationMs) + " · " +
-                                    Formatter.formatShortFileSize(context, recording.bytes) + " · " +
-                                    stringResource(
-                                        if (recording.hasProcessed) R.string.recording_item_processed_available
-                                        else R.string.recording_item_original_only,
-                                    ),
+                            val details = listOfNotNull(
+                                formatBroadcastDuration(recording.durationMs),
+                                Formatter.formatShortFileSize(context, recording.bytes),
+                                stringResource(
+                                    if (recording.hasProcessed) R.string.recording_item_processed_available
+                                    else R.string.recording_item_original_only,
+                                ),
+                                if (recording.recovered) stringResource(R.string.recording_item_recovered) else null,
                             )
+                            Text(details.joinToString(" · "))
                         },
                         trailingContent = {
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                TextButton(onClick = { exportTarget = recording }, enabled = canExport && !busy) {
-                                    Text(stringResource(R.string.action_download))
+                                TextButton(onClick = { exportTarget = recording }, enabled = !busy) {
+                                    Text(stringResource(R.string.action_export))
                                 }
                                 TextButton(onClick = { deleteTarget = recording }, enabled = !busy) {
                                     Text(stringResource(R.string.action_delete))
@@ -141,19 +177,32 @@ fun BroadcastRecordingLibraryScreen(
     }
 
     exportTarget?.let { recording ->
+        val chooserTitle = stringResource(R.string.recording_export_chooser_title)
         RecordingExportDialog(
             recording = recording,
             busy = busy,
-            onSelect = { format ->
+            onSelect = { source, action ->
                 busy = true
                 message = UiText.Resource(R.string.recording_export_in_progress)
                 scope.launch {
                     try {
-                        val exported = exporter.export(recording, format)
-                        message = UiText.Resource(R.string.recording_export_done, listOf(exported.displayName))
+                        if (action == RecordingExportAction.SAVE_TO_GALLERY) {
+                            val name = exporter.saveToGallery(recording, source)
+                            message = UiText.Resource(R.string.recording_export_gallery_done, listOf(name))
+                        } else {
+                            val share = exporter.prepareShare(recording, source, split = action == RecordingExportAction.SHARE_SPLIT)
+                            message = null
+                            context.startActivity(exporter.chooserIntent(share, chooserTitle))
+                        }
                         exportTarget = null
                     } catch (error: CancellationException) {
                         throw error
+                    } catch (error: RecordingExportException) {
+                        message = UiText.Resource(
+                            if (error.insufficientSpace) R.string.recording_export_no_space else R.string.recording_export_failed,
+                        )
+                    } catch (_: ActivityNotFoundException) {
+                        message = UiText.Resource(R.string.recording_export_failed)
                     } catch (_: Exception) {
                         message = UiText.Resource(R.string.recording_export_failed)
                     } finally {
@@ -176,7 +225,10 @@ fun BroadcastRecordingLibraryScreen(
                 Button(onClick = {
                     deleteTarget = null
                     scope.launch {
-                        val deleted = withContext(Dispatchers.IO) { runCatching { store.delete(recording) }.getOrDefault(false) }
+                        val deleted = withContext(Dispatchers.IO) {
+                            runCatching { exporter.deleteShares(recording.id) }
+                            runCatching { store.delete(recording) }.getOrDefault(false)
+                        }
                         message = if (deleted) null else UiText.Resource(R.string.recording_delete_failed)
                         reloadKey++
                     }
@@ -187,27 +239,70 @@ fun BroadcastRecordingLibraryScreen(
             },
         )
     }
+
+    if (deletePreserved) {
+        val preserved = library?.preserved.orEmpty()
+        AlertDialog(
+            onDismissRequest = { deletePreserved = false },
+            title = { Text(stringResource(R.string.recording_library_preserved_delete_title)) },
+            text = {
+                Text(stringResource(R.string.recording_library_preserved_delete_description,
+                    Formatter.formatShortFileSize(context, preserved.sumOf { it.bytes })))
+            },
+            confirmButton = {
+                Button(onClick = {
+                    deletePreserved = false
+                    scope.launch {
+                        val deleted = withContext(Dispatchers.IO) {
+                            runCatching { store.deletePreserved(preserved) }.getOrDefault(false)
+                        }
+                        message = if (deleted) null else UiText.Resource(R.string.recording_delete_failed)
+                        reloadKey++
+                    }
+                }) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { deletePreserved = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
 }
 
 @Composable
 private fun RecordingExportDialog(
     recording: SavedBroadcastRecording,
     busy: Boolean,
-    onSelect: (RecordingExportFormat) -> Unit,
+    onSelect: (RecordingExportSource, RecordingExportAction) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var source by remember(recording.id) { mutableStateOf(RecordingExportSource.ORIGINAL) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.recording_export_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.recording_export_description), style = MaterialTheme.typography.bodySmall)
-                RecordingExportFormat.entries.forEach { format ->
+                RecordingExportSource.entries.forEach { option ->
+                    val available = option.isAvailable(recording)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(selected = source == option, enabled = available && !busy, role = Role.RadioButton) {
+                                source = option
+                            }
+                            .testTag("recording-export-source-${option.name}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = source == option, onClick = null, enabled = available && !busy)
+                        Text(stringResource(option.labelRes), modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+                RecordingExportAction.entries.forEach { action ->
                     TextButton(
-                        onClick = { onSelect(format) },
-                        enabled = !busy && format.isAvailable(recording),
-                        modifier = Modifier.fillMaxWidth().testTag("recording-export-${format.name}"),
-                    ) { Text(stringResource(format.labelRes)) }
+                        onClick = { onSelect(source, action) },
+                        enabled = !busy && source.isAvailable(recording),
+                        modifier = Modifier.fillMaxWidth().testTag("recording-export-${action.name}"),
+                    ) { Text(stringResource(action.labelRes)) }
                 }
                 if (busy) {
                     Row(
