@@ -177,11 +177,18 @@ internal class AacEncoder(
     bitrateBps: Int,
     output: EncoderOutput,
     name: String = "direct-publish-audio",
+    /** 입력이 밀릴 때 보관할 청크 수입니다. 넘으면 오래된 청크부터 버립니다. */
+    private val maxPendingChunks: Int = MAX_PENDING_CHUNKS,
 ) : AsyncMediaEncoder(name, output) {
     constructor(profile: DirectPublishProfile, output: EncoderOutput) :
         this(profile.audioSampleRate, profile.audioChannels, profile.audioBitrateBps, output)
 
-    private class Chunk(val data: ByteArray, val size: Int, val presentationTimeUs: Long, val endOfStream: Boolean = false)
+    private class Chunk(
+        val data: ByteArray?,
+        val size: Int,
+        val presentationTimeUs: Long,
+        val endOfStream: Boolean = false,
+    )
 
     private val pending = ArrayDeque<Chunk>()
     private val freeInputs = ArrayDeque<Int>()
@@ -197,10 +204,18 @@ internal class AacEncoder(
     }
 
     /** 오디오 캡처 스레드에서 부릅니다. [data]는 이 호출 안에서 복사합니다. */
-    fun queuePcm(data: ByteArray, size: Int, presentationTimeUs: Long) {
-        val chunk = Chunk(data.copyOf(size), size, presentationTimeUs)
+    fun queuePcm(data: ByteArray, size: Int, presentationTimeUs: Long) =
+        enqueue(Chunk(data.copyOf(size), size, presentationTimeUs))
+
+    /** [size]바이트의 무음을 넣습니다. 데이터를 복사하지 않으므로 긴 공백도 메모리를 쓰지 않습니다. */
+    fun queueSilence(size: Int, presentationTimeUs: Long) {
+        require(size in 0..MAX_INPUT_BYTES)
+        enqueue(Chunk(null, size, presentationTimeUs))
+    }
+
+    private fun enqueue(chunk: Chunk) {
         synchronized(lock) {
-            if (pending.size >= MAX_PENDING_CHUNKS) pending.removeFirst()
+            if (pending.size >= maxPendingChunks) pending.removeFirst()
             pending.addLast(chunk)
         }
         handler.post(::drain)
@@ -208,7 +223,7 @@ internal class AacEncoder(
 
     /** 남은 청크 뒤에 입력 종료를 넣습니다. 마지막 출력이 나오면 [EncoderOutput.onEndOfStream]이 옵니다. */
     fun signalEndOfInput() {
-        synchronized(lock) { pending.addLast(Chunk(ByteArray(0), 0, 0L, endOfStream = true)) }
+        synchronized(lock) { pending.addLast(Chunk(null, 0, 0L, endOfStream = true)) }
         handler.post(::drain)
     }
 
@@ -239,13 +254,14 @@ internal class AacEncoder(
                 return
             }
             val size = minOf(chunk.size, input.remaining())
-            input.put(chunk.data, 0, size)
+            input.put(chunk.data ?: SILENCE, 0, size)
             codec.queueInputBuffer(index, 0, size, chunk.presentationTimeUs, 0)
         }
     }
 
-    private companion object {
+    internal companion object {
         const val MAX_INPUT_BYTES = 16 * 1024
         const val MAX_PENDING_CHUNKS = 50
+        private val SILENCE = ByteArray(MAX_INPUT_BYTES)
     }
 }

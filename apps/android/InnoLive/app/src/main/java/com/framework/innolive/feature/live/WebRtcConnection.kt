@@ -58,6 +58,8 @@ import org.webrtc.SessionDescription
 import org.webrtc.VideoTrack
 import org.webrtc.audio.JavaAudioDeviceModule
 import com.framework.innolive.feature.live.recording.RecordingAudioSink
+import com.framework.innolive.feature.live.recording.WebRtcRecordingAudioTap
+import org.webrtc.ExternalAudioProcessingFactory
 import java.io.IOException
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
@@ -245,8 +247,9 @@ internal class WebRtcConnection(
     @Volatile
     private var session: CreatedSession? = null
 
-    /** WebRTC 녹음 콜백의 PCM을 받는 녹화 싱크입니다. 처리(에코 제거) 전 마이크 입력입니다. */
-    @Volatile private var recordingAudioSink: RecordingAudioSink? = null
+    /** 음성 처리(에코 제거·잡음 억제) 뒤 송출 신호를 녹화기에 넘기는 탭입니다. 연결마다 하나입니다. */
+    private val recordingAudioTap = WebRtcRecordingAudioTap()
+    private var audioProcessingFactory: ExternalAudioProcessingFactory? = null
     private var audioRecordingStarted = false
     private var audioInputVerified = false
     private var audioRouteRetryAttempted = false
@@ -494,8 +497,15 @@ internal class WebRtcConnection(
         val createdAudioDeviceModule =
             checkNotNull(this@WebRtcConnection.audioDeviceModule)
         WebRtcNativeRuntime.initialize(applicationContext)
+        // 녹화는 iOS처럼 음성 처리 뒤 송출 신호를 씁니다. 후처리 단계를 붙이지 못해도 송출은 기본 처리로 이어 갑니다.
+        val processing = runCatching {
+            ExternalAudioProcessingFactory().also { it.setCapturePostProcessing(recordingAudioTap) }
+        }.onFailure { Log.w("LiveConnection", "recording_audio_tap_unavailable type=${it.javaClass.simpleName}") }
+            .getOrNull()
+        audioProcessingFactory = processing
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(createdAudioDeviceModule)
+            .apply { if (processing != null) setAudioProcessingFactory(processing) }
             .setVideoEncoderFactory(
                 DefaultVideoEncoderFactory(eglContext, true, true),
             )
@@ -1139,22 +1149,12 @@ internal class WebRtcConnection(
     }
 
     override fun setRecordingAudioSink(sink: RecordingAudioSink?) {
-        recordingAudioSink = sink
+        recordingAudioTap.sink = sink
     }
 
     private fun createAudioDeviceModule(): JavaAudioDeviceModule = JavaAudioDeviceModule
         .builder(applicationContext)
         .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
-        .setSamplesReadyCallback { samples ->
-            val sink = recordingAudioSink ?: return@setSamplesReadyCallback
-            if (samples.audioFormat != android.media.AudioFormat.ENCODING_PCM_16BIT) return@setSamplesReadyCallback
-            val data = samples.data
-            val bytesPerSecond = samples.sampleRate.toLong() * samples.channelCount * 2
-            if (bytesPerSecond <= 0 || data.isEmpty()) return@setSamplesReadyCallback
-            // 콜백에는 캡처 시각이 없어 도착 시각에서 청크 길이를 뺀 값을 첫 샘플 시각으로 씁니다.
-            val durationUs = data.size * 1_000_000L / bytesPerSecond
-            sink.onPcm(data, data.size, samples.sampleRate, samples.channelCount, System.nanoTime() / 1000 - durationUs)
-        }
         .setAudioRecordStateCallback(
             object : JavaAudioDeviceModule.AudioRecordStateCallback {
                 override fun onWebRtcAudioRecordStart() {
@@ -2235,6 +2235,9 @@ internal class WebRtcConnection(
         videoSource = null
         runCatching { peerConnectionFactory?.dispose() }
         peerConnectionFactory = null
+        recordingAudioTap.sink = null
+        runCatching { audioProcessingFactory?.destroy() }
+        audioProcessingFactory = null
         runCatching { audioDeviceModule?.release() }
         audioDeviceModule = null
         runCatching { eglBase?.release() }
