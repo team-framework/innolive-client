@@ -50,8 +50,8 @@
   "intro": {
     "dialogLabel": "InnoLive 소개",
     "skip": "본문으로 건너뛰기",
-    "letteringSafe": "당신의 방송을 안전하게.",
-    "letteringFocus": "당신에게만 집중.",
+    "letteringSafe": "당신의 방송을\n안전하게.",
+    "letteringFocus": "당신에게만\n집중.",
     "sceneSafe": "인트로 {n}. 당신의 방송을 안전하게.",
     "sceneFocus": "인트로 {n}. 당신에게만 집중."
   },

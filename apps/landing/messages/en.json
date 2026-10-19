@@ -50,8 +50,8 @@
   "intro": {
     "dialogLabel": "InnoLive introduction",
     "skip": "Skip to main content",
-    "letteringSafe": "Keep your broadcast safe.",
-    "letteringFocus": "Focus only on you.",
+    "letteringSafe": "Keep your\nbroadcast safe.",
+    "letteringFocus": "Focus only\non you.",
     "sceneSafe": "Intro {n}. Keep your broadcast safe.",
     "sceneFocus": "Intro {n}. Focus only on you."
   },
