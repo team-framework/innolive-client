@@ -104,3 +104,70 @@ test("Japanese guides cover every route, section, FAQ and related link", () => {
     assert.deepEqual(alternates.languages, pageAlternates("ko", guide.path).languages);
   }
 });
+
+const { llmsDocument, blogFeed } = load(path.join(__dirname, "search-documents.ts"));
+
+const { socialLinks } = load(path.join(__dirname, "site.ts"));
+const { overviewStructuredData } = load(path.join(__dirname, "structured-data.ts"));
+const { liveFaceBlurGuide } = load(path.join(__dirname, "live-face-blur-guide.ts"));
+
+test("AI 안내와 전문은 모든 언어의 가이드 및 FAQ 원문을 보존한다", () => {
+  const index = llmsDocument();
+  const full = llmsDocument(true);
+  for (const locale of ["ko", "en", "ja"]) {
+    for (const guidePath of seoGuidePaths) {
+      const guide = findSeoGuide(guidePath, locale);
+      assert.ok(index.includes(`https://innolive.studio/${locale}${guidePath}`));
+      assert.ok(full.includes(guide.intro));
+      for (const faq of guide.faq ?? []) {
+        assert.ok(full.includes(faq.question));
+        assert.ok(full.includes(faq.answer));
+      }
+    }
+    const overview = overviewStructuredData(locale, liveFaceBlurGuide[locale])["@graph"];
+    const page = overview.find(node => node["@type"] === "WebPage");
+    assert.equal(page.description, liveFaceBlurGuide[locale].intro);
+    assert.equal(page.inLanguage, locale);
+  }
+});
+
+test("공식 소셜·블로그 발행자 연결과 RSS가 기존 공개 콘텐츠에서 생성된다", () => {
+  const graph = homeStructuredData("ko")["@graph"];
+  const organization = graph.find(node => node["@type"] === "Organization");
+  assert.deepEqual(organization.sameAs, socialLinks.map(link => link.href));
+  const blog = seoGuides.find(guide => guide.path.startsWith("/blog/"));
+  const article = guideStructuredData(blog)["@graph"].find(node => node["@type"] === "Article");
+  assert.equal(article.publisher["@id"], organization["@id"]);
+  const feed = blogFeed();
+  assert.equal((feed.match(/<item>/g) ?? []).length, seoGuides.filter(guide => guide.path.startsWith("/blog/")).length * 3);
+  assert.ok(!feed.includes("<pubDate>"), "발행일 근거 없이 날짜를 만들지 않는다");
+});
+
+const { aboutStructuredData } = load(path.join(__dirname, "structured-data.ts"));
+const { aboutCopy } = load(path.join(__dirname, "about.ts"));
+const { pageMetadata } = load(path.join(__dirname, "seo.ts"));
+test("소개 페이지는 제품과 운영팀을 구분하고 계정 양식만 색인에서 제외한다", () => {
+  for (const locale of ["ko", "en", "ja"]) {
+    const graph = aboutStructuredData(locale)["@graph"];
+    assert.equal(graph.find(node => node["@type"] === "Organization").name, "Framework");
+    assert.equal(graph.find(node => node["@type"] === "SoftwareApplication").name, "InnoLive");
+    assert.equal(graph.find(node => node["@type"] === "AboutPage").description, aboutCopy[locale].intro);
+    for (const route of ["/login", "/signup"]) assert.equal(pageMetadata(locale, route, aboutCopy[locale]).robots.index, false);
+    assert.equal(pageMetadata(locale, "/about", aboutCopy[locale]).robots, undefined);
+  }
+});
+
+const { searchCrawlerEvent } = load(path.join(__dirname, "search-crawler.ts"));
+test("crawler metrics retain only public routes and normalized crawler names", () => {
+  assert.deepEqual(searchCrawlerEvent("/ko/live-mosaic", "GET", "Mozilla/5.0 (compatible; GPTBot/1.3; +https://openai.com/gptbot)"), {
+    event: "search_crawler_request", crawler: "GPTBot", path: "/ko/live-mosaic", method: "GET",
+  });
+  assert.equal(searchCrawlerEvent("/ko/login", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/api/auth?token=secret", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko/private-user-id", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko", "POST", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko", "GET", "Mozilla/5.0"), null);
+  assert.equal(searchCrawlerEvent("/ko", "GET", "NotGPTBot"), null);
+  assert.equal(searchCrawlerEvent("/llms.txt", "HEAD", "OAI-SearchBot/1.3")?.crawler, "OAI-SearchBot");
+  assert.equal(searchCrawlerEvent("/ja/about", "GET", "Yeti/1.1")?.path, "/ja/about");
+});

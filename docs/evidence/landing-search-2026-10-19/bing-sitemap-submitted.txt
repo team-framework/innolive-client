@@ -1,0 +1,74 @@
+
+  - heading "Sitemaps" [level=2]
+  - button "Submit sitemap":
+    - generic: Submit sitemap
+  - heading "Known sitemaps" [level=4]
+  - generic: "1"
+  - heading "Sitemaps with errors" [level=4]
+  - generic: "0"
+  - heading "Sitemaps with warnings" [level=4]
+  - generic: "0"
+  - heading "Total URLs discovered" [level=4]
+  - generic: "41"
+  - heading "Sitemap details" [level=3]
+  - combobox:
+    - generic: 
+    - generic: Type:All
+    - generic: 
+  - combobox:
+    - generic: 
+    - generic: Status:All
+    - generic: 
+  - button "Download all":
+    - generic: Download all
+    - generic: 
+  - grid "Sitemap details":
+    - row "select all items Sitemap URL, sortable Last submit, sortable Last crawl, sortable Status, sortable URLs discovered, sortable, sorted descending order Action":
+      - columnheader "select all items":
+        - checkbox "select all items":
+          - generic: 
+      - generic: select all items
+      - columnheader "Sitemap URL, sortable":
+        - button "Sitemap URL, sortable":
+          - generic: Sitemap URL
+      - columnheader "Last submit, sortable":
+        - button "Last submit, sortable":
+          - generic: Last submit
+      - columnheader "Last crawl, sortable":
+        - button "Last crawl, sortable":
+          - generic: Last crawl
+      - columnheader "Status, sortable":
+        - button "Status, sortable":
+          - generic: Status
+      - columnheader "URLs discovered, sortable, sorted descending order":
+        - button "URLs discovered, sortable, sorted descending order":
+          - generic: URLs discovered
+          - generic: 
+      - columnheader "Action":
+        - generic: Action
+    - row "select item https://innolive.studio/sitemap.xml Sitemap URL actions 10/19/2026 Submitted 10/17/2026 Processing 41 More":
+      - gridcell "select item":
+        - checkbox "select item":
+          - generic: 
+      - gridcell "https://innolive.studio/sitemap.xml Sitemap URL actions":
+        - generic: https://innolive.studio/sitemap.xml
+        - generic: Sitemap
+        - group "URL actions":
+          - button "Copy":
+            - generic: 
+          - button "Open in new tab":
+            - generic: 
+      - gridcell "10/19/2026 Submitted":
+        - generic: 10/19/2026
+        - generic: Submitted
+      - gridcell "10/17/2026":
+        - generic: 10/17/2026
+      - gridcell "Processing":
+        - generic: Processing
+      - gridcell "41":
+        - generic: "41"
+      - gridcell "More":
+        - button "More":
+          - generic: 
+  - navigation:
+    - generic: 1 row

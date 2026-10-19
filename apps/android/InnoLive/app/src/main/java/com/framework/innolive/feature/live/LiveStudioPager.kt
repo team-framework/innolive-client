@@ -91,6 +91,8 @@ internal fun LiveStudioPager(
     modifier: Modifier = Modifier,
     /** 미리보기 영상 위의 작은 창입니다. 설정 화면이 아닐 때 끌어서 옮길 수 있습니다. */
     pipState: LivePreviewPipState? = null,
+    /** 얼굴 선택처럼 미리보기 영상을 직접 눌러야 할 때입니다. 넘김을 멈추고 기본 화면만 보여 줍니다. */
+    previewInteractive: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val homeIndex = LiveStudioPage.HOME.ordinal
@@ -148,23 +150,29 @@ internal fun LiveStudioPager(
         if (settings != null) {
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = settingsFraction() }.background(SettingsScrim))
         }
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            userScrollEnabled = canSwipe && !pinnedToHome && settings?.canLeaveBySwipe != false,
-            // 모든 페이지를 계속 그려 방송 대화상자와 입력 상태가 페이지를 넘겨도 유지되게 합니다.
-            beyondViewportPageCount = LiveStudioPage.entries.size - 1,
-        ) { index ->
-            Box(Modifier.fillMaxSize().semantics { if (index != pagerState.currentPage) hideFromAccessibility() }) {
-                when (LiveStudioPage.entries[index]) {
-                    LiveStudioPage.CAMERA -> cameraPage()
-                    LiveStudioPage.HOME -> homePage()
-                    LiveStudioPage.SETTINGS -> settings?.let { page ->
-                        LiveSettingsPanel(
-                            onDismiss = { page.onClose() },
-                            topInset = if (landscape) 12.dp else LiveStudioTopInset,
-                            content = page.content,
-                        )
+        if (previewInteractive) {
+            // 넘기는 영역은 화면 전체의 터치를 받아 아래 미리보기로 전달하지 않으므로, 이때는 기본 화면을 일반 레이어로 그립니다.
+            // 버튼이 아닌 곳을 누르면 아래 미리보기의 얼굴 선택이 받습니다.
+            Box(Modifier.fillMaxSize()) { homePage() }
+        } else {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = canSwipe && !pinnedToHome && settings?.canLeaveBySwipe != false,
+                // 모든 페이지를 계속 그려 방송 대화상자와 입력 상태가 페이지를 넘겨도 유지되게 합니다.
+                beyondViewportPageCount = LiveStudioPage.entries.size - 1,
+            ) { index ->
+                Box(Modifier.fillMaxSize().semantics { if (index != pagerState.currentPage) hideFromAccessibility() }) {
+                    when (LiveStudioPage.entries[index]) {
+                        LiveStudioPage.CAMERA -> cameraPage()
+                        LiveStudioPage.HOME -> homePage()
+                        LiveStudioPage.SETTINGS -> settings?.let { page ->
+                            LiveSettingsPanel(
+                                onDismiss = { page.onClose() },
+                                topInset = if (landscape) 12.dp else LiveStudioTopInset,
+                                content = page.content,
+                            )
+                        }
                     }
                 }
             }

@@ -105,6 +105,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.process)
     testImplementation(libs.junit)
     testImplementation("org.json:json:20251224")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

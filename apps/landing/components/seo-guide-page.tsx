@@ -1,3 +1,4 @@
+import { guideEvidence, guideEvidenceCopy } from "@/lib/guide-evidence";
 import type { Locale } from "@/lib/locales";
 import Image from "next/image";
 import Link from "next/link";
@@ -11,6 +12,8 @@ import { getPersonalPlans } from "@/lib/plans";
 
 export function SeoGuidePage({ guide, locale = "ko" }: { guide: SeoGuide; locale?: Locale }) {
   const copy = getMessages(locale).seoGuide;
+  const evidence = guideEvidence(guide, locale);
+  const evidenceCopy = guideEvidenceCopy[locale];
   const plans = guide.showPersonalPlans ? getPersonalPlans(getMessages(locale), locale) : [];
   return (
     <main id="main" tabIndex={-1} className="page-top-spacing min-h-dvh bg-background-primary px-[var(--page-gutter)] pb-20">
@@ -115,6 +118,14 @@ export function SeoGuidePage({ guide, locale = "ko" }: { guide: SeoGuide; locale
             ))}
           </section>
         )}
+        <section aria-labelledby="guide-sources-heading" className="flex flex-col gap-4 border-t border-surface-primary pt-8">
+          <h2 id="guide-sources-heading" className="text-2xl font-semibold">{evidenceCopy.sources}</h2>
+          <p>{evidenceCopy.publisher}: <Link href={`/${locale}/about`} className="underline underline-offset-4">{evidence.publisher}</Link></p>
+          <p className="text-base leading-relaxed text-text-secondary">{evidenceCopy.note}</p>
+          <ul className="flex flex-wrap gap-x-6 gap-y-2">
+            {evidence.sources.slice(0, 3).map(({ name, url }) => <li key={url}><Link href={url} className="inline-flex min-h-[44px] items-center underline underline-offset-4">{name}</Link></li>)}
+          </ul>
+        </section>
         <nav aria-label={copy.related} className="flex flex-col gap-4 border-t border-surface-primary pt-8 max-lg:gap-1">
           <h2 className="text-2xl font-semibold">{copy.related}</h2>
           {guide.related.map((path) => {

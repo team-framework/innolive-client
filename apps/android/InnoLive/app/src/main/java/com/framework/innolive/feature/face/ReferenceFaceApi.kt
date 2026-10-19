@@ -85,6 +85,14 @@ internal class ReferenceFaceApi(
         images: List<ByteArray>,
         accessToken: String,
         refreshAccessToken: suspend () -> String,
+    ): ReferenceFaceRegistrationResult = append(images, accessToken, null, refreshAccessToken)
+
+    /** [name]은 원탭 등록이 붙이는 사람 이름입니다. iOS와 같은 `name` 필드로 보내며 비어 있으면 생략합니다. */
+    suspend fun append(
+        images: List<ByteArray>,
+        accessToken: String,
+        name: String?,
+        refreshAccessToken: suspend () -> String,
     ): ReferenceFaceRegistrationResult {
         require(images.isNotEmpty()) { "Reference face images must not be empty." }
         require(images.size <= MAX_APPEND_IMAGES) {
@@ -95,7 +103,7 @@ internal class ReferenceFaceApi(
             executeAuthenticated(
                 accessToken = accessToken,
                 refreshAccessToken = refreshAccessToken,
-                buildRequest = { token -> buildAppendRequest(images, token) },
+                buildRequest = { token -> buildAppendRequest(images, token, name) },
             ),
         )
     }
@@ -174,10 +182,11 @@ internal class ReferenceFaceApi(
             .build()
     }
 
-    private fun buildAppendRequest(images: List<ByteArray>, accessToken: String): Request {
+    private fun buildAppendRequest(images: List<ByteArray>, accessToken: String, name: String? = null): Request {
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .apply {
+                name?.takeIf { it.isNotBlank() }?.let { addFormDataPart("name", it) }
                 images.forEachIndexed { index, image ->
                     addFormDataPart(
                         "images",
