@@ -34,7 +34,7 @@ struct AccountSettingsView: View {
                                 Image(systemName: "rectangle.portrait.and.arrow.right")
                                     .frame(width: 28)
                                 Text(String(localized: "로그아웃"))
-                                    .font(.body.weight(.semibold))
+                                    .font(.subheadline.weight(.semibold))
                                 Spacer()
                             }
                             .foregroundStyle(.red)
@@ -51,7 +51,7 @@ struct AccountSettingsView: View {
                                 Image(systemName: "trash")
                                     .frame(width: 28)
                                 Text(String(localized: "계정 삭제"))
-                                    .font(.body.weight(.semibold))
+                                    .font(.subheadline.weight(.semibold))
                                 Spacer()
                             }
                             .foregroundStyle(.red)
@@ -66,7 +66,7 @@ struct AccountSettingsView: View {
                                 ProgressView()
                                     .controlSize(.small)
                                 Text(String(localized: "계정 삭제 중…"))
-                                    .font(.body.weight(.semibold))
+                                    .font(.subheadline.weight(.semibold))
                                 Spacer()
                             }
                         }
@@ -82,8 +82,9 @@ struct AccountSettingsView: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(InnoLiveSettingsLayout.pageInset)
         }
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "계정 설정"))
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(

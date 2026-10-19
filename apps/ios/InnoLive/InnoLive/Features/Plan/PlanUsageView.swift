@@ -6,8 +6,9 @@ struct PlanUsageView: View {
     var body: some View {
         ScrollView {
             PlanUsageSection(authentication: authentication, youtube: youtube)
-                .padding(24)
+                .padding(InnoLiveSettingsLayout.pageInset)
         }
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "요금제 및 사용량"))
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -52,14 +53,14 @@ struct PlanUsageContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(String(localized: "요금제 및 사용량")).font(.headline)
+                Text(String(localized: "요금제 및 사용량")).font(.subheadline.weight(.semibold))
                 Spacer()
                 if isLoading { ProgressView().controlSize(.small) }
                 Button(String(localized: "새로고침"), action: onRefresh)
                 .disabled(isLoading)
             }
             if let snapshot {
-                Text(snapshot.plan.plan.capitalized).font(.title3.bold())
+                Text(snapshot.plan.plan.capitalized).font(.headline)
                 Picker(String(localized: "사용량 구분"), selection: Binding(
                     get: { processing }, set: { selectedProcessing = $0; selectedMode = nil }
                 )) {
@@ -110,7 +111,7 @@ struct PlanUsageContent: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 6) {
-                                Text(String(localized: "방송별 사용 내역", table: "PlanUsage")).font(.headline)
+                                Text(String(localized: "방송별 사용 내역", table: "PlanUsage")).font(.subheadline.weight(.semibold))
                                 Text("\(snapshot.usage.broadcasts.count)")
                                     .font(.caption.bold().monospacedDigit())
                                     .padding(.horizontal, 6).padding(.vertical, 2)
@@ -141,7 +142,7 @@ struct PlanUsageContent: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .innoLiveGlassBackground(cornerRadius: 16)
+        .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
         .sheet(isPresented: $showsPlanGuide) {
             NavigationStack {
                 VStack(alignment: .leading, spacing: 16) {
@@ -151,7 +152,8 @@ struct PlanUsageContent: View {
                         Text(String(localized: "\(mode.title): 기본 \(mode.referenceMultiplier)배 차감"))
                     }
                     Spacer()
-                }.padding(24)
+                }.padding(InnoLiveSettingsLayout.pageInset)
+                .innoLiveSettingsPage()
                 .navigationTitle(String(localized: "플랜 안내"))
                 .toolbar { ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "닫기")) { showsPlanGuide = false }
@@ -204,7 +206,10 @@ struct PlanUsageContent: View {
                     Text(processing == .server || snapshot.plan.deviceModes != nil && !snapshot.isAllowed(mode, processing: processing)
                          ? String(localized: "잠김") : String(localized: "조회 대기"))
                 }
-            }.padding(.vertical, 6)
+            }
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
         }.buttonStyle(.plain)
     }
 }

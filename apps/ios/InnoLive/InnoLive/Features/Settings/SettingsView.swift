@@ -54,7 +54,7 @@ struct SettingsView: View {
                                         .frame(width: iconWidth)
 
                                     Text(String(localized: "개인정보처리방침"))
-                                        .font(.body.weight(.semibold))
+                                        .font(.subheadline.weight(.semibold))
                                         .fixedSize(horizontal: false, vertical: true)
 
                                     Spacer()
@@ -71,7 +71,8 @@ struct SettingsView: View {
                 
                 Spacer()
             }
-            .padding(24)
+            .padding(InnoLiveSettingsLayout.pageInset)
+            .innoLiveSettingsPage()
             .navigationTitle(String(localized: "앱 정보 및 계정"))
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -85,7 +86,7 @@ struct SettingsView: View {
                 .frame(width: iconWidth)
 
             Text(title)
-                .font(.body.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()

@@ -60,7 +60,7 @@ struct FaceManagementView: View {
                         Label(String(localized: "얼굴 등록"), systemImage: "viewfinder.circle.fill")
                             .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
-                            .frame(height: 46)
+                            .frame(minHeight: 28)
                     }
                     .innoLiveGlassButtonStyle(prominent: true)
                     .tint(.blue)
@@ -93,8 +93,9 @@ struct FaceManagementView: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(InnoLiveSettingsLayout.pageInset)
         }
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "얼굴 관리"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -132,20 +133,18 @@ struct FaceManagementView: View {
     private var introductionCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             Image(systemName: "faceid")
-                .font(.system(size: 34, weight: .semibold))
+                .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.blue)
 
             Text(String(localized: "비식별화하지 않을 얼굴을 등록해주세요"))
-                .font(.title3.weight(.bold))
+                .font(.headline)
 
             Text(String(localized: "방송인이나 게스트의 얼굴을 등록하면, 방송 중 해당 인물은 비식별화 처리되지 않아 자연스러운 방송을 진행할 수 있습니다."))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .innoLiveGlassBackground(cornerRadius: 22)
+        .innoLiveSettingsCard()
     }
 
     private var statusCard: some View {
@@ -155,14 +154,14 @@ struct FaceManagementView: View {
                     Circle()
                         .fill(statusColor.opacity(0.16))
                     Image(systemName: statusIcon)
-                        .font(.body.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(statusColor)
                 }
                 .frame(width: 34, height: 34)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(statusTitle)
-                        .font(.body.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                     Text(statusDetail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -178,7 +177,9 @@ struct FaceManagementView: View {
                         Task { await model.loadStatus() }
                     } label: {
                         Image(systemName: "arrow.clockwise")
-                            .font(.body.weight(.semibold))
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(String(localized: "등록 상태 새로고침"))
@@ -191,7 +192,7 @@ struct FaceManagementView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(String(localized: "등록된 얼굴"))
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
                 Spacer()
                 Button(String(localized: "모두 삭제"), role: .destructive) {
                     isShowingDeleteAllConfirmation = true
@@ -209,7 +210,7 @@ struct FaceManagementView: View {
                             .foregroundStyle(.blue)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(face.name?.isEmpty == false ? face.name! : String(localized: "등록 얼굴 \(index + 1)"))
-                                .font(.body.weight(.semibold))
+                                .font(.subheadline.weight(.semibold))
                             Text(FaceRegistrationDateFormatting.displayDate(from: face.registeredAt))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -219,6 +220,8 @@ struct FaceManagementView: View {
                             Task { await model.delete(faceID: face.id) }
                         } label: {
                             Image(systemName: "trash")
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .disabled(model.isDeleting)
