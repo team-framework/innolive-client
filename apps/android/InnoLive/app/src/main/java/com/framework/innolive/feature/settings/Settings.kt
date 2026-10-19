@@ -45,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.ProfileDisplay
@@ -245,7 +246,8 @@ private fun SettingsValueRow(label: String, value: String, enabled: Boolean, onC
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        // 긴 외부 기기 이름은 두 줄까지만 보여 줍니다.
         Text(value, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f))
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
     }
 }

@@ -160,8 +160,9 @@ private fun CameraLensFacing.settingDisplayText(): UiText = when (this) {
     CameraLensFacing.FRONT -> UiText.Resource(R.string.camera_front)
 }
 
+// 내장 마이크의 제품명은 기기 모델명이라 기본 마이크로만 보여 주고, 외부 마이크는 기기 이름을 그대로 보여 줍니다.
 private fun AudioInputDevice.settingDisplayText(): UiText = if (isDefault) {
-    UiText.Resource(R.string.audio_device_default, listOf(name))
+    UiText.Resource(R.string.audio_device_default)
 } else {
     UiText.Dynamic(name)
 }

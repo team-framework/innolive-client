@@ -71,7 +71,7 @@
     <string name="label_audio_device">오디오 기기</string>
     <string name="camera_back">후면 카메라</string>
     <string name="camera_front">전면 카메라</string>
-    <string name="audio_device_default">기본 마이크: %1$s</string>
+    <string name="audio_device_default">기본 마이크</string>
     <string name="settings_broadcast">방송 설정</string>
     <string name="action_logout">로그아웃</string>
     <string name="action_delete_account">계정 삭제</string>
