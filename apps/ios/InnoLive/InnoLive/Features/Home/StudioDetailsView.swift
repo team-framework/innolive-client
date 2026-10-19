@@ -4,6 +4,7 @@ import SwiftUI
 struct StudioDetailsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    var tutorial: BroadcastTutorialCoordinator? = nil
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var destination: Destination?
@@ -72,7 +73,7 @@ struct StudioDetailsView: View {
                             .accessibilityIdentifier("studio-plan-notice")
                     }
                     row(String(localized: "요금제 및 사용량"), image: "clock", destination: .usage)
-                    row(String(localized: "설정"), image: "gearshape", destination: .settings)
+                    row(String(localized: "앱 정보 및 계정"), image: "info.circle", destination: .settings)
                 }
             }
             .padding(16)
@@ -165,19 +166,19 @@ struct StudioDetailsView: View {
             .navigationTitle(String(localized: "방송 상태 및 대상 관리"))
             .navigationBarTitleDisplayMode(.inline)
         case .broadcast:
-            BroadcastSettingsView(authentication: authentication, youtube: youtube)
+            BroadcastSettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
         case .liveBroadcast(let provider):
             BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
         case .camera:
             CameraAudioSettingsView(youtube: youtube)
         case .ai:
-            AISettingsView(authentication: authentication, youtube: youtube)
+            AISettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
         case .recordings:
             BroadcastRecordingLibraryView(store: youtube.recordingStore)
         case .usage:
             PlanUsageView(authentication: authentication, youtube: youtube)
         case .settings:
-            SettingsView(authentication: authentication, youtube: youtube)
+            SettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
         case .video:
             EmptyView()
         }

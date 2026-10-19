@@ -404,7 +404,7 @@ struct HomeView: View {
                     if page == .basic {
                         basicStudioChrome
                     } else if page == .details {
-                        StudioDetailsView(authentication: authentication, youtube: youtube)
+                        StudioDetailsView(authentication: authentication, youtube: youtube, tutorial: startsLifecycle ? tutorial : nil)
                             .padding(.top, studioChromeTopInset)
                             .padding(.bottom, bottomReservedHeight + 24)
                             .padding(.horizontal, 16)
