@@ -15,7 +15,9 @@ function scrollToHash(smoother: ScrollSmoother) {
 
   const target = document.getElementById(id);
   if (target && document.getElementById("smooth-content")?.contains(target)) {
-    smoother.scrollTo(target, false, "top top");
+    // Honor scroll-margin-top so anchored sections can clear the fixed header.
+    const offset = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+    smoother.scrollTo(target, false, `top ${offset}px`);
   }
 }
 

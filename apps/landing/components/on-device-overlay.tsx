@@ -26,7 +26,7 @@ export function OnDeviceOverlay() {
           >
             {messages.onDevice.pay}
           </Button>
-          <p className="text-center text-xs leading-[1.3] text-text-secondary max-lg:text-[12px]">
+          <p className="break-keep text-center text-xs leading-[1.3] text-text-secondary max-lg:text-[12px]">
             {messages.onDevice.termsNote}{" "}
             <Link
               href={href("/terms")}
@@ -42,7 +42,7 @@ export function OnDeviceOverlay() {
         aria-hidden="true"
       />
       <div className="flex min-h-[12.5rem] w-full flex-1 items-start p-8 min-[48rem]:h-full min-[48rem]:min-h-[25rem]">
-        <p className="text-body-lg font-normal leading-[1.25] text-text-primary">
+        <p className="break-keep text-body-lg font-normal leading-[1.25] text-text-primary">
           {messages.onDevice.body}
         </p>
       </div>

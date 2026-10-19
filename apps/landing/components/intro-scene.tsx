@@ -16,10 +16,7 @@ export type FaceOverlaySpec = {
 };
 
 export type IntroLettering = {
-  src: string;
-  alt: string;
-  width: number;
-  height: number;
+  text: string;
   className: string;
 };
 
@@ -49,13 +46,12 @@ export function IntroScene({
   sceneIndex?: number;
   priority?: boolean;
 }) {
-  const letteringClass = fill
-    ? `absolute left-[5%] top-[12%] h-auto w-[70%] mix-blend-multiply min-[48rem]:left-[7.92%] min-[48rem]:top-[calc(50%-7.8%)] ${
-        lettering.width === 374
-          ? "min-[48rem]:w-[19.5%]"
-          : "min-[48rem]:w-[24.7%]"
-      }`
-    : `${lettering.className} mix-blend-multiply`;
+  // The lettering PNGs were 116watermelon at 100px with 84px line pitch, shown 474px → 24.7% wide.
+  const letteringClass = `whitespace-pre-line font-[family-name:var(--font-lettering)] text-[14.77cqw] font-black leading-[0.84] text-black [&:lang(ja)]:leading-none mix-blend-multiply min-[48rem]:text-[5.21cqw] ${
+    fill
+      ? "absolute left-[5%] top-[12%] min-[48rem]:left-[7.92%] min-[48rem]:top-[calc(50%-7.8%)]"
+      : lettering.className
+  }`;
   const logoClass = fill
     ? "absolute bottom-[3.33%] left-1/2 h-auto w-24 -translate-x-1/2 object-contain min-[48rem]:w-[9rem]"
     : "absolute bottom-[3.33%] left-1/2 h-[3.52%] w-[7.5%] max-w-[9rem] -translate-x-1/2 object-contain";
@@ -65,7 +61,7 @@ export function IntroScene({
       className={
         fill
           ? "relative h-full w-full overflow-clip bg-background-secondary [container-type:size]"
-          : "relative aspect-[16/9] w-full overflow-clip bg-background-secondary"
+          : "relative aspect-[16/9] w-full overflow-clip bg-background-secondary [container-type:inline-size]"
       }
       aria-label={label}
       data-scene-index={sceneIndex}
@@ -83,13 +79,7 @@ export function IntroScene({
       ) : (
         <SceneArtwork overlays={overlays} priority={priority} />
       )}
-      <Image
-        src={lettering.src}
-        alt={lettering.alt}
-        width={lettering.width}
-        height={lettering.height}
-        className={letteringClass}
-      />
+      <p className={letteringClass}>{lettering.text}</p>
       <Image
         src="/intro/logo.svg"
         alt="InnoLive"

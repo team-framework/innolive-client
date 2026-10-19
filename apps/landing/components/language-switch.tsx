@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { isSeoGuidePath } from "@/lib/seo-guide-paths";
-import { isLocale, localeLabels, locales, stripLocalePrefix, switchLocalePath } from "@/lib/locales";
+import { isLocale, localeLabels, locales, switchLocalePath } from "@/lib/locales";
 import { useLocale } from "@/components/locale-provider";
 import { cn } from "@/lib/cn";
 
@@ -20,13 +19,11 @@ export function LanguageSwitch({ className }: { className?: string }) {
           if (!isLocale(next) || next === locale) return;
           document.cookie = `NEXT_LOCALE=${next}; Path=/; SameSite=Lax`;
           router.push(
-            isSeoGuidePath(stripLocalePrefix(window.location.pathname)) && next === "ja"
-              ? switchLocalePath("/", next)
-              : switchLocalePath(window.location.pathname, next, window.location.search, window.location.hash),
+            switchLocalePath(window.location.pathname, next, window.location.search, window.location.hash),
             { scroll: false },
           );
         }}
-        className="cursor-pointer appearance-none rounded-full border border-surface-primary bg-transparent py-2 pl-3 pr-8 text-base font-semibold leading-none text-text-primary transition-colors hover:bg-background-primary max-md:min-h-[44px] max-md:border-border-control max-md:pl-4 max-md:pr-9 max-md:text-[16px] md:max-lg:-my-[6px] md:max-lg:min-h-[44px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary md:text-lg"
+        className="cursor-pointer appearance-none rounded-full border border-surface-primary bg-transparent py-2 pl-3 pr-8 text-base font-semibold leading-none text-text-primary transition-colors hover:bg-background-primary max-lg:min-h-[44px] max-lg:border-border-control max-lg:bg-background-secondary max-lg:pl-4 max-lg:pr-9 max-lg:text-[16px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-primary lg:text-lg"
       >
         {locales.map((code) => (
           <option key={code} value={code} lang={code} aria-label={localeLabels[code]}>

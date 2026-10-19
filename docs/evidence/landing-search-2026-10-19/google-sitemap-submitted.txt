@@ -1,0 +1,56 @@
+
+  - generic: Add a new sitemap
+  - generic: https://innolive.studio/
+  - textbox: sitemap.xml
+  - button:
+    - generic: Submit
+  - heading [level=1]:
+    - generic: Submitted sitemaps
+  - button:
+    - generic: 
+  - table:
+    - rowgroup:
+      - row:
+        - columnheader:
+          - text: Sitemap
+        - columnheader:
+          - text: Type
+        - columnheader:
+          - text: Submitted
+        - columnheader:
+          - text: Last read
+        - columnheader:
+          - text: Status
+        - columnheader:
+          - text: Discovered pages
+        - columnheader:
+          - text: Discovered videos
+        - columnheader
+    - rowgroup:
+      - row:
+        - cell: /sitemap.xml
+        - cell: Sitemap
+        - cell: Oct 19, 2026
+        - cell: Oct 17, 2026
+        - cell:
+          - generic: Success
+        - cell: "41"
+        - cell: "0"
+        - cell:
+          - button:
+            - generic: 
+  - generic: "Rows per page:"
+  - listbox:
+    - text: "5"
+    - option [selected]: "10"
+    - text: 25 50 100 250 500
+  - generic: 1-1 of 1
+  - generic: 
+  - generic: 
+- dialog "Sitemap submitted successfully":
+  - heading "Sitemap submitted successfully" [level=2]:
+    - generic: check_circle
+    - generic: Sitemap submitted successfully
+  - generic: Google will periodically process it and look for changes. You will be notified if anything goes wrong with it in the future.
+  - button "Dismiss" [active]:
+    - generic: Dismiss

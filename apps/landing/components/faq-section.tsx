@@ -63,7 +63,7 @@ export function FAQSection() {
     <section
       ref={sectionRef}
       id="faq"
-      className="flex w-full flex-col items-center bg-background-secondary px-[var(--page-gutter)] py-16 lg:py-24 min-[106.5rem]:py-40"
+      className="flex w-full flex-col items-center bg-background-secondary px-[var(--page-gutter)] py-16 max-lg:scroll-mt-[calc(var(--header-height)-2.5rem)] lg:py-24 min-[106.5rem]:py-40"
       aria-labelledby="faq-heading"
     >
       <div className="flex w-full max-w-[1408px] flex-col items-stretch gap-12">

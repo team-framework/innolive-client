@@ -17,7 +17,7 @@
 
 얼굴 검출에는 iOS와 같은 YuNet 2023mar (`8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`), embedding에는 ViT-Base KP-RPE WebFace12M (`04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9`)을 사용한다. ONNX 출력 SHA-256은 각각 `4514febaf280cb408b6bfcd240df4463ba5295713e571c1133d743ff4eb1d737`, `812eeaa58ed70794dd67e1efdb1d9f614b0be18e951d2c6bc2c8876c2c34d712`이다. AdaFace FP16 모델은 Git LFS asset이며 약 227MB다. 앱은 처음 사용 시 no-backup 영역에 검증한 모델을 복사한다.
 
-입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android도 픽셀화(24px) → Gaussian 블러(24px) → 마스크 합성을 수행한다. 마스크는 2px 중심을 완전히 불투명하게 유지하고, 4px 확장 후 Gaussian(1.5px)을 적용한 바깥 영역과 최댓값으로 합성한다. 현재 기본 영상 경로는 전용 EGL 작업자의 OpenGL ES 그래프다. YUV→RGB·정방향 회전·letterbox, 픽셀화·Gaussian 블러·마스크 확장과 feather·합성·센서 방향 복원을 GPU에서 수행하고 WebRTC에 공유 EGL RGB 텍스처를 전달한다. 전면·후면 카메라의 원래 rotation 메타데이터와 송출 크기는 유지한다. 모델 입력은 기기별 검증을 통과하면 GPU SSBO로 LiteRT에 직접 전달한다. 기존 입력 경로에서는 640×640 모델 입력을 읽고, 얼굴 재확인이 필요한 crop은 두 경로 모두 CPU로 읽는다. GPU 영상 경로가 실패하면 보호 처리하는 기존 CPU Bitmap 경로를 사용하며 원본으로 우회하지 않는다. CPU 대체 경로에서 API 31 이상의 RenderEffect 블러를 사용할 수 있다. 블러는 1/4 크기에서 sigma 6으로 처리하며 검출 마스크·출력 해상도를 낮추지 않는다. Core Image와 픽셀 단위로 동일한 결과는 보장하지 않는다. 현재 구현과 최신 계측은 마지막 GPU 영상 경로 절을 따른다.
+입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android는 iOS `PrivacyModel.broadcastStyleBlur`와 같이 프레임을 영역 평균으로 1/4 축소한 뒤 짧은 변의 1/15(1080p에서 sigma 72, 720p에서 48, 최소 48) Gaussian을 적용하고 다시 키워 마스크와 합성한다. 24px 픽셀화는 사용하지 않는다. 마스크는 2px 중심을 완전히 불투명하게 유지하고, 4px 확장 후 Gaussian(1.5px)을 적용한 바깥 영역과 최댓값으로 합성한다. 현재 기본 영상 경로는 전용 EGL 작업자의 OpenGL ES 그래프다. YUV→RGB·정방향 회전·letterbox, 축소·Gaussian 블러·마스크 확장과 feather·합성·센서 방향 복원을 GPU에서 수행하고 WebRTC에 공유 EGL RGB 텍스처를 전달한다. 전면·후면 카메라의 원래 rotation 메타데이터와 송출 크기는 유지한다. 모델 입력은 기기별 검증을 통과하면 GPU SSBO로 LiteRT에 직접 전달한다. 기존 입력 경로에서는 640×640 모델 입력을 읽고, 얼굴 재확인이 필요한 crop은 두 경로 모두 CPU로 읽는다. GPU 영상 경로가 실패하면 보호 처리하는 기존 CPU Bitmap 경로를 사용하며 원본으로 우회하지 않는다. CPU 대체 경로에서 API 31 이상의 RenderEffect 블러를 사용할 수 있다. 블러는 1/4 크기에서 원본 sigma의 1/4로 처리하며 검출 마스크·출력 해상도를 낮추지 않는다. Core Image와 픽셀 단위로 동일한 결과는 보장하지 않는다. 현재 구현과 최신 계측은 마지막 GPU 영상 경로 절을 따른다.
 
 기기 얼굴 관리는 기존 카메라의 500px 중앙 촬영과 3회 안정 검사를 사용한다. 모델 준비가 끝난 뒤 30초 촬영 시간이 시작된다. YuNet은 BGR 0–255 입력과 32배수 padding, stride 8/16/32 decode와 NMS 0.3을 사용한다. 등록은 점수 0.9 이상·최소 40px, 영상 비교는 0.6 이상·최소 24px을 사용한다. 얼굴의 1.5배 정사각형 RGB 112×112 crop과 정규화 landmark를 AdaFace에 전달한다. 원본·좌우반전 norm 가중 결합은 ONNX 모델에 포함된다.
 
@@ -924,3 +924,31 @@ innolive-server·innolive-ai에서 다룬다.
 720p 1772개/71초(약 25fps)였다. 같은 시각 서버 누적 stage 평균은 grpc 31.5ms,
 encode(반환 libx264) 41.4ms로 둘 다 33.3ms 예산을 넘고, 반환 인코더가 `processed`
 채널(크기 1)로 AI 루프를 막는 구조라 FHD에서 30fps를 유지하지 못한다.
+
+## 보호 영역 블러 일렁임 수정 (2026-10-18)
+
+관련 이슈: client #649. 온디바이스 보호 영역의 블러가 프레임마다 일렁이는 문제를 iOS가
+해결한 방식으로 수정했다.
+
+- 원인: GPU 그래프와 CPU 대체 경로가 프레임에 고정된 24px 격자에서 블록마다 한 점만
+  샘플링한 뒤 sigma 24 Gaussian을 적용했다. 피사체가 조금만 움직이거나 센서 잡음이 바뀌면
+  블록 값이 통째로 바뀌고, sigma 24는 블록 한 칸 폭이라 격자가 그대로 남아 흔들려 보였다.
+- iOS는 `49e80e30`(온디바이스 블러를 서버처럼 축소 후 적용)에서 `CIPixellate`를 제거하고
+  프레임을 1/2로 축소해 Gaussian을 적용한 뒤 다시 키우도록 바꿨고, `9be07a70`(온디바이스
+  블러를 방송 화면 수준으로 강화)에서 sigma를 짧은 변의 1/15(최소 48)로 올렸다.
+- Android `PrivacyBroadcastBlur`가 같은 값을 정의한다. 원본 sigma는 짧은 변의 1/15를 반올림한
+  값과 48 중 큰 값이며, 1/4 해상도에서 그 1/4로 처리한다. 1080p는 sigma 72(축소 18, 반경 54),
+  720p는 48(축소 12, 반경 36)이다. iOS처럼 기기 모델로 나누지 않는다.
+- GPU 그래프의 `pixelate` 단계를 `reduce`로 바꿨다. 1/4 타깃의 픽셀 중심에서 원본 1픽셀씩
+  떨어진 네 지점을 bilinear로 읽어 4×4 블록 전체를 평균한다. 한 번만 읽으면 네 픽셀 중 두
+  픽셀만 반영돼 다시 흔들린다. Gaussian shader는 해상도별 sigma마다 생성해 캐시한다.
+- CPU 대체 경로는 1/2 축소를 두 번 적용해 같은 4×4 평균을 만들고 `PrivacyGaussianBlur`에
+  축소 sigma를 넘긴다. API 31 이상의 `RenderEffect` 경로는 HWUI의 radius→sigma 변환
+  (sigma = 0.57735 × radius + 0.5)을 역산해 같은 원본 sigma를 쓴다.
+- 마스크 2px core·4px dilation·sigma 1.5 feather·`PrivacyMaskStabilizer`는 변경하지 않았다.
+  ROI 블러 scissor 여유는 고정 192px 대신 축소 커널 반경에 맞춰 계산한다.
+
+검증: `PrivacyBroadcastBlurTest`(sigma·축소 크기·RenderEffect 반경·shader 생성)와 기존
+privacy 단위 테스트를 실행했다. 2026-10-18 SM-S931N debug 빌드를 온디바이스 FHD 전면 카메라로
+실행해 GPU 보호 경로(`image_gpu=true`, fallback 없음)와 블러 일렁임 감소를 육안으로 확인했다.
+1080p 렌더 시간과 장시간 발열은 별도로 측정한다.
