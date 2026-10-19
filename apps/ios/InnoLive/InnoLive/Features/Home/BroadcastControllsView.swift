@@ -25,7 +25,7 @@ struct BroadcastControllsView: View {
     var onBottomHeightChange: (CGFloat) -> Void = { _ in }
     var onTopHeightChange: (CGFloat) -> Void = { _ in }
 
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    var isConnectionProgressPresented = false
 
     @State private var isShowingBroadcastSettings = false
     @State private var isShowingBroadcastActions = false
@@ -155,16 +155,16 @@ struct BroadcastControllsView: View {
                     .padding(.vertical, 4)
                     .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
 
-                        if canCancelPreparation {
-                            Button(role: .destructive, action: cancelPreparation) {
-                                Text(youtube.preparationStatus?.phase == .cancelling
-                                     ? String(localized: "준비 취소 중")
-                                     : String(localized: "준비 취소"))
-                                    .font(.subheadline.weight(.semibold))
-                                    .frame(maxWidth: .infinity, minHeight: 36)
-                            }
-                            .disabled(youtube.preparationStatus?.phase == .cancelling)
+                    if canCancelPreparation {
+                        Button(role: .destructive, action: cancelPreparation) {
+                            Text(youtube.preparationStatus?.phase == .cancelling
+                                 ? String(localized: "준비 취소 중")
+                                 : String(localized: "준비 취소"))
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity, minHeight: 36)
                         }
+                        .disabled(youtube.preparationStatus?.phase == .cancelling)
+                    }
                 }
             }
         }
@@ -189,7 +189,7 @@ struct BroadcastControllsView: View {
             } else {
                 BroadcastPreparationControlLabel(
                     status: youtube.preparationStatus,
-                    isLoading: isPreparingConnection
+                    isLoading: isPreparingConnection && !isConnectionProgressPresented
                 )
             }
         }
@@ -327,22 +327,6 @@ struct BroadcastControllsView: View {
             || previewTransition == .stopping
             || ["preparing", "going_live"].contains(youtube.broadcastPhase)
             || (isBroadcasting && !youtube.isFeatureAvailable)
-    }
-
-    private var primaryButtonTint: Color {
-        if !isBroadcasting {
-            return .blue
-        }
-        if youtube.isYouTubeBroadcastPaused {
-            return .orange
-        }
-        if isYouTubeStreaming {
-            return .red
-        }
-        if youtube.broadcastPhase == "prepared" {
-            return .green
-        }
-        return .blue
     }
 
     private var primaryActionHint: String {

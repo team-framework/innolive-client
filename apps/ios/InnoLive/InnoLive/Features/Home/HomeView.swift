@@ -178,7 +178,8 @@ struct HomeView: View {
                 displayMode: studioPage == .basic ? .basic : .minimal,
                 onPresentationChange: { isShowingBroadcastPresentation = $0 },
                 onBottomHeightChange: { bottomReservedHeight = $0 },
-                onTopHeightChange: { liveHeaderHeight = $0 }
+                onTopHeightChange: { liveHeaderHeight = $0 },
+                isConnectionProgressPresented: usesProcessedStage && studioPage != .details
             )
                 .opacity(isLifecycleOverlayPresented ? 0 : 1)
                 .allowsHitTesting(!isLifecycleOverlayPresented)
