@@ -1,0 +1,278 @@
+
+    - heading "You said:" [level=4]
+    - generic: 웹 검색으로 찾아줘. 실시간 방송에서 행인 얼굴을 자동으로 가리는 방법과 앱을 공식 출처와 함께 알려줘.
+    - button "Copy message":
+    - button "Edit message":
+    - button "Worked for 2m 47s"
+    - generic: Worked for 2m 47s
+    - heading "ChatGPT said:" [level=4]
+    - paragraph: 웹 검색으로 공식 개발사 문서, OBS 공식 플러그인 페이지, 앱스토어 설명을 확인했습니다.
+    - paragraph:
+      - generic: 결론부터 말하면, 실시간 야외 방송에서 지나가는 행인의 얼굴을 AI로 자동 감지해 모자이크하거나 흐리게 처리하는 것이 가능합니다.
+      - text: 다만 모든 얼굴을 100% 가리는 것은 보장되지 않습니다.
+    - paragraph: 2026년 10월 기준, 다음 방법들이 목적에 잘 맞습니다.
+    - heading "1. 실시간 얼굴 자동 모자이크 앱 비교" [level=2]
+    - table:
+      - rowgroup:
+        - row "프로그램 사용 환경 자동 얼굴 가림 추천 상황":
+          - columnheader "프로그램":
+            - paragraph: 프로그램
+          - columnheader "사용 환경":
+            - paragraph: 사용 환경
+          - columnheader "자동 얼굴 가림":
+            - paragraph: 자동 얼굴 가림
+          - columnheader "추천 상황":
+            - paragraph: 추천 상황
+        - row "OBS Studio + Detect Windows, Mac, Linux 지원 PC 송출, 여러 행인":
+          - cell "OBS Studio + Detect":
+            - paragraph:
+              - generic: OBS Studio + Detect
+          - cell "Windows, Mac, Linux":
+            - paragraph: Windows, Mac, Linux
+          - cell "지원":
+            - paragraph: 지원
+          - cell "PC 송출, 여러 행인":
+            - paragraph: PC 송출, 여러 행인
+        - row "PRISM Lens Windows, Mac 지원 웹캠 방송, 배경 인물 가림":
+          - cell "PRISM Lens":
+            - paragraph:
+              - generic: PRISM Lens
+          - cell "Windows, Mac":
+            - paragraph: Windows, Mac
+          - cell "지원":
+            - paragraph: 지원
+          - cell "웹캠 방송, 배경 인물 가림":
+            - paragraph: 웹캠 방송, 배경 인물 가림
+        - row "StreamShield iPhone, iPad 지원 스마트폰 야외 생방송":
+          - cell "StreamShield":
+            - paragraph:
+              - generic: StreamShield
+          - cell "iPhone, iPad":
+            - paragraph: iPhone, iPad
+          - cell "지원":
+            - paragraph: 지원
+          - cell "스마트폰 야외 생방송":
+            - paragraph: 스마트폰 야외 생방송
+        - row "Moblin iPhone 지원 무료 IRL 야외 방송":
+          - cell "Moblin":
+            - paragraph:
+              - generic: Moblin
+          - cell "iPhone":
+            - paragraph: iPhone
+          - cell "지원":
+            - paragraph: 지원
+          - cell "무료 IRL 야외 방송":
+            - paragraph: 무료 IRL 야외 방송
+    - 'heading "2. PC 방송 추천: OBS Studio + Detect 플러그인" [level=2]'
+    - 'img "Protecting Privacy in Live Video Streams: Real-time Face Detection and Blurring | by Rashmi | Medium"'
+    - 'button "Open Protecting Privacy in Live Video Streams: Real-time Face Detection and Blurring | by Rashmi | Medium"'
+    - button "Add to Favorites":
+    - paragraph:
+      - button "OBS Studio":
+        - generic: OBS Studio
+      - text: + Detect
+    - paragraph:
+      - text: 무료 OBS에 얼굴 인식 플러그인을 추가하는 방식입니다. Detect 개발자가 공개한 기능 설명에는 얼굴 감지, 실시간 추적, 블러, 픽셀 모자이크, 단색 가리기가 명시되어 있습니다.
+      - button "OBS Forums":
+        - generic: OBS Forums
+    - paragraph: 특히 화면에 행인이 여러 명 등장하는 거리 방송에 적합합니다.
+    - paragraph:
+      - generic: 설정 방법
+    - list:
+      - paragraph:
+        - link "OBS Studio 공식 사이트":
+          - /url: https://obsproject.com/?utm_source=chatgpt.com
+          - generic: OBS Studio 공식 사이트
+        - text: 에서 OBS를 설치합니다.
+      - paragraph:
+        - link "Detect 플러그인 공식 등록 페이지":
+          - /url: https://obsproject.com/forum/resources/detect-object-detection-tracking-built-in-obs.1911/?utm_source=chatgpt.com
+          - generic: Detect 플러그인 공식 등록 페이지
+        - text: 에서 운영체제에 맞는 설치 파일을 받습니다.
+      - paragraph: OBS에서 카메라를 영상 소스로 추가합니다.
+      - paragraph:
+        - text: 해당 소스를 마우스 오른쪽 버튼으로 클릭하고
+        - generic: 필터 → Detect
+        - text: 를 추가합니다.
+      - paragraph:
+        - text: 얼굴 감지 모델인
+        - code: YuNet
+        - text: 을 선택하고
+        - code: Masking
+        - text: 기능에서
+        - code: Pixelate
+        - text: 또는
+        - code: Blur
+        - text: 를 설정합니다.
+      - paragraph: 방송 전에 여러 명이 움직이는 영상으로 감지 상태를 확인합니다.
+    - paragraph:
+      - text: 플러그인은 Windows·macOS·Linux용 설치 파일을 제공하며, 얼굴 감지 모델과 픽셀 모자이크 기능은 2024년 6월 업데이트에서 추가됐습니다.
+      - button "OBS Forums +1":
+        - generic: OBS Forums
+        - generic: "+1"
+    - paragraph:
+      - generic: "주의:"
+      - text: OBS 기본 설치에 자동 얼굴 가림 기능이 있는 것은 아닙니다. Detect는 제3자가 개발한 플러그인이며, OBS 공식 사이트의 플러그인 자료실에 등록되어 있습니다.
+    - paragraph:
+      - text: 참고로 Detect 플러그인에는 현재
+      - generic: 개발이 활발하지 않다는 안내
+      - text: 가 표시되어 있습니다. 최신 OBS 버전과의 호환성을 먼저 시험해야 합니다.
+      - button "OBS Forums":
+        - generic: OBS Forums
+    - 'heading "3. 간편한 PC 대안: PRISM Lens" [level=2]'
+    - button "Open image"
+    - button "Add to Favorites":
+    - paragraph:
+      - button "PRISM Lens":
+        - generic: PRISM Lens
+    - paragraph:
+      - text: 자동으로 얼굴에 모자이크를 씌우며,
+      - generic: 모든 얼굴 또는 주변 인물의 얼굴만 가리는 옵션
+      - text: 을 제공합니다. 효과는 모자이크, 블러, 스티커 중 선택할 수 있습니다.
+      - button "PRISM Live Studio":
+        - generic: PRISM Live Studio
+    - paragraph: 설정은 비교적 간단합니다.
+    - list:
+      - paragraph:
+        - link "PRISM Lens 공식 사이트":
+          - /url: https://prismlive.com/en_us/lens.html?utm_source=chatgpt.com
+          - generic: PRISM Lens 공식 사이트
+        - text: 에서 설치합니다.
+      - paragraph: 방송용 카메라를 연결합니다.
+      - paragraph:
+        - code: Face Mosaic Effects
+        - text: 에서 전체 얼굴 가리기를 선택합니다.
+      - paragraph:
+        - code: PRISM Lens 1
+        - text: 등의 가상 카메라를 OBS 또는 PRISM Live Studio의 카메라 입력으로 선택합니다.
+      - paragraph: 미리보기에서 얼굴이 가려지는지 확인한 뒤 송출합니다.
+    - paragraph:
+      - text: "공식 안내:"
+      - link "PRISM Lens 사용 가이드":
+        - /url: https://guide.prismlive.com/lens/guides/getting-started-with-prism-lens?utm_source=chatgpt.com
+        - generic: PRISM Lens 사용 가이드
+      - text: . Mac은 Apple Silicon 기기만 지원합니다.
+    - 'heading "4. 스마트폰 단독 야외 방송: iPhone 앱" [level=2]'
+    - img "'Anonymous Camera' App Uses AI to Blur Faces, Distort Voices and More | PetaPixel"
+    - button "Open 'Anonymous Camera' App Uses AI to Blur Faces, Distort Voices and More | PetaPixel"
+    - button "Add to Favorites":
+    - paragraph:
+      - button "StreamShield – IRL Streaming":
+        - generic: StreamShield – IRL Streaming
+    - paragraph: 행인의 얼굴뿐 아니라 자동차 번호판, 화면 등도 실시간으로 가립니다. 방송 전 휴대폰에서 처리한 영상을 YouTube, Twitch, Kick 또는 RTMP 서버로 송출할 수 있습니다.
+    - paragraph:
+      - text: 자신과 동료 방송인의 얼굴은 예외 목록으로 제외할 수 있고, 감지하지 못한 프레임을 통째로 흐리게 만드는
+      - code: Panic Blur
+      - text: 옵션도 있습니다.
+      - generic: iOS 26 이상이 필요합니다.
+      - button "App Store":
+        - generic: App Store
+    - paragraph:
+      - link "공식 App Store 설치 페이지":
+        - /url: https://apps.apple.com/kr/app/streamshield-irl-streaming/id6776278719?utm_source=chatgpt.com
+        - generic: 공식 App Store 설치 페이지
+    - img "‎Moblin App - App Store"
+    - button "Open ‎Moblin App - App Store"
+    - button "Add to Favorites":
+    - paragraph:
+      - button "Moblin":
+        - generic: Moblin
+    - paragraph:
+      - text: 무료 오픈소스 iOS 라이브 방송 앱입니다. 개발자 공식 GitHub에
+      - code: Blur faces
+      - text: ","
+      - code: Blur text
+      - text: ","
+      - code: Blur background
+      - text: 영상 효과가 명시되어 있습니다.
+    - paragraph:
+      - text: RTMP·RTMPS·SRT 등으로 방송할 수 있고, 얼굴 흐림 효과를 방송에 적용할 수 있습니다.
+      - button "GitHub":
+        - generic: GitHub
+    - paragraph:
+      - link "App Store":
+        - /url: https://apps.apple.com/kr/app/moblin/id6466745933?utm_source=chatgpt.com
+        - generic: App Store
+      - text: ·
+      - link "개발자 공식 GitHub":
+        - /url: https://github.com/eerimoq/moblin?utm_source=chatgpt.com
+        - generic: 개발자 공식 GitHub
+    - paragraph: StreamShield는 행인 보호에 특화된 구성이 장점이고, Moblin은 다양한 방송 설정을 활용하기 좋은 대안입니다.
+    - heading "5. 안드로이드에서 방송한다면?" [level=2]
+    - paragraph:
+      - text: 안드로이드폰 하나만으로
+      - generic: 자동 얼굴 감지와 실시간 방송 송출을 모두 수행하는 앱
+      - text: 은 이번 검색에서 공식 문서로 충분히 검증하지 못했습니다.
+    - paragraph: 대신 PC를 함께 사용한다면 다음 구성이 가능합니다.
+    - paragraph:
+      - generic: 안드로이드폰 카메라
+    - generic: VDO.Ninja로 실시간 영상 전송
+    - paragraph:
+      - generic: PC의 OBS Studio
+    - generic: Detect 플러그인으로 얼굴 가림
+    - paragraph:
+      - generic: YouTube 등으로 라이브 송출
+    - generic: 얼굴 처리된 영상을 방송
+    - paragraph:
+      - text: VDO.Ninja는 휴대폰 카메라 영상을 OBS 브라우저 소스로 가져오는 방법을 공식 안내합니다.
+      - button "Ninja Docs":
+        - generic: Ninja Docs
+    - paragraph:
+      - text: "공식 문서:"
+      - link "VDO.Ninja 스마트폰 카메라 연결 가이드":
+        - /url: https://docs.vdo.ninja/getting-started/mobile-phone-camera-into-webcam?utm_source=chatgpt.com
+        - generic: VDO.Ninja 스마트폰 카메라 연결 가이드
+    - heading "6. 실제 방송 전에 반드시 확인할 점" [level=2]
+    - list:
+      - paragraph:
+        - generic: "인식 누락:"
+        - text: 얼굴이 옆으로 돌아가거나 작게 나타날 때, 역광이나 빠른 움직임이 있을 때 감지가 실패할 수 있습니다.
+      - paragraph:
+        - generic: "가림 강도:"
+        - text: 약한 블러보다 강한 픽셀 모자이크나 불투명 가림이 신원 노출 방지에 유리합니다.
+      - paragraph:
+        - generic: "방송 전 테스트:"
+        - text: 여러 사람이 동시에 지나가는 장면을 시험하고 실제 송출 화면을 확인해야 합니다.
+      - paragraph:
+        - generic: "개인정보:"
+        - text: 얼굴 외에도 차량 번호판, 명찰, 대화 내용, 위치 정보가 노출될 수 있습니다.
+    - paragraph:
+      - text: 또한 YouTube Studio의 기본
+      - code: 얼굴 흐리게 처리
+      - text: 기능은 게시된 영상을 편집하는 기능이므로, 라이브 송출 전 자동 가림을 대신하지 않습니다.
+      - button "YouTube 고객센터":
+        - generic: YouTube 고객센터
+    - paragraph:
+      - generic: "최종 추천:"
+      - text: PC에서 쉽게 설정하려면
+      - generic: PRISM Lens
+      - text: ", 카메라별 감지 설정을 세밀하게 조정하려면"
+      - generic: OBS + Detect
+      - text: ", 아이폰으로 길거리 방송을 직접 하려면"
+      - generic: StreamShield
+      - text: 가 가장 목적에 맞습니다.
+    - paragraph:
+      - text: 사용할 기기가
+      - generic: 갤럭시인지, 아이폰인지, 노트북을 연결하는 방송인지
+      - text: 알려주시면 그 환경에 맞춰 실제 설치와 설정 순서를 더 구체적으로 안내하겠습니다.
+    - button "Copy":
+    - button "Read aloud":
+    - button "Regenerate response":
+    - button "More actions":
+    - generic: ChatGPT can make mistakes. Check important info.
+    - button:
+    - heading "Latest response" [level=4]
+    - status
+    - button "Add files and more":
+    - textbox "Ask ChatGPT" [active]:
+      - paragraph: Ask ChatGPT
+    - button "Select ChatGPT model":
+      - generic: High
+    - button "Dictate":
+    - button "Send" [disabled]:
+- status
+- status
+- status
+- status
+- status
+- status: Response complete

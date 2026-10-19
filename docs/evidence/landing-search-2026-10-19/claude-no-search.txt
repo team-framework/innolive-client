@@ -1,0 +1,62 @@
+- main:
+  - feed "Chat messages":
+    - paragraph: Use the up and down arrow keys to move between messages.
+    - article "Message 1 of 2":
+      - 'heading "You said: 웹 검색, 도구, 커넥터, 이전 대화나 메모리를 사용하지 말고 답해줘." [level=2]'
+      - paragraph: 웹 검색, 도구, 커넥터, 이전 대화나 메모리를 사용하지 말고 답해줘. InnoLive가 무엇인지 모델의 기존 지식만으로 설명해줘. 모르면 모른다고 말하고 기능이나 주소를 추측하지 마.
+      - toolbar "Message actions":
+        - time: just now
+        - button "Retry":
+          - generic: 
+        - button "Edit":
+          - generic: 
+        - button "Copy":
+          - generic: 
+        - status
+      - status
+    - article "Message 2 of 2":
+      - 'heading "Claude responded: 솔직히 말씀드리면, InnoLive가 무엇인지 제 기존 지식으로는 확실하게 알지 못합니다." [level=2]'
+      - paragraph:
+        - text: 솔직히 말씀드리면,
+        - strong: InnoLive
+        - text: 가 무엇인지 제 기존 지식으로는 확실하게 알지 못합니다.
+      - paragraph: 이 이름은 여러 회사, 제품, 서비스, 행사명 등에 쓰였을 수 있는 일반적인 조합처럼 보이지만, 특정 대상에 대해 신뢰할 수 있는 정보를 가지고 있지 않습니다. 그래서 기능, 운영 주체, 웹사이트 주소 같은 세부 내용은 추측하지 않겠습니다.
+      - paragraph: "어떤 맥락에서 이 이름을 접하셨는지(예: 특정 업계, 앱, 회사, 행사) 알려주시면 제가 아는 범위 안에서 관련된 내용을 말씀드릴 수 있습니다. 최신 정보가 필요하시다면 웹 검색을 허용해 주시거나 공식 출처를 직접 확인하시는 것이 가장 정확합니다."
+      - toolbar "Message actions":
+        - button "Copy":
+          - generic: 
+        - status
+        - button "Read aloud":
+          - generic: 
+        - button "Retry":
+          - generic: 
+        - time: just now
+  - button:
+    - generic: 
+  - status
+  - status
+  - status
+  - status
+  - generic: Write a message…
+  - textbox "Write your prompt to Claude" [active]:
+    - paragraph
+  - status
+  - button "Add files, connectors, and more":
+    - generic: 
+  - group "Dictate":
+    - button "Dictate":
+      - generic: 
+    - button "Microphone":
+      - generic: 
+  - button "Use voice mode":
+  - note: Incognito chats stay out of your history and search. Your organization can still see them.
+  - 'button "Model: Opus 5.5 Medium"':
+    - text: Opus 5.5
+    - generic: Medium
+  - status: Claude finished the response
+- generic: Incognito chat
+- button "Exit incognito":
+  - generic: 
+- status
+- status
+- region "Notifications"

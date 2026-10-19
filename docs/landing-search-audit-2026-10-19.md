@@ -1,5 +1,13 @@
 # 랜딩 검색·AI 노출 진단 (2026-10-19 KST)
 
+## 현재 결과 요약
+
+- 구현 PR [#677](https://github.com/team-framework/innolive-client/pull/677) 머지·배포 완료. 운영 SHA `ced47dbf04c3871a1f85651b7a2da1d7ac36c162` 확인
+- 공개 URL 54→57, JSON-LD 페이지 36→42, FAQ 91/91 일치. llms.txt·llms-full.txt·RSS 404→200
+- Google 사이트맵 재제출 성공, Bing 처리 중, IndexNow 57개 URL HTTP 200 접수, 네이버 RSS·수집 요청 등록 확인
+- 네이버 AI 브리핑 기준선에서 5개 질문 중 3개가 InnoLive 공식 페이지 인용. 이번 배포의 효과로 계산하지 않음
+- 검색 없는 ChatGPT·Claude·Gemini 3개 모두 모른다고 답변. 11월 2일 재측정과 1월 19일 분기 점검 예약
+
 ## 변경 전 기준선
 
 이 문서는 구현 전에 작성했다. 대상은 `apps/landing` 웹 랜딩의 공개 콘텐츠·메타데이터·검색용 응답이다. HTTP API와 WebRTC 계약 영향은 없다. 기존 미커밋 SEO·번역·UI 변경은 시작 시점의 기준선으로 보존한다.
@@ -138,3 +146,74 @@ GSC 검색어 4행만 표시: innolive 19회 노출·1클릭, 아이폰 15 1회�
 - Perplexity 행인 얼굴 질문: IPCamLive·BystanderVideoBlur·PutMask·Fluendo 언급, InnoLive 미언급. [원문](evidence/landing-search-2026-10-19/perplexity-bystanders.txt)
 
 배포·재제출 상태와 남은 AI 측정은 후속 절에서 갱신한다. 이 기준선만으로 개선 성과를 주장하지 않는다.
+
+
+## 운영 배포와 수집 요청 결과
+
+2026-10-19 15:05~15:09 KST 확인. [배포 workflow](https://github.com/team-framework/innolive-client/actions/runs/39207706864)의 validate·deploy 성공 후 공개 `/api/version`에서 merge SHA를 직접 확인했다. 머지 커밋은 부모 2개, 제목 `merge: feat/landing-search-optimization/#676`, 빈 본문이다.
+
+| 항목 | 결과 | 확인 범위 |
+| --- | --- | --- |
+| 운영 HTTP 점검 | 57개 정상, JSON-LD 42개, FAQ 91/91 일치, 오류 0 | [원시 결과](evidence/landing-search-2026-10-19/after-live.json) |
+| Google sitemap | Sitemap submitted successfully, 제출일 10/19 | 직후 마지막 읽기 10/17·발견 41; 새 URL 색인 완료 의미 아님 |
+| Bing sitemap | 10/19 Submitted, Processing | 직후 발견 41, 새 처리 대기 |
+| IndexNow | 57개 URL, HTTP 200 | 접수 성공이며 색인 완료 아님 |
+| 네이버 RSS | feed.xml, 10/19 15:07:25 등록 | CAPTCHA는 사용자가 직접 완료 |
+| 네이버 수집 | /ko/about 15:07:53, /ko/guides/live-face-blur 15:08:20, /ko/live-mosaic 15:08:38 | 요청 내역 등록 확인, 개별 색인 완료 미확인 |
+| 네이버 sitemap | 기존 sitemap.xml 등록 유지 | 같은 URL의 갱신된 사이트맵 제공, 삭제·중복 등록 불필요 |
+| 기존 Google 개별 색인 자동화 | 미접수 9개, 10/19 16:00 이후 재시도 예약 유지 | 10/18 quota 제한 기록 존중, 중복 URL 검사·제출 생략 |
+
+[Google 접수](evidence/landing-search-2026-10-19/google-sitemap-submitted.png), [Bing 처리 상태](evidence/landing-search-2026-10-19/bing-sitemap-submitted.png), [네이버 RSS](evidence/landing-search-2026-10-19/naver-rss-submitted.png), [네이버 수집 요청](evidence/landing-search-2026-10-19/naver-collection-submitted.txt).
+
+Bing Search Performance는 `Please check back in 48 hours while we prepare the data for your site`를 표시했다. 노출·클릭을 0으로 채우지 않았다. 일반 Bing `site:innolive.studio` 검색은 약 4개 결과를 표시했고 첫 페이지에서 3개 링크를 확인했다. Google 같은 검색 첫 페이지에는 고유 URL 10개가 보였으며 전체 결과 수는 표시되지 않았다. 이는 표본이며 GSC 색인 37개와 같은 집계가 아니다. [Google 표본](evidence/landing-search-2026-10-19/google-site-sample.json), [Bing 표본](evidence/landing-search-2026-10-19/bing-site-sample.txt).
+
+### 검색 없는 브랜드 인지
+
+| 서비스 | 화면 모델 표기·모드 | 응답 |
+| --- | --- | --- |
+| ChatGPT | High, Temporary Chat; 정확한 모델 버전 미확인 | 모름 |
+| Claude | Opus 5.5 Medium, Incognito | 모름 |
+| Gemini | Gemini 4 화면, Flash, Temporary Chat | 모름 |
+
+질문에서 웹 검색·도구 사용을 금지했고, Claude·Gemini는 이전 대화·메모리 사용 금지도 명시했다. 화면상 검색·커넥터 사용은 관측하지 않았다. 임시 대화만으로 모든 계정 개인화가 제거됐다고 단정하지 않는다. 단일 응답은 학습 코퍼스 포함 여부의 증거가 아니다. [Claude 원문](evidence/landing-search-2026-10-19/claude-no-search.txt), [Gemini 원문](evidence/landing-search-2026-10-19/gemini-no-search.txt).
+
+### 봇 관측 공백 보완
+
+Caddy 설정에서 access log 구성이 없음을 확인했다. 기존 로그 24줄은 정상 요청의 분모가 아니므로 과거 봇 트래픽은 미측정이다.
+
+후속 PR [#678](https://github.com/team-framework/innolive-client/pull/678)은 공개 sitemap 경로·가이드·검색 문서만 대상으로 정규화한 봇 이름·경로·GET/HEAD를 stdout에 기록한다. 원본 User-Agent, IP, 쿠키, 쿼리, 계정 화면, API, 임의 경로는 기록하지 않는다. 로그에 나타난 이름은 자가 표기이며 DNS 검증된 봇이나 실제 색인으로 해석하지 않는다. 요청 기록이므로 응답 상태와 성공 수집도 구분한다.
+
+로컬에서 GPTBot 표기를 보낸 공개 GET은 1건 기록됐고, 같은 표기의 로그인 요청은 기록되지 않았다. 쿼리 문자열도 제외됐다. 이 합성 요청은 로컬에서만 실행해 운영 기준선에 포함하지 않았다. 테스트 9개·lint·build 통과. 집계는 `scripts/summarize-crawlers.py`를 사용하며 Docker 로그의 기간·컨테이너 교체·보존 범위를 함께 기록한다.
+
+### 남은 시간 조건과 적용 예외
+
+- 11월 2일 09:00 KST 재측정 자동화 `innolive-ai-14` 등록. 집계 지연을 제외한 같은 조건으로 비교하며, 완료 후 중지
+- 2027년 1월 19일부터 분기 점검 자동화 `innolive` 등록. 콘텐츠 갱신 후보와 모델 인지 변화 확인
+- 효과 측정: 검색 순위·클릭·인용 증가를 당일 구현 완료와 동일하게 취급하지 않음
+- 날짜: 최초 발행·최종 변경일을 확인하지 못한 글에 현재 날짜를 넣지 않음. 비교 출처 확인일은 기존 10/17 유지
+- 새 콘텐츠: 기존 질문 11종을 유지하고 제품 정체성 안내만 추가. 검색어 표본이 적어 유사 질문 페이지 대량 생성·301 병합 미실시
+- 외부 채널: 요약 초안을 사용자에게 제시했고 게시 계정·채널은 미지정. 공식 사이트에 기존 글과 RSS가 있으므로 새 외부 블로그를 필수로 만들지 않음
+- 위키백과·언론 배포: 독립 출처와 등재 적격성을 확보하지 못해 홍보용 계정·문서·보도자료 게시 미실시
+- 성능: 모바일 실기기·Core Web Vitals 현장 지표와 실제 방송 성능 재측정은 이번 검색 문서 변경의 검증으로 주장하지 않음
+
+
+## AI 검색 표본 최종 기록
+
+10월 19일 질문 5종을 각 서비스에서 실행했다. 표는 innolive.studio 내용을 출처로 사용한 응답 여부다. 브랜드명이나 링크만 적은 경우는 별도로 구분했다.
+
+| 질문 | ChatGPT | Perplexity | 네이버 AI 브리핑 |
+| --- | --- | --- | --- |
+| InnoLive란 | 홈페이지 열기 실패, 외부 출처·브랜드 언급 | 동명 서비스 혼동, GitHub 사례 언급 | 브리핑 없음 |
+| 행인 얼굴 가리기 | 자체 도메인 인용 없음 | 없음 | 인용 있음 |
+| 나만 빼고 얼굴 가리기 | 없음 | 없음 | 인용 있음 |
+| 치지직 얼굴 모자이크 | 없음 | 없음 | 인용 있음 |
+| 무료 실시간 얼굴 블러 | 없음 | 없음 | 자체 도메인 인용 없음 |
+
+- 자체 도메인 내용 인용: ChatGPT 0/5, Perplexity 0/5, 네이버 검색 질의 3/5. 네이버는 브리핑이 나온 4건 중 3건에서 인용
+- 네이버 고유 인용 경로 3개: `/ko/blog/live-face-blur`, `/ko/live-mosaic`, `/ko/mosaic-software`
+- ChatGPT는 질문별 Temporary Chat·웹 검색 명시. 나만 빼고 질문은 로딩 오류 후 새 대화에서 1회 재시도
+- Perplexity 질문 1~2는 비로그인, 3~5는 로그인 후 Incognito. 일부 화면은 Pro 고급검색 무료 미리보기 표시. 모델·검색 조건이 같은 통제 실험으로 해석하지 않음
+- 네이버는 짧은 검색 질의를 사용. 상세 프롬프트와 응답은 evidence의 서비스별 텍스트에 보관
+- 배포 전후 당일 기준선이며 새 코드의 효과를 보여 주는 결과가 아님. 생성 답변의 경쟁 제품 설명은 별도 사실 검증하지 않음
+
+사용자 결정에 따라 외부 블로그 신설·외부 게시를 진행하지 않고, 기존 한국어 얼굴 블러 글에 세 가지 점검 장면과 웹 체험·실제 송출 구분을 보강했다. 실제 기기 실험 수치나 성공률은 추가하지 않았다.
