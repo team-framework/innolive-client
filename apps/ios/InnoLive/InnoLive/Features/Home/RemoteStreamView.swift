@@ -36,6 +36,8 @@ struct RemoteStreamView: View {
     let isConnectingVideo: Bool
     var preparationStatus: BroadcastPreparationStatus? = nil
     var recoveryStatus: VideoRecoveryStatus? = nil
+    var showsStatusOverlay = true
+    var showsEmptyState = true
 
     private var connectionPhase: BroadcastConnectionPhase? {
         if let recoveryStatus {
@@ -69,9 +71,9 @@ struct RemoteStreamView: View {
                 WebRTCRemoteVideoView(uplink: uplink)
             }
 
-            if let connectionPhase {
+            if showsStatusOverlay, let connectionPhase {
                 BroadcastConnectionOverlay(phase: connectionPhase)
-            } else if !uplink.hasRemoteVideo {
+            } else if showsStatusOverlay && showsEmptyState && !uplink.hasRemoteVideo {
                 ContentUnavailableView(
                     String(localized: "방송 송출 화면을 기다리는 중"),
                     systemImage: "dot.radiowaves.left.and.right",

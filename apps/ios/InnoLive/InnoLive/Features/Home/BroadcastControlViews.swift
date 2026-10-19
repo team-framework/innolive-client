@@ -2,13 +2,13 @@ import SwiftUI
 import UIKit
 
 private enum BroadcastControlLayout {
-    static let height: CGFloat = 52
+    static let height: CGFloat = 44
 }
 
 struct SettingsControlLabel: View {
     var body: some View {
         Image(systemName: "gearshape.fill")
-            .font(.body.weight(.semibold))
+            .font(.system(size: 16, weight: .semibold))
             .frame(width: BroadcastControlLayout.height, height: BroadcastControlLayout.height)
             .contentShape(Rectangle())
     }
@@ -16,25 +16,57 @@ struct SettingsControlLabel: View {
 
 struct AnonymizationControlLabel: View {
     let isLoading: Bool
+    var isEnabled = false
 
     var body: some View {
-        Group {
+        VStack(spacing: 3) {
             if isLoading {
-                ProgressView()
-                    .controlSize(.small)
+                ProgressView().controlSize(.small).tint(.white)
             } else {
                 Image(systemName: "faceid")
-                    .font(.body.weight(.semibold))
+                    .font(.system(size: 16, weight: .semibold))
+                    .overlay(alignment: .bottomTrailing) {
+                        if isEnabled {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 9, weight: .bold))
+                                .offset(x: 5, y: 3)
+                        }
+                    }
             }
+            Text(isEnabled ? String(localized: "가림 켜짐") : String(localized: "가림 꺼짐"))
+                .font(.caption2.weight(.medium))
+                .lineLimit(1)
         }
-        .frame(width: BroadcastControlLayout.height, height: BroadcastControlLayout.height)
+        .frame(minWidth: 56, minHeight: BroadcastControlLayout.height)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+    }
+}
+
+struct StudioWarningLabel: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Label {
+            Text(title).foregroundStyle(.white)
+        } icon: {
+            Image(systemName: systemImage).foregroundStyle(.orange)
+        }
+            .font(.caption)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .innoLiveGlassBackground(cornerRadius: 12, overVideo: true)
+            .environment(\.colorScheme, .dark)
     }
 }
 
 struct YouTubeBroadcastControlLabel: View {
     @ObservedObject var youtube: YouTubeIntegration
     let isLoading: Bool
+    var isCompact = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -49,11 +81,26 @@ struct YouTubeBroadcastControlLabel: View {
                 }
 
                 VStack(spacing: 2) {
-                    Text(buttonTitle(at: context.date))
-                        .font(.headline.weight(.bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                    if youtube.isYouTubeBroadcastActive {
+                    if isCompact {
+                        Text(compactStatus)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(formattedDuration(since: youtube.streamStartedAt, now: context.date))
+                            .font(.system(size: 13, weight: .semibold))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                            .layoutPriority(1)
+                    } else {
+                        Text(buttonTitle(at: context.date))
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .minimumScaleFactor(0.72)
+                    }
+                    if youtube.isYouTubeBroadcastActive && !isCompact {
                         Text(String(localized: "남은 시간 \(PlanTimeText.remaining(youtube.broadcastRemainingTime))"))
                             .font(.caption2)
                         if youtube.isRemainingTimeStale {
@@ -64,9 +111,16 @@ struct YouTubeBroadcastControlLabel: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: BroadcastControlLayout.height)
+            .frame(minHeight: BroadcastControlLayout.height)
             .contentShape(Rectangle())
         }
+    }
+
+    private var compactStatus: String {
+        if let recovery = youtube.videoRecoveryStatus { return recovery.title }
+        if youtube.isYouTubeBroadcastPaused { return String(localized: "일시 중지", table: "Simulcast") }
+        if youtube.stream?.status == "reconnecting" { return String(localized: "재연결 중") }
+        return String(localized: "방송 중")
     }
 
     private func buttonTitle(at date: Date) -> String {
@@ -100,6 +154,7 @@ struct YouTubeBroadcastControlLabel: View {
 }
 
 struct BroadcastPreparationControlLabel: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let status: BroadcastPreparationStatus?
     let isLoading: Bool
 
@@ -110,12 +165,14 @@ struct BroadcastPreparationControlLabel: View {
                     .controlSize(.small)
             }
             Text(title)
-                .font(.headline.weight(.bold))
-                .lineLimit(1)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: BroadcastControlLayout.height)
+        .frame(minHeight: BroadcastControlLayout.height)
         .contentShape(Rectangle())
     }
 
@@ -145,6 +202,8 @@ struct BroadcastSessionStatusView: View {
             if youtube.upgradeOffer != nil {
                 Button { isShowingUpgradeOffer = true } label: {
                     Label(String(localized: "방송 업그레이드 제안", table: "UpgradeOffer"), systemImage: "arrow.up.circle")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("upgrade-offer-entry")
             }
@@ -157,6 +216,8 @@ struct BroadcastSessionStatusView: View {
                     BroadcastModeView(authentication: authentication, youtube: youtube)
                 } label: {
                     Label(String(localized: "방송 방식 변경", table: "BroadcastMode"), systemImage: "arrow.triangle.2.circlepath")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
                 .disabled(!youtube.canChangeBroadcastMode || youtube.isSavingLiveSettings)
                 .accessibilityIdentifier("broadcast-mode-entry")
@@ -166,6 +227,8 @@ struct BroadcastSessionStatusView: View {
                     BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
                 } label: {
                     Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
                 .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode)
                 .accessibilityIdentifier("live-edit-" + provider.rawValue)
@@ -230,6 +293,8 @@ struct BroadcastFeedbackBanner: View {
                     Button(action: onDismiss) {
                         Image(systemName: "xmark")
                             .font(.caption.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(String(localized: "오류 닫기"))
@@ -246,6 +311,75 @@ struct BroadcastFeedbackBanner: View {
             }
         }
         .padding(10)
-        .innoLiveGlassBackground(cornerRadius: 14)
+        .innoLiveGlassBackground(cornerRadius: 14, overVideo: true)
+        .environment(\.colorScheme, .dark)
+    }
+}
+
+struct StudioBroadcastSummaryLabel: View {
+    @ObservedObject var youtube: YouTubeIntegration
+    @ObservedObject var editor: BroadcastSettingsEditor
+    @AppStorage("selectedResolution") private var selectedResolution = CameraQualityPreset.defaultValue.rawValue
+    @AppStorage(AIProcessingMode.storageKey) private var selectedAIProcessing = AIProcessingMode.server.rawValue
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains)) { provider in
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 4) {
+                            if !youtube.isSettingsAccountConnected(provider) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .accessibilityHidden(true)
+                            }
+                            Text(channelTitle(for: provider))
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(youtube.isSettingsAccountConnected(provider) ? Color.white : Color.orange)
+                        Text(broadcastTitle(for: provider))
+                            .font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.caption)
+                }
+            }
+            Text(qualitySummary + " · " + processingSummary)
+                .font(.caption).foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .innoLiveGlassBackground(cornerRadius: 18, overVideo: true)
+        .contentShape(RoundedRectangle(cornerRadius: 18))
+        .environment(\.colorScheme, .dark)
+    }
+
+    private func broadcastTitle(for provider: BroadcastSettingsProvider) -> String {
+        let title = (provider == .youtube ? editor.youtube.title : editor.chzzk.title)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? String(localized: "방송 제목 설정") : title
+    }
+
+    private func channelTitle(for provider: BroadcastSettingsProvider) -> String {
+        guard youtube.isSettingsAccountConnected(provider) else {
+            return provider.title + " · " + String(localized: "계정 연결 필요")
+        }
+        let channel = provider == .youtube ? youtube.connection?.channel.title
+            : youtube.streamingAccounts.first(where: { $0.provider == provider.rawValue })?.displayTitle
+        return channel.map { provider.title + " · " + $0 } ?? provider.title
+    }
+
+    private var qualitySummary: String {
+        if let resolution = youtube.broadcastResolution {
+            return resolution == "fhd" ? "1080p" : resolution
+        }
+        return (CameraQualityPreset(rawValue: selectedResolution) ?? .defaultValue).rawValue
+    }
+
+    private var processingSummary: String {
+        let mode = youtube.session == nil
+            ? (AIProcessingMode(rawValue: selectedAIProcessing) ?? .server)
+            : youtube.planProcessingMode
+        return mode.title
     }
 }

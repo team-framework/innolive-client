@@ -22,7 +22,7 @@ struct AISettingsView: View {
                         SettingsGlassRow {
                             HStack {
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text(option.title).font(.body.weight(.semibold))
+                                    Text(option.title).font(.subheadline.weight(.semibold))
                                     Text(option == .server ? String(localized: "서버에서 영상을 비식별화합니다.") : String(localized: "이 기기에서 비식별화한 영상을 송출합니다."))
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
@@ -59,8 +59,9 @@ struct AISettingsView: View {
                 }
                 .buttonStyle(.plain).disabled(isChanging)
                 if let error = youtube.errorMessage { Text(error).font(.footnote).foregroundStyle(.red) }
-            }.padding(24)
+            }.padding(InnoLiveSettingsLayout.pageInset)
         }
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "AI & Faces Setting"))
         .navigationBarTitleDisplayMode(.inline)
         .task { await youtube.refreshPlan(accessToken: authentication.currentAccessToken()) }
@@ -88,7 +89,7 @@ private struct OnDeviceTransportSection: View {
                     SettingsGlassRow {
                         HStack {
                             VStack(alignment: .leading, spacing: 5) {
-                                Text(option.title).font(.body.weight(.semibold))
+                                Text(option.title).font(.subheadline.weight(.semibold))
                                 Text(option.detail).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()

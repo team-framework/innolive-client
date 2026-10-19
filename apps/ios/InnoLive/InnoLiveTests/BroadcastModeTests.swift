@@ -226,6 +226,7 @@ final class BroadcastModeTests: XCTestCase {
 
     func testStopRemainsAvailableDuringServerSwitch() async throws {
         try seed(status: "switching")
+        XCTAssertTrue(integration.canStopBroadcastTargets, "Accepted server switches must keep the stop UI available")
         enqueue(snapshot(status: "canceled"))
         await integration.stopYouTubeStream(accessToken: token)
         XCTAssertEqual(BroadcastModeURLProtocol.requests.first?.url?.path, "/sessions/session/stream/stop")

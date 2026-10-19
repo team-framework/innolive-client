@@ -47,8 +47,9 @@ struct BroadcastPlatformSelectionView: View {
                         .foregroundStyle(.red)
                 }
             }
-            .padding(24)
+            .padding(InnoLiveSettingsLayout.pageInset)
         }
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "방송할 플랫폼"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -100,7 +101,7 @@ struct BroadcastPlatformSelectionView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .innoLiveGlassBackground(cornerRadius: 16)
+        .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
         .confirmationDialog(
             String(localized: "치지직 연결 해제", table: "CHZZK"),
             isPresented: $isShowingCHZZKDisconnectConfirmation, titleVisibility: .visible
@@ -156,7 +157,7 @@ struct BroadcastPlatformSelectionView: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .innoLiveGlassBackground(cornerRadius: 16)
+                .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
             }
             ForEach(youtube.youtubeAccounts, id: \.channelID) { account in
                 VStack(alignment: .leading, spacing: 8) {
@@ -176,7 +177,7 @@ struct BroadcastPlatformSelectionView: View {
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .innoLiveGlassBackground(cornerRadius: 16)
+                .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
             }
             Button(String(localized: "채널 추가 연결", table: "YouTubeChannels"), action: connectYouTube)
                 .innoLiveGlassButtonStyle(prominent: true)
@@ -246,11 +247,11 @@ struct BroadcastPlatformSelectionView: View {
                 .frame(width: 24, height: 24)
             if allowsWrapping {
                 Text(platform.rawValue)
-                    .font(.body.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text(platform.rawValue)
-                    .font(.body.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
             }
         }
     }
@@ -268,7 +269,7 @@ struct BroadcastTargetSelectionView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "송출할 플랫폼", table: "Simulcast")).font(.headline)
+            Text(String(localized: "송출할 플랫폼", table: "Simulcast")).font(.subheadline.weight(.semibold))
             ForEach(BroadcastSettingsProvider.allCases) { provider in
                 Toggle(isOn: Binding(
                     get: { youtube.selectedBroadcastProviders.contains(provider) },
