@@ -17,10 +17,12 @@ final class StudioHomeRenderingTests: XCTestCase {
         let authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }),
             tokenStore: StudioHomeEmptyTokenStore(), consentStore: ConsentAcknowledgementStore(userDefaults: defaults))
 
-        for live in [false, true] {
+        for state in ["idle", "live", "preparing"] {
+            let live = state == "live"
+            let preparing = state == "preparing"
             let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults))
             defer { integration.reset() }
-            if live {
+            if live || preparing {
                 let json = """
                 {"session_id":"studio-home-render","owner_token":"fake-owner","broadcast_resolution":"720p",
                 "stream":{"status":"streaming","broadcast_phase":"live","publisher_active":true,"reconnect_attempts":0},
@@ -29,7 +31,8 @@ final class StudioHomeRenderingTests: XCTestCase {
                 let session = try JSONDecoder().decode(YouTubeBroadcastSession.self, from: Data(json.utf8))
                 integration.seedPreparedVideoSessionForTesting(
                     connection: .init(provider: "youtube", channel: .init(id: "fake-channel", title: "YT")),
-                    session: session, videoTrack: .init(id: "video", kind: "video", readyState: "live"))
+                    session: session, videoTrack: .init(id: "video", kind: "video", readyState: "live"),
+                    preparationStatus: preparing ? .init(phase: .connectingServer) : nil)
             }
             let sessionID = integration.session?.sessionID
             for configuration in [(landscape: false, large: false), (landscape: true, large: false), (landscape: false, large: true)] {
@@ -73,7 +76,7 @@ final class StudioHomeRenderingTests: XCTestCase {
                     XCTAssertFalse(integration.videoUplink.isCapturingMedia)
                     XCTAssertFalse(camera.session.isRunning)
                     let attachment = XCTAttachment(image: image)
-                    attachment.name = "studio-home-\(live ? "live" : "idle")-\(page)-\(landscape ? "landscape" : "portrait")-\(configuration.large ? "large-text" : "default")"
+                    attachment.name = "studio-home-\(state)-\(page)-\(landscape ? "landscape" : "portrait")-\(configuration.large ? "large-text" : "default")"
                     attachment.lifetime = .keepAlways
                     add(attachment)
                 }

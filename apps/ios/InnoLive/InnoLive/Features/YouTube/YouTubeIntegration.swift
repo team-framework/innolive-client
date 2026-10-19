@@ -3241,8 +3241,10 @@ final class YouTubeIntegration: ObservableObject {
     func seedPreparedVideoSessionForTesting(
         connection: YouTubeConnection,
         session: YouTubeBroadcastSession,
-        videoTrack: YouTubeVideoTrackState
+        videoTrack: YouTubeVideoTrackState,
+        preparationStatus: BroadcastPreparationStatus? = nil
     ) {
+        self.preparationStatus = preparationStatus
         self.connection = connection
         self.session = session
         self.stream = session.stream
