@@ -19,6 +19,7 @@ struct BroadcastControllsView: View {
     @State private var isShowingBroadcastSettings = false
     @State private var isShowingBroadcastActions = false
     @State private var isConfirmingBroadcastEnd = false
+    @State private var isShowingAnonymizationActions = false
 
     var body: some View {
         VStack(spacing: 10) {
@@ -82,36 +83,38 @@ struct BroadcastControllsView: View {
                             }
                         }
 
-                        Button(action: toggleAnonymization) {
+                        Button { isShowingAnonymizationActions = true } label: {
                             AnonymizationControlLabel(
-                                isLoading: youtube.isTogglingAnonymization
+                                isLoading: youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur
                             )
                         }
                         .innoLiveGlassButtonStyle()
                         .buttonBorderShape(.circle)
-                        .tint(youtube.isAnonymizationEnabled ? .purple : nil)
+                        .tint(youtube.isAnonymizationEnabled || youtube.isScreenBlurEnabled ? .purple : nil)
                         .disabled(!isBroadcasting || youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur)
-                        .accessibilityLabel(
-                            youtube.isAnonymizationEnabled ? String(localized: "비식별화 켜짐") : String(localized: "비식별화 꺼짐")
-                        )
-                        .accessibilityHint(String(localized: "서버 영상 연결을 유지한 채 AI 비식별화 처리를 켜거나 끕니다."))
-                    }
-
-                    Button {
-                        Task { await youtube.toggleScreenBlur(accessToken: authentication.currentAccessToken()) }
-                    } label: {
-                        HStack(spacing: 8) {
-                            if youtube.isTogglingScreenBlur { ProgressView().controlSize(.small) }
-                            Label(youtube.isScreenBlurEnabled ? String(localized: "화면 블러 끄기") : String(localized: "화면 블러 켜기"), systemImage: "rectangle.on.rectangle.slash")
+                        .accessibilityLabel(String(localized: "비식별화"))
+                        .accessibilityValue(anonymizationStatuses.joined(separator: ", "))
+                        .accessibilityHint(String(localized: "얼굴 비식별화와 화면 블러 중 전환할 항목을 선택합니다."))
+                        .accessibilityIdentifier("broadcast-anonymization-button")
+                        .confirmationDialog(
+                            String(localized: "비식별화"),
+                            isPresented: $isShowingAnonymizationActions,
+                            titleVisibility: .visible
+                        ) {
+                            Button(
+                                youtube.isAnonymizationEnabled ? String(localized: "얼굴 비식별화 끄기") : String(localized: "얼굴 비식별화 켜기"),
+                                action: toggleAnonymization
+                            )
+                            Button(
+                                youtube.isScreenBlurEnabled ? String(localized: "화면 블러 끄기") : String(localized: "화면 블러 켜기"),
+                                action: toggleScreenBlur
+                            )
+                            .disabled(!youtube.canToggleScreenBlur)
+                            Button(String(localized: "취소"), role: .cancel) { }
+                        } message: {
+                            Text(anonymizationActionsMessage)
                         }
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: 36)
                     }
-                    .innoLiveGlassButtonStyle()
-                    .tint(youtube.isScreenBlurEnabled ? .purple : nil)
-                    .disabled(!isBroadcasting || !youtube.canToggleScreenBlur)
-                    .accessibilityValue(youtube.isScreenBlurEnabled ? String(localized: "켜짐") : String(localized: "꺼짐"))
-                    .accessibilityHint(String(localized: "서버 처리 모드에서 미리보기와 송출 화면 전체를 흐립니다."))
 
                     if canCancelPreparation {
                         Button(role: .destructive, action: cancelPreparation) {
@@ -339,6 +342,28 @@ struct BroadcastControllsView: View {
         Task {
             await youtube.toggleAnonymization(accessToken: authentication.currentAccessToken())
         }
+    }
+
+    private func toggleScreenBlur() {
+        Task {
+            await youtube.toggleScreenBlur(accessToken: authentication.currentAccessToken())
+        }
+    }
+
+    private var anonymizationStatuses: [String] {
+        [
+            youtube.isAnonymizationEnabled ? String(localized: "얼굴 비식별화 켜짐") : String(localized: "얼굴 비식별화 꺼짐"),
+            youtube.isScreenBlurEnabled ? String(localized: "화면 블러 켜짐") : String(localized: "화면 블러 꺼짐")
+        ]
+    }
+
+    private var anonymizationActionsMessage: String {
+        // 화면 블러는 서버가 적용한다. 온디바이스에서는 비활성 항목이 팝오버에서 숨겨질 수 있어 이유를 함께 적는다.
+        var lines = anonymizationStatuses
+        if youtube.session?.processingMode == .onDevice {
+            lines.append(String(localized: "화면 블러는 서버 처리 모드에서만 사용할 수 있어요."))
+        }
+        return lines.joined(separator: "\n")
     }
 
     private func cancelPreparation() {
