@@ -38,17 +38,17 @@ export function TryOutView() {
               {
                 text: messages.tryOut.heading,
                 className:
-                  "break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none",
+                  "break-keep text-[clamp(2rem,1.2rem+3.2vw,4rem)] font-bold leading-none max-lg:text-[28px] max-lg:leading-[1.25]",
               },
             ]}
             ariaLabel={messages.tryOut.ariaLabel}
           />
-          <p className="break-keep text-body-lg font-normal">
+          <p className="break-keep text-body-lg font-normal max-lg:text-balance max-lg:text-text-secondary">
             {messages.tryOut.body}
           </p>
         </div>
 
-        <div className="flex w-full flex-col items-center gap-[0.5625rem]">
+        <div className="flex w-full flex-col items-center gap-[0.5625rem] max-lg:gap-6 md:max-lg:max-w-[34rem]">
           <TryOutVideoPanels
             local={preview === "guest" ? (
               <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-body text-text-secondary">
@@ -62,14 +62,14 @@ export function TryOutView() {
             }
           />
 
-          <div className="flex w-full max-w-[32.3125rem] flex-col items-center">
-            <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 p-2.5">
+          <div className="flex w-full max-w-[32.3125rem] flex-col items-center max-lg:gap-1">
+            <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 p-2.5 max-lg:mb-3 max-lg:w-full max-lg:flex-col max-lg:items-stretch max-lg:gap-y-2.5 max-lg:p-0">
               {preview === "guest" ? (
                 <>
                   <Button
                     href={href("/try-out/experience")}
                     showChevron={false}
-                    className="min-w-[14.375rem] max-w-full whitespace-nowrap max-md:whitespace-normal max-md:break-keep"
+                    className="min-w-[14.375rem] max-w-full whitespace-nowrap max-lg:w-full max-lg:min-w-0 max-lg:whitespace-normal max-lg:break-keep"
                     disabled={isLoading}
                     aria-describedby={notice ? noticeId : undefined}
                   >
@@ -84,7 +84,7 @@ export function TryOutView() {
                       variant="secondary"
                       href={href("/login")}
                       showChevron={false}
-                      className="min-w-[14.375rem] max-w-full whitespace-nowrap max-md:whitespace-normal max-md:break-keep"
+                      className="min-w-[14.375rem] max-w-full whitespace-nowrap max-lg:w-full max-lg:min-w-0 max-lg:whitespace-normal max-lg:break-keep"
                     >
                       {messages.tryOut.loginOrSignup}
                     </Button>
@@ -117,11 +117,11 @@ export function TryOutView() {
               ) : null}
             </div>
             {!isLogined ? (
-              <p className="w-full text-center text-xl font-medium text-text-secondary">
+              <p className="w-full text-center text-xl font-medium text-text-secondary max-lg:text-[14px] max-lg:text-text-primary">
                 {messages.tryOut.tip}
               </p>
             ) : null}
-            <p className="w-full text-center text-xl font-medium text-text-secondary">
+            <p className="w-full text-center text-xl font-medium text-text-secondary max-lg:text-[13px] max-lg:font-normal">
               {messages.tryOut.networkNote}
             </p>
             {notice ? (
