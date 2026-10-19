@@ -854,9 +854,11 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     var isConnected: Bool { connection != nil }
-    // 송출을 시작하기 전에는 서버의 stream.publisher_active가 항상 false다.
-    // 카메라 업링크 준비 여부는 세션 media.raw_video_track으로 판단한다.
-    var isVideoConnected: Bool { videoUplink.state == .connected && videoTrack?.readyStateValue == .live }
+    var isVideoConnected: Bool {
+        guard videoUplink.state == .connected else { return false }
+        if isDirectPublishSession { return videoUplink.hasRemoteVideo }
+        return videoTrack?.readyStateValue == .live
+    }
 
     var streamStartedAt: Date? {
         liveStartedAt
@@ -1394,7 +1396,7 @@ final class YouTubeIntegration: ObservableObject {
 
         while true {
             do {
-                let iceServers = try await api.webrtcConfiguration(accessToken: currentAccessToken)
+                let iceServers = Self.isDirectPublish(session) ? [] : try await api.webrtcConfiguration(accessToken: currentAccessToken)
                 guard generation == sessionOperationGeneration else { return false }
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
@@ -2725,6 +2727,7 @@ final class YouTubeIntegration: ObservableObject {
 
     private func waitForVideoTrack(session: YouTubeBroadcastSession, accessToken: String) async throws -> Bool {
         notePreparationPhase(.confirmingVideo)
+        if Self.isDirectPublish(session) { return isVideoConnected }
         let generation = sessionOperationGeneration
         for _ in 0..<15 {
             guard videoUplink.state == .connected else {
@@ -2793,7 +2796,7 @@ final class YouTubeIntegration: ObservableObject {
                     guard !accessToken.isEmpty else {
                         throw WebRTCVideoUplinkError.unauthorized
                     }
-                    let iceServers = try await self.api.webrtcConfiguration(accessToken: accessToken)
+                    let iceServers = Self.isDirectPublish(session) ? [] : try await self.api.webrtcConfiguration(accessToken: accessToken)
                     guard !Task.isCancelled else { return }
                     await self.videoUplink.stopAndWait()
                     guard !Task.isCancelled else { return }
@@ -3236,6 +3239,7 @@ final class YouTubeIntegration: ObservableObject {
     func markServerVideoReadyForTesting() {
         videoUplink.updateState(.connected, "connected")
         videoTrack = YouTubeVideoTrackState(id: "video", kind: "video", readyState: "live")
+        videoUplink.setRemoteVideoAvailable(true)
     }
 
     func seedPreparedVideoSessionForTesting(
@@ -3249,6 +3253,7 @@ final class YouTubeIntegration: ObservableObject {
         self.responseState.stream = session.stream
         self.responseState.details = session.details
         self.videoTrack = videoTrack
+        videoUplink.setRemoteVideoAvailable(true)
         videoUplink.updateState(.connected, "connected")
     }
     #endif
