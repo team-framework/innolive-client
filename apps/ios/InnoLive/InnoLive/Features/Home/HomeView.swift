@@ -102,6 +102,13 @@ struct HomeView: View {
                 }
             } else {
                 zoomableRemoteStream
+                    .blur(radius: studioPage == .details ? 18 : 0)
+                    .overlay {
+                        if studioPage == .details {
+                            Color.black.opacity(reduceTransparency ? 0.8 : 0.2)
+                                .ignoresSafeArea().allowsHitTesting(false)
+                        }
+                    }
             }
 
             studioPager
