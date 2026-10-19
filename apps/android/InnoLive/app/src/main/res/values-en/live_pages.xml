@@ -4,4 +4,7 @@
     <string name="live_page_home">Home</string>
     <string name="live_page_settings">Settings</string>
     <string name="live_page_indicator">%3$s, page %1$d of %2$d. Swipe left or right to switch screens</string>
+    <string name="live_pip_description">Preview window. Drag to move it</string>
+    <string name="live_pip_move_side">Move to the other side</string>
+    <string name="live_pip_move_vertical">Move up or down</string>
 </resources>

@@ -82,6 +82,8 @@ internal fun LiveStudioPager(
     cameraPage: @Composable BoxScope.() -> Unit,
     homePage: @Composable BoxScope.() -> Unit,
     modifier: Modifier = Modifier,
+    /** 미리보기 영상 위의 작은 창입니다. 설정 화면이 아닐 때 끌어서 옮길 수 있습니다. */
+    pipState: LivePreviewPipState? = null,
 ) {
     val scope = rememberCoroutineScope()
     val homeIndex = LiveStudioPage.HOME.ordinal
@@ -112,7 +114,12 @@ internal fun LiveStudioPager(
         scope.launch { pagerState.animateScrollToPage(homeIndex) }
     }
 
-    Box(modifier.fillMaxSize()) {
+    val canMovePip = pipState != null && pagerState.currentPage != settingsIndex
+    Box(
+        modifier.fillMaxSize().then(
+            if (pipState != null) Modifier.livePreviewPipDrag(pipState, canMovePip, scope) else Modifier,
+        ),
+    ) {
         preview()
         if (settings != null) {
             // 설정 페이지가 보이는 만큼 미리보기를 어둡게 해 설정 내용을 읽기 쉽게 합니다.
@@ -140,6 +147,7 @@ internal fun LiveStudioPager(
                 }
             }
         }
+        if (pipState != null && canMovePip) LivePreviewPipAccessibility(pipState)
         Column(
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
