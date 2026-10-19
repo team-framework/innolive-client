@@ -55,8 +55,9 @@ internal class ReferenceFaceRepository(
         accountEmail: String,
         accessToken: String,
         refreshAccessToken: suspend () -> String,
+        name: String? = null,
     ): ReferenceFaceAppendResult {
-        val registration = api().append(images, accessToken, refreshAccessToken)
+        val registration = api().append(images, accessToken, name, refreshAccessToken)
         if (accountEmail.isBlank()) {
             return ReferenceFaceAppendResult(registration, localImageStoreFailed = false)
         }

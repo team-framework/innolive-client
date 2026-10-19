@@ -1,12 +1,13 @@
 package com.framework.innolive.feature.settings
 
 import androidx.compose.runtime.Immutable
+import com.framework.innolive.feature.live.BroadcastVideoQualitySettings
+import com.framework.innolive.feature.live.VideoQualityCaptureState
 import com.framework.innolive.ui.text.UiText
 
 @Immutable
 data class SettingsScreenProps(
     val onBack: () -> Unit,
-    val onOpenCameraSettings: () -> Unit,
     val onOpenBroadcastSettings: () -> Unit,
     val profileName: String,
     val profileEmail: String,
@@ -19,6 +20,9 @@ data class SettingsScreenProps(
     val onOpenResolutionOptions: () -> Unit = {},
     val onOpenCameraDeviceOptions: () -> Unit = {},
     val onOpenAudioDeviceOptions: () -> Unit = {},
+    val videoQualitySettings: BroadcastVideoQualitySettings = BroadcastVideoQualitySettings(),
+    val onVideoQualitySettingsChanged: (BroadcastVideoQualitySettings) -> Unit = {},
+    val videoQualityCaptureState: VideoQualityCaptureState = VideoQualityCaptureState(),
     val onDeleteAccount: () -> Unit = {},
     val isDeletingAccount: Boolean = false,
     val isAccountDeletionPending: Boolean = false,

@@ -15,6 +15,11 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -48,12 +53,29 @@ class PlanUsageScreenTest {
 
     @Test fun settingsDisplaysPlanAndLockedModesOpenGuidance() {
         composeRule.setContent { MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = usage)) } } }
-        composeRule.onNodeWithText(context.getString(R.string.plan_current, "Beam")).performScrollTo().assertExists()
+        composeRule.onNodeWithText("Beam").performScrollTo().assertExists()
+        // 방식별 시간은 상세 시간을 펼쳐야 보입니다.
+        composeRule.onNodeWithText(context.getString(R.string.plan_hd_single)).assertDoesNotExist()
+        composeRule.onNodeWithText(context.getString(R.string.plan_details)).performScrollTo().performClick()
         composeRule.onNodeWithText(context.getString(R.string.plan_hd_single)).performScrollTo().assertExists()
         saveScreenshot("plan-settings.png")
         composeRule.onNodeWithText(context.getString(R.string.plan_fhd_single)).performScrollTo().performClick()
         composeRule.onNodeWithText(context.getString(R.string.plan_mode_locked,
             context.getString(R.string.plan_fhd_single))).assertExists()
+    }
+
+    @Test fun planDetailsCollapseAgain() {
+        composeRule.setContent { MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = usage)) } } }
+        val details = composeRule.onNodeWithText(context.getString(R.string.plan_details)).performScrollTo()
+        details.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
+            context.getString(R.string.settings_collapsed)))
+        details.performClick()
+        composeRule.onNodeWithText(context.getString(R.string.plan_label_monthly)).assertExists()
+        details.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
+            context.getString(R.string.settings_expanded)))
+        details.performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.plan_label_monthly)).assertDoesNotExist()
     }
 
     @Test fun failedRefreshPreservesLastValuesAndCanRetry() {
@@ -66,7 +88,7 @@ class PlanUsageScreenTest {
         saveScreenshot("plan-failed-refresh.png")
         composeRule.onNodeWithText(context.getString(R.string.plan_refresh)).performScrollTo().performClick()
         composeRule.onNodeWithText(context.getString(R.string.plan_load_failed)).assertDoesNotExist()
-        composeRule.onNodeWithText(context.getString(R.string.plan_current, "Beam")).assertExists()
+        composeRule.onNodeWithText("Beam").assertExists()
     }
 
     @Test fun settingsCountdownTicksPausesAndResetsToNewServerUsage() {
@@ -81,8 +103,9 @@ class PlanUsageScreenTest {
             MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = displayed)) } }
         }
         composeRule.waitUntil(5_000) { displayed.usedSeconds >= usage.usedSeconds + 2 }
-        composeRule.onNodeWithText(context.getString(R.string.plan_remaining,
-            formatPlanDuration(displayed.remainingSeconds!!))).performScrollTo().assertExists()
+        // 남은 시간은 요금제 요약 카드 맨 위에 크게 보여 줍니다.
+        composeRule.onAllNodesWithText(formatPlanDuration(displayed.remainingSeconds!!)).onFirst()
+            .performScrollTo().assertExists()
         composeRule.runOnIdle { charging = false }
         composeRule.waitForIdle()
         val frozen = displayed
@@ -209,7 +232,7 @@ class PlanUsageScreenTest {
         saveScreenshot("broadcast-time-stale.png")
     }
 
-    private fun props() = SettingsScreenProps(onBack = {}, onOpenCameraSettings = {}, onOpenBroadcastSettings = {},
+    private fun props() = SettingsScreenProps(onBack = {}, onOpenBroadcastSettings = {},
         profileName = "InnoLive", profileEmail = "test@example.com", onLogout = {})
 
     private fun saveScreenshot(name: String) {

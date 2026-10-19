@@ -32,7 +32,6 @@ class AccountDeletionSettingsScreenTest {
                 SettingsScreen(
                     SettingsScreenProps(
                         onBack = {},
-                        onOpenCameraSettings = {},
                         onOpenBroadcastSettings = {},
                         profileName = "InnoLive User",
                         profileEmail = "user@example.com",
@@ -60,7 +59,6 @@ class AccountDeletionSettingsScreenTest {
                 SettingsScreen(
                     SettingsScreenProps(
                         onBack = {},
-                        onOpenCameraSettings = {},
                         onOpenBroadcastSettings = {},
                         profileName = "InnoLive User",
                         profileEmail = "user@example.com",

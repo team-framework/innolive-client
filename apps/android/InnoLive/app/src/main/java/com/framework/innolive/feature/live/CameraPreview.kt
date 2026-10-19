@@ -66,6 +66,8 @@ fun CameraPreview(
     showAdjustedColorPreview: Boolean = true,
     /** 가림 처리 출력 텍스처를 그릴 EGL 컨텍스트입니다. [CameraProcessedPreview]에 넘깁니다. */
     processedPreviewEglContext: org.webrtc.EglBase.Context? = null,
+    /** [cameraLensFacing] 카메라가 열릴 때마다 불립니다. 카메라 전환이 끝났는지 알 때 씁니다. */
+    onCameraOpened: (CameraLensFacing) -> Unit = {},
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -109,6 +111,7 @@ fun CameraPreview(
     val targetRotation = lockedRotation ?: displayRotation
     val currentSettings by rememberUpdatedState(videoQualitySettings)
     val onCaptureStateChanged by rememberUpdatedState(onVideoQualityCaptureStateChanged)
+    val onOpened by rememberUpdatedState(onCameraOpened)
     var qualityController by remember { mutableStateOf<CameraVideoQualityController?>(null) }
     SideEffect {
         qualityController?.update(videoQualitySettings)
@@ -187,7 +190,10 @@ fun CameraPreview(
         var isDisposed = false
         var observedCamera: Camera? = null
         val cameraStateObserver = Observer<CameraState> { state ->
-            if (!isDisposed && state.type == CameraState.Type.OPEN) controller.onCameraOpened()
+            if (!isDisposed && state.type == CameraState.Type.OPEN) {
+                controller.onCameraOpened()
+                onOpened(cameraLensFacing)
+            }
         }
 
         cameraProviderFuture.addListener(

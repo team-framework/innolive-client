@@ -35,7 +35,7 @@ final class YouTubeViewerChatTests: XCTestCase {
         XCTAssertNil(YouTubeViewerChatPolicy.activeURL(targets: [], hasSession: true))
     }
 
-    func testUnavailableChatExplainsWhyInsteadOfHidingEntry() throws {
+    func testUnavailableChatHidesPendingVideoIDAndExplainsOtherStates() throws {
         XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: nil, hasSession: false), .noSession)
         XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: nil, hasSession: true), .missingVideoID)
         XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: [try target(provider: "chzzk")], hasSession: true), .noYouTubeTarget)
@@ -43,9 +43,10 @@ final class YouTubeViewerChatTests: XCTestCase {
         for id: String? in [nil, "invalid"] {
             XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: [try target(videoID: id)], hasSession: true), .missingVideoID)
         }
-        for state: YouTubeViewerChatPolicy.Availability in [.noSession, .noYouTubeTarget, .notLive, .missingVideoID] {
+        for state: YouTubeViewerChatPolicy.Availability in [.noSession, .noYouTubeTarget, .notLive] {
             XCTAssertFalse(try XCTUnwrap(state.message).isEmpty)
         }
+        XCTAssertNil(YouTubeViewerChatPolicy.Availability.missingVideoID.message)
     }
 
     func testChatBecomesAvailableWhenVideoIDArrives() throws {

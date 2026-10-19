@@ -17,51 +17,6 @@ struct SettingsView: View {
             InnoLiveGlassContainer {
                 VStack(spacing: 12) {
                     NavigationLink {
-                        CameraAudioSettingsView(youtube: youtube)
-                    } label: {
-                        SettingsGlassRow {
-                            settingsRowContent(
-                                title: String(localized: "카메라 및 오디오 설정"),
-                                systemImage: "camera.fill"
-                            )
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        AISettingsView(authentication: authentication, youtube: youtube)
-                    } label: {
-                        SettingsGlassRow {
-                            settingsRowContent(
-                                title: String(localized: "AI & Faces Setting"),
-                                systemImage: "sparkles"
-                            )
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    
-                    NavigationLink {
-                        BroadcastSettingsView(authentication: authentication, youtube: youtube)
-                    } label: {
-                        SettingsGlassRow {
-                            settingsRowContent(
-                                title: String(localized: "방송 설정"),
-                                systemImage: "dot.radiowaves.left.and.right"
-                            )
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        PlanUsageView(authentication: authentication, youtube: youtube)
-                    } label: {
-                        SettingsGlassRow {
-                            settingsRowContent(title: String(localized: "요금제 및 사용량"), systemImage: "clock")
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
                         AccountSettingsView(authentication: authentication, youtube: youtube)
                     } label: {
                         SettingsGlassRow {
@@ -99,7 +54,7 @@ struct SettingsView: View {
                                         .frame(width: iconWidth)
 
                                     Text(String(localized: "개인정보처리방침"))
-                                        .font(.body.weight(.semibold))
+                                        .font(.subheadline.weight(.semibold))
                                         .fixedSize(horizontal: false, vertical: true)
 
                                     Spacer()
@@ -116,8 +71,9 @@ struct SettingsView: View {
                 
                 Spacer()
             }
-            .padding(24)
-            .navigationTitle(String(localized: "설정"))
+            .padding(InnoLiveSettingsLayout.pageInset)
+            .innoLiveSettingsPage()
+            .navigationTitle(String(localized: "앱 정보 및 계정"))
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -130,7 +86,7 @@ struct SettingsView: View {
                 .frame(width: iconWidth)
 
             Text(title)
-                .font(.body.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
 
             Spacer()

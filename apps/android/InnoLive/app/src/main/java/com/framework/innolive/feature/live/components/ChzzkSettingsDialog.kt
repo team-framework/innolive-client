@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live.components
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.ChzzkBroadcastSettings
 import com.framework.innolive.feature.live.ChzzkCategory
@@ -53,8 +54,8 @@ internal fun ChzzkSettingsDialog(
     onChangePlatform: (() -> Unit)? = null,
     guide: BroadcastTutorialGuide? = null,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(modifier = Modifier.heightIn(max = 700.dp)) {
+    InnoLiveDialog(onDismissRequest = onDismiss) {
+        ModalSurface(modifier = Modifier.heightIn(max = 700.dp)) {
             BroadcastTutorialDialogFrame(guide) {
                 Column(
                     Modifier.padding(16.dp).verticalScroll(rememberScrollState()),

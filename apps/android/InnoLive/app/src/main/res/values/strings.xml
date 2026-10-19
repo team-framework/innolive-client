@@ -66,13 +66,12 @@
 
     <!-- Settings and account -->
     <string name="settings_title">설정</string>
-    <string name="settings_camera_audio">카메라 및 오디오 설정</string>
-    <string name="label_camera_resolution">카메라 해상도</string>
+        <string name="label_camera_resolution">카메라 해상도</string>
     <string name="label_camera_device">카메라 기기</string>
     <string name="label_audio_device">오디오 기기</string>
     <string name="camera_back">후면 카메라</string>
     <string name="camera_front">전면 카메라</string>
-    <string name="audio_device_default">기본 마이크: %1$s</string>
+    <string name="audio_device_default">기본 마이크</string>
     <string name="settings_broadcast">방송 설정</string>
     <string name="action_logout">로그아웃</string>
     <string name="action_delete_account">계정 삭제</string>
@@ -299,4 +298,23 @@
     <string name="direct_broadcast_notification_text">다른 앱을 쓰거나 화면이 꺼지면 카메라 대신 대기 화면과 무음을 송출합니다.</string>
     <string name="direct_broadcast_notification_stop">방송 종료</string>
     <string name="direct_broadcast_notification_hidden">알림이 꺼져 있어 방송 중 알림이 보이지 않습니다. 방송은 그대로 진행됩니다.</string>
+    <string name="settings_expanded">펼침</string>
+    <string name="settings_collapsed">접힘</string>
+    <!-- Quick face registration (home one-tap) -->
+    <string name="quick_face_select_start">얼굴 등록</string>
+    <string name="quick_face_select_cancel">얼굴 선택 취소</string>
+    <string name="quick_face_select_hint">화면에 보이는 얼굴을 탭해 비식별화에서 제외합니다.</string>
+    <string name="quick_face_preparing">카메라를 준비하고 있어요.</string>
+    <string name="quick_face_show_face">얼굴이 화면에 보이도록 비춰 주세요.</string>
+    <string name="quick_face_tap_to_register">등록할 얼굴을 탭해 주세요.</string>
+    <string name="quick_face_move_closer">얼굴이 조금 더 크게 보이도록 가까이 와 주세요.</string>
+    <string name="quick_face_original_not_sent">원본은 송출되지 않아요.</string>
+    <string name="quick_face_tap_chip">탭해서 등록</string>
+    <string name="quick_face_select_face">얼굴 %1$d 선택</string>
+    <string name="quick_face_camera_failed">카메라 영상을 준비하지 못했습니다. 다시 시도해 주세요.</string>
+    <string name="guest_face_name_suffix">게스트</string>
+    <string name="guest_registering">게스트를 등록하고 있어요.</string>
+    <string name="guest_registered">게스트로 등록했어요.</string>
+    <string name="guest_face_not_confirmed">선택한 얼굴을 확인하지 못했습니다. 다시 선택해 주세요.</string>
+    <string name="action_reselect_face">다시 선택</string>
 </resources>

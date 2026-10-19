@@ -37,6 +37,67 @@ final class BroadcastGuideRenderingTests: XCTestCase {
         }
     }
 
+    func testStudioControlsBasicAndMinimalIdleWithLongTitleAndLargeText() async throws {
+        let fixture = GuideRenderingFixture(failOnAPIRequest: true)
+        defer { fixture.removePreferences() }
+        fixture.youtube.selectedBroadcastProviders = [.youtube, .chzzk]
+        fixture.youtube.settingsEditor.editYouTube {
+            $0.title = String(repeating: "긴 방송 제목과 플랫폼별 설정 확인 ", count: 8)
+        }
+        fixture.youtube.settingsEditor.editCHZZK { $0.title = "" }
+
+        for mode in [BroadcastControlsDisplayMode.basic, .minimal] {
+            try await renderStudioControls(fixture, mode: mode, live: false)
+            XCTAssertNil(fixture.youtube.session)
+            XCTAssertNil(fixture.youtube.preparationStatus)
+            XCTAssertFalse(fixture.youtube.videoUplink.isCapturingMedia)
+        }
+    }
+
+    func testStudioControlsBasicAndMinimalLivePreserveSessionAndStartTime() async throws {
+        let fixture = GuideRenderingFixture(failOnAPIRequest: true)
+        defer { fixture.removePreferences() }
+        let stream = try decodeStream(status: "streaming")
+        let session = YouTubeBroadcastSession(
+            sessionID: "studio-rendering-session", ownerToken: "rendering-only",
+            stream: stream
+        )
+        fixture.youtube.seedPreparedVideoSessionForTesting(
+            connection: .init(provider: "youtube", channel: .init(id: "rendering", title: "긴 채널 이름 렌더링")),
+            session: session,
+            videoTrack: .init(id: "rendering-video", kind: "video", readyState: "live")
+        )
+        XCTAssertTrue(fixture.youtube.hasStartedYouTubeBroadcast)
+        let startedAt = fixture.youtube.streamStartedAt
+        for mode in [BroadcastControlsDisplayMode.basic, .minimal] {
+            try await renderStudioControls(fixture, mode: mode, live: true)
+            XCTAssertEqual(fixture.youtube.session?.sessionID, session.sessionID)
+            XCTAssertEqual(fixture.youtube.streamStartedAt, startedAt)
+            XCTAssertFalse(fixture.youtube.videoUplink.isCapturingMedia)
+            XCTAssertFalse(fixture.youtube.isChangingStreamState)
+        }
+    }
+
+    private func renderStudioControls(
+        _ fixture: GuideRenderingFixture, mode: BroadcastControlsDisplayMode, live: Bool
+    ) async throws {
+        for textSize in [DynamicTypeSize.large, .accessibility3] {
+            try await render("studio-controls-\(mode)-\(live ? "live" : "idle")", appearance: .dark, textSize: textSize) {
+                ZStack {
+                    GuidePreviewBackground()
+                    BroadcastControllsView(
+                        isBroadcasting: .constant(live), previewTransition: .constant(.none),
+                        authentication: fixture.authentication, youtube: fixture.youtube,
+                        onPrepareBroadcast: { _ in XCTFail("Rendering must not prepare a session") },
+                        onCancelPreparation: { XCTFail("Rendering must not cancel preparation") },
+                        displayMode: mode
+                    )
+                    .padding(16)
+                }
+            }
+        }
+    }
+
     func testSettingsSheetGuideAsksToConnectAnAccount() async throws {
         let fixture = GuideRenderingFixture()
         defer { fixture.removePreferences() }
@@ -188,7 +249,7 @@ private final class GuideRenderingFixture {
     let authentication: AuthSession
     let youtube: YouTubeIntegration
 
-    init() {
+    init(failOnAPIRequest: Bool = false) {
         defaults = UserDefaults(suiteName: suiteName)!
         let consentStore = ConsentAcknowledgementStore(userDefaults: defaults)
         authentication = AuthSession(
@@ -198,7 +259,12 @@ private final class GuideRenderingFixture {
         )
         youtube = YouTubeIntegration(
             preferencesStore: YouTubePreferencesStore(userDefaults: defaults),
-            api: YouTubeAPI(serverURLProvider: { _ in nil }),
+            api: YouTubeAPI(serverURLProvider: { _ in
+                if failOnAPIRequest {
+                    XCTFail("Rendering must not request a broadcast API endpoint")
+                }
+                return nil
+            }),
             consentStore: consentStore,
             sessionStore: GuideRenderingSessionStore(),
             persistAIProcessingMode: { _ in }
