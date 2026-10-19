@@ -1,6 +1,5 @@
 package com.framework.innolive.feature.live
 
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
@@ -31,10 +30,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.BlurEffect
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalDensity
 import com.framework.innolive.ui.theme.ModalSurface
 import com.framework.innolive.ui.theme.ModalTheme
 import androidx.compose.ui.res.stringResource
@@ -70,8 +66,7 @@ class LiveSettingsPage(
 /** 상단 바와 페이지 표시가 차지하는 높이입니다. 각 페이지는 이 아래부터 내용을 둡니다. */
 internal val LiveStudioTopInset = 64.dp
 private val LiveStudioTopBarHeight = 48.dp
-private val SettingsScrim = Color.Black.copy(alpha = 0.15f)
-private val SettingsBlurRadius = 24.dp
+private val SettingsScrim = Color.Black.copy(alpha = 0.35f)
 
 /**
  * 카메라 미리보기는 고정한 채 그 위의 조작 화면만 좌우로 넘깁니다.
@@ -126,19 +121,10 @@ internal fun LiveStudioPager(
             if (pipState != null) Modifier.livePreviewPipDrag(pipState, canMovePip, scope) else Modifier,
         ),
     ) {
-        // 설정 페이지가 보이는 만큼 미리보기를 흐리고 옅게 어둡게 해 설정 창을 읽기 쉽게 합니다.
-        // 카메라 원본 미리보기는 화면에 함께 그려져 흐려지지만, 서버에서 받는 영상(SurfaceView)은 어둡게만 됩니다.
-        val blurRadiusPx = with(LocalDensity.current) { SettingsBlurRadius.toPx() }
+        preview()
+        // 미리보기는 SurfaceView라 같은 창 안에서 흐리게 할 수 없습니다. 설정 페이지가 보이는 만큼 어둡게만 합니다.
         fun settingsFraction() =
             (pagerState.currentPage + pagerState.currentPageOffsetFraction - homeIndex).coerceIn(0f, 1f)
-        Box(
-            Modifier.fillMaxSize().graphicsLayer {
-                val radius = if (settings != null) blurRadiusPx * settingsFraction() else 0f
-                renderEffect = if (radius >= 1f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    BlurEffect(radius, radius, TileMode.Clamp)
-                } else null
-            },
-        ) { preview() }
         if (settings != null) {
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = settingsFraction() }.background(SettingsScrim))
         }
@@ -188,6 +174,8 @@ private fun LiveSettingsPanel(onDismiss: () -> Unit, content: @Composable () -> 
                     .widthIn(max = 600.dp).fillMaxSize()
                     .semantics { paneTitle = title },
                 shape = RoundedCornerShape(20.dp),
+                // 뒤를 흐릴 수 없으므로 비치는 영상이 글자를 방해하지 않게 더 불투명하게 칠합니다.
+                color = Color.White.copy(alpha = 0.96f),
                 content = content,
             )
         }

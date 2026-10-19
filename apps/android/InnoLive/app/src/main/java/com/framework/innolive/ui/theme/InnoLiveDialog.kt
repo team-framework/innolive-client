@@ -86,12 +86,13 @@ fun InnoLiveDialog(
 fun ModalSurface(
     modifier: Modifier = Modifier,
     shape: Shape = ModalShape,
+    color: Color = ModalGlassColor,
     content: @Composable () -> Unit,
 ) {
     Surface(
         modifier = modifier,
         shape = shape,
-        color = ModalGlassColor,
+        color = color,
         contentColor = ModalColorScheme.onSurface,
         // 반투명 바탕 아래로 그림자가 비쳐 회색이 되므로 그림자 대신 얇은 테두리로 경계를 그립니다.
         border = ModalBorder,
