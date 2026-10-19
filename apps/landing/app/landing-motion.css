@@ -1,3 +1,18 @@
+@keyframes hero-character-reveal {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-typewriter-character {
+    animation: hero-character-reveal 1ms step-end var(--character-delay) both paused;
+  }
+
+  html[data-intro-complete="true"] .hero-typewriter-character {
+    animation-play-state: running;
+  }
+}
+
 .progressive-blur-text {
   --blur-mask-padding: 72px;
 }
