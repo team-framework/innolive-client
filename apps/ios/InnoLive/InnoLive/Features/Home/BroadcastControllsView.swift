@@ -267,22 +267,9 @@ struct BroadcastControllsView: View {
     }
 
     private var liveHeader: some View {
-        HStack(spacing: 12) {
-            YouTubeBroadcastControlLabel(youtube: youtube, isLoading: youtube.isChangingStreamState, isCompact: true)
-                .broadcastTutorialAnchor(.liveStatus)
-            Button(role: .destructive) { isConfirmingBroadcastEnd = true } label: {
-                Text(String(localized: "종료"))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .font(.subheadline.weight(.semibold))
-                    .frame(minHeight: 44)
-            }
+        StudioLiveStatusHeader(youtube: youtube) { isConfirmingBroadcastEnd = true }
             .disabled(youtube.isChangingStreamState || previewTransition == .stopping)
-            .accessibilityLabel(String(localized: "전체 방송 종료", table: "Simulcast"))
-            .accessibilityIdentifier("studio-end-broadcast")
-        }
-        .padding(.horizontal, 14)
-        .innoLiveGlassBackground(cornerRadius: 18)
+            .broadcastTutorialAnchor(.liveStatus)
     }
 
     private var broadcastSummary: some View {

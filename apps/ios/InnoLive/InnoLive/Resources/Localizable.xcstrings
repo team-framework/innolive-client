@@ -1,6 +1,28 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "화면 변경": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화면 변경"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch page"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面を切り替え"
+          }
+        }
+      }
+    },
     "AI 및 얼굴 설정": {
       "extractionState": "manual",
       "localizations": {

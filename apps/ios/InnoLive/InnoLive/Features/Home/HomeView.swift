@@ -427,8 +427,24 @@ struct HomeView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.black.opacity(0.8))
             } else {
-                HStack(alignment: .top, spacing: 12) {
-                    HStack(spacing: 4) {
+                HStack(alignment: .top, spacing: 8) {
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                            studioPageSelection.wrappedValue = studioPage == .details ? .preview : studioPage.next
+                        }
+                    } label: {
+                        Image(systemName: "rectangle.on.rectangle")
+                            .font(.title3)
+                            .frame(width: 44, height: 44)
+                            .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
+                    .accessibilityLabel(String(localized: "화면 변경"))
+                    .accessibilityValue(studioPage.title)
+                    .accessibilityIdentifier("studio-switch-page")
+                    .disabled(isPagingLocked)
+                    HStack(spacing: 0) {
                         ForEach(StudioPage.allCases) { page in
                             Button {
                                 guard !isPagingLocked else { return }
@@ -436,13 +452,14 @@ struct HomeView: View {
                                     studioPageSelection.wrappedValue = page
                                 }
                             } label: {
-                                VStack(spacing: 5) {
-                                    Text(page == .details ? String(localized: "설정") : page.title)
-                                        .font(.caption.weight(.semibold))
-                                    Capsule().fill(studioPage == page ? Color.white : Color.clear)
-                                        .frame(width: 18, height: 3)
-                                }
-                                .frame(minWidth: 68, minHeight: 40)
+                                Text(page == .details ? String(localized: "설정") : page.title)
+                                    .font(.caption.weight(.semibold))
+                                    .frame(minWidth: 52, minHeight: 44)
+                                    .overlay(alignment: .bottom) {
+                                        Capsule().fill(studioPage == page ? Color.white : Color.clear)
+                                            .frame(width: 18, height: 3)
+                                            .padding(.bottom, 4)
+                                    }
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -453,8 +470,7 @@ struct HomeView: View {
                         }
                     }
                     .padding(.horizontal, 8)
-                    .padding(.top, 12)
-                    .padding(.bottom, 4)
+
                     .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Capsule())
                     .disabled(isPagingLocked)
                     .accessibilityElement(children: .contain)
