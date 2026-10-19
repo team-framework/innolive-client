@@ -98,16 +98,18 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
                         ))
                     } finally { sample.recycle() }
                     model = candidate
-                } catch (error: Exception) {
-                    candidate.close()
+                } catch (error: Throwable) {
+                    runCatching { candidate.close() }
                     throw error
                 }
                 preparation.complete(success = true)
                 if (leases==0) scheduleEviction()
                 Log.i("PrivacyFace", "model_prepared_ms=${SystemClock.elapsedRealtime() - startedAt}")
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
+                // Registered faces stay blurred; JNI linkage errors must not leave the gate running.
                 preparation.complete(success = false)
                 Log.w("PrivacyFace", "model_prepare_failed type=${error.javaClass.simpleName}")
+                if (!error.isPrivacyProcessingFailure()) throw error
             }
         }
     }
@@ -161,7 +163,8 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
                     imageBox = recognition?.box?.apply { offset(bounds.left.toFloat(), bounds.top.toFloat()) })
             } catch (_: AmbiguousFaceSampleException) {
                 Result(generation, trackId, capturedAtSeconds, null, sampleAvailable = true)
-            } catch (_: Exception) {
+            } catch (error: Throwable) {
+                if (!error.isPrivacyProcessingFailure()) throw error
                 Result(generation, trackId, capturedAtSeconds, null, sampleAvailable = true)
             } finally {
                 try { release() } catch (error: Exception) {
@@ -183,7 +186,7 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
                 inferenceLock.lock()
                 try { model?.embedding(image, enrollment = true) } finally { inferenceLock.unlock() }
             }
-            catch (_: Exception) { null }
+            catch (error: Throwable) { if (!error.isPrivacyProcessingFailure()) throw error; null }
             finally { image.recycle() }
             if (leases==0) scheduleEviction()
             mainHandler.post { onComplete(embedding) }

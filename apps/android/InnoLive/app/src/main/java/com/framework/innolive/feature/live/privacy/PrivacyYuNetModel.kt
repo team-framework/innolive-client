@@ -167,7 +167,7 @@ internal class PrivacyYuNetModel(context: Context, private val reuseInputs: Bool
             check(session.outputNames == (listOf(8, 16, 32).flatMap { stride ->
                 listOf("cls_$stride", "obj_$stride", "bbox_$stride", "kps_$stride")
             }).toSet())
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             session.close()
             throw error
         }

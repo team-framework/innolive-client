@@ -729,6 +729,34 @@ class DirectBroadcastControllerTest {
         assertTrue("delete:session-1" in server.calls)
     }
 
+    @Test fun processingFailuresAfterConnectionKeepBroadcastAndWarnOnlyWhileTheyContinue() {
+        val controller = preparedYouTube()
+        live(controller)
+
+        media.events.onProcessingFailure()
+        advanceClock(3_000)
+        assertFalse(uiStates.last().anonymizationFailing)
+
+        repeat(8) {
+            media.events.onProcessingFailure()
+            advanceClock(500)
+        }
+        assertTrue(uiStates.last().anonymizationFailing)
+        assertEquals(BroadcastState.LIVE, states.last().first)
+        assertFalse(connections.any { it.first == WebRtcConnectionState.FAILED })
+        assertFalse("stop:youtube" in server.calls)
+
+        advanceClock(3_000)
+        assertFalse(uiStates.last().anonymizationFailing)
+        assertEquals(BroadcastState.LIVE, states.last().first)
+        controller.close()
+    }
+
+    private fun advanceClock(millis: Long) {
+        now += millis
+        scheduler.advance(millis)
+    }
+
     @Test fun closeEndsBroadcastAndDeletesSession() {
         val controller = preparedYouTube()
         live(controller)
