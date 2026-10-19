@@ -18,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,8 +42,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.ProfileDisplay
@@ -69,7 +65,8 @@ fun SettingsScreen(props: SettingsScreenProps) {
             IconButton(onClick = props.onBack, enabled = enabled) {
                 Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.action_close))
             }
-            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold)
         }
         Column(
             modifier = Modifier.weight(1f).fillMaxWidth()
@@ -111,33 +108,26 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 enabled, props.onOpenBroadcastSettings)
             SettingsValueRow(stringResource(R.string.label_broadcast_account), props.broadcastAccount,
                 enabled, props.onOpenBroadcastSettings)
-            TextButton(onClick = props.onOpenBroadcastSettings, enabled = enabled) {
-                Text(stringResource(R.string.settings_broadcast))
-            }
+            SettingsLinkRow(stringResource(R.string.settings_broadcast), enabled, props.onOpenBroadcastSettings)
             SettingsDivider()
             PlanUsageSettings(props)
             AIProcessingSettings(props)
             SettingsDivider()
-            TextButton(onClick = { uriHandler.openUri(privacyPolicyUrl) }, enabled = enabled) {
-                Text(stringResource(R.string.privacy_policy))
-            }
-            TextButton(onClick = props.onReplayBroadcastGuide,
-                enabled = enabled && props.canReplayBroadcastGuide) {
-                Text(stringResource(R.string.tutorial_replay))
-            }
-            OutlinedButton(
-                onClick = { isDeleteConfirmationVisible = true },
+            SettingsLinkRow(stringResource(R.string.privacy_policy), enabled, { uriHandler.openUri(privacyPolicyUrl) })
+            SettingsLinkRow(stringResource(R.string.tutorial_replay), enabled && props.canReplayBroadcastGuide,
+                props.onReplayBroadcastGuide)
+            // 되돌릴 수 없는 동작이라 다른 줄과 구분되도록 경고 색으로 보여 줍니다.
+            SettingsLinkRow(
+                label = when {
+                    props.isDeletingAccount -> stringResource(R.string.action_deleting_account)
+                    props.isAccountDeletionCleanupPending -> stringResource(R.string.action_retry_device_cleanup)
+                    else -> stringResource(R.string.action_delete_account)
+                },
                 enabled = !props.isDeletingAccount,
-            ) {
-                Text(
-                    text = when {
-                        props.isDeletingAccount -> stringResource(R.string.action_deleting_account)
-                        props.isAccountDeletionCleanupPending ->
-                            stringResource(R.string.action_retry_device_cleanup)
-                        else -> stringResource(R.string.action_delete_account)
-                    },
-                )
-            }
+                onClick = { isDeleteConfirmationVisible = true },
+                color = MaterialTheme.colorScheme.error,
+                showChevron = false,
+            )
             props.accountDeletionError?.let { message ->
                 Text(
                     text = message.asString(),
@@ -198,10 +188,11 @@ fun SettingsScreen(props: SettingsScreenProps) {
 private fun AIProcessingSettings(props: SettingsScreenProps) {
     val enabled = props.canChangeAIProcessing && !props.isDeletingAccount &&
         !props.isAccountDeletionPending
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).selectableGroup()) {
-        Text(stringResource(R.string.settings_ai_processing), style = MaterialTheme.typography.titleMedium)
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).selectableGroup()) {
+        SettingsSectionLabel(stringResource(R.string.settings_ai_processing))
         Text(stringResource(R.string.ai_mode_change_availability),
-            style = MaterialTheme.typography.bodySmall)
+            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 4.dp))
         listOf(false to R.string.ai_mode_server, true to R.string.ai_mode_on_device).forEach { (onDevice, label) ->
             val selected = props.onDeviceProcessing == onDevice
             Row(
@@ -210,21 +201,15 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
                     enabled = enabled,
                     role = Role.RadioButton,
                     onClick = { if (!selected) props.onSelectAIProcessing(onDevice) },
-                ).padding(vertical = 4.dp),
+                ).heightIn(min = 48.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 RadioButton(selected = selected, onClick = null, enabled = enabled)
-                Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
+                Text(stringResource(label), style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(start = 8.dp))
             }
         }
     }
-}
-
-/** Figma 설정 창의 구역 이름처럼 작고 가는 글씨로 보여 줍니다. */
-@Composable
-private fun SettingsSectionLabel(text: String) {
-    Text(text, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Light,
-        modifier = Modifier.padding(top = 4.dp))
 }
 
 @Composable
@@ -234,20 +219,4 @@ private fun SettingsDivider() {
         contentDescription = null,
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).height(3.dp),
     )
-}
-
-@Composable
-private fun SettingsValueRow(label: String, value: String, enabled: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        // 긴 외부 기기 이름은 두 줄까지만 보여 줍니다.
-        Text(value, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.End,
-            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-    }
 }
