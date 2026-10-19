@@ -33,6 +33,8 @@ struct HomeView: View {
     @State private var chatReservedHeight: CGFloat = 0
     @State private var bottomReservedHeight: CGFloat = 56
     @State private var liveHeaderHeight: CGFloat = 44
+    @State private var studioNavigationHeight: CGFloat = 56
+    @State private var isShowingAccount = false
     @GestureState private var pinchStartZoom: CGFloat?
     @StateObject private var tutorial = BroadcastTutorialCoordinator()
     @StateObject private var guestRegistrar = GuestFaceRegistrar()
@@ -208,6 +210,18 @@ struct HomeView: View {
                     Task { await youtube.recordingCoordinator.retrySaving() }
                 } : nil)
         }
+        .sheet(isPresented: $isShowingAccount) {
+            NavigationStack {
+                AccountSettingsView(authentication: authentication, youtube: youtube)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(String(localized: "닫기")) { isShowingAccount = false }
+                                .accessibilityIdentifier("studio-account-close")
+                        }
+                    }
+            }
+            .presentationDragIndicator(.visible)
+        }
         .sheet(isPresented: $isShowingRecordings) {
             NavigationStack { BroadcastRecordingLibraryView(store: youtube.recordingStore) }
         }
@@ -339,7 +353,7 @@ struct HomeView: View {
     private var isPagingLocked: Bool {
         isSelectingFace || isShowingBroadcastPresentation || youtube.preparationStatus != nil
             || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd
-            || isShowingVideoControls || isShowingRecordings
+            || isShowingVideoControls || isShowingRecordings || isShowingAccount
             || recordingPlayback != nil || recordingExport != nil
             || isShowingCameraPermissionAlert || isShowingMicrophonePermissionAlert
             || tutorial.stage != nil || tutorial.isShowingLiveStatusTip
@@ -361,8 +375,7 @@ struct HomeView: View {
         })
     }
 
-    private var studioNavigationTopPadding: CGFloat { isCompactLandscape ? 4 : 20 }
-    private var studioHeaderTopInset: CGFloat { studioNavigationTopPadding + 52 }
+    private var studioHeaderTopInset: CGFloat { studioNavigationHeight + 12 }
 
     private var studioChromeTopInset: CGFloat {
         if youtube.hasStartedYouTubeBroadcast { return studioHeaderTopInset + liveHeaderHeight + 12 }
@@ -414,42 +427,61 @@ struct HomeView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.black.opacity(0.8))
             } else {
-                HStack(spacing: 4) {
-                    ForEach(StudioPage.allCases) { page in
-                        Button {
-                            guard !isPagingLocked else { return }
-                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                                studioPageSelection.wrappedValue = page
+                HStack(alignment: .top, spacing: 12) {
+                    HStack(spacing: 4) {
+                        ForEach(StudioPage.allCases) { page in
+                            Button {
+                                guard !isPagingLocked else { return }
+                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                                    studioPageSelection.wrappedValue = page
+                                }
+                            } label: {
+                                VStack(spacing: 5) {
+                                    Text(page == .details ? String(localized: "설정") : page.title)
+                                        .font(.caption.weight(.semibold))
+                                    Capsule().fill(studioPage == page ? Color.white : Color.clear)
+                                        .frame(width: 18, height: 3)
+                                }
+                                .frame(minWidth: 68, minHeight: 40)
+                                .contentShape(Rectangle())
                             }
-                        } label: {
-                            VStack(spacing: 5) {
-                                Text(page == .details ? String(localized: "설정") : page.title)
-                                    .font(.caption.weight(.semibold))
-                                Capsule().fill(studioPage == page ? Color.white : Color.clear)
-                                    .frame(width: 18, height: 3)
-                            }
-                            .frame(minWidth: 68, minHeight: 40)
-                            .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                            .foregroundStyle(studioPage == page ? .white : .white.opacity(0.65))
+                            .accessibilityAddTraits(studioPage == page ? .isSelected : [])
+                            .accessibilityLabel(page.title)
+                            .accessibilityIdentifier("studio-page-\(page.rawValue)")
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(studioPage == page ? .white : .white.opacity(0.65))
-                        .accessibilityAddTraits(studioPage == page ? .isSelected : [])
-                        .accessibilityLabel(page.title)
-                        .accessibilityIdentifier("studio-page-\(page.rawValue)")
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
+                    .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Capsule())
+                    .disabled(isPagingLocked)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel(String(localized: "방송 화면 페이지"))
+                    .accessibilityValue(studioPage.title)
+                    .accessibilityAdjustableAction { direction in
+                        switch direction {
+                        case .increment: studioPageSelection.wrappedValue = studioPage.next
+                        case .decrement: studioPageSelection.wrappedValue = studioPage.previous
+                        @unknown default: break
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    Button { isShowingAccount = true } label: {
+                        Image(systemName: "person.crop.circle")
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(String(localized: "계정 설정"))
+                    .accessibilityIdentifier("studio-account")
+                    .disabled(isPagingLocked)
                 }
-                .padding(.horizontal, 8)
-                .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Capsule())
-                .disabled(isPagingLocked)
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel(String(localized: "방송 화면 페이지"))
-                .accessibilityValue(studioPage.title)
-                .accessibilityAdjustableAction { direction in
-                    switch direction {
-                    case .increment: studioPageSelection.wrappedValue = studioPage.next
-                    case .decrement: studioPageSelection.wrappedValue = studioPage.previous
-                    @unknown default: break
-                    }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { _, height in
+                    studioNavigationHeight = height
                 }
                 if showsPagingHint {
                     Text(String(localized: "좌우로 밀어 화면과 방송 설정을 확인하세요"))
@@ -462,7 +494,7 @@ struct HomeView: View {
             }
             Spacer()
         }
-        .padding(.top, studioNavigationTopPadding)
+        .padding(.horizontal, 16)
     }
 
     private var basicStudioChrome: some View {
