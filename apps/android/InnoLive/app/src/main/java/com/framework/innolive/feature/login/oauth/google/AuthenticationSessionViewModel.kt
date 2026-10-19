@@ -94,7 +94,7 @@ class AuthenticationSessionViewModel(
         clearAuthentication = {
             emailSignupSession.cancel()
             repository.clear()
-            YouTubeViewerChatWebData.clearAppWebData()
+            YouTubeViewerChatWebData.clearAppWebData("account_deletion")
         },
         initialPendingDeletion = initialPendingDeletion,
         persistPendingDeletion = { session, phase ->
@@ -154,7 +154,7 @@ class AuthenticationSessionViewModel(
         emailSignupSession.cancel()
         repository.clear()
         // 시청자 채팅 WebView가 남긴 YouTube 쿠키·WebStorage는 로그아웃 계정과 함께 지운다(android-viewer-chat.md).
-        YouTubeViewerChatWebData.clearAppWebData()
+        YouTubeViewerChatWebData.clearAppWebData("logout")
         syncAccountDeletionState()
     }
 

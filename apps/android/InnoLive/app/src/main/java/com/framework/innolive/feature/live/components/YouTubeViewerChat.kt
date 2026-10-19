@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.net.http.SslError
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
@@ -146,6 +147,9 @@ internal data class ViewerChatLoadState(
  * 채팅 WebView가 남긴 YouTube 쿠키와 WebStorage를 지웁니다. Android WebView는 iOS의 비영속 저장소와 달리 앱 전체
  * 저장소를 공유하므로 창을 닫을 때와 로그아웃·계정 삭제 때 정리합니다. 치지직 OAuth 등 다른 WebView의 쿠키는
  * 남기도록 YouTube 도메인만 지웁니다.
+ *
+ * YouTube는 방문자 쿠키(`YSC`, `VISITOR_INFO1_LIVE` 등)를 `Partitioned`로 내려 WebView가 `youtube.com` 파티션에
+ * 저장합니다. 쿠키는 이름·도메인·경로와 파티션이 모두 같아야 덮어써지므로 파티션 쿠키와 일반 쿠키를 모두 만료합니다.
  */
 internal object YouTubeViewerChatWebData {
     internal val cookieUrls = listOf(
@@ -161,47 +165,99 @@ internal object YouTubeViewerChatWebData {
         "https://m.youtube.com",
         "https://consent.youtube.com",
     )
+
+    /** 채팅 문서가 남기는 것으로 기기에서 확인한 이름과 동의 쿠키입니다. 조회에 보이지 않아도 `.youtube.com`에서 만료합니다. */
+    internal val knownCookieNames = setOf(
+        "YSC", "VISITOR_INFO1_LIVE", "VISITOR_PRIVACY_METADATA", "__Secure-ROLLOUT_TOKEN", "__Secure-YNID",
+        "__Secure-BUCKET", "__Secure-YEC", "PREF", "GPS", "SOCS", "CONSENT",
+    )
     private const val COOKIE_DOMAIN = ".youtube.com"
     private val cookiePaths = listOf("/", "/live_chat")
+    private const val CLEAR_TAG = "YouTubeViewerChat"
+
+    /** 창을 닫은 뒤 파괴된 WebView의 늦은 응답이 쿠키를 다시 쓰지 않도록 기다리는 시간입니다. */
+    internal const val CLOSE_CLEAR_DELAY_MILLIS = 1_000L
 
     interface Store {
         fun cookies(url: String): String?
-        fun setCookie(url: String, value: String)
+        /** 결과는 같은 스레드로 돌아와야 합니다(`CookieManager.setCookie`의 `ValueCallback`). */
+        fun setCookie(url: String, value: String, onResult: (Boolean) -> Unit)
         fun flushCookies()
         fun deleteStorage(origin: String)
     }
 
-    fun clear(store: Store) {
-        for (url in cookieUrls) {
-            for (name in cookieNames(store.cookies(url))) {
-                expiredCookies(name).forEach { store.setCookie(url, it) }
+    /** [remaining]은 만료·flush 뒤 YouTube 주소에서 다시 조회한 쿠키 이름입니다. 비어 있어야 정상입니다. */
+    data class ClearResult(val requested: Int, val failed: Int, val remaining: Set<String>)
+
+    /** 모든 만료 요청의 결과를 받은 뒤 flush하고 남은 쿠키를 다시 확인해 [onComplete]로 알립니다. */
+    fun clear(store: Store, onComplete: (ClearResult) -> Unit = {}) {
+        val requests = expiryRequests(store)
+        storageOrigins.forEach(store::deleteStorage)
+        var pending = requests.size
+        var failed = 0
+        val finish = {
+            store.flushCookies()
+            onComplete(ClearResult(requests.size, failed, remainingNames(store)))
+        }
+        if (requests.isEmpty()) return finish()
+        for ((url, value) in requests) {
+            store.setCookie(url, value) { ok ->
+                if (!ok) failed++
+                pending--
+                if (pending == 0) finish()
             }
         }
-        store.flushCookies()
-        storageOrigins.forEach(store::deleteStorage)
     }
+
+    /**
+     * 주소마다 조회한 쿠키는 그 호스트 전용으로, 조회한 이름과 [knownCookieNames]는 `.youtube.com`으로 한 번씩 만료합니다.
+     * `.youtube.com` 쿠키는 어느 YouTube 주소로 지워도 같은 쿠키이므로 첫 주소만 씁니다.
+     */
+    internal fun expiryRequests(store: Store): List<Pair<String, String>> {
+        val found = cookieUrls.associateWith { cookieNames(store.cookies(it)) }
+        val hostOnly = found.flatMap { (url, names) -> names.flatMap { name -> expiredCookies(name, null).map { url to it } } }
+        val domainNames = found.values.flatten().toSet() + knownCookieNames
+        val domain = domainNames.flatMap { name -> expiredCookies(name, COOKIE_DOMAIN).map { cookieUrls.first() to it } }
+        return hostOnly + domain
+    }
+
+    internal fun remainingNames(store: Store): Set<String> =
+        cookieUrls.flatMap { cookieNames(store.cookies(it)) }.toSet()
 
     /** `CookieManager.getCookie`의 `a=1; b=2` 형식에서 이름만 꺼냅니다. */
     internal fun cookieNames(header: String?): Set<String> =
         header.orEmpty().split(';').map { it.substringBefore('=').trim() }.filter { it.isNotEmpty() }.toSet()
 
-    /** 이름만으로는 쿠키의 도메인·경로를 알 수 없으므로 호스트 전용과 `.youtube.com`, 루트와 채팅 경로를 모두 만료합니다. */
-    internal fun expiredCookies(name: String): List<String> = cookiePaths.flatMap { path ->
-        val expired = "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=$path; Secure"
-        listOf(expired, "$expired; Domain=$COOKIE_DOMAIN")
+    /**
+     * 이름만으로는 쿠키의 경로와 파티션을 알 수 없으므로 루트와 채팅 경로, 일반과 `Partitioned`를 모두 만료합니다.
+     * `Partitioned` 쿠키의 파티션은 WebView가 요청 주소의 사이트(`youtube.com`)로 정합니다.
+     */
+    internal fun expiredCookies(name: String, domain: String?): List<String> = cookiePaths.flatMap { path ->
+        val expired = "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=$path; Secure" +
+            (domain?.let { "; Domain=$it" } ?: "")
+        listOf(expired, "$expired; SameSite=None; Partitioned")
     }
 
     /**
-     * 앱 WebView 저장소를 지웁니다. WebView API는 UI 스레드에서 부르며, 닫힌 창의 WebView 정리가 끝난 뒤 실행되도록
-     * 메시지로 미룹니다. WebView가 없는 기기에서는 건너뜁니다.
+     * 앱 WebView 저장소를 지웁니다. WebView API는 UI 스레드에서 부르며, 닫힌 창의 WebView가 파괴되고 남은 응답이
+     * 끝나도록 [delayMillis] 뒤에 실행합니다. WebView가 없는 기기에서는 건너뜁니다. 쿠키 값은 기록하지 않습니다.
      */
-    fun clearAppWebData() {
-        Handler(Looper.getMainLooper()).post { runCatching { clear(AndroidStore) } }
+    fun clearAppWebData(reason: String, delayMillis: Long = 0L) {
+        Handler(Looper.getMainLooper()).postDelayed({
+            runCatching {
+                clear(AndroidStore) { result ->
+                    Log.d(CLEAR_TAG, "viewer_chat_cookies_cleared reason=$reason requested=${result.requested} " +
+                        "failed=${result.failed} remaining=${result.remaining.size}" +
+                        result.remaining.takeIf { it.isNotEmpty() }?.joinToString(",", " remaining_names=").orEmpty())
+                }
+            }.onFailure { Log.w(CLEAR_TAG, "viewer_chat_cookies_clear_failed reason=$reason type=${it.javaClass.simpleName}") }
+        }, delayMillis)
     }
 
     private object AndroidStore : Store {
         override fun cookies(url: String): String? = CookieManager.getInstance().getCookie(url)
-        override fun setCookie(url: String, value: String) = CookieManager.getInstance().setCookie(url, value)
+        override fun setCookie(url: String, value: String, onResult: (Boolean) -> Unit) =
+            CookieManager.getInstance().setCookie(url, value) { ok -> onResult(ok == true) }
         override fun flushCookies() = CookieManager.getInstance().flush()
         override fun deleteStorage(origin: String) = WebStorage.getInstance().deleteOrigin(origin)
     }
@@ -253,7 +309,12 @@ internal fun YouTubeViewerChatDialog(url: String, onDismiss: () -> Unit) {
             load = load.timeout(attempt)
         }
     }
-    DisposableEffect(Unit) { onDispose { YouTubeViewerChatWebData.clearAppWebData() } }
+    // WebView 파괴(AndroidView onRelease) 뒤에 실행되도록 지연해 정리합니다.
+    DisposableEffect(Unit) {
+        onDispose {
+            YouTubeViewerChatWebData.clearAppWebData("close", YouTubeViewerChatWebData.CLOSE_CLEAR_DELAY_MILLIS)
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(
