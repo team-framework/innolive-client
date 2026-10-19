@@ -7,9 +7,10 @@ HTTP·signaling 계약은 바꾸지 않으며 응답 규칙은
 ## 표시 조건
 
 - `SessionTarget.videoId`는 `targets[].video_id`에서 읽는다. 필드가 없는 응답과 한 대상의 `stream`만 오는 부분 응답은 이전 값을 유지한다.
-- 방송 화면 오른쪽 조작 열의 채팅 버튼은 YouTube 대상의 `broadcast_phase`가 `live`이고 `status`가 `stopped`가 아니며 11자 동영상 ID가 유효할 때만 보인다. iOS `hasStartedBroadcast`와 같은 규칙이며 직접 송출의 `idle`, `paused_*`, 알 수 없는 상태도 포함한다. `YouTubeViewerChatPolicy.activeUrl`이 담당하며 `broadcastState()`는 쓰지 않는다.
+- 채팅 버튼은 기본 페이지 카메라 도구 열(세로 화면 오른쪽 위, 가로 화면 왼쪽 띠)의 마지막 반투명 도구 버튼이며 YouTube 대상의 `broadcast_phase`가 `live`이고 `status`가 `stopped`가 아니며 11자 동영상 ID가 유효할 때만 보인다. iOS `hasStartedBroadcast`와 같은 규칙이며 직접 송출의 `idle`, `paused_*`, 알 수 없는 상태도 포함한다. `YouTubeViewerChatPolicy.activeUrl`이 담당하며 `broadcastState()`는 쓰지 않는다.
 - 방송 종료, YouTube 대상 제거, 세션 종료로 주소가 사라지면 `YouTubeViewerChatHost`가 열려 있던 채팅 창을 닫는다. 동영상 ID가 바뀌면 새 문서를 읽는다.
-- 직접 송출은 방송 종료·실패로 세션을 지우거나 서버에서 세션이 사라지면 `onSessionSnapshotCleared`로 화면의 마지막 세션 상태와 업로드 화질을 비운다. iOS `clearSessionResponseState`와 같으며, 비우지 않으면 종료 뒤에도 대상 상태·업로드 화질·채팅 버튼이 남는다.
+- 채팅 창은 다른 방송 모달과 같은 `InnoLiveDialog`·`ModalSurface` 흰 유리 창이며 뒤 화면을 흐리게 한다.
+- 직접 송출은 방송 종료·실패로 세션을 지우거나 서버에서 세션이 사라지면 `onSessionSnapshotCleared`로 화면의 마지막 세션 상태와 업로드 화질을 비운다. 상단 방송 상태 칩도 이 세션 상태로 대상 행을 그리므로 함께 사라진다. iOS `clearSessionResponseState`와 같으며, 비우지 않으면 종료 뒤에도 대상 상태·업로드 화질·채팅 버튼이 남는다.
 
 ## WebView 정책
 
@@ -23,5 +24,5 @@ HTTP·signaling 계약은 바꾸지 않으며 응답 규칙은
 ## 검증
 
 - 단위 테스트: `YouTubeViewerChatPolicyTest` 8개(ID 검증, 대상 상태별 표시, 직접 송출 `idle`, 새 동영상 ID·종료·제거, 동시 송출, 이동 허용·차단·실패 전환, 폼 제출 차단), `YouTubeViewerChatWebViewTest` 8개(시간 초과·다시 시도, 지난 콜백 무시, 정리 순서, 쿠키·WebStorage 삭제 범위, 파티션 쿠키 만료, 모든 콜백 뒤 flush·결과 집계, 남은 쿠키 보고), `SessionSnapshotTest`의 `video_id` 파싱·보존 1개, `DirectBroadcastControllerTest`의 직접 송출 종료·서버 세션 소멸 시 세션 상태 비움 2개.
-- androidTest: `LiveControlsLayoutTest`의 채팅 버튼 표시·위치, `YouTubeViewerChatHostTest`의 주소 변경·자동 닫힘. 기기 실행은 수동 항목이다.
+- androidTest: `LiveControlsLayoutTest`의 카메라 도구 열 채팅 버튼 표시·위치, `YouTubeViewerChatHostTest`의 주소 변경·자동 닫힘. 기기 실행은 수동 항목이다.
 - 실제 YouTube 공개·비공개 방송에서 메시지 표시, 일시 중지·재개 중 유지, 해상도 변경으로 바뀐 동영상 ID 반영은 실기기 수동 검증 항목이다.
