@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live.components
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import android.graphics.Bitmap
 import android.net.http.SslError
 import android.webkit.SslErrorHandler
@@ -33,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.ChzzkOAuthConfig
 import com.framework.innolive.feature.live.parseChzzkCallback
@@ -67,8 +68,8 @@ internal fun ChzzkOAuthDialog(
         }
     }
 
-    Dialog(onDismissRequest = dismiss) {
-        Surface(shape = MaterialTheme.shapes.large) {
+    InnoLiveDialog(onDismissRequest = dismiss) {
+        ModalSurface {
             Column(
                 Modifier.fillMaxWidth().fillMaxHeight(0.85f).padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
