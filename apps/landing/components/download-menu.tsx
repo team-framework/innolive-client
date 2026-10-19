@@ -69,7 +69,7 @@ export function DownloadMenu({ trigger = "default" }: DownloadMenuProps) {
       ) : (
         <button
           type="button"
-          className="inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:-my-[7.5px] max-md:min-h-[44px] max-md:px-[6px] md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]"
+          className="inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:-my-[7.5px] max-md:min-h-[44px] max-md:px-[6px] max-md:text-[15px] max-md:font-medium md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]"
           {...triggerProps}
         >
           Download

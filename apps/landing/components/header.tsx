@@ -10,8 +10,9 @@ import { useLocale } from "@/components/locale-provider";
 import { cn } from "@/lib/cn";
 import { navLinks } from "@/lib/site";
 
+// Below md the links are stacked, button-like rows with a pressed state; md and up keep the inline nav.
 const navClassName =
-  "inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:min-h-[44px] max-md:text-[16px] md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]";
+  "inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:min-h-[52px] max-md:rounded-[12px] max-md:border max-md:border-surface-primary max-md:bg-background-primary max-md:text-[18px] max-md:font-semibold max-md:transition-[background-color,transform] max-md:duration-100 max-md:hover:no-underline max-md:active:scale-[0.98] max-md:active:bg-button-primary-pressed md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]";
 
 export function Header() {
   const { href, messages } = useLocale();
@@ -96,7 +97,7 @@ export function Header() {
           id={navigationId}
           aria-label={messages.header.primaryNav}
           className={cn(
-            "absolute inset-x-0 top-full flex-col gap-1 border-t border-surface-primary bg-background-secondary px-5 py-5 shadow-button md:static md:flex md:w-auto md:flex-row md:items-center md:justify-end md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
+            "absolute inset-x-0 top-full flex-col gap-1 max-md:gap-2 border-t border-surface-primary bg-background-secondary px-5 py-5 shadow-button md:static md:flex md:w-auto md:flex-row md:items-center md:justify-end md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
             mobileMenuOpen ? "flex" : "hidden",
           )}
         >
@@ -114,7 +115,7 @@ export function Header() {
             <DownloadMenu />
           </div>
           <AuthNavigation className={navClassName} />
-          <LanguageSwitch className="pt-2 max-md:self-center md:pt-0" />
+          <LanguageSwitch className="pt-2 max-md:self-center max-md:pt-3 md:pt-0" />
         </nav>
       </div>
     </header>
