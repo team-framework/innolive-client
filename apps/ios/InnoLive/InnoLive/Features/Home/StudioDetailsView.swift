@@ -32,6 +32,7 @@ struct StudioDetailsView: View {
                 section(String(localized: "송출 대상")) {
                     if !youtube.visibleBroadcastTargets.isEmpty || youtube.isYouTubeBroadcastActive {
                         BroadcastLiveStatusSection(youtube: youtube, uplink: youtube.videoUplink)
+                            .environment(\.colorScheme, .dark)
                             .padding(.bottom, 4)
                     }
                     if youtube.session != nil || youtube.isYouTubeBroadcastActive || !youtube.visibleBroadcastTargets.isEmpty {

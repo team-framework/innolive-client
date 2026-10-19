@@ -418,7 +418,7 @@ struct HomeView: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
-        .opacity(isSelectingFace ? 0 : 1)
+        .opacity(isSelectingFace || isLifecycleOverlayPresented ? 0 : 1)
         .allowsHitTesting(!isSelectingFace)
     }
 
@@ -467,7 +467,7 @@ struct HomeView: View {
                         }
                         .padding(.horizontal, 8)
 
-                        .innoLiveGlassSurface(in: Capsule(), interactive: true)
+                        .innoLiveGlassSurface(in: Capsule(), overVideo: true)
                         .disabled(isPagingLocked)
                         .accessibilityElement(children: .contain)
                         .accessibilityLabel(String(localized: "방송 화면 페이지"))
@@ -491,7 +491,7 @@ struct HomeView: View {
                                 }
                                 .foregroundStyle(.white)
                                 .frame(width: 44, height: 44)
-                                .innoLiveGlassSurface(in: Circle(), interactive: true)
+                                .innoLiveGlassSurface(in: Circle(), interactive: true, overVideo: true)
                             }
                             .buttonStyle(.plain)
                             .disabled(!canSwitchCameraSource || isPagingLocked)
@@ -504,7 +504,7 @@ struct HomeView: View {
                                         .font(.title3)
                                         .foregroundStyle(.white)
                                         .frame(width: 44, height: 44)
-                                        .innoLiveGlassSurface(in: Circle(), interactive: true)
+                                        .innoLiveGlassSurface(in: Circle(), interactive: true, overVideo: true)
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(String(localized: "계정 설정"))
@@ -523,7 +523,7 @@ struct HomeView: View {
                         .font(.caption2)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 12).padding(.vertical, 6)
-                        .innoLiveGlassSurface(in: Capsule())
+                        .innoLiveGlassSurface(in: Capsule(), overVideo: true)
                         .allowsHitTesting(false)
                 }
             }
@@ -548,7 +548,8 @@ struct HomeView: View {
                         .font(.title3.weight(.semibold))
                         .frame(width: 44, height: 44)
                 }
-                .innoLiveGlassButtonStyle()
+                .innoLiveGlassButtonStyle(overVideo: true)
+                .foregroundStyle(.white)
                 .buttonBorderShape(.circle)
                 .accessibilityLabel(String(localized: "영상 조절"))
 
@@ -567,7 +568,8 @@ struct HomeView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                     }
-                    .innoLiveGlassButtonStyle()
+                    .innoLiveGlassButtonStyle(overVideo: true)
+                .foregroundStyle(.white)
                     .buttonBorderShape(.capsule)
                 }
             }
@@ -577,6 +579,7 @@ struct HomeView: View {
                 topTrailingReserved = size
             }
             .padding(.top, basicTopInset)
+            .padding(.trailing, isCompactLandscape ? 252 : 0)
             .padding(.horizontal, 24)
             .frame(
                 maxWidth: .infinity,

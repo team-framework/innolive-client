@@ -302,7 +302,8 @@ struct StudioBroadcastSummaryLabel: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .innoLiveGlassBackground(cornerRadius: 18)
+        .innoLiveGlassBackground(cornerRadius: 18, overVideo: true)
+        .environment(\.colorScheme, .dark)
     }
 
     private func broadcastTitle(for provider: BroadcastSettingsProvider) -> String {

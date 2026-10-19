@@ -40,7 +40,8 @@ struct QuickFaceRegistrationButton: View {
                 .font(.title3.weight(.semibold))
                 .frame(width: 44, height: 44)
         }
-        .innoLiveGlassButtonStyle(prominent: isSelecting)
+        .innoLiveGlassButtonStyle(prominent: isSelecting, overVideo: true)
+        .foregroundStyle(.white)
         .tint(.blue)
         .buttonBorderShape(.circle)
         .disabled(

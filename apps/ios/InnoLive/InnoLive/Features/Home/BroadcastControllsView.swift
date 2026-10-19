@@ -153,7 +153,7 @@ struct BroadcastControllsView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
-                    .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 12), interactive: true)
+                    .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 12), overVideo: true)
 
                     if canCancelPreparation {
                         Button(role: .destructive, action: cancelPreparation) {

@@ -91,7 +91,7 @@ struct YouTubeViewerChatOverlay: View {
                             .font(.body)
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
-                            .innoLiveGlassSurface(in: Circle(), interactive: true)
+                            .innoLiveGlassSurface(in: Circle(), interactive: true, overVideo: true)
                     }
                     .accessibilityLabel(String(localized: "채팅 메뉴", table: "ViewerChat"))
                     .accessibilityIdentifier("youtube-chat-menu")
@@ -102,7 +102,7 @@ struct YouTubeViewerChatOverlay: View {
                     .foregroundStyle(.white)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(10)
-                    .innoLiveGlassBackground(cornerRadius: 10)
+                    .innoLiveGlassBackground(cornerRadius: 10, overVideo: true)
             }
         }
         .frame(maxWidth: 280, alignment: .leading)
@@ -142,7 +142,7 @@ struct YouTubeViewerChatContent: View {
                     }
                     .foregroundStyle(.white)
                     .padding(10)
-                    .innoLiveGlassBackground(cornerRadius: 10)
+                    .innoLiveGlassBackground(cornerRadius: 10, overVideo: true)
                 }
                 if state.failed {
                     VStack(spacing: 12) {
