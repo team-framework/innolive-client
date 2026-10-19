@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+enum BroadcastControlsDisplayMode {
+    case basic
+    case minimal
+}
+
 struct BroadcastControllsView: View {
     @Binding var isBroadcasting: Bool
     @Binding var previewTransition: BroadcastPreviewTransition
@@ -15,6 +20,12 @@ struct BroadcastControllsView: View {
     let onPrepareBroadcast: (BroadcastSettingsProvider) async -> Void
     let onCancelPreparation: () async -> Void
     var tutorial: BroadcastTutorialCoordinator?
+    var displayMode: BroadcastControlsDisplayMode = .basic
+    var onPresentationChange: (Bool) -> Void = { _ in }
+    var onBottomHeightChange: (CGFloat) -> Void = { _ in }
+    var onTopHeightChange: (CGFloat) -> Void = { _ in }
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var isShowingBroadcastSettings = false
     @State private var isShowingBroadcastActions = false
@@ -23,111 +34,25 @@ struct BroadcastControllsView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            BroadcastSessionStatusView(authentication: authentication, youtube: youtube)
-            if let notice = youtube.responseState.details.notices.last(where: { $0.planMessage != nil }),
-               let message = notice.planMessage {
-                Text(message).font(.footnote).foregroundStyle(.orange)
-                    .accessibilityIdentifier("broadcast-plan-notice")
-            }
-            if !isShowingBroadcastSettings, let feedback {
-                BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
-                    youtube.dismissError()
-                }
-            }
-
-            if let message = youtube.recordingCoordinator.notice {
-                Label(String(localized: "원본 저장") + ": " + message, systemImage: "exclamationmark.triangle")
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-                    .accessibilityIdentifier("broadcast-recording-error")
-            }
-
-            InnoLiveGlassContainer {
-                VStack(spacing: 8) {
-                    HStack(spacing: 10) {
-                        NavigationLink {
-                            SettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
-                        } label: {
-                            SettingsControlLabel()
-                        }
-                        .innoLiveGlassButtonStyle()
-                        .buttonBorderShape(.circle)
-                        .accessibilityLabel(String(localized: "설정"))
-
-                        Button(action: performPrimaryAction) {
-                            if isBroadcasting {
-                                YouTubeBroadcastControlLabel(
-                                    youtube: youtube,
-                                    isLoading: youtube.isChangingStreamState
-                                )
-                            } else {
-                                BroadcastPreparationControlLabel(
-                                    status: youtube.preparationStatus,
-                                    isLoading: isPreparingConnection
-                                )
-                            }
-                        }
-                        .innoLiveGlassButtonStyle(prominent: true)
-                        .buttonBorderShape(.capsule)
-                        .tint(primaryButtonTint)
-                        .frame(maxWidth: .infinity)
-                        .disabled(isPrimaryActionDisabled)
-                        .layoutPriority(1)
-                        .broadcastTutorialAnchor(.primaryButton)
-                        .accessibilityHint(primaryActionHint)
-                        .contextMenu {
-                            if canCancelPreparation {
-                                Button(role: .destructive, action: cancelPreparation) {
-                                    Label(String(localized: "방송 준비 취소"), systemImage: "xmark.circle.fill")
-                                }
-                            }
-                        }
-
-                        Button { isShowingAnonymizationActions = true } label: {
-                            AnonymizationControlLabel(
-                                isLoading: youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur
-                            )
-                        }
-                        .innoLiveGlassButtonStyle()
-                        .buttonBorderShape(.circle)
-                        .tint(youtube.isAnonymizationEnabled || youtube.isScreenBlurEnabled ? .purple : nil)
-                        .disabled(!isBroadcasting || youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur)
-                        .accessibilityLabel(String(localized: "비식별화"))
-                        .accessibilityValue(anonymizationStatuses.joined(separator: ", "))
-                        .accessibilityHint(String(localized: "얼굴 비식별화와 화면 블러 중 전환할 항목을 선택합니다."))
-                        .accessibilityIdentifier("broadcast-anonymization-button")
-                        .confirmationDialog(
-                            String(localized: "비식별화"),
-                            isPresented: $isShowingAnonymizationActions,
-                            titleVisibility: .visible
-                        ) {
-                            Button(
-                                youtube.isAnonymizationEnabled ? String(localized: "얼굴 비식별화 끄기") : String(localized: "얼굴 비식별화 켜기"),
-                                action: toggleAnonymization
-                            )
-                            Button(
-                                youtube.isScreenBlurEnabled ? String(localized: "화면 블러 끄기") : String(localized: "화면 블러 켜기"),
-                                action: toggleScreenBlur
-                            )
-                            .disabled(!youtube.canToggleScreenBlur)
-                            Button(String(localized: "취소"), role: .cancel) { }
-                        } message: {
-                            Text(anonymizationActionsMessage)
-                        }
+            if youtube.hasStartedYouTubeBroadcast {
+                liveHeader
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { _, height in
+                        onTopHeightChange(height)
                     }
-
-                    if canCancelPreparation {
-                        Button(role: .destructive, action: cancelPreparation) {
-                            Text(youtube.preparationStatus?.phase == .cancelling
-                                 ? String(localized: "준비 취소 중")
-                                 : String(localized: "준비 취소"))
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                        }
-                        .disabled(youtube.preparationStatus?.phase == .cancelling)
-                    }
-                }
             }
+            Spacer(minLength: 8)
+            bottomControls
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { _, height in
+                    onBottomHeightChange(height)
+                }
+        }
+        .frame(maxHeight: .infinity)
+
+        .onChange(of: youtube.hasStartedYouTubeBroadcast, initial: true) { _, started in
+            if !started { onTopHeightChange(0) }
+        }
+        .onChange(of: isPresentingControls, initial: true) { _, isPresented in
+            onPresentationChange(isPresented)
         }
         .onChange(of: youtube.preparationStatus) { _, status in
             if status?.isRunning == true { isShowingBroadcastSettings = false }
@@ -195,6 +120,194 @@ struct BroadcastControllsView: View {
         }
         .onChange(of: tutorialSnapshot, initial: true) { _, snapshot in
             tutorial?.update(snapshot)
+        }
+    }
+
+    private var bottomControls: some View {
+        VStack(spacing: 10) {
+            criticalNotice
+            if !isShowingBroadcastSettings, let feedback {
+                BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
+                    youtube.dismissError()
+                }
+            }
+
+            if let message = youtube.recordingCoordinator.notice {
+                Label(String(localized: "원본 저장") + ": " + message, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .accessibilityIdentifier("broadcast-recording-error")
+            }
+
+            if displayMode == .basic {
+                if !youtube.hasStartedYouTubeBroadcast {
+                    broadcastSummary
+                }
+                InnoLiveGlassContainer {
+                    VStack(spacing: 8) {
+                        if dynamicTypeSize.isAccessibilitySize {
+                            primaryControl
+                            HStack(spacing: 16) {
+                                settingsControl
+                                Spacer()
+                                anonymizationControl
+                            }
+                        } else {
+                            HStack(spacing: 10) {
+                                settingsControl
+                                primaryControl
+                                anonymizationControl
+                            }
+                        }
+
+                        if canCancelPreparation {
+                            Button(role: .destructive, action: cancelPreparation) {
+                                Text(youtube.preparationStatus?.phase == .cancelling
+                                     ? String(localized: "준비 취소 중")
+                                     : String(localized: "준비 취소"))
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity, minHeight: 36)
+                            }
+                            .disabled(youtube.preparationStatus?.phase == .cancelling)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var settingsControl: some View {
+        NavigationLink {
+            SettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
+        } label: {
+            SettingsControlLabel()
+        }
+        .innoLiveGlassButtonStyle()
+        .buttonBorderShape(.circle)
+        .accessibilityLabel(String(localized: "설정"))
+    }
+
+    private var primaryControl: some View {
+        Button(action: performPrimaryAction) {
+            if isBroadcasting {
+                if youtube.hasStartedYouTubeBroadcast {
+                    Label(String(localized: "방송 제어"), systemImage: "slider.horizontal.3")
+                        .font(.headline)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                } else {
+                    YouTubeBroadcastControlLabel(
+                        youtube: youtube,
+                        isLoading: youtube.isChangingStreamState
+                    )
+                }
+            } else {
+                BroadcastPreparationControlLabel(
+                    status: youtube.preparationStatus,
+                    isLoading: isPreparingConnection
+                )
+            }
+        }
+        .innoLiveGlassButtonStyle(prominent: true)
+        .buttonBorderShape(.capsule)
+        .tint(primaryButtonTint)
+        .frame(maxWidth: .infinity)
+        .disabled(isPrimaryActionDisabled)
+        .layoutPriority(1)
+        .broadcastTutorialAnchor(.primaryButton)
+        .accessibilityHint(primaryActionHint)
+        .contextMenu {
+            if canCancelPreparation {
+                Button(role: .destructive, action: cancelPreparation) {
+                    Label(String(localized: "방송 준비 취소"), systemImage: "xmark.circle.fill")
+                }
+            }
+        }
+    }
+
+    private var anonymizationControl: some View {
+        Button { isShowingAnonymizationActions = true } label: {
+            AnonymizationControlLabel(
+                isLoading: youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur
+            )
+        }
+        .innoLiveGlassButtonStyle()
+        .buttonBorderShape(.circle)
+        .tint(youtube.isAnonymizationEnabled || youtube.isScreenBlurEnabled ? .purple : nil)
+        .disabled(!isBroadcasting || youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur)
+        .accessibilityLabel(String(localized: "비식별화"))
+        .accessibilityValue(anonymizationStatuses.joined(separator: ", "))
+        .accessibilityHint(String(localized: "얼굴 비식별화와 화면 블러 중 전환할 항목을 선택합니다."))
+        .accessibilityIdentifier("broadcast-anonymization-button")
+        .confirmationDialog(
+            String(localized: "비식별화"),
+            isPresented: $isShowingAnonymizationActions,
+            titleVisibility: .visible
+        ) {
+            Button(
+                youtube.isAnonymizationEnabled ? String(localized: "얼굴 비식별화 끄기") : String(localized: "얼굴 비식별화 켜기"),
+                action: toggleAnonymization
+            )
+            Button(
+                youtube.isScreenBlurEnabled ? String(localized: "화면 블러 끄기") : String(localized: "화면 블러 켜기"),
+                action: toggleScreenBlur
+            )
+            .disabled(!youtube.canToggleScreenBlur)
+            Button(String(localized: "취소"), role: .cancel) { }
+        } message: {
+            Text(anonymizationActionsMessage)
+        }
+    }
+
+    private var isPresentingControls: Bool {
+        isShowingBroadcastSettings || isShowingBroadcastActions
+            || isConfirmingBroadcastEnd || isShowingAnonymizationActions
+    }
+
+    private var liveHeader: some View {
+        HStack(spacing: 12) {
+            YouTubeBroadcastControlLabel(youtube: youtube, isLoading: youtube.isChangingStreamState, isCompact: true)
+                .broadcastTutorialAnchor(.liveStatus)
+            Button(role: .destructive) { isConfirmingBroadcastEnd = true } label: {
+                Text(String(localized: "종료"))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: 44)
+            }
+            .disabled(youtube.isChangingStreamState || previewTransition == .stopping)
+            .accessibilityLabel(String(localized: "전체 방송 종료", table: "Simulcast"))
+            .accessibilityIdentifier("studio-end-broadcast")
+        }
+        .padding(.horizontal, 14)
+        .innoLiveGlassBackground(cornerRadius: 18)
+    }
+
+    private var broadcastSummary: some View {
+        Button { isShowingBroadcastSettings = true } label: {
+            StudioBroadcastSummaryLabel(youtube: youtube, editor: youtube.settingsEditor)
+        }
+        .buttonStyle(.plain)
+        .disabled(isPreparationSheetLocked)
+        .accessibilityLabel(String(localized: "방송 정보"))
+        .accessibilityIdentifier("studio-broadcast-summary")
+    }
+
+    @ViewBuilder
+    private var criticalNotice: some View {
+        if youtube.isDirectPublishSession, youtube.isDirectMicrophoneUnavailable, !youtube.directPublishStates.isEmpty {
+            Label(String(localized: "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.", table: "DirectPublish"), systemImage: "mic.slash.fill")
+                .font(.caption).foregroundStyle(.orange)
+        }
+        if !youtube.liveStartFailures.isEmpty {
+            Label(String(localized: "일부 플랫폼의 방송 시작에 실패했습니다. 방송 설정에서 확인하세요."), systemImage: "exclamationmark.triangle.fill")
+                .font(.caption).foregroundStyle(.orange)
+        }
+        if !(youtube.responseState.details.resolutionSwitch?.failedTargets ?? []).isEmpty {
+            Label(String(localized: "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."), systemImage: "exclamationmark.triangle.fill")
+                .font(.caption).foregroundStyle(.orange)
         }
     }
 
@@ -272,7 +385,7 @@ struct BroadcastControllsView: View {
             return String(localized: "방송 설정을 확인하고 세션과 서버 연결을 시작합니다.")
         }
         if isYouTubeStreaming {
-            return String(localized: "현재 방송 시간을 표시합니다. 누르면 방송 종료를 확인합니다.")
+            return String(localized: "방송 일시 중지, 재개, 종료 메뉴를 엽니다.")
         }
         if youtube.broadcastPhase == "prepared" {
             return String(localized: "준비된 플랫폼의 방송을 시청자에게 공개합니다.", table: "Simulcast")

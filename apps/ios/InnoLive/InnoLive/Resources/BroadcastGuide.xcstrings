@@ -1,6 +1,29 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "방송 시간과 종료 버튼을 표시해요. 플랫폼별 상태와 화질은 오른쪽 방송 설정에서 확인하세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 시간과 종료 버튼을 표시해요. 플랫폼별 상태와 화질은 오른쪽 방송 설정에서 확인하세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your broadcast time and End button are here. Swipe left to Broadcast Settings for each platform’s status and video quality."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信時間と終了ボタンを表示します。各プラットフォームの状態と画質は、右側の配信設定で確認できます。"
+          }
+        }
+      }
+    },
     "송출 종료": {
       "localizations": {
         "ko": {

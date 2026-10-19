@@ -35,6 +35,8 @@ struct AnonymizationControlLabel: View {
 struct YouTubeBroadcastControlLabel: View {
     @ObservedObject var youtube: YouTubeIntegration
     let isLoading: Bool
+    var isCompact = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -49,11 +51,26 @@ struct YouTubeBroadcastControlLabel: View {
                 }
 
                 VStack(spacing: 2) {
-                    Text(buttonTitle(at: context.date))
-                        .font(.headline.weight(.bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                    if youtube.isYouTubeBroadcastActive {
+                    if isCompact {
+                        Text(compactStatus)
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(formattedDuration(since: youtube.streamStartedAt, now: context.date))
+                            .font(.headline.weight(.bold))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                            .layoutPriority(1)
+                    } else {
+                        Text(buttonTitle(at: context.date))
+                            .font(.headline.weight(.bold))
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .minimumScaleFactor(0.72)
+                    }
+                    if youtube.isYouTubeBroadcastActive && !isCompact {
                         Text(String(localized: "남은 시간 \(PlanTimeText.remaining(youtube.broadcastRemainingTime))"))
                             .font(.caption2)
                         if youtube.isRemainingTimeStale {
@@ -64,9 +81,16 @@ struct YouTubeBroadcastControlLabel: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: BroadcastControlLayout.height)
+            .frame(minHeight: BroadcastControlLayout.height)
             .contentShape(Rectangle())
         }
+    }
+
+    private var compactStatus: String {
+        if let recovery = youtube.videoRecoveryStatus { return recovery.title }
+        if youtube.isYouTubeBroadcastPaused { return String(localized: "일시 중지", table: "Simulcast") }
+        if youtube.stream?.status == "reconnecting" { return String(localized: "재연결 중") }
+        return String(localized: "방송 중")
     }
 
     private func buttonTitle(at date: Date) -> String {
@@ -100,6 +124,7 @@ struct YouTubeBroadcastControlLabel: View {
 }
 
 struct BroadcastPreparationControlLabel: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let status: BroadcastPreparationStatus?
     let isLoading: Bool
 
@@ -111,11 +136,13 @@ struct BroadcastPreparationControlLabel: View {
             }
             Text(title)
                 .font(.headline.weight(.bold))
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .minimumScaleFactor(0.72)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: BroadcastControlLayout.height)
+        .frame(minHeight: BroadcastControlLayout.height)
         .contentShape(Rectangle())
     }
 
@@ -247,5 +274,63 @@ struct BroadcastFeedbackBanner: View {
         }
         .padding(10)
         .innoLiveGlassBackground(cornerRadius: 14)
+    }
+}
+
+struct StudioBroadcastSummaryLabel: View {
+    @ObservedObject var youtube: YouTubeIntegration
+    @ObservedObject var editor: BroadcastSettingsEditor
+    @AppStorage("selectedResolution") private var selectedResolution = CameraQualityPreset.defaultValue.rawValue
+    @AppStorage(AIProcessingMode.storageKey) private var selectedAIProcessing = AIProcessingMode.server.rawValue
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains)) { provider in
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(channelTitle(for: provider)).font(.caption.weight(.semibold))
+                        Text(broadcastTitle(for: provider))
+                            .font(.subheadline.weight(.semibold)).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.caption)
+                }
+            }
+            Text(qualitySummary + " · " + processingSummary)
+                .font(.caption).foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .innoLiveGlassBackground(cornerRadius: 18)
+    }
+
+    private func broadcastTitle(for provider: BroadcastSettingsProvider) -> String {
+        let title = (provider == .youtube ? editor.youtube.title : editor.chzzk.title)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return title.isEmpty ? String(localized: "방송 제목 설정") : title
+    }
+
+    private func channelTitle(for provider: BroadcastSettingsProvider) -> String {
+        guard youtube.isSettingsAccountConnected(provider) else {
+            return provider.title + " · " + String(localized: "계정 연결 필요")
+        }
+        let channel = provider == .youtube ? youtube.connection?.channel.title
+            : youtube.streamingAccounts.first(where: { $0.provider == provider.rawValue })?.displayTitle
+        return channel.map { provider.title + " · " + $0 } ?? provider.title
+    }
+
+    private var qualitySummary: String {
+        if let resolution = youtube.broadcastResolution {
+            return resolution == "fhd" ? "1080p" : resolution
+        }
+        return (CameraQualityPreset(rawValue: selectedResolution) ?? .defaultValue).rawValue
+    }
+
+    private var processingSummary: String {
+        let mode = youtube.session == nil
+            ? (AIProcessingMode(rawValue: selectedAIProcessing) ?? .server)
+            : youtube.planProcessingMode
+        return mode.title
     }
 }
