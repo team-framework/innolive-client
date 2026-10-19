@@ -397,6 +397,12 @@ class WebRtcSessionViewModel internal constructor(
                     onDirectUiStateChanged = { state ->
                         if (sessionState.acceptsCallback(generation)) directBroadcastUiState = state
                     },
+                    onSessionSnapshotCleared = {
+                        if (sessionState.acceptsCallback(generation)) {
+                            sessionSnapshot = null
+                            resetUplinkQuality()
+                        }
+                    },
                 )
                 val newConnection = transportFactory(
                     LiveBroadcastTransportRequest(
