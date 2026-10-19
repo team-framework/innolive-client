@@ -50,8 +50,8 @@
   "intro": {
     "dialogLabel": "InnoLive introduction",
     "skip": "Skip to main content",
-    "letteringSafe": "Keep your broadcast safe.",
-    "letteringFocus": "Focus only on you.",
+    "letteringSafe": "Keep your\nbroadcast safe.",
+    "letteringFocus": "Focus only\non you.",
     "sceneSafe": "Intro {n}. Keep your broadcast safe.",
     "sceneFocus": "Intro {n}. Focus only on you."
   },
@@ -90,7 +90,8 @@
     "body2": "Pick a platform and start streaming without extra setup.",
     "latency": "Max de-identification latency",
     "platforms": "Stream directly to multiple platforms",
-    "lettering": "AI de-identified live",
+    "letteringStart": "de-identified",
+    "letteringEnd": "live",
     "letteringAria": "AI de-identified live",
     "chzzkAlt": "CHZZK",
     "resolution": "High-resolution live",

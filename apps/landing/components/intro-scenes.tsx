@@ -5,21 +5,15 @@ import {
 } from "@/components/intro-scene";
 
 const letteringSafe: IntroLettering = {
-  src: "/intro/lettering-safe.png",
-  alt: "당신의 방송을 안전하게.",
-  width: 474,
-  height: 158,
+  text: "당신의 방송을\n안전하게.",
   className:
-    "absolute left-[5%] top-[36%] h-auto w-[58%] min-[48rem]:left-[7.92%] min-[48rem]:top-[calc(50%-7.8%)] min-[48rem]:w-[24.7%]",
+    "absolute left-[5%] top-[36%] min-[48rem]:left-[7.92%] min-[48rem]:top-[calc(50%-7.8%)]",
 };
 
 const letteringFocus: IntroLettering = {
-  src: "/intro/lettering-focus.png",
-  alt: "당신에게만 집중.",
-  width: 374,
-  height: 158,
+  text: "당신에게만\n집중.",
   className:
-    "absolute left-[5%] top-[36%] h-auto w-[50%] min-[48rem]:left-[7.92%] min-[48rem]:top-[calc(50%-7.8%)] min-[48rem]:w-[19.5%]",
+    "absolute left-[5%] top-[36%] min-[48rem]:left-[7.92%] min-[48rem]:top-[calc(50%-7.8%)]",
 };
 
 // Face coordinates in the 1672 × 941 source photo; the presenter stays visible.

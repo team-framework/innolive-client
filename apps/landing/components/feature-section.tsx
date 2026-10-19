@@ -19,6 +19,21 @@ const portraitCrop = {
   top: 0,
 } as const;
 
+// Text version of features-lettering.svg (725 × 75). Both parts sit beside the blurred face:
+// the start ends at x 382 and the end starts at x 518. Widths are per-locale em at weight 700.
+const letteringPartEm = { en: [7.6, 1.75], ja: [5.35, 3.1] } as const;
+
+function letteringFontStyle(locale: string) {
+  const [startEm, endEm] = letteringPartEm[locale as keyof typeof letteringPartEm] ?? letteringPartEm.en;
+  return {
+    fontSize: `min(11.5cqw, calc(52.69cqw / ${startEm}), calc(28.55cqw / ${endEm}))`,
+  };
+}
+
+const letteringAiStyle = {
+  backgroundImage: "linear-gradient(90deg, #6C63FF 0%, #4F8CFF 83%, #22D3EE 124%)",
+} as const;
+
 const portraitSizes = "(min-width: 106.5rem) 532px, 80vw";
 
 // Path from features-face-blur.svg, opaque fill. Original SVG fill-opacity is 0.01.
@@ -237,7 +252,7 @@ export function FeatureSection() {
               >
                 <div
                   data-feature-content
-                  className="absolute inset-[39.68%_8.62%_40.08%_8.44%]"
+                  className="absolute inset-[39.68%_8.62%_40.08%_8.44%] [container-type:size]"
                 >
                   {locale === "ko" ? (
                     <Image
@@ -249,8 +264,19 @@ export function FeatureSection() {
                       className="absolute inset-0 size-full max-w-none"
                     />
                   ) : (
-                    <p className="flex size-full items-center justify-center text-center text-[clamp(1.25rem,0.9rem+1.6vw,2.35rem)] font-extrabold leading-none text-text-primary">
-                      {messages.features.lettering}
+                    <p
+                      className="absolute inset-0 whitespace-nowrap font-bold leading-none text-text-primary"
+                      style={letteringFontStyle(locale)}
+                    >
+                      <span className="absolute inset-y-0 left-0 right-[47.31%] flex items-center justify-end">
+                        <span className="bg-clip-text text-transparent" style={letteringAiStyle}>
+                          AI
+                        </span>
+                        &nbsp;{messages.features.letteringStart}
+                      </span>
+                      <span className="absolute inset-y-0 left-[71.45%] right-0 flex items-center">
+                        {messages.features.letteringEnd}
+                      </span>
                     </p>
                   )}
                 </div>
