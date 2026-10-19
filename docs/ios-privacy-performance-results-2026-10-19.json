@@ -182,5 +182,102 @@
     "post_window_min_fps": 24.9,
     "last_reported_drops": 0,
     "platform_player_e2e_verified": false
+  },
+  "latest_frame_pending_dual": {
+    "window_start_utc": "2026-10-19T10:13:56.365596+00:00",
+    "window_end_utc": "2026-10-19T10:15:26.365596+00:00",
+    "measurement": "15s heartbeat aggregates intersecting selected 90-second window; not per-frame exact accounting",
+    "fps": {
+      "samples": 6,
+      "mean": 29.966666666666665,
+      "min": 29.9,
+      "max": 30
+    },
+    "ai_processing_p50_range_ms": [
+      23.6,
+      27.8
+    ],
+    "ai_processing_p95_range_ms": [
+      30.3,
+      34.4
+    ],
+    "width": 1080,
+    "height": 1920,
+    "app_cpu_percent": {
+      "samples": 77,
+      "mean": 89.3058477324356,
+      "min": 77.74274789304411,
+      "max": 97.21947491035226
+    },
+    "system_cpu_percent": {
+      "samples": 85,
+      "mean": 42.23485407036657,
+      "min": 38.28351417974059,
+      "max": 49.12250575890145
+    },
+    "memory_mb": {
+      "samples": 81,
+      "mean": 938.981553382716,
+      "min": 937.346592,
+      "max": 942.556704
+    },
+    "thermal_states": [
+      "fair",
+      "serious"
+    ],
+    "providers": {
+      "chzzk": {
+        "bitrate_kbps": {
+          "samples": 6,
+          "mean": 6112.166666666667,
+          "min": 6095,
+          "max": 6138
+        },
+        "max_reconnects": 0,
+        "connected_samples": 6,
+        "samples": 6
+      },
+      "youtube": {
+        "bitrate_kbps": {
+          "samples": 6,
+          "mean": 6113.666666666667,
+          "min": 6089,
+          "max": 6132
+        },
+        "max_reconnects": 0,
+        "connected_samples": 6,
+        "samples": 6
+      }
+    },
+    "reported_drops": 0,
+    "failed_frames": 0,
+    "post_window_min_fps": 27.6,
+    "last_reported_drops": 0,
+    "platform_player_e2e_verified": false,
+    "pipeline_probe": {
+      "counts": {
+        "camera_input": 2700,
+        "delivered": 2698,
+        "faces_1": 620,
+        "faces_2": 610,
+        "faces_3": 623,
+        "faces_4": 533,
+        "faces_5": 170,
+        "faces_6": 1,
+        "gate_admitted": 2698,
+        "gate_queued": 736,
+        "faces_0": 141,
+        "gate_rejected": 2
+      },
+      "window_ends": [
+        "2026-10-19T10:14:10Z",
+        "2026-10-19T10:14:25Z",
+        "2026-10-19T10:14:40Z",
+        "2026-10-19T10:14:55Z",
+        "2026-10-19T10:15:10Z",
+        "2026-10-19T10:15:25Z"
+      ],
+      "note": "15-second aggregate boundaries differ from heartbeat window"
+    }
   }
 }
