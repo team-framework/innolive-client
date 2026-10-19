@@ -30,6 +30,7 @@ struct BroadcastControllsView: View {
     @State private var isShowingBroadcastSettings = false
     @State private var isShowingBroadcastActions = false
     @State private var isConfirmingBroadcastEnd = false
+    @State private var pendingStopProvider: BroadcastSettingsProvider?
     @State private var isShowingAnonymizationActions = false
 
     var body: some View {
@@ -86,37 +87,46 @@ struct BroadcastControllsView: View {
             titleVisibility: .visible
         ) {
             Button(
-                youtube.isYouTubeBroadcastPaused ? String(localized: "방송 재개") : String(localized: "방송 일시 중지"),
+                pauseActionTitle,
                 action: toggleYouTubePause
             )
             .disabled(!youtube.canChangeYouTubePauseState)
             ForEach(BroadcastSettingsProvider.allCases) { provider in
-                if youtube.targetPolicy(provider).isBroadcastActive {
+                if activeProviders.count > 1, youtube.targetPolicy(provider).isBroadcastActive {
                     if youtube.targetPolicy(provider).canPauseBroadcast {
                         Button("\(provider.title) · \(String(localized: "일시 중지", table: "Simulcast"))") {
-                            Task { await youtube.pauseYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider) }
+                            Task {
+                                guard !isControlActionLocked, youtube.targetPolicy(provider).canPauseBroadcast else { return }
+                                await youtube.pauseYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider)
+                            }
                         }
                     }
                     if youtube.targetPolicy(provider).canResumeBroadcast {
                         Button("\(provider.title) · \(String(localized: "재개", table: "Simulcast"))") {
-                            Task { await youtube.resumeYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider) }
+                            Task {
+                                guard !isControlActionLocked, youtube.targetPolicy(provider).canResumeBroadcast else { return }
+                                await youtube.resumeYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider)
+                            }
                         }
                     }
                     Button("\(provider.title) · \(String(localized: "송출 종료", table: "Simulcast"))", role: .destructive) {
-                        Task { await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider) }
+                        requestBroadcastEnd(provider)
                     }
                 }
             }
-            Button(String(localized: "전체 방송 종료", table: "Simulcast"), role: .destructive) { isConfirmingBroadcastEnd = true }
+            Button(activeProviders.count > 1 ? String(localized: "전체 방송 종료", table: "Simulcast") : String(localized: "방송 종료"), role: .destructive) { requestBroadcastEnd(nil) }
             Button(String(localized: "취소"), role: .cancel) { }
-        } message: {
-            Text(String(localized: "방송 플랫폼에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."))
         }
         .alert(String(localized: "방송을 종료할까요?"), isPresented: $isConfirmingBroadcastEnd) {
-            Button(String(localized: "취소"), role: .cancel) {}
-            Button(String(localized: "방송 종료"), role: .destructive, action: stopYouTubeStream)
+            Button(String(localized: "취소"), role: .cancel) { pendingStopProvider = nil }
+            Button(String(localized: "방송 종료"), role: .destructive, action: confirmBroadcastEnd)
+                .disabled(isControlActionLocked)
         } message: {
-            Text(String(localized: "방송 중인 모든 플랫폼의 송출을 종료합니다."))
+            if let provider = pendingStopProvider {
+                Text(String(localized: "\(provider.title) 송출을 종료합니다."))
+            } else {
+                Text(String(localized: "방송 중인 모든 플랫폼의 송출을 종료합니다."))
+            }
         }
         .onChange(of: tutorialSnapshot, initial: true) { _, snapshot in
             tutorial?.update(snapshot)
@@ -248,7 +258,7 @@ struct BroadcastControllsView: View {
     }
 
     private var liveHeader: some View {
-        StudioLiveStatusHeader(youtube: youtube) { isConfirmingBroadcastEnd = true }
+        StudioLiveStatusHeader(youtube: youtube) { requestBroadcastEnd(nil) }
             .disabled(youtube.isChangingStreamState || previewTransition == .stopping)
             .broadcastTutorialAnchor(.liveStatus)
     }
@@ -387,14 +397,44 @@ struct BroadcastControllsView: View {
         }
     }
 
-    private func stopYouTubeStream() {
+    private var activeProviders: [BroadcastSettingsProvider] {
+        BroadcastSettingsProvider.allCases.filter { youtube.targetPolicy($0).isBroadcastActive }
+    }
+
+    private var isControlActionLocked: Bool {
+        youtube.isChangingStreamState || youtube.isChangingBroadcastMode || youtube.isHandlingUpgradeOffer
+    }
+
+    private var pauseActionTitle: String {
+        if activeProviders.count > 1 {
+            return youtube.isYouTubeBroadcastPaused ? String(localized: "모든 플랫폼 재개") : String(localized: "모든 플랫폼 일시 중지")
+        }
+        return youtube.isYouTubeBroadcastPaused ? String(localized: "방송 재개") : String(localized: "방송 일시 중지")
+    }
+
+    private func requestBroadcastEnd(_ provider: BroadcastSettingsProvider?) {
+        guard !isControlActionLocked else { return }
+        pendingStopProvider = provider
+        isConfirmingBroadcastEnd = true
+    }
+
+    private func confirmBroadcastEnd() {
+        let provider = pendingStopProvider
+        pendingStopProvider = nil
         Task {
-            await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken())
+            guard !isControlActionLocked else { return }
+            if let provider {
+                guard youtube.targetPolicy(provider).isBroadcastActive else { return }
+            } else {
+                guard youtube.hasStartedYouTubeBroadcast else { return }
+            }
+            await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider)
         }
     }
 
     private func toggleYouTubePause() {
         Task {
+            guard !isControlActionLocked, youtube.canChangeYouTubePauseState else { return }
             if youtube.isYouTubeBroadcastPaused {
                 await youtube.resumeYouTubeStream(accessToken: authentication.currentAccessToken())
             } else {
