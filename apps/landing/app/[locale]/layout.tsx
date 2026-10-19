@@ -52,7 +52,7 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${wantedSans.variable} ${letteringFont.variable} ${wantedSans.className}`}>
       <head>
-        {locale !== "en" && (
+        {locale === "ko" && (
           <link
             rel="preload"
             href={wantedSansCommonPreload}
