@@ -30,9 +30,9 @@ struct StudioLiveStatusHeader: View {
             .font(.system(size: 12, weight: .medium))
             .lineLimit(1)
             .padding(.horizontal, 10)
-            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+            .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 8), interactive: true)
             if let recovery = youtube.videoRecoveryStatus {
-                Text(recovery.title).font(.caption).padding(6).background(.black.opacity(0.65), in: Capsule())
+                Text(recovery.title).font(.caption).padding(6).innoLiveGlassSurface(in: Capsule())
             } else if youtube.isYouTubeBroadcastPaused {
                 Text(String(localized: "일시 중지", table: "Simulcast")).font(.caption)
             }

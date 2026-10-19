@@ -438,77 +438,79 @@ struct HomeView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.black.opacity(0.8))
             } else {
-                ZStack(alignment: .top) {
-                    HStack(spacing: 0) {
-                        ForEach(StudioPage.allCases) { page in
-                            Button {
-                                guard !isPagingLocked else { return }
-                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                                    studioPageSelection.wrappedValue = page
-                                }
-                            } label: {
-                                Text(page == .details ? String(localized: "설정") : page.title)
-                                    .font(.caption.weight(.semibold))
-                                    .frame(minWidth: 52, minHeight: 44)
-                                    .overlay(alignment: .bottom) {
-                                        Capsule().fill(studioPage == page ? Color.white : Color.clear)
-                                            .frame(width: 18, height: 3)
-                                            .padding(.bottom, 4)
+                InnoLiveGlassContainer {
+                    ZStack(alignment: .top) {
+                        HStack(spacing: 0) {
+                            ForEach(StudioPage.allCases) { page in
+                                Button {
+                                    guard !isPagingLocked else { return }
+                                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                                        studioPageSelection.wrappedValue = page
                                     }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(studioPage == page ? .white : .white.opacity(0.65))
-                            .accessibilityAddTraits(studioPage == page ? .isSelected : [])
-                            .accessibilityLabel(page.title)
-                            .accessibilityIdentifier("studio-page-\(page.rawValue)")
-                        }
-                    }
-                    .padding(.horizontal, 8)
-
-                    .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Capsule())
-                    .disabled(isPagingLocked)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityLabel(String(localized: "방송 화면 페이지"))
-                    .accessibilityValue(studioPage.title)
-                    .accessibilityAdjustableAction { direction in
-                        switch direction {
-                        case .increment: studioPageSelection.wrappedValue = studioPage.next
-                        case .decrement: studioPageSelection.wrappedValue = studioPage.previous
-                        @unknown default: break
-                        }
-                    }
-                    HStack {
-                        Button(action: switchCamera) {
-                            Group {
-                                if isSwitchingCamera {
-                                    ProgressView().controlSize(.small)
-                                } else {
-                                    Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                                        .font(.title3)
+                                } label: {
+                                    Text(page == .details ? String(localized: "설정") : page.title)
+                                        .font(.caption.weight(.semibold))
+                                        .frame(minWidth: 52, minHeight: 44)
+                                        .overlay(alignment: .bottom) {
+                                            Capsule().fill(studioPage == page ? Color.white : Color.clear)
+                                                .frame(width: 18, height: 3)
+                                                .padding(.bottom, 4)
+                                        }
+                                    .contentShape(Rectangle())
                                 }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(studioPage == page ? .white : .white.opacity(0.65))
+                                .accessibilityAddTraits(studioPage == page ? .isSelected : [])
+                                .accessibilityLabel(page.title)
+                                .accessibilityIdentifier("studio-page-\(page.rawValue)")
                             }
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Circle())
                         }
-                        .buttonStyle(.plain)
-                        .disabled(!canSwitchCameraSource || isPagingLocked)
-                        .accessibilityLabel(String(localized: "카메라 전환"))
-                        .accessibilityIdentifier("studio-switch-camera")
-                        Spacer(minLength: 0)
-                        if !youtube.hasStartedYouTubeBroadcast {
-                            Button { isShowingAccount = true } label: {
-                                Image(systemName: "person.crop.circle")
-                                    .font(.title3)
-                                    .foregroundStyle(.white)
-                                    .frame(width: 44, height: 44)
-                                    .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Circle())
+                        .padding(.horizontal, 8)
+
+                        .innoLiveGlassSurface(in: Capsule(), interactive: true)
+                        .disabled(isPagingLocked)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel(String(localized: "방송 화면 페이지"))
+                        .accessibilityValue(studioPage.title)
+                        .accessibilityAdjustableAction { direction in
+                            switch direction {
+                            case .increment: studioPageSelection.wrappedValue = studioPage.next
+                            case .decrement: studioPageSelection.wrappedValue = studioPage.previous
+                            @unknown default: break
+                            }
+                        }
+                        HStack {
+                            Button(action: switchCamera) {
+                                Group {
+                                    if isSwitchingCamera {
+                                        ProgressView().controlSize(.small)
+                                    } else {
+                                        Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
+                                            .font(.title3)
+                                    }
+                                }
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .innoLiveGlassSurface(in: Circle(), interactive: true)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel(String(localized: "계정 설정"))
-                            .accessibilityIdentifier("studio-account")
-                            .disabled(isPagingLocked)
+                            .disabled(!canSwitchCameraSource || isPagingLocked)
+                            .accessibilityLabel(String(localized: "카메라 전환"))
+                            .accessibilityIdentifier("studio-switch-camera")
+                            Spacer(minLength: 0)
+                            if !youtube.hasStartedYouTubeBroadcast {
+                                Button { isShowingAccount = true } label: {
+                                    Image(systemName: "person.crop.circle")
+                                        .font(.title3)
+                                        .foregroundStyle(.white)
+                                        .frame(width: 44, height: 44)
+                                        .innoLiveGlassSurface(in: Circle(), interactive: true)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(String(localized: "계정 설정"))
+                                .accessibilityIdentifier("studio-account")
+                                .disabled(isPagingLocked)
+                            }
                         }
                     }
                 }
@@ -521,7 +523,7 @@ struct HomeView: View {
                         .font(.caption2)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(.black.opacity(0.65), in: Capsule())
+                        .innoLiveGlassSurface(in: Capsule())
                         .allowsHitTesting(false)
                 }
             }
