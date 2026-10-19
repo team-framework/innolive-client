@@ -111,5 +111,76 @@
     "last_reported_drops": 27,
     "session_closed_utc": "2026-10-19T08:47:15.704600868Z",
     "platform_player_e2e_verified": false
+  },
+  "real_camera_dual_after_account_change": {
+    "window_start_utc": "2026-10-19T10:02:26.691964+00:00",
+    "window_end_utc": "2026-10-19T10:03:56.691964+00:00",
+    "measurement": "15s heartbeat aggregates intersecting selected 90-second window; not per-frame exact accounting",
+    "fps": {
+      "samples": 6,
+      "mean": 26.1,
+      "min": 24.4,
+      "max": 28.1
+    },
+    "ai_processing_p50_range_ms": [
+      23.9,
+      28.8
+    ],
+    "ai_processing_p95_range_ms": [
+      32,
+      36.4
+    ],
+    "width": 1080,
+    "height": 1920,
+    "app_cpu_percent": {
+      "samples": 83,
+      "mean": 81.75469386696759,
+      "min": 68.08520287196298,
+      "max": 94.24218682005154
+    },
+    "system_cpu_percent": {
+      "samples": 85,
+      "mean": 39.60440194809249,
+      "min": 34.261669970539664,
+      "max": 47.91591793950284
+    },
+    "memory_mb": {
+      "samples": 84,
+      "mean": 940.2253478095238,
+      "min": 937.051728,
+      "max": 944.178768
+    },
+    "thermal_states": [
+      "fair"
+    ],
+    "providers": {
+      "chzzk": {
+        "bitrate_kbps": {
+          "samples": 6,
+          "mean": 6101.333333333333,
+          "min": 5960,
+          "max": 6295
+        },
+        "max_reconnects": 0,
+        "connected_samples": 6,
+        "samples": 6
+      },
+      "youtube": {
+        "bitrate_kbps": {
+          "samples": 6,
+          "mean": 6101.666666666667,
+          "min": 5967,
+          "max": 6254
+        },
+        "max_reconnects": 0,
+        "connected_samples": 6,
+        "samples": 6
+      }
+    },
+    "reported_drops": 0,
+    "failed_frames": 0,
+    "post_window_min_fps": 24.9,
+    "last_reported_drops": 0,
+    "platform_player_e2e_verified": false
   }
 }
