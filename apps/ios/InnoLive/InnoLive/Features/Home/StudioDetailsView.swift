@@ -166,13 +166,13 @@ struct StudioDetailsView: View {
             .navigationTitle(String(localized: "방송 상태 및 대상 관리"))
             .navigationBarTitleDisplayMode(.inline)
         case .broadcast:
-            BroadcastSettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
+            BroadcastSettingsView(authentication: authentication, youtube: youtube)
         case .liveBroadcast(let provider):
             BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
         case .camera:
             CameraAudioSettingsView(youtube: youtube)
         case .ai:
-            AISettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
+            AISettingsView(authentication: authentication, youtube: youtube)
         case .recordings:
             BroadcastRecordingLibraryView(store: youtube.recordingStore)
         case .usage:
@@ -223,6 +223,7 @@ struct StudioTargetControls: View {
                                 }
                             }
                             .accessibilityIdentifier("studio-target-pause-" + provider.rawValue)
+                            .disabled(isLocked)
                         }
                         if youtube.targetPolicy(provider).canResumeBroadcast {
                             Button(String(localized: "재개", table: "Simulcast")) {
@@ -232,14 +233,15 @@ struct StudioTargetControls: View {
                                 }
                             }
                             .accessibilityIdentifier("studio-target-resume-" + provider.rawValue)
+                            .disabled(isLocked)
                         }
                         Button(String(localized: "송출 종료", table: "Simulcast"), role: .destructive) {
                             pendingStop = provider
                         }
                         .accessibilityIdentifier("studio-target-stop-" + provider.rawValue)
+                        .disabled(!youtube.canStopBroadcastTargets)
                     }
                     .buttonStyle(.bordered)
-                    .disabled(isLocked)
                 }
             }
         }
@@ -251,11 +253,11 @@ struct StudioTargetControls: View {
             Button("\(provider.title) · \(String(localized: "송출 종료", table: "Simulcast"))", role: .destructive) {
                 pendingStop = nil
                 Task {
-                    guard !isLocked, youtube.targetPolicy(provider).isBroadcastActive else { return }
+                    guard youtube.canStopBroadcastTargets, youtube.targetPolicy(provider).isBroadcastActive else { return }
                     await youtube.stopYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider)
                 }
             }
-            .disabled(isLocked || !youtube.targetPolicy(provider).isBroadcastActive)
+            .disabled(!youtube.canStopBroadcastTargets || !youtube.targetPolicy(provider).isBroadcastActive)
         } message: { provider in
             Text(String(localized: "\(provider.title) 송출을 종료합니다."))
         }

@@ -2298,6 +2298,11 @@ final class YouTubeIntegration: ObservableObject {
         }
     }
 
+    /// Matches the stop-specific request gate without blocking an accepted server mode switch.
+    var canStopBroadcastTargets: Bool {
+        !isChangingStreamState && !broadcastModeRequestInFlight && backgroundPauseTask == nil
+    }
+
     func stopYouTubeStream(accessToken: String?, provider: BroadcastSettingsProvider? = nil) async {
         await changeTargets(.stop, accessToken: accessToken, provider: provider)
     }

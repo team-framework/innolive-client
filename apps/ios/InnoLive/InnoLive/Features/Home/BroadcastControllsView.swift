@@ -100,6 +100,7 @@ struct BroadcastControllsView: View {
                                 await youtube.pauseYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider)
                             }
                         }
+                        .disabled(isControlActionLocked)
                     }
                     if youtube.targetPolicy(provider).canResumeBroadcast {
                         Button("\(provider.title) · \(String(localized: "재개", table: "Simulcast"))") {
@@ -108,17 +109,20 @@ struct BroadcastControllsView: View {
                                 await youtube.resumeYouTubeStream(accessToken: authentication.currentAccessToken(), provider: provider)
                             }
                         }
+                        .disabled(isControlActionLocked)
                     }
                     Button("\(provider.title) · \(String(localized: "송출 종료", table: "Simulcast"))", role: .destructive) {
                         requestBroadcastEnd(provider)
                     }
+                    .disabled(isStopActionLocked)
                 }
             }
             Button(activeProviders.count > 1 ? String(localized: "전체 방송 종료", table: "Simulcast") : String(localized: "방송 종료"), role: .destructive) { requestBroadcastEnd(nil) }
+                .disabled(isStopActionLocked)
             Button(String(localized: "취소"), role: .cancel) { }
         }
         .alert(String(localized: "방송을 종료할까요?"), isPresented: $isConfirmingBroadcastEnd) {
-            Button(String(localized: "취소"), role: .cancel) { pendingStopProvider = nil }
+            Button(String(localized: "취소"), role: .cancel) {}
             Button(String(localized: "방송 종료"), role: .destructive, action: confirmBroadcastEnd)
                 .disabled(isStopActionLocked)
         } message: {
@@ -259,7 +263,7 @@ struct BroadcastControllsView: View {
 
     private var liveHeader: some View {
         StudioLiveStatusHeader(youtube: youtube) { requestBroadcastEnd(nil) }
-            .disabled(youtube.isChangingStreamState || previewTransition == .stopping)
+            .disabled(isStopActionLocked)
             .broadcastTutorialAnchor(.liveStatus)
     }
 
@@ -271,6 +275,15 @@ struct BroadcastControllsView: View {
         .disabled(isPreparationSheetLocked)
         .accessibilityLabel(String(localized: "방송 정보"))
         .accessibilityIdentifier("studio-broadcast-summary")
+        .accessibilityValue(missingAccountSummary)
+    }
+
+    private var missingAccountSummary: String {
+        let providers = BroadcastSettingsProvider.allCases.filter {
+            youtube.selectedBroadcastProviders.contains($0) && !youtube.isSettingsAccountConnected($0)
+        }
+        guard !providers.isEmpty else { return "" }
+        return String(localized: "계정 연결 필요") + ": " + providers.map(\.title).joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -338,6 +351,7 @@ struct BroadcastControllsView: View {
 
     private var isReadyToStart: Bool {
         isBroadcasting && !youtube.hasStartedYouTubeBroadcast && youtube.broadcastPhase == "prepared"
+            && !isPrimaryActionDisabled
     }
 
     private var primaryActionHint: String {
@@ -414,7 +428,7 @@ struct BroadcastControllsView: View {
     }
 
     private var isStopActionLocked: Bool {
-        youtube.isChangingStreamState || previewTransition == .stopping
+        !youtube.canStopBroadcastTargets || previewTransition == .stopping
     }
 
     private func requestBroadcastEnd(_ provider: BroadcastSettingsProvider?) {
@@ -425,7 +439,6 @@ struct BroadcastControllsView: View {
 
     private func confirmBroadcastEnd() {
         let provider = pendingStopProvider
-        pendingStopProvider = nil
         Task {
             guard !isStopActionLocked else { return }
             if let provider {
