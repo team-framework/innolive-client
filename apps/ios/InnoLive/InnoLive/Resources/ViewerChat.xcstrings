@@ -66,6 +66,116 @@
           }
         }
       }
+    },
+    "YouTube 방송을 시작하면 시청자 채팅을 볼 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube 방송을 시작하면 시청자 채팅을 볼 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start a YouTube broadcast to view audience chat."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YouTube配信を開始すると視聴者チャットを表示できます。"
+          }
+        }
+      }
+    },
+    "시청자 채팅은 YouTube 방송에서 지원합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시청자 채팅은 YouTube 방송에서 지원합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Viewer chat is available for YouTube broadcasts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "視聴者チャットはYouTube配信に対応しています。"
+          }
+        }
+      }
+    },
+    "방송의 채팅 정보를 아직 받지 못했습니다. 정보가 도착하면 채팅을 표시합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송의 채팅 정보를 아직 받지 못했습니다. 정보가 도착하면 채팅을 표시합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat information has not arrived yet. Chat will appear when it is available."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信のチャット情報をまだ受信していません。情報を受信するとチャットを表示します。"
+          }
+        }
+      }
+    },
+    "새 채팅을 기다리고 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "새 채팅을 기다리고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for new messages."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新しいチャットを待っています。"
+          }
+        }
+      }
+    },
+    "채팅을 연결하고 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채팅을 연결하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to chat…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チャットに接続しています…"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

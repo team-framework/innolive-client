@@ -17,10 +17,38 @@ enum YouTubeViewerChatPolicy {
     }
 
     static func activeURL(targets: [BroadcastTargetState]?, hasSession: Bool) -> URL? {
-        guard hasSession, let target = targets?.first(where: { $0.provider == "youtube" }),
-              YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false).hasStartedBroadcast
-        else { return nil }
-        return url(videoID: target.videoID)
+        guard case let .ready(url) = availability(targets: targets, hasSession: hasSession) else { return nil }
+        return url
+    }
+
+    enum Availability: Equatable {
+        case ready(URL)
+        case noSession
+        case noYouTubeTarget
+        case notLive
+        case missingVideoID
+
+        var message: String? {
+            switch self {
+            case .ready: return nil
+            case .noSession, .notLive:
+                return String(localized: "YouTube 방송을 시작하면 시청자 채팅을 볼 수 있습니다.", table: "ViewerChat")
+            case .noYouTubeTarget:
+                return String(localized: "시청자 채팅은 YouTube 방송에서 지원합니다.", table: "ViewerChat")
+            case .missingVideoID:
+                return String(localized: "방송의 채팅 정보를 아직 받지 못했습니다. 정보가 도착하면 채팅을 표시합니다.", table: "ViewerChat")
+            }
+        }
+    }
+
+    static func availability(targets: [BroadcastTargetState]?, hasSession: Bool) -> Availability {
+        guard hasSession else { return .noSession }
+        guard let targets else { return .missingVideoID }
+        guard let target = targets.first(where: { $0.provider == "youtube" }) else { return .noYouTubeTarget }
+        guard YouTubeBroadcastStatePolicy(stream: target.stream, isChangingStreamState: false).hasStartedBroadcast
+        else { return .notLive }
+        guard let url = url(videoID: target.videoID) else { return .missingVideoID }
+        return .ready(url)
     }
 
     static func allowsNavigation(to candidate: URL?, document: URL) -> Bool {
@@ -34,46 +62,26 @@ enum YouTubeViewerChatPolicy {
     }
 }
 
-struct YouTubeViewerChatControl: View {
-    @ObservedObject var youtube: YouTubeIntegration
-    @State private var isPresented = false
-
-    private var chatURL: URL? {
-        YouTubeViewerChatPolicy.activeURL(targets: youtube.responseState.details.targets, hasSession: youtube.session != nil)
-    }
+struct YouTubeViewerChatOverlay: View {
+    let availability: YouTubeViewerChatPolicy.Availability
 
     var body: some View {
         Group {
-            if chatURL != nil {
-                Button { isPresented = true } label: {
-                    Label(String(localized: "시청자 채팅", table: "ViewerChat"), systemImage: "bubble.left.and.bubble.right")
-                }
-                .accessibilityIdentifier("youtube-viewer-chat")
+            if case let .ready(url) = availability {
+                YouTubeViewerChatContent(url: url)
+                    .id(url)
+                    .frame(height: 240)
+            } else if let message = availability.message {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(10)
+                    .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
             }
         }
-        .sheet(isPresented: $isPresented) {
-            NavigationStack {
-                VStack(spacing: 8) {
-                    Text(String(localized: "보기 전용 · 비공개 방송의 채팅은 표시되지 않을 수 있습니다.", table: "ViewerChat"))
-                        .font(.caption).foregroundStyle(.secondary).padding(.horizontal)
-                    if let chatURL {
-                        YouTubeViewerChatContent(url: chatURL)
-                    }
-                }
-                .navigationTitle(String(localized: "시청자 채팅", table: "ViewerChat"))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(String(localized: "닫기")) { isPresented = false }
-                    }
-                }
-            }
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-        }
-        .onChange(of: chatURL) { _, url in
-            if url == nil { isPresented = false }
-        }
+        .frame(maxWidth: 340, alignment: .leading)
+        .accessibilityIdentifier("youtube-viewer-chat-overlay")
     }
 }
 
@@ -81,6 +89,8 @@ final class YouTubeViewerChatLoadState: ObservableObject {
     @Published var isLoading = true
     @Published var failed = false
     @Published var retry = 0
+    @Published var messages: [YouTubeChatMessage] = []
+    @Published var chatReady = false
 }
 
 struct YouTubeViewerChatContent: View {
@@ -89,8 +99,24 @@ struct YouTubeViewerChatContent: View {
 
     var body: some View {
         ZStack {
+            // Keep the receiver running at a normal page size, behind native message rows.
             YouTubeViewerChatWebView(url: url, state: state)
-            if state.isLoading { ProgressView() }
+                .opacity(0)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            YouTubeChatMessageList(messages: state.messages)
+            if state.messages.isEmpty, !state.failed {
+                VStack(spacing: 8) {
+                    if !state.chatReady { ProgressView().tint(.white) }
+                    Text(state.chatReady
+                         ? String(localized: "새 채팅을 기다리고 있습니다.", table: "ViewerChat")
+                         : String(localized: "채팅을 연결하고 있습니다.", table: "ViewerChat"))
+                        .font(.caption)
+                }
+                .foregroundStyle(.white)
+                .padding(10)
+                .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
+            }
             if state.failed {
                 VStack(spacing: 12) {
                     Text(String(localized: "채팅을 불러오지 못했습니다.", table: "ViewerChat"))
@@ -109,12 +135,27 @@ struct YouTubeViewerChatWebView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(document: url, state: state) }
 
     func makeUIView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
+        Self.makeWebView(coordinator: context.coordinator)
+    }
+
+    static func makeWebView(coordinator: Coordinator, configuration: WKWebViewConfiguration = WKWebViewConfiguration()) -> WKWebView {
         configuration.websiteDataStore = .nonPersistent()
+        configuration.userContentController.add(coordinator, contentWorld: .defaultClient, name: YouTubeChatBridge.name)
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: YouTubeChatBridge.script, injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true, in: .defaultClient
+        ))
+        configuration.defaultWebpagePreferences.preferredContentMode = .desktop
         configuration.allowsInlineMediaPlayback = false
         configuration.mediaTypesRequiringUserActionForPlayback = .all
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = context.coordinator
+        // Desktop content mode alone leaves out Safari's browser/version tokens.
+        // YouTube rejects that default WKWebView identity as an outdated browser.
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            + "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+            + "Version/\(version.majorVersion).\(version.minorVersion) Safari/605.1.15"
+        webView.navigationDelegate = coordinator
         webView.allowsLinkPreview = false
         return webView
     }
@@ -124,13 +165,18 @@ struct YouTubeViewerChatWebView: UIViewRepresentable {
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.isActive = false
+        coordinator.readinessTask?.cancel()
         webView.stopLoading()
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: YouTubeChatBridge.name, contentWorld: .defaultClient)
         webView.navigationDelegate = nil
         webView.loadHTMLString("", baseURL: nil)
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var document: URL
+        var isActive = true
+        var readinessTask: Task<Void, Never>?
         var loadedDocument: URL?
         private var loadedRetry: Int?
         private var navigation: WKNavigation?
@@ -143,6 +189,7 @@ struct YouTubeViewerChatWebView: UIViewRepresentable {
 
         func load(_ url: URL, retry: Int, in webView: WKWebView) {
             guard loadedDocument != url || loadedRetry != retry else { return }
+            readinessTask?.cancel()
             webView.stopLoading()
             document = url
             loadedDocument = url
@@ -154,11 +201,20 @@ struct YouTubeViewerChatWebView: UIViewRepresentable {
             guard navigation === self.navigation else { return }
             state.failed = false
             state.isLoading = true
+            state.messages = []
+            state.chatReady = false
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             guard navigation === self.navigation else { return }
             state.isLoading = false
+            readinessTask?.cancel()
+            readinessTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(12))
+                guard !Task.isCancelled, let self, self.isActive,
+                      !self.state.chatReady else { return }
+                self.state.failed = true
+            }
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -173,6 +229,24 @@ struct YouTubeViewerChatWebView: UIViewRepresentable {
             guard navigation === self.navigation, (error as NSError).code != NSURLErrorCancelled else { return }
             state.isLoading = false
             state.failed = true
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard isActive, message.frameInfo.isMainFrame,
+                  message.name == YouTubeChatBridge.name,
+                  let json = message.body as? String, json.utf8.count <= 512_000,
+                  let data = json.data(using: .utf8),
+                  let snapshot = try? JSONDecoder().decode(YouTubeChatSnapshot.self, from: data),
+                  snapshot.url == document.absoluteString
+                    || YouTubeViewerChatPolicy.allowsNavigation(to: URL(string: snapshot.url), document: document)
+            else { return }
+            state.messages = snapshot.visibleMessages
+            state.chatReady = snapshot.ready
+            if snapshot.ready {
+                readinessTask?.cancel()
+                state.isLoading = false
+                state.failed = false
+            }
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
