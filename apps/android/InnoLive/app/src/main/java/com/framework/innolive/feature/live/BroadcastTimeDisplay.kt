@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -112,6 +113,8 @@ internal fun BroadcastTimeDisplay(
     isStale: Boolean,
     onOpenPlan: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 다른 정보와 한 줄에 놓을 때입니다. 글자 폭만큼만 차지하고 어두운 바탕을 깝니다. */
+    compact: Boolean = false,
 ) {
     val remainingText = when (remaining) {
         BroadcastRemainingTime.Unknown -> "—"
@@ -120,6 +123,29 @@ internal fun BroadcastTimeDisplay(
     }
     val uptimeDescription = stringResource(R.string.content_description_broadcast_duration, uptime)
     val remainingDescription = stringResource(R.string.plan_remaining_description, remainingText)
+    if (compact) {
+        Row(
+            modifier = modifier
+                .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50))
+                .padding(start = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(uptime, color = Color.White, style = CompactTimeTextStyle,
+                modifier = Modifier.semantics { contentDescription = uptimeDescription })
+            Box(modifier = Modifier.padding(horizontal = 10.dp).width(1.dp).height(14.dp).background(RemainingColor))
+            Box(
+                modifier = Modifier
+                    .sizeIn(minWidth = TimeRowHeight, minHeight = 36.dp)
+                    .clickable(role = Role.Button, onClick = onOpenPlan)
+                    .semantics { contentDescription = remainingDescription }
+                    .padding(end = 14.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Text(remainingText, color = RemainingColor, style = CompactTimeTextStyle)
+            }
+        }
+        return
+    }
     // 구분선이 화면 정중앙에 오도록 양쪽을 같은 너비로 나누고, 방송 시간은 오른쪽 끝·남은 시간은 왼쪽 끝에 붙인다.
     Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Box(modifier = Modifier.weight(1f).heightIn(min = TimeRowHeight), contentAlignment = Alignment.CenterEnd) {
@@ -153,3 +179,4 @@ private val RemainingColor = Color(0xFFB5B5B5)
 
 // 숫자 폭을 고정해 1초마다 바뀌어도 글자가 좌우로 흔들리지 않게 한다.
 private val TimeTextStyle = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = "tnum")
+private val CompactTimeTextStyle = TimeTextStyle.copy(fontSize = 17.sp)

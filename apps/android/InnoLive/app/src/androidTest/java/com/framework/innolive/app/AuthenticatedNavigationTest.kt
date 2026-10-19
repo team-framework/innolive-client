@@ -5,7 +5,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.ViewModelProvider
@@ -96,9 +99,10 @@ class AuthenticatedNavigationTest {
             }
             composeRule.activityRule.scenario.recreate()
 
-            composeRule.onNodeWithContentDescription(
-                composeRule.activity.getString(R.string.content_description_settings),
-            ).performClick()
+            // 설정은 기본 화면에서 왼쪽으로 넘겨 엽니다.
+            composeRule.onNode(
+                hasText(composeRule.activity.getString(R.string.action_prepare_broadcast)) and hasClickAction(),
+            ).performTouchInput { swipeLeft() }
             composeRule.onNodeWithText("user@example.com").assertIsDisplayed()
             composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_logout)).performClick()
             composeRule.onNodeWithText(

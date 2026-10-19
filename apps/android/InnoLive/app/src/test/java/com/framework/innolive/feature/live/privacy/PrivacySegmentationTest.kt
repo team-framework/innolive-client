@@ -65,8 +65,9 @@ class PrivacySegmentationTest {
         mask[80 * 160 + 80] = -1
         val expanded = PrivacyMaskRenderer.expandedMask(mask)
         assertEquals(-1, expanded[80 * 160 + 80].toInt())
-        assertEquals(-1, expanded[82 * 160 + 80].toInt())
-        assertEquals(0, expanded[90 * 160 + 90].toInt())
+        assertEquals(-1, expanded[81 * 160 + 80].toInt())
+        assertEquals(-1, expanded[81 * 160 + 81].toInt())
+        assertEquals(0, expanded[82 * 160 + 80].toInt())
     }
 
     @Test fun faceExceptionNeverRemovesPlateProtection() {

@@ -85,8 +85,7 @@ class AIProcessingSettingsScreenTest {
         saveScreenshot("local-face-name-input.png")
     }
 
-    private fun props() = SettingsScreenProps(onBack = {}, onOpenCameraSettings = {},
-        onOpenBroadcastSettings = {}, profileName = "InnoLive", profileEmail = "test@example.com", onLogout = {})
+    private fun props() = SettingsScreenProps(onBack = {},         onOpenBroadcastSettings = {}, profileName = "InnoLive", profileEmail = "test@example.com", onLogout = {})
 
     private fun saveScreenshot(name: String) {
         File(context.cacheDir, name).outputStream().use { output ->

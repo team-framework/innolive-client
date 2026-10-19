@@ -25,18 +25,9 @@ class CameraStabilizationControlTest {
         compose.setContent {
             MaterialTheme {
                 CameraStabilizationControl(
-                    CameraSettingProps(
-                        onBack = {},
-                        selectedResolution = "",
-                        selectedCameraDevice = "",
-                        selectedAudioDevice = "",
-                        onOpenResolutionOptions = {},
-                        onOpenCameraDeviceOptions = {},
-                        onOpenAudioDeviceOptions = {},
-                        videoQualitySettings = settings.value,
-                        onVideoQualitySettingsChanged = { settings.value = it },
-                        videoQualityCaptureState = state.value,
-                    ),
+                    settings = settings.value,
+                    captureState = state.value,
+                    onSettingsChanged = { settings.value = it },
                 )
             }
         }
