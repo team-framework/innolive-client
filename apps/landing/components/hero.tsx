@@ -1,25 +1,24 @@
-"use client";
-
 import Image from "next/image";
 import { Button } from "@/components/button";
 import { DownloadMenu } from "@/components/download-menu";
 import { HeroDemoVideo } from "@/components/hero-demo-video";
-import { useLocale } from "@/components/locale-provider";
+import { localePath, type Locale } from "@/lib/locales";
+import { getMessages } from "@/lib/messages";
 import { PhoneArtwork } from "@/components/phone-artwork";
 import { TypewriterHeroHeading } from "@/components/typewriter-hero-heading";
 
-export function Hero() {
-  const { href, locale, messages } = useLocale();
+export function Hero({ locale }: { locale: Locale }) {
+  const messages = getMessages(locale);
   return (
     <section
-      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 lg:min-h-screen lg:justify-center lg:pb-28 lg:pt-0"
+      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 max-lg:pt-24 lg:min-h-screen lg:justify-center lg:pb-28 lg:pt-0"
       aria-labelledby="hero-heading"
     >
       <div className="flex relative top-12 w-full max-w-[1640px] flex-col items-center gap-y-2 lg:flex-row lg:items-center lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
         <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:translate-x-12 lg:flex-1 min-[106.5rem]:w-[752px] min-[106.5rem]:flex-none min-[106.5rem]:items-end">
           <div className="flex w-full max-w-[634px] flex-col gap-12">
             <div className="relative flex w-full flex-col gap-8">
-              <TypewriterHeroHeading key={locale} />
+              <TypewriterHeroHeading key={locale} copy={messages.hero} />
               <div className="hero-support-reveal w-full break-keep text-body-lg font-normal text-text-primary">
                 <p>{messages.hero.support1}</p>
                 <p>{messages.hero.support2}</p>
@@ -30,8 +29,8 @@ export function Hero() {
               <Button
                 variant="secondary"
                 showChevron={false}
-                href={href("/try-out")}
-                className="h-[53.2px] w-[95.9px] max-md:w-auto max-md:whitespace-nowrap md:h-[76px] md:w-[137px]"
+                href={localePath(locale, "/try-out")}
+                className="h-[53.2px] w-[95.9px] whitespace-nowrap max-md:w-auto md:h-[76px] md:w-[137px]"
               >
                 {messages.hero.tryOut}
               </Button>

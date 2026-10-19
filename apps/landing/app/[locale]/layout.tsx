@@ -30,6 +30,7 @@ export async function generateMetadata({
   const { locale } = await params;
   return {
     metadataBase: new URL(siteOrigin),
+    alternates: { types: { "application/rss+xml": `${siteOrigin}/feed.xml` } },
     verification: {
       google: "J-BWZsWvCgeHZuOUFzYDyXDBIqTkKECI0MxWfgG1Uzo",
       other: {
@@ -52,7 +53,7 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${wantedSans.variable} ${letteringFont.variable} ${wantedSans.className}`}>
       <head>
-        {locale !== "en" && (
+        {locale === "ko" && (
           <link
             rel="preload"
             href={wantedSansCommonPreload}

@@ -1,3 +1,18 @@
+@keyframes hero-character-reveal {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-typewriter-character {
+    animation: hero-character-reveal 1ms step-end var(--character-delay) both paused;
+  }
+
+  html[data-intro-complete="true"] .hero-typewriter-character {
+    animation-play-state: running;
+  }
+}
+
 .progressive-blur-text {
   --blur-mask-padding: 72px;
 }
@@ -121,8 +136,13 @@ body:has([data-page="auth"]) > header + div {
 }
 
 @media (min-width: 64rem) {
+  /* The unscaled track (1408px x 0.8) sizes the zoomed content, since browsers resolve percentages under zoom differently. */
   .feature-section {
     --feature-card-height: 23.125rem;
+    display: grid;
+    grid-template-columns: minmax(0, 70.4rem);
+    justify-content: center;
+    align-content: center;
     padding-top: 24px;
     padding-bottom: 24px;
   }
@@ -131,7 +151,8 @@ body:has([data-page="auth"]) > header + div {
   .feature-section-content {
     zoom: 0.8;
     gap: 32px;
-    width: 125%;
+    width: auto;
+    max-width: none;
   }
 
   .feature-section [data-feature-row] > :first-child {
@@ -164,5 +185,13 @@ body:has([data-page="auth"]) > header + div {
 @media (min-width: 48rem) {
   body:has([data-page="home"]) > header + div {
     padding-top: var(--header-block-desktop);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (max-width: 47.999rem) {
+  /* Mobile has no intro overlay, so its first screen need not wait for hydration. */
+  .hero-typewriter-character,
+  .hero-support-reveal {
+    animation-play-state: running;
   }
 }

@@ -1,0 +1,253 @@
+
+  - tablist "답변 모드 탭":
+    - tab "답변" [selected]:
+    - tab "링크":
+    - tab "이미지":
+    - tab "비디오":
+  - button "세션 작업":
+  - button "창 펼치기":
+  - button "공유":
+    - generic: 공유
+  - button "Comet 다운로드":
+    - generic: Comet 다운로드
+  - generic: 오후 3:02
+  - button "쿼리 편집":
+  - button "쿼리 복사":
+  - paragraph: 치지직에서 얼굴을 실시간 블러 처리하며 방송할 수 있는 방법과 앱을 공식 출처로 알려줘.
+  - button "조사 완료 1초":
+    - generic "조사 완료"
+    - generic: 1초
+  - button "모바일 프리즘라이브로 치지직 방송하기 핸드폰으로 ...":
+    - img "모바일 프리즘라이브로 치지직 방송하기 핸드폰으로 ..."
+  - button "배경에 모르는 사람이 너무 많다면? 5초만에 배경 블러 처리 하는 ...":
+    - img "배경에 모르는 사람이 너무 많다면? 5초만에 배경 블러 처리 하는 ..."
+  - button "치지직을 핸드폰으로 방송하는법 카메라파이로 ...":
+    - img "치지직을 핸드폰으로 방송하는법 카메라파이로 ..."
+  - button "+7개 더 보기":
+    - generic: +7개 더 보기
+  - paragraph:
+    - text: 치지직 자체에는 “얼굴 자동 블러” 기능이 공식 제공되지 않으므로,
+    - strong: PRISM Live Studio
+    - text: 또는
+    - strong: OBS Studio + 블러 플러그인/NVIDIA Broadcast
+    - text: 로 웹캠 영상을 실시간 처리한 뒤 치지직에 송출하는 방식이 현실적입니다. 치지직 공식 고객센터도 OBS·PRISM 같은 방송 송출 소프트웨어 사용을 안내합니다.
+    - 'generic "방송 시작 방법 : 치지직 고객센터"':
+      - link "신뢰할 수 있는 도메인 help.naver":
+        - /url: https://help.naver.com/service/30044/contents/22587?osType=COMMONOS
+        - img "신뢰할 수 있는 도메인":
+        - generic: help.naver
+  - 'heading "가장 쉬운 방법: PRISM Live Studio" [level=2]'
+  - paragraph:
+    - text: PRISM에는
+    - strong: Face Mosaic Effect(얼굴 모자이크 효과)
+    - text: 가 있어 웹캠 속 얼굴에 픽셀화, 블러, 스티커 등을 적용할 수 있습니다. 전체 얼굴 또는 배경 인물만 선택해 처리할 수도 있습니다.
+    - generic "prismlive.com › en_us › faqPRISM Mobile Help, FAQ & Troubleshooting - PRISM Live Studio":
+      - link "prismlive":
+        - /url: https://prismlive.com/en_us/faq/faq.html
+        - generic: prismlive
+  - list:
+    - paragraph:
+      - strong: 앱/PC 프로그램
+      - text: ": PRISM Live Studio (Windows, macOS, Android, iOS)"
+    - paragraph:
+      - strong: 공식 다운로드
+      - text: ": PRISM 공식 사이트 또는 Google Play / App Store에서 “PRISM Live Studio” 검색"
+      - generic "[안내] 이제 PRISM 앱으로 치지직에 스트리밍하세요! - 네이버 블로그":
+        - link "blog.naver":
+          - /url: https://blog.naver.com/prismlivestudio/223505233088
+          - generic: blog.naver
+    - paragraph:
+      - strong: 설정 흐름
+    - list:
+      - paragraph: PRISM에서 카메라 소스를 추가합니다.
+      - paragraph:
+        - text: 효과 메뉴에서
+        - strong: Face Mosaic Effect
+        - text: 를 켭니다.
+      - paragraph: 블러 또는 픽셀화 스타일을 선택합니다.
+      - paragraph: 치지직 채널을 연동하거나, 치지직 스튜디오의 스트림 URL·스트림 키를 PRISM에 입력합니다.
+      - paragraph:
+        - text: 방송을 시작합니다.
+        - img "신뢰할 수 있는 도메인":
+        - generic: help.naver
+        - generic: "+1"
+  - paragraph:
+    - text: PRISM은 치지직 정식 송출 기능을 PC·모바일 앱에서 지원하며, 치지직 계정 로그인 방식의 채널 연동도 제공합니다.
+    - generic "[안내] 이제 PRISM 앱으로 치지직에 스트리밍하세요! - 네이버 블로그":
+      - link "blog.naver":
+        - /url: https://blog.naver.com/prismlivestudio/223505233088
+        - generic: blog.naver
+  - heading "OBS를 쓰는 경우" [level=2]
+  - paragraph:
+    - text: OBS는 치지직 공식 안내에 있는 대표 송출 프로그램입니다. 다만 OBS 기본 기능만으로는 “얼굴을 자동 인식해 블러”하기보다, 블러 플러그인이나 NVIDIA Broadcast를 함께 쓰는 편이 좋습니다.
+    - 'generic "방송 시작 방법 : 치지직 고객센터"':
+      - link "신뢰할 수 있는 도메인 help.naver":
+        - /url: https://help.naver.com/service/30044/contents/22587?osType=COMMONOS
+        - img "신뢰할 수 있는 도메인":
+        - generic: help.naver
+  - 'heading "방법 A: OBS + Ashmanix Blur Filter" [level=2]'
+  - paragraph:
+    - text: OBS 공식 플러그인 페이지에 등록된
+    - strong: Ashmanix Blur Filter
+    - text: 는 이미지·영상 소스에 블러 크기와 블러 방식을 설정할 수 있는 필터입니다.
+    - generic "obsproject.com › forum › resourcesAshmanix Blur Filter | OBS Forums":
+      - link "신뢰할 수 있는 도메인 obsproject":
+        - /url: https://obsproject.com/forum/resources/ashmanix-blur-filter.1742/
+        - img "신뢰할 수 있는 도메인":
+        - generic: obsproject
+  - list:
+    - paragraph:
+      - strong: 대상
+      - text: ": PC 방송, 웹캠 화면 전체 또는 특정 영역을 가릴 때 적합"
+    - paragraph:
+      - strong: 한계
+      - text: ": 얼굴 위치를 자동 추적하지는 않으므로, 얼굴이 화면 한곳에 고정된 경우에 적합"
+    - paragraph:
+      - strong: 설정
+    - list:
+      - paragraph:
+        - text: OBS에서 웹캠을
+        - strong: Video Capture Device
+        - text: 로 추가
+      - paragraph:
+        - text: 해당 소스 우클릭 →
+        - strong: Filters
+      - paragraph:
+        - strong: Ashmanix Blur Filter
+        - text: 추가
+      - paragraph:
+        - text: Blur Size와 블러 유형을 조절
+        - generic "obsproject.com › forum › resourcesAshmanix Blur Filter | OBS Forums":
+          - link "신뢰할 수 있는 도메인 obsproject":
+            - /url: https://obsproject.com/forum/resources/ashmanix-blur-filter.1742/
+            - img "신뢰할 수 있는 도메인":
+            - generic: obsproject
+  - 'heading "방법 B: OBS + NVIDIA Broadcast" [level=2]'
+  - paragraph:
+    - text: NVIDIA RTX 그래픽카드가 있다면
+    - strong: NVIDIA Broadcast
+    - text: 로 배경 블러·배경 제거를 실시간 적용하고, OBS에서
+    - code: Camera (NVIDIA Broadcast)
+    - text: 를 웹캠 소스로 선택할 수 있습니다. NVIDIA는 OBS를 포함한 다양한 방송 앱과의 호환성을 안내합니다.
+    - img "신뢰할 수 있는 도메인":
+    - generic: nvidia
+    - generic: "+1"
+  - list:
+    - paragraph:
+      - strong: 앱
+      - text: ": NVIDIA Broadcast App"
+    - paragraph:
+      - strong: 요구 사항
+      - text: ": NVIDIA 공식 기준으로 Windows 10 64비트, RTX 2060 이상 GPU, 8GB 이상 RAM 등"
+      - generic "Elgato Facecam — Background blur/replacement with NVIDIA Broadcast":
+        - link "신뢰할 수 있는 도메인 help.elgato":
+          - /url: https://help.elgato.com/hc/en-us/articles/4405355317261-Elgato-Facecam-Background-blur-replacement-with-NVIDIA-Broadcast
+          - img "신뢰할 수 있는 도메인":
+          - generic: help.elgato
+    - paragraph:
+      - strong: 주의
+      - text: ": 이것은 기본적으로"
+      - strong: 배경
+      - text: 을 흐리는 기능이며, 방송자 본인의 얼굴 자체를 블러 처리하는 기능은 아닙니다. 얼굴을 완전히 가리려면 PRISM의 Face Mosaic 또는 OBS 블러 필터를 쓰는 것이 맞습니다.
+      - img "신뢰할 수 있는 도메인":
+      - generic: nvidia
+      - generic: "+1"
+  - heading "추천 조합" [level=2]
+  - table:
+    - rowgroup:
+      - row "상황 추천 앱 이유":
+        - columnheader "상황"
+        - columnheader "추천 앱"
+        - columnheader "이유"
+    - rowgroup:
+      - row "모바일 또는 초보자 PRISM Live Studio 얼굴 모자이크 효과를 직접 제공하고 치지직 송출을 지원 prismlive +1":
+        - cell "모바일 또는 초보자"
+        - cell "PRISM Live Studio":
+          - strong: PRISM Live Studio
+        - cell "얼굴 모자이크 효과를 직접 제공하고 치지직 송출을 지원 prismlive +1":
+          - text: 얼굴 모자이크 효과를 직접 제공하고 치지직 송출을 지원
+          - generic: prismlive
+          - generic: "+1"
+      - row "PC에서 얼굴 위치가 고정됨 OBS + Ashmanix Blur Filter 웹캠 소스에 블러 필터를 간단히 적용 가능 obsproject.com › forum › resourcesAshmanix Blur Filter | OBS Forums":
+        - cell "PC에서 얼굴 위치가 고정됨"
+        - cell "OBS + Ashmanix Blur Filter":
+          - strong: OBS + Ashmanix Blur Filter
+        - cell "웹캠 소스에 블러 필터를 간단히 적용 가능 obsproject.com › forum › resourcesAshmanix Blur Filter | OBS Forums":
+          - text: 웹캠 소스에 블러 필터를 간단히 적용 가능
+          - generic "obsproject.com › forum › resourcesAshmanix Blur Filter | OBS Forums":
+            - link "신뢰할 수 있는 도메인 obsproject":
+              - /url: https://obsproject.com/forum/resources/ashmanix-blur-filter.1742/
+              - img "신뢰할 수 있는 도메인":
+              - generic: obsproject
+      - row "RTX PC에서 배경만 흐리게 OBS + NVIDIA Broadcast AI 기반 배경 블러/제거를 실시간 적용 신뢰할 수 있는 도메인 nvidia +1":
+        - cell "RTX PC에서 배경만 흐리게"
+        - cell "OBS + NVIDIA Broadcast":
+          - strong: OBS + NVIDIA Broadcast
+        - cell "AI 기반 배경 블러/제거를 실시간 적용 신뢰할 수 있는 도메인 nvidia +1":
+          - text: AI 기반 배경 블러/제거를 실시간 적용
+          - img "신뢰할 수 있는 도메인":
+          - generic: nvidia
+          - generic: "+1"
+  - heading "치지직 송출 설정" [level=2]
+  - paragraph:
+    - text: 치지직 스튜디오의
+    - strong: 설정
+    - text: 에서 스트림 URL과 스트림 키를 확인한 뒤, OBS 또는 PRISM의 방송 설정에 등록하면 됩니다. 치지직 공식 권장 송출값은 1080p, 60fps, 8,000kbps CBR, 키프레임 1초입니다.
+    - 'generic "방송 시작 방법 : 치지직 고객센터"':
+      - link "신뢰할 수 있는 도메인 help.naver":
+        - /url: https://help.naver.com/service/30044/contents/22587?osType=COMMONOS
+        - img "신뢰할 수 있는 도메인":
+        - generic: help.naver
+  - paragraph:
+    - text: 개인정보 보호가 목적이라면, 방송 시작 전에
+    - strong: 미리보기에서 블러가 얼굴을 제대로 덮는지
+    - text: 반드시 확인하세요. 특히 OBS 블러 필터는 얼굴 추적 기능이 없어 카메라 위치나 몸의 움직임이 크면 얼굴이 필터 밖으로 나올 수 있습니다.
+    - generic "obsproject.com › forum › resourcesAshmanix Blur Filter | OBS Forums":
+      - link "신뢰할 수 있는 도메인 obsproject":
+        - /url: https://obsproject.com/forum/resources/ashmanix-blur-filter.1742/
+        - img "신뢰할 수 있는 도메인":
+        - generic: obsproject
+  - button "복사":
+  - button "공유":
+  - button "도움이 됨":
+  - button "도움이 되지 않음":
+  - button "포크":
+  - button "35개 출처":
+    - text: 35개 출처
+  - button "추가 작업":
+  - 'button "OBS vs PRISM Face Blur Setup Guide: Step-by-step filters, performance impact, and configuration for Chzzk streaming"'
+  - text: "OBS vs PRISM Face Blur Setup Guide: Step-by-step filters, performance impact, and configuration for Chzzk streaming"
+  - text: Computer
+  - 'button "Build an OBS and PRISM Settings Checklist: Bitrates, 1080p60fps encoders, and privacy filter configurations for Chzzk"'
+  - text: "Build an OBS and PRISM Settings Checklist: Bitrates, 1080p60fps encoders, and privacy filter configurations for Chzzk"
+  - text: Computer
+  - button "프리즘 라이브 스튜디오 얼굴 모자이크 설정 방법 알려줘"
+  - text: 프리즘 라이브 스튜디오 얼굴 모자이크 설정 방법 알려줘
+  - button "OBS에서 얼굴 자동 추적 블러 처리하는 방법이 있어"
+  - text: OBS에서 얼굴 자동 추적 블러 처리하는 방법이 있어
+  - button "치지직 모바일 방송할 때 프리즘 앱 쓰는 법 알려줘"
+  - text: 치지직 모바일 방송할 때 프리즘 앱 쓰는 법 알려줘
+  - button "끝까지 스크롤":
+    - generic: ⠏
+  - button "Pro 고급 검색 무료 미리 보기가 활성화되었습니다. 자세히 알아보기":
+    - generic: Pro
+    - generic: 고급 검색 무료 미리 보기가 활성화되었습니다.
+    - button "자세히 알아보기":
+      - generic: 자세히 알아보기
+  - status:
+    - generic: 시크릿 모드입니다.
+    - button "시크릿 모드 종료":
+      - generic: 시크릿 모드 종료
+  - textbox [active]:
+    - paragraph
+  - generic: 후속 질문하기
+  - button "파일 또는 도구 추가":
+  - button "검색" [pressed]:
+    - text: 검색
+  - button "Computer":
+    - text: Computer
+  - button "모델":
+    - generic: 모델
+  - button "받아쓰기":
+  - button "제출" [disabled]:
+- listbox "Typeahead menu"

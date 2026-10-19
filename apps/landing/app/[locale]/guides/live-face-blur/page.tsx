@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { StructuredData } from "@/components/structured-data";
+import { overviewStructuredData } from "@/lib/structured-data";
 import { notFound } from "next/navigation";
 import { isLocale, localePath } from "@/lib/locales";
 import { liveFaceBlurGuide } from "@/lib/live-face-blur-guide";
+import { findSeoGuide } from "@/lib/seo-guides";
 import { pageMetadata } from "@/lib/seo";
 
 type PageProps = { params: Promise<{ locale: string }> };
@@ -18,6 +21,7 @@ export default async function LiveFaceBlurGuide({ params }: PageProps) {
   const guide = liveFaceBlurGuide[locale];
   return (
     <main id="main" tabIndex={-1} className="page-top-spacing bg-background-primary px-[var(--page-gutter)] pb-16 lg:pb-24">
+      <StructuredData data={overviewStructuredData(locale, guide)} />
       <article className="mx-auto max-w-[72rem] break-keep text-text-primary">
         <h1 className="text-balance text-3xl font-bold leading-snug lg:text-5xl">{guide.heading}</h1>
         <p className="mt-8 text-lg leading-relaxed max-md:text-[15px]">{guide.intro}</p>
@@ -29,7 +33,7 @@ export default async function LiveFaceBlurGuide({ params }: PageProps) {
           </section>
         ))}
         <nav className="mt-12 flex flex-wrap gap-6 text-lg max-md:text-[15px] max-lg:gap-x-6 max-lg:gap-y-0">
-          {(locale === "ko" || locale === "en") && <Link href={localePath(locale, "/live-mosaic")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{locale === "en" ? "Live face blur guide" : "실시간 얼굴 가리기 가이드"}</Link>}
+          <Link href={localePath(locale, "/live-mosaic")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{findSeoGuide("/live-mosaic", locale)?.heading}</Link>
           <Link href={localePath(locale, "/try-out")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{guide.demo}</Link>
           <Link href={localePath(locale, "/support")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:items-center">{guide.support}</Link>
         </nav>

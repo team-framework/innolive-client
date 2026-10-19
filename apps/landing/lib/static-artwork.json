@@ -1,0 +1,20 @@
+{
+  "hero-phone": {
+    "width": 1359,
+    "height": 2736,
+    "src": "/landing/optimized/hero-phone-640-47f4e5cf8627.webp",
+    "srcSet": "/landing/optimized/hero-phone-256-0ce496460fa2.webp 256w, /landing/optimized/hero-phone-384-1376d4b9b154.webp 384w, /landing/optimized/hero-phone-640-47f4e5cf8627.webp 640w, /landing/optimized/hero-phone-1080-81d1197bbfc1.webp 1080w, /landing/optimized/hero-phone-1359-4fb9595bce2b.webp 1359w"
+  },
+  "youtube-logo": {
+    "width": 1705,
+    "height": 573,
+    "src": "/landing/optimized/youtube-logo-640-e317a16c2823.webp",
+    "srcSet": "/landing/optimized/youtube-logo-256-61be99e9c228.webp 256w, /landing/optimized/youtube-logo-384-3b4899a776b8.webp 384w, /landing/optimized/youtube-logo-640-e317a16c2823.webp 640w, /landing/optimized/youtube-logo-1080-8a103302e55b.webp 1080w, /landing/optimized/youtube-logo-1705-5fe6da0636ea.webp 1705w"
+  },
+  "chzzk-logo": {
+    "width": 1920,
+    "height": 601,
+    "src": "/landing/optimized/chzzk-logo-640-a0dc9e440da9.webp",
+    "srcSet": "/landing/optimized/chzzk-logo-256-e1e38b4a5abc.webp 256w, /landing/optimized/chzzk-logo-384-eafef3989714.webp 384w, /landing/optimized/chzzk-logo-640-a0dc9e440da9.webp 640w, /landing/optimized/chzzk-logo-1080-82fe80983967.webp 1080w, /landing/optimized/chzzk-logo-1920-39483e19f4a4.webp 1920w"
+  }
+}

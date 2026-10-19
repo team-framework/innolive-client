@@ -114,11 +114,11 @@ export function SignupForm({ children }: { children: ReactNode }) {
 
   return (
     <form
-      className="flex w-full max-w-[32rem] flex-col items-center gap-7"
+      className="flex w-full max-w-[32rem] flex-col items-center gap-7 max-lg:gap-6"
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary">
+      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
         {step === "verification" ? copy.verifyTitle : copy.signupTitle}
       </h1>
       {step === "verification" ? (

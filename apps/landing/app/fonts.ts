@@ -19,6 +19,8 @@ export const wantedSans = localFont({
 // The weight range keeps browsers from synthesizing bold on the single-weight face.
 export const letteringFont = localFont({
   src: "./fonts/116watermelon/116watermelon-lettering.woff2",
+  // This face is used only by the desktop intro; let CSS request it when visible.
+  preload: false,
   display: "block",
   weight: "100 900",
   variable: "--font-lettering",

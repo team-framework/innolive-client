@@ -76,6 +76,98 @@ test("English guides have complete routes, localized schema and reciprocal alter
     const en = pageAlternates("en", guide.path);
     assert.equal(en.canonical, page.url);
     assert.deepEqual(en.languages, pageAlternates("ko", guide.path).languages);
-    assert.deepEqual(Object.keys(en.languages).sort(), ["en", "ko", "x-default"]);
+    assert.deepEqual(Object.keys(en.languages).sort(), ["en", "ja", "ko", "x-default"]);
   }
+});
+
+const { japaneseSeoGuides } = load(path.join(__dirname, "seo-guides.ja.ts"));
+const { findSeoGuide } = load(path.join(__dirname, "seo-guides.ts"));
+test("Japanese guides cover every route, section, FAQ and related link", () => {
+  assert.deepEqual(japaneseSeoGuides.map(g => g.path).sort(), [...seoGuidePaths].sort());
+  for (const guide of japaneseSeoGuides) {
+    const english = englishSeoGuides.find(g => g.path === guide.path);
+    assert.equal(guide.sections.length, english.sections.length);
+    assert.deepEqual(guide.sections.map(s => s.paragraphs.length), english.sections.map(s => s.paragraphs.length));
+    assert.equal(guide.faq?.length ?? 0, english.faq?.length ?? 0);
+    assert.ok(!/[가-힣]/.test(JSON.stringify(guide)));
+    assert.match(guide.heading, /[ぁ-んァ-ヶ一-龯]/);
+    assert.equal(findSeoGuide(guide.path, "ja"), guide);
+    for (const related of guide.related) assert.ok(findSeoGuide(related, "ja"));
+    const graph = guideStructuredData(guide, "ja")["@graph"];
+    const page = graph.find(n => n["@type"] === "WebPage");
+    assert.equal(page.inLanguage, "ja");
+    assert.equal(page.url, `https://innolive.studio/ja${guide.path}`);
+    assert.equal(page.description, guide.intro);
+    const alternates = pageAlternates("ja", guide.path);
+    assert.equal(alternates.canonical, page.url);
+    assert.equal(alternates.languages.ja, page.url);
+    assert.deepEqual(alternates.languages, pageAlternates("ko", guide.path).languages);
+  }
+});
+
+const { llmsDocument, blogFeed } = load(path.join(__dirname, "search-documents.ts"));
+
+const { socialLinks } = load(path.join(__dirname, "site.ts"));
+const { overviewStructuredData } = load(path.join(__dirname, "structured-data.ts"));
+const { liveFaceBlurGuide } = load(path.join(__dirname, "live-face-blur-guide.ts"));
+
+test("AI 안내와 전문은 모든 언어의 가이드 및 FAQ 원문을 보존한다", () => {
+  const index = llmsDocument();
+  const full = llmsDocument(true);
+  for (const locale of ["ko", "en", "ja"]) {
+    for (const guidePath of seoGuidePaths) {
+      const guide = findSeoGuide(guidePath, locale);
+      assert.ok(index.includes(`https://innolive.studio/${locale}${guidePath}`));
+      assert.ok(full.includes(guide.intro));
+      for (const faq of guide.faq ?? []) {
+        assert.ok(full.includes(faq.question));
+        assert.ok(full.includes(faq.answer));
+      }
+    }
+    const overview = overviewStructuredData(locale, liveFaceBlurGuide[locale])["@graph"];
+    const page = overview.find(node => node["@type"] === "WebPage");
+    assert.equal(page.description, liveFaceBlurGuide[locale].intro);
+    assert.equal(page.inLanguage, locale);
+  }
+});
+
+test("공식 소셜·블로그 발행자 연결과 RSS가 기존 공개 콘텐츠에서 생성된다", () => {
+  const graph = homeStructuredData("ko")["@graph"];
+  const organization = graph.find(node => node["@type"] === "Organization");
+  assert.deepEqual(organization.sameAs, socialLinks.map(link => link.href));
+  const blog = seoGuides.find(guide => guide.path.startsWith("/blog/"));
+  const article = guideStructuredData(blog)["@graph"].find(node => node["@type"] === "Article");
+  assert.equal(article.publisher["@id"], organization["@id"]);
+  const feed = blogFeed();
+  assert.equal((feed.match(/<item>/g) ?? []).length, seoGuides.filter(guide => guide.path.startsWith("/blog/")).length * 3);
+  assert.ok(!feed.includes("<pubDate>"), "발행일 근거 없이 날짜를 만들지 않는다");
+});
+
+const { aboutStructuredData } = load(path.join(__dirname, "structured-data.ts"));
+const { aboutCopy } = load(path.join(__dirname, "about.ts"));
+const { pageMetadata } = load(path.join(__dirname, "seo.ts"));
+test("소개 페이지는 제품과 운영팀을 구분하고 계정 양식만 색인에서 제외한다", () => {
+  for (const locale of ["ko", "en", "ja"]) {
+    const graph = aboutStructuredData(locale)["@graph"];
+    assert.equal(graph.find(node => node["@type"] === "Organization").name, "Framework");
+    assert.equal(graph.find(node => node["@type"] === "SoftwareApplication").name, "InnoLive");
+    assert.equal(graph.find(node => node["@type"] === "AboutPage").description, aboutCopy[locale].intro);
+    for (const route of ["/login", "/signup"]) assert.equal(pageMetadata(locale, route, aboutCopy[locale]).robots.index, false);
+    assert.equal(pageMetadata(locale, "/about", aboutCopy[locale]).robots, undefined);
+  }
+});
+
+const { searchCrawlerEvent } = load(path.join(__dirname, "search-crawler.ts"));
+test("crawler metrics retain only public routes and normalized crawler names", () => {
+  assert.deepEqual(searchCrawlerEvent("/ko/live-mosaic", "GET", "Mozilla/5.0 (compatible; GPTBot/1.3; +https://openai.com/gptbot)"), {
+    event: "search_crawler_request", crawler: "GPTBot", path: "/ko/live-mosaic", method: "GET",
+  });
+  assert.equal(searchCrawlerEvent("/ko/login", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/api/auth?token=secret", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko/private-user-id", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko", "POST", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko", "GET", "Mozilla/5.0"), null);
+  assert.equal(searchCrawlerEvent("/ko", "GET", "NotGPTBot"), null);
+  assert.equal(searchCrawlerEvent("/llms.txt", "HEAD", "OAI-SearchBot/1.3")?.crawler, "OAI-SearchBot");
+  assert.equal(searchCrawlerEvent("/ja/about", "GET", "Yeti/1.1")?.path, "/ja/about");
 });

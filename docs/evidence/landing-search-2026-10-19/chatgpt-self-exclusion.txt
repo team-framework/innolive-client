@@ -1,0 +1,144 @@
+
+    - heading "You said:" [level=4]
+    - generic: 웹 검색으로 찾아줘. 야외 라이브 방송에서 나만 빼고 다른 사람 얼굴을 자동으로 모자이크할 수 있는 앱이 있어? 공식 출처로 알려줘.
+    - button "Copy message":
+    - button "Edit message":
+    - button "Worked for 1m 37s"
+    - generic: Worked for 1m 37s
+    - heading "ChatGPT said:" [level=4]
+    - paragraph:
+      - text: 네.
+      - generic: 실제로 있습니다.
+      - text: 웹 검색으로 확인해 보니, 야외 라이브 방송에서
+      - generic: 본인 얼굴은 그대로 보여주고 지나가는 사람들의 얼굴만 AI로 자동 모자이크하는 앱
+      - text: 이 있습니다.
+    - paragraph: 특히 스마트폰 한 대로 실시간 방송까지 할 수 있는 앱 2개와, PC 방송용 프로그램 1개를 찾았습니다. 모두 개발사 공식 홈페이지 또는 공식 앱스토어 설명을 기준으로 확인했습니다.
+    - heading "1. 가장 적합한 앱 3가지" [level=2]
+    - img "Image unavailable":
+    - paragraph:
+      - button "StreamShield – IRL Streaming":
+        - generic: StreamShield – IRL Streaming
+    - generic: 조건에 부합
+    - paragraph: 아이폰 · 야외 라이브 전용
+    - paragraph: 내 얼굴을 허용 목록(화이트리스트)에 등록해 그대로 보여주고, 다른 사람들의 얼굴은 실시간으로 흐림 처리합니다. 유튜브, 트위치, Kick 방송을 지원합니다.
+    - paragraph:
+      - link "공식 App Store":
+        - /url: https://apps.apple.com/kr/app/streamshield-irl-streaming/id6776278719?utm_source=chatgpt.com
+        - generic: 공식 App Store
+      - text: ·
+      - link "개발사 홈페이지":
+        - /url: https://www.streamshield.pro/?utm_source=chatgpt.com
+        - generic: 개발사 홈페이지
+    - img "‎Приложение «DualMoza» — App Store"
+    - button "Open ‎Приложение «DualMoza» — App Store"
+    - button "Add to Favorites":
+    - paragraph:
+      - button "DualMoza":
+        - generic: DualMoza
+    - paragraph: 안드로이드 · 아이폰
+    - paragraph:
+      - generic: "'가장 가까운 사람을 제외한 모두'"
+      - text: 옵션을 제공해, 본인은 보이고 주변 사람만 자동 모자이크할 수 있습니다. 유튜브·트위치·RTMP 라이브 방송을 지원합니다.
+    - paragraph:
+      - link "Google Play":
+        - /url: https://play.google.com/store/apps/details?id=com.dualmoza.app&utm_source=chatgpt.com
+        - generic: Google Play
+      - text: ·
+      - link "App Store":
+        - /url: https://apps.apple.com/kr/app/dualmoza/id6756903535?utm_source=chatgpt.com
+        - generic: App Store
+    - img "Pixel Face - AI Motion Tracking Video Editor - Free download and install on Windows | Microsoft Store"
+    - button "Open Pixel Face - AI Motion Tracking Video Editor - Free download and install on Windows | Microsoft Store"
+    - button "Add to Favorites":
+    - paragraph:
+      - generic: Automatic Face Obscure for OBS
+    - paragraph: PC · OBS 방송 필터
+    - paragraph: 움직이는 얼굴을 자동 추적하고, 선택한 얼굴만 가리거나 특정 얼굴을 제외하고 나머지를 가리는 기능이 있습니다.
+    - paragraph:
+      - link "개발사 공식 설명":
+        - /url: https://software.omniatv.com/auto-face-obscure/?utm_source=chatgpt.com
+        - generic: 개발사 공식 설명
+    - paragraph:
+      - text: "출처: StreamShield 공식 앱 설명 및 개발사 홈페이지, DualMoza 공식 앱스토어 설명, OmniaTV 공식 제품 페이지."
+      - button "App Store +4":
+        - generic: App Store
+        - generic: "+4"
+    - heading "2. 사용하기 전에 확인할 점" [level=2]
+    - table:
+      - rowgroup:
+        - row "앱 기기·조건 본인을 제외하는 방식":
+          - columnheader "앱":
+            - paragraph: 앱
+          - columnheader "기기·조건":
+            - paragraph: 기기·조건
+          - columnheader "본인을 제외하는 방식":
+            - paragraph: 본인을 제외하는 방식
+        - row "StreamShield iPhone 15 Pro 이상, iOS 26 이상 본인 얼굴을 사전 등록":
+          - cell "StreamShield":
+            - paragraph: StreamShield
+          - cell "iPhone 15 Pro 이상, iOS 26 이상":
+            - paragraph: iPhone 15 Pro 이상, iOS 26 이상
+          - cell "본인 얼굴을 사전 등록":
+            - paragraph:
+              - generic: 본인 얼굴을 사전 등록
+        - row "DualMoza 안드로이드·아이폰 (iOS 16 이상) 카메라에 가장 가까운 사람을 제외":
+          - cell "DualMoza":
+            - paragraph: DualMoza
+          - cell "안드로이드·아이폰 (iOS 16 이상)":
+            - paragraph: 안드로이드·아이폰 (iOS 16 이상)
+          - cell "카메라에 가장 가까운 사람을 제외":
+            - paragraph:
+              - generic: 카메라에 가장 가까운 사람을 제외
+        - row "OBS 필터 Windows PC + OBS 선택한 얼굴의 추적 ID를 제외":
+          - cell "OBS 필터":
+            - paragraph: OBS 필터
+          - cell "Windows PC + OBS":
+            - paragraph: Windows PC + OBS
+          - cell "선택한 얼굴의 추적 ID를 제외":
+            - paragraph: 선택한 얼굴의 추적 ID를 제외
+    - paragraph:
+      - text: StreamShield는 한국 App Store에서 무료로 표시됩니다. DualMoza는 공식 설명상
+      - generic: 라이브 방송에 Pro 유료 기능이 필요
+      - text: 하며, 한국 App Store에는 앱 가격 4,400원과 앱 내 구입이 함께 표시됩니다. OBS 필터는 별도 설치하는 서드파티 플러그인이며, 포함된 일부 AI 모델에는 상업적 사용 관련 라이선스 제한이 있습니다.
+      - button "App Store +3":
+        - generic: App Store
+        - generic: "+3"
+    - heading "3. 어떤 앱이 가장 좋을까?" [level=2]
+    - paragraph:
+      - generic: 아이폰 15 Pro 이상이면 StreamShield를 가장 먼저 확인하는 것을 추천합니다.
+      - text: 본인을 얼굴로 인식해 제외하는 방식이므로 '가장 가까운 사람'을 제외하는 DualMoza보다 요청하신 기능에 더 정확히 부합합니다.
+    - paragraph:
+      - generic: 갤럭시 등 안드로이드라면 DualMoza
+      - text: 가 가장 직접적인 선택지입니다. 다만 다른 사람이 카메라에 더 가까워지는 상황에서는 본인을 정확히 구별하는 방식이 아니라는 점을 주의해야 합니다.
+    - paragraph:
+      - text: 그리고 중요한 한계가 있습니다.
+      - generic: 어느 앱도 지나가는 사람의 얼굴을 100% 빠짐없이 가린다고 보장할 수는 없습니다.
+      - text: 역광, 측면 얼굴, 빠른 움직임, 사람들 간의 겹침 때문에 감지를 놓칠 수 있으므로 공개 방송 전에 반드시 비공개 테스트 방송을 진행하는 편이 안전합니다.
+    - paragraph: 이 세 가지는 개발사에서 기능을 명시한 제품이지만, 제가 직접 야외 방송에서 성능을 테스트한 것은 아닙니다.
+    - paragraph:
+      - text: 사용하려는 휴대폰이
+      - generic: 갤럭시인가요, 아이폰인가요?
+      - text: 그리고 방송 플랫폼이
+      - generic: 유튜브, 치지직, SOOP 중 어디인지
+      - text: 알려주시면 그 조합에서 실제 송출까지 가능한 앱을 더 정확히 골라드릴 수 있습니다.
+    - button "Copy":
+    - button "Read aloud":
+    - button "Regenerate response":
+    - button "More actions":
+    - generic: ChatGPT can make mistakes. Check important info.
+    - button "Scroll to bottom":
+    - heading "Latest response" [level=4]
+    - status
+    - button "Add files and more":
+    - textbox "Ask ChatGPT" [active]:
+      - paragraph: Ask ChatGPT
+    - button "Select ChatGPT model":
+      - generic: High
+    - button "Dictate":
+    - button "Send" [disabled]:
+- status
+- status
+- status
+- status
+- status
+- status: Response complete

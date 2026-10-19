@@ -45,7 +45,8 @@
     "support": "Support",
     "faq": "FAQ",
     "socialMissing": "{name} link is not available yet",
-    "guide": "User guide"
+    "guide": "User guide",
+    "appGuide": "Live face blur app"
   },
   "intro": {
     "dialogLabel": "InnoLive introduction",
@@ -91,8 +92,8 @@
     "latency": "Max de-identification latency",
     "platforms": "Stream directly to multiple platforms",
     "letteringStart": "de-identified",
-    "letteringEnd": "live",
-    "letteringAria": "AI de-identified live",
+    "letteringEnd": "live stream",
+    "letteringAria": "AI de-identified live stream",
     "chzzkAlt": "CHZZK",
     "resolution": "High-resolution live",
     "free": "Stay LITE on the free plan**",
@@ -386,5 +387,33 @@
       "invalid_request": "Check your email and password.",
       "invalid_token_response": "Could not confirm the login session."
     }
+  },
+  "seoGuide": {
+    "breadcrumb": "Breadcrumb",
+    "tryBlur": "Try face blur",
+    "viewPlans": "View streaming plans",
+    "registrationAlt": "Registering a face to keep visible in an InnoLive broadcast",
+    "registrationCaption": "Register the faces you want to show, then check that other faces are blurred before streaming.",
+    "installTitle": "Install the InnoLive broadcasting app",
+    "installDescription": "Stream live camera video with automatic face blur to YouTube or CHZZK. Register guests to keep them visible and check the result before broadcasting.",
+    "downloadSuffix": " download",
+    "downloadUnavailable": "Download link unavailable",
+    "demoDescription": "The web demo previews face blur. Broadcast from the mobile app; check pricing for streaming time and feature limits.",
+    "comparisonTitle": "Compare the published features",
+    "sourcesChecked": "Sources checked: ",
+    "officialSources": "Official sources",
+    "appInstallation": "InnoLive app and installation",
+    "plans": "InnoLive plans",
+    "planSummary": "Current personal plan prices",
+    "planCaption": "Regular and beta monthly prices for Spark, Glow, Beam and Plasma",
+    "plan": "Plan",
+    "regularPrice": "Regular monthly price",
+    "currentPrice": "Current monthly price",
+    "currencySuffix": " KRW",
+    "pricingBefore": "See ",
+    "pricingLink": "pricing",
+    "pricingAfter": " for streaming time, face registration limits and broadcast conditions.",
+    "faq": "Frequently asked questions",
+    "related": "Related guides"
   }
 }
