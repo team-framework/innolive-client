@@ -12,6 +12,7 @@ export function HeroDemoVideo({ className }: { className: string }) {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let visible = false;
     let pageReady = document.readyState === "complete";
+    let introReady = document.documentElement.dataset.introComplete === "true";
 
     let cancelPlayback: (() => void) | undefined;
 
@@ -26,7 +27,7 @@ export function HeroDemoVideo({ className }: { className: string }) {
         }
         return;
       }
-      if (!pageReady || !visible || document.hidden) {
+      if (!pageReady || !introReady || !visible || document.hidden) {
         video.pause();
         return;
       }
@@ -46,6 +47,11 @@ export function HeroDemoVideo({ className }: { className: string }) {
       });
     };
 
+    const onIntroComplete = () => {
+      introReady = true;
+      updatePlayback();
+    };
+
     const onPageLoad = () => {
       pageReady = true;
       updatePlayback();
@@ -57,6 +63,7 @@ export function HeroDemoVideo({ className }: { className: string }) {
     });
     observer.observe(video);
     window.addEventListener("load", onPageLoad);
+    window.addEventListener("innolive:intro-complete", onIntroComplete);
     reducedMotion.addEventListener("change", updatePlayback);
     document.addEventListener("visibilitychange", updatePlayback);
 
@@ -64,6 +71,7 @@ export function HeroDemoVideo({ className }: { className: string }) {
       cancelPlayback?.();
       observer.disconnect();
       window.removeEventListener("load", onPageLoad);
+      window.removeEventListener("innolive:intro-complete", onIntroComplete);
       reducedMotion.removeEventListener("change", updatePlayback);
       document.removeEventListener("visibilitychange", updatePlayback);
       video.pause();

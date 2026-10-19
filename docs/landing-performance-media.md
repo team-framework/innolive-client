@@ -60,7 +60,7 @@ UI 선명도를 확인한다.
 
 `HeroDemoVideo`는 WebP 포스터를 video의 `poster` 속성으로 표시한다.
 포스터는 `scripts/optimize-landing-images.mjs`에서 기존 JPG를 WebP quality 80으로 변환한다.
-페이지 load 완료 후, 화면에 보이며 문서가 활성 상태일 때 두 번의 animation frame을
+페이지 load와 인트로가 완료된 후, 화면에 보이며 문서가 활성 상태일 때 두 번의 animation frame을
 거쳐 포스터를 먼저 그리고 영상을 연결한다. 초 단위 지연 시간은 사용하지 않는다.
 
 최초 연결 시 화면 너비가 1024px 미만이고
