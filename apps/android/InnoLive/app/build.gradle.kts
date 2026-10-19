@@ -88,6 +88,7 @@ dependencies {
     implementation("com.google.ai.edge.litert:litert:2.2.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("com.squareup.okhttp3:okhttp:5.3.0")
+    implementation("androidx.webkit:webkit:1.17.1")
     implementation("io.github.webrtc-sdk:android:144.7559.09")
     implementation("com.github.pedroSG94.RootEncoder:rtmp:2.8.1")
     implementation(libs.androidx.navigation3.runtime)

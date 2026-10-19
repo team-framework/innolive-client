@@ -298,9 +298,12 @@
     <string name="direct_broadcast_notification_text">다른 앱을 쓰거나 화면이 꺼지면 카메라 대신 대기 화면과 무음을 송출합니다.</string>
     <string name="direct_broadcast_notification_stop">방송 종료</string>
     <string name="direct_broadcast_notification_hidden">알림이 꺼져 있어 방송 중 알림이 보이지 않습니다. 방송은 그대로 진행됩니다.</string>
-    <string name="viewer_chat_title">시청자 채팅</string>
-    <string name="viewer_chat_notice">보기 전용 · 비공개 방송의 채팅은 표시되지 않을 수 있습니다.</string>
+    <string name="viewer_chat_connecting">채팅을 연결하고 있습니다.</string>
+    <string name="viewer_chat_waiting">새 채팅을 기다리고 있습니다.</string>
     <string name="viewer_chat_load_failed">채팅을 불러오지 못했습니다.</string>
+    <string name="viewer_chat_hide">채팅 숨기기</string>
+    <string name="viewer_chat_show">채팅 표시</string>
+    <string name="viewer_chat_menu">채팅 메뉴</string>
     <string name="settings_expanded">펼침</string>
     <string name="settings_collapsed">접힘</string>
     <!-- Quick face registration (home one-tap) -->

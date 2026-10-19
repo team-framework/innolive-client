@@ -1,56 +1,80 @@
 package com.framework.innolive.feature.live.components
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.net.http.SslError
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
 import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.DialogProperties
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.SessionSnapshot
-import com.framework.innolive.ui.theme.InnoLiveDialog
-import com.framework.innolive.ui.theme.ModalSurface
 import kotlinx.coroutines.delay
 import java.io.ByteArrayInputStream
 import java.net.URI
 import java.net.URLDecoder
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -122,30 +146,45 @@ object YouTubeViewerChatPolicy {
 internal enum class ViewerChatNavigation { ALLOW, BLOCK, BLOCK_AND_FAIL }
 
 /**
- * 채팅 문서 한 번의 읽기 상태입니다. [attempt]가 다른 이전 WebView의 콜백과 실패 뒤 늦게 온 콜백은 무시합니다.
+ * 채팅 문서 한 번의 읽기 상태와 받은 메시지입니다. iOS `YouTubeViewerChatLoadState`와 같습니다.
+ * [attempt]가 다른 이전 WebView의 콜백과 실패 뒤 늦게 온 문서 콜백은 무시합니다.
  */
 internal data class ViewerChatLoadState(
     val attempt: Int = 0,
     val loading: Boolean = true,
     val failed: Boolean = false,
+    val messages: List<YouTubeChatMessage> = emptyList(),
+    val chatReady: Boolean = false,
 ) {
-    fun pageStarted(from: Int) = if (ignores(from)) this else copy(loading = true)
+    /** 문서를 새로 읽기 시작하면 이전 메시지와 준비 상태를 비웁니다. */
+    fun pageStarted(from: Int) =
+        if (ignores(from)) this else copy(loading = true, messages = emptyList(), chatReady = false)
 
     fun pageFinished(from: Int) = if (ignores(from)) this else copy(loading = false)
 
     fun fail(from: Int) = if (from != attempt) this else copy(loading = false, failed = true)
 
-    /** 시간 초과 시점까지 문서를 다 받지 못했을 때만 실패로 바꿉니다. */
-    fun timeout(from: Int) = if (ignores(from) || !loading) this else fail(from)
+    /** 문서를 다 받은 뒤에도 채팅 목록(`yt-live-chat-renderer`)이 나타나지 않았을 때만 실패로 바꿉니다. */
+    fun readinessTimeout(from: Int) = if (ignores(from) || !awaitingReady) this else fail(from)
+
+    /** iOS처럼 지금 문서가 보낸 상태로 메시지를 바꾸고, 채팅 목록이 준비됐으면 읽기 중·실패 표시를 거둡니다. */
+    fun received(from: Int, snapshot: YouTubeChatSnapshot): ViewerChatLoadState {
+        if (from != attempt) return this
+        val next = copy(messages = snapshot.visibleMessages, chatReady = snapshot.ready)
+        return if (snapshot.ready) next.copy(loading = false, failed = false) else next
+    }
 
     fun retry() = ViewerChatLoadState(attempt = attempt + 1)
+
+    /** 문서를 다 받았지만 채팅 목록을 아직 찾지 못한 상태입니다. 이때부터 준비 시간 제한을 셉니다. */
+    val awaitingReady: Boolean get() = !loading && !failed && !chatReady
 
     private fun ignores(from: Int) = from != attempt || failed
 }
 
 /**
  * 채팅 WebView가 남긴 YouTube 쿠키와 WebStorage를 지웁니다. Android WebView는 iOS의 비영속 저장소와 달리 앱 전체
- * 저장소를 공유하므로 창을 닫을 때와 로그아웃·계정 삭제 때 정리합니다. 치지직 OAuth 등 다른 WebView의 쿠키는
+ * 저장소를 공유하므로 채팅 수신 WebView가 사라질 때(방송 종료)와 로그아웃·계정 삭제 때 정리합니다. 치지직 OAuth 등 다른 WebView의 쿠키는
  * 남기도록 YouTube 도메인만 지웁니다.
  *
  * YouTube는 방문자 쿠키(`YSC`, `VISITOR_INFO1_LIVE` 등)를 `Partitioned`로 내려 WebView가 `youtube.com` 파티션에
@@ -173,10 +212,13 @@ internal object YouTubeViewerChatWebData {
     )
     private const val COOKIE_DOMAIN = ".youtube.com"
     private val cookiePaths = listOf("/", "/live_chat")
-    private const val CLEAR_TAG = "YouTubeViewerChat"
+    internal const val LOG_TAG = "YouTubeViewerChat"
 
-    /** 창을 닫은 뒤 파괴된 WebView의 늦은 응답이 쿠키를 다시 쓰지 않도록 기다리는 시간입니다. */
+    /** 수신 WebView를 없앤 뒤 파괴된 WebView의 늦은 응답이 쿠키를 다시 쓰지 않도록 기다리는 시간입니다. */
     internal const val CLOSE_CLEAR_DELAY_MILLIS = 1_000L
+
+    /** 지금 살아 있는 채팅 수신 WebView 수입니다. 새 동영상 문서를 읽는 중에는 이전 문서의 정리를 미룹니다. */
+    internal val activeWebViews = AtomicInteger(0)
 
     interface Store {
         fun cookies(url: String): String?
@@ -239,18 +281,24 @@ internal object YouTubeViewerChatWebData {
     }
 
     /**
-     * 앱 WebView 저장소를 지웁니다. WebView API는 UI 스레드에서 부르며, 닫힌 창의 WebView가 파괴되고 남은 응답이
-     * 끝나도록 [delayMillis] 뒤에 실행합니다. WebView가 없는 기기에서는 건너뜁니다. 쿠키 값은 기록하지 않습니다.
+     * 앱 WebView 저장소를 지웁니다. WebView API는 UI 스레드에서 부르며, 없앤 WebView가 파괴되고 남은 응답이
+     * 끝나도록 [delayMillis] 뒤에 실행합니다. [skipWhileActive]이면 그때 다른 채팅 WebView(바뀐 동영상)가 읽는 중일 때
+     * 건너뛰고 그 WebView가 사라질 때 지웁니다. WebView가 없는 기기에서는 건너뜁니다. 쿠키 값은 기록하지 않습니다.
      */
-    fun clearAppWebData(reason: String, delayMillis: Long = 0L) {
+    fun clearAppWebData(reason: String, delayMillis: Long = 0L, skipWhileActive: Boolean = false) {
         Handler(Looper.getMainLooper()).postDelayed({
+            val active = activeWebViews.get()
+            if (skipWhileActive && active > 0) {
+                Log.d(LOG_TAG, "viewer_chat_cookies_clear_skipped reason=$reason active=$active")
+                return@postDelayed
+            }
             runCatching {
                 clear(AndroidStore) { result ->
-                    Log.d(CLEAR_TAG, "viewer_chat_cookies_cleared reason=$reason requested=${result.requested} " +
+                    Log.d(LOG_TAG, "viewer_chat_cookies_cleared reason=$reason requested=${result.requested} " +
                         "failed=${result.failed} remaining=${result.remaining.size}" +
                         result.remaining.takeIf { it.isNotEmpty() }?.joinToString(",", " remaining_names=").orEmpty())
                 }
-            }.onFailure { Log.w(CLEAR_TAG, "viewer_chat_cookies_clear_failed reason=$reason type=${it.javaClass.simpleName}") }
+            }.onFailure { Log.w(LOG_TAG, "viewer_chat_cookies_clear_failed reason=$reason type=${it.javaClass.simpleName}") }
         }, delayMillis)
     }
 
@@ -263,7 +311,7 @@ internal object YouTubeViewerChatWebData {
     }
 }
 
-/** 닫힌 채팅 WebView 정리 순서입니다. 콜백을 떼고 읽기를 멈춘 뒤 빈 문서로 비우고 파괴합니다. */
+/** 없앤 채팅 WebView 정리 순서입니다. 콜백을 떼고 읽기를 멈춘 뒤 빈 문서로 비우고 파괴합니다. */
 internal interface ViewerChatWebSurface {
     fun detachClient()
     fun stopLoading()
@@ -278,94 +326,197 @@ internal fun releaseViewerChat(surface: ViewerChatWebSurface) {
     surface.destroy()
 }
 
-/**
- * 채팅 버튼으로 연 창을 표시합니다. 주소가 사라지면(방송 종료·대상 제거·세션 종료) 열려 있던 창을 닫고, 주소가
- * 바뀌면 [content]가 새 문서를 받습니다.
- */
-@Composable
-internal fun YouTubeViewerChatHost(
-    url: String?,
-    isOpen: Boolean,
-    onDismiss: () -> Unit,
-    content: @Composable (url: String) -> Unit = { YouTubeViewerChatDialog(url = it, onDismiss = onDismiss) },
-) {
-    val dismiss by rememberUpdatedState(onDismiss)
-    LaunchedEffect(url) { if (url == null) dismiss() }
-    if (isOpen && url != null) content(url)
+/** 한 동영상 채팅 문서의 수신 상태입니다. 방송 화면에 하나만 두고 기본 페이지의 오버레이가 이 상태를 그립니다. */
+@Stable
+internal class YouTubeViewerChatState(val url: String) {
+    var load by mutableStateOf(ViewerChatLoadState())
+
+    fun retry() {
+        load = load.retry()
+    }
+
+    /**
+     * 수신 WebView의 메시지입니다. 지난 시도나 다른 동영상 문서에서 온 메시지는 버립니다.
+     * 메시지 수나 준비 상태가 바뀌었으면 true를 돌려줍니다.
+     */
+    internal fun receive(from: Int, json: String?): Boolean {
+        val snapshot = YouTubeChatBridge.accept(json, url) ?: return false
+        val before = load
+        load = before.received(from, snapshot)
+        return load.messages.size != before.messages.size || load.chatReady != before.chatReady
+    }
 }
 
+/** 주소가 사라지면(방송 종료·대상 제거·세션 종료) null이 되고, 동영상이 바뀌면 새 상태를 만듭니다. */
+@Composable
+internal fun rememberYouTubeViewerChatState(url: String?): YouTubeViewerChatState? =
+    remember(url) { url?.let(::YouTubeViewerChatState) }
+
 /**
- * 보기 전용 시청자 채팅 창입니다. 앱의 액세스 토큰이나 세션 토큰을 WebView에 넣지 않으며 로그인·링크·폼·
- * 새 창 이동을 막습니다. [url]이 바뀌면 새 문서를 읽고, 창이 닫히면 YouTube 쿠키와 WebStorage를 지웁니다.
+ * 메시지를 받는 보이지 않는 WebView입니다. iOS처럼 보통 크기로 배치해 YouTube가 채팅을 그리게 하고, 채팅을 숨겨도
+ * 계속 받습니다. 넘기는 페이지 밖(방송 화면 맨 아래 층)에 두어 페이지 이동·얼굴 선택으로 다시 읽지 않습니다.
+ * 같은 크기의 검은 판으로 덮어 보이지 않게 합니다. 투명도 0인 뷰는 그리기를 건너뛰어 WebView가 화면을 갱신하지 않을 수
+ * 있기 때문입니다. 수신기가 사라지면 YouTube 쿠키와 WebStorage를 지웁니다.
  */
 @Composable
-internal fun YouTubeViewerChatDialog(url: String, onDismiss: () -> Unit) {
-    var load by remember(url) { mutableStateOf(ViewerChatLoadState()) }
-    val attempt = load.attempt
-
-    LaunchedEffect(url, attempt, load.loading) {
-        if (load.loading) {
-            delay(LOAD_TIMEOUT_MILLIS)
-            load = load.timeout(attempt)
+internal fun YouTubeViewerChatReceiver(state: YouTubeViewerChatState, modifier: Modifier = Modifier) {
+    val attempt = state.load.attempt
+    val awaitingReady = state.load.awaitingReady
+    LaunchedEffect(state, attempt, awaitingReady) {
+        if (awaitingReady) {
+            delay(READINESS_TIMEOUT_MILLIS)
+            state.load = state.load.readinessTimeout(attempt)
+            if (state.load.failed) Log.d(YouTubeViewerChatWebData.LOG_TAG, "viewer_chat_readiness_timeout")
         }
     }
     // WebView 파괴(AndroidView onRelease) 뒤에 실행되도록 지연해 정리합니다.
-    DisposableEffect(Unit) {
+    DisposableEffect(state) {
         onDispose {
-            YouTubeViewerChatWebData.clearAppWebData("close", YouTubeViewerChatWebData.CLOSE_CLEAR_DELAY_MILLIS)
+            YouTubeViewerChatWebData.clearAppWebData(
+                "close", YouTubeViewerChatWebData.CLOSE_CLEAR_DELAY_MILLIS, skipWhileActive = true,
+            )
         }
     }
+    Box(modifier.size(ReceiverWidth, ReceiverHeight).clearAndSetSemantics {}) {
+        key(state.url, attempt) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize().testTag("viewer-chat-receiver"),
+                factory = { context ->
+                    createViewerChatWebView(
+                        context,
+                        state.url,
+                        onStarted = { state.load = state.load.pageStarted(attempt) },
+                        onFinished = { state.load = state.load.pageFinished(attempt) },
+                        onFailed = {
+                            state.load = state.load.fail(attempt)
+                            Log.d(YouTubeViewerChatWebData.LOG_TAG, "viewer_chat_load_failed")
+                        },
+                        onMessage = { json ->
+                            // 기기 확인용으로 수와 준비 상태만 남기고 작성자·내용은 기록하지 않습니다.
+                            if (state.receive(attempt, json)) {
+                                Log.d(YouTubeViewerChatWebData.LOG_TAG,
+                                    "viewer_chat_messages count=${state.load.messages.size} ready=${state.load.chatReady}")
+                            }
+                        },
+                    )
+                },
+                onRelease = { view -> releaseViewerChat(AndroidWebSurface(view)) },
+            )
+        }
+        Box(Modifier.fillMaxSize().background(Color.Black))
+    }
+}
 
-    // 다른 방송 모달과 같은 흰 유리 창으로 띄우고 뒤 방송 화면은 흐리게 합니다.
-    InnoLiveDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        ModalSurface(modifier = Modifier.fillMaxWidth(0.95f).fillMaxHeight(0.85f)) {
+/**
+ * iOS `YouTubeViewerChatOverlay`와 같은 방송 화면 채팅입니다. 최대 폭 280dp, 메시지 영역은 세로 136dp·가로 106dp이고
+ * 그 아래 44dp 원형 채팅 메뉴를 둡니다. 숨기면 메시지 영역만 접고 수신은 [YouTubeViewerChatReceiver]가 계속합니다.
+ */
+@Composable
+internal fun YouTubeViewerChatOverlay(
+    state: YouTubeViewerChatState,
+    hidden: Boolean,
+    onToggleHidden: () -> Unit,
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.widthIn(max = OverlayMaxWidth).testTag("youtube-viewer-chat-overlay"),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (!hidden) {
+            YouTubeViewerChatContent(
+                load = state.load,
+                onRetry = state::retry,
+                modifier = Modifier.width(OverlayMaxWidth).height(if (compact) 106.dp else 136.dp),
+            )
+        }
+        YouTubeViewerChatMenu(hidden = hidden, onToggleHidden = onToggleHidden)
+    }
+}
+
+/** 메시지 행과 연결 중·대기·실패 안내입니다. iOS `YouTubeViewerChatContent`의 화면 부분과 같습니다. */
+@Composable
+private fun YouTubeViewerChatContent(load: ViewerChatLoadState, onRetry: () -> Unit, modifier: Modifier) {
+    Box(modifier) {
+        YouTubeChatMessageList(messages = load.messages, modifier = Modifier.fillMaxSize())
+        if (load.messages.isEmpty() && !load.failed) {
             Column(
-                Modifier.fillMaxSize().padding(12.dp),
+                modifier = Modifier.align(Alignment.Center).chatNoticeSurface().padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.viewer_chat_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
+                if (!load.chatReady) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                 }
-                Text(stringResource(R.string.viewer_chat_notice), style = MaterialTheme.typography.bodySmall)
-                // 높이를 정한 영역이어야 WebView가 0으로 측정되지 않습니다(ChzzkOAuthDialog와 같음).
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    if (load.failed) {
-                        Column(
-                            modifier = Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Text(stringResource(R.string.viewer_chat_load_failed))
-                            TextButton(onClick = { load = load.retry() }) { Text(stringResource(R.string.action_retry)) }
-                        }
-                    } else {
-                        key(url, attempt) {
-                            AndroidView(
-                                modifier = Modifier.fillMaxSize().semantics { testTag = "viewer-chat-web" },
-                                factory = { context ->
-                                    createViewerChatWebView(
-                                        context,
-                                        url,
-                                        onStarted = { load = load.pageStarted(attempt) },
-                                        onFinished = { load = load.pageFinished(attempt) },
-                                        onFailed = { load = load.fail(attempt) },
-                                    )
-                                },
-                                onRelease = { view -> releaseViewerChat(AndroidWebSurface(view)) },
-                            )
-                        }
-                        if (load.loading) CircularProgressIndicator(Modifier.align(Alignment.Center))
-                    }
-                }
+                Text(
+                    text = stringResource(
+                        if (load.chatReady) R.string.viewer_chat_waiting else R.string.viewer_chat_connecting,
+                    ),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center,
+                )
             }
+        }
+        if (load.failed) {
+            Column(
+                modifier = Modifier.align(Alignment.Center).chatNoticeSurface().padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = stringResource(R.string.viewer_chat_load_failed),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center,
+                )
+                TextButton(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                ) { Text(stringResource(R.string.action_retry)) }
+            }
+        }
+    }
+}
+
+/** 방송 화면의 반투명 카메라 도구 버튼과 같은 어두운 유리 바탕입니다. */
+private fun Modifier.chatNoticeSurface(): Modifier = this
+    .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+    .border(1.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+
+/**
+ * iOS 채팅 메뉴처럼 원형 버튼을 누르면 "채팅 숨기기"·"채팅 표시" 한 항목을 띄웁니다. 보일 때는 채운 말풍선,
+ * 숨겼을 때는 테두리 말풍선을 씁니다.
+ */
+@Composable
+private fun YouTubeViewerChatMenu(hidden: Boolean, onToggleHidden: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val menuLabel = stringResource(R.string.viewer_chat_menu)
+    val icon: ImageVector = if (hidden) Icons.Outlined.ChatBubbleOutline else Icons.Filled.ChatBubble
+    Box {
+        Surface(
+            onClick = { expanded = true },
+            modifier = Modifier
+                .size(44.dp)
+                .semantics { contentDescription = menuLabel }
+                .testTag("youtube-chat-menu"),
+            shape = CircleShape,
+            color = Color.Black.copy(alpha = 0.45f),
+            contentColor = Color.White,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(22.dp))
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(if (hidden) R.string.viewer_chat_show else R.string.viewer_chat_hide)) },
+                leadingIcon = { Icon(imageVector = icon, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onToggleHidden()
+                },
+            )
         }
     }
 }
@@ -373,19 +524,52 @@ internal fun YouTubeViewerChatDialog(url: String, onDismiss: () -> Unit) {
 private class AndroidWebSurface(private val view: WebView) : ViewerChatWebSurface {
     override fun detachClient() {
         view.webViewClient = WebViewClient()
+        runCatching {
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                WebViewCompat.removeWebMessageListener(view, YouTubeChatBridge.NAME)
+            }
+        }
+        view.removeJavascriptInterface(YouTubeChatBridge.NAME)
     }
     override fun stopLoading() = view.stopLoading()
     override fun loadBlank() = view.loadUrl("about:blank")
-    override fun destroy() = view.destroy()
+    override fun destroy() {
+        view.destroy()
+        YouTubeViewerChatWebData.activeWebViews.decrementAndGet()
+    }
 }
 
-private fun createViewerChatWebView(
-    context: android.content.Context,
+/** `WebMessageListener`를 지원하지 않는 오래된 WebView에서만 쓰는 대체 통로입니다. 백그라운드 스레드에서 불립니다. */
+private class ViewerChatJavascriptBridge(private val onMessage: (String?) -> Unit) {
+    @JavascriptInterface
+    fun postMessage(json: String?) = onMessage(json)
+}
+
+/**
+ * iOS가 데스크톱 Safari 식별자를 쓰는 것처럼 데스크톱 Chrome 식별자로 채팅 문서를 받습니다. 추출 스크립트가 기대하는
+ * 데스크톱 채팅 화면을 받기 위해서이며, Chrome 버전은 기기 WebView 값을 그대로 씁니다.
+ */
+internal fun viewerChatUserAgent(defaultAgent: String?): String {
+    val chrome = defaultAgent?.let { Regex("Chrome/([0-9.]+)").find(it)?.groupValues?.get(1) } ?: FALLBACK_CHROME_VERSION
+    return "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/$chrome Safari/537.36"
+}
+
+internal fun createViewerChatWebView(
+    context: Context,
     document: String,
     onStarted: () -> Unit,
     onFinished: () -> Unit,
     onFailed: () -> Unit,
+    onMessage: (String?) -> Unit,
+    /** 테스트는 네트워크 없이 같은 주소의 고정 문서를 읽도록 바꿉니다. */
+    load: WebView.() -> Unit = { loadUrl(document) },
 ): WebView = WebView(context).apply {
+    YouTubeViewerChatWebData.activeWebViews.incrementAndGet()
+    // 화면에 보이지 않는 수신기이므로 초점·화면 낭독기 대상에서 뺍니다.
+    isFocusable = false
+    isFocusableInTouchMode = false
+    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
     settings.javaScriptEnabled = true
     settings.domStorageEnabled = true
     settings.allowFileAccess = false
@@ -393,7 +577,22 @@ private fun createViewerChatWebView(
     settings.setSupportMultipleWindows(false)
     settings.javaScriptCanOpenWindowsAutomatically = false
     settings.mediaPlaybackRequiresUserGesture = true
+    settings.userAgentString = viewerChatUserAgent(runCatching { WebSettings.getDefaultUserAgent(context) }.getOrNull())
     CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+    // 메시지는 YouTube 메인 프레임에서 온 것만 받습니다.
+    if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+        WebViewCompat.addWebMessageListener(this, YouTubeChatBridge.NAME, setOf(YouTubeChatBridge.ORIGIN)) {
+                _, message, sourceOrigin, isMainFrame, _ ->
+            if (isMainFrame && sourceOrigin.toString() == YouTubeChatBridge.ORIGIN) {
+                onMessage(runCatching { message.data }.getOrNull())
+            }
+        }
+        Log.d(YouTubeViewerChatWebData.LOG_TAG, "viewer_chat_bridge=web_message_listener")
+    } else {
+        val main = Handler(Looper.getMainLooper())
+        addJavascriptInterface(ViewerChatJavascriptBridge { json -> main.post { onMessage(json) } }, YouTubeChatBridge.NAME)
+        Log.d(YouTubeViewerChatWebData.LOG_TAG, "viewer_chat_bridge=javascript_interface")
+    }
     webViewClient = object : WebViewClient() {
         @Volatile private var documentLoaded = false
         // shouldInterceptRequest는 UI 스레드 밖에서 불립니다. 막은 폼 제출의 중단 오류는 실패로 보지 않습니다.
@@ -427,7 +626,7 @@ private fun createViewerChatWebView(
 
         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
             if (url == blockedSubmission.get()) {
-                // 이 WebView 구현이 204를 빈 문서로 표시하면 채팅 대신 실패 화면과 다시 시도를 보여 줍니다.
+                // 이 WebView 구현이 204를 빈 문서로 표시하면 채팅 대신 실패 안내와 다시 시도를 보여 줍니다.
                 view.stopLoading()
                 onFailed()
             } else {
@@ -436,7 +635,11 @@ private fun createViewerChatWebView(
         }
 
         override fun onPageFinished(view: WebView, url: String) {
-            if (YouTubeViewerChatPolicy.allowsNavigation(url, document)) documentLoaded = true
+            // iOS의 문서 끝 주입처럼 채팅 문서를 다 읽은 뒤 추출 스크립트를 넣습니다.
+            if (YouTubeViewerChatPolicy.allowsNavigation(url, document)) {
+                documentLoaded = true
+                view.evaluateJavascript(YouTubeChatBridge.SCRIPT, null)
+            }
             onFinished()
         }
 
@@ -458,7 +661,12 @@ private fun createViewerChatWebView(
             return true
         }
     }
-    loadUrl(document)
+    load()
 }
 
-private const val LOAD_TIMEOUT_MILLIS = 30_000L
+/** iOS와 같이 문서를 다 받은 뒤 채팅 목록을 기다리는 시간입니다. */
+internal const val READINESS_TIMEOUT_MILLIS = 12_000L
+private const val FALLBACK_CHROME_VERSION = "141.0.0.0"
+private val OverlayMaxWidth = 280.dp
+private val ReceiverWidth = 360.dp
+private val ReceiverHeight = 480.dp
