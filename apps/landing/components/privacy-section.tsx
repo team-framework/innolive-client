@@ -16,7 +16,8 @@ const aiAccentStyle = {
   backgroundSize: "100cqw 100%",
 } as const;
 
-// Widest title line in em per locale. Caps the title size so each line fits the column.
+// Widest title line in em per locale. Caps the title size so each line fits the column,
+// which is wider than the 500px body on desktop so longer locales keep the Korean size.
 const titleLineEm = { ko: 7.4, en: 12, ja: 8.3 } as const;
 
 export function PrivacySection() {
@@ -145,7 +146,7 @@ export function PrivacySection() {
       aria-labelledby="privacy-heading"
     >
       <div className="flex w-full max-w-[1408px] flex-col justify-center items-center gap-y-12 lg:flex-row lg:items-center lg:justify-between lg:gap-x-16">
-        <div className="flex w-full min-w-0 max-w-[500px] flex-col items-start gap-2.5 [container-type:inline-size] lg:flex-1 min-[106.5rem]:w-[500px] min-[106.5rem]:flex-none min-[106.5rem]:pb-[121px]">
+        <div className="flex w-full min-w-0 max-w-[500px] flex-col items-start gap-2.5 [container-type:inline-size] lg:max-w-[760px] lg:flex-1 min-[106.5rem]:w-[760px] min-[106.5rem]:flex-none min-[106.5rem]:pb-[121px]">
           <h2
             id="privacy-heading"
             className="w-full break-words text-[min(clamp(2rem,1.05rem+4.2vw,4.25rem),calc(100cqi/var(--title-line-em)))] font-bold leading-[1.3] tracking-tight text-text-primary"
@@ -159,7 +160,7 @@ export function PrivacySection() {
               {messages.privacy.titleAfterAi}
             </span>
           </h2>
-          <div className="w-full break-keep text-body-lg font-normal text-text-primary">
+          <div className="w-full max-w-[500px] break-keep text-body-lg font-normal text-text-primary">
             <p>{messages.privacy.body1}</p>
             <p>{messages.privacy.body2}</p>
           </div>
