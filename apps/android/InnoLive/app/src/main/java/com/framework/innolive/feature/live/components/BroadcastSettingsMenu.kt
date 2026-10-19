@@ -62,50 +62,51 @@ internal fun BroadcastSettingsMenu(
     InnoLiveDialog(onDismissRequest = onDismiss) {
         ModalSurface(modifier = Modifier.cappedDialogWidth(400.dp)) {
             BroadcastTutorialDialogFrame(guide) {
-                Column(
-                    modifier = Modifier.padding(vertical = 16.dp).verticalScroll(rememberScrollState()),
-                ) {
+                // 화면이 낮아도 방송 준비 버튼은 항상 보이도록 목록만 스크롤하고 버튼은 아래에 고정합니다.
+                Column(modifier = Modifier.padding(vertical = 16.dp)) {
                     BroadcastDialogHeader(
                         title = stringResource(R.string.broadcast_settings_title),
                         onClose = onDismiss,
                         modifier = Modifier.padding(start = 20.dp, end = 8.dp),
                     )
-                    items.forEachIndexed { index, item ->
-                        if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(
-                                    if (item.highlightsAccount) {
-                                        Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.CONNECT_ACCOUNT)
-                                    } else Modifier,
-                                )
-                                .clickable(role = Role.Button, onClick = item.onClick)
-                                .padding(horizontal = 20.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        ) {
-                            when {
-                                item.iconRes != null -> Image(
-                                    painter = painterResource(item.iconRes),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(28.dp),
-                                )
-                                item.iconVector != null -> Icon(
-                                    item.iconVector,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(28.dp),
-                                )
+                    Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                        items.forEachIndexed { index, item ->
+                            if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (item.highlightsAccount) {
+                                            Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.CONNECT_ACCOUNT)
+                                        } else Modifier,
+                                    )
+                                    .clickable(role = Role.Button, onClick = item.onClick)
+                                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                when {
+                                    item.iconRes != null -> Image(
+                                        painter = painterResource(item.iconRes),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(28.dp),
+                                    )
+                                    item.iconVector != null -> Icon(
+                                        item.iconVector,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(28.dp),
+                                    )
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(item.title, style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        item.summary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
                             }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(item.title, style = MaterialTheme.typography.bodyLarge)
-                                Text(
-                                    item.summary,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
                         }
                     }
                     Button(
