@@ -173,7 +173,7 @@ struct HomeView: View {
             )
                 .frame(maxWidth: isCompactLandscape ? 400 : .infinity)
                 .padding(.horizontal, 24)
-                .padding(.top, 56)
+                .padding(.top, studioHeaderTopInset)
                 .padding(.bottom, 12)
                 .frame(
                     maxWidth: .infinity,
@@ -361,9 +361,12 @@ struct HomeView: View {
         })
     }
 
+    private var studioNavigationTopPadding: CGFloat { isCompactLandscape ? 4 : 20 }
+    private var studioHeaderTopInset: CGFloat { studioNavigationTopPadding + 52 }
+
     private var studioChromeTopInset: CGFloat {
-        if youtube.hasStartedYouTubeBroadcast { return 56 + liveHeaderHeight + 12 }
-        return showsPagingHint ? 96 : 62
+        if youtube.hasStartedYouTubeBroadcast { return studioHeaderTopInset + liveHeaderHeight + 12 }
+        return studioHeaderTopInset + (showsPagingHint ? 40 : 6)
     }
 
     private var studioPager: some View {
@@ -459,7 +462,7 @@ struct HomeView: View {
             }
             Spacer()
         }
-        .padding(.top, 4)
+        .padding(.top, studioNavigationTopPadding)
     }
 
     private var basicStudioChrome: some View {
