@@ -79,8 +79,6 @@ import com.framework.innolive.feature.live.sessionRecoveryScope
 import com.framework.innolive.feature.youtube.YouTubeApiException
 import com.framework.innolive.feature.settings.broadcast.BroadcastSetting
 import com.framework.innolive.feature.settings.broadcast.BroadcastSettingProps
-import com.framework.innolive.feature.settings.camera.CameraSetting
-import com.framework.innolive.feature.settings.camera.CameraSettingProps
 import com.framework.innolive.feature.settings.selection.OptionSelectionScreen
 import com.framework.innolive.feature.settings.selection.SettingOption
 import com.framework.innolive.feature.youtube.OperationGeneration
@@ -118,8 +116,6 @@ data object LoginRoute : AppRoute
 data object LiveRoute : AppRoute
 
 data object SettingsRoute : AppRoute
-
-data object CameraSettingRoute : AppRoute
 
 data object BroadcastSettingRoute : AppRoute
 
@@ -228,8 +224,6 @@ fun AppNavigation(
     val videoQualityPreferences = remember(context) { BroadcastVideoQualityPreferences(context) }
     var videoQualitySettings by remember(videoQualityPreferences) { mutableStateOf(videoQualityPreferences.load()) }
     var videoQualityCaptureState by remember { mutableStateOf(VideoQualityCaptureState()) }
-    val currentVideoQualitySettings = rememberUpdatedState(videoQualitySettings)
-    val currentVideoQualityCaptureState = rememberUpdatedState(videoQualityCaptureState)
     val updateVideoQualitySettings: (BroadcastVideoQualitySettings) -> Unit = { value ->
         val normalized = value.normalized()
         if (videoQualitySettings.stabilizationEnabled != normalized.stabilizationEnabled) {
@@ -904,9 +898,6 @@ fun AppNavigation(
         SettingsScreen(
             props = SettingsScreenProps(
                 onBack = closeSettings,
-                onOpenCameraSettings = {
-                    backStack.add(CameraSettingRoute)
-                },
                 onOpenBroadcastSettings = {
                     backStack.add(BroadcastSettingRoute)
                 },
@@ -924,6 +915,9 @@ fun AppNavigation(
                 onOpenAudioDeviceOptions = {
                     backStack.add(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
                 },
+                videoQualitySettings = videoQualitySettings,
+                onVideoQualitySettingsChanged = updateVideoQualitySettings,
+                videoQualityCaptureState = videoQualityCaptureState,
                 profileName = session?.profileName.orEmpty(),
                 profileEmail = session?.profileEmail.orEmpty(),
                 planUsage = displayedPlanUsage,
@@ -1015,41 +1009,6 @@ fun AppNavigation(
 
                 SettingsRoute -> {
                     NavEntry(route) { settingsScreen() }
-                }
-
-                CameraSettingRoute -> {
-                    NavEntry(route) {
-                        CameraSetting(
-                            props = CameraSettingProps(
-                                onBack = onBack,
-                                videoQualitySettings = currentVideoQualitySettings.value,
-                                onVideoQualitySettingsChanged = updateVideoQualitySettings,
-                                videoQualityCaptureState = currentVideoQualityCaptureState.value,
-                                selectedResolution = selectedResolution?.displayName.orEmpty(),
-                                selectedCameraDevice =
-                                    selectedCameraLensFacing.settingDisplayText().asString(),
-                                selectedAudioDevice = selectedAudioDevice
-                                    ?.settingDisplayText()
-                                    ?.asString()
-                                    .orEmpty(),
-                                onOpenResolutionOptions = {
-                                    backStack.add(
-                                        SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION),
-                                    )
-                                },
-                                onOpenCameraDeviceOptions = {
-                                    backStack.add(
-                                        SettingOptionRoute(SettingOptionType.CAMERA_DEVICE),
-                                    )
-                                },
-                                onOpenAudioDeviceOptions = {
-                                    backStack.add(
-                                        SettingOptionRoute(SettingOptionType.AUDIO_DEVICE),
-                                    )
-                                },
-                            ),
-                        )
-                    }
                 }
 
                 BroadcastSettingRoute -> {

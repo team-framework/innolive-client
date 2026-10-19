@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.ProfileDisplay
+import com.framework.innolive.feature.settings.camera.CameraStabilizationControl
 import com.framework.innolive.ui.text.asString
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -93,13 +94,16 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 enabled, props.onOpenResolutionOptions)
             SettingsValueRow(stringResource(R.string.label_camera_device), props.selectedCameraDevice,
                 enabled, props.onOpenCameraDeviceOptions)
+            CameraStabilizationControl(
+                settings = props.videoQualitySettings,
+                captureState = props.videoQualityCaptureState,
+                onSettingsChanged = props.onVideoQualitySettingsChanged,
+                enabled = enabled,
+            )
             SettingsDivider()
             SettingsSectionLabel(stringResource(R.string.settings_section_audio))
             SettingsValueRow(stringResource(R.string.label_audio_device), props.selectedAudioDevice,
                 enabled, props.onOpenAudioDeviceOptions)
-            TextButton(onClick = props.onOpenCameraSettings, enabled = enabled) {
-                Text(stringResource(R.string.settings_camera_audio))
-            }
             SettingsDivider()
             SettingsSectionLabel(stringResource(R.string.settings_section_live))
             SettingsValueRow(stringResource(R.string.label_broadcast_platform), props.selectedPlatform,

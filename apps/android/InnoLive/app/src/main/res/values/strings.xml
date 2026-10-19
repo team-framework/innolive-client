@@ -66,8 +66,7 @@
 
     <!-- Settings and account -->
     <string name="settings_title">설정</string>
-    <string name="settings_camera_audio">카메라 및 오디오 설정</string>
-    <string name="label_camera_resolution">카메라 해상도</string>
+        <string name="label_camera_resolution">카메라 해상도</string>
     <string name="label_camera_device">카메라 기기</string>
     <string name="label_audio_device">오디오 기기</string>
     <string name="camera_back">후면 카메라</string>
