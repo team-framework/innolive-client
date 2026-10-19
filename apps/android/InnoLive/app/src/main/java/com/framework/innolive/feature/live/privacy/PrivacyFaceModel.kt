@@ -87,14 +87,15 @@ internal class PrivacyFaceModel(context: Context,
     val usesGpu: Boolean get() = gpu != null
 
     init {
+        // Release native resources for every failure, including JNI linkage errors, then rethrow.
         val modelFile = try { verifiedModelFile(context.applicationContext) }
-        catch (error: Exception) {
+        catch (error: Throwable) {
             detector.close()
             throw error
         }
         session = try {
             sessionOptions().use { options -> environment.createSession(modelFile.absolutePath, options) }
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             detector.close()
             throw error
         }
@@ -110,7 +111,7 @@ internal class PrivacyFaceModel(context: Context,
                 gpu = PrivacyFaceGpuEngine.validated(context.applicationContext, ::predict)
                 if (gpu != null) { session?.close(); session = null }
             }
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             gpu?.close()
             session?.close()
             detector.close()

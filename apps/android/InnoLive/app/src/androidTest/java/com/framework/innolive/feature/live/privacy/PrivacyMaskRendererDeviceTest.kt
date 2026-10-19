@@ -47,11 +47,11 @@ class PrivacyMaskRendererDeviceTest {
         } finally { output.recycle(); bitmap.recycle() }
     }
 
-    @Test fun coreRemainsOpaqueWhileOuterMaskIsFeathered() {
+    @Test fun protectedEdgeStaysWithinOneCellOfTheMask() {
         val mask = ByteArray(160 * 160).also { it[80 * 160 + 80] = -1 }
-        val alpha = PrivacyMaskRenderer.featheredMask(mask)
-        for (y in 78..82) for (x in 78..82) assertEquals(255, alpha[y * 160 + x].toInt() and 255)
-        assertTrue((alpha[80 * 160 + 85].toInt() and 255) in 1..254)
+        val alpha = PrivacyMaskRenderer.expandedMask(mask)
+        for (y in 79..81) for (x in 79..81) assertEquals(255, alpha[y * 160 + x].toInt() and 255)
+        assertEquals(0, alpha[80 * 160 + 82].toInt())
         assertEquals(0, alpha[20 * 160 + 20].toInt())
     }
 

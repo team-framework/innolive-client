@@ -32,9 +32,9 @@ class PrivacyBatchThreeRendererDeviceTest {
             PrivacyGpuFramePipeline(null,useGles3=true,optimizedRenderer=false).use {old ->
                 val reference=render(old)
                 try {
-                    for(mode in listOf("r8","fused","paired","roi","all")) {
+                    for(mode in listOf("r8","paired","roi","all")) {
                         PrivacyGpuFramePipeline(null,useGles3=true,compactIntermediates=mode=="r8"||mode=="all",
-                            fusedComposite=mode=="fused"||mode=="all",pairedKernels=mode=="paired"||mode=="all",
+                            pairedKernels=mode=="paired"||mode=="all",
                             roiBlur=mode=="roi").use {graph ->
                             val candidate=render(graph)
                             try {
@@ -69,7 +69,6 @@ class PrivacyBatchThreeRendererDeviceTest {
                     PrivacyGpuFramePipeline(null,useGles3=true,
                         compactIntermediates=isolation=="all" || isolation=="r8" || isolation=="roi",
                         pairedKernels=isolation=="all" || isolation=="paired" || isolation=="roi",
-                        fusedComposite=isolation=="all" || isolation=="fused" || isolation=="roi",
                         roiBlur=isolation=="roi").use {next ->
                         for(maskType in if(isolation=="all"||isolation=="roi")listOf("full","sparse","edge","empty") else listOf("sparse")) {
                             val mask=ByteArray(160*160)

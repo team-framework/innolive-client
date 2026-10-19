@@ -17,7 +17,7 @@
 
 얼굴 검출에는 iOS와 같은 YuNet 2023mar (`8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`), embedding에는 ViT-Base KP-RPE WebFace12M (`04b4bee1de7cefa9e97900f8449fca906d8afbab2029bd39cc5049d33e927ed9`)을 사용한다. ONNX 출력 SHA-256은 각각 `4514febaf280cb408b6bfcd240df4463ba5295713e571c1133d743ff4eb1d737`, `812eeaa58ed70794dd67e1efdb1d9f614b0be18e951d2c6bc2c8876c2c34d712`이다. AdaFace FP16 모델은 Git LFS asset이며 약 227MB다. 앱은 처음 사용 시 no-backup 영역에 검증한 모델을 복사한다.
 
-입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 2px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android는 iOS `PrivacyModel.broadcastStyleBlur`와 같이 프레임을 영역 평균으로 1/4 축소한 뒤 짧은 변의 1/15(1080p에서 sigma 72, 720p에서 48, 최소 48) Gaussian을 적용하고 다시 키워 마스크와 합성한다. 24px 픽셀화는 사용하지 않는다. 마스크는 2px 중심을 완전히 불투명하게 유지하고, 4px 확장 후 Gaussian(1.5px)을 적용한 바깥 영역과 최댓값으로 합성한다. 현재 기본 영상 경로는 전용 EGL 작업자의 OpenGL ES 그래프다. YUV→RGB·정방향 회전·letterbox, 축소·Gaussian 블러·마스크 확장과 feather·합성·센서 방향 복원을 GPU에서 수행하고 WebRTC에 공유 EGL RGB 텍스처를 전달한다. 전면·후면 카메라의 원래 rotation 메타데이터와 송출 크기는 유지한다. 모델 입력은 기기별 검증을 통과하면 GPU SSBO로 LiteRT에 직접 전달한다. 기존 입력 경로에서는 640×640 모델 입력을 읽고, 얼굴 재확인이 필요한 crop은 두 경로 모두 CPU로 읽는다. GPU 영상 경로가 실패하면 보호 처리하는 기존 CPU Bitmap 경로를 사용하며 원본으로 우회하지 않는다. CPU 대체 경로에서 API 31 이상의 RenderEffect 블러를 사용할 수 있다. 블러는 1/4 크기에서 원본 sigma의 1/4로 처리하며 검출 마스크·출력 해상도를 낮추지 않는다. Core Image와 픽셀 단위로 동일한 결과는 보장하지 않는다. 현재 구현과 최신 계측은 마지막 GPU 영상 경로 절을 따른다.
+입력은 RGB 640×640 NCHW float32, 1/255 정규화, 비율 유지 letterbox와 값 114 padding이다. 출력은 `[1,38,8400]`, `[1,32,160,160]`; 얼굴 0, 번호판 1이다. 앱이 confidence 0.25, 클래스별 IoU 0.45 NMS, 1px mask 확장, 빈 mask의 bbox 대체를 수행한다. Android는 iOS `PrivacyModel.broadcastStyleBlur`와 같이 프레임을 영역 평균으로 1/4 축소한 뒤 짧은 변의 1/15(1080p에서 sigma 72, 720p에서 48, 최소 48) Gaussian을 적용하고 다시 키워 마스크와 합성한다. 24px 픽셀화는 사용하지 않는다. 마스크는 서버 `service/mosaic.py`처럼 얼굴 윤곽을 따라 160 격자 1칸(720p 8px, 1080p 12px)만 불투명하게 넓히고, 합성의 bilinear 보간으로 다음 1칸에서 원본으로 전환한다. 정사각형 2·4칸 확장과 Gaussian feather는 사용하지 않는다. 현재 기본 영상 경로는 전용 EGL 작업자의 OpenGL ES 그래프다. YUV→RGB·정방향 회전·letterbox, 축소·Gaussian 블러·마스크 1칸 확장·합성·센서 방향 복원을 GPU에서 수행하고 WebRTC에 공유 EGL RGB 텍스처를 전달한다. 전면·후면 카메라의 원래 rotation 메타데이터와 송출 크기는 유지한다. 모델 입력은 기기별 검증을 통과하면 GPU SSBO로 LiteRT에 직접 전달한다. 기존 입력 경로에서는 640×640 모델 입력을 읽고, 얼굴 재확인이 필요한 crop은 두 경로 모두 CPU로 읽는다. GPU 영상 경로가 실패하면 보호 처리하는 기존 CPU Bitmap 경로를 사용하며 원본으로 우회하지 않는다. CPU 대체 경로에서 API 31 이상의 RenderEffect 블러를 사용할 수 있다. 블러는 1/4 크기에서 원본 sigma의 1/4로 처리하며 검출 마스크·출력 해상도를 낮추지 않는다. Core Image와 픽셀 단위로 동일한 결과는 보장하지 않는다. 현재 구현과 최신 계측은 마지막 GPU 영상 경로 절을 따른다.
 
 기기 얼굴 관리는 기존 카메라의 500px 중앙 촬영과 3회 안정 검사를 사용한다. 모델 준비가 끝난 뒤 30초 촬영 시간이 시작된다. YuNet은 BGR 0–255 입력과 32배수 padding, stride 8/16/32 decode와 NMS 0.3을 사용한다. 등록은 점수 0.9 이상·최소 40px, 영상 비교는 0.6 이상·최소 24px을 사용한다. 얼굴의 1.5배 정사각형 RGB 112×112 crop과 정규화 landmark를 AdaFace에 전달한다. 원본·좌우반전 norm 가중 결합은 ONNX 모델에 포함된다.
 
@@ -878,6 +878,22 @@ egress는 wall-clock CFR이라 그 공백이 정지 프레임으로 송출됐다
 시작됐다. 온디바이스 경로는 소프트웨어 VP8을 쓸 수 있어 라이브러리 기본값을 유지한다.
 디버그 빌드는 2초마다 `uplink_video reason= size= fps= encoder= target_bitrate=` 로그를
 두 모드 모두에서 남긴다. 실기기 재측정 결과는 별도로 기록한다.
+
+송신 하한(client #627, 2026-10-18): `WebRtcVideoTransportPolicy.kt`의 sender encoding 최소를
+FHD 3Mbps에서 1Mbps, 720p 1.5Mbps에서 0.5Mbps로 낮췄다. 최대 6Mbps·3Mbps, 30fps, `scaleResolutionDownBy` 1.0,
+MAINTAIN_RESOLUTION과 `setBitrate` 시작값 4Mbps·2Mbps는 그대로다. 하한이 링크보다 높으면 추정기가
+내려가지 못해 패킷 손실과 서버 키프레임 반복 요청이 이어졌다(S25 FHD 세션 4분 40초 중 송신 목표
+3000kbps 고정 구간 반복, 키프레임 요청 16회).
+
+- 온디바이스(앱 직접 송출) 세션도 `addVideoTransceiver`에서 같은 최소·최대·fps·해상도 유지를 받는다.
+  `setBitrate` 시작값·상한과 degradation 재지정은 서버 AI 세션에만 적용한다.
+- iOS(`VideoUplinkSendPolicy.swift`)는 최소 3Mbps·1.5Mbps를 유지하고 앱 직접 송출 세션에는 정책 대신
+  300kbps·15fps 제한을 쓴다. 두 차이 모두 의도한 것이다([iOS 영상 업링크 송신 정책](ios-video-uplink-send-policy.md)).
+- 단위 테스트는 두 정책 함수를 실제 순서대로 적용한 `RtpParameters` encoding 값을 JVM에서 확인한다.
+  네이티브 sender의 `setParameters` 왕복과 offer/answer 이후 유지는 JVM에서 확인할 수 없어 실기기 로그
+  `video_send_policy`·`uplink_sender`로 본다.
+- PR #628 실기기 기록: S25 FHD 서버 세션 송신 1080x1920 유지, 혼잡 구간 목표 비트레이트 1.0~2.1Mbps 하향 후
+  5.2Mbps 회복. 키프레임 요청 감소는 80초 표본 3회로 판단 보류, 장시간 비교 대기.
 
 2026-10-14 21:24·21:28, SM-S931N, `CodecComparisonDeviceTest`(productionProbe, onDevice=false,
 resolution=fhd, forceCodec=false) 각 120초 실측. 두 번 모두 `uplink_bitrate applied=true`,

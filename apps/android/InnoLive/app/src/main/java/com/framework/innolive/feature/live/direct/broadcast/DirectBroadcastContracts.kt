@@ -124,6 +124,8 @@ internal data class DirectBroadcastUiState(
     val microphone: MicrophoneStatus = MicrophoneStatus.OK,
     val slate: Set<SlateReason> = emptySet(),
     val thermalWarning: Boolean = false,
+    /** 연결 뒤 가림 처리 실패가 이어져 프레임을 버리고 있습니다. 원본은 송출하지 않습니다. */
+    val anonymizationFailing: Boolean = false,
     /** `prepared`로 머물 수 있는 마감입니다(elapsedRealtime). 지나면 서버가 세션을 지웁니다. */
     val preparedDeadlineElapsedMillis: Long? = null,
 )

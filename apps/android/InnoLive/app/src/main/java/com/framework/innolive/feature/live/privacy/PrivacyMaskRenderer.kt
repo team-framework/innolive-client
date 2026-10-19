@@ -8,8 +8,13 @@ import kotlin.math.max
 import kotlin.math.min
 
 internal object PrivacyMaskRenderer {
-    /** The inner mask may only grow, matching the iOS two-model-pixel protection margin. */
-    fun expandedMask(mask: ByteArray, radius: Int = 2): ByteArray {
+    /** Opaque cells added around the face contour, like the server's one-mask-pixel pad plus 8px
+     * margin. One 160-grid cell is 8–12 output px at 720p–1080p; the 3x3 square equals a disk of
+     * radius sqrt(2), so the margin follows the contour instead of growing into a box. */
+    const val PROTECTED_EDGE_CELLS = 1
+
+    /** The inner mask may only grow. */
+    fun expandedMask(mask: ByteArray, radius: Int = PROTECTED_EDGE_CELLS): ByteArray {
         val size = PrivacySegmentation.MASK_SIZE
         require(mask.size == size * size && radius >= 0)
         val margin = min(radius, size - 1)
@@ -42,7 +47,7 @@ internal object PrivacyMaskRenderer {
         val height = upright.height
         // Never return/recycle the capture bitmap, even for a 1x1 input or an empty mask.
         if (mask.all { it.toInt() == 0 }) return checkNotNull(upright.copy(Bitmap.Config.ARGB_8888, false))
-        val alpha = featheredMask(mask)
+        val alpha = expandedMask(mask)
         val mosaic = filter(upright)
         val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         try {
@@ -51,16 +56,6 @@ internal object PrivacyMaskRenderer {
             return output
         } catch (error: Throwable) { output.recycle(); throw error }
         finally { mosaic.recycle() }
-    }
-
-    /** iOS: opaque 2px core + max(dilated 4px mask blurred at sigma 1.5, core). */
-    internal fun featheredMask(mask: ByteArray): ByteArray {
-        val core = expandedMask(mask)
-        val outer = expandedMask(mask, 4)
-        val pixels = IntArray(mask.size) { if (outer[it].toInt() != 0) -1 else 0xff000000.toInt() }
-        val blurred = PrivacyGaussianBlur.apply(pixels, PrivacySegmentation.MASK_SIZE,
-            PrivacySegmentation.MASK_SIZE, 1.5)
-        return ByteArray(mask.size) { if (core[it].toInt() != 0) -1 else (blurred[it] and 255).toByte() }
     }
 
     /** iOS broadcastStyleBlur on the CPU: area-average reduction to 1/4, a Gaussian with the
