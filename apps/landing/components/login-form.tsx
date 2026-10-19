@@ -50,11 +50,11 @@ export function LoginForm() {
 
   return (
     <form
-      className="flex w-full max-w-[32rem] flex-col items-center gap-7 max-md:gap-6"
+      className="flex w-full max-w-[32rem] flex-col items-center gap-7 max-lg:gap-6"
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-md:self-start max-md:text-[26px] max-md:font-bold">
+      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
         {copy.loginTitle}
       </h1>
       <div className="flex w-full flex-col items-start gap-2">
@@ -76,10 +76,10 @@ export function LoginForm() {
           error={errors.password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        <div className="flex w-full justify-end px-2 max-md:-my-2">
+        <div className="flex w-full justify-end px-2 max-lg:-my-2">
           <button
             type="button"
-            className="text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font] max-lg:min-h-[44px] max-md:text-[14px]"
+            className="text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font] max-lg:min-h-[44px] max-lg:text-[14px]"
             onClick={() => setNotice(copy.forgotPending)}
           >
             {copy.forgotPassword}

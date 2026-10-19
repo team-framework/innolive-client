@@ -11,25 +11,24 @@ export function AuthShell({ children }: { children: ReactNode }) {
     <main
       id="main"
       data-page="auth"
-      className="relative min-h-dvh bg-background-primary max-md:bg-background-secondary"
+      className="relative min-h-dvh bg-background-primary max-lg:bg-background-secondary"
     >
       {/* Auth pages hide the site header, and below lg the artwork panel and its logo are hidden too,
           so show the logo where the header puts it. */}
-      <div className="absolute inset-x-0 top-0 z-10 md:pt-[var(--header-offset-desktop)] lg:hidden">
-        <div className="flex h-[var(--header-height)] items-end px-5 py-5 md:p-8 md:px-12">
+      <div className="absolute inset-x-0 top-0 z-10 lg:hidden">
+        <div className="flex h-[var(--header-height)] items-end px-5 py-5">
           <Link
             href={href("/")}
             aria-label={messages.header.home}
-            className="shrink-0 max-md:-my-[10px] max-md:py-[10px] md:-my-[6px] md:py-[6px]"
+            className="shrink-0 -my-[10px] py-[10px]"
           >
-            <Image src="/brand/logo-header.svg" alt="InnoLive" width={94} height={24} unoptimized className="block md:hidden" />
-            <Image src="/brand/logo-header.svg" alt="InnoLive" width={124} height={32} unoptimized className="hidden md:block" />
+            <Image src="/brand/logo-header.svg" alt="InnoLive" width={94} height={24} unoptimized />
           </Link>
         </div>
       </div>
-      <div className="flex min-h-dvh flex-col items-center justify-center px-[var(--page-gutter)] py-16 pb-24 max-md:justify-start max-md:px-5 max-md:pb-10 max-md:pt-[calc(var(--header-height)+2rem)] md:max-lg:pt-[calc(var(--header-height)+var(--header-offset-desktop)+2rem)] lg:min-h-[max(100dvh,62rem)] lg:py-0">
-        <div className="flex w-full max-w-[86rem] flex-col overflow-clip rounded-[24px] bg-background-secondary shadow-[0_0_32px_0_#0000000d] max-md:overflow-visible max-md:rounded-none max-md:shadow-none min-[48rem]:flex-row">
-          <div className="flex w-full flex-col items-center justify-center gap-7 px-5 pb-8 pt-[4.5rem] max-md:items-stretch max-md:p-0 sm:px-8 min-[64rem]:max-w-[36rem]">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-[var(--page-gutter)] py-16 pb-24 max-lg:justify-start max-lg:px-5 max-lg:pb-10 max-lg:pt-[calc(var(--header-height)+2rem)] lg:min-h-[max(100dvh,62rem)] lg:py-0">
+        <div className="flex w-full max-w-[86rem] flex-col overflow-clip rounded-[24px] bg-background-secondary shadow-[0_0_32px_0_#0000000d] max-lg:overflow-visible max-lg:rounded-none max-lg:shadow-none min-[48rem]:flex-row">
+          <div className="flex w-full flex-col items-center justify-center gap-7 px-5 pb-8 pt-[4.5rem] max-lg:p-0 sm:px-8 min-[64rem]:max-w-[36rem]">
             {children}
           </div>
           <div className="relative hidden min-h-[28rem] flex-1 overflow-clip min-[64rem]:block min-[64rem]:h-[50rem] min-[64rem]:max-w-[50rem]">
@@ -51,7 +50,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav
-          className="mt-8 flex flex-wrap items-center justify-center gap-2 max-lg:gap-x-4 max-md:mt-4 max-md:font-normal max-md:text-text-secondary text-base font-medium text-text-primary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2"
+          className="mt-8 flex flex-wrap items-center justify-center gap-2 max-lg:gap-x-4 max-lg:mt-4 max-lg:font-normal max-lg:text-text-secondary text-base font-medium text-text-primary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2"
           aria-label={messages.auth.policyNav}
         >
           <Link
