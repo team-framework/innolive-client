@@ -1,0 +1,165 @@
+- link "메뉴 영역으로 바로가기":
+  - /url: "#lnb"
+  - generic: 메뉴 영역으로 바로가기
+- link "본문 영역으로 바로가기":
+  - /url: "#content"
+  - generic: 본문 영역으로 바로가기
+- heading "NAVER" [level=1]:
+  - link "NAVER":
+    - /url: https://www.naver.com
+    - generic: NAVER
+- search:
+  - group "검색":
+    - combobox "검색어를 입력해 주세요.":
+      - text: InnoLive란
+      - dialog "자동완성 레이어"
+    - button "한글 입력기":
+      - generic: 한글 입력기
+    - button "검색":
+      - generic: 검색
+- strong: 사용자 링크
+- list:
+  - link "내 프로필 이미지 채근영 내정보 보기":
+    - /url: javascript:;
+    - img "내 프로필 이미지"
+    - generic: 채근영
+    - emphasis: 내정보 보기
+  - link "네이버톡 새 창 알림":
+    - /url: https://talks.naver.com/?frm=pcgnb&anchor=&category=
+    - generic: 네이버톡 새 창 알림
+  - link "알림 새 창 알림 3":
+    - /url: https://m.notify.naver.com/?from=pcmain
+    - generic: 알림 새 창 알림
+    - emphasis:
+      - generic: "3"
+  - link "메일 20":
+    - /url: https://mail.naver.com
+    - generic: 메일
+    - emphasis:
+      - generic: "20"
+  - link "서비스 더보기":
+    - /url: javascript:;
+    - generic: 서비스 더보기
+- tab "AI new":
+  - text: AI
+  - generic: new
+- tab "블로그"
+- tab "카페"
+- tab "클립"
+- tab "이미지"
+- tab "지식iN"
+- tab "동영상"
+- tab "쇼핑 새 창 열림":
+  - text: 쇼핑
+  - generic: 새 창 열림
+- tab "뉴스"
+- tab "어학사전 새 창 열림":
+  - text: 어학사전
+  - generic: 새 창 열림
+- button "더보기":
+  - generic: 더보기
+- list:
+  - button "공유"
+- main:
+  - heading "InnoLive란 검색 결과" [level=1]
+  - heading "뮤직" [level=2]
+  - button "이 정보가 표시된 이유":
+    - generic: 이 정보가 표시된 이유
+  - link "다른 사이트 더보기":
+    - /url: "?query=%EB%AE%A4%EC%A7%81+nsite%3Anaver.com&qvt=0&sm=tab_clk.musftc&ssc=tab.ur.all"
+  - list:
+    - link "재생":
+      - /url: javascript:;
+      - generic: 재생
+    - link "Inno (Live)":
+      - /url: https://vibe.naver.com/track/55225966
+      - strong: Inno (Live)
+    - link "Il Concerto (Live)":
+      - /url: https://vibe.naver.com/album/7574086
+    - link "Mia Martini":
+      - /url: https://vibe.naver.com/artist/60802
+    - time: 2012.05.04.
+    - link "0":
+      - /url: javascript:;
+      - emphasis: "0"
+    - tablist:
+      - tab "VIBE로 듣기"
+    - link "재생":
+      - /url: javascript:;
+      - generic: 재생
+    - link "Inno (Live)":
+      - /url: https://vibe.naver.com/track/55265421
+      - strong: Inno (Live)
+    - link "Minuetto (Suona Per Noi)":
+      - /url: https://vibe.naver.com/album/7583031
+    - link "Mia Martini":
+      - /url: https://vibe.naver.com/artist/60802
+    - time: 2013.12.03.
+    - link "0":
+      - /url: javascript:;
+      - emphasis: "0"
+    - tablist:
+      - tab "VIBE로 듣기"
+    - link "재생":
+      - /url: javascript:;
+      - generic: 재생
+    - link "Inno (Live)":
+      - /url: https://vibe.naver.com/track/90500916
+      - strong: Inno (Live)
+    - link "Semplicemente Mimi (In concerto)":
+      - /url: https://vibe.naver.com/album/33136901
+    - link "Mia Martini":
+      - /url: https://vibe.naver.com/artist/60802
+    - time: 1998.09.20.
+    - link "0":
+      - /url: javascript:;
+      - emphasis: "0"
+    - tablist:
+      - tab "VIBE로 듣기"
+  - link "뮤직 더보기":
+    - /url: https://vibe.naver.com/search?query=InnoLive%EB%9E%80
+    - generic: 뮤직
+    - generic: 더보기
+  - link "댓글 웃수저는 크게 예우합니다 네이버 클립 댓글 잔치 열림 새 창 링크":
+    - /url: https://mkt.naver.com/p1/atrb?channel_id=naver_pcsearchmktbanner&campaign_id=2609-naverclip-001&target=https%3A%2F%2Fclipcreators.naver.com%2Fpromotion%2Ftoday%3Fdtm_source%3Dnaver_pcsearchmktbanner%26dtm_medium%3Dmktatrb_etc%26dtm_campaign%3D2609-naverclip-001%23cheer
+    - strong: 댓글 웃수저는 크게 예우합니다
+    - paragraph: 네이버 클립 댓글 잔치 열림
+    - generic: 새 창 링크
+  - link "참여 누르고 쇼핑하면 최대 3만3천P 추가 적립! 새 창 링크":
+    - /url: https://mkt.naver.com/p1/atrb?channel_id=naver_pcsearchmktbanner&campaign_id=2610-shopping-008&target=https%3A%2F%2Fmkt.naver.com%2Fplusmission%3Fdtm_source%3Dnaver_pcsearchmktbanner%26dtm_medium%3Dmktatrb_etc%26dtm_campaign%3D2610-shopping-008
+    - strong: 참여 누르고 쇼핑하면
+    - paragraph: 최대 3만3천P 추가 적립!
+    - generic: 새 창 링크
+  - link "적립적인 멤버십 전용카드 네이버 현대카드 Ed.3 새 창 링크":
+    - /url: https://mkt.naver.com/naverhyundaicard3?eventCode=NAVHJ&dtm_source=naver_pcsearchmktbanner&dtm_medium=display&dtm_campaign=hyundaicard3mkt
+    - strong: 적립적인 멤버십 전용카드
+    - paragraph: 네이버 현대카드 Ed.3
+    - generic: 새 창 링크
+  - link "끝까지 끝내주는 AI, 네이버 AI탭 검색이 대화가 되다 새 창 링크":
+    - /url: https://mkt.naver.com/p1/atrb?channel_id=naver_pcsearchmktbanner&campaign_id=2607-naverAI-001&target=https%3A%2F%2Fmkt.naver.com%2Faitab%3Fdtm_source%3Dnaver_pcsearchmktbanner%26dtm_medium%3Dmktatrb_etc%26dtm_campaign%3D2607-naverAI-001
+    - strong: 끝까지 끝내주는 AI, 네이버 AI탭
+    - paragraph: 검색이 대화가 되다
+    - generic: 새 창 링크
+- link "맨위로":
+  - /url: "#"
+  - generic: 맨위로
+- link "전체서비스 새 창 열림":
+  - /url: https://www.naver.com/more.html
+  - text: 전체서비스
+  - generic: 새 창 열림
+- link "이용약관 새 창 열림":
+  - /url: https://policy.naver.com/policy/service.html
+  - text: 이용약관
+  - generic: 새 창 열림
+- link "개인정보처리방침 새 창 열림":
+  - /url: https://policy.naver.com/policy/privacy.html
+  - strong: 개인정보처리방침
+  - generic: 새 창 열림
+- link "검색 고객센터 새 창 열림":
+  - /url: https://help.naver.com/alias/search/integration/main.naver
+  - text: 검색 고객센터
+  - generic: 새 창 열림
+- link "© NAVER Corp. 새 창 열림":
+  - /url: https://www.navercorp.com/
+  - text: © NAVER Corp.
+  - generic: 새 창 열림

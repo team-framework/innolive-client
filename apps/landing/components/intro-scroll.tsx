@@ -218,7 +218,7 @@ export function IntroScroll() {
       }),
       lettering: {
         ...scene.lettering,
-        alt: focus ? messages.intro.letteringFocus : messages.intro.letteringSafe,
+        text: focus ? messages.intro.letteringFocus : messages.intro.letteringSafe,
       },
     };
   });

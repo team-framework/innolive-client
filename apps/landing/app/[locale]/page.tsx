@@ -35,7 +35,7 @@ export default async function Home({ params }: PageProps) {
         className="bg-background-primary"
       >
         <SmoothScroll>
-          <Hero />
+          <Hero locale={locale} />
           <PrivacySection />
           <FeatureSection />
           <FAQSection />
