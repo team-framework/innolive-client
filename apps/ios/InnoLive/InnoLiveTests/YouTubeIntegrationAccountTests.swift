@@ -202,17 +202,56 @@ final class YouTubeIntegrationAccountTests: XCTestCase {
         XCTAssertEqual(store.loadConnection()?.channel.id, "uca")
     }
 
-    func testFiveChannelsStillAllowReconnectButNotAddition() async throws {
-        let accounts = (1...5).map { index in
-            ["id": "account-\(index)", "provider": "youtube", "channel_id": "uc-\(index)",
-             "channel_title": "Channel \(index)", "reconnect_required": true] as [String: Any]
-        }
-        YouTubeIntegrationAccountURLProtocol.responses = [.init(statusCode: 200, data: try JSONSerialization.data(withJSONObject: accounts))]
-        let integration = makeIntegration(store: YouTubePreferencesStore(userDefaults: userDefaults))
+    func testConnectNewChannelRemovesOtherYouTubeChannels() async throws {
+        let store = YouTubePreferencesStore(userDefaults: userDefaults)
+        let integration = makeIntegration(store: store)
+        let chzzk = "{\"provider\":\"chzzk\",\"channel_id\":\"chz\",\"channel_title\":\"C\",\"reconnect_required\":false}"
+        YouTubeIntegrationAccountURLProtocol.responses = [
+            .init(statusCode: 200, data: Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false},\(chzzk)]".utf8)),
+            .init(statusCode: 200, data: Data("{\"connected\":true,\"provider\":\"youtube\",\"channel\":{\"id\":\"ucb\",\"title\":\"B\"}}".utf8)),
+            .init(statusCode: 200, data: Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false},{\"id\":\"b\",\"provider\":\"youtube\",\"channel_id\":\"ucb\",\"channel_title\":\"B\",\"reconnect_required\":false},\(chzzk)]".utf8)),
+            .init(statusCode: 204, data: Data())
+        ]
         await integration.refreshConnection(accessToken: "access")
-        XCTAssertEqual(integration.youtubeAccounts.count, 5)
-        XCTAssertFalse(integration.canConnectYouTubeChannel())
-        XCTAssertTrue(integration.canConnectYouTubeChannel(reconnecting: true))
+        XCTAssertTrue(integration.canConnectYouTubeChannel)
+        try await integration.connectAuthorizedYouTubeAccount(serverAuthCode: "code", accessToken: "access")
+
+        let removal = try XCTUnwrap(YouTubeIntegrationAccountURLProtocol.requests.last)
+        XCTAssertEqual(removal.httpMethod, "DELETE")
+        XCTAssertEqual(removal.url?.path, "/auth/streaming/accounts/youtube/a")
+        XCTAssertEqual(integration.youtubeAccounts.map(\.accountID), ["b"])
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
+        XCTAssertEqual(store.loadConnection()?.channel.id, "ucb")
+        XCTAssertTrue(integration.streamingAccounts.contains { $0.provider == "chzzk" })
+    }
+
+    func testReconnectSameChannelDoesNotRemoveIt() async throws {
+        let integration = makeIntegration(store: YouTubePreferencesStore(userDefaults: userDefaults))
+        let list = Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false}]".utf8)
+        YouTubeIntegrationAccountURLProtocol.responses = [
+            .init(statusCode: 200, data: Data("{\"connected\":true,\"provider\":\"youtube\",\"channel\":{\"id\":\"uca\",\"title\":\"A\"}}".utf8)),
+            .init(statusCode: 200, data: list)
+        ]
+        try await integration.connectAuthorizedYouTubeAccount(serverAuthCode: "code", accessToken: "access")
+        XCTAssertEqual(YouTubeIntegrationAccountURLProtocol.requests.count, 2)
+        XCTAssertEqual(integration.youtubeAccounts.map(\.accountID), ["a"])
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "a")
+    }
+
+    func testPreviousChannelRemovalFailureSelectsNewChannelAndReportsError() async throws {
+        let integration = makeIntegration(store: YouTubePreferencesStore(userDefaults: userDefaults))
+        YouTubeIntegrationAccountURLProtocol.responses = [
+            .init(statusCode: 200, data: Data("{\"connected\":true,\"provider\":\"youtube\",\"channel\":{\"id\":\"ucb\",\"title\":\"B\"}}".utf8)),
+            .init(statusCode: 200, data: Data("[{\"id\":\"a\",\"provider\":\"youtube\",\"channel_id\":\"uca\",\"channel_title\":\"A\",\"reconnect_required\":false},{\"id\":\"b\",\"provider\":\"youtube\",\"channel_id\":\"ucb\",\"channel_title\":\"B\",\"reconnect_required\":false}]".utf8)),
+            .init(statusCode: 409, data: Data("{\"error\":{\"code\":\"streaming_account_in_use\"}}".utf8))
+        ]
+        do {
+            try await integration.connectAuthorizedYouTubeAccount(serverAuthCode: "code", accessToken: "access")
+            XCTFail("Previous channel removal failure must be reported")
+        } catch {}
+        XCTAssertEqual(integration.youtubeAccounts.map(\.accountID), ["a", "b"])
+        XCTAssertEqual(integration.selectedYouTubeAccountID, "b")
+        XCTAssertEqual(integration.connection?.channel.id, "ucb")
     }
 
     private func makeIntegration(store: YouTubePreferencesStore) -> YouTubeIntegration {
