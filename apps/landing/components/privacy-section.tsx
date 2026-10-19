@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { observeSectionAnimation } from "@/lib/landing-animation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { privacySlideSources } from "@/lib/privacy-slides";
 
@@ -16,8 +16,11 @@ const aiAccentStyle = {
   backgroundSize: "100cqw 100%",
 } as const;
 
+// Widest title line in em per locale. Caps the title size so each line fits the column.
+const titleLineEm = { ko: 7.4, en: 12, ja: 8.3 } as const;
+
 export function PrivacySection() {
-  const { messages } = useLocale();
+  const { locale, messages } = useLocale();
   const slides = privacySlideSources.map((src, index) => ({
     src,
     alt: messages.privacy.slides[index]?.alt ?? "",
@@ -110,13 +113,13 @@ export function PrivacySection() {
         });
         media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
           const context = gsap.context(() => {
+            // No scroll pin on small screens, so the desktop pre-pin delay would only leave a blank gap.
             gsap.from(section, {
               autoAlpha: 0,
-              delay: PRIVACY_ANIMATION_DELAY_MS / 1000,
               duration: 0.8,
               ease: "power2.out",
               scrollTrigger: {
-                start: "top 70%",
+                start: "top 92%",
                 toggleActions: "restart none restart reverse",
                 trigger: section,
               },
@@ -142,10 +145,11 @@ export function PrivacySection() {
       aria-labelledby="privacy-heading"
     >
       <div className="flex w-full max-w-[1408px] flex-col justify-center items-center gap-y-12 lg:flex-row lg:items-center lg:justify-between lg:gap-x-16">
-        <div className="flex w-full min-w-0 max-w-[500px] flex-col items-start gap-2.5 lg:flex-1 min-[106.5rem]:w-[500px] min-[106.5rem]:flex-none min-[106.5rem]:pb-[121px]">
+        <div className="flex w-full min-w-0 max-w-[500px] flex-col items-start gap-2.5 [container-type:inline-size] lg:flex-1 min-[106.5rem]:w-[500px] min-[106.5rem]:flex-none min-[106.5rem]:pb-[121px]">
           <h2
             id="privacy-heading"
-            className="w-full break-words text-[clamp(2rem,1.05rem+4.2vw,4.25rem)] font-bold leading-[1.3] tracking-tight text-text-primary"
+            className="w-full break-words text-[min(clamp(2rem,1.05rem+4.2vw,4.25rem),calc(100cqi/var(--title-line-em)))] font-bold leading-[1.3] tracking-tight text-text-primary"
+            style={{ "--title-line-em": titleLineEm[locale] } as CSSProperties}
           >
             {messages.privacy.titleLine1}
             <span className="block w-full [container-type:inline-size]">

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Fragment } from "react";
 import { useLocale } from "@/components/locale-provider";
 import { socialLinks } from "@/lib/site";
 
@@ -36,35 +37,42 @@ export function Footer() {
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
             <div className="flex min-w-0 max-w-[1100px] flex-1 flex-col gap-1.5 text-base leading-[1.3] tracking-[-0.02em] text-text-secondary">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
-                <p>{messages.footer.ceo}</p>
+                <p className="[word-break:keep-all]">{messages.footer.ceo}</p>
                 <p>{messages.footer.dpo}</p>
-                <a className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center" href="mailto:contact@innolive.studio">
+                <a className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center" href="mailto:contact@innolive.studio">
                   contact@innolive.studio
                 </a>
                 <p>Hosted by Framework</p>
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
                 <p>{messages.footer.phone}</p>
-                <p>{messages.footer.address}</p>
+                <p>
+                  {messages.footer.address.split(", ").map((part, index, parts) => (
+                    <Fragment key={part}>
+                      <span className="whitespace-nowrap">{part}</span>
+                      {index < parts.length - 1 ? ", " : null}
+                    </Fragment>
+                  ))}
+                </p>
                 <p>{messages.footer.copyright}</p>
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-text-secondary max-lg:gap-y-0">
-                <Link href={href("/privacy")} className="font-semibold underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/privacy")} className="font-semibold underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.privacy}
                 </Link>
-                <Link href={href("/terms")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/terms")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.terms}
                 </Link>
-                {locale !== "ja" && <Link href={href("/mosaic-software")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                {locale !== "ja" && <Link href={href("/mosaic-software")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {locale === "en" ? "Live face blur app" : "실시간 방송 모자이크 앱"}
                 </Link>}
-                <Link href={href("/support")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/support")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.support}
                 </Link>
-                <Link href={href("/guides/live-face-blur")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/guides/live-face-blur")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.guide}
                 </Link>
-                <Link href={href("/#faq")} scroll={false} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/#faq")} scroll={false} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.faq}
                 </Link>
               </div>

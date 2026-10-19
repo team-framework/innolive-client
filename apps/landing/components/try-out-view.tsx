@@ -4,14 +4,13 @@ import { useId, useState } from "react";
 import { Button } from "@/components/button";
 import { TryOutVideoPanels } from "@/components/try-out-video-panels";
 import { Dialog } from "@/components/dialog";
-import { FaceRegistrationOverlay } from "@/components/face-registration-overlay";
 import { WaitingOverlay } from "@/components/waiting-overlay";
 import { SequentialHeroHeading } from "@/components/sequential-hero-heading";
 import { useLocale } from "@/components/locale-provider";
 import { useIsLogined } from "@/hooks/use-is-logined";
 
 type Preview = "guest" | "active" | "member";
-type Overlay = "none" | "face" | "waiting";
+type Overlay = "none" | "waiting";
 
 export function TryOutView() {
   const { href, messages } = useLocale();
@@ -70,7 +69,7 @@ export function TryOutView() {
                   <Button
                     href={href("/try-out/experience")}
                     showChevron={false}
-                    className="w-[14.375rem] max-w-[14.375rem]"
+                    className="min-w-[14.375rem] max-w-full whitespace-nowrap max-md:whitespace-normal max-md:break-keep"
                     disabled={isLoading}
                     aria-describedby={notice ? noticeId : undefined}
                   >
@@ -85,7 +84,7 @@ export function TryOutView() {
                       variant="secondary"
                       href={href("/login")}
                       showChevron={false}
-                      className="w-[14.375rem] max-w-[14.375rem]"
+                      className="min-w-[14.375rem] max-w-full whitespace-nowrap max-md:whitespace-normal max-md:break-keep"
                     >
                       {messages.tryOut.loginOrSignup}
                     </Button>
@@ -103,14 +102,6 @@ export function TryOutView() {
                     }}
                   >
                     {messages.tryOut.stop}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    showChevron={false}
-                    className="w-[8.6875rem] max-w-[8.6875rem]"
-                    onClick={() => setOverlay("face")}
-                  >
-                    {messages.tryOut.registerFace}
                   </Button>
                 </>
               ) : null}
@@ -152,13 +143,6 @@ export function TryOutView() {
         label={messages.tryOut.waitingPreview}
       >
         <WaitingOverlay />
-      </Dialog>
-      <Dialog
-        open={overlay === "face"}
-        onClose={closeOverlay}
-        label={messages.tryOut.facePreview}
-      >
-        <FaceRegistrationOverlay />
       </Dialog>
     </section>
   );

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AuthNavigation } from "@/components/auth-navigation";
 import { DownloadMenu } from "@/components/download-menu";
 import { LanguageSwitch } from "@/components/language-switch";
@@ -11,12 +11,14 @@ import { cn } from "@/lib/cn";
 import { navLinks } from "@/lib/site";
 
 const navClassName =
-  "inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:min-h-[44px] md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]";
+  "inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:min-h-[44px] max-md:text-[16px] md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]";
 
 export function Header() {
   const { href, messages } = useLocale();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+  // The home page renders its own Header beside the hidden layout one, so a fixed id would repeat.
+  const navigationId = useId();
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -75,19 +77,23 @@ export function Header() {
           <DownloadMenu />
           <button
             type="button"
-            aria-controls="mobile-navigation"
+            aria-controls={navigationId}
             aria-expanded={mobileMenuOpen}
             aria-label={mobileMenuOpen ? messages.header.closeMenu : messages.header.openMenu}
             className="inline-flex size-11 items-center max-md:-my-[6px] max-md:size-[44px] justify-center rounded-full text-text-primary transition-colors hover:bg-background-primary"
             onClick={() => setMobileMenuOpen((open) => !open)}
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none">
-              <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d={mobileMenuOpen ? "M6 6l12 12M18 6 6 18" : "M4 7h16M4 12h16M4 17h16"}
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
             </svg>
           </button>
         </div>
         <nav
-          id="mobile-navigation"
+          id={navigationId}
           aria-label={messages.header.primaryNav}
           className={cn(
             "absolute inset-x-0 top-full flex-col gap-1 border-t border-surface-primary bg-background-secondary px-5 py-5 shadow-button md:static md:flex md:w-auto md:flex-row md:items-center md:justify-end md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
