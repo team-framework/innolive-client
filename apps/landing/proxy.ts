@@ -2,10 +2,14 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isSeoGuidePath } from "@/lib/seo-guide-paths";
 import { defaultLocale, isLocale, shouldRememberLocale } from "@/lib/locales";
 
+import { searchCrawlerEvent } from "@/lib/search-crawler";
+
 const publicFile = /\.[^/]+$/;
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const crawlerEvent = searchCrawlerEvent(pathname, request.method, request.headers.get("user-agent"));
+  if (crawlerEvent) console.info(JSON.stringify(crawlerEvent));
 
   if (
     pathname.startsWith("/_next") ||
