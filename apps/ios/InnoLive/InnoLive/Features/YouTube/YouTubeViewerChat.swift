@@ -64,14 +64,38 @@ enum YouTubeViewerChatPolicy {
 
 struct YouTubeViewerChatOverlay: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @State private var isChatHidden = false
     let availability: YouTubeViewerChatPolicy.Availability
 
     var body: some View {
         Group {
             if case let .ready(url) = availability {
-                YouTubeViewerChatContent(url: url)
-                    .id(url)
-                    .frame(height: verticalSizeClass == .compact ? 150 : 180)
+                VStack(alignment: .leading, spacing: 4) {
+                    YouTubeViewerChatContent(url: url, isChatHidden: isChatHidden)
+                        .id(url)
+                        .frame(height: verticalSizeClass == .compact ? 106 : 136)
+                        .opacity(isChatHidden ? 0 : 1)
+                        .frame(height: isChatHidden ? 0 : nil)
+                        .clipped()
+                        .allowsHitTesting(!isChatHidden)
+                        .accessibilityHidden(isChatHidden)
+                    Menu {
+                        Button {
+                            isChatHidden.toggle()
+                        } label: {
+                            Label(String(localized: isChatHidden ? "채팅 표시" : "채팅 숨기기", table: "ViewerChat"),
+                                  systemImage: isChatHidden ? "bubble.left" : "bubble.left.fill")
+                        }
+                    } label: {
+                        Image(systemName: isChatHidden ? "bubble.left" : "bubble.left.fill")
+                            .font(.body)
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(.black.opacity(0.3), in: Circle())
+                    }
+                    .accessibilityLabel(String(localized: "채팅 메뉴", table: "ViewerChat"))
+                    .accessibilityIdentifier("youtube-chat-menu")
+                }
             } else if let message = availability.message {
                 Text(message)
                     .font(.caption)
@@ -96,6 +120,7 @@ final class YouTubeViewerChatLoadState: ObservableObject {
 
 struct YouTubeViewerChatContent: View {
     let url: URL
+    var isChatHidden = false
     @StateObject private var state = YouTubeViewerChatLoadState()
 
     var body: some View {
@@ -105,25 +130,27 @@ struct YouTubeViewerChatContent: View {
                 .opacity(0)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
-            YouTubeChatMessageList(messages: state.messages)
-            if state.messages.isEmpty, !state.failed {
-                VStack(spacing: 8) {
-                    if !state.chatReady { ProgressView().tint(.white) }
-                    Text(state.chatReady
-                         ? String(localized: "새 채팅을 기다리고 있습니다.", table: "ViewerChat")
-                         : String(localized: "채팅을 연결하고 있습니다.", table: "ViewerChat"))
-                        .font(.caption)
+            if !isChatHidden {
+                YouTubeChatMessageList(messages: state.messages)
+                if state.messages.isEmpty, !state.failed {
+                    VStack(spacing: 8) {
+                        if !state.chatReady { ProgressView().tint(.white) }
+                        Text(state.chatReady
+                             ? String(localized: "새 채팅을 기다리고 있습니다.", table: "ViewerChat")
+                             : String(localized: "채팅을 연결하고 있습니다.", table: "ViewerChat"))
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(10)
+                    .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
                 }
-                .foregroundStyle(.white)
-                .padding(10)
-                .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
-            }
-            if state.failed {
-                VStack(spacing: 12) {
-                    Text(String(localized: "채팅을 불러오지 못했습니다.", table: "ViewerChat"))
-                    Button(String(localized: "다시 시도")) { state.retry += 1 }
+                if state.failed {
+                    VStack(spacing: 12) {
+                        Text(String(localized: "채팅을 불러오지 못했습니다.", table: "ViewerChat"))
+                        Button(String(localized: "다시 시도")) { state.retry += 1 }
+                    }
+                    .padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
                 }
-                .padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
             }
         }
     }

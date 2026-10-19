@@ -34,16 +34,25 @@ struct YouTubeChatMessageList: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4) {
                     ForEach(messages) { message in
-                        (Text(message.author + "  ").bold().foregroundColor(.cyan)
-                         + Text(message.text).foregroundColor(.white))
-                            .font(.footnote)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 8))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .id(message.id)
-                            .accessibilityIdentifier("youtube-chat-message-" + message.id)
+                        HStack(alignment: .top, spacing: 8) {
+                            Text(String(message.author.trimmingCharacters(in: CharacterSet(charactersIn: "@")).prefix(1)).uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 26, height: 26)
+                                .background(.cyan.opacity(0.7), in: Circle())
+                                .accessibilityHidden(true)
+                            (Text(message.author).bold() + Text("\n" + message.text))
+                                .font(.footnote)
+                                .foregroundStyle(.white)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityLabel(message.author + "  " + message.text)
+                                .accessibilityIdentifier("youtube-chat-message-" + message.id)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 4))
+                        .id(message.id)
                     }
                     Color.clear.frame(height: 1).id("latest-chat")
                 }
