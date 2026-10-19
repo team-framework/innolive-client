@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="live_page_camera">카메라 화면</string>
+    <string name="live_page_home">기본 화면</string>
+    <string name="live_page_settings">설정 화면</string>
+    <string name="live_page_indicator">%3$s, %1$d/%2$d 페이지. 좌우로 넘겨 화면 이동</string>
+</resources>
