@@ -416,6 +416,7 @@ struct BroadcastControllsView: View {
     }
 
     private func prepareYouTubeStream(_ provider: BroadcastSettingsProvider) {
+        isShowingBroadcastSettings = false
         Task {
             await onPrepareBroadcast(provider)
             if youtube.preparationStatus?.isFailed != true, youtube.broadcastPhase == "prepared" {

@@ -23,6 +23,7 @@ struct HomeView: View {
     @State private var recordingPlayback: BroadcastRecordingPlayback?
     @State private var recordingExport: BroadcastRecordingPlayback?
     @State private var isShowingMicrophonePermissionAlert = false
+    @State private var isRequestingPreparation = false
     @State private var pendingPreparationProvider: BroadcastSettingsProvider?
     @State private var cameraSwitchErrorMessage: String?
     @State private var isHomeVisible = false
@@ -203,7 +204,7 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .dynamicTypeSize(.medium)
-        .accessibilityHidden(youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd)
+        .accessibilityHidden(isLifecycleOverlayPresented)
     }
 
     var body: some View {
@@ -216,6 +217,16 @@ struct HomeView: View {
                 } onCancel: {
                     await cancelBroadcastPreparation()
                 }
+            } else if isRequestingPreparation {
+                ZStack {
+                    Color.black.opacity(0.82).ignoresSafeArea()
+                    ProgressView(String(localized: "방송을 준비하는 중"))
+                        .controlSize(.large)
+                        .tint(.white)
+                        .foregroundStyle(.white)
+                }
+                .accessibilityAddTraits(.isModal)
+                .accessibilityIdentifier("broadcast-preparation-loading")
             }
             BroadcastStartOverlay(lifecycle: youtube.lifecycle,
                                   orientation: broadcastOrientation.lockedOrientation,
@@ -713,7 +724,9 @@ struct HomeView: View {
     }
 
     private func beginBroadcastPreparation(_ provider: BroadcastSettingsProvider) async {
-        guard authentication.hasAcceptedMediaTransmission else { return }
+        guard authentication.hasAcceptedMediaTransmission, !isRequestingPreparation else { return }
+        isRequestingPreparation = true
+        defer { isRequestingPreparation = false }
         if !usesSimulatorVideo {
             switch cameraManager.authorizationStatus {
             case .authorized:
@@ -813,7 +826,7 @@ struct HomeView: View {
     }
 
     private var isLifecycleOverlayPresented: Bool {
-        youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd
+        isRequestingPreparation || youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd
     }
 
     private var zoomableRemoteStream: some View {
