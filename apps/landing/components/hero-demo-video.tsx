@@ -1,13 +1,10 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { afterPaint } from "@/lib/landing-animation";
 
 export function HeroDemoVideo({ className }: { className: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const posterRef = useRef<HTMLImageElement>(null);
-  const [posterReady, setPosterReady] = useState(false);
-  const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -16,29 +13,36 @@ export function HeroDemoVideo({ className }: { className: string }) {
     let visible = false;
     let pageReady = document.readyState === "complete";
 
+    let cancelPlayback: (() => void) | undefined;
+
     const updatePlayback = () => {
+      cancelPlayback?.();
+      cancelPlayback = undefined;
       if (reducedMotion.matches) {
         video.pause();
-        setPlaying(false);
         if (video.hasAttribute("src")) {
           video.removeAttribute("src");
           video.load();
         }
         return;
       }
-      if (!posterReady || !pageReady || !visible || document.hidden) {
+      if (!pageReady || !visible || document.hidden) {
         video.pause();
         return;
       }
-      if (!video.hasAttribute("src")) {
-        const requiredWidth = video.getBoundingClientRect().width * window.devicePixelRatio;
-        video.src = window.matchMedia("(max-width: 1023px)").matches && requiredWidth <= 360
-          ? "/mockups/hero-live-demo-mobile.mp4"
-          : "/mockups/hero-live-demo.mp4";
-        video.load();
-      }
-      void video.play().catch(() => {
-        // The poster stays visible if the browser blocks autoplay.
+      // Paint the poster before fetching and decoding the autoplay video.
+      cancelPlayback = afterPaint(() => {
+        cancelPlayback = undefined;
+        if (!video.hasAttribute("src")) {
+          const requiredWidth = video.getBoundingClientRect().width * window.devicePixelRatio;
+          video.src = window.matchMedia("(max-width: 1023px)").matches && requiredWidth <= 360
+            ? "/mockups/hero-live-demo-mobile.mp4"
+            : "/mockups/hero-live-demo.mp4";
+          video.load();
+        }
+        void video.play().catch(() => {
+          // The poster stays visible if the browser blocks autoplay.
+        });
       });
     };
 
@@ -57,6 +61,7 @@ export function HeroDemoVideo({ className }: { className: string }) {
     document.addEventListener("visibilitychange", updatePlayback);
 
     return () => {
+      cancelPlayback?.();
       observer.disconnect();
       window.removeEventListener("load", onPageLoad);
       reducedMotion.removeEventListener("change", updatePlayback);
@@ -65,28 +70,10 @@ export function HeroDemoVideo({ className }: { className: string }) {
       video.removeAttribute("src");
       video.load();
     };
-  }, [posterReady]);
-
-  useEffect(() => {
-    const poster = posterRef.current;
-    if (poster?.complete && poster.naturalWidth > 0) {
-      void poster.decode().then(() => setPosterReady(true)).catch(() => {});
-    }
   }, []);
 
   return (
     <div className={className}>
-      <Image
-        ref={posterRef}
-        src="/mockups/hero-live-demo.jpg"
-        alt=""
-        fill
-        sizes="(min-width: 1704px) 401px, (min-width: 1024px) 23vw, (min-width: 776px) 401px, 52vw"
-        loading="eager"
-        fetchPriority="high"
-        onLoad={() => setPosterReady(true)}
-        className="object-cover object-center"
-      />
       <video
         ref={videoRef}
         width={600}
@@ -98,9 +85,8 @@ export function HeroDemoVideo({ className }: { className: string }) {
         preload="none"
         aria-hidden="true"
         tabIndex={-1}
-        onPlaying={() => setPlaying(true)}
+        poster="/mockups/hero-live-demo.webp"
         className="absolute inset-0 size-full object-cover object-center"
-        style={{ opacity: playing ? 1 : 0 }}
       />
     </div>
   );
