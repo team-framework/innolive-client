@@ -77,7 +77,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     p: ({ children, ...props }: ComponentPropsWithoutRef<"p">) => (
       <p
-        className={`my-3 ${wrapClassName} text-body-lg font-normal leading-[1.25]`}
+        className={`my-3 ${wrapClassName} text-body-lg font-normal leading-[1.25] max-md:leading-[1.6]`}
         {...props}
       >
         {children}
@@ -85,7 +85,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     ul: ({ children, ...props }: ComponentPropsWithoutRef<"ul">) => (
       <ul
-        className="my-3 list-disc space-y-2 pl-6 text-body-lg font-normal leading-[1.25]"
+        className="my-3 list-disc space-y-2 pl-6 text-body-lg font-normal leading-[1.25] max-md:leading-[1.6]"
         {...props}
       >
         {children}
@@ -93,7 +93,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     ol: ({ children, ...props }: ComponentPropsWithoutRef<"ol">) => (
       <ol
-        className="my-3 list-decimal space-y-2 pl-6 text-body-lg font-normal leading-[1.25]"
+        className="my-3 list-decimal space-y-2 pl-6 text-body-lg font-normal leading-[1.25] max-md:leading-[1.6]"
         {...props}
       >
         {children}
@@ -173,7 +173,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
       ...props
     }: ComponentPropsWithoutRef<"blockquote">) => (
       <blockquote
-        className="my-4 border-l-2 border-text-primary pl-4 text-body-lg leading-[1.25]"
+        className="my-4 border-l-2 border-text-primary pl-4 text-body-lg leading-[1.25] max-md:leading-[1.6]"
         {...props}
       >
         {children}

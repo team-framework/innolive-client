@@ -134,7 +134,7 @@ export function PlanCard({
                 variant="primary"
                 disabled
                 showChevron={false}
-                className="w-full max-w-none border border-button-secondary max-lg:border-button-secondary"
+                className="w-full max-w-none border border-button-secondary max-lg:border-button-secondary max-md:text-center max-md:leading-tight"
               >
                 {isLoading ? messages.common.loading : plan.cta.label}
               </Button>
@@ -143,7 +143,7 @@ export function PlanCard({
                 variant="secondary"
                 href={href("/login")}
                 showChevron={false}
-                className="w-full max-w-none"
+                className="w-full max-w-none max-md:text-center max-md:leading-tight"
               >
                 {messages.pricing.loginCta}
               </Button>
@@ -153,7 +153,7 @@ export function PlanCard({
               variant="secondary"
               href={plan.cta.href}
               showChevron={false}
-              className="w-full max-w-none"
+              className="w-full max-w-none max-md:text-center max-md:leading-tight"
             >
               {plan.cta.label}
             </Button>
@@ -175,7 +175,7 @@ export function PlanCard({
                     unoptimized
                     className="size-6 shrink-0"
                   />
-                  <span className="min-w-0 flex-1 break-keep text-xl leading-none text-text-primary">
+                  <span className="min-w-0 flex-1 break-keep text-xl leading-none text-text-primary max-md:leading-[1.3]">
                     {feature.text}
                   </span>
                 </li>

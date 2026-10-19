@@ -110,13 +110,13 @@ export function PrivacySection() {
         });
         media.add("(max-width: 63.999rem) and (prefers-reduced-motion: no-preference)", () => {
           const context = gsap.context(() => {
+            // No scroll pin on small screens, so the desktop pre-pin delay would only leave a blank gap.
             gsap.from(section, {
               autoAlpha: 0,
-              delay: PRIVACY_ANIMATION_DELAY_MS / 1000,
               duration: 0.8,
               ease: "power2.out",
               scrollTrigger: {
-                start: "top 70%",
+                start: "top 92%",
                 toggleActions: "restart none restart reverse",
                 trigger: section,
               },

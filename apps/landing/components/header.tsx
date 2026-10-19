@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 import { navLinks } from "@/lib/site";
 
 const navClassName =
-  "inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:min-h-[44px] md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]";
+  "inline-flex min-h-[29px] items-center justify-center text-base leading-none text-text-primary hover:underline max-md:min-h-[44px] max-md:text-[16px] md:text-2xl md:max-lg:-my-[7.5px] md:max-lg:min-h-[44px]";
 
 export function Header() {
   const { href, messages } = useLocale();
@@ -84,7 +84,11 @@ export function Header() {
             onClick={() => setMobileMenuOpen((open) => !open)}
           >
             <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6" fill="none">
-              <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d={mobileMenuOpen ? "M6 6l12 12M18 6 6 18" : "M4 7h16M4 12h16M4 17h16"}
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
             </svg>
           </button>
         </div>

@@ -38,7 +38,7 @@ export function Footer() {
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
                 <p>{messages.footer.ceo}</p>
                 <p>{messages.footer.dpo}</p>
-                <a className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center" href="mailto:contact@innolive.studio">
+                <a className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center" href="mailto:contact@innolive.studio">
                   contact@innolive.studio
                 </a>
                 <p>Hosted by Framework</p>
@@ -49,22 +49,22 @@ export function Footer() {
                 <p>{messages.footer.copyright}</p>
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 text-text-secondary max-lg:gap-y-0">
-                <Link href={href("/privacy")} className="font-semibold underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/privacy")} className="font-semibold underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.privacy}
                 </Link>
-                <Link href={href("/terms")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/terms")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.terms}
                 </Link>
-                {locale !== "ja" && <Link href={href("/mosaic-software")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                {locale !== "ja" && <Link href={href("/mosaic-software")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {locale === "en" ? "Live face blur app" : "실시간 방송 모자이크 앱"}
                 </Link>}
-                <Link href={href("/support")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/support")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.support}
                 </Link>
-                <Link href={href("/guides/live-face-blur")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/guides/live-face-blur")} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.guide}
                 </Link>
-                <Link href={href("/#faq")} scroll={false} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center max-lg:justify-center">
+                <Link href={href("/#faq")} scroll={false} className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center">
                   {messages.footer.faq}
                 </Link>
               </div>

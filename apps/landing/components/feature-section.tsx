@@ -115,7 +115,8 @@ export function FeatureSection() {
                 duration: 0.8,
                 ease: "power2.out",
                 scrollTrigger: {
-                  start: "top 70%",
+                  // Reveal as each card enters; a 70% start left the lower third of phones blank.
+                  start: "top 92%",
                   toggleActions: "restart none restart reverse",
                   trigger: card,
                 },
@@ -322,7 +323,7 @@ export function FeatureSection() {
             </div>
           </div>
 
-          <div className="flex w-full flex-col break-keep text-[length:clamp(1rem,0.9rem+0.4vw,1.25rem)] font-normal leading-[1.3] tracking-tight text-text-secondary">
+          <div className="flex w-full flex-col break-keep text-[length:clamp(max(13px,1rem),0.9rem+0.4vw,1.25rem)] font-normal leading-[1.3] tracking-tight text-text-secondary">
             <p>{messages.features.note1}</p>
             <p>{messages.features.note2}</p>
           </div>
