@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live.components
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -49,7 +50,8 @@ class YouTubeViewerChatWebViewTest {
         YouTubeViewerChatWebData.clear(store)
 
         val expiredNames = store.setCookies.map { (_, value) -> value.substringBefore('=') }.toSet()
-        assertEquals(setOf("YSC", "VISITOR_INFO1_LIVE", "__Secure-YEC", "LIVE_CHAT_PATH", "SOCS"), expiredNames)
+        assertEquals(setOf("YSC", "VISITOR_INFO1_LIVE", "__Secure-YEC", "LIVE_CHAT_PATH", "SOCS") +
+            YouTubeViewerChatWebData.knownCookieNames, expiredNames)
         assertTrue(store.setCookies.all { (url, value) ->
             url in YouTubeViewerChatWebData.cookieUrls && "Max-Age=0" in value && "Secure" in value
         })
@@ -58,9 +60,50 @@ class YouTubeViewerChatWebViewTest {
         assertTrue(store.setCookies.contains("https://www.youtube.com/live_chat" to
             "LIVE_CHAT_PATH=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/live_chat; Secure"))
         assertTrue(store.lookedUp.none { "naver" in it || "chzzk" in it || "innolive" in it })
-        assertEquals(1, store.flushes)
         assertEquals(YouTubeViewerChatWebData.storageOrigins, store.deletedOrigins)
         assertTrue(store.deletedOrigins.all { it.startsWith("https://") && it.endsWith("youtube.com") })
+    }
+
+    // S25 실기기: YouTube 방문자 쿠키는 top_frame_site_key=https://youtube.com 파티션에 저장되어
+    // Partitioned 없는 만료 쿠키로는 지워지지 않았다(__Secure-BUCKET 하나만 삭제).
+    @Test fun clearingAlsoExpiresPartitionedVisitorCookiesOnYouTubeDomain() {
+        val store = RecordingStore(emptyMap())
+        YouTubeViewerChatWebData.clear(store)
+
+        for (name in listOf("YSC", "VISITOR_INFO1_LIVE", "VISITOR_PRIVACY_METADATA", "__Secure-ROLLOUT_TOKEN",
+            "__Secure-YNID", "__Secure-BUCKET")) {
+            assertTrue(name, store.setCookies.contains("https://www.youtube.com/" to
+                "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; Secure; Domain=.youtube.com; " +
+                "SameSite=None; Partitioned"))
+            assertTrue(name, store.setCookies.contains("https://www.youtube.com/" to
+                "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/; Secure; Domain=.youtube.com"))
+        }
+        assertTrue(store.setCookies.all { (_, value) -> "youtube.com" in value || "Domain=" !in value })
+    }
+
+    @Test fun flushRunsOnlyAfterEveryExpiryCallbackAndReportsCounts() {
+        val store = RecordingStore(mapOf("https://www.youtube.com/" to "YSC=a"), deferResults = true)
+        var result: YouTubeViewerChatWebData.ClearResult? = null
+        YouTubeViewerChatWebData.clear(store) { result = it }
+
+        assertEquals(0, store.flushes)
+        assertNull(result)
+        // 마지막 콜백 전에는 flush하지 않는다.
+        store.completeAll(dropLast = 1, ok = false)
+        assertEquals(0, store.flushes)
+        store.cookies.clear()
+        store.completeAll(ok = true)
+        assertEquals(1, store.flushes)
+        assertEquals(YouTubeViewerChatWebData.ClearResult(store.setCookies.size, store.setCookies.size - 1, emptySet()), result)
+    }
+
+    @Test fun remainingCookiesAreReportedByName() {
+        val store = RecordingStore(mapOf("https://youtube.com/" to "YSC=a; PREF=b"))
+        var result: YouTubeViewerChatWebData.ClearResult? = null
+        YouTubeViewerChatWebData.clear(store) { result = it }
+        assertEquals(1, store.flushes)
+        assertEquals(setOf("YSC", "PREF"), result!!.remaining)
+        assertEquals(0, result!!.failed)
     }
 
     @Test fun cookieHeaderParsingIgnoresEmptyParts() {
@@ -68,18 +111,30 @@ class YouTubeViewerChatWebViewTest {
         assertEquals(emptySet<String>(), YouTubeViewerChatWebData.cookieNames(null))
     }
 
-    private class RecordingStore(private val cookies: Map<String, String>) : YouTubeViewerChatWebData.Store {
+    private class RecordingStore(
+        cookies: Map<String, String>,
+        private val deferResults: Boolean = false,
+    ) : YouTubeViewerChatWebData.Store {
+        val cookies = cookies.toMutableMap()
         val lookedUp = mutableListOf<String>()
         val setCookies = mutableListOf<Pair<String, String>>()
         val deletedOrigins = mutableListOf<String>()
+        private val pending = ArrayDeque<(Boolean) -> Unit>()
         var flushes = 0
 
         override fun cookies(url: String): String? {
             lookedUp += url
             return cookies[url]
         }
-        override fun setCookie(url: String, value: String) { setCookies += url to value }
+        override fun setCookie(url: String, value: String, onResult: (Boolean) -> Unit) {
+            setCookies += url to value
+            if (deferResults) pending += onResult else onResult(true)
+        }
         override fun flushCookies() { flushes++ }
         override fun deleteStorage(origin: String) { deletedOrigins += origin }
+
+        fun completeAll(ok: Boolean, dropLast: Int = 0) {
+            repeat(pending.size - dropLast) { pending.removeFirst()(ok) }
+        }
     }
 }
