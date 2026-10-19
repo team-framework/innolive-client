@@ -187,3 +187,11 @@ body:has([data-page="auth"]) > header + div {
     padding-top: var(--header-block-desktop);
   }
 }
+
+@media (prefers-reduced-motion: no-preference) and (max-width: 47.999rem) {
+  /* Mobile has no intro overlay, so its first screen need not wait for hydration. */
+  .hero-typewriter-character,
+  .hero-support-reveal {
+    animation-play-state: running;
+  }
+}
