@@ -473,24 +473,32 @@ private fun LiveScreenContent(
             // 카메라 화면은 조작 요소 없이 미리보기만 보여 줍니다.
             cameraPage = {},
             homePage = {
-                LiveCameraTools(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(top = LiveStudioTopInset, end = 16.dp),
-                    canManageFace = canManageFace,
-                    onOpenVideoControls = { openVideoControls = true },
-                    onOpenFaceManagement = openFaceManagementScreen,
-                )
-                SessionUsageWarningBanner(
-                    noticeCode = activeNoticeCode,
-                    onDismissRequest = { code ->
-                        dismissedNoticeCodes = dismissedNoticeCodes + code
-                        if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
-                    },
+                // 사용량 안내가 뜨면 그 아래로 카메라 도구를 내려 서로 가리지 않게 합니다.
+                Column(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(start = 10.dp, top = LiveStudioTopInset, end = 10.dp),
-                )
+                        .fillMaxWidth()
+                        .padding(top = LiveStudioTopInset),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SessionUsageWarningBanner(
+                        noticeCode = activeNoticeCode,
+                        onDismissRequest = { code ->
+                            dismissedNoticeCodes = dismissedNoticeCodes + code
+                            if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
+                        },
+                        modifier = Modifier.padding(horizontal = 10.dp),
+                    )
+                    LiveCameraTools(
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .padding(top = 8.dp, end = 16.dp),
+                        canManageFace = canManageFace,
+                        onOpenVideoControls = { openVideoControls = true },
+                        onOpenFaceManagement = openFaceManagementScreen,
+                    )
+                }
 
                 Column(
                     modifier = Modifier
@@ -1027,7 +1035,7 @@ private fun LiveFaceManagement(
 }
 
 /**
- * 기본 화면의 카메라 도구입니다. 미리보기를 가리지 않도록 오른쪽 가장자리에 세로로 두고,
+ * 기본 화면의 카메라 도구입니다. 미리보기를 가리지 않도록 오른쪽 위에 세로로 두고,
  * 아이콘 아래에 이름을 함께 보여 줍니다.
  */
 @Composable
