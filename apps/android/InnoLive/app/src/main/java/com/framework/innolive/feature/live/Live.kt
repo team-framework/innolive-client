@@ -7,6 +7,14 @@ import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.geometry.Offset
@@ -463,15 +471,17 @@ private fun LiveScreenContent(
             // 카메라 화면은 조작 요소 없이 미리보기만 보여 줍니다.
             cameraPage = {},
             homePage = {
-                // 사용량 안내가 뜨면 그 아래로 카메라 도구를 내려 서로 가리지 않게 합니다.
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .padding(top = LiveStudioTopInset),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                // 카메라 도구는 사용량 안내 아래에 두고, 오른쪽에 붙은 작은 창과 겹치면 그 아래로 내립니다.
+                // 안내 높이와 작은 창 자리가 바뀌면 같은 스프링으로 따라 움직여 위치가 한 번에 튀지 않습니다.
+                val density = LocalDensity.current
+                var pageHeightPx by remember { mutableIntStateOf(0) }
+                var bannerHeightPx by remember { mutableIntStateOf(0) }
+                var toolsHeightPx by remember { mutableIntStateOf(0) }
+                Box(Modifier.matchParentSize().onSizeChanged { pageHeightPx = it.height })
+                Box(
+                    Modifier.align(Alignment.TopCenter).padding(top = LiveStudioTopInset).fillMaxWidth()
+                        .onSizeChanged { bannerHeightPx = it.height },
                 ) {
-                    // 배너와의 간격은 버튼 위 여백으로 둬서 배너가 사라질 때 간격이 한 번에 튀지 않게 합니다.
                     SessionUsageWarningBanner(
                         noticeCode = activeNoticeCode,
                         onDismissRequest = { code ->
@@ -480,15 +490,31 @@ private fun LiveScreenContent(
                         },
                         modifier = Modifier.padding(horizontal = 10.dp),
                     )
-                    LiveCameraTools(
-                        modifier = Modifier
-                            .align(Alignment.End)
-                            .padding(top = 8.dp, end = 16.dp),
-                        canManageFace = canManageFace,
-                        onOpenVideoControls = { openVideoControls = true },
-                        onOpenFaceManagement = openFaceManagementScreen,
+                }
+                val toolsTargetTop = with(density) {
+                    cameraToolsTop(
+                        naturalTop = LiveStudioTopInset.toPx() + bannerHeightPx + 8.dp.toPx(),
+                        toolsHeight = toolsHeightPx.toFloat(),
+                        maxTop = pageHeightPx - LiveBottomControlsReserve.toPx() - toolsHeightPx,
+                        pipBounds = pipState.restingBounds.takeIf { pipState.isVisible && pipState.alignEnd },
+                        gap = 12.dp.toPx(),
                     )
                 }
+                val toolsTop by animateFloatAsState(
+                    targetValue = toolsTargetTop,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "cameraToolsTop",
+                )
+                LiveCameraTools(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset { IntOffset(0, toolsTop.roundToInt()) }
+                        .padding(end = 16.dp)
+                        .onSizeChanged { toolsHeightPx = it.height },
+                    canManageFace = canManageFace,
+                    onOpenVideoControls = { openVideoControls = true },
+                    onOpenFaceManagement = openFaceManagementScreen,
+                )
 
                 Column(
                     modifier = Modifier

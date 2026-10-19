@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import com.framework.innolive.R
 import kotlinx.coroutines.CoroutineScope
@@ -74,6 +75,9 @@ class LivePreviewPipState internal constructor(alignEnd: Boolean, verticalFracti
     internal val offset: Offset get() = dragOffset ?: settlingOffset ?: restingOffset()
 
     internal val bounds: Rect get() = Rect(offset, area.size)
+
+    /** 끌기를 마치고 가장자리에 붙었을 때의 자리입니다. 다른 버튼은 이 자리를 피해 움직입니다. */
+    internal val restingBounds: Rect get() = Rect(restingOffset(), area.size)
 
     private fun restingOffset() = Offset(
         x = if (alignEnd) area.maxX else area.minX,
@@ -121,6 +125,27 @@ class LivePreviewPipState internal constructor(alignEnd: Boolean, verticalFracti
             restore = { LivePreviewPipState(it[0] as Boolean, it[1] as Float) },
         )
     }
+}
+
+/** 기본 화면 하단의 방송 버튼과 상태 패널이 차지하는 높이입니다. 작은 창과 카메라 도구는 이 위에만 둡니다. */
+internal val LiveBottomControlsReserve = 168.dp
+
+/**
+ * 카메라 도구의 세로 위치입니다. 오른쪽에 붙은 작은 창과 겹치면 창 아래로 내리고,
+ * 아래 공간이 부족하면 원래 자리에 둡니다. 좌표는 모두 방송 화면 왼쪽 위 기준 픽셀입니다.
+ */
+internal fun cameraToolsTop(
+    naturalTop: Float,
+    toolsHeight: Float,
+    maxTop: Float,
+    pipBounds: Rect?,
+    gap: Float,
+): Float {
+    if (pipBounds == null || pipBounds.top >= naturalTop + toolsHeight || pipBounds.bottom <= naturalTop) {
+        return naturalTop
+    }
+    val below = pipBounds.bottom + gap
+    return if (below <= maxTop) below else naturalTop
 }
 
 /** 처음에는 지금처럼 상단 바 아래 왼쪽에 둡니다. */

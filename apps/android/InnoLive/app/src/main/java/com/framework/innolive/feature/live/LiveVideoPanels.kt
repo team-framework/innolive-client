@@ -69,7 +69,7 @@ fun LiveVideoPanels(
                 maxX = (constraints.maxWidth - size.width - margin).coerceAtLeast(margin),
                 minY = minY,
                 // 기본 화면 하단의 방송 버튼과 상태 패널은 가리지 않는 높이까지 내립니다.
-                maxY = (constraints.maxHeight - size.height - PipBottomReserve.toPx()).coerceAtLeast(minY),
+                maxY = (constraints.maxHeight - size.height - LiveBottomControlsReserve.toPx()).coerceAtLeast(minY),
             )
         }
         SideEffect {
@@ -124,7 +124,6 @@ fun LiveVideoPanels(
 
 private val PipMargin = 12.dp
 private val PipTopGap = 8.dp
-private val PipBottomReserve = 168.dp
 
 /** A locally protected preview must not inherit server return stalls or stale remote frames. */
 internal fun <T> liveMainVideoTrack(onDeviceProcessing: Boolean, isConnected: Boolean,
