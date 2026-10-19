@@ -10412,7 +10412,7 @@
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "AI & Faces Setting"
+            "value": "AI 및 얼굴 설정"
           }
         },
         "en": {
@@ -13727,6 +13727,116 @@
           "stringUnit": {
             "state": "translated",
             "value": "画面のぼかしはサーバー処理モードでのみ使用できます。"
+          }
+        }
+      }
+    },
+    "모든 플랫폼 재개": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 플랫폼 재개"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume all platforms"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのプラットフォームを再開"
+          }
+        }
+      }
+    },
+    "모든 플랫폼 일시 중지": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모든 플랫폼 일시 중지"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause all platforms"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すべてのプラットフォームを一時停止"
+          }
+        }
+      }
+    },
+    "앱 정보 및 계정": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 정보 및 계정"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App info and account"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリ情報とアカウント"
+          }
+        }
+      }
+    },
+    "가림 켜짐": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가림 켜짐"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masking on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化オン"
+          }
+        }
+      }
+    },
+    "가림 꺼짐": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "가림 꺼짐"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masking off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化オフ"
           }
         }
       }
