@@ -118,7 +118,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-md:text-[26px] max-md:font-bold">
+      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-md:self-start max-md:text-[26px] max-md:font-bold">
         {step === "verification" ? copy.verifyTitle : copy.signupTitle}
       </h1>
       {step === "verification" ? (

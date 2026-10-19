@@ -54,7 +54,7 @@ export function LoginForm() {
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-md:text-[26px] max-md:font-bold">
+      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-md:self-start max-md:text-[26px] max-md:font-bold">
         {copy.loginTitle}
       </h1>
       <div className="flex w-full flex-col items-start gap-2">
