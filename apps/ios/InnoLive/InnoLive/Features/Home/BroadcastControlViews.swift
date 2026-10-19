@@ -16,19 +16,46 @@ struct SettingsControlLabel: View {
 
 struct AnonymizationControlLabel: View {
     let isLoading: Bool
+    var isEnabled = false
 
     var body: some View {
-        Group {
+        VStack(spacing: 3) {
             if isLoading {
-                ProgressView()
-                    .controlSize(.small)
+                ProgressView().controlSize(.small)
             } else {
                 Image(systemName: "faceid")
                     .font(.body.weight(.semibold))
+                    .overlay(alignment: .bottomTrailing) {
+                        if isEnabled {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 9, weight: .bold))
+                                .offset(x: 5, y: 3)
+                        }
+                    }
             }
+            Text(isEnabled ? String(localized: "가림 켜짐") : String(localized: "가림 꺼짐"))
+                .font(.caption2.weight(.medium))
+                .lineLimit(1)
         }
-        .frame(width: BroadcastControlLayout.height, height: BroadcastControlLayout.height)
+        .frame(minWidth: 64, minHeight: BroadcastControlLayout.height)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+    }
+}
+
+struct StudioWarningLabel: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .innoLiveGlassBackground(cornerRadius: 12, overVideo: true)
+            .environment(\.colorScheme, .dark)
     }
 }
 
@@ -273,7 +300,8 @@ struct BroadcastFeedbackBanner: View {
             }
         }
         .padding(10)
-        .innoLiveGlassBackground(cornerRadius: 14)
+        .innoLiveGlassBackground(cornerRadius: 14, overVideo: true)
+        .environment(\.colorScheme, .dark)
     }
 }
 
@@ -288,7 +316,15 @@ struct StudioBroadcastSummaryLabel: View {
             ForEach(BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains)) { provider in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(channelTitle(for: provider)).font(.caption.weight(.semibold))
+                        HStack(spacing: 4) {
+                            if !youtube.isSettingsAccountConnected(provider) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .accessibilityHidden(true)
+                            }
+                            Text(channelTitle(for: provider))
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(youtube.isSettingsAccountConnected(provider) ? Color.white : Color.orange)
                         Text(broadcastTitle(for: provider))
                             .font(.subheadline.weight(.semibold)).lineLimit(1)
                     }

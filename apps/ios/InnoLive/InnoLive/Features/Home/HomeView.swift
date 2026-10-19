@@ -406,7 +406,7 @@ struct HomeView: View {
                     } else if page == .details {
                         StudioDetailsView(authentication: authentication, youtube: youtube, tutorial: startsLifecycle ? tutorial : nil)
                             .padding(.top, studioChromeTopInset)
-                            .padding(.bottom, bottomReservedHeight + 24)
+                            .padding(.bottom, isCompactLandscape ? max(bottomReservedHeight, 8) : bottomReservedHeight + 24)
                             .padding(.horizontal, 16)
                             .frame(maxWidth: isCompactLandscape ? .infinity : 560)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)

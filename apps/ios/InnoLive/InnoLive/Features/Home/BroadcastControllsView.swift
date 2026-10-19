@@ -143,9 +143,7 @@ struct BroadcastControllsView: View {
             }
 
             if let message = youtube.recordingCoordinator.notice {
-                Label(String(localized: "원본 저장") + ": " + message, systemImage: "exclamationmark.triangle")
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
+                StudioWarningLabel(title: String(localized: "원본 저장") + ": " + message, systemImage: "exclamationmark.triangle")
                     .accessibilityIdentifier("broadcast-recording-error")
             }
 
@@ -206,6 +204,7 @@ struct BroadcastControllsView: View {
         .buttonStyle(.plain)
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity)
+        .background(isReadyToStart ? Color.red : Color.clear, in: RoundedRectangle(cornerRadius: 10))
         .disabled(isPrimaryActionDisabled)
         .layoutPriority(1)
         .broadcastTutorialAnchor(.primaryButton)
@@ -222,11 +221,12 @@ struct BroadcastControllsView: View {
     private var anonymizationControl: some View {
         Button { isShowingAnonymizationActions = true } label: {
             AnonymizationControlLabel(
-                isLoading: youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur
+                isLoading: youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur,
+                isEnabled: youtube.isAnonymizationEnabled || youtube.isScreenBlurEnabled
             )
         }
         .buttonStyle(.plain)
-        .foregroundStyle(youtube.isAnonymizationEnabled || youtube.isScreenBlurEnabled ? Color.purple : Color.white)
+        .foregroundStyle(.white)
         .disabled(!isBroadcasting || youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur)
         .accessibilityLabel(String(localized: "비식별화"))
         .accessibilityValue(anonymizationStatuses.joined(separator: ", "))
@@ -276,16 +276,13 @@ struct BroadcastControllsView: View {
     @ViewBuilder
     private var criticalNotice: some View {
         if youtube.isDirectPublishSession, youtube.isDirectMicrophoneUnavailable, !youtube.directPublishStates.isEmpty {
-            Label(String(localized: "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.", table: "DirectPublish"), systemImage: "mic.slash.fill")
-                .font(.caption).foregroundStyle(.orange)
+            StudioWarningLabel(title: String(localized: "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.", table: "DirectPublish"), systemImage: "mic.slash.fill")
         }
         if !youtube.liveStartFailures.isEmpty {
-            Label(String(localized: "일부 플랫폼의 방송 시작에 실패했습니다. 방송 설정에서 확인하세요."), systemImage: "exclamationmark.triangle.fill")
-                .font(.caption).foregroundStyle(.orange)
+            StudioWarningLabel(title: String(localized: "일부 플랫폼의 방송 시작에 실패했습니다. 방송 설정에서 확인하세요."), systemImage: "exclamationmark.triangle.fill")
         }
         if !(youtube.responseState.details.resolutionSwitch?.failedTargets ?? []).isEmpty {
-            Label(String(localized: "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."), systemImage: "exclamationmark.triangle.fill")
-                .font(.caption).foregroundStyle(.orange)
+            StudioWarningLabel(title: String(localized: "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."), systemImage: "exclamationmark.triangle.fill")
         }
     }
 
@@ -337,6 +334,10 @@ struct BroadcastControllsView: View {
             || previewTransition == .stopping
             || ["preparing", "going_live"].contains(youtube.broadcastPhase)
             || (isBroadcasting && !youtube.isFeatureAvailable)
+    }
+
+    private var isReadyToStart: Bool {
+        isBroadcasting && !youtube.hasStartedYouTubeBroadcast && youtube.broadcastPhase == "prepared"
     }
 
     private var primaryActionHint: String {
