@@ -120,7 +120,7 @@ struct BroadcastControllsView: View {
         .alert(String(localized: "방송을 종료할까요?"), isPresented: $isConfirmingBroadcastEnd) {
             Button(String(localized: "취소"), role: .cancel) { pendingStopProvider = nil }
             Button(String(localized: "방송 종료"), role: .destructive, action: confirmBroadcastEnd)
-                .disabled(isControlActionLocked)
+                .disabled(isStopActionLocked)
         } message: {
             if let provider = pendingStopProvider {
                 Text(String(localized: "\(provider.title) 송출을 종료합니다."))
@@ -413,8 +413,12 @@ struct BroadcastControllsView: View {
         return youtube.isYouTubeBroadcastPaused ? String(localized: "방송 재개") : String(localized: "방송 일시 중지")
     }
 
+    private var isStopActionLocked: Bool {
+        youtube.isChangingStreamState || previewTransition == .stopping
+    }
+
     private func requestBroadcastEnd(_ provider: BroadcastSettingsProvider?) {
-        guard !isControlActionLocked else { return }
+        guard !isStopActionLocked else { return }
         pendingStopProvider = provider
         isConfirmingBroadcastEnd = true
     }
@@ -423,7 +427,7 @@ struct BroadcastControllsView: View {
         let provider = pendingStopProvider
         pendingStopProvider = nil
         Task {
-            guard !isControlActionLocked else { return }
+            guard !isStopActionLocked else { return }
             if let provider {
                 guard youtube.targetPolicy(provider).isBroadcastActive else { return }
             } else {
