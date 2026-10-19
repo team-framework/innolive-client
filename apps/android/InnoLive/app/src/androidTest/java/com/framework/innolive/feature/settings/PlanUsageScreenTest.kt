@@ -17,6 +17,9 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -51,11 +54,28 @@ class PlanUsageScreenTest {
     @Test fun settingsDisplaysPlanAndLockedModesOpenGuidance() {
         composeRule.setContent { MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = usage)) } } }
         composeRule.onNodeWithText("Beam").performScrollTo().assertExists()
+        // 방식별 시간은 상세 시간을 펼쳐야 보입니다.
+        composeRule.onNodeWithText(context.getString(R.string.plan_hd_single)).assertDoesNotExist()
+        composeRule.onNodeWithText(context.getString(R.string.plan_details)).performScrollTo().performClick()
         composeRule.onNodeWithText(context.getString(R.string.plan_hd_single)).performScrollTo().assertExists()
         saveScreenshot("plan-settings.png")
         composeRule.onNodeWithText(context.getString(R.string.plan_fhd_single)).performScrollTo().performClick()
         composeRule.onNodeWithText(context.getString(R.string.plan_mode_locked,
             context.getString(R.string.plan_fhd_single))).assertExists()
+    }
+
+    @Test fun planDetailsCollapseAgain() {
+        composeRule.setContent { MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = usage)) } } }
+        val details = composeRule.onNodeWithText(context.getString(R.string.plan_details)).performScrollTo()
+        details.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
+            context.getString(R.string.settings_collapsed)))
+        details.performClick()
+        composeRule.onNodeWithText(context.getString(R.string.plan_label_monthly)).assertExists()
+        details.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
+            context.getString(R.string.settings_expanded)))
+        details.performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText(context.getString(R.string.plan_label_monthly)).assertDoesNotExist()
     }
 
     @Test fun failedRefreshPreservesLastValuesAndCanRetry() {
