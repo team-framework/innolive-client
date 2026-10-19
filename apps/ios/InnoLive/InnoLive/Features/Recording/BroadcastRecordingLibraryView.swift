@@ -32,9 +32,9 @@ struct BroadcastRecordingLibraryView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(recording.createdAt, format: .dateTime.year().month().day().hour().minute())
-                            .font(.headline)
+                            .font(.subheadline.weight(.semibold))
                         Text(duration(recording.duration) + " · " + ByteCountFormatter.string(fromByteCount: recording.bytes, countStyle: .file))
-                            .font(.subheadline).foregroundStyle(.secondary)
+                            .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 .accessibilityIdentifier("broadcast-recording-" + recording.id.uuidString)
@@ -50,6 +50,9 @@ struct BroadcastRecordingLibraryView: View {
                 }
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "저장된 방송"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {

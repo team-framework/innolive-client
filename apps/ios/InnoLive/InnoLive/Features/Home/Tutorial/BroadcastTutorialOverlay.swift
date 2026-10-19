@@ -103,9 +103,13 @@ struct BroadcastTutorialCallout: View {
             if onSkip != nil || onPrimary != nil {
                 HStack(spacing: 12) {
                     if let onSkip {
-                        Button(String(localized: "건너뛰기", table: "BroadcastGuide"), action: onSkip)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Button(action: onSkip) {
+                            Text(String(localized: "건너뛰기", table: "BroadcastGuide"))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
                             .buttonStyle(.plain)
                             .accessibilityHint(String(localized: "안내는 설정에서 다시 볼 수 있어요.", table: "BroadcastGuide"))
                     }
@@ -299,6 +303,6 @@ private struct BroadcastTutorialHostModifier: ViewModifier {
 enum BroadcastLiveStatusTip {
     static var title: String { String(localized: "방송 상태는 여기서 확인해요", table: "BroadcastGuide") }
     static var message: String {
-        String(localized: "플랫폼별 송출 상태와 업로드 화질을 보여 드려요. 문제가 생기면 여기에 알려 드릴게요.", table: "BroadcastGuide")
+        String(localized: "방송 시간과 종료 버튼을 표시해요. 플랫폼별 상태와 화질은 오른쪽 방송 설정에서 확인하세요.", table: "BroadcastGuide")
     }
 }

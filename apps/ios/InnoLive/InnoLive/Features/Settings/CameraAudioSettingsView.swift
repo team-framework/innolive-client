@@ -62,8 +62,9 @@ struct CameraAudioSettingsView: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(InnoLiveSettingsLayout.pageInset)
         }
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "카메라 및 오디오"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -271,7 +272,7 @@ private struct VideoStabilizationSettingsRow: View {
                 Image(systemName: "video.badge.waveform")
                     .frame(width: 24)
                 Toggle(String(localized: "동영상 손떨림 보정"), isOn: enabled)
-                    .font(.body.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
             }
         }
     }
