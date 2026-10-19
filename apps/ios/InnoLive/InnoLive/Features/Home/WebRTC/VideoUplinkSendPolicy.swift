@@ -23,7 +23,8 @@ nonisolated enum VideoUplinkSessionMode: Equatable, Sendable {
     case onDeviceDirectPublish
 }
 
-/// 서버가 재인코딩하는 영상 업링크의 송신 정책. 값은 Android와 같다(client #557, #580).
+/// 서버가 재인코딩하는 영상 업링크의 송신 정책(client #557, #580). 시작·최대·fps·해상도 유지는 Android와 같다.
+/// 최소는 의도적으로 다르다. Android는 client #627부터 FHD 1Mbps·720p 0.5Mbps로 낮췄고 iOS는 3Mbps·1.5Mbps를 유지한다.
 ///
 /// 앱이 아무것도 설정하지 않으면 libwebrtc는 약 300kbps에서 램프업하고 1080p를 2.5Mbps로 묶으며,
 /// 대역폭이 흔들리면 해상도부터 내린다. 서버는 세션 해상도로 디코더를 고정하므로 낮은 입력이 그대로

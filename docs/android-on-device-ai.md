@@ -879,6 +879,22 @@ egress는 wall-clock CFR이라 그 공백이 정지 프레임으로 송출됐다
 디버그 빌드는 2초마다 `uplink_video reason= size= fps= encoder= target_bitrate=` 로그를
 두 모드 모두에서 남긴다. 실기기 재측정 결과는 별도로 기록한다.
 
+송신 하한(client #627, 2026-10-18): `WebRtcVideoTransportPolicy.kt`의 sender encoding 최소를
+FHD 3Mbps에서 1Mbps, 720p 1.5Mbps에서 0.5Mbps로 낮췄다. 최대 6Mbps·3Mbps, 30fps, `scaleResolutionDownBy` 1.0,
+MAINTAIN_RESOLUTION과 `setBitrate` 시작값 4Mbps·2Mbps는 그대로다. 하한이 링크보다 높으면 추정기가
+내려가지 못해 패킷 손실과 서버 키프레임 반복 요청이 이어졌다(S25 FHD 세션 4분 40초 중 송신 목표
+3000kbps 고정 구간 반복, 키프레임 요청 16회).
+
+- 온디바이스(앱 직접 송출) 세션도 `addVideoTransceiver`에서 같은 최소·최대·fps·해상도 유지를 받는다.
+  `setBitrate` 시작값·상한과 degradation 재지정은 서버 AI 세션에만 적용한다.
+- iOS(`VideoUplinkSendPolicy.swift`)는 최소 3Mbps·1.5Mbps를 유지하고 앱 직접 송출 세션에는 정책 대신
+  300kbps·15fps 제한을 쓴다. 두 차이 모두 의도한 것이다([iOS 영상 업링크 송신 정책](ios-video-uplink-send-policy.md)).
+- 단위 테스트는 두 정책 함수를 실제 순서대로 적용한 `RtpParameters` encoding 값을 JVM에서 확인한다.
+  네이티브 sender의 `setParameters` 왕복과 offer/answer 이후 유지는 JVM에서 확인할 수 없어 실기기 로그
+  `video_send_policy`·`uplink_sender`로 본다.
+- PR #628 실기기 기록: S25 FHD 서버 세션 송신 1080x1920 유지, 혼잡 구간 목표 비트레이트 1.0~2.1Mbps 하향 후
+  5.2Mbps 회복. 키프레임 요청 감소는 80초 표본 3회로 판단 보류, 장시간 비교 대기.
+
 2026-10-14 21:24·21:28, SM-S931N, `CodecComparisonDeviceTest`(productionProbe, onDevice=false,
 resolution=fhd, forceCodec=false) 각 120초 실측. 두 번 모두 `uplink_bitrate applied=true`,
 송신 해상도 1080x1920 유지, `initEncode` 1회(초기)이며 서버 AI H264 전환 로그는 없었다.

@@ -24,6 +24,7 @@
     <string name="direct_warning_microphone_unavailable">The microphone is unavailable. Streaming without sound.</string>
     <string name="direct_warning_microphone_silenced">Another app is using the microphone. Streaming without sound.</string>
     <string name="direct_warning_thermal">The device is hot. The broadcast may become unstable.</string>
+    <string name="direct_warning_anonymization_failing">De-identification is failing, so video is not being sent. The original video is never sent.</string>
     <string name="direct_warning_prepared_deadline">Start the broadcast within %1$s or the preparation will be canceled.</string>
     <string name="direct_warning_prepared_expired">The preparation was canceled after 10 minutes. Please prepare again.</string>
     <string name="direct_notice_target_stopped_by_server">The server ended the %1$s stream.</string>

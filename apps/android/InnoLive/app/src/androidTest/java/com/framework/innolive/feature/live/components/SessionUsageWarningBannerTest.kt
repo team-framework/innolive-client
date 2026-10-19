@@ -26,8 +26,24 @@ class SessionUsageWarningBannerTest {
         compose.runOnIdle { code.value = null }
         compose.mainClock.advanceTimeByFrame()
         compose.onNodeWithText(message).assertExists()
+        compose.mainClock.advanceTimeBy(48)
+        compose.onNodeWithText(message).assertExists()
         compose.mainClock.autoAdvance = true
         compose.waitForIdle()
         compose.onNodeWithText(message).assertDoesNotExist()
+    }
+
+    @Test fun replacedNoticeShowsTheNewMessage() {
+        val code = mutableStateOf<String?>("broadcast_limit_30m")
+        compose.setContent {
+            MaterialTheme { SessionUsageWarningBanner(noticeCode = code.value, onDismissRequest = {}) }
+        }
+        val previous = compose.activity.getString(R.string.session_notice_broadcast_limit_30m)
+        compose.onNodeWithText(previous).assertIsDisplayed()
+
+        compose.runOnIdle { code.value = "monthly_usage_80" }
+        compose.waitForIdle()
+        compose.onNodeWithText(compose.activity.getString(R.string.session_notice_monthly_usage_80)).assertExists()
+        compose.onNodeWithText(previous).assertDoesNotExist()
     }
 }
