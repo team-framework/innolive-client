@@ -36,7 +36,7 @@ struct UpgradeOfferView: View {
                             Text(option.needsSettings
                                  ? String(localized: "추가 플랫폼 설정", table: "UpgradeOffer")
                                  : String(localized: "이 방식으로 전환", table: "UpgradeOffer"))
-                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .frame(maxWidth: .infinity, minHeight: 28)
                         }
                         .innoLiveGlassButtonStyle(prominent: true)
                         .disabled(!youtube.canChangeBroadcastMode || option.supportedTargets == nil)
@@ -59,9 +59,10 @@ struct UpgradeOfferView: View {
                 .disabled(youtube.isHandlingUpgradeOffer || youtube.isChangingBroadcastMode || youtube.isSavingLiveSettings || youtube.isChangingStreamState)
                 .accessibilityIdentifier("upgrade-decline")
             }
-            }.padding(24)
+            }.padding(InnoLiveSettingsLayout.pageInset)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "방송 업그레이드 제안", table: "UpgradeOffer"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

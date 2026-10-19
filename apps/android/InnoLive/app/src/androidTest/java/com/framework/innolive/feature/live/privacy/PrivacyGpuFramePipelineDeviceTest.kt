@@ -166,7 +166,7 @@ class PrivacyGpuFramePipelineDeviceTest {
         } finally { padded.release() }
     }
 
-    @Test fun gaussianSmoothsPixelationBoundaryInsideProtectedArea() {
+    @Test fun gaussianSpreadsEdgeInsideProtectedAreaWithoutBlockGrid() {
         val source = source(320,320)
         try {
             for (y in 0 until 320) for (x in 0 until 320)
@@ -179,7 +179,7 @@ class PrivacyGpuFramePipelineDeviceTest {
                     try {
                         val left = pixels.dataY.get(160*pixels.strideY+145).toInt() and 255
                         val right = pixels.dataY.get(160*pixels.strideY+175).toInt() and 255
-                        // Pixelation alone leaves these points black/white. Gaussian must make a smooth gradient.
+                        // Sigma 48 at full resolution must turn the hard edge into a smooth gradient.
                         assertTrue("Gaussian missing: left=$left right=$right",left in 25..190 && right in 50..225 && left<right)
                     } finally { pixels.release() }
                 } finally { texture.release() }

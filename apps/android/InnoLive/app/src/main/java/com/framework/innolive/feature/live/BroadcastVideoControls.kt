@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.ui.theme.ModalGlassColor
+import com.framework.innolive.ui.theme.ModalTheme
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -58,33 +60,38 @@ fun BroadcastVideoControls(
     onDismiss: () -> Unit,
     mirrorPreviews: Boolean = false,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        // Dimming only the camera makes its colors look different from the preset cards.
-        scrimColor = Color.Transparent,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                // Keep the top of the camera visible so adjustments can be judged on the live preview.
-                .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.6f).dp)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+    ModalTheme {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            // Dimming only the camera makes its colors look different from the preset cards.
+            // 같은 이유로 뒤를 흐리게 하지 않고, 다른 모달과 같은 흰 유리 바탕만 씁니다.
+            scrimColor = Color.Transparent,
+            containerColor = ModalGlassColor,
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = stringResource(R.string.video_controls_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f),
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Outlined.Close, stringResource(R.string.action_close))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Keep the top of the camera visible so adjustments can be judged on the live preview.
+                    .heightIn(max = (LocalConfiguration.current.screenHeightDp * 0.6f).dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.video_controls_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Outlined.Close, stringResource(R.string.action_close))
+                    }
                 }
+                BroadcastVideoAdjustments(settings, captureState, previews, onSettingsChanged, mirrorPreviews)
             }
-            BroadcastVideoAdjustments(settings, captureState, previews, onSettingsChanged, mirrorPreviews)
         }
     }
 }

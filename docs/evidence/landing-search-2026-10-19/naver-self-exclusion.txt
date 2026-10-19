@@ -1,0 +1,92 @@
+
+  - heading "나만 빼고 얼굴 모자이크 검색 결과" [level=1]
+  - heading "AI 브리핑" [level=2]
+  - button "Feedback 박스 열기":
+  - link "전문가가 알려주는 초상권 침해의 개념과 기준 필모라 새 창 열림":
+    - /url: https://filmora.wondershare.kr/useful-information/portrait-rights-infringement.html
+    - generic: 전문가가 알려주는 초상권 침해의 개념과 기준
+    - generic: 필모라
+    - generic: 새 창 열림
+  - link "블러캠 — 얼굴·번호판 자동 블러 앱 App Store 새 창 열림":
+    - /url: https://apps.apple.com/kr/app/%EB%B8%94%EB%9F%AC%EC%BA%A0-%EC%96%BC%EA%B5%B4-%EB%B2%88%ED%98%B8%ED%8C%90-%EC%9E%90%EB%8F%99-%EB%B8%94%EB%9F%AC/id6759862099
+    - generic: 블러캠 — 얼굴·번호판 자동 블러 앱
+    - generic: App Store
+    - generic: 새 창 열림
+  - 'link "실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive innolive.studio 새 창 열림"':
+    - /url: https://innolive.studio/ko/live-mosaic
+    - generic: "실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive"
+    - generic: innolive.studio
+    - generic: 새 창 열림
+  - generic: "'나만 빼고 얼굴 모자이크'와 같이 특정 인물만 남기고 다른 사람들의 얼굴을 가리는 기능은 초상권 보호를 위해 다양한 사진 및 영상 편집 도구를 통해 구현할 수 있습니다."
+  - text: 나만 빼고 얼굴 모자이크/블러 처리 방법
+  - button "App Store +1":
+    - generic: App Store
+    - generic: "+1"
+  - table:
+    - rowgroup:
+      - row "구분 주요 기능 특징":
+        - columnheader "구분"
+        - columnheader "주요 기능"
+        - columnheader "특징"
+    - rowgroup:
+      - row "모바일 앱 내 얼굴 제외 자동 블러 AI가 모든 얼굴과 번호판을 자동 감지하며, 사용자가 지정한 얼굴만 남기고 나머지를 블러 처리합니다.":
+        - cell "모바일 앱"
+        - cell "내 얼굴 제외 자동 블러"
+        - cell "AI가 모든 얼굴과 번호판을 자동 감지하며, 사용자가 지정한 얼굴만 남기고 나머지를 블러 처리합니다."
+      - row "온라인 도구 특정 얼굴 제외 기능 사진을 업로드하면 AI가 얼굴을 감지하며, 사용자가 특정 얼굴을 클릭하여 모자이크에서 제외할 수 있습니다.":
+        - cell "온라인 도구"
+        - cell "특정 얼굴 제외 기능"
+        - cell "사진을 업로드하면 AI가 얼굴을 감지하며, 사용자가 특정 얼굴을 클릭하여 모자이크에서 제외할 수 있습니다."
+      - row "라이브 방송 솔루션 얼굴 비식별화 본인 얼굴을 공개 대상자로 등록하면 해당 얼굴은 보이고, 미등록 얼굴은 블러로 가려져 실시간으로 송출됩니다.":
+        - cell "라이브 방송 솔루션"
+        - cell "얼굴 비식별화"
+        - cell "본인 얼굴을 공개 대상자로 등록하면 해당 얼굴은 보이고, 미등록 얼굴은 블러로 가려져 실시간으로 송출됩니다."
+  - generic: 초상권 보호 및 관련 정보
+  - list:
+    - text: 초상권은 특정인임을 식별할 수 있는 얼굴과 같은 신체적 특징이 함부로 촬영되거나 공표되지 않고 이용되지 않을 권리입니다.
+    - button "필모라":
+      - generic: 필모라
+    - text: 타인의 얼굴이 포함된 사진을 SNS에 게시할 때는 해당인의 동의가 필요하며, 동의 없이 촬영 및 작성된 게시물은 초상권 침해에 해당할 수 있습니다.
+    - button "픽사이트 +1":
+      - generic: 픽사이트
+      - generic: "+1"
+    - text: 일부 도구는 서버 업로드 없이 브라우저에서 사진을 처리하여 개인정보가 안전하게 보호되도록 설계되어 있습니다.
+    - button "픽사이트":
+      - generic: 픽사이트
+    - text: 영상 편집 시에는 행인 얼굴을 자동으로 가리는 실시간 방송 모자이크 기능을 활용할 수 있으며, 본인 얼굴을 등록하여 제외할 수 있습니다.
+    - button "innolive.studio":
+      - generic: innolive.studio
+  - button "출처 4건 전체보기":
+    - generic: 출처 4건 전체보기
+  - link "App Store 블러캠 — 얼굴·번호판 자동 블러 앱 새 창 열림":
+    - /url: https://apps.apple.com/kr/app/%EB%B8%94%EB%9F%AC%EC%BA%A0-%EC%96%BC%EA%B5%B4-%EB%B2%88%ED%98%B8%ED%8C%90-%EC%9E%90%EB%8F%99-%EB%B8%94%EB%9F%AC/id6759862099
+    - generic: App Store
+    - generic: 블러캠 — 얼굴·번호판 자동 블러 앱
+    - generic: 새 창 열림
+  - link "픽사이트 AI 자동 얼굴 모자이크 | 사진 얼굴 자동 감지 블러 처리 무료 새 창 열림":
+    - /url: https://picksight.kr/tools/face-mosaic
+    - generic: 픽사이트
+    - generic: AI 자동 얼굴 모자이크 | 사진 얼굴 자동 감지 블러 처리 무료
+    - generic: 새 창 열림
+  - link "필모라 전문가가 알려주는 초상권 침해의 개념과 기준 새 창 열림":
+    - /url: https://filmora.wondershare.kr/useful-information/portrait-rights-infringement.html
+    - generic: 필모라
+    - generic: 전문가가 알려주는 초상권 침해의 개념과 기준
+    - generic: 새 창 열림
+  - 'link "innolive.studio 실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive 새 창 열림"':
+    - /url: https://innolive.studio/ko/live-mosaic
+    - generic: innolive.studio
+    - generic: "실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive"
+    - generic: 새 창 열림
+  - button "다음":
+  - text: AI 답변으로 정확하지 않은 정보가 포함될 수 있어요.
+  - button "정보 확인 도움말":
+  - button "복사하기":
+  - button "도움이 됐어요":
+    - generic "도움이 됐어요":
+  - button "도움되지 않았어요":
+    - generic "도움되지 않았어요":
+  - button "신고하기":
+    - generic "신고하기":
+  - button "펼쳐서 더보기":
+    - generic: 펼쳐서 더보기

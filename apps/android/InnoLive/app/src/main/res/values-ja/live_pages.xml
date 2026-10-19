@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="live_page_camera">カメラ画面</string>
+    <string name="live_page_home">ホーム画面</string>
+    <string name="live_page_settings">設定画面</string>
+    <string name="live_page_indicator">%3$s、%1$d/%2$dページ。左右にスワイプして画面を切り替え</string>
+    <string name="live_pip_description">プレビュー画面。ドラッグで移動可能</string>
+    <string name="live_pip_move_side">反対側に移動</string>
+    <string name="live_pip_move_vertical">上下に移動</string>
+</resources>

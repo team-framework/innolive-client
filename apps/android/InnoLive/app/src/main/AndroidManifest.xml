@@ -25,9 +25,11 @@
         android:theme="@style/Theme.MyApplication">
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
+        <!-- 카메라와 방송 연결은 화면 하나만 가져야 하므로 진입 경로가 달라도 같은 화면을 다시 씁니다. -->
         <activity
             android:name=".app.MainActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:label="@string/app_name"
             android:theme="@style/Theme.MyApplication"
             android:windowSoftInputMode="adjustResize">

@@ -15,6 +15,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -24,8 +26,8 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
-import com.framework.innolive.feature.settings.camera.CameraSetting
-import com.framework.innolive.feature.settings.camera.CameraSettingProps
+import com.framework.innolive.feature.settings.SettingsScreen
+import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.util.Locale
 import org.junit.Rule
@@ -110,15 +112,16 @@ class LocalizationScreenSmokeTest {
                 LocalConfiguration provides context.value.resources.configuration,
             ) {
                 MyApplicationTheme(dynamicColor = false) {
-                    CameraSetting(
-                        CameraSettingProps(
+                    SettingsScreen(
+                        SettingsScreenProps(
                             onBack = {},
+                            onOpenBroadcastSettings = {},
+                            profileName = "InnoLive User",
+                            profileEmail = "user@example.com",
+                            onLogout = {},
                             selectedResolution = "1920×1080",
                             selectedCameraDevice = "External Camera",
                             selectedAudioDevice = "Studio Microphone",
-                            onOpenResolutionOptions = {},
-                            onOpenCameraDeviceOptions = {},
-                            onOpenAudioDeviceOptions = {},
                         ),
                     )
                 }
@@ -129,12 +132,13 @@ class LocalizationScreenSmokeTest {
             val localized = localizedContext(language)
             composeRule.runOnIdle { context.value = localized }
             listOf(
-                R.string.settings_camera_audio,
                 R.string.label_camera_resolution,
                 R.string.label_camera_device,
                 R.string.label_audio_device,
+                R.string.video_stabilization,
             ).forEach { id ->
-                composeRule.onNodeWithText(localized.getString(id)).assertExists()
+                // 일본어는 카메라 구역 이름과 카메라 줄 이름이 같아 첫 항목만 확인합니다.
+                composeRule.onAllNodesWithText(localized.getString(id)).onFirst().assertExists()
             }
             composeRule.onNodeWithText("External Camera").assertExists()
             composeRule.onNodeWithText("Studio Microphone").assertExists()
@@ -151,15 +155,16 @@ class LocalizationScreenSmokeTest {
                 LocalDensity provides Density(LocalDensity.current.density, fontScale = 2f),
             ) {
                 Box(Modifier.width(320.dp).height(560.dp)) {
-                    CameraSetting(
-                        CameraSettingProps(
+                    SettingsScreen(
+                        SettingsScreenProps(
                             onBack = {},
+                            onOpenBroadcastSettings = {},
+                            profileName = "InnoLive User",
+                            profileEmail = "user@example.com",
+                            onLogout = {},
                             selectedResolution = "1920×1080",
                             selectedCameraDevice = "External Camera",
                             selectedAudioDevice = "Studio Microphone",
-                            onOpenResolutionOptions = {},
-                            onOpenCameraDeviceOptions = {},
-                            onOpenAudioDeviceOptions = {},
                         ),
                     )
                 }

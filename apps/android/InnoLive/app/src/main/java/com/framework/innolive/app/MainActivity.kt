@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -56,6 +57,7 @@ import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.live.CameraResolution
 import com.framework.innolive.feature.live.LiveScreen
 import com.framework.innolive.feature.live.LiveScreenProps
+import com.framework.innolive.feature.live.LiveSettingsPage
 import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
@@ -79,8 +81,6 @@ import com.framework.innolive.feature.live.sessionRecoveryScope
 import com.framework.innolive.feature.youtube.YouTubeApiException
 import com.framework.innolive.feature.settings.broadcast.BroadcastSetting
 import com.framework.innolive.feature.settings.broadcast.BroadcastSettingProps
-import com.framework.innolive.feature.settings.camera.CameraSetting
-import com.framework.innolive.feature.settings.camera.CameraSettingProps
 import com.framework.innolive.feature.settings.selection.OptionSelectionScreen
 import com.framework.innolive.feature.settings.selection.SettingOption
 import com.framework.innolive.feature.youtube.OperationGeneration
@@ -118,8 +118,6 @@ data object LoginRoute : AppRoute
 data object LiveRoute : AppRoute
 
 data object SettingsRoute : AppRoute
-
-data object CameraSettingRoute : AppRoute
 
 data object BroadcastSettingRoute : AppRoute
 
@@ -169,8 +167,9 @@ private fun CameraLensFacing.settingDisplayText(): UiText = when (this) {
     CameraLensFacing.FRONT -> UiText.Resource(R.string.camera_front)
 }
 
+// 내장 마이크의 제품명은 기기 모델명이라 기본 마이크로만 보여 주고, 외부 마이크는 기기 이름을 그대로 보여 줍니다.
 private fun AudioInputDevice.settingDisplayText(): UiText = if (isDefault) {
-    UiText.Resource(R.string.audio_device_default, listOf(name))
+    UiText.Resource(R.string.audio_device_default)
 } else {
     UiText.Dynamic(name)
 }
@@ -233,8 +232,6 @@ fun AppNavigation(
     val videoQualityPreferences = remember(context) { BroadcastVideoQualityPreferences(context) }
     var videoQualitySettings by remember(videoQualityPreferences) { mutableStateOf(videoQualityPreferences.load()) }
     var videoQualityCaptureState by remember { mutableStateOf(VideoQualityCaptureState()) }
-    val currentVideoQualitySettings = rememberUpdatedState(videoQualitySettings)
-    val currentVideoQualityCaptureState = rememberUpdatedState(videoQualityCaptureState)
     val updateVideoQualitySettings: (BroadcastVideoQualitySettings) -> Unit = { value ->
         val normalized = value.normalized()
         if (videoQualitySettings.stabilizationEnabled != normalized.stabilizationEnabled) {
@@ -767,6 +764,11 @@ fun AppNavigation(
             (context as? Activity)?.finish()
         }
     }
+    // 설정 페이지를 벗어나면 그 위에 열린 하위 설정까지 모두 닫고 방송 화면으로 돌아옵니다.
+    val closeSettings: () -> Unit = closeSettings@{
+        if (isDeletingAccount || isAccountDeletionPending || LiveRoute !in backStack) return@closeSettings
+        while (backStack.lastOrNull() != LiveRoute) backStack.removeLastOrNull()
+    }
 
     val connectYouTube: () -> Unit = connectYouTube@{
         if (
@@ -848,6 +850,7 @@ fun AppNavigation(
         authenticationSession.deleteAccount(webRtcSession::close)
     }
 
+    val showStudio = LiveRoute in backStack && session != null && !isAccountDeletionPending
     // Keep navigation callbacks current while the studio remains composed below settings.
     val visibleYouTubeAccount = youtubeAccount.takeIf {
         session != null && previousProfileEmail == session?.profileEmail
@@ -899,10 +902,89 @@ fun AppNavigation(
             profileEmail = session?.profileEmail.orEmpty(),
             planUsage = displayedPlanUsage,
             onOpenSettings = {
-                backStack.add(SettingsRoute)
+                if (backStack.lastOrNull() == LiveRoute) backStack.add(SettingsRoute)
             },
         ),
     )
+
+    // 설정 페이지는 넘기는 동안에도 내용이 보이도록 방송 화면 항목에서도 같은 설정 화면을 그립니다.
+    val settingsScreen: @Composable () -> Unit = {
+        SettingsScreen(
+            props = SettingsScreenProps(
+                onBack = closeSettings,
+                onOpenBroadcastSettings = {
+                    backStack.add(BroadcastSettingRoute)
+                },
+                selectedResolution = selectedResolution?.displayName.orEmpty(),
+                selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
+                selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
+                selectedPlatform = selectedBroadcastPlatform,
+                broadcastAccount = visibleYouTubeAccount?.channelTitle ?: youtubeAccountStatus.asString(),
+                onOpenResolutionOptions = {
+                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
+                },
+                onOpenCameraDeviceOptions = {
+                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_DEVICE))
+                },
+                onOpenAudioDeviceOptions = {
+                    backStack.add(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
+                },
+                videoQualitySettings = videoQualitySettings,
+                onVideoQualitySettingsChanged = updateVideoQualitySettings,
+                videoQualityCaptureState = videoQualityCaptureState,
+                profileName = session?.profileName.orEmpty(),
+                profileEmail = session?.profileEmail.orEmpty(),
+                planUsage = displayedPlanUsage,
+                planError = planError,
+                isPlanLoading = isPlanLoading,
+                onRefreshPlan = { planRefresh++ },
+                onLogout = {
+                    if (
+                        !isDeletingAccount &&
+                        !isAccountDeletionPending
+                    ) {
+                        youtubeAuthorizationOperation = null
+                        youtubeOperationGeneration.invalidate()
+                        youtubeOperationProfileEmail = null
+                        isYouTubeAuthorizationLaunched = false
+                        webRtcSession.close()
+                        authenticationSession.clear()
+                        youtubePreferencesStore.clearAccountData()
+                        updateYouTubeAccount(null)
+                        verifiedYouTubeProfileEmail = null
+                        youtubeAccountVerificationState =
+                            YouTubeAccountVerificationState.UNVERIFIED
+                        youtubeAccountStatus = UiText.Resource(
+                            R.string.youtube_status_sign_in_required,
+                        )
+                        isYouTubeAccountActionInProgress = false
+                        backStack.clear()
+                        backStack.add(LoginRoute)
+                    }
+                },
+                onDeleteAccount = deleteAccount,
+                isDeletingAccount = isDeletingAccount,
+                isAccountDeletionPending = isAccountDeletionPending,
+                isAccountDeletionCleanupPending =
+                    accountDeletionState.localCleanupPending,
+                accountDeletionError = accountDeletionState.error,
+                onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
+                canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
+                onSelectAIProcessing = { onDevice ->
+                    webRtcSession.selectAIProcessing(context, onDevice)
+                },
+                canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
+                    webRtcSession.broadcastState == BroadcastState.IDLE &&
+                    !webRtcSession.isPreparingBroadcast,
+                onReplayBroadcastGuide = {
+                    broadcastTutorial.restart()
+                    closeSettings()
+                },
+                onOpenRecordings = { if (canOpenRecordings) backStack.add(RecordingsRoute) },
+                canOpenRecordings = canOpenRecordings,
+            ),
+        )
+    }
 
     val navigation: @Composable () -> Unit = {
     NavDisplay(
@@ -938,87 +1020,11 @@ fun AppNavigation(
                 }
 
                 LiveRoute -> {
-                    NavEntry(route) {}
+                    NavEntry(route) { if (showStudio) settingsScreen() }
                 }
 
                 SettingsRoute -> {
-                    NavEntry(route) {
-                        SettingsScreen(
-                            props = SettingsScreenProps(
-                                onBack = onBack,
-                                onOpenCameraSettings = {
-                                    backStack.add(CameraSettingRoute)
-                                },
-                                onOpenBroadcastSettings = {
-                                    backStack.add(BroadcastSettingRoute)
-                                },
-                                selectedResolution = selectedResolution?.displayName.orEmpty(),
-                                selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
-                                selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
-                                selectedPlatform = selectedBroadcastPlatform,
-                                broadcastAccount = visibleYouTubeAccount?.channelTitle ?: youtubeAccountStatus.asString(),
-                                onOpenResolutionOptions = {
-                                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
-                                },
-                                onOpenCameraDeviceOptions = {
-                                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_DEVICE))
-                                },
-                                onOpenAudioDeviceOptions = {
-                                    backStack.add(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
-                                },
-                                profileName = session?.profileName.orEmpty(),
-                                profileEmail = session?.profileEmail.orEmpty(),
-                                planUsage = displayedPlanUsage,
-                                planError = planError,
-                                isPlanLoading = isPlanLoading,
-                                onRefreshPlan = { planRefresh++ },
-                                onLogout = {
-                                    if (
-                                        !isDeletingAccount &&
-                                        !isAccountDeletionPending
-                                    ) {
-                                        youtubeAuthorizationOperation = null
-                                        youtubeOperationGeneration.invalidate()
-                                        youtubeOperationProfileEmail = null
-                                        isYouTubeAuthorizationLaunched = false
-                                        webRtcSession.close()
-                                        authenticationSession.clear()
-                                        youtubePreferencesStore.clearAccountData()
-                                        updateYouTubeAccount(null)
-                                        verifiedYouTubeProfileEmail = null
-                                        youtubeAccountVerificationState =
-                                            YouTubeAccountVerificationState.UNVERIFIED
-                                youtubeAccountStatus = UiText.Resource(
-                                    R.string.youtube_status_sign_in_required,
-                                )
-                                        isYouTubeAccountActionInProgress = false
-                                        backStack.clear()
-                                        backStack.add(LoginRoute)
-                                    }
-                                },
-                                onDeleteAccount = deleteAccount,
-                                isDeletingAccount = isDeletingAccount,
-                                isAccountDeletionPending = isAccountDeletionPending,
-                                isAccountDeletionCleanupPending =
-                                    accountDeletionState.localCleanupPending,
-                                accountDeletionError = accountDeletionState.error,
-                                onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
-                                canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
-                                onSelectAIProcessing = { onDevice ->
-                                    webRtcSession.selectAIProcessing(context, onDevice)
-                                },
-                                canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
-                                    webRtcSession.broadcastState == BroadcastState.IDLE &&
-                                    !webRtcSession.isPreparingBroadcast,
-                                onReplayBroadcastGuide = {
-                                    broadcastTutorial.restart()
-                                    onBack()
-                                },
-                                onOpenRecordings = { if (canOpenRecordings) backStack.add(RecordingsRoute) },
-                                canOpenRecordings = canOpenRecordings,
-                            ),
-                        )
-                    }
+                    NavEntry(route) { settingsScreen() }
                 }
 
                 RecordingsRoute -> {
@@ -1026,41 +1032,6 @@ fun AppNavigation(
                         BroadcastRecordingLibraryScreen(
                             isSaving = webRtcSession.recordingState.status == BroadcastRecordingStatus.SAVING,
                             onBack = onBack,
-                        )
-                    }
-                }
-
-                CameraSettingRoute -> {
-                    NavEntry(route) {
-                        CameraSetting(
-                            props = CameraSettingProps(
-                                onBack = onBack,
-                                videoQualitySettings = currentVideoQualitySettings.value,
-                                onVideoQualitySettingsChanged = updateVideoQualitySettings,
-                                videoQualityCaptureState = currentVideoQualityCaptureState.value,
-                                selectedResolution = selectedResolution?.displayName.orEmpty(),
-                                selectedCameraDevice =
-                                    selectedCameraLensFacing.settingDisplayText().asString(),
-                                selectedAudioDevice = selectedAudioDevice
-                                    ?.settingDisplayText()
-                                    ?.asString()
-                                    .orEmpty(),
-                                onOpenResolutionOptions = {
-                                    backStack.add(
-                                        SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION),
-                                    )
-                                },
-                                onOpenCameraDeviceOptions = {
-                                    backStack.add(
-                                        SettingOptionRoute(SettingOptionType.CAMERA_DEVICE),
-                                    )
-                                },
-                                onOpenAudioDeviceOptions = {
-                                    backStack.add(
-                                        SettingOptionRoute(SettingOptionType.AUDIO_DEVICE),
-                                    )
-                                },
-                            ),
                         )
                     }
                 }
@@ -1245,18 +1216,26 @@ fun AppNavigation(
         },
     )
     }
-    val showStudio = LiveRoute in backStack && session != null && !isAccountDeletionPending
-    StudioSettingsLayer(
-        showStudio = showStudio,
-        showSettings = showStudio && backStack.lastOrNull() != LiveRoute,
-        onDismissSettings = onBack,
-        modifier = modifier,
-        studio = {
-            LiveScreen(webRtcSession = webRtcSession, props = liveScreenProps.value,
-                tutorial = broadcastTutorial)
-        },
-        navigation = navigation,
-    )
+    Box(modifier.fillMaxSize()) {
+        // 카메라는 Activity 수명 동안 유지하고, 설정은 그 위 페이지로 넘겨 봅니다. 설정 화면 이동이 캡처를 멈추지 않습니다.
+        if (showStudio) {
+            LiveScreen(
+                webRtcSession = webRtcSession,
+                props = liveScreenProps.value,
+                tutorial = broadcastTutorial,
+                settings = LiveSettingsPage(
+                    isOpen = backStack.lastOrNull() != LiveRoute,
+                    canLeaveBySwipe = backStack.lastOrNull() in setOf(LiveRoute, SettingsRoute) &&
+                        !isDeletingAccount && !isAccountDeletionPending,
+                    onOpen = { if (backStack.lastOrNull() == LiveRoute) backStack.add(SettingsRoute) },
+                    onClose = closeSettings,
+                    content = navigation,
+                ),
+            )
+        } else {
+            navigation()
+        }
+    }
     youtubeAccountGuidance?.let { guidance ->
         ServerErrorDialog(
             guidance = guidance,

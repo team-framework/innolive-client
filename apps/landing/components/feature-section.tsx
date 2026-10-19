@@ -1,5 +1,7 @@
 "use client";
 
+import { StaticArtwork } from "@/components/static-artwork";
+
 import Image from "next/image";
 import { observeSectionAnimation } from "@/lib/landing-animation";
 import { useEffect, useRef } from "react";
@@ -17,6 +19,37 @@ const portraitCrop = {
   width: "100.04%",
   left: "-0.02%",
   top: 0,
+} as const;
+
+// Text version of features-lettering.svg (725 × 75). Both parts sit beside the blurred face:
+// the start ends at x 382 and the end starts at x 518. Both parts may reach 36 units into the
+// card padding for longer copy. Widths are per-locale em at weight 700 with -0.02em tracking.
+// shift moves the portrait and the gap left (% of the 725 box) to even out the side margins.
+const letteringLayout = {
+  ko: { startEm: 0, endEm: 0, shift: 0 },
+  en: { startEm: 7.25, endEm: 5.15, shift: 4.41 },
+  ja: { startEm: 5.25, endEm: 3, shift: 0 },
+} as const;
+
+function letteringLayoutFor(locale: string) {
+  return letteringLayout[locale as keyof typeof letteringLayout] ?? letteringLayout.en;
+}
+
+function letteringFontStyle(locale: string) {
+  const { startEm, endEm, shift } = letteringLayoutFor(locale);
+  return {
+    fontSize: `min(11.5cqw, calc(${57.66 - shift}cqw / ${startEm}), calc(${33.52 + shift}cqw / ${endEm}))`,
+  };
+}
+
+// The lettering box spans 82.94% of the card, so a box shift is scaled to card width.
+function portraitPositionStyle(locale: string) {
+  const cardShift = letteringLayoutFor(locale).shift * 0.8294;
+  return { left: `${30.78 - cardShift}%`, right: `${8.35 + cardShift}%` };
+}
+
+const letteringAiStyle = {
+  backgroundImage: "linear-gradient(90deg, #6C63FF 0%, #4F8CFF 83%, #22D3EE 124%)",
 } as const;
 
 const portraitSizes = "(min-width: 106.5rem) 532px, 80vw";
@@ -115,7 +148,8 @@ export function FeatureSection() {
                 duration: 0.8,
                 ease: "power2.out",
                 scrollTrigger: {
-                  start: "top 70%",
+                  // Reveal as each card enters; a 70% start left the lower third of phones blank.
+                  start: "top 92%",
                   toggleActions: "restart none restart reverse",
                   trigger: card,
                 },
@@ -169,11 +203,9 @@ export function FeatureSection() {
                   <p className="text-[clamp(3.5rem,1.6rem+8vw,7.5rem)] font-extrabold leading-none text-text-reversed">
                     25ms
                   </p>
-                  <div className="flex items-start gap-1">
-                    <p className="break-keep text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-none text-text-reversed">
-                      {messages.features.latency}
-                    </p>
-                    <span className="relative mt-0.5 inline-block h-[11.667px] w-[10.104px] shrink-0">
+                  <p className="text-balance break-keep text-center text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-[1.15] text-text-reversed">
+                    {messages.features.latency}
+                    <span className="relative ml-1 inline-block h-[11.667px] w-[10.104px] align-top">
                       <span className="absolute inset-[-7.14%_-8.25%]">
                         <Image
                           src="/landing/features-asterisk.svg"
@@ -185,7 +217,7 @@ export function FeatureSection() {
                         />
                       </span>
                     </span>
-                  </div>
+                  </p>
                 </div>
               </div>
 
@@ -197,21 +229,17 @@ export function FeatureSection() {
                 <div data-feature-content className="flex w-full flex-col items-center gap-[19px]">
                   <div className="flex w-full max-w-[810px] flex-wrap content-center items-center justify-center gap-x-6 gap-y-6 min-[106.5rem]:gap-x-[100px]">
                     <div className="relative aspect-[307/134] w-[min(100%,19.1875rem)]">
-                      <Image
-                        src="/landing/youtube-logo.png"
+                      <StaticArtwork
+                        artwork="youtube-logo"
                         alt="YouTube"
-                        width={1705}
-                        height={573}
                         sizes="307px"
                         className="absolute inset-0 size-full max-w-none object-cover"
                       />
                     </div>
                     <div className="relative aspect-[268/84] w-[min(100%,16.772rem)]">
-                      <Image
-                        src="/landing/chzzk-logo.png"
+                      <StaticArtwork
+                        artwork="chzzk-logo"
                         alt={messages.features.chzzkAlt}
-                        width={1920}
-                        height={601}
                         sizes="268px"
                         className="absolute inset-0 size-full max-w-none object-cover"
                       />
@@ -236,7 +264,7 @@ export function FeatureSection() {
               >
                 <div
                   data-feature-content
-                  className="absolute inset-[39.68%_8.62%_40.08%_8.44%]"
+                  className="absolute inset-[39.68%_8.62%_40.08%_8.44%] [container-type:size]"
                 >
                   {locale === "ko" ? (
                     <Image
@@ -248,12 +276,29 @@ export function FeatureSection() {
                       className="absolute inset-0 size-full max-w-none"
                     />
                   ) : (
-                    <p className="flex size-full items-center justify-center text-center text-[clamp(1.25rem,0.9rem+1.6vw,2.35rem)] font-extrabold leading-none text-text-primary">
-                      {messages.features.lettering}
+                    <p
+                      className="absolute inset-0 whitespace-nowrap font-bold leading-none tracking-[-0.02em] text-text-primary"
+                      style={letteringFontStyle(locale)}
+                    >
+                      <span
+                        className="absolute inset-y-0 left-[-4.97%] flex items-center justify-end"
+                        style={{ right: `${47.31 + letteringLayoutFor(locale).shift}%` }}
+                      >
+                        <span className="bg-clip-text text-transparent" style={letteringAiStyle}>
+                          AI
+                        </span>
+                        &nbsp;{messages.features.letteringStart}
+                      </span>
+                      <span
+                        className="absolute inset-y-0 right-[-4.97%] flex items-center"
+                        style={{ left: `${71.45 - letteringLayoutFor(locale).shift}%` }}
+                      >
+                        {messages.features.letteringEnd}
+                      </span>
                     </p>
                   )}
                 </div>
-                <div className="absolute inset-[10%_8.35%_0_30.78%]">
+                <div className="absolute bottom-0 top-[10%]" style={portraitPositionStyle(locale)}>
                   <div className="absolute inset-0 overflow-hidden">
                     <Image
                       src="/landing/features-portrait.png"
@@ -322,7 +367,7 @@ export function FeatureSection() {
             </div>
           </div>
 
-          <div className="flex w-full flex-col break-keep text-[length:clamp(1rem,0.9rem+0.4vw,1.25rem)] font-normal leading-[1.3] tracking-tight text-text-secondary">
+          <div className="flex w-full flex-col break-keep text-[length:clamp(max(13px,1rem),0.9rem+0.4vw,1.25rem)] font-normal leading-[1.3] tracking-tight text-text-secondary">
             <p>{messages.features.note1}</p>
             <p>{messages.features.note2}</p>
           </div>

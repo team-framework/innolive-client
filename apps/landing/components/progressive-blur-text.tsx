@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-export function ProgressiveBlurText({ text }: { text: string }) {
+export function ProgressiveBlurText({ text, revealOffset = 0 }: { text: string; revealOffset?: number }) {
   const rootRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -41,14 +41,26 @@ export function ProgressiveBlurText({ text }: { text: string }) {
         {Array.from(text).map((character, index) => (
           <span
             key={`${character}-${index}`}
-            style={{ "--character-blur": `${3 + index * 1.2}px` } as React.CSSProperties}
+            className="hero-typewriter-character"
+            style={{
+              "--character-blur": `${3 + index * 1.2}px`,
+              "--character-delay": `${(revealOffset + index + 1) * 40}ms`,
+            } as React.CSSProperties}
           >
             {character}
           </span>
         ))}
       </span>
       <span aria-hidden="true" className="progressive-sharp-layer">
-        {text}
+        {Array.from(text).map((character, index) => (
+          <span
+            key={index}
+            className="hero-typewriter-character"
+            style={{ "--character-delay": `${(revealOffset + index + 1) * 40}ms` } as React.CSSProperties}
+          >
+            {character}
+          </span>
+        ))}
       </span>
     </span>
   );

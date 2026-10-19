@@ -113,10 +113,15 @@
   /* The 15px floor only applies below ~560px wide, where the root font shrinks to ~11.5px. */
   --text-body-lg: max(15px, clamp(1rem, 0.82rem + 0.8vw, 1.5rem));
   --text-body-lg--line-height: 1.15;
-  --text-body: clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem);
+  /* Same small-screen floor as body-lg: long-form guide copy otherwise drops to ~13px on phones. */
+  --text-body: max(15px, clamp(1.125rem, 1.05rem + 0.35vw, 1.25rem));
   --text-body--line-height: 1;
-  --text-caption: 1rem;
+  --text-caption: max(13px, 1rem);
   --text-caption--line-height: 1.3;
+  /* Below ~580px wide the root font shrinks to ~11.2px, which would put body copy, footer and
+     nav labels near 11px and fine print near 10px. The floors are no-ops at tablet/desktop widths. */
+  --text-base: max(13px, 1rem);
+  --text-sm: max(12px, 0.875rem);
 }
 
 @layer base {
@@ -180,10 +185,12 @@
 }
 
 /* Japanese has no spaces between words, so keep-all leaves whole sentences unbreakable
-   and they overflow narrow screens (document-mdx already opts ja out of break-keep). */
-@media (max-width: 63.999rem) {
-  :lang(ja) .break-keep {
-    word-break: normal;
-    line-break: strict;
-  }
+   and they overflow their boxes (document-mdx also leaves ja out of break-keep).
+   auto-phrase breaks between phrases where supported; other browsers keep normal. */
+html:lang(ja),
+:lang(ja) .break-keep,
+:lang(ja) .max-md\:break-keep {
+  word-break: normal;
+  word-break: auto-phrase;
+  line-break: strict;
 }

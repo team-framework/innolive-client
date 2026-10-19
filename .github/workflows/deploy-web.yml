@@ -72,6 +72,20 @@ jobs:
             "$IMAGE" \
             node_modules/eslint/bin/eslint.js .
 
+      - name: Audit public search documents in the landing image
+        env:
+          IMAGE: innolive-landing-ci:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker run --rm --entrypoint node "$IMAGE" --test lib/structured-data.test.cjs
+          container=$(docker run -d -p 127.0.0.1:3109:3000 "$IMAGE")
+          trap 'docker stop "$container" >/dev/null' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3109/robots.txt >/dev/null; then break; fi
+            sleep 1
+          done
+          python3 apps/landing/scripts/audit-search.py http://127.0.0.1:3109 --output "$RUNNER_TEMP/search-audit.json"
+
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: validate
@@ -231,3 +245,14 @@ jobs:
           fi
 
           printf 'stage: public-version-verified %s\n' "$GITHUB_SHA"
+
+      - name: Verify deployed search documents
+        env:
+          SITE_URL: ${{ vars.INNOLIVE_WEB_SITE_URL }}
+        run: python3 apps/landing/scripts/audit-search.py "$SITE_URL" --output "$RUNNER_TEMP/search-live.json"
+
+      - name: Notify IndexNow after verified deployment
+        continue-on-error: true
+        env:
+          SITE_URL: ${{ vars.INNOLIVE_WEB_SITE_URL }}
+        run: python3 apps/landing/scripts/submit-indexnow.py "$SITE_URL" --submit

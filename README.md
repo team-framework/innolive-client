@@ -9,6 +9,9 @@ InnoLive Client는 AI 기반 실시간 비식별화 방송 서비스 InnoLive의
 
 [innolive.studio에서 체험하기](https://innolive.studio/)
 
+Framework 팀이 개발·운영합니다. [공식 제품 소개](https://innolive.studio/ko/about)에서
+InnoLive(이노라이브)의 사용 범위와 공식 채널을 확인할 수 있습니다.
+
 ## 핵심 기능
 
 - **선택적 비식별화**: AI가 영상 속 얼굴과 번호판을 탐지해 가립니다.

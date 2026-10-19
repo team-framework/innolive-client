@@ -162,7 +162,7 @@ class PrivacyPerformanceDeviceTest {
                     repeat(4) { sample ->
                         val started = System.nanoTime()
                         val output = PrivacyMaskRenderer.render(bitmap, ByteArray(160 * 160) { -1 },
-                            PrivacySegmentation.Letterbox(width, height), PrivacyMaskRenderer::pixelatedBlur)
+                            PrivacySegmentation.Letterbox(width, height), PrivacyMaskRenderer::broadcastBlur)
                         output.recycle()
                         Log.i(TAG, "protected_render_cpu=${width}x$height sample=$sample ms=${(System.nanoTime() - started) / 1e6}")
                     }

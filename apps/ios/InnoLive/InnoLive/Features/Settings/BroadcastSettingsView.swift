@@ -158,17 +158,18 @@ struct BroadcastSettingsView: View {
                     HStack {
                         if youtube.isChangingStreamState || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode { ProgressView() }
                         Text(prepareButtonTitle)
-                            .font(.body.weight(.semibold))
+                            .font(.subheadline.weight(.semibold))
                     }
-                    .frame(maxWidth: .infinity, minHeight: 46)
+                    .frame(maxWidth: .infinity, minHeight: 28)
                 }
                 .innoLiveGlassButtonStyle(prominent: true)
                 .tint(.blue)
                 .disabled(isPrepareButtonDisabled)
                 .broadcastTutorialAnchor(.startPreparation)
             }
-            .padding(24)
+            .padding(InnoLiveSettingsLayout.pageInset)
         }
+        .innoLiveSettingsPage()
         .navigationTitle(isLiveEditing ? String(localized: "방송 정보 수정") : String(localized: "방송 설정"))
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(String(localized: "방송할 채널", table: "YouTubeChannels"), isPresented: $isConfirmingChannel, titleVisibility: .visible) {
@@ -314,7 +315,7 @@ struct BroadcastSettingsView: View {
             titleField(text: Binding(get: { editor.youtube.title }, set: { value in editor.editYouTube { $0.title = value } }))
             card {
                 VStack(alignment: .leading) {
-                    Text(String(localized: "YouTube 방송 설명")).font(.body.weight(.semibold))
+                    Text(String(localized: "YouTube 방송 설명")).font(.subheadline.weight(.semibold))
                     TextEditor(text: Binding(get: { editor.youtube.description }, set: { value in editor.editYouTube { $0.description = value } }))
                         .frame(minHeight: 96).scrollContentBackground(.hidden)
                     fieldError("description")
@@ -322,7 +323,7 @@ struct BroadcastSettingsView: View {
             }
             card {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(String(localized: "공개 범위")).font(.body.weight(.semibold))
+                    Text(String(localized: "공개 범위")).font(.subheadline.weight(.semibold))
                     Picker(String(localized: "공개 범위"), selection: Binding(get: { editor.youtube.privacy }, set: { value in editor.editYouTube { $0.privacy = value } })) {
                         ForEach(YouTubeBroadcastPrivacy.allCases) { Text($0.title).tag($0) }
                     }.labelsHidden().disabled(isLiveEditing)
@@ -331,7 +332,7 @@ struct BroadcastSettingsView: View {
             }
             card {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(String(localized: "YouTube 시청자층")).font(.body.weight(.semibold))
+                    Text(String(localized: "YouTube 시청자층")).font(.subheadline.weight(.semibold))
                     Picker(String(localized: "YouTube 시청자층"), selection: Binding(get: { editor.youtube.audience }, set: { value in editor.editYouTube { $0.audience = value } })) {
                         Text(String(localized: "선택 필요")).tag(Optional<YouTubeBroadcastAudience>.none)
                         ForEach(YouTubeBroadcastAudience.allCases) { Text($0.title).tag(Optional($0)) }
@@ -342,7 +343,7 @@ struct BroadcastSettingsView: View {
             }
             card {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(String(localized: "카테고리")).font(.body.weight(.semibold))
+                    Text(String(localized: "카테고리")).font(.subheadline.weight(.semibold))
                     Picker(String(localized: "카테고리"), selection: Binding(get: { editor.youtube.categoryID ?? "" }, set: { value in editor.editYouTube { $0.categoryID = value } })) {
                         Text(String(localized: "기본 카테고리")).tag("")
                         if let id = editor.youtube.categoryID, !id.isEmpty, !editor.youtubeCategories.contains(where: { $0.id == id }) {
@@ -365,7 +366,7 @@ struct BroadcastSettingsView: View {
             titleField(text: Binding(get: { editor.chzzk.title }, set: { value in editor.editCHZZK { $0.title = value } }))
             card {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(String(localized: "치지직 카테고리")).font(.body.weight(.semibold))
+                    Text(String(localized: "치지직 카테고리")).font(.subheadline.weight(.semibold))
                     Text(editor.chzzk.categoryID.isEmpty ? String(localized: "카테고리 없음") : "\(editor.chzzk.categoryType) · \(editor.chzzk.categoryID)")
                         .font(.callout).foregroundStyle(.secondary)
                     Button(String(localized: "카테고리 없음")) {
@@ -388,7 +389,7 @@ struct BroadcastSettingsView: View {
             }
             card {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(String(localized: "치지직 태그")).font(.body.weight(.semibold))
+                    Text(String(localized: "치지직 태그")).font(.subheadline.weight(.semibold))
                     TextField(String(localized: "쉼표로 구분해 입력"), text: Binding(
                         get: { editor.chzzk.tags.joined(separator: ",") },
                         set: { value in editor.editCHZZK { $0.tags = value.isEmpty ? [] : value.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) } } }))
@@ -403,7 +404,7 @@ struct BroadcastSettingsView: View {
     private func titleField(text: Binding<String>) -> some View {
         card {
             VStack(alignment: .leading, spacing: 8) {
-                Text(String(localized: "방송 제목")).font(.body.weight(.semibold))
+                Text(String(localized: "방송 제목")).font(.subheadline.weight(.semibold))
                 TextField(String(localized: "방송 제목을 입력해 주세요"), text: text)
                 Text("\(text.wrappedValue.unicodeScalars.count)/100").font(.caption).foregroundStyle(.secondary)
                 fieldError("title")
@@ -418,7 +419,7 @@ struct BroadcastSettingsView: View {
         if let message = editor.fieldErrors[field] { Text(message).font(.footnote).foregroundStyle(.red) }
     }
     private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content().padding(16).frame(maxWidth: .infinity, alignment: .leading).innoLiveGlassBackground(cornerRadius: 16)
+        content().innoLiveSettingsCard()
     }
     private func searchCHZZK() { Task { await editor.searchCategories(query: query, accessToken: token) } }
     private func primaryAction() {

@@ -31,18 +31,31 @@ struct QuickFaceRegistrationButton: View {
     @ObservedObject var videoUplink: WebRTCVideoUplink
     @Binding var isSelecting: Bool
     let isEnabled: Bool
+    var isEmbedded = false
 
     var body: some View {
+        Group {
+            if isEmbedded {
+                button.buttonStyle(.plain)
+            } else {
+                button.innoLiveGlassButtonStyle(prominent: isSelecting, overVideo: true)
+            }
+        }
+        .frame(minWidth: 44, minHeight: 44)
+        .foregroundStyle(.white)
+        .tint(.blue)
+        .buttonBorderShape(.circle)
+    }
+
+    private var button: some View {
         Button {
             isSelecting.toggle()
         } label: {
             Image(systemName: isSelecting ? "xmark" : "person.crop.circle.badge.plus")
-                .font(.title3.weight(.semibold))
-                .frame(width: 44, height: 44)
+                .font(.system(size: 17, weight: .semibold))
+                .frame(width: isEmbedded ? 44 : 28, height: isEmbedded ? 44 : 28)
+                .contentShape(Rectangle())
         }
-        .innoLiveGlassButtonStyle(prominent: isSelecting)
-        .tint(.blue)
-        .buttonBorderShape(.circle)
         .disabled(
             !isSelecting
                 && (!isEnabled
@@ -51,6 +64,7 @@ struct QuickFaceRegistrationButton: View {
         )
         .accessibilityLabel(isSelecting ? String(localized: "얼굴 선택 취소") : String(localized: "얼굴 등록"))
         .accessibilityHint(String(localized: "화면에 보이는 얼굴을 탭해 비식별화에서 제외합니다."))
+        .accessibilityIdentifier("studio-face-registration")
     }
 }
 
@@ -213,20 +227,26 @@ struct GuestRegistrationToast: View {
                     Text(message)
                         .font(.footnote.weight(.semibold))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Button(canRetry ? String(localized: "다시 시도") : String(localized: "다시 선택")) {
+                    Button {
                         if canRetry {
                             registrar.retry()
                         } else {
                             registrar.dismiss()
                             onReselect()
                         }
+                    } label: {
+                        Text(canRetry ? String(localized: "다시 시도") : String(localized: "다시 선택"))
+                            .font(.footnote.weight(.bold))
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
-                    .font(.footnote.weight(.bold))
                     Button {
                         registrar.dismiss()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.footnote.weight(.bold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel(String(localized: "닫기"))
                 }
