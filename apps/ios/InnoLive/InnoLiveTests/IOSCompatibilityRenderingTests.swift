@@ -188,12 +188,16 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         try await renderPhoneChatControls(name: "iphone-16-pro-chat", size: CGSize(width: 402, height: 874))
     }
 
+    func testChatControlsAtIPhone16ProLandscapeSize() async throws {
+        try await renderPhoneChatControls(name: "iphone-16-pro-chat-landscape", size: CGSize(width: 874, height: 402))
+    }
+
     private func renderPhoneChatControls(name: String, size: CGSize) async throws {
         let fixture = RenderingFixture()
         defer { fixture.removePreferences() }
         for appearance in appearances {
             try await render(name, appearance: appearance, viewport: size) {
-                ScrollView {
+                GeometryReader { geometry in
                     ZStack(alignment: .bottom) {
                         LinearGradient(colors: [.indigo, .teal, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
                         YouTubeChatMessageList(messages: [
@@ -201,10 +205,10 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                             YouTubeChatMessage(id: "sample-2", author: "viewer", text: "화면과 소리 모두 잘 보여요"),
                             YouTubeChatMessage(id: "sample-3", author: "긴댓글", text: "댓글이 길어져도 이름과 본문이 화면 밖으로 잘리지 않고 여러 줄로 표시되어야 합니다.")
                         ])
-                            .frame(maxWidth: 340)
-                            .frame(height: 240)
+                            .frame(maxWidth: 280)
+                            .frame(height: size.width > size.height ? 150 : 180)
                             .padding(.horizontal, 24)
-                            .padding(.bottom, 160)
+                            .padding(.bottom, size.width > size.height ? 24 : 160)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                         BroadcastControllsView(
                             isBroadcasting: .constant(false), previewTransition: .constant(.none),
@@ -212,10 +216,12 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                             onPrepareBroadcast: { _ in XCTFail("Layout checks must not start broadcasts") },
                             onCancelPreparation: {}
                         )
+                        .frame(maxWidth: size.width > size.height ? 400 : .infinity)
                         .padding(.horizontal, 24)
                         .padding(.bottom, 12)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                     }
-                    .frame(height: size.height - 120)
+                    .frame(height: geometry.size.height)
                 }
                 .environment(fixture.camera)
                 .environment(\.horizontalSizeClass, .compact)
