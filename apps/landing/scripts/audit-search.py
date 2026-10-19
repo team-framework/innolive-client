@@ -20,6 +20,7 @@ class Page(HTMLParser):
     def __init__(self, source):
         super().__init__(convert_charrefs=True)
         self.meta, self.links, self.text, self.ld = {}, [], [], []
+        self.anchors = []
         self.h1 = 0
         self.title = ""
         self.in_title = False
@@ -32,6 +33,8 @@ class Page(HTMLParser):
         attrs = dict(attributes)
         if tag in ("p", "div", "section", "h1", "h2", "h3", "li", "td", "th", "button"):
             self.text.append(" ")
+        if tag == "a" and attrs.get("href"):
+            self.anchors.append(attrs["href"])
         if tag == "meta":
             self.meta[attrs.get("name", attrs.get("property", ""))] = attrs.get("content", "")
         if tag == "link":
@@ -82,6 +85,7 @@ def normalized(value):
 
 def run(origin):
     errors, pages = [], []
+    internal_links = set()
     def check(condition, message):
         if not condition:
             errors.append(message)
@@ -108,16 +112,27 @@ def run(origin):
         check(page.h1 == 1, f"{path}: h1 count {page.h1}")
         check(bool(page.title and page.meta.get("description")), f"{path}: title/description")
         check(any(link.get("rel") == "canonical" and link.get("href") == canonical for link in page.links), f"{path}: canonical")
-        check(all(any(link.get("hreflang") == lang for link in page.links) for lang in ("ko", "en", "ja", "x-default")), f"{path}: hreflang")
+        suffix = "/".join(path.split("/")[2:])
+        for lang in ("ko", "en", "ja", "x-default"):
+            target_locale = "ko" if lang == "x-default" else lang
+            expected = f"https://innolive.studio/{target_locale}" + (f"/{suffix}" if suffix else "")
+            check(any(link.get("hreflang") == lang and link.get("href") == expected for link in page.links), f"{path}: hreflang {lang}")
+        for href in page.anchors:
+            linked = urllib.parse.urlsplit(urllib.parse.urljoin(canonical, href))
+            if linked.scheme in ("http", "https") and linked.netloc == "innolive.studio":
+                internal_links.add(linked.path or "/")
         directives = page.meta.get("robots", "") + " " + " ".join(v for k, v in headers.items() if k.lower() == "x-robots-tag")
         check(not re.search(r"\b(noindex|none)\b", directives, re.I), f"{path}: noindex")
         check(bool(page.meta.get("og:title") and page.meta.get("twitter:card")), f"{path}: social metadata")
         check(record["faqAnswers"] == record["faqMatches"], f"{path}: FAQ not in visible HTML")
-        if path.count("/") == 1 or any(segment in path for segment in ("/blog/", "/compare/", "mosaic", "face-blur", "live-privacy", "/youtube", "/chzzk")):
+        if path.count("/") == 1 or any(segment in path for segment in ("/about", "/blog/", "/compare/", "mosaic", "face-blur", "live-privacy", "/youtube", "/chzzk")):
             check(bool(page.ld), f"{path}: missing JSON-LD")
         record["description"] = page.meta.get("description")
         pages.append(record)
 
+    sitemap_paths = {record["path"] for record in pages}
+    for path in sorted(internal_links - sitemap_paths):
+        check(get(origin + path)[0] == 200, f"{path}: broken internal link")
     for key in ("title", "description"):
         values = [page[key] for page in pages]
         check(len(set(values)) == len(values), f"duplicate {key}")
@@ -147,7 +162,7 @@ def run(origin):
             check(all("Disallow: /api/" in group for group in groups if "User-Agent:" in group), "crawler API exclusion")
     check(get(origin + "/ko/seo-audit-missing-20261019")[0] == 404, "missing page is not 404")
     return {"measuredAt": datetime.now(timezone.utc).isoformat(), "origin": origin,
-            "pageCount": len(pages), "faqAnswers": sum(p["faqAnswers"] for p in pages),
+            "pageCount": len(pages), "internalLinkTargets": len(internal_links), "faqAnswers": sum(p["faqAnswers"] for p in pages),
             "endpoints": endpoints, "pages": pages, "errors": errors}
 
 

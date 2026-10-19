@@ -27,17 +27,20 @@ function load(file) {
 const { seoGuidePaths, seoGuideLocales } = load(path.join(appRoot, "lib/seo-guide-paths.ts"));
 const { findSeoGuide } = load(path.join(appRoot, "lib/seo-guides.ts"));
 const { guideEvidence } = load(path.join(appRoot, "lib/guide-evidence.ts"));
+const report = process.argv[2] ? JSON.parse(fs.readFileSync(process.argv[2], "utf8")) : null;
 const inventory = seoGuideLocales.flatMap(locale => seoGuidePaths.map(guidePath => {
   const guide = findSeoGuide(guidePath, locale);
   const evidence = guideEvidence(guide, locale);
+  const url = `https://innolive.studio/${locale}${guidePath}`;
+  const metrics = report?.pages?.[url];
   return {
-    url: `https://innolive.studio/${locale}${guidePath}`,
+    url,
     locale, title: guide.title, targetQuestion: evidence.question, directAnswer: evidence.answer,
     type: guide.comparison ? "comparison" : guidePath.startsWith("/blog/") ? "article" : "guide",
     sourceCheckedAt: evidence.dataAsOf, firstPublishedAt: null,
     sources: evidence.sources, faqCount: guide.faq?.length ?? 0,
-    related: guide.related, status: "published", impressions28d: null, clicks28d: null,
-    measurementNote: "Unknown until matched with a dated search report; absence from report is not zero.",
+    related: guide.related, status: "published", impressions28d: metrics?.impressions ?? null, clicks28d: metrics?.clicks ?? null,
+    measurementNote: metrics ? `Observed ${report.observedAt}; ${report.filter}` : "Unknown until matched with a dated search report; absence from report is not zero.",
   };
 }));
 process.stdout.write(JSON.stringify(inventory, null, 2) + "\n");
