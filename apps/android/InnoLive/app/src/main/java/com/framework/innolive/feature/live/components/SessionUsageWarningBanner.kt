@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -53,6 +54,9 @@ fun SessionUsageWarningBanner(
     modifier: Modifier = Modifier,
 ) {
     val messageResource = noticeCode?.let(::sessionNoticeMessageResource)
+    // 안내를 닫으면 사라지는 동안에도 마지막 문구를 그려야 하므로 마지막으로 보인 문구를 기억합니다.
+    var lastMessageResource by remember { mutableStateOf(messageResource) }
+    SideEffect { if (messageResource != null) lastMessageResource = messageResource }
     val density = LocalDensity.current
     val swipeDismissThresholdPx = with(density) { 48.dp.toPx() }
     val fastSwipeThresholdPx = with(density) { 800.dp.toPx() }
@@ -113,7 +117,7 @@ fun SessionUsageWarningBanner(
             contentColor = Color.Black,
         ) {
             Text(
-                text = stringResource(checkNotNull(messageResource)),
+                text = (messageResource ?: lastMessageResource)?.let { stringResource(it) }.orEmpty(),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontSize = 18.sp,
