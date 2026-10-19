@@ -35,6 +35,28 @@ class PrivacyFaceLibraryDeviceTest {
         PrivacyFaceLibrary.clearForAccountDeletion(context, scope)
     }
 
+    @Test fun duplicateFaceIsRejectedUnlessAllowed() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val scope = SessionRecoveryScope("https://face-library-test", "duplicate-account").storageKey
+        val library = PrivacyFaceLibrary(context, scope)
+        try {
+            library.deleteAll()
+            val embedding = FloatArray(512).apply { this[0] = 1f }
+            library.add("Managed Person", embedding)
+            // 얼굴 관리 화면 등록은 같은 얼굴을 막고 저장소를 그대로 둡니다.
+            assertThrows(IllegalStateException::class.java) { library.add("Managed Again", embedding) }
+            assertEquals(listOf("Managed Person"), library.snapshot().map { it.name })
+            // 원탭 게스트 등록은 같은 얼굴도 새 항목으로 추가합니다.
+            library.add("Guest Again", embedding, allowDuplicate = true)
+            assertEquals(
+                listOf("Managed Person", "Guest Again"),
+                PrivacyFaceLibrary(context, scope).snapshot().map { it.name },
+            )
+        } finally {
+            PrivacyFaceLibrary.clearForAccountDeletion(context, scope)
+        }
+    }
+
     @Test fun switchingAccountsKeepsFaceLibrariesSeparate() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val firstScope = SessionRecoveryScope("https://face-library-test", "account-a").storageKey

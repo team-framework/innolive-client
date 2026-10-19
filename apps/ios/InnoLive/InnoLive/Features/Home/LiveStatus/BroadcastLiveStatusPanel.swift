@@ -31,7 +31,7 @@ struct BroadcastLiveStatusPanel: View {
         .font(.caption)
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .innoLiveGlassBackground(cornerRadius: 14)
+        .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 14))
         .onChange(of: uplinkQuality?.limitation) { _, limitation in
             guard let limitation else { return }
             AccessibilityNotification.Announcement(Self.warningText(limitation)).post()

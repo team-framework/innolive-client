@@ -81,13 +81,13 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
     }
 
     @Test fun settings() {
-        content { SettingsScreen(SettingsScreenProps({}, {}, {}, "테스트 사용자", "test@example.invalid", {})) }
+        content { SettingsScreen(SettingsScreenProps({}, {}, "테스트 사용자", "test@example.invalid", {})) }
         listOf(
             string(R.string.settings_title),
             "테스트 사용자",
             "test@example.invalid",
             string(R.string.action_logout),
-            string(R.string.settings_camera_audio),
+            string(R.string.video_stabilization),
             string(R.string.settings_broadcast),
         ).forEach { contrast(it) }
     }

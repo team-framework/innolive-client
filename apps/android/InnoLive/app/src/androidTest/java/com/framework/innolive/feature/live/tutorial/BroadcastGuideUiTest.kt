@@ -217,7 +217,6 @@ class BroadcastGuideUiTest {
                 SettingsScreen(
                     SettingsScreenProps(
                         onBack = {},
-                        onOpenCameraSettings = {},
                         onOpenBroadcastSettings = {},
                         profileName = "Tester",
                         profileEmail = "tester@example.com",

@@ -36,7 +36,7 @@ struct BroadcastModeView: View {
             VStack(alignment: .leading, spacing: 16) {
                 card {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(String(localized: "방송 화질", table: "BroadcastMode")).font(.headline)
+                        Text(String(localized: "방송 화질", table: "BroadcastMode")).font(.subheadline.weight(.semibold))
                         Picker(String(localized: "방송 화질", table: "BroadcastMode"), selection: $resolution) {
                             Text("720p").tag("720p")
                             Text("FHD").tag("fhd")
@@ -47,7 +47,7 @@ struct BroadcastModeView: View {
                 }
                 card {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(String(localized: "송출할 플랫폼", table: "Simulcast")).font(.headline)
+                        Text(String(localized: "송출할 플랫폼", table: "Simulcast")).font(.subheadline.weight(.semibold))
                         ForEach(BroadcastSettingsProvider.allCases) { provider in
                             Toggle(provider.title, isOn: Binding(
                                 get: { targets.contains(provider) },
@@ -88,7 +88,7 @@ struct BroadcastModeView: View {
                 if changesResolution {
                     card {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(String(localized: "화질 변경 안내", table: "BroadcastMode")).font(.headline)
+                            Text(String(localized: "화질 변경 안내", table: "BroadcastMode")).font(.subheadline.weight(.semibold))
                             Text(String(localized: "화질을 바꾸면 방송이 잠시 끊길 수 있습니다.", table: "BroadcastMode"))
                             if targets.contains(.youtube) {
                                 Text(String(localized: "YouTube는 새 방송 링크를 만듭니다. 시청자에게 새 링크를 안내해 주세요.", table: "BroadcastMode"))
@@ -128,15 +128,16 @@ struct BroadcastModeView: View {
                     else { submit() }
                 } label: {
                     Text(String(localized: "방송 방식 변경", table: "BroadcastMode"))
-                        .font(.body.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity, minHeight: 46)
                 }
                 .innoLiveGlassButtonStyle(prominent: true)
                 .tint(.blue)
                 .disabled(!canSubmit)
                 .accessibilityIdentifier("broadcast-mode-submit")
-            }.padding(24)
+            }.padding(InnoLiveSettingsLayout.pageInset)
         }
+        .innoLiveSettingsPage()
         .navigationTitle(String(localized: "방송 방식 변경", table: "BroadcastMode"))
         .navigationBarTitleDisplayMode(.inline)
         .task { await youtube.refreshPlan(accessToken: authentication.currentAccessToken()) }
@@ -190,7 +191,6 @@ struct BroadcastModeView: View {
     }
 
     private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content().padding(16).frame(maxWidth: .infinity, alignment: .leading)
-            .innoLiveGlassBackground(cornerRadius: 16)
+        content().innoLiveSettingsCard()
     }
 }

@@ -31,7 +31,9 @@ struct InnoLiveApp: App {
     @ViewBuilder
     private var rootView: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--live-broadcast-edit-preview") {
+        if ProcessInfo.processInfo.arguments.contains("--studio-preview") {
+            StudioValidationView()
+        } else if ProcessInfo.processInfo.arguments.contains("--live-broadcast-edit-preview") {
             LiveBroadcastEditingValidationView()
         } else if ProcessInfo.processInfo.arguments.contains("--broadcast-settings-preview") {
             BroadcastSettingsValidationView()
