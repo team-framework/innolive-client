@@ -81,7 +81,7 @@ struct HomeView: View {
                 || cameraManager.authorizationStatus == .restricted)
     }
 
-    var body: some View {
+    private var studioContent: some View {
         ZStack {
             // Face selection swaps the views: the original takes the main area and the broadcast the corner.
             if isSelectingFace {
@@ -204,7 +204,11 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .dynamicTypeSize(.medium)
         .accessibilityHidden(youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd)
-        .overlay {
+    }
+
+    var body: some View {
+        ZStack {
+            studioContent
             if let status = youtube.preparationStatus {
                 BroadcastPreparationOverlay(status: status) {
                     guard let provider = youtube.lastPreparationProvider else { return }
@@ -213,13 +217,9 @@ struct HomeView: View {
                     await cancelBroadcastPreparation()
                 }
             }
-        }
-        .overlay {
             BroadcastStartOverlay(lifecycle: youtube.lifecycle,
                                   orientation: broadcastOrientation.lockedOrientation,
                                   onCancel: youtube.cancelBroadcastCountdown)
-        }
-        .overlay {
             BroadcastEndPresentation(lifecycle: youtube.lifecycle, isRecordingEnabled: true,
                 onPlay: { recordingPlayback = BroadcastRecordingPlayback(url: $0) },
                 onSave: { recordingExport = BroadcastRecordingPlayback(url: $0) },

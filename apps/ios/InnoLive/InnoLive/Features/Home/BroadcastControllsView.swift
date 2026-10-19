@@ -197,6 +197,7 @@ struct BroadcastControllsView: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
                 } else {
                     YouTubeBroadcastControlLabel(
                         youtube: youtube,

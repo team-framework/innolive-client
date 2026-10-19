@@ -202,6 +202,8 @@ struct BroadcastSessionStatusView: View {
             if youtube.upgradeOffer != nil {
                 Button { isShowingUpgradeOffer = true } label: {
                     Label(String(localized: "방송 업그레이드 제안", table: "UpgradeOffer"), systemImage: "arrow.up.circle")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("upgrade-offer-entry")
             }
@@ -214,6 +216,8 @@ struct BroadcastSessionStatusView: View {
                     BroadcastModeView(authentication: authentication, youtube: youtube)
                 } label: {
                     Label(String(localized: "방송 방식 변경", table: "BroadcastMode"), systemImage: "arrow.triangle.2.circlepath")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
                 .disabled(!youtube.canChangeBroadcastMode || youtube.isSavingLiveSettings)
                 .accessibilityIdentifier("broadcast-mode-entry")
@@ -223,6 +227,8 @@ struct BroadcastSessionStatusView: View {
                     BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
                 } label: {
                     Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
                 .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode)
                 .accessibilityIdentifier("live-edit-" + provider.rawValue)

@@ -227,20 +227,26 @@ struct GuestRegistrationToast: View {
                     Text(message)
                         .font(.footnote.weight(.semibold))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Button(canRetry ? String(localized: "다시 시도") : String(localized: "다시 선택")) {
+                    Button {
                         if canRetry {
                             registrar.retry()
                         } else {
                             registrar.dismiss()
                             onReselect()
                         }
+                    } label: {
+                        Text(canRetry ? String(localized: "다시 시도") : String(localized: "다시 선택"))
+                            .font(.footnote.weight(.bold))
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
-                    .font(.footnote.weight(.bold))
                     Button {
                         registrar.dismiss()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.footnote.weight(.bold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel(String(localized: "닫기"))
                 }

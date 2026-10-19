@@ -94,8 +94,10 @@ struct StudioDetailsView: View {
                     destinationView(destination)
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) {
-                                Button(String(localized: "닫기")) { self.destination = nil }
-                                    .accessibilityIdentifier("studio-details-sheet-close")
+                                if destination != .recordings {
+                                    Button(String(localized: "닫기")) { self.destination = nil }
+                                        .accessibilityIdentifier("studio-details-sheet-close")
+                                }
                             }
                         }
                 }
@@ -161,8 +163,9 @@ struct StudioDetailsView: View {
                     BroadcastSessionStatusView(authentication: authentication, youtube: youtube)
                     StudioTargetControls(authentication: authentication, youtube: youtube)
                 }
-                .padding(24)
+                .padding(InnoLiveSettingsLayout.pageInset)
             }
+            .innoLiveSettingsPage()
             .navigationTitle(String(localized: "방송 상태 및 대상 관리"))
             .navigationBarTitleDisplayMode(.inline)
         case .broadcast:
@@ -241,7 +244,7 @@ struct StudioTargetControls: View {
                         .accessibilityIdentifier("studio-target-stop-" + provider.rawValue)
                         .disabled(!youtube.canStopBroadcastTargets)
                     }
-                    .buttonStyle(.bordered)
+                    .innoLiveGlassButtonStyle()
                 }
             }
         }
