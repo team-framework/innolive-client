@@ -182,12 +182,13 @@ class DirectBroadcastPresentationTest {
         assertEquals(R.string.live_status_target_failed, rows[1].labelRes)
     }
 
-    @Test fun warningsCoverSlateMicrophoneThermalAndPreparedDeadline() {
+    @Test fun warningsCoverSlateAnonymizationMicrophoneThermalAndPreparedDeadline() {
         val warnings = directStatusWarnings(
             DirectBroadcastUiState(
                 microphone = MicrophoneStatus.UNAVAILABLE,
                 slate = setOf(SlateReason.BACKGROUND, SlateReason.USER_PAUSE),
                 thermalWarning = true,
+                anonymizationFailing = true,
                 preparedDeadlineElapsedMillis = 10_000L + 125_000L,
             ),
             nowElapsedMillis = 10_000L,
@@ -195,6 +196,7 @@ class DirectBroadcastPresentationTest {
         assertEquals(
             listOf(
                 UiText.Resource(R.string.direct_warning_slate_paused),
+                UiText.Resource(R.string.direct_warning_anonymization_failing),
                 UiText.Resource(R.string.direct_warning_microphone_unavailable),
                 UiText.Resource(R.string.direct_warning_thermal),
                 UiText.Resource(R.string.direct_warning_prepared_deadline, listOf("2:05")),

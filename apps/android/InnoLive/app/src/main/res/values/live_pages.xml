@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="live_page_camera">카메라 화면</string>
+    <string name="live_page_home">기본 화면</string>
+    <string name="live_page_settings">설정 화면</string>
+    <string name="live_page_indicator">%3$s, %1$d/%2$d 페이지. 좌우로 넘겨 화면 이동</string>
+    <string name="live_pip_description">미리보기 창. 끌어서 위치를 옮길 수 있음</string>
+    <string name="live_pip_move_side">반대쪽으로 옮기기</string>
+    <string name="live_pip_move_vertical">위아래로 옮기기</string>
+</resources>

@@ -24,6 +24,7 @@
     <string name="direct_warning_microphone_unavailable">마이크를 사용할 수 없어 무음으로 송출하고 있습니다.</string>
     <string name="direct_warning_microphone_silenced">다른 앱이 마이크를 쓰고 있어 무음으로 송출하고 있습니다.</string>
     <string name="direct_warning_thermal">기기 온도가 높아 방송이 불안정할 수 있습니다.</string>
+    <string name="direct_warning_anonymization_failing">비식별화 처리에 실패하고 있어 영상을 송출하지 못하고 있습니다. 원본 영상은 송출하지 않습니다.</string>
     <string name="direct_warning_prepared_deadline">%1$s 안에 방송을 시작하지 않으면 준비가 취소됩니다.</string>
     <string name="direct_warning_prepared_expired">준비 후 10분이 지나 준비가 취소되었습니다. 다시 준비해 주세요.</string>
     <string name="direct_notice_target_stopped_by_server">서버가 %1$s 송출을 종료했습니다.</string>

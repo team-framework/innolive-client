@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live.components
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.ui.text.ServerErrorAction
 import com.framework.innolive.ui.text.ServerErrorGuidance
@@ -46,13 +47,8 @@ fun ServerErrorDialog(
         ServerErrorAction.PLAN -> R.string.plan_title
         else -> null
     }
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.cappedDialogWidth(400.dp),
-            shape = RoundedCornerShape(26.dp),
-            color = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
+    InnoLiveDialog(onDismissRequest = onDismiss) {
+        ModalSurface(modifier = Modifier.cappedDialogWidth(400.dp)) {
             Column(
                 modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),

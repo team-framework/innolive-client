@@ -1,8 +1,9 @@
 package com.framework.innolive.feature.live.components
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -166,12 +167,8 @@ internal fun BroadcastModeDialog(
     onConnectAccount: ((BroadcastProvider) -> Unit)? = null,
     canConnectAccount: (BroadcastProvider) -> Boolean = { true },
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.cappedDialogWidth(400.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surface,
-        ) {
+    InnoLiveDialog(onDismissRequest = onDismiss) {
+        ModalSurface(modifier = Modifier.cappedDialogWidth(400.dp)) {
             Column(
                 modifier = Modifier.padding(20.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
