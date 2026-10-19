@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.offset
@@ -471,13 +472,13 @@ private fun LiveScreenContent(
             // 카메라 화면은 조작 요소 없이 미리보기만 보여 줍니다.
             cameraPage = {},
             homePage = {
-                // 카메라 도구는 사용량 안내 아래에 두고, 오른쪽에 붙은 작은 창과 겹치면 그 아래로 내립니다.
+                // 카메라 도구는 사용량 안내 아래에 두고, 오른쪽에 붙은 작은 창과 겹치면 창 아래나 왼쪽으로 비켜 둡니다.
                 // 안내 높이와 작은 창 자리가 바뀌면 같은 스프링으로 따라 움직여 위치가 한 번에 튀지 않습니다.
                 val density = LocalDensity.current
-                var pageHeightPx by remember { mutableIntStateOf(0) }
+                var pageSize by remember { mutableStateOf(IntSize.Zero) }
                 var bannerHeightPx by remember { mutableIntStateOf(0) }
                 var toolsHeightPx by remember { mutableIntStateOf(0) }
-                Box(Modifier.matchParentSize().onSizeChanged { pageHeightPx = it.height })
+                Box(Modifier.matchParentSize().onSizeChanged { pageSize = it })
                 Box(
                     Modifier.align(Alignment.TopCenter).padding(top = LiveStudioTopInset).fillMaxWidth()
                         .onSizeChanged { bannerHeightPx = it.height },
@@ -491,24 +492,23 @@ private fun LiveScreenContent(
                         modifier = Modifier.padding(horizontal = 10.dp),
                     )
                 }
-                val toolsTargetTop = with(density) {
-                    cameraToolsTop(
+                val toolsTarget = with(density) {
+                    cameraToolsPlacement(
                         naturalTop = LiveStudioTopInset.toPx() + bannerHeightPx + 8.dp.toPx(),
                         toolsHeight = toolsHeightPx.toFloat(),
-                        maxTop = pageHeightPx - LiveBottomControlsReserve.toPx() - toolsHeightPx,
+                        toolsRight = pageSize.width - 16.dp.toPx(),
+                        maxTop = pageSize.height - pipState.bottomReservePx(this) - 12.dp.toPx() - toolsHeightPx,
                         pipBounds = pipState.restingBounds.takeIf { pipState.isVisible && pipState.alignEnd },
                         gap = 12.dp.toPx(),
                     )
                 }
-                val toolsTop by animateFloatAsState(
-                    targetValue = toolsTargetTop,
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                    label = "cameraToolsTop",
-                )
+                val toolsSpring = spring<Float>(stiffness = Spring.StiffnessMediumLow)
+                val toolsTop by animateFloatAsState(toolsTarget.top, toolsSpring, label = "cameraToolsTop")
+                val toolsShiftLeft by animateFloatAsState(toolsTarget.shiftLeft, toolsSpring, label = "cameraToolsShift")
                 LiveCameraTools(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .offset { IntOffset(0, toolsTop.roundToInt()) }
+                        .offset { IntOffset(-toolsShiftLeft.roundToInt(), toolsTop.roundToInt()) }
                         .padding(end = 16.dp)
                         .onSizeChanged { toolsHeightPx = it.height },
                     canManageFace = canManageFace,
@@ -519,6 +519,8 @@ private fun LiveScreenContent(
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        // 작은 창과 카메라 도구가 이 높이 위에만 놓이도록 실제 하단 영역 높이를 알려 줍니다.
+                        .onSizeChanged { pipState.bottomControlsHeightPx = it.height.toFloat() }
                         .padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),

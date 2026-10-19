@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
@@ -67,6 +68,12 @@ class LivePreviewPipState internal constructor(alignEnd: Boolean, verticalFracti
         private set
     internal var area by mutableStateOf(LivePreviewPipArea.Empty)
     internal var isVisible by mutableStateOf(false)
+    /** 기본 화면 하단의 방송 버튼과 상태 패널이 실제로 차지하는 높이입니다. 글자 크기와 안내에 따라 달라집니다. */
+    internal var bottomControlsHeightPx by mutableFloatStateOf(0f)
+
+    /** 작은 창과 카메라 도구가 비워 둘 하단 높이입니다. 측정 전에는 기본 높이를 씁니다. */
+    internal fun bottomReservePx(density: Density): Float =
+        maxOf(bottomControlsHeightPx, with(density) { LiveBottomControlsReserve.toPx() })
     private var dragOffset by mutableStateOf<Offset?>(null)
     private var settlingOffset by mutableStateOf<Offset?>(null)
     private val settle = Animatable(Offset.Zero, Offset.VectorConverter)
@@ -127,25 +134,31 @@ class LivePreviewPipState internal constructor(alignEnd: Boolean, verticalFracti
     }
 }
 
-/** 기본 화면 하단의 방송 버튼과 상태 패널이 차지하는 높이입니다. 작은 창과 카메라 도구는 이 위에만 둡니다. */
+/** 하단 방송 버튼과 상태 패널 높이를 재기 전에 비워 둘 기본 높이입니다. */
 internal val LiveBottomControlsReserve = 168.dp
 
+/** 카메라 도구를 원래 자리에서 옮길 거리입니다. [shiftLeft]만큼 왼쪽으로, [top] 높이에 둡니다. */
+internal data class CameraToolsPlacement(val top: Float, val shiftLeft: Float = 0f)
+
 /**
- * 카메라 도구의 세로 위치입니다. 오른쪽에 붙은 작은 창과 겹치면 창 아래로 내리고,
- * 아래 공간이 부족하면 원래 자리에 둡니다. 좌표는 모두 방송 화면 왼쪽 위 기준 픽셀입니다.
+ * 카메라 도구가 오른쪽에 붙은 작은 창과 겹치지 않을 자리입니다. 겹치지 않으면 원래 자리에 두고,
+ * 창 아래에 공간이 있으면 아래로 내리고, 없으면 같은 높이에서 창 왼쪽으로 비켜 둡니다.
+ * 좌표는 모두 방송 화면 왼쪽 위 기준 픽셀이고, [toolsRight]는 원래 자리의 오른쪽 끝입니다.
  */
-internal fun cameraToolsTop(
+internal fun cameraToolsPlacement(
     naturalTop: Float,
     toolsHeight: Float,
+    toolsRight: Float,
     maxTop: Float,
     pipBounds: Rect?,
     gap: Float,
-): Float {
+): CameraToolsPlacement {
     if (pipBounds == null || pipBounds.top >= naturalTop + toolsHeight || pipBounds.bottom <= naturalTop) {
-        return naturalTop
+        return CameraToolsPlacement(naturalTop)
     }
     val below = pipBounds.bottom + gap
-    return if (below <= maxTop) below else naturalTop
+    if (below <= maxTop) return CameraToolsPlacement(below)
+    return CameraToolsPlacement(naturalTop, shiftLeft = (toolsRight - (pipBounds.left - gap)).coerceAtLeast(0f))
 }
 
 /** 처음에는 지금처럼 상단 바 아래 왼쪽에 둡니다. */

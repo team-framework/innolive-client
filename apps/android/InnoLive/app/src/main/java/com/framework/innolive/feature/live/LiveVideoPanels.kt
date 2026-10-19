@@ -69,7 +69,8 @@ fun LiveVideoPanels(
                 maxX = (constraints.maxWidth - size.width - margin).coerceAtLeast(margin),
                 minY = minY,
                 // 기본 화면 하단의 방송 버튼과 상태 패널은 가리지 않는 높이까지 내립니다.
-                maxY = (constraints.maxHeight - size.height - LiveBottomControlsReserve.toPx()).coerceAtLeast(minY),
+                maxY = (constraints.maxHeight - size.height - pipState.bottomReservePx(this) - margin)
+                    .coerceAtLeast(minY),
             )
         }
         SideEffect {
