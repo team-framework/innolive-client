@@ -20,7 +20,7 @@ Lighthouse 13.5.0, Chrome 155.0.8059.84, 기본 모바일 simulated throttling,
 | Performance | 91 (83–94) | 93 (89–94) |
 | LCP | 3.532초 | 3.144초 |
 | TBT | 56ms | 19.5ms |
-| CLS | 0.023대 | 0 |
+| CLS | 0.02246 | 0 |
 | Speed Index | 1.748초 | 1.507초 |
 
 `cf284918`의 언어별 단일 측정은 모바일 한국어 93, 영어 97, 일본어 92점이며,
@@ -44,7 +44,7 @@ Lighthouse 13.5.0, Chrome 155.0.8059.84, 기본 모바일 simulated throttling,
 ## 운영 확인
 
 변경 전 운영 revision `25d7f819`의 한국어 모바일 단일 측정은 97점,
-LCP 2.605초, TBT 37ms, CLS 0.023대였다. 로컬 결과와 운영 결과를 직접 증감 비교하지 않는다.
+LCP 2.605초, TBT 37ms, CLS 0.02243이었다. 로컬 결과와 운영 결과를 직접 증감 비교하지 않는다.
 운영 배포는 main 병합 후 GitHub Actions에서 실행되며, 변경 후 운영 측정은 아직 수행하지 않았다.
 
 수치 근거는 `docs/landing-performance-evidence/2026-10-19/summary.json`에 있다.
