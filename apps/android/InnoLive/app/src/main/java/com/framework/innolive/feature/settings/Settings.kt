@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
@@ -72,7 +73,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(stringResource(R.string.settings_section_account), style = MaterialTheme.typography.bodySmall)
+            SettingsSectionLabel(stringResource(R.string.settings_section_account))
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -86,20 +87,20 @@ fun SettingsScreen(props: SettingsScreenProps) {
                 }
             }
             SettingsDivider()
-            Text(stringResource(R.string.settings_section_camera), style = MaterialTheme.typography.bodySmall)
+            SettingsSectionLabel(stringResource(R.string.settings_section_camera))
             SettingsValueRow(stringResource(R.string.label_camera_resolution), props.selectedResolution,
                 enabled, props.onOpenResolutionOptions)
             SettingsValueRow(stringResource(R.string.label_camera_device), props.selectedCameraDevice,
                 enabled, props.onOpenCameraDeviceOptions)
             SettingsDivider()
-            Text(stringResource(R.string.settings_section_audio), style = MaterialTheme.typography.bodySmall)
+            SettingsSectionLabel(stringResource(R.string.settings_section_audio))
             SettingsValueRow(stringResource(R.string.label_audio_device), props.selectedAudioDevice,
                 enabled, props.onOpenAudioDeviceOptions)
             TextButton(onClick = props.onOpenCameraSettings, enabled = enabled) {
                 Text(stringResource(R.string.settings_camera_audio))
             }
             SettingsDivider()
-            Text(stringResource(R.string.settings_section_live), style = MaterialTheme.typography.bodySmall)
+            SettingsSectionLabel(stringResource(R.string.settings_section_live))
             SettingsValueRow(stringResource(R.string.label_broadcast_platform), props.selectedPlatform,
                 enabled, props.onOpenBroadcastSettings)
             SettingsValueRow(stringResource(R.string.label_broadcast_account), props.broadcastAccount,
@@ -211,6 +212,13 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
             }
         }
     }
+}
+
+/** Figma 설정 창의 구역 이름처럼 작고 가는 글씨로 보여 줍니다. */
+@Composable
+private fun SettingsSectionLabel(text: String) {
+    Text(text, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Light,
+        modifier = Modifier.padding(top = 4.dp))
 }
 
 @Composable
