@@ -21,6 +21,7 @@ struct BroadcastControllsView: View {
     let onCancelPreparation: () async -> Void
     var tutorial: BroadcastTutorialCoordinator?
     var displayMode: BroadcastControlsDisplayMode = .basic
+    var faceRegistrationControl: AnyView? = nil
     var onPresentationChange: (Bool) -> Void = { _ in }
     var onBottomHeightChange: (CGFloat) -> Void = { _ in }
     var onTopHeightChange: (CGFloat) -> Void = { _ in }
@@ -153,7 +154,11 @@ struct BroadcastControllsView: View {
                     broadcastSummary
                 }
                 VStack(spacing: 8) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 8) {
+                        if let faceRegistrationControl {
+                            faceRegistrationControl
+                            Rectangle().fill(.white.opacity(0.2)).frame(width: 1, height: 24)
+                        }
                         primaryControl
                         if canCancelPreparation {
                             Button(role: .destructive, action: cancelPreparation) {

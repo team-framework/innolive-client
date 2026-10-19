@@ -176,6 +176,12 @@ struct HomeView: View {
                 onCancelPreparation: cancelBroadcastPreparation,
                 tutorial: startsLifecycle ? tutorial : nil,
                 displayMode: studioPage == .basic ? .basic : .minimal,
+                faceRegistrationControl: AnyView(QuickFaceRegistrationButton(
+                    videoUplink: youtube.videoUplink,
+                    isSelecting: $isSelectingFace,
+                    isEnabled: !usesSimulatorVideo && !isSwitchingCamera,
+                    isEmbedded: true
+                )),
                 onPresentationChange: { isShowingBroadcastPresentation = $0 },
                 onBottomHeightChange: { bottomReservedHeight = $0 },
                 onTopHeightChange: { liveHeaderHeight = $0 },
@@ -183,7 +189,7 @@ struct HomeView: View {
             )
                 .opacity(isLifecycleOverlayPresented ? 0 : 1)
                 .allowsHitTesting(!isLifecycleOverlayPresented)
-                .frame(maxWidth: isCompactLandscape ? 240 : .infinity)
+                .frame(maxWidth: isCompactLandscape ? 300 : .infinity)
                 .padding(.horizontal, 24)
                 .padding(.top, studioHeaderTopInset)
                 .padding(.bottom, 12)
@@ -554,12 +560,6 @@ struct HomeView: View {
                 .buttonBorderShape(.circle)
                 .accessibilityLabel(String(localized: "영상 조절"))
 
-                QuickFaceRegistrationButton(
-                    videoUplink: youtube.videoUplink,
-                    isSelecting: $isSelectingFace,
-                    isEnabled: !usesSimulatorVideo && !isSwitchingCamera
-                )
-
                 if isCameraAccessDenied {
                     Button {
                         isShowingCameraPermissionAlert = true
@@ -580,7 +580,7 @@ struct HomeView: View {
                 topTrailingReserved = size
             }
             .padding(.top, basicTopInset)
-            .padding(.trailing, isCompactLandscape ? 252 : 0)
+            .padding(.trailing, isCompactLandscape ? 312 : 0)
             .padding(.horizontal, 24)
             .frame(
                 maxWidth: .infinity,
