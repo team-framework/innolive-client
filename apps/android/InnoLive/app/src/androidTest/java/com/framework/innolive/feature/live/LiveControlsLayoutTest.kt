@@ -42,14 +42,14 @@ class LiveControlsLayoutTest {
 
     @Test
     fun cameraToolsStayReachableInShortViewport() {
-        showCameraTools(360.dp, 260.dp)
+        showCameraTools(360.dp, 340.dp)
         assertRightRail()
     }
 
     @Test
     fun cameraToolsScrollWhenViewportIsTooShort() {
         showCameraTools(360.dp, 120.dp)
-        compose.onNodeWithText(compose.activity.getString(R.string.face_management))
+        compose.onNodeWithText(compose.activity.getString(R.string.quick_face_select_start))
             .performScrollTo()
             .assertIsDisplayed()
     }
@@ -105,7 +105,7 @@ class LiveControlsLayoutTest {
     }
 
     private fun assertRightRail() {
-        val labels = listOf(R.string.video_controls_title, R.string.face_management)
+        val labels = listOf(R.string.video_controls_title, R.string.face_management, R.string.quick_face_select_start)
         val controls = labels.map { id ->
             compose.onNode(hasText(compose.activity.getString(id)) and hasClickAction())
                 .getUnclippedBoundsInRoot()
