@@ -1,0 +1,186 @@
+
+  - heading "AI Performance" [level=2]
+  - generic: "Citation sources: Microsoft Copilots and Partners"
+  - tablist:
+    - tab "7 D":
+      - generic: 7 D
+    - tab "30 D" [active] [selected]:
+      - generic: 30 D
+    - tab "3 M":
+      - generic: 3 M
+    - tab "6 M":
+      - generic: 6 M
+    - tab "Custom":
+      - generic: Custom
+    - tab "Compare":
+      - generic: Compare
+  - tabpanel "30 D"
+  - button "Download":
+    - generic: Download
+    - generic: 
+  - checkbox "Total Citations" [checked]:
+    - generic: Total Citations
+    - button "Total Citations info": 
+    - generic: "0"
+  - checkbox "Avg. Cited Pages" [checked]:
+    - generic: Avg. Cited Pages
+    - button "Avg. Cited Pages info": 
+    - generic: "0"
+  - generic: Citations
+  - generic: Cited Pages
+  - group "Line chart showing Citations,Cited Pages from September 19, 2026 to October 18, 2026. Citations:0,Cited Pages:0. Toggle checkboxes to show the selected options in chart":
+    - img "Line chart showing Citations,Cited Pages from September 19, 2026 to October 18, 2026. Citations:0,Cited Pages:0. Toggle checkboxes to show the selected options in chart":
+      - img "Line chart showing Citations,Cited Pages from September 19, 2026 to October 18, 2026. Citations:0,Cited Pages:0. Toggle checkboxes to show the selected options in chart"
+    - table:
+      - rowgroup:
+        - row "Date September 19, 2026 September 20, 2026 September 21, 2026 September 22, 2026 September 23, 2026 September 24, 2026 September 25, 2026 September 26, 2026 September 27, 2026 September 28, 2026 September 29, 2026 September 30, 2026 October 01, 2026 October 02, 2026 October 03, 2026 October 04, 2026 October 05, 2026 October 06, 2026 October 07, 2026 October 08, 2026 October 09, 2026 October 10, 2026 October 11, 2026 October 12, 2026 October 13, 2026 October 14, 2026 October 15, 2026 October 16, 2026 October 17, 2026 October 18, 2026":
+          - columnheader "Date"
+          - columnheader "September 19, 2026"
+          - columnheader "September 20, 2026"
+          - columnheader "September 21, 2026"
+          - columnheader "September 22, 2026"
+          - columnheader "September 23, 2026"
+          - columnheader "September 24, 2026"
+          - columnheader "September 25, 2026"
+          - columnheader "September 26, 2026"
+          - columnheader "September 27, 2026"
+          - columnheader "September 28, 2026"
+          - columnheader "September 29, 2026"
+          - columnheader "September 30, 2026"
+          - columnheader "October 01, 2026"
+          - columnheader "October 02, 2026"
+          - columnheader "October 03, 2026"
+          - columnheader "October 04, 2026"
+          - columnheader "October 05, 2026"
+          - columnheader "October 06, 2026"
+          - columnheader "October 07, 2026"
+          - columnheader "October 08, 2026"
+          - columnheader "October 09, 2026"
+          - columnheader "October 10, 2026"
+          - columnheader "October 11, 2026"
+          - columnheader "October 12, 2026"
+          - columnheader "October 13, 2026"
+          - columnheader "October 14, 2026"
+          - columnheader "October 15, 2026"
+          - columnheader "October 16, 2026"
+          - columnheader "October 17, 2026"
+          - columnheader "October 18, 2026"
+      - rowgroup:
+        - row "Total Citations 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0":
+          - cell "Total Citations"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+        - row "Avg. Cited Pages 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0":
+          - cell "Avg. Cited Pages"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+          - cell "0"
+  - generic: Citations
+  - generic: Cited Pages
+  - heading "List By" [level=3]
+  - tablist "List By":
+    - tab "Grounding Queries" [selected]:
+      - generic: Grounding Queries
+    - tab "Pages":
+      - generic: Pages
+  - tabpanel "Grounding Queries"
+  - button "Download all" [disabled]:
+    - generic: Download all
+    - generic: 
+  - generic: 
+  - textbox:
+    - /placeholder: Search your query
+  - button "Search":
+    - generic: Search
+  - generic: No data available
+  - grid "AI Search Queries Report":
+    - row "Grounding Query, sortable Intent, sortable Topic, sortable Citations, sortable, sorted descending order Citation Share, sortable":
+      - columnheader "Grounding Query, sortable":
+        - button "Grounding Query, sortable":
+          - generic: Grounding Query
+      - button
+      - columnheader "Intent, sortable":
+        - button "Intent, sortable":
+          - generic: Intent
+      - button
+      - columnheader "Topic, sortable":
+        - button "Topic, sortable":
+          - generic: Topic
+      - button
+      - columnheader "Citations, sortable, sorted descending order":
+        - button "Citations, sortable, sorted descending order":
+          - generic: Citations
+          - generic: 
+      - button
+      - columnheader "Citation Share, sortable":
+        - button "Citation Share, sortable":
+          - generic: Citation Share
+      - button
+    - paragraph: No data available
+  - navigation:
+    - generic: 0 rows
+  - generic: 
+  - paragraph: The data shown below represents a sample of overall activity. Results may be refined as additional data is processed
+  - link "learnmore":
+    - /url: /webmasters/help/9f8e7d6c
+    - generic: Learn more
+  - generic: 
+  - paragraph: Intent and topic labels are AI generated and can filter potentially unsafe queries.
+  - link "learnmore":
+    - /url: /webmasters/help/9f8e7d6c
+    - generic: Learn more

@@ -1,0 +1,598 @@
+{
+  "measuredAt": "2026-10-19T05:59:32.570538+00:00",
+  "origin": "http://127.0.0.1:3109",
+  "pageCount": 57,
+  "faqAnswers": 91,
+  "endpoints": {
+    "/llms.txt": {
+      "status": 200,
+      "bytes": 11741
+    },
+    "/llms-full.txt": {
+      "status": 200,
+      "bytes": 94349
+    },
+    "/feed.xml": {
+      "status": 200,
+      "bytes": 3472,
+      "items": 6
+    },
+    "/robots.txt": {
+      "status": 200,
+      "bytes": 783
+    }
+  },
+  "pages": [
+    {
+      "path": "/ko",
+      "status": 200,
+      "title": "라이브 방송 실시간 자동 모자이크 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 7,
+      "faqMatches": 7,
+      "description": "유튜브와 치지직(CHZZK) 라이브 방송에서 행인 얼굴을 실시간으로 감지하고 블러로 가리세요. InnoLive에서 공개할 얼굴을 등록하면 출연자의 얼굴은 보여 줍니다."
+    },
+    {
+      "path": "/en",
+      "status": 200,
+      "title": "Real-time De-identification & Face Blur App | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 6,
+      "faqMatches": 6,
+      "description": "Use InnoLive’s real-time de-identification app to blur bystanders on YouTube and CHZZK live streams while keeping registered faces visible."
+    },
+    {
+      "path": "/ja",
+      "status": 200,
+      "title": "InnoLive | ライブ配信のリアルタイム顔ぼかし・AI非識別化",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 6,
+      "faqMatches": 6,
+      "description": "InnoLiveでライブ配信中の未登録の顔をリアルタイムでぼかしてください。登録した出演者の顔を表示したまま、顔を保護する機能をブラウザで体験できます。"
+    },
+    {
+      "path": "/ko/about",
+      "status": 200,
+      "title": "InnoLive 소개 | Framework의 실시간 얼굴 블러 방송 앱",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "InnoLive는 Framework 팀의 라이브 방송 앱입니다. 등록한 출연자는 보여 주고 미등록 얼굴은 실시간 블러로 가려 유튜브·치지직으로 송출합니다."
+    },
+    {
+      "path": "/en/about",
+      "status": 200,
+      "title": "About InnoLive | Framework's live face blur app",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "InnoLive is a live streaming app by Framework. Keep registered guests visible, blur unregistered faces and stream to YouTube or CHZZK."
+    },
+    {
+      "path": "/ja/about",
+      "status": 200,
+      "title": "InnoLiveについて | Frameworkのリアルタイム顔ぼかし配信アプリ",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "InnoLiveはFrameworkチームのライブ配信アプリです。登録した出演者を表示し、未登録の顔をリアルタイムでぼかしてYouTube・CHZZKへ配信します。"
+    },
+    {
+      "path": "/ko/pricing",
+      "status": 200,
+      "title": "실시간 방송 블러·비식별화 요금제 | InnoLive",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "라이브 방송 얼굴 비식별화 요금제를 비교하세요. 무료 웹 체험과 방송 시간·얼굴 등록 수에 맞는 InnoLive 플랜을 확인하세요."
+    },
+    {
+      "path": "/en/pricing",
+      "status": 200,
+      "title": "Real-time Face Blur App Plans | InnoLive",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "Compare plans for InnoLive’s real-time de-identification service. Check free access, streaming time and face registration limits."
+    },
+    {
+      "path": "/ja/pricing",
+      "status": 200,
+      "title": "ライブ配信の顔ぼかし・非識別化料金プラン | InnoLive",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "リアルタイム顔非識別化のInnoLive料金プランを比較できます。無料のWeb体験から、配信時間や顔の登録人数に合ったプランをご確認ください。"
+    },
+    {
+      "path": "/ko/try-out",
+      "status": 200,
+      "title": "실시간 블러·얼굴 비식별화 체험 | InnoLive",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "카메라로 InnoLive의 실시간 블러를 체험하세요. 등록한 출연자는 보여주고 다른 얼굴을 가리는 라이브 방송 비식별화를 확인하세요."
+    },
+    {
+      "path": "/en/try-out",
+      "status": 200,
+      "title": "Try real-time face blur and de-identification | InnoLive",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "Try InnoLive's real-time face blur with your camera. See how AI de-identification keeps registered participants visible and blurs other faces for live streaming."
+    },
+    {
+      "path": "/ja/try-out",
+      "status": 200,
+      "title": "リアルタイム顔ぼかし・非識別化を体験 | InnoLive",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "カメラでInnoLiveのリアルタイム顔ぼかしを体験できます。登録した出演者の顔を表示し、他の人の顔をぼかすAI非識別化をご確認ください。"
+    },
+    {
+      "path": "/ko/support",
+      "status": 200,
+      "title": "고객 지원",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "서비스 이용, 오류, 계정 및 개인정보 관련 문의를 접수합니다."
+    },
+    {
+      "path": "/en/support",
+      "status": 200,
+      "title": "Customer Support",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "We accept inquiries about using the service, errors, accounts, and personal information."
+    },
+    {
+      "path": "/ja/support",
+      "status": 200,
+      "title": "カスタマーサポート",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "サービスの利用、エラー、アカウントおよび個人情報に関するお問い合わせを受け付けます。"
+    },
+    {
+      "path": "/ko/privacy",
+      "status": 200,
+      "title": "개인정보 처리방침",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "개인정보의 처리 항목, 목적과 보관·삭제 기준을 안내합니다."
+    },
+    {
+      "path": "/en/privacy",
+      "status": 200,
+      "title": "Privacy Policy",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "This document explains the personal information we process, the purposes of processing, and the criteria for retention and deletion."
+    },
+    {
+      "path": "/ja/privacy",
+      "status": 200,
+      "title": "個人情報取扱方針",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "個人情報の取扱い項目、目的、保管・削除の基準をご案内します。"
+    },
+    {
+      "path": "/ko/terms",
+      "status": 200,
+      "title": "이용약관",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "서비스 이용 조건과 이용자·운영팀의 권리 및 의무를 안내합니다."
+    },
+    {
+      "path": "/en/terms",
+      "status": 200,
+      "title": "Terms of Service",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "This document explains the conditions of use and the rights and obligations of users and the Operations Team."
+    },
+    {
+      "path": "/ja/terms",
+      "status": 200,
+      "title": "サービス利用規約",
+      "h1": 1,
+      "jsonLd": 0,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "サービスの利用条件と、利用者・運営チームの権利および義務をご案内します。"
+    },
+    {
+      "path": "/ko/guides/live-face-blur",
+      "status": 200,
+      "title": "라이브 블러·방송 모자이크 안내 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "라이브 방송에서 등록한 출연자 외 얼굴을 실시간 블러로 가리세요. 모자이크는 픽셀 블록으로 나누고, 블러는 얼굴의 세부 모습을 흐립니다."
+    },
+    {
+      "path": "/en/guides/live-face-blur",
+      "status": 200,
+      "title": "Live face blur and mosaic guide | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "Learn how live mosaic differs from blur. InnoLive blurs unregistered faces while keeping registered participants visible during a live stream."
+    },
+    {
+      "path": "/ja/guides/live-face-blur",
+      "status": 200,
+      "title": "ライブ配信の顔ぼかし・モザイク解説 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "ライブ配信のモザイクとぼかしの違い、顔を保護する準備を解説します。InnoLiveは登録した出演者の顔を表示し、他の顔をリアルタイムでぼかします。"
+    },
+    {
+      "path": "/ko/compare/live-face-blur-apps",
+      "status": 200,
+      "title": "실시간 방송 모자이크 앱 비교: PRISM Lens·DualMoza·InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "PC와 모바일, 얼굴 공개 기준, 송출 방식으로 PRISM Lens·DualMoza·InnoLive를 비교하세요. 공식 설명과 설치 페이지를 함께 제공합니다."
+    },
+    {
+      "path": "/en/compare/live-face-blur-apps",
+      "status": 200,
+      "title": "Live Face Blur Apps Compared: PRISM Lens, DualMoza & InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "Compare devices, face selection and streaming workflows for PRISM Lens, DualMoza and InnoLive, with official sources and installation information."
+    },
+    {
+      "path": "/ja/compare/live-face-blur-apps",
+      "status": 200,
+      "title": "ライブ顔ぼかしアプリ比較：PRISM Lens・DualMoza・InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "PRISM Lens・DualMoza・InnoLiveの対応端末、顔の選択方法、配信手順を比較できます。公式情報とインストール先を掲載しています。"
+    },
+    {
+      "path": "/ko/live-mosaic",
+      "status": 200,
+      "title": "실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 6,
+      "faqMatches": 6,
+      "description": "유튜브·치지직 방송에서 출연자는 보여 주고 행인 얼굴은 실시간 블러로 가리세요. 얼굴 등록, 방송 준비 순서와 무료 웹 체험을 안내합니다."
+    },
+    {
+      "path": "/en/live-mosaic",
+      "status": 200,
+      "title": "Real-time Face Blur for Live Streaming | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 6,
+      "faqMatches": 6,
+      "description": "Blur unregistered faces in real time while keeping registered guests visible. Prepare your YouTube or CHZZK stream with InnoLive."
+    },
+    {
+      "path": "/ja/live-mosaic",
+      "status": 200,
+      "title": "ライブ配信の顔をリアルタイムでぼかす | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 6,
+      "faqMatches": 6,
+      "description": "登録した出演者の顔を表示し、未登録の顔をリアルタイムでぼかします。InnoLiveでYouTube・CHZZK配信を準備しましょう。"
+    },
+    {
+      "path": "/ko/face-mosaic",
+      "status": 200,
+      "title": "얼굴 자동 모자이크 · 자동 얼굴 가리기 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "사람 얼굴을 자동으로 감지하고 실시간 블러로 가리세요. InnoLive에서 얼굴을 등록하면 출연자의 얼굴은 공개할 수 있습니다."
+    },
+    {
+      "path": "/en/face-mosaic",
+      "status": 200,
+      "title": "Automatic Face Blur & De-identification | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "Automatically blur unregistered faces in live video. Register yourself and your guests to keep their faces visible while streaming."
+    },
+    {
+      "path": "/ja/face-mosaic",
+      "status": 200,
+      "title": "顔の自動ぼかし・匿名化 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "ライブ映像の未登録の顔を自動でぼかします。自分や出演者の顔を登録すると、配信中もそのまま表示できます。"
+    },
+    {
+      "path": "/ko/live-privacy",
+      "status": 200,
+      "title": "라이브 방송 행인 얼굴 자동 모자이크 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 1,
+      "faqMatches": 1,
+      "description": "야외 라이브 방송 중 화면에 등장하는 행인의 얼굴을 실시간으로 감지하고 블러로 가리세요. IRL 방송의 송출 전에 얼굴 등록과 처리 결과를 확인하세요."
+    },
+    {
+      "path": "/en/live-privacy",
+      "status": 200,
+      "title": "Real-time Face Blur for Outdoor & IRL Streams | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 1,
+      "faqMatches": 1,
+      "description": "Blur unregistered faces before sending outdoor and IRL video to viewers. Register your guests and check the camera preview before streaming."
+    },
+    {
+      "path": "/ja/live-privacy",
+      "status": 200,
+      "title": "屋外・IRL配信のリアルタイム顔ぼかし | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 1,
+      "faqMatches": 1,
+      "description": "屋外・IRL映像を視聴者へ送る前に、未登録の顔をぼかします。出演者を登録し、配信前にカメラのプレビューを確認しましょう。"
+    },
+    {
+      "path": "/ko/youtube",
+      "status": 200,
+      "title": "유튜브 라이브 실시간 얼굴 모자이크 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "유튜브 라이브 방송에서 사람과 행인의 얼굴을 감지해 실시간 블러로 가리세요. 계정을 연결하고 방송 준비 화면에서 결과를 확인한 뒤 라이브를 시작하세요."
+    },
+    {
+      "path": "/en/youtube",
+      "status": 200,
+      "title": "Real-Time Face Blur for YouTube Live | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "Blur unregistered faces before streaming to YouTube. Connect your account, save broadcast settings and check the preview before going live."
+    },
+    {
+      "path": "/ja/youtube",
+      "status": 200,
+      "title": "YouTubeライブのリアルタイム顔ぼかし | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "YouTubeへ送信する前に未登録の顔をぼかします。アカウントを連携し、設定を保存して、配信前にプレビューを確認しましょう。"
+    },
+    {
+      "path": "/ko/chzzk",
+      "status": 200,
+      "title": "치지직(CHZZK) 라이브 방송 자동 모자이크 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "치지직(CHZZK) 방송 중 화면에 등장하는 사람과 행인의 얼굴을 실시간 블러로 가리세요. 계정을 연결하고 송출 전에 얼굴 비식별화 결과를 확인하세요."
+    },
+    {
+      "path": "/en/chzzk",
+      "status": 200,
+      "title": "CHZZK Real-time Automatic Face Blur | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "Blur unregistered faces in CHZZK broadcasts. Connect your account and check face processing before the RTMP streaming connection starts."
+    },
+    {
+      "path": "/ja/chzzk",
+      "status": 200,
+      "title": "CHZZK配信のリアルタイム自動顔ぼかし | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "CHZZK配信で未登録の顔をぼかします。アカウントを連携し、RTMP送信の接続前に顔の処理を確認してください。"
+    },
+    {
+      "path": "/ko/mosaic-software",
+      "status": 200,
+      "title": "실시간 방송 모자이크 애플리케이션 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "라이브 방송에서 얼굴을 실시간으로 감지하고 블러로 가리세요. InnoLive에서 공개할 얼굴을 등록하고 유튜브·치지직으로 송출할 수 있습니다."
+    },
+    {
+      "path": "/en/mosaic-software",
+      "status": 200,
+      "title": "Real-time De-identification Service & App | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "Use a real-time de-identification application to blur unregistered faces on live streams. Keep guests visible and broadcast to YouTube or CHZZK."
+    },
+    {
+      "path": "/ja/mosaic-software",
+      "status": 200,
+      "title": "リアルタイム顔匿名化サービス・アプリ | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "ライブ配信で未登録の顔をぼかすリアルタイム匿名化アプリです。出演者の顔を表示しながらYouTube・CHZZKへ配信できます。"
+    },
+    {
+      "path": "/ko/free-face-blur",
+      "status": 200,
+      "title": "무료 자동 모자이크 · 실시간 얼굴 블러 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "무료 Spark 요금제와 베타 무료 이용 범위를 확인하세요. 라이브 방송의 행인 얼굴을 자동으로 감지하고 블러로 가릴 수 있습니다."
+    },
+    {
+      "path": "/en/free-face-blur",
+      "status": 200,
+      "title": "Free Live Face Blur and Plan Limits | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "Check the free Spark plan and beta pricing for live face blur. Compare streaming limits and face registration before preparing your broadcast."
+    },
+    {
+      "path": "/ja/free-face-blur",
+      "status": 200,
+      "title": "無料のライブ顔ぼかしとプランの利用上限 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "無料のSparkプランとベータ期間の料金を確認できます。配信前に利用時間や顔の登録数を比較してください。"
+    },
+    {
+      "path": "/ko/mobile-live-face-blur",
+      "status": 200,
+      "title": "휴대폰 야외방송 행인 얼굴 자동 모자이크 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "휴대폰 라이브 방송에서 본인 얼굴은 보여 주고 행인 얼굴은 실시간 블러로 가리세요. 출연자를 등록하고 방송을 준비한 뒤 유튜브·치지직으로 송출하세요."
+    },
+    {
+      "path": "/en/mobile-live-face-blur",
+      "status": 200,
+      "title": "Real-time Face Blur App for Outdoor Streaming | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "Keep your face visible and blur bystanders on Android and iOS live streams. Register guests and prepare YouTube or CHZZK output in the app."
+    },
+    {
+      "path": "/ja/mobile-live-face-blur",
+      "status": 200,
+      "title": "屋外配信用リアルタイム顔ぼかしアプリ | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 3,
+      "faqMatches": 3,
+      "description": "Android・iOS配信で自分の顔を表示し、通行人の顔をぼかします。出演者を登録し、アプリでYouTube・CHZZK配信を準備できます。"
+    },
+    {
+      "path": "/ko/blog/live-face-blur",
+      "status": 200,
+      "title": "라이브 방송에서 행인 얼굴 가리는 방법 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "라이브 방송에서 사람과 행인의 얼굴을 실시간으로 가리세요. 출연자의 얼굴을 등록하고, 송출 전에 자동 얼굴 감지와 블러 결과를 확인하세요."
+    },
+    {
+      "path": "/en/blog/live-face-blur",
+      "status": 200,
+      "title": "How to Blur Bystanders During a Live Stream | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "Register your guests and check automatic face detection before going live. Learn where to apply blur between camera input and broadcast output."
+    },
+    {
+      "path": "/ja/blog/live-face-blur",
+      "status": 200,
+      "title": "ライブ配信で通行人の顔をぼかす方法 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 0,
+      "faqMatches": 0,
+      "description": "配信前に出演者を登録して顔の自動検出を確認しましょう。カメラ入力から配信出力までの間で顔をぼかす手順を説明します。"
+    },
+    {
+      "path": "/ko/blog/automatic-mosaic",
+      "status": 200,
+      "title": "영상 자동 모자이크 하는 방법 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 2,
+      "faqMatches": 2,
+      "description": "녹화 영상에서는 얼굴 감지·추적 결과를 검토한 뒤 파일을 내보내세요. 라이브 방송에서는 InnoLive로 송출 전에 미등록 얼굴을 실시간 블러로 가릴 수 있습니다."
+    },
+    {
+      "path": "/en/blog/automatic-mosaic",
+      "status": 200,
+      "title": "Automatic Face Blur: Recorded Video and Live Streams | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 2,
+      "faqMatches": 2,
+      "description": "Compare face tracking in recorded-video editors with real-time face blur. InnoLive blurs unregistered faces before live video reaches viewers."
+    },
+    {
+      "path": "/ja/blog/automatic-mosaic",
+      "status": 200,
+      "title": "動画の自動顔ぼかし：録画とライブ配信 | InnoLive",
+      "h1": 1,
+      "jsonLd": 1,
+      "faqAnswers": 2,
+      "faqMatches": 2,
+      "description": "録画編集の顔追跡とリアルタイム顔ぼかしを比較します。InnoLiveはライブ映像が視聴者に届く前に未登録の顔をぼかします。"
+    }
+  ],
+  "errors": []
+}
