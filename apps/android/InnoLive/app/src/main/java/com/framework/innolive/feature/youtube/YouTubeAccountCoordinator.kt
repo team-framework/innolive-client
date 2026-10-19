@@ -52,6 +52,16 @@ class YouTubeAccountCoordinator(
         api().connect(serverAuthCode, token)
     }
 
+    /** YouTube는 한 채널만 연결한다. 새 채널 연결 뒤 남아 있는 다른 YouTube 연결을 모두 해제한다. */
+    suspend fun removeOtherYouTubeAccounts(
+        connected: StreamingAccount,
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ) = retryYouTubeUnauthorized(accessToken, refreshAccessToken) { token ->
+        otherYouTubeAccountIds(api().listAccounts(token), connected.channelId)
+            .forEach { accountId -> api().disconnectYouTubeAccount(accountId, token) }
+    }
+
     fun serverAuthCodeFromIntent(data: Intent): String =
         authorization.serverAuthCodeFromIntent(requireActivity(), data)
 
@@ -73,6 +83,12 @@ internal fun planRefreshFailure(exception: Exception): YouTubeApiException =
 
 internal fun findYouTubeAccount(accounts: List<StreamingAccount>): StreamingAccount? =
     accounts.firstOrNull { account -> account.provider.equals("youtube", ignoreCase = true) }
+
+/** 연결 UUID가 없는 이전 서버 응답은 채널 하나만 유지하므로 해제 대상에서 제외한다. */
+internal fun otherYouTubeAccountIds(accounts: List<StreamingAccount>, keepChannelId: String): List<String> =
+    accounts
+        .filter { account -> account.provider.equals("youtube", ignoreCase = true) && account.channelId != keepChannelId }
+        .mapNotNull(StreamingAccount::accountId)
 
 internal suspend fun <T> retryYouTubeUnauthorized(
     accessToken: String,

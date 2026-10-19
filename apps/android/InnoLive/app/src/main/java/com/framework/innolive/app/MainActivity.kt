@@ -419,6 +419,11 @@ fun AppNavigation(
                         refreshAccessToken = ::refreshConnectionAccessToken,
                     )
                     if (isCurrentYouTubeOperation(operation)) updateVerifiedYouTubeAccount(account)
+                    youtubeCoordinator.removeOtherYouTubeAccounts(
+                        connected = account,
+                        accessToken = accessToken,
+                        refreshAccessToken = ::refreshConnectionAccessToken,
+                    )
                 }
             } catch (exception: CancellationException) {
                 throw exception

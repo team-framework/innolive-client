@@ -77,10 +77,24 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
                         channelId = account.requiredString("channel_id"),
                         channelTitle = account.optString("channel_title").trim(),
                         reconnectRequired = account.getBoolean("reconnect_required"),
+                        accountId = if (account.isNull("id")) null
+                            else account.optString("id").trim().takeIf(String::isNotEmpty),
                     )
                 }
             }
         }
+    }
+
+    suspend fun disconnectYouTubeAccount(accountId: String, accessToken: String) = withContext(Dispatchers.IO) {
+        require(accountId.isNotBlank()) { "YouTube account ID must not be blank." }
+        val url = serverBaseUrl.newBuilder()
+            .encodedPath("/auth/streaming/accounts/youtube/")
+            .addPathSegment(accountId)
+            .build()
+        execute(
+            Request.Builder().url(url).header("Accept", "application/json").delete().bearer(accessToken).build(),
+            "YouTube account disconnection",
+        ) { }
     }
 
     suspend fun planUsage(accessToken: String): PlanUsage = withContext(Dispatchers.IO) {
