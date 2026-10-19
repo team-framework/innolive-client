@@ -7,16 +7,37 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class YouTubeViewerChatWebViewTest {
-    @Test fun timeoutFailsOnlyAnUnfinishedCurrentAttempt() {
+    @Test fun readinessTimeoutFailsOnlyAFinishedDocumentWithoutChatList() {
         val initial = ViewerChatLoadState()
         assertTrue(initial.loading)
-        assertEquals(ViewerChatLoadState(loading = false, failed = true), initial.timeout(0))
-        assertEquals(ViewerChatLoadState(loading = false), initial.pageFinished(0).timeout(0))
+        // iOS처럼 문서를 다 받은 뒤부터만 준비 시간 제한을 센다.
+        assertEquals(initial, initial.readinessTimeout(0))
+        val finished = initial.pageFinished(0)
+        assertTrue(finished.awaitingReady)
+        assertEquals(ViewerChatLoadState(loading = false, failed = true), finished.readinessTimeout(0))
+        val ready = finished.received(0, YouTubeChatSnapshot("", emptyList(), ready = true))
+        assertFalse(ready.awaitingReady)
+        assertEquals(ready, ready.readinessTimeout(0))
         // 다시 시도 뒤 이전 시도의 타이머는 새 읽기를 실패로 바꾸지 않는다.
-        val retried = initial.timeout(0).retry()
+        val retried = finished.readinessTimeout(0).retry()
         assertEquals(ViewerChatLoadState(attempt = 1), retried)
-        assertEquals(retried, retried.timeout(0))
-        assertEquals(ViewerChatLoadState(attempt = 1, loading = false, failed = true), retried.timeout(1))
+        assertEquals(retried.pageFinished(1), retried.pageFinished(1).readinessTimeout(0))
+        assertTrue(retried.pageFinished(1).readinessTimeout(1).failed)
+    }
+
+    @Test fun messagesFollowCurrentAttemptAndReadyClearsFailure() {
+        val message = YouTubeChatMessage("1", "viewer", "hello")
+        val snapshot = YouTubeChatSnapshot("", listOf(message, message.copy(text = " ")), ready = true)
+        val received = ViewerChatLoadState().received(0, snapshot)
+        assertEquals(ViewerChatLoadState(loading = false, messages = listOf(message), chatReady = true), received)
+        // 지난 시도의 늦은 메시지는 무시한다.
+        assertEquals(received.retry(), received.retry().received(0, snapshot))
+        // 준비되지 않은 상태는 메시지만 바꾸고 실패 표시는 그대로 둔다.
+        val failed = ViewerChatLoadState().pageFinished(0).fail(0)
+        assertTrue(failed.received(0, snapshot.copy(ready = false)).failed)
+        assertFalse(failed.received(0, snapshot).failed)
+        // 새 문서를 읽기 시작하면 이전 메시지와 준비 상태를 비운다.
+        assertEquals(ViewerChatLoadState(), received.copy(loading = false).pageStarted(0))
     }
 
     @Test fun staleAndLateCallbacksDoNotReviveAFailedLoad() {

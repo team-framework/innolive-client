@@ -21,7 +21,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -53,30 +52,6 @@ class LiveControlsLayoutTest {
         compose.onNodeWithText(compose.activity.getString(R.string.quick_face_select_start))
             .performScrollTo()
             .assertIsDisplayed()
-    }
-
-    @Test
-    fun viewerChatButtonJoinsCameraToolsOnlyWhenChatIsAvailable() {
-        var canOpenViewerChat by mutableStateOf(false)
-        var opened = 0
-        showCameraTools(360.dp, 800.dp, canOpenViewerChat = { canOpenViewerChat }, onOpenViewerChat = { opened++ })
-        val chat = hasText(compose.activity.getString(R.string.viewer_chat_title)) and hasClickAction()
-        compose.onNode(chat).assertDoesNotExist()
-
-        compose.runOnIdle { canOpenViewerChat = true }
-        compose.onNode(chat).assertIsDisplayed().performClick()
-        compose.runOnIdle { assertEquals(1, opened) }
-        val lastTool = compose.onNode(
-            hasText(compose.activity.getString(R.string.quick_face_select_start)) and hasClickAction(),
-        ).getUnclippedBoundsInRoot()
-        val button = compose.onNode(chat).getUnclippedBoundsInRoot()
-        val container = compose.onNodeWithTag("container").getUnclippedBoundsInRoot()
-        assertEquals(((lastTool.left + lastTool.right) / 2f).value, ((button.left + button.right) / 2f).value, 0.5f)
-        assertTrue(lastTool.bottom <= button.top)
-        assertTrue(button.right <= container.right - 16.dp)
-
-        compose.runOnIdle { canOpenViewerChat = false }
-        compose.onNode(chat).assertDoesNotExist()
     }
 
     @Test
@@ -114,12 +89,7 @@ class LiveControlsLayoutTest {
         assertTrue(container.bottom - after.bottom <= 36.dp)
     }
 
-    private fun showCameraTools(
-        width: Dp,
-        height: Dp,
-        canOpenViewerChat: () -> Boolean = { false },
-        onOpenViewerChat: () -> Unit = {},
-    ) {
+    private fun showCameraTools(width: Dp, height: Dp) {
         compose.setContent {
             MaterialTheme {
                 Box(Modifier.width(width).height(height).testTag("container")) {
@@ -128,8 +98,6 @@ class LiveControlsLayoutTest {
                         canManageFace = true,
                         onOpenVideoControls = {},
                         onOpenFaceManagement = {},
-                        canOpenViewerChat = canOpenViewerChat(),
-                        onOpenViewerChat = onOpenViewerChat,
                     )
                 }
             }
