@@ -70,22 +70,29 @@ private struct InnoLiveGlassButtonModifier: ViewModifier {
     @Environment(\.innoLiveGlassForceFallback) private var forceFallback
     @Environment(\.innoLiveGlassForceOpaque) private var forceOpaque
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
 
     @ViewBuilder
     func body(content: Content) -> some View {
         if forceOpaque || reduceTransparency || contrast == .increased {
-            content.buttonStyle(.borderedProminent)
-                .tint(overVideo ? Color(white: 0.12) : Color.accentColor)
+            if prominent {
+                content.buttonStyle(.borderedProminent)
+            } else if overVideo {
+                content.buttonStyle(.borderedProminent).tint(Color(white: 0.12))
+            } else {
+                content.buttonStyle(.borderedProminent)
+                    .tint(Color(uiColor: .secondarySystemBackground))
+                    .foregroundStyle(.primary)
+            }
         } else if #available(iOS 26, *), !forceFallback {
             if prominent { content.buttonStyle(.glassProminent) }
             else { content.buttonStyle(.glass(overVideo ? .regular.tint(.black.opacity(0.45)) : .regular)) }
         } else if prominent {
             content.buttonStyle(.borderedProminent)
+        } else if overVideo {
+            content.buttonStyle(.borderedProminent).tint(Color(white: 0.12))
         } else {
             content.buttonStyle(.bordered)
-                .environment(\.colorScheme, overVideo ? .dark : colorScheme)
         }
     }
 }
