@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-19",
+  "timezone": "Asia/Seoul",
+  "device": "iPhone 16 Pro (iPhone17,1)",
+  "os": "iOS 26.6.2 (23G90)",
+  "build": "Debug instrumentation, Swift -O, wholemodule",
+  "client_base": "67099e84",
+  "server_commit": "8f9ede337b4723435d3955519279463dcf3ff29b",
+  "ai_commit": "bf2e307c87e96c9538066725ffc092146f5911f2",
+  "tests": {
+    "passed": 27,
+    "failed": 0,
+    "skipped": 0
+  },
+  "boundaries": [
+    "Local processing and two H.264 encoders",
+    "Fixture faces: repeated astronaut image",
+    "Physical camera scene not controlled",
+    "No RTMP or platform playback measurement"
+  ],
+  "measurements": [
+    "PRIVACY_FORMAT format=1111970369 median=17.45508333260659 p95=19.02979167061858 thermal=0",
+    "PRIVACY_FORMAT format=875704422 median=17.402333338395692 p95=19.058083329582587 thermal=0",
+    "PRIVACY_BLUR_PARITY size=(1920.0, 1080.0) meanRGB8=0.3822233474794239 maximumRGB8=5",
+    "PRIVACY_BLUR_PARITY size=(1080.0, 1920.0) meanRGB8=0.4144483024691358 maximumRGB8=6",
+    "PRIVACY_BLUR_PARITY size=(1280.0, 720.0) meanRGB8=0.17987557870370371 maximumRGB8=4",
+    "PRIVACY_SUSTAINED faces=1 submitted=2700 delivered=2699 dropped=1 failures=0 seconds=90.01205937500345 fps=29.984871124385347 median=21.233708 p95=23.025167 encoder1=2699 encoder2=2699 encoderErrors=0 thermalBefore=0 thermalAfter=0 stages=2.3642916785320267,8.247458332334645,1.9584999972721562,8.309500000905246",
+    "PRIVACY_SUSTAINED faces=5 submitted=2700 delivered=2696 dropped=4 failures=0 seconds=90.01330666666036 fps=29.95112722593225 median=21.975 p95=24.078958 encoder1=2696 encoder2=2696 encoderErrors=0 thermalBefore=0 thermalAfter=0 stages=2.2872083354741335,8.245999997598119,2.708583328058012,8.393208336201496",
+    "PRIVACY_CAMERA seconds=90.00413549999939 delivered=2700 fps=29.998621563339366 median=21.251417 p95=23.615083 failures=0 encoder1=2700 encoder2=2700 encoderErrors=0 dimensions=1920x1080 thermalBefore=0 thermalAfter=0 lowPower=false capture=captured=2796,colorFailures=0,previewFrames=2796,routeTickets=2796,routeMode=onDevice,colorError=none"
+  ],
+  "camera_repeat": [
+    "PRIVACY_CAMERA seconds=90.00074729166226 delivered=2697 fps=29.9664178482866 median=21.322042 p95=23.764833 failures=0 encoder1=2697 encoder2=2697 encoderErrors=0 dimensions=1920x1080 thermalBefore=0 thermalAfter=0 lowPower=false capture=captured=2816,colorFailures=0,previewFrames=2816,routeTickets=2816,routeMode=onDevice,colorError=none"
+  ],
+  "release_build": {
+    "result": "passed",
+    "destination": "generic/platform=iOS",
+    "code_signing": false,
+    "measured_on_device": false
+  },
+  "final_regression": {
+    "suite": "PrivacySegmentationTests",
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0
+  }
+}
