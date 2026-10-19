@@ -4,6 +4,9 @@ import WebKit
 
 /// A chat document is scoped to one live YouTube video, never to an account token.
 enum YouTubeViewerChatPolicy {
+    /// Home recreates the overlay for each started broadcast, so every broadcast opens with chat collapsed.
+    static let startsHidden = true
+
     static func url(videoID: String?) -> URL? {
         guard let videoID, videoID.count == 11,
               videoID.utf8.allSatisfy({ (65...90).contains($0) || (97...122).contains($0)
@@ -64,7 +67,7 @@ enum YouTubeViewerChatPolicy {
 
 struct YouTubeViewerChatOverlay: View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
-    @State private var isChatHidden = false
+    @State private var isChatHidden = YouTubeViewerChatPolicy.startsHidden
     let availability: YouTubeViewerChatPolicy.Availability
 
     var body: some View {

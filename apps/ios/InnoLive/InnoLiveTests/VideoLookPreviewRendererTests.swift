@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreVideo
 import XCTest
 
@@ -49,12 +50,36 @@ final class VideoLookPreviewRendererTests: XCTestCase {
         XCTAssertGreaterThan(Int(warm.red) - Int(warm.blue), Int(cool.red) - Int(cool.blue))
     }
 
-    private func makeBuffer(red: UInt8, green: UInt8, blue: UInt8) throws -> CVPixelBuffer {
+    func testPortraitRotationMakesSensorLandscapeBufferUpright() throws {
+        let renderer = VideoLookPreviewRenderer()
+        for position in [AVCaptureDevice.Position.front, .back] {
+            let rotation = BroadcastOrientationPolicy.videoRotation(
+                interfaceOrientation: .portrait,
+                cameraPosition: position
+            )
+            let preview = try XCTUnwrap(renderer.makePreviewSet(
+                pixelBuffer: try makeBuffer(red: 90, green: 90, blue: 90, width: 32, height: 16),
+                rotation: rotation.rawValue,
+                adjustments: [(warmth: 0, saturation: 1, exposureEV: 0)]
+            )[0])
+
+            XCTAssertEqual(preview.width, 16)
+            XCTAssertEqual(preview.height, 32)
+        }
+    }
+
+    private func makeBuffer(
+        red: UInt8,
+        green: UInt8,
+        blue: UInt8,
+        width: Int = 16,
+        height: Int = 16
+    ) throws -> CVPixelBuffer {
         var pixelBuffer: CVPixelBuffer?
         let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
-            16,
-            16,
+            width,
+            height,
             kCVPixelFormatType_32BGRA,
             [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary,
             &pixelBuffer
@@ -65,9 +90,9 @@ final class VideoLookPreviewRendererTests: XCTestCase {
         defer { CVPixelBufferUnlockBaseAddress(output, []) }
         let base = try XCTUnwrap(CVPixelBufferGetBaseAddress(output))
         let rowBytes = CVPixelBufferGetBytesPerRow(output)
-        for row in 0..<16 {
+        for row in 0..<height {
             let bytes = base.advanced(by: row * rowBytes).assumingMemoryBound(to: UInt8.self)
-            for column in 0..<16 {
+            for column in 0..<width {
                 let offset = column * 4
                 bytes[offset] = blue
                 bytes[offset + 1] = green

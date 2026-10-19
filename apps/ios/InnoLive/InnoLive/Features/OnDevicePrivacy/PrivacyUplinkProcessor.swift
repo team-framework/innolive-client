@@ -2,12 +2,14 @@ import CoreImage
 import ImageIO
 @preconcurrency import LiveKitWebRTC
 
-/// One in-flight frame. Mode/camera changes invalidate any earlier result.
+/// One processing frame and one replaceable pending frame. Changes revoke both.
 nonisolated final class PrivacyFrameGate: @unchecked Sendable {
     struct Ticket { let id: UUID; let generation: UInt; let enabled: Bool }
     private let lock = NSLock()
     private var generation: UInt = 0
     private var activeTicket: UUID?
+    private var pending: (@Sendable (Ticket) -> Void)?
+    enum Admission { case started, queued, replaced, stopped }
     private var stopped = false
     private var enabled = true
 
@@ -19,20 +21,47 @@ nonisolated final class PrivacyFrameGate: @unchecked Sendable {
             return Ticket(id: id, generation: generation, enabled: enabled)
         }
     }
+    /// Keep only the newest input when processing briefly exceeds a capture interval.
+    @discardableResult
+    func enqueue(_ work: @escaping @Sendable (Ticket) -> Void) -> Admission {
+        var ticket: Ticket?
+        let admission: Admission = lock.withLock {
+            guard !stopped else { return .stopped }
+            if activeTicket != nil {
+                let replaced = pending != nil
+                pending = work
+                return replaced ? .replaced : .queued
+            }
+            let id = UUID()
+            activeTicket = id
+            ticket = Ticket(id: id, generation: generation, enabled: enabled)
+            return .started
+        }
+        if let ticket { work(ticket) }
+        return admission
+    }
     func invalidate(enabled: Bool? = nil, stop: Bool = false) {
         lock.withLock {
             generation &+= 1
+            pending = nil
             if let enabled { self.enabled = enabled }
             stopped = stopped || stop
         }
     }
     func finish(_ ticket: Ticket, deliver: () -> Void) {
+        var next: ((@Sendable (Ticket) -> Void), Ticket)?
         lock.withLock {
             guard activeTicket == ticket.id else { return }
-            defer { activeTicket = nil }
-            guard !stopped, ticket.generation == generation else { return }
-            deliver()
+            if !stopped, ticket.generation == generation { deliver() }
+            activeTicket = nil
+            if !stopped, let work = pending {
+                pending = nil
+                let id = UUID()
+                activeTicket = id
+                next = (work, Ticket(id: id, generation: generation, enabled: enabled))
+            }
         }
+        if let (work, ticket) = next { work(ticket) }
     }
 }
 
@@ -42,12 +71,18 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     private var model: PrivacyModel?
     private var appliedGeneration: UInt?
     private var geometry: String?
-    private let context = CIContext(options: [.cacheIntermediates: false])
+    private let outputPool = PrivacyOutputBufferPool()
     private let onError: @Sendable (String) -> Void
     private let metricsLock = NSLock()
     private var metricsHandler: (@Sendable (PrivacyFrameMetric) -> Void)?
 
     init(onError: @escaping @Sendable (String) -> Void) { self.onError = onError }
+    #if DEBUG
+    private var timingObserver: (@Sendable (PrivacyTimings) -> Void)?
+    func setTimingObserver(_ observer: (@Sendable (PrivacyTimings) -> Void)?) {
+        metricsLock.withLock { timingObserver = observer }
+    }
+    #endif
     /// 직접 송출 하트비트용 추론 시간·실패 기록을 받는다.
     func setMetricsHandler(_ handler: (@Sendable (PrivacyFrameMetric) -> Void)?) {
         metricsLock.withLock { metricsHandler = handler }
@@ -71,9 +106,18 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     func stop() { gate.invalidate(stop: true) }
 
     func submit(_ frame: LKRTCVideoFrame, deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
-        guard let ticket = gate.begin() else { return }
         let payload = FramePayload(frame: frame)
         let libraryRevision = PrivacyFaceLibrary.revision
+        let admission = gate.enqueue { [self] ticket in
+            PrivacyPipelineProbe.count("gate_admitted")
+            process(payload, ticket: ticket, libraryRevision: libraryRevision, deliver: deliver)
+        }
+        if admission == .replaced || admission == .stopped { PrivacyPipelineProbe.count("gate_rejected") }
+        if admission == .queued { PrivacyPipelineProbe.count("gate_queued") }
+    }
+
+    private func process(_ payload: FramePayload, ticket: PrivacyFrameGate.Ticket, libraryRevision: Int,
+                         deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
         queue.async { [self] in
             autoreleasepool {
                 do {
@@ -91,16 +135,19 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         let orientation = Self.orientation(rotation: payload.frame.rotation.rawValue)
                         let original = CIImage(cvPixelBuffer: pixels.pixelBuffer).oriented(orientation.forward)
                         let upright = original.transformed(by: CGAffineTransform(translationX: -original.extent.minX, y: -original.extent.minY))
-                        let rendered = try model!.process(upright).0
+                        let output = try outputPool.acquire(width: CVPixelBufferGetWidth(pixels.pixelBuffer),
+                                                            height: CVPixelBufferGetHeight(pixels.pixelBuffer))
                         // Restore sensor dimensions; WebRTC still carries the original rotation metadata.
-                        let restored = CIImage(cgImage: rendered).oriented(orientation.reverse)
-                        let width = CVPixelBufferGetWidth(pixels.pixelBuffer), height = CVPixelBufferGetHeight(pixels.pixelBuffer)
-                        var output: CVPixelBuffer?
-                        guard CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA,
-                                                  [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &output) == kCVReturnSuccess,
-                              let output else { throw PrivacyModelError.imageBuffer }
-                        let normalized = restored.transformed(by: CGAffineTransform(translationX: -restored.extent.minX, y: -restored.extent.minY))
-                        context.render(normalized, to: output, bounds: CGRect(x: 0, y: 0, width: width, height: height), colorSpace: CGColorSpaceCreateDeviceRGB())
+                        let processing = try model!.process(upright, into: output, restoring: orientation.reverse)
+                        #if DEBUG
+                        let observer = metricsLock.withLock { timingObserver }
+                        observer?(processing.1)
+                        PrivacyPipelineProbe.record("prepare", milliseconds: processing.1.prepare)
+                        PrivacyPipelineProbe.record("inference", milliseconds: processing.1.inference)
+                        PrivacyPipelineProbe.record("mask", milliseconds: processing.1.mask)
+                        PrivacyPipelineProbe.record("render", milliseconds: processing.1.render)
+                        PrivacyPipelineProbe.count("faces_\(processing.0)")
+                        #endif
                         report(.inference(milliseconds: Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000))
                         result = LKRTCVideoFrame(buffer: LKRTCCVPixelBuffer(pixelBuffer: output), rotation: payload.frame.rotation, timeStampNs: payload.frame.timeStampNs)
                         result.timeStamp = payload.frame.timeStamp
@@ -180,5 +227,33 @@ nonisolated final class PrivacyUplinkRoute: @unchecked Sendable {
             guard !stopped, ticket.generation == generation else { return }
             body()
         }
+    }
+}
+
+/// Used on the processing queue. Core Video only reuses buffers released by every consumer.
+nonisolated final class PrivacyOutputBufferPool {
+    private var pool: CVPixelBufferPool?
+    private var dimensions: CGSize = .zero
+    private let pixelFormat: OSType
+    init(pixelFormat: OSType = kCVPixelFormatType_32BGRA) { self.pixelFormat = pixelFormat }
+    func acquire(width: Int, height: Int) throws -> CVPixelBuffer {
+        guard width > 0, height > 0 else { throw PrivacyModelError.imageBuffer }
+        let size = CGSize(width: width, height: height)
+        if pool == nil || dimensions != size {
+            var next: CVPixelBufferPool?
+            let attributes: [CFString: Any] = [kCVPixelBufferWidthKey: width, kCVPixelBufferHeightKey: height,
+                kCVPixelBufferPixelFormatTypeKey: pixelFormat,
+                kCVPixelBufferIOSurfacePropertiesKey: [:], kCVPixelBufferMetalCompatibilityKey: true]
+            guard CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes as CFDictionary, &next) == kCVReturnSuccess,
+                  let next else { throw PrivacyModelError.imageBuffer }
+            pool = next
+            dimensions = size
+        }
+        var output: CVPixelBuffer?
+        guard let pool,
+              CVPixelBufferPoolCreatePixelBufferWithAuxAttributes(kCFAllocatorDefault, pool,
+                [kCVPixelBufferPoolAllocationThresholdKey: 6] as CFDictionary, &output) == kCVReturnSuccess,
+              let output else { throw PrivacyModelError.imageBuffer }
+        return output
     }
 }
