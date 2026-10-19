@@ -93,7 +93,7 @@
     <string name="recording_delete_description">アプリに保存した映像 %1$s を削除します。元に戻せません。共有またはギャラリーに保存したコピーは残ります。</string>
     <string name="recording_delete_failed">映像を削除できませんでした。</string>
     <string name="recording_status_saving">配信映像を保存しています。</string>
-    <string name="recording_status_saved">配信映像を保存しました。設定の保存した配信から書き出せます。</string>
+    <string name="recording_status_saved">配信映像を保存しました。</string>
     <string name="recording_save_notification_channel">配信映像の保存</string>
     <string name="recording_save_notification_title">配信映像を保存しています</string>
     <string name="recording_save_notification_text">保存が終わると通知は消えます。</string>

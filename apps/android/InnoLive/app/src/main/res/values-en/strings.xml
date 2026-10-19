@@ -93,7 +93,7 @@
     <string name="recording_delete_description">This deletes the %1$s video stored in the app. It cannot be undone; copies you shared or saved to the gallery are kept.</string>
     <string name="recording_delete_failed">Could not delete the video.</string>
     <string name="recording_status_saving">Saving the broadcast video.</string>
-    <string name="recording_status_saved">Broadcast video saved. Export it from Saved broadcasts in Settings.</string>
+    <string name="recording_status_saved">Broadcast video saved.</string>
     <string name="recording_save_notification_channel">Broadcast video saving</string>
     <string name="recording_save_notification_title">Saving the broadcast video</string>
     <string name="recording_save_notification_text">This notification disappears when saving finishes.</string>
