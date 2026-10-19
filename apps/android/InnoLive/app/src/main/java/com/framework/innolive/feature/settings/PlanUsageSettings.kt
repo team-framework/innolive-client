@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.settings
 
+import com.framework.innolive.ui.theme.InnoLiveAlertDialog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -87,7 +88,7 @@ internal fun PlanUsageSettings(props: SettingsScreenProps) {
         }
     }
     lockedMode?.let { mode ->
-        AlertDialog(
+        InnoLiveAlertDialog(
             onDismissRequest = { lockedMode = null },
             title = { Text(stringResource(R.string.plan_title)) },
             text = { Text(stringResource(R.string.plan_mode_locked, stringResource(mode.titleResource()))) },

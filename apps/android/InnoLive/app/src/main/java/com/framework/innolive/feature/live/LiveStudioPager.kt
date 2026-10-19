@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live
 
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
@@ -20,7 +21,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +31,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.ModalTheme
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.hideFromAccessibility
@@ -65,7 +70,8 @@ class LiveSettingsPage(
 /** 상단 바와 페이지 표시가 차지하는 높이입니다. 각 페이지는 이 아래부터 내용을 둡니다. */
 internal val LiveStudioTopInset = 64.dp
 private val LiveStudioTopBarHeight = 48.dp
-private val SettingsScrim = Color.Black.copy(alpha = 0.4f)
+private val SettingsScrim = Color.Black.copy(alpha = 0.15f)
+private val SettingsBlurRadius = 24.dp
 
 /**
  * 카메라 미리보기는 고정한 채 그 위의 조작 화면만 좌우로 넘깁니다.
@@ -120,15 +126,21 @@ internal fun LiveStudioPager(
             if (pipState != null) Modifier.livePreviewPipDrag(pipState, canMovePip, scope) else Modifier,
         ),
     ) {
-        preview()
+        // 설정 페이지가 보이는 만큼 미리보기를 흐리고 옅게 어둡게 해 설정 창을 읽기 쉽게 합니다.
+        // 카메라 원본 미리보기는 화면에 함께 그려져 흐려지지만, 서버에서 받는 영상(SurfaceView)은 어둡게만 됩니다.
+        val blurRadiusPx = with(LocalDensity.current) { SettingsBlurRadius.toPx() }
+        fun settingsFraction() =
+            (pagerState.currentPage + pagerState.currentPageOffsetFraction - homeIndex).coerceIn(0f, 1f)
+        Box(
+            Modifier.fillMaxSize().graphicsLayer {
+                val radius = if (settings != null) blurRadiusPx * settingsFraction() else 0f
+                renderEffect = if (radius >= 1f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    BlurEffect(radius, radius, TileMode.Clamp)
+                } else null
+            },
+        ) { preview() }
         if (settings != null) {
-            // 설정 페이지가 보이는 만큼 미리보기를 어둡게 해 설정 내용을 읽기 쉽게 합니다.
-            Box(
-                Modifier.fillMaxSize().graphicsLayer {
-                    alpha = (pagerState.currentPage + pagerState.currentPageOffsetFraction - homeIndex)
-                        .coerceIn(0f, 1f)
-                }.background(SettingsScrim),
-            )
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = settingsFraction() }.background(SettingsScrim))
         }
         HorizontalPager(
             state = pagerState,
@@ -168,17 +180,17 @@ private fun LiveSettingsPanel(onDismiss: () -> Unit, content: @Composable () -> 
     val title = stringResource(R.string.settings_title)
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = onDismiss))
-        Surface(
-            modifier = Modifier.align(Alignment.TopCenter)
-                .padding(start = 16.dp, end = 16.dp, top = LiveStudioTopInset, bottom = 12.dp)
-                .widthIn(max = 600.dp).fillMaxSize()
-                .semantics { paneTitle = title },
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-            // 반투명 배경은 테마 색과 달라 글자색을 자동으로 고르지 못하므로 직접 지정합니다.
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shadowElevation = 4.dp,
-        ) { content() }
+        // 다른 모달과 같은 흰 유리 창으로 보여 주고, 창 안에서 연 확인 창도 같은 색을 씁니다.
+        ModalTheme {
+            ModalSurface(
+                modifier = Modifier.align(Alignment.TopCenter)
+                    .padding(start = 16.dp, end = 16.dp, top = LiveStudioTopInset, bottom = 12.dp)
+                    .widthIn(max = 600.dp).fillMaxSize()
+                    .semantics { paneTitle = title },
+                shape = RoundedCornerShape(20.dp),
+                content = content,
+            )
+        }
     }
 }
 

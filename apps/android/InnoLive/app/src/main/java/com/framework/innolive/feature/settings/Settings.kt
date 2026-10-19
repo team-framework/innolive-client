@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.settings
 
+import com.framework.innolive.ui.theme.InnoLiveAlertDialog
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.height
@@ -145,7 +146,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
     }
 
     if (isDeleteConfirmationVisible) {
-        AlertDialog(
+        InnoLiveAlertDialog(
             onDismissRequest = { isDeleteConfirmationVisible = false },
             title = {
                 Text(

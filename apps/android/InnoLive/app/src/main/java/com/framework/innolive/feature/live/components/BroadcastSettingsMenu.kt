@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live.components
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -27,7 +29,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialDialogFrame
@@ -58,12 +59,8 @@ internal fun BroadcastSettingsMenu(
     onDismiss: () -> Unit,
     guide: BroadcastTutorialGuide? = null,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.cappedDialogWidth(400.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surface,
-        ) {
+    InnoLiveDialog(onDismissRequest = onDismiss) {
+        ModalSurface(modifier = Modifier.cappedDialogWidth(400.dp)) {
             BroadcastTutorialDialogFrame(guide) {
                 Column(
                     modifier = Modifier.padding(vertical = 16.dp).verticalScroll(rememberScrollState()),

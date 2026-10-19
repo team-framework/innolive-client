@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import android.app.Activity
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1180,12 +1182,8 @@ internal fun BroadcastActionDialog(
     onPauseOrResume: () -> Unit,
     onStop: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.cappedDialogWidth(400.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surface,
-        ) {
+    InnoLiveDialog(onDismissRequest = onDismiss) {
+        ModalSurface(modifier = Modifier.cappedDialogWidth(400.dp)) {
             Column(
                 modifier = Modifier
                     .padding(20.dp)
