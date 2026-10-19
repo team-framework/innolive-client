@@ -42,7 +42,7 @@ export function Footer() {
                 <a className="underline max-lg:inline-flex max-lg:min-h-[44px] max-lg:min-w-[44px] max-lg:items-center" href="mailto:contact@innolive.studio">
                   contact@innolive.studio
                 </a>
-                <p>Hosted by Framework</p>
+                <p>Hosted by <Link href={href("/about")} className="underline underline-offset-4">Framework</Link></p>
               </div>
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
                 <p>{messages.footer.phone}</p>

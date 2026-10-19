@@ -1,0 +1,45 @@
+Observed 2026-10-19 KST, 28 days, Web. Chart: 2026-09-30 to 2026-10-16.
+Top pages
+	
+Clicks
+	
+Impressions
+
+https://innolive.studio/ko	1	25
+https://innolive.studio/ko/privacy	1	13
+https://innolive.studio/ko/mosaic-software	1	8
+https://innolive.studio/ja	1	5
+https://innolive.studio/	1	4
+https://innolive.studio/ko/chzzk	1	3
+https://innolive.studio/ko/mobile-live-face-blur	1	2
+https://innolive.studio/ko/live-mosaic	0	26
+https://innolive.studio/en/privacy	0	12
+https://innolive.studio/en
+Copy URL to clipboard
+Open in new tab
+Inspect URL
+	0
+	10
+
+https://innolive.studio/en/terms	0	9
+https://innolive.studio/live-mosaic	0	7
+https://innolive.studio/ko/support	0	7
+https://innolive.studio/en/pricing	0	7
+https://innolive.studio/ko/youtube	0	6
+https://innolive.studio/en/login	0	6
+https://innolive.studio/ko/pricing	0	5
+https://innolive.studio/mosaic-software	0	5
+https://innolive.studio/ko/login	0	5
+https://innolive.studio/ja/privacy	0	4
+https://innolive.studio/en/try-out	0	4
+https://innolive.studio/ko/blog/automatic-mosaic	0	4
+https://innolive.studio/en/signup	0	3
+https://innolive.studio/ja/pricing	0	3
+https://innolive.studio/ja/guides/live-face-blur	0	3
+https://innolive.studio/blog/live-face-blur	0	2
+https://innolive.studio/ko/try-out	0	2
+https://innolive.studio/ko/face-mosaic	0	2
+https://innolive.studio/ko/blog/live-face-blur	0	1
+https://innolive.studio/mobile-live-face-blur	0	1
+https://innolive.studio/ko/live-privacy	0	1
+https://innolive.studio/ja/signup	0	1

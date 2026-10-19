@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { StructuredData } from "@/components/structured-data";
+import { overviewStructuredData } from "@/lib/structured-data";
 import { notFound } from "next/navigation";
 import { isLocale, localePath } from "@/lib/locales";
 import { liveFaceBlurGuide } from "@/lib/live-face-blur-guide";
@@ -19,6 +21,7 @@ export default async function LiveFaceBlurGuide({ params }: PageProps) {
   const guide = liveFaceBlurGuide[locale];
   return (
     <main id="main" tabIndex={-1} className="page-top-spacing bg-background-primary px-[var(--page-gutter)] pb-16 lg:pb-24">
+      <StructuredData data={overviewStructuredData(locale, guide)} />
       <article className="mx-auto max-w-[72rem] break-keep text-text-primary">
         <h1 className="text-balance text-3xl font-bold leading-snug lg:text-5xl">{guide.heading}</h1>
         <p className="mt-8 text-lg leading-relaxed max-md:text-[15px]">{guide.intro}</p>
