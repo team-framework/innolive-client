@@ -28,6 +28,26 @@ final class SimulatorVideoInputTests: XCTestCase {
         XCTAssertEqual(frames.count, count)
     }
 
+    func testOptionalPerformanceVideoLoopsAtFullHDWithMonotonicTimestamps() async throws {
+        guard Bundle.main.url(forResource: "PrivacyPerformanceFixture", withExtension: "mp4") != nil else {
+            throw XCTSkip("Generate the optional performance video first")
+        }
+        let repeated = expectation(description: "Ten-second performance fixture repeats")
+        let frames = CapturedFrames(minimumFrameCount: 330, expectation: repeated)
+        let capturer = LKRTCFileVideoCapturer(delegate: frames)
+        capturer.startCapturing(fromFileNamed: "PrivacyPerformanceFixture.mp4") { error in
+            XCTFail("Performance fixture failed: \(error.localizedDescription)")
+        }
+        await fulfillment(of: [repeated], timeout: 18)
+        capturer.stopCapture()
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(frames.dimensions, "1920x1080")
+        XCTAssertEqual(frames.timestampRegressions, 0)
+        let count = frames.count
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertEqual(frames.count, count)
+    }
+
     func testMissingBundledVideoReportsError() async {
         let errorReceived = expectation(description: "Missing video error")
         let capturer = LKRTCFileVideoCapturer(delegate: CapturedFrames())
@@ -46,6 +66,10 @@ nonisolated private final class CapturedFrames: NSObject, LKRTCVideoCapturerDele
     private var didFulfillExpectation = false
     private var frameCount = 0
     private var frameDimensions = ""
+    private var lastTimestamp: Int64?
+    private var regressions = 0
+
+    var timestampRegressions: Int { lock.lock(); defer { lock.unlock() }; return regressions }
 
     init(minimumFrameCount: Int = 31, expectation: XCTestExpectation? = nil) {
         self.minimumFrameCount = minimumFrameCount
@@ -67,6 +91,8 @@ nonisolated private final class CapturedFrames: NSObject, LKRTCVideoCapturerDele
 
     func capturer(_ capturer: LKRTCVideoCapturer, didCapture frame: LKRTCVideoFrame) {
         lock.lock()
+        if let lastTimestamp, frame.timeStampNs <= lastTimestamp { regressions += 1 }
+        lastTimestamp = frame.timeStampNs
         frameCount += 1
         frameDimensions = "\(frame.width)x\(frame.height)"
         let shouldFulfillExpectation = expectation != nil
