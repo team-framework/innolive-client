@@ -1,0 +1,239 @@
+
+  - tablist "답변 모드 탭":
+    - tab "답변" [selected]:
+      - text: 답변
+    - tab "링크":
+      - text: 링크
+    - tab "이미지":
+      - text: 이미지
+  - button "세션 작업":
+  - button "창 펼치기":
+  - button "공유":
+    - generic: 공유
+  - button "Comet 다운로드":
+    - generic: Comet 다운로드
+  - generic: 오후 3:03
+  - button "쿼리 편집":
+  - button "쿼리 복사":
+  - paragraph: 무료로 실시간 얼굴 블러를 적용하며 라이브 방송할 수 있는 앱이나 방법을 공식 출처로 알려줘.
+  - button "조사 완료 3초":
+    - generic "조사 완료"
+    - generic: 3초
+  - paragraph:
+    - text: 실시간
+    - strong: 얼굴 자동 블러
+    - text: 까지 무료로 하려면 PC에서는
+    - strong: OBS Studio + 얼굴 추적/검출 플러그인
+    - text: ", 또는 RTX 그래픽카드가 있다면"
+    - strong: NVIDIA Broadcast
+    - text: 가 가장 현실적입니다. 다만 NVIDIA Broadcast는 기본적으로
+    - strong: 배경 블러
+    - text: 이고, 얼굴 자체를 가리려면 OBS 플러그인 조합이 더 적합합니다.
+    - img "신뢰할 수 있는 도메인":
+    - generic: nvidia
+    - generic: "+1"
+  - heading "추천 방법" [level=2]
+  - table:
+    - rowgroup:
+      - row "방법 얼굴 블러 비용 필요 환경 적합한 경우":
+        - columnheader "방법"
+        - columnheader "얼굴 블러"
+        - columnheader "비용"
+        - columnheader "필요 환경"
+        - columnheader "적합한 경우"
+    - rowgroup:
+      - row "OBS Studio + Composite Blur 수동 영역 블러 무료 PC, OBS 얼굴 위치가 비교적 고정된 방송":
+        - cell "OBS Studio + Composite Blur"
+        - cell "수동 영역 블러"
+        - cell "무료"
+        - cell "PC, OBS"
+        - cell "얼굴 위치가 비교적 고정된 방송"
+      - row "OBS + 얼굴 추적 플러그인 자동 추적 가능 무료 PC, OBS 움직이는 얼굴을 자동으로 가리고 싶을 때":
+        - cell "OBS + 얼굴 추적 플러그인"
+        - cell "자동 추적 가능"
+        - cell "무료"
+        - cell "PC, OBS"
+        - cell "움직이는 얼굴을 자동으로 가리고 싶을 때"
+      - row "NVIDIA Broadcast 배경 블러 중심 무료 Windows + RTX 2060 이상 내 얼굴은 보이되 배경만 가릴 때":
+        - cell "NVIDIA Broadcast"
+        - cell "배경 블러 중심"
+        - cell "무료"
+        - cell "Windows + RTX 2060 이상"
+        - cell "내 얼굴은 보이되 배경만 가릴 때"
+      - row "모바일 블러 카메라 앱 실시간 얼굴 블러 무료/부분 유료 스마트폰 간단한 모바일 라이브·녹화":
+        - cell "모바일 블러 카메라 앱"
+        - cell "실시간 얼굴 블러"
+        - cell "무료/부분 유료"
+        - cell "스마트폰"
+        - cell "간단한 모바일 라이브·녹화"
+  - button "표 복사":
+  - button "CSV 다운로드":
+  - button "표 확장":
+  - heading "1. OBS Studio로 방송하기" [level=2]
+  - paragraph:
+    - text: OBS Studio는 무료·오픈소스 라이브 스트리밍 및 화면 녹화 소프트웨어로, YouTube·Twitch 등 다양한 플랫폼 송출에 사용할 수 있습니다.
+    - generic "OBS Studio - Free and open source software for live ... - GitHub":
+      - link "github":
+        - /url: https://github.com/obsproject/obs-studio
+        - generic: github
+  - list:
+    - paragraph:
+      - text: "공식 다운로드: OBS Project 사이트 또는 공식 GitHub에서 받습니다."
+      - generic "OBS Studio - Free and open source software for live ... - GitHub":
+        - link "github":
+          - /url: https://github.com/obsproject/obs-studio
+          - generic: github
+    - paragraph: 웹캠 소스를 추가한 뒤, 얼굴 부분만 잘라 별도 소스로 만들고 블러 필터를 적용하는 방식이 기본입니다.
+    - paragraph:
+      - text: 자연스러운 블러·픽셀화가 필요하면
+      - strong: Composite Blur
+      - text: 플러그인을 씁니다. 이 플러그인은 Gaussian, Box, Pixelate 등 여러 블러 방식과 마스크 기반 영역 블러를 제공하며 Windows·macOS·Linux를 지원합니다.
+      - 'generic "FiniteSingularity/obs-composite-blur: A comprehensive ..."':
+        - link "github":
+          - /url: https://github.com/FiniteSingularity/obs-composite-blur
+          - generic: github
+    - paragraph:
+      - text: 공식 OBS 플러그인 페이지에도 Composite Blur가 등록되어 있어 안전하게 찾을 수 있습니다.
+      - generic "OBS Studio Plugins":
+        - link "신뢰할 수 있는 도메인 obsproject":
+          - /url: https://obsproject.com/forum/plugins/
+          - img "신뢰할 수 있는 도메인":
+          - generic: obsproject
+  - heading "설정 순서" [level=2]
+  - list:
+    - paragraph:
+      - text: OBS에서
+      - strong: 웹캠 소스
+      - text: 를 추가합니다.
+    - paragraph: 웹캠 소스를 복제하거나 크롭해 얼굴 영역만 따로 배치합니다.
+    - paragraph:
+      - text: 해당 소스에
+      - strong: Composite Blur
+      - text: 필터를 추가합니다.
+    - paragraph:
+      - code: Pixelate
+      - text: 또는
+      - code: Gaussian Blur
+      - text: 를 선택하고, 얼굴이 완전히 식별되지 않을 만큼 강도를 올립니다.
+    - paragraph: 방송 플랫폼의 스트림 키를 OBS에 입력해 송출합니다.
+  - paragraph: 단, 이 방법은 얼굴이 화면 안에서 크게 움직이면 블러 영역을 수시로 조정해야 할 수 있습니다.
+  - heading "2. 자동 얼굴 추적이 필요할 때" [level=2]
+  - paragraph:
+    - text: 얼굴이 계속 움직인다면 OBS용 얼굴 검출·추적 플러그인을 함께 쓰는 편이 좋습니다. 예를 들어
+    - code: obs-face-tracker
+    - text: 는 얼굴 검출과 추적을 목적으로 하는 OBS 플러그인이고,
+    - code: obs-detect
+    - text: 는 실시간 객체 검출을 제공합니다.
+    - generic "github.com › topics › obs-studio-pluginobs-studio-plugin · GitHub Topics · GitHub":
+      - link "github":
+        - /url: https://github.com/topics/obs-studio-plugin
+        - generic: github
+  - list:
+    - paragraph: 얼굴 추적 플러그인이 얼굴 위치를 따라가게 하고, 그 결과를 블러 소스와 연동하는 구성입니다.
+    - paragraph: 다만 플러그인 조합은 OBS 버전·OS·GPU에 따라 설정이 까다로울 수 있으므로, 먼저 고정 영역 블러로 테스트한 뒤 자동화를 추가하는 것을 권합니다.
+  - heading "3. NVIDIA RTX PC라면" [level=2]
+  - paragraph:
+    - text: NVIDIA Broadcast는 무료 AI 영상·음성 앱으로, OBS·Streamlabs·Zoom 등과 함께 사용할 수 있습니다. 공식 FAQ에 따르면 OBS에서 NVIDIA Broadcast 장치를 카메라로 선택해 사용할 수 있습니다.
+    - generic "FAQ":
+      - link "신뢰할 수 있는 도메인 nvidia":
+        - /url: https://www.nvidia.com/en-us/geforce/broadcasting/broadcast-app/faq/
+        - img "신뢰할 수 있는 도메인":
+        - generic: nvidia
+  - list:
+    - paragraph:
+      - text: 제공 기능에는
+      - strong: 배경 제거·교체·블러
+      - text: ", 자동 프레이밍, 노이즈 제거가 포함됩니다."
+      - img "신뢰할 수 있는 도메인":
+      - generic: nvidia
+      - generic: "+1"
+    - paragraph:
+      - text: 요구 사양은 NVIDIA RTX 2060 이상 GPU, Windows 10 64비트, 8GB 이상 RAM 등입니다.
+      - generic "Elgato Facecam — Background blur/replacement with NVIDIA Broadcast":
+        - link "신뢰할 수 있는 도메인 help.elgato":
+          - /url: https://help.elgato.com/hc/en-us/articles/4405355317261-Elgato-Facecam-Background-blur-replacement-with-NVIDIA-Broadcast
+          - img "신뢰할 수 있는 도메인":
+          - generic: help.elgato
+    - paragraph:
+      - text: 즉,
+      - strong: 내 얼굴은 공개하되 방 배경만 가리고
+      - text: 싶다면 가장 쉽고 안정적인 선택입니다.
+    - paragraph:
+      - text: 반대로
+      - strong: 얼굴 자체를 모자이크
+      - text: 해야 한다면 NVIDIA Broadcast만으로는 부족하므로 OBS 블러 플러그인을 써야 합니다.
+  - heading "4. 스마트폰에서 할 때" [level=2]
+  - paragraph:
+    - text: iOS의
+    - strong: AI 블러 카메라 & 모자이크 편집기
+    - text: 는 라이브 카메라에서 실시간 얼굴 블러를 적용해 720p로 녹화할 수 있으며, 얼굴을 탭해 공개·비공개를 전환하는 기능도 제공합니다.
+    - generic "‎AI 블러 카메라 & 모자이크 편집기 앱 - App Store":
+      - link "신뢰할 수 있는 도메인 apps.apple":
+        - /url: https://apps.apple.com/kr/app/ai-%EB%B8%94%EB%9F%AC-%EC%B9%B4%EB%A9%94%EB%9D%BC-%EB%AA%A8%EC%9E%90%EC%9D%B4%ED%81%AC-%ED%8E%B8%EC%A7%91%EA%B8%B0/id6758146143
+        - img "신뢰할 수 있는 도메인":
+        - generic: apps.apple
+  - paragraph:
+    - text: 다만 이 앱은 “실시간 녹화”에 초점이 있어, 앱 자체가 YouTube·Twitch 등으로 직접 라이브 송출까지 하는지는 사용 전에 앱 페이지에서 확인하는 것이 좋습니다. Android에서는 얼굴 블러 앱이 많지만 대부분 저장된 영상 편집용이므로,
+    - strong: 실시간 송출
+    - text: 이 목적이라면 PC + OBS가 더 확실합니다.
+    - img "신뢰할 수 있는 도메인":
+    - generic: apps.apple
+    - generic: "+1"
+  - heading "가장 추천하는 구성" [level=2]
+  - list:
+    - paragraph:
+      - strong: "학교 발표·게임 방송에서 내 얼굴만 가리기:"
+      - text: OBS + Composite Blur(픽셀화) + 필요하면 얼굴 추적 플러그인
+    - paragraph:
+      - strong: "얼굴은 보이고 배경만 가리기:"
+      - text: NVIDIA Broadcast + OBS
+    - paragraph:
+      - strong: "스마트폰으로 짧은 라이브·녹화:"
+      - text: 실시간 얼굴 블러 카메라 앱
+  - paragraph:
+    - text: 개인정보 보호가 목적이라면 블러 강도는 “약간 흐림”이 아니라
+    - strong: 픽셀화 또는 강한 가우시안 블러
+    - text: 로 설정하고, 방송 전에 녹화 테스트로 얼굴이 식별되지 않는지 확인하세요.
+    - 'generic "FiniteSingularity/obs-composite-blur: A comprehensive ..."':
+      - link "github":
+        - /url: https://github.com/FiniteSingularity/obs-composite-blur
+        - generic: github
+  - button "복사":
+  - button "공유":
+  - button "도움이 됨":
+  - button "도움이 되지 않음":
+  - button "포크":
+  - button "25개 출처":
+    - text: 25개 출처
+  - button "추가 작업":
+  - button "OBS + NVIDIA Broadcast 실시간 얼굴 모자이크 연동 가이드 — 무료 설정 단계와 필수 플러그인 비교"
+  - text: OBS + NVIDIA Broadcast 실시간 얼굴 모자이크 연동 가이드 — 무료 설정 단계와 필수 플러그인 비교
+  - text: Computer
+  - button "실시간 라이브 방송 얼굴 블러 앱 비교 검토 — PC 및 모바일 무료 솔루션과 성능 차이 분석"
+  - text: 실시간 라이브 방송 얼굴 블러 앱 비교 검토 — PC 및 모바일 무료 솔루션과 성능 차이 분석
+  - text: Computer
+  - button "OBS에서 Composite Blur 설치하고 설정하는 방법"
+  - text: OBS에서 Composite Blur 설치하고 설정하는 방법
+  - button "NVIDIA Broadcast로 가상 카메라 연결하는 방법"
+  - text: NVIDIA Broadcast로 가상 카메라 연결하는 방법
+  - button "obs-face-tracker 플러그인 적용하는 구체적인 순서"
+  - text: obs-face-tracker 플러그인 적용하는 구체적인 순서
+  - button "끝까지 스크롤":
+    - generic: ⠴
+  - status:
+    - generic: 시크릿 모드입니다.
+    - button "시크릿 모드 종료":
+      - generic: 시크릿 모드 종료
+  - textbox [active]:
+    - paragraph
+  - generic: 후속 질문하기
+  - button "파일 또는 도구 추가":
+  - button "검색" [pressed]:
+    - text: 검색
+  - button "Computer":
+    - text: Computer
+  - button "모델":
+    - generic: 모델
+  - button "받아쓰기":
+  - button "제출" [disabled]:
+- listbox "Typeahead menu"

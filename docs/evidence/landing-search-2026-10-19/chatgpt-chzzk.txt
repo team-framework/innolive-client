@@ -1,0 +1,202 @@
+
+    - heading "You said:" [level=4]
+    - generic: 웹 검색으로 찾아줘. 치지직에서 얼굴을 실시간 블러 처리하며 방송할 수 있는 방법과 앱을 공식 출처로 알려줘.
+    - button "Copy message":
+    - button "Edit message":
+    - button "Worked for 2m 5s"
+    - generic: Worked for 2m 5s
+    - heading "ChatGPT said:" [level=4]
+    - paragraph:
+      - text: 치지직에서
+      - generic: 자신의 얼굴을 실시간으로 자동 인식해 블러(흐림) 또는 모자이크 처리하면서 방송하는 방법
+      - text: 을 공식 자료로 확인했습니다.
+    - paragraph:
+      - text: 가장 추천하는 방법은
+      - generic: PRISM Lens + OBS Studio
+      - text: 조합입니다. 얼굴이 움직여도 카메라 영상에서 얼굴을 인식해 블러 효과를 적용하고, 처리된 영상을 치지직으로 송출할 수 있습니다.
+      - button "PRISM Live Studio +2":
+        - generic: PRISM Live Studio
+        - generic: "+2"
+    - 'heading "1. 추천 앱: PRISM Lens" [level=2]'
+    - button "Open image"
+    - button "Add to Favorites":
+    - paragraph:
+      - button "PRISM Lens":
+        - generic: PRISM Lens
+    - paragraph: 네이버 PRISM에서 제공하는 웹캠 효과 프로그램으로, 실시간 얼굴 모자이크를 공식 지원합니다.
+    - paragraph: Windows 10·11 (64비트), macOS Apple Silicon 지원
+    - paragraph:
+      - link "공식 다운로드":
+        - /url: https://prismlive.com/ko_kr/lens.html?utm_source=chatgpt.com
+        - generic: 공식 다운로드
+      - text: ·
+      - link "공식 사용 설명서":
+        - /url: https://guide.prismlive.com/lens/guides/getting-started-with-prism-lens?utm_source=chatgpt.com
+        - generic: 공식 사용 설명서
+    - paragraph: PRISM 공식 설명서에 따르면 다음 기능을 제공합니다.
+    - list:
+      - paragraph:
+        - generic: "Blur:"
+        - text: 얼굴 부분을 부드럽게 흐리게 처리
+      - paragraph:
+        - generic: "Pixelation:"
+        - text: 얼굴 부분을 픽셀 모자이크 처리
+      - paragraph:
+        - generic: "Stickers:"
+        - text: 얼굴에 스티커 적용
+      - paragraph:
+        - generic: "적용 대상 선택:"
+        - text: 화면 속 모든 얼굴 또는 주변 인물의 얼굴에만 적용
+    - button "prismlive.com +1":
+      - generic: prismlive.com
+      - generic: "+1"
+    - heading "OBS로 치지직 방송하는 설정 방법" [level=3]
+    - paragraph:
+      - generic: ① PRISM Lens 설치 및 웹캠 연결
+    - paragraph: PRISM Lens를 실행한 뒤 우측 상단의 카메라 장치 목록에서 사용할 웹캠을 선택합니다.
+    - paragraph:
+      - generic: ② 얼굴 블러 설정
+    - paragraph:
+      - text: PRISM Lens의 특수 이펙트에서
+      - code: 인물 모자이크(Face Mosaic)
+      - text: 를 선택하고
+      - code: Blur
+      - text: 스타일을 적용합니다. 본인의 얼굴까지 가리려면 모든 얼굴에 적용하도록 설정합니다.
+    - paragraph:
+      - generic: ③ OBS Studio에 연결
+    - paragraph:
+      - text: OBS에서
+      - code: 소스 → + → 비디오 캡처 장치
+      - text: 를 추가하고, 장치로
+      - code: PRISM Lens 1
+      - text: 을 선택합니다. 실제 웹캠 대신 블러 처리된 가상 카메라 영상을 방송에 사용하게 됩니다.
+      - button "OBS +1":
+        - generic: OBS
+        - generic: "+1"
+    - paragraph:
+      - generic: ④ 치지직으로 방송 송출
+    - paragraph:
+      - text: 치지직 스튜디오의
+      - code: 설정
+      - text: 에서 스트림 URL과 스트림 키를 확인하고 OBS에 입력한 뒤 방송을 시작합니다.
+      - button "네이버 고객센터":
+        - generic: 네이버 고객센터
+    - paragraph: 영상 연결 구조
+    - paragraph: 웹캠
+    - paragraph: PRISM Lens
+    - paragraph: OBS
+    - paragraph: 치지직
+    - 'heading "2. 다른 방법: PRISM Lens + PRISM Live Studio" [level=2]'
+    - paragraph:
+      - text: OBS 대신
+      - generic: PRISM Live Studio 데스크톱 앱
+      - text: 으로도 치지직 방송을 할 수 있습니다.
+    - button "Open image"
+    - button "Add to Favorites":
+    - paragraph:
+      - button "PRISM Live Studio":
+        - generic: PRISM Live Studio
+    - paragraph: 치지직 송출을 지원하며, PRISM Lens를 방송 소스로 직접 추가할 수 있습니다.
+    - paragraph:
+      - link "공식 다운로드":
+        - /url: https://prismlive.com/ko_kr/?utm_source=chatgpt.com
+        - generic: 공식 다운로드
+      - text: ·
+      - link "Lens 연동 공식 가이드":
+        - /url: https://guide.prismlive.com/desktop/guides/using-prism-lens/using-lens-app-on-desktop?utm_source=chatgpt.com
+        - generic: Lens 연동 공식 가이드
+    - paragraph:
+      - text: 설정은 PRISM Lens에서 얼굴 블러를 적용하고, PRISM Live Studio에서
+      - code: 소스 → + → PRISM Lens
+      - text: 를 선택하면 됩니다. 이후 치지직 채널을 연결하거나 스트림 URL·키를 설정해 방송할 수 있습니다.
+      - button "PRISM Live Studio +2":
+        - generic: PRISM Live Studio
+        - generic: "+2"
+    - heading "3. 어떤 조합을 선택하면 될까?" [level=2]
+    - table:
+      - rowgroup:
+        - row "조합 얼굴 자동 블러 추천 상황":
+          - columnheader "조합":
+            - paragraph: 조합
+          - columnheader "얼굴 자동 블러":
+            - paragraph: 얼굴 자동 블러
+          - columnheader "추천 상황":
+            - paragraph: 추천 상황
+        - row "PRISM Lens + OBS 지원 기존 OBS 방송 환경 유지":
+          - cell "PRISM Lens + OBS":
+            - paragraph: PRISM Lens + OBS
+          - cell "지원":
+            - paragraph: 지원
+          - cell "기존 OBS 방송 환경 유지":
+            - paragraph: 기존 OBS 방송 환경 유지
+        - row "PRISM Lens + PRISM Live Studio 지원 프리즘으로 방송 환경 구성":
+          - cell "PRISM Lens + PRISM Live Studio":
+            - paragraph: PRISM Lens + PRISM Live Studio
+          - cell "지원":
+            - paragraph: 지원
+          - cell "프리즘으로 방송 환경 구성":
+            - paragraph: 프리즘으로 방송 환경 구성
+        - row "OBS + Face Tracker 플러그인만 사용 블러 기능 별도 필요 얼굴 추적·자동 확대 목적":
+          - cell "OBS + Face Tracker 플러그인만 사용":
+            - paragraph: OBS + Face Tracker 플러그인만 사용
+          - cell "블러 기능 별도 필요":
+            - paragraph: 블러 기능 별도 필요
+          - cell "얼굴 추적·자동 확대 목적":
+            - paragraph: 얼굴 추적·자동 확대 목적
+    - paragraph:
+      - text: 마지막 OBS Face Tracker는 공식 개발자 설명상 얼굴을 추적하고 화면을 잘라 확대하는 도구로, 얼굴 자동 블러 프로그램 자체는 아닙니다.
+      - button "GitHub":
+        - generic: GitHub
+    - heading "4. 방송 전 꼭 확인할 점" [level=2]
+    - paragraph:
+      - text: 자동 얼굴 인식이 순간적으로 실패하면 얼굴이 드러날 수 있으므로,
+      - generic: 실제 방송 전에 OBS 또는 PRISM의 로컬 녹화로 움직임·측면 얼굴·조명 변화까지 확인
+      - text: 하는 것이 좋습니다. 얼굴 노출을 절대로 피해야 한다면 자동 블러만 믿지 말고 카메라를 끄거나 불투명한 가림 화면을 사용하는 것이 안전합니다.
+    - paragraph:
+      - text: 치지직 공식 권장 송출 설정은 1080p, 60fps, 비트레이트 8,000kbps(CBR), 키프레임 간격 1초입니다.
+      - button "네이버 고객센터":
+        - generic: 네이버 고객센터
+    - paragraph:
+      - generic: 공식 출처 바로가기
+    - list:
+      - paragraph:
+        - link "PRISM 공식 FAQ — 얼굴 모자이크·블러 기능":
+          - /url: https://prismlive.com/ko_kr/faq/faq.html?app=lens&utm_source=chatgpt.com
+          - generic: PRISM 공식 FAQ — 얼굴 모자이크·블러 기능
+      - paragraph:
+        - link "PRISM Lens 공식 사용법":
+          - /url: https://guide.prismlive.com/lens/guides/getting-started-with-prism-lens?utm_source=chatgpt.com
+          - generic: PRISM Lens 공식 사용법
+      - paragraph:
+        - link "치지직 고객센터 — 방송 시작 방법":
+          - /url: https://help.naver.com/service/30044/contents/22587?utm_source=chatgpt.com
+          - generic: 치지직 고객센터 — 방송 시작 방법
+      - paragraph:
+        - link "OBS 공식 문서 — 웹캠 및 가상 카메라 연결":
+          - /url: https://obsproject.com/kb/video-capture-sources?utm_source=chatgpt.com
+          - generic: OBS 공식 문서 — 웹캠 및 가상 카메라 연결
+    - paragraph:
+      - text: 결론적으로,
+      - generic: 웹캠 속 본인 얼굴을 실시간으로 흐리게 처리하는 목적이라면 PRISM Lens의 '인물 모자이크 → Blur → 모든 얼굴' 설정이 가장 간단한 선택
+      - text: 입니다. PC에서 OBS를 이미 사용 중이라면 기존 방송 프로그램을 바꿀 필요도 없습니다.
+    - button "Copy":
+    - button "Read aloud":
+    - button "Regenerate response":
+    - button "More actions":
+    - generic: ChatGPT can make mistakes. Check important info.
+    - button "Scroll to bottom":
+    - heading "Latest response" [level=4]
+    - status
+    - button "Add files and more":
+    - textbox "Ask ChatGPT" [active]:
+      - paragraph: Ask ChatGPT
+    - button "Select ChatGPT model":
+      - generic: High
+    - button "Dictate":
+    - button "Send" [disabled]:
+- status
+- status
+- status
+- status
+- status
+- status: Response complete

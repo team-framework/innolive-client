@@ -1,0 +1,122 @@
+
+  - heading "무료 실시간 얼굴 블러 검색 결과" [level=1]
+  - heading "AI 브리핑" [level=2]
+  - button "Feedback 박스 열기":
+  - link "얼굴 사진 모자이크 무료 사이트, 앱 설치 없이 AI로 블러 편집 룰루 네이버 블로그 새 창 열림":
+    - /url: https://blog.naver.com/bexelaaa/224424282302
+    - generic: 얼굴 사진 모자이크 무료 사이트, 앱 설치 없이 AI로 블러 편집
+    - generic: 룰루
+    - generic: 네이버 블로그
+    - generic: 새 창 열림
+  - link "사진 모자이크 온라인 무료 - AI 얼굴·번호판 자동 블러 - SNSnote snsnote.com 새 창 열림":
+    - /url: https://snsnote.com/photo-mosaic-ai/
+    - generic: 사진 모자이크 온라인 무료 - AI 얼굴·번호판 자동 블러 - SNSnote
+    - generic: snsnote.com
+    - generic: 새 창 열림
+  - link "영상 모자이크 - 동영상 얼굴 자동 모자이크·블러 (무료) Github 새 창 열림":
+    - /url: https://ramiteacher.github.io/videomoza/
+    - generic: 영상 모자이크 - 동영상 얼굴 자동 모자이크·블러 (무료)
+    - generic: Github
+    - generic: 새 창 열림
+  - link "이미지 블러 온라인 - 무료 사진 블러 처리 도구 aimagetools.com 새 창 열림":
+    - /url: https://www.aimagetools.com/ko/blur-image
+    - generic: 이미지 블러 온라인 - 무료 사진 블러 처리 도구
+    - generic: aimagetools.com
+    - generic: 새 창 열림
+  - 'link "AI 비디오 블러: 동영상에서 얼굴과 객체를 블러 처리하는 방법 Wondershare 새 창 열림"':
+    - /url: https://uniconverter.wondershare.kr/guide/ai-video-blur.html
+    - generic: "AI 비디오 블러: 동영상에서 얼굴과 객체를 블러 처리하는 방법"
+    - generic: Wondershare
+    - generic: 새 창 열림
+  - button "다음":
+  - generic: 무료 실시간 얼굴 블러 처리는 웹 기반 도구를 활용하여 사진이나 동영상에서 얼굴 및 개인정보를 자동으로 감지하고 블러 또는 모자이크 처리하는 방식으로 가능합니다.
+  - generic: 사진 및 이미지 블러/모자이크 처리 방법
+  - list:
+    - text: AI 기반 무료 사이트들은 별도 앱 설치 없이 브라우저에서 이미지를 업로드하면 AI가 얼굴과 자동차 번호판을 자동으로 감지하여 블러 처리합니다.
+    - button "룰루 +1":
+      - generic: 룰루
+      - generic: "+1"
+    - text: 일부 도구는 사용자가 직접 영역을 드래그하여 블러 또는 모자이크를 적용할 수 있으며, 모자이크는 원본 복원이 거의 불가능한 강력한 처리법입니다.
+    - button "wooahouse.com +1":
+      - generic: wooahouse.com
+      - generic: "+1"
+    - text: 사진 전체를 균일하게 블러 처리하는 도구도 있으며, 이 경우 강도 슬라이더를 조절하여 부드러움을 확인할 수 있습니다.
+    - button "aimagetools.com":
+      - generic: aimagetools.com
+    - text: 일부 서비스는 셀카의 경우 가장 크고 중앙에 가까운 얼굴을 유지하고 주변 인물만 블러 처리하는 '내 얼굴 자동 유지' 기능을 제공합니다.
+    - button "룰루 +1":
+      - generic: 룰루
+      - generic: "+1"
+  - generic: 동영상 얼굴 블러 처리 방법
+  - list:
+    - text: 동영상에서 얼굴을 자동으로 감지하고 블러 처리하는 AI 비디오 블러 도구들이 있으며, 이는 얼굴 모드와 추적 모드를 제공합니다.
+    - button "Wondershare":
+      - generic: Wondershare
+    - text: 일부 영상 모자이크 도구는 브라우저 내에서 로컬로 처리가 이루어지며, 서버에 영상이 업로드되지 않는다는 특징이 있습니다.
+    - button "Github":
+      - generic: Github
+    - text: 영상 도구에서는 모자이크, 블러, 검은 상자 등의 가리기 스타일을 선택하고, 놓친 얼굴은 직접 영역을 그려 가릴 수 있습니다.
+    - button "Github":
+      - generic: Github
+  - generic: 개인정보 보호 및 처리 방식
+  - list:
+    - text: 많은 온라인 도구들이 클라이언트 측(브라우저)에서 처리를 완료하여 사진 파일이 서버로 업로드되거나 저장되지 않음을 강조합니다.
+    - button "aimagetools.com +1":
+      - generic: aimagetools.com
+      - generic: "+1"
+    - text: 블러 강도와 경계 부드러움을 실시간으로 조절할 수 있어 원하는 시각적 효과를 즉시 확인할 수 있습니다.
+    - button "룰루 +1":
+      - generic: 룰루
+      - generic: "+1"
+  - button "출처 7건 전체보기":
+    - generic: 출처 7건 전체보기
+  - link "룰루 네이버 블로그 얼굴 사진 모자이크 무료 사이트, 앱 설치 없이 AI로 블러 편집 새 창 열림":
+    - /url: https://blog.naver.com/bexelaaa/224424282302
+    - generic: 룰루
+    - generic: 네이버 블로그
+    - generic: 얼굴 사진 모자이크 무료 사이트, 앱 설치 없이 AI로 블러 편집
+    - generic: 새 창 열림
+  - link "wooahouse.com 이미지 모자이크 — 사진 블러·픽셀화 무료 온라인 | WooaImage 새 창 열림":
+    - /url: https://imagekit.wooahouse.com/mosaic-image.html
+    - generic: wooahouse.com
+    - generic: 이미지 모자이크 — 사진 블러·픽셀화 무료 온라인 | WooaImage
+    - generic: 새 창 열림
+  - link "Github 영상 모자이크 - 동영상 얼굴 자동 모자이크·블러 (무료) 새 창 열림":
+    - /url: https://ramiteacher.github.io/videomoza/
+    - generic: Github
+    - generic: 영상 모자이크 - 동영상 얼굴 자동 모자이크·블러 (무료)
+    - generic: 새 창 열림
+  - link "aimagetools.com 이미지 블러 온라인 - 무료 사진 블러 처리 도구 새 창 열림":
+    - /url: https://www.aimagetools.com/ko/blur-image
+    - generic: aimagetools.com
+    - generic: 이미지 블러 온라인 - 무료 사진 블러 처리 도구
+    - generic: 새 창 열림
+  - link "begoodtool.com 사진 모자이크·블러 처리 도구 얼굴·번호판 무료로 가리기 - BeGoodTool 새 창 열림":
+    - /url: https://begoodtool.com/photo-blur-pixelate/kr
+    - generic: begoodtool.com
+    - generic: 사진 모자이크·블러 처리 도구 얼굴·번호판 무료로 가리기 - BeGoodTool
+    - generic: 새 창 열림
+  - link "snsnote.com 사진 모자이크 온라인 무료 - AI 얼굴·번호판 자동 블러 - SNSnote 새 창 열림":
+    - /url: https://snsnote.com/photo-mosaic-ai/
+    - generic: snsnote.com
+    - generic: 사진 모자이크 온라인 무료 - AI 얼굴·번호판 자동 블러 - SNSnote
+    - generic: 새 창 열림
+  - 'link "Wondershare AI 비디오 블러: 동영상에서 얼굴과 객체를 블러 처리하는 방법 새 창 열림"':
+    - /url: https://uniconverter.wondershare.kr/guide/ai-video-blur.html
+    - generic: Wondershare
+    - generic: "AI 비디오 블러: 동영상에서 얼굴과 객체를 블러 처리하는 방법"
+    - generic: 새 창 열림
+  - button "다음":
+  - text: AI 답변으로 정확하지 않은 정보가 포함될 수 있어요.
+  - button "정보 확인 도움말":
+  - button "복사하기":
+  - button "도움이 됐어요":
+    - generic "도움이 됐어요":
+  - button "도움되지 않았어요":
+    - generic "도움되지 않았어요":
+  - button "신고하기":
+    - generic "신고하기":
+  - button "펼쳐서 더보기":
+    - generic: 펼쳐서 더보기
+  - textbox "무엇이든 물어보세요"
+  - button "전송" [disabled]:
