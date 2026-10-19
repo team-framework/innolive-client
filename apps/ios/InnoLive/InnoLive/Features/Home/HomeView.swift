@@ -27,6 +27,7 @@ struct HomeView: View {
     @State private var previewCornerBeforeVideoControls: LocalPreviewCorner?
     @State private var previewDragOffset: CGSize = .zero
     @State private var topTrailingReserved = CGSize(width: 44, height: 44)
+    @State private var chatReservedHeight: CGFloat = 0
     @State private var bottomReservedHeight: CGFloat = 56
     @GestureState private var pinchStartZoom: CGFloat?
     @StateObject private var tutorial = BroadcastTutorialCoordinator()
@@ -35,8 +36,11 @@ struct HomeView: View {
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject private var broadcastOrientation = BroadcastOrientationController.shared
     @Environment(CameraManager.self) private var cameraManager
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
+
+    private var isCompactLandscape: Bool { verticalSizeClass == .compact }
 
     private var usesSimulatorVideo: Bool {
         SimulatorVideoInput.isEnabled
@@ -125,7 +129,7 @@ struct HomeView: View {
                 }
             }
 
-            VStack(alignment: .trailing, spacing: 12) {
+            (isCompactLandscape ? AnyLayout(HStackLayout(spacing: 12)) : AnyLayout(VStackLayout(alignment: .trailing, spacing: 12))) {
                 Button(action: switchCamera) {
                     Group {
                         if isSwitchingCamera {
@@ -203,11 +207,22 @@ struct HomeView: View {
             )
 
             if !isSelectingFace {
+                YouTubeViewerChatOverlay(availability: YouTubeViewerChatPolicy.availability(
+                    targets: youtube.responseState.details.targets,
+                    hasSession: youtube.session != nil
+                ))
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { _, height in
+                    chatReservedHeight = height
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, isCompactLandscape ? 24 : bottomReservedHeight + 24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+
                 GuestRegistrationToast(registrar: guestRegistrar) {
                     isSelectingFace = true
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, bottomReservedHeight + 24)
+                .padding(.bottom, bottomReservedHeight + chatReservedHeight + 36)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .animation(.easeOut(duration: 0.2), value: guestRegistrar.status)
             }
@@ -221,6 +236,7 @@ struct HomeView: View {
                 onCancelPreparation: cancelBroadcastPreparation,
                 tutorial: tutorial
             )
+                .frame(maxWidth: isCompactLandscape ? 400 : .infinity)
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.height
                 } action: { _, height in
@@ -421,7 +437,9 @@ struct HomeView: View {
             topPadding: LocalPreviewSnapLayout.defaultTopPadding,
             bottomPadding: LocalPreviewSnapLayout.defaultBottomPadding,
             topTrailingReserved: topTrailingReserved,
-            bottomReservedHeight: bottomReservedHeight,
+            bottomReservedHeight: isCompactLandscape
+                ? max(bottomReservedHeight, isSelectingFace ? 0 : chatReservedHeight + 12)
+                : bottomReservedHeight + (isSelectingFace ? 0 : chatReservedHeight + 12),
             cornerSpacing: LocalPreviewSnapLayout.defaultCornerSpacing
         )
     }

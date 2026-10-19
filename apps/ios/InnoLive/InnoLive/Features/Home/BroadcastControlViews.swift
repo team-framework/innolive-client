@@ -152,7 +152,6 @@ struct BroadcastSessionStatusView: View {
                 BroadcastLiveStatusSection(youtube: youtube, uplink: youtube.videoUplink)
                     .broadcastTutorialAnchor(.liveStatus)
             }
-            YouTubeViewerChatControl(youtube: youtube)
             if youtube.hasStartedYouTubeBroadcast {
                 NavigationLink {
                     BroadcastModeView(authentication: authentication, youtube: youtube)
