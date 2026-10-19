@@ -54,7 +54,8 @@ class CameraFrameAnalyzer(
     @Volatile private var rawRecordingSink: VideoSink? = null
     /** 실제로 송출한 프레임(온디바이스 가림 처리 출력 또는 가림을 끈 보정 프레임)을 받는 녹화 싱크입니다. */
     @Volatile private var processedRecordingSink: VideoSink? = null
-    private val recordingBuffers = PrivacyCameraBufferPool()
+    // 녹화 렌더러가 프레임을 잠시 붙잡는 동안 다음 프레임이 새 버퍼를 할당하지 않도록 여분을 둡니다.
+    private val recordingBuffers = PrivacyCameraBufferPool(maxIdle = RECORDING_BUFFER_SLOTS)
     private val faceFrameTap = AtomicReference<((ImageProxy) -> Unit)?>(null)
     private val anonymizationFailures = AtomicLong()
     private var reportedColorFailure = false
@@ -82,7 +83,7 @@ class CameraFrameAnalyzer(
     private var lastStagesLogNs = System.nanoTime()
     internal var onFrameDiagnostics: ((PrivacyCaptureDiagnostics) -> Unit)? = null
     private val processorLock = Any()
-    private val cameraBuffers = PrivacyCameraBufferPool()
+    private val cameraBuffers = PrivacyCameraBufferPool(maxIdle = RECORDING_BUFFER_SLOTS)
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
         if (initialOnDevice && !batchTwoOptimizations) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
@@ -197,7 +198,10 @@ class CameraFrameAnalyzer(
         }
     }
 
-    /** 원본 녹화용으로 카메라 평면을 I420에 복사해 넘깁니다. 받는 쪽이 retain하면 다음 프레임은 새 버퍼를 씁니다. */
+    /**
+     * 온디바이스 가림 처리 경로용 원본 녹화 복사입니다. 이 경로는 카메라 이미지를 작업 스레드로 넘겨 복사본이
+     * 없으므로 따로 복사합니다. 서버 AI·가림 해제 경로는 이미 만든 카메라 복사본을 공유합니다.
+     */
     private fun deliverRawToRecording(image: ImageProxy) {
         val sink = rawRecordingSink ?: return
         val crop = image.cropRect
@@ -321,8 +325,10 @@ class CameraFrameAnalyzer(
                 lastCaptureFormat = format
                 onCaptureFormat(format.first, format.second)
             }
-            // 원본 녹화는 가림 처리 경로가 이미지를 가져가기 전에 복사합니다. 녹화 실패는 송출에 영향을 주지 않습니다.
-            if (rawRecordingSink != null) try { deliverRawToRecording(image) } catch (error: Exception) {
+            // 가림 처리 경로는 이미지를 그대로 가져가므로 원본 녹화를 먼저 복사합니다. 녹화 실패는 송출에 영향을 주지 않습니다.
+            if (rawRecordingSink != null && currentTicket.mode == PrivacyFrameMode.LOCAL_PROTECTED) try {
+                deliverRawToRecording(image)
+            } catch (error: Exception) {
                 Log.w("CameraFrameAnalyzer", "recording_copy_failed type=${error.javaClass.simpleName}")
             }
             if (currentTicket.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
@@ -394,6 +400,8 @@ class CameraFrameAnalyzer(
                     }
                 } else {
                     try {
+                        // 색 보정은 새 버퍼에 쓰므로 카메라 복사본을 원본 녹화와 공유해도 됩니다. 추가 복사가 없습니다.
+                        if (currentTicket.mode != PrivacyFrameMode.LOCAL_PROTECTED) deliverToRecording(rawRecordingSink, frame)
                         route.deliver(currentTicket) {
                             relayAdjustedFrame(frame) { adjusted ->
                                 previewSink?.onFrame(adjusted)
@@ -515,6 +523,9 @@ class CameraFrameAnalyzer(
             "busy_dropped=${dropped.getAndSet(0)} delivered=${delivered.getAndSet(0)}")
     }
 }
+
+/** 녹화 렌더러가 붙잡는 프레임(최대 1~2개)을 고려한 버퍼 여분입니다. */
+private const val RECORDING_BUFFER_SLOTS = 3
 
 private data class PendingProtectedCamera(val camera:PrivacyCameraInput,
     val ticket:PrivacyFrameRoute.Ticket,val receivedAtNs:Long):AutoCloseable {

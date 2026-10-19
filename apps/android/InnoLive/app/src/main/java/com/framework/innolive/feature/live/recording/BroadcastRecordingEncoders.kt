@@ -4,8 +4,13 @@ import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.view.Surface
+import com.framework.innolive.feature.live.direct.publish.AacEncoder
 import com.framework.innolive.feature.live.direct.publish.AsyncMediaEncoder
+import com.framework.innolive.feature.live.direct.publish.EncodedPacket
 import com.framework.innolive.feature.live.direct.publish.EncoderOutput
+import com.framework.innolive.feature.live.direct.publish.EncoderSurfaceRenderer
+import org.webrtc.EglBase
+import org.webrtc.VideoFrame
 
 /** 녹화 인코더 출력 크기입니다. 긴 변을 [MAX_RECORDING_LONG_EDGE] 이하로 맞추고 짝수로 만듭니다. */
 internal data class RecordingSize(val width: Int, val height: Int)
@@ -20,12 +25,164 @@ internal fun recordingSizeFor(sourceWidth: Int, sourceHeight: Int): RecordingSiz
     return RecordingSize(even((sourceWidth * scale).toInt()), even((sourceHeight * scale).toInt()))
 }
 
-/** 저장용이므로 송출보다 높은 비트레이트를 씁니다. 720p 6Mbps, 그보다 크면 10Mbps입니다. */
+/** iOS `LocalBroadcastRecorder`와 같이 첫 프레임 크기의 화소당 4bps를 2~12Mbps로 제한합니다. */
 internal fun recordingVideoBitrateFor(size: RecordingSize): Int =
-    if (size.width.toLong() * size.height <= 1280L * 720L) 6_000_000 else 10_000_000
+    (size.width.toLong() * size.height * 4).coerceIn(MIN_RECORDING_BITRATE_BPS, MAX_RECORDING_BITRATE_BPS).toInt()
 
+internal const val MIN_RECORDING_BITRATE_BPS = 2_000_000L
+internal const val MAX_RECORDING_BITRATE_BPS = 12_000_000L
 internal const val RECORDING_AUDIO_BITRATE_BPS = 128_000
 internal const val RECORDING_FPS = 30
+
+/** 녹화 영상 인코더 출력입니다. 형식은 MP4 트랙 설정으로 바꿔 넘깁니다. */
+internal interface RecordingVideoOutput {
+    fun onConfig(config: VideoTrackConfig)
+    fun onPacket(packet: EncodedPacket)
+    fun onEndOfStream()
+    fun onDropped()
+    fun onError(error: Exception)
+}
+
+internal interface RecordingAudioOutput {
+    fun onConfig(config: AudioTrackConfig)
+    fun onPacket(packet: EncodedPacket)
+    fun onEndOfStream()
+    fun onError(error: Exception)
+}
+
+/** 프레임을 그려 H.264로 인코딩합니다. [render]는 프레임을 붙잡아 다른 스레드에서 그립니다. */
+internal interface RecordingVideoPipeline : AutoCloseable {
+    fun render(frame: VideoFrame, presentationTimeNs: Long)
+
+    /** 더 그리지 않습니다. 마지막 출력 뒤 [RecordingVideoOutput.onEndOfStream]이 옵니다. */
+    fun signalEndOfInput()
+}
+
+/** 48kHz 스테레오 PCM 16비트를 AAC로 인코딩합니다. */
+internal interface RecordingAudioEncoder : AutoCloseable {
+    fun queuePcm(data: ByteArray, size: Int, presentationTimeUs: Long)
+    fun queueSilence(size: Int, presentationTimeUs: Long)
+    fun signalEndOfInput()
+}
+
+/** 녹화 인코더를 만듭니다. 단위 테스트는 가짜 인코더를 넣습니다. 작업 스레드에서 부릅니다. */
+internal interface RecordingMediaFactory {
+    fun createVideo(name: String, size: RecordingSize, bitrateBps: Int, output: RecordingVideoOutput): RecordingVideoPipeline
+    fun createAudio(output: RecordingAudioOutput): RecordingAudioEncoder
+}
+
+/** MediaCodec과 송출 경로의 EGL 문맥을 쓰는 기본 녹화 인코더입니다. */
+internal class AndroidRecordingMediaFactory(private val sharedEglContext: EglBase.Context) : RecordingMediaFactory {
+    override fun createVideo(
+        name: String,
+        size: RecordingSize,
+        bitrateBps: Int,
+        output: RecordingVideoOutput,
+    ): RecordingVideoPipeline {
+        val encoder = RecordingVideoEncoder(size.width, size.height, RECORDING_FPS, bitrateBps, object : EncoderOutput {
+            override fun onOutputFormat(format: MediaFormat) {
+                try {
+                    output.onConfig(videoTrackConfig(format, size))
+                } catch (error: Exception) {
+                    output.onError(error)
+                }
+            }
+
+            override fun onPacket(packet: EncodedPacket) = output.onPacket(packet)
+
+            override fun onEndOfStream() = output.onEndOfStream()
+
+            override fun onError(error: Exception) = output.onError(error)
+        })
+        val renderer = try {
+            EncoderSurfaceRenderer(sharedEglContext, encoder.inputSurface, size.width, size.height,
+                onRendered = {}, onDropped = output::onDropped, onError = output::onError)
+        } catch (error: Exception) {
+            encoder.close()
+            throw error
+        }
+        try {
+            encoder.start()
+        } catch (error: Exception) {
+            renderer.close()
+            encoder.close()
+            throw error
+        }
+        RecordingLog.i("video_stream_started name=$name size=${size.width}x${size.height} bitrate=$bitrateBps")
+        return object : RecordingVideoPipeline {
+            override fun render(frame: VideoFrame, presentationTimeNs: Long) = renderer.render(frame, presentationTimeNs)
+
+            override fun signalEndOfInput() {
+                runCatching { renderer.close() }
+                encoder.signalEndOfInputStream()
+            }
+
+            override fun close() {
+                runCatching { renderer.close() }
+                runCatching { encoder.close() }
+            }
+        }
+    }
+
+    override fun createAudio(output: RecordingAudioOutput): RecordingAudioEncoder {
+        val encoder = AacEncoder(RECORDING_AUDIO_SAMPLE_RATE, RECORDING_AUDIO_CHANNELS, RECORDING_AUDIO_BITRATE_BPS,
+            object : EncoderOutput {
+                override fun onOutputFormat(format: MediaFormat) {
+                    try {
+                        output.onConfig(audioTrackConfig(format))
+                    } catch (error: Exception) {
+                        output.onError(error)
+                    }
+                }
+
+                override fun onPacket(packet: EncodedPacket) = output.onPacket(packet)
+
+                override fun onEndOfStream() = output.onEndOfStream()
+
+                override fun onError(error: Exception) = output.onError(error)
+            }, name = "recording-audio", maxPendingChunks = MAX_RECORDING_AUDIO_PENDING_CHUNKS)
+        try {
+            encoder.start()
+        } catch (error: Exception) {
+            encoder.close()
+            throw error
+        }
+        RecordingLog.i("audio_stream_started rate=$RECORDING_AUDIO_SAMPLE_RATE channels=$RECORDING_AUDIO_CHANNELS")
+        return object : RecordingAudioEncoder {
+            override fun queuePcm(data: ByteArray, size: Int, presentationTimeUs: Long) =
+                encoder.queuePcm(data, size, presentationTimeUs)
+
+            override fun queueSilence(size: Int, presentationTimeUs: Long) = encoder.queueSilence(size, presentationTimeUs)
+
+            override fun signalEndOfInput() = encoder.signalEndOfInput()
+
+            override fun close() = encoder.close()
+        }
+    }
+
+    private companion object {
+        /** 음성 입력이 10ms 단위이므로 약 60초를 보관합니다. 무음 채움은 데이터 없이 표시만 합니다. */
+        const val MAX_RECORDING_AUDIO_PENDING_CHUNKS = 6_000
+    }
+}
+
+private fun MediaFormat.bytes(key: String): ByteArray? = getByteBuffer(key)?.let { buffer ->
+    ByteArray(buffer.remaining()).also { buffer.duplicate().get(it) }
+}
+
+internal fun videoTrackConfig(format: MediaFormat, fallback: RecordingSize): VideoTrackConfig {
+    val csd = listOfNotNull(format.bytes("csd-0"), format.bytes("csd-1"))
+    val (sps, pps) = Mp4Codec.parameterSets(*csd.toTypedArray())
+    val width = if (format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else fallback.width
+    val height = if (format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else fallback.height
+    return VideoTrackConfig(width, height, sps, pps)
+}
+
+internal fun audioTrackConfig(format: MediaFormat): AudioTrackConfig = AudioTrackConfig(
+    sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE),
+    channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT),
+    audioSpecificConfig = checkNotNull(format.bytes("csd-0")) { "AAC 설정이 없습니다." },
+)
 
 /**
  * 녹화 영상용 H.264 인코더입니다. 입력 Surface를 받으며 [signalEndOfInputStream] 뒤 마지막 출력에서
