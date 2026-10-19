@@ -18,9 +18,9 @@ import com.framework.innolive.feature.live.consent.BroadcastConsentStore
 import com.framework.innolive.feature.live.consent.nextBroadcastConsentStep
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastUiState
+import com.framework.innolive.feature.live.recording.BroadcastRecordingControl
 import com.framework.innolive.feature.live.recording.BroadcastRecordingCoordinator
-import com.framework.innolive.feature.live.recording.BroadcastRecordingHost
-import com.framework.innolive.feature.live.recording.BroadcastRecordingStore
+import com.framework.innolive.feature.live.recording.createBroadcastRecordingHost
 import com.framework.innolive.feature.live.recording.BroadcastRecordingUiState
 import com.framework.innolive.feature.live.recording.RecordingMediaBindings
 import com.framework.innolive.feature.live.status.BroadcastUplinkQuality
@@ -40,8 +40,13 @@ import kotlin.coroutines.resume
 class WebRtcSessionViewModel internal constructor(
     /** 송출 경로를 만듭니다. 테스트는 가짜 송출 경로를 넣습니다. */
     private val transportFactory: (LiveBroadcastTransportRequest) -> LiveBroadcastTransport,
+    /** 녹화를 만듭니다. 기기 테스트는 가짜 녹화로 저장·폐기 전이를 확인합니다. */
+    private val recordingControlFactory: (Context, (BroadcastRecordingUiState) -> Unit) -> BroadcastRecordingControl =
+        ::createBroadcastRecordingHost,
 ) : ViewModel() {
     constructor() : this(::createLiveBroadcastTransport)
+    internal constructor(transportFactory: (LiveBroadcastTransportRequest) -> LiveBroadcastTransport) :
+        this(transportFactory, ::createBroadcastRecordingHost)
 
     private var startJob: Job? = null
     private var prepareJob: Job? = null
@@ -112,14 +117,11 @@ class WebRtcSessionViewModel internal constructor(
     var recordingState by mutableStateOf(BroadcastRecordingUiState())
         private set
     private var applicationContext: Context? = null
-    private var recordingHost: BroadcastRecordingHost? = null
+    private var recordingHost: BroadcastRecordingControl? = null
 
     /** 첫 연결 뒤에만 만듭니다. 연결 전 close()가 호스트 없이 지나가도 다음 방송의 녹화를 막지 않습니다. */
-    private fun ensureRecordingHost(): BroadcastRecordingHost? = recordingHost ?: applicationContext?.let { context ->
-        BroadcastRecordingHost(
-            store = BroadcastRecordingStore(BroadcastRecordingStore.defaultRoot(context)),
-            onStateChanged = { state -> recordingState = state },
-        ).also { recordingHost = it }
+    private fun ensureRecordingHost(): BroadcastRecordingControl? = recordingHost ?: applicationContext?.let { context ->
+        recordingControlFactory(context) { state -> recordingState = state }.also { recordingHost = it }
     }
     private val recordingCoordinator = BroadcastRecordingCoordinator(object : BroadcastRecordingCoordinator.Control {
         override fun begin(): Boolean = ensureRecordingHost()?.begin(
@@ -133,6 +135,10 @@ class WebRtcSessionViewModel internal constructor(
                 provider = selectedProvider.wireValue,
             ),
         ) ?: false
+
+        override fun confirm() {
+            recordingHost?.confirm()
+        }
 
         override fun finish(save: Boolean) {
             recordingHost?.finish(save)
@@ -350,6 +356,10 @@ class WebRtcSessionViewModel internal constructor(
                                 sessionSnapshot = null
                                 lockedBroadcastRotation = null
                                 lockedScreenOrientation = null
+                            }
+                            if (state == WebRtcConnectionState.FAILED) {
+                                // 실패한 연결은 더 이상 방송 상태를 보내지 않으므로 확인된 녹화를 바로 저장합니다(iOS endLocally).
+                                recordingCoordinator.onConnectionClosed()
                             }
                             if (state == WebRtcConnectionState.FAILED && broadcastState != BroadcastState.IDLE) {
                                 broadcastState = BroadcastState.FAILED
