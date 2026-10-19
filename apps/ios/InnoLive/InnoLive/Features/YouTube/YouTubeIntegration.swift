@@ -3248,9 +3248,9 @@ final class YouTubeIntegration: ObservableObject {
         session: YouTubeBroadcastSession,
         videoTrack: YouTubeVideoTrackState,
         preparationStatus: BroadcastPreparationStatus? = nil,
-        streamingAccounts: [StreamingAccountSummary] = []
+        streamingAccounts: [StreamingAccountSummary]? = nil
     ) {
-        self.streamingAccounts = streamingAccounts
+        if let streamingAccounts { self.streamingAccounts = streamingAccounts }
         self.preparationStatus = preparationStatus
         self.connection = connection
         self.session = session
