@@ -88,7 +88,7 @@ Debug 빌드에서 `--studio-preview`로 로그인·미디어 수명주기를 �
 
 상단 카메라·계정 버튼과 페이지 탭, 작은 라이브 상태 바, 하단 제어 바, 채팅 메뉴·안내에 공통 Glass 표면을 적용한다. 주변 제어를 합치는 상단은 GlassEffectContainer로 묶는다. 설정 내용 카드는 일반 material을 유지해 Glass 표면을 중첩하지 않는다.
 
-iOS 26 이상은 네이티브 Liquid Glass와 glass 버튼을 사용한다. 이전 OS는 regularMaterial·얇은 테두리와 bordered 버튼을 사용한다. 투명도 줄이기 또는 대비 증가는 불투명 배경·테두리와 borderedProminent 버튼을 사용한다. 영상 위 표면은 overVideo로 표시해 검정 불투명 배경, 어두운 material 또는 검정 tint Glass를 사용한다. 일반 설정 화면은 시스템 색상 모드를 따른다. 기존 공통 Glass 스타일을 사용하는 설정 화면 등에도 같은 fallback을 적용한다.
+iOS 26 이상은 네이티브 Liquid Glass와 glass 버튼을 사용한다. 이전 OS는 regularMaterial·얇은 테두리를 사용하며 영상 위 일반 버튼은 짙은 불투명 채움으로 표시한다. 일반 화면은 bordered 버튼을 유지한다. 투명도 줄이기 또는 대비 증가는 불투명 배경·테두리와 borderedProminent 버튼을 사용한다. 영상 위 표면은 overVideo로 표시해 검정 불투명 배경, 어두운 material 또는 검정 tint Glass를 사용한다. 일반 설정 화면은 시스템 색상 모드를 따른다. 기존 공통 Glass 스타일을 사용하는 설정 화면 등에도 같은 fallback을 적용한다.
 
 이 환경에는 iOS 27 시뮬레이터만 설치되어 있다. fallback 강제 환경값으로 구형 재질 경로와 투명도 줄이기 경로를 렌더링한다. 구형 OS 자체 실행 검증과 구분하며, 실기기 빌드·설치·실행은 하지 않는다.
 
@@ -103,3 +103,5 @@ iOS 26 이상은 네이티브 Liquid Glass와 glass 버튼을 사용한다. 이�
 - 시뮬레이터 렌더링 테스트 2개 통과: 홈 36장(3개 상태 × 3페이지 × 2방향 × 라이트·다크), 재질 8장(Glass·legacy·불투명·대비 증가 × 라이트·다크).
 - 대비 증가는 UIKit accessibilityContrast trait으로 검증했다. legacy와 불투명은 테스트 환경값을 사용했다. 구형 OS·실제 접근성 설정·실제 영상 및 실기기 실행은 미검증이다.
 - API·미디어 계약 변경은 없다.
+
+재리뷰에서 남은 이전 OS 영상 버튼 대비를 수정한 뒤 같은 렌더링 테스트 2개를 다시 통과했다. 최종 캡처 44장을 갱신했고, 접근성 모드에서도 주요 버튼의 강조색과 보조 버튼의 중립색을 구분한다.
