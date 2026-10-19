@@ -1,39 +1,36 @@
 import SwiftUI
-import UIKit
 
 struct StudioLiveStatusHeader: View {
     @ObservedObject var youtube: YouTubeIntegration
     let onEnd: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 10) {
+        VStack(spacing: 4) {
+            HStack(spacing: 12) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    HStack(spacing: 8) {
-                        Circle().fill(.white.opacity(0.7)).frame(width: 6, height: 6)
-                        Text(duration(at: context.date))
-                            .font(.title3.weight(.medium)).monospacedDigit()
-                            .lineLimit(1).minimumScaleFactor(0.7)
+                    HStack(spacing: 6) {
+                        Circle().fill(youtube.isYouTubeBroadcastPaused ? Color.orange : Color.red)
+                            .frame(width: 5, height: 5)
+                        Text(duration(at: context.date)).monospacedDigit()
                     }
-                    .padding(.horizontal, 12).frame(height: 40)
-                    .background(youtube.isYouTubeBroadcastPaused ? Color.orange : Color.red,
-                                in: RoundedRectangle(cornerRadius: 6))
                     .accessibilityLabel(String(localized: "방송 중") + " " + duration(at: context.date))
                 }
-                .fixedSize(horizontal: true, vertical: false)
+                StudioTransmissionMetrics(uplink: youtube.videoUplink, isDirect: youtube.isDirectPublishSession)
                 Spacer(minLength: 0)
                 Button(action: onEnd) {
                     Text(String(localized: "종료"))
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 18).frame(minHeight: 44)
-                        .background(.black.opacity(0.25), in: RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(.white.opacity(0.85), lineWidth: 1))
+                        .padding(.horizontal, 8)
+                        .frame(height: 32)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(String(localized: "전체 방송 종료", table: "Simulcast"))
                 .accessibilityIdentifier("studio-end-broadcast")
             }
-            StudioTransmissionMetrics(uplink: youtube.videoUplink, isDirect: youtube.isDirectPublishSession)
+            .font(.system(size: 12, weight: .medium))
+            .lineLimit(1)
+            .padding(.horizontal, 10)
+            .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
             if let recovery = youtube.videoRecoveryStatus {
                 Text(recovery.title).font(.caption).padding(6).background(.black.opacity(0.65), in: Capsule())
             } else if youtube.isYouTubeBroadcastPaused {
@@ -53,31 +50,9 @@ struct StudioLiveStatusHeader: View {
 private struct StudioTransmissionMetrics: View {
     @ObservedObject var uplink: WebRTCVideoUplink
     let isDirect: Bool
-    @State private var wasBatteryMonitoringEnabled = false
-
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 5)) { _ in
-            HStack(spacing: 16) {
-                Label(isDirect ? "– fps" : uplink.uplinkQuality.framesPerSecond.map { "\($0) fps" } ?? "– fps",
-                      systemImage: "waveform.path")
-                if !isDirect, let edge = uplink.uplinkQuality.shortEdge {
-                    Label { Text(verbatim: "\(edge)p") } icon: { Image(systemName: "antenna.radiowaves.left.and.right") }
-                }
-                Spacer(minLength: 0)
-                if UIDevice.current.batteryLevel >= 0 {
-                    Label("\(Int((UIDevice.current.batteryLevel * 100).rounded()))%", systemImage: "battery.100percent")
-                }
-            }
-            .font(.caption.monospacedDigit())
-            .padding(.horizontal, 12).padding(.vertical, 10)
-            .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 8))
-        }
-        .onAppear {
-            wasBatteryMonitoringEnabled = UIDevice.current.isBatteryMonitoringEnabled
-            UIDevice.current.isBatteryMonitoringEnabled = true
-        }
-        .onDisappear {
-            UIDevice.current.isBatteryMonitoringEnabled = wasBatteryMonitoringEnabled
-        }
+        Text(isDirect ? "– fps" : uplink.uplinkQuality.framesPerSecond.map { "\($0) fps" } ?? "– fps")
+            .monospacedDigit()
+            .foregroundStyle(.white.opacity(0.8))
     }
 }

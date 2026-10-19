@@ -196,6 +196,7 @@ struct HomeView: View {
             studioNavigation
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .dynamicTypeSize(.medium)
         .accessibilityHidden(youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd)
         .overlay {
             if let status = youtube.preparationStatus {
