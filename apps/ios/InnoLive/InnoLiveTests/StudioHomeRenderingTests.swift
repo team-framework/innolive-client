@@ -35,21 +35,22 @@ final class StudioHomeRenderingTests: XCTestCase {
                     preparationStatus: preparing ? .init(phase: .connectingServer) : nil)
             }
             let sessionID = integration.session?.sessionID
-            for configuration in [(landscape: false, large: false), (landscape: true, large: false)] {
+            for configuration in [(landscape: false, light: false), (landscape: true, light: false),
+                                  (landscape: false, light: true), (landscape: true, light: true)] {
                 let landscape = configuration.landscape
                 for page in StudioPage.allCases {
                     let size = landscape ? CGSize(width: 844, height: 390) : CGSize(width: 390, height: 844)
                     let camera = CameraManager()
                     let window = UIWindow(windowScene: scene)
                     window.frame = CGRect(origin: .zero, size: size)
-                    window.overrideUserInterfaceStyle = .dark
+                    window.overrideUserInterfaceStyle = configuration.light ? .light : .dark
                     window.rootViewController = UIHostingController(rootView:
                         NavigationStack {
                             HomeView(authentication: authentication, youtube: integration,
                                      initialPage: page, startsLifecycle: false)
                         }
                         .environment(camera)
-                        .dynamicTypeSize(configuration.large ? .accessibility3 : .large)
+                        .dynamicTypeSize(.medium)
                         .environment(\.verticalSizeClass, landscape ? .compact : .regular))
                     window.makeKeyAndVisible()
                     defer {
@@ -76,7 +77,7 @@ final class StudioHomeRenderingTests: XCTestCase {
                     XCTAssertFalse(integration.videoUplink.isCapturingMedia)
                     XCTAssertFalse(camera.session.isRunning)
                     let attachment = XCTAttachment(image: image)
-                    attachment.name = "studio-home-\(state)-\(page)-\(landscape ? "landscape" : "portrait")-\(configuration.large ? "large-text" : "default")"
+                    attachment.name = "studio-home-\(state)-\(page)-\(landscape ? "landscape" : "portrait")-\(configuration.light ? "light" : "default")"
                     attachment.lifetime = .keepAlways
                     add(attachment)
                 }
@@ -88,10 +89,13 @@ final class StudioHomeRenderingTests: XCTestCase {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let previous = scene.windows.first { $0.isKeyWindow }
         defer { previous?.makeKeyAndVisible() }
-        for mode in ["liquid-glass", "legacy-material", "reduced-transparency"] {
+        for mode in ["liquid-glass", "legacy-material", "reduced-transparency", "increased-contrast",
+                     "liquid-glass-light", "legacy-material-light", "reduced-transparency-light", "increased-contrast-light"] {
+            let light = mode.hasSuffix("-light")
             let window = UIWindow(windowScene: scene)
             window.frame = CGRect(x: 0, y: 0, width: 390, height: 500)
-            window.overrideUserInterfaceStyle = .dark
+            window.overrideUserInterfaceStyle = light ? .light : .dark
+            window.traitOverrides.accessibilityContrast = mode.hasPrefix("increased-contrast") ? .high : .normal
             window.rootViewController = UIHostingController(rootView:
                 ZStack {
                     LinearGradient(colors: [.indigo, .orange, .teal], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -99,22 +103,22 @@ final class StudioHomeRenderingTests: XCTestCase {
                         VStack(spacing: 28) {
                             Text(mode).font(.caption)
                             Text("화면    기본    설정").padding(12)
-                                .innoLiveGlassSurface(in: Capsule(), interactive: true)
+                                .innoLiveGlassSurface(in: Capsule(), overVideo: true)
                             HStack { Text("● 00:42"); Text("30 fps"); Spacer(); Button("종료") {} }
                                 .font(.system(size: 12)).padding(10)
-                                .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 8), interactive: true)
+                                .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 8), overVideo: true)
                             Button("카메라 전환", systemImage: "camera.rotate") {}
-                                .innoLiveGlassButtonStyle()
-                            Button("방송 준비") {}.innoLiveGlassButtonStyle(prominent: true)
+                                .innoLiveGlassButtonStyle(overVideo: true)
+                            Button("방송 준비") {}.innoLiveGlassButtonStyle(prominent: true, overVideo: true)
                             Text("방송 제어       비식별화").padding(14)
-                                .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 12), interactive: true)
+                                .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 12), overVideo: true)
                         }.padding(24)
                     }
                 }
                 .foregroundStyle(.white)
-                .environment(\.colorScheme, .dark)
-                .environment(\.innoLiveGlassForceFallback, mode == "legacy-material")
-                .environment(\.innoLiveGlassForceOpaque, mode == "reduced-transparency"))
+                .environment(\.colorScheme, light ? .light : .dark)
+                .environment(\.innoLiveGlassForceFallback, mode.hasPrefix("legacy-material"))
+                .environment(\.innoLiveGlassForceOpaque, mode.hasPrefix("reduced-transparency")))
             window.makeKeyAndVisible()
             try await Task.sleep(for: .milliseconds(500))
             let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
