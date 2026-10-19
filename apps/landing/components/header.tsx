@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { AuthNavigation } from "@/components/auth-navigation";
 import { DownloadMenu } from "@/components/download-menu";
 import { LanguageSwitch } from "@/components/language-switch";
@@ -17,6 +17,8 @@ export function Header() {
   const { href, messages } = useLocale();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
+  // The home page renders its own Header beside the hidden layout one, so a fixed id would repeat.
+  const navigationId = useId();
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -75,7 +77,7 @@ export function Header() {
           <DownloadMenu />
           <button
             type="button"
-            aria-controls="mobile-navigation"
+            aria-controls={navigationId}
             aria-expanded={mobileMenuOpen}
             aria-label={mobileMenuOpen ? messages.header.closeMenu : messages.header.openMenu}
             className="inline-flex size-11 items-center max-md:-my-[6px] max-md:size-[44px] justify-center rounded-full text-text-primary transition-colors hover:bg-background-primary"
@@ -87,7 +89,7 @@ export function Header() {
           </button>
         </div>
         <nav
-          id="mobile-navigation"
+          id={navigationId}
           aria-label={messages.header.primaryNav}
           className={cn(
             "absolute inset-x-0 top-full flex-col gap-1 border-t border-surface-primary bg-background-secondary px-5 py-5 shadow-button md:static md:flex md:w-auto md:flex-row md:items-center md:justify-end md:gap-6 md:border-0 md:bg-transparent md:p-0 md:shadow-none",
