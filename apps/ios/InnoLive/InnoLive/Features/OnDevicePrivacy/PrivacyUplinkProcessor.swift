@@ -42,12 +42,18 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     private var model: PrivacyModel?
     private var appliedGeneration: UInt?
     private var geometry: String?
-    private let context = CIContext(options: [.cacheIntermediates: false])
+    private let outputPool = PrivacyOutputBufferPool()
     private let onError: @Sendable (String) -> Void
     private let metricsLock = NSLock()
     private var metricsHandler: (@Sendable (PrivacyFrameMetric) -> Void)?
 
     init(onError: @escaping @Sendable (String) -> Void) { self.onError = onError }
+    #if DEBUG
+    private var timingObserver: (@Sendable (PrivacyTimings) -> Void)?
+    func setTimingObserver(_ observer: (@Sendable (PrivacyTimings) -> Void)?) {
+        metricsLock.withLock { timingObserver = observer }
+    }
+    #endif
     /// 직접 송출 하트비트용 추론 시간·실패 기록을 받는다.
     func setMetricsHandler(_ handler: (@Sendable (PrivacyFrameMetric) -> Void)?) {
         metricsLock.withLock { metricsHandler = handler }
@@ -91,16 +97,14 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         let orientation = Self.orientation(rotation: payload.frame.rotation.rawValue)
                         let original = CIImage(cvPixelBuffer: pixels.pixelBuffer).oriented(orientation.forward)
                         let upright = original.transformed(by: CGAffineTransform(translationX: -original.extent.minX, y: -original.extent.minY))
-                        let rendered = try model!.process(upright).0
+                        let output = try outputPool.acquire(width: CVPixelBufferGetWidth(pixels.pixelBuffer),
+                                                            height: CVPixelBufferGetHeight(pixels.pixelBuffer))
                         // Restore sensor dimensions; WebRTC still carries the original rotation metadata.
-                        let restored = CIImage(cgImage: rendered).oriented(orientation.reverse)
-                        let width = CVPixelBufferGetWidth(pixels.pixelBuffer), height = CVPixelBufferGetHeight(pixels.pixelBuffer)
-                        var output: CVPixelBuffer?
-                        guard CVPixelBufferCreate(kCFAllocatorDefault, width, height, kCVPixelFormatType_32BGRA,
-                                                  [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &output) == kCVReturnSuccess,
-                              let output else { throw PrivacyModelError.imageBuffer }
-                        let normalized = restored.transformed(by: CGAffineTransform(translationX: -restored.extent.minX, y: -restored.extent.minY))
-                        context.render(normalized, to: output, bounds: CGRect(x: 0, y: 0, width: width, height: height), colorSpace: CGColorSpaceCreateDeviceRGB())
+                        let processing = try model!.process(upright, into: output, restoring: orientation.reverse)
+                        #if DEBUG
+                        let observer = metricsLock.withLock { timingObserver }
+                        observer?(processing.1)
+                        #endif
                         report(.inference(milliseconds: Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000))
                         result = LKRTCVideoFrame(buffer: LKRTCCVPixelBuffer(pixelBuffer: output), rotation: payload.frame.rotation, timeStampNs: payload.frame.timeStampNs)
                         result.timeStamp = payload.frame.timeStamp
@@ -180,5 +184,33 @@ nonisolated final class PrivacyUplinkRoute: @unchecked Sendable {
             guard !stopped, ticket.generation == generation else { return }
             body()
         }
+    }
+}
+
+/// Used on the processing queue. Core Video only reuses buffers released by every consumer.
+nonisolated final class PrivacyOutputBufferPool {
+    private var pool: CVPixelBufferPool?
+    private var dimensions: CGSize = .zero
+    private let pixelFormat: OSType
+    init(pixelFormat: OSType = kCVPixelFormatType_32BGRA) { self.pixelFormat = pixelFormat }
+    func acquire(width: Int, height: Int) throws -> CVPixelBuffer {
+        guard width > 0, height > 0 else { throw PrivacyModelError.imageBuffer }
+        let size = CGSize(width: width, height: height)
+        if pool == nil || dimensions != size {
+            var next: CVPixelBufferPool?
+            let attributes: [CFString: Any] = [kCVPixelBufferWidthKey: width, kCVPixelBufferHeightKey: height,
+                kCVPixelBufferPixelFormatTypeKey: pixelFormat,
+                kCVPixelBufferIOSurfacePropertiesKey: [:], kCVPixelBufferMetalCompatibilityKey: true]
+            guard CVPixelBufferPoolCreate(kCFAllocatorDefault, nil, attributes as CFDictionary, &next) == kCVReturnSuccess,
+                  let next else { throw PrivacyModelError.imageBuffer }
+            pool = next
+            dimensions = size
+        }
+        var output: CVPixelBuffer?
+        guard let pool,
+              CVPixelBufferPoolCreatePixelBufferWithAuxAttributes(kCFAllocatorDefault, pool,
+                [kCVPixelBufferPoolAllocationThresholdKey: 6] as CFDictionary, &output) == kCVReturnSuccess,
+              let output else { throw PrivacyModelError.imageBuffer }
+        return output
     }
 }

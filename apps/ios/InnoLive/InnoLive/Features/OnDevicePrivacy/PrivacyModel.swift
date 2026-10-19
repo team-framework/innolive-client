@@ -1,6 +1,7 @@
 import CoreML
 import CoreImage
 import CoreVideo
+import ImageIO
 
 nonisolated struct PrivacyTimings: Sendable {
     let prepare: Double
@@ -15,6 +16,7 @@ nonisolated final class PrivacyModel {
     private let model: MLModel
     private let context = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
+    private var blurBuffer: CVPixelBuffer?
     private let input: CVPixelBuffer
     private let inputName: String
     private let detectionsName: String
@@ -56,6 +58,29 @@ nonisolated final class PrivacyModel {
     }
 
     func process(_ original: CIImage) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
+        try process(original) { image in
+            guard let output = context.createCGImage(image, from: original.extent) else {
+                throw PrivacyModelError.imageBuffer
+            }
+            return output
+        }
+    }
+
+    /// Render directly into reusable output without a full-frame CGImage round trip.
+    func process(_ original: CIImage, into output: CVPixelBuffer,
+                 restoring orientation: CGImagePropertyOrientation) throws -> (Int, PrivacyTimings, PrivacyFaceSnapshot) {
+        let result = try process(original) { image in
+            let restored = image.oriented(orientation)
+            let normalized = restored.transformed(by: CGAffineTransform(translationX: -restored.extent.minX,
+                                                                         y: -restored.extent.minY))
+            context.render(normalized, to: output,
+                           bounds: CGRect(x: 0, y: 0, width: CVPixelBufferGetWidth(output), height: CVPixelBufferGetHeight(output)),
+                           colorSpace: colorSpace)
+        }
+        return (result.1, result.2, result.3)
+    }
+
+    private func process<Output>(_ original: CIImage, render: (CIImage) throws -> Output) throws -> (Output, Int, PrivacyTimings, PrivacyFaceSnapshot) {
         let start = ProcessInfo.processInfo.systemUptime
         let size = original.extent.size
         let layout = PrivacySegmentation.Letterbox(size: size)
@@ -85,12 +110,10 @@ nonisolated final class PrivacyModel {
             .transformed(by: CGAffineTransform(scaleX: size.width / layout.resized.width,
                                               y: size.height / layout.resized.height))
             .cropped(to: original.extent)
-        let blurred = broadcastStyleBlur(original)
+        let blurred = try broadcastStyleBlur(original)
         let result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
-        guard let rendered = context.createCGImage(result, from: original.extent) else {
-            throw PrivacyModelError.imageBuffer
-        }
+        let rendered = try render(result)
         let completed = ProcessInfo.processInfo.systemUptime
         return (rendered, objects.count, PrivacyTimings(prepare: (prepared - start) * 1000,
                                                        inference: (inferred - prepared) * 1000,
@@ -104,7 +127,8 @@ nonisolated final class PrivacyModel {
     /// screen shows a smooth blur that removes those features, which matches about
     /// sigma 72 on a 1080-short-side frame. Scale with the short side so 720p and
     /// 1080p keep the same strength relative to the picture.
-    static let mosaicPixelSize: CGFloat = 2
+    // Match Android's quarter-resolution blur while keeping the full-resolution sigma.
+    static let blurReduction: CGFloat = 4
     static let broadcastBlurSigmaPerShortSide: CGFloat = 1.0 / 15
 
     static func broadcastBlurSigma(for extent: CGRect) -> CGFloat {
@@ -112,23 +136,28 @@ nonisolated final class PrivacyModel {
         return max(48, (shortSide * broadcastBlurSigmaPerShortSide).rounded())
     }
 
-    private func broadcastStyleBlur(_ original: CIImage) -> CIImage {
+    func broadcastStyleBlur(_ original: CIImage, reduction: CGFloat = PrivacyModel.blurReduction) throws -> CIImage {
+        guard reduction == 2 || reduction == 4 else { throw PrivacyModelError.outputContract }
         let extent = original.extent
         let sigma = Self.broadcastBlurSigma(for: extent)
-        let reducedWidth = max(1, Int((extent.width / Self.mosaicPixelSize).rounded(.up)))
-        let reducedHeight = max(1, Int((extent.height / Self.mosaicPixelSize).rounded(.up)))
+        let reducedWidth = max(1, Int((extent.width / reduction).rounded(.up)))
+        let reducedHeight = max(1, Int((extent.height / reduction).rounded(.up)))
         let reducedExtent = CGRect(x: 0, y: 0, width: reducedWidth, height: reducedHeight)
         let reduced = original.transformed(by: CGAffineTransform(
             scaleX: reducedExtent.width / extent.width,
             y: reducedExtent.height / extent.height
         ))
-        var buffer: CVPixelBuffer?
-        CVPixelBufferCreate(kCFAllocatorDefault, reducedWidth, reducedHeight, kCVPixelFormatType_32BGRA,
-                            [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &buffer)
-        guard let buffer else { return original }
+        if blurBuffer.map({ CVPixelBufferGetWidth($0) != reducedWidth || CVPixelBufferGetHeight($0) != reducedHeight }) ?? true {
+            var buffer: CVPixelBuffer?
+            guard CVPixelBufferCreate(kCFAllocatorDefault, reducedWidth, reducedHeight, kCVPixelFormatType_32BGRA,
+                                      [kCVPixelBufferIOSurfacePropertiesKey: [:]] as CFDictionary, &buffer) == kCVReturnSuccess,
+                  let buffer else { throw PrivacyModelError.imageBuffer }
+            blurBuffer = buffer
+        }
+        guard let buffer = blurBuffer else { throw PrivacyModelError.imageBuffer }
         context.render(reduced, to: buffer, bounds: reducedExtent, colorSpace: colorSpace)
         let blurred = CIImage(cvPixelBuffer: buffer).clampedToExtent()
-            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: sigma / Self.mosaicPixelSize])
+            .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: sigma / reduction])
             .cropped(to: reducedExtent)
         return blurred.transformed(by: CGAffineTransform(
             scaleX: extent.width / reducedExtent.width,
