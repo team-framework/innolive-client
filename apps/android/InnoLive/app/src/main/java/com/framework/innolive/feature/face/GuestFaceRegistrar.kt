@@ -312,7 +312,8 @@ internal class DeviceGuestFaceRegistrationBackend(
                 service.enroll(sample) { result -> if (continuation.isActive) continuation.resume(result) }
             } ?: throw GuestFaceRegistrationException(R.string.local_face_enroll_failed)
             try {
-                withContext(Dispatchers.IO) { library.add(name, embedding) }
+                // 원탭 게스트 등록은 이미 등록된 사람이어도 다시 등록합니다. 얼굴 관리 화면 등록만 중복을 막습니다.
+                withContext(Dispatchers.IO) { library.add(name, embedding, allowDuplicate = true) }
             } catch (exception: CancellationException) {
                 throw exception
             } catch (_: Exception) {
