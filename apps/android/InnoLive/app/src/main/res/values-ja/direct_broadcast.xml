@@ -24,6 +24,7 @@
     <string name="direct_warning_microphone_unavailable">マイクを使用できないため、無音で配信しています。</string>
     <string name="direct_warning_microphone_silenced">別のアプリがマイクを使用しているため、無音で配信しています。</string>
     <string name="direct_warning_thermal">端末の温度が高いため、配信が不安定になる可能性があります。</string>
+    <string name="direct_warning_anonymization_failing">匿名化処理に失敗しているため、映像を配信できていません。元の映像は配信されません。</string>
     <string name="direct_warning_prepared_deadline">%1$s以内に配信を開始しないと、準備がキャンセルされます。</string>
     <string name="direct_warning_prepared_expired">準備から10分が過ぎたため、準備がキャンセルされました。もう一度準備してください。</string>
     <string name="direct_notice_target_stopped_by_server">サーバーが%1$sの配信を終了しました。</string>

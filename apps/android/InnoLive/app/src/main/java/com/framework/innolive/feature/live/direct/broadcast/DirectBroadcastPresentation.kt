@@ -274,7 +274,7 @@ private const val PREPARED_DEADLINE_URGENT_MILLIS = 60 * 1_000L
 internal data class DirectStatusWarning(val text: UiText, val urgent: Boolean)
 
 /**
- * 상태 패널 아래 경고입니다. 대기 화면, 마이크, 발열, 준비 마감 순서로 보여 줍니다.
+ * 상태 패널 아래 경고입니다. 대기 화면, 가림 처리 실패, 마이크, 발열, 준비 마감 순서로 보여 줍니다.
  * [nowElapsedMillis]는 `SystemClock.elapsedRealtime()` 기준입니다.
  */
 internal fun directStatusWarnings(
@@ -282,6 +282,9 @@ internal fun directStatusWarnings(
     nowElapsedMillis: Long,
 ): List<DirectStatusWarning> = buildList {
     slateMessageRes(local.slate)?.let { add(DirectStatusWarning(UiText.Resource(it), urgent = false)) }
+    if (local.anonymizationFailing) {
+        add(DirectStatusWarning(UiText.Resource(R.string.direct_warning_anonymization_failing), urgent = true))
+    }
     when (local.microphone) {
         MicrophoneStatus.OK -> Unit
         MicrophoneStatus.UNAVAILABLE ->

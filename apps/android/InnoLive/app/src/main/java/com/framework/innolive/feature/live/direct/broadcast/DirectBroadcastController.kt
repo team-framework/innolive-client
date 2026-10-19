@@ -117,6 +117,8 @@ internal class DirectBroadcastController internal constructor(
     private val targets = linkedMapOf<BroadcastProvider, Target>()
     private val slate = linkedSetOf<SlateReason>()
     private var microphone = MicrophoneStatus.OK
+    private val processingFailures = ProcessingFailureWarning()
+    private var processingFailureCheck: Cancellable? = null
     private var preparedDeadline: Long? = null
     private var snapshot: SessionSnapshot? = null
     private var publishedUiState: DirectBroadcastUiState? = null
@@ -923,14 +925,29 @@ internal class DirectBroadcastController internal constructor(
         }
 
         override fun onProcessingFailure() = env.owner.execute {
-            // 연결 전 실패는 가림 처리를 준비하지 못한 것입니다. 이후 실패는 프레임만 버리고 하트비트로 보고합니다.
-            if (!connected && isActive()) failStart(ConnectionFailureException(ConnectionFailure.GENERIC))
+            // 연결 전 실패는 가림 처리를 준비하지 못한 것입니다. 이후 실패는 송출을 유지한 채 프레임만 버리고
+            // 하트비트로 보고하며, 실패가 이어지면 화면에 경고합니다.
+            if (!isActive()) return@execute
+            if (!connected) return@execute failStart(ConnectionFailureException(ConnectionFailure.GENERIC))
+            if (processingFailures.onFailure(env.elapsedRealtimeMillis())) pushUi()
+            scheduleProcessingFailureCheck()
         }
 
         override fun onMicrophoneStatus(status: MicrophoneStatus) = env.owner.execute {
             if (microphone == status) return@execute
             microphone = status
             pushUi()
+        }
+    }
+
+    /** 실패가 멈추면 경고를 끄도록 실패가 이어지는 동안 주기적으로 확인합니다. */
+    private fun scheduleProcessingFailureCheck() {
+        if (processingFailureCheck != null) return
+        processingFailureCheck = env.owner.schedule(ProcessingFailureWarning.CHECK_INTERVAL_MILLIS) {
+            processingFailureCheck = null
+            if (!isActive()) return@schedule
+            if (processingFailures.check(env.elapsedRealtimeMillis())) pushUi()
+            if (processingFailures.pending) scheduleProcessingFailureCheck()
         }
     }
 
@@ -1051,6 +1068,7 @@ internal class DirectBroadcastController internal constructor(
             targets = targets.values.mapNotNull { target -> target.local?.let { target.provider to it } }.toMap(),
             microphone = microphone,
             slate = slate.toSet(),
+            anonymizationFailing = processingFailures.active,
             preparedDeadlineElapsedMillis = preparedDeadline.takeIf { targets.values.any { it.phase == TargetPhase.PREPARED } },
         )
         if (next == publishedUiState) return
