@@ -43,7 +43,9 @@ fun LiveVideoPanels(
         val aspectRatio = if (maxWidth > maxHeight) 16f / 9f else 9f / 16f
         val mainWidth = minOf(maxWidth, maxHeight * aspectRatio)
         val mainHeight = mainWidth / aspectRatio
-        val pipWidth = minOf(maxWidth * 0.3f, maxHeight * 0.42f * aspectRatio)
+        // 가로 화면은 높이가 낮아 같은 비율이면 작은 창이 화면을 많이 가리므로 조금 더 작게 둡니다.
+        val pipHeightRatio = if (maxWidth > maxHeight) 0.34f else 0.42f
+        val pipWidth = minOf(maxWidth * 0.3f, maxHeight * pipHeightRatio * aspectRatio)
         val pipHeight = pipWidth / aspectRatio
         val mainModifier = Modifier
             .align(Alignment.Center)
@@ -57,8 +59,9 @@ fun LiveVideoPanels(
         // 직접 송출도 서버 송출처럼 연결 뒤에는 가림 처리 영상을 메인에, 카메라 원본을 작은 창에 둡니다.
         val directProcessedMain = isDirectPublish && isConnected && frameAnalyzer != null && eglContext != null
         val remoteIsMain = if (isDirectPublish) directProcessedMain else isConnected
-        // 직접 송출의 연결 전에는 작은 창에 그릴 영상이 없습니다.
-        val pipVisible = !isDirectPublish || directProcessedMain
+        // 연결 전에는 작은 창에 그릴 영상이 없으므로 빈 검은 창을 띄우지 않습니다.
+        // 연결 뒤에는 가림 처리 영상이 메인에, 카메라 원본이 작은 창에 놓입니다.
+        val pipVisible = remoteIsMain
         val pipArea = with(density) {
             val size = Size(pipWidth.toPx(), pipHeight.toPx())
             val margin = PipMargin.toPx()
@@ -89,13 +92,12 @@ fun LiveVideoPanels(
                     sharedEglContext = eglContext,
                 )
             }
-        } else {
+        } else if (remoteIsMain) {
             WebRtcRemotePreview(
                 remoteVideoTrack = liveMainVideoTrack(onDeviceProcessing, isConnected, localVideoTrack, remoteVideoTrack),
                 eglContext = eglContext,
                 cameraLensFacing = cameraLensFacing,
-                modifier = (if (remoteIsMain) mainModifier else pipModifier)
-                    .zIndex(if (remoteIsMain) 0f else 1f),
+                modifier = mainModifier.zIndex(0f),
             )
         }
         Box(modifier = (if (remoteIsMain) pipModifier else mainModifier)
