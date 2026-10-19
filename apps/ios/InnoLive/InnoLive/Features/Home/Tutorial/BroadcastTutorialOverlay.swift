@@ -103,9 +103,13 @@ struct BroadcastTutorialCallout: View {
             if onSkip != nil || onPrimary != nil {
                 HStack(spacing: 12) {
                     if let onSkip {
-                        Button(String(localized: "건너뛰기", table: "BroadcastGuide"), action: onSkip)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Button(action: onSkip) {
+                            Text(String(localized: "건너뛰기", table: "BroadcastGuide"))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(minHeight: 44)
+                                .contentShape(Rectangle())
+                        }
                             .buttonStyle(.plain)
                             .accessibilityHint(String(localized: "안내는 설정에서 다시 볼 수 있어요.", table: "BroadcastGuide"))
                     }

@@ -287,6 +287,8 @@ struct BroadcastFeedbackBanner: View {
                     Button(action: onDismiss) {
                         Image(systemName: "xmark")
                             .font(.caption.weight(.semibold))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(String(localized: "오류 닫기"))
@@ -342,6 +344,7 @@ struct StudioBroadcastSummaryLabel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
         .innoLiveGlassBackground(cornerRadius: 18, overVideo: true)
+        .contentShape(RoundedRectangle(cornerRadius: 18))
         .environment(\.colorScheme, .dark)
     }
 

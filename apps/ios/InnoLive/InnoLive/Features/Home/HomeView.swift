@@ -498,6 +498,7 @@ struct HomeView: View {
                                 .foregroundStyle(.white)
                                 .frame(width: 44, height: 44)
                                 .innoLiveGlassSurface(in: Circle(), interactive: true, overVideo: true)
+                                .contentShape(Circle())
                             }
                             .buttonStyle(.plain)
                             .disabled(!canSwitchCameraSource || isPagingLocked)
@@ -511,6 +512,7 @@ struct HomeView: View {
                                         .foregroundStyle(.white)
                                         .frame(width: 44, height: 44)
                                         .innoLiveGlassSurface(in: Circle(), interactive: true, overVideo: true)
+                                        .contentShape(Circle())
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel(String(localized: "계정 설정"))
