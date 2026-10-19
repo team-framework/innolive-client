@@ -173,6 +173,8 @@ struct HomeView: View {
                 onBottomHeightChange: { bottomReservedHeight = $0 },
                 onTopHeightChange: { liveHeaderHeight = $0 }
             )
+                .opacity(isLifecycleOverlayPresented ? 0 : 1)
+                .allowsHitTesting(!isLifecycleOverlayPresented)
                 .frame(maxWidth: isCompactLandscape ? 400 : .infinity)
                 .padding(.horizontal, 24)
                 .padding(.top, studioHeaderTopInset)
@@ -793,6 +795,10 @@ struct HomeView: View {
         }
     }
 
+    private var isLifecycleOverlayPresented: Bool {
+        youtube.preparationStatus != nil || youtube.lifecycle.isPresentingStart || youtube.lifecycle.isPresentingEnd
+    }
+
     private var zoomableRemoteStream: some View {
         ZStack {
             Color.black
@@ -804,7 +810,7 @@ struct HomeView: View {
                     isConnectingVideo: youtube.isConnectingVideo,
                     preparationStatus: youtube.preparationStatus,
                     recoveryStatus: youtube.videoRecoveryStatus,
-                    showsStatusOverlay: studioPage != .details,
+                    showsStatusOverlay: studioPage != .details && !isLifecycleOverlayPresented,
                     showsEmptyState: studioPage == .preview
                 )
             } else {
