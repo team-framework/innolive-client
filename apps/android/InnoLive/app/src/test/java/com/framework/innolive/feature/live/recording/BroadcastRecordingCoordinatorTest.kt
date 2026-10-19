@@ -8,6 +8,7 @@ class BroadcastRecordingCoordinatorTest {
     private class FakeControl(var beginResult: Boolean = true) : BroadcastRecordingCoordinator.Control {
         val calls = mutableListOf<String>()
         override fun begin(): Boolean { calls += "begin"; return beginResult }
+        override fun confirm() { calls += "confirm" }
         override fun finish(save: Boolean) { calls += if (save) "save" else "discard" }
     }
 
@@ -22,9 +23,10 @@ class BroadcastRecordingCoordinatorTest {
         coordinator.onBroadcastState(BroadcastState.RESUMING)
         coordinator.onBroadcastState(BroadcastState.LIVE)
         coordinator.onBroadcastState(BroadcastState.STOPPING)
-        assertEquals(listOf("begin"), control.calls)
+        // 확인은 한 번만 알린다. 이 뒤로 앱이 종료되면 녹화를 복구한다.
+        assertEquals(listOf("begin", "confirm"), control.calls)
         coordinator.onBroadcastState(BroadcastState.IDLE)
-        assertEquals(listOf("begin", "save"), control.calls)
+        assertEquals(listOf("begin", "confirm", "save"), control.calls)
         assertEquals(BroadcastRecordingCoordinator.Phase.IDLE, coordinator.phase)
     }
 
@@ -60,7 +62,7 @@ class BroadcastRecordingCoordinatorTest {
             onBroadcastState(BroadcastState.IDLE)
             onConnectionClosed()
         }
-        assertEquals(listOf("begin", "save"), confirmed.calls)
+        assertEquals(listOf("begin", "confirm", "save"), confirmed.calls)
 
         val failed = FakeControl()
         BroadcastRecordingCoordinator(failed).apply {
@@ -68,7 +70,7 @@ class BroadcastRecordingCoordinatorTest {
             onBroadcastState(BroadcastState.LIVE)
             onBroadcastState(BroadcastState.FAILED)
         }
-        assertEquals(listOf("begin", "save"), failed.calls)
+        assertEquals(listOf("begin", "confirm", "save"), failed.calls)
     }
 
     @Test fun declinedBeginNeverFinishesAndStatesWithoutRecordingAreIgnored() {

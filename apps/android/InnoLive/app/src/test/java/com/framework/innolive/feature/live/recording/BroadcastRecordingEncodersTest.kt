@@ -13,9 +13,11 @@ class BroadcastRecordingEncodersTest {
         assertEquals(RecordingSize(1278, 718), recordingSizeFor(1279, 719))
     }
 
-    @Test fun bitrateGrowsWithResolution() {
-        assertEquals(6_000_000, recordingVideoBitrateFor(RecordingSize(1280, 720)))
-        assertEquals(6_000_000, recordingVideoBitrateFor(RecordingSize(720, 1280)))
-        assertEquals(10_000_000, recordingVideoBitrateFor(RecordingSize(1920, 1080)))
+    @Test fun bitrateFollowsIosPixelRuleWithinTwoToTwelveMegabits() {
+        // iOS LocalBroadcastRecorder: width × height × 4bps, 2~12Mbps
+        assertEquals(1280 * 720 * 4, recordingVideoBitrateFor(RecordingSize(1280, 720)))
+        assertEquals(1920 * 1080 * 4, recordingVideoBitrateFor(RecordingSize(1080, 1920)))
+        assertEquals(2_000_000, recordingVideoBitrateFor(RecordingSize(640, 360)))
+        assertEquals(12_000_000, recordingVideoBitrateFor(RecordingSize(1920, 1920)))
     }
 }
