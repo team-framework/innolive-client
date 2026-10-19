@@ -13,20 +13,20 @@ export function AuthShell({ children }: { children: ReactNode }) {
       data-page="auth"
       className="relative min-h-dvh bg-background-primary max-lg:bg-background-secondary"
     >
-      {/* Auth pages hide the site header, and below lg the artwork panel and its logo are hidden too,
-          so show the logo where the header puts it. */}
-      <div className="absolute inset-x-0 top-0 z-10 lg:hidden">
-        <div className="flex h-[var(--header-height)] items-end px-5 py-5">
+      {/* Auth pages hide the site header, so show the logo where the header puts it. */}
+      <div className="absolute inset-x-0 top-0 z-10 lg:pt-[var(--header-offset-desktop)]">
+        <div className="flex h-[var(--header-height)] items-end px-5 py-5 lg:p-8 lg:px-12">
           <Link
             href={href("/")}
             aria-label={messages.header.home}
-            className="shrink-0 -my-[10px] py-[10px]"
+            className="shrink-0 max-lg:-my-[10px] max-lg:py-[10px]"
           >
-            <Image src="/brand/logo-header.svg" alt="InnoLive" width={94} height={24} unoptimized />
+            <Image src="/brand/logo-header.svg" alt="InnoLive" width={94} height={24} unoptimized className="block lg:hidden" />
+            <Image src="/brand/logo-header.svg" alt="InnoLive" width={124} height={32} unoptimized className="hidden lg:block" />
           </Link>
         </div>
       </div>
-      <div className="flex min-h-dvh flex-col items-center justify-center px-[var(--page-gutter)] py-16 pb-24 max-lg:justify-start max-lg:px-5 max-lg:pb-10 max-lg:pt-[calc(var(--header-height)+2rem)] lg:min-h-[max(100dvh,62rem)] lg:py-0">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-[var(--page-gutter)] py-16 pb-24 max-lg:justify-start max-lg:px-5 max-lg:pb-10 max-lg:pt-[calc(var(--header-height)+2rem)] lg:min-h-[max(100dvh,62rem)] lg:pb-20 lg:pt-[8.5rem]">
         <div className="flex w-full max-w-[86rem] flex-col overflow-clip rounded-[24px] bg-background-secondary shadow-[0_0_32px_0_#0000000d] max-lg:overflow-visible max-lg:rounded-none max-lg:shadow-none min-[48rem]:flex-row">
           <div className="flex w-full flex-col items-center justify-center gap-7 px-5 pb-8 pt-[4.5rem] max-lg:p-0 sm:px-8 min-[64rem]:max-w-[36rem]">
             {children}
