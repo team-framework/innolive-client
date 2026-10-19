@@ -40,12 +40,18 @@ internal class PrivacyFaceLibrary(context: Context, accountScope: String) {
         return if (healthy) entries.toList() else emptyList()
     }
 
-    @Synchronized fun add(name: String, embedding: FloatArray) {
+    /**
+     * [allowDuplicate]면 이미 등록된 얼굴과 닮아도 새 항목으로 추가합니다. 홈 화면 원탭 게스트 등록은 같은 사람을
+     * 여러 번 등록해도 되도록 이 값을 켜고, 얼굴 관리 화면 등록은 꺼서 중복을 막습니다.
+     */
+    @Synchronized fun add(name: String, embedding: FloatArray, allowDuplicate: Boolean = false) {
         snapshot()
         val trimmed = name.trim()
         val normalized = checkNotNull(PrivacyFaceMath.normalize(embedding)) { "Invalid face embedding" }
         require(trimmed.isNotEmpty() && trimmed.length <= 40 && entries.size < 20)
-        check(entries.none { PrivacyFaceMath.cosine(it.embedding, normalized) >= .75f }) { "Duplicate face" }
+        check(allowDuplicate || entries.none { PrivacyFaceMath.cosine(it.embedding, normalized) >= .75f }) {
+            "Duplicate face"
+        }
         save(entries + PrivacyRegisteredFace(UUID.randomUUID().toString(), trimmed, normalized, System.currentTimeMillis()))
     }
 
