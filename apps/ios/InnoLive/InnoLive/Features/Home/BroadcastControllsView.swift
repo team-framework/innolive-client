@@ -139,16 +139,13 @@ struct BroadcastControllsView: View {
 
     private var bottomControls: some View {
         VStack(spacing: 10) {
-            criticalNotice
             if !isShowingBroadcastSettings, let feedback {
                 BroadcastFeedbackBanner(feedback: feedback, youtube: youtube) {
                     youtube.dismissError()
                 }
-            }
-
-            if let message = youtube.recordingCoordinator.notice {
-                StudioWarningLabel(title: String(localized: "원본 저장") + ": " + message, systemImage: "exclamationmark.triangle")
-                    .accessibilityIdentifier("broadcast-recording-error")
+            } else if !isShowingBroadcastSettings, !warningMessages.isEmpty {
+                StudioWarningLabel(title: warningMessages.joined(separator: "\n"), systemImage: "exclamationmark.triangle.fill")
+                    .accessibilityIdentifier("broadcast-warning-summary")
             }
 
             if displayMode == .basic {
@@ -158,6 +155,20 @@ struct BroadcastControllsView: View {
                 VStack(spacing: 8) {
                     HStack(spacing: 12) {
                         primaryControl
+                        if canCancelPreparation {
+                            Button(role: .destructive, action: cancelPreparation) {
+                                Image(systemName: "xmark")
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(width: 44, height: 44)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.white)
+                            .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.white.opacity(0.25)))
+                            .accessibilityLabel(String(localized: "방송 준비 취소"))
+                            .accessibilityIdentifier("studio-cancel-preparation")
+                            .disabled(youtube.preparationStatus?.phase == .cancelling)
+                        }
                         if isBroadcasting {
                             Rectangle().fill(.white.opacity(0.2)).frame(width: 1, height: 24)
                             anonymizationControl
@@ -166,17 +177,6 @@ struct BroadcastControllsView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 4)
                     .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 12), overVideo: true)
-
-                    if canCancelPreparation {
-                        Button(role: .destructive, action: cancelPreparation) {
-                            Text(youtube.preparationStatus?.phase == .cancelling
-                                 ? String(localized: "준비 취소 중")
-                                 : String(localized: "준비 취소"))
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity, minHeight: 36)
-                        }
-                        .disabled(youtube.preparationStatus?.phase == .cancelling)
-                    }
                 }
             }
         }
@@ -286,16 +286,22 @@ struct BroadcastControllsView: View {
         return String(localized: "계정 연결 필요") + ": " + providers.map(\.title).joined(separator: ", ")
     }
 
-    @ViewBuilder
-    private var criticalNotice: some View {
+    private var warningMessages: [String] {
+        var messages: [String] = []
         if youtube.isDirectPublishSession, youtube.isDirectMicrophoneUnavailable, !youtube.directPublishStates.isEmpty {
-            StudioWarningLabel(title: String(localized: "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.", table: "DirectPublish"), systemImage: "mic.slash.fill")
+            messages.append(String(localized: "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.", table: "DirectPublish"))
         }
         if !youtube.liveStartFailures.isEmpty {
-            StudioWarningLabel(title: String(localized: "일부 플랫폼의 방송 시작에 실패했습니다. 방송 설정에서 확인하세요."), systemImage: "exclamationmark.triangle.fill")
+            messages.append(String(localized: "일부 플랫폼의 방송 시작에 실패했습니다. 방송 설정에서 확인하세요."))
         }
         if !(youtube.responseState.details.resolutionSwitch?.failedTargets ?? []).isEmpty {
-            StudioWarningLabel(title: String(localized: "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."), systemImage: "exclamationmark.triangle.fill")
+            messages.append(String(localized: "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."))
+        }
+        if let message = youtube.recordingCoordinator.notice {
+            messages.append(String(localized: "원본 저장") + ": " + message)
+        }
+        return messages.reduce(into: []) { result, message in
+            if !result.contains(message) { result.append(message) }
         }
     }
 
