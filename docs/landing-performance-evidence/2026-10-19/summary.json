@@ -1,0 +1,306 @@
+{
+  "lighthouseVersion": "13.5.0",
+  "throttlingMethod": "simulate",
+  "rawReports": "/Users/chaeyn/Documents/Codex/2026-10-19/innolive-performance-669",
+  "runs": [
+    {
+      "report": "before-ko",
+      "revision": "25d7f819",
+      "url": "http://localhost:3221/ko",
+      "fetchTime": "2026-10-19T03:11:32.353Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.83,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1629.445,
+        "largest-contentful-paint": 3936.7512499999993,
+        "total-blocking-time": 56,
+        "cumulative-layout-shift": 0,
+        "speed-index": 5403.76458488839,
+        "total-byte-weight": 1142919
+      },
+      "warnings": []
+    },
+    {
+      "report": "before-ko-2",
+      "revision": "25d7f819",
+      "url": "http://localhost:3221/ko",
+      "fetchTime": "2026-10-19T03:12:40.154Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.94,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1265.0065499999998,
+        "largest-contentful-paint": 3066.0360250000003,
+        "total-blocking-time": 65.00000000000023,
+        "cumulative-layout-shift": 0.02245559431637867,
+        "speed-index": 1748.4214655781825,
+        "total-byte-weight": 1147019
+      },
+      "warnings": []
+    },
+    {
+      "report": "before-ko-3",
+      "revision": "25d7f819",
+      "url": "http://localhost:3221/ko",
+      "fetchTime": "2026-10-19T03:13:21.045Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.91,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1076.8669,
+        "largest-contentful-paint": 3532.0170749999997,
+        "total-blocking-time": 30,
+        "cumulative-layout-shift": 0.02246204455258417,
+        "speed-index": 1686.2391841966403,
+        "total-byte-weight": 1147019
+      },
+      "warnings": []
+    },
+    {
+      "report": "current-ko",
+      "revision": "cf284918",
+      "url": "http://localhost:3221/ko",
+      "fetchTime": "2026-10-19T03:29:23.524Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.93,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1069.7902,
+        "largest-contentful-paint": 3144.0279500000006,
+        "total-blocking-time": 14,
+        "cumulative-layout-shift": 0,
+        "speed-index": 1534.8104898009642,
+        "total-byte-weight": 1157224
+      },
+      "warnings": []
+    },
+    {
+      "report": "current-ko-2",
+      "revision": "cf284918",
+      "url": "http://localhost:3221/ko",
+      "fetchTime": "2026-10-19T03:30:22.170Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.94,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1064.9975,
+        "largest-contentful-paint": 3142.744375,
+        "total-blocking-time": 19.5,
+        "cumulative-layout-shift": 0,
+        "speed-index": 1372.3314778694191,
+        "total-byte-weight": 1157224
+      },
+      "warnings": []
+    },
+    {
+      "report": "current-ko-3",
+      "revision": "cf284918",
+      "url": "http://localhost:3221/ko",
+      "fetchTime": "2026-10-19T03:30:36.728Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.89,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1079.9093,
+        "largest-contentful-paint": 3694.3412749999998,
+        "total-blocking-time": 23.0453500000001,
+        "cumulative-layout-shift": 0,
+        "speed-index": 1507.140296456585,
+        "total-byte-weight": 1157224
+      },
+      "warnings": []
+    },
+    {
+      "report": "current-en",
+      "revision": "cf284918",
+      "url": "http://localhost:3221/en",
+      "fetchTime": "2026-10-19T03:29:35.642Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.97,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1062.3918,
+        "largest-contentful-paint": 2637.3918000000003,
+        "total-blocking-time": 4.500000000000227,
+        "cumulative-layout-shift": 0,
+        "speed-index": 1453.0281485163093,
+        "total-byte-weight": 1109036
+      },
+      "warnings": []
+    },
+    {
+      "report": "current-ja",
+      "revision": "cf284918",
+      "url": "http://localhost:3221/ja",
+      "fetchTime": "2026-10-19T03:29:47.261Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.92,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1095.21625,
+        "largest-contentful-paint": 3313.6487500000003,
+        "total-blocking-time": 5.5,
+        "cumulative-layout-shift": 0,
+        "speed-index": 1449.8266463531304,
+        "total-byte-weight": 1154308
+      },
+      "warnings": []
+    },
+    {
+      "report": "current-desktop-ko",
+      "revision": "cf284918",
+      "url": "http://localhost:3221/ko",
+      "fetchTime": "2026-10-19T03:30:50.100Z",
+      "formFactor": "desktop",
+      "scores": {
+        "performance": 1,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 317.04150000000004,
+        "largest-contentful-paint": 814.0830000000001,
+        "total-blocking-time": 0,
+        "cumulative-layout-shift": 0,
+        "speed-index": 462.18822655413356,
+        "total-byte-weight": 1817588
+      },
+      "warnings": []
+    },
+    {
+      "report": "current-desktop-en",
+      "revision": "cf284918",
+      "url": "http://localhost:3221/en",
+      "fetchTime": "2026-10-19T03:31:03.409Z",
+      "formFactor": "desktop",
+      "scores": {
+        "performance": 1,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 326.058,
+        "largest-contentful-paint": 739.0725,
+        "total-blocking-time": 0,
+        "cumulative-layout-shift": 0,
+        "speed-index": 570.364598356175,
+        "total-byte-weight": 1769168
+      },
+      "warnings": []
+    },
+    {
+      "report": "current-desktop-ja",
+      "revision": "cf284918",
+      "url": "http://localhost:3221/ja",
+      "fetchTime": "2026-10-19T03:31:17.691Z",
+      "formFactor": "desktop",
+      "scores": {
+        "performance": 0.98,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 407.46225,
+        "largest-contentful-paint": 1106.014125,
+        "total-blocking-time": 0,
+        "cumulative-layout-shift": 0,
+        "speed-index": 697.0677595100717,
+        "total-byte-weight": 1814669
+      },
+      "warnings": []
+    },
+    {
+      "report": "final-desktop-ja",
+      "revision": "a887fa72",
+      "url": "http://localhost:3221/ja",
+      "fetchTime": "2026-10-19T03:32:59.016Z",
+      "formFactor": "desktop",
+      "scores": {
+        "performance": 0.99,
+        "accessibility": 1,
+        "best-practices": 0.96,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 335.23305,
+        "largest-contentful-paint": 828.3156749999998,
+        "total-blocking-time": 0,
+        "cumulative-layout-shift": 0,
+        "speed-index": 587.9468311002468,
+        "total-byte-weight": 779932
+      },
+      "warnings": []
+    },
+    {
+      "report": "live-before-ko",
+      "revision": "25d7f819",
+      "url": "https://innolive.studio/ko",
+      "fetchTime": "2026-10-19T03:25:30.734Z",
+      "formFactor": "mobile",
+      "scores": {
+        "performance": 0.97,
+        "accessibility": 1,
+        "best-practices": 1,
+        "seo": 1,
+        "agentic-browsing": 1
+      },
+      "metrics": {
+        "first-contentful-paint": 1214.6280000000002,
+        "largest-contentful-paint": 2604.628,
+        "total-blocking-time": 37,
+        "cumulative-layout-shift": 0.02242979337155667,
+        "speed-index": 1638.6454688429471,
+        "total-byte-weight": 1136065
+      },
+      "warnings": []
+    }
+  ]
+}
