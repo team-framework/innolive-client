@@ -29,3 +29,22 @@ internal fun uplinkBitratePolicyForAI(
  */
 internal fun uplinkDegradationPreferenceForAI(onDevice: Boolean): RtpParameters.DegradationPreference? =
     if (onDevice) null else RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION
+
+/**
+ * Layers the server-AI degradation and encoding cap over [applyVideoSendPolicy] before the offer.
+ * Returns false when the session has nothing to add, so the caller can skip setParameters.
+ */
+internal fun applyUplinkSenderPolicy(
+    parameters: RtpParameters,
+    onDevice: Boolean,
+    resolution: DirectPublishResolution,
+): Boolean {
+    val preference = uplinkDegradationPreferenceForAI(onDevice)
+    val policy = uplinkBitratePolicyForAI(onDevice, resolution)
+    if (preference == null && policy == null) return false
+    preference?.let { parameters.degradationPreference = it }
+    // setBitrate only bounds the estimator; the encoder keeps libwebrtc's 2500kbps
+    // 1080p default until the encoding's own maximum is raised.
+    policy?.let { budget -> parameters.encodings.forEach { it.maxBitrateBps = budget.maxBps } }
+    return true
+}

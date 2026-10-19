@@ -1224,10 +1224,7 @@ internal class WebRtcConnection(
         val policy = uplinkBitratePolicyForAI(onDeviceProcessing, broadcastResolution)
         if (preference != null || policy != null) {
             val parameters = sender.parameters
-            preference?.let { parameters.degradationPreference = it }
-            // setBitrate only bounds the estimator; the encoder keeps libwebrtc's 2500kbps
-            // 1080p default until the encoding's own maximum is raised.
-            policy?.let { budget -> parameters.encodings.forEach { it.maxBitrateBps = budget.maxBps } }
+            applyUplinkSenderPolicy(parameters, onDeviceProcessing, broadcastResolution)
             if (sender.setParameters(parameters)) Log.i("PrivacyPipeline",
                 "uplink_sender degradation=$preference encoding_max_bps=${policy?.maxBps}")
             else Log.w("PrivacyPipeline", "uplink_sender=default")

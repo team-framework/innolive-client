@@ -4,12 +4,17 @@ import org.json.JSONObject
 import org.webrtc.RtpParameters
 import org.webrtc.RtpTransceiver
 
-/** 서버는 세션 해상도로 디코더를 고정하므로 송신 범위도 그 해상도에 맞춥니다. */
+/**
+ * 서버는 세션 해상도로 디코더를 고정하므로 송신 범위도 그 해상도에 맞춥니다.
+ * 하한은 혼잡 구간에서 대역폭 추정이 내려갈 여지를 남깁니다. 하한이 링크보다 높으면
+ * 패킷 손실과 서버의 키프레임 반복 요청으로 이어져 화면이 블록으로 깨집니다.
+ * 초기 구간은 setBitrate의 시작 비트레이트가 끌어올립니다.
+ */
 internal data class VideoSendBitrate(val minBps: Int, val maxBps: Int)
 
 internal fun videoSendBitrateFor(resolution: DirectPublishResolution) = when (resolution) {
-    DirectPublishResolution.HD_720 -> VideoSendBitrate(minBps = 1_500_000, maxBps = 3_000_000)
-    DirectPublishResolution.FHD -> VideoSendBitrate(minBps = 3_000_000, maxBps = 6_000_000)
+    DirectPublishResolution.HD_720 -> VideoSendBitrate(minBps = 500_000, maxBps = 3_000_000)
+    DirectPublishResolution.FHD -> VideoSendBitrate(minBps = 1_000_000, maxBps = 6_000_000)
 }
 
 /** 서버 디코더 장변과 같습니다. 720p 세션은 1280, FHD 세션은 1920입니다. */
@@ -33,7 +38,7 @@ internal fun videoSendFormatFor(width: Int, height: Int, resolution: DirectPubli
 
 /**
  * 기본값은 초기 대역폭 추정과 CPU 부하에 해상도를 먼저 깎아 180×320부터 시작합니다.
- * 해상도를 유지하고 하한 비트레이트로 초기 구간을 끌어올립니다.
+ * 해상도를 유지하고 혼잡 구간에서는 비트레이트와 프레임률을 낮춥니다.
  */
 internal fun applyVideoSendPolicy(parameters: RtpParameters, resolution: DirectPublishResolution) {
     parameters.degradationPreference = RtpParameters.DegradationPreference.MAINTAIN_RESOLUTION
