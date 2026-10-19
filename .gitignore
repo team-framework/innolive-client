@@ -32,3 +32,6 @@ apps/ios/InnoLive/InnoLive/Resources/PrivacyYuNet.mlpackage/
 apps/ios/InnoLive/InnoLive/Resources/PrivacyYuNet.manifest.json
 # Optional public-image numerical fixture; generated locally, never camera images.
 apps/ios/InnoLive/InnoLiveTests/PrivacyFaceFixtures/
+
+# Optional Debug-only physical-device performance video.
+apps/ios/InnoLive/InnoLive/Resources/PrivacyPerformanceFixture.mp4

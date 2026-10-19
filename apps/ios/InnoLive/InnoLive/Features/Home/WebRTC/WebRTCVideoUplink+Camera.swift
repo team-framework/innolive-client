@@ -72,7 +72,6 @@ extension WebRTCVideoUplink {
         operationGeneration: UInt
     ) async throws {
         #if DEBUG
-        #if targetEnvironment(simulator)
         if SimulatorVideoInput.isEnabled {
             guard SimulatorVideoInput.bundledURL != nil else {
                 throw WebRTCVideoUplinkError.failed(
@@ -84,6 +83,10 @@ extension WebRTCVideoUplink {
             let source = peerConnectionFactory.videoSource()
             adapt(source, to: preferredVideoQuality)
             let frameRelay = makeFrameRelay(target: source, cameraPosition: .back)
+            if SimulatorVideoInput.isPerformanceFixture {
+                // Fixture stores a portrait scene in landscape sensor coordinates.
+                frameRelay.setLockedInterfaceOrientation(.portrait)
+            }
             let capturer = LKRTCFileVideoCapturer(delegate: frameRelay)
             let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
             track.isEnabled = true
@@ -118,7 +121,6 @@ extension WebRTCVideoUplink {
             activeVideoQuality = preferredVideoQuality
             return
         }
-        #endif
         #endif
 
         guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
