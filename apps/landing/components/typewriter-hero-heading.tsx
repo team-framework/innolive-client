@@ -1,7 +1,5 @@
-"use client";
-
 import type { CSSProperties } from "react";
-import { useLocale } from "@/components/locale-provider";
+import type { Messages } from "@/lib/messages";
 import { ProgressiveBlurText } from "@/components/progressive-blur-text";
 
 function characters(text: string, offset = 0) {
@@ -16,11 +14,10 @@ function characters(text: string, offset = 0) {
   ));
 }
 
-export function TypewriterHeroHeading() {
-  const { messages } = useLocale();
-  const firstLine = messages.hero.line1;
-  const secondPrefix = messages.hero.line2Prefix;
-  const blurText = messages.hero.line2Blur;
+export function TypewriterHeroHeading({ copy }: { copy: Messages["hero"] }) {
+  const firstLine = copy.line1;
+  const secondPrefix = copy.line2Prefix;
+  const blurText = copy.line2Blur;
   const heading = `${firstLine} ${secondPrefix}${blurText}`;
 
   return (

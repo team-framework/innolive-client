@@ -1,5 +1,7 @@
 "use client";
 
+import { StaticArtwork } from "@/components/static-artwork";
+
 import Image from "next/image";
 import { observeSectionAnimation } from "@/lib/landing-animation";
 import { useEffect, useRef } from "react";
@@ -227,21 +229,17 @@ export function FeatureSection() {
                 <div data-feature-content className="flex w-full flex-col items-center gap-[19px]">
                   <div className="flex w-full max-w-[810px] flex-wrap content-center items-center justify-center gap-x-6 gap-y-6 min-[106.5rem]:gap-x-[100px]">
                     <div className="relative aspect-[307/134] w-[min(100%,19.1875rem)]">
-                      <Image
-                        src="/landing/youtube-logo.png"
+                      <StaticArtwork
+                        artwork="youtube-logo"
                         alt="YouTube"
-                        width={1705}
-                        height={573}
                         sizes="307px"
                         className="absolute inset-0 size-full max-w-none object-cover"
                       />
                     </div>
                     <div className="relative aspect-[268/84] w-[min(100%,16.772rem)]">
-                      <Image
-                        src="/landing/chzzk-logo.png"
+                      <StaticArtwork
+                        artwork="chzzk-logo"
                         alt={messages.features.chzzkAlt}
-                        width={1920}
-                        height={601}
                         sizes="268px"
                         className="absolute inset-0 size-full max-w-none object-cover"
                       />
