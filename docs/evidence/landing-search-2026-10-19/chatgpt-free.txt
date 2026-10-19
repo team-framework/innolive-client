@@ -1,0 +1,244 @@
+20 container Conversation
+						21 container
+							22 heading You said:, Value: 4
+								23 text You said:
+							24 text 웹 검색으로 찾아줘. 무료로 실시간 얼굴 블러를 적용하며 라이브 방송할 수 있는 앱이나 방법을 공식 출처로 알려줘.
+							25 button Copy message
+								26 image
+							27 button Edit message
+								28 image
+							29 container
+								30 button (collapsed) Worked for 2m 25s, Secondary Actions: Expand
+								31 text Worked for 2m 25s
+							32 heading ChatGPT said:, Value: 4
+								33 text ChatGPT said:
+							34 container
+								35 text 공식  홈페이지와  개발사  문서를  검색한  결과,  무료로  얼굴  자체에  실시간  블러·모자이크를  적용하면서  라이브  방송할  수  있는  방법 을  찾았습니다.
+							36 container
+								37 text 특히  PRISM  Lens  +  PRISM  Live  Studio 와  OBS  Studio  +  얼굴  감지  플러그인 이  조건에  잘  맞습니다.  단순히  배경을  흐리게  하는  기능은  제외했습니다.
+							38 heading 1. 추천 방법 비교, Value: 2
+								39 text 1.  추천  방법  비교
+							40 table
+								41 row
+									42 cell
+										43 text 앱·방법
+									44 cell
+										45 container
+											46 text 얼굴  자동  감지
+									47 cell
+										48 container
+											49 text 무료  여부
+									50 cell
+										51 container
+											52 text 사용  환경
+								53 row
+									54 cell
+										55 container
+											56 text PRISM  Lens  +  PRISM  Live  Studio
+									57 cell
+										58 text 지원
+									59 cell
+										60 container
+											61 text 기본  기능  무료
+									62 cell
+										63 container
+											64 text Windows,  Mac
+								65 row
+									66 cell
+										67 container
+											68 text OBS  Studio  +  Detect  플러그인
+									69 cell
+										70 text 지원
+									71 cell
+										72 text 무료·오픈소스
+									73 cell
+										74 container
+											75 text Windows,  Mac,  Linux
+								76 row
+									77 cell
+										78 container
+											79 text OBS  +  Composite  Blur
+									80 cell
+										81 container
+											82 text 미지원  (고정  영역)
+									83 cell
+										84 text 무료
+									85 cell
+										86 container
+											87 text Windows,  Mac,  Linux
+							88 container
+								89 text 얼굴이  움직여도  블러가  따라와야  한다면  첫  번째  또는  두  번째  방법을  권장합니다.
+							90 heading 2. 가장 간편한 방법: PRISM Lens, Value: 2
+								91 text 2.  가장  간편한  방법:  PRISM  Lens
+							92 container
+								93 button Open image
+								94 checkbox (collapsed) Description: Add to Favorites, Value: 0, ID: radix-_r_cc_, Secondary Actions: Expand
+							95 button PRISM Lens
+								96 text PRISM 
+								97 text Lens
+							98 container
+								99 text 자동  얼굴  감지  ·  블러  ·  픽셀  모자이크  ·  스티커
+							100 container
+								101 text PC  웹캠에  효과를  적용하고  PRISM  Live  Studio  등으로  라이브  방송할  수  있습니다.
+							102 container
+								103 text 네이버의  공식  PRISM  Lens  설명에  따르면  다음  기능을  지원합니다.
+							104 content list
+								105 container
+									106 AXListMarker • 
+									107 text 화면  속  모든  사람의  얼굴 또는  주변  사람의  얼굴만  가리기
+								108 container
+									109 AXListMarker • 
+									110 text 얼굴에  Blur,  Pixelation(모자이크),  Sticker  적용
+								111 container
+									112 AXListMarker • 
+									113 text 가공한  카메라  영상을  라이브  방송  프로그램으로  전달
+							114 container
+								115 text PRISM  공식  가이드에는  얼굴  모자이크가  일반  기능으로  소개되며,  유료  PRISM  Plus  전용  기능  목록에는  포함되어  있지  않습니다.  다만  실제  최신  버전의  무료  계정에서  선택  가능한  효과는  설치  후  확인하는  것이  안전합니다. 
+								116 pop up button (collapsed) PRISM Live Studio +2, Secondary Actions: Expand
+									117 image
+									118 text PRISM 
+									119 text Live 
+									120 text Studio
+									121 text +2
+							122 container
+								123 text 설정  방법
+							124 content list
+								125 container
+									126 AXListMarker 1. 
+									127 text PRISM  Lens와  PRISM  Live  Studio를  설치합니다.
+								128 container
+									129 AXListMarker 2. 
+									130 text PRISM  Lens에서  웹캠을  선택합니다.
+								131 container
+									132 AXListMarker 3. 
+									133 container
+										134 text 특수  이펙트  →  인물  모자이크(Face  Mosaic)
+									135 text 를  선택합니다.
+								136 container
+									137 AXListMarker 4. 
+									138 text Blur
+									139 text 또는 
+									140 text Pixelation
+									141 text 을  설정합니다.
+								142 container
+									143 AXListMarker 5. 
+									144 text PRISM  Live  Studio에서  PRISM  Lens를  카메라  소스로  추가합니다.
+								145 container
+									146 AXListMarker 6. 
+									147 text 화면에  얼굴  블러가  적용되는지  확인한  후  라이브  방송을  시작합니다.
+							148 container
+								149 text 공식  링크
+							150 container
+								151 link Description: PRISM Lens 공식 다운로드, Value: prismlive.com/en_us/lens.html?utm_source=chatgpt.com
+								152 text · 
+								153 link Description: PRISM Live Studio 다운로드, Value: prismlive.com/ko_kr/?utm_source=chatgpt.com
+								154 text · 
+								155 link Description: 한국어 공식 얼굴 모자이크 설명, Value: prismlive.com/ko_kr/faq/faq.html?app=lens&utm_source=chatgpt.com
+							156 heading 3. 완전 무료 오픈소스: OBS Studio + Detect, Value: 2
+								157 text 3.  완전  무료  오픈소스:  OBS  Studio  +  Detect
+							158 container
+								159 image OBS Sanal Kamera 2026'da Nasıl Kullanılır [Tam Kılavuz]
+								160 button Open OBS Sanal Kamera 2026'da Nasıl Kullanılır [Tam Kılavuz]
+								161 checkbox (collapsed) Description: Add to Favorites, Value: 0, ID: radix-_r_dv_, Secondary Actions: Expand
+							162 button OBS Studio
+								163 text OBS 
+								164 text Studio
+							165 container
+								166 text 무료  송출  프로그램  +  무료  AI  얼굴  감지  플러그인
+							167 container
+								168 text 웹캠에  실시간  얼굴  감지  필터를  적용해  블러  처리된  영상을  방송합니다.
+							169 container
+								170 text OBS는  무료  오픈소스  라이브  방송  프로그램이며,  별도의  Detect  플러그인 이  얼굴  자동  감지와  블러를  제공합니다.
+							171 container
+								172 text 개발자  공식  문서에서  확인한  기능은  다음과  같습니다.
+							173 content list
+								174 container
+									175 AXListMarker • 
+									176 text YuNet  모델을  이용한  얼굴  감지
+								177 container
+									178 AXListMarker • 
+									179 text Blur,  Pixelate,  단색  가림  처리
+								180 container
+									181 AXListMarker • 
+									182 text 여러  객체  추적  및  실시간  마스킹
+							183 pop up button (collapsed) OBS +2, Secondary Actions: Expand
+								184 image
+								185 text OBS
+								186 text +2
+							187 container
+								188 text 적용  방법: OBS에서  웹캠을  비디오  캡처  장치 로  추가한  뒤  Detect  플러그인을  설치합니다.  웹캠  소스의  필터 에서  Detect 를  추가하고,  얼굴  감지  모델과  Masking  →  Blur 또는  Pixelate 를  설정하면  됩니다.
+							189 container
+								190 text 단,  주의할  점이  있습니다. 개발자가  2024년  12월  18일  프로젝트를  보관  처리했으며  현재  적극적으로  개발하지  않는다고  명시했습니다.  최신  OBS  버전에서  정상  작동하는지는  별도  테스트가  필요합니다. 
+								191 pop up button (collapsed) GitHub, Secondary Actions: Expand
+									192 image
+									193 text GitHub
+							194 container
+								195 text 공식  링크
+							196 container
+								197 link Description: OBS Studio 공식 다운로드, Value: obsproject.com/?utm_source=chatgpt.com
+								198 text · 
+								199 link Description: Detect 플러그인 다운로드, Value: obsproject.com/forum/resources/detect-object-detection-tracking-built-in-obs.1911/?utm_source=chatgpt.com
+								200 text · 
+								201 link Description: 개발자 GitHub, Value: github.com/royshil/obs-detect?utm_source=chatgpt.com
+							202 heading 4. 얼굴 위치가 고정된다면: OBS Composite Blur, Value: 2
+								203 text 4.  얼굴  위치가  고정된다면:  OBS  Composite  Blur
+							204 container
+								205 text 이  플러그인은  얼굴을  자동  감지하지는  않지만,  OBS  화면에서  지정한  원형  또는  사각형  영역에  실시간  블러나  모자이크를  적용할  수  있습니다.
+							206 container
+								207 text 카메라  앞에서  거의  움직이지  않는  토크  방송에  적합합니다.  OBS  공식  커뮤니티에  등록된  플러그인이며  Windows,  macOS,  Linux를  지원합니다. 
+								208 pop up button (collapsed) OBS Forums, Secondary Actions: Expand
+									209 image
+									210 text OBS 
+									211 text Forums
+							212 link Description: Composite Blur 공식 플러그인 페이지, Value: obsproject.com/forum/resources/composite-blur.1780/?utm_source=chatgpt.com
+							213 heading 5. 스마트폰만으로 방송하려면?, Value: 2
+								214 text 5.  스마트폰만으로  방송하려면?
+							215 container
+								216 text Android와  iPhone에서  얼굴  자동  블러와  라이브  송출을  모두  무료로  제공하는  독립형  앱은  공식  자료로  확실하게  검증하지  못했습니다.
+							217 container
+								218 text 참고로  Android용 
+								219 button DualMoza
+								220 text 는  얼굴을  자동으로  가린  채  YouTube  Live  등으로  송출할  수  있지만,  개발자의  Google  Play  설명에  따르면  무료  모드에서는  라이브  방송을  사용할  수  없습니다.  따라서  무료  추천  목록에서는  제외했습니다. 
+								221 pop up button (collapsed) Apps on Google Play, Secondary Actions: Expand
+									222 image
+									223 text Apps 
+									224 text on 
+									225 text Google 
+									226 text Play
+							227 container
+								228 text 스마트폰  카메라를  꼭  사용해야  한다면,  공식적으로  확인되는  방법은  PRISM  Mobile  →  PC의  PRISM  Lens  연결  →  얼굴  모자이크  적용  →  PC에서  라이브  송출 입니다. 
+								229 pop up button (collapsed) PRISM Lens +1, Secondary Actions: Expand
+									230 image
+									231 text PRISM 
+									232 text Lens
+									233 text +1
+							234 heading 최종 추천, Value: 2
+								235 text 최종  추천
+							236 container
+								237 text PC를  사용할  수  있다면  PRISM  Lens부터  시도하는  것이  가장  좋습니다. 얼굴  모자이크  기능이  공식  문서에  명확히  나와  있고  방송  프로그램과  연결하는  방법도  제공되기  때문입니다.
+							238 container
+								239 text 다만  얼굴  감지는  고개를  돌리거나  사람이  화면에  갑자기  들어올  때  일시적으로  실패할  수  있습니다.  얼굴  노출을  반드시  막아야  한다면  실제  방송  전에  비공개  테스트를  진행하고,  블러가  사라질  때  카메라  화면을  즉시  숨길  수  있는  장치를  마련하는  것을  권장합니다.
+							240 button Copy
+								241 image
+							242 checkbox Description: Read aloud, Value: 0
+							243 pop up button (collapsed) Description: Regenerate response, ID: radix-_r_fm_, Secondary Actions: Expand
+							244 pop up button (collapsed) Description: More actions, ID: radix-_r_fq_, Secondary Actions: Expand
+						245 text ChatGPT can make mistakes. Check important info.
+						246 container
+							247 button Scroll to bottom
+							248 heading Latest response, Value: 4
+								249 text Latest response
+							250 container
+								251 container
+									252 button (collapsed) Description: Add files and more, Secondary Actions: Expand
+									253 text entry area (settable) Description: Ask ChatGPT, Value: 
+
+										254 container
+											255 text Ask ChatGPT
+									256 pop up button (collapsed) Description: Select ChatGPT model, ID: radix-_r_bl_, Secondary Actions: Expand
+									257 button Dictate
+									258 button (disabled) Send
+										259 image
+		260 text Response complete
+
+The focused UI element is 253 text entry area (settable) Description: Ask ChatGPT, Value: 

@@ -1,7 +1,8 @@
 {
-  "measuredAt": "2026-10-19T05:59:32.570538+00:00",
-  "origin": "http://127.0.0.1:3109",
+  "measuredAt": "2026-10-19T06:09:52.768457+00:00",
+  "origin": "http://127.0.0.1:3110",
   "pageCount": 57,
+  "internalLinkTargets": 63,
   "faqAnswers": 91,
   "endpoints": {
     "/llms.txt": {

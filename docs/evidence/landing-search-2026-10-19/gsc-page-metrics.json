@@ -1,0 +1,134 @@
+{
+  "observedAt": "2026-10-19",
+  "filter": "28 days, Web; chart 2026-09-30 to 2026-10-16",
+  "pages": {
+    "https://innolive.studio/ko": {
+      "clicks": 1,
+      "impressions": 25
+    },
+    "https://innolive.studio/ko/privacy": {
+      "clicks": 1,
+      "impressions": 13
+    },
+    "https://innolive.studio/ko/mosaic-software": {
+      "clicks": 1,
+      "impressions": 8
+    },
+    "https://innolive.studio/ja": {
+      "clicks": 1,
+      "impressions": 5
+    },
+    "https://innolive.studio/": {
+      "clicks": 1,
+      "impressions": 4
+    },
+    "https://innolive.studio/ko/chzzk": {
+      "clicks": 1,
+      "impressions": 3
+    },
+    "https://innolive.studio/ko/mobile-live-face-blur": {
+      "clicks": 1,
+      "impressions": 2
+    },
+    "https://innolive.studio/ko/live-mosaic": {
+      "clicks": 0,
+      "impressions": 26
+    },
+    "https://innolive.studio/en/privacy": {
+      "clicks": 0,
+      "impressions": 12
+    },
+    "https://innolive.studio/en": {
+      "clicks": 0,
+      "impressions": 10
+    },
+    "https://innolive.studio/en/terms": {
+      "clicks": 0,
+      "impressions": 9
+    },
+    "https://innolive.studio/live-mosaic": {
+      "clicks": 0,
+      "impressions": 7
+    },
+    "https://innolive.studio/ko/support": {
+      "clicks": 0,
+      "impressions": 7
+    },
+    "https://innolive.studio/en/pricing": {
+      "clicks": 0,
+      "impressions": 7
+    },
+    "https://innolive.studio/ko/youtube": {
+      "clicks": 0,
+      "impressions": 6
+    },
+    "https://innolive.studio/en/login": {
+      "clicks": 0,
+      "impressions": 6
+    },
+    "https://innolive.studio/ko/pricing": {
+      "clicks": 0,
+      "impressions": 5
+    },
+    "https://innolive.studio/mosaic-software": {
+      "clicks": 0,
+      "impressions": 5
+    },
+    "https://innolive.studio/ko/login": {
+      "clicks": 0,
+      "impressions": 5
+    },
+    "https://innolive.studio/ja/privacy": {
+      "clicks": 0,
+      "impressions": 4
+    },
+    "https://innolive.studio/en/try-out": {
+      "clicks": 0,
+      "impressions": 4
+    },
+    "https://innolive.studio/ko/blog/automatic-mosaic": {
+      "clicks": 0,
+      "impressions": 4
+    },
+    "https://innolive.studio/en/signup": {
+      "clicks": 0,
+      "impressions": 3
+    },
+    "https://innolive.studio/ja/pricing": {
+      "clicks": 0,
+      "impressions": 3
+    },
+    "https://innolive.studio/ja/guides/live-face-blur": {
+      "clicks": 0,
+      "impressions": 3
+    },
+    "https://innolive.studio/blog/live-face-blur": {
+      "clicks": 0,
+      "impressions": 2
+    },
+    "https://innolive.studio/ko/try-out": {
+      "clicks": 0,
+      "impressions": 2
+    },
+    "https://innolive.studio/ko/face-mosaic": {
+      "clicks": 0,
+      "impressions": 2
+    },
+    "https://innolive.studio/ko/blog/live-face-blur": {
+      "clicks": 0,
+      "impressions": 1
+    },
+    "https://innolive.studio/mobile-live-face-blur": {
+      "clicks": 0,
+      "impressions": 1
+    },
+    "https://innolive.studio/ko/live-privacy": {
+      "clicks": 0,
+      "impressions": 1
+    },
+    "https://innolive.studio/ja/signup": {
+      "clicks": 0,
+      "impressions": 1
+    }
+  }
+}

@@ -156,3 +156,18 @@ test("소개 페이지는 제품과 운영팀을 구분하고 계정 양식만 �
     assert.equal(pageMetadata(locale, "/about", aboutCopy[locale]).robots, undefined);
   }
 });
+
+const { searchCrawlerEvent } = load(path.join(__dirname, "search-crawler.ts"));
+test("crawler metrics retain only public routes and normalized crawler names", () => {
+  assert.deepEqual(searchCrawlerEvent("/ko/live-mosaic", "GET", "Mozilla/5.0 (compatible; GPTBot/1.3; +https://openai.com/gptbot)"), {
+    event: "search_crawler_request", crawler: "GPTBot", path: "/ko/live-mosaic", method: "GET",
+  });
+  assert.equal(searchCrawlerEvent("/ko/login", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/api/auth?token=secret", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko/private-user-id", "GET", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko", "POST", "GPTBot"), null);
+  assert.equal(searchCrawlerEvent("/ko", "GET", "Mozilla/5.0"), null);
+  assert.equal(searchCrawlerEvent("/ko", "GET", "NotGPTBot"), null);
+  assert.equal(searchCrawlerEvent("/llms.txt", "HEAD", "OAI-SearchBot/1.3")?.crawler, "OAI-SearchBot");
+  assert.equal(searchCrawlerEvent("/ja/about", "GET", "Yeti/1.1")?.path, "/ja/about");
+});
