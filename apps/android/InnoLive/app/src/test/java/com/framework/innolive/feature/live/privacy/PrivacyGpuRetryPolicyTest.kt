@@ -29,4 +29,15 @@ class PrivacyGpuRetryPolicyTest {
         assertFalse(policy.shouldAttempt(39_999_999_999L))
         assertTrue(policy.shouldAttempt(40_000_000_000L))
     }
+
+    @Test fun jniLinkageAndUnsupportedFailuresStayOnProtectedCpuPath() {
+        for (error in listOf(NoSuchMethodError(), UnsatisfiedLinkError(), UnsupportedOperationException(), IllegalArgumentException())) {
+            val policy=PrivacyGpuRetryPolicy(true)
+            policy.record(error,0)
+            assertFalse(error.javaClass.simpleName,policy.shouldAttempt(Long.MAX_VALUE))
+        }
+        val transient=PrivacyGpuRetryPolicy(true)
+        transient.record(IllegalStateException(),0)
+        assertTrue(transient.shouldAttempt(5_000_000_000L))
+    }
 }

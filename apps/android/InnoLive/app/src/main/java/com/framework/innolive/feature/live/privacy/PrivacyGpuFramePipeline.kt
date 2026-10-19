@@ -32,7 +32,6 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     private val optimizedRenderer: Boolean = true,
     private val compactIntermediates:Boolean=optimizedRenderer,
     private val pairedKernels:Boolean=optimizedRenderer,
-    private val fusedComposite:Boolean=optimizedRenderer,
     private val roiBlur:Boolean=false) : AutoCloseable {
     internal var lastFenceUsed = false
         private set
@@ -394,7 +393,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             // diagnostics, not a permanent veto of the camera's steady-state input path.
             Log.i("PrivacyDetector","gpu_input_validated legacy_ms=${old/1e6} direct_ms=${direct/1e6} wins=$wins/12 managed_input_sync=$nativeInputUsesManagedSync")
             } else Log.i("PrivacyDetector", "gpu_input_validated patterns=3 managed_input_sync=$nativeInputUsesManagedSync")
-        } catch(error: Exception) {
+        } catch(error: Throwable) {
+            if(!error.isPrivacyProcessingFailure()) throw error
             onGl { if(nativeModel!=0L) { PrivacyNativeGpuModel.destroy(nativeModel);nativeModel=0L;egl.makeCurrent() } }
             Log.i("PrivacyDetector","gpu_input_rejected type=${error.javaClass.simpleName} detail=${error.message?.take(120)}")
         } finally {
@@ -428,7 +428,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             }
         val original = targets.getValue("upright")
         if (if (maskPixels >= 0) maskPixels > 0 else mask.any { it.toInt() != 0 }) {
-            val layers = uploadMask(mask)
+            val alpha = uploadMask(mask)
             val quarterW = PrivacyBroadcastBlur.reducedSize(width)
             val quarterH = PrivacyBroadcastBlur.reducedSize(height)
             val reduced = target("reduced", quarterW, quarterH)
@@ -448,7 +448,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             draw(blurName, blurShader, vertical, listOf(horizontal.texture),scissor=blurRegion) { p ->
                 glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / quarterH)
             }
-            draw("composite",COMPOSITE,output,listOf(original.texture,vertical.texture,layers.alpha.texture)) { p ->
+            draw("composite",COMPOSITE,output,listOf(original.texture,vertical.texture,alpha.texture)) { p ->
                 glUniform1i(p.getUniformLocation("rotation"), outputRotation)
                 glUniform4f(p.getUniformLocation("box"), layout.left / 640f, layout.top / 640f,
                     layout.resizedWidth / 640f, layout.resizedHeight / 640f)
@@ -496,7 +496,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         if(right<left) return null
         val scaleX=layout.sourceWidth.toFloat()/layout.resizedWidth
         val scaleY=layout.sourceHeight.toFloat()/layout.resizedHeight
-        // 10 model-mask cells cover 4px dilation + 5px feather + bilinear edge.
+        // 10 model-mask cells cover the protected edge cell and its bilinear fade with room to spare.
         // The upright margin covers both Gaussian axes at the reduced resolution plus the
         // 4x4 reduction footprint, even at odd dimensions.
         val reach=PrivacyBroadcastBlur.REDUCTION*(PrivacyBroadcastBlur.kernelRadius(
@@ -513,8 +513,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             (it.width()<targetWidth || it.height()<targetHeight)}
     }
 
-    private data class MaskLayers(val core:Target,val feather:Target,val alpha:Target)
-    private fun uploadMask(mask: ByteArray): MaskLayers {
+    private fun uploadMask(mask: ByteArray): Target {
         val bytes = maskPixels.apply { clear() }
         val rawTexture = if(compactMask) {
             bytes.put(mask);bytes.rewind()
@@ -533,38 +532,19 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             glTexSubImage2D(GL_TEXTURE_2D,0,0,0,160,160,GL_RGBA,GL_UNSIGNED_BYTE,bytes)
             raw.texture
         }
-        // Same 2px opaque core, 4px outer dilation, sigma 1.5 feather as iOS.
-        val core = target("mask-core", 160, 160, maskTargetsCompact)
-        val outer = target("mask-outer", 160, 160, maskTargetsCompact)
+        // Server mosaic: the contour plus one mask cell stays opaque, and the bilinear composite
+        // fades it over the next cell. No square multi-cell margin around the face.
         val temp = target("mask-temp", 160, 160, maskTargetsCompact)
-        val blurred = target("mask-blur", 160, 160, maskTargetsCompact)
         val alpha = target("mask-alpha",160,160,maskTargetsCompact)
-        for ((radius, output) in listOf(2 to core, 4 to outer)) {
-            draw("dilate-x", DILATE, temp, listOf(rawTexture)) { p ->
-                glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
-                glUniform1i(p.getUniformLocation("radius"), radius)
-            }
-            draw("dilate-y", DILATE, output, listOf(temp.texture)) { p ->
-                glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / 160)
-                glUniform1i(p.getUniformLocation("radius"), radius)
-            }
-        }
-        draw(if(pairedKernels) "feather-fast" else "feather", if(pairedKernels) FEATHER_FAST else FEATHER, temp, listOf(outer.texture)) { p ->
+        draw("dilate-x", DILATE, temp, listOf(rawTexture)) { p ->
             glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
+            glUniform1i(p.getUniformLocation("radius"), PrivacyMaskRenderer.PROTECTED_EDGE_CELLS)
         }
-        val vertical=if(fusedComposite) alpha else blurred
-        val verticalShader=when {
-            fusedComposite && pairedKernels -> FEATHER_FAST_MAX
-            fusedComposite -> FEATHER_MAX
-            pairedKernels -> FEATHER_FAST
-            else -> FEATHER
-        }
-        draw(if(fusedComposite) "feather-max" else if(pairedKernels) "feather-fast" else "feather",
-            verticalShader,vertical,if(fusedComposite) listOf(temp.texture,core.texture) else listOf(temp.texture)) { p ->
+        draw("dilate-y", DILATE, alpha, listOf(temp.texture)) { p ->
             glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / 160)
+            glUniform1i(p.getUniformLocation("radius"), PrivacyMaskRenderer.PROTECTED_EDGE_CELLS)
         }
-        if(!fusedComposite) draw("mask-max", MASK_MAX, alpha, listOf(core.texture, blurred.texture))
-        return MaskLayers(core,blurred,alpha)
+        return alpha
     }
 
     private fun target(name: String, w: Int, h: Int, singleChannel:Boolean=false): Target {
@@ -688,19 +668,10 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             void main(){ gl_FragColor=0.25*(texture2D(tex0,uv+vec2(-1.0,-1.0)*texelSize)+texture2D(tex0,uv+vec2(1.0,-1.0)*texelSize)
               +texture2D(tex0,uv+vec2(-1.0,1.0)*texelSize)+texture2D(tex0,uv+vec2(1.0,1.0)*texelSize)); }
         """
-        private val FEATHER_FAST=PrivacyBroadcastBlur.pairedGaussianShader(5,1.5)
-        private val FEATHER_FAST_MAX=PrivacyBroadcastBlur.pairedGaussianShader(5,1.5,true)
-        private val FEATHER_MAX=FEATHER.replace("uniform sampler2D tex0;","uniform sampler2D tex0,tex1;")
-            .replace("gl_FragColor=vec4(vec3(value/sum),1.0);","gl_FragColor=max(vec4(vec3(value/sum),1.0),texture2D(tex1,uv));")
         private const val DILATE = """
             uniform sampler2D tex0; uniform vec2 stepSize; uniform int radius;
             void main(){ float a=0.0; for(int i=-4;i<=4;i++){ if(i>=-radius && i<=radius) a=max(a,texture2D(tex0,uv+float(i)*stepSize).r); } gl_FragColor=vec4(vec3(a),1.0); }
         """
-        private const val FEATHER = """
-            uniform sampler2D tex0; uniform vec2 stepSize;
-            void main(){ float value=0.0; float sum=0.0; for(int i=-5;i<=5;i++){ float w=exp(-float(i*i)/4.5); value+=texture2D(tex0,uv+float(i)*stepSize).r*w; sum+=w; } gl_FragColor=vec4(vec3(value/sum),1.0); }
-        """
-        private const val MASK_MAX = "uniform sampler2D tex0,tex1; void main(){ gl_FragColor=max(texture2D(tex0,uv),texture2D(tex1,uv)); }"
         private const val COMPOSITE = "uniform sampler2D tex0,tex1,tex2; uniform vec4 box; uniform int rotation; " + FORWARD +
             "void main(){ vec2 p=upright(uv); float a=texture2D(tex2,box.xy+p*box.zw).r; gl_FragColor=mix(texture2D(tex0,p),texture2D(tex1,p),a); }"
     }

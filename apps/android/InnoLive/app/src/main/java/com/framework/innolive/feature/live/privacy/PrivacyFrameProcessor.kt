@@ -73,11 +73,11 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                 gpuRetry.succeeded()
                 return output
             } catch (error: PrivacyGpuBackpressureException) { throw error }
-            catch (error: Exception) {
+            catch (error: Throwable) {
+                if (!error.isPrivacyProcessingFailure()) throw error
                 Log.w("PrivacyPipeline", "image_gpu_fallback type=${error.javaClass.simpleName}")
                 releaseAccelerators(); imageGpu?.close(); imageGpu = null; imageGpuUnavailable = true
-                if(error is UnsupportedOperationException || error is IllegalArgumentException) gpuRetry.disable()
-                else gpuRetry.failed(System.nanoTime())
+                gpuRetry.record(error, System.nanoTime())
                 resetFaceExceptions()
             }
         }
@@ -103,14 +103,14 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
             return output
 
         } catch(error:PrivacyGpuBackpressureException) {throw error}
-        catch(error:Exception) {
+        catch(error:Throwable) {
+            if(!error.isPrivacyProcessingFailure()) throw error
             Log.w("PrivacyPipeline","camera_gpu_fallback type=${error.javaClass.simpleName}")
             val upright=try {
                 if(camera.isClosed) checkNotNull(imageGpu).copyUpright() else null
             } finally {
                 releaseAccelerators();imageGpu?.close();imageGpu=null;imageGpuUnavailable=true;resetFaceExceptions()
-                if(error is UnsupportedOperationException || error is IllegalArgumentException) gpuRetry.disable()
-                else gpuRetry.failed(System.nanoTime())
+                gpuRetry.record(error,System.nanoTime())
             }
             if(upright!=null) try {
                 lastCameraCopiedPlanes=3
@@ -273,6 +273,11 @@ internal class PrivacyGpuRetryPolicy(private val enabled:Boolean) {
     }
     fun succeeded() {failures=0;retryAtNs=Long.MAX_VALUE}
     fun disable() {permanentlyUnavailable=true;retryAtNs=Long.MAX_VALUE}
+    /** Unsupported input and JNI linkage failures do not heal; other failures retry with backoff. */
+    fun record(error:Throwable,nowNs:Long) {
+        if(error is UnsupportedOperationException || error is IllegalArgumentException || error is LinkageError) disable()
+        else failed(nowNs)
+    }
 }
 
 internal object PrivacyBitmapRotation {
