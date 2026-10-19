@@ -56,6 +56,10 @@ final class YouTubeViewerChatTests: XCTestCase {
         XCTAssertNil(YouTubeViewerChatPolicy.Availability.ready(expected).message)
     }
 
+    func testChatStartsHiddenWhenBroadcastStarts() {
+        XCTAssertTrue(YouTubeViewerChatPolicy.startsHidden)
+    }
+
     func testChangedVideoSelectsNewDocument() throws {
         let before = YouTubeViewerChatPolicy.activeURL(targets: [try target()], hasSession: true)
         let after = YouTubeViewerChatPolicy.activeURL(targets: [try target(videoID: "abcdefghijk")], hasSession: true)

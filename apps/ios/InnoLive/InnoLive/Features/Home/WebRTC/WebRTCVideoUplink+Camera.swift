@@ -72,7 +72,6 @@ extension WebRTCVideoUplink {
         operationGeneration: UInt
     ) async throws {
         #if DEBUG
-        #if targetEnvironment(simulator)
         if SimulatorVideoInput.isEnabled {
             guard SimulatorVideoInput.bundledURL != nil else {
                 throw WebRTCVideoUplinkError.failed(
@@ -84,7 +83,13 @@ extension WebRTCVideoUplink {
             let source = peerConnectionFactory.videoSource()
             adapt(source, to: preferredVideoQuality)
             let frameRelay = makeFrameRelay(target: source, cameraPosition: .back)
-            let capturer = LKRTCFileVideoCapturer(delegate: frameRelay)
+            if SimulatorVideoInput.isPerformanceFixture {
+                // Fixture stores a portrait scene in landscape sensor coordinates.
+                frameRelay.setLockedInterfaceOrientation(.portrait)
+            }
+            let capturer: LKRTCFileVideoCapturer = SimulatorVideoInput.isPerformanceFixture
+                ? DebugPerformanceVideoCapturer(delegate: frameRelay)
+                : LKRTCFileVideoCapturer(delegate: frameRelay)
             let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
             track.isEnabled = true
             videoSource = source
@@ -99,7 +104,7 @@ extension WebRTCVideoUplink {
                 renderingLocalTrack?.add(faceRegistrationRenderer)
             }
 
-            capturer.startCapturing(fromFileNamed: SimulatorVideoInput.fileName) { [weak self] error in
+            let onFailure: @Sendable (Error) -> Void = { [weak self] error in
                 Task { @MainActor [weak self] in
                     guard let self,
                           self.cameraOperationGeneration == operationGeneration,
@@ -108,6 +113,12 @@ extension WebRTCVideoUplink {
                         String(localized: "시뮬레이터 영상을 읽지 못했습니다: \(error.localizedDescription)")
                     )
                 }
+            }
+            if let performanceCapturer = capturer as? DebugPerformanceVideoCapturer,
+               let url = SimulatorVideoInput.bundledURL {
+                try await performanceCapturer.start(url: url, onFailure: onFailure)
+            } else {
+                capturer.startCapturing(fromFileNamed: SimulatorVideoInput.fileName) { onFailure($0) }
             }
             guard !isStopping,
                   cameraOperationGeneration == operationGeneration,
@@ -118,7 +129,6 @@ extension WebRTCVideoUplink {
             activeVideoQuality = preferredVideoQuality
             return
         }
-        #endif
         #endif
 
         guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
@@ -577,6 +587,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         #endif
         lock.unlock()
 
+        PrivacyPipelineProbe.count("camera_input")
         let outgoing = outgoingFrame(
             from: frame,
             lockedOrientation: lockedOrientation,
@@ -594,12 +605,9 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         deliverUnprocessedPreview(outgoing)
         let coloredPreview: LKRTCVideoFrame
         do {
-            coloredPreview = try previewColorProcessor.process(
-                outgoing,
-                exposureEV: exposureEV,
-                warmth: warmth,
-                saturation: saturation
-            )
+            coloredPreview = try PrivacyPipelineProbe.measure("preview_color") {
+                try previewColorProcessor.process(outgoing, exposureEV: exposureEV, warmth: warmth, saturation: saturation)
+            }
         } catch {
             #if DEBUG
             lock.withLock {
@@ -613,7 +621,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         #if DEBUG
         lock.withLock { validationPreviewFrames += 1 }
         #endif
-        previewTarget?.capturer(capturer, didCapture: coloredPreview)
+        PrivacyPipelineProbe.measure("preview_delivery") { previewTarget?.capturer(capturer, didCapture: coloredPreview) }
+        if exposureEV != 0 || warmth != 0 || saturation != 1 { PrivacyPipelineProbe.count("color_adjusted") }
         lock.lock()
         let directSink = directMediaSink
         lock.unlock()
@@ -629,28 +638,25 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                 processor.submit(outgoing) { [target, route, colorProcessor, directSink] result in
                     let coloredUplink: LKRTCVideoFrame
                     do {
-                        coloredUplink = try colorProcessor.process(
-                            result,
-                            exposureEV: exposureEV,
-                            warmth: warmth,
-                            saturation: saturation
-                        )
+                        coloredUplink = try PrivacyPipelineProbe.measure("uplink_color") {
+                            try colorProcessor.process(result, exposureEV: exposureEV, warmth: warmth, saturation: saturation)
+                        }
                     } catch {
                         return
                     }
                     var delivered = false
                     route.deliver(ticket) {
-                        target.capturer(capturer, didCapture: coloredUplink)
+                        PrivacyPipelineProbe.measure("webrtc_delivery") { target.capturer(capturer, didCapture: coloredUplink) }
                         delivered = true
                     }
                     // 무효화된 경로의 결과는 직접 송출에도 넘기지 않는다. 변환은 경로 잠금 밖에서 한다.
                     // 송출 대상이 없어도 넘긴다. 첫 연결 때 인코더 크기를 실제 프레임 크기로 정한다.
                     if delivered, let buffer = (coloredUplink.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
-                        directSink?.appendVideo(
-                            pixelBuffer: buffer,
-                            rotation: Int(coloredUplink.rotation.rawValue),
-                            timestampNs: coloredUplink.timeStampNs
-                        )
+                        PrivacyPipelineProbe.measure("direct_delivery") {
+                            directSink?.appendVideo(pixelBuffer: buffer,
+                                rotation: Int(coloredUplink.rotation.rawValue), timestampNs: coloredUplink.timeStampNs)
+                        }
+                        PrivacyPipelineProbe.count("delivered")
                     }
                 }
             } else {

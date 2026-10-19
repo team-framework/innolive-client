@@ -348,6 +348,17 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             )
             try ensureCurrentCameraOperation(operationGeneration)
 
+            if session.isDirectPublish {
+                try await prepareLocalProcessing()
+                try ensureCurrentCameraOperation(operationGeneration)
+                guard let localVideoTrack else { throw WebRTCVideoUplinkError.cancelled }
+                // This track receives the protected output; rawPreviewTrack is for face registration.
+                setRemoteVideoTrack(localVideoTrack)
+                shouldReconnectAutomatically = false
+                updateState(.connected, String(localized: "카메라 영상이 준비되었습니다."))
+                return
+            }
+
             try preparePeerConnection(iceServers: iceServers)
             guard let signalingURL = signalingURL(from: serverURL) else {
                 throw URLError(.badURL)
@@ -486,7 +497,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     }
 
     func markPublisherReady() {
-        guard state == .connected else { return }
+        guard state == .connected, credentials?.isDirectPublish != true else { return }
         updateState(.connected, String(localized: "카메라 영상이 서버에 연결되었습니다."))
         diagnostics.noteConnected()
         startQualityPollingIfNeeded()
