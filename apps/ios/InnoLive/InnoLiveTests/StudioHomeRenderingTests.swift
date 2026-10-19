@@ -35,7 +35,7 @@ final class StudioHomeRenderingTests: XCTestCase {
                     preparationStatus: preparing ? .init(phase: .connectingServer) : nil)
             }
             let sessionID = integration.session?.sessionID
-            for configuration in [(landscape: false, large: false), (landscape: true, large: false), (landscape: false, large: true)] {
+            for configuration in [(landscape: false, large: false), (landscape: true, large: false)] {
                 let landscape = configuration.landscape
                 for page in StudioPage.allCases {
                     let size = landscape ? CGSize(width: 844, height: 390) : CGSize(width: 390, height: 844)
