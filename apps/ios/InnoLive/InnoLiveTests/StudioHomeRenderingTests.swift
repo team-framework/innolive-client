@@ -84,6 +84,51 @@ final class StudioHomeRenderingTests: XCTestCase {
         }
     }
 
+    func testGlassAndFallbackSurfacesRender() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first { $0.isKeyWindow }
+        defer { previous?.makeKeyAndVisible() }
+        for mode in ["liquid-glass", "legacy-material", "reduced-transparency"] {
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 500)
+            window.overrideUserInterfaceStyle = .dark
+            window.rootViewController = UIHostingController(rootView:
+                ZStack {
+                    LinearGradient(colors: [.indigo, .orange, .teal], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    InnoLiveGlassContainer {
+                        VStack(spacing: 28) {
+                            Text(mode).font(.caption)
+                            Text("화면    기본    설정").padding(12)
+                                .innoLiveGlassSurface(in: Capsule(), interactive: true)
+                            HStack { Text("● 00:42"); Text("30 fps"); Spacer(); Button("종료") {} }
+                                .font(.system(size: 12)).padding(10)
+                                .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 8), interactive: true)
+                            Button("카메라 전환", systemImage: "camera.rotate") {}
+                                .innoLiveGlassButtonStyle()
+                            Button("방송 준비") {}.innoLiveGlassButtonStyle(prominent: true)
+                            Text("방송 제어       비식별화").padding(14)
+                                .innoLiveGlassSurface(in: RoundedRectangle(cornerRadius: 12), interactive: true)
+                        }.padding(24)
+                    }
+                }
+                .foregroundStyle(.white)
+                .environment(\.colorScheme, .dark)
+                .environment(\.innoLiveGlassForceFallback, mode == "legacy-material")
+                .environment(\.innoLiveGlassForceOpaque, mode == "reduced-transparency"))
+            window.makeKeyAndVisible()
+            try await Task.sleep(for: .milliseconds(500))
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+            }
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "studio-material-\(mode)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+    }
+
     private func ancestorNames(of view: UIView) -> String {
         var ancestor = view.superview
         var names: [String] = []
