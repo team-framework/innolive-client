@@ -584,6 +584,13 @@ final class YouTubeAPI: PlanAPIClient {
     private func validate(_ response: HTTPURLResponse, data: Data, extractFieldErrors: Bool = false) throws {
         guard !(200..<300).contains(response.statusCode) else { return }
         let envelope = try? JSONDecoder().decode(YouTubeAPIErrorEnvelope.self, from: data)
+        #if DEBUG
+        // Record only known public error identifiers, never response bodies or request credentials.
+        let probeCodes: Set<String> = ["streaming_rate_limited", "streaming_quota_exceeded",
+            "broadcast_prepared", "broadcast_live", "streaming_reconnect_required", "streaming_prepare_failed"]
+        let probeCode = envelope?.error.code ?? "unknown"
+        PrivacyPipelineProbe.count(probeCodes.contains(probeCode) ? "api_\(probeCode)" : "api_http_\(response.statusCode)")
+        #endif
         if extractFieldErrors, envelope?.error.code == "field_not_changeable_live",
            let fields = envelope?.error.details?.fields, let first = fields.first {
             throw BroadcastSettingsFieldError(field: first, reason: "", fields: fields, isNotChangeableLive: true)
