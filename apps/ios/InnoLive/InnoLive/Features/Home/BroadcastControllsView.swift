@@ -143,20 +143,17 @@ struct BroadcastControllsView: View {
                 if !youtube.hasStartedYouTubeBroadcast {
                     broadcastSummary
                 }
-                InnoLiveGlassContainer {
-                    VStack(spacing: 8) {
-                        if dynamicTypeSize.isAccessibilitySize {
-                            primaryControl
-                            HStack(spacing: 16) {
-                                Spacer()
-                                anonymizationControl
-                            }
-                        } else {
-                            HStack(spacing: 10) {
-                                primaryControl
-                                anonymizationControl
-                            }
+                VStack(spacing: 8) {
+                    HStack(spacing: 12) {
+                        primaryControl
+                        if isBroadcasting {
+                            Rectangle().fill(.white.opacity(0.2)).frame(width: 1, height: 24)
+                            anonymizationControl
                         }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
 
                         if canCancelPreparation {
                             Button(role: .destructive, action: cancelPreparation) {
@@ -168,7 +165,6 @@ struct BroadcastControllsView: View {
                             }
                             .disabled(youtube.preparationStatus?.phase == .cancelling)
                         }
-                    }
                 }
             }
         }
@@ -179,11 +175,11 @@ struct BroadcastControllsView: View {
             if isBroadcasting {
                 if youtube.hasStartedYouTubeBroadcast {
                     Label(String(localized: "방송 제어"), systemImage: "slider.horizontal.3")
-                        .font(.headline)
+                        .font(.subheadline.weight(.semibold))
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                 } else {
                     YouTubeBroadcastControlLabel(
                         youtube: youtube,
@@ -197,9 +193,8 @@ struct BroadcastControllsView: View {
                 )
             }
         }
-        .innoLiveGlassButtonStyle(prominent: true)
-        .buttonBorderShape(.capsule)
-        .tint(primaryButtonTint)
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
         .frame(maxWidth: .infinity)
         .disabled(isPrimaryActionDisabled)
         .layoutPriority(1)
@@ -220,9 +215,8 @@ struct BroadcastControllsView: View {
                 isLoading: youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur
             )
         }
-        .innoLiveGlassButtonStyle()
-        .buttonBorderShape(.circle)
-        .tint(youtube.isAnonymizationEnabled || youtube.isScreenBlurEnabled ? .purple : nil)
+        .buttonStyle(.plain)
+        .foregroundStyle(youtube.isAnonymizationEnabled || youtube.isScreenBlurEnabled ? Color.purple : Color.white)
         .disabled(!isBroadcasting || youtube.isTogglingAnonymization || youtube.isTogglingScreenBlur)
         .accessibilityLabel(String(localized: "비식별화"))
         .accessibilityValue(anonymizationStatuses.joined(separator: ", "))
