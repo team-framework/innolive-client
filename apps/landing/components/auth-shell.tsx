@@ -13,9 +13,17 @@ export function AuthShell({ children }: { children: ReactNode }) {
       data-page="auth"
       className="relative min-h-dvh bg-background-primary"
     >
-      <div className="flex min-h-dvh flex-col items-center justify-center px-[var(--page-gutter)] py-16 pb-24 lg:min-h-[max(100dvh,62rem)] lg:py-0">
+      <div className="flex min-h-dvh flex-col items-center justify-center px-[var(--page-gutter)] py-16 pb-24 max-md:justify-start max-md:pt-12 lg:min-h-[max(100dvh,62rem)] lg:py-0">
         <div className="flex w-full max-w-[86rem] flex-col overflow-clip rounded-[24px] bg-background-secondary shadow-[0_0_32px_0_#0000000d] min-[48rem]:flex-row">
-          <div className="flex w-full flex-col items-center justify-center gap-7 px-5 pb-8 pt-[4.5rem] sm:px-8 min-[64rem]:max-w-[36rem]">
+          <div className="flex w-full flex-col items-center justify-center gap-7 px-5 pb-8 pt-[4.5rem] max-md:gap-5 max-md:pt-7 sm:px-8 min-[64rem]:max-w-[36rem]">
+            {/* Auth pages hide the site header; below lg the artwork panel (and its logo) is hidden too. */}
+            <Link
+              href={href("/")}
+              aria-label={messages.header.home}
+              className="inline-flex min-h-[44px] items-center lg:hidden"
+            >
+              <Image src="/brand/logo-header.svg" alt="InnoLive" width={94} height={24} unoptimized />
+            </Link>
             {children}
           </div>
           <div className="relative hidden min-h-[28rem] flex-1 overflow-clip min-[64rem]:block min-[64rem]:h-[50rem] min-[64rem]:max-w-[50rem]">
@@ -37,7 +45,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav
-          className="mt-8 flex flex-wrap items-center justify-center gap-2 max-lg:gap-x-4 text-base font-medium text-text-primary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2"
+          className="mt-8 flex flex-wrap items-center justify-center gap-2 max-lg:gap-x-4 max-md:mt-4 max-md:font-normal max-md:text-text-secondary text-base font-medium text-text-primary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2"
           aria-label={messages.auth.policyNav}
         >
           <Link
