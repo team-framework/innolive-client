@@ -21,7 +21,7 @@ struct AnonymizationControlLabel: View {
     var body: some View {
         VStack(spacing: 3) {
             if isLoading {
-                ProgressView().controlSize(.small)
+                ProgressView().controlSize(.small).tint(.white)
             } else {
                 Image(systemName: "faceid")
                     .font(.body.weight(.semibold))
@@ -48,9 +48,12 @@ struct StudioWarningLabel: View {
     let systemImage: String
 
     var body: some View {
-        Label(title, systemImage: systemImage)
+        Label {
+            Text(title).foregroundStyle(.white)
+        } icon: {
+            Image(systemName: systemImage).foregroundStyle(.orange)
+        }
             .font(.caption)
-            .foregroundStyle(.orange)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
