@@ -20,7 +20,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -56,6 +58,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
+import com.framework.innolive.feature.face.FaceSelectionLayer
+import com.framework.innolive.feature.face.GuestFaceName
+import com.framework.innolive.feature.face.GuestFaceRegistrar
+import com.framework.innolive.feature.face.GuestFaceTarget
+import com.framework.innolive.feature.face.GuestRegistrationToast
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.BroadcastModeDialog
@@ -130,6 +137,10 @@ private fun LiveScreenContent(
     var openFaceManagement by remember { mutableStateOf(false) }
     // 방송 카메라가 켜진 뒤 연 얼굴 관리는 방송을 끊지 않고 그 위에 띄웁니다.
     var faceManagementUsesBroadcastCamera by remember { mutableStateOf(false) }
+    // 홈 화면 원탭 얼굴 등록입니다. 선택 중에는 원본 카메라를 메인에 두고 송출 화면을 작은 창으로 보냅니다.
+    var isSelectingFace by remember { mutableStateOf(false) }
+    // 마지막으로 열린 카메라 방향입니다. 고른 방향과 다르면 카메라를 바꾸는 중입니다.
+    var openedCameraLensFacing by remember { mutableStateOf<CameraLensFacing?>(null) }
     // 방송 설정 창 하나에서 화질·플랫폼·플랫폼별 설정을 고릅니다. 탭은 열 때 보여 줄 플랫폼입니다.
     var openSettingsDialog by remember { mutableStateOf(false) }
     var openYouTubeEditor by remember { mutableStateOf(false) }
@@ -182,6 +193,9 @@ private fun LiveScreenContent(
     }
     val broadcastConsentStore = remember(context) { BroadcastConsentStore(context) }
     val scope = rememberCoroutineScope()
+    // 탭한 게스트는 선택이 끝난 뒤에도 백그라운드에서 등록을 이어 가므로 화면 수준에서 보관합니다.
+    val guestRegistrar = remember(context) { GuestFaceRegistrar(context, scope) }
+    DisposableEffect(guestRegistrar) { onDispose { guestRegistrar.close() } }
     val chzzkApi = remember { runCatching { ChzzkApi(BuildConfig.INNOLIVE_SERVER_URL) }.getOrNull() }
     DisposableEffect(chzzkApi) { onDispose { chzzkApi?.close() } }
     fun finishChzzkAccountMutation(revision: Long) {
@@ -366,6 +380,32 @@ private fun LiveScreenContent(
             WebRtcConnectionState.CONNECTED,
         ) && !webRtcSession.isPreparingBroadcast &&
             webRtcSession.broadcastState in setOf(BroadcastState.IDLE, BroadcastState.FAILED)
+    val isSwitchingCamera = openedCameraLensFacing.let { it != null && it != props.cameraLensFacing }
+    // 송출 카메라 프레임이 계속 들어오는 동안만 얼굴을 고릅니다. 연결·준비 중에는 카메라가 바뀔 수 있어 선택을 끝냅니다.
+    // iOS처럼 카메라를 바꾸는 동안에는 선택을 시작하지 않습니다.
+    val canSelectFace = mediaPermissionState.hasCameraPermission &&
+        !isSwitchingCamera &&
+        !presentation.isConnecting &&
+        !webRtcSession.isPreparingBroadcast &&
+        webRtcSession.broadcastState in FaceSelectionBroadcastStates
+    LaunchedEffect(canSelectFace) {
+        if (!canSelectFace) isSelectingFace = false
+    }
+    /** 방송에 고른 처리 방식과 같은 곳에 게스트를 등록합니다. */
+    fun guestFaceTarget(): GuestFaceTarget = if (webRtcSession.selectedOnDeviceProcessing) {
+        GuestFaceTarget.OnDevice(
+            accountScope = props.onGetAccessToken()?.let { token ->
+                runCatching { sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, token).storageKey }.getOrNull()
+            },
+            onChanged = webRtcSession::localFacesChanged,
+        )
+    } else {
+        GuestFaceTarget.Server(
+            accountEmail = props.profileEmail,
+            getAccessToken = props.onGetAccessToken,
+            refreshAccessToken = props.onRefreshAccessToken,
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -390,6 +430,24 @@ private fun LiveScreenContent(
                 onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
                 isDirectPublish = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
                 modifier = Modifier.fillMaxSize(),
+                originalIsMain = isSelectingFace,
+                onCameraOpened = { openedCameraLensFacing = it },
+                mainOverlay = if (isSelectingFace) {
+                    {
+                        // iOS처럼 원본 위에서 얼굴을 고르면 백그라운드로 등록하고 바로 송출 화면으로 돌아갑니다.
+                        FaceSelectionLayer(
+                            analyzer = frameAnalyzer,
+                            mirrored = props.cameraLensFacing.shouldMirrorPreview,
+                            onSelect = { frame, faceIndex ->
+                                guestRegistrar.register(frame, faceIndex, GuestFaceName.make(context), guestFaceTarget())
+                                isSelectingFace = false
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                } else {
+                    null
+                },
             )
         }
 
@@ -423,17 +481,32 @@ private fun LiveScreenContent(
                 .padding(start = 10.dp, top = 56.dp, end = 10.dp),
         )
 
+        if (!isSelectingFace) {
+            GuestRegistrationToast(
+                registrar = guestRegistrar,
+                onReselect = { if (canSelectFace) isSelectingFace = true },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(start = 24.dp, top = 96.dp, end = 24.dp),
+            )
+        }
+
         LiveSideControls(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 16.dp),
             canOpenSettings = !presentation.isConnecting,
-            canSwitchCamera = props.canSwitchCamera && !presentation.isConnecting,
+            // 선택 중 카메라가 바뀌면 고르던 얼굴 좌표와 좌우 반전이 맞지 않으므로 전환을 막습니다.
+            canSwitchCamera = props.canSwitchCamera && !presentation.isConnecting && !isSelectingFace,
             canManageFace = canManageFace,
             onOpenSettings = props.onOpenSettings,
             onOpenVideoControls = { openVideoControls = true },
             onSwitchCamera = props.onSwitchCamera,
+            canSelectFace = canSelectFace,
+            isSelectingFace = isSelectingFace,
+            onToggleFaceSelection = { isSelectingFace = !isSelectingFace },
             onOpenFaceManagement = {
+                isSelectingFace = false
                 faceManagementUsesBroadcastCamera = canManageFaceWithBroadcastCamera
                 if (
                     !canManageFaceWithBroadcastCamera &&
@@ -931,6 +1004,9 @@ private val FaceManagementBroadcastStates = setOf(
     BroadcastState.PAUSED,
 )
 
+/** 원탭 얼굴 선택이 가능한 방송 단계입니다. 실패 뒤에도 카메라는 켜져 있으므로 포함합니다. */
+private val FaceSelectionBroadcastStates = FaceManagementBroadcastStates + BroadcastState.FAILED
+
 @Composable
 private fun LiveFaceManagement(
     props: LiveScreenProps,
@@ -972,6 +1048,9 @@ internal fun LiveSideControls(
     onOpenFaceManagement: () -> Unit,
     anonymizationState: AnonymizationControlsState,
     onAnonymizationSelect: (Boolean) -> Unit,
+    canSelectFace: Boolean = false,
+    isSelectingFace: Boolean = false,
+    onToggleFaceSelection: () -> Unit = {},
 ) {
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
@@ -1007,6 +1086,21 @@ internal fun LiveSideControls(
                 contentDescription = stringResource(R.string.face_management),
                 modifier = Modifier.size(32.dp),
                 tint = Color.White,
+            )
+        }
+        // 홈 화면 원탭 등록 토글입니다. 선택 중에는 취소 버튼이 됩니다.
+        IconButton(
+            onClick = onToggleFaceSelection,
+            enabled = isSelectingFace || canSelectFace,
+            modifier = Modifier.size(48.dp),
+        ) {
+            Icon(
+                imageVector = if (isSelectingFace) Icons.Default.Close else Icons.Default.PersonAdd,
+                contentDescription = stringResource(
+                    if (isSelectingFace) R.string.quick_face_select_cancel else R.string.quick_face_select_start,
+                ),
+                modifier = Modifier.size(28.dp),
+                tint = if (isSelectingFace) Color(0xFF64B5F6) else Color.White,
             )
         }
         Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
