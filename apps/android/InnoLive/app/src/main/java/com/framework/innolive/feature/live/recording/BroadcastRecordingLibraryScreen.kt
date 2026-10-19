@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +49,7 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.live.formatBroadcastDuration
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.asString
+import com.framework.innolive.ui.theme.InnoLiveAlertDialog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -215,7 +215,7 @@ fun BroadcastRecordingLibraryScreen(
     }
 
     deleteTarget?.let { recording ->
-        AlertDialog(
+        InnoLiveAlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text(stringResource(R.string.recording_delete_title)) },
             text = {
@@ -242,7 +242,7 @@ fun BroadcastRecordingLibraryScreen(
 
     if (deletePreserved) {
         val preserved = library?.preserved.orEmpty()
-        AlertDialog(
+        InnoLiveAlertDialog(
             onDismissRequest = { deletePreserved = false },
             title = { Text(stringResource(R.string.recording_library_preserved_delete_title)) },
             text = {
@@ -276,7 +276,7 @@ private fun RecordingExportDialog(
     onDismiss: () -> Unit,
 ) {
     var source by remember(recording.id) { mutableStateOf(RecordingExportSource.ORIGINAL) }
-    AlertDialog(
+    InnoLiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.recording_export_title)) },
         text = {
