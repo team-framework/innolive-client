@@ -2,7 +2,6 @@ package com.framework.innolive.feature.live.recording
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraFrameAnalyzer
 import com.framework.innolive.feature.live.LiveBroadcastTransport
@@ -10,6 +9,7 @@ import com.framework.innolive.feature.live.VideoTrackLifecycle
 import com.framework.innolive.ui.text.UiText
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
+import java.util.UUID
 import java.util.concurrent.Executors
 
 enum class BroadcastRecordingStatus { IDLE, RECORDING, SAVING, SAVED, FAILED }
@@ -33,21 +33,39 @@ internal data class RecordingMediaBindings(
     val provider: String,
 )
 
+/** ViewModel이 녹화를 다루는 동작입니다. 기기 테스트는 가짜 구현으로 전이를 확인합니다. */
+internal interface BroadcastRecordingControl {
+    /** 녹화를 시작합니다. false면 이번 방송은 녹화하지 않습니다. */
+    fun begin(media: RecordingMediaBindings): Boolean
+
+    /** 방송 시작(라이브·일시 중지)을 확인했습니다. */
+    fun confirm()
+
+    fun remoteTrackChanged(track: VideoTrack?)
+
+    /** 녹화를 끝냅니다. [save]가 false면 파일을 버립니다. */
+    fun finish(save: Boolean)
+}
+
 /**
  * ViewModel 안에서 녹화 세션을 송출 경로에 붙이고 뗍니다. 모든 공개 메서드는 메인 스레드에서 부르며
- * 파일 마무리는 ViewModel 범위와 무관한 전용 스레드에서 끝까지 진행합니다.
+ * 파일 마무리는 ViewModel 범위와 무관한 전용 스레드에서 끝까지 진행합니다. 저장하는 동안에는
+ * [keepAlive]로 프로세스를 유지합니다.
  */
 internal class BroadcastRecordingHost(
     private val store: BroadcastRecordingStore,
     private val onStateChanged: (BroadcastRecordingUiState) -> Unit,
+    private val keepAlive: RecordingKeepAlive,
     private val minimumFreeBytes: Long = DEFAULT_MINIMUM_FREE_BYTES,
-) {
+    private val mediaFactory: (EglBase.Context) -> RecordingMediaFactory = { AndroidRecordingMediaFactory(it) },
+) : BroadcastRecordingControl {
     private class Active(
         val session: BroadcastRecordingSession,
         val analyzer: CameraFrameAnalyzer,
         val transport: LiveBroadcastTransport?,
         val usesRemoteTrack: Boolean,
         var remoteTrack: VideoTrack?,
+        var confirmed: Boolean = false,
     )
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -55,7 +73,7 @@ internal class BroadcastRecordingHost(
     private var active: Active? = null
     private var generation = 0L
 
-    fun begin(media: RecordingMediaBindings): Boolean {
+    override fun begin(media: RecordingMediaBindings): Boolean {
         if (active != null) return false
         val analyzer = media.frameAnalyzer
         val egl = media.eglContext
@@ -69,23 +87,26 @@ internal class BroadcastRecordingHost(
             return false
         }
         val thisGeneration = ++generation
+        val id = UUID.randomUUID().toString()
+        RecordingOwnership.claim(id)
         val session = try {
-            val directory = store.createDirectory()
-            store.activeId = directory.name
+            val directory = store.createDirectory(id)
             BroadcastRecordingSession(
-                id = directory.name,
+                id = id,
                 directory = directory,
-                sharedEglContext = egl,
                 sessionId = media.sessionId,
                 provider = media.provider,
                 createdAtMillis = System.currentTimeMillis(),
+                media = mediaFactory(egl),
+                alignProcessed = !media.onDeviceProcessing,
                 onFailure = { reason ->
                     mainHandler.post { if (generation == thisGeneration) onSessionFailed(reason) }
                 },
             )
         } catch (error: Exception) {
-            Log.w(LOG_TAG, "recording_begin_failed type=${error.javaClass.simpleName}")
-            store.activeId = null
+            RecordingLog.w("recording_begin_failed type=${error.javaClass.simpleName}")
+            runCatching { store.directory(id).deleteRecursively() }
+            RecordingOwnership.release(id)
             publish(BroadcastRecordingUiState(BroadcastRecordingStatus.FAILED, UiText.Resource(R.string.recording_failed_start)))
             return false
         }
@@ -99,33 +120,51 @@ internal class BroadcastRecordingHost(
         return true
     }
 
+    override fun confirm() {
+        val binding = active ?: return
+        if (binding.confirmed) return
+        binding.confirmed = true
+        finisher.execute { binding.session.markConfirmed() }
+    }
+
     /** 서버 AI 모드에서 재협상으로 돌려받는 트랙이 바뀌면 송출 프레임 입력을 옮깁니다. */
-    fun remoteTrackChanged(track: VideoTrack?) {
+    override fun remoteTrackChanged(track: VideoTrack?) {
         val binding = active ?: return
         if (binding.usesRemoteTrack) attachRemoteTrack(binding, track)
     }
 
-    fun finish(save: Boolean) {
+    override fun finish(save: Boolean) {
         val binding = active ?: return
         active = null
         detach(binding)
         val session = binding.session
         if (!save) {
-            store.activeId = null
-            finisher.execute { runCatching { session.discard() } }
+            finisher.execute {
+                try {
+                    runCatching { session.discard() }
+                } finally {
+                    RecordingOwnership.release(session.id)
+                }
+            }
             publish(BroadcastRecordingUiState())
             return
         }
         publish(BroadcastRecordingUiState(BroadcastRecordingStatus.SAVING, UiText.Resource(R.string.recording_status_saving)))
+        val lease = runCatching { keepAlive.acquire() }.getOrNull()
         finisher.execute {
-            val result = runCatching { session.stop() }
-            store.activeId = null
+            val result = try {
+                session.markFinalizing()
+                runCatching { session.stop() }
+            } finally {
+                RecordingOwnership.release(session.id)
+            }
             mainHandler.post {
+                runCatching { lease?.close() }
                 result.onSuccess { saved ->
                     publish(BroadcastRecordingUiState(BroadcastRecordingStatus.SAVED,
                         UiText.Resource(R.string.recording_status_saved), saved))
                 }.onFailure { error ->
-                    Log.w(LOG_TAG, "recording_save_failed type=${error.javaClass.simpleName}")
+                    RecordingLog.w("recording_save_failed type=${error.javaClass.simpleName}")
                     val reason = (error as? RecordingFailedException)?.reason ?: RecordingFailure.STORAGE
                     publish(BroadcastRecordingUiState(BroadcastRecordingStatus.FAILED, failureMessage(reason)))
                 }
@@ -133,13 +172,19 @@ internal class BroadcastRecordingHost(
         }
     }
 
-    /** 녹화 중 치명적인 인코더·저장 오류입니다. 파일을 버리고 방송은 그대로 둡니다. */
+    /** 녹화 중 치명적인 인코더·저장 오류입니다. 방송은 그대로 둡니다. 확인된 방송의 파일은 보관합니다. */
     private fun onSessionFailed(reason: RecordingFailure) {
         val binding = active ?: return
         active = null
         detach(binding)
-        store.activeId = null
-        finisher.execute { runCatching { binding.session.discard() } }
+        val confirmed = binding.confirmed
+        finisher.execute {
+            try {
+                runCatching { binding.session.abandon(confirmed) }
+            } finally {
+                RecordingOwnership.release(binding.session.id)
+            }
+        }
         publish(BroadcastRecordingUiState(BroadcastRecordingStatus.FAILED, failureMessage(reason)))
     }
 
@@ -161,8 +206,8 @@ internal class BroadcastRecordingHost(
     private fun publish(state: BroadcastRecordingUiState) = onStateChanged(state)
 
     companion object {
-        private const val LOG_TAG = "BroadcastRecording"
-        const val DEFAULT_MINIMUM_FREE_BYTES = 512L * 1024L * 1024L
+        /** iOS `RecordingSessionStore`와 같은 시작 기준입니다. */
+        const val DEFAULT_MINIMUM_FREE_BYTES = 256L * 1024L * 1024L
 
         fun failureMessage(reason: RecordingFailure): UiText = UiText.Resource(
             when (reason) {
@@ -176,3 +221,13 @@ internal class BroadcastRecordingHost(
         )
     }
 }
+
+/** 앱이 쓰는 기본 녹화 호스트입니다. */
+internal fun createBroadcastRecordingHost(
+    context: android.content.Context,
+    onStateChanged: (BroadcastRecordingUiState) -> Unit,
+): BroadcastRecordingControl = BroadcastRecordingHost(
+    store = BroadcastRecordingStore(BroadcastRecordingStore.defaultRoot(context)),
+    onStateChanged = onStateChanged,
+    keepAlive = ServiceRecordingKeepAlive(context),
+)
