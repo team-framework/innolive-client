@@ -70,10 +70,13 @@ class LivePreviewPipState internal constructor(alignEnd: Boolean, verticalFracti
     internal var isVisible by mutableStateOf(false)
     /** 기본 화면 하단의 방송 버튼과 상태 패널이 실제로 차지하는 높이입니다. 글자 크기와 안내에 따라 달라집니다. */
     internal var bottomControlsHeightPx by mutableFloatStateOf(0f)
+    /** 가로 화면에서 오른쪽 열에 놓인 방송 버튼 묶음의 폭입니다. 세로 화면에서는 0입니다. */
+    internal var rightControlsWidthPx by mutableFloatStateOf(0f)
 
     /** 작은 창과 카메라 도구가 비워 둘 하단 높이입니다. 측정 전에는 기본 높이를 씁니다. */
     internal fun bottomReservePx(density: Density): Float =
-        maxOf(bottomControlsHeightPx, with(density) { LiveBottomControlsReserve.toPx() })
+        if (bottomControlsHeightPx > 0f) bottomControlsHeightPx
+        else with(density) { LiveBottomControlsReserve.toPx() }
     private var dragOffset by mutableStateOf<Offset?>(null)
     private var settlingOffset by mutableStateOf<Offset?>(null)
     private val settle = Animatable(Offset.Zero, Offset.VectorConverter)

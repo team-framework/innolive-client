@@ -66,7 +66,9 @@ fun LiveVideoPanels(
             LivePreviewPipArea(
                 size = size,
                 minX = margin,
-                maxX = (constraints.maxWidth - size.width - margin).coerceAtLeast(margin),
+                // 가로 화면에서는 오른쪽 열의 방송 버튼과 겹치지 않게 그 왼쪽까지만 둡니다.
+                maxX = (constraints.maxWidth - size.width - margin - pipState.rightControlsWidthPx)
+                    .coerceAtLeast(margin),
                 minY = minY,
                 // 기본 화면 하단의 방송 버튼과 상태 패널은 가리지 않는 높이까지 내립니다.
                 maxY = (constraints.maxHeight - size.height - pipState.bottomReservePx(this) - margin)

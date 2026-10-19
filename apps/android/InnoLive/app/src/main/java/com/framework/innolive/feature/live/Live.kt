@@ -7,6 +7,10 @@ import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import com.framework.innolive.feature.live.components.SideHeroButton
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import kotlin.math.roundToInt
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -475,6 +479,7 @@ private fun LiveScreenContent(
                 // 카메라 도구는 사용량 안내 아래에 두고, 오른쪽에 붙은 작은 창과 겹치면 창 아래나 왼쪽으로 비켜 둡니다.
                 // 안내 높이와 작은 창 자리가 바뀌면 같은 스프링으로 따라 움직여 위치가 한 번에 튀지 않습니다.
                 val density = LocalDensity.current
+                val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 var pageSize by remember { mutableStateOf(IntSize.Zero) }
                 var bannerHeightPx by remember { mutableIntStateOf(0) }
                 var toolsHeightPx by remember { mutableIntStateOf(0) }
@@ -489,14 +494,15 @@ private fun LiveScreenContent(
                             dismissedNoticeCodes = dismissedNoticeCodes + code
                             if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
                         },
-                        modifier = Modifier.padding(horizontal = 10.dp),
+                        modifier = Modifier.align(Alignment.TopCenter).widthIn(max = LandscapeStatusMaxWidth + 160.dp)
+                            .padding(horizontal = 10.dp),
                     )
                 }
                 val toolsTarget = with(density) {
                     cameraToolsPlacement(
                         naturalTop = LiveStudioTopInset.toPx() + bannerHeightPx + 8.dp.toPx(),
                         toolsHeight = toolsHeightPx.toFloat(),
-                        toolsRight = pageSize.width - 16.dp.toPx(),
+                        toolsRight = pageSize.width - 16.dp.toPx() - pipState.rightControlsWidthPx,
                         maxTop = pageSize.height - pipState.bottomReservePx(this) - 12.dp.toPx() - toolsHeightPx,
                         pipBounds = pipState.restingBounds.takeIf { pipState.isVisible && pipState.alignEnd },
                         gap = 12.dp.toPx(),
@@ -508,7 +514,9 @@ private fun LiveScreenContent(
                 LiveCameraTools(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .offset { IntOffset(-toolsShiftLeft.roundToInt(), toolsTop.roundToInt()) }
+                        .offset {
+                            IntOffset(-(toolsShiftLeft + pipState.rightControlsWidthPx).roundToInt(), toolsTop.roundToInt())
+                        }
                         .padding(end = 16.dp)
                         .onSizeChanged { toolsHeightPx = it.height },
                     canManageFace = canManageFace,
@@ -516,13 +524,386 @@ private fun LiveScreenContent(
                     onOpenFaceManagement = openFaceManagementScreen,
                 )
 
+                val switchCameraButton: @Composable () -> Unit = {
+                    IconButton(
+                        onClick = props.onSwitchCamera,
+                        enabled = props.canSwitchCamera && !presentation.isConnecting,
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.change_camera),
+                            contentDescription = stringResource(R.string.content_description_switch_camera),
+                            modifier = Modifier.size(32.dp),
+                            tint = Color.White,
+                        )
+                    }
+                }
+                val anonymizationButton: @Composable () -> Unit = {
+                    Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        AnonymizationControls(
+                            state = anonymizationState,
+                            onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
+                        )
+                    }
+                }
+                val broadcastControls: @Composable (Modifier) -> Unit = { controlsModifier ->
+                    BroadcastActionControls(
+                        modifier = controlsModifier,
+                        vertical = landscape,
+                        presentation = presentation,
+                        buttonModifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.PRIMARY_BUTTON),
+                        onBroadcastAction = {
+                            when (presentation.broadcastAction) {
+                                LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
+                                LiveBroadcastAction.PREPARE_BROADCAST,
+                                LiveBroadcastAction.SELECT_PLATFORM -> openBroadcastSettings()
+                            }
+                        },
+                        centerOverlay = {
+                            val providers = webRtcSession.directBroadcastPlan.providers
+                            val youtubeReady = props.hasYouTubeAccount && !props.isYouTubeReconnectRequired &&
+                                !props.isYouTubeAccountActionInProgress
+                            val chzzkReady = chzzkAccountVerification.canPrepare && !chzzkBusy
+                            val broadcastPlanState = directBroadcastModeState(
+                                plan = webRtcSession.directBroadcastPlan,
+                                planUsage = props.planUsage,
+                                accountConnected = { provider ->
+                                    when (provider) {
+                                        BroadcastProvider.YOUTUBE -> props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
+                                        BroadcastProvider.CHZZK -> chzzkAccountVerification.canPrepare
+                                    }
+                                },
+                                locked = isDirectModeLocked,
+                            )
+                            val settingsGuide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG)
+                            val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
+                            // 편집 창이 메뉴를 가리므로 계정 연결 안내는 실제 연결 버튼이 있는 편집 창에 보여 줍니다.
+                            val editorGuide = settingsGuide?.takeIf { it.step == BroadcastTutorialStep.CONNECT_ACCOUNT }
+                            // 하위 설정 창이 열리면 메뉴를 숨기고, 닫으면 다시 메뉴로 돌아옵니다.
+                            if (openSettingsDialog && !editorOpen) {
+                                val notSelected = stringResource(R.string.broadcast_menu_not_selected)
+                                val needsDetails = stringResource(R.string.broadcast_menu_needs_details)
+                                val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
+                                val chzzkValid = chzzkSettings.validationField() == null
+                                val chzzkStatus = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage)
+                                val modePlan = broadcastPlanState.plan
+                                // 동의·안내를 순서대로 받은 뒤 카메라·마이크 권한을 확인하고 서버 연결을 시작합니다.
+                                fun continueBroadcastPreparation() {
+                                    val consentStep = nextBroadcastConsentStep(providers, broadcastConsentStore::hasAccepted)
+                                    when {
+                                        consentStep != null -> pendingConsentStep = consentStep
+                                        readMediaPermissionState(context).missingPermissions.isNotEmpty() -> {
+                                            mediaPermissions.refresh()
+                                            mediaPermissionLauncher.launch(
+                                                readMediaPermissionState(context).missingPermissions.toTypedArray(),
+                                            )
+                                        }
+                                        when {
+                                            providers.size > 1 -> webRtcSession.prepareSimulcastBroadcast(
+                                                context, props.broadcastSettings, chzzkSettings, props.onRefreshAccessToken,
+                                            )
+                                            BroadcastProvider.CHZZK in providers -> webRtcSession.prepareChzzkBroadcast(
+                                                context, chzzkSettings, props.onRefreshAccessToken,
+                                            )
+                                            else -> webRtcSession.prepareBroadcast(
+                                                context, props.broadcastSettings, props.onRefreshAccessToken,
+                                            )
+                                        } -> {
+                                            openSettingsDialog = false
+                                            requestDirectBroadcastNotifications()
+                                        }
+                                    }
+                                }
+                                pendingConsentStep?.let { step ->
+                                    BroadcastConsentDialog(
+                                        step = step,
+                                        onAccept = {
+                                            // 기록에 실패하면 준비 요청 단계에서 차단하고 상태 문구로 알립니다.
+                                            runCatching { broadcastConsentStore.record(step) }
+                                            pendingConsentStep = null
+                                            continueBroadcastPreparation()
+                                        },
+                                        onDismiss = { pendingConsentStep = null },
+                                    )
+                                }
+                                val modeSummary = stringResource(modePlan.resolution.labelRes) + " · " +
+                                    DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
+                                BroadcastSettingsMenu(
+                                    items = listOf(
+                                        BroadcastSettingsMenuItem(
+                                            title = BroadcastProvider.YOUTUBE.title,
+                                            summary = when {
+                                                BroadcastProvider.YOUTUBE !in providers -> notSelected
+                                                !youtubeValid -> needsDetails
+                                                else -> props.youtubeAccountStatus
+                                            },
+                                            onClick = { openYouTubeEditor = true },
+                                            highlightsAccount = BroadcastProvider.YOUTUBE in providers && !youtubeReady,
+                                            iconRes = BroadcastProvider.YOUTUBE.logoRes,
+                                        ),
+                                        BroadcastSettingsMenuItem(
+                                            title = stringResource(R.string.broadcast_menu_chzzk),
+                                            summary = when {
+                                                BroadcastProvider.CHZZK !in providers -> notSelected
+                                                !chzzkValid -> needsDetails
+                                                else -> chzzkStatus
+                                            },
+                                            onClick = { openChzzkEditor = true },
+                                            iconRes = BroadcastProvider.CHZZK.logoRes,
+                                            highlightsAccount = BroadcastProvider.CHZZK in providers && !chzzkReady &&
+                                                (BroadcastProvider.YOUTUBE !in providers || youtubeReady),
+                                        ),
+                                        BroadcastSettingsMenuItem(
+                                            title = stringResource(R.string.broadcast_menu_mode),
+                                            summary = modeSummary,
+                                            onClick = { openModeEditor = true },
+                                            iconVector = Icons.Outlined.Tune,
+                                        ),
+                                    ),
+                                    canPrepare = (BroadcastProvider.YOUTUBE !in providers || youtubeReady) &&
+                                        (BroadcastProvider.CHZZK !in providers || chzzkReady),
+                                    onPrepare = {
+                                        when {
+                                            // 입력이 빠진 플랫폼은 그 설정 창을 열어 채우게 합니다.
+                                            BroadcastProvider.YOUTUBE in providers && !youtubeValid -> openYouTubeEditor = true
+                                            BroadcastProvider.CHZZK in providers && !chzzkValid -> openChzzkEditor = true
+                                            else -> continueBroadcastPreparation()
+                                        }
+                                    },
+                                    onDismiss = {
+                                        openSettingsDialog = false
+                                        webRtcSession.dismissServerError()
+                                    },
+                                    guide = settingsGuide,
+                                )
+                            }
+                            if (openYouTubeEditor) {
+                                // 편집 창에는 방송 준비 버튼이 없으므로 계정 연결 단계 안내만 보여 줍니다.
+                                YouTubeLiveSettingsDialog(
+                                    settings = props.broadcastSettings,
+                                    guide = editorGuide,
+                                    youtubeChannelTitle = props.youtubeChannelTitle,
+                                    hasYouTubeAccount = props.hasYouTubeAccount,
+                                    youtubeAccountStatus = props.youtubeAccountStatus,
+                                    isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
+                                    isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
+                                    isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
+                                    serverError = webRtcSession.serverError?.takeIf { it.action == ServerErrorAction.EDIT_SETTINGS },
+                                    onSettingsChanged = {
+                                        webRtcSession.dismissServerError()
+                                        props.onBroadcastSettingsChanged(it)
+                                    },
+                                    onConnectYouTube = props.onConnectYouTube,
+                                    onDismissRequest = { openYouTubeEditor = false },
+                                )
+                            }
+                            if (openChzzkEditor) {
+                                ChzzkSettingsDialog(
+                                    settings = chzzkSettings,
+                                    guide = editorGuide,
+                                    accountLabel = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage),
+                                    canConnect = props.profileEmail.isNotBlank(),
+                                    canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
+                                    isBusy = chzzkBusy || chzzkAccountVerification.mutationInProgress,
+                                    onChanged = { chzzkSettings = it },
+                                    onRefreshAccount = {
+                                        if (!chzzkAccountVerification.mutationInProgress) {
+                                            chzzkAccountVerification = chzzkAccountVerification.invalidate()
+                                            chzzkBusy = true
+                                            chzzkAccountRefreshKey++
+                                        }
+                                    },
+                                    onConnect = connect@ {
+                                        if (chzzkAccountVerification.mutationInProgress) return@connect
+                                        val mutation = chzzkAccountVerification.beginMutation()
+                                        chzzkAccountVerification = mutation
+                                        chzzkBusy = true
+                                        chzzkMessage = null
+                                        scope.launch {
+                                            var awaitingOAuth = false
+                                            try {
+                                                val state = newChzzkOAuthState()
+                                                val config = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }.config(state)
+                                                if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                                    chzzkOAuthState = state
+                                                    chzzkOAuthConfig = config
+                                                    awaitingOAuth = true
+                                                }
+                                            } catch (_: Exception) {
+                                                if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                                    chzzkMessage = UiText.Resource(R.string.chzzk_config_failed)
+                                                }
+                                            } finally {
+                                                if (!awaitingOAuth) finishChzzkAccountMutation(mutation.revision)
+                                            }
+                                        }
+                                    },
+                                    onDisconnect = disconnect@ {
+                                        if (chzzkAccountVerification.mutationInProgress) return@disconnect
+                                        val mutation = chzzkAccountVerification.beginMutation()
+                                        chzzkAccountVerification = mutation
+                                        chzzkBusy = true
+                                        chzzkMessage = null
+                                        scope.launch {
+                                            try {
+                                                checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
+                                                    .disconnect(props.onRefreshAccessToken())
+                                            } catch (_: Exception) {
+                                                if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                                    chzzkMessage = UiText.Resource(R.string.chzzk_disconnect_unconfirmed)
+                                                }
+                                            } finally {
+                                                finishChzzkAccountMutation(mutation.revision)
+                                            }
+                                        }
+                                    },
+                                    onSearch = { query -> checkNotNull(chzzkApi).categories(props.onRefreshAccessToken(), query) },
+                                    canPrepare = chzzkAccountVerification.canPrepare,
+                                    onPrepare = null,
+                                    onDismiss = { openChzzkEditor = false },
+                                )
+                            }
+                            if (openModeEditor) {
+                                BroadcastModeDialog(
+                                    state = broadcastPlanState,
+                                    onPlanChanged = { plan ->
+                                        if (webRtcSession.selectDirectBroadcastPlan(plan)) {
+                                            directModeUserSelected = true
+                                            webRtcSession.selectProviders(plan.providers)
+                                            selectedPlatform = platformPreferenceOf(plan.providers)
+                                        }
+                                    },
+                                    onOpenPlan = {
+                                        openModeEditor = false
+                                        openSettingsDialog = false
+                                        props.onOpenPlan()
+                                    },
+                                    onDismiss = { openModeEditor = false },
+                                    // 조회가 실제로 진행 중일 때만 확인 중입니다. 조회 실패·로그인 필요는 그 사유를 보여 줍니다.
+                                    accountChecking = { provider ->
+                                        provider == BroadcastProvider.CHZZK && (chzzkBusy || chzzkAccountVerification.mutationInProgress)
+                                    },
+                                    accountIssue = { provider ->
+                                        chzzkMessage.takeIf { provider == BroadcastProvider.CHZZK && !chzzkAccountVerification.verified }
+                                    },
+                                    // 계정이 없는 플랫폼은 해당 설정 창에서 연결합니다.
+                                    onConnectAccount = { provider ->
+                                        openModeEditor = false
+                                        if (provider == BroadcastProvider.YOUTUBE) openYouTubeEditor = true else openChzzkEditor = true
+                                    },
+                                )
+                            }
+                            val currentConfig = chzzkOAuthConfig
+                            val currentState = chzzkOAuthState
+                            val currentMutationRevision = chzzkAccountVerification.mutationRevision
+                            if (currentConfig != null && currentState != null && currentMutationRevision != null) {
+                                ChzzkOAuthDialog(
+                                    config = currentConfig,
+                                    state = currentState,
+                                    onCode = { code ->
+                                        chzzkOAuthConfig = null
+                                        chzzkOAuthState = null
+                                        scope.launch {
+                                            try {
+                                                val api = checkNotNull(chzzkApi)
+                                                api.connect(props.onRefreshAccessToken(), code, currentState)
+                                            } catch (_: Exception) {
+                                                if (chzzkAccountVerification.mutationRevision == currentMutationRevision) {
+                                                    chzzkMessage = UiText.Resource(R.string.chzzk_connect_unconfirmed)
+                                                }
+                                            } finally {
+                                                finishChzzkAccountMutation(currentMutationRevision)
+                                            }
+                                        }
+                                    },
+                                    onFailure = { reason ->
+                                        chzzkOAuthConfig = null
+                                        chzzkOAuthState = null
+                                        chzzkMessage = reason
+                                        finishChzzkAccountMutation(currentMutationRevision)
+                                    },
+                                    onDismiss = {
+                                        chzzkOAuthConfig = null
+                                        chzzkOAuthState = null
+                                        finishChzzkAccountMutation(currentMutationRevision)
+                                    },
+                                )
+                            }
+                            if (openBroadcastActions) {
+                                val retryProviders = webRtcSession.simulcastRetryProviders
+                                BroadcastActionDialog(
+                                    presentation = presentation,
+                                    canRetryPreparation = retryProviders.isNotEmpty(),
+                                    onRetryPreparation = {
+                                        openBroadcastActions = false
+                                        // 남은 플랫폼의 설정부터 다시 엽니다. 준비 요청은 준비된 플랫폼을 건너뜁니다.
+                                        openBroadcastSettings(retryProviders.first())
+                                    },
+                                    onDismiss = { openBroadcastActions = false },
+                                    onGoLive = {
+                                        openBroadcastActions = false
+                                        val activity = context as? Activity
+                                        val rotation = activity?.display?.rotation
+                                        if (activity != null && rotation != null) {
+                                            val previousOrientation = activity.requestedOrientation
+                                            val screenOrientation = screenOrientationFor(
+                                                rotation,
+                                                activity.resources.configuration.orientation,
+                                            )
+                                            if (!webRtcSession.goLive(rotation, screenOrientation) {
+                                                    activity.requestedOrientation = screenOrientation
+                                                }) {
+                                                activity.requestedOrientation = previousOrientation
+                                            }
+                                        }
+                                    },
+                                    onCancelPreparation = {
+                                        openBroadcastActions = false
+                                        webRtcSession.stopBroadcast()
+                                    },
+                                    onPauseOrResume = {
+                                        openBroadcastActions = false
+                                        if (presentation.isBroadcastPaused) {
+                                            webRtcSession.resumeBroadcast()
+                                        } else {
+                                            webRtcSession.pauseBroadcast()
+                                        }
+                                    },
+                                    onStop = {
+                                        openBroadcastActions = false
+                                        webRtcSession.stopBroadcast()
+                                    },
+                                )
+                            }
+                        },
+                    )
+                }
+                // 가로에서는 세로 하단 바를 기기 오른쪽 끝으로 옮깁니다. 기기를 돌렸을 때 세로 하단이 놓이는 자리입니다.
+                if (landscape) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .onSizeChanged { pipState.rightControlsWidthPx = it.width.toFloat() }
+                            .padding(end = 16.dp, top = LiveStudioTopInset, bottom = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                    ) {
+                        anonymizationButton()
+                        broadcastControls(Modifier)
+                        switchCameraButton()
+                    }
+                } else {
+                    SideEffect { pipState.rightControlsWidthPx = 0f }
+                }
+
                 Column(
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
+                        .align(if (landscape) Alignment.BottomStart else Alignment.BottomCenter)
                         // 작은 창과 카메라 도구가 이 높이 위에만 놓이도록 실제 하단 영역 높이를 알려 줍니다.
                         .onSizeChanged { pipState.bottomControlsHeightPx = it.height.toFloat() }
+                        .then(if (landscape) Modifier.widthIn(max = LandscapeStatusMaxWidth) else Modifier)
                         .padding(vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    horizontalAlignment = if (landscape) Alignment.Start else Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     if (BuildConfig.DEBUG) {
@@ -559,357 +940,15 @@ private fun LiveScreenContent(
                                 .broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
                         )
                     }
-                    // Figma 기본 화면처럼 카메라 전환·방송 버튼·익명화를 한 줄에 둡니다.
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconButton(
-                            onClick = props.onSwitchCamera,
-                            enabled = props.canSwitchCamera && !presentation.isConnecting,
-                            modifier = Modifier.size(48.dp),
+                    // Figma 기본 화면처럼 카메라 전환·방송 버튼·익명화를 한 줄에 둡니다. 가로에서는 오른쪽 열로 옮깁니다.
+                    if (!landscape) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.change_camera),
-                                contentDescription = stringResource(R.string.content_description_switch_camera),
-                                modifier = Modifier.size(32.dp),
-                                tint = Color.White,
-                            )
-                        }
-                        BroadcastActionControls(
-                            modifier = Modifier.weight(1f),
-                            presentation = presentation,
-                            buttonModifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.PRIMARY_BUTTON),
-                            onBroadcastAction = {
-                                when (presentation.broadcastAction) {
-                                    LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
-                                    LiveBroadcastAction.PREPARE_BROADCAST,
-                                    LiveBroadcastAction.SELECT_PLATFORM -> openBroadcastSettings()
-                                }
-                            },
-                            centerOverlay = {
-                                val providers = webRtcSession.directBroadcastPlan.providers
-                                val youtubeReady = props.hasYouTubeAccount && !props.isYouTubeReconnectRequired &&
-                                    !props.isYouTubeAccountActionInProgress
-                                val chzzkReady = chzzkAccountVerification.canPrepare && !chzzkBusy
-                                val broadcastPlanState = directBroadcastModeState(
-                                    plan = webRtcSession.directBroadcastPlan,
-                                    planUsage = props.planUsage,
-                                    accountConnected = { provider ->
-                                        when (provider) {
-                                            BroadcastProvider.YOUTUBE -> props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
-                                            BroadcastProvider.CHZZK -> chzzkAccountVerification.canPrepare
-                                        }
-                                    },
-                                    locked = isDirectModeLocked,
-                                )
-                                val settingsGuide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG)
-                                val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
-                                // 편집 창이 메뉴를 가리므로 계정 연결 안내는 실제 연결 버튼이 있는 편집 창에 보여 줍니다.
-                                val editorGuide = settingsGuide?.takeIf { it.step == BroadcastTutorialStep.CONNECT_ACCOUNT }
-                                // 하위 설정 창이 열리면 메뉴를 숨기고, 닫으면 다시 메뉴로 돌아옵니다.
-                                if (openSettingsDialog && !editorOpen) {
-                                    val notSelected = stringResource(R.string.broadcast_menu_not_selected)
-                                    val needsDetails = stringResource(R.string.broadcast_menu_needs_details)
-                                    val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
-                                    val chzzkValid = chzzkSettings.validationField() == null
-                                    val chzzkStatus = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage)
-                                    val modePlan = broadcastPlanState.plan
-                                    // 동의·안내를 순서대로 받은 뒤 카메라·마이크 권한을 확인하고 서버 연결을 시작합니다.
-                                    fun continueBroadcastPreparation() {
-                                        val consentStep = nextBroadcastConsentStep(providers, broadcastConsentStore::hasAccepted)
-                                        when {
-                                            consentStep != null -> pendingConsentStep = consentStep
-                                            readMediaPermissionState(context).missingPermissions.isNotEmpty() -> {
-                                                mediaPermissions.refresh()
-                                                mediaPermissionLauncher.launch(
-                                                    readMediaPermissionState(context).missingPermissions.toTypedArray(),
-                                                )
-                                            }
-                                            when {
-                                                providers.size > 1 -> webRtcSession.prepareSimulcastBroadcast(
-                                                    context, props.broadcastSettings, chzzkSettings, props.onRefreshAccessToken,
-                                                )
-                                                BroadcastProvider.CHZZK in providers -> webRtcSession.prepareChzzkBroadcast(
-                                                    context, chzzkSettings, props.onRefreshAccessToken,
-                                                )
-                                                else -> webRtcSession.prepareBroadcast(
-                                                    context, props.broadcastSettings, props.onRefreshAccessToken,
-                                                )
-                                            } -> {
-                                                openSettingsDialog = false
-                                                requestDirectBroadcastNotifications()
-                                            }
-                                        }
-                                    }
-                                    pendingConsentStep?.let { step ->
-                                        BroadcastConsentDialog(
-                                            step = step,
-                                            onAccept = {
-                                                // 기록에 실패하면 준비 요청 단계에서 차단하고 상태 문구로 알립니다.
-                                                runCatching { broadcastConsentStore.record(step) }
-                                                pendingConsentStep = null
-                                                continueBroadcastPreparation()
-                                            },
-                                            onDismiss = { pendingConsentStep = null },
-                                        )
-                                    }
-                                    val modeSummary = stringResource(modePlan.resolution.labelRes) + " · " +
-                                        DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
-                                    BroadcastSettingsMenu(
-                                        items = listOf(
-                                            BroadcastSettingsMenuItem(
-                                                title = BroadcastProvider.YOUTUBE.title,
-                                                summary = when {
-                                                    BroadcastProvider.YOUTUBE !in providers -> notSelected
-                                                    !youtubeValid -> needsDetails
-                                                    else -> props.youtubeAccountStatus
-                                                },
-                                                onClick = { openYouTubeEditor = true },
-                                                highlightsAccount = BroadcastProvider.YOUTUBE in providers && !youtubeReady,
-                                                iconRes = BroadcastProvider.YOUTUBE.logoRes,
-                                            ),
-                                            BroadcastSettingsMenuItem(
-                                                title = stringResource(R.string.broadcast_menu_chzzk),
-                                                summary = when {
-                                                    BroadcastProvider.CHZZK !in providers -> notSelected
-                                                    !chzzkValid -> needsDetails
-                                                    else -> chzzkStatus
-                                                },
-                                                onClick = { openChzzkEditor = true },
-                                                iconRes = BroadcastProvider.CHZZK.logoRes,
-                                                highlightsAccount = BroadcastProvider.CHZZK in providers && !chzzkReady &&
-                                                    (BroadcastProvider.YOUTUBE !in providers || youtubeReady),
-                                            ),
-                                            BroadcastSettingsMenuItem(
-                                                title = stringResource(R.string.broadcast_menu_mode),
-                                                summary = modeSummary,
-                                                onClick = { openModeEditor = true },
-                                                iconVector = Icons.Outlined.Tune,
-                                            ),
-                                        ),
-                                        canPrepare = (BroadcastProvider.YOUTUBE !in providers || youtubeReady) &&
-                                            (BroadcastProvider.CHZZK !in providers || chzzkReady),
-                                        onPrepare = {
-                                            when {
-                                                // 입력이 빠진 플랫폼은 그 설정 창을 열어 채우게 합니다.
-                                                BroadcastProvider.YOUTUBE in providers && !youtubeValid -> openYouTubeEditor = true
-                                                BroadcastProvider.CHZZK in providers && !chzzkValid -> openChzzkEditor = true
-                                                else -> continueBroadcastPreparation()
-                                            }
-                                        },
-                                        onDismiss = {
-                                            openSettingsDialog = false
-                                            webRtcSession.dismissServerError()
-                                        },
-                                        guide = settingsGuide,
-                                    )
-                                }
-                                if (openYouTubeEditor) {
-                                    // 편집 창에는 방송 준비 버튼이 없으므로 계정 연결 단계 안내만 보여 줍니다.
-                                    YouTubeLiveSettingsDialog(
-                                        settings = props.broadcastSettings,
-                                        guide = editorGuide,
-                                        youtubeChannelTitle = props.youtubeChannelTitle,
-                                        hasYouTubeAccount = props.hasYouTubeAccount,
-                                        youtubeAccountStatus = props.youtubeAccountStatus,
-                                        isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
-                                        isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
-                                        isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
-                                        serverError = webRtcSession.serverError?.takeIf { it.action == ServerErrorAction.EDIT_SETTINGS },
-                                        onSettingsChanged = {
-                                            webRtcSession.dismissServerError()
-                                            props.onBroadcastSettingsChanged(it)
-                                        },
-                                        onConnectYouTube = props.onConnectYouTube,
-                                        onDismissRequest = { openYouTubeEditor = false },
-                                    )
-                                }
-                                if (openChzzkEditor) {
-                                    ChzzkSettingsDialog(
-                                        settings = chzzkSettings,
-                                        guide = editorGuide,
-                                        accountLabel = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage),
-                                        canConnect = props.profileEmail.isNotBlank(),
-                                        canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
-                                        isBusy = chzzkBusy || chzzkAccountVerification.mutationInProgress,
-                                        onChanged = { chzzkSettings = it },
-                                        onRefreshAccount = {
-                                            if (!chzzkAccountVerification.mutationInProgress) {
-                                                chzzkAccountVerification = chzzkAccountVerification.invalidate()
-                                                chzzkBusy = true
-                                                chzzkAccountRefreshKey++
-                                            }
-                                        },
-                                        onConnect = connect@ {
-                                            if (chzzkAccountVerification.mutationInProgress) return@connect
-                                            val mutation = chzzkAccountVerification.beginMutation()
-                                            chzzkAccountVerification = mutation
-                                            chzzkBusy = true
-                                            chzzkMessage = null
-                                            scope.launch {
-                                                var awaitingOAuth = false
-                                                try {
-                                                    val state = newChzzkOAuthState()
-                                                    val config = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }.config(state)
-                                                    if (chzzkAccountVerification.mutationRevision == mutation.revision) {
-                                                        chzzkOAuthState = state
-                                                        chzzkOAuthConfig = config
-                                                        awaitingOAuth = true
-                                                    }
-                                                } catch (_: Exception) {
-                                                    if (chzzkAccountVerification.mutationRevision == mutation.revision) {
-                                                        chzzkMessage = UiText.Resource(R.string.chzzk_config_failed)
-                                                    }
-                                                } finally {
-                                                    if (!awaitingOAuth) finishChzzkAccountMutation(mutation.revision)
-                                                }
-                                            }
-                                        },
-                                        onDisconnect = disconnect@ {
-                                            if (chzzkAccountVerification.mutationInProgress) return@disconnect
-                                            val mutation = chzzkAccountVerification.beginMutation()
-                                            chzzkAccountVerification = mutation
-                                            chzzkBusy = true
-                                            chzzkMessage = null
-                                            scope.launch {
-                                                try {
-                                                    checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
-                                                        .disconnect(props.onRefreshAccessToken())
-                                                } catch (_: Exception) {
-                                                    if (chzzkAccountVerification.mutationRevision == mutation.revision) {
-                                                        chzzkMessage = UiText.Resource(R.string.chzzk_disconnect_unconfirmed)
-                                                    }
-                                                } finally {
-                                                    finishChzzkAccountMutation(mutation.revision)
-                                                }
-                                            }
-                                        },
-                                        onSearch = { query -> checkNotNull(chzzkApi).categories(props.onRefreshAccessToken(), query) },
-                                        canPrepare = chzzkAccountVerification.canPrepare,
-                                        onPrepare = null,
-                                        onDismiss = { openChzzkEditor = false },
-                                    )
-                                }
-                                if (openModeEditor) {
-                                    BroadcastModeDialog(
-                                        state = broadcastPlanState,
-                                        onPlanChanged = { plan ->
-                                            if (webRtcSession.selectDirectBroadcastPlan(plan)) {
-                                                directModeUserSelected = true
-                                                webRtcSession.selectProviders(plan.providers)
-                                                selectedPlatform = platformPreferenceOf(plan.providers)
-                                            }
-                                        },
-                                        onOpenPlan = {
-                                            openModeEditor = false
-                                            openSettingsDialog = false
-                                            props.onOpenPlan()
-                                        },
-                                        onDismiss = { openModeEditor = false },
-                                        // 조회가 실제로 진행 중일 때만 확인 중입니다. 조회 실패·로그인 필요는 그 사유를 보여 줍니다.
-                                        accountChecking = { provider ->
-                                            provider == BroadcastProvider.CHZZK && (chzzkBusy || chzzkAccountVerification.mutationInProgress)
-                                        },
-                                        accountIssue = { provider ->
-                                            chzzkMessage.takeIf { provider == BroadcastProvider.CHZZK && !chzzkAccountVerification.verified }
-                                        },
-                                        // 계정이 없는 플랫폼은 해당 설정 창에서 연결합니다.
-                                        onConnectAccount = { provider ->
-                                            openModeEditor = false
-                                            if (provider == BroadcastProvider.YOUTUBE) openYouTubeEditor = true else openChzzkEditor = true
-                                        },
-                                    )
-                                }
-                                val currentConfig = chzzkOAuthConfig
-                                val currentState = chzzkOAuthState
-                                val currentMutationRevision = chzzkAccountVerification.mutationRevision
-                                if (currentConfig != null && currentState != null && currentMutationRevision != null) {
-                                    ChzzkOAuthDialog(
-                                        config = currentConfig,
-                                        state = currentState,
-                                        onCode = { code ->
-                                            chzzkOAuthConfig = null
-                                            chzzkOAuthState = null
-                                            scope.launch {
-                                                try {
-                                                    val api = checkNotNull(chzzkApi)
-                                                    api.connect(props.onRefreshAccessToken(), code, currentState)
-                                                } catch (_: Exception) {
-                                                    if (chzzkAccountVerification.mutationRevision == currentMutationRevision) {
-                                                        chzzkMessage = UiText.Resource(R.string.chzzk_connect_unconfirmed)
-                                                    }
-                                                } finally {
-                                                    finishChzzkAccountMutation(currentMutationRevision)
-                                                }
-                                            }
-                                        },
-                                        onFailure = { reason ->
-                                            chzzkOAuthConfig = null
-                                            chzzkOAuthState = null
-                                            chzzkMessage = reason
-                                            finishChzzkAccountMutation(currentMutationRevision)
-                                        },
-                                        onDismiss = {
-                                            chzzkOAuthConfig = null
-                                            chzzkOAuthState = null
-                                            finishChzzkAccountMutation(currentMutationRevision)
-                                        },
-                                    )
-                                }
-                                if (openBroadcastActions) {
-                                    val retryProviders = webRtcSession.simulcastRetryProviders
-                                    BroadcastActionDialog(
-                                        presentation = presentation,
-                                        canRetryPreparation = retryProviders.isNotEmpty(),
-                                        onRetryPreparation = {
-                                            openBroadcastActions = false
-                                            // 남은 플랫폼의 설정부터 다시 엽니다. 준비 요청은 준비된 플랫폼을 건너뜁니다.
-                                            openBroadcastSettings(retryProviders.first())
-                                        },
-                                        onDismiss = { openBroadcastActions = false },
-                                        onGoLive = {
-                                            openBroadcastActions = false
-                                            val activity = context as? Activity
-                                            val rotation = activity?.display?.rotation
-                                            if (activity != null && rotation != null) {
-                                                val previousOrientation = activity.requestedOrientation
-                                                val screenOrientation = screenOrientationFor(
-                                                    rotation,
-                                                    activity.resources.configuration.orientation,
-                                                )
-                                                if (!webRtcSession.goLive(rotation, screenOrientation) {
-                                                        activity.requestedOrientation = screenOrientation
-                                                    }) {
-                                                    activity.requestedOrientation = previousOrientation
-                                                }
-                                            }
-                                        },
-                                        onCancelPreparation = {
-                                            openBroadcastActions = false
-                                            webRtcSession.stopBroadcast()
-                                        },
-                                        onPauseOrResume = {
-                                            openBroadcastActions = false
-                                            if (presentation.isBroadcastPaused) {
-                                                webRtcSession.resumeBroadcast()
-                                            } else {
-                                                webRtcSession.pauseBroadcast()
-                                            }
-                                        },
-                                        onStop = {
-                                            openBroadcastActions = false
-                                            webRtcSession.stopBroadcast()
-                                        },
-                                    )
-                                }
-                            },
-                        )
-                        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                            AnonymizationControls(
-                                state = anonymizationState,
-                                onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
-                            )
+                            switchCameraButton()
+                            broadcastControls(Modifier.weight(1f))
+                            anonymizationButton()
                         }
                     }
                     if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
@@ -1174,18 +1213,35 @@ internal fun BroadcastActionControls(
     onBroadcastAction: () -> Unit,
     modifier: Modifier = Modifier,
     buttonModifier: Modifier = Modifier,
+    /** 가로 화면의 오른쪽 열에 세로로 긴 버튼으로 놓을 때입니다. */
+    vertical: Boolean = false,
     centerOverlay: @Composable () -> Unit = {},
 ) {
-    Box(modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = if (vertical) modifier else modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         centerOverlay()
-        VerticalHeroButton(
-            text = stringResource(presentation.broadcastButtonTextRes),
-            enabled = presentation.isBroadcastButtonEnabled,
-            onClick = onBroadcastAction,
-            modifier = buttonModifier,
-        )
+        if (vertical) {
+            SideHeroButton(
+                text = stringResource(presentation.broadcastButtonTextRes),
+                enabled = presentation.isBroadcastButtonEnabled,
+                onClick = onBroadcastAction,
+                modifier = buttonModifier,
+            )
+        } else {
+            VerticalHeroButton(
+                text = stringResource(presentation.broadcastButtonTextRes),
+                enabled = presentation.isBroadcastButtonEnabled,
+                onClick = onBroadcastAction,
+                modifier = buttonModifier,
+            )
+        }
     }
 }
+
+/** 가로 화면에서 상태 패널과 안내가 차지할 최대 폭입니다. */
+private val LandscapeStatusMaxWidth = 400.dp
 
 @Composable
 internal fun BroadcastActionDialog(
