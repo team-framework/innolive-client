@@ -238,3 +238,83 @@ private val BroadcastUplinkLimitation.shortLabelRes: Int
         BroadcastUplinkLimitation.NETWORK -> R.string.live_status_limit_network
         BroadcastUplinkLimitation.DEVICE -> R.string.live_status_limit_device
     }
+
+private val CompactBackground = Color.Black.copy(alpha = 0.45f)
+
+/**
+ * 방송 상태를 상단의 한 줄로 줄여 보여 준다. 플랫폼마다 점 색으로 상태를 알리고,
+ * 모든 플랫폼의 상태가 같으면 그 이름을 한 번만 붙인다. 화질과 업로드 품질은 뒤에 짧게 적는다.
+ * 화면 낭독기에는 플랫폼별 상태를 빠짐없이 읽어 준다.
+ */
+@Composable
+internal fun BroadcastLiveStatusChip(
+    targets: List<BroadcastTargetRow>,
+    broadcastResolution: String?,
+    uplinkQuality: BroadcastUplinkQuality?,
+    modifier: Modifier = Modifier,
+) {
+    val labels = targets.map { stringResource(it.labelRes) }
+    val sharedLabel = labels.distinct().singleOrNull()
+    val resolution = broadcastResolution?.let(::broadcastResolutionLabel)
+    val uplink = uplinkQuality?.let { it.summary ?: stringResource(R.string.live_status_uplink_measuring) }
+    val description = buildList {
+        targets.forEachIndexed { index, target -> add("${providerTitle(target.provider)} ${labels[index]}") }
+        resolution?.let { add(stringResource(R.string.live_status_broadcast_resolution, it)) }
+        uplink?.let { add(stringResource(R.string.live_status_uplink, it)) }
+    }.joinToString(", ")
+    Row(
+        modifier = modifier
+            .background(CompactBackground, CircleShape)
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .clearAndSetSemantics {
+                contentDescription = description
+                liveRegion = LiveRegionMode.Polite
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        targets.forEachIndexed { index, target ->
+            if (index > 0) Spacer(Modifier.size(2.dp))
+            Box(Modifier.size(7.dp).background(target.tone.dotColor, CircleShape))
+            CompactText(providerTitle(target.provider), FontWeight.SemiBold)
+        }
+        sharedLabel?.let { label ->
+            CompactText("· $label", color = if (targets.any { it.tone == BroadcastTargetTone.ATTENTION }) {
+                AttentionColor
+            } else SecondaryText)
+        }
+        resolution?.let { CompactText("· $it", FontWeight.SemiBold) }
+        uplink?.let {
+            Icon(Icons.Outlined.ArrowUpward, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+            CompactText(it)
+        }
+    }
+}
+
+/** 상태 칩 아래에 붙는 주의 안내입니다. 화질 저하 사유와 직접 송출 경고를 한 줄씩 보여 준다. */
+@Composable
+internal fun BroadcastLiveStatusWarnings(
+    warnings: List<DirectStatusWarning>,
+    uplinkQuality: BroadcastUplinkQuality?,
+    modifier: Modifier = Modifier,
+) {
+    val limitation = uplinkQuality?.limitation
+    if (warnings.isEmpty() && limitation == null) return
+    Column(
+        modifier = modifier
+            .background(CompactBackground, RoundedCornerShape(12.dp))
+            .animateContentSize()
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        limitation?.let { WarningRow(stringResource(it.warningRes), AttentionColor) }
+        warnings.forEach { warning ->
+            WarningRow(warning.text.asString(), if (warning.urgent) AttentionColor else SecondaryText)
+        }
+    }
+}
+
+@Composable
+private fun CompactText(text: String, weight: FontWeight = FontWeight.Normal, color: Color = Color.White) {
+    Text(text, color = color, fontWeight = weight, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+}

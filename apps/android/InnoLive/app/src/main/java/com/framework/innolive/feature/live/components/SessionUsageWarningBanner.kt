@@ -3,6 +3,8 @@ package com.framework.innolive.feature.live.components
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -20,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -28,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
@@ -53,6 +57,9 @@ fun SessionUsageWarningBanner(
     modifier: Modifier = Modifier,
 ) {
     val messageResource = noticeCode?.let(::sessionNoticeMessageResource)
+    // 안내를 닫으면 사라지는 동안에도 마지막 문구를 그려야 하므로 마지막으로 보인 문구를 기억합니다.
+    var lastMessageResource by remember { mutableStateOf(messageResource) }
+    SideEffect { if (messageResource != null) lastMessageResource = messageResource }
     val density = LocalDensity.current
     val swipeDismissThresholdPx = with(density) { 48.dp.toPx() }
     val fastSwipeThresholdPx = with(density) { 800.dp.toPx() }
@@ -75,8 +82,10 @@ fun SessionUsageWarningBanner(
     AnimatedVisibility(
         visible = messageResource != null,
         modifier = modifier,
-        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+        // 높이도 함께 늘리고 줄여 아래에 놓인 버튼이 끊기지 않고 따라 움직이게 합니다.
+        enter = expandVertically(expandFrom = Alignment.Top) + slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+        exit = shrinkVertically(shrinkTowards = Alignment.Top) + slideOutVertically(targetOffsetY = { -it }) +
+            fadeOut(),
     ) {
         Surface(
             modifier = Modifier
@@ -113,7 +122,7 @@ fun SessionUsageWarningBanner(
             contentColor = Color.Black,
         ) {
             Text(
-                text = stringResource(checkNotNull(messageResource)),
+                text = (messageResource ?: lastMessageResource)?.let { stringResource(it) }.orEmpty(),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontSize = 18.sp,

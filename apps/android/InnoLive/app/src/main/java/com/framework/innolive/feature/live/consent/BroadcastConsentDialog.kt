@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live.consent
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import android.content.ActivityNotFoundException
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -34,7 +36,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.settings.privacyPolicyUrlForLanguage
 
@@ -50,8 +51,8 @@ internal fun BroadcastConsentDialog(
 ) {
     // 단계마다 새 창으로 열어 스크롤 위치와 확인 상태를 초기화합니다.
     key(step) {
-        Dialog(onDismissRequest = onDismiss) {
-            Surface(shape = MaterialTheme.shapes.large, modifier = Modifier.testTag("broadcastConsent.${step.name}")) {
+        InnoLiveDialog(onDismissRequest = onDismiss) {
+            ModalSurface(modifier = Modifier.testTag("broadcastConsent.${step.name}")) {
                 BroadcastConsentContent(step, onAccept, onDismiss)
             }
         }

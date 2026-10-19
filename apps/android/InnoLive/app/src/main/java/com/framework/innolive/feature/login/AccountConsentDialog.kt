@@ -43,6 +43,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.BoxWithConstraints
 import com.framework.innolive.R
 import com.framework.innolive.feature.settings.privacyPolicyUrlForLanguage
 import kotlinx.coroutines.CancellationException
@@ -82,160 +89,192 @@ internal fun AccountConsentDialog(onAccept: () -> Unit, onDismiss: () -> Unit) {
         if (!isLoaded) hasLoadFailed = true
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = MaterialTheme.shapes.large) {
-            Column(
-                modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
+    // 가로 화면은 높이가 낮아 위아래로 쌓으면 약관 본문이 접혀 보이지 않으므로, 본문과 안내·버튼을 좌우로 나눕니다.
+    val header: @Composable () -> Unit = {
+            Text(
+                text = stringResource(R.string.account_consent_title),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() },
+            )
+            if (externalLinkFailed) {
                 Text(
-                    text = stringResource(R.string.account_consent_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.semantics { heading() },
+                    text = stringResource(R.string.account_consent_external_link_failed),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
-                if (externalLinkFailed) {
-                    Text(
-                        text = stringResource(R.string.account_consent_external_link_failed),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    if (hasLoadFailed) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(stringResource(R.string.account_consent_load_failed))
-                            TextButton(onClick = {
-                                isLoaded = false
-                                hasReadToEnd = false
-                                hasLoadFailed = false
-                                loadAttempt++
-                            }) {
-                                Text(stringResource(R.string.action_retry))
-                            }
+            }
+    }
+    val policy: @Composable (Modifier) -> Unit = { modifier ->
+            Box(modifier = modifier) {
+                if (hasLoadFailed) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.account_consent_load_failed))
+                        TextButton(onClick = {
+                            isLoaded = false
+                            hasReadToEnd = false
+                            hasLoadFailed = false
+                            loadAttempt++
+                        }) {
+                            Text(stringResource(R.string.action_retry))
                         }
-                    } else {
-                        policyHtml?.let { html ->
-                            key(policyUrl, loadAttempt) {
-                                AndroidView(
-                                    modifier = Modifier.fillMaxSize().testTag("accountConsent.policy"),
-                                    factory = { context ->
-                                        WebView(context).apply {
-                                            settings.javaScriptEnabled = false
-                                            settings.allowFileAccess = false
-                                            settings.allowContentAccess = false
-                                            isVerticalScrollBarEnabled = true
-                                            setOnScrollChangeListener { view, _, _, _, _ ->
-                                                if (isLoaded && !view.canScrollVertically(1)) {
-                                                    hasReadToEnd = true
-                                                }
+                    }
+                } else {
+                    policyHtml?.let { html ->
+                        key(policyUrl, loadAttempt) {
+                            AndroidView(
+                                modifier = Modifier.fillMaxSize().testTag("accountConsent.policy"),
+                                factory = { context ->
+                                    WebView(context).apply {
+                                        settings.javaScriptEnabled = false
+                                        settings.allowFileAccess = false
+                                        settings.allowContentAccess = false
+                                        isVerticalScrollBarEnabled = true
+                                        setOnScrollChangeListener { view, _, _, _, _ ->
+                                            if (isLoaded && !view.canScrollVertically(1)) {
+                                                hasReadToEnd = true
                                             }
-                                            webViewClient = object : WebViewClient() {
-                                                override fun shouldOverrideUrlLoading(
-                                                    view: WebView,
-                                                    request: WebResourceRequest,
-                                                ): Boolean {
-                                                    val target = request.url.toString()
-                                                    if (!request.isForMainFrame) return false
-                                                    if (sameDocument(policyUrl, target)) return false
-                                                    if (isAccountConsentPolicyUrl(target)) {
-                                                        policyUrl = target
-                                                        return true
-                                                    }
-                                                    if (request.url.scheme in setOf("https", "mailto")) {
-                                                        try {
-                                                            uriHandler.openUri(target)
-                                                            externalLinkFailed = false
-                                                        } catch (_: ActivityNotFoundException) {
-                                                            externalLinkFailed = true
-                                                        } catch (_: SecurityException) {
-                                                            externalLinkFailed = true
-                                                        }
-                                                    }
+                                        }
+                                        webViewClient = object : WebViewClient() {
+                                            override fun shouldOverrideUrlLoading(
+                                                view: WebView,
+                                                request: WebResourceRequest,
+                                            ): Boolean {
+                                                val target = request.url.toString()
+                                                if (!request.isForMainFrame) return false
+                                                if (sameDocument(policyUrl, target)) return false
+                                                if (isAccountConsentPolicyUrl(target)) {
+                                                    policyUrl = target
                                                     return true
                                                 }
-
-                                                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                                                    isLoaded = false
-                                                    hasReadToEnd = false
-                                                }
-
-                                                override fun onReceivedError(
-                                                    view: WebView,
-                                                    request: WebResourceRequest,
-                                                    error: WebResourceError,
-                                                ) {
-                                                    if (request.isForMainFrame) hasLoadFailed = true
-                                                }
-
-                                                override fun onReceivedHttpError(
-                                                    view: WebView,
-                                                    request: WebResourceRequest,
-                                                    errorResponse: WebResourceResponse,
-                                                ) {
-                                                    if (request.isForMainFrame) hasLoadFailed = true
-                                                }
-
-                                                override fun onReceivedSslError(
-                                                    view: WebView,
-                                                    handler: SslErrorHandler,
-                                                    error: SslError,
-                                                ) {
-                                                    handler.cancel()
-                                                    hasLoadFailed = true
-                                                }
-
-                                                override fun onPageFinished(view: WebView, url: String) {
-                                                    if (hasLoadFailed || !sameDocument(policyUrl, url)) {
-                                                        hasLoadFailed = true
-                                                        return
+                                                if (request.url.scheme in setOf("https", "mailto")) {
+                                                    try {
+                                                        uriHandler.openUri(target)
+                                                        externalLinkFailed = false
+                                                    } catch (_: ActivityNotFoundException) {
+                                                        externalLinkFailed = true
+                                                    } catch (_: SecurityException) {
+                                                        externalLinkFailed = true
                                                     }
-                                                    view.postVisualStateCallback(0L, object : WebView.VisualStateCallback() {
-                                                        override fun onComplete(requestId: Long) {
-                                                            if (!hasLoadFailed && view.contentHeight > 0) {
-                                                                isLoaded = true
-                                                                if (!view.canScrollVertically(1)) hasReadToEnd = true
-                                                            }
-                                                        }
-                                                    })
                                                 }
+                                                return true
                                             }
-                                            loadDataWithBaseURL(policyUrl, html, "text/html", "UTF-8", null)
+
+                                            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                                                isLoaded = false
+                                                hasReadToEnd = false
+                                            }
+
+                                            override fun onReceivedError(
+                                                view: WebView,
+                                                request: WebResourceRequest,
+                                                error: WebResourceError,
+                                            ) {
+                                                if (request.isForMainFrame) hasLoadFailed = true
+                                            }
+
+                                            override fun onReceivedHttpError(
+                                                view: WebView,
+                                                request: WebResourceRequest,
+                                                errorResponse: WebResourceResponse,
+                                            ) {
+                                                if (request.isForMainFrame) hasLoadFailed = true
+                                            }
+
+                                            override fun onReceivedSslError(
+                                                view: WebView,
+                                                handler: SslErrorHandler,
+                                                error: SslError,
+                                            ) {
+                                                handler.cancel()
+                                                hasLoadFailed = true
+                                            }
+
+                                            override fun onPageFinished(view: WebView, url: String) {
+                                                if (hasLoadFailed || !sameDocument(policyUrl, url)) {
+                                                    hasLoadFailed = true
+                                                    return
+                                                }
+                                                view.postVisualStateCallback(0L, object : WebView.VisualStateCallback() {
+                                                    override fun onComplete(requestId: Long) {
+                                                        if (!hasLoadFailed && view.contentHeight > 0) {
+                                                            isLoaded = true
+                                                            if (!view.canScrollVertically(1)) hasReadToEnd = true
+                                                        }
+                                                    }
+                                                })
+                                            }
                                         }
-                                    },
-                                    onRelease = {
-                                        it.setOnScrollChangeListener(null)
-                                        it.webViewClient = WebViewClient()
-                                        it.stopLoading()
-                                        it.destroy()
-                                    },
-                                )
-                            }
-                        }
-                        if (!isLoaded) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.align(Alignment.Center).testTag("accountConsent.loading"),
+                                        loadDataWithBaseURL(policyUrl, html, "text/html", "UTF-8", null)
+                                    }
+                                },
+                                onRelease = {
+                                    it.setOnScrollChangeListener(null)
+                                    it.webViewClient = WebViewClient()
+                                    it.stopLoading()
+                                    it.destroy()
+                                },
                             )
                         }
                     }
-                }
-                Text(
-                    text = stringResource(R.string.account_consent_refusal),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(
-                    text = stringResource(R.string.account_consent_scroll_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.account_consent_cancel))
+                    if (!isLoaded) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center).testTag("accountConsent.loading"),
+                        )
                     }
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        enabled = isLoaded && hasReadToEnd && !hasLoadFailed,
-                        onClick = onAccept,
-                    ) {
-                        Text(stringResource(R.string.account_consent_accept))
+                }
+            }
+    }
+    val footer: @Composable () -> Unit = {
+            Text(
+                text = stringResource(R.string.account_consent_refusal),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                text = stringResource(R.string.account_consent_scroll_hint),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.account_consent_cancel))
+                }
+                Button(
+                    modifier = Modifier.weight(1f),
+                    enabled = isLoaded && hasReadToEnd && !hasLoadFailed,
+                    onClick = onAccept,
+                ) {
+                    Text(stringResource(R.string.account_consent_accept))
+                }
+            }
+    }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            val landscape = maxWidth > maxHeight
+            // 창을 화면 크기로 넓혔으므로 바깥을 누르면 닫히던 동작을 직접 이어 줍니다.
+            Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = onDismiss))
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                modifier = if (landscape) {
+                    Modifier.fillMaxWidth(0.92f).fillMaxHeight(0.9f)
+                } else {
+                    Modifier.padding(horizontal = 24.dp).widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(0.85f)
+                },
+            ) {
+                if (landscape) {
+                    Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                        policy(Modifier.weight(1f).fillMaxHeight())
+                        Column(
+                            modifier = Modifier.width(300.dp).fillMaxHeight().verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            header()
+                            footer()
+                        }
+                    }
+                } else {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        header()
+                        policy(Modifier.weight(1f).fillMaxWidth())
+                        footer()
                     }
                 }
             }

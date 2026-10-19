@@ -1,5 +1,7 @@
 package com.framework.innolive.feature.live.components
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,7 +36,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
@@ -82,16 +83,12 @@ fun YouTubeLiveSettingsDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismissRequest) {
-        Surface (
+    InnoLiveDialog(onDismissRequest = onDismissRequest) {
+        ModalSurface(
             modifier = Modifier
                 .widthIn(max = 600.dp)
                 .width(dialogWidth)
                 .heightIn(max = dialogMaxHeight),
-            shape = RoundedCornerShape(26.dp),
-            color = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            shadowElevation = 12.dp,
         ) {
             BroadcastTutorialDialogFrame(guide) {
                 Column(

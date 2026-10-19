@@ -1,16 +1,42 @@
 package com.framework.innolive.feature.live
 
+import com.framework.innolive.ui.theme.ModalSurface
+import com.framework.innolive.ui.theme.InnoLiveDialog
 import android.app.Activity
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.outlined.Sensors
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.layout.offset
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -98,7 +124,8 @@ import com.framework.innolive.feature.live.direct.broadcast.directTargetRows
 import com.framework.innolive.feature.live.direct.broadcast.isDirectBroadcastModeLocked
 import com.framework.innolive.feature.live.direct.broadcast.reconcileDirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.withSelectedPlatform
-import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
+import com.framework.innolive.feature.live.status.BroadcastLiveStatusChip
+import com.framework.innolive.feature.live.status.BroadcastLiveStatusWarnings
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchors
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialCoordinator
@@ -119,10 +146,17 @@ fun LiveScreen(
     props: LiveScreenProps,
     webRtcSession: WebRtcSessionViewModel,
     tutorial: BroadcastTutorialCoordinator? = null,
+    /** 없으면 카메라·기본 화면만 넘깁니다. */
+    settings: LiveSettingsPage? = null,
 ) {
     val tutorialAnchors = remember { BroadcastTutorialAnchors() }
+    // 얼굴 관리 화면을 열었다 닫아도 보던 페이지로 돌아오도록 화면 내용 밖에서 기억합니다.
+    val pagerState = rememberPagerState(
+        initialPage = if (settings?.isOpen == true) LiveStudioPage.SETTINGS.ordinal else LiveStudioPage.HOME.ordinal,
+    ) { if (settings == null) LiveStudioPage.SETTINGS.ordinal else LiveStudioPage.entries.size }
+    val pipState = rememberLivePreviewPipState()
     CompositionLocalProvider(LocalBroadcastTutorialAnchors provides tutorialAnchors) {
-        LiveScreenContent(props, webRtcSession, tutorial, tutorialAnchors)
+        LiveScreenContent(props, webRtcSession, tutorial, tutorialAnchors, pagerState, settings, pipState)
     }
 }
 
@@ -132,6 +166,9 @@ private fun LiveScreenContent(
     webRtcSession: WebRtcSessionViewModel,
     tutorial: BroadcastTutorialCoordinator?,
     tutorialAnchors: BroadcastTutorialAnchors,
+    pagerState: PagerState,
+    settings: LiveSettingsPage?,
+    pipState: LivePreviewPipState,
 ) {
     var openVideoControls by remember { mutableStateOf(false) }
     var openFaceManagement by remember { mutableStateOf(false) }
@@ -407,544 +444,705 @@ private fun LiveScreenContent(
         )
     }
 
+    val anonymizationState = anonymizationControlsState(
+        webRtcSession.connectionState,
+        webRtcSession.anonymizationState,
+        webRtcSession.selectedAnonymizationEnabled,
+        webRtcSession.isAnonymizationSelectionLoaded,
+        webRtcSession.anonymizationChange,
+    )
+    val openFaceManagementScreen = {
+        isSelectingFace = false
+        faceManagementUsesBroadcastCamera = canManageFaceWithBroadcastCamera
+        if (
+            !canManageFaceWithBroadcastCamera &&
+            webRtcSession.connectionState != WebRtcConnectionState.CONNECTED
+        ) {
+            webRtcSession.close()
+        }
+        openFaceManagement = true
+    }
+
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // 방송 상태는 상단의 칩 하나로 보여 줍니다. 방송 전에는 고른 구성을, 방송 중에는 플랫폼별 송출 상태를 보여 줍니다.
+    val directUiState = webRtcSession.directBroadcastUiState
+    val statusTargets = directTargetRows(sessionSnapshot?.visibleTargets.orEmpty(), directUiState)
+    val nowElapsedMillis = rememberElapsedRealtime(ticking = directUiState.preparedDeadlineElapsedMillis != null)
+    val directWarnings = directStatusWarnings(directUiState, nowElapsedMillis)
+    val statusPlan = webRtcSession.directBroadcastPlan
+    val showPlan = !isDirectModeLocked && statusTargets.isEmpty()
+    val statusRows = if (showPlan) directPlanRows(statusPlan) else statusTargets
+    val statusResolution = if (showPlan) statusPlan.resolution.wireValue
+        else sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected }
+    val statusUplink = webRtcSession.uplinkQuality.takeIf { presentation.isConnected && !showPlan }
+    val statusChip: @Composable (Modifier) -> Unit = { chipModifier ->
+        if (statusRows.isNotEmpty()) {
+            BroadcastLiveStatusChip(
+                targets = statusRows,
+                broadcastResolution = statusResolution,
+                uplinkQuality = statusUplink,
+                modifier = chipModifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
+            )
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(color = Color.Black),
     ) {
-        LiveMediaPermissionContent(
-            permissionState = mediaPermissionState,
-            onRequestPermissions = requestMissingMediaPermissions,
-        ) {
-            LiveVideoPanels(
-                cameraLensFacing = props.cameraLensFacing,
-                cameraResolution = props.cameraResolution,
-                frameAnalyzer = frameAnalyzer,
-                lockedRotation = webRtcSession.lockedBroadcastRotation,
-                remoteVideoTrack = webRtcSession.remoteVideoTrack,
-                localVideoTrack = webRtcSession.localVideoTrack,
-                videoQualitySettings = props.videoQualitySettings,
-                onVideoQualityCaptureStateChanged = props.onVideoQualityCaptureStateChanged,
-                eglContext = webRtcSession.eglContext,
-                isConnected = presentation.isConnected,
-                onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
-                isDirectPublish = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
-                modifier = Modifier.fillMaxSize(),
-                originalIsMain = isSelectingFace,
-                onCameraOpened = { openedCameraLensFacing = it },
-                mainOverlay = if (isSelectingFace) {
-                    {
-                        // iOS처럼 원본 위에서 얼굴을 고르면 백그라운드로 등록하고 바로 송출 화면으로 돌아갑니다.
-                        FaceSelectionLayer(
-                            analyzer = frameAnalyzer,
-                            mirrored = props.cameraLensFacing.shouldMirrorPreview,
-                            onSelect = { frame, faceIndex ->
-                                guestRegistrar.register(frame, faceIndex, GuestFaceName.make(context), guestFaceTarget())
-                                isSelectingFace = false
-                            },
-                            modifier = Modifier.fillMaxSize(),
+        LiveStudioPager(
+            pagerState = pagerState,
+            settings = settings,
+            // 연결 중에는 설정 버튼처럼 설정 페이지로 넘기는 것도 막습니다.
+            canSwipe = !presentation.isConnecting,
+            // 얼굴을 고르는 동안에는 기본 화면에 머물고, 빈 곳을 누르면 아래 원본 영상의 얼굴 선택으로 전달합니다.
+            pinnedToHome = tutorial?.stage != null || isSelectingFace,
+            previewInteractive = isSelectingFace,
+            pipState = pipState,
+            preview = {
+                LiveMediaPermissionContent(
+                    permissionState = mediaPermissionState,
+                    onRequestPermissions = requestMissingMediaPermissions,
+                ) {
+                    LiveVideoPanels(
+                        cameraLensFacing = props.cameraLensFacing,
+                        cameraResolution = props.cameraResolution,
+                        frameAnalyzer = frameAnalyzer,
+                        lockedRotation = webRtcSession.lockedBroadcastRotation,
+                        remoteVideoTrack = webRtcSession.remoteVideoTrack,
+                        localVideoTrack = webRtcSession.localVideoTrack,
+                        videoQualitySettings = props.videoQualitySettings,
+                        onVideoQualityCaptureStateChanged = props.onVideoQualityCaptureStateChanged,
+                        eglContext = webRtcSession.eglContext,
+                        isConnected = presentation.isConnected,
+                        onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
+                        isDirectPublish = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
+                        modifier = Modifier.fillMaxSize(),
+                        pipState = pipState,
+                        originalIsMain = isSelectingFace,
+                        onCameraOpened = { openedCameraLensFacing = it },
+                        mainOverlay = if (isSelectingFace) {
+                            {
+                                // iOS처럼 원본 위에서 얼굴을 고르면 백그라운드로 등록하고 바로 송출 화면으로 돌아갑니다.
+                                FaceSelectionLayer(
+                                    analyzer = frameAnalyzer,
+                                    mirrored = props.cameraLensFacing.shouldMirrorPreview,
+                                    onSelect = { frame, faceIndex ->
+                                        guestRegistrar.register(
+                                            frame, faceIndex, GuestFaceName.make(context), guestFaceTarget(),
+                                        )
+                                        isSelectingFace = false
+                                    },
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                    )
+                }
+            },
+            // 설정은 왼쪽으로 넘겨 열고, 상단에는 방송 시간을 둡니다. 가로 화면은 높이가 낮아 그 옆에 방송 상태를 붙입니다.
+            topBar = {
+                val isRemainingTimeStale = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null &&
+                    sessionSnapshot?.isRemainingTimeStale == true
+                val remaining = rememberRemainingCountdown(
+                    remaining = displayedRemainingTime(
+                        webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null, sessionSnapshot, props.planUsage,
+                    ),
+                    // 송출 중인 세션 값만 줄인다. 요금제 미리보기나 일시 중지·갱신 지연 중에는 그대로 둔다.
+                    counting = webRtcSession.broadcastState == BroadcastState.LIVE && !isRemainingTimeStale &&
+                        sessionSnapshot?.remainingTime is BroadcastRemainingTime.Seconds,
+                )
+                if (landscape) {
+                    Row(
+                        modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        BroadcastTimeDisplay(
+                            uptime = broadcastDurationText,
+                            remaining = remaining,
+                            isStale = isRemainingTimeStale,
+                            onOpenPlan = props.onOpenPlan,
+                            compact = true,
                         )
+                        statusChip(Modifier)
                     }
                 } else {
-                    null
-                },
-            )
-        }
-
-        val isRemainingTimeStale = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null &&
-            sessionSnapshot?.isRemainingTimeStale == true
-        BroadcastTimeDisplay(
-            uptime = broadcastDurationText,
-            remaining = rememberRemainingCountdown(
-                remaining = displayedRemainingTime(
-                    webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null, sessionSnapshot, props.planUsage,
-                ),
-                // 송출 중인 세션 값만 줄인다. 요금제 미리보기나 일시 중지·갱신 지연 중에는 그대로 둔다.
-                counting = webRtcSession.broadcastState == BroadcastState.LIVE && !isRemainingTimeStale &&
-                    sessionSnapshot?.remainingTime is BroadcastRemainingTime.Seconds,
-            ),
-            isStale = isRemainingTimeStale,
-            onOpenPlan = props.onOpenPlan,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(horizontal = 16.dp),
-        )
-
-        SessionUsageWarningBanner(
-            noticeCode = activeNoticeCode,
-            onDismissRequest = { code ->
-                dismissedNoticeCodes = dismissedNoticeCodes + code
-                if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
-            },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(start = 10.dp, top = 56.dp, end = 10.dp),
-        )
-
-        if (!isSelectingFace) {
-            GuestRegistrationToast(
-                registrar = guestRegistrar,
-                onReselect = { if (canSelectFace) isSelectingFace = true },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(start = 24.dp, top = 96.dp, end = 24.dp),
-            )
-        }
-
-        LiveSideControls(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 16.dp),
-            canOpenSettings = !presentation.isConnecting,
-            // 선택 중 카메라가 바뀌면 고르던 얼굴 좌표와 좌우 반전이 맞지 않으므로 전환을 막습니다.
-            canSwitchCamera = props.canSwitchCamera && !presentation.isConnecting && !isSelectingFace,
-            canManageFace = canManageFace,
-            onOpenSettings = props.onOpenSettings,
-            onOpenVideoControls = { openVideoControls = true },
-            onSwitchCamera = props.onSwitchCamera,
-            canSelectFace = canSelectFace,
-            isSelectingFace = isSelectingFace,
-            onToggleFaceSelection = { isSelectingFace = !isSelectingFace },
-            onOpenFaceManagement = {
-                isSelectingFace = false
-                faceManagementUsesBroadcastCamera = canManageFaceWithBroadcastCamera
-                if (
-                    !canManageFaceWithBroadcastCamera &&
-                    webRtcSession.connectionState != WebRtcConnectionState.CONNECTED
-                ) {
-                    webRtcSession.close()
-                }
-                openFaceManagement = true
-            },
-            anonymizationState = anonymizationControlsState(
-                webRtcSession.connectionState,
-                webRtcSession.anonymizationState,
-                webRtcSession.selectedAnonymizationEnabled,
-                webRtcSession.isAnonymizationSelectionLoaded,
-                webRtcSession.anonymizationChange,
-            ),
-            onAnonymizationSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            if (BuildConfig.DEBUG) {
-                TextButton(onClick = {
-                    testUsageWarningOverride = !testUsageWarningOverride
-                }) {
-                    Text(
-                        stringResource(
-                            if (testUsageWarningOverride) R.string.session_usage_warning_test_hide
-                            else R.string.session_usage_warning_test_show,
-                        ),
+                    BroadcastTimeDisplay(
+                        uptime = broadcastDurationText,
+                        remaining = remaining,
+                        isStale = isRemainingTimeStale,
+                        onOpenPlan = props.onOpenPlan,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 16.dp),
                     )
                 }
-            }
-            val directUiState = webRtcSession.directBroadcastUiState
-            val statusTargets = directTargetRows(sessionSnapshot?.visibleTargets.orEmpty(), directUiState)
-            val nowElapsedMillis = rememberElapsedRealtime(ticking = directUiState.preparedDeadlineElapsedMillis != null)
-            val directWarnings = directStatusWarnings(directUiState, nowElapsedMillis)
-            // 방송 전에는 같은 상태 패널에 고른 구성을 보여 줍니다. 구성은 방송 설정 창에서 바꿉니다.
-            val plan = webRtcSession.directBroadcastPlan
-            val showPlan = !isDirectModeLocked && statusTargets.isEmpty()
-            val panelTargets = if (showPlan) directPlanRows(plan) else statusTargets
-            if (panelTargets.isNotEmpty() || directWarnings.isNotEmpty()) {
-                BroadcastLiveStatusPanel(
-                    targets = panelTargets,
-                    warnings = directWarnings,
-                    broadcastResolution = if (showPlan) plan.resolution.wireValue
-                    else sessionSnapshot?.broadcastResolution?.takeIf { presentation.isConnected },
-                    uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected && !showPlan },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .widthIn(max = 360.dp)
-                        .fillMaxWidth()
-                        .broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
-                )
-            }
-            BroadcastActionControls(
-                presentation = presentation,
-                buttonModifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.PRIMARY_BUTTON),
-                onBroadcastAction = {
-                    when (presentation.broadcastAction) {
-                        LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
-                        LiveBroadcastAction.PREPARE_BROADCAST,
-                        LiveBroadcastAction.SELECT_PLATFORM -> openBroadcastSettings()
+            },
+            // 카메라 화면은 조작 요소 없이 미리보기만 보여 줍니다.
+            cameraPage = {},
+            homePage = {
+                val density = LocalDensity.current
+                var pageSize by remember { mutableStateOf(IntSize.Zero) }
+                var noticeHeightPx by remember { mutableIntStateOf(0) }
+                var chipHeightPx by remember { mutableIntStateOf(0) }
+                var toolsHeightPx by remember { mutableIntStateOf(0) }
+                Box(Modifier.matchParentSize().onSizeChanged { pageSize = it })
+                // 사용량 안내와 방송 주의 안내는 상단 바 바로 아래 가운데에 모읍니다.
+                Column(
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = LiveStudioTopInset).fillMaxWidth()
+                        .onSizeChanged { noticeHeightPx = it.height },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    SessionUsageWarningBanner(
+                        noticeCode = activeNoticeCode,
+                        onDismissRequest = { code ->
+                            dismissedNoticeCodes = dismissedNoticeCodes + code
+                            if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
+                        },
+                        modifier = Modifier.widthIn(max = 560.dp).padding(horizontal = 10.dp),
+                    )
+                    BroadcastLiveStatusWarnings(
+                        warnings = directWarnings,
+                        uplinkQuality = statusUplink,
+                        modifier = Modifier.padding(horizontal = 16.dp).widthIn(max = 420.dp),
+                    )
+                }
+                val noticeBottomPx = with(density) { LiveStudioTopInset.toPx() } + noticeHeightPx
+                val rowTopPx = noticeBottomPx + with(density) { 8.dp.toPx() }
+                // 세로 화면은 상태 칩을 왼쪽 위에, 카메라 도구를 오른쪽 위에 같은 높이로 둡니다.
+                if (!landscape) {
+                    Box(
+                        Modifier.align(Alignment.TopStart)
+                            .offset { IntOffset(0, rowTopPx.roundToInt()) }
+                            .onSizeChanged { chipHeightPx = it.height }
+                            .padding(start = 16.dp, end = 120.dp),
+                    ) { statusChip(Modifier) }
+                }
+                // 작은 창은 안내와 상태 칩 아래에만 놓아 서로 가리지 않게 합니다.
+                SideEffect {
+                    pipState.topReservePx = if (!landscape && chipHeightPx > 0) rowTopPx + chipHeightPx else noticeBottomPx
+                }
+                if (!isSelectingFace) {
+                    GuestRegistrationToast(
+                        registrar = guestRegistrar,
+                        onReselect = { if (canSelectFace) isSelectingFace = true },
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .offset { IntOffset(0, rowTopPx.roundToInt()) }
+                            .padding(horizontal = 24.dp),
+                    )
+                }
+                if (landscape) {
+                    // 가로 화면은 왼쪽 띠에 카메라 도구를 세로로 두어 왼손 엄지가 닿게 하고, 영상은 가리지 않습니다.
+                    LiveCameraTools(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .onSizeChanged { pipState.leftControlsWidthPx = it.width.toFloat() }
+                            .padding(start = 12.dp, end = 4.dp, top = LiveStudioTopInset, bottom = 12.dp),
+                        canManageFace = canManageFace,
+                        onOpenVideoControls = { openVideoControls = true },
+                        onOpenFaceManagement = openFaceManagementScreen,
+                        canSelectFace = canSelectFace,
+                        isSelectingFace = isSelectingFace,
+                        onToggleFaceSelection = { isSelectingFace = !isSelectingFace },
+                    )
+                } else {
+                    SideEffect { pipState.leftControlsWidthPx = 0f }
+                    // 오른쪽에 붙은 작은 창과 겹치면 창 아래나 왼쪽으로 비키고, 같은 스프링으로 따라 움직입니다.
+                    val toolsTarget = with(density) {
+                        cameraToolsPlacement(
+                            naturalTop = rowTopPx,
+                            toolsHeight = toolsHeightPx.toFloat(),
+                            toolsRight = pageSize.width - 16.dp.toPx(),
+                            maxTop = pageSize.height - pipState.bottomReservePx(this) - 12.dp.toPx() - toolsHeightPx,
+                            pipBounds = pipState.restingBounds.takeIf { pipState.isVisible && pipState.alignEnd },
+                            gap = 12.dp.toPx(),
+                        )
                     }
-                },
-                centerOverlay = {
-                    val providers = webRtcSession.directBroadcastPlan.providers
-                    val youtubeReady = props.hasYouTubeAccount && !props.isYouTubeReconnectRequired &&
-                        !props.isYouTubeAccountActionInProgress
-                    val chzzkReady = chzzkAccountVerification.canPrepare && !chzzkBusy
-                    val broadcastPlanState = directBroadcastModeState(
-                        plan = webRtcSession.directBroadcastPlan,
-                        planUsage = props.planUsage,
-                        accountConnected = { provider ->
-                            when (provider) {
-                                BroadcastProvider.YOUTUBE -> props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
-                                BroadcastProvider.CHZZK -> chzzkAccountVerification.canPrepare
+                    val toolsSpring = spring<Float>(stiffness = Spring.StiffnessMediumLow)
+                    val toolsTop by animateFloatAsState(toolsTarget.top, toolsSpring, label = "cameraToolsTop")
+                    val toolsShiftLeft by animateFloatAsState(toolsTarget.shiftLeft, toolsSpring, label = "cameraToolsShift")
+                    LiveCameraTools(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset { IntOffset(-toolsShiftLeft.roundToInt(), toolsTop.roundToInt()) }
+                            .padding(end = 12.dp)
+                            .onSizeChanged { toolsHeightPx = it.height },
+                        canManageFace = canManageFace,
+                        onOpenVideoControls = { openVideoControls = true },
+                        onOpenFaceManagement = openFaceManagementScreen,
+                        canSelectFace = canSelectFace,
+                        isSelectingFace = isSelectingFace,
+                        onToggleFaceSelection = { isSelectingFace = !isSelectingFace },
+                    )
+                }
+
+                val switchCameraButton: @Composable () -> Unit = {
+                    IconButton(
+                        onClick = props.onSwitchCamera,
+                        // 선택 중 카메라가 바뀌면 고르던 얼굴 좌표와 좌우 반전이 맞지 않으므로 전환을 막습니다.
+                        enabled = props.canSwitchCamera && !presentation.isConnecting && !isSelectingFace,
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.change_camera),
+                            contentDescription = stringResource(R.string.content_description_switch_camera),
+                            modifier = Modifier.size(32.dp),
+                            tint = Color.White,
+                        )
+                    }
+                }
+                val anonymizationButton: @Composable () -> Unit = {
+                    Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        AnonymizationControls(
+                            state = anonymizationState,
+                            onSelect = { enabled -> webRtcSession.selectAnonymization(context, enabled) },
+                        )
+                    }
+                }
+                val broadcastControls: @Composable (Modifier) -> Unit = { controlsModifier ->
+                    BroadcastActionControls(
+                        modifier = controlsModifier,
+                        vertical = landscape,
+                        presentation = presentation,
+                        buttonModifier = Modifier.broadcastTutorialAnchor(BroadcastTutorialAnchor.PRIMARY_BUTTON),
+                        onBroadcastAction = {
+                            when (presentation.broadcastAction) {
+                                LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
+                                LiveBroadcastAction.PREPARE_BROADCAST,
+                                LiveBroadcastAction.SELECT_PLATFORM -> openBroadcastSettings()
                             }
                         },
-                        locked = isDirectModeLocked,
-                    )
-                    val settingsGuide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG)
-                    val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
-                    // 편집 창이 메뉴를 가리므로 계정 연결 안내는 실제 연결 버튼이 있는 편집 창에 보여 줍니다.
-                    val editorGuide = settingsGuide?.takeIf { it.step == BroadcastTutorialStep.CONNECT_ACCOUNT }
-                    // 하위 설정 창이 열리면 메뉴를 숨기고, 닫으면 다시 메뉴로 돌아옵니다.
-                    if (openSettingsDialog && !editorOpen) {
-                        val notSelected = stringResource(R.string.broadcast_menu_not_selected)
-                        val needsDetails = stringResource(R.string.broadcast_menu_needs_details)
-                        val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
-                        val chzzkValid = chzzkSettings.validationField() == null
-                        val chzzkStatus = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage)
-                        val modePlan = broadcastPlanState.plan
-                        // 동의·안내를 순서대로 받은 뒤 카메라·마이크 권한을 확인하고 서버 연결을 시작합니다.
-                        fun continueBroadcastPreparation() {
-                            val consentStep = nextBroadcastConsentStep(providers, broadcastConsentStore::hasAccepted)
-                            when {
-                                consentStep != null -> pendingConsentStep = consentStep
-                                readMediaPermissionState(context).missingPermissions.isNotEmpty() -> {
-                                    mediaPermissions.refresh()
-                                    mediaPermissionLauncher.launch(
-                                        readMediaPermissionState(context).missingPermissions.toTypedArray(),
-                                    )
-                                }
-                                when {
-                                    providers.size > 1 -> webRtcSession.prepareSimulcastBroadcast(
-                                        context, props.broadcastSettings, chzzkSettings, props.onRefreshAccessToken,
-                                    )
-                                    BroadcastProvider.CHZZK in providers -> webRtcSession.prepareChzzkBroadcast(
-                                        context, chzzkSettings, props.onRefreshAccessToken,
-                                    )
-                                    else -> webRtcSession.prepareBroadcast(
-                                        context, props.broadcastSettings, props.onRefreshAccessToken,
-                                    )
-                                } -> {
-                                    openSettingsDialog = false
-                                    requestDirectBroadcastNotifications()
-                                }
-                            }
-                        }
-                        pendingConsentStep?.let { step ->
-                            BroadcastConsentDialog(
-                                step = step,
-                                onAccept = {
-                                    // 기록에 실패하면 준비 요청 단계에서 차단하고 상태 문구로 알립니다.
-                                    runCatching { broadcastConsentStore.record(step) }
-                                    pendingConsentStep = null
-                                    continueBroadcastPreparation()
+                        centerOverlay = {
+                            val providers = webRtcSession.directBroadcastPlan.providers
+                            val youtubeReady = props.hasYouTubeAccount && !props.isYouTubeReconnectRequired &&
+                                !props.isYouTubeAccountActionInProgress
+                            val chzzkReady = chzzkAccountVerification.canPrepare && !chzzkBusy
+                            val broadcastPlanState = directBroadcastModeState(
+                                plan = webRtcSession.directBroadcastPlan,
+                                planUsage = props.planUsage,
+                                accountConnected = { provider ->
+                                    when (provider) {
+                                        BroadcastProvider.YOUTUBE -> props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
+                                        BroadcastProvider.CHZZK -> chzzkAccountVerification.canPrepare
+                                    }
                                 },
-                                onDismiss = { pendingConsentStep = null },
+                                locked = isDirectModeLocked,
+                            )
+                            val settingsGuide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG)
+                            val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
+                            // 편집 창이 메뉴를 가리므로 계정 연결 안내는 실제 연결 버튼이 있는 편집 창에 보여 줍니다.
+                            val editorGuide = settingsGuide?.takeIf { it.step == BroadcastTutorialStep.CONNECT_ACCOUNT }
+                            // 하위 설정 창이 열리면 메뉴를 숨기고, 닫으면 다시 메뉴로 돌아옵니다.
+                            if (openSettingsDialog && !editorOpen) {
+                                val notSelected = stringResource(R.string.broadcast_menu_not_selected)
+                                val needsDetails = stringResource(R.string.broadcast_menu_needs_details)
+                                val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
+                                val chzzkValid = chzzkSettings.validationField() == null
+                                val chzzkStatus = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage)
+                                val modePlan = broadcastPlanState.plan
+                                // 동의·안내를 순서대로 받은 뒤 카메라·마이크 권한을 확인하고 서버 연결을 시작합니다.
+                                fun continueBroadcastPreparation() {
+                                    val consentStep = nextBroadcastConsentStep(providers, broadcastConsentStore::hasAccepted)
+                                    when {
+                                        consentStep != null -> pendingConsentStep = consentStep
+                                        readMediaPermissionState(context).missingPermissions.isNotEmpty() -> {
+                                            mediaPermissions.refresh()
+                                            mediaPermissionLauncher.launch(
+                                                readMediaPermissionState(context).missingPermissions.toTypedArray(),
+                                            )
+                                        }
+                                        when {
+                                            providers.size > 1 -> webRtcSession.prepareSimulcastBroadcast(
+                                                context, props.broadcastSettings, chzzkSettings, props.onRefreshAccessToken,
+                                            )
+                                            BroadcastProvider.CHZZK in providers -> webRtcSession.prepareChzzkBroadcast(
+                                                context, chzzkSettings, props.onRefreshAccessToken,
+                                            )
+                                            else -> webRtcSession.prepareBroadcast(
+                                                context, props.broadcastSettings, props.onRefreshAccessToken,
+                                            )
+                                        } -> {
+                                            openSettingsDialog = false
+                                            requestDirectBroadcastNotifications()
+                                        }
+                                    }
+                                }
+                                pendingConsentStep?.let { step ->
+                                    BroadcastConsentDialog(
+                                        step = step,
+                                        onAccept = {
+                                            // 기록에 실패하면 준비 요청 단계에서 차단하고 상태 문구로 알립니다.
+                                            runCatching { broadcastConsentStore.record(step) }
+                                            pendingConsentStep = null
+                                            continueBroadcastPreparation()
+                                        },
+                                        onDismiss = { pendingConsentStep = null },
+                                    )
+                                }
+                                val modeSummary = stringResource(modePlan.resolution.labelRes) + " · " +
+                                    DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
+                                BroadcastSettingsMenu(
+                                    items = listOf(
+                                        BroadcastSettingsMenuItem(
+                                            title = BroadcastProvider.YOUTUBE.title,
+                                            summary = when {
+                                                BroadcastProvider.YOUTUBE !in providers -> notSelected
+                                                !youtubeValid -> needsDetails
+                                                else -> props.youtubeAccountStatus
+                                            },
+                                            onClick = { openYouTubeEditor = true },
+                                            highlightsAccount = BroadcastProvider.YOUTUBE in providers && !youtubeReady,
+                                            iconRes = BroadcastProvider.YOUTUBE.logoRes,
+                                        ),
+                                        BroadcastSettingsMenuItem(
+                                            title = stringResource(R.string.broadcast_menu_chzzk),
+                                            summary = when {
+                                                BroadcastProvider.CHZZK !in providers -> notSelected
+                                                !chzzkValid -> needsDetails
+                                                else -> chzzkStatus
+                                            },
+                                            onClick = { openChzzkEditor = true },
+                                            iconRes = BroadcastProvider.CHZZK.logoRes,
+                                            highlightsAccount = BroadcastProvider.CHZZK in providers && !chzzkReady &&
+                                                (BroadcastProvider.YOUTUBE !in providers || youtubeReady),
+                                        ),
+                                        BroadcastSettingsMenuItem(
+                                            title = stringResource(R.string.broadcast_menu_mode),
+                                            summary = modeSummary,
+                                            onClick = { openModeEditor = true },
+                                            iconVector = Icons.Outlined.Tune,
+                                        ),
+                                    ),
+                                    canPrepare = (BroadcastProvider.YOUTUBE !in providers || youtubeReady) &&
+                                        (BroadcastProvider.CHZZK !in providers || chzzkReady),
+                                    onPrepare = {
+                                        when {
+                                            // 입력이 빠진 플랫폼은 그 설정 창을 열어 채우게 합니다.
+                                            BroadcastProvider.YOUTUBE in providers && !youtubeValid -> openYouTubeEditor = true
+                                            BroadcastProvider.CHZZK in providers && !chzzkValid -> openChzzkEditor = true
+                                            else -> continueBroadcastPreparation()
+                                        }
+                                    },
+                                    onDismiss = {
+                                        openSettingsDialog = false
+                                        webRtcSession.dismissServerError()
+                                    },
+                                    guide = settingsGuide,
+                                )
+                            }
+                            if (openYouTubeEditor) {
+                                // 편집 창에는 방송 준비 버튼이 없으므로 계정 연결 단계 안내만 보여 줍니다.
+                                YouTubeLiveSettingsDialog(
+                                    settings = props.broadcastSettings,
+                                    guide = editorGuide,
+                                    youtubeChannelTitle = props.youtubeChannelTitle,
+                                    hasYouTubeAccount = props.hasYouTubeAccount,
+                                    youtubeAccountStatus = props.youtubeAccountStatus,
+                                    isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
+                                    isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
+                                    isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
+                                    serverError = webRtcSession.serverError?.takeIf { it.action == ServerErrorAction.EDIT_SETTINGS },
+                                    onSettingsChanged = {
+                                        webRtcSession.dismissServerError()
+                                        props.onBroadcastSettingsChanged(it)
+                                    },
+                                    onConnectYouTube = props.onConnectYouTube,
+                                    onDismissRequest = { openYouTubeEditor = false },
+                                )
+                            }
+                            if (openChzzkEditor) {
+                                ChzzkSettingsDialog(
+                                    settings = chzzkSettings,
+                                    guide = editorGuide,
+                                    accountLabel = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage),
+                                    canConnect = props.profileEmail.isNotBlank(),
+                                    canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
+                                    isBusy = chzzkBusy || chzzkAccountVerification.mutationInProgress,
+                                    onChanged = { chzzkSettings = it },
+                                    onRefreshAccount = {
+                                        if (!chzzkAccountVerification.mutationInProgress) {
+                                            chzzkAccountVerification = chzzkAccountVerification.invalidate()
+                                            chzzkBusy = true
+                                            chzzkAccountRefreshKey++
+                                        }
+                                    },
+                                    onConnect = connect@ {
+                                        if (chzzkAccountVerification.mutationInProgress) return@connect
+                                        val mutation = chzzkAccountVerification.beginMutation()
+                                        chzzkAccountVerification = mutation
+                                        chzzkBusy = true
+                                        chzzkMessage = null
+                                        scope.launch {
+                                            var awaitingOAuth = false
+                                            try {
+                                                val state = newChzzkOAuthState()
+                                                val config = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }.config(state)
+                                                if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                                    chzzkOAuthState = state
+                                                    chzzkOAuthConfig = config
+                                                    awaitingOAuth = true
+                                                }
+                                            } catch (_: Exception) {
+                                                if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                                    chzzkMessage = UiText.Resource(R.string.chzzk_config_failed)
+                                                }
+                                            } finally {
+                                                if (!awaitingOAuth) finishChzzkAccountMutation(mutation.revision)
+                                            }
+                                        }
+                                    },
+                                    onDisconnect = disconnect@ {
+                                        if (chzzkAccountVerification.mutationInProgress) return@disconnect
+                                        val mutation = chzzkAccountVerification.beginMutation()
+                                        chzzkAccountVerification = mutation
+                                        chzzkBusy = true
+                                        chzzkMessage = null
+                                        scope.launch {
+                                            try {
+                                                checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
+                                                    .disconnect(props.onRefreshAccessToken())
+                                            } catch (_: Exception) {
+                                                if (chzzkAccountVerification.mutationRevision == mutation.revision) {
+                                                    chzzkMessage = UiText.Resource(R.string.chzzk_disconnect_unconfirmed)
+                                                }
+                                            } finally {
+                                                finishChzzkAccountMutation(mutation.revision)
+                                            }
+                                        }
+                                    },
+                                    onSearch = { query -> checkNotNull(chzzkApi).categories(props.onRefreshAccessToken(), query) },
+                                    canPrepare = chzzkAccountVerification.canPrepare,
+                                    onPrepare = null,
+                                    onDismiss = { openChzzkEditor = false },
+                                )
+                            }
+                            if (openModeEditor) {
+                                BroadcastModeDialog(
+                                    state = broadcastPlanState,
+                                    onPlanChanged = { plan ->
+                                        if (webRtcSession.selectDirectBroadcastPlan(plan)) {
+                                            directModeUserSelected = true
+                                            webRtcSession.selectProviders(plan.providers)
+                                            selectedPlatform = platformPreferenceOf(plan.providers)
+                                        }
+                                    },
+                                    onOpenPlan = {
+                                        openModeEditor = false
+                                        openSettingsDialog = false
+                                        props.onOpenPlan()
+                                    },
+                                    onDismiss = { openModeEditor = false },
+                                    // 조회가 실제로 진행 중일 때만 확인 중입니다. 조회 실패·로그인 필요는 그 사유를 보여 줍니다.
+                                    accountChecking = { provider ->
+                                        provider == BroadcastProvider.CHZZK && (chzzkBusy || chzzkAccountVerification.mutationInProgress)
+                                    },
+                                    accountIssue = { provider ->
+                                        chzzkMessage.takeIf { provider == BroadcastProvider.CHZZK && !chzzkAccountVerification.verified }
+                                    },
+                                    // 계정이 없는 플랫폼은 해당 설정 창에서 연결합니다.
+                                    onConnectAccount = { provider ->
+                                        openModeEditor = false
+                                        if (provider == BroadcastProvider.YOUTUBE) openYouTubeEditor = true else openChzzkEditor = true
+                                    },
+                                )
+                            }
+                            val currentConfig = chzzkOAuthConfig
+                            val currentState = chzzkOAuthState
+                            val currentMutationRevision = chzzkAccountVerification.mutationRevision
+                            if (currentConfig != null && currentState != null && currentMutationRevision != null) {
+                                ChzzkOAuthDialog(
+                                    config = currentConfig,
+                                    state = currentState,
+                                    onCode = { code ->
+                                        chzzkOAuthConfig = null
+                                        chzzkOAuthState = null
+                                        scope.launch {
+                                            try {
+                                                val api = checkNotNull(chzzkApi)
+                                                api.connect(props.onRefreshAccessToken(), code, currentState)
+                                            } catch (_: Exception) {
+                                                if (chzzkAccountVerification.mutationRevision == currentMutationRevision) {
+                                                    chzzkMessage = UiText.Resource(R.string.chzzk_connect_unconfirmed)
+                                                }
+                                            } finally {
+                                                finishChzzkAccountMutation(currentMutationRevision)
+                                            }
+                                        }
+                                    },
+                                    onFailure = { reason ->
+                                        chzzkOAuthConfig = null
+                                        chzzkOAuthState = null
+                                        chzzkMessage = reason
+                                        finishChzzkAccountMutation(currentMutationRevision)
+                                    },
+                                    onDismiss = {
+                                        chzzkOAuthConfig = null
+                                        chzzkOAuthState = null
+                                        finishChzzkAccountMutation(currentMutationRevision)
+                                    },
+                                )
+                            }
+                            if (openBroadcastActions) {
+                                val retryProviders = webRtcSession.simulcastRetryProviders
+                                BroadcastActionDialog(
+                                    presentation = presentation,
+                                    canRetryPreparation = retryProviders.isNotEmpty(),
+                                    onRetryPreparation = {
+                                        openBroadcastActions = false
+                                        // 남은 플랫폼의 설정부터 다시 엽니다. 준비 요청은 준비된 플랫폼을 건너뜁니다.
+                                        openBroadcastSettings(retryProviders.first())
+                                    },
+                                    onDismiss = { openBroadcastActions = false },
+                                    onGoLive = {
+                                        openBroadcastActions = false
+                                        val activity = context as? Activity
+                                        val rotation = activity?.display?.rotation
+                                        if (activity != null && rotation != null) {
+                                            val previousOrientation = activity.requestedOrientation
+                                            val screenOrientation = screenOrientationFor(
+                                                rotation,
+                                                activity.resources.configuration.orientation,
+                                            )
+                                            if (!webRtcSession.goLive(rotation, screenOrientation) {
+                                                    activity.requestedOrientation = screenOrientation
+                                                }) {
+                                                activity.requestedOrientation = previousOrientation
+                                            }
+                                        }
+                                    },
+                                    onCancelPreparation = {
+                                        openBroadcastActions = false
+                                        webRtcSession.stopBroadcast()
+                                    },
+                                    onPauseOrResume = {
+                                        openBroadcastActions = false
+                                        if (presentation.isBroadcastPaused) {
+                                            webRtcSession.resumeBroadcast()
+                                        } else {
+                                            webRtcSession.pauseBroadcast()
+                                        }
+                                    },
+                                    onStop = {
+                                        openBroadcastActions = false
+                                        webRtcSession.stopBroadcast()
+                                    },
+                                )
+                            }
+                        },
+                    )
+                }
+                // 가로에서는 세로 하단 바를 기기 오른쪽 끝으로 옮깁니다. 기기를 돌렸을 때 세로 하단이 놓이는 자리입니다.
+                // 오른손 엄지가 닿는 가운데에 방송 버튼을 두고, 익명화와 카메라 전환을 위아래 끝에 둡니다.
+                if (landscape) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .onSizeChanged { pipState.rightControlsWidthPx = it.width.toFloat() }
+                            .padding(start = 4.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
+                            .widthIn(min = 72.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        anonymizationButton()
+                        broadcastControls(Modifier)
+                        switchCameraButton()
+                    }
+                } else {
+                    SideEffect { pipState.rightControlsWidthPx = 0f }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        // 작은 창과 카메라 도구가 이 높이 위에만 놓이도록 실제 하단 영역 높이를 알려 줍니다.
+                        .onSizeChanged { pipState.bottomControlsHeightPx = it.height.toFloat() }
+                        .then(if (landscape) Modifier.widthIn(max = 420.dp) else Modifier)
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (BuildConfig.DEBUG) {
+                        TextButton(onClick = {
+                            testUsageWarningOverride = !testUsageWarningOverride
+                        }) {
+                            Text(
+                                stringResource(
+                                    if (testUsageWarningOverride) R.string.session_usage_warning_test_hide
+                                    else R.string.session_usage_warning_test_show,
+                                ),
                             )
                         }
-                        val modeSummary = stringResource(modePlan.resolution.labelRes) + " · " +
-                            DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
-                        BroadcastSettingsMenu(
-                            items = listOf(
-                                BroadcastSettingsMenuItem(
-                                    title = BroadcastProvider.YOUTUBE.title,
-                                    summary = when {
-                                        BroadcastProvider.YOUTUBE !in providers -> notSelected
-                                        !youtubeValid -> needsDetails
-                                        else -> props.youtubeAccountStatus
-                                    },
-                                    onClick = { openYouTubeEditor = true },
-                                    highlightsAccount = BroadcastProvider.YOUTUBE in providers && !youtubeReady,
-                                    iconRes = BroadcastProvider.YOUTUBE.logoRes,
-                                ),
-                                BroadcastSettingsMenuItem(
-                                    title = stringResource(R.string.broadcast_menu_chzzk),
-                                    summary = when {
-                                        BroadcastProvider.CHZZK !in providers -> notSelected
-                                        !chzzkValid -> needsDetails
-                                        else -> chzzkStatus
-                                    },
-                                    onClick = { openChzzkEditor = true },
-                                    iconRes = BroadcastProvider.CHZZK.logoRes,
-                                    highlightsAccount = BroadcastProvider.CHZZK in providers && !chzzkReady &&
-                                        (BroadcastProvider.YOUTUBE !in providers || youtubeReady),
-                                ),
-                                BroadcastSettingsMenuItem(
-                                    title = stringResource(R.string.broadcast_menu_mode),
-                                    summary = modeSummary,
-                                    onClick = { openModeEditor = true },
-                                    iconVector = Icons.Outlined.Tune,
-                                ),
-                            ),
-                            canPrepare = (BroadcastProvider.YOUTUBE !in providers || youtubeReady) &&
-                                (BroadcastProvider.CHZZK !in providers || chzzkReady),
-                            onPrepare = {
-                                when {
-                                    // 입력이 빠진 플랫폼은 그 설정 창을 열어 채우게 합니다.
-                                    BroadcastProvider.YOUTUBE in providers && !youtubeValid -> openYouTubeEditor = true
-                                    BroadcastProvider.CHZZK in providers && !chzzkValid -> openChzzkEditor = true
-                                    else -> continueBroadcastPreparation()
-                                }
-                            },
-                            onDismiss = {
-                                openSettingsDialog = false
-                                webRtcSession.dismissServerError()
-                            },
-                            guide = settingsGuide,
+                    }
+                    // Figma 기본 화면처럼 카메라 전환·방송 버튼·익명화를 한 줄에 둡니다. 가로에서는 오른쪽 열로 옮깁니다.
+                    if (!landscape) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            switchCameraButton()
+                            broadcastControls(Modifier.weight(1f))
+                            anonymizationButton()
+                        }
+                    }
+                    if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
+                        webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
+                        webRtcSession.connectionStatus?.let { status ->
+                            Text(
+                                status.asString(),
+                                modifier = Modifier
+                                    .padding(horizontal = 24.dp)
+                                    .semantics { liveRegion = LiveRegionMode.Polite },
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                    webRtcSession.anonymizationChange.errorMessage?.let { error ->
+                        Text(
+                            text = stringResource(R.string.anonymization_error_retry, error.asString()),
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
                         )
                     }
-                    if (openYouTubeEditor) {
-                        // 편집 창에는 방송 준비 버튼이 없으므로 계정 연결 단계 안내만 보여 줍니다.
-                        YouTubeLiveSettingsDialog(
-                            settings = props.broadcastSettings,
-                            guide = editorGuide,
-                            youtubeChannelTitle = props.youtubeChannelTitle,
-                            hasYouTubeAccount = props.hasYouTubeAccount,
-                            youtubeAccountStatus = props.youtubeAccountStatus,
-                            isYouTubeReconnectRequired = props.isYouTubeReconnectRequired,
-                            isYouTubeAccountActionInProgress = props.isYouTubeAccountActionInProgress,
-                            isYouTubeConnectEnabled = props.isYouTubeConnectEnabled,
-                            serverError = webRtcSession.serverError?.takeIf { it.action == ServerErrorAction.EDIT_SETTINGS },
-                            onSettingsChanged = {
-                                webRtcSession.dismissServerError()
-                                props.onBroadcastSettingsChanged(it)
-                            },
-                            onConnectYouTube = props.onConnectYouTube,
-                            onDismissRequest = { openYouTubeEditor = false },
-                        )
+                    if (shouldShowNotificationsHiddenNotice(
+                            notificationsHidden = broadcastNotificationPermission.notificationsHidden,
+                            directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
+                            state = webRtcSession.broadcastState,
+                        )) {
+                            Text(
+                                text = stringResource(broadcastNotificationPermission.hiddenMessage),
+                                modifier = Modifier
+                                    .padding(horizontal = 24.dp)
+                                    .semantics { liveRegion = LiveRegionMode.Polite },
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
                     }
-                    if (openChzzkEditor) {
-                        ChzzkSettingsDialog(
-                            settings = chzzkSettings,
-                            guide = editorGuide,
-                            accountLabel = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage),
-                            canConnect = props.profileEmail.isNotBlank(),
-                            canDisconnect = chzzkAccountVerification.verified && chzzkAccountVerification.account != null,
-                            isBusy = chzzkBusy || chzzkAccountVerification.mutationInProgress,
-                            onChanged = { chzzkSettings = it },
-                            onRefreshAccount = {
-                                if (!chzzkAccountVerification.mutationInProgress) {
-                                    chzzkAccountVerification = chzzkAccountVerification.invalidate()
-                                    chzzkBusy = true
-                                    chzzkAccountRefreshKey++
-                                }
-                            },
-                            onConnect = connect@ {
-                                if (chzzkAccountVerification.mutationInProgress) return@connect
-                                val mutation = chzzkAccountVerification.beginMutation()
-                                chzzkAccountVerification = mutation
-                                chzzkBusy = true
-                                chzzkMessage = null
-                                scope.launch {
-                                    var awaitingOAuth = false
-                                    try {
-                                        val state = newChzzkOAuthState()
-                                        val config = checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }.config(state)
-                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
-                                            chzzkOAuthState = state
-                                            chzzkOAuthConfig = config
-                                            awaitingOAuth = true
-                                        }
-                                    } catch (_: Exception) {
-                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
-                                            chzzkMessage = UiText.Resource(R.string.chzzk_config_failed)
-                                        }
-                                    } finally {
-                                        if (!awaitingOAuth) finishChzzkAccountMutation(mutation.revision)
-                                    }
-                                }
-                            },
-                            onDisconnect = disconnect@ {
-                                if (chzzkAccountVerification.mutationInProgress) return@disconnect
-                                val mutation = chzzkAccountVerification.beginMutation()
-                                chzzkAccountVerification = mutation
-                                chzzkBusy = true
-                                chzzkMessage = null
-                                scope.launch {
-                                    try {
-                                        checkNotNull(chzzkApi) { "서버 주소가 설정되지 않았습니다." }
-                                            .disconnect(props.onRefreshAccessToken())
-                                    } catch (_: Exception) {
-                                        if (chzzkAccountVerification.mutationRevision == mutation.revision) {
-                                            chzzkMessage = UiText.Resource(R.string.chzzk_disconnect_unconfirmed)
-                                        }
-                                    } finally {
-                                        finishChzzkAccountMutation(mutation.revision)
-                                    }
-                                }
-                            },
-                            onSearch = { query -> checkNotNull(chzzkApi).categories(props.onRefreshAccessToken(), query) },
-                            canPrepare = chzzkAccountVerification.canPrepare,
-                            onPrepare = null,
-                            onDismiss = { openChzzkEditor = false },
-                        )
+                    StableBroadcastFeedback {
+                        presentation.broadcastStatusText?.let { status ->
+                            Text(
+                                text = status.asString(),
+                                modifier = Modifier
+                                    .padding(horizontal = 24.dp)
+                                    .semantics { liveRegion = LiveRegionMode.Polite },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (presentation.isBroadcastStatusError) Color.Red else Color.White,
+                            )
+                        }
                     }
-                    if (openModeEditor) {
-                        BroadcastModeDialog(
-                            state = broadcastPlanState,
-                            onPlanChanged = { plan ->
-                                if (webRtcSession.selectDirectBroadcastPlan(plan)) {
-                                    directModeUserSelected = true
-                                    webRtcSession.selectProviders(plan.providers)
-                                    selectedPlatform = platformPreferenceOf(plan.providers)
-                                }
-                            },
-                            onOpenPlan = {
-                                openModeEditor = false
-                                openSettingsDialog = false
-                                props.onOpenPlan()
-                            },
-                            onDismiss = { openModeEditor = false },
-                            // 조회가 실제로 진행 중일 때만 확인 중입니다. 조회 실패·로그인 필요는 그 사유를 보여 줍니다.
-                            accountChecking = { provider ->
-                                provider == BroadcastProvider.CHZZK && (chzzkBusy || chzzkAccountVerification.mutationInProgress)
-                            },
-                            accountIssue = { provider ->
-                                chzzkMessage.takeIf { provider == BroadcastProvider.CHZZK && !chzzkAccountVerification.verified }
-                            },
-                            // 계정이 없는 플랫폼은 해당 설정 창에서 연결합니다.
-                            onConnectAccount = { provider ->
-                                openModeEditor = false
-                                if (provider == BroadcastProvider.YOUTUBE) openYouTubeEditor = true else openChzzkEditor = true
-                            },
-                        )
-                    }
-                    val currentConfig = chzzkOAuthConfig
-                    val currentState = chzzkOAuthState
-                    val currentMutationRevision = chzzkAccountVerification.mutationRevision
-                    if (currentConfig != null && currentState != null && currentMutationRevision != null) {
-                        ChzzkOAuthDialog(
-                            config = currentConfig,
-                            state = currentState,
-                            onCode = { code ->
-                                chzzkOAuthConfig = null
-                                chzzkOAuthState = null
-                                scope.launch {
-                                    try {
-                                        val api = checkNotNull(chzzkApi)
-                                        api.connect(props.onRefreshAccessToken(), code, currentState)
-                                    } catch (_: Exception) {
-                                        if (chzzkAccountVerification.mutationRevision == currentMutationRevision) {
-                                            chzzkMessage = UiText.Resource(R.string.chzzk_connect_unconfirmed)
-                                        }
-                                    } finally {
-                                        finishChzzkAccountMutation(currentMutationRevision)
-                                    }
-                                }
-                            },
-                            onFailure = { reason ->
-                                chzzkOAuthConfig = null
-                                chzzkOAuthState = null
-                                chzzkMessage = reason
-                                finishChzzkAccountMutation(currentMutationRevision)
-                            },
-                            onDismiss = {
-                                chzzkOAuthConfig = null
-                                chzzkOAuthState = null
-                                finishChzzkAccountMutation(currentMutationRevision)
-                            },
-                        )
-                    }
-                    if (openBroadcastActions) {
-                        val retryProviders = webRtcSession.simulcastRetryProviders
-                        BroadcastActionDialog(
-                            presentation = presentation,
-                            canRetryPreparation = retryProviders.isNotEmpty(),
-                            onRetryPreparation = {
-                                openBroadcastActions = false
-                                // 남은 플랫폼의 설정부터 다시 엽니다. 준비 요청은 준비된 플랫폼을 건너뜁니다.
-                                openBroadcastSettings(retryProviders.first())
-                            },
-                            onDismiss = { openBroadcastActions = false },
-                            onGoLive = {
-                                openBroadcastActions = false
-                                val activity = context as? Activity
-                                val rotation = activity?.display?.rotation
-                                if (activity != null && rotation != null) {
-                                    val previousOrientation = activity.requestedOrientation
-                                    val screenOrientation = screenOrientationFor(
-                                        rotation,
-                                        activity.resources.configuration.orientation,
-                                    )
-                                    if (!webRtcSession.goLive(rotation, screenOrientation) {
-                                            activity.requestedOrientation = screenOrientation
-                                        }) {
-                                        activity.requestedOrientation = previousOrientation
-                                    }
-                                }
-                            },
-                            onCancelPreparation = {
-                                openBroadcastActions = false
-                                webRtcSession.stopBroadcast()
-                            },
-                            onPauseOrResume = {
-                                openBroadcastActions = false
-                                if (presentation.isBroadcastPaused) {
-                                    webRtcSession.resumeBroadcast()
-                                } else {
-                                    webRtcSession.pauseBroadcast()
-                                }
-                            },
-                            onStop = {
-                                openBroadcastActions = false
-                                webRtcSession.stopBroadcast()
-                            },
-                        )
-                    }
-                },
-            )
-            if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
-                webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
-                webRtcSession.connectionStatus?.let { status ->
-                    Text(
-                        status.asString(),
-                        modifier = Modifier
-                            .padding(horizontal = 24.dp)
-                            .semantics { liveRegion = LiveRegionMode.Polite },
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
                 }
-            }
-            webRtcSession.anonymizationChange.errorMessage?.let { error ->
-                Text(
-                    text = stringResource(R.string.anonymization_error_retry, error.asString()),
-                    modifier = Modifier
-                        .padding(horizontal = 24.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
-            if (shouldShowNotificationsHiddenNotice(
-                    notificationsHidden = broadcastNotificationPermission.notificationsHidden,
-                    directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
-                    state = webRtcSession.broadcastState,
-                )) {
-                    Text(
-                        text = stringResource(broadcastNotificationPermission.hiddenMessage),
-                        modifier = Modifier
-                            .padding(horizontal = 24.dp)
-                            .semantics { liveRegion = LiveRegionMode.Polite },
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-            }
-            StableBroadcastFeedback {
-                presentation.broadcastStatusText?.let { status ->
-                    Text(
-                        text = status.asString(),
-                        modifier = Modifier
-                            .padding(horizontal = 24.dp)
-                            .semantics { liveRegion = LiveRegionMode.Polite },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (presentation.isBroadcastStatusError) Color.Red else Color.White,
-                    )
-                }
-            }
-        }
+            },
+        )
 
         if (tutorial != null) {
             BroadcastTutorialHomeOverlay(
@@ -1036,18 +1234,16 @@ private fun LiveFaceManagement(
     }
 }
 
+/**
+ * 기본 화면의 카메라 도구입니다. 미리보기를 가리지 않도록 오른쪽 위에 세로로 두고,
+ * 아이콘 아래에 이름을 함께 보여 줍니다.
+ */
 @Composable
-internal fun LiveSideControls(
+internal fun LiveCameraTools(
     modifier: Modifier = Modifier,
-    canOpenSettings: Boolean,
-    canSwitchCamera: Boolean,
     canManageFace: Boolean,
-    onOpenSettings: () -> Unit,
     onOpenVideoControls: () -> Unit,
-    onSwitchCamera: () -> Unit,
     onOpenFaceManagement: () -> Unit,
-    anonymizationState: AnonymizationControlsState,
-    onAnonymizationSelect: (Boolean) -> Unit,
     canSelectFace: Boolean = false,
     isSelectingFace: Boolean = false,
     onToggleFaceSelection: () -> Unit = {},
@@ -1055,62 +1251,79 @@ internal fun LiveSideControls(
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        IconButton(onClick = onOpenSettings, enabled = canOpenSettings, modifier = Modifier.size(48.dp)) {
-            Icon(
-                painter = painterResource(R.drawable.settings),
-                contentDescription = stringResource(R.string.content_description_settings),
-                modifier = Modifier.size(28.dp),
-                tint = Color.White,
-            )
-        }
-        IconButton(onClick = onOpenVideoControls, modifier = Modifier.size(48.dp)) {
-            Icon(
-                imageVector = Icons.Outlined.Tune,
-                contentDescription = stringResource(R.string.video_controls_title),
-                tint = Color.White,
-            )
-        }
-        IconButton(onClick = onSwitchCamera, enabled = canSwitchCamera, modifier = Modifier.size(48.dp)) {
-            Icon(
-                painter = painterResource(R.drawable.change_camera),
-                contentDescription = stringResource(R.string.content_description_switch_camera),
-                modifier = Modifier.size(28.dp),
-                tint = Color.White,
-            )
-        }
-        IconButton(onClick = onOpenFaceManagement, enabled = canManageFace, modifier = Modifier.size(48.dp)) {
-            Icon(
-                imageVector = Icons.Default.Face,
-                contentDescription = stringResource(R.string.face_management),
-                modifier = Modifier.size(32.dp),
-                tint = Color.White,
-            )
-        }
+        LiveCameraToolButton(
+            label = stringResource(R.string.video_controls_title),
+            onClick = onOpenVideoControls,
+        ) { Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.size(22.dp)) }
+        LiveCameraToolButton(
+            label = stringResource(R.string.face_management),
+            onClick = onOpenFaceManagement,
+            enabled = canManageFace,
+        ) { Icon(Icons.Default.Face, contentDescription = null, modifier = Modifier.size(24.dp)) }
         // 홈 화면 원탭 등록 토글입니다. 선택 중에는 취소 버튼이 됩니다.
-        IconButton(
+        LiveCameraToolButton(
+            label = stringResource(
+                if (isSelectingFace) R.string.quick_face_select_cancel else R.string.quick_face_select_start,
+            ),
             onClick = onToggleFaceSelection,
             enabled = isSelectingFace || canSelectFace,
-            modifier = Modifier.size(48.dp),
         ) {
             Icon(
                 imageVector = if (isSelectingFace) Icons.Default.Close else Icons.Default.PersonAdd,
-                contentDescription = stringResource(
-                    if (isSelectingFace) R.string.quick_face_select_cancel else R.string.quick_face_select_start,
-                ),
-                modifier = Modifier.size(28.dp),
-                tint = if (isSelectingFace) Color(0xFF64B5F6) else Color.White,
-            )
-        }
-        Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-            AnonymizationControls(
-                state = anonymizationState,
-                onSelect = onAnonymizationSelect,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
             )
         }
     }
 }
+
+/**
+ * 영상 위에 놓이는 보조 도구라 흰 원 대신 반투명한 어두운 원으로 가볍게 두고, 흰 바탕은 방송 버튼에만 씁니다.
+ * 아이콘과 이름을 한 덩어리로 누릅니다.
+ */
+@Composable
+private fun LiveCameraToolButton(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    icon: @Composable () -> Unit,
+) {
+    val contentColor = if (enabled) Color.White else Color.White.copy(alpha = 0.45f)
+    Column(
+        modifier = Modifier
+            .widthIn(min = 64.dp, max = 96.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Surface(
+            modifier = Modifier.size(44.dp),
+            shape = CircleShape,
+            color = Color.Black.copy(alpha = 0.45f),
+            contentColor = contentColor,
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+        ) {
+            Box(contentAlignment = Alignment.Center) { icon() }
+        }
+        // 밝은 장면 위에서도 읽히도록 이름 뒤에 반투명한 어두운 바탕을 깝니다.
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            modifier = Modifier
+                .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
+}
+
+/** 밝은 장면에서도 흰 글자가 보이도록 Figma의 1px 그림자를 줍니다. */
+private val LiveLabelShadow = Shadow(color = Color.Black.copy(alpha = 0.35f), offset = Offset(1f, 1f), blurRadius = 2f)
 
 @Composable
 private fun rememberBroadcastDurationText(startedAtElapsedRealtimeMillis: Long?): String {
@@ -1168,16 +1381,75 @@ internal fun StableBroadcastFeedback(
 internal fun BroadcastActionControls(
     presentation: LiveScreenPresentation,
     onBroadcastAction: () -> Unit,
+    modifier: Modifier = Modifier,
     buttonModifier: Modifier = Modifier,
+    /** 가로 화면의 오른쪽 열에 세로로 긴 버튼으로 놓을 때입니다. */
+    vertical: Boolean = false,
     centerOverlay: @Composable () -> Unit = {},
 ) {
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = if (vertical) modifier else modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
         centerOverlay()
-        VerticalHeroButton(
-            text = stringResource(presentation.broadcastButtonTextRes),
-            enabled = presentation.isBroadcastButtonEnabled,
-            onClick = onBroadcastAction,
-            modifier = buttonModifier,
+        if (vertical) {
+            // 가로 화면은 카메라 셔터처럼 엄지가 닿는 둥근 버튼을 두고, 상태 이름은 그 아래에 바로 읽히게 적습니다.
+            LandscapeHeroButton(
+                text = stringResource(presentation.broadcastButtonTextRes),
+                enabled = presentation.isBroadcastButtonEnabled,
+                live = presentation.isBroadcastLive,
+                onClick = onBroadcastAction,
+                buttonModifier = buttonModifier,
+            )
+        } else {
+            VerticalHeroButton(
+                text = stringResource(presentation.broadcastButtonTextRes),
+                enabled = presentation.isBroadcastButtonEnabled,
+                onClick = onBroadcastAction,
+                modifier = buttonModifier,
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun LandscapeHeroButton(
+    text: String,
+    enabled: Boolean,
+    live: Boolean,
+    onClick: () -> Unit,
+    buttonModifier: Modifier,
+) {
+    Column(
+        modifier = Modifier
+            .widthIn(max = 112.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Surface(
+            modifier = buttonModifier.size(68.dp),
+            shape = CircleShape,
+            // 방송 중에는 빨간 버튼으로 바꿔 지금 송출 중임을 멀리서도 알게 합니다.
+            color = when {
+                !enabled -> Color(0xFF8A8A8A)
+                live -> Color(0xFFE53935)
+                else -> Color.White
+            },
+            contentColor = if (live) Color.White else Color.Black,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.Sensors, contentDescription = null, modifier = Modifier.size(30.dp))
+            }
+        }
+        Text(
+            text = text,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge.copy(shadow = LiveLabelShadow),
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
         )
     }
 }
@@ -1193,12 +1465,8 @@ internal fun BroadcastActionDialog(
     onPauseOrResume: () -> Unit,
     onStop: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.cappedDialogWidth(400.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surface,
-        ) {
+    InnoLiveDialog(onDismissRequest = onDismiss) {
+        ModalSurface(modifier = Modifier.cappedDialogWidth(400.dp)) {
             Column(
                 modifier = Modifier
                     .padding(20.dp)

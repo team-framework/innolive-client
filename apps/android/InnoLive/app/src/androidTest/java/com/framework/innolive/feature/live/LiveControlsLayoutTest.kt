@@ -19,14 +19,12 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
-import com.framework.innolive.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -37,21 +35,21 @@ class LiveControlsLayoutTest {
     val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun whiteControlsFormCenteredRightRailInPortrait() {
-        showSideControls(360.dp, 800.dp)
+    fun cameraToolsFormCenteredRightRailInPortrait() {
+        showCameraTools(360.dp, 800.dp)
         assertRightRail()
     }
 
     @Test
-    fun whiteControlsStayReachableInShortViewport() {
-        showSideControls(360.dp, 320.dp)
+    fun cameraToolsStayReachableInShortViewport() {
+        showCameraTools(360.dp, 340.dp)
         assertRightRail()
     }
 
     @Test
-    fun whiteControlsScrollWhenViewportIsTooShort() {
-        showSideControls(360.dp, 220.dp)
-        compose.onNodeWithContentDescription(compose.activity.getString(R.string.anonymization_enable))
+    fun cameraToolsScrollWhenViewportIsTooShort() {
+        showCameraTools(360.dp, 120.dp)
+        compose.onNodeWithText(compose.activity.getString(R.string.quick_face_select_start))
             .performScrollTo()
             .assertIsDisplayed()
     }
@@ -91,26 +89,15 @@ class LiveControlsLayoutTest {
         assertTrue(container.bottom - after.bottom <= 36.dp)
     }
 
-    private fun showSideControls(width: Dp, height: Dp) {
+    private fun showCameraTools(width: Dp, height: Dp) {
         compose.setContent {
             MaterialTheme {
                 Box(Modifier.width(width).height(height).testTag("container")) {
-                    LiveSideControls(
+                    LiveCameraTools(
                         modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
-                        canOpenSettings = true,
-                        canSwitchCamera = true,
                         canManageFace = true,
-                        onOpenSettings = {},
                         onOpenVideoControls = {},
-                        onSwitchCamera = {},
                         onOpenFaceManagement = {},
-                        anonymizationState = AnonymizationControlsState(
-                            label = UiText.Resource(R.string.anonymization_value_off),
-                            actionDescription = UiText.Resource(R.string.anonymization_enable),
-                            selectedEnabled = false,
-                            canChange = true,
-                        ),
-                        onAnonymizationSelect = {},
                     )
                 }
             }
@@ -118,15 +105,9 @@ class LiveControlsLayoutTest {
     }
 
     private fun assertRightRail() {
-        val labels = listOf(
-            R.string.content_description_settings,
-            R.string.video_controls_title,
-            R.string.content_description_switch_camera,
-            R.string.face_management,
-            R.string.anonymization_enable,
-        )
+        val labels = listOf(R.string.video_controls_title, R.string.face_management, R.string.quick_face_select_start)
         val controls = labels.map { id ->
-            compose.onNodeWithContentDescription(compose.activity.getString(id))
+            compose.onNode(hasText(compose.activity.getString(id)) and hasClickAction())
                 .getUnclippedBoundsInRoot()
         }
         val container = compose.onNodeWithTag("container").getUnclippedBoundsInRoot()
@@ -141,8 +122,7 @@ class LiveControlsLayoutTest {
         controls.zipWithNext().forEach { (upper, lower) -> assertTrue(upper.bottom <= lower.top) }
         assertEquals(
             ((container.top + container.bottom) / 2f).value,
-            (((controls.first().top + controls.first().bottom) / 2f +
-                (controls.last().top + controls.last().bottom) / 2f) / 2f).value,
+            ((controls.first().top + controls.last().bottom) / 2f).value,
             0.5f,
         )
     }
