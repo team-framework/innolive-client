@@ -14,3 +14,16 @@ export const wantedSans = localFont({
   adjustFontFallback: false,
   declarations: [{ prop: "unicode-range", value: "U+0-FF" }],
 });
+
+// Intro lettering only. Japanese has no glyphs in this font and falls back to Wanted Sans.
+// The weight range keeps browsers from synthesizing bold on the single-weight face.
+export const letteringFont = localFont({
+  src: "./fonts/116watermelon/116watermelon-lettering.woff2",
+  // This face is used only by the desktop intro; let CSS request it when visible.
+  preload: false,
+  display: "block",
+  weight: "100 900",
+  variable: "--font-lettering",
+  fallback: ["Wanted Sans", "system-ui", "sans-serif"],
+  adjustFontFallback: false,
+});

@@ -180,6 +180,59 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         XCTAssertFalse(fixture.youtube.videoUplink.isActive)
     }
 
+    func testChatControlsAtIPhone16Size() async throws {
+        try await renderPhoneChatControls(name: "iphone-16-chat", size: CGSize(width: 393, height: 852))
+    }
+
+    func testChatControlsAtIPhone16ProSize() async throws {
+        try await renderPhoneChatControls(name: "iphone-16-pro-chat", size: CGSize(width: 402, height: 874))
+    }
+
+    func testChatControlsAtIPhone16ProLandscapeSize() async throws {
+        try await renderPhoneChatControls(name: "iphone-16-pro-chat-landscape", size: CGSize(width: 874, height: 402))
+    }
+
+    private func renderPhoneChatControls(name: String, size: CGSize) async throws {
+        let fixture = RenderingFixture()
+        defer { fixture.removePreferences() }
+        for appearance in appearances {
+            try await render(name, appearance: appearance, viewport: size) {
+                GeometryReader { geometry in
+                    ZStack(alignment: .bottom) {
+                        LinearGradient(colors: [.indigo, .teal, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        YouTubeChatMessageList(messages: [
+                            YouTubeChatMessage(id: "sample-1", author: "시청자1", text: "안녕하세요! 😊"),
+                            YouTubeChatMessage(id: "sample-2", author: "viewer", text: "화면과 소리 모두 잘 보여요"),
+                            YouTubeChatMessage(id: "sample-3", author: "긴댓글", text: "댓글이 길어져도 이름과 본문이 화면 밖으로 잘리지 않고 여러 줄로 표시되어야 합니다.")
+                        ])
+                            .frame(maxWidth: 280)
+                            .frame(height: size.width > size.height ? 150 : 180)
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, size.width > size.height ? 24 : 160)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                        BroadcastControllsView(
+                            isBroadcasting: .constant(false), previewTransition: .constant(.none),
+                            authentication: fixture.authentication, youtube: fixture.youtube,
+                            onPrepareBroadcast: { _ in XCTFail("Layout checks must not start broadcasts") },
+                            onCancelPreparation: {}
+                        )
+                        .frame(maxWidth: size.width > size.height ? 400 : .infinity)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 12)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    .frame(height: geometry.size.height)
+                }
+                .environment(fixture.camera)
+                .environment(\.horizontalSizeClass, .compact)
+            } inspect: { window in
+                XCTAssertEqual(window.bounds.size, size)
+            }
+        }
+        XCTAssertFalse(fixture.camera.session.isRunning)
+        XCTAssertFalse(fixture.youtube.videoUplink.isActive)
+    }
+
     func testFaceManagementRendersUnauthenticatedStateWithoutStartingCapture() async throws {
         let fixture = RenderingFixture()
         defer { fixture.removePreferences() }
@@ -307,6 +360,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         appearance: UIUserInterfaceStyle,
         title: String? = nil,
         textSize: DynamicTypeSize = .large,
+        viewport: CGSize? = nil,
         @ViewBuilder content: () -> Content,
         inspect: (UIWindow) throws -> Void = { _ in }
     ) async throws {
@@ -319,7 +373,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                 .environment(\.colorScheme, appearance == .dark ? .dark : .light)
         )
         let window = UIWindow(windowScene: scene)
-        window.frame = scene.coordinateSpace.bounds
+        window.frame = viewport.map { CGRect(origin: .zero, size: $0) } ?? scene.coordinateSpace.bounds
         window.overrideUserInterfaceStyle = appearance
         window.rootViewController = controller
         window.makeKeyAndVisible()

@@ -1,6 +1,7 @@
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { SeoGuidePage } from "@/components/seo-guide-page";
 import { findSeoGuide, seoGuides } from "@/lib/seo-guides";
+import { isLocale } from "@/lib/locales";
 import { pageMetadata } from "@/lib/seo";
 
 type Props = { params: Promise<{ locale: string; seoPath: string[] }> };
@@ -13,10 +14,10 @@ export function generateStaticParams() {
 
 async function resolveGuide(params: Props["params"]) {
   const { locale, seoPath } = await params;
-  const guide = findSeoGuide(`/${seoPath.join("/")}`, locale === "en" ? "en" : "ko");
+  if (!isLocale(locale)) notFound();
+  const guide = findSeoGuide(`/${seoPath.join("/")}`, locale);
   if (!guide) notFound();
-  if (locale !== "ko" && locale !== "en") permanentRedirect(`/ko${guide.path}`);
-  return { guide, locale: locale as "ko" | "en" };
+  return { guide, locale };
 }
 
 export async function generateMetadata({ params }: Props) {

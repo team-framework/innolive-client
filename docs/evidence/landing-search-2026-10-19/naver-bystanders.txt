@@ -1,0 +1,85 @@
+
+  - heading "실시간 방송 행인 얼굴 가리기 검색 결과" [level=1]
+  - heading "AI 브리핑" [level=2]
+  - button "Feedback 박스 열기":
+  - link "라이브 방송에서 행인 얼굴 가리는 방법 | InnoLive innolive.studio 새 창 열림":
+    - /url: https://innolive.studio/ko/blog/live-face-blur
+    - generic: 라이브 방송에서 행인 얼굴 가리는 방법 | InnoLive
+    - generic: innolive.studio
+    - generic: 새 창 열림
+  - link "AI가 이미지·영상 속 개인정보 자동으로 가린다…미디어·AI 산업 수요 겨냥 산업일보 새 창 열림":
+    - /url: https://kidd.co.kr/news/246006
+    - generic: AI가 이미지·영상 속 개인정보 자동으로 가린다…미디어·AI 산업 수요 겨냥
+    - generic: 산업일보
+    - generic: 새 창 열림
+  - link "라이브 방송 중 얼굴 모자이크 처리하는 법 (실시간 프라이버시 보호) | Blur.me blur.me 새 창 열림":
+    - /url: https://www.blur.me/ko/blog/live-broadcast-screen-mosaic-korea/
+    - generic: 라이브 방송 중 얼굴 모자이크 처리하는 법 (실시간 프라이버시 보호) | Blur.me
+    - generic: blur.me
+    - generic: 새 창 열림
+  - text: 실시간 방송에서 행인 얼굴을 가리는 방법은 카메라 입력과 송출 사이에 얼굴 감지 및 블러 처리를 적용하는 것입니다.
+  - button "innolive.studio":
+    - generic: innolive.studio
+  - generic: 실시간 얼굴 가리기 방법 및 특징
+  - list:
+    - text: 실시간 얼굴 가리기는 카메라 입력과 송출 사이에 얼굴 감지 및 블러 처리를 적용해야 합니다.
+    - button "innolive.studio":
+      - generic: innolive.studio
+    - text: 방송 전, 공개 대상자로 등록한 얼굴을 제외하고 미등록 얼굴을 실시간 블러로 처리하는 것이 기본입니다.
+    - button "innolive.studio":
+      - generic: innolive.studio
+    - text: 일부 솔루션은 모자이크, 마스킹, 블러 등 네 가지 방식으로 비식별 처리를 선택할 수 있으며, 실시간 모자이크 처리가 가능합니다.
+    - button "산업일보":
+      - generic: 산업일보
+    - text: 자동 감지 기능은 움직이는 얼굴이나 작은 얼굴 등 촬영 환경에 따라 결과가 달라질 수 있으므로, 송출 전 반드시 결과를 점검해야 합니다.
+    - button "innolive.studio +1":
+      - generic: innolive.studio
+      - generic: "+1"
+  - generic: 관련 기술 및 고려 사항
+  - list:
+    - text: 일부 전문 솔루션은 특정 인물만 제외하고 배경의 행인들을 모두 비식별화하거나, 반대로 특정 인물만 골라 처리하는 것이 가능합니다.
+    - button "산업일보":
+      - generic: 산업일보
+    - text: 실시간 방송은 편집 여지가 없으므로, 한 번 송출된 화면은 나중에 얼굴 처리 설정을 바꿔도 되돌릴 수 없습니다.
+    - button "innolive.studio":
+      - generic: innolive.studio
+    - text: 얼굴 비식별화는 영상 속 얼굴을 처리하는 것이며, 이름표나 차량 번호판 같은 다른 정보는 별도로 확인해야 합니다.
+    - button "innolive.studio":
+      - generic: innolive.studio
+    - text: 일부 플랫폼은 자체적으로 닉네임 숨기기나 메시지 필터링 같은 개인정보 보호 기능을 제공하기도 합니다.
+    - button "blur.me":
+      - generic: blur.me
+  - button "출처 4건 전체보기":
+    - generic: 출처 4건 전체보기
+  - link "innolive.studio 라이브 방송에서 행인 얼굴 가리는 방법 | InnoLive 새 창 열림":
+    - /url: https://innolive.studio/ko/blog/live-face-blur
+    - generic: innolive.studio
+    - generic: 라이브 방송에서 행인 얼굴 가리는 방법 | InnoLive
+    - generic: 새 창 열림
+  - 'link "innolive.studio 실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive 새 창 열림"':
+    - /url: https://innolive.studio/ko/live-mosaic
+    - generic: innolive.studio
+    - generic: "실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive"
+    - generic: 새 창 열림
+  - link "blur.me 라이브 방송 중 얼굴 모자이크 처리하는 법 (실시간 프라이버시 보호) | Blur.me 새 창 열림":
+    - /url: https://www.blur.me/ko/blog/live-broadcast-screen-mosaic-korea/
+    - generic: blur.me
+    - generic: 라이브 방송 중 얼굴 모자이크 처리하는 법 (실시간 프라이버시 보호) | Blur.me
+    - generic: 새 창 열림
+  - link "산업일보 AI가 이미지·영상 속 개인정보 자동으로 가린다…미디어·AI 산업 수요 겨냥 새 창 열림":
+    - /url: https://kidd.co.kr/news/246006
+    - generic: 산업일보
+    - generic: AI가 이미지·영상 속 개인정보 자동으로 가린다…미디어·AI 산업 수요 겨냥
+    - generic: 새 창 열림
+  - button "다음":
+  - text: AI 답변으로 정확하지 않은 정보가 포함될 수 있어요.
+  - button "정보 확인 도움말":
+  - button "복사하기":
+  - button "도움이 됐어요":
+    - generic "도움이 됐어요":
+  - button "도움되지 않았어요":
+    - generic "도움되지 않았어요":
+  - button "신고하기":
+    - generic "신고하기":
+  - button "펼쳐서 더보기":
+    - generic: 펼쳐서 더보기

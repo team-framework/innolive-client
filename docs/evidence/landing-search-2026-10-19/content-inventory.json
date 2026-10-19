@@ -1,0 +1,1232 @@
+[
+  {
+    "url": "https://innolive.studio/ko/live-mosaic",
+    "locale": "ko",
+    "title": "실시간 방송 모자이크: 행인 얼굴 자동으로 가리기 | InnoLive",
+    "targetQuestion": "실시간 방송 모자이크는 어떻게 적용하나요?",
+    "directAnswer": "InnoLive는 실시간 방송에서 미등록 얼굴을 감지해 블러로 가립니다. 공개 대상자로 등록한 출연자는 보여 주고, 처리한 영상을 유튜브와 치지직(CHZZK)으로 송출합니다. 실시간 방송 모자이크를 찾고 있다면 무료 웹 체험에서 얼굴 처리 결과를 확인하세요. 현재 효과는 얼굴의 세부 모습을 흐리는 블러 방식입니다.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 6,
+    "related": [
+      "/face-mosaic",
+      "/live-privacy",
+      "/mobile-live-face-blur",
+      "/free-face-blur",
+      "/youtube",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": 26,
+    "clicks28d": 0,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/ko/face-mosaic",
+    "locale": "ko",
+    "title": "얼굴 자동 모자이크 · 자동 얼굴 가리기 | InnoLive",
+    "targetQuestion": "야외방송에서 나만 빼고 모자이크할 수 있나요?",
+    "directAnswer": "라이브 영상에서 얼굴을 자동으로 감지하고, 공개 대상자로 등록하지 않은 얼굴을 블러로 가립니다. 등록한 출연자의 얼굴은 보여 줍니다. 얼굴이 움직이면 감지한 위치에 맞춰 처리 영역을 갱신합니다.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/live-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/automatic-mosaic",
+      "/mosaic-software"
+    ],
+    "status": "published",
+    "impressions28d": 2,
+    "clicks28d": 0,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/ko/live-privacy",
+    "locale": "ko",
+    "title": "라이브 방송 행인 얼굴 자동 모자이크 | InnoLive",
+    "targetQuestion": "얼굴 모자이크만으로 초상권 분쟁을 막을 수 있나요?",
+    "directAnswer": "야외·IRL 라이브 방송에서 행인의 얼굴을 가리려면 시청자에게 영상을 보내기 전에 처리해야 합니다. 등록한 출연자의 얼굴은 보여 주고, 미등록 얼굴은 실시간 블러로 가려 송출합니다. 촬영 장소에서 얼굴 감지와 블러 결과를 확인한 뒤 방송을 시작하세요.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 1,
+    "related": [
+      "/live-mosaic",
+      "/face-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/live-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": 1,
+    "clicks28d": 0,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/ko/youtube",
+    "locale": "ko",
+    "title": "유튜브 라이브 실시간 얼굴 모자이크 | InnoLive",
+    "targetQuestion": "유튜브 라이브 방송 자동 모자이크",
+    "directAnswer": "미등록 얼굴을 실시간 블러로 가린 영상을 연결한 유튜브 계정으로 송출할 수 있습니다. 출연자의 얼굴을 등록하세요. 유튜브 계정과 방송 설정을 저장한 뒤, 방송 준비 화면에서 처리 결과를 확인하고 라이브를 시작하세요.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": 6,
+    "clicks28d": 0,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/ko/chzzk",
+    "locale": "ko",
+    "title": "치지직(CHZZK) 라이브 방송 자동 모자이크 | InnoLive",
+    "targetQuestion": "치지직(CHZZK) 방송 실시간 자동 모자이크",
+    "directAnswer": "미등록 얼굴을 실시간 블러로 가린 영상을 치지직(CHZZK)으로 송출할 수 있습니다. 치지직(CHZZK)은 RTMP 송출 연결이 시작되면 방송을 시작하므로, 송출을 연결하기 전에 출연자 등록과 얼굴 처리 결과를 확인하세요.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/youtube"
+    ],
+    "status": "published",
+    "impressions28d": 3,
+    "clicks28d": 1,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/ko/mosaic-software",
+    "locale": "ko",
+    "title": "실시간 방송 모자이크 애플리케이션 | InnoLive",
+    "targetQuestion": "실시간 방송 모자이크 애플리케이션으로 무엇을 사용할 수 있나요?",
+    "directAnswer": "InnoLive는 Android와 iOS에서 사용하는 실시간 방송 모자이크 애플리케이션입니다. 라이브 카메라 영상에서 미등록 얼굴을 자동 감지하고 블러로 가립니다. 공개할 얼굴을 등록하고 유튜브·치지직(CHZZK)으로 처리한 영상을 송출할 수 있습니다. 웹 체험에서는 얼굴 블러 결과를 확인하고, 실제 방송은 앱에서 준비하세요.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/compare/live-face-blur-apps",
+      "/face-mosaic",
+      "/live-mosaic",
+      "/free-face-blur",
+      "/blog/automatic-mosaic"
+    ],
+    "status": "published",
+    "impressions28d": 8,
+    "clicks28d": 1,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/ko/blog/live-face-blur",
+    "locale": "ko",
+    "title": "라이브 방송에서 행인 얼굴 가리는 방법 | InnoLive",
+    "targetQuestion": "라이브 방송에서 행인 얼굴을 가리는 방법",
+    "directAnswer": "라이브 방송에서 행인의 얼굴을 가리려면 카메라 입력과 송출 사이에 얼굴 감지·블러 처리를 적용해야 합니다. InnoLive에서 출연자의 얼굴을 공개 대상자로 등록하세요. 미등록 얼굴을 가린 결과를 확인한 뒤 방송을 시작하세요.",
+    "type": "article",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/youtube",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": 1,
+    "clicks28d": 0,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/ko/blog/automatic-mosaic",
+    "locale": "ko",
+    "title": "영상 자동 모자이크 하는 방법 | InnoLive",
+    "targetQuestion": "캡컷 모자이크처럼 녹화 파일을 편집할 수 있나요?",
+    "directAnswer": "녹화 영상의 자동 모자이크는 파일에서 얼굴을 감지·추적하고, 처리 결과를 검토한 뒤 내보내는 방식입니다. 라이브 방송은 카메라 영상을 송출하기 전에 얼굴을 가려야 합니다. InnoLive에서 라이브 영상의 미등록 얼굴을 실시간 블러로 가릴 수 있습니다.",
+    "type": "article",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 2,
+    "related": [
+      "/face-mosaic",
+      "/mosaic-software",
+      "/free-face-blur",
+      "/blog/live-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": 4,
+    "clicks28d": 0,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/ko/compare/live-face-blur-apps",
+    "locale": "ko",
+    "title": "실시간 방송 모자이크 앱 비교: PRISM Lens·DualMoza·InnoLive",
+    "targetQuestion": "PC 없이 실시간 얼굴 모자이크 방송을 할 수 있나요?",
+    "directAnswer": "PRISM Lens는 PC의 가상 카메라로 방송 프로그램에 연결합니다. DualMoza와 InnoLive는 모바일 방송 앱입니다. InnoLive에서는 공개할 출연자를 얼굴로 등록하고, 미등록 얼굴을 블러로 가려 유튜브·치지직으로 송출합니다. 사용할 기기와 얼굴을 공개하는 기준부터 비교하세요.",
+    "type": "comparison",
+    "sourceCheckedAt": "2026-10-17",
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      },
+      {
+        "name": "PRISM Lens FAQ",
+        "url": "https://prismlive.com/en_us/faq/faq.html"
+      },
+      {
+        "name": "PRISM Lens",
+        "url": "https://prismlive.com/en_us/lens.html"
+      },
+      {
+        "name": "PRISM Basic / Plus",
+        "url": "https://prismlive.com/en_us/plus.html"
+      },
+      {
+        "name": "DualMoza · Google Play",
+        "url": "https://play.google.com/store/apps/details?id=com.dualmoza.app"
+      },
+      {
+        "name": "DualMoza · App Store",
+        "url": "https://apps.apple.com/kr/app/dualmoza/id6756903535"
+      },
+      {
+        "name": "InnoLive · App Store",
+        "url": "https://apps.apple.com/kr/app/innolive/id6810674918"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/mosaic-software",
+      "/mobile-live-face-blur",
+      "/face-mosaic",
+      "/free-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ko/free-face-blur",
+    "locale": "ko",
+    "title": "무료 자동 모자이크 · 실시간 얼굴 블러 | InnoLive",
+    "targetQuestion": "자동 모자이크를 무료로 사용할 수 있나요?",
+    "directAnswer": "Spark 요금제는 월 0원으로 이용할 수 있습니다. 라이브 방송의 미등록 얼굴을 자동 감지하고 블러로 가립니다. 공개 대상자로 등록한 출연자의 얼굴은 보여 줍니다. 방송 시간과 얼굴 등록 수에는 요금제별 한도가 있습니다.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/live-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/automatic-mosaic"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ko/mobile-live-face-blur",
+    "locale": "ko",
+    "title": "휴대폰 야외방송 행인 얼굴 자동 모자이크 | InnoLive",
+    "targetQuestion": "휴대폰 방송에서도 얼굴을 자동으로 가릴 수 있나요?",
+    "directAnswer": "Android·iOS 방송 앱에서 카메라 영상의 미등록 얼굴을 실시간 블러로 가려 유튜브·치지직으로 송출할 수 있습니다. 본인의 얼굴을 공개 대상자로 등록하면 본인은 보여 주고 다른 얼굴은 가립니다. 송출 전에 촬영 장소에서 처리 결과를 확인하세요.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive와 운영팀",
+        "url": "https://innolive.studio/ko/about"
+      },
+      {
+        "name": "사용 방법과 고객지원",
+        "url": "https://innolive.studio/ko/support"
+      },
+      {
+        "name": "요금제와 이용 한도",
+        "url": "https://innolive.studio/ko/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/face-mosaic",
+      "/free-face-blur",
+      "/youtube",
+      "/chzzk",
+      "/live-privacy"
+    ],
+    "status": "published",
+    "impressions28d": 2,
+    "clicks28d": 1,
+    "measurementNote": "Observed 2026-10-19; 28 days, Web; chart 2026-09-30 to 2026-10-16"
+  },
+  {
+    "url": "https://innolive.studio/en/live-mosaic",
+    "locale": "en",
+    "title": "Real-time Face Blur for Live Streaming | InnoLive",
+    "targetQuestion": "How do I apply real-time face blur to a live stream?",
+    "directAnswer": "InnoLive is a real-time face blur application for live streaming. It detects unregistered faces in live camera video and blurs them before broadcast output. Registered guests stay visible. Send the processed video to YouTube or CHZZK. The current effect is blur, not pixelated mosaic.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 6,
+    "related": [
+      "/face-mosaic",
+      "/live-privacy",
+      "/mobile-live-face-blur",
+      "/free-face-blur",
+      "/youtube",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/face-mosaic",
+    "locale": "en",
+    "title": "Automatic Face Blur & De-identification | InnoLive",
+    "targetQuestion": "Can I blur everyone except myself on an IRL stream?",
+    "directAnswer": "InnoLive detects faces in live video and blurs those you have not registered to stay visible. Registered guests remain visible. The blur area follows the detected face position as it changes.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/live-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/automatic-mosaic",
+      "/mosaic-software"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/live-privacy",
+    "locale": "en",
+    "title": "Real-time Face Blur for Outdoor & IRL Streams | InnoLive",
+    "targetQuestion": "Does face blur guarantee that filming will not cause a privacy dispute?",
+    "directAnswer": "To hide bystanders' faces on an IRL stream, process the video before sending it to viewers. InnoLive keeps registered guests visible and blurs unregistered faces in real time. Check detection and blur at your filming location before going live.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 1,
+    "related": [
+      "/live-mosaic",
+      "/face-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/live-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/youtube",
+    "locale": "en",
+    "title": "Real-Time Face Blur for YouTube Live | InnoLive",
+    "targetQuestion": "Automatically blur faces on YouTube Live",
+    "directAnswer": "Send live video with unregistered faces blurred to your connected YouTube account. Register your guests, save your account and broadcast settings, then check the processed video during preparation before starting the live broadcast.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/chzzk",
+    "locale": "en",
+    "title": "CHZZK Real-time Automatic Face Blur | InnoLive",
+    "targetQuestion": "Real-time automatic face blur for CHZZK",
+    "directAnswer": "Send video with unregistered faces blurred to CHZZK. CHZZK starts broadcasting when the RTMP streaming connection begins, so register your guests and check face processing before connecting the stream.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/youtube"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/mosaic-software",
+    "locale": "en",
+    "title": "Real-time De-identification Service & App | InnoLive",
+    "targetQuestion": "Which application can blur faces during a live broadcast?",
+    "directAnswer": "InnoLive is a real-time de-identification service with Android and iOS streaming apps. The application automatically blurs unregistered faces while keeping registered guests visible. Try face blur in your browser, then use the app to stream processed video to YouTube or CHZZK.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/compare/live-face-blur-apps",
+      "/face-mosaic",
+      "/live-mosaic",
+      "/free-face-blur",
+      "/blog/automatic-mosaic"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/blog/live-face-blur",
+    "locale": "en",
+    "title": "How to Blur Bystanders During a Live Stream | InnoLive",
+    "targetQuestion": "How to blur bystanders during a live stream",
+    "directAnswer": "Apply face detection and blur between camera input and broadcast output to hide bystanders' faces. In InnoLive, register your guests to keep them visible. Check that unregistered faces are blurred before starting the broadcast.",
+    "type": "article",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/youtube",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/blog/automatic-mosaic",
+    "locale": "en",
+    "title": "Automatic Face Blur: Recorded Video and Live Streams | InnoLive",
+    "targetQuestion": "Can I edit recorded files as I would with CapCut mosaic?",
+    "directAnswer": "For recorded video, detect and track faces, review the processed footage and export the file. Live streams need face processing before broadcast output. InnoLive blurs unregistered faces in live camera video in real time.",
+    "type": "article",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 2,
+    "related": [
+      "/face-mosaic",
+      "/mosaic-software",
+      "/free-face-blur",
+      "/blog/live-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/compare/live-face-blur-apps",
+    "locale": "en",
+    "title": "Live Face Blur Apps Compared: PRISM Lens, DualMoza & InnoLive",
+    "targetQuestion": "Can I stream with face blur without a PC?",
+    "directAnswer": "PRISM Lens connects to desktop broadcasting software as a virtual camera. DualMoza and InnoLive are mobile broadcasting apps. InnoLive keeps registered guests visible, blurs unregistered faces and streams to YouTube or CHZZK. Compare the device and face selection workflow you need.",
+    "type": "comparison",
+    "sourceCheckedAt": "2026-10-17",
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      },
+      {
+        "name": "PRISM Lens FAQ",
+        "url": "https://prismlive.com/en_us/faq/faq.html"
+      },
+      {
+        "name": "PRISM Lens",
+        "url": "https://prismlive.com/en_us/lens.html"
+      },
+      {
+        "name": "PRISM Basic / Plus",
+        "url": "https://prismlive.com/en_us/plus.html"
+      },
+      {
+        "name": "DualMoza · Google Play",
+        "url": "https://play.google.com/store/apps/details?id=com.dualmoza.app"
+      },
+      {
+        "name": "DualMoza · App Store",
+        "url": "https://apps.apple.com/kr/app/dualmoza/id6756903535"
+      },
+      {
+        "name": "InnoLive · App Store",
+        "url": "https://apps.apple.com/kr/app/innolive/id6810674918"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/mosaic-software",
+      "/mobile-live-face-blur",
+      "/face-mosaic",
+      "/free-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/free-face-blur",
+    "locale": "en",
+    "title": "Free Live Face Blur and Plan Limits | InnoLive",
+    "targetQuestion": "Can I use automatic face blur for free?",
+    "directAnswer": "The Spark plan costs KRW 0 per month. InnoLive detects and blurs unregistered faces in live video while keeping registered guests visible. Streaming time and face registration limits depend on your plan.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/live-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/automatic-mosaic"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/en/mobile-live-face-blur",
+    "locale": "en",
+    "title": "Real-time Face Blur App for Outdoor Streaming | InnoLive",
+    "targetQuestion": "Can I automatically blur faces on a phone stream?",
+    "directAnswer": "The Android and iOS streaming apps blur unregistered faces in live camera video before sending it to YouTube or CHZZK. Register yourself to keep your face visible. Check the processed video at your filming location before broadcasting.",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLive and the team",
+        "url": "https://innolive.studio/en/about"
+      },
+      {
+        "name": "Usage and customer support",
+        "url": "https://innolive.studio/en/support"
+      },
+      {
+        "name": "Plans and usage limits",
+        "url": "https://innolive.studio/en/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/face-mosaic",
+      "/free-face-blur",
+      "/youtube",
+      "/chzzk",
+      "/live-privacy"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/live-mosaic",
+    "locale": "ja",
+    "title": "ライブ配信の顔をリアルタイムでぼかす | InnoLive",
+    "targetQuestion": "ライブ配信で顔をリアルタイムにぼかすには？",
+    "directAnswer": "InnoLiveはライブ配信用の顔ぼかしアプリです。カメラ映像から未登録の顔を検出し、配信先へ送る前にぼかします。登録した出演者の顔は表示したまま、処理した映像をYouTubeやCHZZKへ送信できます。現在の処理方式はぼかしで、ピクセル状のモザイクには対応していません。",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 6,
+    "related": [
+      "/face-mosaic",
+      "/live-privacy",
+      "/mobile-live-face-blur",
+      "/free-face-blur",
+      "/youtube",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/face-mosaic",
+    "locale": "ja",
+    "title": "顔の自動ぼかし・匿名化 | InnoLive",
+    "targetQuestion": "屋外配信で自分以外の顔をぼかせますか？",
+    "directAnswer": "InnoLiveはライブ映像から顔を検出し、表示する対象として登録していない顔をぼかします。登録した出演者の顔はそのまま表示します。検出した顔の位置が変わると、ぼかす範囲も更新します。",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/live-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/automatic-mosaic",
+      "/mosaic-software"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/live-privacy",
+    "locale": "ja",
+    "title": "屋外・IRL配信のリアルタイム顔ぼかし | InnoLive",
+    "targetQuestion": "顔をぼかせばプライバシーに関する紛争を防げますか？",
+    "directAnswer": "屋外配信で通行人の顔を隠すには、視聴者へ送る前に映像を処理します。InnoLiveは登録済みの出演者を表示し、未登録の顔をリアルタイムでぼかします。配信前に撮影場所で検出とぼかしを確認してください。",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 1,
+    "related": [
+      "/live-mosaic",
+      "/face-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/live-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/youtube",
+    "locale": "ja",
+    "title": "YouTubeライブのリアルタイム顔ぼかし | InnoLive",
+    "targetQuestion": "YouTubeライブで顔を自動でぼかす",
+    "directAnswer": "未登録の顔をぼかしたライブ映像を、連携したYouTubeアカウントへ送信します。出演者を登録し、アカウントと配信設定を保存してから、準備画面で処理した映像を確認して配信を開始します。",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/chzzk",
+    "locale": "ja",
+    "title": "CHZZK配信のリアルタイム自動顔ぼかし | InnoLive",
+    "targetQuestion": "CHZZKで顔をリアルタイムに自動でぼかす",
+    "directAnswer": "未登録の顔をぼかした映像をCHZZKへ送信します。CHZZKはRTMP送信の接続とともに配信が始まるため、接続前に出演者を登録し、顔の処理を確認してください。",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/youtube"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/mosaic-software",
+    "locale": "ja",
+    "title": "リアルタイム顔匿名化サービス・アプリ | InnoLive",
+    "targetQuestion": "ライブ配信中に顔をぼかせるアプリは？",
+    "directAnswer": "InnoLiveはAndroid・iOS配信アプリを備えたリアルタイム顔匿名化サービスです。登録した出演者の顔を表示し、未登録の顔を自動でぼかします。ブラウザでぼかしを試し、アプリから処理済み映像をYouTubeやCHZZKへ配信できます。",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/compare/live-face-blur-apps",
+      "/face-mosaic",
+      "/live-mosaic",
+      "/free-face-blur",
+      "/blog/automatic-mosaic"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/blog/live-face-blur",
+    "locale": "ja",
+    "title": "ライブ配信で通行人の顔をぼかす方法 | InnoLive",
+    "targetQuestion": "ライブ配信で通行人の顔をぼかす方法",
+    "directAnswer": "カメラ入力から配信出力までの間に顔の検出とぼかしを適用すると、通行人の顔を隠せます。InnoLiveでは表示する出演者の顔を登録します。未登録の顔がぼけていることを確認してから配信を開始してください。",
+    "type": "article",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 0,
+    "related": [
+      "/live-mosaic",
+      "/live-privacy",
+      "/youtube",
+      "/chzzk"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/blog/automatic-mosaic",
+    "locale": "ja",
+    "title": "動画の自動顔ぼかし：録画とライブ配信 | InnoLive",
+    "targetQuestion": "CapCutのモザイクのように録画ファイルを編集できますか？",
+    "directAnswer": "録画では顔を検出・追跡し、処理結果を確認してファイルを書き出します。ライブ配信では送信前の顔処理が必要です。InnoLiveはライブのカメラ映像に映る未登録の顔をリアルタイムでぼかします。",
+    "type": "article",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 2,
+    "related": [
+      "/face-mosaic",
+      "/mosaic-software",
+      "/free-face-blur",
+      "/blog/live-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/compare/live-face-blur-apps",
+    "locale": "ja",
+    "title": "ライブ顔ぼかしアプリ比較：PRISM Lens・DualMoza・InnoLive",
+    "targetQuestion": "PCなしで顔をぼかして配信できますか？",
+    "directAnswer": "PRISM LensはPCの仮想カメラとして配信ソフトに接続します。DualMozaとInnoLiveはモバイル配信アプリです。InnoLiveは登録した出演者を表示し、未登録の顔をぼかしてYouTubeやCHZZKへ配信します。使用する端末と、表示する顔の選び方を比較してください。",
+    "type": "comparison",
+    "sourceCheckedAt": "2026-10-17",
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      },
+      {
+        "name": "PRISM Lens FAQ",
+        "url": "https://prismlive.com/en_us/faq/faq.html"
+      },
+      {
+        "name": "PRISM Lens",
+        "url": "https://prismlive.com/en_us/lens.html"
+      },
+      {
+        "name": "PRISM Basic / Plus",
+        "url": "https://prismlive.com/en_us/plus.html"
+      },
+      {
+        "name": "DualMoza · Google Play",
+        "url": "https://play.google.com/store/apps/details?id=com.dualmoza.app"
+      },
+      {
+        "name": "DualMoza · App Store",
+        "url": "https://apps.apple.com/kr/app/dualmoza/id6756903535"
+      },
+      {
+        "name": "InnoLive · App Store",
+        "url": "https://apps.apple.com/kr/app/innolive/id6810674918"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/mosaic-software",
+      "/mobile-live-face-blur",
+      "/face-mosaic",
+      "/free-face-blur"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/free-face-blur",
+    "locale": "ja",
+    "title": "無料のライブ顔ぼかしとプランの利用上限 | InnoLive",
+    "targetQuestion": "自動顔ぼかしを無料で利用できますか？",
+    "directAnswer": "Sparkプランは月額0ウォンです。InnoLiveはライブ映像の未登録の顔を検出してぼかし、登録した出演者は表示します。配信時間と顔の登録数はプランによって異なります。",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/live-mosaic",
+      "/mobile-live-face-blur",
+      "/blog/automatic-mosaic"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  },
+  {
+    "url": "https://innolive.studio/ja/mobile-live-face-blur",
+    "locale": "ja",
+    "title": "屋外配信用リアルタイム顔ぼかしアプリ | InnoLive",
+    "targetQuestion": "スマートフォン配信で顔を自動でぼかせますか？",
+    "directAnswer": "Android・iOS配信アプリは、ライブのカメラ映像に映る未登録の顔をぼかしてからYouTubeやCHZZKへ送信します。自分の顔を登録すると、そのまま表示できます。配信前に撮影場所で処理済み映像を確認してください。",
+    "type": "guide",
+    "sourceCheckedAt": null,
+    "firstPublishedAt": null,
+    "sources": [
+      {
+        "name": "InnoLiveと運営チーム",
+        "url": "https://innolive.studio/ja/about"
+      },
+      {
+        "name": "使い方とサポート",
+        "url": "https://innolive.studio/ja/support"
+      },
+      {
+        "name": "料金プランと利用上限",
+        "url": "https://innolive.studio/ja/pricing"
+      }
+    ],
+    "faqCount": 3,
+    "related": [
+      "/face-mosaic",
+      "/free-face-blur",
+      "/youtube",
+      "/chzzk",
+      "/live-privacy"
+    ],
+    "status": "published",
+    "impressions28d": null,
+    "clicks28d": null,
+    "measurementNote": "Unknown until matched with a dated search report; absence from report is not zero."
+  }
+]

@@ -35,6 +35,26 @@ final class YouTubeViewerChatTests: XCTestCase {
         XCTAssertNil(YouTubeViewerChatPolicy.activeURL(targets: [], hasSession: true))
     }
 
+    func testUnavailableChatExplainsWhyInsteadOfHidingEntry() throws {
+        XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: nil, hasSession: false), .noSession)
+        XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: nil, hasSession: true), .missingVideoID)
+        XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: [try target(provider: "chzzk")], hasSession: true), .noYouTubeTarget)
+        XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: [try target(phase: "prepared")], hasSession: true), .notLive)
+        for id: String? in [nil, "invalid"] {
+            XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: [try target(videoID: id)], hasSession: true), .missingVideoID)
+        }
+        for state: YouTubeViewerChatPolicy.Availability in [.noSession, .noYouTubeTarget, .notLive, .missingVideoID] {
+            XCTAssertFalse(try XCTUnwrap(state.message).isEmpty)
+        }
+    }
+
+    func testChatBecomesAvailableWhenVideoIDArrives() throws {
+        XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: [try target(videoID: nil)], hasSession: true), .missingVideoID)
+        let expected = try XCTUnwrap(YouTubeViewerChatPolicy.url(videoID: videoID))
+        XCTAssertEqual(YouTubeViewerChatPolicy.availability(targets: [try target()], hasSession: true), .ready(expected))
+        XCTAssertNil(YouTubeViewerChatPolicy.Availability.ready(expected).message)
+    }
+
     func testChangedVideoSelectsNewDocument() throws {
         let before = YouTubeViewerChatPolicy.activeURL(targets: [try target()], hasSession: true)
         let after = YouTubeViewerChatPolicy.activeURL(targets: [try target(videoID: "abcdefghijk")], hasSession: true)
@@ -63,6 +83,20 @@ final class YouTubeViewerChatTests: XCTestCase {
         XCTAssertEqual(webView.clearCount, 1)
         XCTAssertNil(webView.navigationDelegate)
         XCTAssertEqual(webView.stopCount, 4)
+    }
+
+    func testChatWebViewReportsDesktopSafariToPageJavaScript() async throws {
+        let document = try XCTUnwrap(YouTubeViewerChatPolicy.url(videoID: videoID))
+        let coordinator = YouTubeViewerChatWebView.Coordinator(document: document, state: YouTubeViewerChatLoadState())
+        let webView = YouTubeViewerChatWebView.makeWebView(coordinator: coordinator)
+        let reportedAgent = try await webView.evaluateJavaScript("navigator.userAgent")
+        let agent = try XCTUnwrap(reportedAgent as? String)
+        XCTAssertTrue(agent.contains("Macintosh"))
+        XCTAssertTrue(agent.contains("Version/"))
+        XCTAssertTrue(agent.contains("Safari/"))
+        XCTAssertFalse(agent.contains("Mobile/"))
+        XCTAssertFalse(webView.configuration.websiteDataStore.isPersistent)
+        XCTAssertTrue(webView.navigationDelegate === coordinator)
     }
 
     func testNavigationCannotLeaveCurrentChatOrAuthenticate() throws {

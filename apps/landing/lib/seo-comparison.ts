@@ -77,3 +77,36 @@ export const englishComparisonGuide: SeoGuide = {
   ],
   related,
 };
+
+export const japaneseComparisonGuide: SeoGuide = {
+  path,
+  title: "ライブ顔ぼかしアプリ比較：PRISM Lens・DualMoza・InnoLive",
+  description: "PRISM Lens・DualMoza・InnoLiveの対応端末、顔の選択方法、配信手順を比較できます。公式情報とインストール先を掲載しています。",
+  heading: "ライブ配信用の顔ぼかしアプリを選ぶ",
+  intro: "PRISM LensはPCの仮想カメラとして配信ソフトに接続します。DualMozaとInnoLiveはモバイル配信アプリです。InnoLiveは登録した出演者を表示し、未登録の顔をぼかしてYouTubeやCHZZKへ配信します。使用する端末と、表示する顔の選び方を比較してください。",
+  comparison: {
+    checkedAt,
+    disclosure: "InnoLiveチームが各製品の公式説明を確認して作成しました。競合アプリの性能測定は実施していません。機能や料金はバージョンやストアによって異なる場合があります。",
+    caption: "PRISM Lens・DualMoza・InnoLiveの公式説明に基づく機能比較",
+    columns: ["比較項目", "PRISM Lens", "DualMoza", "InnoLive"],
+    rows: [
+      { label: "端末", cells: ["Windows・macOSのPC", "Android・iOSのモバイル端末", "Android 11以降・iOS 18以降のモバイル端末"] },
+      { label: "顔の選択", cells: ["すべての顔または背景の顔に効果を適用", "全員、最も近い人、その人以外を選択", "表示する出演者を登録し、未登録の顔をぼかす"] },
+      { label: "処理方式", cells: ["ピクセル化、ぼかし、ステッカー", "顔または人物へのモザイク・ぼかし", "顔のぼかし"] },
+      { label: "配信手順", cells: ["配信ソフトで仮想カメラを映像ソースに選択", "アプリからYouTube・Twitch・RTMPへ送信", "アプリからYouTube・CHZZKへ送信"] },
+      { label: "利用条件", cells: ["Basic・Plusの効果と制限を確認", "ストアの説明ではライブ配信にProが必要", "無料Sparkと各プランの時間・機能の上限を確認"] },
+    ],
+    sources,
+  },
+  sections: [
+    { heading: "PC配信とスマートフォンの屋外配信", paragraphs: ["PCで複数の映像ソースを使う場合は、仮想カメラの接続方法を確認してください。スマートフォンを持って移動しながら配信する場合は、アプリから処理済み映像を配信先へ直接送れるか確認してください。"] },
+    { heading: "一緒に出演する人を表示し続ける", paragraphs: ["InnoLiveは表示する対象として登録した顔を識別します。自分と出演者を登録し、他の人が入ったり位置が変わったりする場面で確認してください。顔の角度、大きさ、遮蔽物、照明は検出に影響します。"] },
+    { heading: "インストールと配信条件を確認する", paragraphs: ["InnoLiveの製品ガイドにAndroid・iOSアプリへのリンクがあります。Web体験でぼかしを確認し、アプリでアカウントを連携して設定を保存してください。無料の利用範囲や配信可能時間は料金ページをご覧ください。"] },
+  ],
+  faq: [
+    { question: "PCなしで顔をぼかして配信できますか？", answer: "直接配信に対応したモバイルアプリをご確認ください。InnoLiveはAndroid・iOSから処理済みカメラ映像をYouTubeやCHZZKへ送信します。インターネット接続、配信アカウントまたはストリームキー、利用可能な配信時間が必要です。" },
+    { question: "このガイドはInnoLiveをOBSの仮想カメラとして紹介していますか？", answer: "このガイドではモバイルアプリからYouTube・CHZZKへ直接配信する手順を紹介しています。OBS用の仮想カメラのインストールや連携は、このガイドの対応範囲に含まれません。" },
+    { question: "顔の検出性能も比較していますか？", answer: "この表は公式の機能説明を比較しています。同じ端末、場面、ネットワークでの検出精度や遅延の測定は実施していません。実際の配信環境で、小さく映る顔や一部が隠れた顔も確認してください。" },
+  ],
+  related,
+};

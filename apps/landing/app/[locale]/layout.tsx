@@ -9,7 +9,7 @@ import { defaultLocale, isLocale, locales } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
 import { seoCopy } from "@/lib/seo-copy";
 import { siteOrigin } from "@/lib/seo";
-import { wantedSans, wantedSansCommonPreload } from "../fonts";
+import { letteringFont, wantedSans, wantedSansCommonPreload } from "../fonts";
 import "../globals.css";
 import "../fonts/wanted-sans.css";
 
@@ -30,6 +30,7 @@ export async function generateMetadata({
   const { locale } = await params;
   return {
     metadataBase: new URL(siteOrigin),
+    alternates: { types: { "application/rss+xml": `${siteOrigin}/feed.xml` } },
     verification: {
       google: "J-BWZsWvCgeHZuOUFzYDyXDBIqTkKECI0MxWfgG1Uzo",
       other: {
@@ -50,9 +51,9 @@ export default async function LocaleLayout({
   const messages = getMessages(locale);
 
   return (
-    <html lang={locale} className={`${wantedSans.variable} ${wantedSans.className}`}>
+    <html lang={locale} className={`${wantedSans.variable} ${letteringFont.variable} ${wantedSans.className}`}>
       <head>
-        {locale !== "en" && (
+        {locale === "ko" && (
           <link
             rel="preload"
             href={wantedSansCommonPreload}

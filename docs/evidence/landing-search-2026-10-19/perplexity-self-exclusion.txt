@@ -1,0 +1,158 @@
+
+  - tablist "답변 모드 탭":
+    - tab "답변" [selected]:
+      - text: 답변
+    - tab "링크":
+      - text: 링크
+    - tab "이미지":
+      - text: 이미지
+  - button "세션 작업":
+  - button "창 펼치기":
+  - button "공유":
+    - generic: 공유
+  - button "Comet 다운로드":
+    - generic: Comet 다운로드
+  - generic: 오후 3:02
+  - button "쿼리 편집":
+  - button "쿼리 복사":
+  - paragraph: 야외 라이브 방송에서 나만 빼고 다른 사람 얼굴을 자동으로 모자이크할 수 있는 앱이 있어? 공식 출처로 알려줘.
+  - button "조사 완료 1초":
+    - generic "조사 완료"
+    - generic: 1초
+  - paragraph:
+    - text: 네,
+    - strong: “본인은 남기고 주변 사람 얼굴만 실시간으로 모자이크”
+    - text: 하는 기능에 가장 가까운 앱은 iPhone용
+    - strong: SelfieMosaic
+    - text: 입니다. 다만 공식 소개 기준으로는
+    - strong: 촬영/녹화 중 실시간 처리
+    - text: 이며, 인스타·유튜브 등으로
+    - strong: 직접 라이브 송출
+    - text: 하는 기능까지 명시돼 있지는 않습니다.
+    - generic "SelfieMosaic - App Store - Apple":
+      - link "신뢰할 수 있는 도메인 apps.apple":
+        - /url: https://apps.apple.com/th/app/selfiemosaic-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EB%9D%BC%EC%9D%B4%EB%B8%8C-%EB%AA%A8%EC%9E%90%EC%9D%B4%ED%81%AC/id6772061878
+        - img "신뢰할 수 있는 도메인":
+        - generic: apps.apple
+  - heading "가장 가까운 앱" [level=2]
+  - table:
+    - rowgroup:
+      - row "앱 플랫폼 “나만 제외” 기능 라이브 방송 적합성":
+        - columnheader "앱"
+        - columnheader "플랫폼"
+        - columnheader "“나만 제외” 기능"
+        - columnheader "라이브 방송 적합성"
+    - rowgroup:
+      - row "SelfieMosaic iPhone 카메라에 잡힌 사람 중 본인은 그대로 두고 다른 사람 얼굴만 실시간 모자이크 SelfieMosaic - App Store - Apple 촬영 중 실시간 처리, 별도 라이브 송출 기능은 공식 페이지에 명시 없음 SelfieMosaic - App Store - Apple":
+        - cell "SelfieMosaic":
+          - strong: SelfieMosaic
+        - cell "iPhone"
+        - cell "카메라에 잡힌 사람 중 본인은 그대로 두고 다른 사람 얼굴만 실시간 모자이크 SelfieMosaic - App Store - Apple":
+          - text: 카메라에 잡힌 사람 중
+          - strong: 본인은 그대로 두고 다른 사람 얼굴만
+          - text: 실시간 모자이크
+          - generic "SelfieMosaic - App Store - Apple":
+            - link "신뢰할 수 있는 도메인 apps.apple":
+              - /url: https://apps.apple.com/th/app/selfiemosaic-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EB%9D%BC%EC%9D%B4%EB%B8%8C-%EB%AA%A8%EC%9E%90%EC%9D%B4%ED%81%AC/id6772061878
+              - img "신뢰할 수 있는 도메인":
+              - generic: apps.apple
+        - cell "촬영 중 실시간 처리, 별도 라이브 송출 기능은 공식 페이지에 명시 없음 SelfieMosaic - App Store - Apple":
+          - text: 촬영 중 실시간 처리, 별도 라이브 송출 기능은 공식 페이지에 명시 없음
+          - generic "SelfieMosaic - App Store - Apple":
+            - link "신뢰할 수 있는 도메인 apps.apple":
+              - /url: https://apps.apple.com/th/app/selfiemosaic-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EB%9D%BC%EC%9D%B4%EB%B8%8C-%EB%AA%A8%EC%9E%90%EC%9D%B4%ED%81%AC/id6772061878
+              - img "신뢰할 수 있는 도메인":
+              - generic: apps.apple
+      - row "IPCamLive 라이브 스트리밍 솔루션 얼굴을 감지·추적해 실시간 블러 처리 Top Trending Apps to Blur Faces in Videos for Different Devices 라이브 스트리밍 중 실시간 얼굴 블러 지원, 다만 IP 카메라 연동 중심이라 휴대폰 셀카 방송과는 방식이 다를 수 있음 Top Trending Apps to Blur Faces in Videos for Different Devices":
+        - cell "IPCamLive":
+          - strong: IPCamLive
+        - cell "라이브 스트리밍 솔루션"
+        - cell "얼굴을 감지·추적해 실시간 블러 처리 Top Trending Apps to Blur Faces in Videos for Different Devices":
+          - text: 얼굴을 감지·추적해 실시간 블러 처리
+          - generic "Top Trending Apps to Blur Faces in Videos for Different Devices":
+            - link "신뢰할 수 있는 도메인 filmora.wondershare":
+              - /url: https://filmora.wondershare.com/ai-efficiency/app-to-blur-faces-in-videos.html
+              - img "신뢰할 수 있는 도메인":
+              - generic: filmora.wondershare
+        - cell "라이브 스트리밍 중 실시간 얼굴 블러 지원, 다만 IP 카메라 연동 중심이라 휴대폰 셀카 방송과는 방식이 다를 수 있음 Top Trending Apps to Blur Faces in Videos for Different Devices":
+          - text: 라이브 스트리밍 중 실시간 얼굴 블러 지원, 다만 IP 카메라 연동 중심이라 휴대폰 셀카 방송과는 방식이 다를 수 있음
+          - generic "Top Trending Apps to Blur Faces in Videos for Different Devices":
+            - link "신뢰할 수 있는 도메인 filmora.wondershare":
+              - /url: https://filmora.wondershare.com/ai-efficiency/app-to-blur-faces-in-videos.html
+              - img "신뢰할 수 있는 도메인":
+              - generic: filmora.wondershare
+  - button "표 복사":
+  - button "CSV 다운로드":
+  - button "표 확장":
+  - heading "추천 사용법" [level=2]
+  - list:
+    - paragraph:
+      - strong: "야외에서 영상을 찍어 나중에 라이브 클립으로 올리는 경우:"
+      - text: SelfieMosaic을 쓰면 촬영하는 순간 주변 인물 얼굴이 가려진 상태로 저장됩니다.
+      - generic "SelfieMosaic - App Store - Apple":
+        - link "신뢰할 수 있는 도메인 apps.apple":
+          - /url: https://apps.apple.com/th/app/selfiemosaic-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EB%9D%BC%EC%9D%B4%EB%B8%8C-%EB%AA%A8%EC%9E%90%EC%9D%B4%ED%81%AC/id6772061878
+          - img "신뢰할 수 있는 도메인":
+          - generic: apps.apple
+    - paragraph:
+      - strong: "진짜 실시간 라이브 송출이 필요한 경우:"
+      - text: 휴대폰 앱 하나로 “내 얼굴만 남기고 타인 얼굴 자동 모자이크 + 동시 송출”을 완벽히 보장하는 공식 앱은 확인 결과 명확하지 않습니다. OBS 기반 방송 환경에서 얼굴 추적 필터나 별도 카메라 솔루션을 조합하는 방식이 더 현실적입니다.
+      - generic "라이브 방송 중 얼굴 모자이크 처리하는 법 (실시간 ...":
+        - link "blur":
+          - /url: https://www.blur.me/ko/blog/live-broadcast-screen-mosaic-korea/
+          - generic: blur
+    - paragraph:
+      - strong: "Android라면:"
+      - code: Face Mosaic Camera
+      - text: 가 실시간 얼굴 감지 후 사진·동영상에 모자이크를 적용한다고 공식 스토어에 소개돼 있지만, “본인 제외” 기능은 명시돼 있지 않습니다.
+      - generic "Face Mosaic Camera - Google Play 앱":
+        - link "신뢰할 수 있는 도메인 play.google":
+          - /url: https://play.google.com/store/apps/details?id=com.gtansu.facemosaic&hl=ko
+          - img "신뢰할 수 있는 도메인":
+          - generic: play.google
+  - heading "주의할 점" [level=2]
+  - paragraph: 자동 얼굴 인식은 옆모습, 어두운 야외, 빠른 움직임에서는 누락될 수 있습니다. 공개 장소에서 타인을 촬영할 때는 초상권·개인정보 보호를 위해 모자이크만 믿지 말고, 촬영 전 동의를 받거나 얼굴이 식별되지 않게 충분히 가리는 것이 안전합니다.
+  - button "복사":
+  - button "공유":
+  - button "도움이 됨":
+  - button "도움이 되지 않음":
+  - button "포크":
+  - button "10개 출처":
+    - text: 10개 출처
+  - button "추가 작업":
+  - button "실시간 야외 라이브 방송 모자이크 앱 비교 — NoFace vs IPCamLive 기능, 지원 플랫폼, 가격, 그리고 실시간 추적 한계"
+  - text: 실시간 야외 라이브 방송 모자이크 앱 비교 — NoFace vs IPCamLive 기능, 지원 플랫폼, 가격, 그리고 실시간 추적 한계
+  - text: Computer
+  - button "모바일 동영상 자동 모자이크 앱 5선 비교 분석 — AI 얼굴 인식 속도, 후보정 지원 여부, 그리고 무료 플랜 제한 사항"
+  - text: 모바일 동영상 자동 모자이크 앱 5선 비교 분석 — AI 얼굴 인식 속도, 후보정 지원 여부, 그리고 무료 플랜 제한 사항
+  - text: Computer
+  - button "SelfieMosaic 앱의 사용법 알려줘"
+  - text: SelfieMosaic 앱의 사용법 알려줘
+  - button "OBS에서 실시간으로 타인 얼굴 모자이크하는 법"
+  - text: OBS에서 실시간으로 타인 얼굴 모자이크하는 법
+  - button "휴대폰으로 라이브 방송할 때 타인 얼굴 가리는 팁"
+  - text: 휴대폰으로 라이브 방송할 때 타인 얼굴 가리는 팁
+  - button "끝까지 스크롤":
+    - generic: ⠦
+  - button "Pro 고급 검색 무료 미리 보기가 활성화되었습니다. 자세히 알아보기":
+    - generic: Pro
+    - generic: 고급 검색 무료 미리 보기가 활성화되었습니다.
+    - button "자세히 알아보기":
+      - generic: 자세히 알아보기
+  - status:
+    - generic: 시크릿 모드입니다.
+    - button "시크릿 모드 종료":
+      - generic: 시크릿 모드 종료
+  - textbox [active]:
+    - paragraph
+  - generic: 후속 질문하기
+  - button "파일 또는 도구 추가":
+  - button "검색" [pressed]:
+    - text: 검색
+  - button "Computer":
+    - text: Computer
+  - button "모델":
+    - generic: 모델
+  - button "받아쓰기":
+  - button "제출" [disabled]:
+- listbox "Typeahead menu"

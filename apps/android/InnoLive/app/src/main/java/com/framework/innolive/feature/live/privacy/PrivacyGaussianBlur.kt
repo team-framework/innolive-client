@@ -6,8 +6,7 @@ import kotlin.math.roundToInt
 
 /** Separable Gaussian convolution, with clamped edges and a normalized fixed-point kernel. */
 internal object PrivacyGaussianBlur {
-    private val maskKernel by lazy { kernel(1.5) }
-    private val imageKernel by lazy { kernel(6.0) }
+    private val kernels = java.util.concurrent.ConcurrentHashMap<Double, IntArray>()
     private val horizontalScratch = ThreadLocal<IntArray>()
 
     private fun kernel(sigma: Double): IntArray {
@@ -25,11 +24,7 @@ internal object PrivacyGaussianBlur {
     fun apply(pixels: IntArray, width: Int, height: Int, sigma: Double): IntArray {
         require(width > 0 && height > 0 && pixels.size == width * height && sigma > 0 && sigma.isFinite())
         val radius = ceil(3 * sigma).toInt()
-        val kernel = when (sigma) {
-            1.5 -> maskKernel
-            6.0 -> imageKernel
-            else -> kernel(sigma)
-        }
+        val kernel = kernels.getOrPut(sigma) { kernel(sigma) }
         val horizontal = horizontalScratch.get()?.takeIf { it.size >= pixels.size }
             ?: IntArray(pixels.size).also(horizontalScratch::set)
         val output = IntArray(pixels.size)

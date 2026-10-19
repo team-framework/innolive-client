@@ -1197,52 +1197,6 @@
         }
       }
     },
-    "켜짐": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "켜짐"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "On"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "オン"
-          }
-        }
-      }
-    },
-    "꺼짐": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "꺼짐"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Off"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "オフ"
-          }
-        }
-      }
-    },
     "화면 블러 끄기": {
       "extractionState": "manual",
       "localizations": {
@@ -1285,29 +1239,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "画面のぼかしをオンにする"
-          }
-        }
-      }
-    },
-    "서버 처리 모드에서 미리보기와 송출 화면 전체를 흐립니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "서버 처리 모드에서 미리보기와 송출 화면 전체를 흐립니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Blurs the entire preview and broadcast in server processing mode."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サーバー処理モードで、プレビューと配信映像の全体をぼかします。"
           }
         }
       }
@@ -5853,29 +5784,6 @@
         }
       }
     },
-    "비식별화 꺼짐": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "비식별화 꺼짐"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anonymization off"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "匿名化オフ"
-          }
-        }
-      }
-    },
     "비식별화 영상을 준비하는 중": {
       "extractionState": "manual",
       "localizations": {
@@ -5895,29 +5803,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "匿名化映像を準備中"
-          }
-        }
-      }
-    },
-    "비식별화 켜짐": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "비식별화 켜짐"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Anonymization on"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "匿名化オン"
           }
         }
       }
@@ -6125,29 +6010,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "サーバーに接続中"
-          }
-        }
-      }
-    },
-    "서버 영상 연결을 유지한 채 AI 비식별화 처리를 켜거나 끕니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "서버 영상 연결을 유지한 채 AI 비식별화 처리를 켜거나 끕니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Turns AI anonymization on or off while keeping the server video connection active."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サーバーとの映像接続を維持したまま、AI匿名化処理をオン・オフにします。"
           }
         }
       }
@@ -13176,6 +13038,213 @@
           "stringUnit": {
             "state": "translated",
             "value": "削除"
+          }
+        }
+      }
+    },
+    "비식별화": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anonymization"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化"
+          }
+        }
+      }
+    },
+    "얼굴 비식별화 켜기": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 비식별화 켜기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn face anonymization on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔の匿名化をオンにする"
+          }
+        }
+      }
+    },
+    "얼굴 비식별화 끄기": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 비식별화 끄기"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn face anonymization off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔の匿名化をオフにする"
+          }
+        }
+      }
+    },
+    "얼굴 비식별화 켜짐": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 비식별화 켜짐"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face anonymization on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔の匿名化オン"
+          }
+        }
+      }
+    },
+    "얼굴 비식별화 꺼짐": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 비식별화 꺼짐"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face anonymization off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔の匿名化オフ"
+          }
+        }
+      }
+    },
+    "화면 블러 켜짐": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화면 블러 켜짐"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screen blur on"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしオン"
+          }
+        }
+      }
+    },
+    "화면 블러 꺼짐": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화면 블러 꺼짐"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screen blur off"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしオフ"
+          }
+        }
+      }
+    },
+    "얼굴 비식별화와 화면 블러 중 전환할 항목을 선택합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 비식별화와 화면 블러 중 전환할 항목을 선택합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose whether to switch face anonymization or screen blur."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔の匿名化と画面のぼかしのどちらを切り替えるか選択します。"
+          }
+        }
+      }
+    },
+    "화면 블러는 서버 처리 모드에서만 사용할 수 있어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화면 블러는 서버 처리 모드에서만 사용할 수 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screen blur is available only in server processing mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "画面のぼかしはサーバー処理モードでのみ使用できます。"
           }
         }
       }
