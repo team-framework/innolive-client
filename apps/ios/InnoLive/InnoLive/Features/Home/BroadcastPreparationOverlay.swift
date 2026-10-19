@@ -18,7 +18,7 @@ struct BroadcastPreparationOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(reduceTransparency || contrast == .increased ? 0.9 : 0.64)
+            Color.black.opacity(reduceTransparency || contrast == .increased ? 1 : 0.82)
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
 
@@ -59,7 +59,7 @@ struct BroadcastPreparationOverlay: View {
                                         Text(String(localized: "다시 시도"))
                                             .frame(maxWidth: .infinity, minHeight: 44)
                                     }
-                                    .innoLiveGlassButtonStyle(prominent: true)
+                                    .innoLiveGlassButtonStyle(prominent: true, overVideo: true)
                                     .accessibilityIdentifier("broadcast-preparation-retry")
                                 }
                                 Button {
@@ -70,7 +70,7 @@ struct BroadcastPreparationOverlay: View {
                                          : String(localized: "방송 준비 취소"))
                                         .frame(maxWidth: .infinity, minHeight: 44)
                                 }
-                                .innoLiveGlassButtonStyle()
+                                .innoLiveGlassButtonStyle(overVideo: true)
                                 .accessibilityIdentifier("broadcast-preparation-cancel")
                             }
                             .buttonBorderShape(.capsule)

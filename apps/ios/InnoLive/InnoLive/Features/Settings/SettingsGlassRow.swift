@@ -15,11 +15,12 @@ struct SettingsGlassRow<Content: View>: View {
 
     var body: some View {
         content
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .font(.subheadline)
+            .padding(.horizontal, InnoLiveSettingsLayout.cardInset)
+            .padding(.vertical, 10)
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 56)
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .innoLiveGlassBackground(cornerRadius: 16)
+            .frame(minHeight: InnoLiveSettingsLayout.minimumControlHeight)
+            .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
+            .contentShape(RoundedRectangle(cornerRadius: InnoLiveSettingsLayout.cornerRadius))
     }
 }

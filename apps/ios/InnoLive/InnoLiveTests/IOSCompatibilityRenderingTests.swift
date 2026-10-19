@@ -58,7 +58,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         defer { fixture.removePreferences() }
 
         for appearance in appearances {
-            try await render("settings", appearance: appearance, title: String(localized: "설정")) {
+            try await render("settings", appearance: appearance, title: String(localized: "앱 정보 및 계정")) {
                 SettingsView(authentication: fixture.authentication, youtube: fixture.youtube)
                     .environment(fixture.camera)
             }
@@ -326,7 +326,7 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
         defer { fixture.removePreferences() }
 
         try await render("settings-accessibility-text", appearance: .light,
-                         title: String(localized: "설정"), textSize: .accessibility3) {
+                         title: String(localized: "앱 정보 및 계정"), textSize: .accessibility3) {
             SettingsView(authentication: fixture.authentication, youtube: fixture.youtube)
                 .environment(fixture.camera)
         } inspect: { window in

@@ -34,6 +34,8 @@ struct InnoLiveApp: App {
         if ProcessInfo.processInfo.arguments.contains("--privacy-performance-test-host") {
             // The device benchmark owns capture. Do not start a second home-preview camera.
             Color.black
+        } else if ProcessInfo.processInfo.arguments.contains("--studio-preview") {
+            StudioValidationView()
         } else if ProcessInfo.processInfo.arguments.contains("--live-broadcast-edit-preview") {
             LiveBroadcastEditingValidationView()
         } else if ProcessInfo.processInfo.arguments.contains("--broadcast-settings-preview") {

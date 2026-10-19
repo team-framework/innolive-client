@@ -20,7 +20,7 @@ struct BroadcastVideoControlsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-               VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 20) {
                     mosaicSection
                         .onGeometryChange(for: CGFloat.self) { $0.size.height.rounded() } action: { height in
                             let isCompact = sheetDetent != .large
@@ -32,7 +32,7 @@ struct BroadcastVideoControlsView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text(String(localized: "프리셋"))
-                            .font(.body.weight(.semibold))
+                            .font(.subheadline.weight(.semibold))
                         HStack(spacing: 8) {
                             ForEach(BroadcastVideoLook.allCases) { look in
                                 presetColumn(look)
@@ -75,14 +75,15 @@ struct BroadcastVideoControlsView: View {
                         uplink.setColor(warmth: 0, saturation: 1)
                     } label: {
                         Label(String(localized: "초기화"), systemImage: "arrow.counterclockwise")
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: .infinity, minHeight: 28)
                     }
-                    .buttonStyle(.bordered)
+                    .innoLiveGlassButtonStyle()
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, InnoLiveSettingsLayout.pageInset)
                 .padding(.top, 16)
                 .padding(.bottom, 10)
             }
+            .innoLiveSettingsPage()
             .navigationTitle(String(localized: "영상 조절"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -110,7 +111,7 @@ struct BroadcastVideoControlsView: View {
         return VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "모자이크"))
-                    .font(.body.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                 if let note = mosaicNote(available: available) {
                     Text(note)
                         .font(.footnote)
@@ -156,9 +157,9 @@ struct BroadcastVideoControlsView: View {
                     if youtube.isChangingMosaicConfig { ProgressView().controlSize(.small) }
                     Label(String(localized: "모자이크 기본값"), systemImage: "arrow.counterclockwise")
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 28)
             }
-            .buttonStyle(.bordered)
+            .innoLiveGlassButtonStyle()
             .disabled(!available)
         }
     }
@@ -221,7 +222,10 @@ struct BroadcastVideoControlsView: View {
                     .foregroundStyle(selected ? Color.accentColor : Color.primary)
                 presetPreview(previews.images[look], selected: selected)
             }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
+        .frame(maxWidth: .infinity)
         .buttonStyle(.plain)
         .accessibilityLabel(look.title)
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -229,17 +233,15 @@ struct BroadcastVideoControlsView: View {
 
     private func presetPreview(_ image: CGImage?, selected: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        return Group {
-            if let image {
-                Image(decorative: image, scale: 1)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Color.white.opacity(0.12)
+        return Color.white.opacity(0.12)
+            .aspectRatio(3.0 / 4.0, contentMode: .fit)
+            .overlay {
+                if let image {
+                    Image(decorative: image, scale: 1)
+                        .resizable()
+                        .scaledToFill()
+                }
             }
-        }
-        .frame(maxWidth: .infinity)
-        .aspectRatio(3.0 / 4.0, contentMode: .fit)
         .clipShape(shape)
         .overlay {
             shape.strokeBorder(selected ? Color.white : Color.white.opacity(0.28), lineWidth: selected ? 3 : 1)
@@ -306,7 +308,7 @@ struct BroadcastVideoControlsView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(title)
-                    .font(.body.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                 Spacer()
                 Text(value)
                     .font(.body.monospacedDigit())
