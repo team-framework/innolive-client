@@ -5,6 +5,7 @@ struct StudioDetailsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var destination: Destination?
 
     private enum Destination: Equatable, Identifiable {
@@ -27,7 +28,9 @@ struct StudioDetailsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .top),
+                                     count: verticalSizeClass == .compact ? 2 : 1),
+                      alignment: .leading, spacing: 16) {
                 section(String(localized: "송출 대상")) {
                     if !youtube.visibleBroadcastTargets.isEmpty || youtube.isYouTubeBroadcastActive {
                         BroadcastLiveStatusSection(youtube: youtube, uplink: youtube.videoUplink)
@@ -74,7 +77,7 @@ struct StudioDetailsView: View {
                 }
             }
             .padding(16)
-            .frame(maxWidth: 600)
+            .frame(maxWidth: verticalSizeClass == .compact ? .infinity : 600)
             .frame(maxWidth: .infinity)
         }
         .accessibilityIdentifier("studio-details-scroll")

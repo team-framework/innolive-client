@@ -183,7 +183,7 @@ struct HomeView: View {
             )
                 .opacity(isLifecycleOverlayPresented ? 0 : 1)
                 .allowsHitTesting(!isLifecycleOverlayPresented)
-                .frame(maxWidth: isCompactLandscape ? 400 : .infinity)
+                .frame(maxWidth: isCompactLandscape ? 240 : .infinity)
                 .padding(.horizontal, 24)
                 .padding(.top, studioHeaderTopInset)
                 .padding(.bottom, 12)
@@ -408,7 +408,7 @@ struct HomeView: View {
                             .padding(.top, studioChromeTopInset)
                             .padding(.bottom, bottomReservedHeight + 24)
                             .padding(.horizontal, 16)
-                            .frame(maxWidth: 560)
+                            .frame(maxWidth: isCompactLandscape ? .infinity : 560)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
                     }
                 }
@@ -532,7 +532,7 @@ struct HomeView: View {
 
     private var basicStudioChrome: some View {
         ZStack {
-            (isCompactLandscape ? AnyLayout(HStackLayout(spacing: 12)) : AnyLayout(VStackLayout(alignment: .trailing, spacing: 12))) {
+            VStack(alignment: .trailing, spacing: isCompactLandscape ? 8 : 12) {
 
                 Button {
                     previewCornerBeforeVideoControls = previewCorner
