@@ -516,7 +516,7 @@ struct HomeView: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 24)
     }
 
     private var basicStudioChrome: some View {
