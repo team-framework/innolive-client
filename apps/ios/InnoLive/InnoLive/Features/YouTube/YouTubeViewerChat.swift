@@ -63,6 +63,7 @@ enum YouTubeViewerChatPolicy {
 }
 
 struct YouTubeViewerChatOverlay: View {
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     let availability: YouTubeViewerChatPolicy.Availability
 
     var body: some View {
@@ -70,7 +71,7 @@ struct YouTubeViewerChatOverlay: View {
             if case let .ready(url) = availability {
                 YouTubeViewerChatContent(url: url)
                     .id(url)
-                    .frame(height: 240)
+                    .frame(height: verticalSizeClass == .compact ? 150 : 180)
             } else if let message = availability.message {
                 Text(message)
                     .font(.caption)
@@ -80,7 +81,7 @@ struct YouTubeViewerChatOverlay: View {
                     .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
             }
         }
-        .frame(maxWidth: 340, alignment: .leading)
+        .frame(maxWidth: 280, alignment: .leading)
         .accessibilityIdentifier("youtube-viewer-chat-overlay")
     }
 }

@@ -36,8 +36,11 @@ struct HomeView: View {
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject private var broadcastOrientation = BroadcastOrientationController.shared
     @Environment(CameraManager.self) private var cameraManager
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
+
+    private var isCompactLandscape: Bool { verticalSizeClass == .compact }
 
     private var usesSimulatorVideo: Bool {
         SimulatorVideoInput.isEnabled
@@ -126,7 +129,7 @@ struct HomeView: View {
                 }
             }
 
-            VStack(alignment: .trailing, spacing: 12) {
+            (isCompactLandscape ? AnyLayout(HStackLayout(spacing: 12)) : AnyLayout(VStackLayout(alignment: .trailing, spacing: 12))) {
                 Button(action: switchCamera) {
                     Group {
                         if isSwitchingCamera {
@@ -212,7 +215,7 @@ struct HomeView: View {
                     chatReservedHeight = height
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, bottomReservedHeight + 24)
+                .padding(.bottom, isCompactLandscape ? 24 : bottomReservedHeight + 24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
 
                 GuestRegistrationToast(registrar: guestRegistrar) {
@@ -233,6 +236,7 @@ struct HomeView: View {
                 onCancelPreparation: cancelBroadcastPreparation,
                 tutorial: tutorial
             )
+                .frame(maxWidth: isCompactLandscape ? 400 : .infinity)
                 .onGeometryChange(for: CGFloat.self) { proxy in
                     proxy.size.height
                 } action: { _, height in
@@ -433,7 +437,9 @@ struct HomeView: View {
             topPadding: LocalPreviewSnapLayout.defaultTopPadding,
             bottomPadding: LocalPreviewSnapLayout.defaultBottomPadding,
             topTrailingReserved: topTrailingReserved,
-            bottomReservedHeight: bottomReservedHeight + (isSelectingFace ? 0 : chatReservedHeight + 12),
+            bottomReservedHeight: isCompactLandscape
+                ? max(bottomReservedHeight, isSelectingFace ? 0 : chatReservedHeight + 12)
+                : bottomReservedHeight + (isSelectingFace ? 0 : chatReservedHeight + 12),
             cornerSpacing: LocalPreviewSnapLayout.defaultCornerSpacing
         )
     }

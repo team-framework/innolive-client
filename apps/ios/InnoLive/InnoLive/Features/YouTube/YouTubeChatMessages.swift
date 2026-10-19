@@ -32,15 +32,15 @@ struct YouTubeChatMessageList: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
+                LazyVStack(alignment: .leading, spacing: 4) {
                     ForEach(messages) { message in
                         (Text(message.author + "  ").bold().foregroundColor(.cyan)
                          + Text(message.text).foregroundColor(.white))
-                            .font(.callout)
+                            .font(.footnote)
                             .fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 7)
-                            .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 10))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 8))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .id(message.id)
                             .accessibilityIdentifier("youtube-chat-message-" + message.id)
