@@ -17,16 +17,19 @@ final class StudioHomeRenderingTests: XCTestCase {
         let authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }),
             tokenStore: StudioHomeEmptyTokenStore(), consentStore: ConsentAcknowledgementStore(userDefaults: defaults))
 
-        for state in ["idle", "live", "preparing"] {
+        for state in ["idle", "ready", "live", "preparing"] {
             let live = state == "live"
             let preparing = state == "preparing"
+            let ready = state == "ready"
             let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults))
             defer { integration.reset() }
-            if live || preparing {
+            if live || preparing || ready {
+                let phase = ready ? "prepared" : "live"
+                let status = ready ? "idle" : "streaming"
                 let json = """
                 {"session_id":"studio-home-render","owner_token":"fake-owner","broadcast_resolution":"720p",
-                "stream":{"status":"streaming","broadcast_phase":"live","publisher_active":true,"reconnect_attempts":0},
-                "targets":[{"provider":"youtube","stream":{"status":"streaming","broadcast_phase":"live","publisher_active":true,"reconnect_attempts":0}}],"media":{}}
+                "stream":{"status":"\(status)","broadcast_phase":"\(phase)","publisher_active":true,"reconnect_attempts":0},
+                "targets":[{"provider":"youtube","stream":{"status":"\(status)","broadcast_phase":"\(phase)","publisher_active":true,"reconnect_attempts":0}}],"media":{}}
                 """
                 let session = try JSONDecoder().decode(YouTubeBroadcastSession.self, from: Data(json.utf8))
                 integration.seedPreparedVideoSessionForTesting(
@@ -130,6 +133,67 @@ final class StudioHomeRenderingTests: XCTestCase {
             add(attachment)
             window.isHidden = true
             window.rootViewController = nil
+        }
+    }
+
+    func testStudioWarningsMaskingAndAppInfoRenderWithoutStartingMedia() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let previous = scene.windows.first { $0.isKeyWindow }
+        defer { previous?.makeKeyAndVisible() }
+        let suite = "studio-feedback-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let authentication = AuthSession(api: AuthenticationAPI(serverURLProvider: { _ in nil }),
+            tokenStore: StudioHomeEmptyTokenStore(), consentStore: ConsentAcknowledgementStore(userDefaults: defaults))
+        let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults),
+                                            api: YouTubeAPI(serverURLProvider: { _ in nil }))
+        let tutorial = BroadcastTutorialCoordinator(store: BroadcastTutorialStore(userDefaults: defaults))
+        for light in [false, true] {
+            for mode in ["warnings", "masking", "app-info"] {
+                let window = UIWindow(windowScene: scene)
+                window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+                window.overrideUserInterfaceStyle = light ? .light : .dark
+                window.rootViewController = UIHostingController(rootView:
+                    Group {
+                        if mode == "app-info" {
+                            NavigationStack {
+                                SettingsView(authentication: authentication, youtube: integration, tutorial: tutorial)
+                            }
+                        } else {
+                            ZStack {
+                                LinearGradient(colors: [.white, .orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                VStack(spacing: 20) {
+                                    if mode == "warnings" {
+                                        StudioWarningLabel(title: "마이크를 열지 못해 음성 없이 송출하고 있습니다. 마이크 권한과 연결을 확인해 주세요.", systemImage: "mic.slash.fill")
+                                        StudioWarningLabel(title: "원본 저장: 저장 공간이 부족합니다.", systemImage: "exclamationmark.triangle")
+                                        BroadcastFeedbackBanner(feedback: .init(message: "연결을 확인하고 다시 시도해 주세요.", isError: true), youtube: integration, onDismiss: {})
+                                    } else {
+                                        HStack(spacing: 32) {
+                                            AnonymizationControlLabel(isLoading: false, isEnabled: false)
+                                            AnonymizationControlLabel(isLoading: false, isEnabled: true)
+                                            AnonymizationControlLabel(isLoading: true, isEnabled: true)
+                                        }
+                                        .foregroundStyle(.white).padding(12)
+                                        .innoLiveGlassBackground(cornerRadius: 12, overVideo: true)
+                                    }
+                                }.padding(24)
+                            }
+                        }
+                    }.dynamicTypeSize(.medium))
+                window.makeKeyAndVisible()
+                try await Task.sleep(for: .milliseconds(400))
+                let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                    XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+                }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "studio-feedback-\(mode)-\(light ? "light" : "dark")"
+                attachment.lifetime = .keepAlways
+                add(attachment)
+                XCTAssertNil(integration.session)
+                XCTAssertFalse(integration.videoUplink.isCapturingMedia)
+                window.isHidden = true
+                window.rootViewController = nil
+            }
         }
     }
 
