@@ -87,7 +87,9 @@ extension WebRTCVideoUplink {
                 // Fixture stores a portrait scene in landscape sensor coordinates.
                 frameRelay.setLockedInterfaceOrientation(.portrait)
             }
-            let capturer = LKRTCFileVideoCapturer(delegate: frameRelay)
+            let capturer: LKRTCFileVideoCapturer = SimulatorVideoInput.isPerformanceFixture
+                ? DebugPerformanceVideoCapturer(delegate: frameRelay)
+                : LKRTCFileVideoCapturer(delegate: frameRelay)
             let track = peerConnectionFactory.videoTrack(with: source, trackId: "innolive-camera")
             track.isEnabled = true
             videoSource = source
@@ -102,7 +104,7 @@ extension WebRTCVideoUplink {
                 renderingLocalTrack?.add(faceRegistrationRenderer)
             }
 
-            capturer.startCapturing(fromFileNamed: SimulatorVideoInput.fileName) { [weak self] error in
+            let onFailure: @Sendable (Error) -> Void = { [weak self] error in
                 Task { @MainActor [weak self] in
                     guard let self,
                           self.cameraOperationGeneration == operationGeneration,
@@ -111,6 +113,12 @@ extension WebRTCVideoUplink {
                         String(localized: "시뮬레이터 영상을 읽지 못했습니다: \(error.localizedDescription)")
                     )
                 }
+            }
+            if let performanceCapturer = capturer as? DebugPerformanceVideoCapturer,
+               let url = SimulatorVideoInput.bundledURL {
+                try await performanceCapturer.start(url: url, onFailure: onFailure)
+            } else {
+                capturer.startCapturing(fromFileNamed: SimulatorVideoInput.fileName) { onFailure($0) }
             }
             guard !isStopping,
                   cameraOperationGeneration == operationGeneration,
