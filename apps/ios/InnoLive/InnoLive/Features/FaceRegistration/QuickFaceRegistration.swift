@@ -37,10 +37,11 @@ struct QuickFaceRegistrationButton: View {
             isSelecting.toggle()
         } label: {
             Image(systemName: isSelecting ? "xmark" : "person.crop.circle.badge.plus")
-                .font(.title3.weight(.semibold))
-                .frame(width: 44, height: 44)
+                .font(.system(size: 17, weight: .semibold))
+                .frame(width: 28, height: 28)
         }
         .innoLiveGlassButtonStyle(prominent: isSelecting, overVideo: true)
+        .frame(minWidth: 44, minHeight: 44)
         .foregroundStyle(.white)
         .tint(.blue)
         .buttonBorderShape(.circle)

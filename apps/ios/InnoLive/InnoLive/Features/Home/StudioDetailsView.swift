@@ -76,7 +76,7 @@ struct StudioDetailsView: View {
                     row(String(localized: "앱 정보 및 계정"), image: "info.circle", destination: .settings)
                 }
             }
-            .padding(16)
+            .padding(12)
             .frame(maxWidth: verticalSizeClass == .compact ? .infinity : 600)
             .frame(maxWidth: .infinity)
         }
@@ -111,12 +111,12 @@ struct StudioDetailsView: View {
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
                 .accessibilityAddTraits(.isHeader)
             content()
         }
         .foregroundStyle(.white)
-        .padding(16)
+        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background {
             if reduceTransparency {
@@ -133,11 +133,11 @@ struct StudioDetailsView: View {
         Button { self.destination = destination } label: {
             HStack(spacing: 12) {
                 Image(systemName: image)
-                    .font(.system(size: 20))
+                    .font(.system(size: 17))
                     .frame(width: 24)
                     .accessibilityHidden(true)
                 Text(title)
-                    .font(.body)
+                    .font(.subheadline)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right")
@@ -214,7 +214,7 @@ struct StudioTargetControls: View {
             ForEach(BroadcastSettingsProvider.allCases) { provider in
                 if youtube.targetPolicy(provider).isBroadcastActive {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(provider.title).font(.headline)
+                        Text(provider.title).font(.subheadline.weight(.semibold))
                         if youtube.targetPolicy(provider).canPauseBroadcast {
                             Button(String(localized: "일시 중지", table: "Simulcast")) {
                                 Task {

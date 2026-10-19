@@ -158,7 +158,7 @@ struct BroadcastControllsView: View {
                         if canCancelPreparation {
                             Button(role: .destructive, action: cancelPreparation) {
                                 Image(systemName: "xmark")
-                                    .font(.subheadline.weight(.semibold))
+                                    .font(.system(size: 13, weight: .semibold))
                                     .frame(width: 44, height: 44)
                             }
                             .buttonStyle(.plain)
@@ -187,7 +187,7 @@ struct BroadcastControllsView: View {
             if isBroadcasting {
                 if youtube.hasStartedYouTubeBroadcast {
                     Label(String(localized: "방송 제어"), systemImage: "slider.horizontal.3")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)

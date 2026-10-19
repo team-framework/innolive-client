@@ -2,13 +2,13 @@ import SwiftUI
 import UIKit
 
 private enum BroadcastControlLayout {
-    static let height: CGFloat = 52
+    static let height: CGFloat = 44
 }
 
 struct SettingsControlLabel: View {
     var body: some View {
         Image(systemName: "gearshape.fill")
-            .font(.body.weight(.semibold))
+            .font(.system(size: 16, weight: .semibold))
             .frame(width: BroadcastControlLayout.height, height: BroadcastControlLayout.height)
             .contentShape(Rectangle())
     }
@@ -24,7 +24,7 @@ struct AnonymizationControlLabel: View {
                 ProgressView().controlSize(.small).tint(.white)
             } else {
                 Image(systemName: "faceid")
-                    .font(.body.weight(.semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .overlay(alignment: .bottomTrailing) {
                         if isEnabled {
                             Image(systemName: "checkmark.circle.fill")
@@ -37,7 +37,7 @@ struct AnonymizationControlLabel: View {
                 .font(.caption2.weight(.medium))
                 .lineLimit(1)
         }
-        .frame(minWidth: 64, minHeight: BroadcastControlLayout.height)
+        .frame(minWidth: 56, minHeight: BroadcastControlLayout.height)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
     }
@@ -87,14 +87,14 @@ struct YouTubeBroadcastControlLabel: View {
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                         Text(formattedDuration(since: youtube.streamStartedAt, now: context.date))
-                            .font(.headline.weight(.bold))
+                            .font(.system(size: 13, weight: .semibold))
                             .monospacedDigit()
                             .lineLimit(1)
                             .minimumScaleFactor(0.72)
                             .layoutPriority(1)
                     } else {
                         Text(buttonTitle(at: context.date))
-                            .font(.headline.weight(.bold))
+                            .font(.system(size: 13, weight: .semibold))
                             .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
@@ -165,7 +165,7 @@ struct BroadcastPreparationControlLabel: View {
                     .controlSize(.small)
             }
             Text(title)
-                .font(.headline.weight(.bold))
+                .font(.system(size: 13, weight: .semibold))
                 .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -329,7 +329,7 @@ struct StudioBroadcastSummaryLabel: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(youtube.isSettingsAccountConnected(provider) ? Color.white : Color.orange)
                         Text(broadcastTitle(for: provider))
-                            .font(.subheadline.weight(.semibold)).lineLimit(1)
+                            .font(.system(size: 12, weight: .semibold)).lineLimit(1)
                     }
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right").font(.caption)
@@ -340,7 +340,7 @@ struct StudioBroadcastSummaryLabel: View {
                 .lineLimit(2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(10)
         .innoLiveGlassBackground(cornerRadius: 18, overVideo: true)
         .environment(\.colorScheme, .dark)
     }

@@ -486,7 +486,7 @@ struct HomeView: View {
                                         ProgressView().controlSize(.small)
                                     } else {
                                         Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                                            .font(.title3)
+                                            .font(.system(size: 17))
                                     }
                                 }
                                 .foregroundStyle(.white)
@@ -501,7 +501,7 @@ struct HomeView: View {
                             if !youtube.hasStartedYouTubeBroadcast {
                                 Button { isShowingAccount = true } label: {
                                     Image(systemName: "person.crop.circle")
-                                        .font(.title3)
+                                        .font(.system(size: 17))
                                         .foregroundStyle(.white)
                                         .frame(width: 44, height: 44)
                                         .innoLiveGlassSurface(in: Circle(), interactive: true, overVideo: true)
@@ -545,10 +545,11 @@ struct HomeView: View {
                     isShowingVideoControls = true
                 } label: {
                     Image(systemName: "camera.filters")
-                        .font(.title3.weight(.semibold))
-                        .frame(width: 44, height: 44)
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 28, height: 28)
                 }
                 .innoLiveGlassButtonStyle(overVideo: true)
+                .frame(minWidth: 44, minHeight: 44)
                 .foregroundStyle(.white)
                 .buttonBorderShape(.circle)
                 .accessibilityLabel(String(localized: "영상 조절"))
@@ -569,7 +570,7 @@ struct HomeView: View {
                             .padding(.vertical, 8)
                     }
                     .innoLiveGlassButtonStyle(overVideo: true)
-                .foregroundStyle(.white)
+                    .foregroundStyle(.white)
                     .buttonBorderShape(.capsule)
                 }
             }
