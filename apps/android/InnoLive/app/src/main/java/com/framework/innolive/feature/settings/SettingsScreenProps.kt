@@ -34,4 +34,6 @@ data class SettingsScreenProps(
     val canReplayBroadcastGuide: Boolean = false,
     val onReplayBroadcastGuide: () -> Unit = {},
     val onOpenRecordings: () -> Unit = {},
+    /** 방송 준비·방송 중에는 false입니다. */
+    val canOpenRecordings: Boolean = true,
 )

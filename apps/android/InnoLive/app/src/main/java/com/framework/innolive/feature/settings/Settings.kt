@@ -107,7 +107,8 @@ fun SettingsScreen(props: SettingsScreenProps) {
             TextButton(onClick = props.onOpenBroadcastSettings, enabled = enabled) {
                 Text(stringResource(R.string.settings_broadcast))
             }
-            TextButton(onClick = props.onOpenRecordings, enabled = enabled) {
+            // iOS처럼 방송 준비·방송 중에는 보관함에 들어가지 않습니다.
+            TextButton(onClick = props.onOpenRecordings, enabled = enabled && props.canOpenRecordings) {
                 Text(stringResource(R.string.settings_recordings))
             }
             SettingsDivider()
