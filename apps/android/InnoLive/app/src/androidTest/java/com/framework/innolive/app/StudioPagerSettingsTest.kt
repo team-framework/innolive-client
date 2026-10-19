@@ -31,8 +31,6 @@ import com.framework.innolive.feature.live.LiveStudioPager
 import com.framework.innolive.feature.live.WebRtcNativeRuntime
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
-import com.framework.innolive.feature.settings.camera.CameraSetting
-import com.framework.innolive.feature.settings.camera.CameraSettingProps
 import com.framework.innolive.feature.settings.selection.OptionSelectionScreen
 import com.framework.innolive.feature.settings.selection.SettingOption
 import com.framework.innolive.ui.text.UiText
@@ -72,7 +70,6 @@ class StudioPagerSettingsTest {
                 val settingsScreen: @androidx.compose.runtime.Composable () -> Unit = {
                     SettingsScreen(SettingsScreenProps(
                         onBack = closeSettings,
-                        onOpenCameraSettings = { routes.add(CameraSettingRoute) },
                         onOpenBroadcastSettings = { routes.add(BroadcastSettingRoute) },
                         profileName = "InnoLive User", profileEmail = "user@example.com", onLogout = {},
                         selectedResolution = "1920×1080", selectedCameraDevice = "Camera",
@@ -95,13 +92,6 @@ class StudioPagerSettingsTest {
                                 NavEntry(route) {
                                     when (route) {
                                         LiveRoute, SettingsRoute -> settingsScreen()
-                                        CameraSettingRoute -> CameraSetting(CameraSettingProps(
-                                            onBack = back, selectedResolution = "1920×1080",
-                                            selectedCameraDevice = "Camera", selectedAudioDevice = "Microphone",
-                                            onOpenResolutionOptions = {
-                                                routes.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
-                                            }, onOpenCameraDeviceOptions = {}, onOpenAudioDeviceOptions = {},
-                                        ))
                                         is SettingOptionRoute -> OptionSelectionScreen(
                                             title = UiText.Resource(R.string.label_camera_resolution),
                                             options = listOf(SettingOption("1080", UiText.Dynamic("1920×1080"))),
@@ -156,10 +146,6 @@ class StudioPagerSettingsTest {
             assertCaptureContinues()
             compose.onNodeWithText("1920×1080").performClick()
             assertCaptureContinues()
-            compose.onNodeWithText(context.getString(R.string.settings_camera_audio))
-                .performScrollTo().performClick()
-            assertCaptureContinues()
-            compose.onNodeWithContentDescription(context.getString(R.string.action_back)).performClick()
             compose.onNodeWithText(context.getString(R.string.settings_broadcast))
                 .performScrollTo().performClick()
             assertCaptureContinues()

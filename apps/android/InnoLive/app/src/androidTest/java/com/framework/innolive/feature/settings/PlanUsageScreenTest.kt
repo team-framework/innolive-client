@@ -15,6 +15,8 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -48,7 +50,7 @@ class PlanUsageScreenTest {
 
     @Test fun settingsDisplaysPlanAndLockedModesOpenGuidance() {
         composeRule.setContent { MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = usage)) } } }
-        composeRule.onNodeWithText(context.getString(R.string.plan_current, "Beam")).performScrollTo().assertExists()
+        composeRule.onNodeWithText("Beam").performScrollTo().assertExists()
         composeRule.onNodeWithText(context.getString(R.string.plan_hd_single)).performScrollTo().assertExists()
         saveScreenshot("plan-settings.png")
         composeRule.onNodeWithText(context.getString(R.string.plan_fhd_single)).performScrollTo().performClick()
@@ -66,7 +68,7 @@ class PlanUsageScreenTest {
         saveScreenshot("plan-failed-refresh.png")
         composeRule.onNodeWithText(context.getString(R.string.plan_refresh)).performScrollTo().performClick()
         composeRule.onNodeWithText(context.getString(R.string.plan_load_failed)).assertDoesNotExist()
-        composeRule.onNodeWithText(context.getString(R.string.plan_current, "Beam")).assertExists()
+        composeRule.onNodeWithText("Beam").assertExists()
     }
 
     @Test fun settingsCountdownTicksPausesAndResetsToNewServerUsage() {
@@ -81,8 +83,9 @@ class PlanUsageScreenTest {
             MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = displayed)) } }
         }
         composeRule.waitUntil(5_000) { displayed.usedSeconds >= usage.usedSeconds + 2 }
-        composeRule.onNodeWithText(context.getString(R.string.plan_remaining,
-            formatPlanDuration(displayed.remainingSeconds!!))).performScrollTo().assertExists()
+        // 남은 시간은 요금제 요약 카드 맨 위에 크게 보여 줍니다.
+        composeRule.onAllNodesWithText(formatPlanDuration(displayed.remainingSeconds!!)).onFirst()
+            .performScrollTo().assertExists()
         composeRule.runOnIdle { charging = false }
         composeRule.waitForIdle()
         val frozen = displayed
@@ -209,7 +212,7 @@ class PlanUsageScreenTest {
         saveScreenshot("broadcast-time-stale.png")
     }
 
-    private fun props() = SettingsScreenProps(onBack = {}, onOpenCameraSettings = {}, onOpenBroadcastSettings = {},
+    private fun props() = SettingsScreenProps(onBack = {}, onOpenBroadcastSettings = {},
         profileName = "InnoLive", profileEmail = "test@example.com", onLogout = {})
 
     private fun saveScreenshot(name: String) {
