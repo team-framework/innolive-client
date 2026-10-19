@@ -76,6 +76,31 @@ test("English guides have complete routes, localized schema and reciprocal alter
     const en = pageAlternates("en", guide.path);
     assert.equal(en.canonical, page.url);
     assert.deepEqual(en.languages, pageAlternates("ko", guide.path).languages);
-    assert.deepEqual(Object.keys(en.languages).sort(), ["en", "ko", "x-default"]);
+    assert.deepEqual(Object.keys(en.languages).sort(), ["en", "ja", "ko", "x-default"]);
+  }
+});
+
+const { japaneseSeoGuides } = load(path.join(__dirname, "seo-guides.ja.ts"));
+const { findSeoGuide } = load(path.join(__dirname, "seo-guides.ts"));
+test("Japanese guides cover every route, section, FAQ and related link", () => {
+  assert.deepEqual(japaneseSeoGuides.map(g => g.path).sort(), [...seoGuidePaths].sort());
+  for (const guide of japaneseSeoGuides) {
+    const english = englishSeoGuides.find(g => g.path === guide.path);
+    assert.equal(guide.sections.length, english.sections.length);
+    assert.deepEqual(guide.sections.map(s => s.paragraphs.length), english.sections.map(s => s.paragraphs.length));
+    assert.equal(guide.faq?.length ?? 0, english.faq?.length ?? 0);
+    assert.ok(!/[가-힣]/.test(JSON.stringify(guide)));
+    assert.match(guide.heading, /[ぁ-んァ-ヶ一-龯]/);
+    assert.equal(findSeoGuide(guide.path, "ja"), guide);
+    for (const related of guide.related) assert.ok(findSeoGuide(related, "ja"));
+    const graph = guideStructuredData(guide, "ja")["@graph"];
+    const page = graph.find(n => n["@type"] === "WebPage");
+    assert.equal(page.inLanguage, "ja");
+    assert.equal(page.url, `https://innolive.studio/ja${guide.path}`);
+    assert.equal(page.description, guide.intro);
+    const alternates = pageAlternates("ja", guide.path);
+    assert.equal(alternates.canonical, page.url);
+    assert.equal(alternates.languages.ja, page.url);
+    assert.deepEqual(alternates.languages, pageAlternates("ko", guide.path).languages);
   }
 });

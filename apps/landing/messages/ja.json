@@ -45,7 +45,8 @@
     "support": "カスタマーサポート",
     "faq": "FAQ",
     "socialMissing": "{name} のリンクはまだありません",
-    "guide": "使い方"
+    "guide": "使い方",
+    "appGuide": "ライブ顔ぼかしアプリ"
   },
   "intro": {
     "dialogLabel": "InnoLive 紹介",
@@ -386,5 +387,33 @@
       "invalid_request": "メールアドレスとパスワードを確認してください。",
       "invalid_token_response": "ログイン情報を確認できませんでした。"
     }
+  },
+  "seoGuide": {
+    "breadcrumb": "パンくずリスト",
+    "tryBlur": "顔ぼかしを試す",
+    "viewPlans": "配信プランを見る",
+    "registrationAlt": "InnoLiveの配信で表示する顔を登録する画面",
+    "registrationCaption": "表示する顔を登録し、配信前に他の顔がぼけていることを確認してください。",
+    "installTitle": "InnoLive配信アプリをインストール",
+    "installDescription": "顔を自動でぼかしたカメラ映像をYouTubeやCHZZKへライブ配信できます。表示する出演者を登録し、配信前に結果を確認してください。",
+    "downloadSuffix": "からインストール",
+    "downloadUnavailable": "インストールリンク準備中",
+    "demoDescription": "Web体験で顔ぼかしを確認できます。実際の配信にはモバイルアプリを使用し、配信時間と機能の上限は料金ページをご覧ください。",
+    "comparisonTitle": "公式説明に基づく機能比較",
+    "sourcesChecked": "情報確認日：",
+    "officialSources": "公式情報",
+    "appInstallation": "InnoLiveアプリ・インストール案内",
+    "plans": "InnoLiveのプラン",
+    "planSummary": "個人向けプランの現在の料金",
+    "planCaption": "Spark・Glow・Beam・Plasmaの通常月額料金とベータ期間の料金",
+    "plan": "プラン",
+    "regularPrice": "通常月額料金",
+    "currentPrice": "現在の月額料金",
+    "currencySuffix": "ウォン",
+    "pricingBefore": "配信時間、顔の登録数、配信条件は",
+    "pricingLink": "料金ページ",
+    "pricingAfter": "をご覧ください。",
+    "faq": "よくある質問",
+    "related": "関連ガイド"
   }
 }

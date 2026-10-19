@@ -1,4 +1,6 @@
 import { koreanComparisonGuide } from "@/lib/seo-comparison";
+import type { Locale } from "@/lib/locales";
+import { japaneseSeoGuides } from "@/lib/seo-guides.ja";
 import { englishSeoGuides } from "@/lib/seo-guides.en";
 import { getMessages } from "@/lib/messages";
 import { getPersonalPlans } from "@/lib/plans";
@@ -210,6 +212,6 @@ export const seoGuides: SeoGuide[] = [
   },
 ];
 
-export function findSeoGuide(path: string, locale: "ko" | "en" = "ko") {
-  return (locale === "en" ? englishSeoGuides : seoGuides).find((guide) => guide.path === path);
+export function findSeoGuide(path: string, locale: Locale = "ko") {
+  return ({ ko: seoGuides, en: englishSeoGuides, ja: japaneseSeoGuides }[locale]).find((guide) => guide.path === path);
 }

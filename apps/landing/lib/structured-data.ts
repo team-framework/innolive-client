@@ -68,7 +68,7 @@ export function homeStructuredData(locale: Locale) {
   };
 }
 
-export function guideStructuredData(guide: SeoGuide, locale: "ko" | "en" = "ko") {
+export function guideStructuredData(guide: SeoGuide, locale: Locale = "ko") {
   const url = `${siteOrigin}/${locale}${guide.path}`;
   const isArticle = guide.path.startsWith("/blog/");
   const faq = guide.faq ?? [];
