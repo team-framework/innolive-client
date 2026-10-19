@@ -148,13 +148,11 @@ struct BroadcastControllsView: View {
                         if dynamicTypeSize.isAccessibilitySize {
                             primaryControl
                             HStack(spacing: 16) {
-                                settingsControl
                                 Spacer()
                                 anonymizationControl
                             }
                         } else {
                             HStack(spacing: 10) {
-                                settingsControl
                                 primaryControl
                                 anonymizationControl
                             }
@@ -174,17 +172,6 @@ struct BroadcastControllsView: View {
                 }
             }
         }
-    }
-
-    private var settingsControl: some View {
-        NavigationLink {
-            SettingsView(authentication: authentication, youtube: youtube, tutorial: tutorial)
-        } label: {
-            SettingsControlLabel()
-        }
-        .innoLiveGlassButtonStyle()
-        .buttonBorderShape(.circle)
-        .accessibilityLabel(String(localized: "설정"))
     }
 
     private var primaryControl: some View {
