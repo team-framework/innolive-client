@@ -2,12 +2,14 @@ import CoreImage
 import ImageIO
 @preconcurrency import LiveKitWebRTC
 
-/// One in-flight frame. Mode/camera changes invalidate any earlier result.
+/// One processing frame and one replaceable pending frame. Changes revoke both.
 nonisolated final class PrivacyFrameGate: @unchecked Sendable {
     struct Ticket { let id: UUID; let generation: UInt; let enabled: Bool }
     private let lock = NSLock()
     private var generation: UInt = 0
     private var activeTicket: UUID?
+    private var pending: (@Sendable (Ticket) -> Void)?
+    enum Admission { case started, queued, replaced, stopped }
     private var stopped = false
     private var enabled = true
 
@@ -19,20 +21,47 @@ nonisolated final class PrivacyFrameGate: @unchecked Sendable {
             return Ticket(id: id, generation: generation, enabled: enabled)
         }
     }
+    /// Keep only the newest input when processing briefly exceeds a capture interval.
+    @discardableResult
+    func enqueue(_ work: @escaping @Sendable (Ticket) -> Void) -> Admission {
+        var ticket: Ticket?
+        let admission: Admission = lock.withLock {
+            guard !stopped else { return .stopped }
+            if activeTicket != nil {
+                let replaced = pending != nil
+                pending = work
+                return replaced ? .replaced : .queued
+            }
+            let id = UUID()
+            activeTicket = id
+            ticket = Ticket(id: id, generation: generation, enabled: enabled)
+            return .started
+        }
+        if let ticket { work(ticket) }
+        return admission
+    }
     func invalidate(enabled: Bool? = nil, stop: Bool = false) {
         lock.withLock {
             generation &+= 1
+            pending = nil
             if let enabled { self.enabled = enabled }
             stopped = stopped || stop
         }
     }
     func finish(_ ticket: Ticket, deliver: () -> Void) {
+        var next: ((@Sendable (Ticket) -> Void), Ticket)?
         lock.withLock {
             guard activeTicket == ticket.id else { return }
-            defer { activeTicket = nil }
-            guard !stopped, ticket.generation == generation else { return }
-            deliver()
+            if !stopped, ticket.generation == generation { deliver() }
+            activeTicket = nil
+            if !stopped, let work = pending {
+                pending = nil
+                let id = UUID()
+                activeTicket = id
+                next = (work, Ticket(id: id, generation: generation, enabled: enabled))
+            }
         }
+        if let (work, ticket) = next { work(ticket) }
     }
 }
 
@@ -77,10 +106,18 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     func stop() { gate.invalidate(stop: true) }
 
     func submit(_ frame: LKRTCVideoFrame, deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
-        guard let ticket = gate.begin() else { PrivacyPipelineProbe.count("gate_rejected"); return }
-        PrivacyPipelineProbe.count("gate_admitted")
         let payload = FramePayload(frame: frame)
         let libraryRevision = PrivacyFaceLibrary.revision
+        let admission = gate.enqueue { [self] ticket in
+            PrivacyPipelineProbe.count("gate_admitted")
+            process(payload, ticket: ticket, libraryRevision: libraryRevision, deliver: deliver)
+        }
+        if admission == .replaced || admission == .stopped { PrivacyPipelineProbe.count("gate_rejected") }
+        if admission == .queued { PrivacyPipelineProbe.count("gate_queued") }
+    }
+
+    private func process(_ payload: FramePayload, ticket: PrivacyFrameGate.Ticket, libraryRevision: Int,
+                         deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
         queue.async { [self] in
             autoreleasepool {
                 do {

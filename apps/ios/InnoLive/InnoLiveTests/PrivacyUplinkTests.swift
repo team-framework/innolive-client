@@ -41,6 +41,57 @@ final class PrivacyUplinkTests: XCTestCase {
         XCTAssertNil(gate.begin())
     }
 
+    private final class QueuedWork: @unchecked Sendable {
+        let lock = NSLock()
+        var values: [(Int, PrivacyFrameGate.Ticket)] = []
+        func record(_ value: Int, _ ticket: PrivacyFrameGate.Ticket) {
+            lock.withLock { values.append((value, ticket)) }
+        }
+    }
+
+    func testBusyProcessorKeepsNewestFrameAndPromotesItOnCompletion() throws {
+        let gate = PrivacyFrameGate()
+        let work = QueuedWork()
+        XCTAssertEqual(gate.enqueue { work.record(1, $0) }, .started)
+        XCTAssertEqual(gate.enqueue { work.record(2, $0) }, .queued)
+        XCTAssertEqual(gate.enqueue { work.record(3, $0) }, .replaced)
+        XCTAssertEqual(work.values.map(\.0), [1])
+        let first = try XCTUnwrap(work.values.first?.1)
+        gate.finish(first) {}
+        XCTAssertEqual(work.values.map(\.0), [1, 3])
+        gate.finish(first) { XCTFail("Duplicate completion") }
+        XCTAssertNil(gate.begin())
+        gate.finish(work.values[1].1) {}
+        XCTAssertNotNil(gate.begin())
+    }
+
+    func testModeChangeDropsQueuedRawFrameAndRevokesActiveResult() throws {
+        let gate = PrivacyFrameGate()
+        let work = QueuedWork()
+        gate.invalidate(enabled: false)
+        gate.enqueue { work.record(1, $0) }
+        gate.enqueue { work.record(2, $0) }
+        gate.invalidate(enabled: true)
+        gate.enqueue { work.record(3, $0) }
+        gate.finish(try XCTUnwrap(work.values.first?.1)) { XCTFail("Raw result survived") }
+        XCTAssertEqual(work.values.map(\.0), [1, 3])
+        XCTAssertTrue(work.values[1].1.enabled)
+    }
+
+    func testResetAndStopDiscardPendingWork() throws {
+        for stop in [false, true] {
+            let gate = PrivacyFrameGate()
+            let work = QueuedWork()
+            gate.enqueue { work.record(1, $0) }
+            gate.enqueue { work.record(2, $0) }
+            gate.invalidate(stop: stop)
+            gate.finish(try XCTUnwrap(work.values.first?.1)) { XCTFail("Invalid result survived") }
+            XCTAssertEqual(work.values.map(\.0), [1])
+            if stop { XCTAssertEqual(gate.enqueue { work.record(3, $0) }, .stopped) }
+            else { XCTAssertNotNil(gate.begin()) }
+        }
+    }
+
     func testRotatingForInferenceRestoresSensorGeometry() {
         let source = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 128, height: 72))
         for rotation in [0, 90, 180, 270] {
