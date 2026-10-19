@@ -28,9 +28,7 @@ struct StudioDetailsView: View {
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .top),
-                                     count: verticalSizeClass == .compact ? 2 : 1),
-                      alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 16) {
                 section(String(localized: "송출 대상")) {
                     if !youtube.visibleBroadcastTargets.isEmpty || youtube.isYouTubeBroadcastActive {
                         BroadcastLiveStatusSection(youtube: youtube, uplink: youtube.videoUplink)
