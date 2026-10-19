@@ -439,19 +439,8 @@ private fun LiveScreenContent(
                     )
                 }
             },
+            // 설정은 왼쪽으로 넘겨 열고, 상단에는 방송 시간만 둡니다.
             topBar = {
-                IconButton(
-                    onClick = props.onOpenSettings,
-                    enabled = !presentation.isConnecting,
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp).size(48.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.settings),
-                        contentDescription = stringResource(R.string.content_description_settings),
-                        modifier = Modifier.size(28.dp),
-                        tint = Color.White,
-                    )
-                }
                 val isRemainingTimeStale = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null &&
                     sessionSnapshot?.isRemainingTimeStale == true
                 BroadcastTimeDisplay(
@@ -466,7 +455,6 @@ private fun LiveScreenContent(
                     ),
                     isStale = isRemainingTimeStale,
                     onOpenPlan = props.onOpenPlan,
-                    // 왼쪽 설정 버튼과 겹치지 않도록 가운데 구분선 양쪽에 시간을 둡니다.
                     modifier = Modifier
                         .align(Alignment.Center)
                         .padding(horizontal = 16.dp),
