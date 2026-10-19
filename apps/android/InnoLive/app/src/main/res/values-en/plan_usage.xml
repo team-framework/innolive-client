@@ -5,11 +5,6 @@
     <string name="plan_waiting">Waiting for plan information</string>
     <string name="plan_load_failed">Could not load your plan. Please refresh.</string>
     <string name="plan_last_value">Last confirmed values</string>
-    <string name="plan_current">Current plan: %1$s</string>
-    <string name="plan_monthly_limit">Monthly allowance: %1$s</string>
-    <string name="plan_broadcast_limit">Per-broadcast limit: %1$s</string>
-    <string name="plan_used">Charged time this month: %1$s</string>
-    <string name="plan_remaining">Remaining monthly allowance: %1$s</string>
     <string name="plan_mode_time_hint">Monthly broadcasting time for each mode. The per-broadcast limit applies separately.</string>
     <string name="plan_unlimited">Unlimited</string>
     <string name="plan_locked">Locked</string>
@@ -22,4 +17,10 @@
     <string name="plan_fhd_multi">FHD simulcast</string>
     <string name="plan_remaining_description">Remaining broadcast time %1$s, view plan</string>
     <string name="plan_session_stale">Last confirmed value · retrying</string>
+    <string name="plan_label_current">Current plan</string>
+    <string name="plan_label_monthly">Monthly allowance</string>
+    <string name="plan_label_broadcast">Per-broadcast limit</string>
+    <string name="plan_label_used">Charged this month</string>
+    <string name="plan_label_remaining">Remaining this month</string>
+    <string name="plan_label_modes">Remaining by mode</string>
 </resources>
