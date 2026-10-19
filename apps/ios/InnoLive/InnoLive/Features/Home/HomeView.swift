@@ -427,23 +427,7 @@ struct HomeView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.black.opacity(0.8))
             } else {
-                HStack(alignment: .top, spacing: 8) {
-                    Button {
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                            studioPageSelection.wrappedValue = studioPage == .details ? .preview : studioPage.next
-                        }
-                    } label: {
-                        Image(systemName: "rectangle.on.rectangle")
-                            .font(.title3)
-                            .frame(width: 44, height: 44)
-                            .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.white)
-                    .accessibilityLabel(String(localized: "화면 변경"))
-                    .accessibilityValue(studioPage.title)
-                    .accessibilityIdentifier("studio-switch-page")
-                    .disabled(isPagingLocked)
+                ZStack(alignment: .top) {
                     HStack(spacing: 0) {
                         ForEach(StudioPage.allCases) { page in
                             Button {
@@ -483,19 +467,41 @@ struct HomeView: View {
                         @unknown default: break
                         }
                     }
-                    Spacer(minLength: 0)
-                    Button { isShowingAccount = true } label: {
-                        Image(systemName: "person.crop.circle")
-                            .font(.title3)
+                    HStack {
+                        Button(action: switchCamera) {
+                            Group {
+                                if isSwitchingCamera {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
+                                        .font(.title3)
+                                }
+                            }
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)
                             .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canSwitchCameraSource || isPagingLocked)
+                        .accessibilityLabel(String(localized: "카메라 전환"))
+                        .accessibilityIdentifier("studio-switch-camera")
+                        Spacer(minLength: 0)
+                        if !youtube.hasStartedYouTubeBroadcast {
+                            Button { isShowingAccount = true } label: {
+                                Image(systemName: "person.crop.circle")
+                                    .font(.title3)
+                                    .foregroundStyle(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(reduceTransparency ? Color.black : Color.black.opacity(0.55), in: Circle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(String(localized: "계정 설정"))
+                            .accessibilityIdentifier("studio-account")
+                            .disabled(isPagingLocked)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(String(localized: "계정 설정"))
-                    .accessibilityIdentifier("studio-account")
-                    .disabled(isPagingLocked)
                 }
+                .frame(maxWidth: .infinity)
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { _, height in
                     studioNavigationHeight = height
                 }
@@ -516,22 +522,6 @@ struct HomeView: View {
     private var basicStudioChrome: some View {
         ZStack {
             (isCompactLandscape ? AnyLayout(HStackLayout(spacing: 12)) : AnyLayout(VStackLayout(alignment: .trailing, spacing: 12))) {
-                Button(action: switchCamera) {
-                    Group {
-                        if isSwitchingCamera {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath.camera.fill")
-                                .font(.body.weight(.semibold))
-                        }
-                    }
-                    .frame(width: 44, height: 44)
-                }
-                .innoLiveGlassButtonStyle()
-                .buttonBorderShape(.circle)
-                .disabled(!canSwitchCameraSource)
-                .accessibilityLabel(String(localized: "카메라 전환"))
 
                 Button {
                     previewCornerBeforeVideoControls = previewCorner
