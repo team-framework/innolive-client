@@ -10,6 +10,43 @@ import UIKit
 /// Physical-device load test: production frame gate, render pool, rotation and two H.264 encoders.
 /// Input is a fixed public fixture; this does not measure camera capture or network delivery.
 final class PrivacySustainedPerformanceTests: XCTestCase {
+    @MainActor func testDirectPublishUsesProtectedLocalPreviewWithoutSignaling() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Requires a physical iPhone camera")
+        #endif
+        guard AIProcessingMode.localModelsAvailable else {
+            throw XCTSkip("Optional local Core ML models are required")
+        }
+        guard await AVCaptureDevice.requestAccess(for: .video),
+              await AVCaptureDevice.requestAccess(for: .audio) else {
+            return XCTFail("Camera and microphone permissions are required")
+        }
+        let uplink = WebRTCVideoUplink()
+        do {
+            try await uplink.start(
+                session: WebRTCSessionCredentials(sessionID: "local-preview-test", ownerToken: "test",
+                    processingMode: .onDevice, sendsMicrophoneToServer: false, isDirectPublish: true),
+                accessToken: "test", serverURL: URL(string: "https://invalid.example")!, iceServers: [],
+                preferredCameraID: nil, preferredAudioID: nil, preferredVideoQuality: .fullHD30)
+            try await Task.sleep(for: .seconds(2))
+            XCTAssertEqual(uplink.state, .connected)
+            XCTAssertTrue(uplink.hasRemoteVideo)
+            XCTAssertTrue(uplink.isCapturingMedia)
+            XCTAssertNil(uplink.peerConnection)
+            XCTAssertNil(uplink.webSocketTask)
+            XCTAssertNotNil(uplink.localVideoTrack)
+            XCTAssertTrue(uplink.remoteVideoTrack === uplink.localVideoTrack)
+            XCTAssertFalse(uplink.remoteVideoTrack === uplink.rawPreviewTrack)
+            await uplink.stopAndWait()
+            XCTAssertFalse(uplink.hasRemoteVideo)
+            XCTAssertFalse(uplink.isCapturingMedia)
+            XCTAssertNil(uplink.remoteVideoTrack)
+        } catch {
+            await uplink.stopAndWait()
+            throw error
+        }
+    }
+
     @MainActor func testPhysicalCameraWithTwoEncoders() async throws {
         #if targetEnvironment(simulator)
         throw XCTSkip("Requires a physical iPhone camera")
