@@ -23,4 +23,5 @@
     <string name="plan_label_used">今月の消費時間</string>
     <string name="plan_label_remaining">今月の残り時間</string>
     <string name="plan_label_modes">方式別の残り時間</string>
+    <string name="plan_details">時間の詳細</string>
 </resources>

@@ -23,4 +23,5 @@
     <string name="plan_label_used">이번 달 차감 시간</string>
     <string name="plan_label_remaining">이번 달 남은 시간</string>
     <string name="plan_label_modes">방식별 남은 시간</string>
+    <string name="plan_details">상세 시간</string>
 </resources>

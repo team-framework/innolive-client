@@ -23,4 +23,5 @@
     <string name="plan_label_used">Charged this month</string>
     <string name="plan_label_remaining">Remaining this month</string>
     <string name="plan_label_modes">Remaining by mode</string>
+    <string name="plan_details">Time details</string>
 </resources>

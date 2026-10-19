@@ -1,6 +1,12 @@
 package com.framework.innolive.feature.settings
 
 import com.framework.innolive.ui.theme.InnoLiveAlertDialog
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.height
@@ -46,10 +52,12 @@ internal fun planTimeText(seconds: Long?): String =
 @Composable
 internal fun PlanUsageSettings(props: SettingsScreenProps) {
     var lockedMode by remember(props.profileEmail) { mutableStateOf<PlanMode?>(null) }
+    var detailsExpanded by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.plan_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.plan_title), style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold)
             TextButton(onClick = props.onRefreshPlan, enabled = !props.isPlanLoading) {
                 Text(stringResource(if (props.isPlanLoading) R.string.plan_loading else R.string.plan_refresh))
             }
@@ -64,20 +72,29 @@ internal fun PlanUsageSettings(props: SettingsScreenProps) {
             Text(stringResource(R.string.plan_waiting), color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             PlanSummaryCard(usage)
-            PlanValueRow(stringResource(R.string.plan_label_used), planTimeText(usage.usedSeconds))
-            PlanValueRow(stringResource(R.string.plan_label_monthly),
-                planTimeText(usage.monthlySeconds.takeIf { it > 0 }))
-            PlanValueRow(stringResource(R.string.plan_label_broadcast),
-                planTimeText(usage.maxBroadcastSeconds.takeIf { it > 0 }))
-            Text(
-                stringResource(R.string.plan_label_modes),
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Light,
-                modifier = Modifier.padding(top = 12.dp),
+            // 자주 보지 않는 세부 시간은 접어 두고, 필요할 때 펼쳐 봅니다.
+            SettingsAccordionHeader(
+                label = stringResource(R.string.plan_details),
+                expanded = detailsExpanded,
+                onToggle = { detailsExpanded = !detailsExpanded },
             )
-            Text(stringResource(R.string.plan_mode_time_hint), style = PlanCaptionStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-            PlanMode.entries.forEach { mode -> PlanModeRow(usage, mode, onLockedClick = { lockedMode = mode }) }
+            AnimatedVisibility(
+                visible = detailsExpanded,
+                enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    PlanValueRow(stringResource(R.string.plan_label_used), planTimeText(usage.usedSeconds))
+                    PlanValueRow(stringResource(R.string.plan_label_monthly),
+                        planTimeText(usage.monthlySeconds.takeIf { it > 0 }))
+                    PlanValueRow(stringResource(R.string.plan_label_broadcast),
+                        planTimeText(usage.maxBroadcastSeconds.takeIf { it > 0 }))
+                    SettingsSectionLabel(stringResource(R.string.plan_label_modes), Modifier.padding(top = 8.dp))
+                    Text(stringResource(R.string.plan_mode_time_hint), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    PlanMode.entries.forEach { mode -> PlanModeRow(usage, mode, onLockedClick = { lockedMode = mode }) }
+                }
+            }
         }
     }
     lockedMode?.let { mode ->
@@ -143,7 +160,8 @@ private fun PlanValueRow(label: String, value: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Text(value, style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"))
+        Text(value, style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+            fontWeight = FontWeight.Medium)
     }
 }
 
@@ -183,7 +201,7 @@ private fun PlanModeRow(usage: PlanUsage, mode: PlanMode, onLockedClick: () -> U
 }
 
 @Composable
-private fun PlanCaptionStyle() = MaterialTheme.typography.bodySmall
+private fun PlanCaptionStyle() = MaterialTheme.typography.bodyMedium
 
 private fun PlanMode.titleResource(): Int = when (this) {
     PlanMode.HD_SINGLE -> R.string.plan_hd_single
