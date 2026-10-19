@@ -42,5 +42,74 @@
     "passed": 13,
     "failed": 0,
     "skipped": 0
+  },
+  "actual_dual_publish": {
+    "window_start_utc": "2026-10-19T08:43:51.691497+00:00",
+    "window_end_utc": "2026-10-19T08:45:21.691497+00:00",
+    "measurement": "15s heartbeat aggregates intersecting selected 90-second window; not per-frame exact accounting",
+    "fps": {
+      "samples": 6,
+      "mean": 28.05,
+      "min": 24.6,
+      "max": 30
+    },
+    "ai_processing_p50_range_ms": [
+      17.4,
+      29.4
+    ],
+    "ai_processing_p95_range_ms": [
+      28.1,
+      38.5
+    ],
+    "width": 1080,
+    "height": 1920,
+    "app_cpu_percent": {
+      "samples": 86,
+      "mean": 89.51191757488387,
+      "min": 62.542884534443246,
+      "max": 116.9406479519104
+    },
+    "system_cpu_percent": {
+      "samples": 85,
+      "mean": 54.28305497927277,
+      "min": 41.56204055779727,
+      "max": 78.45146428641404
+    },
+    "memory_mb": {
+      "samples": 86,
+      "mean": 982.3372950697675,
+      "min": 967.542352,
+      "max": 1001.81768
+    },
+    "providers": {
+      "youtube": {
+        "bitrate_kbps": {
+          "samples": 6,
+          "mean": 6057.666666666667,
+          "min": 5834,
+          "max": 6193
+        },
+        "max_reconnects": 0,
+        "connected_samples": 6,
+        "samples": 6
+      },
+      "chzzk": {
+        "bitrate_kbps": {
+          "samples": 4,
+          "mean": 6056.5,
+          "min": 5780,
+          "max": 6188
+        },
+        "max_reconnects": 1,
+        "connected_samples": 5,
+        "samples": 6
+      }
+    },
+    "reported_drops": 0,
+    "failed_frames": 0,
+    "post_window_min_fps": 16.5,
+    "last_reported_drops": 27,
+    "session_closed_utc": "2026-10-19T08:47:15.704600868Z",
+    "platform_player_e2e_verified": false
   }
 }
