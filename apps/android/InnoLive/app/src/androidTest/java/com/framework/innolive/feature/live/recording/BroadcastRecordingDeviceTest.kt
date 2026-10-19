@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live.recording
 
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import com.framework.innolive.feature.live.WebRtcNativeRuntime
 import org.junit.Assert.assertEquals
@@ -65,10 +66,15 @@ class BroadcastRecordingDeviceTest {
     @Test fun savedRecordingIsAPlainMp4WithBothTracks() {
         val directory = File(context.cacheDir, "recording-device-${UUID.randomUUID()}").apply { mkdirs() }
         try {
-            val saved = record(directory, seconds = 4).stop()
+            // 프레임 시각이 실제 시계라 기기 속도에 따라 길이가 늘어납니다. 기록에 걸린 시간과 비교합니다.
+            val startedAt = SystemClock.elapsedRealtime()
+            val session = record(directory, seconds = 4)
+            val elapsedMs = SystemClock.elapsedRealtime() - startedAt
+            val saved = session.stop()
             val original = File(directory, "original.mp4")
             assertNotNull(BroadcastRecordingSession.validateRecordingFile(original))
-            assertTrue(saved.durationMs in 3_000L..5_500L)
+            assertTrue("duration=${saved.durationMs} elapsed=$elapsedMs",
+                saved.durationMs in maxOf(3_000L, elapsedMs - 1_000L)..elapsedMs + 500L)
             assertEquals(1, trackCount(original, "video/").first)
             assertEquals(1, trackCount(original, "audio/").first)
             assertTrue(saved.hasProcessed)
