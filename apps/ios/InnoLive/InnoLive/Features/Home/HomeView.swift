@@ -54,6 +54,16 @@ struct HomeView: View {
         self.youtube = youtube
         self.startsLifecycle = startsLifecycle
         _studioPage = State(initialValue: initialPage)
+        #if DEBUG
+        if startsLifecycle {
+            let arguments = ProcessInfo.processInfo.arguments
+            if arguments.contains("--studio-page-preview") {
+                _studioPage = State(initialValue: .preview)
+            } else if arguments.contains("--studio-page-details") {
+                _studioPage = State(initialValue: .details)
+            }
+        }
+        #endif
         _isBroadcasting = State(initialValue: youtube.isVideoConnected)
     }
 
