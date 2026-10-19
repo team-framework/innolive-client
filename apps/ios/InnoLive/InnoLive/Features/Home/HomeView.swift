@@ -177,12 +177,13 @@ struct HomeView: View {
                 onCancelPreparation: cancelBroadcastPreparation,
                 tutorial: startsLifecycle ? tutorial : nil,
                 displayMode: studioPage == .basic ? .basic : .minimal,
-                faceRegistrationControl: AnyView(QuickFaceRegistrationButton(
+                // 방송 준비를 마치기 전에는 비식별화 제외 대상을 추가하지 못하게 버튼을 두지 않는다.
+                faceRegistrationControl: isBroadcasting ? AnyView(QuickFaceRegistrationButton(
                     videoUplink: youtube.videoUplink,
                     isSelecting: $isSelectingFace,
                     isEnabled: !usesSimulatorVideo && !isSwitchingCamera,
                     isEmbedded: true
-                )),
+                )) : nil,
                 onPresentationChange: { isShowingBroadcastPresentation = $0 },
                 onBottomHeightChange: { bottomReservedHeight = $0 },
                 onTopHeightChange: { liveHeaderHeight = $0 },
@@ -295,6 +296,11 @@ struct HomeView: View {
         }
         .onChange(of: localPreviewPresentation) { _, presentation in
             if presentation == .hidden {
+                isSelectingFace = false
+            }
+        }
+        .onChange(of: isBroadcasting) { _, isBroadcasting in
+            if !isBroadcasting {
                 isSelectingFace = false
             }
         }
@@ -616,6 +622,7 @@ struct HomeView: View {
                 }
 
                 GuestRegistrationToast(registrar: guestRegistrar) {
+                    guard isBroadcasting else { return }
                     isSelectingFace = true
                 }
                 .padding(.horizontal, 24)

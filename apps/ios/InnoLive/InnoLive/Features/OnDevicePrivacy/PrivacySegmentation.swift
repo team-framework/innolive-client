@@ -89,7 +89,7 @@ nonisolated enum PrivacySegmentation {
 
     static func instanceMasks(detections: [Detection], prototypes: [Float]) throws -> [InstanceMask] {
         let pixels = maskSize * maskSize
-        guard prototypes.count == channels * pixels, prototypes.allSatisfy(\.isFinite) else {
+        guard prototypes.count == channels * pixels, allFinite(prototypes) else {
             throw PrivacyModelError.outputContract
         }
         var instances: [InstanceMask] = []
@@ -118,6 +118,19 @@ nonisolated enum PrivacySegmentation {
             instances.append(InstanceMask(detection: object, bytes: mask))
         }
         return instances
+    }
+
+    /// Check every value, including NaN/Inf, without per-element key-path dispatch in Debug builds.
+    static func allFinite(_ values: [Float]) -> Bool {
+        values.withUnsafeBufferPointer { buffer in
+            guard var cursor = buffer.baseAddress else { return true }
+            let end = cursor + buffer.count
+            while cursor != end {
+                guard cursor.pointee.isFinite else { return false }
+                cursor += 1
+            }
+            return true
+        }
     }
 
     static func floats(_ tensor: MLMultiArray, shape: [Int]) throws -> [Float] {
