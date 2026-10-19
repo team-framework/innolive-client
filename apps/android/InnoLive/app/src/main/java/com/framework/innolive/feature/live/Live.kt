@@ -127,8 +127,9 @@ fun LiveScreen(
     val pagerState = rememberPagerState(
         initialPage = if (settings?.isOpen == true) LiveStudioPage.SETTINGS.ordinal else LiveStudioPage.HOME.ordinal,
     ) { if (settings == null) LiveStudioPage.SETTINGS.ordinal else LiveStudioPage.entries.size }
+    val pipState = rememberLivePreviewPipState()
     CompositionLocalProvider(LocalBroadcastTutorialAnchors provides tutorialAnchors) {
-        LiveScreenContent(props, webRtcSession, tutorial, tutorialAnchors, pagerState, settings)
+        LiveScreenContent(props, webRtcSession, tutorial, tutorialAnchors, pagerState, settings, pipState)
     }
 }
 
@@ -140,6 +141,7 @@ private fun LiveScreenContent(
     tutorialAnchors: BroadcastTutorialAnchors,
     pagerState: PagerState,
     settings: LiveSettingsPage?,
+    pipState: LivePreviewPipState,
 ) {
     var openVideoControls by remember { mutableStateOf(false) }
     var openFaceManagement by remember { mutableStateOf(false) }
@@ -411,6 +413,7 @@ private fun LiveScreenContent(
             // 연결 중에는 설정 버튼처럼 설정 페이지로 넘기는 것도 막습니다.
             canSwipe = !presentation.isConnecting,
             pinnedToHome = tutorial?.stage != null,
+            pipState = pipState,
             preview = {
                 LiveMediaPermissionContent(
                     permissionState = mediaPermissionState,
@@ -430,6 +433,7 @@ private fun LiveScreenContent(
                         onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
                         isDirectPublish = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
                         modifier = Modifier.fillMaxSize(),
+                        pipState = pipState,
                     )
                 }
             },
@@ -466,7 +470,9 @@ private fun LiveScreenContent(
                         .padding(horizontal = 16.dp),
                 )
             },
-            cameraPage = {
+            // 카메라 화면은 조작 요소 없이 미리보기만 보여 줍니다.
+            cameraPage = {},
+            homePage = {
                 LiveCameraTools(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
@@ -475,8 +481,6 @@ private fun LiveScreenContent(
                     onOpenVideoControls = { openVideoControls = true },
                     onOpenFaceManagement = openFaceManagementScreen,
                 )
-            },
-            homePage = {
                 SessionUsageWarningBanner(
                     noticeCode = activeNoticeCode,
                     onDismissRequest = { code ->
@@ -1023,7 +1027,7 @@ private fun LiveFaceManagement(
 }
 
 /**
- * 카메라 화면의 도구입니다. 미리보기를 가리지 않도록 오른쪽 가장자리에 세로로 두고,
+ * 기본 화면의 카메라 도구입니다. 미리보기를 가리지 않도록 오른쪽 가장자리에 세로로 두고,
  * 아이콘 아래에 이름을 함께 보여 줍니다.
  */
 @Composable
