@@ -470,8 +470,8 @@ private fun LiveScreenContent(
                         .fillMaxWidth()
                         .padding(top = LiveStudioTopInset),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    // 배너와의 간격은 버튼 위 여백으로 둬서 배너가 사라질 때 간격이 한 번에 튀지 않게 합니다.
                     SessionUsageWarningBanner(
                         noticeCode = activeNoticeCode,
                         onDismissRequest = { code ->

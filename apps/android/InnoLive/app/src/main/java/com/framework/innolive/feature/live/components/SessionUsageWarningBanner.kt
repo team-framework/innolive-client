@@ -3,6 +3,8 @@ package com.framework.innolive.feature.live.components
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -29,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
@@ -79,8 +82,10 @@ fun SessionUsageWarningBanner(
     AnimatedVisibility(
         visible = messageResource != null,
         modifier = modifier,
-        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+        // 높이도 함께 늘리고 줄여 아래에 놓인 버튼이 끊기지 않고 따라 움직이게 합니다.
+        enter = expandVertically(expandFrom = Alignment.Top) + slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+        exit = shrinkVertically(shrinkTowards = Alignment.Top) + slideOutVertically(targetOffsetY = { -it }) +
+            fadeOut(),
     ) {
         Surface(
             modifier = Modifier
