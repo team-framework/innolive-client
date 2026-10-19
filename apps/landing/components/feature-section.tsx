@@ -20,13 +20,14 @@ const portraitCrop = {
 } as const;
 
 // Text version of features-lettering.svg (725 × 75). Both parts sit beside the blurred face:
-// the start ends at x 382 and the end starts at x 518. Widths are per-locale em at weight 700.
-const letteringPartEm = { en: [7.6, 1.75], ja: [5.35, 3.1] } as const;
+// the start ends at x 382 and the end starts at x 518. The start may reach 36 units into the
+// card padding for longer copy. Widths are per-locale em at weight 700 with -0.02em tracking.
+const letteringPartEm = { en: [7.25, 1.65], ja: [5.25, 3] } as const;
 
 function letteringFontStyle(locale: string) {
   const [startEm, endEm] = letteringPartEm[locale as keyof typeof letteringPartEm] ?? letteringPartEm.en;
   return {
-    fontSize: `min(11.5cqw, calc(52.69cqw / ${startEm}), calc(28.55cqw / ${endEm}))`,
+    fontSize: `min(11.5cqw, calc(57.66cqw / ${startEm}), calc(28.55cqw / ${endEm}))`,
   };
 }
 
@@ -185,11 +186,9 @@ export function FeatureSection() {
                   <p className="text-[clamp(3.5rem,1.6rem+8vw,7.5rem)] font-extrabold leading-none text-text-reversed">
                     25ms
                   </p>
-                  <div className="flex items-start gap-1">
-                    <p className="break-keep text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-none text-text-reversed">
-                      {messages.features.latency}
-                    </p>
-                    <span className="relative mt-0.5 inline-block h-[11.667px] w-[10.104px] shrink-0">
+                  <p className="text-balance break-keep text-center text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-[1.15] text-text-reversed">
+                    {messages.features.latency}
+                    <span className="relative ml-1 inline-block h-[11.667px] w-[10.104px] align-top">
                       <span className="absolute inset-[-7.14%_-8.25%]">
                         <Image
                           src="/landing/features-asterisk.svg"
@@ -201,7 +200,7 @@ export function FeatureSection() {
                         />
                       </span>
                     </span>
-                  </div>
+                  </p>
                 </div>
               </div>
 
@@ -265,10 +264,10 @@ export function FeatureSection() {
                     />
                   ) : (
                     <p
-                      className="absolute inset-0 whitespace-nowrap font-bold leading-none text-text-primary"
+                      className="absolute inset-0 whitespace-nowrap font-bold leading-none tracking-[-0.02em] text-text-primary"
                       style={letteringFontStyle(locale)}
                     >
-                      <span className="absolute inset-y-0 left-0 right-[47.31%] flex items-center justify-end">
+                      <span className="absolute inset-y-0 left-[-4.97%] right-[47.31%] flex items-center justify-end">
                         <span className="bg-clip-text text-transparent" style={letteringAiStyle}>
                           AI
                         </span>
