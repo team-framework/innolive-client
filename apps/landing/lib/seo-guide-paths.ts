@@ -1,5 +1,5 @@
 // Only advertise languages with complete guide translations.
-export const seoGuideLocales = ["ko", "en"] as const;
+export const seoGuideLocales = ["ko", "en", "ja"] as const;
 export const seoGuidePaths = [
   "/live-mosaic", "/face-mosaic", "/live-privacy", "/youtube", "/chzzk",
   "/mosaic-software", "/blog/live-face-blur", "/blog/automatic-mosaic",
