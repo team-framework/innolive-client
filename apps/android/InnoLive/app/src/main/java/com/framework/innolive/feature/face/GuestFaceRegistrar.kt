@@ -3,6 +3,7 @@ package com.framework.innolive.feature.face
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +26,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
 
+private const val TAG = "GuestFaceRegistrar"
 private const val REGISTERED_TOAST_MILLIS = 2_000L
 private const val REGISTERED_NOTICE_MILLIS = 4_000L
 private const val LOCAL_MODEL_TIMEOUT_MILLIS = 10_000L
@@ -66,8 +68,14 @@ internal class GuestFaceRegistrar(
     private val scope: CoroutineScope,
     private val backend: GuestFaceRegistrationBackend,
     private val preparationContext: CoroutineContext = Dispatchers.Default,
+    /** 등록 실패 원인을 남깁니다. 토스트는 일반 문구만 보여 주므로 실기기 조사는 이 로그로 합니다. */
+    private val logFailure: (message: String, error: Throwable) -> Unit = { _, _ -> },
 ) {
-    constructor(context: Context, scope: CoroutineScope) : this(scope, DeviceGuestFaceRegistrationBackend(context))
+    constructor(context: Context, scope: CoroutineScope) : this(
+        scope = scope,
+        backend = DeviceGuestFaceRegistrationBackend(context),
+        logFailure = { message, error -> Log.w(TAG, message, error) },
+    )
 
     sealed interface Status {
         data object Registering : Status
@@ -148,11 +156,13 @@ internal class GuestFaceRegistrar(
         } catch (exception: CancellationException) {
             // 이 작업이 취소된 것이 아니면 내부 시간 초과 등이므로 다시 시도할 수 있게 실패로 남깁니다.
             if (!currentCoroutineContext().isActive) throw exception
+            logFailure("Guest face registration was cancelled internally", exception)
             status = Status.Failed(UiText.Resource(R.string.error_face_registration), canRetry = true)
             return
         } catch (exception: Exception) {
             // iOS `guard !Task.isCancelled`처럼 취소된 작업은 새 작업의 상태를 덮어쓰지 않습니다.
             if (!currentCoroutineContext().isActive) return
+            logFailure(exception.describeFailure(), exception)
             status = Status.Failed(exception.toGuestMessage(), canRetry = true)
             return
         }
@@ -171,6 +181,14 @@ internal class GuestFaceRegistrar(
         is ReferenceFaceApiException -> toUserMessage()
         is GuestFaceRegistrationException -> UiText.Resource(messageRes)
         else -> UiText.Resource(R.string.error_face_registration)
+    }
+
+    /** 서버 응답의 상태 코드·오류 코드·세부 사유까지 적어 일반 실패 문구 뒤의 원인을 구분합니다. */
+    private fun Exception.describeFailure(): String = when (this) {
+        is ReferenceFaceApiException ->
+            "Guest face registration failed: status=$statusCode code=$code reason=$detailsReason message=$message"
+        is GuestFaceRegistrationException -> "Guest face registration failed: messageRes=$messageRes"
+        else -> "Guest face registration failed: ${javaClass.name}: $message"
     }
 }
 
