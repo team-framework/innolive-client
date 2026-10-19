@@ -98,7 +98,9 @@ nonisolated final class PrivacyModel {
             throw PrivacyModelError.outputContract
         }
         let objects = try PrivacySegmentation.detections(PrivacySegmentation.floats(raw, shape: [1, 38, 8400]))
-        let allowed = faces.process(image: original, objects: objects, layout: layout, timestamp: start)
+        let allowed = PrivacyPipelineProbe.measure("recognition_schedule") {
+            faces.process(image: original, objects: objects, layout: layout, timestamp: start)
+        }
         let protected = objects.enumerated().filter { !allowed.contains($0.offset) }.map(\.element)
         let instances = try PrivacySegmentation.instanceMasks(detections: protected,
                                                               prototypes: PrivacySegmentation.floats(proto, shape: [1, 32, 160, 160]))

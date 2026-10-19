@@ -77,7 +77,8 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     func stop() { gate.invalidate(stop: true) }
 
     func submit(_ frame: LKRTCVideoFrame, deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
-        guard let ticket = gate.begin() else { return }
+        guard let ticket = gate.begin() else { PrivacyPipelineProbe.count("gate_rejected"); return }
+        PrivacyPipelineProbe.count("gate_admitted")
         let payload = FramePayload(frame: frame)
         let libraryRevision = PrivacyFaceLibrary.revision
         queue.async { [self] in
@@ -104,6 +105,11 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         #if DEBUG
                         let observer = metricsLock.withLock { timingObserver }
                         observer?(processing.1)
+                        PrivacyPipelineProbe.record("prepare", milliseconds: processing.1.prepare)
+                        PrivacyPipelineProbe.record("inference", milliseconds: processing.1.inference)
+                        PrivacyPipelineProbe.record("mask", milliseconds: processing.1.mask)
+                        PrivacyPipelineProbe.record("render", milliseconds: processing.1.render)
+                        PrivacyPipelineProbe.count("faces_\(processing.0)")
                         #endif
                         report(.inference(milliseconds: Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000))
                         result = LKRTCVideoFrame(buffer: LKRTCCVPixelBuffer(pixelBuffer: output), rotation: payload.frame.rotation, timeStampNs: payload.frame.timeStampNs)

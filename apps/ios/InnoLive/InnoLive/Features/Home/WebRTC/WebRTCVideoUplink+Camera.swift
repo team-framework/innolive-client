@@ -577,6 +577,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         #endif
         lock.unlock()
 
+        PrivacyPipelineProbe.count("camera_input")
         let outgoing = outgoingFrame(
             from: frame,
             lockedOrientation: lockedOrientation,
@@ -594,12 +595,9 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         deliverUnprocessedPreview(outgoing)
         let coloredPreview: LKRTCVideoFrame
         do {
-            coloredPreview = try previewColorProcessor.process(
-                outgoing,
-                exposureEV: exposureEV,
-                warmth: warmth,
-                saturation: saturation
-            )
+            coloredPreview = try PrivacyPipelineProbe.measure("preview_color") {
+                try previewColorProcessor.process(outgoing, exposureEV: exposureEV, warmth: warmth, saturation: saturation)
+            }
         } catch {
             #if DEBUG
             lock.withLock {
@@ -613,7 +611,8 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         #if DEBUG
         lock.withLock { validationPreviewFrames += 1 }
         #endif
-        previewTarget?.capturer(capturer, didCapture: coloredPreview)
+        PrivacyPipelineProbe.measure("preview_delivery") { previewTarget?.capturer(capturer, didCapture: coloredPreview) }
+        if exposureEV != 0 || warmth != 0 || saturation != 1 { PrivacyPipelineProbe.count("color_adjusted") }
         lock.lock()
         let directSink = directMediaSink
         lock.unlock()
@@ -629,28 +628,25 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                 processor.submit(outgoing) { [target, route, colorProcessor, directSink] result in
                     let coloredUplink: LKRTCVideoFrame
                     do {
-                        coloredUplink = try colorProcessor.process(
-                            result,
-                            exposureEV: exposureEV,
-                            warmth: warmth,
-                            saturation: saturation
-                        )
+                        coloredUplink = try PrivacyPipelineProbe.measure("uplink_color") {
+                            try colorProcessor.process(result, exposureEV: exposureEV, warmth: warmth, saturation: saturation)
+                        }
                     } catch {
                         return
                     }
                     var delivered = false
                     route.deliver(ticket) {
-                        target.capturer(capturer, didCapture: coloredUplink)
+                        PrivacyPipelineProbe.measure("webrtc_delivery") { target.capturer(capturer, didCapture: coloredUplink) }
                         delivered = true
                     }
                     // 무효화된 경로의 결과는 직접 송출에도 넘기지 않는다. 변환은 경로 잠금 밖에서 한다.
                     // 송출 대상이 없어도 넘긴다. 첫 연결 때 인코더 크기를 실제 프레임 크기로 정한다.
                     if delivered, let buffer = (coloredUplink.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
-                        directSink?.appendVideo(
-                            pixelBuffer: buffer,
-                            rotation: Int(coloredUplink.rotation.rawValue),
-                            timestampNs: coloredUplink.timeStampNs
-                        )
+                        PrivacyPipelineProbe.measure("direct_delivery") {
+                            directSink?.appendVideo(pixelBuffer: buffer,
+                                rotation: Int(coloredUplink.rotation.rawValue), timestampNs: coloredUplink.timeStampNs)
+                        }
+                        PrivacyPipelineProbe.count("delivered")
                     }
                 }
             } else {
