@@ -25,6 +25,9 @@ async function main() {
     const [before, after] = await Promise.all([fs.stat(input), fs.stat(output)]);
     console.log(`${source}: ${before.size} → ${after.size} bytes`);
   }
+  await sharp(path.join(publicDir, "mockups/hero-live-demo.jpg"))
+    .webp({ quality: 80, effort: 6 })
+    .toFile(path.join(publicDir, "mockups/hero-live-demo.webp"));
   // Inline the foreground frame; retain responsive delivery for the back frame.
   const frame = await sharp(path.join(publicDir, "landing/hero-phone.png"))
     .resize({ width: 1080, withoutEnlargement: true })
