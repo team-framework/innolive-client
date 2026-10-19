@@ -31,7 +31,7 @@ export function Hero() {
                 variant="secondary"
                 showChevron={false}
                 href={href("/try-out")}
-                className="h-[53.2px] w-[95.9px] md:h-[76px] md:w-[137px]"
+                className="h-[53.2px] w-[95.9px] max-md:w-auto max-md:whitespace-nowrap md:h-[76px] md:w-[137px]"
               >
                 {messages.hero.tryOut}
               </Button>
