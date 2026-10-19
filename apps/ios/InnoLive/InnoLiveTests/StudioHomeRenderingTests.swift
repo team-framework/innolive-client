@@ -7,6 +7,18 @@ import XCTest
 @MainActor
 final class StudioHomeRenderingTests: XCTestCase {
     func testThreePagesRenderInPortraitAndLandscapeWithoutStartingMedia() async throws {
+        try await renderHome(providers: [.youtube], name: "")
+    }
+
+    func testCHZZKPagesRenderWithoutYouTubeAccountOrMedia() async throws {
+        try await renderHome(providers: [.chzzk], name: "chzzk-")
+    }
+
+    func testSimulcastPagesRenderWithoutStartingMedia() async throws {
+        try await renderHome(providers: [.youtube, .chzzk], name: "simulcast-")
+    }
+
+    private func renderHome(providers: Set<BroadcastSettingsProvider>, name: String) async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
             .first { $0.activationState == .foregroundActive })
         let previousWindow = scene.windows.first { $0.isKeyWindow }
@@ -21,21 +33,33 @@ final class StudioHomeRenderingTests: XCTestCase {
             let live = state == "live"
             let preparing = state == "preparing"
             let ready = state == "ready"
-            let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults))
+            let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults),
+                                                api: YouTubeAPI(serverURLProvider: { _ in nil }))
+            integration.selectedBroadcastProviders = providers
             defer { integration.reset() }
             if live || preparing || ready {
                 let phase = ready ? "prepared" : "live"
                 let status = ready ? "idle" : "streaming"
+                let targets = providers.sorted { $0.rawValue < $1.rawValue }.map { provider in
+                    "{\"provider\":\"\(provider.rawValue)\",\"stream\":{\"status\":\"\(status)\",\"broadcast_phase\":\"\(phase)\",\"publisher_active\":true,\"reconnect_attempts\":0}}"
+                }.joined(separator: ",")
                 let json = """
                 {"session_id":"studio-home-render","owner_token":"fake-owner","broadcast_resolution":"720p",
                 "stream":{"status":"\(status)","broadcast_phase":"\(phase)","publisher_active":true,"reconnect_attempts":0},
-                "targets":[{"provider":"youtube","stream":{"status":"\(status)","broadcast_phase":"\(phase)","publisher_active":true,"reconnect_attempts":0}}],"media":{}}
+                "targets":[\(targets)],"media":{}}
                 """
                 let session = try JSONDecoder().decode(YouTubeBroadcastSession.self, from: Data(json.utf8))
                 integration.seedPreparedVideoSessionForTesting(
-                    connection: .init(provider: "youtube", channel: .init(id: "fake-channel", title: "YT")),
+                    connection: providers.contains(.youtube) ? .init(provider: "youtube", channel: .init(id: "fake-channel", title: "YT")) : nil,
                     session: session, videoTrack: .init(id: "video", kind: "video", readyState: "live"),
-                    preparationStatus: preparing ? .init(phase: .connectingServer) : nil)
+                    preparationStatus: preparing ? .init(phase: .connectingServer) : nil,
+                    streamingAccounts: providers.contains(.chzzk) ? [
+                        .init(provider: "chzzk", channelID: "fake-chzzk", channelTitle: "치지직 테스트 채널",
+                              connectedAt: nil, reconnectRequired: false)
+                    ] : [])
+                XCTAssertEqual(Set(integration.visibleBroadcastTargets.map(\.provider)), Set(providers.map(\.rawValue)))
+                if providers.contains(.chzzk) { XCTAssertTrue(integration.isSettingsAccountConnected(.chzzk)) }
+                if !providers.contains(.youtube) { XCTAssertFalse(integration.isSettingsAccountConnected(.youtube)) }
             }
             let sessionID = integration.session?.sessionID
             for configuration in [(landscape: false, light: false), (landscape: true, light: false),
@@ -80,7 +104,7 @@ final class StudioHomeRenderingTests: XCTestCase {
                     XCTAssertFalse(integration.videoUplink.isCapturingMedia)
                     XCTAssertFalse(camera.session.isRunning)
                     let attachment = XCTAttachment(image: image)
-                    attachment.name = "studio-home-\(state)-\(page)-\(landscape ? "landscape" : "portrait")-\(configuration.light ? "light" : "default")"
+                    attachment.name = "studio-home-\(name)\(state)-\(page)-\(landscape ? "landscape" : "portrait")-\(configuration.light ? "light" : "default")"
                     attachment.lifetime = .keepAlways
                     add(attachment)
                 }
