@@ -29,6 +29,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import com.framework.innolive.ui.theme.ModalSurface
@@ -39,6 +40,9 @@ import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import com.framework.innolive.R
 import kotlinx.coroutines.launch
 
@@ -67,6 +71,8 @@ class LiveSettingsPage(
 internal val LiveStudioTopInset = 64.dp
 private val LiveStudioTopBarHeight = 48.dp
 private val SettingsScrim = Color.Black.copy(alpha = 0.35f)
+private val EdgeScrimColor = Color.Black.copy(alpha = 0.4f)
+private val EdgeScrimHeight = 120.dp
 
 /**
  * 카메라 미리보기는 고정한 채 그 위의 조작 화면만 좌우로 넘깁니다.
@@ -116,6 +122,7 @@ internal fun LiveStudioPager(
     }
 
     val canMovePip = pipState != null && pagerState.currentPage != settingsIndex
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     Box(
         modifier.fillMaxSize().then(
             if (pipState != null) Modifier.livePreviewPipDrag(pipState, canMovePip, scope) else Modifier,
@@ -125,6 +132,19 @@ internal fun LiveStudioPager(
         // 미리보기는 SurfaceView라 같은 창 안에서 흐리게 할 수 없습니다. 설정 페이지가 보이는 만큼 어둡게만 합니다.
         fun settingsFraction() =
             (pagerState.currentPage + pagerState.currentPageOffsetFraction - homeIndex).coerceIn(0f, 1f)
+        fun homeFraction() =
+            1f - kotlin.math.abs(pagerState.currentPage + pagerState.currentPageOffsetFraction - homeIndex).coerceIn(0f, 1f)
+        // 밝은 장면에서도 흰 글자와 아이콘이 읽히도록 위아래 가장자리만 옅게 어둡게 합니다.
+        // 아래쪽은 조작 요소가 있는 기본 화면에서만 깔아 카메라 화면은 영상을 그대로 보여 줍니다.
+        Box(
+            Modifier.align(Alignment.TopCenter).fillMaxWidth().height(EdgeScrimHeight)
+                .background(Brush.verticalGradient(listOf(EdgeScrimColor, Color.Transparent))),
+        )
+        Box(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(EdgeScrimHeight * 2)
+                .graphicsLayer { alpha = homeFraction() }
+                .background(Brush.verticalGradient(listOf(Color.Transparent, EdgeScrimColor))),
+        )
         if (settings != null) {
             Box(Modifier.fillMaxSize().graphicsLayer { alpha = settingsFraction() }.background(SettingsScrim))
         }
@@ -140,14 +160,21 @@ internal fun LiveStudioPager(
                     LiveStudioPage.CAMERA -> cameraPage()
                     LiveStudioPage.HOME -> homePage()
                     LiveStudioPage.SETTINGS -> settings?.let { page ->
-                        LiveSettingsPanel(onDismiss = { page.onClose() }, content = page.content)
+                        LiveSettingsPanel(
+                            onDismiss = { page.onClose() },
+                            topInset = if (landscape) 12.dp else LiveStudioTopInset,
+                            content = page.content,
+                        )
                     }
                 }
             }
         }
         if (pipState != null && canMovePip) LivePreviewPipAccessibility(pipState)
+        // 가로 화면은 높이가 낮아 설정 페이지에서는 상단 바를 숨기고 설정 창에 높이를 모두 줍니다.
         Column(
-            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().graphicsLayer {
+                if (landscape && settings != null) alpha = 1f - settingsFraction()
+            },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.fillMaxWidth().heightIn(min = LiveStudioTopBarHeight), content = topBar)
@@ -162,7 +189,7 @@ internal fun LiveStudioPager(
 
 /** Figma 설정 창처럼 상단 바 아래에 반투명 창을 띄우고, 창 밖을 누르면 기본 화면으로 돌아갑니다. */
 @Composable
-private fun LiveSettingsPanel(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+private fun LiveSettingsPanel(onDismiss: () -> Unit, topInset: Dp, content: @Composable () -> Unit) {
     val title = stringResource(R.string.settings_title)
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = onDismiss))
@@ -170,8 +197,8 @@ private fun LiveSettingsPanel(onDismiss: () -> Unit, content: @Composable () -> 
         ModalTheme {
             ModalSurface(
                 modifier = Modifier.align(Alignment.TopCenter)
-                    .padding(start = 16.dp, end = 16.dp, top = LiveStudioTopInset, bottom = 12.dp)
-                    .widthIn(max = 600.dp).fillMaxSize()
+                    .padding(start = 16.dp, end = 16.dp, top = topInset, bottom = 12.dp)
+                    .widthIn(max = 640.dp).fillMaxSize()
                     .semantics { paneTitle = title },
                 shape = RoundedCornerShape(20.dp),
                 // 뒤를 흐릴 수 없으므로 비치는 영상이 글자를 방해하지 않게 더 불투명하게 칠합니다.

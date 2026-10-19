@@ -7,7 +7,6 @@ import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import com.framework.innolive.feature.live.components.SideHeroButton
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
@@ -37,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -880,13 +880,15 @@ private fun LiveScreenContent(
                 }
                 // 가로에서는 세로 하단 바를 기기 오른쪽 끝으로 옮깁니다. 기기를 돌렸을 때 세로 하단이 놓이는 자리입니다.
                 if (landscape) {
+                    // 오른손 엄지가 닿는 세로 가운데에 방송 버튼을 두고, 높이가 모자라면 잘리지 않게 스크롤합니다.
                     Column(
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .onSizeChanged { pipState.rightControlsWidthPx = it.width.toFloat() }
-                            .padding(end = 16.dp, top = LiveStudioTopInset, bottom = 12.dp),
+                            .padding(end = 16.dp, top = 8.dp, bottom = 8.dp)
+                            .verticalScroll(rememberScrollState()),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         anonymizationButton()
                         broadcastControls(Modifier)
@@ -935,7 +937,8 @@ private fun LiveScreenContent(
                             uplinkQuality = webRtcSession.uplinkQuality.takeIf { presentation.isConnected && !showPlan },
                             modifier = Modifier
                                 .padding(horizontal = 16.dp)
-                                .widthIn(max = 360.dp)
+                                // 가로 화면에서는 플랫폼과 상태가 너무 멀어지지 않게 폭을 좁힙니다.
+                                .widthIn(max = if (landscape) 300.dp else 360.dp)
                                 .fillMaxWidth()
                                 .broadcastTutorialAnchor(BroadcastTutorialAnchor.LIVE_STATUS),
                         )
@@ -1143,11 +1146,15 @@ private fun LiveCameraToolButton(
         ) {
             Box(contentAlignment = Alignment.Center) { icon() }
         }
+        // 밝은 장면 위에서도 읽히도록 이름 뒤에 반투명한 어두운 바탕을 깝니다.
         Text(
             text = label,
             color = if (enabled) Color.White else Color.White.copy(alpha = 0.6f),
             style = MaterialTheme.typography.labelMedium.copy(shadow = LiveLabelShadow),
             textAlign = TextAlign.Center,
+            modifier = Modifier
+                .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50))
+                .padding(horizontal = 8.dp, vertical = 2.dp),
         )
     }
 }
@@ -1222,26 +1229,21 @@ internal fun BroadcastActionControls(
         contentAlignment = Alignment.Center,
     ) {
         centerOverlay()
-        if (vertical) {
-            SideHeroButton(
-                text = stringResource(presentation.broadcastButtonTextRes),
-                enabled = presentation.isBroadcastButtonEnabled,
-                onClick = onBroadcastAction,
-                modifier = buttonModifier,
-            )
-        } else {
-            VerticalHeroButton(
-                text = stringResource(presentation.broadcastButtonTextRes),
-                enabled = presentation.isBroadcastButtonEnabled,
-                onClick = onBroadcastAction,
-                modifier = buttonModifier,
-            )
-        }
+        // 가로 화면에서도 글자를 돌리지 않고 바로 읽히도록 폭만 줄인 같은 버튼을 씁니다.
+        VerticalHeroButton(
+            text = stringResource(presentation.broadcastButtonTextRes),
+            enabled = presentation.isBroadcastButtonEnabled,
+            onClick = onBroadcastAction,
+            modifier = if (vertical) buttonModifier.width(LandscapeHeroWidth) else buttonModifier,
+        )
     }
 }
 
 /** 가로 화면에서 상태 패널과 안내가 차지할 최대 폭입니다. */
 private val LandscapeStatusMaxWidth = 400.dp
+
+/** 가로 화면 오른쪽 열의 방송 버튼 폭입니다. 긴 문구는 두 줄로 나눠 보여 줍니다. */
+private val LandscapeHeroWidth = 156.dp
 
 @Composable
 internal fun BroadcastActionDialog(
