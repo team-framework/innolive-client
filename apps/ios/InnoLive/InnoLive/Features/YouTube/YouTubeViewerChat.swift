@@ -36,7 +36,7 @@ enum YouTubeViewerChatPolicy {
             case .noYouTubeTarget:
                 return String(localized: "시청자 채팅은 YouTube 방송에서 지원합니다.", table: "ViewerChat")
             case .missingVideoID:
-                return String(localized: "방송의 채팅 정보를 아직 받지 못했습니다. 정보가 도착하면 채팅을 표시합니다.", table: "ViewerChat")
+                return nil
             }
         }
     }
