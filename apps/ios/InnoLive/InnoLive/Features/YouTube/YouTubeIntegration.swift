@@ -670,6 +670,7 @@ final class YouTubeIntegration: ObservableObject {
     private let persistAIProcessingMode: (AIProcessingMode) -> Void
     private let transportProvider: () -> OnDeviceTransport
     private let persistTransport: (OnDeviceTransport) -> Void
+    private let faceAnonymizationProvider: () -> FaceAnonymizationMode
     private let api: YouTubeAPI
     private let sessionStore: any BroadcastSessionStoring
     private var sessionScope: BroadcastSessionScope?
@@ -733,6 +734,7 @@ final class YouTubeIntegration: ObservableObject {
         persistTransport: @escaping (OnDeviceTransport) -> Void = {
             UserDefaults.standard.set($0.rawValue, forKey: OnDeviceTransport.storageKey)
         },
+        faceAnonymizationProvider: @escaping () -> FaceAnonymizationMode = { .selected },
         directPublisher: (any DirectBroadcastPublishing)? = nil,
         heartbeatInterval: Duration = .seconds(15),
         recordingStore: RecordingSessionStore? = nil,
@@ -747,6 +749,7 @@ final class YouTubeIntegration: ObservableObject {
         self.persistAIProcessingMode = persistAIProcessingMode
         self.transportProvider = transportProvider
         self.persistTransport = persistTransport
+        self.faceAnonymizationProvider = faceAnonymizationProvider
         let resolvedAPI = api ?? YouTubeAPI()
         self.api = resolvedAPI
         self.chzzkAuthorization = chzzkAuthorization ?? CHZZKAuthorization()
@@ -826,6 +829,12 @@ final class YouTubeIntegration: ObservableObject {
 
     func refreshPlan(accessToken: String?) async {
         await planStore.refresh(api: api, accessToken: accessToken)
+    }
+
+    /// 실험실 표시 여부다. 확인하지 못하면 숨긴다.
+    func isAdministrator(accessToken: String?) async -> Bool {
+        guard let accessToken, !accessToken.isEmpty else { return false }
+        return (try? await api.isAdministrator(accessToken: accessToken)) ?? false
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
@@ -1260,6 +1269,8 @@ final class YouTubeIntegration: ObservableObject {
         let generation = sessionOperationGeneration
         let requestedMode = preparationProcessingOverride ?? aiModeProvider()
         let sessionMode = requestedSessionMode
+        // 얼굴 합성은 서버 AI에서만 쓴다. 서버 송출을 고른 온디바이스는 서버 AI를 끄므로 블러로 둔다.
+        let faceAnonymization = requestedMode == .server ? faceAnonymizationProvider() : .blur
         isPreparingSession = true
         let task = Task { [self] in
             guard sessionOperationGeneration == generation else { return false }
@@ -1271,7 +1282,8 @@ final class YouTubeIntegration: ObservableObject {
                 // 서버가 처리 방식을 받지 않으면 서버 세션에서 서버 AI를 끄고 중계 송출한다.
                 var created: YouTubeBroadcastSession
                 do {
-                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution)
+                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution,
+                                                         faceAnonymization: faceAnonymization)
                 } catch YouTubeAPIError.api("plan_resolution_not_allowed"?, _, _) where sessionMode == .server && broadcastResolution == "fhd" {
                     // 요금제가 FHD를 막으면 서버 세션은 720p로 다시 만든다. 카메라는 세션 응답 해상도에 맞춰진다.
                     // 온디바이스 세션은 준비 전 요금제 검사가 안내하므로 그대로 실패시킨다.
@@ -1279,7 +1291,8 @@ final class YouTubeIntegration: ObservableObject {
                     Self.qualityLogger.notice("session fhd rejected by plan; retrying 720p")
                     #endif
                     guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: "720p")
+                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: "720p",
+                                                         faceAnonymization: faceAnonymization)
                 }
                 #if DEBUG
                 Self.qualityLogger.notice("session created mode=\(sessionMode.rawValue, privacy: .public) requested=\(broadcastResolution ?? "none", privacy: .public) response=\(created.details.broadcastResolution ?? "none", privacy: .public)")

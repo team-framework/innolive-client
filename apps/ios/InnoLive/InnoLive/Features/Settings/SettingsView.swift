@@ -11,6 +11,8 @@ struct SettingsView: View {
     @ObservedObject var youtube: YouTubeIntegration
     var tutorial: BroadcastTutorialCoordinator? = nil
     @Environment(\.dismiss) private var dismiss
+    @State private var isAdministrator = false
+    @State private var faceAnonymization = FaceAnonymizationMode.selected
     var body: some View {
         ScrollView {
             // Liquid Glass 효과를 자연스럽게 묶음
@@ -67,6 +69,10 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
                     }
+
+                    if isAdministrator {
+                        labSection
+                    }
                 }
                 
                 Spacer()
@@ -75,6 +81,49 @@ struct SettingsView: View {
             .innoLiveSettingsPage()
             .navigationTitle(String(localized: "앱 정보 및 계정"))
             .navigationBarTitleDisplayMode(.inline)
+        }
+        .task { isAdministrator = await youtube.isAdministrator(accessToken: authentication.currentAccessToken()) }
+    }
+
+    // 관리자 전용 실험 기능이다. 비식별화 방법은 세션 생성 때 고정되므로 방송 준비 전에만 바꾼다.
+    private var labSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(String(localized: "실험실"))
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            SettingsGlassRow {
+                HStack(spacing: 12) {
+                    Image(systemName: "flask")
+                        .font(.body)
+                        .frame(width: iconWidth)
+
+                    Text(String(localized: "비식별화 방법"))
+                        .font(.subheadline.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Spacer()
+
+                    Picker(String(localized: "비식별화 방법"), selection: $faceAnonymization) {
+                        ForEach(FaceAnonymizationMode.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .accessibilityIdentifier("lab-face-anonymization")
+                }
+            }
+            .disabled(youtube.session != nil)
+            .onChange(of: faceAnonymization) { _, mode in
+                UserDefaults.standard.set(mode.rawValue, forKey: FaceAnonymizationMode.storageKey)
+            }
+
+            Text(youtube.session != nil
+                 ? String(localized: "방송 준비를 취소한 뒤 비식별화 방법을 변경할 수 있습니다.")
+                 : String(localized: "다음 방송 준비부터 적용됩니다. 합성은 서버 AI 처리에서만 사용됩니다."))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 

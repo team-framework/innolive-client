@@ -209,10 +209,13 @@ final class CameraManager {
         }
     }
 
-    func startPresetPreviewFrames(_ handler: @escaping @Sendable (CVPixelBuffer, Int) -> Void) {
+    func startPresetPreviewFrames(
+        interfaceOrientation: BroadcastInterfaceOrientation,
+        _ handler: @escaping @Sendable (CVPixelBuffer, Int) -> Void
+    ) {
         sessionQueue.async { [weak self] in
             guard let self else { return }
-            self.presetPreviewRelay.update(handler: handler)
+            self.presetPreviewRelay.update(handler: handler, interfaceOrientation: interfaceOrientation)
             guard self.presetPreviewOutput == nil, self.videoInput != nil else { return }
 
             let output = AVCaptureVideoDataOutput()
@@ -508,10 +511,15 @@ nonisolated private final class CameraFrameRelay: NSObject, AVCaptureVideoDataOu
 nonisolated private final class PresetPreviewFrameRelay: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @unchecked Sendable {
     private let lock = NSLock()
     private var handler: (@Sendable (CVPixelBuffer, Int) -> Void)?
+    private var interfaceOrientation = BroadcastInterfaceOrientation.portrait
 
-    func update(handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
+    func update(
+        handler: (@Sendable (CVPixelBuffer, Int) -> Void)?,
+        interfaceOrientation: BroadcastInterfaceOrientation = .portrait
+    ) {
         lock.lock()
         self.handler = handler
+        self.interfaceOrientation = interfaceOrientation
         lock.unlock()
     }
 
@@ -522,9 +530,17 @@ nonisolated private final class PresetPreviewFrameRelay: NSObject, AVCaptureVide
     ) {
         lock.lock()
         let handler = handler
+        let interfaceOrientation = interfaceOrientation
         lock.unlock()
         guard let handler else { return }
         guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        handler(buffer, Int(connection.videoRotationAngle.rounded()))
+        // 이 출력은 연결 회전을 쓰지 않아 센서 방향 그대로 온다. 연결 각도(항상 0)
+        // 대신 WebRTC 송출과 같은 화면 방향 기준 회전을 넘겨야 세로 화면에서 눕지 않는다.
+        let cameraPosition = connection.inputPorts.first?.sourceDevicePosition ?? .unspecified
+        let rotation = BroadcastOrientationPolicy.videoRotation(
+            interfaceOrientation: interfaceOrientation,
+            cameraPosition: cameraPosition
+        )
+        handler(buffer, rotation.rawValue)
     }
 }

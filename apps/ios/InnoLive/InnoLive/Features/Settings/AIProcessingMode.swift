@@ -46,3 +46,22 @@ nonisolated enum OnDeviceTransport: String, CaseIterable, Codable, Sendable, Ide
         }
     }
 }
+
+/// 서버 AI 세션의 얼굴 비식별화 방법이다. 합성은 관리자 전용 실험 기능이라 실험실에서만 고른다.
+/// 세션 생성 때 고정되므로 다음 방송 준비부터 적용한다.
+nonisolated enum FaceAnonymizationMode: String, CaseIterable, Codable, Sendable, Identifiable {
+    case blur
+    case faceSwap = "face_swap"
+
+    static let storageKey = "com.framework.innolive.face-anonymization-mode"
+    static var selected: FaceAnonymizationMode {
+        FaceAnonymizationMode(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .blur
+    }
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .blur: String(localized: "블러")
+        case .faceSwap: String(localized: "합성")
+        }
+    }
+}
