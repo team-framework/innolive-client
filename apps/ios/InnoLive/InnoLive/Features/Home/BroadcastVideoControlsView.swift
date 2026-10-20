@@ -96,6 +96,9 @@ struct BroadcastVideoControlsView: View {
             .onChange(of: uplink.isCapturingMedia) { _, _ in
                 startPresetPreviews()
             }
+            .onGeometryChange(for: Bool.self) { $0.size.width > $0.size.height } action: { _ in
+                if !uplink.isCapturingMedia { startCameraPresetPreviews() }
+            }
         }
         .presentationDetents([mosaicDetent, .large], selection: $sheetDetent)
         .presentationDragIndicator(.visible)
@@ -255,14 +258,24 @@ struct BroadcastVideoControlsView: View {
 
     private func startPresetPreviews() {
         stopPresetPreviews()
-        let pump = previews.pump
-        let deliver: @Sendable (CVPixelBuffer, Int) -> Void = { buffer, rotation in
-            pump.submit(pixelBuffer: buffer, rotation: rotation)
-        }
         if uplink.isCapturingMedia {
-            uplink.setUnprocessedPreviewHandler(deliver)
+            uplink.setUnprocessedPreviewHandler(presetPreviewDelivery)
         } else {
-            cameraManager.startPresetPreviewFrames(deliver)
+            startCameraPresetPreviews()
+        }
+    }
+
+    // 이미 붙은 출력이 있으면 세션을 다시 구성하지 않고 화면 방향만 갱신된다.
+    private func startCameraPresetPreviews() {
+        let orientation = BroadcastOrientationController.shared.lockedOrientation
+            ?? BroadcastOrientationController.resolveCurrentInterfaceOrientation()
+        cameraManager.startPresetPreviewFrames(interfaceOrientation: orientation, presetPreviewDelivery)
+    }
+
+    private var presetPreviewDelivery: @Sendable (CVPixelBuffer, Int) -> Void {
+        let pump = previews.pump
+        return { buffer, rotation in
+            pump.submit(pixelBuffer: buffer, rotation: rotation)
         }
     }
 

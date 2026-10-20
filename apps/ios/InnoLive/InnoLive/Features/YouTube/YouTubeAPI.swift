@@ -74,21 +74,25 @@ private struct YouTubeEmptyRequest: Encodable {}
 /// 온디바이스는 공유 계약(direct-publish-v1)의 최상위 `ai_processing`을 보낸다. 처리 방식을
 /// 돌려주지 않는 구 서버와 협상하도록 `metadata.ai_processing`도 함께 보낸다(서버는 최상위 값을 먼저 쓴다).
 /// 해상도는 처리 방식과 관계없이 선택한 카메라 화질을 보낸다. 생략하면 서버 기본값(720p) 세션이 된다.
+/// 얼굴 합성은 서버 처리에서만 보낸다. 블러는 서버 기본값이라 생략한다.
 struct YouTubeSessionCreateRequest: Encodable, Equatable {
     let aiProcessing: String?
     let broadcastResolution: String?
+    let faceAnonymization: String?
     let metadata: [String: String]?
 
-    init(mode: AIProcessingMode, broadcastResolution: String? = nil) {
+    init(mode: AIProcessingMode, broadcastResolution: String? = nil, faceAnonymization: FaceAnonymizationMode = .blur) {
         self.broadcastResolution = broadcastResolution
         aiProcessing = mode == .server ? nil : mode.rawValue
         metadata = mode == .server ? nil : ["ai_processing": mode.rawValue]
+        self.faceAnonymization = mode == .server && faceAnonymization == .faceSwap ? faceAnonymization.rawValue : nil
     }
 
     enum CodingKeys: String, CodingKey {
         case metadata
         case aiProcessing = "ai_processing"
         case broadcastResolution = "broadcast_resolution"
+        case faceAnonymization = "face_anonymization"
     }
 }
 
@@ -158,6 +162,18 @@ final class YouTubeAPI: PlanAPIClient {
     func userPlan(accessToken: String) async throws -> UserPlan {
         try await request(path: "/users/me/plan", method: "GET", accessToken: accessToken,
                           body: Optional<YouTubeEmptyRequest>.none)
+    }
+
+    /// `GET /admin/me`가 200이면 관리자다. 403·404는 관리자가 아니다.
+    func isAdministrator(accessToken: String) async throws -> Bool {
+        guard let url = serverURLProvider("/admin/me") else { throw YouTubeAPIError.configuration }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await authenticatedData(for: request, accessToken: accessToken)
+        if response.statusCode == 403 || response.statusCode == 404 { return false }
+        try validate(response, data: data)
+        return true
     }
 
     func userUsage(accessToken: String) async throws -> UserUsage {
@@ -242,12 +258,14 @@ final class YouTubeAPI: PlanAPIClient {
         }
     }
 
-    func createSession(accessToken: String, mode: AIProcessingMode = .server, broadcastResolution: String? = nil) async throws -> YouTubeBroadcastSession {
+    func createSession(accessToken: String, mode: AIProcessingMode = .server, broadcastResolution: String? = nil,
+                       faceAnonymization: FaceAnonymizationMode = .blur) async throws -> YouTubeBroadcastSession {
         try await request(
             path: "/sessions",
             method: "POST",
             accessToken: accessToken,
-            body: YouTubeSessionCreateRequest(mode: mode, broadcastResolution: broadcastResolution),
+            body: YouTubeSessionCreateRequest(mode: mode, broadcastResolution: broadcastResolution,
+                                              faceAnonymization: faceAnonymization),
             preserveCreatedSession: true
         )
     }
