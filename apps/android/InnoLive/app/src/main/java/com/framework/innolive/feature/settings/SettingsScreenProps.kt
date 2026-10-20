@@ -3,6 +3,7 @@ package com.framework.innolive.feature.settings
 import androidx.compose.runtime.Immutable
 import com.framework.innolive.feature.live.BroadcastVideoQualitySettings
 import com.framework.innolive.feature.live.VideoQualityCaptureState
+import com.framework.innolive.feature.login.oauth.google.SignInMethod
 import com.framework.innolive.ui.text.UiText
 
 @Immutable
@@ -46,4 +47,6 @@ data class SettingsScreenProps(
     val onOpenRecordings: () -> Unit = {},
     /** 방송 준비·방송 중에는 false입니다. */
     val canOpenRecordings: Boolean = true,
+    /** 이름이 없는 계정의 표시명을 고르는 로그인 방식입니다. */
+    val profileSignInMethod: SignInMethod = SignInMethod.UNKNOWN,
 )

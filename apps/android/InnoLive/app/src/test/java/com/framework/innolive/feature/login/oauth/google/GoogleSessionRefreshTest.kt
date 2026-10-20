@@ -24,6 +24,7 @@ class GoogleSessionRefreshTest {
             refreshExpiresIn = 1,
             profileName = "InnoLive User",
             profileEmail = "user@example.com",
+            signInMethod = SignInMethod.GOOGLE,
         )
 
         assertEquals(
@@ -35,6 +36,7 @@ class GoogleSessionRefreshTest {
                 refreshExpiresIn = 86_400,
                 profileName = "InnoLive User",
                 profileEmail = "user@example.com",
+                signInMethod = SignInMethod.GOOGLE,
             ),
             mergeRefreshedSession(
                 responseBody =
