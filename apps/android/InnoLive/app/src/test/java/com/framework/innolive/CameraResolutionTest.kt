@@ -1,6 +1,7 @@
 package com.framework.innolive
 
 import com.framework.innolive.feature.live.CameraResolution
+import com.framework.innolive.feature.live.selectCameraResolution
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -35,5 +36,26 @@ class CameraResolutionTest {
         )
 
         assertEquals(CameraResolution(1920, 1080), resolutions.firstOrNull())
+    }
+
+    @Test
+    fun restoredSelectionIsKeptWhenTheLensSupportsIt() {
+        val resolutions = listOf(CameraResolution(1920, 1080), CameraResolution(1280, 720))
+
+        assertEquals(CameraResolution(1280, 720), selectCameraResolution(resolutions, "1280x720"))
+    }
+
+    @Test
+    fun largestResolutionReplacesOnlyAnUnsupportedOrMissingSelection() {
+        val frontResolutions = listOf(CameraResolution(1280, 720), CameraResolution(640, 480))
+
+        assertEquals(CameraResolution(1280, 720), selectCameraResolution(frontResolutions, "1920x1080"))
+        assertEquals(CameraResolution(1280, 720), selectCameraResolution(frontResolutions, null))
+    }
+
+    @Test
+    fun noResolutionIsChosenBeforeTheSupportedListIsRead() {
+        assertEquals(null, selectCameraResolution(null, "1280x720"))
+        assertEquals(null, selectCameraResolution(emptyList(), "1280x720"))
     }
 }
