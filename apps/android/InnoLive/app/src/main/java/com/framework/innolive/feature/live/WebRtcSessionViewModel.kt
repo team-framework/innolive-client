@@ -12,6 +12,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.components.YouTubeViewerChatPolicy
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
 import com.framework.innolive.feature.live.consent.BroadcastConsentStep
 import com.framework.innolive.feature.live.consent.BroadcastConsentStore
@@ -87,6 +88,9 @@ class WebRtcSessionViewModel internal constructor(
         private set
     var sessionSnapshot by mutableStateOf<SessionSnapshot?>(null)
         private set
+    /** 라이브·일시 중지 중인 YouTube 대상의 보기 전용 채팅 주소입니다. null이면 화면이 채팅 버튼을 숨깁니다. */
+    val viewerChatUrl: String?
+        get() = YouTubeViewerChatPolicy.activeUrl(sessionSnapshot)
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
     var broadcastStatus by mutableStateOf(broadcastStateMessage(BroadcastState.IDLE).text)
@@ -392,6 +396,12 @@ class WebRtcSessionViewModel internal constructor(
                     },
                     onDirectUiStateChanged = { state ->
                         if (sessionState.acceptsCallback(generation)) directBroadcastUiState = state
+                    },
+                    onSessionSnapshotCleared = {
+                        if (sessionState.acceptsCallback(generation)) {
+                            sessionSnapshot = null
+                            resetUplinkQuality()
+                        }
                     },
                 )
                 val newConnection = transportFactory(

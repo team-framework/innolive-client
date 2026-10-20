@@ -411,7 +411,7 @@ internal class DirectBroadcastController internal constructor(
     private fun deleteSession(created: CreatedSession) {
         stopPolling()
         session = null
-        snapshot = null
+        clearSnapshot()
         preparedDeadline = null
         try {
             env.server.deleteSession(created)
@@ -427,7 +427,7 @@ internal class DirectBroadcastController internal constructor(
     private fun forgetSession() {
         stopPolling()
         session = null
-        snapshot = null
+        clearSnapshot()
         preparedDeadline = null
         runCatching { env.recovery.clear() }
         pushUi()
@@ -886,6 +886,16 @@ internal class DirectBroadcastController internal constructor(
     private fun publishSnapshot(next: SessionSnapshot) {
         snapshot = next
         post { callbacks.onSessionSnapshotChanged(next) }
+    }
+
+    /**
+     * 세션이 끝나면 화면의 마지막 세션 상태도 비웁니다. 비우지 않으면 종료 뒤에도 라이브 대상 상태·업로드 화질·
+     * 시청자 채팅 버튼이 남습니다. iOS `clearSessionResponseState`와 같은 동작입니다.
+     */
+    private fun clearSnapshot() {
+        val hadSnapshot = snapshot != null
+        snapshot = null
+        if (hadSnapshot) post { callbacks.onSessionSnapshotCleared() }
     }
 
     // --- 하트비트 입력 ---
