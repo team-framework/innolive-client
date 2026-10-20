@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.live.direct.publish
 
 import android.media.AudioDeviceInfo
+import com.framework.innolive.feature.live.recording.RecordingAudioSink
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
@@ -47,6 +48,9 @@ internal class DirectAudioInput(
     private val bytesPerSecond = profile.audioSampleRate.toLong() * 2 * profile.audioChannels
     private val chunkBytes = (profile.audioSampleRate / 100) * 2 * profile.audioChannels
     private val silence = ByteArray(chunkBytes)
+
+    /** 송출 엔진에 넘기는 PCM(무음·음소거 포함)을 그대로 받는 녹화 탭입니다. 송출 음성과 같은 내용입니다. */
+    @Volatile var recordingTap: RecordingAudioSink? = null
 
     override fun start(sink: PcmSink) {
         synchronized(lock) {
@@ -127,7 +131,9 @@ internal class DirectAudioInput(
             val durationUs = size * 1_000_000L / bytesPerSecond
             if (presentationTimeUs + durationUs <= coveredUntilUs) return
             val timeUs = maxOf(presentationTimeUs, coveredUntilUs)
-            if (muted) target.onPcm(ByteArray(size), size, timeUs) else target.onPcm(data, size, timeUs)
+            val payload = if (muted) ByteArray(size) else data
+            target.onPcm(payload, size, timeUs)
+            recordingTap?.onPcm(payload, size, profile.audioSampleRate, profile.audioChannels, timeUs)
             coveredUntilUs = timeUs + durationUs
         }
     }
@@ -144,6 +150,7 @@ internal class DirectAudioInput(
             if (now - coveredUntilUs > MAX_BACKFILL_US) coveredUntilUs = now - MAX_BACKFILL_US
             while (coveredUntilUs + chunkUs <= now) {
                 target.onPcm(silence, silence.size, coveredUntilUs)
+                recordingTap?.onPcm(silence, silence.size, profile.audioSampleRate, profile.audioChannels, coveredUntilUs)
                 coveredUntilUs += chunkUs
             }
         }

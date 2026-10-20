@@ -17,6 +17,8 @@ data class SessionTarget(
     val broadcastPhase: String?,
     val stopReason: String?,
     val reconnectAttempts: Long?,
+    /** 준비 뒤 YouTube 대상에만 오는 동영상 ID입니다. 필드가 없는 응답은 이전 값을 유지합니다(youtube-viewer-chat-v1.md). */
+    val videoId: String? = null,
 )
 
 data class SessionSnapshot(
@@ -102,7 +104,9 @@ internal fun parseSessionSnapshot(
         response.has("targets") -> response.optJSONArray("targets")?.objects()?.map { item ->
             val name = (item.opt("provider") as? String)?.takeIf { it.isNotBlank() }
                 ?: throw IllegalArgumentException("송출 대상이 없습니다.")
-            parseSessionTarget(item.getJSONObject("stream"), name, oldTargets.firstOrNull { it.provider == name })
+            val old = oldTargets.firstOrNull { it.provider == name }
+            parseSessionTarget(item.getJSONObject("stream"), name, old,
+                videoId = (item.opt("video_id") as? String)?.takeIf { it.isNotBlank() } ?: old?.videoId)
         } ?: previous.targets
         response.optJSONObject("stream") != null || response.has("broadcast_phase") -> {
             val stream = response.optJSONObject("stream") ?: response
@@ -150,7 +154,12 @@ internal fun parseSessionSnapshot(
     )
 }
 
-private fun parseSessionTarget(stream: JSONObject, provider: String, previous: SessionTarget?): SessionTarget =
+private fun parseSessionTarget(
+    stream: JSONObject,
+    provider: String,
+    previous: SessionTarget?,
+    videoId: String? = previous?.videoId,
+): SessionTarget =
     SessionTarget(
         provider = provider,
         status = stream.opt("status") as? String ?: previous?.status,
@@ -158,6 +167,7 @@ private fun parseSessionTarget(stream: JSONObject, provider: String, previous: S
         stopReason = if (stream.has("stop_reason") && stream.isNull("stop_reason")) null
             else stream.opt("stop_reason") as? String ?: previous?.stopReason,
         reconnectAttempts = stream.nonNegativeInteger("reconnect_attempts") ?: previous?.reconnectAttempts,
+        videoId = videoId,
     )
 
 private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }

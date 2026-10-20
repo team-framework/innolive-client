@@ -57,6 +57,9 @@ import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import org.webrtc.VideoTrack
 import org.webrtc.audio.JavaAudioDeviceModule
+import com.framework.innolive.feature.live.recording.RecordingAudioSink
+import com.framework.innolive.feature.live.recording.WebRtcRecordingAudioTap
+import org.webrtc.ExternalAudioProcessingFactory
 import java.io.IOException
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
@@ -244,6 +247,9 @@ internal class WebRtcConnection(
     @Volatile
     private var session: CreatedSession? = null
 
+    /** 음성 처리(에코 제거·잡음 억제) 뒤 송출 신호를 녹화기에 넘기는 탭입니다. 연결마다 하나입니다. */
+    private val recordingAudioTap = WebRtcRecordingAudioTap()
+    private var audioProcessingFactory: ExternalAudioProcessingFactory? = null
     private var audioRecordingStarted = false
     private var audioInputVerified = false
     private var audioRouteRetryAttempted = false
@@ -491,8 +497,15 @@ internal class WebRtcConnection(
         val createdAudioDeviceModule =
             checkNotNull(this@WebRtcConnection.audioDeviceModule)
         WebRtcNativeRuntime.initialize(applicationContext)
+        // 녹화는 iOS처럼 음성 처리 뒤 송출 신호를 씁니다. 후처리 단계를 붙이지 못해도 송출은 기본 처리로 이어 갑니다.
+        val processing = runCatching {
+            ExternalAudioProcessingFactory().also { it.setCapturePostProcessing(recordingAudioTap) }
+        }.onFailure { Log.w("LiveConnection", "recording_audio_tap_unavailable type=${it.javaClass.simpleName}") }
+            .getOrNull()
+        audioProcessingFactory = processing
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(createdAudioDeviceModule)
+            .apply { if (processing != null) setAudioProcessingFactory(processing) }
             .setVideoEncoderFactory(
                 DefaultVideoEncoderFactory(eglContext, true, true),
             )
@@ -1133,6 +1146,10 @@ internal class WebRtcConnection(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             audioManager.clearCommunicationDevice()
         }
+    }
+
+    override fun setRecordingAudioSink(sink: RecordingAudioSink?) {
+        recordingAudioTap.sink = sink
     }
 
     private fun createAudioDeviceModule(): JavaAudioDeviceModule = JavaAudioDeviceModule
@@ -2215,6 +2232,9 @@ internal class WebRtcConnection(
         videoSource = null
         runCatching { peerConnectionFactory?.dispose() }
         peerConnectionFactory = null
+        recordingAudioTap.sink = null
+        runCatching { audioProcessingFactory?.destroy() }
+        audioProcessingFactory = null
         runCatching { audioDeviceModule?.release() }
         audioDeviceModule = null
         runCatching { eglBase?.release() }

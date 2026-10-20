@@ -42,6 +42,9 @@ internal interface DirectMediaPipeline : AutoCloseable {
 
     fun setPreferredAudioInput(device: AudioDeviceInfo?)
 
+    /** 송출 음성 PCM을 녹화기에도 넘깁니다. 기본 구현은 녹화 음성을 제공하지 않습니다. */
+    fun setRecordingAudioSink(sink: com.framework.innolive.feature.live.recording.RecordingAudioSink?) = Unit
+
     /** 송출 엔진을 만들어 시작하고 가림 처리 출력을 연결합니다. */
     fun createEngine(profile: DirectPublishProfile, listener: DirectPublisher.Listener): DirectPublishEngine
 }

@@ -216,6 +216,11 @@ internal class DirectBroadcastController internal constructor(
         if (isActive()) env.media.setPreferredAudioInput(audioInput)
     }
 
+    /** 녹화 종료 전에 끊어야 하므로 작업 스레드를 거치지 않고 바로 바꿉니다. */
+    override fun setRecordingAudioSink(sink: com.framework.innolive.feature.live.recording.RecordingAudioSink?) {
+        if (!closed.get()) env.media.setRecordingAudioSink(sink)
+    }
+
     /** 서버 PATCH는 직접 송출 세션에서 409이므로 앱 가림 처리만 바꿉니다. */
     override fun setAnonymizationEnabled(
         enabled: Boolean,
@@ -411,7 +416,7 @@ internal class DirectBroadcastController internal constructor(
     private fun deleteSession(created: CreatedSession) {
         stopPolling()
         session = null
-        snapshot = null
+        clearSnapshot()
         preparedDeadline = null
         try {
             env.server.deleteSession(created)
@@ -427,7 +432,7 @@ internal class DirectBroadcastController internal constructor(
     private fun forgetSession() {
         stopPolling()
         session = null
-        snapshot = null
+        clearSnapshot()
         preparedDeadline = null
         runCatching { env.recovery.clear() }
         pushUi()
@@ -886,6 +891,16 @@ internal class DirectBroadcastController internal constructor(
     private fun publishSnapshot(next: SessionSnapshot) {
         snapshot = next
         post { callbacks.onSessionSnapshotChanged(next) }
+    }
+
+    /**
+     * 세션이 끝나면 화면의 마지막 세션 상태도 비웁니다. 비우지 않으면 종료 뒤에도 라이브 대상 상태·업로드 화질·
+     * 시청자 채팅 버튼이 남습니다. iOS `clearSessionResponseState`와 같은 동작입니다.
+     */
+    private fun clearSnapshot() {
+        val hadSnapshot = snapshot != null
+        snapshot = null
+        if (hadSnapshot) post { callbacks.onSessionSnapshotCleared() }
     }
 
     // --- 하트비트 입력 ---

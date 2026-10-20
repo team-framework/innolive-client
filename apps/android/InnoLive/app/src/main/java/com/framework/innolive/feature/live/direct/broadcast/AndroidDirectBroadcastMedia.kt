@@ -34,6 +34,7 @@ import com.framework.innolive.feature.live.direct.publish.PcmSink
 import com.framework.innolive.feature.live.direct.publish.PcmSource
 import com.framework.innolive.feature.live.direct.publish.PublishOrientation
 import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
+import com.framework.innolive.feature.live.recording.RecordingAudioSink
 import com.framework.innolive.feature.live.sessionRecoveryScope
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.webrtc.EglBase
@@ -116,6 +117,7 @@ private class AndroidDirectMediaPipeline(
     @Volatile private var latestOrientation: PublishOrientation? = null
     @Volatile private var engineSink: VideoSink? = null
     @Volatile private var audio: DirectAudioInput? = null
+    @Volatile private var recordingAudioSink: RecordingAudioSink? = null
     private var eglBase: EglBase? = null
     private var analyzer: CameraFrameAnalyzer? = null
     private var events: DirectMediaEvents? = null
@@ -160,6 +162,11 @@ private class AndroidDirectMediaPipeline(
         audio?.setPreferredDevice(device)
     }
 
+    override fun setRecordingAudioSink(sink: RecordingAudioSink?) {
+        recordingAudioSink = sink
+        audio?.recordingTap = sink
+    }
+
     override fun createEngine(profile: DirectPublishProfile, listener: DirectPublisher.Listener): DirectPublishEngine {
         val egl = checkNotNull(eglBase) { "카메라 입력을 열지 않았습니다." }
         audio?.close()
@@ -173,6 +180,7 @@ private class AndroidDirectMediaPipeline(
                 MicrophoneState.SILENCED -> MicrophoneStatus.SILENCED
             })
         })
+        input.recordingTap = recordingAudioSink
         val publisher = DirectPublisher(profile, egl.eglBaseContext, input, listener, slateSource)
         publisher.start()
         audio = input
