@@ -153,6 +153,32 @@ struct YouTubeBroadcastControlLabel: View {
     }
 }
 
+/// 송출 대상 없이 비식별화만 실행 중일 때의 주 버튼이다. 누르면 연결을 닫고 카메라 미리보기로 돌아간다.
+struct PrivacyOnlyControlLabel: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    let isLoading: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if isLoading {
+                ProgressView().controlSize(.small)
+            } else {
+                Image(systemName: "faceid").font(.system(size: 13, weight: .semibold))
+            }
+            Text(String(localized: "비식별화 종료"))
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: BroadcastControlLayout.height)
+        .contentShape(Rectangle())
+        .accessibilityIdentifier("privacy-only-stop")
+    }
+}
+
 struct BroadcastPreparationControlLabel: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let status: BroadcastPreparationStatus?
@@ -324,6 +350,18 @@ struct StudioBroadcastSummaryLabel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
+            if youtube.selectedBroadcastProviders.isEmpty {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(String(localized: "송출 플랫폼 없음"))
+                            .font(.caption.weight(.semibold))
+                        Text(String(localized: "비식별화만 실행"))
+                            .font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.caption)
+                }
+            }
             ForEach(BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains)) { provider in
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 3) {
