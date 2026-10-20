@@ -72,7 +72,11 @@ import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.live.recording.BroadcastRecordingLibraryScreen
 import com.framework.innolive.feature.live.recording.BroadcastRecordingStatus
+import com.framework.innolive.feature.settings.AISettingsScreen
 import com.framework.innolive.feature.settings.AccountSettingsScreen
+import com.framework.innolive.feature.settings.AppInfoSettingsScreen
+import com.framework.innolive.feature.settings.CameraAudioSettingsScreen
+import com.framework.innolive.feature.settings.PlanUsageScreen
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.feature.settings.PlanUsage
@@ -121,6 +125,14 @@ data object LiveRoute : AppRoute
 data object SettingsRoute : AppRoute
 
 data object AccountSettingsRoute : AppRoute
+
+data object CameraAudioSettingsRoute : AppRoute
+
+data object AISettingsRoute : AppRoute
+
+data object PlanUsageRoute : AppRoute
+
+data object AppInfoSettingsRoute : AppRoute
 
 data object BroadcastSettingRoute : AppRoute
 
@@ -688,7 +700,7 @@ fun AppNavigation(
         youtubeAccountGuidance = null
         previousProfileEmail = session?.profileEmail
         if (session != null && isAccountDeletionPending) {
-            if (backStack.lastOrNull() !in setOf(SettingsRoute, AccountSettingsRoute)) {
+            if (backStack.lastOrNull() !in setOf(SettingsRoute, AppInfoSettingsRoute, AccountSettingsRoute)) {
                 backStack.clear()
                 backStack.add(SettingsRoute)
             }
@@ -943,11 +955,15 @@ fun AppNavigation(
             onOpenAccountSettings = {
                 if (backStack.lastOrNull() != AccountSettingsRoute) backStack.add(AccountSettingsRoute)
             },
+            onOpenCameraAudioSettings = { backStack.add(CameraAudioSettingsRoute) },
+            onOpenAISettings = { backStack.add(AISettingsRoute) },
+            onOpenPlanUsage = { backStack.add(PlanUsageRoute) },
+            onOpenAppInfo = {
+                if (backStack.lastOrNull() != AppInfoSettingsRoute) backStack.add(AppInfoSettingsRoute)
+            },
             selectedResolution = selectedResolution?.displayName.orEmpty(),
             selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
             selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
-            selectedPlatform = selectedBroadcastPlatform,
-            broadcastAccount = visibleYouTubeAccount?.channelTitle ?: youtubeAccountStatus.asString(),
             onOpenResolutionOptions = {
                 backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
             },
@@ -1060,6 +1076,22 @@ fun AppNavigation(
 
                 AccountSettingsRoute -> {
                     NavEntry(route) { AccountSettingsScreen(settingsProps(), onBack = onBack) }
+                }
+
+                CameraAudioSettingsRoute -> {
+                    NavEntry(route) { CameraAudioSettingsScreen(settingsProps(), onBack = onBack) }
+                }
+
+                AISettingsRoute -> {
+                    NavEntry(route) { AISettingsScreen(settingsProps(), onBack = onBack) }
+                }
+
+                PlanUsageRoute -> {
+                    NavEntry(route) { PlanUsageScreen(settingsProps(), onBack = onBack) }
+                }
+
+                AppInfoSettingsRoute -> {
+                    NavEntry(route) { AppInfoSettingsScreen(settingsProps(), onBack = onBack) }
                 }
 
                 RecordingsRoute -> {
@@ -1260,6 +1292,8 @@ fun AppNavigation(
                 tutorial = broadcastTutorial,
                 settings = LiveSettingsPage(
                     isOpen = backStack.lastOrNull() != LiveRoute,
+                    // 설정 첫 화면은 iOS처럼 카드만 미리보기 위에 띄우고, 하위 화면은 흰 창에 보여 줍니다.
+                    showsPanel = backStack.lastOrNull() !in setOf(LiveRoute, SettingsRoute),
                     canLeaveBySwipe = backStack.lastOrNull() in setOf(LiveRoute, SettingsRoute) &&
                         !isDeletingAccount && !isAccountDeletionPending,
                     onOpen = { if (backStack.lastOrNull() == LiveRoute) backStack.add(SettingsRoute) },

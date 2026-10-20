@@ -87,6 +87,8 @@ fun ModalSurface(
     modifier: Modifier = Modifier,
     shape: Shape = ModalShape,
     color: Color = ModalGlassColor,
+    /** 바탕을 지워 안쪽 내용만 보일 때는 테두리도 함께 숨깁니다. */
+    showsBorder: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     Surface(
@@ -95,7 +97,7 @@ fun ModalSurface(
         color = color,
         contentColor = ModalColorScheme.onSurface,
         // 반투명 바탕 아래로 그림자가 비쳐 회색이 되므로 그림자 대신 얇은 테두리로 경계를 그립니다.
-        border = ModalBorder,
+        border = if (showsBorder) ModalBorder else null,
         content = content,
     )
 }

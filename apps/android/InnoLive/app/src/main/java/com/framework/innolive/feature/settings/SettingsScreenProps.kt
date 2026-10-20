@@ -14,11 +14,14 @@ data class SettingsScreenProps(
     val onLogout: () -> Unit,
     /** 로그아웃·계정 삭제를 모은 계정 설정 화면을 엽니다. */
     val onOpenAccountSettings: () -> Unit = {},
+    val onOpenCameraAudioSettings: () -> Unit = {},
+    val onOpenAISettings: () -> Unit = {},
+    val onOpenPlanUsage: () -> Unit = {},
+    /** 계정 설정·안내 다시 보기·개인정보처리방침·실험실을 모은 화면을 엽니다. */
+    val onOpenAppInfo: () -> Unit = {},
     val selectedResolution: String = "",
     val selectedCameraDevice: String = "",
     val selectedAudioDevice: String = "",
-    val selectedPlatform: String = "",
-    val broadcastAccount: String = "",
     val onOpenResolutionOptions: () -> Unit = {},
     val onOpenCameraDeviceOptions: () -> Unit = {},
     val onOpenAudioDeviceOptions: () -> Unit = {},

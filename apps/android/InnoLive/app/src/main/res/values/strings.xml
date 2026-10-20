@@ -72,7 +72,6 @@
     <string name="camera_back">후면 카메라</string>
     <string name="camera_front">전면 카메라</string>
     <string name="audio_device_default">기본 마이크</string>
-    <string name="settings_broadcast">방송 설정</string>
     <string name="action_logout">로그아웃</string>
     <string name="settings_account">계정 설정</string>
     <string name="action_delete_account">계정 삭제</string>
@@ -298,7 +297,6 @@
     <string name="settings_section_account">InnoLive 계정</string>
     <string name="settings_section_camera">카메라</string>
     <string name="settings_section_audio">오디오</string>
-    <string name="settings_section_live">라이브</string>
     <string name="direct_broadcast_notification_channel">방송 진행</string>
     <string name="direct_broadcast_notification_title">방송 중</string>
     <string name="direct_broadcast_notification_text">다른 앱을 쓰거나 화면이 꺼지면 카메라 대신 대기 화면과 무음을 송출합니다.</string>
