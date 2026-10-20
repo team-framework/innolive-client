@@ -19,6 +19,7 @@ import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.GoogleSignInState
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
+import com.framework.innolive.feature.settings.AccountSettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.R
@@ -86,9 +87,17 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
             string(R.string.settings_title),
             "테스트 사용자",
             "test@example.invalid",
-            string(R.string.action_logout),
             string(R.string.video_stabilization),
             string(R.string.settings_broadcast),
+        ).forEach { contrast(it) }
+    }
+
+    @Test fun accountSettings() {
+        content { AccountSettingsScreen(SettingsScreenProps({}, {}, "테스트 사용자", "test@example.invalid", {}), onBack = {}) }
+        listOf(
+            string(R.string.settings_account),
+            string(R.string.action_logout),
+            string(R.string.action_delete_account),
         ).forEach { contrast(it) }
     }
 
