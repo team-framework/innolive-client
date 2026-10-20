@@ -236,6 +236,32 @@ class SessionSnapshotTest {
             simulcastPrepareFailedMessage(listOf(BroadcastProvider.YOUTUBE)))
     }
 
+    @Test fun failedTargetCodesKeepTheFirstReasonPerProvider() {
+        assertEquals(emptyMap<BroadcastProvider, String>(), parseFailedTargetCodes("""{"targets":[]}"""))
+        assertEquals(
+            mapOf(BroadcastProvider.YOUTUBE to "streaming_rate_limited", BroadcastProvider.CHZZK to ""),
+            parseFailedTargetCodes(
+                """{"failed_targets":[{"provider":"future_provider","code":"x"},
+                    {"provider":"youtube","code":"streaming_rate_limited"},{"provider":"youtube","code":"later"},
+                    {"provider":"chzzk"}]}"""),
+        )
+    }
+
+    /** innolive-server#505: YouTube 요청 한도는 채널 단위라 재시도·채널 변경 안내가 붙은 문구를 씁니다. */
+    @Test fun youtubeRateLimitAtGoLiveUsesTheChannelLimitMessage() {
+        val payload = """{"failed_targets":[{"provider":"youtube","code":"streaming_rate_limited","message":"m"}]}"""
+        val codes = parseFailedTargetCodes(payload)
+        assertEquals(UiText.Resource(R.string.simulcast_golive_rate_limited_youtube),
+            simulcastGoLiveFailedMessage(codes.keys, codes))
+        // 다른 사유와 두 플랫폼 모두 실패는 기존 문구를 유지합니다.
+        assertEquals(UiText.Resource(R.string.simulcast_golive_failed_youtube),
+            simulcastGoLiveFailedMessage(listOf(BroadcastProvider.YOUTUBE),
+                mapOf(BroadcastProvider.YOUTUBE to "streaming_golive_failed")))
+        assertEquals(UiText.Resource(R.string.simulcast_golive_failed_all),
+            simulcastGoLiveFailedMessage(listOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK),
+                mapOf(BroadcastProvider.YOUTUBE to "streaming_rate_limited")))
+    }
+
     /**
      * android-session-snapshot.md: 세션 스냅샷은 알 수 없는 status를 확정 상태로 보지 않는다.
      * direct-publish-v1.md: 직접 송출 중 stream.status는 항상 idle이고 방송 상태는 broadcast_phase로 판단하므로,
