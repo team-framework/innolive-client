@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.framework.innolive.feature.live.CameraFrameAnalyzer
 import com.framework.innolive.feature.live.CreatedSession
+import com.framework.innolive.feature.live.LiveBroadcastTransport
 import com.framework.innolive.feature.live.LiveBroadcastTransportRequest
 import com.framework.innolive.feature.live.SessionRecoveryScope
 import com.framework.innolive.feature.live.SessionRecoveryStore
@@ -66,6 +67,23 @@ internal fun androidDirectBroadcastEnvironment(
         callbacks = { mainHandler.post(it) },
         elapsedRealtimeMillis = SystemClock::elapsedRealtime,
         log = { Log.i(LOG_TAG, it) },
+    )
+}
+
+/**
+ * 플랫폼 없이 온디바이스 가림 처리 미리보기만 여는 송출 경로를 만듭니다. 서버 API·세션 기록을 만들지 않으며,
+ * 등록 얼굴은 직접 송출과 같은 계정 범위에서 읽습니다.
+ */
+internal fun createOnDevicePreviewTransport(request: LiveBroadcastTransportRequest): LiveBroadcastTransport {
+    val scope = sessionRecoveryScope(request.serverUrl.trim().trimEnd('/').toHttpUrl().toString(), request.accessToken)
+    val mainHandler = Handler(Looper.getMainLooper())
+    return OnDevicePreviewTransport(
+        callbacks = request.callbacks,
+        media = AndroidDirectMediaPipeline(request, scope),
+        initialAnonymizationEnabled = request.initialAnonymizationEnabled,
+        owner = ExecutorSerialScheduler(Executors.newSingleThreadScheduledExecutor { Thread(it, "on-device-preview") }),
+        callbackExecutor = { mainHandler.post(it) },
+        log = { Log.i(PREVIEW_LOG_TAG, it) },
     )
 }
 
@@ -213,3 +231,4 @@ private class PermittedMicrophone(private val source: MicrophonePcmSource) : Pcm
 }
 
 private const val LOG_TAG = "DirectBroadcast"
+private const val PREVIEW_LOG_TAG = "OnDevicePreview"

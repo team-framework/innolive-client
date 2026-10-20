@@ -10,6 +10,7 @@ import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastUiSta
 import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.broadcast.RtmpReconnectSupervisor
 import com.framework.innolive.feature.live.direct.broadcast.createDirectHeartbeatLoop
+import com.framework.innolive.feature.live.direct.broadcast.createOnDevicePreviewTransport
 import com.framework.innolive.feature.live.direct.lifecycle.ServiceBroadcastKeepAlive
 import com.framework.innolive.feature.live.status.UplinkVideoStats
 import com.framework.innolive.ui.text.ServerErrorGuidance
@@ -90,16 +91,19 @@ internal class LiveBroadcastTransportRequest(
     /** 송출 해상도와 대상입니다. 서버 중계는 세션을 만들 때 해상도만 씁니다. */
     val directPlan: DirectBroadcastPlan,
     val callbacks: LiveBroadcastCallbacks,
+    /** 플랫폼 없이 온디바이스 가림 처리 미리보기만 엽니다. 서버에 연결하지 않습니다. */
+    val previewOnly: Boolean = false,
 ) {
     val context: Context = context.applicationContext
 }
 
 /**
- * 기본 송출 경로입니다. 온디바이스를 고르고 직접 송출이 켜져 있으면 앱 직접 송출을, 그 밖에는
- * 기존 서버 중계를 씁니다.
+ * 기본 송출 경로입니다. 미리보기만 요청하면 온디바이스 미리보기를, 온디바이스를 고르고 직접 송출이 켜져 있으면
+ * 앱 직접 송출을, 그 밖에는 기존 서버 중계를 씁니다.
  */
 internal fun createLiveBroadcastTransport(request: LiveBroadcastTransportRequest): LiveBroadcastTransport =
-    if (request.initialOnDeviceProcessing && DirectPublishFeature.ENABLED) createDirectBroadcastController(request)
+    if (request.previewOnly) createOnDevicePreviewTransport(request)
+    else if (request.initialOnDeviceProcessing && DirectPublishFeature.ENABLED) createDirectBroadcastController(request)
     else with(request.callbacks) {
         WebRtcConnection(
             context = request.context,
