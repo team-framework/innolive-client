@@ -18,8 +18,11 @@ internal object PrivacySegmentation {
     /** BoT-SORT `track_high_thresh`/`new_track_thresh`, and the score that is always protected. */
     const val ACTIVATION_CONFIDENCE = 0.25f
     const val NO_TRACK = -1
-    /** innolive-ai detector class-aware NMS IoU. */
-    private const val NMS_IOU = 0.70f
+    /**
+     * Class-aware NMS IoU. innolive-ai and iOS use 0.70, but Android keeps 0.45: a duplicate box of one face would
+     * overlap it and revoke its registered-face exemption.
+     */
+    private const val NMS_IOU = 0.45f
 
     data class Box(val left: Float, val top: Float, val right: Float, val bottom: Float) {
         val width get() = right - left

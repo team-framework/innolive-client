@@ -13,8 +13,8 @@ namespace {
 constexpr int kPixels = 160 * 160, kCandidates = 8400, kMaximum = 100;
 // BoT-SORT track_low_thresh and track_high_thresh: weaker candidates may only continue a track.
 constexpr float kContinuation = .05f, kActivation = .25f;
-// innolive-ai detector class-aware NMS IoU.
-constexpr float kNmsIou = .70f;
+// Class-aware NMS IoU; see PrivacySegmentation.NMS_IOU for why Android keeps 0.45.
+constexpr float kNmsIou = .45f;
 struct Box { float left, top, right, bottom; };
 float iou(const Box& a, const Box& b) {
     const float width = std::max(0.f, std::min(a.right,b.right)-std::max(a.left,b.left));
