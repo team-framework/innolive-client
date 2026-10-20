@@ -1,3 +1,4 @@
+import Combine
 import SwiftUI
 
 /// AI 워커가 재시작해 잃은 기준 얼굴이 있다는 안내다. 그대로 두면 등록한 사람도 블러된다.
@@ -28,5 +29,26 @@ struct ReferenceFaceReregistrationBanner: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("reference-face-reregistration-banner")
+    }
+}
+
+/// 방송 준비 전에 서버 기준 얼굴의 재등록 필요 여부를 확인한다.
+@MainActor
+final class ReferenceFaceReregistrationCheck: ObservableObject {
+    // iOS 18 소멸자 충돌을 피한다. docs/ios-version-support.md 참고.
+    nonisolated deinit {}
+
+    @Published private(set) var isRequired = false
+
+    /// 서버 AI를 쓸 때만 확인한다. 온디바이스 얼굴은 이 기기에 저장돼 워커 재시작과 무관하다.
+    /// 확인하지 못하면 이전 값을 유지한다. 안내는 방송 준비를 막지 않는다.
+    func refresh(authentication: AuthSession, mode: AIProcessingMode = .selected) async {
+        guard mode == .server else {
+            isRequired = false
+            return
+        }
+        if let status = try? await ReferenceFaceAPI(authentication: authentication).status() {
+            isRequired = status.reregistrationRequired
+        }
     }
 }
