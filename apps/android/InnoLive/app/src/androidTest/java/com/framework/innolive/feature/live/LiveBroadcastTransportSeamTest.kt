@@ -121,45 +121,53 @@ class LiveBroadcastTransportSeamTest {
     @Test fun mosaicChangesWhileRequestingSendOnlyTheLastValue() {
         val created = mutableListOf<FakeTransport>()
         lateinit var session: WebRtcSessionViewModel
-        compose.runOnIdle {
-            session = WebRtcSessionViewModel { request -> FakeTransport(request).also(created::add) }
-            assertFalse(session.canChangeMosaicConfig)
-            assertTrue(session.prepareBroadcast(compose.activity, settings) { "access-token" })
-        }
-        compose.waitUntil(10_000) { session.canChangeMosaicConfig }
-        compose.runOnIdle {
-            val transport = created.single()
-            assertTrue(session.updateMosaicConfig(MosaicConfig(blurRadius = 30.0)))
-            assertTrue(session.isChangingMosaicConfig)
-            // 요청 중에 들어온 값은 마지막 것만 이어서 보냅니다.
-            session.updateMosaicConfig(MosaicConfig(blurRadius = 40.0))
-            session.updateMosaicConfig(MosaicConfig(blurRadius = 50.0, maskMargin = 20))
-            assertEquals(1, transport.mosaicRequests.size)
-            transport.mosaicRequests[0].let { (config, complete) -> complete(config, null) }
-            assertEquals(MosaicConfig(blurRadius = 30.0), session.mosaicConfig)
-            assertEquals(MosaicConfig(blurRadius = 50.0, maskMargin = 20), transport.mosaicRequests[1].first)
-            transport.mosaicRequests[1].let { (config, complete) -> complete(config, null) }
-            assertFalse(session.isChangingMosaicConfig)
-            assertEquals(50, session.mosaicConfig.effectiveBlurRadius)
-            // 실패하면 확정값을 유지하고 안내를 보여 줍니다.
-            session.updateMosaicConfig(MosaicConfig())
-            transport.mosaicRequests[2].second(null, UiText.Resource(com.framework.innolive.R.string.error_mosaic_config))
-            assertEquals(50, session.mosaicConfig.effectiveBlurRadius)
-            assertFalse(session.isChangingMosaicConfig)
-            assertEquals(UiText.Resource(com.framework.innolive.R.string.error_mosaic_config), session.mosaicConfigError)
-            // 실패해도 요청 중에 고른 새 값은 이어서 보내고 안내를 지웁니다.
-            session.updateMosaicConfig(MosaicConfig(maskMargin = 30))
-            session.updateMosaicConfig(MosaicConfig(maskMargin = 40))
-            transport.mosaicRequests[3].second(null, UiText.Resource(com.framework.innolive.R.string.error_mosaic_config))
-            assertTrue(session.isChangingMosaicConfig)
-            assertEquals(MosaicConfig(maskMargin = 40), transport.mosaicRequests[4].first)
-            transport.mosaicRequests[4].let { (config, complete) -> complete(config, null) }
-            assertNull(session.mosaicConfigError)
-            assertEquals(40, session.mosaicConfig.effectiveMaskMargin)
-            // 세션이 끝나면 새 세션은 기본값으로 시작합니다.
-            session.close()
-            assertEquals(MosaicConfig(), session.mosaicConfig)
-            assertNull(session.mosaicConfigError)
+        val context = compose.activity
+        // 모자이크는 서버 AI 세션에서만 바꿀 수 있으므로 기기 선택과 관계없이 서버 처리로 맞춥니다.
+        val previousOnDevice = AIProcessingPreference(context).onDevice
+        try {
+            compose.runOnIdle {
+                session = WebRtcSessionViewModel { request -> FakeTransport(request).also(created::add) }
+                assertTrue(session.selectInitialAIProcessing(context, false))
+                assertFalse(session.canChangeMosaicConfig)
+                assertTrue(session.prepareBroadcast(context, settings) { "access-token" })
+            }
+            compose.waitUntil(10_000) { session.canChangeMosaicConfig }
+            compose.runOnIdle {
+                val transport = created.single()
+                assertTrue(session.updateMosaicConfig(MosaicConfig(blurRadius = 30.0)))
+                assertTrue(session.isChangingMosaicConfig)
+                // 요청 중에 들어온 값은 마지막 것만 이어서 보냅니다.
+                session.updateMosaicConfig(MosaicConfig(blurRadius = 40.0))
+                session.updateMosaicConfig(MosaicConfig(blurRadius = 50.0, maskMargin = 20))
+                assertEquals(1, transport.mosaicRequests.size)
+                transport.mosaicRequests[0].let { (config, complete) -> complete(config, null) }
+                assertEquals(MosaicConfig(blurRadius = 30.0), session.mosaicConfig)
+                assertEquals(MosaicConfig(blurRadius = 50.0, maskMargin = 20), transport.mosaicRequests[1].first)
+                transport.mosaicRequests[1].let { (config, complete) -> complete(config, null) }
+                assertFalse(session.isChangingMosaicConfig)
+                assertEquals(50, session.mosaicConfig.effectiveBlurRadius)
+                // 실패하면 확정값을 유지하고 안내를 보여 줍니다.
+                session.updateMosaicConfig(MosaicConfig())
+                transport.mosaicRequests[2].second(null, UiText.Resource(com.framework.innolive.R.string.error_mosaic_config))
+                assertEquals(50, session.mosaicConfig.effectiveBlurRadius)
+                assertFalse(session.isChangingMosaicConfig)
+                assertEquals(UiText.Resource(com.framework.innolive.R.string.error_mosaic_config), session.mosaicConfigError)
+                // 실패해도 요청 중에 고른 새 값은 이어서 보내고 안내를 지웁니다.
+                session.updateMosaicConfig(MosaicConfig(maskMargin = 30))
+                session.updateMosaicConfig(MosaicConfig(maskMargin = 40))
+                transport.mosaicRequests[3].second(null, UiText.Resource(com.framework.innolive.R.string.error_mosaic_config))
+                assertTrue(session.isChangingMosaicConfig)
+                assertEquals(MosaicConfig(maskMargin = 40), transport.mosaicRequests[4].first)
+                transport.mosaicRequests[4].let { (config, complete) -> complete(config, null) }
+                assertNull(session.mosaicConfigError)
+                assertEquals(40, session.mosaicConfig.effectiveMaskMargin)
+                // 세션이 끝나면 새 세션은 기본값으로 시작합니다.
+                session.close()
+                assertEquals(MosaicConfig(), session.mosaicConfig)
+                assertNull(session.mosaicConfigError)
+            }
+        } finally {
+            AIProcessingPreference(context).onDevice = previousOnDevice
         }
     }
 
