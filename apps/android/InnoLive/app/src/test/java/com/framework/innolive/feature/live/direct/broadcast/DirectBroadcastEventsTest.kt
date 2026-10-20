@@ -35,8 +35,22 @@ class DirectBroadcastEventsTest {
     }
 
     @Test fun goLiveTargetFailureUsesDirectGuidance() {
-        assertEquals("broadcast_stopped", apiFailureCode(directTargetFailureEvent("broadcast_stopped")))
-        assertEquals(BroadcastEvent.Failure(BroadcastFailure.REQUEST), directTargetFailureEvent(null))
+        assertEquals("broadcast_stopped", apiFailureCode(directTargetFailureEvent("youtube", "broadcast_stopped")))
+        assertEquals(BroadcastEvent.Failure(BroadcastFailure.REQUEST), directTargetFailureEvent("youtube", null))
+    }
+
+    /** 공통 요청 한도 안내는 YouTube 채널 기준이라 치지직에는 치지직 문구를 씁니다. */
+    @Test fun rateLimitGuidanceFollowsTheFailedProvider() {
+        val chzzk = BroadcastEvent.Message(UiText.Resource(R.string.chzzk_error_rate_limited))
+        assertEquals(chzzk, directServerEvent(ServerApiException("streaming_rate_limited"), BroadcastProvider.CHZZK))
+        assertEquals(chzzk, directTargetFailureEvent("chzzk", "streaming_rate_limited", othersContinue = true))
+        assertEquals("streaming_rate_limited",
+            apiFailureCode(directServerEvent(ServerApiException("streaming_rate_limited"), BroadcastProvider.YOUTUBE)))
+        assertEquals("streaming_rate_limited", apiFailureCode(directTargetFailureEvent("youtube", "streaming_rate_limited")))
+        assertEquals(
+            BroadcastEvent.Message(UiText.Resource(R.string.simulcast_golive_rate_limited_youtube)),
+            directTargetFailureEvent("youtube", "streaming_rate_limited", othersContinue = true),
+        )
     }
 
     @Test fun appSituationsUseDirectNotices() {
