@@ -84,8 +84,11 @@ internal fun BroadcastPlanSelector(
         Column {
             Text(stringResource(R.string.direct_mode_targets_title), style = MaterialTheme.typography.titleSmall)
             // 마지막 대상 안내는 선택할 때마다 생겼다 사라지면 창 높이가 흔들리므로 제목 아래에 늘 둡니다.
+            // 온디바이스는 모두 해제할 수 있으므로 해제하면 미리보기만 본다고 안내합니다.
             Text(
-                stringResource(R.string.direct_mode_last_target),
+                stringResource(
+                    if (state.allowsNoTarget) R.string.direct_mode_no_target_preview else R.string.direct_mode_last_target,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

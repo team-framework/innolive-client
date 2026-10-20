@@ -9,6 +9,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -127,11 +129,12 @@ class StudioPagerSettingsTest {
                 assertEquals(0, disposals.get())
             }
         }
-        fun pageDescription(page: Int, nameRes: Int) =
-            context.getString(R.string.live_page_indicator, page, 3, context.getString(nameRes))
+        // 상단 탭 중 지금 페이지만 선택 상태입니다.
+        fun selectedPage(nameRes: Int) =
+            compose.onNode(hasContentDescription(context.getString(nameRes)) and isSelected())
         try {
             assertCaptureContinues()
-            compose.onNodeWithContentDescription(pageDescription(2, R.string.live_page_home)).assertIsDisplayed()
+            selectedPage(R.string.live_page_home).assertIsDisplayed()
             // 기본 화면에서 왼쪽으로 넘기면 설정 페이지가 열리고 백스택에도 설정 화면이 쌓입니다.
             compose.onRoot().performTouchInput { swipeLeft() }
             compose.waitUntil(5_000) { routes.last() == SettingsRoute }
@@ -153,15 +156,22 @@ class StudioPagerSettingsTest {
             // 닫기는 설정 화면을 백스택에서 빼고 기본 화면으로 돌아갑니다.
             compose.onNodeWithContentDescription(context.getString(R.string.action_close)).performClick()
             compose.waitUntil(5_000) { routes.toList() == listOf(LiveRoute) }
-            compose.onNodeWithContentDescription(pageDescription(2, R.string.live_page_home)).assertIsDisplayed()
+            selectedPage(R.string.live_page_home).assertIsDisplayed()
             assertCaptureContinues()
             // 기본 화면에서 오른쪽으로 넘기면 카메라 화면이고, 뒤로 가기는 기본 화면으로 돌아옵니다.
             compose.onRoot().performTouchInput { swipeRight() }
-            compose.onNodeWithContentDescription(pageDescription(1, R.string.live_page_camera)).assertIsDisplayed()
+            selectedPage(R.string.live_page_camera).assertIsDisplayed()
             assertCaptureContinues()
             Espresso.pressBack()
-            compose.onNodeWithContentDescription(pageDescription(2, R.string.live_page_home)).assertIsDisplayed()
+            selectedPage(R.string.live_page_home).assertIsDisplayed()
             compose.runOnIdle { assertEquals(listOf<AppRoute>(LiveRoute), routes.toList()) }
+            // 넘기지 않고 상단 탭을 눌러도 같은 페이지로 옮기고 백스택을 맞춥니다.
+            compose.onNodeWithContentDescription(context.getString(R.string.live_page_settings)).performClick()
+            compose.waitUntil(5_000) { routes.last() == SettingsRoute }
+            selectedPage(R.string.live_page_settings).assertIsDisplayed()
+            compose.onNodeWithContentDescription(context.getString(R.string.live_page_home)).performClick()
+            compose.waitUntil(5_000) { routes.toList() == listOf(LiveRoute) }
+            selectedPage(R.string.live_page_home).assertIsDisplayed()
             compose.runOnIdle { showStudio.value = false }
             compose.runOnIdle { assertEquals(1, disposals.get()) }
         } finally {

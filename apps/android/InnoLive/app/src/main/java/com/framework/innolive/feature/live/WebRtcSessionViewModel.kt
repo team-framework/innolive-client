@@ -12,12 +12,18 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.components.YouTubeViewerChatPolicy
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
 import com.framework.innolive.feature.live.consent.BroadcastConsentStep
 import com.framework.innolive.feature.live.consent.BroadcastConsentStore
 import com.framework.innolive.feature.live.consent.nextBroadcastConsentStep
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastPlan
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastUiState
+import com.framework.innolive.feature.live.recording.BroadcastRecordingControl
+import com.framework.innolive.feature.live.recording.BroadcastRecordingCoordinator
+import com.framework.innolive.feature.live.recording.createBroadcastRecordingHost
+import com.framework.innolive.feature.live.recording.BroadcastRecordingUiState
+import com.framework.innolive.feature.live.recording.RecordingMediaBindings
 import com.framework.innolive.feature.live.status.BroadcastUplinkQuality
 import com.framework.innolive.feature.live.status.BroadcastUplinkQualityTracker
 import com.framework.innolive.ui.text.UiText
@@ -35,8 +41,13 @@ import kotlin.coroutines.resume
 class WebRtcSessionViewModel internal constructor(
     /** 송출 경로를 만듭니다. 테스트는 가짜 송출 경로를 넣습니다. */
     private val transportFactory: (LiveBroadcastTransportRequest) -> LiveBroadcastTransport,
+    /** 녹화를 만듭니다. 기기 테스트는 가짜 녹화로 저장·폐기 전이를 확인합니다. */
+    private val recordingControlFactory: (Context, (BroadcastRecordingUiState) -> Unit) -> BroadcastRecordingControl =
+        ::createBroadcastRecordingHost,
 ) : ViewModel() {
     constructor() : this(::createLiveBroadcastTransport)
+    internal constructor(transportFactory: (LiveBroadcastTransportRequest) -> LiveBroadcastTransport) :
+        this(transportFactory, ::createBroadcastRecordingHost)
 
     private var startJob: Job? = null
     private var prepareJob: Job? = null
@@ -87,6 +98,9 @@ class WebRtcSessionViewModel internal constructor(
         private set
     var sessionSnapshot by mutableStateOf<SessionSnapshot?>(null)
         private set
+    /** 라이브·일시 중지 중인 YouTube 대상의 보기 전용 채팅 주소입니다. null이면 화면이 채팅 버튼을 숨깁니다. */
+    val viewerChatUrl: String?
+        get() = YouTubeViewerChatPolicy.activeUrl(sessionSnapshot)
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
     var broadcastStatus by mutableStateOf(broadcastStateMessage(BroadcastState.IDLE).text)
@@ -102,6 +116,38 @@ class WebRtcSessionViewModel internal constructor(
 
     var frameAnalyzer: CameraFrameAnalyzer? by mutableStateOf(null)
         private set
+
+    /** 방송 녹화 상태입니다. 녹화 오류는 방송 상태를 바꾸지 않습니다. */
+    var recordingState by mutableStateOf(BroadcastRecordingUiState())
+        private set
+    private var applicationContext: Context? = null
+    private var recordingHost: BroadcastRecordingControl? = null
+
+    /** 첫 연결 뒤에만 만듭니다. 연결 전 close()가 호스트 없이 지나가도 다음 방송의 녹화를 막지 않습니다. */
+    private fun ensureRecordingHost(): BroadcastRecordingControl? = recordingHost ?: applicationContext?.let { context ->
+        recordingControlFactory(context) { state -> recordingState = state }.also { recordingHost = it }
+    }
+    private val recordingCoordinator = BroadcastRecordingCoordinator(object : BroadcastRecordingCoordinator.Control {
+        override fun begin(): Boolean = ensureRecordingHost()?.begin(
+            RecordingMediaBindings(
+                frameAnalyzer = frameAnalyzer,
+                eglContext = eglContext,
+                remoteVideoTrack = remoteVideoTrack,
+                onDeviceProcessing = selectedOnDeviceProcessing,
+                transport = connection,
+                sessionId = sessionSnapshot?.sessionId,
+                provider = selectedProvider.wireValue,
+            ),
+        ) ?: false
+
+        override fun confirm() {
+            recordingHost?.confirm()
+        }
+
+        override fun finish(save: Boolean) {
+            recordingHost?.finish(save)
+        }
+    })
     var eglContext: EglBase.Context? by mutableStateOf(null)
         private set
     var lockedBroadcastRotation: Int? by mutableStateOf(null)
@@ -119,10 +165,13 @@ class WebRtcSessionViewModel internal constructor(
     internal var directBroadcastUiState by mutableStateOf(DirectBroadcastUiState())
         private set
 
-    /** 방송 준비 전에만 바꿀 수 있습니다. 이미 연결된 세션은 다음 준비에서 새로 만듭니다. */
+    /**
+     * 방송 준비 전에만 바꿀 수 있습니다. 이미 연결된 세션은 다음 준비에서 새로 만듭니다.
+     * 플랫폼 없는 미리보기는 구성을 쓰지 않으므로 유지합니다.
+     */
     internal fun selectDirectBroadcastPlan(plan: DirectBroadcastPlan): Boolean {
         if (!broadcastState.canPrepare || isPreparingBroadcast) return false
-        if (plan != directBroadcastPlan && connectionState != WebRtcConnectionState.IDLE) close()
+        if (plan != directBroadcastPlan && connectionState != WebRtcConnectionState.IDLE && !isOnDevicePreviewOnly) close()
         directBroadcastPlan = plan
         return true
     }
@@ -150,7 +199,9 @@ class WebRtcSessionViewModel internal constructor(
         if (selectedProviders != providers) {
             // 기본 대상이 같으면 세션을 그대로 쓰고 다음 준비에서 대상만 더하거나 뺍니다.
             val primary = BroadcastProvider.entries.first { it in providers }
-            if (primary != selectedProvider && connectionState != WebRtcConnectionState.IDLE) close()
+            if (primary != selectedProvider && connectionState != WebRtcConnectionState.IDLE && !isOnDevicePreviewOnly) {
+                close()
+            }
             selectedProviders = providers
         }
         return true
@@ -213,6 +264,38 @@ class WebRtcSessionViewModel internal constructor(
         return selectInitialAIProcessing(context, onDevice)
     }
 
+    /** 실험실의 얼굴 합성 선택입니다. 다음 세션 생성부터 적용합니다. */
+    var selectedFaceSwap by mutableStateOf(false)
+        private set
+    private var isFaceSwapSelectionLoaded = false
+
+    fun restoreFaceSwapSelection(context: Context) {
+        if (isFaceSwapSelectionLoaded) return
+        selectedFaceSwap = FaceAnonymizationPreference(context).faceSwap
+        isFaceSwapSelectionLoaded = true
+    }
+
+    /** 관리자가 아닌 계정으로 바뀌면 합성 선택을 지웁니다. 서버가 관리자가 아닌 계정의 합성을 403으로 거절합니다. */
+    fun clearFaceSwapSelection(context: Context) {
+        FaceAnonymizationPreference(context).faceSwap = false
+        selectedFaceSwap = false
+        isFaceSwapSelectionLoaded = true
+    }
+
+    /**
+     * 얼굴 가림 방식은 세션 생성 때 고정되므로 처리 방식과 같은 때에만 바꿉니다. 서버 AI의 준비 전 연결이 남아
+     * 있으면 닫아 다음 방송 준비에서 새 방식으로 세션을 만듭니다. 온디바이스 연결은 합성을 쓰지 않아 유지합니다.
+     */
+    fun selectFaceSwap(context: Context, enabled: Boolean): Boolean {
+        if (!canChangeAIProcessing) return false
+        restoreFaceSwapSelection(context)
+        if (selectedFaceSwap == enabled) return true
+        if (!selectedOnDeviceProcessing && connectionState != WebRtcConnectionState.IDLE) close()
+        FaceAnonymizationPreference(context).faceSwap = enabled
+        selectedFaceSwap = enabled
+        return true
+    }
+
     // 클릭 시점의 실제 연결 상태로 분기하여 오래된 화면 상태로 요청하지 않습니다.
     fun selectAnonymization(context: Context, enabled: Boolean): Boolean =
         if (connectionState == WebRtcConnectionState.CONNECTED) setAnonymizationEnabled(enabled)
@@ -238,6 +321,35 @@ class WebRtcSessionViewModel internal constructor(
 
     fun localFacesChanged() { frameAnalyzer?.resetFaceExceptions() }
 
+    /** 플랫폼 없이 온디바이스 가림 처리 미리보기만 열었습니다. 방송 준비는 이 연결을 닫고 새로 시작합니다. */
+    var isOnDevicePreviewOnly by mutableStateOf(false)
+        private set
+
+    /** 미리보기 전용 연결이 열리고 있거나 열려 있습니다. */
+    val isOnDevicePreviewActive: Boolean
+        get() = isOnDevicePreviewOnly && connectionState in setOf(
+            WebRtcConnectionState.CONNECTING,
+            WebRtcConnectionState.CONNECTED,
+        )
+
+    /**
+     * 플랫폼 선택·방송 준비 없이 온디바이스 가림 처리 미리보기만 엽니다. 네트워크가 불안정한 시연에서도 보이도록
+     * 토큰 갱신과 서버 요청 없이, 저장된 [accessToken]으로 등록 얼굴의 계정 범위만 정합니다.
+     */
+    fun startOnDevicePreview(context: Context, accessToken: String?): Boolean {
+        restoreAIProcessingSelection(context)
+        if (!selectedOnDeviceProcessing || isPreparingBroadcast || !broadcastState.canPrepare) return false
+        if (accessToken.isNullOrBlank() || !readMediaPermissionState(context).hasCameraPermission) return false
+        // 남은 연결은 서버 세션이든 이전 미리보기든 닫고 새 미리보기로 엽니다.
+        if (connection != null || connectionState != WebRtcConnectionState.IDLE) close()
+        startConnection(context.applicationContext, BuildConfig.INNOLIVE_SERVER_URL, { accessToken }, previewOnly = true)
+        return true
+    }
+
+    fun stopOnDevicePreview() {
+        if (isOnDevicePreviewOnly) close()
+    }
+
     fun start(context: Context, refreshAccessToken: suspend () -> String) =
         start(context, BuildConfig.INNOLIVE_SERVER_URL, refreshAccessToken)
 
@@ -245,6 +357,13 @@ class WebRtcSessionViewModel internal constructor(
         context: Context,
         serverUrl: String,
         refreshAccessToken: suspend () -> String,
+    ) = startConnection(context, serverUrl, refreshAccessToken, previewOnly = false)
+
+    private fun startConnection(
+        context: Context,
+        serverUrl: String,
+        refreshAccessToken: suspend () -> String,
+        previewOnly: Boolean,
     ) {
         if (
             connectionState == WebRtcConnectionState.CONNECTING ||
@@ -254,6 +373,10 @@ class WebRtcSessionViewModel internal constructor(
             return
         }
 
+        applicationContext = context.applicationContext
+        // 새 방송 준비에서는 이전 녹화 안내를 지웁니다. 이전 송출 경로를 바꾸므로 확인된 방송의 녹화는 저장하고 미확인 녹화는 버립니다.
+        recordingState = BroadcastRecordingUiState()
+        recordingCoordinator.onConnectionClosed()
         val preference = AnonymizationPreference(context)
         anonymizationPreference = preference
         selectedAnonymizationEnabled = preference.enabled
@@ -261,6 +384,9 @@ class WebRtcSessionViewModel internal constructor(
         val initialEnabled = selectedAnonymizationEnabled
         restoreAIProcessingSelection(context)
         val initialOnDevice = selectedOnDeviceProcessing
+        restoreFaceSwapSelection(context)
+        val initialFaceSwap = selectedFaceSwap
+        isOnDevicePreviewOnly = previewOnly
         serverError = null
         preparationSettings = null
         preparationChzzkSettings = null
@@ -311,6 +437,10 @@ class WebRtcSessionViewModel internal constructor(
                                 lockedBroadcastRotation = null
                                 lockedScreenOrientation = null
                             }
+                            if (state == WebRtcConnectionState.FAILED) {
+                                // 실패한 연결은 더 이상 방송 상태를 보내지 않으므로 확인된 녹화를 바로 저장합니다(iOS endLocally).
+                                recordingCoordinator.onConnectionClosed()
+                            }
                             if (state == WebRtcConnectionState.FAILED && broadcastState != BroadcastState.IDLE) {
                                 broadcastState = BroadcastState.FAILED
                                 broadcastStatus = UiText.Resource(
@@ -325,7 +455,10 @@ class WebRtcSessionViewModel internal constructor(
                         sessionState = sessionState.anonymizationConfirmed(generation, state)
                     },
                     onRemoteTrackChanged = { track ->
-                        if (isCurrentGeneration(generation)) remoteVideoTrack = track
+                        if (isCurrentGeneration(generation)) {
+                            remoteVideoTrack = track
+                            recordingHost?.remoteTrackChanged(track)
+                        }
                     },
                     onLocalVideoTrackChanged = { track ->
                         mainHandler.post {
@@ -378,6 +511,7 @@ class WebRtcSessionViewModel internal constructor(
                             val preparationCancelled = broadcastState == BroadcastState.CANCELLING_PREPARATION &&
                                 state != BroadcastState.CANCELLING_PREPARATION
                             broadcastState = state
+                            recordingCoordinator.onBroadcastState(state)
                             if (event is BroadcastEvent.ApiFailure) serverError = event.guidance
                             val feedback = broadcastUserMessage(state, event)
                             broadcastStatus = feedback.text
@@ -393,6 +527,12 @@ class WebRtcSessionViewModel internal constructor(
                     onDirectUiStateChanged = { state ->
                         if (sessionState.acceptsCallback(generation)) directBroadcastUiState = state
                     },
+                    onSessionSnapshotCleared = {
+                        if (sessionState.acceptsCallback(generation)) {
+                            sessionSnapshot = null
+                            resetUplinkQuality()
+                        }
+                    },
                 )
                 val newConnection = transportFactory(
                     LiveBroadcastTransportRequest(
@@ -406,6 +546,8 @@ class WebRtcSessionViewModel internal constructor(
                         preferredAudioInput = selectedAudioInput,
                         directPlan = directBroadcastPlan,
                         callbacks = callbacks,
+                        previewOnly = previewOnly,
+                        faceSwap = initialFaceSwap,
                     ),
                 )
                 if (!isCurrentGeneration(generation)) {
@@ -538,6 +680,8 @@ class WebRtcSessionViewModel internal constructor(
             isBroadcastStatusDefault = false
             return false
         }
+        // 미리보기 전용 연결은 방송 요청을 받지 않으므로 닫고 방송 송출 경로로 새로 연결합니다.
+        if (isOnDevicePreviewOnly) close()
         isPreparingBroadcast = true
         broadcastState = BroadcastState.IDLE
         broadcastStatus = broadcastStateMessage(BroadcastState.PREPARING).text
@@ -661,12 +805,15 @@ class WebRtcSessionViewModel internal constructor(
         retryBroadcastRequest = { goLive(rotation, screenOrientation, onAccepted) }
         val previousRotation = lockedBroadcastRotation
         val previousScreenOrientation = lockedScreenOrientation
+        // 응답을 받은 뒤 시작하면 서버가 먼저 공개한 구간을 놓치므로 요청 직전에 녹화를 시작합니다(iOS와 같음).
+        recordingCoordinator.onGoLiveRequested()
         val accepted = activeConnection.goLive {
             lockedBroadcastRotation = rotation
             lockedScreenOrientation = screenOrientation
             onAccepted()
         }
         if (!accepted) {
+            recordingCoordinator.onGoLiveRejected()
             lockedBroadcastRotation = previousRotation
             lockedScreenOrientation = previousScreenOrientation
         }
@@ -693,6 +840,9 @@ class WebRtcSessionViewModel internal constructor(
     }
 
     fun close() {
+        isOnDevicePreviewOnly = false
+        // 송출 경로를 닫기 전에 녹화 입력을 끊어야 마지막 프레임까지 안전하게 마무리합니다.
+        recordingCoordinator.onConnectionClosed()
         serverError = null
         preparationSettings = null
         preparationChzzkSettings = null

@@ -12,6 +12,8 @@ data class SettingsScreenProps(
     val profileName: String,
     val profileEmail: String,
     val onLogout: () -> Unit,
+    /** 로그아웃·계정 삭제를 모은 계정 설정 화면을 엽니다. */
+    val onOpenAccountSettings: () -> Unit = {},
     val selectedResolution: String = "",
     val selectedCameraDevice: String = "",
     val selectedAudioDevice: String = "",
@@ -31,10 +33,17 @@ data class SettingsScreenProps(
     val onDeviceProcessing: Boolean = false,
     val canChangeAIProcessing: Boolean = false,
     val onSelectAIProcessing: (Boolean) -> Unit = {},
+    /** `GET /admin/me`로 확인한 관리자 계정입니다. 관리자에게만 실험실을 보여 줍니다. */
+    val isAdministrator: Boolean = false,
+    val faceSwapEnabled: Boolean = false,
+    val onFaceSwapChanged: (Boolean) -> Unit = {},
     val planUsage: PlanUsage? = null,
     val isPlanLoading: Boolean = false,
     val planError: UiText? = null,
     val onRefreshPlan: () -> Unit = {},
     val canReplayBroadcastGuide: Boolean = false,
     val onReplayBroadcastGuide: () -> Unit = {},
+    val onOpenRecordings: () -> Unit = {},
+    /** 방송 준비·방송 중에는 false입니다. */
+    val canOpenRecordings: Boolean = true,
 )

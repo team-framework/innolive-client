@@ -12,9 +12,9 @@
     <string name="login_headline">ライブ配信を安全に作る\nかんたんな方法</string><string name="continue_with_google">Googleで続行</string><string name="continue_with_email">メールで続行</string><string name="google_login_failed">Googleログインに失敗しました。もう一度お試しください。</string>
     <string name="email_sign_in_title">メールでログイン</string><string name="email_sign_up_title">アカウントを作成</string><string name="email_sign_in_description">InnoLiveでライブ配信を続けましょう。</string><string name="email_sign_up_description">メール認証後にライブ配信を開始できます。</string><string name="label_email">メールアドレス</string><string name="email_placeholder">name@example.com</string><string name="label_password">パスワード</string><string name="label_password_confirmation">パスワードを確認</string><string name="password_hint">パスワードを入力</string><string name="password_requirements">英数字8～72文字</string><string name="action_sign_in">ログイン</string><string name="action_signing_in">ログイン中…</string><string name="action_send_verification_email">認証メールを送信</string><string name="action_sending_verification_email">認証メールを送信中…</string><string name="new_to_innolive">InnoLiveは初めてですか？</string><string name="already_have_account">すでにアカウントをお持ちですか？</string><string name="action_sign_up">新規登録</string>
     <string name="verification_title">メールを確認してください</string><string name="verification_complete_title">メール認証が完了しました</string><string name="verification_description">上のアドレスに送信した6桁の認証コードを入力してください。</string><string name="verification_complete_description">メール認証が完了しました。ログインを続けてください。</string><string name="label_verification_code">認証コード</string><string name="verification_code_hint">6桁の数字</string><string name="action_verify_and_start">認証して開始</string><string name="action_sign_in_again">もう一度ログイン</string><string name="action_resend_verification">認証コードを再送信</string><string name="email_hint_initial">メールが届かない場合は迷惑メールフォルダを確認してください。</string><string name="email_hint_sending">認証メールを送信中…</string><string name="email_hint_resent">認証コードを再送信しました。</string><string name="email_hint_verified">メール認証が完了しました。もう一度ログインしてください。</string>
-    <string name="settings_title">設定</string><string name="label_camera_resolution">カメラの解像度</string><string name="label_camera_device">カメラ</string><string name="label_audio_device">オーディオ機器</string><string name="camera_back">背面カメラ</string><string name="camera_front">前面カメラ</string><string name="audio_device_default">標準マイク</string><string name="settings_broadcast">配信設定</string><string name="action_logout">ログアウト</string><string name="action_delete_account">アカウントを削除</string><string name="action_deleting_account">アカウントを削除中…</string><string name="action_retry_device_cleanup">端末データの削除を再試行</string><string name="delete_account_title">アカウントを削除しますか？</string><string name="retry_device_cleanup_title">端末データの削除を再試行しますか？</string><string name="delete_account_description">アカウント削除が完了するとログアウトされ、この端末のYouTube接続と配信設定がリセットされます。</string><string name="retry_device_cleanup_description">サーバーのアカウントはすでに削除されています。残りの端末データの削除を再試行します。</string><string name="content_description_confirm_delete_account">アカウント削除を確認</string>
+    <string name="settings_title">設定</string><string name="label_camera_resolution">カメラの解像度</string><string name="label_camera_device">カメラ</string><string name="label_audio_device">オーディオ機器</string><string name="camera_back">背面カメラ</string><string name="camera_front">前面カメラ</string><string name="audio_device_default">標準マイク</string><string name="settings_broadcast">配信設定</string><string name="action_logout">ログアウト</string><string name="settings_account">アカウント設定</string><string name="action_delete_account">アカウントを削除</string><string name="action_deleting_account">アカウントを削除中…</string><string name="action_retry_device_cleanup">端末データの削除を再試行</string><string name="delete_account_title">アカウントを削除しますか？</string><string name="retry_device_cleanup_title">端末データの削除を再試行しますか？</string><string name="delete_account_description">アカウント削除が完了するとログアウトされ、この端末のYouTube接続と配信設定がリセットされます。</string><string name="retry_device_cleanup_description">サーバーのアカウントはすでに削除されています。残りの端末データの削除を再試行します。</string><string name="content_description_confirm_delete_account">アカウント削除を確認</string>
     <string name="broadcast_settings_title">配信設定</string><string name="label_broadcast_platform">配信プラットフォーム</string><string name="label_broadcast_title">配信タイトル</string><string name="label_broadcast_description">配信の説明</string><string name="label_broadcast_privacy">公開設定</string><string name="label_made_for_kids">子ども向けコンテンツ</string><string name="label_youtube_category">YouTube カテゴリ ID（任意）</string><string name="label_broadcast_account">配信アカウント</string><string name="action_connect">連携</string><string name="action_reconnect">再連携</string><string name="action_change_youtube_account">アカウントを変更</string><string name="youtube_account_change_unavailable">配信の準備中または配信中はYouTubeアカウントを変更できません。</string><string name="action_save_broadcast_settings">配信設定を保存</string><string name="privacy_public">公開</string><string name="privacy_unlisted">限定公開</string><string name="privacy_private">非公開</string><string name="audience_required">選択してください</string><string name="audience_made_for_kids">子ども向け</string><string name="audience_not_made_for_kids">子ども向けではない</string>
-    <string name="live_settings_title">ライブ設定</string><string name="label_account_information">アカウント情報</string><string name="action_prepare_broadcast">配信を準備</string><string name="validation_broadcast_title">配信タイトルを入力してください。</string><string name="validation_broadcast_description">配信の説明を入力してください。</string><string name="validation_audience">子ども向け設定を選択してください。</string><string name="broadcast_control_title">配信コントロール</string><string name="broadcast_pause_notice">一時停止するとYouTubeへの配信のみ停止され、配信接続は維持されます。</string><string name="action_start_broadcast">配信を開始</string><string name="action_cancel_preparation">準備をキャンセル</string><string name="action_pause_broadcast">配信を一時停止</string><string name="action_resume_broadcast">配信を再開</string><string name="action_stop_broadcast">配信を終了</string>
+    <string name="live_settings_title">ライブ設定</string><string name="label_account_information">アカウント情報</string><string name="action_prepare_broadcast">配信を準備</string><string name="validation_broadcast_title">配信タイトルを入力してください。</string><string name="validation_broadcast_description">配信の説明を入力してください。</string><string name="validation_audience">子ども向け設定を選択してください。</string><string name="broadcast_control_title">配信コントロール</string><string name="broadcast_pause_notice">一時停止するとYouTubeへの配信のみ停止され、配信接続は維持されます。</string><string name="action_start_broadcast">配信を開始</string><string name="action_cancel_preparation">準備をキャンセル</string><string name="action_stop_on_device_preview">匿名化を終了</string><string name="action_pause_broadcast">配信を一時停止</string><string name="action_resume_broadcast">配信を再開</string><string name="action_stop_broadcast">配信を終了</string>
     <string name="broadcast_state_idle">配信待機中</string><string name="broadcast_state_preparing">配信を準備中</string><string name="broadcast_state_prepared">配信の準備完了</string><string name="broadcast_state_live">配信中</string><string name="broadcast_state_paused">配信を一時停止</string><string name="broadcast_state_pausing">配信を一時停止中</string><string name="broadcast_state_resuming">配信を再開中</string><string name="broadcast_state_cancelling">準備をキャンセル中</string><string name="broadcast_state_stopping">配信を終了中</string><string name="broadcast_state_going_live">YouTubeでライブを開始中</string><string name="broadcast_settings_saving">配信設定を保存中</string><string name="broadcast_settings_connection_required">匿名化に接続してから配信設定を保存できます。</string><string name="preview_connected">プレビューに接続しました</string><string name="preview_connecting">プレビューに接続中…</string><string name="preview_reconnecting">ネットワーク接続を復旧中…</string><string name="permission_media_required">カメラとマイクの権限が必要です。</string><string name="action_allow_permissions">権限を許可</string><string name="face_management">顔を管理</string>
     <string name="anonymization_on">匿名化オン</string><string name="anonymization_off">匿名化オフ</string><string name="anonymization_loading">選択を読み込み中</string><string name="anonymization_changing">匿名化を変更中</string><string name="anonymization_connecting">匿名化%1$sで接続中</string><string name="anonymization_needs_check">匿名化の状態を確認してください</string><string name="anonymization_when_connected">接続時に匿名化%1$s</string><string name="anonymization_enable">匿名化を有効にする</string><string name="anonymization_disable">匿名化を無効にする</string><string name="anonymization_error_retry">%1$s 匿名化アイコンをタップして再試行してください。</string>
     <string name="face_management_description">登録済みの顔を確認・管理できます。</string><plurals name="registered_face_count"><item quantity="other">登録済みの顔 %d 件</item></plurals><string name="registered_face_name">登録済みの顔 %1$d</string><string name="content_description_registered_face">登録済みの顔</string><string name="no_face_photo">写真なし</string><string name="action_delete_all_faces">すべて削除</string><string name="no_registered_faces">登録済みの顔はありません。</string><string name="action_register_face">顔を登録</string><string name="face_registration_instruction">顔を画面中央に合わせ、しばらくお待ちください。</string><string name="face_capture_ready">顔を確認しました。登録する写真を準備中です。</string><string name="face_capture_failed">顔を確認できませんでした。カメラを見てもう一度お試しください。</string><string name="action_capture_again">撮り直す</string><string name="action_submit_face">顔を登録する</string>
@@ -31,6 +31,12 @@
     <string name="ai_mode_server">サーバーAI</string>
     <string name="settings_ai_processing">AI 処理方式</string>
     <string name="ai_mode_change_availability">配信準備前またはプレビュー中に変更できます。次の配信準備時に新しい方式で接続します。</string>
+    <string name="settings_section_lab">ラボ</string>
+    <string name="lab_face_anonymization">匿名化方式</string>
+    <string name="lab_face_anonymization_blur">ぼかし</string>
+    <string name="lab_face_anonymization_face_swap">顔合成</string>
+    <string name="lab_face_anonymization_description">次の配信準備から適用されます。顔合成はサーバー AI 処理でのみ使用されます。</string>
+    <string name="lab_face_anonymization_locked">配信準備をキャンセルすると匿名化方式を変更できます。</string>
     <string name="ai_mode_on_device">オンデバイスAI</string>
     <string name="local_face_title">端末内の顔管理</string>
     <string name="local_face_description">登録した顔のみ端末内処理でぼかしの対象外にできます。写真は保存せず、サーバーにも送信しません。</string>
@@ -53,8 +59,6 @@
     <string name="session_notice_channel_live_elsewhere">このCHZZKチャンネルは別のツールですでに配信中のため、配信を拒否されました。別のツールの配信を先に終了してください。</string>
     <string name="session_notice_platform_broadcast_ended">プラットフォームのスタジオで配信が終了したため、送信を停止しました。</string>
     <string name="session_notice_youtube_quota_low">本日のYouTube API使用量が多く、配信方式の変更や新しい配信に失敗する場合があります。</string>
-    <string name="session_usage_warning_test_show">テストバナーを表示</string>
-    <string name="session_usage_warning_test_hide">テストバナーを非表示</string>
     <string name="settings_section_account">InnoLiveアカウント</string>
     <string name="settings_section_camera">カメラ</string>
     <string name="settings_section_audio">オーディオ</string>
@@ -64,6 +68,51 @@
     <string name="direct_broadcast_notification_text">他のアプリを使用中や画面オフの間は、カメラの代わりに待機画面と無音を配信します。</string>
     <string name="direct_broadcast_notification_stop">配信を終了</string>
     <string name="direct_broadcast_notification_hidden">通知がオフのため、配信中の通知は表示されません。配信はそのまま続きます。</string>
+    <string name="action_export">書き出し</string>
+    <string name="settings_recordings">保存した配信</string>
+    <string name="recording_library_title">保存した配信</string>
+    <string name="recording_library_empty">保存した配信はありません。配信が終わると、ぼかし前後の映像をここから書き出せます。</string>
+    <string name="recording_library_saving">映像を保存しています</string>
+    <string name="recording_library_recovered">アプリの終了で保存が終わらなかった録画を%1$d件復元しました。</string>
+    <string name="recording_library_preserved">完了しなかった録画%1$d件(%2$s)を端末に保管しています。</string>
+    <string name="recording_library_preserved_delete">保管ファイルを削除</string>
+    <string name="recording_library_preserved_delete_title">保管中の未完成の録画を削除しますか？</string>
+    <string name="recording_library_preserved_delete_description">再生できない未完成のファイル %1$s を削除します。元に戻せません。</string>
+    <string name="recording_item_processed_available">ぼかし後の映像あり</string>
+    <string name="recording_item_original_only">ぼかし前の映像のみ</string>
+    <string name="recording_item_recovered">復元した録画</string>
+    <string name="recording_export_title">配信映像を書き出す</string>
+    <string name="recording_export_description">共有シートで他のアプリやファイルに送るか、ギャラリーに保存します。</string>
+    <string name="recording_export_source_original">ぼかし前の映像</string>
+    <string name="recording_export_source_processed">ぼかし後の映像</string>
+    <string name="recording_export_share_video">映像と音声 · MP4を共有</string>
+    <string name="recording_export_share_split">映像・音声を分けて · MP4 + M4Aを共有</string>
+    <string name="recording_export_save_gallery">ギャラリーに保存</string>
+    <string name="recording_export_chooser_title">配信映像を共有</string>
+    <string name="recording_export_in_progress">ファイルを準備しています。</string>
+    <string name="recording_export_gallery_done">ギャラリーのMovies/InnoLiveに保存しました: %1$s</string>
+    <string name="recording_export_failed">ファイルを書き出せませんでした。形式を選び直すと再試行できます。</string>
+    <string name="recording_export_no_space">空き容量が不足しているため、ファイルを準備できませんでした。容量を空けてから再試行してください。</string>
+    <string name="recording_delete_title">保存した配信を削除しますか？</string>
+    <string name="recording_delete_description">アプリに保存した映像 %1$s を削除します。元に戻せません。共有またはギャラリーに保存したコピーは残ります。</string>
+    <string name="recording_delete_failed">映像を削除できませんでした。</string>
+    <string name="recording_status_saving">配信映像を保存しています。</string>
+    <string name="recording_status_saved">配信映像を保存しました。</string>
+    <string name="recording_save_notification_channel">配信映像の保存</string>
+    <string name="recording_save_notification_title">配信映像を保存しています</string>
+    <string name="recording_save_notification_text">保存が終わると通知は消えます。</string>
+    <string name="recording_failed_start">配信映像の保存を開始できませんでした。配信は続きます。</string>
+    <string name="recording_failed_no_video">保存する映像フレームがなく、配信映像を保存できませんでした。</string>
+    <string name="recording_failed_no_audio">音声を受け取れず、配信映像を保存できませんでした。</string>
+    <string name="recording_failed_encoder">保存中にエラーが発生し、配信映像を保存できませんでした。配信は続きます。</string>
+    <string name="recording_failed_storage">空き容量が不足しているため、配信映像を保存できませんでした。</string>
+    <string name="recording_failed_invalid">保存した映像ファイルを確認できませんでした。</string>
+    <string name="viewer_chat_connecting">チャットに接続しています…</string>
+    <string name="viewer_chat_waiting">新しいチャットを待っています。</string>
+    <string name="viewer_chat_load_failed">チャットを読み込めませんでした。</string>
+    <string name="viewer_chat_hide">チャットを非表示</string>
+    <string name="viewer_chat_show">チャットを表示</string>
+    <string name="viewer_chat_menu">チャットメニュー</string>
     <string name="settings_expanded">展開済み</string>
     <string name="settings_collapsed">折りたたみ済み</string>
     <string name="quick_face_select_start">顔を登録</string><string name="quick_face_select_cancel">顔の選択を取り消す</string><string name="quick_face_select_hint">画面に映っている顔をタップして匿名化から除外します。</string><string name="quick_face_preparing">カメラを準備しています。</string><string name="quick_face_show_face">顔が画面に映るようにしてください。</string><string name="quick_face_tap_to_register">登録する顔をタップしてください。</string><string name="quick_face_move_closer">顔がもう少し大きく映るように近づいてください。</string><string name="quick_face_original_not_sent">元の映像は配信されません。</string><string name="quick_face_tap_chip">タップして登録</string><string name="quick_face_select_face">顔 %1$d を選択</string><string name="quick_face_camera_failed">カメラ映像を準備できませんでした。もう一度お試しください。</string><string name="guest_face_name_suffix">ゲスト</string><string name="guest_registering">ゲストを登録しています。</string><string name="guest_registered">ゲストとして登録しました。</string><string name="guest_face_not_confirmed">選択した顔を確認できませんでした。もう一度選択してください。</string><string name="action_reselect_face">選び直す</string>

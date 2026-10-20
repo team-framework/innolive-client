@@ -10,7 +10,9 @@ import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastUiSta
 import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.broadcast.RtmpReconnectSupervisor
 import com.framework.innolive.feature.live.direct.broadcast.createDirectHeartbeatLoop
+import com.framework.innolive.feature.live.direct.broadcast.createOnDevicePreviewTransport
 import com.framework.innolive.feature.live.direct.lifecycle.ServiceBroadcastKeepAlive
+import com.framework.innolive.feature.live.recording.RecordingAudioSink
 import com.framework.innolive.feature.live.status.UplinkVideoStats
 import com.framework.innolive.ui.text.ServerErrorGuidance
 import org.webrtc.EglBase
@@ -50,6 +52,12 @@ internal interface LiveBroadcastTransport : AutoCloseable {
         else -> false
     }
     fun goLive(onAccepted: () -> Unit = {}): Boolean
+
+    /**
+     * 송출하는 마이크 음성을 녹화기에도 넘깁니다. null이면 끊습니다. 송출 경로가 음성을 만들지 않는 동안에는
+     * 아무것도 오지 않습니다. 기본 구현은 녹화 음성을 제공하지 않습니다.
+     */
+    fun setRecordingAudioSink(sink: RecordingAudioSink?) = Unit
     fun pauseBroadcast()
     fun resumeBroadcast()
     fun stopBroadcast()
@@ -72,6 +80,8 @@ internal class LiveBroadcastCallbacks(
     val onUplinkVideoStats: (UplinkVideoStats) -> Unit,
     /** 직접 송출에서만 옵니다. 로컬 RTMP 연결·마이크·대기 화면 상태입니다. */
     val onDirectUiStateChanged: (DirectBroadcastUiState) -> Unit = {},
+    /** 직접 송출에서만 옵니다. 방송 종료·실패로 세션을 지웠거나 서버에서 사라져 세션 상태가 없어졌습니다. */
+    val onSessionSnapshotCleared: () -> Unit = {},
 )
 
 /**
@@ -90,16 +100,21 @@ internal class LiveBroadcastTransportRequest(
     /** 송출 해상도와 대상입니다. 서버 중계는 세션을 만들 때 해상도만 씁니다. */
     val directPlan: DirectBroadcastPlan,
     val callbacks: LiveBroadcastCallbacks,
+    /** 플랫폼 없이 온디바이스 가림 처리 미리보기만 엽니다. 서버에 연결하지 않습니다. */
+    val previewOnly: Boolean = false,
+    /** 실험실에서 얼굴 합성을 켰습니다. 서버 중계 세션을 서버 AI로 만들 때만 씁니다. */
+    val faceSwap: Boolean = false,
 ) {
     val context: Context = context.applicationContext
 }
 
 /**
- * 기본 송출 경로입니다. 온디바이스를 고르고 직접 송출이 켜져 있으면 앱 직접 송출을, 그 밖에는
- * 기존 서버 중계를 씁니다.
+ * 기본 송출 경로입니다. 미리보기만 요청하면 온디바이스 미리보기를, 온디바이스를 고르고 직접 송출이 켜져 있으면
+ * 앱 직접 송출을, 그 밖에는 기존 서버 중계를 씁니다.
  */
 internal fun createLiveBroadcastTransport(request: LiveBroadcastTransportRequest): LiveBroadcastTransport =
-    if (request.initialOnDeviceProcessing && DirectPublishFeature.ENABLED) createDirectBroadcastController(request)
+    if (request.previewOnly) createOnDevicePreviewTransport(request)
+    else if (request.initialOnDeviceProcessing && DirectPublishFeature.ENABLED) createDirectBroadcastController(request)
     else with(request.callbacks) {
         WebRtcConnection(
             context = request.context,
@@ -110,6 +125,7 @@ internal fun createLiveBroadcastTransport(request: LiveBroadcastTransportRequest
             initialOnDeviceProcessing = request.initialOnDeviceProcessing,
             provider = request.provider,
             broadcastResolution = request.directPlan.resolution,
+            faceAnonymization = sessionFaceAnonymization(request.faceSwap, request.initialOnDeviceProcessing),
             preferredAudioInput = request.preferredAudioInput,
             onStateChanged = onStateChanged,
             onRemoteTrackChanged = onRemoteTrackChanged,

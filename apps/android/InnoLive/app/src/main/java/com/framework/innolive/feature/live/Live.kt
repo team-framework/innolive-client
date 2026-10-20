@@ -98,6 +98,9 @@ import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.components.logoRes
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
+import com.framework.innolive.feature.live.components.YouTubeViewerChatOverlay
+import com.framework.innolive.feature.live.components.YouTubeViewerChatReceiver
+import com.framework.innolive.feature.live.components.rememberYouTubeViewerChatState
 import com.framework.innolive.feature.live.consent.BroadcastConsentDialog
 import com.framework.innolive.feature.live.consent.BroadcastConsentStep
 import com.framework.innolive.feature.live.consent.BroadcastConsentStore
@@ -202,24 +205,23 @@ private fun LiveScreenContent(
     var chzzkBusy by remember { mutableStateOf(false) }
     var chzzkMessage by remember { mutableStateOf<UiText?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
+    // 보기 전용 시청자 채팅입니다. 라이브 YouTube 대상의 주소가 있는 동안만 받고, 주소가 사라지면(방송 종료·대상 제거·
+    // 세션 종료) 수신기를 없앱니다. iOS처럼 숨김 상태는 방송이 이어지는 동안 기억하고 방송이 끝나면 다시 보이게 합니다.
+    val viewerChat = rememberYouTubeViewerChatState(webRtcSession.viewerChatUrl)
+    var viewerChatHidden by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(viewerChat == null) { if (viewerChat == null) viewerChatHidden = false }
     // 방송 준비 중 표시할 동의·안내입니다. 수락하면 다음 단계로 이어서 진행합니다.
     var pendingConsentStep by remember { mutableStateOf<BroadcastConsentStep?>(null) }
-    var testUsageWarningOverride by remember { mutableStateOf(false) }
     // 사용자가 방송 방식을 직접 고르기 전에는 요금제가 허용하는 최고 화질을 따릅니다.
     var directModeUserSelected by rememberSaveable { mutableStateOf(false) }
     var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
     val sessionSnapshot = webRtcSession.sessionSnapshot
     val sessionId = webRtcSession.sessionSnapshot?.sessionId
-    val activeNoticeCode = if (testUsageWarningOverride) {
-        "monthly_usage_80"
-    } else {
-        sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
-            notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
-        }?.code
-    }
+    val activeNoticeCode = sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
+        notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
+    }?.code
     LaunchedEffect(sessionId) {
         dismissedNoticeCodes = emptySet()
-        testUsageWarningOverride = false
     }
     val context = LocalContext.current
     val providerPreferences = remember(context) {
@@ -294,13 +296,27 @@ private fun LiveScreenContent(
         if (reconciled != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(reconciled)
     }
     // 저장된 플랫폼 선택을 두 처리 방식이 함께 쓰는 방송 구성에 맞춥니다.
-    LaunchedEffect(isDirectModeLocked, selectedPlatform) {
+    LaunchedEffect(
+        isDirectModeLocked,
+        selectedPlatform,
+        webRtcSession.selectedOnDeviceProcessing,
+        webRtcSession.isAIProcessingSelectionLoaded,
+    ) {
         if (isDirectModeLocked) return@LaunchedEffect
+        // 플랫폼 없는 미리보기는 온디바이스에서만 씁니다. 서버 처리로 바뀌면 YouTube 단독으로 되돌립니다.
+        if (selectedPlatform == NoPlatformPreference && webRtcSession.isAIProcessingSelectionLoaded &&
+            !webRtcSession.selectedOnDeviceProcessing
+        ) {
+            selectedPlatform = "YouTube"
+            return@LaunchedEffect
+        }
         val plan = webRtcSession.directBroadcastPlan
         val synced = when (selectedPlatform) {
             "YouTube" -> plan.withSelectedPlatform(BroadcastProvider.YOUTUBE)
             "CHZZK" -> plan.withSelectedPlatform(BroadcastProvider.CHZZK)
             "SIMULCAST" -> plan.copy(providers = SimulcastProviders)
+            NoPlatformPreference ->
+                if (webRtcSession.selectedOnDeviceProcessing) plan.copy(providers = emptySet()) else return@LaunchedEffect
             else -> return@LaunchedEffect
         }
         if (synced != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(synced)
@@ -322,6 +338,7 @@ private fun LiveScreenContent(
         broadcastStatus = webRtcSession.broadcastStatus,
         isBroadcastStatusDefault = webRtcSession.isBroadcastStatusDefault,
         isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
+        isPreviewOnlyActive = webRtcSession.isOnDevicePreviewActive,
     )
     val broadcastDurationText = rememberBroadcastDurationText(
         webRtcSession.broadcastStartedAtElapsedRealtimeMillis,
@@ -354,6 +371,7 @@ private fun LiveScreenContent(
     LaunchedEffect(webRtcSession) {
         webRtcSession.restoreAnonymizationSelection(context)
         webRtcSession.restoreAIProcessingSelection(context)
+        webRtcSession.restoreFaceSwapSelection(context)
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
@@ -363,6 +381,8 @@ private fun LiveScreenContent(
             BroadcastTutorialDialog.SETTINGS
         } else BroadcastTutorialDialog.NONE,
         selectedAccountConnected = when (selectedPlatform) {
+            // 플랫폼 없는 미리보기는 계정이 필요 없습니다.
+            NoPlatformPreference -> true
             "CHZZK" -> chzzkAccountVerification.canPrepare
             "SIMULCAST" -> chzzkAccountVerification.canPrepare &&
                 props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
@@ -491,6 +511,8 @@ private fun LiveScreenContent(
             .fillMaxSize()
             .background(color = Color.Black),
     ) {
+        // 채팅 수신 WebView는 방송 화면 맨 아래 층에 둡니다. 위의 영상과 조작 화면이 가리고 터치도 받지 않습니다.
+        viewerChat?.let { YouTubeViewerChatReceiver(it) }
         LiveStudioPager(
             pagerState = pagerState,
             settings = settings,
@@ -602,7 +624,6 @@ private fun LiveScreenContent(
                         noticeCode = activeNoticeCode,
                         onDismissRequest = { code ->
                             dismissedNoticeCodes = dismissedNoticeCodes + code
-                            if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
                         },
                         modifier = Modifier.widthIn(max = 560.dp).padding(horizontal = 10.dp),
                     )
@@ -716,6 +737,7 @@ private fun LiveScreenContent(
                                 LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
                                 LiveBroadcastAction.PREPARE_BROADCAST,
                                 LiveBroadcastAction.SELECT_PLATFORM -> openBroadcastSettings()
+                                LiveBroadcastAction.STOP_PREVIEW -> webRtcSession.stopOnDevicePreview()
                             }
                         },
                         centerOverlay = {
@@ -733,6 +755,8 @@ private fun LiveScreenContent(
                                     }
                                 },
                                 locked = isDirectModeLocked,
+                                // 온디바이스는 플랫폼을 모두 해제해 서버 없이 비식별화 미리보기만 볼 수 있습니다.
+                                allowNoTarget = webRtcSession.selectedOnDeviceProcessing,
                             )
                             val settingsGuide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG)
                             val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
@@ -745,6 +769,9 @@ private fun LiveScreenContent(
                                 val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
                                 val chzzkValid = chzzkSettings.validationField() == null
                                 val chzzkStatus = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage)
+                                val accountChecking = stringResource(R.string.broadcast_menu_account_checking)
+                                val chzzkSettled = chzzkMessage == null && !chzzkAccountVerification.mutationInProgress
+                                val chzzkAccount = chzzkAccountVerification.account
                                 val modePlan = broadcastPlanState.plan
                                 // 동의·안내를 순서대로 받은 뒤 카메라·마이크 권한을 확인하고 서버 연결을 시작합니다.
                                 fun continueBroadcastPreparation() {
@@ -785,8 +812,23 @@ private fun LiveScreenContent(
                                         onDismiss = { pendingConsentStep = null },
                                     )
                                 }
-                                val modeSummary = stringResource(modePlan.resolution.labelRes) + " · " +
-                                    DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
+                                // 플랫폼을 모두 해제한 온디바이스 구성은 방송 대신 서버 없는 비식별화 미리보기를 엽니다.
+                                val previewOnly = modePlan.isPreviewOnly && webRtcSession.selectedOnDeviceProcessing
+                                fun startPreviewOnly() {
+                                    val permissions = readMediaPermissionState(context)
+                                    if (!permissions.hasCameraPermission) {
+                                        mediaPermissions.refresh()
+                                        mediaPermissionLauncher.launch(permissions.missingPermissions.toTypedArray())
+                                    } else if (webRtcSession.startOnDevicePreview(context, props.onGetAccessToken())) {
+                                        openSettingsDialog = false
+                                    }
+                                }
+                                val modeSummary = if (modePlan.isPreviewOnly) {
+                                    stringResource(R.string.broadcast_menu_no_platform)
+                                } else {
+                                    stringResource(modePlan.resolution.labelRes) + " · " +
+                                        DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
+                                }
                                 BroadcastSettingsMenu(
                                     items = listOf(
                                         BroadcastSettingsMenuItem(
@@ -794,7 +836,12 @@ private fun LiveScreenContent(
                                             summary = when {
                                                 BroadcastProvider.YOUTUBE !in providers -> notSelected
                                                 !youtubeValid -> needsDetails
-                                                else -> props.youtubeAccountStatus
+                                                else -> broadcastMenuAccountSummary(
+                                                    checking = props.isYouTubeAccountActionInProgress,
+                                                    connectedChannelTitle = props.youtubeChannelTitle.takeIf { youtubeReady },
+                                                    checkingLabel = accountChecking,
+                                                    status = props.youtubeAccountStatus,
+                                                )
                                             },
                                             onClick = { openYouTubeEditor = true },
                                             highlightsAccount = BroadcastProvider.YOUTUBE in providers && !youtubeReady,
@@ -805,7 +852,14 @@ private fun LiveScreenContent(
                                             summary = when {
                                                 BroadcastProvider.CHZZK !in providers -> notSelected
                                                 !chzzkValid -> needsDetails
-                                                else -> chzzkStatus
+                                                else -> broadcastMenuAccountSummary(
+                                                    checking = chzzkSettled && !chzzkAccountVerification.verified,
+                                                    connectedChannelTitle = chzzkAccount?.takeIf {
+                                                        chzzkSettled && chzzkAccountVerification.verified && !it.reconnectRequired
+                                                    }?.channelTitle,
+                                                    checkingLabel = accountChecking,
+                                                    status = chzzkStatus,
+                                                )
                                             },
                                             onClick = { openChzzkEditor = true },
                                             iconRes = BroadcastProvider.CHZZK.logoRes,
@@ -823,6 +877,7 @@ private fun LiveScreenContent(
                                         (BroadcastProvider.CHZZK !in providers || chzzkReady),
                                     onPrepare = {
                                         when {
+                                            previewOnly -> startPreviewOnly()
                                             // 입력이 빠진 플랫폼은 그 설정 창을 열어 채우게 합니다.
                                             BroadcastProvider.YOUTUBE in providers && !youtubeValid -> openYouTubeEditor = true
                                             BroadcastProvider.CHZZK in providers && !chzzkValid -> openChzzkEditor = true
@@ -1068,18 +1123,6 @@ private fun LiveScreenContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    if (BuildConfig.DEBUG) {
-                        TextButton(onClick = {
-                            testUsageWarningOverride = !testUsageWarningOverride
-                        }) {
-                            Text(
-                                stringResource(
-                                    if (testUsageWarningOverride) R.string.session_usage_warning_test_hide
-                                    else R.string.session_usage_warning_test_show,
-                                ),
-                            )
-                        }
-                    }
                     // Figma 기본 화면처럼 카메라 전환·방송 버튼·익명화를 한 줄에 둡니다. 가로에서는 오른쪽 열로 옮깁니다.
                     if (!landscape) {
                         Row(
@@ -1103,6 +1146,16 @@ private fun LiveScreenContent(
                                 style = MaterialTheme.typography.labelMedium,
                             )
                         }
+                    }
+                    webRtcSession.recordingState.message?.let { message ->
+                        Text(
+                            text = message.asString(),
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
                     }
                     webRtcSession.anonymizationChange.errorMessage?.let { error ->
                         Text(
@@ -1140,6 +1193,26 @@ private fun LiveScreenContent(
                             )
                         }
                     }
+                }
+
+                // iOS처럼 라이브 YouTube 채팅을 왼쪽 아래 하단 조작 위에 띄웁니다. 가로 화면은 왼쪽 카메라 도구 띠 오른쪽에 둡니다.
+                // 얼굴을 고르는 동안에는 가리고, 작은 창과 카메라 도구가 채팅 높이를 비우도록 알려 줍니다.
+                val chat = viewerChat
+                if (chat != null && !isSelectingFace) {
+                    val chatStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 16.dp
+                    val chatBottom = with(density) { pipState.bottomControlsReservePx(this).toDp() } + 12.dp
+                    YouTubeViewerChatOverlay(
+                        state = chat,
+                        hidden = viewerChatHidden,
+                        onToggleHidden = { viewerChatHidden = !viewerChatHidden },
+                        compact = landscape,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = chatStart, end = 16.dp, bottom = chatBottom)
+                            .onSizeChanged { pipState.chatReservePx = it.height + with(density) { 12.dp.toPx() } },
+                    )
+                } else {
+                    SideEffect { pipState.chatReservePx = 0f }
                 }
             },
         )
@@ -1577,14 +1650,30 @@ private fun BroadcastDialogButton(
 
 private val SimulcastProviders = setOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)
 
-/** 기존 저장값(`YouTube`·`CHZZK`·`SIMULCAST`)과 같은 형식으로 플랫폼 선택을 저장합니다. */
+/** 기존 저장값(`YouTube`·`CHZZK`·`SIMULCAST`)과 같은 형식으로 플랫폼 선택을 저장합니다. 모두 해제하면 `NONE`입니다. */
 internal fun platformPreferenceOf(providers: Set<BroadcastProvider>): String = when {
+    providers.isEmpty() -> NoPlatformPreference
     providers.size > 1 -> "SIMULCAST"
     BroadcastProvider.CHZZK in providers -> "CHZZK"
     else -> "YouTube"
 }
 
-/** 치지직 계정 상태를 메뉴와 치지직 설정 창에 같은 문구로 보여 줍니다. */
+/**
+ * 방송 설정 메뉴의 계정 줄 문구입니다. 연결된 계정은 접두어 없이 채널 이름만, 확인 중에는 짧은 문구를 보여 주고
+ * 그 밖의 상태는 설정 창과 같은 [status]를 씁니다.
+ */
+internal fun broadcastMenuAccountSummary(
+    checking: Boolean,
+    connectedChannelTitle: String?,
+    checkingLabel: String,
+    status: String,
+): String = when {
+    checking -> checkingLabel
+    !connectedChannelTitle.isNullOrBlank() -> connectedChannelTitle
+    else -> status
+}
+
+/** 치지직 계정 상태를 치지직 설정 창에 보여 줍니다. 메뉴는 [broadcastMenuAccountSummary]로 줄여 보여 줍니다. */
 @Composable
 private fun chzzkAccountStatus(chzzkAccountVerification: ChzzkAccountVerification, chzzkMessage: UiText?): String =
     when {

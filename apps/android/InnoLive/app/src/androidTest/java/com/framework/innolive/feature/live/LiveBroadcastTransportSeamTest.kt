@@ -149,6 +149,44 @@ class LiveBroadcastTransportSeamTest {
         }
     }
 
+    @Test fun onDevicePreviewOpensWithoutTokenRefreshAndPreparationReplacesIt() {
+        val created = mutableListOf<FakeTransport>()
+        lateinit var session: WebRtcSessionViewModel
+        val context = compose.activity
+        val previousOnDevice = AIProcessingPreference(context).onDevice
+        var refreshCalls = 0
+        try {
+            compose.runOnIdle {
+                session = WebRtcSessionViewModel { request -> FakeTransport(request).also(created::add) }
+                assertTrue(session.selectInitialAIProcessing(context, false))
+                // 서버 처리는 플랫폼 없는 미리보기를 열지 않습니다.
+                assertFalse(session.startOnDevicePreview(context, "cached-token"))
+                assertTrue(session.selectInitialAIProcessing(context, true))
+                assertTrue(session.startOnDevicePreview(context, "cached-token"))
+            }
+            compose.waitUntil(10_000) { session.connectionState == WebRtcConnectionState.CONNECTED }
+            compose.runOnIdle {
+                val preview = created.single()
+                assertTrue(preview.request.previewOnly)
+                assertEquals("cached-token", preview.request.accessToken)
+                assertTrue(session.isOnDevicePreviewActive)
+                assertTrue(session.prepareBroadcast(context, settings) { refreshCalls++; "access-token" })
+            }
+            compose.waitUntil(10_000) { session.broadcastState == BroadcastState.PREPARED }
+            compose.runOnIdle {
+                // 방송 준비는 미리보기 전용 연결을 닫고 송출 경로를 새로 엽니다.
+                assertEquals(listOf("start", "close"), created.first().calls)
+                assertEquals(listOf("start", "prepare:검증 방송"), created.last().calls)
+                assertFalse(created.last().request.previewOnly)
+                assertEquals(1, refreshCalls)
+                assertFalse(session.isOnDevicePreviewOnly)
+                session.close()
+            }
+        } finally {
+            AIProcessingPreference(context).onDevice = previousOnDevice
+        }
+    }
+
     @Test fun directPublishIsEnabled() {
         assertTrue(DirectPublishFeature.ENABLED)
     }

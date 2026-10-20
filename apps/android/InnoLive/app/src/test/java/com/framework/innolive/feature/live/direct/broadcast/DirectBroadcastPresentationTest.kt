@@ -100,6 +100,21 @@ class DirectBroadcastPresentationTest {
         assertEquals(DirectBroadcastPlan(HD_720, setOf(CHZZK)), both.toggleProvider(YOUTUBE))
     }
 
+    @Test fun onDeviceCanClearEveryTargetForPreviewOnly() {
+        val usage = plan(PlanMode.HD_SINGLE)
+        val single = directBroadcastModeState(DirectBroadcastPlan(), usage, connected, false, allowNoTarget = true)
+        assertNull(single.providers.single { it.provider == YOUTUBE }.block)
+        val none = single.toggleProvider(YOUTUBE)
+        assertEquals(DirectBroadcastPlan(HD_720, emptySet()), none)
+
+        // 플랫폼이 없으면 요금제 경고 없이 다시 플랫폼을 고를 수 있습니다.
+        val empty = directBroadcastModeState(checkNotNull(none), usage, connected, false, allowNoTarget = true)
+        assertNull(empty.warning)
+        assertTrue(empty.providers.none { it.selected })
+        assertEquals(DirectBroadcastPlan(HD_720, setOf(CHZZK)), empty.toggleProvider(CHZZK))
+        assertEquals(setOf(YOUTUBE), checkNotNull(none).withSelectedPlatform(YOUTUBE).providers)
+    }
+
     @Test fun preparingAndLiveLockEveryOption() {
         assertFalse(isDirectBroadcastModeLocked(BroadcastState.IDLE, isPreparing = false))
         assertFalse(isDirectBroadcastModeLocked(BroadcastState.FAILED, isPreparing = false))

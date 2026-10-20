@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.framework.innolive.feature.live.CameraFrameAnalyzer
 import com.framework.innolive.feature.live.CreatedSession
+import com.framework.innolive.feature.live.LiveBroadcastTransport
 import com.framework.innolive.feature.live.LiveBroadcastTransportRequest
 import com.framework.innolive.feature.live.SessionRecoveryScope
 import com.framework.innolive.feature.live.SessionRecoveryStore
@@ -33,6 +34,7 @@ import com.framework.innolive.feature.live.direct.publish.PcmSink
 import com.framework.innolive.feature.live.direct.publish.PcmSource
 import com.framework.innolive.feature.live.direct.publish.PublishOrientation
 import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
+import com.framework.innolive.feature.live.recording.RecordingAudioSink
 import com.framework.innolive.feature.live.sessionRecoveryScope
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.webrtc.EglBase
@@ -69,6 +71,23 @@ internal fun androidDirectBroadcastEnvironment(
     )
 }
 
+/**
+ * 플랫폼 없이 온디바이스 가림 처리 미리보기만 여는 송출 경로를 만듭니다. 서버 API·세션 기록을 만들지 않으며,
+ * 등록 얼굴은 직접 송출과 같은 계정 범위에서 읽습니다.
+ */
+internal fun createOnDevicePreviewTransport(request: LiveBroadcastTransportRequest): LiveBroadcastTransport {
+    val scope = sessionRecoveryScope(request.serverUrl.trim().trimEnd('/').toHttpUrl().toString(), request.accessToken)
+    val mainHandler = Handler(Looper.getMainLooper())
+    return OnDevicePreviewTransport(
+        callbacks = request.callbacks,
+        media = AndroidDirectMediaPipeline(request, scope),
+        initialAnonymizationEnabled = request.initialAnonymizationEnabled,
+        owner = ExecutorSerialScheduler(Executors.newSingleThreadScheduledExecutor { Thread(it, "on-device-preview") }),
+        callbackExecutor = { mainHandler.post(it) },
+        log = { Log.i(PREVIEW_LOG_TAG, it) },
+    )
+}
+
 private class StoreSessionRecovery(
     private val store: SessionRecoveryStore,
     private val scope: SessionRecoveryScope,
@@ -98,6 +117,7 @@ private class AndroidDirectMediaPipeline(
     @Volatile private var latestOrientation: PublishOrientation? = null
     @Volatile private var engineSink: VideoSink? = null
     @Volatile private var audio: DirectAudioInput? = null
+    @Volatile private var recordingAudioSink: RecordingAudioSink? = null
     private var eglBase: EglBase? = null
     private var analyzer: CameraFrameAnalyzer? = null
     private var events: DirectMediaEvents? = null
@@ -142,6 +162,11 @@ private class AndroidDirectMediaPipeline(
         audio?.setPreferredDevice(device)
     }
 
+    override fun setRecordingAudioSink(sink: RecordingAudioSink?) {
+        recordingAudioSink = sink
+        audio?.recordingTap = sink
+    }
+
     override fun createEngine(profile: DirectPublishProfile, listener: DirectPublisher.Listener): DirectPublishEngine {
         val egl = checkNotNull(eglBase) { "카메라 입력을 열지 않았습니다." }
         audio?.close()
@@ -155,6 +180,7 @@ private class AndroidDirectMediaPipeline(
                 MicrophoneState.SILENCED -> MicrophoneStatus.SILENCED
             })
         })
+        input.recordingTap = recordingAudioSink
         val publisher = DirectPublisher(profile, egl.eglBaseContext, input, listener, slateSource)
         publisher.start()
         audio = input
@@ -213,3 +239,4 @@ private class PermittedMicrophone(private val source: MicrophonePcmSource) : Pcm
 }
 
 private const val LOG_TAG = "DirectBroadcast"
+private const val PREVIEW_LOG_TAG = "OnDevicePreview"

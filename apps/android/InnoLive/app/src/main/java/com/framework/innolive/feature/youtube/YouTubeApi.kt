@@ -103,6 +103,15 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
         parsePlanUsage(plan, usage)
     }
 
+    /** 관리자 전용 실험실을 보여 줄지 정합니다. 403·404는 관리자가 아니고, 그 밖의 실패는 예외로 알립니다. */
+    suspend fun isAdministrator(accessToken: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            execute(requestBuilder("/admin/me").get().bearer(accessToken).build(), "administrator") { true }
+        } catch (exception: YouTubeApiException) {
+            if (isNotAdministratorStatus(exception.statusCode)) false else throw exception
+        }
+    }
+
     override fun close() {
         if (!closeStarted.compareAndSet(false, true)) return
 
@@ -158,3 +167,6 @@ class YouTubeApi(serverUrl: String) : AutoCloseable {
         .takeIf { it.isNotEmpty() }
         ?: throw IllegalStateException("YouTube response is missing $name.")
 }
+
+/** `GET /admin/me`의 403은 관리자가 아닌 계정, 404는 관리자 API가 없는 배포입니다. */
+internal fun isNotAdministratorStatus(statusCode: Int?): Boolean = statusCode == 403 || statusCode == 404

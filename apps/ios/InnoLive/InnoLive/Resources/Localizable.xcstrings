@@ -13840,6 +13840,160 @@
           }
         }
       }
+    },
+    "비식별화 영상 연결을 종료하고 카메라 미리보기로 돌아갑니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화 영상 연결을 종료하고 카메라 미리보기로 돌아갑니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ends the anonymized video connection and returns to the camera preview."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化映像の接続を終了し、カメラプレビューに戻ります。"
+          }
+        }
+      }
+    },
+    "비식별화 종료": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화 종료"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop Anonymization"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化を終了"
+          }
+        }
+      }
+    },
+    "비식별화 시작": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화 시작"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Anonymization"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化を開始"
+          }
+        }
+      }
+    },
+    "송출 플랫폼 없음": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "송출 플랫폼 없음"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No streaming platform"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信プラットフォームなし"
+          }
+        }
+      }
+    },
+    "비식별화만 실행": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화만 실행"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anonymization only"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化のみ"
+          }
+        }
+      }
+    },
+    "플랫폼을 선택하지 않으면 계정 없이 비식별화만 실행합니다. 현재 AI 처리 방식(서버·온디바이스)을 그대로 사용합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼을 선택하지 않으면 계정 없이 비식별화만 실행합니다. 현재 AI 처리 방식(서버·온디바이스)을 그대로 사용합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With no platform selected, only anonymization runs and no account is needed. Your current AI processing mode (server or on-device) is used."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームを選択しない場合、アカウントなしで匿名化のみを実行します。現在のAI処理方式（サーバー・オンデバイス）をそのまま使用します。"
+          }
+        }
+      }
+    },
+    "방송 정보와 플랫폼 계정 없이 카메라 영상의 비식별화 결과만 확인합니다. 플랫폼을 선택하면 같은 연결에서 방송을 준비할 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 정보와 플랫폼 계정 없이 카메라 영상의 비식별화 결과만 확인합니다. 플랫폼을 선택하면 같은 연결에서 방송을 준비할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the anonymized camera video without broadcast details or a platform account. Select a platform to prepare a broadcast on the same connection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信情報やプラットフォームアカウントなしで、カメラ映像の匿名化結果だけを確認します。プラットフォームを選択すると、同じ接続で配信を準備できます。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

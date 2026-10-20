@@ -10,6 +10,7 @@
     <string name="direct_mode_option_plan_locked">Plan upgrade required</string>
     <string name="direct_mode_locked">You cannot change this while preparing or streaming.</string>
     <string name="direct_mode_last_target">Select at least one platform.</string>
+    <string name="direct_mode_no_target_preview">Clear every platform to see only the de-identified preview without streaming.</string>
     <string name="direct_mode_plan_locked">Some broadcast modes are not available on your current plan.</string>
     <string name="direct_mode_not_in_plan">This broadcast mode is not available on your current plan.</string>
     <string name="direct_mode_time_exhausted">Not enough streaming time is left for the selected mode.</string>
@@ -38,6 +39,8 @@
     <string name="error_youtube_channel_required">Several YouTube channels are connected. Reconnect your YouTube account with the channel to stream to.</string>
     <string name="broadcast_menu_mode">Quality and platforms</string>
     <string name="broadcast_menu_not_selected">Not selected</string>
+    <string name="broadcast_menu_no_platform">No platform · De-identified preview</string>
     <string name="broadcast_menu_needs_details">Needs details</string>
+    <string name="broadcast_menu_account_checking">Checking account</string>
     <string name="broadcast_menu_chzzk">CHZZK</string>
 </resources>

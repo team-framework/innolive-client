@@ -10,6 +10,7 @@
     <string name="direct_mode_option_plan_locked">요금제 업그레이드 필요</string>
     <string name="direct_mode_locked">방송을 준비하거나 송출하는 중에는 바꿀 수 없습니다.</string>
     <string name="direct_mode_last_target">플랫폼을 하나 이상 선택해야 합니다.</string>
+    <string name="direct_mode_no_target_preview">플랫폼을 모두 해제하면 송출 없이 비식별화 미리보기만 봅니다.</string>
     <string name="direct_mode_plan_locked">현재 요금제에서 사용할 수 없는 방송 방식이 있습니다.</string>
     <string name="direct_mode_not_in_plan">현재 요금제에서 사용할 수 없는 방송 방식입니다.</string>
     <string name="direct_mode_time_exhausted">선택한 방식으로 방송할 수 있는 시간이 부족합니다.</string>
@@ -38,6 +39,8 @@
     <string name="error_youtube_channel_required">연결된 YouTube 채널이 여러 개입니다. 송출할 채널로 YouTube 계정을 다시 연결해 주세요.</string>
     <string name="broadcast_menu_mode">화질 및 플랫폼</string>
     <string name="broadcast_menu_not_selected">송출 안 함</string>
+    <string name="broadcast_menu_no_platform">플랫폼 없음 · 비식별화 미리보기</string>
     <string name="broadcast_menu_needs_details">설정 필요</string>
+    <string name="broadcast_menu_account_checking">계정 확인 중</string>
     <string name="broadcast_menu_chzzk">치지직</string>
 </resources>

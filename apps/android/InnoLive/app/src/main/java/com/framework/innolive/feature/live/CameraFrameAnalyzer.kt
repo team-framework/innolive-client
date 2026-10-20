@@ -50,6 +50,12 @@ class CameraFrameAnalyzer(
     val lookPreviews: StateFlow<VideoLookPreviews?> = previewRenderer.previews
     @Volatile private var previewSink: VideoSink? = null
     @Volatile private var directPublishSink: VideoSink? = null
+    /** 비식별화·색 보정 전 카메라 원본을 받는 녹화 싱크입니다. 분석 스레드에서 바로 부르며 프레임은 호출 뒤 해제합니다. */
+    @Volatile private var rawRecordingSink: VideoSink? = null
+    /** 실제로 송출한 프레임(온디바이스 가림 처리 출력 또는 가림을 끈 보정 프레임)을 받는 녹화 싱크입니다. */
+    @Volatile private var processedRecordingSink: VideoSink? = null
+    // 녹화 렌더러가 프레임을 잠시 붙잡는 동안 다음 프레임이 새 버퍼를 할당하지 않도록 여분을 둡니다.
+    private val recordingBuffers = PrivacyCameraBufferPool(maxIdle = RECORDING_BUFFER_SLOTS)
     private val faceFrameTap = AtomicReference<((ImageProxy) -> Unit)?>(null)
     private val anonymizationFailures = AtomicLong()
     private var reportedColorFailure = false
@@ -79,7 +85,7 @@ class CameraFrameAnalyzer(
     private var lastStagesLogNs = System.nanoTime()
     internal var onFrameDiagnostics: ((PrivacyCaptureDiagnostics) -> Unit)? = null
     private val processorLock = Any()
-    private val cameraBuffers = PrivacyCameraBufferPool()
+    private val cameraBuffers = PrivacyCameraBufferPool(maxIdle = RECORDING_BUFFER_SLOTS)
     @Volatile
     private var localProcessor: PrivacyFrameProcessor? =
         if (initialOnDevice && !batchTwoOptimizations) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
@@ -177,6 +183,48 @@ class CameraFrameAnalyzer(
         directPublishSink = if (stopped.get()) null else sink
     }
 
+    /** 원본 녹화 입력입니다. 서버 AI 모드에서도 카메라 원본을 넘깁니다. */
+    fun setRawRecordingSink(sink: VideoSink?) = synchronized(captureLock) {
+        rawRecordingSink = if (stopped.get()) null else sink
+    }
+
+    /** 송출 프레임 녹화 입력입니다. 서버 AI 모드에서는 서버가 돌려주는 영상이 송출 결과이므로 여기로는 오지 않습니다. */
+    fun setProcessedRecordingSink(sink: VideoSink?) = synchronized(captureLock) {
+        processedRecordingSink = if (stopped.get()) null else sink
+    }
+
+    private fun deliverToRecording(sink: VideoSink?, frame: VideoFrame) {
+        sink ?: return
+        // 녹화 오류가 송출·미리보기 전달이나 가림 처리 실패 판정으로 번지지 않게 합니다.
+        try {
+            sink.onFrame(frame)
+        } catch (error: Exception) {
+            Log.w("CameraFrameAnalyzer", "recording_frame_failed type=${error.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * 온디바이스 가림 처리 경로용 원본 녹화 복사입니다. 이 경로는 카메라 이미지를 작업 스레드로 넘겨 복사본이
+     * 없으므로 따로 복사합니다. 서버 AI·가림 해제 경로는 이미 만든 카메라 복사본을 공유합니다.
+     */
+    private fun deliverRawToRecording(image: ImageProxy) {
+        val sink = rawRecordingSink ?: return
+        val crop = image.cropRect
+        val source = try { recordingBuffers.acquire(image.width, image.height) } catch (_: IllegalStateException) { return }
+        try {
+            copyPlane(image.planes[0], image.width, image.height, source.dataY, source.strideY)
+            copyPlane(image.planes[1], (image.width + 1) / 2, (image.height + 1) / 2, source.dataU, source.strideU)
+            copyPlane(image.planes[2], (image.width + 1) / 2, (image.height + 1) / 2, source.dataV, source.strideV)
+            val output = if (crop.left == 0 && crop.top == 0 && crop.width() == image.width && crop.height() == image.height) {
+                source.apply { retain() }
+            } else source.cropAndScale(crop.left, crop.top, crop.width(), crop.height(), crop.width(), crop.height())
+            val frame = VideoFrame(output, image.imageInfo.rotationDegrees, image.imageInfo.timestamp)
+            try { deliverToRecording(sink, frame) } finally { frame.release() }
+        } finally {
+            source.release()
+        }
+    }
+
     /**
      * 방송 카메라를 끄지 않고 얼굴을 등록하도록 가림 처리 전 원본 프레임을 빌려 줍니다.
      * [tap]은 분석 스레드에서 바로 호출되므로 프레임을 오래 붙잡지 말고 반환 전에 복사해야 합니다.
@@ -239,6 +287,7 @@ class CameraFrameAnalyzer(
                 localProcessor?.close()
                 localProcessor = null
                 cameraBuffers.close()
+                recordingBuffers.close()
             }
         }
         worker.shutdown()
@@ -248,6 +297,8 @@ class CameraFrameAnalyzer(
         synchronized(captureLock) {
             previewSink = null
             directPublishSink = null
+            rawRecordingSink = null
+            processedRecordingSink = null
             previewRenderer.close()
         }
         faceFrameTap.set(null)
@@ -278,6 +329,12 @@ class CameraFrameAnalyzer(
             if (lastCaptureFormat != format) {
                 lastCaptureFormat = format
                 onCaptureFormat(format.first, format.second)
+            }
+            // 가림 처리 경로는 이미지를 그대로 가져가므로 원본 녹화를 먼저 복사합니다. 녹화 실패는 송출에 영향을 주지 않습니다.
+            if (rawRecordingSink != null && currentTicket.mode == PrivacyFrameMode.LOCAL_PROTECTED) try {
+                deliverRawToRecording(image)
+            } catch (error: Exception) {
+                Log.w("CameraFrameAnalyzer", "recording_copy_failed type=${error.javaClass.simpleName}")
             }
             if (currentTicket.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
                 received.incrementAndGet()
@@ -356,11 +413,16 @@ class CameraFrameAnalyzer(
                     }
                 } else {
                     try {
+                        // 색 보정은 새 버퍼에 쓰므로 카메라 복사본을 원본 녹화와 공유해도 됩니다. 추가 복사가 없습니다.
+                        if (currentTicket.mode != PrivacyFrameMode.LOCAL_PROTECTED) deliverToRecording(rawRecordingSink, frame)
                         route.deliver(currentTicket) {
                             relayAdjustedFrame(frame) { adjusted ->
                                 previewSink?.onFrame(adjusted)
                                 capturerObserver?.onFrameCaptured(adjusted)
-                                if (currentTicket.mode == PrivacyFrameMode.LOCAL_RAW) deliverToDirectPublish(adjusted)
+                                if (currentTicket.mode == PrivacyFrameMode.LOCAL_RAW) {
+                                    deliverToDirectPublish(adjusted)
+                                    deliverToRecording(processedRecordingSink, adjusted)
+                                }
                             }
                         }
                     } finally {
@@ -424,6 +486,7 @@ class CameraFrameAnalyzer(
                             previewSink?.onFrame(adjusted)
                             capturerObserver?.onFrameCaptured(adjusted)
                             deliverToDirectPublish(adjusted)
+                            deliverToRecording(processedRecordingSink, adjusted)
                             delivered.incrementAndGet()
                             if (protectedFrameReported.compareAndSet(false, true)) onProtectedFrameSent()
                         }
@@ -487,6 +550,9 @@ class CameraFrameAnalyzer(
             "busy_dropped=${dropped.getAndSet(0)} delivered=${delivered.getAndSet(0)}")
     }
 }
+
+/** 녹화 렌더러가 붙잡는 프레임(최대 1~2개)을 고려한 버퍼 여분입니다. */
+private const val RECORDING_BUFFER_SLOTS = 3
 
 private data class PendingProtectedCamera(val camera:PrivacyCameraInput,
     val ticket:PrivacyFrameRoute.Ticket,val receivedAtNs:Long):AutoCloseable {

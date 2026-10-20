@@ -77,6 +77,8 @@ struct BroadcastSettingsView: View {
                     }
                     .broadcastTutorialAnchor(.connectAccount)
                     BroadcastTargetSelectionView(youtube: youtube)
+                }
+                if !isLiveEditing && modeProvider == nil && !isPrivacyOnly {
                     Text(String(localized: "설정을 편집할 플랫폼", table: "Simulcast")).font(.caption).foregroundStyle(.secondary)
                     Picker(String(localized: "설정을 편집할 플랫폼", table: "Simulcast"), selection: Binding(
                         get: { youtube.selectedBroadcastProviders.contains(editor.provider) ? editor.provider
@@ -85,7 +87,8 @@ struct BroadcastSettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .disabled(youtube.isBroadcastSettingsLocked)
-
+                }
+                if !isLiveEditing && modeProvider == nil {
                     if onPrepare != nil && youtube.offersOnDevicePreparation {
                         Button(String(localized: "온디바이스로 방송하기", table: "PlanUsage")) {
                             let provider = editor.provider
@@ -102,7 +105,7 @@ struct BroadcastSettingsView: View {
 
                     PlanUsageSection(authentication: authentication, youtube: youtube)
 
-                    defaultsSection
+                    if !isPrivacyOnly { defaultsSection }
                     ForEach(youtube.liveEditingTargets) { provider in
                         NavigationLink {
                             BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
@@ -112,7 +115,7 @@ struct BroadcastSettingsView: View {
                         .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
                     }
                 }
-                if editor.provider == .youtube, !isLiveEditing, !youtube.youtubeAccounts.isEmpty {
+                if editor.provider == .youtube, !isLiveEditing, !isPrivacyOnly, !youtube.youtubeAccounts.isEmpty {
                     Section(String(localized: "YouTube 채널", table: "YouTubeChannels")) {
                         Picker(String(localized: "방송할 채널", table: "YouTubeChannels"), selection: Binding(
                             get: { youtube.selectedYouTubeAccountID ?? "" },
@@ -126,7 +129,10 @@ struct BroadcastSettingsView: View {
                         .accessibilityIdentifier("youtube-channel-picker")
                     }
                 }
-                if editor.provider == .youtube { youtubeForm } else { chzzkForm }
+                if isPrivacyOnly {
+                    Text(String(localized: "방송 정보와 플랫폼 계정 없이 카메라 영상의 비식별화 결과만 확인합니다. 플랫폼을 선택하면 같은 연결에서 방송을 준비할 수 있습니다."))
+                        .font(.footnote).foregroundStyle(.secondary)
+                } else if editor.provider == .youtube { youtubeForm } else { chzzkForm }
 
                 if isLiveEditing {
                     Text(String(localized: "송출을 유지한 채 제목·카테고리를 수정합니다. 공개 범위·시청자층·썸네일은 방송 중 변경할 수 없습니다."))
@@ -227,11 +233,17 @@ struct BroadcastSettingsView: View {
         }
     }
 
+    /// 방송 준비 시트에서 송출 플랫폼을 모두 해제한 상태다. 계정·방송 정보 없이 비식별화만 연다.
+    private var isPrivacyOnly: Bool {
+        !isLiveEditing && modeProvider == nil && onPrepare != nil && youtube.selectedBroadcastProviders.isEmpty
+    }
+
     private var prepareButtonTitle: String {
         if upgradeSettings { return String(localized: "저장 후 전환", table: "UpgradeOffer") }
         if isLiveEditing { return youtube.isSavingLiveSettings ? String(localized: "저장 중") : String(localized: "저장") }
         if onPrepare == nil { return String(localized: "저장") }
         if youtube.preparationStatus?.isFailed == true { return String(localized: "다시 시도") }
+        if isPrivacyOnly { return String(localized: "비식별화 시작") }
         return String(localized: "방송 준비")
     }
 
@@ -242,7 +254,8 @@ struct BroadcastSettingsView: View {
             return true
         }
         if planStore.snapshot?.preparationBlockMessage(youtube.preparationPlanMode, processing: youtube.planProcessingMode) != nil { return true }
-        if youtube.selectedBroadcastProviders.isEmpty || !youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) { return true }
+        if isPrivacyOnly && youtube.isPrivacyOnlySession { return true }
+        if !youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) { return true }
         return youtube.isBroadcastSettingsLocked && youtube.preparationStatus?.isFailed != true
     }
 
@@ -446,13 +459,15 @@ struct BroadcastSettingsView: View {
             }
             return
         }
-        editor.showValidation()
-        guard editor.validation.isEmpty else { return }
+        if !isPrivacyOnly {
+            editor.showValidation()
+            guard editor.validation.isEmpty else { return }
+        }
         guard onPrepare != nil else {
             Task { isSaved = await youtube.saveEditorSettings(accessToken: token) }
             return
         }
-        guard !youtube.selectedBroadcastProviders.isEmpty, youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) else { return }
+        guard youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) else { return }
         guard authentication.hasAcceptedMediaTransmission else {
             isShowingMediaConsent = true
             return

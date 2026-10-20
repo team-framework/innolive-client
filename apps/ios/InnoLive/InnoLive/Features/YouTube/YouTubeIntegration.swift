@@ -49,6 +49,14 @@ final class YouTubeIntegration: ObservableObject {
     @Published var selectedBroadcastProviders: Set<BroadcastSettingsProvider> = [.youtube]
     @Published private(set) var lastPreparationProviders: [BroadcastSettingsProvider] = []
     @Published private(set) var preparationFailures: [BroadcastSettingsProvider: BroadcastPreparationStatus] = [:]
+    /// 마지막 준비가 송출 대상 없이 비식별화만 연 경우다. 플랫폼을 고른 다음 준비는 같은 연결에 대상을 추가한다.
+    @Published private(set) var isPrivacyOnlyPreparation = false
+
+    /// 플랫폼 계정·방송 설정 없이 세션과 영상 연결만 열어 서버 또는 온디바이스 비식별화 결과를 보여 준다.
+    var isPrivacyOnlySession: Bool {
+        isPrivacyOnlyPreparation && session != nil && preparationStatus == nil && !statePolicy.isBroadcastActive
+            && statePolicy.broadcastPhase != .prepared
+    }
     var canContinuePreparedBroadcast: Bool {
         preparationStatus?.isFailed == true && !isChangingStreamState && broadcastPreparationTask == nil
             && lastPreparationProviders.contains(where: isProviderPrepared)
@@ -670,6 +678,7 @@ final class YouTubeIntegration: ObservableObject {
     private let persistAIProcessingMode: (AIProcessingMode) -> Void
     private let transportProvider: () -> OnDeviceTransport
     private let persistTransport: (OnDeviceTransport) -> Void
+    private let faceAnonymizationProvider: () -> FaceAnonymizationMode
     private let api: YouTubeAPI
     private let sessionStore: any BroadcastSessionStoring
     private var sessionScope: BroadcastSessionScope?
@@ -733,6 +742,7 @@ final class YouTubeIntegration: ObservableObject {
         persistTransport: @escaping (OnDeviceTransport) -> Void = {
             UserDefaults.standard.set($0.rawValue, forKey: OnDeviceTransport.storageKey)
         },
+        faceAnonymizationProvider: @escaping () -> FaceAnonymizationMode = { .selected },
         directPublisher: (any DirectBroadcastPublishing)? = nil,
         heartbeatInterval: Duration = .seconds(15),
         recordingStore: RecordingSessionStore? = nil,
@@ -747,6 +757,7 @@ final class YouTubeIntegration: ObservableObject {
         self.persistAIProcessingMode = persistAIProcessingMode
         self.transportProvider = transportProvider
         self.persistTransport = persistTransport
+        self.faceAnonymizationProvider = faceAnonymizationProvider
         let resolvedAPI = api ?? YouTubeAPI()
         self.api = resolvedAPI
         self.chzzkAuthorization = chzzkAuthorization ?? CHZZKAuthorization()
@@ -826,6 +837,12 @@ final class YouTubeIntegration: ObservableObject {
 
     func refreshPlan(accessToken: String?) async {
         await planStore.refresh(api: api, accessToken: accessToken)
+    }
+
+    /// 실험실 표시 여부다. 확인하지 못하면 숨긴다.
+    func isAdministrator(accessToken: String?) async -> Bool {
+        guard let accessToken, !accessToken.isEmpty else { return false }
+        return (try? await api.isAdministrator(accessToken: accessToken)) ?? false
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
@@ -1260,6 +1277,8 @@ final class YouTubeIntegration: ObservableObject {
         let generation = sessionOperationGeneration
         let requestedMode = preparationProcessingOverride ?? aiModeProvider()
         let sessionMode = requestedSessionMode
+        // 얼굴 합성은 서버 AI에서만 쓴다. 서버 송출을 고른 온디바이스는 서버 AI를 끄므로 블러로 둔다.
+        let faceAnonymization = requestedMode == .server ? faceAnonymizationProvider() : .blur
         isPreparingSession = true
         let task = Task { [self] in
             guard sessionOperationGeneration == generation else { return false }
@@ -1271,7 +1290,8 @@ final class YouTubeIntegration: ObservableObject {
                 // 서버가 처리 방식을 받지 않으면 서버 세션에서 서버 AI를 끄고 중계 송출한다.
                 var created: YouTubeBroadcastSession
                 do {
-                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution)
+                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: broadcastResolution,
+                                                         faceAnonymization: faceAnonymization)
                 } catch YouTubeAPIError.api("plan_resolution_not_allowed"?, _, _) where sessionMode == .server && broadcastResolution == "fhd" {
                     // 요금제가 FHD를 막으면 서버 세션은 720p로 다시 만든다. 카메라는 세션 응답 해상도에 맞춰진다.
                     // 온디바이스 세션은 준비 전 요금제 검사가 안내하므로 그대로 실패시킨다.
@@ -1279,7 +1299,8 @@ final class YouTubeIntegration: ObservableObject {
                     Self.qualityLogger.notice("session fhd rejected by plan; retrying 720p")
                     #endif
                     guard isCurrentSessionOperation(generation, scope: scope, accessToken: accessToken) else { return false }
-                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: "720p")
+                    created = try await api.createSession(accessToken: accessToken, mode: sessionMode, broadcastResolution: "720p",
+                                                         faceAnonymization: faceAnonymization)
                 }
                 #if DEBUG
                 Self.qualityLogger.notice("session created mode=\(sessionMode.rawValue, privacy: .public) requested=\(broadcastResolution ?? "none", privacy: .public) response=\(created.details.broadcastResolution ?? "none", privacy: .public)")
@@ -1851,19 +1872,17 @@ final class YouTubeIntegration: ObservableObject {
     ) async -> Bool {
         let generation = preparationGeneration
         guard preparationStatus?.phase != .cancelling else { return false }
-        guard !providers.isEmpty else {
-            errorMessage = String(localized: "방송할 플랫폼을 하나 이상 선택해 주세요.", table: "Simulcast")
-            return false
-        }
         preparationResolution = planProcessingMode == .onDevice ? Self.sessionResolution(for: preferredVideoQuality) : nil
         lastPreparationProviders = providers
         lastPreparationProvider = providers.first
-        for provider in providers {
+        // 대상이 없으면 계정·방송 설정 검사 없이 공통 조건만 확인한다.
+        for provider in providers.isEmpty ? [nil] : providers.map(Optional.some) {
             if preparationBlocker(provider: provider, accessToken: accessToken, useEditor: useEditor, permissions: permissions) != nil {
                 preparationResolution = nil
                 return false
             }
         }
+        isPrivacyOnlyPreparation = providers.isEmpty
 
         let canReuseConnection = session != nil && isVideoConnected
         if !canReuseConnection {
@@ -1892,7 +1911,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func preparationBlocker(
-        provider: BroadcastSettingsProvider,
+        provider: BroadcastSettingsProvider?,
         accessToken: String?,
         useEditor: Bool,
         permissions: BroadcastPreparationPermissions
@@ -1913,20 +1932,22 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = String(localized: "마이크를 허용한 뒤 방송을 준비할 수 있습니다.")
             return errorMessage
         }
-        let accountReady = provider == .youtube
-            ? (connection != nil && connection?.requiresReconnection == false)
-            : isSettingsAccountConnected(provider)
-        guard accountReady else {
-            errorMessage = String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요.")
-            return errorMessage
-        }
-        let validation = provider == .youtube
-            ? (useEditor ? settingsEditor.youtube.validation : broadcastSettings.normalized.validation)
-            : settingsEditor.chzzk.validation
-        if useEditor, settingsEditor.provider == provider { settingsEditor.showValidation() }
-        if let message = validation.sorted(by: { $0.key < $1.key }).first?.value {
-            errorMessage = message
-            return message
+        if let provider {
+            let accountReady = provider == .youtube
+                ? (connection != nil && connection?.requiresReconnection == false)
+                : isSettingsAccountConnected(provider)
+            guard accountReady else {
+                errorMessage = String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요.")
+                return errorMessage
+            }
+            let validation = provider == .youtube
+                ? (useEditor ? settingsEditor.youtube.validation : broadcastSettings.normalized.validation)
+                : settingsEditor.chzzk.validation
+            if useEditor, settingsEditor.provider == provider { settingsEditor.showValidation() }
+            if let message = validation.sorted(by: { $0.key < $1.key }).first?.value {
+                errorMessage = message
+                return message
+            }
         }
         if let message = planStore.snapshot?.preparationBlockMessage(.current(resolution: broadcastResolution ?? preparationResolution, targetCount: lastPreparationProviders.count), processing: planProcessingMode) {
             errorMessage = message
@@ -2478,6 +2499,7 @@ final class YouTubeIntegration: ObservableObject {
         selectedBroadcastProviders = [.youtube]
         lastPreparationProvider = nil
         lastPreparationProviders = []
+        isPrivacyOnlyPreparation = false
         preparationFailures = [:]
         sessionOperationGeneration &+= 1
         sessionScope = nil

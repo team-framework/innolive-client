@@ -89,4 +89,11 @@ class ServerErrorGuidanceTest {
             }
         }
     }
+
+    @Test fun faceSwapRejectionsPointToLabSetting() {
+        val notAllowed = parseServerApiException("""{"error":{"code":"face_swap_not_allowed"}}""", 403)
+        assertEquals(UiText.Resource(R.string.error_face_swap_not_allowed), notAllowed.guidance()!!.message)
+        val unavailable = parseServerApiException("""{"error":{"code":"face_swap_unavailable"}}""", 503)
+        assertEquals(UiText.Resource(R.string.error_face_swap_unavailable), unavailable.guidance()!!.message)
+    }
 }

@@ -21,14 +21,15 @@ internal object DirectPublishFeature {
     const val ENABLED = true
 }
 
-/** 화면이 고른 직접 송출 구성입니다. 세션을 만들 때 `broadcast_resolution`과 송출 대상이 정해집니다. */
+/**
+ * 화면이 고른 직접 송출 구성입니다. 세션을 만들 때 `broadcast_resolution`과 송출 대상이 정해집니다.
+ * 송출 대상이 비어 있으면 플랫폼 없이 온디바이스 비식별화 미리보기만 엽니다. 이 구성으로는 방송을 준비하지 않습니다.
+ */
 internal data class DirectBroadcastPlan(
     val resolution: DirectPublishResolution = DirectPublishResolution.HD_720,
     val providers: Set<BroadcastProvider> = setOf(BroadcastProvider.YOUTUBE),
 ) {
-    init {
-        require(providers.isNotEmpty()) { "송출 대상이 없습니다." }
-    }
+    val isPreviewOnly: Boolean get() = providers.isEmpty()
 }
 
 /** 카메라 대신 대기 화면과 무음을 보내는 이유입니다. 하나라도 남아 있으면 대기 화면을 보냅니다. */

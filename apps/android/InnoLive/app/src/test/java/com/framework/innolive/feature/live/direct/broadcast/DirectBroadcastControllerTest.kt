@@ -17,6 +17,7 @@ import com.framework.innolive.feature.live.ServerApiException
 import com.framework.innolive.feature.live.SessionNotice
 import com.framework.innolive.feature.live.SessionSnapshot
 import com.framework.innolive.feature.live.WebRtcConnectionState
+import com.framework.innolive.feature.live.components.YouTubeViewerChatPolicy
 import com.framework.innolive.feature.live.direct.DirectGoLiveResult
 import com.framework.innolive.feature.live.direct.DirectIngest
 import com.framework.innolive.feature.live.direct.DirectPrepareResult
@@ -63,6 +64,8 @@ class DirectBroadcastControllerTest {
     private val connections = mutableListOf<Pair<WebRtcConnectionState, ConnectionFailure?>>()
     private val uiStates = mutableListOf<DirectBroadcastUiState>()
     private val snapshots = mutableListOf<SessionSnapshot>()
+    /** 세션 상태 전달 순서입니다. 마지막 세션 상태를 비웠는지 확인합니다. */
+    private val snapshotEvents = mutableListOf<String>()
     private val serverErrors = mutableListOf<String>()
     private val anonymizationConfirmations = mutableListOf<AnonymizationState>()
     private var now = 1_000L
@@ -82,10 +85,14 @@ class DirectBroadcastControllerTest {
             onAnonymizationStateConfirmed = { anonymizationConfirmations += it },
             onLocalVideoTrackChanged = {},
             onInitialSignalingStarted = {},
-            onSessionSnapshotChanged = { snapshots += it },
+            onSessionSnapshotChanged = {
+                snapshots += it
+                snapshotEvents += "snapshot"
+            },
             onServerError = { serverErrors += it.code },
             onUplinkVideoStats = {},
             onDirectUiStateChanged = { uiStates += it },
+            onSessionSnapshotCleared = { snapshotEvents += "cleared" },
         ),
         DirectBroadcastConfig(plan, provider, anonymizationEnabled = anonymizationEnabled),
         DirectBroadcastEnvironment(
@@ -561,6 +568,36 @@ class DirectBroadcastControllerTest {
         scheduler.runUntilIdle()
         assertEquals(calls, media.engine.calls)
         assertEquals(BroadcastState.PREPARED, states.last().first)
+    }
+
+    // S25 실기기: 직접 송출 종료 뒤 마지막 라이브 세션 상태가 남아 시청자 채팅 버튼과 대상 상태가 그대로 보였다.
+    @Test fun stopClearsTheLastLiveSnapshotSoViewerChatHides() {
+        val controller = preparedYouTube()
+        live(controller)
+        server.sessionPayload = """{"session_id":"session-1","targets":[{"provider":"youtube","video_id":"dQw4w9WgXcQ",""" +
+            """"stream":{"status":"idle","broadcast_phase":"live"}}]}"""
+        scheduler.advance(2_000)
+        assertNotNull(YouTubeViewerChatPolicy.activeUrl(snapshots.last()))
+        assertEquals("snapshot", snapshotEvents.last())
+
+        controller.stopBroadcast()
+        scheduler.runUntilIdle()
+        scheduler.advance(10_000)
+
+        assertEquals(BroadcastState.IDLE, states.last().first)
+        assertEquals("cleared", snapshotEvents.last())
+        assertEquals(1, snapshotEvents.count { it == "cleared" })
+    }
+
+    @Test fun serverEndedSessionAlsoClearsTheLastSnapshot() {
+        val controller = preparedYouTube()
+        live(controller)
+        heartbeat.listener!!.onStopAll(HeartbeatStopReason.SESSION_GONE)
+        scheduler.runUntilIdle()
+        scheduler.advance(10_000)
+
+        assertEquals(BroadcastState.IDLE, states.last().first)
+        assertEquals("cleared", snapshotEvents.last())
     }
 
     @Test fun heartbeatSessionGoneForgetsSessionWithoutDelete() {

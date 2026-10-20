@@ -57,6 +57,8 @@ import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import org.webrtc.VideoTrack
 import org.webrtc.audio.JavaAudioDeviceModule
+import com.framework.innolive.feature.live.recording.RecordingAudioSink
+import com.framework.innolive.feature.live.recording.WebRtcRecordingAudioProcessing
 import java.io.IOException
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
@@ -92,6 +94,8 @@ internal class WebRtcConnection(
     private val provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
     /** 세션을 만들 때 서버에 요청하는 송출 해상도입니다. 세션 생성 뒤에는 바꾸지 않습니다. */
     private val broadcastResolution: DirectPublishResolution = DirectPublishResolution.HD_720,
+    /** 세션을 만들 때 서버에 요청하는 얼굴 가림 방식입니다. null이면 서버 기본값(블러)입니다. */
+    private val faceAnonymization: String? = null,
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, ConnectionFailure?) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
@@ -491,8 +495,12 @@ internal class WebRtcConnection(
         val createdAudioDeviceModule =
             checkNotNull(this@WebRtcConnection.audioDeviceModule)
         WebRtcNativeRuntime.initialize(applicationContext)
+        // 녹화는 iOS처럼 음성 처리 뒤 송출 신호를 씁니다. 후처리 단계를 붙이지 못해도 송출은 기본 처리로 이어 갑니다.
+        // 팩토리는 프로세스에서 하나를 함께 쓰고 해제하지 않습니다(WebRtcRecordingAudioProcessing).
+        val processing = WebRtcRecordingAudioProcessing.factory()
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(createdAudioDeviceModule)
+            .apply { if (processing != null) setAudioProcessingFactory(processing) }
             .setVideoEncoderFactory(
                 DefaultVideoEncoderFactory(eglContext, true, true),
             )
@@ -1135,6 +1143,10 @@ internal class WebRtcConnection(
         }
     }
 
+    override fun setRecordingAudioSink(sink: RecordingAudioSink?) {
+        WebRtcRecordingAudioProcessing.setSink(this, sink)
+    }
+
     private fun createAudioDeviceModule(): JavaAudioDeviceModule = JavaAudioDeviceModule
         .builder(applicationContext)
         .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
@@ -1265,7 +1277,7 @@ internal class WebRtcConnection(
     }
 
     private fun requestSessionCreation(): CreatedSession? {
-        val requestBody = buildServerSessionRequest(provider, broadcastResolution)
+        val requestBody = buildServerSessionRequest(provider, broadcastResolution, faceAnonymization)
             .toString()
             .toRequestBody(JSON_MEDIA_TYPE)
         val request = authenticatedRequest("/sessions")
@@ -2215,6 +2227,7 @@ internal class WebRtcConnection(
         videoSource = null
         runCatching { peerConnectionFactory?.dispose() }
         peerConnectionFactory = null
+        WebRtcRecordingAudioProcessing.setSink(this, null)
         runCatching { audioDeviceModule?.release() }
         audioDeviceModule = null
         runCatching { eglBase?.release() }
@@ -2483,14 +2496,19 @@ private fun ServerApiException.toKnownBroadcastFailure(): BroadcastFailure? = wh
     else -> null
 }
 
-/** 서버 AI 세션 생성 본문입니다. 서버 디코더가 트랙 도착 즉시 이 해상도로 뜨므로 생성 때 정합니다. */
+/**
+ * 서버 AI 세션 생성 본문입니다. 서버 디코더가 트랙 도착 즉시 이 해상도로 뜨므로 생성 때 정합니다.
+ * 얼굴 가림 방식도 AI 스트림 수명 동안 고정이라 생성 때만 보냅니다. null이면 생략해 서버 기본값(블러)을 씁니다.
+ */
 internal fun buildServerSessionRequest(
     provider: BroadcastProvider,
     resolution: DirectPublishResolution,
+    faceAnonymization: String? = null,
 ): JSONObject = JSONObject()
     .put("provider", provider.wireValue)
     .put("broadcast_resolution", resolution.wireValue)
     .put("metadata", JSONObject().put("client", "innolive-android"))
+    .apply { faceAnonymization?.let { put("face_anonymization", it) } }
 
 internal fun ServerApiException.toBroadcastEvent(
     fallback: BroadcastFailure,

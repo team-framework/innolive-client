@@ -54,3 +54,18 @@ YouTube and CHZZK over RTMP(S).
 
 The project-level Apache License 2.0 applies only to InnoLive-owned source
 code. Third-party materials remain available under their respective licenses.
+
+## iOS BoT-SORT tracking
+
+- `PrivacyBoTSORT.swift`, `PrivacyTrackKalman.swift`, and `PrivacySparseFlow.mm`
+  implement the tracking and sparse optical flow algorithms with reference to
+  Ultralytics 8.4.104 (`bot_sort.py`, `byte_tracker.py`, `kalman_filter.py`, `gmc.py`).
+  Copyright Ultralytics. These ports are licensed under AGPL-3.0-or-later;
+  see `apps/ios/PrivacyTracking/LICENSE-AGPL-3.0.txt`.
+  Source: https://github.com/ultralytics/ultralytics/tree/v8.4.104/ultralytics/trackers
+- OpenCV 4.12.0 supplies Shi-Tomasi corners, pyramidal Lucas-Kanade optical flow,
+  and RANSAC affine estimation. License: Apache-2.0.
+  Source: https://github.com/opencv/opencv/tree/4.12.0
+- The OpenCV XCFramework is distributed through `yeatse/opencv-spm` 4.12.0,
+  pinned in `Package.resolved`; SwiftPM checks its archive checksum.
+  Package source: https://github.com/yeatse/opencv-spm/tree/4.12.0

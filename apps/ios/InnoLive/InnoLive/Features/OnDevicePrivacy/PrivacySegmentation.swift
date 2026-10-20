@@ -8,7 +8,7 @@ nonisolated enum PrivacySegmentation {
     static let maskSize = 160
     static let channels = 32
     static let candidates = 8400
-    static let confidence: Float = 0.25
+    static let confidence: Float = 0.01
 
     struct Detection {
         let box: CGRect // top-left origin, 640-pixel model coordinates
@@ -59,7 +59,7 @@ nonisolated enum PrivacySegmentation {
         }
         var kept: [Detection] = []
         for candidate in found.sorted(by: { $0.score > $1.score }) {
-            if !kept.contains(where: { $0.classID == candidate.classID && iou($0.box, candidate.box) > 0.45 }) {
+            if !kept.contains(where: { $0.classID == candidate.classID && iou($0.box, candidate.box) > 0.70 }) {
                 kept.append(candidate)
             }
             // Do not silently leave excess detections unprotected in crowded scenes.

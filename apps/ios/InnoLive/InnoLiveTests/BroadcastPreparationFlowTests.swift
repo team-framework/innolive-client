@@ -114,6 +114,62 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         XCTAssertEqual(try jsonBody(PreparationFlowURLProtocol.requests[0])["broadcast_resolution"] as? String, "fhd")
     }
 
+    func testPrivacyOnlyPreparationConnectsWithoutPlatformAccount() async throws {
+        let integration = makeIntegration(connected: false)
+        integration.selectedBroadcastProviders = []
+        integration.settingsEditor.editYouTube { $0.title = " " }
+        let probe = PreparationProbe()
+        PreparationFlowURLProtocol.responses = [.created("new")]
+        let prepared = await prepare(integration, probe: probe)
+        XCTAssertTrue(prepared)
+        XCTAssertEqual(paths, ["/sessions"])
+        XCTAssertEqual(probe.calls, 1)
+        XCTAssertTrue(integration.isVideoConnected)
+        XCTAssertTrue(integration.isPrivacyOnlySession)
+        XCTAssertNil(integration.preparationStatus)
+        XCTAssertNil(integration.errorMessage)
+        XCTAssertNil(try jsonBody(PreparationFlowURLProtocol.requests[0])["ai_processing"])
+
+        PreparationFlowURLProtocol.responses = [.empty(204)]
+        await integration.cancelBroadcastPreparation(accessToken: token)
+        XCTAssertEqual(methods, ["POST", "DELETE"])
+        XCTAssertNil(integration.session)
+        XCTAssertFalse(integration.isPrivacyOnlySession)
+    }
+
+    func testPrivacyOnlyPreparationUsesOnDeviceSession() async throws {
+        let integration = makeIntegration(connected: false, mode: .onDevice)
+        integration.selectedBroadcastProviders = []
+        PreparationFlowURLProtocol.responses = [.status(201, "{\"session_id\":\"new\",\"owner_token\":\"owner\",\"ai_processing\":\"on_device\",\"stream\":{\"status\":\"idle\",\"publisher_active\":false,\"reconnect_attempts\":0}}")]
+        let prepared = await prepare(integration)
+        XCTAssertTrue(prepared)
+        XCTAssertEqual(paths, ["/sessions"])
+        XCTAssertEqual(try jsonBody(PreparationFlowURLProtocol.requests[0])["ai_processing"] as? String, "on_device")
+        XCTAssertEqual(integration.session?.processingMode, .onDevice)
+        XCTAssertTrue(integration.isAnonymizationEnabled)
+        XCTAssertTrue(integration.isPrivacyOnlySession)
+    }
+
+    func testPlatformPreparationAfterPrivacyOnlyReusesConnection() async throws {
+        let integration = makeIntegration()
+        integration.configureSettingsEditor(accessToken: token)
+        integration.settingsEditor.setUsesDefaults(false, provider: .youtube)
+        integration.selectedBroadcastProviders = []
+        let probe = PreparationProbe()
+        PreparationFlowURLProtocol.responses = [.created("new")]
+        let privacyOnly = await prepare(integration, probe: probe)
+        XCTAssertTrue(privacyOnly)
+
+        integration.selectedBroadcastProviders = [.youtube]
+        PreparationFlowURLProtocol.responses = [.snapshot(phase: "idle"), .snapshot(phase: "prepared")]
+        let prepared = await prepare(integration, probe: probe)
+        XCTAssertTrue(prepared)
+        XCTAssertEqual(probe.calls, 1)
+        XCTAssertEqual(paths, ["/sessions", "/sessions/new/broadcast", "/sessions/new/stream/prepare"])
+        XCTAssertEqual(integration.broadcastPhase, "prepared")
+        XCTAssertFalse(integration.isPrivacyOnlySession)
+    }
+
     func testServerPreparationRequests720pForHDCameraQuality() async throws {
         let integration = makeIntegration()
         integration.configureSettingsEditor(accessToken: token)
@@ -391,11 +447,8 @@ final class BroadcastPreparationFlowTests: XCTestCase {
         XCTAssertFalse(paths.contains { $0.contains("golive") })
     }
 
-    func testInvalidUnconnectedOrEmptySelectionDoesNotCreateSession() async {
+    func testInvalidOrUnconnectedSelectionDoesNotCreateSession() async {
         let integration = makeIntegration()
-        integration.selectedBroadcastProviders = []
-        let empty = await prepare(integration)
-        XCTAssertFalse(empty)
         integration.selectedBroadcastProviders = [.youtube, .chzzk]
         let unconnected = await prepare(integration)
         XCTAssertFalse(unconnected)
