@@ -15,6 +15,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -48,6 +49,13 @@ internal class BroadcastSettingsMenuItem(
     val iconVector: ImageVector? = null,
 )
 
+/** 방송 설정 메뉴 맨 위의 안내입니다. [onClick]이 있으면 눌러 해결할 화면으로 갑니다. */
+internal class BroadcastSettingsNotice(
+    val title: String,
+    val message: String,
+    val onClick: (() -> Unit)? = null,
+)
+
 /**
  * 방송 준비 버튼이 여는 방송 설정 메뉴입니다. YouTube·치지직·화질 및 플랫폼을 고르면
  * 각 기존 설정 창이 열리고, 닫으면 이 메뉴로 돌아옵니다. 방송 준비는 이 메뉴에서만 시작합니다.
@@ -59,6 +67,7 @@ internal fun BroadcastSettingsMenu(
     onPrepare: () -> Unit,
     onDismiss: () -> Unit,
     guide: BroadcastTutorialGuide? = null,
+    notice: BroadcastSettingsNotice? = null,
 ) {
     InnoLiveDialog(onDismissRequest = onDismiss) {
         ModalSurface(modifier = Modifier.cappedDialogWidth(400.dp)) {
@@ -71,6 +80,7 @@ internal fun BroadcastSettingsMenu(
                         modifier = Modifier.padding(start = 20.dp, end = 8.dp),
                     )
                     Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                        notice?.let { BroadcastSettingsNoticeRow(it) }
                         items.forEachIndexed { index, item ->
                             if (index > 0) HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
                             Row(
@@ -127,4 +137,38 @@ internal fun BroadcastSettingsMenu(
             }
         }
     }
+}
+
+@Composable
+private fun BroadcastSettingsNoticeRow(notice: BroadcastSettingsNotice) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                notice.onClick?.let { onClick -> Modifier.clickable(role = Role.Button, onClick = onClick) }
+                    ?: Modifier,
+            )
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(
+            Icons.Outlined.Warning,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(28.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(notice.title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+            Text(
+                notice.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (notice.onClick != null) {
+            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
+        }
+    }
+    HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp))
 }
