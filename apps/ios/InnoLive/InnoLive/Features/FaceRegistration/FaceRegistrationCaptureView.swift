@@ -16,8 +16,12 @@ struct FaceRegistrationCaptureView: View {
                 Spacer(minLength: 12)
 
                 VStack(spacing: 8) {
-                    Text(String(localized: "얼굴 등록"))
+                    Text(model.reregistrationTarget == nil ? String(localized: "얼굴 등록") : String(localized: "얼굴 다시 등록"))
                         .font(.largeTitle.weight(.bold))
+                    if let name = model.reregistrationTarget?.name, !name.isEmpty {
+                        Text(name)
+                            .font(.headline)
+                    }
                     Text(String(localized: "얼굴을 가운데 영역에 맞춰 주세요."))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -83,6 +87,12 @@ struct FaceRegistrationCaptureView: View {
         }
         .onChange(of: model.phase) { _, phase in
             if phase == .success {
+                dismiss()
+            }
+        }
+        .onChange(of: model.reregistrationTarget) { previous, target in
+            // 다시 등록할 얼굴이 서버에 없어 목록을 새로 읽었다. 성공은 위에서 닫는다.
+            if previous != nil, target == nil, model.phase != .success {
                 dismiss()
             }
         }

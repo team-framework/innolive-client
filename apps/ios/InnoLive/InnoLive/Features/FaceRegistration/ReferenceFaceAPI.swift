@@ -40,6 +40,20 @@ final class ReferenceFaceAPI {
         return status
     }
 
+    /// AI 워커가 잃은 얼굴을 같은 face_id와 이름으로 다시 등록한다. 응답은 갱신된 전체 목록이다.
+    func reregister(faceID: String, jpegData: Data) async throws -> ReferenceFaceStatus {
+        let boundary = "InnoLive-Reference-Face-\(UUID().uuidString)"
+        let data = try await request(
+            path: "/reference-face",
+            method: "POST",
+            contentType: "multipart/form-data; boundary=\(boundary)",
+            body: ReferenceFaceReregistration.multipartBody(faceID: faceID, jpegData: jpegData, boundary: boundary)
+        )
+        let status = try decodeStatus(from: data)
+        guard status.registered else { throw ReferenceFaceAPIError.response }
+        return status
+    }
+
     func delete(faceID: String) async throws {
         let encodedID = faceID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? faceID
         _ = try await request(path: "/reference-face/\(encodedID)", method: "DELETE")

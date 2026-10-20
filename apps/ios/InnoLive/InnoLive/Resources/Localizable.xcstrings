@@ -13994,6 +13994,144 @@
           }
         }
       }
+    },
+    "AI 서버 재시작으로 등록이 초기화되어, 다시 등록해야 블러에서 제외됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 서버 재시작으로 등록이 초기화되어, 다시 등록해야 블러에서 제외됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI server restarted and reset this registration. Register the face again to exclude it from blur."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIサーバーの再起動で登録が初期化されました。もう一度登録するとぼかしの対象外になります。"
+          }
+        }
+      }
+    },
+    "다시 등록이 필요한 얼굴이 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 등록이 필요한 얼굴이 있어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some faces need to be registered again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再登録が必要な顔があります"
+          }
+        }
+      }
+    },
+    "다시 등록 필요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 등록 필요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs re-registration"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再登録が必要"
+          }
+        }
+      }
+    },
+    "다시 등록": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 등록"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再登録"
+          }
+        }
+      }
+    },
+    "등록 얼굴 %lld 다시 등록": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록 얼굴 %lld 다시 등록"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register face %lld again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録した顔 %lldを再登録"
+          }
+        }
+      }
+    },
+    "얼굴 다시 등록": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 다시 등록"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register Face Again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔を再登録"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
