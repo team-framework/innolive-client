@@ -16,6 +16,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -1031,7 +1032,10 @@ fun AppNavigation(
             canOpenRecordings = canOpenRecordings,
         )
     }
-    val settingsScreen: @Composable () -> Unit = { SettingsScreen(settingsProps()) }
+    // 기본 화면(LiveRoute)과 설정 페이지(SettingsRoute)가 같은 첫 화면을 그립니다. 페이지를 오갈 때 두 화면이 겹쳐
+    // 바뀌므로 스크롤 위치를 하나로 써야 아래로 내린 위치가 잠시 위로 튀지 않습니다.
+    val settingsRootScroll = rememberScrollState()
+    val settingsScreen: @Composable () -> Unit = { SettingsScreen(settingsProps(), settingsRootScroll) }
 
     val navigation: @Composable () -> Unit = {
     NavDisplay(

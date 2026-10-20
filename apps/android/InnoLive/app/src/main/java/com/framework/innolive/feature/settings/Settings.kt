@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -51,10 +52,14 @@ import com.framework.innolive.feature.settings.camera.CameraStabilizationControl
  * 방송 화면에서는 이 화면만 흰 창 없이 미리보기 위에 카드를 바로 띄웁니다.
  */
 @Composable
-fun SettingsScreen(props: SettingsScreenProps) {
+fun SettingsScreen(
+    props: SettingsScreenProps,
+    /** 방송 화면은 기본 화면과 설정 페이지에서 같은 첫 화면을 그리므로 스크롤 위치를 함께 씁니다. */
+    scrollState: ScrollState = rememberScrollState(),
+) {
     val enabled = !props.isDeletingAccount && !props.isAccountDeletionPending
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 12.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         SettingsSectionCard(stringResource(R.string.settings_section_destination)) {
