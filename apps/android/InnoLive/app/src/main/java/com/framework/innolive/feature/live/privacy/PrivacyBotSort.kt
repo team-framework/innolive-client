@@ -164,7 +164,8 @@ internal class PrivacyBotSort {
         private const val UNCONFIRMED_MATCH_THRESHOLD = .70
         private const val DUPLICATE_DISTANCE = .15
 
-        /** ultralytics `bbox_ioa(iou=True)`. */
+        /** ultralytics `bbox_ioa(iou=True)` in double with its 1e-7 epsilon, kept apart from [PrivacySegmentation.Box.intersects]
+         * so association decisions match the server exactly. */
         fun iou(a: PrivacySegmentation.Box, b: PrivacySegmentation.Box): Double {
             val width = max(0.0, min(a.right, b.right).toDouble() - max(a.left, b.left))
             val height = max(0.0, min(a.bottom, b.bottom).toDouble() - max(a.top, b.top))
