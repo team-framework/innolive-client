@@ -214,22 +214,22 @@ class SessionSnapshotTest {
         assertEquals("fhd", next.broadcastResolution)
         assertEquals("youtube", next.provider)
 
-        assertEquals(listOf(BroadcastProvider.YOUTUBE), parseFailedTargets(payload))
+        assertEquals(listOf(BroadcastProvider.YOUTUBE), parseFailedTargetCodes(payload).keys.toList())
         assertEquals(BroadcastState.IDLE, parseBroadcastState(payload, BroadcastProvider.YOUTUBE))
         assertEquals(BroadcastState.LIVE, parseBroadcastState(payload, BroadcastProvider.CHZZK))
         assertEquals(UiText.Resource(R.string.simulcast_golive_failed_youtube),
-            simulcastGoLiveFailedMessage(parseFailedTargets(payload)))
+            simulcastGoLiveFailedMessage(parseFailedTargetCodes(payload)))
     }
 
     @Test fun failedTargetsIgnoreUnknownProvidersAndDuplicates() {
-        assertEquals(emptyList<BroadcastProvider>(), parseFailedTargets("""{"targets":[]}"""))
-        assertEquals(listOf(BroadcastProvider.CHZZK), parseFailedTargets(
+        assertEquals(emptyMap<BroadcastProvider, String>(), parseFailedTargetCodes("""{"targets":[]}"""))
+        assertEquals(mapOf(BroadcastProvider.CHZZK to "a"), parseFailedTargetCodes(
             """{"failed_targets":[{"provider":"future_provider","code":"x"},{"provider":"chzzk","code":"a"},
                 {"provider":"chzzk","code":"b"},{"code":"no_provider"}]}"""))
         assertEquals(UiText.Resource(R.string.simulcast_golive_failed_all),
-            simulcastGoLiveFailedMessage(listOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)))
+            simulcastGoLiveFailedMessage(mapOf(BroadcastProvider.YOUTUBE to "x", BroadcastProvider.CHZZK to "y")))
         assertEquals(UiText.Resource(R.string.simulcast_golive_failed_chzzk),
-            simulcastGoLiveFailedMessage(listOf(BroadcastProvider.CHZZK)))
+            simulcastGoLiveFailedMessage(mapOf(BroadcastProvider.CHZZK to "streaming_rate_limited")))
         assertEquals(UiText.Resource(R.string.simulcast_prepare_failed_all),
             simulcastPrepareFailedMessage(listOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)))
         assertEquals(UiText.Resource(R.string.simulcast_prepare_failed_youtube),
@@ -237,7 +237,6 @@ class SessionSnapshotTest {
     }
 
     @Test fun failedTargetCodesKeepTheFirstReasonPerProvider() {
-        assertEquals(emptyMap<BroadcastProvider, String>(), parseFailedTargetCodes("""{"targets":[]}"""))
         assertEquals(
             mapOf(BroadcastProvider.YOUTUBE to "streaming_rate_limited", BroadcastProvider.CHZZK to ""),
             parseFailedTargetCodes(
@@ -252,14 +251,14 @@ class SessionSnapshotTest {
         val payload = """{"failed_targets":[{"provider":"youtube","code":"streaming_rate_limited","message":"m"}]}"""
         val codes = parseFailedTargetCodes(payload)
         assertEquals(UiText.Resource(R.string.simulcast_golive_rate_limited_youtube),
-            simulcastGoLiveFailedMessage(codes.keys, codes))
-        // 다른 사유와 두 플랫폼 모두 실패는 기존 문구를 유지합니다.
+            simulcastGoLiveFailedMessage(codes))
+        // 두 플랫폼 모두 실패해도 YouTube 요청 한도면 채널 안내를 유지합니다.
+        assertEquals(UiText.Resource(R.string.simulcast_golive_failed_all_rate_limited_youtube),
+            simulcastGoLiveFailedMessage(mapOf(BroadcastProvider.YOUTUBE to "streaming_rate_limited",
+                BroadcastProvider.CHZZK to "streaming_golive_failed")))
+        // 다른 사유는 기존 문구를 유지합니다.
         assertEquals(UiText.Resource(R.string.simulcast_golive_failed_youtube),
-            simulcastGoLiveFailedMessage(listOf(BroadcastProvider.YOUTUBE),
-                mapOf(BroadcastProvider.YOUTUBE to "streaming_golive_failed")))
-        assertEquals(UiText.Resource(R.string.simulcast_golive_failed_all),
-            simulcastGoLiveFailedMessage(listOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK),
-                mapOf(BroadcastProvider.YOUTUBE to "streaming_rate_limited")))
+            simulcastGoLiveFailedMessage(mapOf(BroadcastProvider.YOUTUBE to "streaming_golive_failed")))
     }
 
     /**
