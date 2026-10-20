@@ -417,5 +417,35 @@
     "pricingAfter": " for streaming time, face registration limits and broadcast conditions.",
     "faq": "Frequently asked questions",
     "related": "Related guides"
+  },
+  "notice": {
+    "label": "Service notice",
+    "badge": "Notice",
+    "eventName": "FIX 2026",
+    "eventDetail": "Future Innovation tech eXpo",
+    "eventSchedule": "Oct 21 (Wed) – Oct 24 (Sat) · EXCO, Daegu",
+    "eventBooth": "ITCE Booth W2-124",
+    "title": "New broadcasts paused\nduring FIX 2026",
+    "greeting": "Hello, this is InnoLive.",
+    "intro": [
+      "InnoLive is exhibiting at FIX 2026, Korea's ICT convergence expo.",
+      "To keep our booth running smoothly, creating new broadcasts will be paused during the period below."
+    ],
+    "periodTitle": "Paused period",
+    "period": "Oct 21, 2026 (Wed) 00:00 – Oct 24, 2026 (Sat) 23:59 KST",
+    "scopeTitle": "Affected",
+    "scope": [
+      "Creating new broadcast sessions",
+      "New paid plan subscriptions"
+    ],
+    "scopeNote": "(Sign-up, login and other features remain available.)",
+    "resumeTitle": "Resumes",
+    "resume": "Normal service from Oct 25, 2026 (Sun) 00:00 KST",
+    "apology": "We apologize for the inconvenience.",
+    "booth": "During the event, come meet the new InnoLive in person at ITCE booth W2-124.",
+    "closing": "Thank you for your interest.",
+    "contact": "Contact",
+    "hideToday": "Don't show for a day",
+    "close": "Close"
   }
 }
