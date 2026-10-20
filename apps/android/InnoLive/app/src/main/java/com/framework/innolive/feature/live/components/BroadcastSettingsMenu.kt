@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +48,13 @@ internal class BroadcastSettingsMenuItem(
     val iconVector: ImageVector? = null,
 )
 
+/** 방송 준비 아래에 두는 보조 동작입니다. 온디바이스 처리의 플랫폼 없는 미리보기에 씁니다. */
+internal class BroadcastSettingsMenuAction(
+    val label: String,
+    val enabled: Boolean,
+    val onClick: () -> Unit,
+)
+
 /**
  * 방송 준비 버튼이 여는 방송 설정 메뉴입니다. YouTube·치지직·화질 및 플랫폼을 고르면
  * 각 기존 설정 창이 열리고, 닫으면 이 메뉴로 돌아옵니다. 방송 준비는 이 메뉴에서만 시작합니다.
@@ -58,6 +66,7 @@ internal fun BroadcastSettingsMenu(
     onPrepare: () -> Unit,
     onDismiss: () -> Unit,
     guide: BroadcastTutorialGuide? = null,
+    secondaryAction: BroadcastSettingsMenuAction? = null,
 ) {
     InnoLiveDialog(onDismissRequest = onDismiss) {
         ModalSurface(modifier = Modifier.cappedDialogWidth(400.dp)) {
@@ -118,6 +127,17 @@ internal fun BroadcastSettingsMenu(
                             .broadcastTutorialAnchor(BroadcastTutorialAnchor.START_PREPARATION),
                     ) {
                         Text(stringResource(R.string.action_prepare_broadcast))
+                    }
+                    secondaryAction?.let { action ->
+                        OutlinedButton(
+                            onClick = action.onClick,
+                            enabled = action.enabled,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 20.dp, end = 20.dp, top = 8.dp),
+                        ) {
+                            Text(action.label)
+                        }
                     }
                 }
             }

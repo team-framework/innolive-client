@@ -119,10 +119,13 @@ class WebRtcSessionViewModel internal constructor(
     internal var directBroadcastUiState by mutableStateOf(DirectBroadcastUiState())
         private set
 
-    /** 방송 준비 전에만 바꿀 수 있습니다. 이미 연결된 세션은 다음 준비에서 새로 만듭니다. */
+    /**
+     * 방송 준비 전에만 바꿀 수 있습니다. 이미 연결된 세션은 다음 준비에서 새로 만듭니다.
+     * 플랫폼 없는 미리보기는 구성을 쓰지 않으므로 유지합니다.
+     */
     internal fun selectDirectBroadcastPlan(plan: DirectBroadcastPlan): Boolean {
         if (!broadcastState.canPrepare || isPreparingBroadcast) return false
-        if (plan != directBroadcastPlan && connectionState != WebRtcConnectionState.IDLE) close()
+        if (plan != directBroadcastPlan && connectionState != WebRtcConnectionState.IDLE && !isOnDevicePreviewOnly) close()
         directBroadcastPlan = plan
         return true
     }
@@ -150,7 +153,9 @@ class WebRtcSessionViewModel internal constructor(
         if (selectedProviders != providers) {
             // 기본 대상이 같으면 세션을 그대로 쓰고 다음 준비에서 대상만 더하거나 뺍니다.
             val primary = BroadcastProvider.entries.first { it in providers }
-            if (primary != selectedProvider && connectionState != WebRtcConnectionState.IDLE) close()
+            if (primary != selectedProvider && connectionState != WebRtcConnectionState.IDLE && !isOnDevicePreviewOnly) {
+                close()
+            }
             selectedProviders = providers
         }
         return true
@@ -238,6 +243,35 @@ class WebRtcSessionViewModel internal constructor(
 
     fun localFacesChanged() { frameAnalyzer?.resetFaceExceptions() }
 
+    /** 플랫폼 없이 온디바이스 가림 처리 미리보기만 열었습니다. 방송 준비는 이 연결을 닫고 새로 시작합니다. */
+    var isOnDevicePreviewOnly by mutableStateOf(false)
+        private set
+
+    /** 미리보기 전용 연결이 열리고 있거나 열려 있습니다. */
+    val isOnDevicePreviewActive: Boolean
+        get() = isOnDevicePreviewOnly && connectionState in setOf(
+            WebRtcConnectionState.CONNECTING,
+            WebRtcConnectionState.CONNECTED,
+        )
+
+    /**
+     * 플랫폼 선택·방송 준비 없이 온디바이스 가림 처리 미리보기만 엽니다. 네트워크가 불안정한 시연에서도 보이도록
+     * 토큰 갱신과 서버 요청 없이, 저장된 [accessToken]으로 등록 얼굴의 계정 범위만 정합니다.
+     */
+    fun startOnDevicePreview(context: Context, accessToken: String?): Boolean {
+        restoreAIProcessingSelection(context)
+        if (!selectedOnDeviceProcessing || isPreparingBroadcast || !broadcastState.canPrepare) return false
+        if (accessToken.isNullOrBlank() || !readMediaPermissionState(context).hasCameraPermission) return false
+        // 남은 연결은 서버 세션이든 이전 미리보기든 닫고 새 미리보기로 엽니다.
+        if (connection != null || connectionState != WebRtcConnectionState.IDLE) close()
+        startConnection(context.applicationContext, BuildConfig.INNOLIVE_SERVER_URL, { accessToken }, previewOnly = true)
+        return true
+    }
+
+    fun stopOnDevicePreview() {
+        if (isOnDevicePreviewOnly) close()
+    }
+
     fun start(context: Context, refreshAccessToken: suspend () -> String) =
         start(context, BuildConfig.INNOLIVE_SERVER_URL, refreshAccessToken)
 
@@ -245,6 +279,13 @@ class WebRtcSessionViewModel internal constructor(
         context: Context,
         serverUrl: String,
         refreshAccessToken: suspend () -> String,
+    ) = startConnection(context, serverUrl, refreshAccessToken, previewOnly = false)
+
+    private fun startConnection(
+        context: Context,
+        serverUrl: String,
+        refreshAccessToken: suspend () -> String,
+        previewOnly: Boolean,
     ) {
         if (
             connectionState == WebRtcConnectionState.CONNECTING ||
@@ -261,6 +302,7 @@ class WebRtcSessionViewModel internal constructor(
         val initialEnabled = selectedAnonymizationEnabled
         restoreAIProcessingSelection(context)
         val initialOnDevice = selectedOnDeviceProcessing
+        isOnDevicePreviewOnly = previewOnly
         serverError = null
         preparationSettings = null
         preparationChzzkSettings = null
@@ -406,6 +448,7 @@ class WebRtcSessionViewModel internal constructor(
                         preferredAudioInput = selectedAudioInput,
                         directPlan = directBroadcastPlan,
                         callbacks = callbacks,
+                        previewOnly = previewOnly,
                     ),
                 )
                 if (!isCurrentGeneration(generation)) {
@@ -538,6 +581,8 @@ class WebRtcSessionViewModel internal constructor(
             isBroadcastStatusDefault = false
             return false
         }
+        // 미리보기 전용 연결은 방송 요청을 받지 않으므로 닫고 방송 송출 경로로 새로 연결합니다.
+        if (isOnDevicePreviewOnly) close()
         isPreparingBroadcast = true
         broadcastState = BroadcastState.IDLE
         broadcastStatus = broadcastStateMessage(BroadcastState.PREPARING).text
@@ -693,6 +738,7 @@ class WebRtcSessionViewModel internal constructor(
     }
 
     fun close() {
+        isOnDevicePreviewOnly = false
         serverError = null
         preparationSettings = null
         preparationChzzkSettings = null

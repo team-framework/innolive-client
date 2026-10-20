@@ -93,6 +93,7 @@ import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.BroadcastModeDialog
 import com.framework.innolive.feature.live.components.BroadcastSettingsMenu
+import com.framework.innolive.feature.live.components.BroadcastSettingsMenuAction
 import com.framework.innolive.feature.live.components.BroadcastSettingsMenuItem
 import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
@@ -834,6 +835,34 @@ private fun LiveScreenContent(
                                         webRtcSession.dismissServerError()
                                     },
                                     guide = settingsGuide,
+                                    // 온디바이스 처리는 플랫폼 없이도 비식별화 미리보기를 볼 수 있습니다. 서버에 연결하지 않아
+                                    // 네트워크가 불안정한 곳에서도 시연합니다.
+                                    secondaryAction = if (webRtcSession.selectedOnDeviceProcessing) {
+                                        if (webRtcSession.isOnDevicePreviewActive) {
+                                            BroadcastSettingsMenuAction(
+                                                label = stringResource(R.string.action_stop_on_device_preview),
+                                                enabled = true,
+                                                onClick = {
+                                                    webRtcSession.stopOnDevicePreview()
+                                                    openSettingsDialog = false
+                                                },
+                                            )
+                                        } else {
+                                            BroadcastSettingsMenuAction(
+                                                label = stringResource(R.string.action_start_on_device_preview),
+                                                enabled = !presentation.isConnecting && !presentation.isBroadcastBusy,
+                                                onClick = {
+                                                    if (!mediaPermissionState.hasCameraPermission) {
+                                                        requestMissingMediaPermissions()
+                                                    } else if (
+                                                        webRtcSession.startOnDevicePreview(context, props.onGetAccessToken())
+                                                    ) {
+                                                        openSettingsDialog = false
+                                                    }
+                                                },
+                                            )
+                                        }
+                                    } else null,
                                 )
                             }
                             if (openYouTubeEditor) {
