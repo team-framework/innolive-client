@@ -41,5 +41,6 @@
     <string name="broadcast_menu_not_selected">송출 안 함</string>
     <string name="broadcast_menu_no_platform">플랫폼 없음 · 비식별화 미리보기</string>
     <string name="broadcast_menu_needs_details">설정 필요</string>
+    <string name="broadcast_menu_account_checking">계정 확인 중</string>
     <string name="broadcast_menu_chzzk">치지직</string>
 </resources>

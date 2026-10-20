@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.tutorial.BroadcastTutorialAnchor
@@ -99,10 +100,13 @@ internal fun BroadcastSettingsMenu(
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(item.title, style = MaterialTheme.typography.bodyLarge)
+                                    // 계정 확인 전후로 문구 길이가 바뀌어도 메뉴 높이가 변하지 않게 한 줄로 고정합니다.
                                     Text(
                                         item.summary,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                 }
                                 Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
