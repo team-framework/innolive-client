@@ -550,6 +550,50 @@
           }
         }
       }
+    },
+    "방송을 준비하거나 송출하는 동안에는 화질을 변경할 수 없습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 준비하거나 송출하는 동안에는 화질을 변경할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can't change the quality while preparing or broadcasting."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信の準備中または配信中は画質を変更できません。"
+          }
+        }
+      }
+    },
+    "현재 요금제에서는 FHD로 방송할 수 없습니다. 요금제 및 사용량을 확인해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "현재 요금제에서는 FHD로 방송할 수 없습니다. 요금제 및 사용량을 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD broadcasting isn't available on your current plan. Check your plan and usage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在のプランではFHDで配信できません。プランと使用量を確認してください。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

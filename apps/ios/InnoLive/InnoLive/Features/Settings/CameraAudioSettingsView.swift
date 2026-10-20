@@ -19,7 +19,7 @@ struct AudioOption: Identifiable, Hashable {
 struct CameraAudioSettingsView: View {
     @Environment(CameraManager.self) private var cameraManager
     @ObservedObject var youtube: YouTubeIntegration
-    @AppStorage("selectedResolution") private var selectedQualityRaw = CameraQualityPreset.defaultValue.rawValue
+    @AppStorage(CameraQualityPreset.storageKey) private var selectedQualityRaw = CameraQualityPreset.defaultValue.rawValue
     @State private var selectedCameraID = ""
     @State private var cameraOptions: [CameraOption] = []
     @State private var isChangingCamera = false
@@ -33,7 +33,7 @@ struct CameraAudioSettingsView: View {
         ScrollView {
             InnoLiveGlassContainer {
                 VStack(spacing: 12) {
-                    CameraQualitySelectionRow(
+                    CameraFrameRateSelectionRow(
                         selectedQualityRaw: $selectedQualityRaw,
                         isChanging: isChangingQuality,
                         isDisabled: isChangingCamera || youtube.hasStartedYouTubeBroadcast || youtube.isChangingBroadcastMode
