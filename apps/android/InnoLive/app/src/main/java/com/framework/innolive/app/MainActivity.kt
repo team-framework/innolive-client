@@ -618,10 +618,11 @@ fun AppNavigation(
     var selectedCameraLensFacing by rememberSaveable {
         mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
     }
+    val cameraProviderFuture = remember(context) { ProcessCameraProvider.getInstance(context) }
     // Activity를 다시 만들 때는 이미 준비된 provider로 첫 컴포지션에서 지원 목록을 읽습니다.
-    var cameraProvider by remember(context) {
+    var cameraProvider by remember(cameraProviderFuture) {
         mutableStateOf(
-            ProcessCameraProvider.getInstance(context)
+            cameraProviderFuture
                 .takeIf { future -> future.isDone }
                 ?.let { future -> runCatching { future.get() }.getOrNull() },
         )
@@ -707,9 +708,9 @@ fun AppNavigation(
         }
     }
 
-    DisposableEffect(context) {
+    DisposableEffect(cameraProviderFuture) {
+        if (cameraProvider != null) return@DisposableEffect onDispose {}
         var isDisposed = false
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener(
             {
                 if (!isDisposed) {
@@ -722,19 +723,11 @@ fun AppNavigation(
         onDispose { isDisposed = true }
     }
     // 렌즈를 바꿔도 선택값은 지우지 않습니다. 새 렌즈 목록을 읽은 컴포지션에서 해상도까지 정해
-    // 카메라를 한 번만 바인딩합니다.
+    // 카메라를 한 번만 바인딩합니다. 대체 해상도는 선택값에 저장하지 않아 렌즈를 되돌리면 원래 값을 씁니다.
     val supportedCameraResolutions = remember(cameraProvider, selectedCameraLensFacing) {
         cameraProvider?.supportedCameraResolutions(selectedCameraLensFacing)
     }
     val selectedResolution = selectCameraResolution(supportedCameraResolutions, selectedResolutionKey)
-    LaunchedEffect(selectedResolution) {
-        // 선택값이 새 렌즈 목록에 없을 때 고른 대체 해상도를 선택값으로 저장합니다.
-        selectedResolution?.let { resolution -> selectedResolutionKey = resolution.key }
-    }
-
-    LaunchedEffect(selectedCameraLensFacing, selectedResolution) {
-        videoQualityCaptureState = VideoQualityCaptureState()
-    }
     val selectedAudioInput = audioInputDevices.firstOrNull { device ->
         device.id == selectedAudioDeviceId
     } ?: audioInputDevices.firstOrNull()
@@ -1163,7 +1156,7 @@ fun AppNavigation(
                                     label = UiText.Dynamic(resolution.displayName),
                                 )
                             },
-                            selectedKey = selectedResolutionKey.orEmpty(),
+                            selectedKey = selectedResolution?.key.orEmpty(),
                             onOptionSelected = { key -> selectedResolutionKey = key },
                         )
 
