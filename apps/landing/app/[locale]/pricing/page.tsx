@@ -24,7 +24,7 @@ const Arrow = ({
     <button
       type="button"
       aria-label={label}
-      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-200 ease-linear hover:bg-[#00000080] max-lg:hidden`}
+      className={`group sticky my-auto ${direction === "left" ? "left-0" : "right-0"} z-10 shrink-0 rounded-full p-[20px] transition-all duration-200 ease-linear hover:bg-[#00000080] max-lg:hidden min-[112rem]:hidden`}
       onClick={onClick}
     >
       <Image
@@ -56,6 +56,8 @@ function PlanScroller({
   scrollRight: string;
 }) {
   const plansRef = useRef<HTMLDivElement>(null);
+  // Wide screens fit all four personal plans in one row, so the scroller and arrows step aside.
+  const fitsRow = plans.length > 3;
 
   const handleScroll = (direction: "l" | "r") => {
     if (!plansRef.current) {
@@ -82,13 +84,13 @@ function PlanScroller({
         role="region"
         aria-label={label}
         tabIndex={0}
-        className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pt-10 ${className ?? ""}`}
+        className={`flex w-full snap-x gap-7 overflow-x-auto overflow-y-clip overscroll-x-contain pb-4 pt-10 ${fitsRow ? "min-[112rem]:gap-6 min-[112rem]:overflow-visible" : ""} ${className ?? ""}`}
         ref={plansRef}
       >
         {plans.map((plan: Plan) => (
           <div
             key={plan.id}
-            className="w-[min(100%,30rem)] shrink-0 snap-start max-lg:w-[min(85%,30rem)]"
+            className={`w-[min(100%,30rem)] shrink-0 snap-start max-lg:w-[min(85%,30rem)] ${fitsRow ? "min-[112rem]:w-auto min-[112rem]:min-w-0 min-[112rem]:flex-1" : ""}`}
           >
             <PlanCard
               plan={plan}
@@ -159,7 +161,7 @@ export default function PricingPage() {
           </Button>
         </div>
 
-        <div className="flex w-full max-w-[102.5rem] flex-col items-center gap-[2.625rem]">
+        <div className="flex w-full max-w-[102.5rem] flex-col items-center gap-[2.625rem] min-[112rem]:max-w-[112rem]">
           <PlanScroller
             label={messages.pricing.personalLabel}
             plans={personalPlans}

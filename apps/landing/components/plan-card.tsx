@@ -87,7 +87,7 @@ export function PlanCard({
   return (
     <article
       className={cn(
-        "relative flex h-full w-full flex-col gap-8 rounded-[20px] bg-gradient-to-b from-white to-[#efefefef] px-8 pb-7 pt-9 shadow-[2px_2px_12px_0_#0000000d] min-[64rem]:min-h-[46.25rem]",
+        "relative flex h-full w-full flex-col gap-8 rounded-[20px] bg-gradient-to-b from-white to-[#efefefef] px-8 pb-7 pt-9 shadow-[2px_2px_12px_0_#0000000d] min-[64rem]:min-h-[46.25rem] min-[112rem]:px-6",
         plan.ribbon ? "overflow-visible" : "overflow-clip",
       )}
     >
@@ -108,7 +108,13 @@ export function PlanCard({
               </h3>
               {plan.helpLabel ? <OnDeviceHelp label={plan.helpLabel} /> : null}
             </div>
-            <p className="break-keep text-[clamp(1.125rem,0.95rem+0.8vw,1.625rem)] font-normal leading-[1.15] text-text-primary">
+            <p
+              className={cn(
+                "break-keep text-[clamp(1.125rem,0.95rem+0.8vw,1.625rem)] font-normal leading-[1.15] text-text-primary min-[112rem]:min-h-[2.3em]",
+                // In the four-column row the ribbon reaches the description line.
+                plan.ribbon && "min-[112rem]:pr-14",
+              )}
+            >
               {plan.description}
             </p>
           </div>
@@ -184,7 +190,7 @@ export function PlanCard({
                     unoptimized
                     className="size-6 shrink-0"
                   />
-                  <span className="min-w-0 flex-1 break-keep text-xl leading-none text-text-primary max-md:leading-[1.3]">
+                  <span className="min-w-0 flex-1 break-keep text-xl leading-none text-text-primary max-md:leading-[1.3] min-[112rem]:leading-[1.3]">
                     {feature.text}
                   </span>
                 </li>
