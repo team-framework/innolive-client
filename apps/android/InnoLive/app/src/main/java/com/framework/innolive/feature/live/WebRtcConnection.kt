@@ -2327,6 +2327,7 @@ internal class WebRtcConnection(
         return try {
             val operation = when {
                 request.url.encodedPath.endsWith("/anonymization") -> "anonymization"
+                request.url.encodedPath.endsWith("/mosaic-config") -> "mosaic_config"
                 request.url.encodedPath.endsWith("/broadcast") -> "broadcast_settings"
                 request.url.encodedPath.endsWith("/stream/prepare") -> "stream_prepare"
                 request.url.encodedPath.endsWith("/stream/stop") -> "stream_stop"

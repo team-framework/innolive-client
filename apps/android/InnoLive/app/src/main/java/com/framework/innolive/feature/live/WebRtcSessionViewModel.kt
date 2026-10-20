@@ -639,14 +639,15 @@ class WebRtcSessionViewModel internal constructor(
         currentConnection.setMosaicConfig(config) { confirmed, error ->
             if (!sessionState.acceptsCallback(generation) || sessionSnapshot?.sessionId != sessionId) return@setMosaicConfig
             if (confirmed != null) sessionSnapshot = sessionSnapshot?.copy(mosaicConfig = confirmed)
-            if (error != null) {
-                resetMosaicConfigChange()
-                mosaicConfigError = error
+            // 실패해도 요청 중에 고른 새 값이 있으면 그 값이 사용자의 마지막 선택이므로 이어서 보냅니다.
+            // 응답을 못 받은 요청은 서버에 적용됐을 수 있지만, 세션 상태 조회가 확정값으로 다시 맞춥니다.
+            val next = pendingMosaicConfig?.takeIf { it != mosaicConfig }
+            if (next != null && canChangeMosaicConfig) {
+                sendMosaicConfig(next, generation)
                 return@setMosaicConfig
             }
-            val next = pendingMosaicConfig?.takeIf { it != mosaicConfig }
-            if (next != null && canChangeMosaicConfig) sendMosaicConfig(next, generation)
-            else resetMosaicConfigChange()
+            resetMosaicConfigChange()
+            mosaicConfigError = error
         }
     }
 
