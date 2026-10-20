@@ -102,6 +102,8 @@ internal class LiveBroadcastTransportRequest(
     val callbacks: LiveBroadcastCallbacks,
     /** 플랫폼 없이 온디바이스 가림 처리 미리보기만 엽니다. 서버에 연결하지 않습니다. */
     val previewOnly: Boolean = false,
+    /** 실험실에서 얼굴 합성을 켰습니다. 서버 중계 세션을 서버 AI로 만들 때만 씁니다. */
+    val faceSwap: Boolean = false,
 ) {
     val context: Context = context.applicationContext
 }
@@ -123,6 +125,7 @@ internal fun createLiveBroadcastTransport(request: LiveBroadcastTransportRequest
             initialOnDeviceProcessing = request.initialOnDeviceProcessing,
             provider = request.provider,
             broadcastResolution = request.directPlan.resolution,
+            faceAnonymization = sessionFaceAnonymization(request.faceSwap, request.initialOnDeviceProcessing),
             preferredAudioInput = request.preferredAudioInput,
             onStateChanged = onStateChanged,
             onRemoteTrackChanged = onRemoteTrackChanged,

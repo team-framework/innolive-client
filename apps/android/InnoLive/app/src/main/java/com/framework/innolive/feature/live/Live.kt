@@ -377,6 +377,7 @@ private fun LiveScreenContent(
     LaunchedEffect(webRtcSession) {
         webRtcSession.restoreAnonymizationSelection(context)
         webRtcSession.restoreAIProcessingSelection(context)
+        webRtcSession.restoreFaceSwapSelection(context)
     }
     LaunchedEffect(Unit) {
         requestMissingMediaPermissions()
