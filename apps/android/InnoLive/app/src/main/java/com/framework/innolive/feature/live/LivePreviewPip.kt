@@ -77,10 +77,16 @@ class LivePreviewPipState internal constructor(alignEnd: Boolean, verticalFracti
     /** 상단 바 아래 안내·상태 칩이 끝나는 높이입니다. 작은 창은 그 아래부터 둡니다. */
     internal var topReservePx by mutableFloatStateOf(0f)
 
-    /** 작은 창과 카메라 도구가 비워 둘 하단 높이입니다. 측정 전에는 기본 높이를 씁니다. */
-    internal fun bottomReservePx(density: Density): Float =
+    /** 기본 화면 왼쪽 아래 시청자 채팅이 차지하는 높이와 위 간격입니다. 채팅이 없으면 0입니다. */
+    internal var chatReservePx by mutableFloatStateOf(0f)
+
+    /** 하단 방송 버튼과 상태 패널 높이입니다. 측정 전에는 기본 높이를 씁니다. */
+    internal fun bottomControlsReservePx(density: Density): Float =
         if (bottomControlsHeightPx > 0f) bottomControlsHeightPx
         else with(density) { LiveBottomControlsReserve.toPx() }
+
+    /** 작은 창과 카메라 도구가 비워 둘 하단 높이입니다. iOS처럼 시청자 채팅 높이도 함께 비웁니다. */
+    internal fun bottomReservePx(density: Density): Float = bottomControlsReservePx(density) + chatReservePx
     private var dragOffset by mutableStateOf<Offset?>(null)
     private var settlingOffset by mutableStateOf<Offset?>(null)
     private val settle = Animatable(Offset.Zero, Offset.VectorConverter)

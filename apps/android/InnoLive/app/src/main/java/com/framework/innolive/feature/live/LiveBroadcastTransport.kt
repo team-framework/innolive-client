@@ -79,6 +79,8 @@ internal class LiveBroadcastCallbacks(
     val onUplinkVideoStats: (UplinkVideoStats) -> Unit,
     /** 직접 송출에서만 옵니다. 로컬 RTMP 연결·마이크·대기 화면 상태입니다. */
     val onDirectUiStateChanged: (DirectBroadcastUiState) -> Unit = {},
+    /** 직접 송출에서만 옵니다. 방송 종료·실패로 세션을 지웠거나 서버에서 사라져 세션 상태가 없어졌습니다. */
+    val onSessionSnapshotCleared: () -> Unit = {},
 )
 
 /**

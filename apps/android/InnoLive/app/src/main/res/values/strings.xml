@@ -337,6 +337,12 @@
     <string name="recording_failed_encoder">영상 저장 중 오류가 나 방송 영상을 저장하지 못했어요. 방송은 계속됩니다.</string>
     <string name="recording_failed_storage">저장 공간이 부족해 방송 영상을 저장하지 못했어요.</string>
     <string name="recording_failed_invalid">저장한 영상 파일을 확인하지 못했어요.</string>
+    <string name="viewer_chat_connecting">채팅을 연결하고 있습니다.</string>
+    <string name="viewer_chat_waiting">새 채팅을 기다리고 있습니다.</string>
+    <string name="viewer_chat_load_failed">채팅을 불러오지 못했습니다.</string>
+    <string name="viewer_chat_hide">채팅 숨기기</string>
+    <string name="viewer_chat_show">채팅 표시</string>
+    <string name="viewer_chat_menu">채팅 메뉴</string>
     <string name="settings_expanded">펼침</string>
     <string name="settings_collapsed">접힘</string>
     <!-- Quick face registration (home one-tap) -->
