@@ -70,6 +70,7 @@ import com.framework.innolive.feature.live.tutorial.BroadcastTutorialViewModel
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
+import com.framework.innolive.feature.login.oauth.google.SignInMethod
 import com.framework.innolive.feature.live.recording.BroadcastRecordingLibraryScreen
 import com.framework.innolive.feature.live.recording.BroadcastRecordingStatus
 import com.framework.innolive.feature.settings.AccountSettingsScreen
@@ -962,6 +963,7 @@ fun AppNavigation(
             videoQualityCaptureState = videoQualityCaptureState,
             profileName = session?.profileName.orEmpty(),
             profileEmail = session?.profileEmail.orEmpty(),
+            profileSignInMethod = session?.signInMethod ?: SignInMethod.UNKNOWN,
             planUsage = displayedPlanUsage,
             planError = planError,
             isPlanLoading = isPlanLoading,

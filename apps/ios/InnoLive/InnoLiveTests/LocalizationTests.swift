@@ -98,6 +98,30 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(InnoLiveLinks.privacyPolicyURL?.host, "innolive.studio")
     }
 
+    /// innolive-server#505: 방송 준비 오류 안내가 세 언어 모두에 있고, 한국어 외에는 한글이 섞이지 않는다.
+    func testBroadcastLimitErrorsAreTranslatedInEachLanguage() throws {
+        let defaultKeys = [
+            "이 YouTube 채널이 YouTube 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요.",
+            "오늘 YouTube 연동 한도를 모두 사용했습니다. 한국 시간 오후 4시(겨울에는 오후 5시)에 초기화됩니다.",
+            "다른 InnoLive 계정이 이 채널로 방송 중입니다. 그 방송이 끝난 뒤 다시 시도해 주세요.",
+            "연결된 YouTube 채널이 여러 개입니다. 송출할 채널을 선택해 주세요.",
+        ]
+        let simulcastKeys = [
+            "채널 요청 한도로 라이브를 시작하지 못했습니다. 다른 플랫폼의 방송은 유지됩니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요.",
+            "채널 요청 한도",
+        ]
+        for language in ["ko", "en", "ja"] {
+            let bundle = try localizedBundle(language)
+            for (table, keys) in [(nil, defaultKeys), ("Simulcast", simulcastKeys)] as [(String?, [String])] {
+                for key in keys {
+                    let text = bundle.localizedString(forKey: key, value: "MISSING", table: table)
+                    XCTAssertNotEqual(text, "MISSING", "\(language): \(key)")
+                    if language != "ko" { XCTAssertNil(text.range(of: "[가-힣]", options: .regularExpression), "\(language): \(key)") }
+                }
+            }
+        }
+    }
+
     private func localizedBundle(_ language: String) throws -> Bundle {
         let path = try XCTUnwrap(Bundle.main.path(forResource: language, ofType: "lproj"))
         return try XCTUnwrap(Bundle(path: path))

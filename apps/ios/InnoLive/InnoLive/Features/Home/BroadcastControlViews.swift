@@ -267,7 +267,10 @@ struct BroadcastSessionStatusView: View {
             }
             ForEach(youtube.liveStartFailures, id: \.provider) { failure in
                 let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
-                Text("\(title) · \(String(localized: "라이브 시작 실패", table: "Simulcast"))").foregroundStyle(.orange)
+                let reason = failure.isRateLimited
+                    ? String(localized: "채널 요청 한도", table: "Simulcast")
+                    : String(localized: "라이브 시작 실패", table: "Simulcast")
+                Text("\(title) · \(reason)").foregroundStyle(.orange)
             }
             if youtube.hasStartedYouTubeBroadcast,
                youtube.visibleBroadcastTargets.contains(where: { $0.stream.broadcastPhaseValue == .prepared && $0.stream.statusValue != .stopped }) {

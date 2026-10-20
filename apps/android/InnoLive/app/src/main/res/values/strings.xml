@@ -19,7 +19,7 @@
     <string name="content_description_hide_value">%1$s 가리기</string>
     <string name="content_description_platform_icon">%1$s 아이콘</string>
     <string name="content_description_profile">프로필</string>
-    <string name="profile_default_name">Google 사용자</string>
+    <string name="profile_default_name">사용자</string>
 
     <!-- Authentication -->
     <string name="login_headline">라이브 방송을 안전하게\n만드는 쉬운 방법</string>

@@ -71,6 +71,7 @@ fun SettingsScreen(props: SettingsScreenProps) {
             SettingsAccountRow(
                 name = props.profileName,
                 email = props.profileEmail,
+                signInMethod = props.profileSignInMethod,
                 onClick = props.onOpenAccountSettings,
             )
             SettingsDivider()
