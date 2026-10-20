@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,8 +17,11 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -115,6 +120,10 @@ fun SettingsScreen(props: SettingsScreenProps) {
             SettingsDivider()
             PlanUsageSettings(props)
             AIProcessingSettings(props)
+            if (props.isAdministrator) {
+                SettingsDivider()
+                LabSettings(props)
+            }
             SettingsDivider()
             SettingsLinkRow(stringResource(R.string.privacy_policy), enabled, { uriHandler.openUri(privacyPolicyUrl) })
             SettingsLinkRow(stringResource(R.string.tutorial_replay), enabled && props.canReplayBroadcastGuide,
@@ -212,6 +221,58 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
                     modifier = Modifier.padding(start = 8.dp))
             }
         }
+    }
+}
+
+/**
+ * 관리자 전용 실험 기능입니다. iOS와 같이 비식별화 방법(블러·합성)을 고릅니다. 얼굴 가림 방식은 세션 생성 때
+ * 고정되므로 처리 방식과 같은 때에만 바꿉니다.
+ */
+@Composable
+private fun LabSettings(props: SettingsScreenProps) {
+    val enabled = props.canChangeAIProcessing && !props.isDeletingAccount &&
+        !props.isAccountDeletionPending
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val options = listOf(false to R.string.lab_face_anonymization_blur, true to R.string.lab_face_anonymization_face_swap)
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        SettingsSectionLabel(stringResource(R.string.settings_section_lab))
+        Box {
+            SettingsValueRow(
+                label = stringResource(R.string.lab_face_anonymization),
+                value = stringResource(
+                    if (props.faceSwapEnabled) R.string.lab_face_anonymization_face_swap
+                    else R.string.lab_face_anonymization_blur,
+                ),
+                enabled = enabled,
+                onClick = { expanded = true },
+            )
+            DropdownMenu(
+                expanded = expanded && enabled,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.testTag("lab-face-anonymization"),
+            ) {
+                options.forEach { (faceSwap, label) ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(label)) },
+                        trailingIcon = if (props.faceSwapEnabled == faceSwap) {
+                            { Icon(Icons.Outlined.Check, contentDescription = null) }
+                        } else null,
+                        onClick = {
+                            expanded = false
+                            if (props.faceSwapEnabled != faceSwap) props.onFaceSwapChanged(faceSwap)
+                        },
+                    )
+                }
+            }
+        }
+        Text(
+            stringResource(
+                if (props.canChangeAIProcessing) R.string.lab_face_anonymization_description
+                else R.string.lab_face_anonymization_locked,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

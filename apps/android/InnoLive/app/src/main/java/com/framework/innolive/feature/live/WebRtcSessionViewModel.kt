@@ -264,6 +264,38 @@ class WebRtcSessionViewModel internal constructor(
         return selectInitialAIProcessing(context, onDevice)
     }
 
+    /** 실험실의 얼굴 합성 선택입니다. 다음 세션 생성부터 적용합니다. */
+    var selectedFaceSwap by mutableStateOf(false)
+        private set
+    private var isFaceSwapSelectionLoaded = false
+
+    fun restoreFaceSwapSelection(context: Context) {
+        if (isFaceSwapSelectionLoaded) return
+        selectedFaceSwap = FaceAnonymizationPreference(context).faceSwap
+        isFaceSwapSelectionLoaded = true
+    }
+
+    /** 관리자가 아닌 계정으로 바뀌면 합성 선택을 지웁니다. 서버가 관리자가 아닌 계정의 합성을 403으로 거절합니다. */
+    fun clearFaceSwapSelection(context: Context) {
+        FaceAnonymizationPreference(context).faceSwap = false
+        selectedFaceSwap = false
+        isFaceSwapSelectionLoaded = true
+    }
+
+    /**
+     * 얼굴 가림 방식은 세션 생성 때 고정되므로 처리 방식과 같은 때에만 바꿉니다. 서버 AI의 준비 전 연결이 남아
+     * 있으면 닫아 다음 방송 준비에서 새 방식으로 세션을 만듭니다. 온디바이스 연결은 합성을 쓰지 않아 유지합니다.
+     */
+    fun selectFaceSwap(context: Context, enabled: Boolean): Boolean {
+        if (!canChangeAIProcessing) return false
+        restoreFaceSwapSelection(context)
+        if (selectedFaceSwap == enabled) return true
+        if (!selectedOnDeviceProcessing && connectionState != WebRtcConnectionState.IDLE) close()
+        FaceAnonymizationPreference(context).faceSwap = enabled
+        selectedFaceSwap = enabled
+        return true
+    }
+
     // 클릭 시점의 실제 연결 상태로 분기하여 오래된 화면 상태로 요청하지 않습니다.
     fun selectAnonymization(context: Context, enabled: Boolean): Boolean =
         if (connectionState == WebRtcConnectionState.CONNECTED) setAnonymizationEnabled(enabled)
@@ -352,6 +384,8 @@ class WebRtcSessionViewModel internal constructor(
         val initialEnabled = selectedAnonymizationEnabled
         restoreAIProcessingSelection(context)
         val initialOnDevice = selectedOnDeviceProcessing
+        restoreFaceSwapSelection(context)
+        val initialFaceSwap = selectedFaceSwap
         isOnDevicePreviewOnly = previewOnly
         serverError = null
         preparationSettings = null
@@ -513,6 +547,7 @@ class WebRtcSessionViewModel internal constructor(
                         directPlan = directBroadcastPlan,
                         callbacks = callbacks,
                         previewOnly = previewOnly,
+                        faceSwap = initialFaceSwap,
                     ),
                 )
                 if (!isCurrentGeneration(generation)) {

@@ -507,6 +507,24 @@ fun AppNavigation(
     var isPlanLoading by remember(planAccount) { mutableStateOf(false) }
     var planRefresh by remember(planAccount) { mutableIntStateOf(0) }
     var planUsageChargeMillis by remember(planAccount) { mutableLongStateOf(0L) }
+    // 관리자 전용 실험실 표시 여부입니다. 확인하지 못하면 숨기고 다음 화면 진입에서 다시 확인합니다.
+    var isAdministrator by remember(planAccount) { mutableStateOf(false) }
+    var isAdministratorChecked by remember(planAccount) { mutableStateOf(false) }
+    LaunchedEffect(planAccount, backStack.lastOrNull()) {
+        if (planAccount == null || isAdministratorChecked ||
+            backStack.lastOrNull() !in setOf(LiveRoute, SettingsRoute)) return@LaunchedEffect
+        try {
+            val token = checkNotNull(authenticationSession.session.value).accessToken
+            isAdministrator = youtubeCoordinator.isAdministrator(token, ::refreshCurrentAccessToken)
+            isAdministratorChecked = true
+            // 관리자가 아닌 계정은 합성을 요청할 수 없으므로 이전 계정이 켠 선택을 지웁니다.
+            if (!isAdministrator) webRtcSession.clearFaceSwapSelection(context)
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            isAdministrator = false
+        }
+    }
     val isBroadcastActive = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null
     // iOS처럼 방송 준비·방송 중에는 저장된 방송(보관함)에 들어가지 않습니다. 종료·실패 뒤 저장 중에는 허용합니다.
     val canOpenRecordings = !isBroadcastActive && !webRtcSession.isPreparingBroadcast &&
@@ -973,6 +991,9 @@ fun AppNavigation(
                 onSelectAIProcessing = { onDevice ->
                     webRtcSession.selectAIProcessing(context, onDevice)
                 },
+                isAdministrator = isAdministrator,
+                faceSwapEnabled = webRtcSession.selectedFaceSwap,
+                onFaceSwapChanged = { enabled -> webRtcSession.selectFaceSwap(context, enabled) },
                 canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
                     webRtcSession.broadcastState == BroadcastState.IDLE &&
                     !webRtcSession.isPreparingBroadcast,

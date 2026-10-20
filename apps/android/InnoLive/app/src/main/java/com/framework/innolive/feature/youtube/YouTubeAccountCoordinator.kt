@@ -44,6 +44,10 @@ class YouTubeAccountCoordinator(
         )
     }
 
+    /** 실험실 표시 여부입니다. `GET /admin/me`가 200이면 관리자, 403·404면 관리자가 아닙니다. */
+    suspend fun isAdministrator(accessToken: String, refreshAccessToken: suspend () -> String): Boolean =
+        retryYouTubeUnauthorized(accessToken, refreshAccessToken) { token -> api().isAdministrator(token) }
+
     suspend fun connect(
         serverAuthCode: String,
         accessToken: String,
