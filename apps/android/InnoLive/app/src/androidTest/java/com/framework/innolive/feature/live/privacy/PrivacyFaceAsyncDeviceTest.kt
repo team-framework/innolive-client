@@ -13,7 +13,7 @@ import org.junit.runner.RunWith
 class PrivacyFaceAsyncDeviceTest {
     private val embedding = FloatArray(512).apply { this[0] = 1f }
     private val box = PrivacySegmentation.Box(100f, 100f, 150f, 150f)
-    private val objects = listOf(PrivacySegmentation.Detection(box, .9f, 0, FloatArray(32)))
+    private val objects = listOf(PrivacySegmentation.Detection(box, .9f, 0, FloatArray(32), trackId = 1))
     private val layout = PrivacySegmentation.Letterbox(640, 640)
 
     private class Worker : PrivacyFaceRecognitionService, AutoCloseable {

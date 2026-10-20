@@ -5,6 +5,10 @@ import org.junit.Test
 
 class PrivacyFaceTrackingTest {
     private val box = PrivacySegmentation.Box(100f, 100f, 150f, 150f)
+
+    /** Each face keeps the BoT-SORT track ID of its index, as a steady scene would. */
+    private fun PrivacyFaceTracking.update(boxes: Map<Int, PrivacySegmentation.Box>, atSeconds: Double) =
+        update(boxes.map { (index, box) -> PrivacyFaceTracking.Face(index, index + 1, box) }, atSeconds)
     private fun confirmed(): Pair<PrivacyFaceTracking, String> {
         val tracker = PrivacyFaceTracking()
         tracker.update(mapOf(0 to box), 1.0)
@@ -132,5 +136,33 @@ class PrivacyFaceTrackingTest {
         assertTrue(tracker.recognitionMatches(id, box))
         assertFalse(tracker.recognitionMatches(id, PrivacySegmentation.Box(200f, 100f, 250f, 150f)))
         assertFalse(tracker.recognitionMatches(id, PrivacySegmentation.Box(Float.NaN, 100f, 150f, 150f)))
+    }
+
+    @Test fun trackIdKeepsIdentityWhileTheFaceMoves() {
+        val (tracker, _) = confirmed()
+        val moved = PrivacySegmentation.Box(300f, 100f, 350f, 150f)
+        tracker.update(listOf(PrivacyFaceTracking.Face(0, 1, moved)), 1.4)
+        assertEquals(setOf(0), tracker.allowed(1.4))
+        tracker.update(listOf(PrivacyFaceTracking.Face(0, 2, moved)), 1.45)
+        assertTrue("another track at the same place starts unknown", tracker.allowed(1.45).isEmpty())
+    }
+
+    @Test fun disappearanceForOneFrameRevokesIdentity() {
+        val (tracker, id) = confirmed()
+        tracker.update(emptyMap(), 1.33)
+        tracker.update(mapOf(0 to box), 1.36)
+        assertTrue(tracker.allowed(1.36).isEmpty())
+        assertNotEquals(id, tracker.next(1.36)?.id)
+    }
+
+    @Test fun unconfirmedFaceIsNeverCheckedButStillBreaksIsolation() {
+        val (tracker, _) = confirmed()
+        val nearby = PrivacySegmentation.Box(120f, 110f, 165f, 155f)
+        tracker.update(listOf(PrivacyFaceTracking.Face(0, 1, box),
+            PrivacyFaceTracking.Face(1, PrivacySegmentation.NO_TRACK, nearby)), 1.4)
+        assertTrue(tracker.allowed(1.4).isEmpty())
+        val alone = PrivacyFaceTracking()
+        alone.update(listOf(PrivacyFaceTracking.Face(0, PrivacySegmentation.NO_TRACK, box)), 1.0)
+        assertNull(alone.next(1.0))
     }
 }
