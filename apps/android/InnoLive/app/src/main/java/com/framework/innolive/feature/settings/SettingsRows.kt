@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
 import com.framework.innolive.feature.live.ProfileDisplay
+import com.framework.innolive.feature.login.oauth.google.SignInMethod
 
 /** 구역 이름은 본문보다 작지만 흐린 회색 대신 굵기를 줘서 훑어볼 때 구역이 먼저 눈에 띄게 합니다. */
 @Composable
@@ -182,7 +183,12 @@ internal fun SettingsLinkRow(
 
 /** 프로필 전체를 누르는 줄입니다. 화살표로 계정 설정 화면이 이어짐을 알립니다. */
 @Composable
-internal fun SettingsAccountRow(name: String, email: String, onClick: () -> Unit) {
+internal fun SettingsAccountRow(
+    name: String,
+    email: String,
+    signInMethod: SignInMethod,
+    onClick: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
             .clickable(
@@ -194,7 +200,7 @@ internal fun SettingsAccountRow(name: String, email: String, onClick: () -> Unit
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.weight(1f)) { ProfileDisplay(name = name, email = email) }
+        Box(modifier = Modifier.weight(1f)) { ProfileDisplay(name = name, email = email, signInMethod = signInMethod) }
         SettingsChevron()
     }
 }

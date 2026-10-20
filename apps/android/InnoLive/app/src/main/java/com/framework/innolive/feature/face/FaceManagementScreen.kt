@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -84,6 +86,10 @@ internal fun FaceManagementScreen(
     var faceStatus by remember(profileEmail) { mutableStateOf<ReferenceFaceStatus?>(null) }
     var faceImages by remember(profileEmail) { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
     var openRegistration by remember { mutableStateOf(false) }
+    // 다시 등록할 얼굴입니다. 있으면 등록 화면을 이 얼굴의 다시 등록으로 엽니다.
+    var reregisterTarget by remember { mutableStateOf<ReferenceFace?>(null) }
+    // 등록 화면을 닫고 목록을 새로 읽은 뒤 보여 줄 안내입니다. 새로 읽기가 안내를 지우므로 따로 둡니다.
+    var pendingStatusMessage by remember { mutableStateOf<UiText?>(null) }
     var requestJob by remember { mutableStateOf<Job?>(null) }
 
     DisposableEffect(Unit) {
@@ -242,8 +248,38 @@ internal fun FaceManagementScreen(
         }
     }
 
-    LaunchedEffect(openRegistration, profileEmail) {
-        if (!openRegistration) refreshStatus()
+    val isRegistrationOpen = openRegistration || reregisterTarget != null
+    LaunchedEffect(isRegistrationOpen, profileEmail) {
+        if (!isRegistrationOpen) {
+            refreshStatus()
+            pendingStatusMessage?.let { message ->
+                if (phase == FaceManagementPhase.READY && statusMessage == null) statusMessage = message
+            }
+            pendingStatusMessage = null
+        }
+    }
+
+    reregisterTarget?.let { target ->
+        FaceRegistrationScreen(
+            cameraLensFacing = cameraLensFacing,
+            onGetAccessToken = currentGetAccessToken,
+            onRefreshAccessToken = currentRefreshAccessToken,
+            onBack = { reregisterTarget = null },
+            // 다시 등록한 뒤에는 목록으로 돌아와 표시가 풀린 것을 보여 줍니다.
+            onRegistrationSuccess = {
+                pendingStatusMessage = UiText.Resource(R.string.face_reregistration_complete)
+                reregisterTarget = null
+            },
+            profileEmail = profileEmail,
+            existingFaces = faceStatus?.faces.orEmpty(),
+            broadcastCamera = broadcastCamera,
+            reregisterFace = target,
+            onReregisterFaceMissing = {
+                pendingStatusMessage = UiText.Resource(R.string.face_list_changed)
+                reregisterTarget = null
+            },
+        )
+        return
     }
 
     if (openRegistration) {
@@ -321,6 +357,9 @@ internal fun FaceManagementScreen(
             FaceManagementPhase.LOADING -> CircularProgressIndicator()
             FaceManagementPhase.READY -> {
                 val status = faceStatus
+                if (status?.reregistrationRequired == true) {
+                    ReferenceFaceReregistrationBanner()
+                }
                 if (status?.registered == true && status.faces.isNotEmpty()) {
                     Text(
                         text = UiText.Plural(
@@ -354,13 +393,40 @@ internal fun FaceManagementScreen(
                                     color = Color.White,
                                 )
                             }
-                            Text(
-                                text = stringResource(R.string.registered_face_name, index + 1),
-                                color = Color.White,
+                            Column(
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(horizontal = 8.dp),
-                            )
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.registered_face_name, index + 1),
+                                    color = Color.White,
+                                )
+                                if (face.reregistrationRequired) {
+                                    Text(
+                                        text = stringResource(R.string.face_reregistration_required),
+                                        color = ReferenceFaceWarningColor,
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                    val reregisterDescription = stringResource(
+                                        R.string.content_description_reregister_registered_face,
+                                        index + 1,
+                                    )
+                                    Button(
+                                        onClick = {
+                                            requestJob?.cancel()
+                                            statusMessage = null
+                                            reregisterTarget = face
+                                        },
+                                        modifier = Modifier.semantics {
+                                            contentDescription = reregisterDescription
+                                        },
+                                    ) {
+                                        Text(text = stringResource(R.string.action_reregister_face))
+                                    }
+                                }
+                            }
                             val deleteDescription = stringResource(
                                 R.string.content_description_delete_registered_face,
                                 index + 1,
@@ -414,5 +480,30 @@ internal fun FaceManagementScreen(
                     .width(48.dp)
             )
         }
+    }
+}
+
+private val ReferenceFaceWarningColor = Color(0xFFFFB74D)
+
+/** AI 워커가 재시작해 잃은 기준 얼굴이 있다는 안내입니다. 그대로 두면 등록한 사람도 블러됩니다. */
+@Composable
+private fun ReferenceFaceReregistrationBanner() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, ReferenceFaceWarningColor, RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.face_reregistration_banner_title),
+            color = ReferenceFaceWarningColor,
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text(
+            text = stringResource(R.string.face_reregistration_notice),
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }

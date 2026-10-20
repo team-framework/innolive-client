@@ -34,6 +34,7 @@ class GoogleAuthenticationApi : AuthenticationApi {
         exchangeGoogleIdToken(googleAuthEndpoint(), googleIdToken).copy(
             profileName = profileName,
             profileEmail = profileEmail,
+            signInMethod = SignInMethod.GOOGLE,
         )
     }
 }
@@ -80,6 +81,7 @@ internal fun mergeRefreshedSession(
 ): GoogleSessionStore.Session = parseGoogleSession(responseBody).copy(
     profileName = currentSession.profileName,
     profileEmail = currentSession.profileEmail,
+    signInMethod = currentSession.signInMethod,
 )
 
 private fun refreshEndpoint(): URL {

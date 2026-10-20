@@ -59,7 +59,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -286,17 +285,11 @@ internal class QuickFaceSelectionModel(
 }
 
 /**
- * 선택 중 홈 화면 메인 영역 위에 놓입니다. 원본 카메라 위에 얼굴 윤곽을 그리고, 탭하면 [onSelect]에 프레임을
- * 넘긴 뒤 선택이 끝납니다. 등록은 다른 곳에서 이어집니다. [mirrored]가 바뀌면 프레임 전달을 다시 시작합니다.
+ * 얼굴을 고르는 동안 원본 카메라에서 얼굴을 찾습니다. 화면에서 빠지면 닫히고, [mirrored]가 바뀌면 프레임 전달을
+ * 다시 시작합니다. 윤곽([FaceSelectionLayer])과 안내([FaceSelectionStatusPanel])가 놓이는 곳이 달라 함께 씁니다.
  */
 @Composable
-internal fun FaceSelectionLayer(
-    analyzer: CameraFrameAnalyzer,
-    mirrored: Boolean,
-    onSelect: (FaceSelectionFrame, Int) -> Unit,
-    modifier: Modifier = Modifier,
-    statusTopPadding: Dp = 96.dp,
-) {
+internal fun rememberQuickFaceSelectionModel(analyzer: CameraFrameAnalyzer, mirrored: Boolean): QuickFaceSelectionModel {
     val context = LocalContext.current
     val model = remember(analyzer) {
         QuickFaceSelectionModel(CameraFaceSelectionSources(context.applicationContext, analyzer))
@@ -308,32 +301,52 @@ internal fun FaceSelectionLayer(
         model.start(mirrored)
         onDispose { model.stop() }
     }
+    return model
+}
 
-    Box(modifier = modifier) {
-        if (model.phase is FaceSelectionPhase.Detecting) {
-            FaceSelectionOverlay(
-                faces = model.faces,
-                imageWidth = model.frameWidth,
-                imageHeight = model.frameHeight,
-                onSelect = { index -> model.takeFrameForSelection(index)?.let { onSelect(it, index) } },
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(start = 24.dp, end = 24.dp, top = statusTopPadding),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            FaceSelectionStatus(phase = model.phase)
-            if (model.phase is FaceSelectionPhase.Failed) {
-                Button(
-                    onClick = { model.start(mirrored) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                ) {
-                    Text(stringResource(R.string.action_retry))
-                }
+/**
+ * 선택 중 홈 화면 메인 영역 위에 놓입니다. 원본 카메라 위에 얼굴 윤곽을 그리고, 탭하면 [onSelect]에 프레임을
+ * 넘긴 뒤 선택이 끝납니다. 등록은 다른 곳에서 이어집니다.
+ */
+@Composable
+internal fun FaceSelectionLayer(
+    model: QuickFaceSelectionModel,
+    onSelect: (FaceSelectionFrame, Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (model.phase is FaceSelectionPhase.Detecting) {
+        FaceSelectionOverlay(
+            faces = model.faces,
+            imageWidth = model.frameWidth,
+            imageHeight = model.frameHeight,
+            onSelect = { index -> model.takeFrameForSelection(index)?.let { onSelect(it, index) } },
+            modifier = modifier,
+        )
+    }
+}
+
+/**
+ * 선택 단계 안내와 실패 시 다시 시도 버튼입니다. iOS `FaceSelectionLayer`처럼 하단 방송 버튼 바로 위에 둬
+ * 상단 바·상태 칩·카메라 도구와 겹치지 않게 합니다.
+ */
+@Composable
+internal fun FaceSelectionStatusPanel(
+    phase: FaceSelectionPhase,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        FaceSelectionStatus(phase = phase)
+        if (phase is FaceSelectionPhase.Failed) {
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+            ) {
+                Text(stringResource(R.string.action_retry))
             }
         }
     }

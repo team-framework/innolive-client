@@ -19,7 +19,7 @@
     <string name="content_description_hide_value">%1$s 가리기</string>
     <string name="content_description_platform_icon">%1$s 아이콘</string>
     <string name="content_description_profile">프로필</string>
-    <string name="profile_default_name">Google 사용자</string>
+    <string name="profile_default_name">사용자</string>
 
     <!-- Authentication -->
     <string name="login_headline">라이브 방송을 안전하게\n만드는 쉬운 방법</string>
@@ -165,6 +165,14 @@
     <string name="face_registering">얼굴을 등록하는 중입니다.</string>
     <string name="face_registration_complete">얼굴 등록이 완료되었습니다.</string>
     <string name="face_registered_local_photo_failed">얼굴 등록은 완료되었지만 사진을 기기에 저장하지 못했습니다.</string>
+    <string name="face_reregistration_notice">AI 서버 재시작으로 등록이 초기화되어, 다시 등록해야 블러에서 제외됩니다.</string>
+    <string name="face_reregistration_banner_title">다시 등록이 필요한 얼굴이 있습니다.</string>
+    <string name="face_reregistration_required">다시 등록 필요</string>
+    <string name="action_reregister_face">다시 등록</string>
+    <string name="content_description_reregister_registered_face">등록된 얼굴 %1$d 다시 등록</string>
+    <string name="face_reregistration_title">얼굴 다시 등록</string>
+    <string name="face_reregistration_description">기존 이름을 유지하고 새 사진으로 다시 등록합니다.</string>
+    <string name="face_reregistration_complete">얼굴을 다시 등록했습니다.</string>
     <string name="action_capture_another_face">얼굴 추가 촬영</string>
     <plurals name="prepared_face_count">
         <item quantity="one">준비된 얼굴 %d개</item>
@@ -351,7 +359,7 @@
     <string name="settings_collapsed">접힘</string>
     <!-- Quick face registration (home one-tap) -->
     <string name="quick_face_select_start">얼굴 등록</string>
-    <string name="quick_face_select_cancel">얼굴 선택 취소</string>
+    <string name="quick_face_select_cancel">등록 취소</string>
     <string name="quick_face_select_hint">화면에 보이는 얼굴을 탭해 비식별화에서 제외합니다.</string>
     <string name="quick_face_preparing">카메라를 준비하고 있어요.</string>
     <string name="quick_face_show_face">얼굴이 화면에 보이도록 비춰 주세요.</string>

@@ -154,6 +154,7 @@ fun AppInfoSettingsScreen(props: SettingsScreenProps, onBack: () -> Unit) {
         SettingsAccountRow(
             name = props.profileName,
             email = props.profileEmail,
+            signInMethod = props.profileSignInMethod,
             onClick = props.onOpenAccountSettings,
         )
         SettingsDivider()

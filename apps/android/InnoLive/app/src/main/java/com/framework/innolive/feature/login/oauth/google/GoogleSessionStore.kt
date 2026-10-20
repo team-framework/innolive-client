@@ -17,6 +17,14 @@ private const val PREFERENCES_NAME = "innolive_google_session"
 private const val ENCRYPTED_SESSION_KEY = "encrypted_session"
 private const val INITIALIZATION_VECTOR_KEY = "initialization_vector"
 
+/** 세션을 만든 로그인 방식입니다. 이름이 없는 계정의 표시명을 고를 때 씁니다. */
+enum class SignInMethod { GOOGLE, EMAIL, UNKNOWN }
+
+/** 로그인 방식이 저장되지 않은 이전 세션은 Google 이름 유무로 방식을 추정합니다. */
+internal fun storedSignInMethod(stored: String, profileName: String): SignInMethod =
+    SignInMethod.entries.firstOrNull { it.name == stored }
+        ?: if (profileName.isBlank()) SignInMethod.EMAIL else SignInMethod.GOOGLE
+
 class GoogleSessionStore(context: Context) : AuthenticationSessionStore {
     data class Session(
         val accessToken: String,
@@ -26,6 +34,7 @@ class GoogleSessionStore(context: Context) : AuthenticationSessionStore {
         val refreshExpiresIn: Long,
         val profileName: String = "",
         val profileEmail: String = "",
+        val signInMethod: SignInMethod = SignInMethod.UNKNOWN,
     )
 
     private val preferences = context.applicationContext.getSharedPreferences(
@@ -120,6 +129,7 @@ class GoogleSessionStore(context: Context) : AuthenticationSessionStore {
         .put("refresh_expires_in", refreshExpiresIn)
         .put("profile_name", profileName)
         .put("profile_email", profileEmail)
+        .put("sign_in_method", signInMethod.name)
         .toString()
 
     private fun JSONObject.toSession(): Session = Session(
@@ -130,5 +140,6 @@ class GoogleSessionStore(context: Context) : AuthenticationSessionStore {
         refreshExpiresIn = getLong("refresh_expires_in"),
         profileName = optString("profile_name"),
         profileEmail = optString("profile_email"),
+        signInMethod = storedSignInMethod(optString("sign_in_method"), optString("profile_name")),
     )
 }

@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.ForegroundServiceCommands
 
 /**
  * 직접 송출이 라이브인 동안 프로세스를 유지하는 foreground service입니다. 앱이 백그라운드로 가거나
@@ -25,6 +26,7 @@ import com.framework.innolive.R
  */
 class DirectBroadcastService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
+    private val commands = ForegroundServiceCommands(::enterForeground, ::acquireWakeLock) { stopSelf(it) }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -34,11 +36,7 @@ class DirectBroadcastService : Service() {
             if (!DirectBroadcastStopRequests.shared.request()) stopSelf()
             return START_NOT_STICKY
         }
-        if (!enterForeground()) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        acquireWakeLock()
+        commands.onStartCommand(stop = intent?.action == ACTION_STOP_SERVICE, startId = startId)
         // 프로세스가 죽으면 송출 상태도 사라지므로 다시 시작하지 않습니다. 세션은 다음 실행 때 정리합니다.
         return START_NOT_STICKY
     }
@@ -130,11 +128,15 @@ class DirectBroadcastService : Service() {
         private const val REQUEST_STOP = 1
         private const val REQUEST_OPEN = 2
         private const val ACTION_STOP_BROADCAST = "com.framework.innolive.action.STOP_DIRECT_BROADCAST"
+        private const val ACTION_STOP_SERVICE = "com.framework.innolive.action.STOP_DIRECT_BROADCAST_SERVICE"
         private const val WAKE_LOCK_TAG = "InnoLive:DirectBroadcast"
 
         /** 가장 긴 플랫폼 라이브(YouTube 12시간)보다 길게 잡아, 놓친 해제가 있어도 결국 풀리게 합니다. */
         private const val MAX_WAKE_LOCK_MILLIS = 13L * 60 * 60 * 1000
 
         fun startIntent(context: Context): Intent = Intent(context, DirectBroadcastService::class.java)
+
+        /** 방송이 끝나 서비스를 끕니다. `stopService` 대신 써서 foreground 진입 뒤에 멈춥니다. */
+        fun stopIntent(context: Context): Intent = startIntent(context).setAction(ACTION_STOP_SERVICE)
     }
 }

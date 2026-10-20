@@ -4,6 +4,8 @@ import com.framework.innolive.feature.live.BroadcastEvent
 import com.framework.innolive.feature.live.BroadcastFailure
 import com.framework.innolive.feature.live.BroadcastProvider
 import com.framework.innolive.feature.live.ServerApiException
+import com.framework.innolive.feature.live.chzzkBroadcastErrorMessage
+import com.framework.innolive.feature.live.simulcastGoLiveFailedMessage
 import com.framework.innolive.feature.live.toBroadcastEvent
 import com.framework.innolive.ui.text.directPublishErrorGuidance
 
@@ -60,16 +62,30 @@ internal fun directTargetsStoppedEvent(providers: List<BroadcastProvider>): Broa
         ?: DirectEvent.SERVER_STOPPED.toBroadcastEvent()
 
 /**
- * 서버 오류를 화면 안내로 바꿉니다. 직접 송출 전용 안내가 있으면 그것을 쓰고, 치지직 설정 입력 오류처럼
- * 필드별 문구가 있는 경우와 알 수 없는 코드는 기존 변환을 따릅니다.
+ * 서버 오류를 화면 안내로 바꿉니다. 직접 송출 전용 안내가 있으면 그것을 쓰고, 치지직 설정 입력 오류·요청 한도처럼
+ * 치지직 문구가 있는 경우와 알 수 없는 코드는 기존 변환을 따릅니다.
  */
 internal fun directServerEvent(exception: ServerApiException, provider: BroadcastProvider): BroadcastEvent {
-    val chzzkFieldError = provider == BroadcastProvider.CHZZK && exception.code == "bad_request"
-    if (!chzzkFieldError) exception.directGuidance()?.let { return BroadcastEvent.ApiFailure(it) }
+    val chzzkSpecific = provider == BroadcastProvider.CHZZK && exception.code in CHZZK_SPECIFIC_CODES
+    if (!chzzkSpecific) exception.directGuidance()?.let { return BroadcastEvent.ApiFailure(it) }
     return exception.toBroadcastEvent(BroadcastFailure.REQUEST, provider, preserveServerMessage = false)
         ?: DirectEvent.REQUEST.toBroadcastEvent()
 }
 
-/** golive `failed_targets[]`의 대상별 실패 코드입니다. */
-internal fun directTargetFailureEvent(code: String?): BroadcastEvent =
-    directPublishErrorGuidance(code)?.let(BroadcastEvent::ApiFailure) ?: DirectEvent.REQUEST.toBroadcastEvent()
+// 공통 안내 문구가 YouTube 기준이라 치지직에서는 치지직 문구를 씁니다.
+private val CHZZK_SPECIFIC_CODES = setOf("bad_request", "streaming_rate_limited")
+
+/**
+ * golive `failed_targets[]`의 대상별 실패 코드입니다. 치지직 요청 한도는 치지직 문구로 알리고,
+ * 다른 대상이 이어지는 YouTube 요청 한도는 동시 송출 문구로 알립니다.
+ */
+internal fun directTargetFailureEvent(provider: String, code: String?, othersContinue: Boolean = false): BroadcastEvent {
+    val rateLimited = code == "streaming_rate_limited"
+    return when {
+        rateLimited && provider == BroadcastProvider.CHZZK.wireValue ->
+            BroadcastEvent.Message(chzzkBroadcastErrorMessage(code, null))
+        rateLimited && provider == BroadcastProvider.YOUTUBE.wireValue && othersContinue ->
+            BroadcastEvent.Message(simulcastGoLiveFailedMessage(mapOf(BroadcastProvider.YOUTUBE to "streaming_rate_limited")))
+        else -> directPublishErrorGuidance(code)?.let(BroadcastEvent::ApiFailure) ?: DirectEvent.REQUEST.toBroadcastEvent()
+    }
+}
