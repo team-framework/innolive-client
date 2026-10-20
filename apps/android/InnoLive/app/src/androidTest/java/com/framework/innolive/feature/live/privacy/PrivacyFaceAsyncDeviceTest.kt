@@ -54,12 +54,12 @@ class PrivacyFaceAsyncDeviceTest {
             val coordinator=PrivacyFaceCoordinator(worker,revisionSource={revision}) {reads++;entries}
             val image=Bitmap.createBitmap(640,640,Bitmap.Config.ARGB_8888)
             try {
-                confirm(coordinator,worker,image)
+                val confirmed=confirm(coordinator,worker,image)
                 assertEquals(1,reads)
                 entries=emptyList();revision++
-                assertTrue(frame(coordinator,image,1510).isEmpty())
+                assertTrue(frame(coordinator,image,confirmed+10).isEmpty())
                 assertEquals(2,reads)
-                repeat(20) {assertTrue(frame(coordinator,image,1520L+it).isEmpty())}
+                repeat(20) {assertTrue(frame(coordinator,image,confirmed+20+it).isEmpty())}
                 assertEquals(2,reads)
             } finally {image.recycle()}
         }
@@ -93,55 +93,68 @@ class PrivacyFaceAsyncDeviceTest {
         return coordinator.exceptions(image, objects, layout, millis * 1_000_000)
     }
 
-    private fun confirm(coordinator: PrivacyFaceCoordinator, worker: Worker, image: Bitmap) {
-        assertTrue(frame(coordinator, image, 1000).isEmpty())
-        coordinator.beginFrame(image, 1_100_000_000L); worker.complete(embedding)
-        assertTrue(coordinator.exceptions(image, objects, layout, 1_100_000_000L).isEmpty())
-        assertTrue(frame(coordinator, image, 1200).isEmpty())
-        assertTrue(frame(coordinator, image, 1300).isEmpty())
-        assertTrue(frame(coordinator, image, 1400).isEmpty())
+    /** Runs 100ms frames until the next recognition is submitted; returns that frame's time. */
+    private fun untilSubmitted(coordinator: PrivacyFaceCoordinator, worker: Worker, image: Bitmap, from: Long,
+                               expected: Set<Int>): Long {
+        var time = from
+        while (worker.job == null) {
+            assertEquals("frame=$time", expected, frame(coordinator, image, time))
+            check(time - from < 5_000) { "No recognition was scheduled" }
+            time += 100
+        }
+        return time - 100
+    }
+
+    /** Two matching results: the second one comes from the quick retry five frames later. Returns the exempt frame. */
+    private fun confirm(coordinator: PrivacyFaceCoordinator, worker: Worker, image: Bitmap): Long {
+        val first = untilSubmitted(coordinator, worker, image, 1000, emptySet())
         worker.complete(embedding)
-        // A result from 1400ms is used on the next frame without blocking capture.
-        assertEquals(setOf(0), frame(coordinator, image, 1500))
+        val second = untilSubmitted(coordinator, worker, image, first + 100, emptySet())
+        assertEquals("quick retry five frames later", first + 500, second)
+        worker.complete(embedding)
+        // The result is used on the next frame without blocking capture.
+        assertEquals(setOf(0), frame(coordinator, image, second + 100))
+        return second + 100
     }
 
-    @Test fun delayedResultsExemptNewerFramesButHeldRecheckCannotExtend750msLease() {
+    @Test fun exemptionPersistsWhileRevalidationIsInFlightUntilItTimesOut() {
         Worker().use { worker ->
             val coordinator = coordinator(worker)
             val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
             try {
-                confirm(coordinator, worker, image)
-                for (time in 1600L..2100L step 100) assertEquals(setOf(0), frame(coordinator, image, time))
-                assertEquals(3, worker.submissions)
-                assertTrue(frame(coordinator, image, 2150).isEmpty())
+                val confirmed = confirm(coordinator, worker, image)
+                val revalidation = untilSubmitted(coordinator, worker, image, confirmed + 100, setOf(0))
+                assertEquals("revalidated 30 frames after the second match", confirmed + 2_900, revalidation)
+                for (time in revalidation + 100..revalidation + 900 step 100)
+                    assertEquals(setOf(0), frame(coordinator, image, time))
+                assertTrue("an unanswered check needs a fresh match", frame(coordinator, image, revalidation + 1_100).isEmpty())
             } finally { image.recycle() }
         }
     }
 
-    @Test fun unknownResultRevokesExistingExceptionAtSamePosition() {
+    @Test fun unknownResultRevokesExistingException() {
         Worker().use { worker ->
             val coordinator = coordinator(worker)
             val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
             try {
-                confirm(coordinator, worker, image)
-                assertEquals(setOf(0), frame(coordinator, image, 1600))
-                assertEquals(setOf(0), frame(coordinator, image, 1700))
+                val confirmed = confirm(coordinator, worker, image)
+                val revalidation = untilSubmitted(coordinator, worker, image, confirmed + 100, setOf(0))
                 worker.complete(null)
-                assertTrue(frame(coordinator, image, 1800).isEmpty())
+                assertTrue(frame(coordinator, image, revalidation + 100).isEmpty())
             } finally { image.recycle() }
         }
     }
 
-    @Test fun missingLandmarksRetainLeaseWithoutExtendingSourceDeadline() {
+    @Test fun missingLandmarksKeepTheDecision() {
         Worker().use { worker ->
             val coordinator = coordinator(worker)
             val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
             try {
-                confirm(coordinator, worker, image)
-                frame(coordinator, image, 1600); frame(coordinator, image, 1700)
+                val confirmed = confirm(coordinator, worker, image)
+                val revalidation = untilSubmitted(coordinator, worker, image, confirmed + 100, setOf(0))
                 worker.complete(null, sampleAvailable = false)
-                for (time in 1800L..2100L step 100) assertEquals(setOf(0), frame(coordinator, image, time))
-                assertTrue(frame(coordinator, image, 2150).isEmpty())
+                for (time in revalidation + 100..revalidation + 1_500 step 100)
+                    assertEquals(setOf(0), frame(coordinator, image, time))
             } finally { image.recycle() }
         }
     }
@@ -151,24 +164,25 @@ class PrivacyFaceAsyncDeviceTest {
             val coordinator = coordinator(worker)
             val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
             try {
-                confirm(coordinator, worker, image)
-                frame(coordinator, image, 1600); frame(coordinator, image, 1700)
+                val confirmed = confirm(coordinator, worker, image)
+                val revalidation = untilSubmitted(coordinator, worker, image, confirmed + 100, setOf(0))
                 worker.complete(embedding, imageBox = RectF(200f, 100f, 250f, 150f))
-                assertTrue(frame(coordinator, image, 1800).isEmpty())
+                assertTrue(frame(coordinator, image, revalidation + 100).isEmpty())
             } finally { image.recycle() }
         }
     }
 
-    @Test fun slowFrameGapDiscardsInFlightRecognitionLikeIOS() {
+    @Test fun oneSecondFrameGapDiscardsInFlightRecognition() {
         Worker().use { worker ->
             val coordinator = coordinator(worker)
             val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
             try {
-                frame(coordinator, image, 1000)
-                coordinator.beginFrame(image, 1_250_000_000L); worker.complete(embedding)
-                assertTrue(coordinator.exceptions(image, objects, layout, 1_250_000_000L).isEmpty())
-                coordinator.beginFrame(image, 1_500_000_000L); worker.complete(embedding)
-                assertTrue(coordinator.exceptions(image, objects, layout, 1_500_000_000L).isEmpty())
+                val first = untilSubmitted(coordinator, worker, image, 1000, emptySet())
+                worker.complete(embedding)
+                assertTrue(coordinator.exceptions(image, objects, layout, (first + 1_200) * 1_000_000).isEmpty())
+                val second = untilSubmitted(coordinator, worker, image, first + 1_300, emptySet())
+                worker.complete(embedding)
+                assertTrue("the result before the gap does not count", frame(coordinator, image, second + 100).isEmpty())
             } finally { image.recycle() }
         }
     }
