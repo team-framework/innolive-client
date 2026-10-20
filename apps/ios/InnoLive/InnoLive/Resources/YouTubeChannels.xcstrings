@@ -1,46 +1,24 @@
 {
   "sourceLanguage": "ko",
   "strings": {
-    "채널 연결": {
+    "채널 추가 연결": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "채널 연결"
+            "value": "채널 추가 연결"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Connect channel"
+            "value": "Add channel"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "チャンネルを接続"
-          }
-        }
-      }
-    },
-    "다른 채널로 변경": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "다른 채널로 변경"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Switch channel"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "別のチャンネルに変更"
+            "value": "チャンネルを追加"
           }
         }
       }

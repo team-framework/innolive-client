@@ -618,8 +618,9 @@ final class YouTubeIntegration: ObservableObject {
     var selectedYouTubeAccount: StreamingAccountSummary? {
         youtubeAccounts.first { $0.accountID == selectedYouTubeAccountID }
     }
-    /// 새 채널 연결은 기존 YouTube 연결을 대체하므로 연결 개수와 관계없이 허용한다.
-    var canConnectYouTubeChannel: Bool { !isYouTubeAccountChangeBlocked }
+    func canConnectYouTubeChannel(reconnecting: Bool = false) -> Bool {
+        !isYouTubeAccountChangeBlocked && (reconnecting || youtubeAccounts.count < 5)
+    }
     var canSelectYouTubeChannel: Bool {
         !isChangingStreamState && !isChangingBroadcastMode && !isPreparingSession && !isSwitchingToOnDevice
             && !isEndingSession && !isSavingLiveSettings
@@ -1201,29 +1202,13 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     // Keep the previous selection until the full account list confirms its connection ID.
-    // YouTube keeps a single connection: once the new channel is confirmed, every other channel is removed.
     func connectAuthorizedYouTubeAccount(serverAuthCode: String, accessToken: String) async throws {
         let generation = connectionOperationGeneration
-        let response = try await api.connect(serverAuthCode: serverAuthCode, accessToken: accessToken)
+        _ = try await api.connect(serverAuthCode: serverAuthCode, accessToken: accessToken)
         guard isCurrentConnectionOperation(generation) else { return }
-        var accounts = try await api.streamingAccounts(accessToken: accessToken)
+        let accounts = try await api.streamingAccounts(accessToken: accessToken)
         guard isCurrentConnectionOperation(generation) else { return }
-        let channelID = response.channel.id
-        guard let connected = accounts.first(where: { $0.provider == "youtube" && $0.channelID == channelID }) else {
-            applyStreamingAccounts(accounts)
-            return
-        }
-        selectedYouTubeAccountID = connected.accountID
-        // A failed DELETE leaves that channel in the list so the user can retry the removal.
-        defer {
-            if isCurrentConnectionOperation(generation) { applyStreamingAccounts(accounts) }
-        }
-        for account in accounts where account.provider == "youtube" && account.channelID != channelID {
-            guard let accountID = account.accountID else { continue }
-            try await api.disconnectStreamingAccount(accessToken: accessToken, accountID: accountID)
-            guard isCurrentConnectionOperation(generation) else { return }
-            accounts.removeAll { $0.provider == "youtube" && $0.accountID == accountID }
-        }
+        applyStreamingAccounts(accounts)
     }
 
     func disconnectYouTubeAccount(accessToken: String?, accountID: String? = nil) async {

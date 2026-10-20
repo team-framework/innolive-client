@@ -179,12 +179,10 @@ struct BroadcastPlatformSelectionView: View {
                 .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
             }
-            Button(youtube.youtubeAccounts.isEmpty && youtube.connection == nil
-                   ? String(localized: "채널 연결", table: "YouTubeChannels")
-                   : String(localized: "다른 채널로 변경", table: "YouTubeChannels"), action: connectYouTube)
+            Button(String(localized: "채널 추가 연결", table: "YouTubeChannels"), action: connectYouTube)
                 .innoLiveGlassButtonStyle(prominent: true)
                 .tint(.blue)
-                .disabled(!youtube.canConnectYouTubeChannel)
+                .disabled(!youtube.canConnectYouTubeChannel())
             if youtube.isYouTubeConnectionOperationInProgress { ProgressView() }
         }
         .padding(16)
@@ -207,7 +205,7 @@ struct BroadcastPlatformSelectionView: View {
                 youTubeAccountActionLabel(String(localized: "다시 연결"), allowsWrapping: allowsWrapping)
             }
             .buttonStyle(.borderless)
-            .disabled(!youtube.canConnectYouTubeChannel)
+            .disabled(!youtube.canConnectYouTubeChannel(reconnecting: true))
         }
         Button(role: .destructive) {
             disconnectAccount = account
