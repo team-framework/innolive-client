@@ -480,6 +480,9 @@ struct BroadcastTargetFailure: Decodable, Equatable {
     let provider: String
     let code: String
     let message: String?
+
+    /// 채널 단위 요청 한도로 실패했다(innolive-server#505). 재시도·채널 변경 안내가 필요하다.
+    var isRateLimited: Bool { code == "streaming_rate_limited" }
 }
 
 struct BroadcastResolutionSwitch: Decodable, Equatable {

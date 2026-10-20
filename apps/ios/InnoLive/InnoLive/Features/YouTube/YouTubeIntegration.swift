@@ -2298,10 +2298,7 @@ final class YouTubeIntegration: ObservableObject {
                 }
             }
             if !liveResponse.details.failedTargets.isEmpty {
-                errorMessage = liveResponse.details.failedTargets.map { failure in
-                    let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
-                    return title + ": " + String(localized: "라이브 시작에 실패했습니다. 다른 플랫폼의 방송은 유지됩니다.", table: "Simulcast")
-                }.joined(separator: "\n")
+                errorMessage = liveResponse.details.failedTargets.map(Self.liveStartFailureMessage).joined(separator: "\n")
             }
             if !directFailures.isEmpty {
                 errorMessage = ([errorMessage].compactMap { $0 } + directFailures).joined(separator: "\n")
@@ -3060,6 +3057,15 @@ final class YouTubeIntegration: ObservableObject {
 
     static func isDirectPublish(_ session: YouTubeBroadcastSession) -> Bool {
         session.aiProcessing == AIProcessingMode.onDevice.rawValue
+    }
+
+    /// 동시 송출 라이브 전환에서 실패한 대상의 안내다. 다른 플랫폼은 라이브로 남는다.
+    static func liveStartFailureMessage(_ failure: BroadcastTargetFailure) -> String {
+        let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
+        let message = failure.isRateLimited
+            ? String(localized: "채널 요청 한도로 라이브를 시작하지 못했습니다. 다른 플랫폼의 방송은 유지됩니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요.", table: "Simulcast")
+            : String(localized: "라이브 시작에 실패했습니다. 다른 플랫폼의 방송은 유지됩니다.", table: "Simulcast")
+        return title + ": " + message
     }
 
     /// 치지직은 RTMP 연결이 곧 공개 방송이라 서버가 라이브 전환 응답에서 주소를 준다. 나머지는 준비 응답에서 준다.
