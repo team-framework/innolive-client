@@ -13840,6 +13840,28 @@
           }
         }
       }
+    },
+    "프레임 레이트": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "프레임 레이트"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frame rate"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "フレームレート"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
