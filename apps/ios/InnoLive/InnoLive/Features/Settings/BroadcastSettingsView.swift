@@ -76,6 +76,7 @@ struct BroadcastSettingsView: View {
                         Label(String(localized: "플랫폼 계정 연결"), systemImage: "person.crop.circle")
                     }
                     .broadcastTutorialAnchor(.connectAccount)
+                    BroadcastResolutionSelectionView(youtube: youtube)
                     BroadcastTargetSelectionView(youtube: youtube)
                     Text(String(localized: "설정을 편집할 플랫폼", table: "Simulcast")).font(.caption).foregroundStyle(.secondary)
                     Picker(String(localized: "설정을 편집할 플랫폼", table: "Simulcast"), selection: Binding(
