@@ -77,6 +77,10 @@ internal fun FaceRegistrationScreen(
     profileEmail: String = "",
     existingFaces: List<ReferenceFace> = emptyList(),
     broadcastCamera: CameraFrameAnalyzer? = null,
+    /** 있으면 새 얼굴을 추가하지 않고 이 얼굴을 사진 한 장으로 같은 face_id에 다시 등록합니다. */
+    reregisterFace: ReferenceFace? = null,
+    /** 다시 등록할 얼굴이 서버에 없을 때(404) 부릅니다. 호출한 화면이 목록을 새로 읽습니다. */
+    onReregisterFaceMissing: () -> Unit = {},
 ) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -86,6 +90,7 @@ internal fun FaceRegistrationScreen(
     val currentGetAccessToken by rememberUpdatedState(onGetAccessToken)
     val currentRefreshAccessToken by rememberUpdatedState(onRefreshAccessToken)
     val currentOnRegistrationSuccess by rememberUpdatedState(onRegistrationSuccess)
+    val currentOnReregisterFaceMissing by rememberUpdatedState(onReregisterFaceMissing)
     var phase by remember { mutableStateOf(FaceRegistrationPhase.CAPTURING) }
     var statusMessage by remember {
         mutableStateOf<UiText>(UiText.Resource(R.string.face_registration_instruction))
@@ -149,7 +154,8 @@ internal fun FaceRegistrationScreen(
         uploadJob = scope.launch {
             try {
                 val image = withContext(Dispatchers.Default) { bitmap.toJpegBytes() }
-                capturedImages = capturedImages + image
+                // 다시 등록은 사진 한 장만 보냅니다.
+                capturedImages = if (reregisterFace != null) listOf(image) else capturedImages + image
                 if (isLifecycleActive) {
                     phase = FaceRegistrationPhase.READY_TO_SUBMIT
                     statusMessage = UiText.Plural(
@@ -188,13 +194,23 @@ internal fun FaceRegistrationScreen(
         statusMessage = UiText.Resource(R.string.face_registering)
         uploadJob = scope.launch {
             try {
-                val result = repository.append(
-                    images = images,
-                    existingFaces = existingFaces,
-                    accountEmail = profileEmail,
-                    accessToken = accessToken,
-                    refreshAccessToken = refreshAccessToken,
-                )
+                val result = if (reregisterFace != null) {
+                    repository.reregister(
+                        faceId = reregisterFace.faceId,
+                        image = images.last(),
+                        accountEmail = profileEmail,
+                        accessToken = accessToken,
+                        refreshAccessToken = refreshAccessToken,
+                    )
+                } else {
+                    repository.append(
+                        images = images,
+                        existingFaces = existingFaces,
+                        accountEmail = profileEmail,
+                        accessToken = accessToken,
+                        refreshAccessToken = refreshAccessToken,
+                    )
+                }
                 if (uploadGeneration == operationGeneration && isLifecycleActive) {
                     phase = FaceRegistrationPhase.SUCCESS
                     statusMessage = if (result.localImageStoreFailed) {
@@ -208,6 +224,11 @@ internal fun FaceRegistrationScreen(
                 throw exception
             } catch (exception: ReferenceFaceApiException) {
                 if (uploadGeneration == operationGeneration && isLifecycleActive) {
+                    if (reregisterFace != null && exception.statusCode == 404) {
+                        // 다른 기기에서 지웠거나 목록이 바뀌었습니다. 같은 사진으로 다시 시도해도 실패합니다.
+                        currentOnReregisterFaceMissing()
+                        return@launch
+                    }
                     phase = FaceRegistrationPhase.ERROR
                     statusMessage = exception.toUserMessage()
                 }
@@ -365,12 +386,20 @@ internal fun FaceRegistrationScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.action_register_face),
+                    text = stringResource(
+                        if (reregisterFace != null) R.string.face_reregistration_title else R.string.action_register_face,
+                    ),
                     color = Color.White,
                     style = MaterialTheme.typography.headlineSmall,
                 )
                 Text(
-                    text = stringResource(R.string.face_registration_description),
+                    text = stringResource(
+                        if (reregisterFace != null) {
+                            R.string.face_reregistration_description
+                        } else {
+                            R.string.face_registration_description
+                        },
+                    ),
                     color = Color.White,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -413,15 +442,17 @@ internal fun FaceRegistrationScreen(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = ::captureAnother,
-                            modifier = Modifier.fillMaxWidth(0.5f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.background,
-                                contentColor = MaterialTheme.colorScheme.onBackground
-                            )
-                            ) {
-                            Text(text = stringResource(R.string.action_capture_another_face))
+                        if (reregisterFace == null) {
+                            Button(
+                                onClick = ::captureAnother,
+                                modifier = Modifier.fillMaxWidth(0.5f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.background,
+                                    contentColor = MaterialTheme.colorScheme.onBackground
+                                )
+                                ) {
+                                Text(text = stringResource(R.string.action_capture_another_face))
+                            }
                         }
                         Button(
                             onClick = ::startUpload,

@@ -86,6 +86,31 @@ internal class ReferenceFaceRepository(
         return ReferenceFaceAppendResult(registration, localImageStoreFailed)
     }
 
+    /** 같은 face_id로 다시 등록하고, 성공하면 기기에 둔 사진도 새 사진으로 바꿉니다. */
+    suspend fun reregister(
+        faceId: String,
+        image: ByteArray,
+        accountEmail: String,
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ): ReferenceFaceAppendResult {
+        val registration = api().reregister(faceId, image, accessToken, refreshAccessToken)
+        if (accountEmail.isBlank()) {
+            return ReferenceFaceAppendResult(registration, localImageStoreFailed = false)
+        }
+        val localImageStoreFailed = try {
+            withContext(Dispatchers.IO) {
+                imageStore.append(accountEmail = accountEmail, faceId = faceId, jpeg = image)
+            }
+            false
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Exception) {
+            true
+        }
+        return ReferenceFaceAppendResult(registration, localImageStoreFailed)
+    }
+
     suspend fun deleteFace(
         faceId: String,
         accountEmail: String,

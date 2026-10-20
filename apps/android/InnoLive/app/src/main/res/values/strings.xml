@@ -166,6 +166,14 @@
     <string name="face_registering">얼굴을 등록하는 중입니다.</string>
     <string name="face_registration_complete">얼굴 등록이 완료되었습니다.</string>
     <string name="face_registered_local_photo_failed">얼굴 등록은 완료되었지만 사진을 기기에 저장하지 못했습니다.</string>
+    <string name="face_reregistration_notice">AI 서버 재시작으로 등록이 초기화되어, 다시 등록해야 블러에서 제외됩니다.</string>
+    <string name="face_reregistration_banner_title">다시 등록이 필요한 얼굴이 있습니다.</string>
+    <string name="face_reregistration_required">다시 등록 필요</string>
+    <string name="action_reregister_face">다시 등록</string>
+    <string name="content_description_reregister_registered_face">등록된 얼굴 %1$d 다시 등록</string>
+    <string name="face_reregistration_title">얼굴 다시 등록</string>
+    <string name="face_reregistration_description">기존 이름을 유지하고 새 사진으로 다시 등록합니다.</string>
+    <string name="face_reregistration_complete">얼굴을 다시 등록했습니다.</string>
     <string name="action_capture_another_face">얼굴 추가 촬영</string>
     <plurals name="prepared_face_count">
         <item quantity="one">준비된 얼굴 %d개</item>

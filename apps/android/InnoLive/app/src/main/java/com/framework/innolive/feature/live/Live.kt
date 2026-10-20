@@ -90,10 +90,12 @@ import com.framework.innolive.feature.face.GuestFaceRegistrar
 import com.framework.innolive.feature.face.GuestFaceTarget
 import com.framework.innolive.feature.face.GuestRegistrationToast
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
+import com.framework.innolive.feature.face.loadReferenceFaceReregistrationRequired
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.BroadcastModeDialog
 import com.framework.innolive.feature.live.components.BroadcastSettingsMenu
 import com.framework.innolive.feature.live.components.BroadcastSettingsMenuItem
+import com.framework.innolive.feature.live.components.BroadcastSettingsNotice
 import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.components.logoRes
@@ -250,6 +252,17 @@ private fun LiveScreenContent(
     }
     // 방송 설정 창은 치지직 계정 연결 여부로 선택지를 막으므로 열려 있는 동안 계정을 확인합니다.
     val needsChzzkAccount = openSettingsDialog || openChzzkEditor || openModeEditor
+    // 서버 AI로 방송할 때 AI 워커가 잃은 기준 얼굴이 있으면 방송 설정 메뉴에서 알립니다. 등록한 사람도 블러되기 때문입니다.
+    var referenceFaceReregistrationRequired by remember { mutableStateOf(false) }
+    LaunchedEffect(openSettingsDialog, webRtcSession.selectedOnDeviceProcessing, props.profileEmail) {
+        if (!openSettingsDialog) return@LaunchedEffect
+        if (webRtcSession.selectedOnDeviceProcessing) {
+            referenceFaceReregistrationRequired = false
+            return@LaunchedEffect
+        }
+        loadReferenceFaceReregistrationRequired(props.onGetAccessToken, props.onRefreshAccessToken)
+            ?.let { referenceFaceReregistrationRequired = it }
+    }
     LaunchedEffect(needsChzzkAccount, props.profileEmail, chzzkAccountRefreshKey) {
         val refreshing = chzzkAccountVerification.beginRefresh() ?: return@LaunchedEffect
         chzzkAccountVerification = refreshing
@@ -889,6 +902,19 @@ private fun LiveScreenContent(
                                         webRtcSession.dismissServerError()
                                     },
                                     guide = settingsGuide,
+                                    notice = if (
+                                        referenceFaceReregistrationRequired && !webRtcSession.selectedOnDeviceProcessing
+                                    ) {
+                                        BroadcastSettingsNotice(
+                                            title = stringResource(R.string.face_reregistration_banner_title),
+                                            message = stringResource(R.string.face_reregistration_notice),
+                                            // 얼굴 관리를 열 수 없는 방송 단계에서는 안내만 보여 줍니다.
+                                            onClick = {
+                                                openSettingsDialog = false
+                                                openFaceManagementScreen()
+                                            }.takeIf { canManageFace },
+                                        )
+                                    } else null,
                                 )
                             }
                             if (openYouTubeEditor) {
