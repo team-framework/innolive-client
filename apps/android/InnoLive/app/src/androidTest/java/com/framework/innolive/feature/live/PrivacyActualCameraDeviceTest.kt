@@ -184,7 +184,8 @@ class PrivacyActualCameraDeviceTest {
                     InstrumentationRegistry.getArguments().getString("privacyBatchTwo", "true").toBoolean(),
                     keepLatestProtectedFrame=pendingLatest).apply {
                     faceCoordinatorFactory=if (registeredFaces) ({
-                        PrivacyFaceCoordinator(context, registeredFaceScope(context))
+                        PrivacyFaceCoordinator(context, registeredFaceScope(context,
+                            InstrumentationRegistry.getArguments().getString("privacyFaceAccountScope")))
                     }) else if (recognizeFace) ({
                         PrivacyFaceCoordinator(PrivacyFaceService.get(context),
                             revisionSource = { 0L }) {
@@ -315,9 +316,9 @@ class PrivacyActualCameraDeviceTest {
         }
     }
 
-    /** The account scope of the most recently updated face library in the app under test. */
-    private fun registeredFaceScope(context: android.content.Context): String =
-        context.noBackupFilesDir.listFiles().orEmpty().mapNotNull { file ->
+    /** [requested] account scope, or that of the most recently updated face library in the app under test. */
+    private fun registeredFaceScope(context: android.content.Context, requested: String?): String =
+        requested ?: context.noBackupFilesDir.listFiles().orEmpty().mapNotNull { file ->
             Regex("privacy-local-faces-([0-9a-f]{64})\\.bin").matchEntire(file.name)?.let { file to it.groupValues[1] }
         }.maxByOrNull { it.first.lastModified() }.let { checkNotNull(it) { "No registered face library" }.second }
 }
