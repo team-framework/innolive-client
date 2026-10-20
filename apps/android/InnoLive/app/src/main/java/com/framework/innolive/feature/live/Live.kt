@@ -679,11 +679,12 @@ private fun LiveScreenContent(
                 }
                 if (landscape) {
                     // 가로 화면은 왼쪽 띠에 카메라 도구를 세로로 두어 왼손 엄지가 닿게 하고, 영상은 가리지 않습니다.
+                    // 상단 바의 시간과 페이지 탭은 가운데에만 있으므로, 오른쪽 방송 버튼 열처럼 위 12dp부터 써서 낮은 높이에서도 이름이 잘리지 않게 합니다.
                     LiveCameraTools(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .onSizeChanged { pipState.leftControlsWidthPx = it.width.toFloat() }
-                            .padding(start = 12.dp, end = 4.dp, top = LiveStudioTopInset, bottom = 12.dp),
+                            .padding(start = 12.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
                         canManageFace = canManageFace,
                         onOpenVideoControls = { openVideoControls = true },
                         onOpenFaceManagement = openFaceManagementScreen,
