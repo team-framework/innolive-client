@@ -18,6 +18,8 @@
     <string name="error_field_required">必須項目を入力してください。</string>
     <string name="error_field_invalid">入力した値を確認してください。</string>
     <string name="error_field_not_changeable_live">配信中はこの項目を変更できません。</string>
+    <string name="error_face_swap_not_allowed">顔合成は管理者アカウントでのみ使用できます。設定のラボでオフにしてから、もう一度準備してください。</string>
+    <string name="error_face_swap_unavailable">現在、サーバーで顔合成を使用できません。設定のラボでオフにしてから、もう一度準備してください。</string>
     <string name="error_guidance_title">お知らせ</string>
     <string name="action_continue_broadcast">続行</string>
     <string name="action_open_help">ヘルプを開く</string>
