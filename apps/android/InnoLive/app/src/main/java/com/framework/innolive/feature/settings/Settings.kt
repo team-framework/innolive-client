@@ -109,6 +109,9 @@ fun SettingsScreen(props: SettingsScreenProps) {
             SettingsValueRow(stringResource(R.string.label_broadcast_account), props.broadcastAccount,
                 enabled, props.onOpenBroadcastSettings)
             SettingsLinkRow(stringResource(R.string.settings_broadcast), enabled, props.onOpenBroadcastSettings)
+            // iOS처럼 방송 준비·방송 중에는 보관함에 들어가지 않습니다.
+            SettingsLinkRow(stringResource(R.string.settings_recordings), enabled && props.canOpenRecordings,
+                props.onOpenRecordings)
             SettingsDivider()
             PlanUsageSettings(props)
             AIProcessingSettings(props)

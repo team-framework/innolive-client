@@ -32,6 +32,23 @@ class SessionSnapshotTest {
         assertNull(unknown.broadcastState())
     }
 
+    @Test fun youtubeVideoIdIsParsedFromTargetsAndKeptAcrossPartialResponses() {
+        val root = generateSequence(File(checkNotNull(System.getProperty("innolive.android.resDir")))) { it.parentFile }
+            .first { File(it, "contracts/api/fixtures").isDirectory }
+        val payload = File(root, "contracts/api/fixtures/youtube-viewer-chat.json").readText()
+        val live = parseSessionSnapshot(payload, "s")
+        assertEquals("dQw4w9WgXcQ", live.targets!!.first { it.provider == "youtube" }.videoId)
+        assertNull(live.targets!!.first { it.provider == "chzzk" }.videoId)
+        // 한 대상의 stream만 오는 부분 응답과 video_id가 없는 이전 서버 응답은 ID를 지우지 않는다.
+        val paused = parseSessionSnapshot("""{"stream":{"status":"paused","broadcast_phase":"live"}}""", "s", live)
+        assertEquals("dQw4w9WgXcQ", paused.targets!!.first { it.provider == "youtube" }.videoId)
+        val legacy = parseSessionSnapshot(
+            """{"targets":[{"provider":"youtube","stream":{"status":"streaming","broadcast_phase":"live"}}]}""", "s", paused,
+        )
+        assertEquals("dQw4w9WgXcQ", legacy.targets!!.single().videoId)
+        assertNull(parseSessionSnapshot(payload, "s2").targets!!.first { it.provider == "chzzk" }.videoId)
+    }
+
     @Test fun missingNullAndZeroRemainingTimeAreDifferent() {
         assertEquals(BroadcastRemainingTime.Unknown, fixture("missing").remainingTime)
         assertEquals(BroadcastRemainingTime.UnlimitedOrInactive, fixture("null").remainingTime)

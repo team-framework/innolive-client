@@ -98,6 +98,9 @@ import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
 import com.framework.innolive.feature.live.components.logoRes
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
+import com.framework.innolive.feature.live.components.YouTubeViewerChatOverlay
+import com.framework.innolive.feature.live.components.YouTubeViewerChatReceiver
+import com.framework.innolive.feature.live.components.rememberYouTubeViewerChatState
 import com.framework.innolive.feature.live.consent.BroadcastConsentDialog
 import com.framework.innolive.feature.live.consent.BroadcastConsentStep
 import com.framework.innolive.feature.live.consent.BroadcastConsentStore
@@ -202,6 +205,11 @@ private fun LiveScreenContent(
     var chzzkBusy by remember { mutableStateOf(false) }
     var chzzkMessage by remember { mutableStateOf<UiText?>(null) }
     var openBroadcastActions by remember { mutableStateOf(false) }
+    // 보기 전용 시청자 채팅입니다. 라이브 YouTube 대상의 주소가 있는 동안만 받고, 주소가 사라지면(방송 종료·대상 제거·
+    // 세션 종료) 수신기를 없앱니다. iOS처럼 숨김 상태는 방송이 이어지는 동안 기억하고 방송이 끝나면 다시 보이게 합니다.
+    val viewerChat = rememberYouTubeViewerChatState(webRtcSession.viewerChatUrl)
+    var viewerChatHidden by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(viewerChat == null) { if (viewerChat == null) viewerChatHidden = false }
     // 방송 준비 중 표시할 동의·안내입니다. 수락하면 다음 단계로 이어서 진행합니다.
     var pendingConsentStep by remember { mutableStateOf<BroadcastConsentStep?>(null) }
     var testUsageWarningOverride by remember { mutableStateOf(false) }
@@ -491,6 +499,8 @@ private fun LiveScreenContent(
             .fillMaxSize()
             .background(color = Color.Black),
     ) {
+        // 채팅 수신 WebView는 방송 화면 맨 아래 층에 둡니다. 위의 영상과 조작 화면이 가리고 터치도 받지 않습니다.
+        viewerChat?.let { YouTubeViewerChatReceiver(it) }
         LiveStudioPager(
             pagerState = pagerState,
             settings = settings,
@@ -1119,6 +1129,16 @@ private fun LiveScreenContent(
                             )
                         }
                     }
+                    webRtcSession.recordingState.message?.let { message ->
+                        Text(
+                            text = message.asString(),
+                            modifier = Modifier
+                                .padding(horizontal = 24.dp)
+                                .semantics { liveRegion = LiveRegionMode.Polite },
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
                     webRtcSession.anonymizationChange.errorMessage?.let { error ->
                         Text(
                             text = stringResource(R.string.anonymization_error_retry, error.asString()),
@@ -1155,6 +1175,26 @@ private fun LiveScreenContent(
                             )
                         }
                     }
+                }
+
+                // iOS처럼 라이브 YouTube 채팅을 왼쪽 아래 하단 조작 위에 띄웁니다. 가로 화면은 왼쪽 카메라 도구 띠 오른쪽에 둡니다.
+                // 얼굴을 고르는 동안에는 가리고, 작은 창과 카메라 도구가 채팅 높이를 비우도록 알려 줍니다.
+                val chat = viewerChat
+                if (chat != null && !isSelectingFace) {
+                    val chatStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 16.dp
+                    val chatBottom = with(density) { pipState.bottomControlsReservePx(this).toDp() } + 12.dp
+                    YouTubeViewerChatOverlay(
+                        state = chat,
+                        hidden = viewerChatHidden,
+                        onToggleHidden = { viewerChatHidden = !viewerChatHidden },
+                        compact = landscape,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = chatStart, end = 16.dp, bottom = chatBottom)
+                            .onSizeChanged { pipState.chatReservePx = it.height + with(density) { 12.dp.toPx() } },
+                    )
+                } else {
+                    SideEffect { pipState.chatReservePx = 0f }
                 }
             },
         )

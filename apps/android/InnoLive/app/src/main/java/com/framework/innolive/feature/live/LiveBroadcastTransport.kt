@@ -11,6 +11,7 @@ import com.framework.innolive.feature.live.direct.broadcast.DirectPublishFeature
 import com.framework.innolive.feature.live.direct.broadcast.RtmpReconnectSupervisor
 import com.framework.innolive.feature.live.direct.broadcast.createDirectHeartbeatLoop
 import com.framework.innolive.feature.live.direct.lifecycle.ServiceBroadcastKeepAlive
+import com.framework.innolive.feature.live.recording.RecordingAudioSink
 import com.framework.innolive.feature.live.status.UplinkVideoStats
 import com.framework.innolive.ui.text.ServerErrorGuidance
 import org.webrtc.EglBase
@@ -50,6 +51,12 @@ internal interface LiveBroadcastTransport : AutoCloseable {
         else -> false
     }
     fun goLive(onAccepted: () -> Unit = {}): Boolean
+
+    /**
+     * 송출하는 마이크 음성을 녹화기에도 넘깁니다. null이면 끊습니다. 송출 경로가 음성을 만들지 않는 동안에는
+     * 아무것도 오지 않습니다. 기본 구현은 녹화 음성을 제공하지 않습니다.
+     */
+    fun setRecordingAudioSink(sink: RecordingAudioSink?) = Unit
     fun pauseBroadcast()
     fun resumeBroadcast()
     fun stopBroadcast()
@@ -72,6 +79,8 @@ internal class LiveBroadcastCallbacks(
     val onUplinkVideoStats: (UplinkVideoStats) -> Unit,
     /** 직접 송출에서만 옵니다. 로컬 RTMP 연결·마이크·대기 화면 상태입니다. */
     val onDirectUiStateChanged: (DirectBroadcastUiState) -> Unit = {},
+    /** 직접 송출에서만 옵니다. 방송 종료·실패로 세션을 지웠거나 서버에서 사라져 세션 상태가 없어졌습니다. */
+    val onSessionSnapshotCleared: () -> Unit = {},
 )
 
 /**
