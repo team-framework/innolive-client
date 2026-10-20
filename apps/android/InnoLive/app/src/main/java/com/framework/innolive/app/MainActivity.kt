@@ -12,7 +12,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -54,7 +53,6 @@ import com.framework.innolive.feature.live.VideoStabilizationStatus
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.CameraLensFacing
-import com.framework.innolive.feature.live.CameraResolution
 import com.framework.innolive.feature.live.LiveScreen
 import com.framework.innolive.feature.live.LiveScreenProps
 import com.framework.innolive.feature.live.LiveSettingsPage
@@ -62,6 +60,7 @@ import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
 import com.framework.innolive.feature.live.rememberAudioInputDevices
+import com.framework.innolive.feature.live.selectCameraResolution
 import com.framework.innolive.feature.live.supportedCameraResolutions
 import com.framework.innolive.feature.live.consent.BroadcastConsentStep
 import com.framework.innolive.feature.live.consent.BroadcastConsentStore
@@ -619,8 +618,13 @@ fun AppNavigation(
     var selectedCameraLensFacing by rememberSaveable {
         mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
     }
-    var supportedCameraResolutions by remember {
-        mutableStateOf(emptyList<CameraResolution>())
+    // Activity를 다시 만들 때는 이미 준비된 provider로 첫 컴포지션에서 지원 목록을 읽습니다.
+    var cameraProvider by remember(context) {
+        mutableStateOf(
+            ProcessCameraProvider.getInstance(context)
+                .takeIf { future -> future.isDone }
+                ?.let { future -> runCatching { future.get() }.getOrNull() },
+        )
     }
     var selectedAudioDeviceId by rememberSaveable {
         mutableIntStateOf(audioDeviceOptions.firstOrNull()?.id ?: -1)
@@ -703,25 +707,13 @@ fun AppNavigation(
         }
     }
 
-    DisposableEffect(context, selectedCameraLensFacing) {
+    DisposableEffect(context) {
         var isDisposed = false
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        supportedCameraResolutions = emptyList()
-        selectedResolutionKey = null
         cameraProviderFuture.addListener(
             {
                 if (!isDisposed) {
-                    supportedCameraResolutions = runCatching {
-                        val cameraSelector = when (selectedCameraLensFacing) {
-                            CameraLensFacing.BACK -> CameraSelector.DEFAULT_BACK_CAMERA
-                            CameraLensFacing.FRONT -> CameraSelector.DEFAULT_FRONT_CAMERA
-                        }
-                        cameraSelector
-                            .filter(cameraProviderFuture.get().availableCameraInfos)
-                            .firstOrNull()
-                            ?.supportedCameraResolutions()
-                            .orEmpty()
-                    }.getOrDefault(emptyList())
+                    cameraProvider = runCatching { cameraProviderFuture.get() }.getOrNull()
                 }
             },
             ContextCompat.getMainExecutor(context),
@@ -729,21 +721,19 @@ fun AppNavigation(
 
         onDispose { isDisposed = true }
     }
+    // 렌즈를 바꿔도 선택값은 지우지 않습니다. 새 렌즈 목록을 읽은 컴포지션에서 해상도까지 정해
+    // 카메라를 한 번만 바인딩합니다.
+    val supportedCameraResolutions = remember(cameraProvider, selectedCameraLensFacing) {
+        cameraProvider?.supportedCameraResolutions(selectedCameraLensFacing)
+    }
+    val selectedResolution = selectCameraResolution(supportedCameraResolutions, selectedResolutionKey)
+    LaunchedEffect(selectedResolution) {
+        // 선택값이 새 렌즈 목록에 없을 때 고른 대체 해상도를 선택값으로 저장합니다.
+        selectedResolution?.let { resolution -> selectedResolutionKey = resolution.key }
+    }
 
-    LaunchedEffect(selectedCameraLensFacing, selectedResolutionKey) {
+    LaunchedEffect(selectedCameraLensFacing, selectedResolution) {
         videoQualityCaptureState = VideoQualityCaptureState()
-    }
-    LaunchedEffect(supportedCameraResolutions, selectedResolutionKey) {
-        if (supportedCameraResolutions.none { resolution ->
-                resolution.key == selectedResolutionKey
-            }
-        ) {
-            selectedResolutionKey = supportedCameraResolutions.firstOrNull()?.key
-        }
-    }
-
-    val selectedResolution = supportedCameraResolutions.firstOrNull { resolution ->
-        resolution.key == selectedResolutionKey
     }
     val selectedAudioInput = audioInputDevices.firstOrNull { device ->
         device.id == selectedAudioDeviceId
@@ -1167,7 +1157,7 @@ fun AppNavigation(
                     val config = when (route.type) {
                         SettingOptionType.CAMERA_RESOLUTION -> OptionSelectionConfig(
                             title = UiText.Resource(R.string.label_camera_resolution),
-                            options = supportedCameraResolutions.map { resolution ->
+                            options = supportedCameraResolutions.orEmpty().map { resolution ->
                                 SettingOption(
                                     key = resolution.key,
                                     label = UiText.Dynamic(resolution.displayName),
