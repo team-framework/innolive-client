@@ -2,6 +2,8 @@ package com.framework.innolive
 
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.LiveBroadcastAction
+import com.framework.innolive.feature.live.NoPlatformPreference
+import com.framework.innolive.feature.live.platformPreferenceOf
 import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.buildLiveScreenPresentation
 import com.framework.innolive.feature.live.stoppingState
@@ -121,6 +123,24 @@ class LiveScreenPresentationTest {
             UiText.Dynamic("방송 준비에 실패했습니다."),
             connectedBroadcastFailure.broadcastStatusText,
         )
+    }
+
+    @Test
+    fun noPlatformPreparesAndActivePreviewStopsFromPrimaryButton() {
+        val idle = buildLiveScreenPresentation(
+            WebRtcConnectionState.IDLE, BroadcastState.IDLE, NoPlatformPreference, "방송 대기",
+        )
+        assertEquals(LiveBroadcastAction.PREPARE_BROADCAST, idle.broadcastAction)
+
+        for (connection in listOf(WebRtcConnectionState.CONNECTING, WebRtcConnectionState.CONNECTED)) {
+            val preview = buildLiveScreenPresentation(
+                connection, BroadcastState.IDLE, NoPlatformPreference, "방송 대기", isPreviewOnlyActive = true,
+            )
+            assertEquals(LiveBroadcastAction.STOP_PREVIEW, preview.broadcastAction)
+            assertEquals(R.string.action_stop_on_device_preview, preview.broadcastButtonTextRes)
+            assertTrue(preview.isBroadcastButtonEnabled)
+        }
+        assertEquals(NoPlatformPreference, platformPreferenceOf(emptySet()))
     }
 
     @Test
