@@ -1,5 +1,5 @@
 {
-  "originHash" : "d8f61d6236b9568b65fbebca1eb2f481f728888db1c712ba2572634c47ca57af",
+  "originHash" : "cdca94730c29c29a0871d83c8007455ff76689573aab68ec6abe063f20be4042",
   "pins" : [
     {
       "identity" : "app-check",
@@ -80,6 +80,15 @@
       "state" : {
         "revision" : "8f41c63afb903040b77049ee2efa8c257b8c0d50",
         "version" : "2.6.0"
+      }
+    },
+    {
+      "identity" : "opencv-spm",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/yeatse/opencv-spm.git",
+      "state" : {
+        "revision" : "141d91be1f53990b4f5d63e1373afba539a7914d",
+        "version" : "4.12.0"
       }
     },
     {
