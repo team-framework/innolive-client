@@ -7,6 +7,8 @@ nonisolated struct ReferenceFaceStatus: Decodable, Equatable, Sendable {
     let clientID: String
     let count: Int
     let faces: [ReferenceFace]
+    /// AI 워커가 재시작해 잃은 얼굴이 하나라도 있으면 서버가 true로 보낸다. 이 필드가 없는 옛 서버는 false로 읽는다.
+    var reregistrationRequired = false
 
     enum CodingKeys: String, CodingKey {
         case registered
@@ -15,17 +17,66 @@ nonisolated struct ReferenceFaceStatus: Decodable, Equatable, Sendable {
         case clientID = "client_id"
         case count
         case faces
+        case reregistrationRequired = "reregistration_required"
     }
 }
+
+extension ReferenceFaceStatus {
+    // 디코더를 extension에 두어 온디바이스 저장소가 쓰는 멤버별 생성자를 유지한다.
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        registered = try container.decode(Bool.self, forKey: .registered)
+        source = try container.decodeIfPresent(String.self, forKey: .source)
+        registeredAt = try container.decodeIfPresent(String.self, forKey: .registeredAt)
+        clientID = try container.decode(String.self, forKey: .clientID)
+        count = try container.decode(Int.self, forKey: .count)
+        faces = try container.decode([ReferenceFace].self, forKey: .faces)
+        reregistrationRequired = try container.decodeIfPresent(Bool.self, forKey: .reregistrationRequired) ?? false
+    }
+}
+
 nonisolated struct ReferenceFace: Decodable, Equatable, Identifiable, Sendable {
     let id: String
     var name: String? = nil
     let registeredAt: String
+    /// 이 얼굴을 AI 워커가 잃어 블러에서 빠지지 않는다. 같은 face_id로 사진을 다시 올리면 풀린다.
+    var reregistrationRequired = false
 
     enum CodingKeys: String, CodingKey {
         case name
         case id = "face_id"
         case registeredAt = "registered_at"
+        case reregistrationRequired = "reregistration_required"
+    }
+}
+
+extension ReferenceFace {
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        registeredAt = try container.decode(String.self, forKey: .registeredAt)
+        reregistrationRequired = try container.decodeIfPresent(Bool.self, forKey: .reregistrationRequired) ?? false
+    }
+}
+
+nonisolated enum ReferenceFaceReregistration {
+    static var notice: String {
+        String(localized: "AI 서버 재시작으로 등록이 초기화되어, 다시 등록해야 블러에서 제외됩니다.")
+    }
+
+    /// 서버가 같은 face_id의 얼굴을 다시 등록하는 multipart 본문이다. 이름을 보내지 않아 기존 이름을 유지한다.
+    /// `image`가 아닌 `images`로 보내 face_id를 모르는 서버에서도 얼굴 집합 전체를 교체하지 않게 한다.
+    static func multipartBody(faceID: String, jpegData: Data, boundary: String) -> Data {
+        var body = Data()
+        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"face_id\"\r\n\r\n".utf8))
+        body.append(Data((faceID + "\r\n").utf8))
+        body.append(Data("--\(boundary)\r\n".utf8))
+        body.append(Data("Content-Disposition: form-data; name=\"images\"; filename=\"reference-face.jpg\"\r\n".utf8))
+        body.append(Data("Content-Type: image/jpeg\r\n\r\n".utf8))
+        body.append(jpegData)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+        return body
     }
 }
 
