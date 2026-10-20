@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.framework.innolive.feature.live.ForegroundServiceCommands
 import com.framework.innolive.feature.live.direct.broadcast.BroadcastKeepAlive
 import com.framework.innolive.feature.live.direct.broadcast.DirectMediaControl
 
@@ -55,7 +56,11 @@ internal class ServiceBroadcastKeepAlive(
         lifecycleObserver.detach()
         if (serviceStarted) {
             serviceStarted = false
-            context.stopService(DirectBroadcastService.startIntent(context))
+            // golive가 바로 실패하면 서비스가 아직 startForeground 전일 수 있어 STOP 명령으로 끕니다.
+            ForegroundServiceCommands.requestStop(
+                sendStop = { context.startService(DirectBroadcastService.stopIntent(context)) },
+                stopService = { context.stopService(DirectBroadcastService.startIntent(context)) },
+            )
         }
     }
 

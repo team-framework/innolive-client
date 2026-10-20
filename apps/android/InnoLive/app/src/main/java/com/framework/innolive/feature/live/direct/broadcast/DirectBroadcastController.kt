@@ -552,9 +552,10 @@ internal class DirectBroadcastController internal constructor(
     private fun applyGoLive(created: CreatedSession, result: DirectGoLiveResult) {
         var failure: BroadcastEvent? = null
         val failed = result.failedTargets.map { it.provider }.toSet()
+        val othersContinue = targets.values.any { it.provider.wireValue !in failed }
         result.failedTargets.forEach { item ->
             env.log("golive_target_failed provider=${item.provider} code=${item.code}")
-            failure = failure ?: directTargetFailureEvent(item.code)
+            failure = failure ?: directTargetFailureEvent(item.provider, item.code, othersContinue)
         }
         // 실패한 대상은 정리하고 다른 대상은 계속합니다.
         targets.values.filter { it.provider.wireValue in failed }.map { it.provider }.forEach(::stopTarget)

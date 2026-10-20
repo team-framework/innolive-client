@@ -40,4 +40,5 @@
     <string name="chzzk_error_settings">Check your CHZZK broadcast settings.</string>
     <string name="chzzk_error_unauthorized">Your sign-in has expired. Please sign in again.</string>
     <string name="chzzk_error_request">The CHZZK broadcast request failed. Please try again.</string>
+    <string name="chzzk_error_rate_limited">The CHZZK request limit has been reached. Please try again later.</string>
 </resources>

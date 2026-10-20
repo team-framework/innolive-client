@@ -1121,13 +1121,13 @@ internal class WebRtcConnection(
     }
 
     // golive는 준비된 모든 대상을 한 번에 전환합니다. 일부 대상의 실패는 성공 응답의 failed_targets로 옵니다.
-    private fun goLiveWithRetry(): List<BroadcastProvider> {
+    private fun goLiveWithRetry(): Map<BroadcastProvider, String> {
         repeat(GO_LIVE_RETRY_COUNT) { attempt ->
             check(isActive()) { "WebRTC 연결이 종료되었습니다." }
             try {
                 val response = postSessionRequest("stream/golive")
                 check(parseBroadcastState(response, provider) != null)
-                return parseFailedTargets(response)
+                return parseFailedTargetCodes(response)
             } catch (exception: ServerApiException) {
                 if (exception.code != "broadcast_not_ready") throw exception
                 if (attempt < GO_LIVE_RETRY_COUNT - 1) {
@@ -2560,6 +2560,7 @@ internal fun chzzkBroadcastErrorMessage(code: String?, field: String?): UiText =
             else -> R.string.chzzk_error_settings
         }
         "unauthorized" -> R.string.chzzk_error_unauthorized
+        "streaming_rate_limited" -> R.string.chzzk_error_rate_limited
         else -> R.string.chzzk_error_request
     },
 )
@@ -2583,22 +2584,36 @@ internal fun simulcastPrepareFailedMessage(failed: Collection<BroadcastProvider>
     },
 )
 
-/** golive의 failed_targets입니다. 실패한 플랫폼만 안내하고 성공한 플랫폼의 방송은 유지합니다. */
-internal fun simulcastGoLiveFailedMessage(failed: Collection<BroadcastProvider>): UiText = UiText.Resource(
-    when {
-        failed.size > 1 -> R.string.simulcast_golive_failed_all
-        BroadcastProvider.CHZZK in failed -> R.string.simulcast_golive_failed_chzzk
-        else -> R.string.simulcast_golive_failed_youtube
-    },
-)
+/**
+ * golive의 failed_targets입니다. 실패한 플랫폼만 안내하고 성공한 플랫폼의 방송은 유지합니다.
+ * YouTube 요청 한도는 채널 단위라 재시도·채널 변경 안내가 필요해 별도 문구로 알립니다.
+ */
+internal fun simulcastGoLiveFailedMessage(failed: Map<BroadcastProvider, String>): UiText {
+    val youtubeRateLimited = failed[BroadcastProvider.YOUTUBE] == "streaming_rate_limited"
+    return UiText.Resource(
+        when {
+            failed.size > 1 && youtubeRateLimited -> R.string.simulcast_golive_failed_all_rate_limited_youtube
+            failed.size > 1 -> R.string.simulcast_golive_failed_all
+            BroadcastProvider.CHZZK in failed -> R.string.simulcast_golive_failed_chzzk
+            youtubeRateLimited -> R.string.simulcast_golive_rate_limited_youtube
+            else -> R.string.simulcast_golive_failed_youtube
+        },
+    )
+}
 
-// 알 수 없는 플랫폼은 이 앱이 송출하지 않은 대상이므로 무시합니다.
-internal fun parseFailedTargets(payload: String): List<BroadcastProvider> {
-    val failed = JSONObject(payload).optJSONArray("failed_targets") ?: return emptyList()
-    return (0 until failed.length()).mapNotNull { index ->
-        val name = failed.optJSONObject(index)?.optString("provider")
-        BroadcastProvider.entries.firstOrNull { it.wireValue == name }
-    }.distinct()
+/**
+ * failed_targets의 플랫폼별 사유 코드입니다. 같은 플랫폼이 여러 번 오면 처음 사유를 씁니다.
+ * 알 수 없는 플랫폼은 이 앱이 송출하지 않은 대상이므로 무시합니다.
+ */
+internal fun parseFailedTargetCodes(payload: String): Map<BroadcastProvider, String> {
+    val failed = JSONObject(payload).optJSONArray("failed_targets") ?: return emptyMap()
+    val codes = linkedMapOf<BroadcastProvider, String>()
+    for (index in 0 until failed.length()) {
+        val entry = failed.optJSONObject(index) ?: continue
+        val provider = BroadcastProvider.entries.firstOrNull { it.wireValue == entry.optString("provider") } ?: continue
+        codes.putIfAbsent(provider, entry.optString("code"))
+    }
+    return codes
 }
 
 private fun Throwable.toBroadcastFailure(): BroadcastFailure =

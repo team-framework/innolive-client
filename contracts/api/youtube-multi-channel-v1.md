@@ -9,6 +9,7 @@ Source: [server request, 2026-10-12](https://app.notion.com/p/3f7ba097c659808a97
 - GET `/sessions/{id}/broadcast/defaults`: `provider=youtube&account_id={id}`. Settings draft and response generation are scoped to the selected account/channel. Ignore previous channel responses after selection changes.
 - PUT `/sessions/{id}/broadcast-mode`: optional `account_id` only when adding YouTube. Existing YouTube target keeps its original channel.
 - Session `targets[]`: optional `account_id`, `channel_title`; missing fields remain compatible with earlier servers.
+- YouTube request limit (`streaming_rate_limited`, HTTP 429): applies per channel. Prepare, go-live and live settings updates return it; simulcast go-live reports it in `failed_targets[].code`. `error.details.account_id` names the limited connection when the request selected one (innolive-server#505). Guide the user to retry later or choose another channel.
 
 ## Compatibility
 
