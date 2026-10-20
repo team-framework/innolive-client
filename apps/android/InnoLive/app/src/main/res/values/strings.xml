@@ -294,8 +294,6 @@
     <string name="session_notice_channel_live_elsewhere">치지직 채널이 이미 다른 도구로 방송 중이라 송출이 거절됐습니다. 다른 도구의 방송을 먼저 끝내세요.</string>
     <string name="session_notice_platform_broadcast_ended">플랫폼 스튜디오에서 방송이 종료되어 송출을 멈췄습니다.</string>
     <string name="session_notice_youtube_quota_low">오늘 유튜브 연동 사용량이 많아 송출 방식 변경이나 새 방송이 실패할 수 있습니다.</string>
-    <string name="session_usage_warning_test_show">테스트 배너 표시</string>
-    <string name="session_usage_warning_test_hide">테스트 배너 숨기기</string>
     <string name="settings_section_account">InnoLive 계정</string>
     <string name="settings_section_camera">카메라</string>
     <string name="settings_section_audio">오디오</string>

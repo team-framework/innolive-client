@@ -25,7 +25,7 @@ export function DocumentPage({
         aria-labelledby="document-heading"
       >
         <div className="flex w-full max-w-[100rem] min-w-0 flex-col text-text-primary">
-          <article className="w-full min-w-0 max-w-[72rem]" lang={locale}>
+          <article className="mx-auto w-full min-w-0 max-w-[72rem]" lang={locale}>
             <Content components={documentMdxComponents(locale)} />
           </article>
         </div>
