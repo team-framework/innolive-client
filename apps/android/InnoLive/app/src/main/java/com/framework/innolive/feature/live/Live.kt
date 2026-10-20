@@ -1232,8 +1232,19 @@ private fun LiveScreenContent(
                 val chat = viewerChat
                 if (faceSelection != null) {
                     // iOS처럼 얼굴 선택 안내는 채팅 자리인 하단 방송 버튼 바로 위에 두고, 작은 창은 그 위로 비킵니다.
-                    val statusStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 24.dp
-                    val statusEnd = if (landscape) with(density) { pipState.rightControlsWidthPx.toDp() } + 8.dp else 24.dp
+                    var statusStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 24.dp
+                    var statusEnd = if (landscape) with(density) { pipState.rightControlsWidthPx.toDp() } + 8.dp else 24.dp
+                    // 가로 화면처럼 높이가 낮아 작은 창이 안내 위로 다 비키지 못하면, 안내가 작은 창이 붙은 쪽을 비웁니다.
+                    val pipBounds = pipState.restingBounds.takeIf { pipState.isVisible }
+                    if (pipBounds != null && pipBounds.bottom > pageSize.height - pipState.bottomReservePx(density)) {
+                        with(density) {
+                            if (pipState.alignEnd) {
+                                statusEnd = maxOf(statusEnd, (pageSize.width - pipBounds.left).toDp() + 8.dp)
+                            } else {
+                                statusStart = maxOf(statusStart, pipBounds.right.toDp() + 8.dp)
+                            }
+                        }
+                    }
                     val statusBottom = with(density) { pipState.bottomControlsReservePx(this).toDp() } + 12.dp
                     FaceSelectionStatusPanel(
                         phase = faceSelection.phase,
