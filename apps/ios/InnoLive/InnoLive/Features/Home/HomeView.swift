@@ -758,7 +758,7 @@ struct HomeView: View {
     private func runBroadcastPreparation(_ provider: BroadcastSettingsProvider) async {
         let zoomToKeep = cameraManager.currentZoomFactor
         let quality = CameraQualityPreset(
-            rawValue: UserDefaults.standard.string(forKey: "selectedResolution") ?? ""
+            rawValue: UserDefaults.standard.string(forKey: CameraQualityPreset.storageKey) ?? ""
         ) ?? .defaultValue
         _ = await youtube.startBroadcastPreparation(
             accessToken: authentication.currentAccessToken(),

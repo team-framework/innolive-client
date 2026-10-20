@@ -348,7 +348,7 @@ struct BroadcastFeedbackBanner: View {
 struct StudioBroadcastSummaryLabel: View {
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject var editor: BroadcastSettingsEditor
-    @AppStorage("selectedResolution") private var selectedResolution = CameraQualityPreset.defaultValue.rawValue
+    @AppStorage(CameraQualityPreset.storageKey) private var selectedResolution = CameraQualityPreset.defaultValue.rawValue
     @AppStorage(AIProcessingMode.storageKey) private var selectedAIProcessing = AIProcessingMode.server.rawValue
 
     var body: some View {

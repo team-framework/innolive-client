@@ -133,24 +133,24 @@
         }
       }
     },
-    "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 카메라 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요.": {
+    "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 방송 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요.": {
       "localizations": {
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 카메라 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요."
+            "value": "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 방송 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Your plan does not support the selected FHD broadcast mode. Choose 720p in camera settings or reduce the number of destinations."
+            "value": "Your plan does not support the selected FHD broadcast mode. Choose 720p in broadcast settings or reduce the number of destinations."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "現在のプランは選択したFHD配信方式に対応していません。カメラ設定で720pを選択するか、配信先を減らしてください。"
+            "value": "現在のプランは選択したFHD配信方式に対応していません。配信設定で720pを選択するか、配信先を減らしてください。"
           }
         }
       }
