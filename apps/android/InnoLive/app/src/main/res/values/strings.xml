@@ -361,7 +361,7 @@
     <string name="settings_collapsed">접힘</string>
     <!-- Quick face registration (home one-tap) -->
     <string name="quick_face_select_start">얼굴 등록</string>
-    <string name="quick_face_select_cancel">얼굴 선택 취소</string>
+    <string name="quick_face_select_cancel">등록 취소</string>
     <string name="quick_face_select_hint">화면에 보이는 얼굴을 탭해 비식별화에서 제외합니다.</string>
     <string name="quick_face_preparing">카메라를 준비하고 있어요.</string>
     <string name="quick_face_show_face">얼굴이 화면에 보이도록 비춰 주세요.</string>
