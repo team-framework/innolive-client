@@ -213,8 +213,8 @@ struct HomeView: View {
             studioContent
             if let status = youtube.preparationStatus {
                 BroadcastPreparationOverlay(status: status) {
-                    guard let provider = youtube.lastPreparationProvider else { return }
-                    await beginBroadcastPreparation(provider)
+                    // 비식별화만 준비했다면 대상이 없으므로 기본 플랫폼 값은 쓰이지 않는다.
+                    await beginBroadcastPreparation(youtube.lastPreparationProvider ?? .youtube)
                 } onCancel: {
                     await cancelBroadcastPreparation()
                 }
