@@ -22,6 +22,10 @@ nonisolated final class PrivacyModel {
     private let detectionsName: String
     private let prototypesName: String
     private let stabilizer = PrivacyMaskStabilizer()
+    private let tracker = PrivacyBoTSORT()
+    private let cameraMotion = PrivacyCameraMotion()
+    private var previousExtent: CGRect?
+    private var previousTime: Double?
     let faces = PrivacyFaceCoordinator()
 
     init() throws {
@@ -51,7 +55,14 @@ nonisolated final class PrivacyModel {
         input = buffer
     }
 
-    func resetTemporalState() { stabilizer.reset(); faces.reset() }
+    func resetTemporalState() {
+        stabilizer.reset()
+        tracker.reset()
+        cameraMotion.reset()
+        faces.reset()
+        previousExtent = nil
+        previousTime = nil
+    }
 
     func process(_ pixelBuffer: CVPixelBuffer) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
         return try process(CIImage(cvPixelBuffer: pixelBuffer))
@@ -81,7 +92,16 @@ nonisolated final class PrivacyModel {
     }
 
     private func process<Output>(_ original: CIImage, render: (CIImage) throws -> Output) throws -> (Output, Int, PrivacyTimings, PrivacyFaceSnapshot) {
+        do { return try processFrame(original, render: render) }
+        catch { resetTemporalState(); throw error }
+    }
+
+    private func processFrame<Output>(_ original: CIImage, render: (CIImage) throws -> Output) throws -> (Output, Int, PrivacyTimings, PrivacyFaceSnapshot) {
         let start = ProcessInfo.processInfo.systemUptime
+        if let previousTime, start <= previousTime || start - previousTime >= 1.0 { resetTemporalState() }
+        if let previousExtent, previousExtent != original.extent { resetTemporalState() }
+        previousTime = start
+        previousExtent = original.extent
         let size = original.extent.size
         let layout = PrivacySegmentation.Letterbox(size: size)
         let resized = original.transformed(by: CGAffineTransform(
@@ -98,13 +118,20 @@ nonisolated final class PrivacyModel {
             throw PrivacyModelError.outputContract
         }
         let objects = try PrivacySegmentation.detections(PrivacySegmentation.floats(raw, shape: [1, 38, 8400]))
+        let motion = PrivacyPipelineProbe.measure("camera_motion") { cameraMotion.estimate(original, layout: layout) }
+        let tracked = PrivacyPipelineProbe.measure("tracking") { tracker.update(objects, motion: motion) }
+        let trackIDs = Dictionary(uniqueKeysWithValues: tracked.observations.filter(\.confirmed).map { ($0.detectionIndex, $0.trackID) })
         let allowed = PrivacyPipelineProbe.measure("recognition_schedule") {
-            faces.process(image: original, objects: objects, layout: layout, timestamp: start)
+            faces.process(image: original, objects: objects, layout: layout, timestamp: start, trackIDs: trackIDs)
         }
-        let protected = objects.enumerated().filter { !allowed.contains($0.offset) }.map(\.element)
-        let instances = try PrivacySegmentation.instanceMasks(detections: protected,
+        // High-confidence discoveries are protected on their first frame, including
+        // tentative tracks. Low-confidence detections need an existing track.
+        let continued = Set(tracked.observations.map(\.detectionIndex))
+        let protectedIndices = objects.indices.filter { objects[$0].score >= PrivacyBoTSORT.highThreshold || continued.contains($0) }
+        let instances = try PrivacySegmentation.instanceMasks(detections: protectedIndices.map { objects[$0] },
                                                               prototypes: PrivacySegmentation.floats(proto, shape: [1, 32, 160, 160]))
-        let bytes = try stabilizer.apply(instances, timestamp: start)
+        let indexedMasks = Dictionary(uniqueKeysWithValues: zip(protectedIndices, instances))
+        let bytes = try stabilizer.apply(indexedMasks, frame: tracked, allowed: allowed)
         let masked = ProcessInfo.processInfo.systemUptime
         let mask = try PrivacyMask.modelImage(bytes: bytes)
             .transformed(by: CGAffineTransform(scaleX: 4, y: 4))
@@ -117,7 +144,7 @@ nonisolated final class PrivacyModel {
                                                                           kCIInputMaskImageKey: mask])
         let rendered = try render(result)
         let completed = ProcessInfo.processInfo.systemUptime
-        return (rendered, objects.count, PrivacyTimings(prepare: (prepared - start) * 1000,
+        return (rendered, protectedIndices.count, PrivacyTimings(prepare: (prepared - start) * 1000,
                                                        inference: (inferred - prepared) * 1000,
                                                        mask: (masked - inferred) * 1000,
                                                        render: (completed - masked) * 1000), faces.snapshot)

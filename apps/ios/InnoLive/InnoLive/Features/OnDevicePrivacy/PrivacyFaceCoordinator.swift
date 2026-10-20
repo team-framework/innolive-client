@@ -77,7 +77,7 @@ nonisolated final class PrivacyFaceCoordinator {
     }
 
     func process(image: CIImage, objects: [PrivacySegmentation.Detection], layout: PrivacySegmentation.Letterbox,
-                 timestamp: Double) -> Set<Int> {
+                 timestamp: Double, trackIDs: [Int: Int]) -> Set<Int> {
         let revision = PrivacyFaceLibrary.revision
         if libraryRevision != revision {
             generation += 1
@@ -96,7 +96,7 @@ nonisolated final class PrivacyFaceCoordinator {
             if !real.isNull, min(real.width, real.height) >= 24 { boxes[index] = real }
         }
         // Use model-coordinate boxes for stable geometry, including small faces to invalidate crossings.
-        tracking.update(Dictionary(uniqueKeysWithValues: faceIndices.map { ($0, objects[$0].box) }), at: timestamp)
+        tracking.update(Dictionary(uniqueKeysWithValues: faceIndices.map { ($0, objects[$0].box) }), at: timestamp, trackIDs: trackIDs)
         if let output = worker.takeResult(), output.generation == generation {
             milliseconds = output.milliseconds
             if output.fatal {
