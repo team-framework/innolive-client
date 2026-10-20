@@ -212,22 +212,16 @@ private fun LiveScreenContent(
     LaunchedEffect(viewerChat == null) { if (viewerChat == null) viewerChatHidden = false }
     // 방송 준비 중 표시할 동의·안내입니다. 수락하면 다음 단계로 이어서 진행합니다.
     var pendingConsentStep by remember { mutableStateOf<BroadcastConsentStep?>(null) }
-    var testUsageWarningOverride by remember { mutableStateOf(false) }
     // 사용자가 방송 방식을 직접 고르기 전에는 요금제가 허용하는 최고 화질을 따릅니다.
     var directModeUserSelected by rememberSaveable { mutableStateOf(false) }
     var dismissedNoticeCodes by remember { mutableStateOf(emptySet<String>()) }
     val sessionSnapshot = webRtcSession.sessionSnapshot
     val sessionId = webRtcSession.sessionSnapshot?.sessionId
-    val activeNoticeCode = if (testUsageWarningOverride) {
-        "monthly_usage_80"
-    } else {
-        sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
-            notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
-        }?.code
-    }
+    val activeNoticeCode = sessionSnapshot?.bannerNotices?.firstOrNull { notice ->
+        notice.code !in dismissedNoticeCodes && sessionNoticeMessageResource(notice.code) != null
+    }?.code
     LaunchedEffect(sessionId) {
         dismissedNoticeCodes = emptySet()
-        testUsageWarningOverride = false
     }
     val context = LocalContext.current
     val providerPreferences = remember(context) {
@@ -630,7 +624,6 @@ private fun LiveScreenContent(
                         noticeCode = activeNoticeCode,
                         onDismissRequest = { code ->
                             dismissedNoticeCodes = dismissedNoticeCodes + code
-                            if (testUsageWarningOverride && code == "monthly_usage_80") testUsageWarningOverride = false
                         },
                         modifier = Modifier.widthIn(max = 560.dp).padding(horizontal = 10.dp),
                     )
@@ -1130,18 +1123,6 @@ private fun LiveScreenContent(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    if (BuildConfig.DEBUG) {
-                        TextButton(onClick = {
-                            testUsageWarningOverride = !testUsageWarningOverride
-                        }) {
-                            Text(
-                                stringResource(
-                                    if (testUsageWarningOverride) R.string.session_usage_warning_test_hide
-                                    else R.string.session_usage_warning_test_show,
-                                ),
-                            )
-                        }
-                    }
                     // Figma 기본 화면처럼 카메라 전환·방송 버튼·익명화를 한 줄에 둡니다. 가로에서는 오른쪽 열로 옮깁니다.
                     if (!landscape) {
                         Row(
