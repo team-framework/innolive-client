@@ -26,7 +26,7 @@ import com.framework.innolive.R
 import com.framework.innolive.feature.live.CameraLensFacing
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
-import com.framework.innolive.feature.settings.SettingsScreen
+import com.framework.innolive.feature.settings.CameraAudioSettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.util.Locale
@@ -112,8 +112,9 @@ class LocalizationScreenSmokeTest {
                 LocalConfiguration provides context.value.resources.configuration,
             ) {
                 MyApplicationTheme(dynamicColor = false) {
-                    SettingsScreen(
-                        SettingsScreenProps(
+                    CameraAudioSettingsScreen(
+                        onBack = {},
+                        props = SettingsScreenProps(
                             onBack = {},
                             onOpenBroadcastSettings = {},
                             profileName = "InnoLive User",
@@ -155,8 +156,9 @@ class LocalizationScreenSmokeTest {
                 LocalDensity provides Density(LocalDensity.current.density, fontScale = 2f),
             ) {
                 Box(Modifier.width(320.dp).height(560.dp)) {
-                    SettingsScreen(
-                        SettingsScreenProps(
+                    CameraAudioSettingsScreen(
+                        onBack = {},
+                        props = SettingsScreenProps(
                             onBack = {},
                             onOpenBroadcastSettings = {},
                             profileName = "InnoLive User",
