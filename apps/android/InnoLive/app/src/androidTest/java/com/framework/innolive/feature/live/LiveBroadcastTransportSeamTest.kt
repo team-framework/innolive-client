@@ -19,6 +19,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import com.framework.innolive.feature.live.consent.BroadcastConsentRule
+import com.framework.innolive.ui.text.UiText
 
 /** ViewModel이 송출 경로를 팩토리로 만들고 동작을 그대로 넘기는지 가짜 송출 경로로 확인합니다. */
 class LiveBroadcastTransportSeamTest {
@@ -38,10 +39,12 @@ class LiveBroadcastTransportSeamTest {
         private val stopResult: BroadcastState = BroadcastState.IDLE,
     ) : LiveBroadcastTransport {
         val calls = mutableListOf<String>()
+        val mosaicRequests = mutableListOf<Pair<MosaicConfig, (MosaicConfig?, UiText?) -> Unit>>()
 
         override fun start() {
             calls += "start"
             request.callbacks.onInitialSignalingStarted()
+            request.callbacks.onSessionSnapshotChanged(SessionSnapshot("session"))
             request.callbacks.onStateChanged(WebRtcConnectionState.CONNECTED, null)
             request.callbacks.onDirectUiStateChanged(
                 DirectBroadcastUiState(targets = mapOf(BroadcastProvider.YOUTUBE to LocalTargetStatus.CONNECTING)),
@@ -59,6 +62,10 @@ class LiveBroadcastTransportSeamTest {
             enabled: Boolean,
             onComplete: (AnonymizationState?, AnonymizationFailure?) -> Unit,
         ) = Unit
+
+        override fun setMosaicConfig(config: MosaicConfig, onComplete: (MosaicConfig?, UiText?) -> Unit) {
+            mosaicRequests += config to onComplete
+        }
 
         override fun saveBroadcastSettings(settings: BroadcastSettings) = Unit
 
@@ -108,6 +115,42 @@ class LiveBroadcastTransportSeamTest {
             session.close()
             assertEquals("close", transport.calls.last())
             assertEquals(DirectBroadcastUiState(), session.directBroadcastUiState)
+        }
+    }
+
+    @Test fun mosaicChangesWhileRequestingSendOnlyTheLastValue() {
+        val created = mutableListOf<FakeTransport>()
+        lateinit var session: WebRtcSessionViewModel
+        compose.runOnIdle {
+            session = WebRtcSessionViewModel { request -> FakeTransport(request).also(created::add) }
+            assertFalse(session.canChangeMosaicConfig)
+            assertTrue(session.prepareBroadcast(compose.activity, settings) { "access-token" })
+        }
+        compose.waitUntil(10_000) { session.canChangeMosaicConfig }
+        compose.runOnIdle {
+            val transport = created.single()
+            assertTrue(session.updateMosaicConfig(MosaicConfig(blurRadius = 30.0)))
+            assertTrue(session.isChangingMosaicConfig)
+            // 요청 중에 들어온 값은 마지막 것만 이어서 보냅니다.
+            session.updateMosaicConfig(MosaicConfig(blurRadius = 40.0))
+            session.updateMosaicConfig(MosaicConfig(blurRadius = 50.0, maskMargin = 20))
+            assertEquals(1, transport.mosaicRequests.size)
+            transport.mosaicRequests[0].let { (config, complete) -> complete(config, null) }
+            assertEquals(MosaicConfig(blurRadius = 30.0), session.mosaicConfig)
+            assertEquals(MosaicConfig(blurRadius = 50.0, maskMargin = 20), transport.mosaicRequests[1].first)
+            transport.mosaicRequests[1].let { (config, complete) -> complete(config, null) }
+            assertFalse(session.isChangingMosaicConfig)
+            assertEquals(50, session.mosaicConfig.effectiveBlurRadius)
+            // 실패하면 확정값을 유지하고 안내를 보여 줍니다.
+            session.updateMosaicConfig(MosaicConfig())
+            transport.mosaicRequests[2].second(null, UiText.Resource(com.framework.innolive.R.string.error_mosaic_config))
+            assertEquals(50, session.mosaicConfig.effectiveBlurRadius)
+            assertFalse(session.isChangingMosaicConfig)
+            assertEquals(UiText.Resource(com.framework.innolive.R.string.error_mosaic_config), session.mosaicConfigError)
+            // 세션이 끝나면 새 세션은 기본값으로 시작합니다.
+            session.close()
+            assertEquals(MosaicConfig(), session.mosaicConfig)
+            assertNull(session.mosaicConfigError)
         }
     }
 
