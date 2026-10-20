@@ -560,6 +560,31 @@ internal class WebRtcConnection(
         )
     }
 
+    override fun setMosaicConfig(config: MosaicConfig, onComplete: (MosaicConfig?, UiText?) -> Unit) {
+        fun complete(confirmed: MosaicConfig?, error: UiText?) {
+            mainHandler.post { if (isActive()) onComplete(confirmed, error) }
+        }
+        val failed = UiText.Resource(R.string.error_mosaic_config)
+        executeOnOwner(
+            block = {
+                if (!isActive()) return@executeOnOwner
+                if (onDeviceProcessing) {
+                    complete(null, UiText.Resource(R.string.mosaic_server_only))
+                    return@executeOnOwner
+                }
+                try {
+                    val payload = executeSessionRequest("mosaic-config", "PUT", config.toJson())
+                    val confirmed = parseMosaicConfig(JSONObject(payload))
+                    complete(confirmed, if (confirmed == null) failed else null)
+                } catch (exception: Exception) {
+                    // 안내가 정해진 서버 오류만 그대로 보여 주고, 나머지는 같은 실패 안내로 묶습니다.
+                    complete(null, (exception as? ServerApiException)?.guidance()?.message ?: failed)
+                }
+            },
+            onRejected = { complete(null, failed) },
+        )
+    }
+
     override fun saveBroadcastSettings(settings: BroadcastSettings) {
         if (provider != BroadcastProvider.YOUTUBE) return
         runBroadcastOperation {
@@ -2302,6 +2327,7 @@ internal class WebRtcConnection(
         return try {
             val operation = when {
                 request.url.encodedPath.endsWith("/anonymization") -> "anonymization"
+                request.url.encodedPath.endsWith("/mosaic-config") -> "mosaic_config"
                 request.url.encodedPath.endsWith("/broadcast") -> "broadcast_settings"
                 request.url.encodedPath.endsWith("/stream/prepare") -> "stream_prepare"
                 request.url.encodedPath.endsWith("/stream/stop") -> "stream_stop"

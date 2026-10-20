@@ -444,6 +444,19 @@ private fun LiveScreenContent(
             onSettingsChanged = props.onVideoQualitySettingsChanged,
             onDismiss = { openVideoControls = false },
             mirrorPreviews = props.cameraLensFacing.shouldMirrorPreview,
+            mosaic = MosaicControlsState(
+                config = webRtcSession.mosaicConfig,
+                enabled = webRtcSession.canChangeMosaicConfig,
+                isChanging = webRtcSession.isChangingMosaicConfig,
+                noteRes = mosaicNoteRes(
+                    hasSession = webRtcSession.sessionSnapshot != null,
+                    onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
+                    canChange = webRtcSession.canChangeMosaicConfig,
+                    anonymizationEnabled = webRtcSession.anonymizationState == AnonymizationState.ENABLED,
+                ),
+                error = webRtcSession.mosaicConfigError,
+                onChange = { webRtcSession.updateMosaicConfig(it) },
+            ),
         )
     }
 
