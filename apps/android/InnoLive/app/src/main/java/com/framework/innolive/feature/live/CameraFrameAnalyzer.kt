@@ -115,7 +115,8 @@ class CameraFrameAnalyzer(
             } catch(error:Throwable) {
                 if(!error.isPrivacyProcessingFailure()) throw error
                 protectedPreparationFailed=true
-                Log.w("PrivacyPipeline","prepare_failed type=${error.javaClass.simpleName}")
+                Log.w("PrivacyPipeline","prepare_failed type=${error.javaClass.simpleName}",
+                    error.takeIf { BuildConfig.DEBUG })
                 route.ticket()?.takeIf {it.mode==PrivacyFrameMode.LOCAL_PROTECTED}?.let {
                     route.deliver(it,onProcessingFailure)
                 }
