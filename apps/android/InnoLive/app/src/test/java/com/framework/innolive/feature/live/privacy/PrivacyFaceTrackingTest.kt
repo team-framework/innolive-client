@@ -60,6 +60,23 @@ class PrivacyFaceTrackingTest {
         assertEquals(setOf(0), tracker.allowed())
     }
 
+    @Test fun exemptionEndsWhenNoRevalidationCanRun() {
+        exempt()
+        repeat(PrivacyFaceTracking.CONFIRMATION_LIMIT_FRAMES) { step() }
+        assertEquals("checks never scheduled, but still within the limit", setOf(0), tracker.allowed())
+        step()
+        assertTrue(tracker.allowed().isEmpty())
+    }
+
+    @Test fun repeatedMissingSamplesCannotRenewTheExemption() {
+        exempt()
+        repeat(PrivacyFaceTracking.CONFIRMATION_LIMIT_FRAMES + 1) {
+            step()
+            tracker.next(now)?.let { answer(it, null, sampleAvailable = false) }
+        }
+        assertTrue(tracker.allowed().isEmpty())
+    }
+
     @Test fun decisionSurvivesThreeMissingFramesButNotFour() {
         exempt()
         repeat(3) { step(*emptyArray()) }
