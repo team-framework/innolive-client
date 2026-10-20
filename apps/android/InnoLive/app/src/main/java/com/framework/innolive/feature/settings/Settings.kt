@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Face
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SmartDisplay
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -69,6 +70,8 @@ fun SettingsScreen(
         SettingsSectionCard(stringResource(R.string.settings_section_video_audio)) {
             SettingsNavigationRow(stringResource(R.string.settings_camera_audio), Icons.Filled.PhotoCamera,
                 enabled, props.onOpenCameraAudioSettings, Modifier.testTag("settings-camera"))
+            SettingsNavigationRow(stringResource(R.string.video_controls_title), Icons.Outlined.Tune,
+                enabled, props.onOpenVideoControls, Modifier.testTag("settings-video"))
         }
         SettingsSectionCard(stringResource(R.string.settings_section_anonymization)) {
             SettingsNavigationRow(stringResource(R.string.settings_ai_faces), Icons.Outlined.Face,

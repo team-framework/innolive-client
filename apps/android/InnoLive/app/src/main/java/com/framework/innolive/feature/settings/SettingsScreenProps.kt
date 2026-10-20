@@ -15,6 +15,8 @@ data class SettingsScreenProps(
     /** 로그아웃·계정 삭제를 모은 계정 설정 화면을 엽니다. */
     val onOpenAccountSettings: () -> Unit = {},
     val onOpenCameraAudioSettings: () -> Unit = {},
+    /** 미리보기를 보며 조절하도록 설정을 닫고 영상 조절 시트를 엽니다. */
+    val onOpenVideoControls: () -> Unit = {},
     val onOpenAISettings: () -> Unit = {},
     val onOpenPlanUsage: () -> Unit = {},
     /** 계정 설정·안내 다시 보기·개인정보처리방침·실험실을 모은 화면을 엽니다. */

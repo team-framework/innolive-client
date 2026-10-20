@@ -903,6 +903,8 @@ fun AppNavigation(
     val isYouTubeAccountOperationInProgress = isYouTubeAccountActionInProgress ||
         youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING
     val isYouTubeAccountChangeEnabled = canChangeYouTubeAccountNow()
+    // 기본 화면의 카메라 도구와 설정의 영상 조절 줄이 같은 시트를 엽니다.
+    var isVideoControlsOpen by rememberSaveable { mutableStateOf(false) }
     val liveScreenProps = rememberUpdatedState(
         LiveScreenProps(
             cameraLensFacing = selectedCameraLensFacing,
@@ -940,6 +942,8 @@ fun AppNavigation(
             onGetAccessToken = { authenticationSession.session.value?.accessToken },
             profileEmail = session?.profileEmail.orEmpty(),
             planUsage = displayedPlanUsage,
+            isVideoControlsOpen = isVideoControlsOpen,
+            onVideoControlsOpenChange = { isVideoControlsOpen = it },
             onOpenSettings = {
                 if (backStack.lastOrNull() == LiveRoute) backStack.add(SettingsRoute)
             },
@@ -957,6 +961,10 @@ fun AppNavigation(
                 if (backStack.lastOrNull() != AccountSettingsRoute) backStack.add(AccountSettingsRoute)
             },
             onOpenCameraAudioSettings = { backStack.add(CameraAudioSettingsRoute) },
+            onOpenVideoControls = {
+                closeSettings()
+                isVideoControlsOpen = true
+            },
             onOpenAISettings = { backStack.add(AISettingsRoute) },
             onOpenPlanUsage = { backStack.add(PlanUsageRoute) },
             onOpenAppInfo = {
