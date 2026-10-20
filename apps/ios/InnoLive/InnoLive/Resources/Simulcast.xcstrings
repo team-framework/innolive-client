@@ -287,6 +287,50 @@
         }
       }
     },
+    "채널 요청 한도로 라이브를 시작하지 못했습니다. 다른 플랫폼의 방송은 유지됩니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채널 요청 한도로 라이브를 시작하지 못했습니다. 다른 플랫폼의 방송은 유지됩니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not go live because the channel reached the request limit. Broadcasts on other platforms continue. Try again later or choose another channel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チャンネルのリクエスト上限によりライブを開始できませんでした。他の配信先での配信は継続します。しばらくしてから再試行するか、別のチャンネルを選択してください。"
+          }
+        }
+      }
+    },
+    "채널 요청 한도": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채널 요청 한도"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel request limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "チャンネルのリクエスト上限"
+          }
+        }
+      }
+    },
     "라이브 시작 실패": {
       "localizations": {
         "ko": {
