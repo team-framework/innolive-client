@@ -111,7 +111,7 @@
     <string name="broadcast_pause_notice">방송 일시 중지 시 YouTube에 송출만 중지되고, 방송 연결은 유지됩니다.</string>
     <string name="action_start_broadcast">방송 시작</string>
     <string name="action_cancel_preparation">방송 준비 취소</string>
-    <string name="action_stop_on_device_preview">비식별화 미리보기 종료</string>
+    <string name="action_stop_on_device_preview">비식별화 종료</string>
     <string name="action_pause_broadcast">방송 일시 중지</string>
     <string name="action_resume_broadcast">방송 재개</string>
     <string name="action_stop_broadcast">방송 종료</string>
