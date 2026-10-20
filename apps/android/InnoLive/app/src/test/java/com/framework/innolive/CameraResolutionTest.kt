@@ -54,6 +54,17 @@ class CameraResolutionTest {
     }
 
     @Test
+    fun fallbackDoesNotReplaceSelectionAcrossLensRoundTrip() {
+        val backResolutions = listOf(CameraResolution(1920, 1080), CameraResolution(1280, 720))
+        val frontResolutions = listOf(CameraResolution(1280, 720), CameraResolution(640, 480))
+        val selectedKey = "1920x1080"
+
+        assertEquals(CameraResolution(1920, 1080), selectCameraResolution(backResolutions, selectedKey))
+        assertEquals(CameraResolution(1280, 720), selectCameraResolution(frontResolutions, selectedKey))
+        assertEquals(CameraResolution(1920, 1080), selectCameraResolution(backResolutions, selectedKey))
+    }
+
+    @Test
     fun noResolutionIsChosenBeforeTheSupportedListIsRead() {
         assertEquals(null, selectCameraResolution(null, "1280x720"))
         assertEquals(null, selectCameraResolution(emptyList(), "1280x720"))
