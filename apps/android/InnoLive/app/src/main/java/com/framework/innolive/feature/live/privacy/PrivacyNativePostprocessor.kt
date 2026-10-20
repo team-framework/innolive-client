@@ -25,6 +25,22 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
         }
     }
 
+    /** Protect [objects] from [PrivacyObjectTracking] instead of every decoded candidate. */
+    fun select(objects: List<PrivacySegmentation.Detection>) {
+        check(handle != 0L && ready)
+        val values = FloatArray(objects.size * 38)
+        objects.forEachIndexed { index, detection ->
+            val offset = index * 38
+            val box = detection.box
+            values[offset] = box.left; values[offset + 1] = box.top; values[offset + 2] = box.right
+            values[offset + 3] = box.bottom; values[offset + 4] = detection.score
+            values[offset + 5] = detection.classId.toFloat()
+            detection.coefficients.copyInto(values, offset + 6)
+        }
+        Native.select(handle, values, IntArray(objects.size) { objects[it].trackId },
+            BooleanArray(objects.size) { objects[it].held })
+    }
+
     fun mask(exempt: Set<Int>, timestampSeconds: Double): ByteArray {
         check(handle != 0L && ready)
         ready = false
@@ -49,6 +65,7 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
         init { System.loadLibrary("innolive_privacy") }
         external fun create(): Long
         external fun decode(handle: Long, predictions: ByteBuffer, prototypes: ByteBuffer): FloatArray
+        external fun select(handle: Long, values: FloatArray, tracks: IntArray, held: BooleanArray)
         external fun mask(handle: Long, exempt: IntArray, timestamp: Double): ByteArray
         external fun maskPixels(handle: Long): Int
         external fun reset(handle: Long)

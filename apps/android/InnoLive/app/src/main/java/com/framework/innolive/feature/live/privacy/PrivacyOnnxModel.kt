@@ -28,6 +28,7 @@ internal class PrivacyOnnxModel(private val context: Context,
     private var session: OrtSession? = null
     private val blur = PrivacyBitmapBlur()
     private val stabilizer = PrivacyMaskStabilizer()
+    private val tracking = PrivacyObjectTracking()
     private val postprocessorDelegate = lazy { PrivacyNativePostprocessor() }
     private val postprocessor by postprocessorDelegate
     var lastMaskPixels: Int = -1
@@ -146,7 +147,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         } else predictLegacy()
         val inferred = System.nanoTime()
         run {
-            val objects = if (nativePostprocessing) {
+            val detections = if (nativePostprocessing) {
                 if (!nativeOutputs) {
                     val values = checkNotNull(legacyOutputs)
                     postprocessor.predictions.asFloatBuffer().put(values.first)
@@ -155,6 +156,8 @@ internal class PrivacyOnnxModel(private val context: Context,
                 }
                 if (nativeOutputs) checkNotNull(nativeDetections) else postprocessor.decode()
             } else PrivacySegmentation.detections(checkNotNull(legacyOutputs).first)
+            val objects = tracking.update(detections, timestampNs / 1_000_000_000.0)
+            if (nativePostprocessing) postprocessor.select(objects)
             val beforeFaces = System.nanoTime()
             val exempt = exemptFaces(objects, layout)
             val afterFaces = System.nanoTime()
@@ -185,7 +188,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         }
     }
 
-    fun resetTemporalState() { stabilizer.reset(); if (postprocessorDelegate.isInitialized()) postprocessor.reset() }
+    fun resetTemporalState() { stabilizer.reset(); tracking.reset(); if (postprocessorDelegate.isInitialized()) postprocessor.reset() }
 
     private fun checkedOutput(output: Pair<FloatArray,FloatArray>): Pair<FloatArray,PrivacyValidatedPrototypes> {
         check(PrivacyNativePixels.finiteFloats(output.first))

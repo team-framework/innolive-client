@@ -12,7 +12,14 @@ internal object PrivacySegmentation {
     const val CANDIDATES = 8400
     const val CHANNELS = 32
     private const val DETECTION_CHANNELS = 38
-    private const val MIN_CONFIDENCE = 0.25f
+    const val MAX_OBJECTS = 100
+    /** BoT-SORT `track_low_thresh`: a weaker candidate may only continue an existing track. */
+    const val CONTINUATION_CONFIDENCE = 0.05f
+    /** BoT-SORT `track_high_thresh`/`new_track_thresh`, and the score that is always protected. */
+    const val ACTIVATION_CONFIDENCE = 0.25f
+    const val NO_TRACK = -1
+    /** innolive-ai detector class-aware NMS IoU. */
+    private const val NMS_IOU = 0.70f
 
     data class Box(val left: Float, val top: Float, val right: Float, val bottom: Float) {
         val width get() = right - left
@@ -25,7 +32,9 @@ internal object PrivacySegmentation {
         }
     }
 
-    data class Detection(val box: Box, val score: Float, val classId: Int, val coefficients: FloatArray)
+    /** [trackId] comes from [PrivacyObjectTracking]; a [held] object is a lost track kept at its predicted box. */
+    data class Detection(val box: Box, val score: Float, val classId: Int, val coefficients: FloatArray,
+                         val trackId: Int = NO_TRACK, val held: Boolean = false)
     data class InstanceMask(val detection: Detection, val bytes: ByteArray)
 
     fun protectedDetections(objects: List<Detection>, exemptFaces: Set<Int>): List<Detection> =
@@ -40,36 +49,46 @@ internal object PrivacySegmentation {
         val top = floor((INPUT_SIZE - resizedHeight) / 2f).toInt()
     }
 
+    /** Candidates above [CONTINUATION_CONFIDENCE]; only those at [ACTIVATION_CONFIDENCE] can fail the frame. */
     fun detections(values: FloatArray, candidateCount: Int = CANDIDATES): List<Detection> {
         require(candidateCount > 0 && values.size == DETECTION_CHANNELS * candidateCount)
-        val found = ArrayList<Detection>()
+        class Candidate(val index: Int, val box: Box, val score: Float, val classId: Int)
+        val found = ArrayList<Candidate>()
         for (index in 0 until candidateCount) {
             val face = values[4 * candidateCount + index]
             val plate = values[5 * candidateCount + index]
             require(face.isFinite() && plate.isFinite())
             val score = max(face, plate)
-            if (score < MIN_CONFIDENCE) continue
+            if (score <= CONTINUATION_CONFIDENCE) continue
+            val protected = score >= ACTIVATION_CONFIDENCE
             val x = values[index]
             val y = values[candidateCount + index]
             val width = values[2 * candidateCount + index]
             val height = values[3 * candidateCount + index]
-            require(x.isFinite() && y.isFinite() && width.isFinite() && height.isFinite() && width > 0 && height > 0)
+            val valid = x.isFinite() && y.isFinite() && width.isFinite() && height.isFinite() && width > 0 && height > 0
+            require(valid || !protected)
+            if (!valid) continue
             val box = Box(
                 max(0f, x - width / 2), max(0f, y - height / 2),
                 min(INPUT_SIZE.toFloat(), x + width / 2), min(INPUT_SIZE.toFloat(), y + height / 2),
             )
             if (box.width <= 0 || box.height <= 0) continue
-            val coefficients = FloatArray(CHANNELS) { channel ->
-                values[(6 + channel) * candidateCount + index].also { require(it.isFinite()) }
+            if (protected) for (channel in 0 until CHANNELS) {
+                require(values[(6 + channel) * candidateCount + index].isFinite())
             }
-            found += Detection(box, score, if (face >= plate) 0 else 1, coefficients)
+            found += Candidate(index, box, score, if (face >= plate) 0 else 1)
         }
         val kept = ArrayList<Detection>()
         for (candidate in found.sortedByDescending { it.score }) {
-            if (kept.none { it.classId == candidate.classId && it.box.intersects(candidate.box) > 0.45f }) {
-                kept += candidate
-                require(kept.size <= 100) { "Too many objects to protect" }
+            if (kept.any { it.classId == candidate.classId && it.box.intersects(candidate.box) > NMS_IOU }) continue
+            if (kept.size == MAX_OBJECTS) {
+                require(candidate.score < ACTIVATION_CONFIDENCE) { "Too many objects to protect" }
+                break
             }
+            val coefficients = FloatArray(CHANNELS) { channel ->
+                values[(6 + channel) * candidateCount + candidate.index].also { require(it.isFinite()) }
+            }
+            kept += Detection(candidate.box, candidate.score, candidate.classId, coefficients)
         }
         return kept
     }

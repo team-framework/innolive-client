@@ -11,6 +11,10 @@
 
 namespace {
 constexpr int kPixels = 160 * 160, kCandidates = 8400, kMaximum = 100;
+// BoT-SORT track_low_thresh and track_high_thresh: weaker candidates may only continue a track.
+constexpr float kContinuation = .05f, kActivation = .25f;
+// innolive-ai detector class-aware NMS IoU.
+constexpr float kNmsIou = .70f;
 struct Box { float left, top, right, bottom; };
 float iou(const Box& a, const Box& b) {
     const float width = std::max(0.f, std::min(a.right,b.right)-std::max(a.left,b.left));
@@ -18,8 +22,8 @@ float iou(const Box& a, const Box& b) {
     const float area = width*height;
     return area/std::max((a.right-a.left)*(a.bottom-a.top)+(b.right-b.left)*(b.bottom-b.top)-area,.0001f);
 }
-struct Detection { Box box; float score; int label, index; std::array<float,32> weights{}; };
-struct Instance { Box box{}; int label=0; std::vector<uint8_t> bytes; };
+struct Detection { Box box; float score; int label, index; std::array<float,32> weights{}; int track=-1; bool held=false; };
+struct Instance { Box box{}; int label=0, track=-1; std::vector<uint8_t> bytes; };
 struct State {
     std::vector<Detection> found, kept;
     std::vector<Instance> previous, current;
@@ -56,9 +60,12 @@ void decode(State& s,const float* values,const float* prototypes) {
     for(int i=0;i<kCandidates;++i) {
         const float face=values[4*kCandidates+i], plate=values[5*kCandidates+i];
         const float score=std::max(face,plate);
-        if(score<.25f) continue;
+        if(score<=kContinuation) continue;
         const float x=values[i],y=values[kCandidates+i],w=values[2*kCandidates+i],h=values[3*kCandidates+i];
-        if(w<=0 || h<=0) throw std::invalid_argument("Invalid detection dimensions");
+        if(w<=0 || h<=0) {
+            if(score>=kActivation) throw std::invalid_argument("Invalid detection dimensions");
+            continue;
+        }
         Box box{std::max(0.f,x-w/2),std::max(0.f,y-h/2),std::min(640.f,x+w/2),std::min(640.f,y+h/2)};
         if(box.right<=box.left || box.bottom<=box.top) continue;
         s.found.push_back({box,score,face>=plate?0:1,i,{}});
@@ -66,11 +73,14 @@ void decode(State& s,const float* values,const float* prototypes) {
     std::stable_sort(s.found.begin(),s.found.end(),[](const auto& a,const auto& b){return a.score>b.score;});
     for(auto candidate:s.found) {
         bool suppressed=false;
-        for(const auto& kept:s.kept) if(kept.label==candidate.label && iou(kept.box,candidate.box)>.45f) {
+        for(const auto& kept:s.kept) if(kept.label==candidate.label && iou(kept.box,candidate.box)>kNmsIou) {
             suppressed=true;break;
         }
         if(suppressed) continue;
-        if(s.kept.size()==kMaximum) throw std::invalid_argument("Too many objects to protect");
+        if(s.kept.size()==kMaximum) {
+            if(candidate.score>=kActivation) throw std::invalid_argument("Too many objects to protect");
+            break;
+        }
         for(int c=0;c<32;++c) candidate.weights[c]=values[(6+c)*kCandidates+candidate.index];
         s.kept.push_back(candidate);
     }
@@ -79,7 +89,7 @@ void decode(State& s,const float* values,const float* prototypes) {
 int lower(float value) { return std::clamp(static_cast<int>(std::floor(value/4.f)),0,160); }
 int upper(float value) { return std::clamp(static_cast<int>(std::ceil(value/4.f)),0,160); }
 void instance(Instance& output,const Detection& detection,const float* prototypes) {
-    output.box=detection.box;output.label=detection.label;
+    output.box=detection.box;output.label=detection.label;output.track=detection.track;
     output.bytes.resize(kPixels);std::fill(output.bytes.begin(),output.bytes.end(),0);
     const int x0=lower(output.box.left),x1=upper(output.box.right);
     const int y0=lower(output.box.top),y1=upper(output.box.bottom);
@@ -155,7 +165,19 @@ void masks(State& s,const std::array<bool,kMaximum>& exempt,double timestamp) {
     int n=0;
     for(size_t i=0;i<s.kept.size();++i) {
         if(s.kept[i].label==0 && exempt[i]) continue;
-        auto& current=s.current[n++];instance(current,s.kept[i],s.prototypes);
+        auto& current=s.current[n++];
+        const Detection& detection=s.kept[i];
+        // A held track repeats its own last mask at the predicted box, like the server's one-frame mask hold.
+        const Instance* held=nullptr;
+        if(detection.held) for(int j=0;j<s.previousCount;++j) {
+            if(s.previous[j].track==detection.track && s.previous[j].label==detection.label) {held=&s.previous[j];break;}
+        }
+        if(held) {
+            current.box=detection.box;current.label=detection.label;current.track=detection.track;
+            current.bytes.resize(kPixels);std::fill(current.bytes.begin(),current.bytes.end(),0);
+            stabilize(current,*held,1.f);unite(s,current);continue;
+        }
+        instance(current,detection,s.prototypes);
         float best=.30f;int match=-1;
         for(int j=0;j<s.previousCount;++j) if(available[j] && s.previous[j].label==current.label) {
             const float similarity=iou(s.previous[j].box,current.box);
@@ -184,6 +206,32 @@ extern "C" JNIEXPORT jfloatArray JNICALL JNI(decode)(JNIEnv* env,jobject,jlong h
         }
         auto result=env->NewFloatArray(output.size());if(result) env->SetFloatArrayRegion(result,0,output.size(),output.data());return result;
     }catch(const std::exception& e){fail(env,e);return nullptr;}
+}
+// Replaces the decoded objects with the tracked ones to protect; exemption indices then refer to this list.
+extern "C" JNIEXPORT void JNICALL JNI(select)(JNIEnv* env,jobject,jlong handle,jfloatArray values,jintArray tracks,jbooleanArray held) {
+    try {
+        auto& s=state(handle);
+        if(!s.ready) throw std::invalid_argument("Select requires decoded detections");
+        const int count=env->GetArrayLength(tracks);
+        if(count>kMaximum || env->GetArrayLength(values)!=count*38 || env->GetArrayLength(held)!=count)
+            throw std::invalid_argument("Invalid tracked objects");
+        std::vector<float> data(count*38);std::array<jint,kMaximum> ids{};std::array<jboolean,kMaximum> flags{};
+        env->GetFloatArrayRegion(values,0,count*38,data.data());
+        env->GetIntArrayRegion(tracks,0,count,ids.data());
+        env->GetBooleanArrayRegion(held,0,count,flags.data());
+        validate(data.data(),count*38);
+        s.kept.clear();
+        for(int i=0;i<count;++i) {
+            const float* d=data.data()+i*38;
+            const Box box{d[0],d[1],d[2],d[3]};
+            if(box.right<=box.left || box.bottom<=box.top || (d[5]!=0.f && d[5]!=1.f))
+                throw std::invalid_argument("Invalid tracked object");
+            Detection detection{box,d[4],static_cast<int>(d[5]),-1,{}};
+            std::copy(d+6,d+38,detection.weights.begin());
+            detection.track=ids[i];detection.held=flags[i]==JNI_TRUE;
+            s.kept.push_back(detection);
+        }
+    }catch(const std::exception& e){fail(env,e);}
 }
 extern "C" JNIEXPORT jbyteArray JNICALL JNI(mask)(JNIEnv* env,jobject,jlong handle,jintArray exempt,jdouble timestamp) {
     try {

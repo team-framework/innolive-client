@@ -2,10 +2,17 @@ package com.framework.innolive.feature.live.privacy
 
 import java.util.UUID
 
-/** Mirrors iOS identity caching while geometry remains unambiguous. */
+/**
+ * Mirrors iOS identity caching while geometry remains unambiguous. Each identity follows one confirmed BoT-SORT
+ * track; overlap, disappearance and stale results revoke it, and a face without a confirmed track is never checked.
+ */
 internal class PrivacyFaceTracking {
+    /** A detected face at [index] of this frame's objects with its confirmed BoT-SORT [trackId], if any. */
+    data class Face(val index: Int, val trackId: Int, val box: PrivacySegmentation.Box)
+
     data class Track(
         val id: String = UUID.randomUUID().toString(),
+        val trackId: Int,
         var index: Int,
         var box: PrivacySegmentation.Box,
         var lastScheduledSeconds: Double = Double.NEGATIVE_INFINITY,
@@ -23,29 +30,27 @@ internal class PrivacyFaceTracking {
         lastTimeSeconds = null
     }
 
-    fun update(boxes: Map<Int, PrivacySegmentation.Box>, atSeconds: Double) {
+    fun update(faces: List<Face>, atSeconds: Double) {
         if (!atSeconds.isFinite()) { reset(); return }
         val previousTime = lastTimeSeconds
         if (previousTime != null && (atSeconds <= previousTime || atSeconds - previousTime >= MAX_FRAME_GAP_SECONDS)) {
             tracks = emptyList()
         }
         lastTimeSeconds = atSeconds
-        val valid = boxes.filterValues { box ->
+        val valid = faces.filter { face ->
+            val box = face.box
             box.left.isFinite() && box.top.isFinite() && box.right.isFinite() && box.bottom.isFinite() &&
                 box.width > 0 && box.height > 0
         }
-        val isolated = valid.filter { (index, box) ->
-            valid.none { (otherIndex, otherBox) -> otherIndex != index && box.intersects(otherBox) > .05f }
+        val isolated = valid.filter { face ->
+            valid.none { other -> other.index != face.index && face.box.intersects(other.box) > .05f }
         }
-        val old = tracks
-        tracks = isolated.toSortedMap().map { (index, box) ->
-            val candidates = old.filter { it.box.intersects(box) >= .50f }
-            val prior = candidates.singleOrNull()
-            if (prior != null && isolated.values.count { prior.box.intersects(it) >= .50f } == 1) {
-                prior.index = index
-                prior.box = box
-                prior
-            } else Track(index = index, box = box)
+        val old = tracks.associateBy { it.trackId }
+        tracks = isolated.filter { it.trackId != PrivacySegmentation.NO_TRACK }.sortedBy { it.index }.map { face ->
+            (old[face.trackId] ?: Track(trackId = face.trackId, index = face.index, box = face.box)).apply {
+                index = face.index
+                box = face.box
+            }
         }
     }
 

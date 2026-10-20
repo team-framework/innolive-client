@@ -87,7 +87,7 @@ internal class PrivacyFaceCoordinator(
                      layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> =
         currentFrame(upright.width,upright.height,objects,layout,timestampNs) { copyCrop(upright,it) }
 
-    /** Select crops from this frame's YOLO tracks; start recognition after detector GPU work. */
+    /** Select crops from this frame's BoT-SORT tracks; start recognition after detector GPU work. */
     fun currentFrame(width: Int, height: Int, objects: List<PrivacySegmentation.Detection>,
                      layout: PrivacySegmentation.Letterbox, timestampNs: Long, crop: (Rect) -> Bitmap): Set<Int> =
         currentFrame(width,height,objects,layout,timestampNs,crop,null)
@@ -112,8 +112,11 @@ internal class PrivacyFaceCoordinator(
                    layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> {
         val time = timestampNs / 1_000_000_000.0
         refreshRevision()
-        val faces = objects.indices.filter { objects[it].classId == 0 }
-        tracking.update(faces.associateWith { objects[it].box }, time)
+        // A held face was not detected in this frame, so it stays protected and outside identity checks.
+        val faces = objects.withIndex().filter { it.value.classId == 0 && !it.value.held }.map { (index, face) ->
+            PrivacyFaceTracking.Face(index, face.trackId, face.box)
+        }
+        tracking.update(faces, time)
         previousLayout = layout
         val entries = entries()
         service.takeResult()?.let { result ->

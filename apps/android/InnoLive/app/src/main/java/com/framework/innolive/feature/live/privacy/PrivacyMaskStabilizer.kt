@@ -6,7 +6,7 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
-/** Keeps a matched object's older edge briefly, aligned to its current box. */
+/** Keeps a matched object's older edge briefly, aligned to its current box, and repeats a held track's mask. */
 internal class PrivacyMaskStabilizer {
     private var previous = emptyList<PrivacySegmentation.InstanceMask>()
     private var previousTimeSeconds: Double? = null
@@ -24,44 +24,55 @@ internal class PrivacyMaskStabilizer {
         val decay = exp(-max(0.0, interval) / FADE_SECONDS).toFloat()
         val available = previous.indices.toMutableSet()
         val stabilized = current.map { instance ->
-            val match = available.filter { previous[it].detection.classId == instance.detection.classId }
-                .map { it to previous[it].detection.box.intersects(instance.detection.box) }
+            val detection = instance.detection
+            // A held track repeats its own last mask at the predicted box, like the server's one-frame mask hold.
+            if (detection.held) previous.firstOrNull {
+                it.detection.trackId == detection.trackId && it.detection.classId == detection.classId
+            }?.let { older ->
+                return@map PrivacySegmentation.InstanceMask(detection, warp(older, detection.box, ByteArray(size * size), 1f))
+            }
+            val match = available.filter { previous[it].detection.classId == detection.classId }
+                .map { it to previous[it].detection.box.intersects(detection.box) }
                 .filter { it.second >= .30f }
                 .maxByOrNull { it.second }?.first
                 ?: return@map instance
             available.remove(match)
-            val older = previous[match]
-            val destination = instance.detection.box
-            val source = older.detection.box
-            require(destination.width > 0 && destination.height > 0)
-            val scale = size.toFloat() / PrivacySegmentation.INPUT_SIZE
-            val left = destination.left * scale
-            val top = destination.top * scale
-            val right = destination.right * scale
-            val bottom = destination.bottom * scale
-            val sourceLeft = source.left * scale
-            val sourceTop = source.top * scale
-            val sourceWidth = source.width * scale
-            val sourceHeight = source.height * scale
-            val x0 = max(0, floor(left).toInt())
-            val x1 = min(size, ceil(right).toInt())
-            val y0 = max(0, floor(top).toInt())
-            val y1 = min(size, ceil(bottom).toInt())
-            val bytes = instance.bytes.copyOf()
-            for (y in y0 until y1) {
-                val oldY = sourceTop + (y + .5f - top) / (bottom - top) * sourceHeight - .5f
-                for (x in x0 until x1) {
-                    val oldX = sourceLeft + (x + .5f - left) / (right - left) * sourceWidth - .5f
-                    val faded = (sample(older.bytes, oldX, oldY, size) * decay).toInt().coerceIn(0, 255)
-                    val offset = y * size + x
-                    if (faded > (bytes[offset].toInt() and 255)) bytes[offset] = faded.toByte()
-                }
-            }
-            PrivacySegmentation.InstanceMask(instance.detection, bytes)
+            PrivacySegmentation.InstanceMask(detection, warp(previous[match], detection.box, instance.bytes.copyOf(), decay))
         }
         previous = stabilized
         previousTimeSeconds = atSeconds
         return PrivacySegmentation.union(stabilized)
+    }
+
+    /** Raises [bytes] inside [destination] to [older]'s mask scaled from its box, multiplied by [decay]. */
+    private fun warp(older: PrivacySegmentation.InstanceMask, destination: PrivacySegmentation.Box,
+                     bytes: ByteArray, decay: Float): ByteArray {
+        val size = PrivacySegmentation.MASK_SIZE
+        val source = older.detection.box
+        require(destination.width > 0 && destination.height > 0)
+        val scale = size.toFloat() / PrivacySegmentation.INPUT_SIZE
+        val left = destination.left * scale
+        val top = destination.top * scale
+        val right = destination.right * scale
+        val bottom = destination.bottom * scale
+        val sourceLeft = source.left * scale
+        val sourceTop = source.top * scale
+        val sourceWidth = source.width * scale
+        val sourceHeight = source.height * scale
+        val x0 = max(0, floor(left).toInt())
+        val x1 = min(size, ceil(right).toInt())
+        val y0 = max(0, floor(top).toInt())
+        val y1 = min(size, ceil(bottom).toInt())
+        for (y in y0 until y1) {
+            val oldY = sourceTop + (y + .5f - top) / (bottom - top) * sourceHeight - .5f
+            for (x in x0 until x1) {
+                val oldX = sourceLeft + (x + .5f - left) / (right - left) * sourceWidth - .5f
+                val faded = (sample(older.bytes, oldX, oldY, size) * decay).toInt().coerceIn(0, 255)
+                val offset = y * size + x
+                if (faded > (bytes[offset].toInt() and 255)) bytes[offset] = faded.toByte()
+            }
+        }
+        return bytes
     }
 
     private fun sample(bytes: ByteArray, x: Float, y: Float, size: Int): Float {
