@@ -177,7 +177,11 @@ private fun LiveScreenContent(
     settings: LiveSettingsPage?,
     pipState: LivePreviewPipState,
 ) {
-    var openVideoControls by remember { mutableStateOf(false) }
+    var localVideoControlsOpen by remember { mutableStateOf(false) }
+    val openVideoControls = props.isVideoControlsOpen ?: localVideoControlsOpen
+    val setVideoControlsOpen: (Boolean) -> Unit = { open ->
+        if (props.isVideoControlsOpen != null) props.onVideoControlsOpenChange(open) else localVideoControlsOpen = open
+    }
     var openFaceManagement by remember { mutableStateOf(false) }
     // 방송 카메라가 켜진 뒤 연 얼굴 관리는 방송을 끊지 않고 그 위에 띄웁니다.
     var faceManagementUsesBroadcastCamera by remember { mutableStateOf(false) }
@@ -442,7 +446,7 @@ private fun LiveScreenContent(
             captureState = props.videoQualityCaptureState,
             previews = lookPreviews?.previews,
             onSettingsChanged = props.onVideoQualitySettingsChanged,
-            onDismiss = { openVideoControls = false },
+            onDismiss = { setVideoControlsOpen(false) },
             mirrorPreviews = props.cameraLensFacing.shouldMirrorPreview,
             mosaic = MosaicControlsState(
                 config = webRtcSession.mosaicConfig,
@@ -699,7 +703,7 @@ private fun LiveScreenContent(
                             .onSizeChanged { pipState.leftControlsWidthPx = it.width.toFloat() }
                             .padding(start = 12.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
                         canManageFace = canManageFace,
-                        onOpenVideoControls = { openVideoControls = true },
+                        onOpenVideoControls = { setVideoControlsOpen(true) },
                         onOpenFaceManagement = openFaceManagementScreen,
                         canSelectFace = canSelectFace,
                         isSelectingFace = isSelectingFace,
@@ -728,7 +732,7 @@ private fun LiveScreenContent(
                             .padding(end = 12.dp)
                             .onSizeChanged { toolsHeightPx = it.height },
                         canManageFace = canManageFace,
-                        onOpenVideoControls = { openVideoControls = true },
+                        onOpenVideoControls = { setVideoControlsOpen(true) },
                         onOpenFaceManagement = openFaceManagementScreen,
                         canSelectFace = canSelectFace,
                         isSelectingFace = isSelectingFace,

@@ -29,4 +29,7 @@ data class LiveScreenProps(
     val onVideoQualityCaptureStateChanged: (VideoQualityCaptureState) -> Unit = {},
     val planUsage: PlanUsage? = null,
     val onOpenPlan: () -> Unit = onOpenSettings,
+    /** 설정에서도 영상 조절을 열 수 있게 앱이 열림 상태를 가질 때 넘깁니다. null이면 화면이 직접 가집니다. */
+    val isVideoControlsOpen: Boolean? = null,
+    val onVideoControlsOpenChange: (Boolean) -> Unit = {},
 )

@@ -20,6 +20,8 @@ import com.framework.innolive.feature.login.oauth.google.GoogleSignInState
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.settings.AccountSettingsScreen
+import com.framework.innolive.feature.settings.AppInfoSettingsScreen
+import com.framework.innolive.feature.settings.CameraAudioSettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.R
@@ -84,11 +86,29 @@ class ScreenThemeContrastTest(private val dark: Boolean, private val dynamic: Bo
     @Test fun settings() {
         content { SettingsScreen(SettingsScreenProps({}, {}, "테스트 사용자", "test@example.invalid", {})) }
         listOf(
-            string(R.string.settings_title),
+            string(R.string.settings_section_destination),
+            string(R.string.settings_broadcast_info),
+            string(R.string.settings_camera_audio),
+            string(R.string.settings_app_info),
+        ).forEach { contrast(it) }
+    }
+
+    @Test fun cameraAudioSettings() {
+        content { CameraAudioSettingsScreen(SettingsScreenProps({}, {}, "테스트 사용자", "test@example.invalid", {}), onBack = {}) }
+        listOf(
+            string(R.string.settings_camera_audio),
+            string(R.string.label_camera_resolution),
+            string(R.string.video_stabilization),
+        ).forEach { contrast(it) }
+    }
+
+    @Test fun appInfoSettings() {
+        content { AppInfoSettingsScreen(SettingsScreenProps({}, {}, "테스트 사용자", "test@example.invalid", {}), onBack = {}) }
+        listOf(
+            string(R.string.settings_app_info),
             "테스트 사용자",
             "test@example.invalid",
-            string(R.string.video_stabilization),
-            string(R.string.settings_broadcast),
+            string(R.string.privacy_policy),
         ).forEach { contrast(it) }
     }
 

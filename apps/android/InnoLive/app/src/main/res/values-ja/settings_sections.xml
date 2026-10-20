@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_destination">配信先</string>
+    <string name="settings_broadcast_info">配信情報</string>
+    <string name="settings_section_video_audio">映像と音声</string>
+    <string name="settings_camera_audio">カメラとオーディオの設定</string>
+    <string name="settings_section_anonymization">匿名化</string>
+    <string name="settings_ai_faces">AIと顔の設定</string>
+    <string name="settings_section_monitoring">モニタリングと録画</string>
+    <string name="settings_section_usage">利用情報</string>
+    <string name="settings_app_info">アプリ情報とアカウント</string>
+</resources>

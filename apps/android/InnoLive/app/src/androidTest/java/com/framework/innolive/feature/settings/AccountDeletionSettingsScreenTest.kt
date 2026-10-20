@@ -27,6 +27,7 @@ class AccountDeletionSettingsScreenTest {
 
     private fun props(
         onOpenAccountSettings: () -> Unit = {},
+        onOpenAppInfo: () -> Unit = {},
         onLogout: () -> Unit = {},
         onDeleteAccount: () -> Unit = {},
         isAccountDeletionPending: Boolean = false,
@@ -39,6 +40,7 @@ class AccountDeletionSettingsScreenTest {
         profileEmail = "user@example.com",
         onLogout = onLogout,
         onOpenAccountSettings = onOpenAccountSettings,
+        onOpenAppInfo = onOpenAppInfo,
         onDeleteAccount = onDeleteAccount,
         isAccountDeletionPending = isAccountDeletionPending,
         isAccountDeletionCleanupPending = isAccountDeletionCleanupPending,
@@ -50,7 +52,7 @@ class AccountDeletionSettingsScreenTest {
         var accountSettingsRequests = 0
         composeRule.setContent {
             MyApplicationTheme {
-                SettingsScreen(props(onOpenAccountSettings = { accountSettingsRequests += 1 }))
+                AppInfoSettingsScreen(props(onOpenAccountSettings = { accountSettingsRequests += 1 }), onBack = {})
             }
         }
 
@@ -95,13 +97,13 @@ class AccountDeletionSettingsScreenTest {
     }
 
     @Test
-    fun localCleanupFailureKeepsAccountRowAndDisablesClose() {
-        var accountSettingsRequests = 0
+    fun localCleanupFailureLocksOtherSettingsButKeepsAppInfoOpen() {
+        var appInfoRequests = 0
         composeRule.setContent {
             MyApplicationTheme {
                 SettingsScreen(
                     props(
-                        onOpenAccountSettings = { accountSettingsRequests += 1 },
+                        onOpenAppInfo = { appInfoRequests += 1 },
                         isAccountDeletionPending = true,
                         isAccountDeletionCleanupPending = true,
                     ),
@@ -109,7 +111,28 @@ class AccountDeletionSettingsScreenTest {
             }
         }
 
-        composeRule.onNodeWithContentDescription(string(R.string.action_close)).assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.settings_camera_audio)).assertIsNotEnabled()
+        composeRule.onNodeWithText(string(R.string.settings_app_info)).assertIsEnabled().performClick()
+        assertEquals(1, appInfoRequests)
+    }
+
+    @Test
+    fun localCleanupFailureKeepsAccountRowAndDisablesBack() {
+        var accountSettingsRequests = 0
+        composeRule.setContent {
+            MyApplicationTheme {
+                AppInfoSettingsScreen(
+                    props(
+                        onOpenAccountSettings = { accountSettingsRequests += 1 },
+                        isAccountDeletionPending = true,
+                        isAccountDeletionCleanupPending = true,
+                    ),
+                    onBack = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription(string(R.string.action_back)).assertIsNotEnabled()
         composeRule.onNodeWithText("user@example.com").performClick()
         assertEquals(1, accountSettingsRequests)
     }

@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -75,6 +76,8 @@ class LiveSettingsPage(
     val isOpen: Boolean,
     /** 하위 설정이 열려 있거나 계정 삭제 중이면 넘겨서 벗어나지 않고 뒤로 가기·닫기로만 돌아옵니다. */
     val canLeaveBySwipe: Boolean,
+    /** 하위 설정 화면처럼 흰 창 위에 내용을 그릴 때입니다. 설정 첫 화면은 카드만 미리보기 위에 띄웁니다. */
+    val showsPanel: Boolean = true,
     val onOpen: () -> Unit,
     val onClose: () -> Unit,
     val content: @Composable () -> Unit,
@@ -183,6 +186,7 @@ internal fun LiveStudioPager(
                         LiveStudioPage.HOME -> homePage()
                         LiveStudioPage.SETTINGS -> settings?.let { page ->
                             LiveSettingsPanel(
+                                showsPanel = page.showsPanel,
                                 onDismiss = { page.onClose() },
                                 topInset = if (landscape) 12.dp else LiveStudioTopInset,
                                 content = page.content,
@@ -212,10 +216,24 @@ internal fun LiveStudioPager(
     }
 }
 
-/** Figma 설정 창처럼 상단 바 아래에 반투명 창을 띄우고, 창 밖을 누르면 기본 화면으로 돌아갑니다. */
+/**
+ * Figma 설정 창처럼 상단 바 아래에 반투명 창을 띄우고, 창 밖을 누르면 기본 화면으로 돌아갑니다.
+ * [showsPanel]이 false면 같은 자리에 창 바탕만 지워 내용(설정 첫 화면의 카드)이 미리보기 위에 바로 보이게 합니다.
+ * 창을 바꿔 끼우지 않고 색만 바꿔 안쪽 내비게이션 상태와 전환 애니메이션을 유지합니다.
+ */
 @Composable
-private fun LiveSettingsPanel(onDismiss: () -> Unit, topInset: Dp, content: @Composable () -> Unit) {
+private fun LiveSettingsPanel(
+    showsPanel: Boolean,
+    onDismiss: () -> Unit,
+    topInset: Dp,
+    content: @Composable () -> Unit,
+) {
     val title = stringResource(R.string.settings_title)
+    // 뒤를 흐릴 수 없으므로 비치는 영상이 글자를 방해하지 않게 더 불투명하게 칠합니다.
+    val panelColor by animateColorAsState(
+        if (showsPanel) SettingsPanelColor else SettingsPanelColor.copy(alpha = 0f),
+        label = "settingsPanelColor",
+    )
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = onDismiss))
         // 다른 모달과 같은 흰 유리 창으로 보여 주고, 창 안에서 연 확인 창도 같은 색을 씁니다.
@@ -226,13 +244,15 @@ private fun LiveSettingsPanel(onDismiss: () -> Unit, topInset: Dp, content: @Com
                     .widthIn(max = 640.dp).fillMaxSize()
                     .semantics { paneTitle = title },
                 shape = RoundedCornerShape(20.dp),
-                // 뒤를 흐릴 수 없으므로 비치는 영상이 글자를 방해하지 않게 더 불투명하게 칠합니다.
-                color = Color.White.copy(alpha = 0.96f),
+                color = panelColor,
+                showsBorder = showsPanel,
                 content = content,
             )
         }
     }
 }
+
+private val SettingsPanelColor = Color.White.copy(alpha = 0.96f)
 
 /** iOS 방송 화면처럼 반투명 알약 안에 페이지 이름을 두고, 지금 페이지는 흰 글자와 밑줄로 보여 줍니다. */
 @Composable
