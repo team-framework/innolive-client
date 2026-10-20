@@ -40,4 +40,5 @@
     <string name="chzzk_error_settings">치지직 방송 설정을 확인하세요.</string>
     <string name="chzzk_error_unauthorized">로그인이 만료됐습니다. 다시 로그인하세요.</string>
     <string name="chzzk_error_request">치지직 방송 요청에 실패했습니다. 다시 시도하세요.</string>
+    <string name="chzzk_error_rate_limited">치지직 요청 한도에 도달했습니다. 잠시 후 다시 시도하세요.</string>
 </resources>

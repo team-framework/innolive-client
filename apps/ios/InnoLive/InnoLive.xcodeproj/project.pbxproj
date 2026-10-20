@@ -12,6 +12,7 @@
 		B2C3D4E50101010101010101 /* LiveKitWebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = B2C3D4E60101010101010101 /* LiveKitWebRTC */; };
 		C3D4E5F50101010101010101 /* HaishinKit in Frameworks */ = {isa = PBXBuildFile; productRef = C3D4E5F60101010101010101 /* HaishinKit */; };
 		C3D4E5F70101010101010101 /* RTMPHaishinKit in Frameworks */ = {isa = PBXBuildFile; productRef = C3D4E5F80101010101010101 /* RTMPHaishinKit */; };
+		D72000012026102000000001 /* PrivacyTracking in Frameworks */ = {isa = PBXBuildFile; productRef = D72000022026102000000001 /* PrivacyTracking */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,6 +53,7 @@
 				B2C3D4E50101010101010101 /* LiveKitWebRTC in Frameworks */,
 				C3D4E5F50101010101010101 /* HaishinKit in Frameworks */,
 				C3D4E5F70101010101010101 /* RTMPHaishinKit in Frameworks */,
+				D72000012026102000000001 /* PrivacyTracking in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -108,6 +110,7 @@
 				B2C3D4E60101010101010101 /* LiveKitWebRTC */,
 				C3D4E5F60101010101010101 /* HaishinKit */,
 				C3D4E5F80101010101010101 /* RTMPHaishinKit */,
+				D72000022026102000000001 /* PrivacyTracking */,
 			);
 			productName = InnoLive;
 			productReference = 7B64AA013013CA7300BA69CE /* InnoLive.app */;
@@ -165,6 +168,7 @@
 			mainGroup = 7B64A9F83013CA7300BA69CE;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				D72000032026102000000001 /* XCLocalSwiftPackageReference "PrivacyTracking" */,
 				A1B2C3D30101010101010101 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				B2C3D4E40101010101010101 /* XCRemoteSwiftPackageReference "webrtc-xcframework" */,
 				C3D4E5F40101010101010101 /* XCRemoteSwiftPackageReference "HaishinKit.swift" */,
@@ -511,6 +515,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		D72000032026102000000001 /* XCLocalSwiftPackageReference "PrivacyTracking" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../PrivacyTracking;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		A1B2C3D30101010101010101 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -539,6 +550,10 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		D72000022026102000000001 /* PrivacyTracking */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PrivacyTracking;
+		};
 		A1B2C3D50101010101010101 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A1B2C3D30101010101010101 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;

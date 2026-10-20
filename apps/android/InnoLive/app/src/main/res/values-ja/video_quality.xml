@@ -23,4 +23,17 @@
     <string name="video_stabilization_pending">カメラへの適用状態を確認中</string>
     <string name="video_stabilization_inactive">カメラの起動時に適用</string>
     <string name="video_stabilization_off">オフ</string>
+    <string name="mosaic_title">モザイク</string>
+    <string name="mosaic_blur_strength">ぼかしの強さ</string>
+    <string name="mosaic_weaker">弱く</string>
+    <string name="mosaic_stronger">強く</string>
+    <string name="mosaic_mask_margin">マスク範囲の幅</string>
+    <string name="mosaic_narrower">狭く</string>
+    <string name="mosaic_wider">広く</string>
+    <string name="mosaic_pixels_value">%1$dpx</string>
+    <string name="mosaic_reset">モザイクを既定値に戻す</string>
+    <string name="mosaic_prepare_required">配信を準備すると調整できます。</string>
+    <string name="mosaic_server_only">サーバーAI処理でのみ調整できます。</string>
+    <string name="mosaic_anonymization_off">匿名化がオンのときに適用されます。</string>
+    <string name="error_mosaic_config">ぼかし設定を変更できませんでした。もう一度お試しください。</string>
 </resources>

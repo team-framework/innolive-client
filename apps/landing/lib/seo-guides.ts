@@ -25,7 +25,7 @@ export type SeoGuide = {
   };
 };
 
-const spark = getPersonalPlans(getMessages("ko"), "ko")[0];
+const spark = getPersonalPlans(getMessages("ko"))[0];
 const sparkLimits = spark.features.slice(1).map(({ text }) => text).join(", ");
 
 export const seoGuides: SeoGuide[] = [

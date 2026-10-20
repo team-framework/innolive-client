@@ -42,6 +42,10 @@ struct FaceManagementView: View {
                         statusCard
                     }
 
+                    if model.status?.reregistrationRequired == true {
+                        ReferenceFaceReregistrationBanner()
+                    }
+
                     if let status = model.status, !status.faces.isEmpty {
                         registeredFacesSection(status.faces)
                     }
@@ -55,6 +59,7 @@ struct FaceManagementView: View {
                     }
 
                     Button {
+                        model.clearReregistrationTarget()
                         isShowingRegistration = true
                     } label: {
                         Label(String(localized: "얼굴 등록"), systemImage: "viewfinder.circle.fill")
@@ -104,7 +109,7 @@ struct FaceManagementView: View {
         .refreshable {
             await model.loadStatus()
         }
-        .sheet(isPresented: $isShowingRegistration) {
+        .sheet(isPresented: $isShowingRegistration, onDismiss: { model.clearReregistrationTarget() }) {
             NavigationStack {
                 FaceRegistrationCaptureView(
                     model: model,
@@ -205,17 +210,42 @@ struct FaceManagementView: View {
             ForEach(Array(faces.enumerated()), id: \.element.id) { index, face in
                 SettingsGlassRow {
                     HStack(spacing: 12) {
-                        Image(systemName: "person.crop.circle.fill")
+                        Image(systemName: face.reregistrationRequired ? "exclamationmark.circle.fill" : "person.crop.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(face.reregistrationRequired ? Color.orange : Color.blue)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(face.name?.isEmpty == false ? face.name! : String(localized: "등록 얼굴 \(index + 1)"))
                                 .font(.subheadline.weight(.semibold))
-                            Text(FaceRegistrationDateFormatting.displayDate(from: face.registeredAt))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            if face.reregistrationRequired {
+                                Text(String(localized: "다시 등록 필요"))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.orange)
+                            } else {
+                                Text(FaceRegistrationDateFormatting.displayDate(from: face.registeredAt))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
+                        if face.reregistrationRequired {
+                            Button {
+                                model.prepareReregistration(of: face)
+                                isShowingRegistration = true
+                            } label: {
+                                Text(String(localized: "다시 등록"))
+                                    .font(.caption.weight(.semibold))
+                                    .frame(minHeight: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.blue)
+                            .disabled(
+                                isCameraTransitioning || model.isDeleting
+                                    || cameraManager.authorizationStatus != .authorized
+                            )
+                            .accessibilityLabel(String(localized: "등록 얼굴 \(index + 1) 다시 등록"))
+                            .accessibilityIdentifier("reference-face-reregister-\(index + 1)")
+                        }
                         Button(role: .destructive) {
                             Task { await model.delete(faceID: face.id) }
                         } label: {

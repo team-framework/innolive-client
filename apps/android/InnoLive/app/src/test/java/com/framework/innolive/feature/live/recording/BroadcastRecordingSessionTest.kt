@@ -10,7 +10,13 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.webrtc.VideoFrame
 import java.io.File
+import java.io.IOException
 import java.nio.ByteBuffer
+import java.nio.MappedByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.channels.FileLock
+import java.nio.channels.ReadableByteChannel
+import java.nio.channels.WritableByteChannel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -75,10 +81,36 @@ class BroadcastRecordingSessionTest {
     private var nowNs = 100_000_000_000L
     private val failures = mutableListOf<RecordingFailure>()
 
-    private fun session(media: FakeMedia, directory: File = folder.newFolder()) = BroadcastRecordingSession(
+    /** 쓰기는 그대로 하고 마지막 [force]에서 저장 장치 오류를 내는 채널입니다. */
+    private class FailingForceChannel(private val delegate: FileChannel) : FileChannel() {
+        override fun read(dst: ByteBuffer) = delegate.read(dst)
+        override fun read(dsts: Array<out ByteBuffer>, offset: Int, length: Int) = delegate.read(dsts, offset, length)
+        override fun write(src: ByteBuffer) = delegate.write(src)
+        override fun write(srcs: Array<out ByteBuffer>, offset: Int, length: Int) = delegate.write(srcs, offset, length)
+        override fun position() = delegate.position()
+        override fun position(newPosition: Long): FileChannel = apply { delegate.position(newPosition) }
+        override fun size() = delegate.size()
+        override fun truncate(size: Long): FileChannel = apply { delegate.truncate(size) }
+        override fun force(metaData: Boolean) = throw IOException("저장 공간 부족")
+        override fun transferTo(position: Long, count: Long, target: WritableByteChannel) = delegate.transferTo(position, count, target)
+        override fun transferFrom(src: ReadableByteChannel, position: Long, count: Long) = delegate.transferFrom(src, position, count)
+        override fun read(dst: ByteBuffer, position: Long) = delegate.read(dst, position)
+        override fun write(src: ByteBuffer, position: Long) = delegate.write(src, position)
+        override fun map(mode: MapMode, position: Long, size: Long): MappedByteBuffer = delegate.map(mode, position, size)
+        override fun lock(position: Long, size: Long, shared: Boolean): FileLock = delegate.lock(position, size, shared)
+        override fun tryLock(position: Long, size: Long, shared: Boolean): FileLock? = delegate.tryLock(position, size, shared)
+        override fun implCloseChannel() = delegate.close()
+    }
+
+    private fun session(
+        media: FakeMedia,
+        directory: File = folder.newFolder(),
+        openChannel: (File) -> FileChannel = FragmentedMp4Writer::openRecordingChannel,
+    ) = BroadcastRecordingSession(
         id = directory.name, directory = directory, sessionId = "s", provider = "youtube", createdAtMillis = 7L,
         media = media, alignProcessed = false, onFailure = { failures += it },
         nowNs = { nowNs }, realtimeNs = { nowNs }, validator = { 1_000L }, finishTimeoutMillis = 50L,
+        openChannel = openChannel,
     )
 
     private fun frame() = VideoFrame(FakeBuffer(1280, 720), 0, nowNs)
@@ -143,6 +175,25 @@ class BroadcastRecordingSessionTest {
             assertEquals(RecordingFailure.NO_AUDIO, error.reason)
         }
         assertFalse(session.directory.exists())
+    }
+
+    @Test fun storageErrorWhileStoppingPreservesTheWrittenRecording() {
+        val media = FakeMedia()
+        val session = session(media, openChannel = { file ->
+            val channel = FragmentedMp4Writer.openRecordingChannel(file)
+            if (file.name.startsWith(BroadcastRecordingSession.ORIGINAL_FILE_NAME)) FailingForceChannel(channel) else channel
+        })
+        session.markConfirmed()
+        feed(session, media, seconds = 2)
+        try {
+            session.stop()
+            fail("원본 파일을 마무리하지 못하면 저장하지 않는다")
+        } catch (error: RecordingFailedException) {
+            assertEquals(RecordingFailure.STORAGE, error.reason)
+        }
+        // 이미 쓴 조각은 지우지 않고 실패 기록과 함께 보관함에 남긴다.
+        assertEquals(RecordingJournal.Status.FAILED, RecordingJournal.read(session.directory)?.status)
+        assertTrue(File(session.directory, "original.partial.mp4").length() > 0)
     }
 
     @Test fun encoderSetupRunsOffTheCaptureThread() {

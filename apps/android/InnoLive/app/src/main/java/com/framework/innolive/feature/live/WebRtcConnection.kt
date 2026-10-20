@@ -58,8 +58,7 @@ import org.webrtc.SessionDescription
 import org.webrtc.VideoTrack
 import org.webrtc.audio.JavaAudioDeviceModule
 import com.framework.innolive.feature.live.recording.RecordingAudioSink
-import com.framework.innolive.feature.live.recording.WebRtcRecordingAudioTap
-import org.webrtc.ExternalAudioProcessingFactory
+import com.framework.innolive.feature.live.recording.WebRtcRecordingAudioProcessing
 import java.io.IOException
 import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
@@ -95,6 +94,8 @@ internal class WebRtcConnection(
     private val provider: BroadcastProvider = BroadcastProvider.YOUTUBE,
     /** 세션을 만들 때 서버에 요청하는 송출 해상도입니다. 세션 생성 뒤에는 바꾸지 않습니다. */
     private val broadcastResolution: DirectPublishResolution = DirectPublishResolution.HD_720,
+    /** 세션을 만들 때 서버에 요청하는 얼굴 가림 방식입니다. null이면 서버 기본값(블러)입니다. */
+    private val faceAnonymization: String? = null,
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, ConnectionFailure?) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
@@ -247,9 +248,6 @@ internal class WebRtcConnection(
     @Volatile
     private var session: CreatedSession? = null
 
-    /** 음성 처리(에코 제거·잡음 억제) 뒤 송출 신호를 녹화기에 넘기는 탭입니다. 연결마다 하나입니다. */
-    private val recordingAudioTap = WebRtcRecordingAudioTap()
-    private var audioProcessingFactory: ExternalAudioProcessingFactory? = null
     private var audioRecordingStarted = false
     private var audioInputVerified = false
     private var audioRouteRetryAttempted = false
@@ -498,11 +496,8 @@ internal class WebRtcConnection(
             checkNotNull(this@WebRtcConnection.audioDeviceModule)
         WebRtcNativeRuntime.initialize(applicationContext)
         // 녹화는 iOS처럼 음성 처리 뒤 송출 신호를 씁니다. 후처리 단계를 붙이지 못해도 송출은 기본 처리로 이어 갑니다.
-        val processing = runCatching {
-            ExternalAudioProcessingFactory().also { it.setCapturePostProcessing(recordingAudioTap) }
-        }.onFailure { Log.w("LiveConnection", "recording_audio_tap_unavailable type=${it.javaClass.simpleName}") }
-            .getOrNull()
-        audioProcessingFactory = processing
+        // 팩토리는 프로세스에서 하나를 함께 쓰고 해제하지 않습니다(WebRtcRecordingAudioProcessing).
+        val processing = WebRtcRecordingAudioProcessing.factory()
         return PeerConnectionFactory.builder()
             .setAudioDeviceModule(createdAudioDeviceModule)
             .apply { if (processing != null) setAudioProcessingFactory(processing) }
@@ -562,6 +557,31 @@ internal class WebRtcConnection(
                 }
             },
             onRejected = { complete(null, AnonymizationFailure.REQUEST) },
+        )
+    }
+
+    override fun setMosaicConfig(config: MosaicConfig, onComplete: (MosaicConfig?, UiText?) -> Unit) {
+        fun complete(confirmed: MosaicConfig?, error: UiText?) {
+            mainHandler.post { if (isActive()) onComplete(confirmed, error) }
+        }
+        val failed = UiText.Resource(R.string.error_mosaic_config)
+        executeOnOwner(
+            block = {
+                if (!isActive()) return@executeOnOwner
+                if (onDeviceProcessing) {
+                    complete(null, UiText.Resource(R.string.mosaic_server_only))
+                    return@executeOnOwner
+                }
+                try {
+                    val payload = executeSessionRequest("mosaic-config", "PUT", config.toJson())
+                    val confirmed = parseMosaicConfig(JSONObject(payload))
+                    complete(confirmed, if (confirmed == null) failed else null)
+                } catch (exception: Exception) {
+                    // 안내가 정해진 서버 오류만 그대로 보여 주고, 나머지는 같은 실패 안내로 묶습니다.
+                    complete(null, (exception as? ServerApiException)?.guidance()?.message ?: failed)
+                }
+            },
+            onRejected = { complete(null, failed) },
         )
     }
 
@@ -1101,13 +1121,13 @@ internal class WebRtcConnection(
     }
 
     // golive는 준비된 모든 대상을 한 번에 전환합니다. 일부 대상의 실패는 성공 응답의 failed_targets로 옵니다.
-    private fun goLiveWithRetry(): List<BroadcastProvider> {
+    private fun goLiveWithRetry(): Map<BroadcastProvider, String> {
         repeat(GO_LIVE_RETRY_COUNT) { attempt ->
             check(isActive()) { "WebRTC 연결이 종료되었습니다." }
             try {
                 val response = postSessionRequest("stream/golive")
                 check(parseBroadcastState(response, provider) != null)
-                return parseFailedTargets(response)
+                return parseFailedTargetCodes(response)
             } catch (exception: ServerApiException) {
                 if (exception.code != "broadcast_not_ready") throw exception
                 if (attempt < GO_LIVE_RETRY_COUNT - 1) {
@@ -1149,7 +1169,7 @@ internal class WebRtcConnection(
     }
 
     override fun setRecordingAudioSink(sink: RecordingAudioSink?) {
-        recordingAudioTap.sink = sink
+        WebRtcRecordingAudioProcessing.setSink(this, sink)
     }
 
     private fun createAudioDeviceModule(): JavaAudioDeviceModule = JavaAudioDeviceModule
@@ -1282,7 +1302,7 @@ internal class WebRtcConnection(
     }
 
     private fun requestSessionCreation(): CreatedSession? {
-        val requestBody = buildServerSessionRequest(provider, broadcastResolution)
+        val requestBody = buildServerSessionRequest(provider, broadcastResolution, faceAnonymization)
             .toString()
             .toRequestBody(JSON_MEDIA_TYPE)
         val request = authenticatedRequest("/sessions")
@@ -2232,9 +2252,7 @@ internal class WebRtcConnection(
         videoSource = null
         runCatching { peerConnectionFactory?.dispose() }
         peerConnectionFactory = null
-        recordingAudioTap.sink = null
-        runCatching { audioProcessingFactory?.destroy() }
-        audioProcessingFactory = null
+        WebRtcRecordingAudioProcessing.setSink(this, null)
         runCatching { audioDeviceModule?.release() }
         audioDeviceModule = null
         runCatching { eglBase?.release() }
@@ -2309,6 +2327,7 @@ internal class WebRtcConnection(
         return try {
             val operation = when {
                 request.url.encodedPath.endsWith("/anonymization") -> "anonymization"
+                request.url.encodedPath.endsWith("/mosaic-config") -> "mosaic_config"
                 request.url.encodedPath.endsWith("/broadcast") -> "broadcast_settings"
                 request.url.encodedPath.endsWith("/stream/prepare") -> "stream_prepare"
                 request.url.encodedPath.endsWith("/stream/stop") -> "stream_stop"
@@ -2503,14 +2522,19 @@ private fun ServerApiException.toKnownBroadcastFailure(): BroadcastFailure? = wh
     else -> null
 }
 
-/** 서버 AI 세션 생성 본문입니다. 서버 디코더가 트랙 도착 즉시 이 해상도로 뜨므로 생성 때 정합니다. */
+/**
+ * 서버 AI 세션 생성 본문입니다. 서버 디코더가 트랙 도착 즉시 이 해상도로 뜨므로 생성 때 정합니다.
+ * 얼굴 가림 방식도 AI 스트림 수명 동안 고정이라 생성 때만 보냅니다. null이면 생략해 서버 기본값(블러)을 씁니다.
+ */
 internal fun buildServerSessionRequest(
     provider: BroadcastProvider,
     resolution: DirectPublishResolution,
+    faceAnonymization: String? = null,
 ): JSONObject = JSONObject()
     .put("provider", provider.wireValue)
     .put("broadcast_resolution", resolution.wireValue)
     .put("metadata", JSONObject().put("client", "innolive-android"))
+    .apply { faceAnonymization?.let { put("face_anonymization", it) } }
 
 internal fun ServerApiException.toBroadcastEvent(
     fallback: BroadcastFailure,
@@ -2536,6 +2560,7 @@ internal fun chzzkBroadcastErrorMessage(code: String?, field: String?): UiText =
             else -> R.string.chzzk_error_settings
         }
         "unauthorized" -> R.string.chzzk_error_unauthorized
+        "streaming_rate_limited" -> R.string.chzzk_error_rate_limited
         else -> R.string.chzzk_error_request
     },
 )
@@ -2559,22 +2584,36 @@ internal fun simulcastPrepareFailedMessage(failed: Collection<BroadcastProvider>
     },
 )
 
-/** golive의 failed_targets입니다. 실패한 플랫폼만 안내하고 성공한 플랫폼의 방송은 유지합니다. */
-internal fun simulcastGoLiveFailedMessage(failed: Collection<BroadcastProvider>): UiText = UiText.Resource(
-    when {
-        failed.size > 1 -> R.string.simulcast_golive_failed_all
-        BroadcastProvider.CHZZK in failed -> R.string.simulcast_golive_failed_chzzk
-        else -> R.string.simulcast_golive_failed_youtube
-    },
-)
+/**
+ * golive의 failed_targets입니다. 실패한 플랫폼만 안내하고 성공한 플랫폼의 방송은 유지합니다.
+ * YouTube 요청 한도는 채널 단위라 재시도·채널 변경 안내가 필요해 별도 문구로 알립니다.
+ */
+internal fun simulcastGoLiveFailedMessage(failed: Map<BroadcastProvider, String>): UiText {
+    val youtubeRateLimited = failed[BroadcastProvider.YOUTUBE] == "streaming_rate_limited"
+    return UiText.Resource(
+        when {
+            failed.size > 1 && youtubeRateLimited -> R.string.simulcast_golive_failed_all_rate_limited_youtube
+            failed.size > 1 -> R.string.simulcast_golive_failed_all
+            BroadcastProvider.CHZZK in failed -> R.string.simulcast_golive_failed_chzzk
+            youtubeRateLimited -> R.string.simulcast_golive_rate_limited_youtube
+            else -> R.string.simulcast_golive_failed_youtube
+        },
+    )
+}
 
-// 알 수 없는 플랫폼은 이 앱이 송출하지 않은 대상이므로 무시합니다.
-internal fun parseFailedTargets(payload: String): List<BroadcastProvider> {
-    val failed = JSONObject(payload).optJSONArray("failed_targets") ?: return emptyList()
-    return (0 until failed.length()).mapNotNull { index ->
-        val name = failed.optJSONObject(index)?.optString("provider")
-        BroadcastProvider.entries.firstOrNull { it.wireValue == name }
-    }.distinct()
+/**
+ * failed_targets의 플랫폼별 사유 코드입니다. 같은 플랫폼이 여러 번 오면 처음 사유를 씁니다.
+ * 알 수 없는 플랫폼은 이 앱이 송출하지 않은 대상이므로 무시합니다.
+ */
+internal fun parseFailedTargetCodes(payload: String): Map<BroadcastProvider, String> {
+    val failed = JSONObject(payload).optJSONArray("failed_targets") ?: return emptyMap()
+    val codes = linkedMapOf<BroadcastProvider, String>()
+    for (index in 0 until failed.length()) {
+        val entry = failed.optJSONObject(index) ?: continue
+        val provider = BroadcastProvider.entries.firstOrNull { it.wireValue == entry.optString("provider") } ?: continue
+        codes.putIfAbsent(provider, entry.optString("code"))
+    }
+    return codes
 }
 
 private fun Throwable.toBroadcastFailure(): BroadcastFailure =

@@ -4,6 +4,7 @@ import { ConversionTracker } from "@/components/conversion-tracker";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { LocaleProvider } from "@/components/locale-provider";
+import { NoticePopup } from "@/components/notice-popup";
 import { RouteScrollReset } from "@/components/route-scroll-reset";
 import { defaultLocale, isLocale, locales } from "@/lib/locales";
 import { getMessages } from "@/lib/messages";
@@ -70,6 +71,7 @@ export default async function LocaleLayout({
           <Header />
           <div className="flex-1">{children}</div>
           <Footer />
+          <NoticePopup />
         </LocaleProvider>
       </body>
     </html>

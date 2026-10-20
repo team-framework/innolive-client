@@ -24,6 +24,7 @@ export type Plan = {
     label: string;
     href?: string;
     current?: boolean;
+    disabled?: boolean;
   };
   features: PlanFeature[];
   ribbon?: string;
@@ -48,10 +49,9 @@ function featureList(
   }));
 }
 
-export function getPersonalPlans(messages: Messages, locale: Locale): Plan[] {
+export function getPersonalPlans(messages: Messages): Plan[] {
   const copy = messages.plans.personal;
   const month = messages.plans.periodMonth;
-  const signup = localePath(locale, "/signup");
   const definitions: Array<{ id: string; name: string; amount: string; copy: PlanCopy }> = [
     { id: "spark", name: "Spark", amount: "0", copy: copy.spark },
     { id: "glow", name: "Glow", amount: "7,900", copy: copy.glow },
@@ -67,7 +67,7 @@ export function getPersonalPlans(messages: Messages, locale: Locale): Plan[] {
     price: { amount: "0", period: month, emphasize: definition.id !== "spark" },
     cta: definition.id === "spark"
       ? { label: definition.copy.cta, current: true }
-      : { label: definition.copy.cta, href: signup },
+      : { label: messages.plans.comingSoon, disabled: true },
     features: featureList([], definition.copy.features),
     ribbon: definition.id === "spark" ? undefined : messages.plans.ribbon,
     footnotes: definition.copy.footnotes?.length ? [...definition.copy.footnotes] : undefined,

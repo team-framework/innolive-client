@@ -9,7 +9,7 @@
     <string name="error_broadcast_limit">This broadcast has reached its time limit. Please start a new broadcast.</string>
     <string name="error_stream_capacity">No streaming capacity is available right now. Please try again later.</string>
     <string name="error_streaming_quota">The daily YouTube integration quota has been used up. It resets at 4 PM Korea time (5 PM in winter).</string>
-    <string name="error_streaming_rate_limit">The platform request limit has been reached. Please try again later.</string>
+    <string name="error_streaming_rate_limit">This YouTube channel has reached the YouTube request limit. Try again later or choose another channel.</string>
     <string name="error_streaming_account_in_use">You cannot disconnect this platform while streaming. Please stop the broadcast first.</string>
     <string name="error_streaming_operation">YouTube could not process the request. Please try again.</string>
     <string name="error_withdrawal_in_progress">Account deletion is in progress.</string>
@@ -18,6 +18,8 @@
     <string name="error_field_required">Please complete this required field.</string>
     <string name="error_field_invalid">Please check the value you entered.</string>
     <string name="error_field_not_changeable_live">This field cannot be changed while live.</string>
+    <string name="error_face_swap_not_allowed">Face swap is available only to administrator accounts. Switch to blur in Settings &gt; Lab and prepare again.</string>
+    <string name="error_face_swap_unavailable">Face swap is not available on the server right now. Switch to blur in Settings &gt; Lab and prepare again.</string>
     <string name="error_guidance_title">Notice</string>
     <string name="action_continue_broadcast">Continue</string>
     <string name="action_open_help">Open help</string>

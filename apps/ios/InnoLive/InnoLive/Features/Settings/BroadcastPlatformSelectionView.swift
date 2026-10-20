@@ -275,7 +275,7 @@ struct BroadcastTargetSelectionView: View {
                     get: { youtube.selectedBroadcastProviders.contains(provider) },
                     set: { selected in
                         if selected { youtube.selectedBroadcastProviders.insert(provider) }
-                        else if youtube.selectedBroadcastProviders.count > 1 { youtube.selectedBroadcastProviders.remove(provider) }
+                        else { youtube.selectedBroadcastProviders.remove(provider) }
                     }
                 )) {
                     VStack(alignment: .leading) {
@@ -288,6 +288,11 @@ struct BroadcastTargetSelectionView: View {
                 .disabled(youtube.isBroadcastSettingsLocked
                           || (!youtube.isSettingsAccountConnected(provider) && !youtube.selectedBroadcastProviders.contains(provider)))
                 .accessibilityIdentifier("broadcast-target-" + provider.rawValue)
+            }
+            if youtube.selectedBroadcastProviders.isEmpty {
+                Text(String(localized: "플랫폼을 선택하지 않으면 계정 없이 비식별화만 실행합니다. 현재 AI 처리 방식(서버·온디바이스)을 그대로 사용합니다."))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("broadcast-target-privacy-only")
             }
         }
     }

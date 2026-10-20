@@ -48,6 +48,8 @@ fun serverErrorGuidance(
             else -> R.string.error_field_invalid
         }
         "field_not_changeable_live" -> R.string.error_field_not_changeable_live
+        "face_swap_not_allowed" -> R.string.error_face_swap_not_allowed
+        "face_swap_unavailable" -> R.string.error_face_swap_unavailable
         else -> return null
     }
     val safeHelpUrl = helpUrl?.toHttpUrlOrNull()

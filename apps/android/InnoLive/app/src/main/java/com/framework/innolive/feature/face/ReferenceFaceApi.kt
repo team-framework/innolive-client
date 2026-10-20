@@ -34,6 +34,8 @@ internal data class ReferenceFaceRegistrationResult(
 internal data class ReferenceFace(
     val faceId: String,
     val registeredAt: String?,
+    /** AI 워커가 재시작해 이 얼굴을 잃었습니다. 같은 face_id로 사진을 다시 올리기 전까지 블러에서 빠지지 않습니다. */
+    val reregistrationRequired: Boolean = false,
 )
 
 internal data class ReferenceFaceStatus(
@@ -42,6 +44,8 @@ internal data class ReferenceFaceStatus(
     val registeredAt: String?,
     val count: Int?,
     val faces: List<ReferenceFace>,
+    /** 다시 등록해야 하는 얼굴이 하나라도 있습니다. 이 필드가 없는 옛 서버는 false로 읽습니다. */
+    val reregistrationRequired: Boolean = false,
 )
 
 internal class ReferenceFaceApiException(
@@ -104,6 +108,27 @@ internal class ReferenceFaceApi(
                 accessToken = accessToken,
                 refreshAccessToken = refreshAccessToken,
                 buildRequest = { token -> buildAppendRequest(images, token, name) },
+            ),
+        )
+    }
+
+    /**
+     * AI 워커가 잃은 얼굴 [faceId]를 사진 한 장으로 다시 등록합니다. 서버는 같은 face_id와 이름을 유지하고
+     * 재등록 필요 표시를 지웁니다. 모르는 face_id는 404, 사진이 한 장이 아니면 400입니다.
+     */
+    suspend fun reregister(
+        faceId: String,
+        image: ByteArray,
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ): ReferenceFaceRegistrationResult {
+        require(faceId.isNotBlank()) { "Face id must not be blank." }
+        require(image.isNotEmpty()) { "Reference face image must not be empty." }
+        return parseRegistrationResponse(
+            executeAuthenticated(
+                accessToken = accessToken,
+                refreshAccessToken = refreshAccessToken,
+                buildRequest = { token -> buildReregisterRequest(faceId, image, token) },
             ),
         )
     }
@@ -195,6 +220,26 @@ internal class ReferenceFaceApi(
                     )
                 }
             }
+            .build()
+        return Request.Builder()
+            .url(serverBaseUrl.resolveOrThrow("/reference-face"))
+            .header("Accept", "application/json")
+            .header("Authorization", "Bearer $accessToken")
+            .post(body)
+            .build()
+    }
+
+    // `image`가 아닌 `images`로 보내 face_id를 모르는 서버에서도 얼굴 집합 전체를 교체하지 않게 합니다.
+    // 이름은 보내지 않아 기존 이름을 유지합니다.
+    private fun buildReregisterRequest(faceId: String, image: ByteArray, accessToken: String): Request {
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart("face_id", faceId)
+            .addFormDataPart(
+                "images",
+                "reference-face.jpg",
+                image.toRequestBody(jpegMediaType),
+            )
             .build()
         return Request.Builder()
             .url(serverBaseUrl.resolveOrThrow("/reference-face"))
@@ -355,6 +400,7 @@ internal class ReferenceFaceApi(
             registeredAt = json.optNullableString("registered_at"),
             count = (json.opt("count") as? Number)?.toInt(),
             faces = parseFaces(json),
+            reregistrationRequired = json.opt("reregistration_required") == true,
         )
     }
 
@@ -370,6 +416,7 @@ internal class ReferenceFaceApi(
                     ReferenceFace(
                         faceId = faceId,
                         registeredAt = face.optNullableString("registered_at"),
+                        reregistrationRequired = face.opt("reregistration_required") == true,
                     ),
                 )
             }

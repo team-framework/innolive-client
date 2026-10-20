@@ -4150,6 +4150,98 @@
         }
       }
     },
+    "이 YouTube 채널이 YouTube 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 YouTube 채널이 YouTube 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This YouTube channel has reached the YouTube request limit. Try again later or choose another channel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このYouTubeチャンネルはYouTubeのリクエスト上限に達しました。しばらくしてから再試行するか、別のチャンネルを選択してください。"
+          }
+        }
+      }
+    },
+    "오늘 YouTube 연동 한도를 모두 사용했습니다. 한국 시간 오후 4시(겨울에는 오후 5시)에 초기화됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오늘 YouTube 연동 한도를 모두 사용했습니다. 한국 시간 오후 4시(겨울에는 오후 5시)에 초기화됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The daily YouTube integration quota has been used up. It resets at 4 PM Korea time (5 PM in winter)."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日のYouTube連携の利用上限に達しました。韓国時間の午後4時（冬は午後5時）にリセットされます。"
+          }
+        }
+      }
+    },
+    "다른 InnoLive 계정이 이 채널로 방송 중입니다. 그 방송이 끝난 뒤 다시 시도해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다른 InnoLive 계정이 이 채널로 방송 중입니다. 그 방송이 끝난 뒤 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another InnoLive account is streaming to this channel. Please try again after that broadcast ends."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別のInnoLiveアカウントがこのチャンネルで配信中です。その配信が終わってからもう一度お試しください。"
+          }
+        }
+      }
+    },
+    "연결된 YouTube 채널이 여러 개입니다. 송출할 채널을 선택해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "연결된 YouTube 채널이 여러 개입니다. 송출할 채널을 선택해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Several YouTube channels are connected. Choose the channel to stream to."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "複数のYouTubeチャンネルが連携されています。配信するチャンネルを選択してください。"
+          }
+        }
+      }
+    },
     "YouTube 송출이 이미 일시 중지되어 있습니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -13837,6 +13929,298 @@
           "stringUnit": {
             "state": "translated",
             "value": "匿名化オフ"
+          }
+        }
+      }
+    },
+    "비식별화 영상 연결을 종료하고 카메라 미리보기로 돌아갑니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화 영상 연결을 종료하고 카메라 미리보기로 돌아갑니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ends the anonymized video connection and returns to the camera preview."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化映像の接続を終了し、カメラプレビューに戻ります。"
+          }
+        }
+      }
+    },
+    "비식별화 종료": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화 종료"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop Anonymization"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化を終了"
+          }
+        }
+      }
+    },
+    "비식별화 시작": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화 시작"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Anonymization"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化を開始"
+          }
+        }
+      }
+    },
+    "송출 플랫폼 없음": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "송출 플랫폼 없음"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No streaming platform"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信プラットフォームなし"
+          }
+        }
+      }
+    },
+    "비식별화만 실행": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화만 실행"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anonymization only"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化のみ"
+          }
+        }
+      }
+    },
+    "플랫폼을 선택하지 않으면 계정 없이 비식별화만 실행합니다. 현재 AI 처리 방식(서버·온디바이스)을 그대로 사용합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼을 선택하지 않으면 계정 없이 비식별화만 실행합니다. 현재 AI 처리 방식(서버·온디바이스)을 그대로 사용합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With no platform selected, only anonymization runs and no account is needed. Your current AI processing mode (server or on-device) is used."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームを選択しない場合、アカウントなしで匿名化のみを実行します。現在のAI処理方式（サーバー・オンデバイス）をそのまま使用します。"
+          }
+        }
+      }
+    },
+    "방송 정보와 플랫폼 계정 없이 카메라 영상의 비식별화 결과만 확인합니다. 플랫폼을 선택하면 같은 연결에서 방송을 준비할 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 정보와 플랫폼 계정 없이 카메라 영상의 비식별화 결과만 확인합니다. 플랫폼을 선택하면 같은 연결에서 방송을 준비할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check the anonymized camera video without broadcast details or a platform account. Select a platform to prepare a broadcast on the same connection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信情報やプラットフォームアカウントなしで、カメラ映像の匿名化結果だけを確認します。プラットフォームを選択すると、同じ接続で配信を準備できます。"
+          }
+        }
+      }
+    },
+    "AI 서버 재시작으로 등록이 초기화되어, 다시 등록해야 블러에서 제외됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 서버 재시작으로 등록이 초기화되어, 다시 등록해야 블러에서 제외됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The AI server restarted and reset this registration. Register the face again to exclude it from blur."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIサーバーの再起動で登録が初期化されました。もう一度登録するとぼかしの対象外になります。"
+          }
+        }
+      }
+    },
+    "다시 등록이 필요한 얼굴이 있어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 등록이 필요한 얼굴이 있어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some faces need to be registered again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再登録が必要な顔があります"
+          }
+        }
+      }
+    },
+    "다시 등록 필요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 등록 필요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs re-registration"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再登録が必要"
+          }
+        }
+      }
+    },
+    "다시 등록": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 등록"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再登録"
+          }
+        }
+      }
+    },
+    "등록 얼굴 %lld 다시 등록": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록 얼굴 %lld 다시 등록"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register face %lld again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録した顔 %lldを再登録"
+          }
+        }
+      }
+    },
+    "얼굴 다시 등록": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 다시 등록"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register Face Again"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔を再登録"
           }
         }
       }

@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +60,8 @@ fun BroadcastVideoControls(
     onSettingsChanged: (BroadcastVideoQualitySettings) -> Unit,
     onDismiss: () -> Unit,
     mirrorPreviews: Boolean = false,
+    /** 서버 AI 블러 강도·영역입니다. null이면 구역을 숨깁니다. */
+    mosaic: MosaicControlsState? = null,
 ) {
     ModalTheme {
         ModalBottomSheet(
@@ -89,6 +92,11 @@ fun BroadcastVideoControls(
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Outlined.Close, stringResource(R.string.action_close))
                     }
+                }
+                // iOS처럼 방송 중 자주 바꾸는 모자이크를 색감보다 먼저 둡니다.
+                if (mosaic != null) {
+                    MosaicControls(mosaic)
+                    HorizontalDivider()
                 }
                 BroadcastVideoAdjustments(settings, captureState, previews, onSettingsChanged, mirrorPreviews)
             }
@@ -230,7 +238,7 @@ private fun VideoPresetCard(
 }
 
 @Composable
-private fun VideoAdjustmentSlider(
+internal fun VideoAdjustmentSlider(
     title: String,
     value: Float,
     valueLabel: String,
@@ -239,6 +247,7 @@ private fun VideoAdjustmentSlider(
     trailing: String,
     enabled: Boolean = true,
     steps: Int = 0,
+    onValueChangeFinished: (() -> Unit)? = null,
     onValueChange: (Float) -> Unit,
 ) {
     Column {
@@ -252,6 +261,7 @@ private fun VideoAdjustmentSlider(
             valueRange = range,
             enabled = enabled,
             steps = steps,
+            onValueChangeFinished = onValueChangeFinished,
             modifier = Modifier.semantics {
                 contentDescription = title
                 stateDescription = valueLabel

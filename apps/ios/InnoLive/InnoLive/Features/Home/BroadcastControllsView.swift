@@ -160,7 +160,7 @@ struct BroadcastControllsView: View {
                             Rectangle().fill(.white.opacity(0.2)).frame(width: 1, height: 24)
                         }
                         primaryControl
-                        if canCancelPreparation {
+                        if canCancelPreparation && !youtube.isPrivacyOnlySession {
                             Button(role: .destructive, action: cancelPreparation) {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 13, weight: .semibold))
@@ -190,7 +190,9 @@ struct BroadcastControllsView: View {
     private var primaryControl: some View {
         Button(action: performPrimaryAction) {
             if isBroadcasting {
-                if youtube.hasStartedYouTubeBroadcast {
+                if youtube.isPrivacyOnlySession {
+                    PrivacyOnlyControlLabel(isLoading: previewTransition == .stopping)
+                } else if youtube.hasStartedYouTubeBroadcast {
                     Label(String(localized: "방송 제어"), systemImage: "slider.horizontal.3")
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(2)
@@ -367,6 +369,9 @@ struct BroadcastControllsView: View {
     }
 
     private var primaryActionHint: String {
+        if isBroadcasting && youtube.isPrivacyOnlySession {
+            return String(localized: "비식별화 영상 연결을 종료하고 카메라 미리보기로 돌아갑니다.")
+        }
         if !isBroadcasting {
             if youtube.preparationStatus?.isFailed == true {
                 return String(localized: "실패한 준비 단계부터 다시 시도합니다.")
@@ -394,13 +399,18 @@ struct BroadcastControllsView: View {
     private func performPrimaryAction() {
         youtube.dismissError()
 
-        if youtube.preparationStatus?.isFailed == true, let provider = youtube.lastPreparationProvider {
-            prepareYouTubeStream(provider)
+        if youtube.preparationStatus?.isFailed == true {
+            prepareYouTubeStream(youtube.lastPreparationProvider ?? .youtube)
             return
         }
 
         guard isBroadcasting else {
             isShowingBroadcastSettings = true
+            return
+        }
+
+        if youtube.isPrivacyOnlySession {
+            cancelPreparation()
             return
         }
 

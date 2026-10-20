@@ -25,6 +25,10 @@ final class FaceRegistrationViewModel: ObservableObject {
     @Published var name = ""
     let mode: AIProcessingMode
     var canRegister: Bool { ReferenceFaceName.isValid(name) }
+    /// 다시 등록할 서버 얼굴이다. 있으면 촬영한 사진을 새 얼굴 대신 이 face_id로 올린다.
+    @Published private(set) var reregistrationTarget: ReferenceFace?
+    /// 다시 등록은 기존 이름을 유지하므로 이름 입력이 필요 없다.
+    var canStartCapture: Bool { reregistrationTarget != nil || canRegister }
     @Published private(set) var status: ReferenceFaceStatus?
     @Published private(set) var isLoadingStatus = false
     @Published private(set) var isDeleting = false
@@ -57,12 +61,24 @@ final class FaceRegistrationViewModel: ObservableObject {
         }
     }
 
+    func prepareReregistration(of face: ReferenceFace) {
+        guard mode == .server, phase != .registering else { return }
+        statusErrorMessage = nil
+        phase = .idle
+        reregistrationTarget = face
+    }
+
+    func clearReregistrationTarget() {
+        guard phase != .registering else { return }
+        reregistrationTarget = nil
+    }
+
     func beginDetection(
         lifecycleSessionID: UUID,
         using cameraManager: CameraManager,
         videoUplink: WebRTCVideoUplink
     ) async {
-        guard canRegister else { phase = .failed(String(localized: "이름을 1~40자로 입력해 주세요.")); return }
+        guard canStartCapture else { phase = .failed(String(localized: "이름을 1~40자로 입력해 주세요.")); return }
         activeLifecycleSessionID = lifecycleSessionID
         invalidateDetection()
         let generation = detectionGeneration
@@ -285,17 +301,35 @@ final class FaceRegistrationViewModel: ObservableObject {
                       self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
                       case .registering = self.phase else { return }
 
+                let target = self.reregistrationTarget
                 do {
-                    let name = self.name.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let registeredStatus = try await self.mode == .server
-                        ? self.api.register(jpegData: jpegData, name: name)
-                        : LocalFaceRegistrationStore.shared.register(jpegData: jpegData, name: name)
+                    let registeredStatus: ReferenceFaceStatus
+                    if let target {
+                        registeredStatus = try await self.api.reregister(faceID: target.id, jpegData: jpegData)
+                    } else {
+                        let name = self.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                        registeredStatus = try await self.mode == .server
+                            ? self.api.register(jpegData: jpegData, name: name)
+                            : LocalFaceRegistrationStore.shared.register(jpegData: jpegData, name: name)
+                    }
                     guard !Task.isCancelled,
                           self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
                           case .registering = self.phase else { return }
+                    // 응답이 서버의 최신 목록이므로 다시 등록한 얼굴의 표시가 풀린 상태로 바뀐다.
                     self.status = registeredStatus
-                    self.name = ""
+                    if target == nil { self.name = "" }
+                    self.reregistrationTarget = nil
                     self.phase = .success
+                } catch let error as ReferenceFaceAPIError where error.isNotFound && target != nil {
+                    // 다른 기기에서 지웠거나 목록이 바뀌었다. 촬영 화면을 닫기 전에 목록을 새로 읽는다.
+                    let message = error.userMessage
+                    await self.loadStatus()
+                    guard !Task.isCancelled,
+                          self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),
+                          case .registering = self.phase else { return }
+                    if self.statusErrorMessage == nil { self.statusErrorMessage = message }
+                    self.phase = .idle
+                    self.reregistrationTarget = nil
                 } catch {
                     guard !Task.isCancelled,
                           self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),

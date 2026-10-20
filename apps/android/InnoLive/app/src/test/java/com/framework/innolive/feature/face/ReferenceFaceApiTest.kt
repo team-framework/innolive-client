@@ -405,6 +405,7 @@ class ReferenceFaceApiTest {
     fun appendStatusAndDeleteRequestsRefreshOnceAfter401Too() {
         val operations: List<Pair<String, suspend ReferenceFaceApi.(suspend () -> String) -> Unit>> = listOf(
             "append" to { refresh -> append(listOf(image), "old-token", refresh); Unit },
+            "reregister" to { refresh -> reregister("face-1", image, "old-token", refresh); Unit },
             "status" to { refresh -> getStatus("old-token", refresh); Unit },
             "deleteAll" to { refresh -> deleteAll("old-token", refresh) },
             "deleteFace" to { refresh -> deleteFace("face-1", "old-token", refresh) },
@@ -556,6 +557,161 @@ class ReferenceFaceApiTest {
         } finally {
             closeClient(api, client)
         }
+    }
+
+    // --- reference-face-v1.md: AI 워커가 잃은 얼굴 표시와 face_id 재등록 ---
+
+    @Test
+    fun readsReregistrationMarksAndTreatsMissingOrNonBooleanMarksAsFalse() {
+        val bodies = listOf(
+            """
+                {"registered":true,"count":2,"reregistration_required":true,"faces":[
+                  {"face_id":"lost","registered_at":"2026-10-19T00:00:00Z","reregistration_required":true},
+                  {"face_id":"kept","registered_at":"2026-10-20T00:00:00Z","reregistration_required":false}]}
+            """.trimIndent(),
+            """{"registered":true,"count":1,"faces":[{"face_id":"old","registered_at":"2026-09-21"}]}""",
+            """{"registered":true,"count":1,"reregistration_required":"true","faces":[{"face_id":"odd","reregistration_required":1}]}""",
+        )
+        val expected = listOf(
+            true to listOf(
+                ReferenceFace("lost", "2026-10-19T00:00:00Z", reregistrationRequired = true),
+                ReferenceFace("kept", "2026-10-20T00:00:00Z"),
+            ),
+            false to listOf(ReferenceFace("old", "2026-09-21")),
+            false to listOf(ReferenceFace("odd", null)),
+        )
+
+        bodies.zip(expected).forEach { (body, expectation) ->
+            val client = clientWithResponse { request -> response(request, 200, body) }
+            val api = ReferenceFaceApi("https://example.com", client)
+            try {
+                val status = runBlocking { api.getStatus("access-token") { error("refresh must not run") } }
+
+                assertEquals(body, expectation.first, status.reregistrationRequired)
+                assertEquals(body, expectation.second, status.faces)
+            } finally {
+                closeClient(api, client)
+            }
+        }
+    }
+
+    @Test
+    fun reregisterSendsFaceIdAndOneImagesFileWithoutNameOrReplaceField() {
+        val requests = mutableListOf<Request>()
+        val client = clientWithResponse { request ->
+            requests += request
+            response(
+                request,
+                201,
+                """{"registered":true,"count":1,"reregistration_required":false,"faces":[{"face_id":"face-1","reregistration_required":false}]}""",
+            )
+        }
+        val api = ReferenceFaceApi("https://example.com/api", client)
+
+        try {
+            val result = runBlocking {
+                api.reregister("face-1", image, "access-token") { error("refresh must not run") }
+            }
+
+            assertTrue(result.registered)
+            assertEquals(listOf(ReferenceFace("face-1", null)), result.faces)
+            val request = requests.single()
+            assertEquals("POST", request.method)
+            assertEquals("/reference-face", request.url.encodedPath)
+            assertEquals("Bearer access-token", request.header("Authorization"))
+            assertNoSessionOrClientHeaders(requests)
+
+            val body = requestBodyBytes(request)
+            val bodyText = body.toString(Charsets.ISO_8859_1)
+            assertTrue(bodyText.contains("name=\"face_id\""))
+            assertTrue(bodyText.contains("\r\n\r\nface-1\r\n"))
+            assertEquals(1, Regex("name=\"images\"; filename=\"reference-face.jpg\"").findAll(bodyText).count())
+            assertTrue(!bodyText.contains("name=\"image\";"))
+            assertTrue(!bodyText.contains("name=\"name\""))
+            assertTrue(body.containsSubsequence(image))
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
+    @Test
+    fun reregisterReportsMissingFaceAndRejectedPhotoWithServerCodes() {
+        val cases = listOf(
+            Triple(404, """{"error":{"code":"not_found","message":"missing face","details":{"face_id":"face-1"}}}""", "not_found"),
+            Triple(400, """{"error":{"code":"face_not_detected","message":"rejected"}}""", "face_not_detected"),
+            Triple(400, """{"error":{"code":"bad_request","message":"face_id must apply to exactly one image."}}""", "bad_request"),
+        )
+
+        cases.forEach { (statusCode, body, code) ->
+            val client = clientWithResponse { request -> response(request, statusCode, body) }
+            val api = ReferenceFaceApi("https://example.com", client)
+            try {
+                val exception = assertThrows(ReferenceFaceApiException::class.java) {
+                    runBlocking { api.reregister("face-1", image, "access-token") { "new-token" } }
+                }
+
+                assertEquals(statusCode, exception.statusCode)
+                assertEquals(code, exception.code)
+            } finally {
+                closeClient(api, client)
+            }
+        }
+    }
+
+    @Test
+    fun reregisterRejectsBlankFaceIdOrEmptyImageBeforeSending() {
+        val requests = AtomicInteger()
+        val client = clientWithResponse { request ->
+            requests.incrementAndGet()
+            response(request, 201, "{\"registered\":true}")
+        }
+        val api = ReferenceFaceApi("https://example.com", client)
+
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { api.reregister("  ", image, "access-token") { "new-token" } }
+            }
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { api.reregister("face-1", byteArrayOf(), "access-token") { "new-token" } }
+            }
+            assertEquals(0, requests.get())
+        } finally {
+            closeClient(api, client)
+        }
+    }
+
+    @Test
+    fun broadcastCheckReportsMarkAndStaysQuietWithoutTokenOrOnFailure() {
+        fun check(statusCode: Int, body: String, token: String? = "access-token"): Boolean? {
+            val client = clientWithResponse { request -> response(request, statusCode, body) }
+            return try {
+                runBlocking {
+                    loadReferenceFaceReregistrationRequired(
+                        getAccessToken = { token },
+                        refreshAccessToken = { "new-token" },
+                        apiFactory = { ReferenceFaceApi("https://example.com", client) },
+                    )
+                }
+            } finally {
+                client.connectionPool.evictAll()
+                client.dispatcher.executorService.shutdownNow()
+            }
+        }
+
+        assertEquals(true, check(200, """{"registered":true,"reregistration_required":true,"faces":[]}"""))
+        assertEquals(false, check(200, """{"registered":true,"faces":[]}"""))
+        assertEquals(null, check(502, ""))
+        assertEquals(null, check(200, """{"registered":true,"reregistration_required":true}""", token = "  "))
+        assertEquals(
+            null,
+            runBlocking {
+                loadReferenceFaceReregistrationRequired(
+                    getAccessToken = { "access-token" },
+                    refreshAccessToken = { "new-token" },
+                    apiFactory = { throw IllegalArgumentException("INNOLIVE_SERVER_URL이 올바르지 않습니다.") },
+                )
+            },
+        )
     }
 
     private fun clientWithResponse(

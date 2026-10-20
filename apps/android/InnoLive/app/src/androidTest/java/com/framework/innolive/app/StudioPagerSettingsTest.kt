@@ -9,6 +9,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -18,7 +20,6 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.test.espresso.Espresso
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import androidx.test.platform.app.InstrumentationRegistry
@@ -29,6 +30,7 @@ import com.framework.innolive.feature.live.CameraPreview
 import com.framework.innolive.feature.live.LiveSettingsPage
 import com.framework.innolive.feature.live.LiveStudioPager
 import com.framework.innolive.feature.live.WebRtcNativeRuntime
+import com.framework.innolive.feature.settings.CameraAudioSettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.feature.settings.selection.OptionSelectionScreen
@@ -67,31 +69,31 @@ class StudioPagerSettingsTest {
         compose.setContent {
             MyApplicationTheme(darkTheme = false, dynamicColor = false) {
                 if (!showStudio.value) return@MyApplicationTheme
-                val settingsScreen: @androidx.compose.runtime.Composable () -> Unit = {
-                    SettingsScreen(SettingsScreenProps(
-                        onBack = closeSettings,
-                        onOpenBroadcastSettings = { routes.add(BroadcastSettingRoute) },
-                        profileName = "InnoLive User", profileEmail = "user@example.com", onLogout = {},
-                        selectedResolution = "1920×1080", selectedCameraDevice = "Camera",
-                        selectedAudioDevice = "Microphone", selectedPlatform = "YouTube",
-                        broadcastAccount = "InnoLive",
-                        onOpenResolutionOptions = {
-                            routes.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
-                        },
-                    ))
-                }
+                val props = SettingsScreenProps(
+                    onBack = closeSettings,
+                    onOpenBroadcastSettings = { routes.add(BroadcastSettingRoute) },
+                    profileName = "InnoLive User", profileEmail = "user@example.com", onLogout = {},
+                    onOpenCameraAudioSettings = { routes.add(CameraAudioSettingsRoute) },
+                    selectedResolution = "1920×1080", selectedCameraDevice = "Camera",
+                    selectedAudioDevice = "Microphone",
+                    onOpenResolutionOptions = {
+                        routes.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
+                    },
+                )
                 LiveStudioPager(
                     pagerState = rememberPagerState(initialPage = 1) { 3 },
                     settings = LiveSettingsPage(
                         isOpen = routes.last() != LiveRoute,
                         canLeaveBySwipe = routes.last() == LiveRoute || routes.last() == SettingsRoute,
+                        showsPanel = routes.last() != LiveRoute && routes.last() != SettingsRoute,
                         onOpen = { if (routes.last() == LiveRoute) routes.add(SettingsRoute) },
                         onClose = closeSettings,
                         content = {
                             NavDisplay(backStack = routes, onBack = back, entryProvider = { route ->
                                 NavEntry(route) {
                                     when (route) {
-                                        LiveRoute, SettingsRoute -> settingsScreen()
+                                        LiveRoute, SettingsRoute -> SettingsScreen(props)
+                                        CameraAudioSettingsRoute -> CameraAudioSettingsScreen(props, onBack = back)
                                         is SettingOptionRoute -> OptionSelectionScreen(
                                             title = UiText.Resource(R.string.label_camera_resolution),
                                             options = listOf(SettingOption("1080", UiText.Dynamic("1920×1080"))),
@@ -127,41 +129,51 @@ class StudioPagerSettingsTest {
                 assertEquals(0, disposals.get())
             }
         }
-        fun pageDescription(page: Int, nameRes: Int) =
-            context.getString(R.string.live_page_indicator, page, 3, context.getString(nameRes))
+        // 상단 탭 중 지금 페이지만 선택 상태입니다.
+        fun selectedPage(nameRes: Int) =
+            compose.onNode(hasContentDescription(context.getString(nameRes)) and isSelected())
         try {
             assertCaptureContinues()
-            compose.onNodeWithContentDescription(pageDescription(2, R.string.live_page_home)).assertIsDisplayed()
+            selectedPage(R.string.live_page_home).assertIsDisplayed()
             // 기본 화면에서 왼쪽으로 넘기면 설정 페이지가 열리고 백스택에도 설정 화면이 쌓입니다.
             compose.onRoot().performTouchInput { swipeLeft() }
             compose.waitUntil(5_000) { routes.last() == SettingsRoute }
-            compose.onNodeWithText("user@example.com").assertIsDisplayed()
+            compose.onNodeWithText(context.getString(R.string.settings_camera_audio)).assertIsDisplayed()
             assertCaptureContinues()
             val screenshot = instrumentation.uiAutomation.takeScreenshot()
             File(context.cacheDir, "settings-page.png").outputStream().use {
                 screenshot.compress(Bitmap.CompressFormat.PNG, 100, it)
             }
             screenshot.recycle()
+            // 첫 화면의 카드 줄로 하위 화면에 들어가고, 그 안의 선택 화면까지 열어도 캡처는 이어집니다.
+            compose.onNodeWithText(context.getString(R.string.settings_camera_audio)).performClick()
             compose.onNodeWithText(context.getString(R.string.label_camera_resolution)).performClick()
             assertCaptureContinues()
             compose.onNodeWithText("1920×1080").performClick()
             assertCaptureContinues()
-            compose.onNodeWithText(context.getString(R.string.settings_broadcast))
-                .performScrollTo().performClick()
+            compose.runOnIdle { back() }
+            compose.onNodeWithText(context.getString(R.string.settings_broadcast_info)).performClick()
             assertCaptureContinues()
             compose.runOnIdle { back() }
-            // 닫기는 설정 화면을 백스택에서 빼고 기본 화면으로 돌아갑니다.
-            compose.onNodeWithContentDescription(context.getString(R.string.action_close)).performClick()
+            // 설정 첫 화면에서 오른쪽으로 넘기면 설정 화면을 백스택에서 빼고 기본 화면으로 돌아갑니다.
+            compose.onRoot().performTouchInput { swipeRight() }
             compose.waitUntil(5_000) { routes.toList() == listOf(LiveRoute) }
-            compose.onNodeWithContentDescription(pageDescription(2, R.string.live_page_home)).assertIsDisplayed()
+            selectedPage(R.string.live_page_home).assertIsDisplayed()
             assertCaptureContinues()
             // 기본 화면에서 오른쪽으로 넘기면 카메라 화면이고, 뒤로 가기는 기본 화면으로 돌아옵니다.
             compose.onRoot().performTouchInput { swipeRight() }
-            compose.onNodeWithContentDescription(pageDescription(1, R.string.live_page_camera)).assertIsDisplayed()
+            selectedPage(R.string.live_page_camera).assertIsDisplayed()
             assertCaptureContinues()
             Espresso.pressBack()
-            compose.onNodeWithContentDescription(pageDescription(2, R.string.live_page_home)).assertIsDisplayed()
+            selectedPage(R.string.live_page_home).assertIsDisplayed()
             compose.runOnIdle { assertEquals(listOf<AppRoute>(LiveRoute), routes.toList()) }
+            // 넘기지 않고 상단 탭을 눌러도 같은 페이지로 옮기고 백스택을 맞춥니다.
+            compose.onNodeWithContentDescription(context.getString(R.string.live_page_settings)).performClick()
+            compose.waitUntil(5_000) { routes.last() == SettingsRoute }
+            selectedPage(R.string.live_page_settings).assertIsDisplayed()
+            compose.onNodeWithContentDescription(context.getString(R.string.live_page_home)).performClick()
+            compose.waitUntil(5_000) { routes.toList() == listOf(LiveRoute) }
+            selectedPage(R.string.live_page_home).assertIsDisplayed()
             compose.runOnIdle { showStudio.value = false }
             compose.runOnIdle { assertEquals(1, disposals.get()) }
         } finally {

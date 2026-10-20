@@ -41,11 +41,11 @@ class AIProcessingSettingsScreenTest {
         composeRule.setContent {
             var onDevice by remember { mutableStateOf(false) }
             MyApplicationTheme {
-                SettingsScreen(props().copy(
+                AISettingsScreen(props().copy(
                     onDeviceProcessing = onDevice,
                     canChangeAIProcessing = true,
                     onSelectAIProcessing = { requests += it; onDevice = it },
-                ))
+                ), onBack = {})
             }
         }
         val onDeviceLabel = context.getString(R.string.ai_mode_on_device)
@@ -61,8 +61,8 @@ class AIProcessingSettingsScreenTest {
         var requests = 0
         composeRule.setContent {
             MyApplicationTheme {
-                SettingsScreen(props().copy(canChangeAIProcessing = false,
-                    onSelectAIProcessing = { requests++ }))
+                AISettingsScreen(props().copy(canChangeAIProcessing = false,
+                    onSelectAIProcessing = { requests++ }), onBack = {})
             }
         }
         composeRule.onNodeWithText(context.getString(R.string.ai_mode_on_device))

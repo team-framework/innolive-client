@@ -49,6 +49,14 @@ final class YouTubeIntegration: ObservableObject {
     @Published var selectedBroadcastProviders: Set<BroadcastSettingsProvider> = [.youtube]
     @Published private(set) var lastPreparationProviders: [BroadcastSettingsProvider] = []
     @Published private(set) var preparationFailures: [BroadcastSettingsProvider: BroadcastPreparationStatus] = [:]
+    /// 마지막 준비가 송출 대상 없이 비식별화만 연 경우다. 플랫폼을 고른 다음 준비는 같은 연결에 대상을 추가한다.
+    @Published private(set) var isPrivacyOnlyPreparation = false
+
+    /// 플랫폼 계정·방송 설정 없이 세션과 영상 연결만 열어 서버 또는 온디바이스 비식별화 결과를 보여 준다.
+    var isPrivacyOnlySession: Bool {
+        isPrivacyOnlyPreparation && session != nil && preparationStatus == nil && !statePolicy.isBroadcastActive
+            && statePolicy.broadcastPhase != .prepared
+    }
     var canContinuePreparedBroadcast: Bool {
         preparationStatus?.isFailed == true && !isChangingStreamState && broadcastPreparationTask == nil
             && lastPreparationProviders.contains(where: isProviderPrepared)
@@ -1862,19 +1870,17 @@ final class YouTubeIntegration: ObservableObject {
     ) async -> Bool {
         let generation = preparationGeneration
         guard preparationStatus?.phase != .cancelling else { return false }
-        guard !providers.isEmpty else {
-            errorMessage = String(localized: "방송할 플랫폼을 하나 이상 선택해 주세요.", table: "Simulcast")
-            return false
-        }
         preparationResolution = planProcessingMode == .onDevice ? Self.sessionResolution(for: preferredVideoQuality) : nil
         lastPreparationProviders = providers
         lastPreparationProvider = providers.first
-        for provider in providers {
+        // 대상이 없으면 계정·방송 설정 검사 없이 공통 조건만 확인한다.
+        for provider in providers.isEmpty ? [nil] : providers.map(Optional.some) {
             if preparationBlocker(provider: provider, accessToken: accessToken, useEditor: useEditor, permissions: permissions) != nil {
                 preparationResolution = nil
                 return false
             }
         }
+        isPrivacyOnlyPreparation = providers.isEmpty
 
         let canReuseConnection = session != nil && isVideoConnected
         if !canReuseConnection {
@@ -1903,7 +1909,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     private func preparationBlocker(
-        provider: BroadcastSettingsProvider,
+        provider: BroadcastSettingsProvider?,
         accessToken: String?,
         useEditor: Bool,
         permissions: BroadcastPreparationPermissions
@@ -1924,20 +1930,22 @@ final class YouTubeIntegration: ObservableObject {
             errorMessage = String(localized: "마이크를 허용한 뒤 방송을 준비할 수 있습니다.")
             return errorMessage
         }
-        let accountReady = provider == .youtube
-            ? (connection != nil && connection?.requiresReconnection == false)
-            : isSettingsAccountConnected(provider)
-        guard accountReady else {
-            errorMessage = String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요.")
-            return errorMessage
-        }
-        let validation = provider == .youtube
-            ? (useEditor ? settingsEditor.youtube.validation : broadcastSettings.normalized.validation)
-            : settingsEditor.chzzk.validation
-        if useEditor, settingsEditor.provider == provider { settingsEditor.showValidation() }
-        if let message = validation.sorted(by: { $0.key < $1.key }).first?.value {
-            errorMessage = message
-            return message
+        if let provider {
+            let accountReady = provider == .youtube
+                ? (connection != nil && connection?.requiresReconnection == false)
+                : isSettingsAccountConnected(provider)
+            guard accountReady else {
+                errorMessage = String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요.")
+                return errorMessage
+            }
+            let validation = provider == .youtube
+                ? (useEditor ? settingsEditor.youtube.validation : broadcastSettings.normalized.validation)
+                : settingsEditor.chzzk.validation
+            if useEditor, settingsEditor.provider == provider { settingsEditor.showValidation() }
+            if let message = validation.sorted(by: { $0.key < $1.key }).first?.value {
+                errorMessage = message
+                return message
+            }
         }
         if let message = planStore.snapshot?.preparationBlockMessage(.current(resolution: broadcastResolution ?? preparationResolution, targetCount: lastPreparationProviders.count), processing: planProcessingMode) {
             errorMessage = message
@@ -2288,10 +2296,7 @@ final class YouTubeIntegration: ObservableObject {
                 }
             }
             if !liveResponse.details.failedTargets.isEmpty {
-                errorMessage = liveResponse.details.failedTargets.map { failure in
-                    let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
-                    return title + ": " + String(localized: "라이브 시작에 실패했습니다. 다른 플랫폼의 방송은 유지됩니다.", table: "Simulcast")
-                }.joined(separator: "\n")
+                errorMessage = liveResponse.details.failedTargets.map(Self.liveStartFailureMessage).joined(separator: "\n")
             }
             if !directFailures.isEmpty {
                 errorMessage = ([errorMessage].compactMap { $0 } + directFailures).joined(separator: "\n")
@@ -2489,6 +2494,7 @@ final class YouTubeIntegration: ObservableObject {
         selectedBroadcastProviders = [.youtube]
         lastPreparationProvider = nil
         lastPreparationProviders = []
+        isPrivacyOnlyPreparation = false
         preparationFailures = [:]
         sessionOperationGeneration &+= 1
         sessionScope = nil
@@ -3049,6 +3055,15 @@ final class YouTubeIntegration: ObservableObject {
 
     static func isDirectPublish(_ session: YouTubeBroadcastSession) -> Bool {
         session.aiProcessing == AIProcessingMode.onDevice.rawValue
+    }
+
+    /// 동시 송출 라이브 전환에서 실패한 대상의 안내다. 다른 플랫폼은 라이브로 남는다.
+    static func liveStartFailureMessage(_ failure: BroadcastTargetFailure) -> String {
+        let title = BroadcastSettingsProvider(rawValue: failure.provider)?.title ?? failure.provider
+        let message = failure.isRateLimited
+            ? String(localized: "채널 요청 한도로 라이브를 시작하지 못했습니다. 다른 플랫폼의 방송은 유지됩니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요.", table: "Simulcast")
+            : String(localized: "라이브 시작에 실패했습니다. 다른 플랫폼의 방송은 유지됩니다.", table: "Simulcast")
+        return title + ": " + message
     }
 
     /// 치지직은 RTMP 연결이 곧 공개 방송이라 서버가 라이브 전환 응답에서 주소를 준다. 나머지는 준비 응답에서 준다.

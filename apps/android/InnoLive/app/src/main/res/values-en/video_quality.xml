@@ -23,4 +23,17 @@
     <string name="video_stabilization_pending">Checking camera stabilization</string>
     <string name="video_stabilization_inactive">Applies when the camera starts</string>
     <string name="video_stabilization_off">Off</string>
+    <string name="mosaic_title">Mosaic</string>
+    <string name="mosaic_blur_strength">Blur strength</string>
+    <string name="mosaic_weaker">Weaker</string>
+    <string name="mosaic_stronger">Stronger</string>
+    <string name="mosaic_mask_margin">Masked area width</string>
+    <string name="mosaic_narrower">Narrower</string>
+    <string name="mosaic_wider">Wider</string>
+    <string name="mosaic_pixels_value">%1$dpx</string>
+    <string name="mosaic_reset">Reset mosaic</string>
+    <string name="mosaic_prepare_required">Available after you prepare a broadcast.</string>
+    <string name="mosaic_server_only">Available only with server AI processing.</string>
+    <string name="mosaic_anonymization_off">Applies while anonymization is on.</string>
+    <string name="error_mosaic_config">Couldn’t change the blur settings. Please try again.</string>
 </resources>

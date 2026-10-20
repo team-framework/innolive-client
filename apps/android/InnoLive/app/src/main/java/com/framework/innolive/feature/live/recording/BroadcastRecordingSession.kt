@@ -7,6 +7,7 @@ import com.framework.innolive.feature.live.direct.publish.cameraTimestampToMonot
 import org.webrtc.VideoFrame
 import org.webrtc.VideoSink
 import java.io.File
+import java.nio.channels.FileChannel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -48,17 +49,22 @@ internal class BroadcastRecordingSession(
     private val validator: (File) -> Long? = { file -> validateRecordingFile(file) },
     private val finishTimeoutMillis: Long = FINISH_TIMEOUT_MILLIS,
     private val worker: ExecutorService = Executors.newSingleThreadExecutor { Thread(it, "recording-worker") },
+    openChannel: (File) -> FileChannel = FragmentedMp4Writer::openRecordingChannel,
 ) {
     private val stopped = AtomicBoolean(false)
     private val reported = AtomicBoolean(false)
     private val epochUs = nowNs() / 1_000L - EPOCH_MARGIN_US
     private val originalPartial = File(directory, "$ORIGINAL_FILE_NAME.partial.mp4")
     private val processedPartial = File(directory, "$PROCESSED_FILE_NAME.partial.mp4")
-    private val originalWriter = RecordingTrackWriter(originalPartial, epochUs, { reason, error -> report(reason, error) })
+    private val mp4Writer = { target: File, video: VideoTrackConfig, audio: AudioTrackConfig, epoch: Long ->
+        FragmentedMp4Writer(target, video, audio, epoch, openChannel = openChannel)
+    }
+    private val originalWriter = RecordingTrackWriter(originalPartial, epochUs, { reason, error -> report(reason, error) },
+        writerFactory = mp4Writer)
     // 송출 프레임 파일은 선택 사항입니다. 실패해도 원본 저장은 이어 갑니다.
     private val processedWriter = RecordingTrackWriter(processedPartial, epochUs, { reason, error ->
         RecordingLog.w("processed_writer_failed reason=$reason type=${error.javaClass.simpleName}")
-    })
+    }, writerFactory = mp4Writer)
     private val latency = if (alignProcessed) RecordingLatencyEstimator() else null
     private val estimating = AtomicBoolean(false)
     private val processedProbes = AtomicInteger()
@@ -122,7 +128,8 @@ internal class BroadcastRecordingSession(
                 originalResult.audioSamples == 0L -> RecordingFailure.NO_AUDIO
                 else -> RecordingFailure.STORAGE
             }
-            preserveOrDelete(keep = originalResult.started && originalResult.videoSamples > 0L)
+            // 쓰기·마무리 오류로 끝나면 started가 false입니다. abandon처럼 이미 쓴 영상이 있으면 보관합니다.
+            preserveOrDelete(keep = originalResult.videoSamples > 0L)
             throw RecordingFailedException(reason, originalResult.failure)
         }
         updateJournal(RecordingJournal.Status.WRITER_COMPLETED, delayUs)

@@ -21,6 +21,7 @@ internal class FragmentedMp4Writer(
     private val fragmentDurationUs: Long = 1_000_000L,
     private val maxFragmentDurationUs: Long = 2_000_000L,
     private val maxFragmentBytes: Long = 4L * 1024 * 1024,
+    openChannel: (File) -> FileChannel = ::openRecordingChannel,
 ) : AutoCloseable {
     private class Sample(val data: ByteArray, val ticks: Long, val sync: Boolean, var duration: Int = 0)
 
@@ -33,7 +34,7 @@ internal class FragmentedMp4Writer(
         fun timeUs(ticks: Long): Long = epochUs + ticks * 1_000_000L / timescale
     }
 
-    private val channel: FileChannel = RandomAccessFile(file, "rw").channel
+    private val channel: FileChannel = openChannel(file)
     private val videoTrack = Track(Mp4Codec.VIDEO_TRACK_ID, Mp4Codec.VIDEO_TIMESCALE, Mp4Codec.VIDEO_TIMESCALE / RECORDING_FPS)
     private val audioTrack = Track(Mp4Codec.AUDIO_TRACK_ID, audio.sampleRate, AAC_FRAME_SAMPLES)
     private var sequence = 0
@@ -181,6 +182,9 @@ internal class FragmentedMp4Writer(
     }
 
     internal companion object {
+        /** 녹화 파일의 기본 채널입니다. 테스트는 쓰기 오류를 내는 채널로 바꿉니다. */
+        fun openRecordingChannel(file: File): FileChannel = RandomAccessFile(file, "rw").channel
+
         const val AAC_FRAME_SAMPLES = 1_024
         const val TFHD_DEFAULT_BASE_IS_MOOF = 0x020000
         const val TRUN_FLAGS = 0x000001 or 0x000100 or 0x000200 or 0x000400
