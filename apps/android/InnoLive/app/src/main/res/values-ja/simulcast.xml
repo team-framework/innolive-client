@@ -6,5 +6,6 @@
     <string name="simulcast_golive_rate_limited_youtube">チャンネルのリクエスト上限によりYouTubeでライブを開始できませんでした。CHZZKの配信は継続します。しばらくしてから再試行するか、別のチャンネルを選択してください。</string>
     <string name="simulcast_golive_failed_chzzk">CHZZKでライブを開始できませんでした。YouTubeの配信は継続します。</string>
     <string name="simulcast_golive_failed_all">ライブを開始できませんでした。もう一度お試しください。</string>
+    <string name="simulcast_golive_failed_all_rate_limited_youtube">YouTubeチャンネルのリクエスト上限とCHZZKのエラーによりライブを開始できませんでした。しばらくしてから再試行するか、別のYouTubeチャンネルを選択してください。</string>
     <string name="simulcast_action_retry_remaining">残りのプラットフォームを再準備</string>
 </resources>

@@ -40,4 +40,5 @@
     <string name="chzzk_error_settings">CHZZKの配信設定を確認してください。</string>
     <string name="chzzk_error_unauthorized">ログインの有効期限が切れました。もう一度ログインしてください。</string>
     <string name="chzzk_error_request">CHZZKの配信リクエストに失敗しました。もう一度お試しください。</string>
+    <string name="chzzk_error_rate_limited">CHZZKのリクエスト上限に達しました。しばらくしてから再試行してください。</string>
 </resources>
