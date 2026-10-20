@@ -62,6 +62,10 @@ final class ReferenceFaceReregistrationTests: XCTestCase {
 
     func testMissingFaceErrorAsksToRefreshTheList() {
         let error = ReferenceFaceAPIError.api(code: "not_found", fallback: "기준 얼굴을 찾을 수 없습니다.")
+        XCTAssertTrue(error.isNotFound)
+        XCTAssertFalse(ReferenceFaceAPIError.api(code: "face_not_detected", fallback: "").isNotFound)
+        XCTAssertFalse(ReferenceFaceAPIError.api(code: nil, fallback: "").isNotFound)
+        XCTAssertFalse(ReferenceFaceAPIError.transport.isNotFound)
         XCTAssertEqual(
             error.userMessage,
             Bundle.main.localizedString(forKey: "등록된 얼굴을 찾지 못했습니다. 목록을 새로고침해 주세요.", value: nil, table: nil)

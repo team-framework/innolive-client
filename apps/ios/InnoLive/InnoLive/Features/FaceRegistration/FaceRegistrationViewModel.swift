@@ -320,9 +320,9 @@ final class FaceRegistrationViewModel: ObservableObject {
                     if target == nil { self.name = "" }
                     self.reregistrationTarget = nil
                     self.phase = .success
-                } catch ReferenceFaceAPIError.api(code: "not_found", _) where target != nil {
+                } catch let error as ReferenceFaceAPIError where error.isNotFound && target != nil {
                     // 다른 기기에서 지웠거나 목록이 바뀌었다. 촬영 화면을 닫기 전에 목록을 새로 읽는다.
-                    let message = ReferenceFaceAPIError.api(code: "not_found", fallback: "").userMessage
+                    let message = error.userMessage
                     await self.loadStatus()
                     guard !Task.isCancelled,
                           self.isCurrent(lifecycleSessionID: lifecycleSessionID, generation: generation),

@@ -87,6 +87,12 @@ enum ReferenceFaceAPIError: Error, Equatable {
     case response
     case api(code: String?, fallback: String)
 
+    /// 서버에 그 얼굴이 없다(404 `not_found`). 다시 등록 중이면 목록을 새로 읽는다.
+    var isNotFound: Bool {
+        if case let .api(code, _) = self { return code == "not_found" }
+        return false
+    }
+
     var userMessage: String {
         switch self {
         case .unauthorized:
