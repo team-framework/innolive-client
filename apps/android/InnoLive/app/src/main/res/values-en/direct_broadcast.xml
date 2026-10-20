@@ -39,5 +39,6 @@
     <string name="broadcast_menu_mode">Quality and platforms</string>
     <string name="broadcast_menu_not_selected">Not selected</string>
     <string name="broadcast_menu_needs_details">Needs details</string>
+    <string name="broadcast_menu_account_checking">Checking account</string>
     <string name="broadcast_menu_chzzk">CHZZK</string>
 </resources>

@@ -755,6 +755,9 @@ private fun LiveScreenContent(
                                 val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
                                 val chzzkValid = chzzkSettings.validationField() == null
                                 val chzzkStatus = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage)
+                                val accountChecking = stringResource(R.string.broadcast_menu_account_checking)
+                                val chzzkSettled = chzzkMessage == null && !chzzkAccountVerification.mutationInProgress
+                                val chzzkAccount = chzzkAccountVerification.account
                                 val modePlan = broadcastPlanState.plan
                                 // 동의·안내를 순서대로 받은 뒤 카메라·마이크 권한을 확인하고 서버 연결을 시작합니다.
                                 fun continueBroadcastPreparation() {
@@ -804,7 +807,12 @@ private fun LiveScreenContent(
                                             summary = when {
                                                 BroadcastProvider.YOUTUBE !in providers -> notSelected
                                                 !youtubeValid -> needsDetails
-                                                else -> props.youtubeAccountStatus
+                                                else -> broadcastMenuAccountSummary(
+                                                    checking = props.isYouTubeAccountActionInProgress,
+                                                    connectedChannelTitle = props.youtubeChannelTitle.takeIf { youtubeReady },
+                                                    checkingLabel = accountChecking,
+                                                    status = props.youtubeAccountStatus,
+                                                )
                                             },
                                             onClick = { openYouTubeEditor = true },
                                             highlightsAccount = BroadcastProvider.YOUTUBE in providers && !youtubeReady,
@@ -815,7 +823,14 @@ private fun LiveScreenContent(
                                             summary = when {
                                                 BroadcastProvider.CHZZK !in providers -> notSelected
                                                 !chzzkValid -> needsDetails
-                                                else -> chzzkStatus
+                                                else -> broadcastMenuAccountSummary(
+                                                    checking = chzzkSettled && !chzzkAccountVerification.verified,
+                                                    connectedChannelTitle = chzzkAccount?.takeIf {
+                                                        chzzkSettled && chzzkAccountVerification.verified && !it.reconnectRequired
+                                                    }?.channelTitle,
+                                                    checkingLabel = accountChecking,
+                                                    status = chzzkStatus,
+                                                )
                                             },
                                             onClick = { openChzzkEditor = true },
                                             iconRes = BroadcastProvider.CHZZK.logoRes,
@@ -1624,7 +1639,22 @@ internal fun platformPreferenceOf(providers: Set<BroadcastProvider>): String = w
     else -> "YouTube"
 }
 
-/** 치지직 계정 상태를 메뉴와 치지직 설정 창에 같은 문구로 보여 줍니다. */
+/**
+ * 방송 설정 메뉴의 계정 줄 문구입니다. 연결된 계정은 접두어 없이 채널 이름만, 확인 중에는 짧은 문구를 보여 주고
+ * 그 밖의 상태는 설정 창과 같은 [status]를 씁니다.
+ */
+internal fun broadcastMenuAccountSummary(
+    checking: Boolean,
+    connectedChannelTitle: String?,
+    checkingLabel: String,
+    status: String,
+): String = when {
+    checking -> checkingLabel
+    !connectedChannelTitle.isNullOrBlank() -> connectedChannelTitle
+    else -> status
+}
+
+/** 치지직 계정 상태를 치지직 설정 창에 보여 줍니다. 메뉴는 [broadcastMenuAccountSummary]로 줄여 보여 줍니다. */
 @Composable
 private fun chzzkAccountStatus(chzzkAccountVerification: ChzzkAccountVerification, chzzkMessage: UiText?): String =
     when {

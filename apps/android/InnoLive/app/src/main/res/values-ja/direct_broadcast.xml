@@ -39,5 +39,6 @@
     <string name="broadcast_menu_mode">配信画質と配信先</string>
     <string name="broadcast_menu_not_selected">配信しない</string>
     <string name="broadcast_menu_needs_details">設定が必要</string>
+    <string name="broadcast_menu_account_checking">アカウント確認中</string>
     <string name="broadcast_menu_chzzk">CHZZK</string>
 </resources>

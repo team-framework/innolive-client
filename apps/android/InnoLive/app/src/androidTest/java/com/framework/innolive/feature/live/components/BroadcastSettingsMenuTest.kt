@@ -2,8 +2,10 @@ package com.framework.innolive.feature.live.components
 
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
@@ -16,7 +18,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
-/** 방송 설정 메뉴가 세 항목을 보여 주고 각각 해당 설정을 열며, 준비는 메뉴에서만 시작하는지 확인합니다. */
+/** 방송 설정 메뉴가 세 항목을 보여 주고 각각 해당 설정을 열며, 준비는 메뉴에서만 시작하고 상태 문구가 바뀌어도 크기가 같은지 확인합니다. */
 class BroadcastSettingsMenuTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val opened = mutableListOf<String>()
@@ -56,6 +58,27 @@ class BroadcastSettingsMenuTest {
             assertEquals(listOf("youtube", "chzzk", "mode"), opened)
             assertEquals(1, prepared)
         }
+    }
+
+    @Test fun accountSummaryChangeKeepsMenuHeight() {
+        val summary = mutableStateOf("계정 확인 중")
+        compose.setContent {
+            MaterialTheme {
+                BroadcastSettingsMenu(
+                    items = listOf(BroadcastSettingsMenuItem("YouTube", summary.value, {})),
+                    canPrepare = true,
+                    onPrepare = {},
+                    onDismiss = {},
+                )
+            }
+        }
+        val title = compose.activity.getString(R.string.broadcast_settings_title)
+        val before = compose.onNodeWithText(title).getUnclippedBoundsInRoot()
+        val prepareBefore = prepareButton.getUnclippedBoundsInRoot()
+        summary.value = "아주 긴 채널 이름".repeat(10)
+        compose.waitForIdle()
+        assertEquals(before, compose.onNodeWithText(title).getUnclippedBoundsInRoot())
+        assertEquals(prepareBefore, prepareButton.getUnclippedBoundsInRoot())
     }
 
     @Test fun prepareIsDisabledUntilAccountsAreReady() {
