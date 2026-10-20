@@ -10,6 +10,7 @@
     <string name="direct_mode_option_plan_locked">プランのアップグレードが必要</string>
     <string name="direct_mode_locked">配信の準備中や配信中は変更できません。</string>
     <string name="direct_mode_last_target">プラットフォームを1つ以上選択してください。</string>
+    <string name="direct_mode_no_target_preview">配信先をすべて外すと、配信せずに匿名化プレビューのみ表示します。</string>
     <string name="direct_mode_plan_locked">現在のプランでは使えない配信方式があります。</string>
     <string name="direct_mode_not_in_plan">現在のプランでは使えない配信方式です。</string>
     <string name="direct_mode_time_exhausted">選択した方式で配信できる時間が足りません。</string>
@@ -38,6 +39,7 @@
     <string name="error_youtube_channel_required">複数のYouTubeチャンネルが連携されています。配信するチャンネルでYouTubeアカウントを連携し直してください。</string>
     <string name="broadcast_menu_mode">配信画質と配信先</string>
     <string name="broadcast_menu_not_selected">配信しない</string>
+    <string name="broadcast_menu_no_platform">配信先なし · 匿名化プレビュー</string>
     <string name="broadcast_menu_needs_details">設定が必要</string>
     <string name="broadcast_menu_chzzk">CHZZK</string>
 </resources>

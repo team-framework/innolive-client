@@ -93,7 +93,6 @@ import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.BroadcastModeDialog
 import com.framework.innolive.feature.live.components.BroadcastSettingsMenu
-import com.framework.innolive.feature.live.components.BroadcastSettingsMenuAction
 import com.framework.innolive.feature.live.components.BroadcastSettingsMenuItem
 import com.framework.innolive.feature.live.components.ChzzkSettingsDialog
 import com.framework.innolive.feature.live.components.ServerErrorDialog
@@ -295,13 +294,27 @@ private fun LiveScreenContent(
         if (reconciled != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(reconciled)
     }
     // 저장된 플랫폼 선택을 두 처리 방식이 함께 쓰는 방송 구성에 맞춥니다.
-    LaunchedEffect(isDirectModeLocked, selectedPlatform) {
+    LaunchedEffect(
+        isDirectModeLocked,
+        selectedPlatform,
+        webRtcSession.selectedOnDeviceProcessing,
+        webRtcSession.isAIProcessingSelectionLoaded,
+    ) {
         if (isDirectModeLocked) return@LaunchedEffect
+        // 플랫폼 없는 미리보기는 온디바이스에서만 씁니다. 서버 처리로 바뀌면 YouTube 단독으로 되돌립니다.
+        if (selectedPlatform == NoPlatformPreference && webRtcSession.isAIProcessingSelectionLoaded &&
+            !webRtcSession.selectedOnDeviceProcessing
+        ) {
+            selectedPlatform = "YouTube"
+            return@LaunchedEffect
+        }
         val plan = webRtcSession.directBroadcastPlan
         val synced = when (selectedPlatform) {
             "YouTube" -> plan.withSelectedPlatform(BroadcastProvider.YOUTUBE)
             "CHZZK" -> plan.withSelectedPlatform(BroadcastProvider.CHZZK)
             "SIMULCAST" -> plan.copy(providers = SimulcastProviders)
+            NoPlatformPreference ->
+                if (webRtcSession.selectedOnDeviceProcessing) plan.copy(providers = emptySet()) else return@LaunchedEffect
             else -> return@LaunchedEffect
         }
         if (synced != webRtcSession.directBroadcastPlan) webRtcSession.selectDirectBroadcastPlan(synced)
@@ -323,6 +336,7 @@ private fun LiveScreenContent(
         broadcastStatus = webRtcSession.broadcastStatus,
         isBroadcastStatusDefault = webRtcSession.isBroadcastStatusDefault,
         isPreparingBroadcast = webRtcSession.isPreparingBroadcast,
+        isPreviewOnlyActive = webRtcSession.isOnDevicePreviewActive,
     )
     val broadcastDurationText = rememberBroadcastDurationText(
         webRtcSession.broadcastStartedAtElapsedRealtimeMillis,
@@ -364,6 +378,8 @@ private fun LiveScreenContent(
             BroadcastTutorialDialog.SETTINGS
         } else BroadcastTutorialDialog.NONE,
         selectedAccountConnected = when (selectedPlatform) {
+            // 플랫폼 없는 미리보기는 계정이 필요 없습니다.
+            NoPlatformPreference -> true
             "CHZZK" -> chzzkAccountVerification.canPrepare
             "SIMULCAST" -> chzzkAccountVerification.canPrepare &&
                 props.hasYouTubeAccount && !props.isYouTubeReconnectRequired
@@ -717,6 +733,7 @@ private fun LiveScreenContent(
                                 LiveBroadcastAction.SHOW_BROADCAST_ACTIONS -> openBroadcastActions = true
                                 LiveBroadcastAction.PREPARE_BROADCAST,
                                 LiveBroadcastAction.SELECT_PLATFORM -> openBroadcastSettings()
+                                LiveBroadcastAction.STOP_PREVIEW -> webRtcSession.stopOnDevicePreview()
                             }
                         },
                         centerOverlay = {
@@ -734,6 +751,8 @@ private fun LiveScreenContent(
                                     }
                                 },
                                 locked = isDirectModeLocked,
+                                // 온디바이스는 플랫폼을 모두 해제해 서버 없이 비식별화 미리보기만 볼 수 있습니다.
+                                allowNoTarget = webRtcSession.selectedOnDeviceProcessing,
                             )
                             val settingsGuide = tutorial.guideFor(BroadcastTutorialHost.SETTINGS_DIALOG)
                             val editorOpen = openYouTubeEditor || openChzzkEditor || openModeEditor
@@ -786,8 +805,23 @@ private fun LiveScreenContent(
                                         onDismiss = { pendingConsentStep = null },
                                     )
                                 }
-                                val modeSummary = stringResource(modePlan.resolution.labelRes) + " · " +
-                                    DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
+                                // 플랫폼을 모두 해제한 온디바이스 구성은 방송 대신 서버 없는 비식별화 미리보기를 엽니다.
+                                val previewOnly = modePlan.isPreviewOnly && webRtcSession.selectedOnDeviceProcessing
+                                fun startPreviewOnly() {
+                                    val permissions = readMediaPermissionState(context)
+                                    if (!permissions.hasCameraPermission) {
+                                        mediaPermissions.refresh()
+                                        mediaPermissionLauncher.launch(permissions.missingPermissions.toTypedArray())
+                                    } else if (webRtcSession.startOnDevicePreview(context, props.onGetAccessToken())) {
+                                        openSettingsDialog = false
+                                    }
+                                }
+                                val modeSummary = if (modePlan.isPreviewOnly) {
+                                    stringResource(R.string.broadcast_menu_no_platform)
+                                } else {
+                                    stringResource(modePlan.resolution.labelRes) + " · " +
+                                        DirectProviderOrder.filter { it in modePlan.providers }.joinToString(" + ") { it.title }
+                                }
                                 BroadcastSettingsMenu(
                                     items = listOf(
                                         BroadcastSettingsMenuItem(
@@ -824,6 +858,7 @@ private fun LiveScreenContent(
                                         (BroadcastProvider.CHZZK !in providers || chzzkReady),
                                     onPrepare = {
                                         when {
+                                            previewOnly -> startPreviewOnly()
                                             // 입력이 빠진 플랫폼은 그 설정 창을 열어 채우게 합니다.
                                             BroadcastProvider.YOUTUBE in providers && !youtubeValid -> openYouTubeEditor = true
                                             BroadcastProvider.CHZZK in providers && !chzzkValid -> openChzzkEditor = true
@@ -835,34 +870,6 @@ private fun LiveScreenContent(
                                         webRtcSession.dismissServerError()
                                     },
                                     guide = settingsGuide,
-                                    // 온디바이스 처리는 플랫폼 없이도 비식별화 미리보기를 볼 수 있습니다. 서버에 연결하지 않아
-                                    // 네트워크가 불안정한 곳에서도 시연합니다.
-                                    secondaryAction = if (webRtcSession.selectedOnDeviceProcessing) {
-                                        if (webRtcSession.isOnDevicePreviewActive) {
-                                            BroadcastSettingsMenuAction(
-                                                label = stringResource(R.string.action_stop_on_device_preview),
-                                                enabled = true,
-                                                onClick = {
-                                                    webRtcSession.stopOnDevicePreview()
-                                                    openSettingsDialog = false
-                                                },
-                                            )
-                                        } else {
-                                            BroadcastSettingsMenuAction(
-                                                label = stringResource(R.string.action_start_on_device_preview),
-                                                enabled = !presentation.isConnecting && !presentation.isBroadcastBusy,
-                                                onClick = {
-                                                    if (!mediaPermissionState.hasCameraPermission) {
-                                                        requestMissingMediaPermissions()
-                                                    } else if (
-                                                        webRtcSession.startOnDevicePreview(context, props.onGetAccessToken())
-                                                    ) {
-                                                        openSettingsDialog = false
-                                                    }
-                                                },
-                                            )
-                                        }
-                                    } else null,
                                 )
                             }
                             if (openYouTubeEditor) {
@@ -1606,8 +1613,9 @@ private fun BroadcastDialogButton(
 
 private val SimulcastProviders = setOf(BroadcastProvider.YOUTUBE, BroadcastProvider.CHZZK)
 
-/** 기존 저장값(`YouTube`·`CHZZK`·`SIMULCAST`)과 같은 형식으로 플랫폼 선택을 저장합니다. */
+/** 기존 저장값(`YouTube`·`CHZZK`·`SIMULCAST`)과 같은 형식으로 플랫폼 선택을 저장합니다. 모두 해제하면 `NONE`입니다. */
 internal fun platformPreferenceOf(providers: Set<BroadcastProvider>): String = when {
+    providers.isEmpty() -> NoPlatformPreference
     providers.size > 1 -> "SIMULCAST"
     BroadcastProvider.CHZZK in providers -> "CHZZK"
     else -> "YouTube"

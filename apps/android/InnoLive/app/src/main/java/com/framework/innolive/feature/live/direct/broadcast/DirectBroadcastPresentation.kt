@@ -62,7 +62,7 @@ internal fun reconcileDirectBroadcastPlan(
 
 /** 화면에서 고른 플랫폼 하나로 단독 송출 대상을 맞춥니다. 동시 송출 구성은 그대로 둡니다. */
 internal fun DirectBroadcastPlan.withSelectedPlatform(provider: BroadcastProvider): DirectBroadcastPlan =
-    if (providers.size == 1 && provider !in providers) copy(providers = setOf(provider)) else this
+    if (providers.size <= 1 && provider !in providers) copy(providers = setOf(provider)) else this
 
 /** 준비·라이브 중에는 방송 모드를 바꿀 수 없습니다. */
 internal fun isDirectBroadcastModeLocked(state: BroadcastState, isPreparing: Boolean): Boolean =
@@ -78,7 +78,7 @@ internal enum class DirectModeBlock {
     /** 계정을 연결하지 않았거나 다시 연결해야 합니다. */
     ACCOUNT,
 
-    /** 송출 대상은 하나 이상 남아야 합니다. */
+    /** 서버 처리는 송출 대상이 하나 이상 남아야 합니다. 온디바이스는 모두 해제해 미리보기만 볼 수 있습니다. */
     LAST_TARGET,
 }
 
@@ -115,6 +115,8 @@ internal data class DirectBroadcastModeState(
     val resolutions: List<DirectResolutionOption>,
     val providers: List<DirectProviderOption>,
     val warning: DirectModeWarning?,
+    /** 플랫폼을 모두 해제할 수 있습니다. 온디바이스 처리에서만 켜며, 해제하면 비식별화 미리보기만 엽니다. */
+    val allowsNoTarget: Boolean = false,
 ) {
     /** 요금제 때문에 막힌 선택지가 있으면 요금제 안내를 보여 줍니다. */
     val showsPlanGuidance: Boolean
@@ -127,6 +129,7 @@ internal fun directBroadcastModeState(
     planUsage: PlanUsage?,
     accountConnected: (BroadcastProvider) -> Boolean,
     locked: Boolean,
+    allowNoTarget: Boolean = false,
 ): DirectBroadcastModeState {
     val count = plan.providers.size
     val resolutions = DirectResolutionOrder.map { resolution ->
@@ -153,7 +156,7 @@ internal fun directBroadcastModeState(
             accountConnected = connected,
             block = when {
                 locked -> DirectModeBlock.LOCKED
-                selected && count == 1 -> DirectModeBlock.LAST_TARGET
+                selected && count == 1 && !allowNoTarget -> DirectModeBlock.LAST_TARGET
                 selected -> null
                 !connected -> DirectModeBlock.ACCOUNT
                 !canAdd && !canReplace -> DirectModeBlock.PLAN
@@ -164,15 +167,15 @@ internal fun directBroadcastModeState(
     }
     val mode = plan.planMode()
     val warning = when {
-        planUsage == null -> null
+        planUsage == null || plan.isPreviewOnly -> null
         !planUsage.isAllowed(mode) -> DirectModeWarning.NOT_IN_PLAN
         planUsage.availability(mode)?.seconds == 0L -> DirectModeWarning.TIME_EXHAUSTED
         else -> null
     }
-    return DirectBroadcastModeState(plan, locked, resolutions, providers, warning)
+    return DirectBroadcastModeState(plan, locked, resolutions, providers, warning, allowNoTarget)
 }
 
-/** 선택을 바꾼 결과입니다. 막힌 선택지거나 마지막 대상을 빼면 null입니다. */
+/** 선택을 바꾼 결과입니다. 막힌 선택지거나 모두 해제할 수 없는 구성에서 마지막 대상을 빼면 null입니다. */
 internal fun DirectBroadcastModeState.selectResolution(resolution: DirectPublishResolution): DirectBroadcastPlan? =
     resolutions.firstOrNull { it.resolution == resolution }?.takeIf { it.enabled }
         ?.let { plan.copy(resolution = resolution) }
@@ -184,7 +187,7 @@ internal fun DirectBroadcastModeState.toggleProvider(provider: BroadcastProvider
         option.replacesSelection -> setOf(provider)
         else -> plan.providers + provider
     }
-    return if (next.isEmpty()) null else plan.copy(providers = next)
+    return if (next.isEmpty() && !allowsNoTarget) null else plan.copy(providers = next)
 }
 
 internal val DirectPublishResolution.labelRes: Int
