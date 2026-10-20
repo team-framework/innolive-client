@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import android.content.Context
 import android.media.AudioDeviceInfo
+import com.framework.innolive.R
 import com.framework.innolive.feature.live.direct.broadcast.AndroidNetworkAvailability
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastController
 import com.framework.innolive.feature.live.direct.broadcast.DirectBroadcastDependencies
@@ -15,6 +16,7 @@ import com.framework.innolive.feature.live.direct.lifecycle.ServiceBroadcastKeep
 import com.framework.innolive.feature.live.recording.RecordingAudioSink
 import com.framework.innolive.feature.live.status.UplinkVideoStats
 import com.framework.innolive.ui.text.ServerErrorGuidance
+import com.framework.innolive.ui.text.UiText
 import org.webrtc.EglBase
 import org.webrtc.VideoTrack
 
@@ -34,6 +36,13 @@ internal interface LiveBroadcastTransport : AutoCloseable {
         enabled: Boolean,
         onComplete: (AnonymizationState?, AnonymizationFailure?) -> Unit,
     )
+    /**
+     * 송출을 유지한 채 다음 프레임부터 서버 AI의 블러 강도·영역을 바꿉니다. 성공하면 서버가 확정한 값을,
+     * 실패하면 화면에 보여 줄 안내를 넘깁니다. 서버 AI 세션만 지원하므로 기본 구현은 거절합니다.
+     */
+    fun setMosaicConfig(config: MosaicConfig, onComplete: (MosaicConfig?, UiText?) -> Unit) {
+        onComplete(null, UiText.Resource(R.string.mosaic_server_only))
+    }
     fun saveBroadcastSettings(settings: BroadcastSettings)
     fun prepareBroadcast(settings: BroadcastSettings, allowConcurrent: Boolean = false): Boolean
     fun prepareBroadcast(chzzkSettings: ChzzkBroadcastSettings): Boolean
