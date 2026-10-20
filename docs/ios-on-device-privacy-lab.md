@@ -32,7 +32,9 @@ Xcode가 빌드하면서 `.mlmodelc`로 컴파일한다. 모델이 없거나 출
 - `end2end=False`, `nms=False`: one-to-many 출력에 앱이 class-aware NMS를 적용한다.
 - 얼굴 0, 번호판 1. 출력 `[1,38,8400]`, prototype `[1,32,160,160]`.
 - RGB, 비율 유지 letterbox, padding 114. 모델에 1/255 스케일이 포함된다.
-- confidence 0.25, NMS IoU 0.45, mask logit > 0, mask 크기 160×160.
+- detector confidence 0.01, NMS IoU 0.70, mask logit > 0, mask 크기 160×160.
+- 2026-10-20부터 [BoT-SORT 추적](ios-botsort-pipeline.md)을 사용한다. 신규 트랙 기준은 0.25,
+  기존 트랙의 낮은 신뢰도 연속 탐지 기준은 0.05 초과다. GMC와 누락 마스크 1프레임 유지를 적용한다.
 - 마스크를 2px 확장한 보호 영역을 유지하고, 4px 확장·Gaussian radius 1.5의 부드러운 바깥
   경계를 합친 뒤 원본 좌표로 복원한다. 탐지된 객체의 마스크가 비면 bbox를 사용한다.
 - 보호 영역은 프레임을 2로 줄인 뒤 가우시안을 적용하고 다시 키운다. CIGaussianBlur 반경은 sigma다.
