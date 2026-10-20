@@ -147,6 +147,15 @@ class LiveBroadcastTransportSeamTest {
             assertEquals(50, session.mosaicConfig.effectiveBlurRadius)
             assertFalse(session.isChangingMosaicConfig)
             assertEquals(UiText.Resource(com.framework.innolive.R.string.error_mosaic_config), session.mosaicConfigError)
+            // 실패해도 요청 중에 고른 새 값은 이어서 보내고 안내를 지웁니다.
+            session.updateMosaicConfig(MosaicConfig(maskMargin = 30))
+            session.updateMosaicConfig(MosaicConfig(maskMargin = 40))
+            transport.mosaicRequests[3].second(null, UiText.Resource(com.framework.innolive.R.string.error_mosaic_config))
+            assertTrue(session.isChangingMosaicConfig)
+            assertEquals(MosaicConfig(maskMargin = 40), transport.mosaicRequests[4].first)
+            transport.mosaicRequests[4].let { (config, complete) -> complete(config, null) }
+            assertNull(session.mosaicConfigError)
+            assertEquals(40, session.mosaicConfig.effectiveMaskMargin)
             // 세션이 끝나면 새 세션은 기본값으로 시작합니다.
             session.close()
             assertEquals(MosaicConfig(), session.mosaicConfig)
