@@ -43,7 +43,7 @@ import com.framework.innolive.feature.live.components.YouTubeLiveSettingsDialog
 import com.framework.innolive.feature.live.status.BroadcastLiveStatusPanel
 import com.framework.innolive.feature.live.status.BroadcastUplinkLimitation
 import com.framework.innolive.feature.live.status.BroadcastUplinkQuality
-import com.framework.innolive.feature.settings.SettingsScreen
+import com.framework.innolive.feature.settings.AppInfoSettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.ui.theme.MyApplicationTheme
 import java.io.File
@@ -214,8 +214,9 @@ class BroadcastGuideUiTest {
         var canReplay by mutableStateOf(false)
         compose.setContent {
             MyApplicationTheme {
-                SettingsScreen(
-                    SettingsScreenProps(
+                AppInfoSettingsScreen(
+                    onBack = {},
+                    props = SettingsScreenProps(
                         onBack = {},
                         onOpenBroadcastSettings = {},
                         profileName = "Tester",
@@ -228,7 +229,6 @@ class BroadcastGuideUiTest {
             }
         }
 
-        // 설정 목록 아래쪽에 있어 화면에 보이도록 먼저 스크롤합니다.
         compose.onNodeWithText(string(R.string.tutorial_replay)).performScrollTo().assertIsDisplayed().assertIsNotEnabled()
         compose.runOnIdle { canReplay = true }
         compose.onNodeWithText(string(R.string.tutorial_replay)).assertIsEnabled()

@@ -393,6 +393,7 @@ class WebRtcSessionViewModel internal constructor(
         retryBroadcastRequest = null
         sessionState = sessionState.beginConnection()
         sessionSnapshot = null
+        resetMosaicConfigChange()
         directBroadcastUiState = DirectBroadcastUiState()
         signalingStartedGeneration = null
         resetUplinkQuality()
@@ -434,6 +435,7 @@ class WebRtcSessionViewModel internal constructor(
                             } else connectionUserMessage(state, failure)
                             if (state == WebRtcConnectionState.FAILED) {
                                 sessionSnapshot = null
+                                resetMosaicConfigChange()
                                 lockedBroadcastRotation = null
                                 lockedScreenOrientation = null
                             }
@@ -598,6 +600,62 @@ class WebRtcSessionViewModel internal constructor(
             sessionState = nextState
         }
         return true
+    }
+
+    /** 서버가 확정한 블러 강도·영역입니다. 세션이 없거나 아직 받지 않았으면 서버 AI 기본값입니다. */
+    val mosaicConfig: MosaicConfig
+        get() = sessionSnapshot?.mosaicConfig ?: MosaicConfig()
+    var isChangingMosaicConfig by mutableStateOf(false)
+        private set
+    var mosaicConfigError by mutableStateOf<UiText?>(null)
+        private set
+    /** 요청 중에 들어온 값입니다. 마지막 것만 이어서 보냅니다. */
+    private var pendingMosaicConfig: MosaicConfig? = null
+
+    /** 서버 AI로 연결된 세션에서만 바꿉니다. 온디바이스 세션은 서버가 409로 거절합니다. */
+    val canChangeMosaicConfig: Boolean
+        get() = connection != null && sessionSnapshot != null &&
+            connectionState == WebRtcConnectionState.CONNECTED && !selectedOnDeviceProcessing &&
+            anonymizationChange.status != AnonymizationChangeStatus.CHANGING
+
+    /** 송출을 유지한 채 다음 프레임부터 블러 강도·영역을 바꿉니다. */
+    fun updateMosaicConfig(config: MosaicConfig): Boolean {
+        if (!canChangeMosaicConfig) return false
+        if (isChangingMosaicConfig) {
+            pendingMosaicConfig = config
+            return true
+        }
+        if (config == mosaicConfig) return true
+        mosaicConfigError = null
+        sendMosaicConfig(config, sessionState.generation)
+        return true
+    }
+
+    private fun sendMosaicConfig(config: MosaicConfig, generation: Long) {
+        val currentConnection = connection ?: return resetMosaicConfigChange()
+        val sessionId = sessionSnapshot?.sessionId ?: return resetMosaicConfigChange()
+        isChangingMosaicConfig = true
+        pendingMosaicConfig = null
+        currentConnection.setMosaicConfig(config) { confirmed, error ->
+            if (!sessionState.acceptsCallback(generation) || sessionSnapshot?.sessionId != sessionId) return@setMosaicConfig
+            if (confirmed != null) sessionSnapshot = sessionSnapshot?.copy(mosaicConfig = confirmed)
+            // 실패해도 요청 중에 고른 새 값이 있으면 그 값이 사용자의 마지막 선택이므로 이어서 보냅니다.
+            // 응답을 못 받은 요청은 서버에 적용됐을 수 있지만, 세션 상태 조회가 확정값으로 다시 맞춥니다.
+            val next = pendingMosaicConfig?.takeIf { it != mosaicConfig }
+            if (next != null && canChangeMosaicConfig) {
+                sendMosaicConfig(next, generation)
+                return@setMosaicConfig
+            }
+            resetMosaicConfigChange()
+            mosaicConfigError = error
+        }
+    }
+
+    /** 세션이 바뀌거나 끝나면 진행 중인 블러 변경 표시를 지웁니다. 새 세션은 서버 기본값으로 시작합니다. */
+    private fun resetMosaicConfigChange() {
+        isChangingMosaicConfig = false
+        pendingMosaicConfig = null
+        mosaicConfigError = null
     }
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
@@ -851,6 +909,7 @@ class WebRtcSessionViewModel internal constructor(
         lockedScreenOrientation = null
         sessionState = sessionState.endConnection()
         sessionSnapshot = null
+        resetMosaicConfigChange()
         directBroadcastUiState = DirectBroadcastUiState()
         signalingStartedGeneration = null
         prepareJob?.cancel()

@@ -117,9 +117,18 @@ final class IOSCompatibilityRenderingTests: XCTestCase {
                              title: String(localized: "방송 설정")) {
                 BroadcastSettingsView(authentication: fixture.authentication, youtube: fixture.youtube)
             } inspect: { window in
+                let resolution = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UISegmentedControl }
+                    .first { $0.numberOfSegments == 2 && $0.titleForSegment(at: 1) == "FHD" })
+                assertVisible(resolution, in: window)
+                XCTAssertEqual(resolution.titleForSegment(at: 0), "720p")
                 let title = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextField }.first)
                 let description = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UITextView }.first)
                 assertVisible(title, in: window)
+                // 화질 선택이 위에 있어 설명 입력란은 작은 화면에서 첫 화면 아래로 내려갈 수 있다.
+                let scroll = try XCTUnwrap(descendants(of: window).compactMap { $0 as? UIScrollView }
+                    .first { $0 !== description && $0.bounds.width > 200 && $0.bounds.height > 200 })
+                scroll.scrollRectToVisible(description.convert(description.bounds, to: scroll), animated: false)
+                window.layoutIfNeeded()
                 assertVisible(description, in: window)
                 XCTAssertTrue(title.isEnabled)
                 XCTAssertTrue(description.isEditable)

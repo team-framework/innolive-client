@@ -49,7 +49,7 @@ internal class AccountDeletionApi(
             httpClient.newCall(request).execute().use { response ->
                 if (response.code == 204) return@withContext
 
-                val body = response.body.string()
+                val body = runCatching { response.body.string() }.getOrDefault("")
                 val error = runCatching { JSONObject(body).getJSONObject("error") }.getOrNull()
                 throw AccountDeletionException(
                     code = error?.optString("code")?.takeIf(String::isNotBlank)
@@ -60,7 +60,7 @@ internal class AccountDeletionApi(
         } catch (exception: AccountDeletionException) {
             throw exception
         } catch (exception: IOException) {
-            throw AccountDeletionException(cause = exception)
+            throw AccountDeletionException(responseReceived = false, cause = exception)
         }
     }
 
@@ -73,13 +73,19 @@ internal class AccountDeletionApi(
 internal class AccountDeletionException(
     val code: String? = null,
     message: String? = null,
+    /** false면 응답을 받지 못해 서버가 삭제했는지 알 수 없다. */
+    val responseReceived: Boolean = true,
     cause: Throwable? = null,
 ) : IOException(message, cause)
 
 internal sealed interface AccountDeletionResult {
     data object Deleted : AccountDeletionResult
 
+    /** 서버가 삭제하지 않았음이 확실하다. 로그인을 유지하고 처음부터 다시 시도한다. */
     data class Failed(val error: UiText) : AccountDeletionResult
+
+    /** 응답을 받지 못해 서버 삭제 여부를 알 수 없다. 원격 삭제 대기 상태로 재시도한다. */
+    data class Unconfirmed(val error: UiText) : AccountDeletionResult
 
     /** refresh token이 무효라 삭제를 재시도할 수 없다. 기존 세션 만료 동작을 따른다. */
     data object SessionExpired : AccountDeletionResult
@@ -113,8 +119,9 @@ internal data class PendingAccountDeletion(
  * Owns the complete deletion transaction outside Compose. Once deletion starts, cancellation of
  * the caller cannot interrupt the transition from the server result to local cleanup. The remote
  * pending phase is persisted before the request so a lost response can be reconciled by retrying
- * the idempotent server deletion. Local-data and authentication cleanup each have their own phase,
- * so a restart resumes only the unfinished step.
+ * the idempotent server deletion; an explicit server failure clears it and keeps the login.
+ * Local-data and authentication cleanup each have their own phase, so a restart resumes only the
+ * unfinished step.
  */
 internal class AccountDeletionCoordinator(
     private val scope: CoroutineScope,
@@ -187,6 +194,8 @@ internal class AccountDeletionCoordinator(
                 } else {
                     try {
                         deleteRemoteAccount(deletingSession)
+                    } catch (_: IOException) {
+                        AccountDeletionResult.Unconfirmed(REMOTE_DELETION_FAILURE)
                     } catch (_: Exception) {
                         AccountDeletionResult.Failed(REMOTE_DELETION_FAILURE)
                     }
@@ -250,7 +259,21 @@ internal class AccountDeletionCoordinator(
                         }
                     }
 
-                    is AccountDeletionResult.Failed -> AccountDeletionState(
+                    is AccountDeletionResult.Failed -> {
+                        // 서버가 실패를 응답했으므로 계정은 남아 있다. 로그인을 유지하고 잠금 marker를
+                        // 지운다(account-deletion-v1.md). marker가 남으면 재시작 후에도 잠기므로 기존 상태를 유지한다.
+                        if (runCatching { clearPendingDeletion() }.isSuccess) {
+                            pendingDeletion = null
+                            AccountDeletionState(error = remoteResult.error)
+                        } else {
+                            AccountDeletionState(
+                                pendingPhase = AccountDeletionPhase.REMOTE_DELETION_PENDING,
+                                error = remoteResult.error,
+                            )
+                        }
+                    }
+
+                    is AccountDeletionResult.Unconfirmed -> AccountDeletionState(
                         pendingPhase = AccountDeletionPhase.REMOTE_DELETION_PENDING,
                         error = remoteResult.error,
                     )
@@ -330,19 +353,27 @@ internal class AccountDeletionUseCase(
                 throw exception
             } catch (retryException: AccountDeletionException) {
                 retryException.toFailure()
+            } catch (_: IOException) {
+                AccountDeletionResult.Unconfirmed(UiText.Resource(R.string.error_account_deletion))
             } catch (_: Exception) {
                 AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
             }
         } catch (exception: CancellationException) {
             throw exception
+        } catch (_: IOException) {
+            AccountDeletionResult.Unconfirmed(UiText.Resource(R.string.error_account_deletion))
         } catch (_: Exception) {
             AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
         }
     }
 
-    private fun AccountDeletionException.toFailure(): AccountDeletionResult.Failed =
-        AccountDeletionResult.Failed(
-            message?.takeIf(String::isNotBlank)?.let(UiText::Dynamic)
-                ?: UiText.Resource(R.string.error_account_deletion),
-        )
+    private fun AccountDeletionException.toFailure(): AccountDeletionResult {
+        val error = message?.takeIf(String::isNotBlank)?.let(UiText::Dynamic)
+            ?: UiText.Resource(R.string.error_account_deletion)
+        return if (responseReceived) {
+            AccountDeletionResult.Failed(error)
+        } else {
+            AccountDeletionResult.Unconfirmed(error)
+        }
+    }
 }

@@ -307,7 +307,7 @@ class AccountDeletionUseCaseTest {
             deleteRemoteAccount = {
                 remoteCount += 1
                 if (remoteCount == 1) {
-                    AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion))
+                    AccountDeletionResult.Unconfirmed(UiText.Resource(R.string.error_account_deletion))
                 } else {
                     AccountDeletionResult.Deleted
                 }
@@ -439,12 +439,15 @@ class AccountDeletionUseCaseTest {
     @Test
     fun unexpectedRemoteFailureReturnsToRetryableState() = runBlocking {
         val coordinatorJob = Job()
+        var markerPresent = false
         val coordinator = AccountDeletionCoordinator(
             scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
             currentSession = { session() },
             deleteRemoteAccount = { error("invalid server configuration") },
             clearLocalAccountData = { error("must not clean local data") },
             clearAuthentication = { error("must not clear authentication") },
+            persistPendingDeletion = { _, _ -> markerPresent = true },
+            clearPendingDeletion = { markerPresent = false },
         )
 
         coordinator.delete()
@@ -454,6 +457,29 @@ class AccountDeletionUseCaseTest {
 
         assertEquals(UiText.Resource(R.string.error_account_deletion), coordinator.state.value.error)
         assertEquals(false, coordinator.state.value.localCleanupPending)
+        assertEquals(null, coordinator.state.value.pendingPhase)
+        assertEquals(false, markerPresent)
+        coordinatorJob.cancel()
+    }
+
+    @Test
+    fun remoteTransportExceptionKeepsRemotePendingForRetry() = runBlocking {
+        val coordinatorJob = Job()
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = { throw IOException("connection reset") },
+            clearLocalAccountData = { error("must not clean local data") },
+            clearAuthentication = { error("must not clear authentication") },
+            clearPendingDeletion = { error("must keep the remote pending marker") },
+        )
+
+        coordinator.delete()
+        withTimeout(2_000) {
+            coordinator.state.first { it.error != null && !it.isInProgress }
+        }
+
+        assertEquals(UiText.Resource(R.string.error_account_deletion), coordinator.state.value.error)
         assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
         coordinatorJob.cancel()
     }
@@ -653,7 +679,7 @@ class AccountDeletionUseCaseTest {
         coordinatorJob.cancel()
     }
 
-    @Test fun failedRemoteDeletionRunsNoCleanupAndKeepsRemotePending() = runBlocking {
+    @Test fun unconfirmedRemoteDeletionRunsNoCleanupAndKeepsRemotePending() = runBlocking {
         val coordinatorJob = Job()
         var localCleanupCount = 0
         var authenticationClearCount = 0
@@ -662,10 +688,11 @@ class AccountDeletionUseCaseTest {
         val coordinator = AccountDeletionCoordinator(
             scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
             currentSession = { session() },
-            deleteRemoteAccount = { AccountDeletionResult.Failed(UiText.Dynamic("server detail")) },
+            deleteRemoteAccount = { AccountDeletionResult.Unconfirmed(UiText.Dynamic("server detail")) },
             clearLocalAccountData = { localCleanupCount += 1 },
             clearAuthentication = { authenticationClearCount += 1 },
             persistPendingDeletion = { _, phase -> persisted += phase },
+            clearPendingDeletion = { error("must keep the remote pending marker") },
         )
 
         coordinator.delete { confirmedCount += 1 }
@@ -678,6 +705,118 @@ class AccountDeletionUseCaseTest {
         assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
         assertEquals(UiText.Dynamic("server detail"), coordinator.state.value.error)
         coordinatorJob.cancel()
+    }
+
+    /** account-deletion-v1.md: 서버가 실패를 응답하면 계정이 남아 있으므로 로그인을 유지하고 잠그지 않는다. */
+    @Test fun explicitServerFailureClearsPendingMarkerAndKeepsLoginUsable() = runBlocking {
+        val coordinatorJob = Job()
+        val events = mutableListOf<String>()
+        var confirmedCount = 0
+        var markerPresent = true
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = {
+                events += "remote"
+                AccountDeletionResult.Failed(UiText.Dynamic("server detail"))
+            },
+            clearLocalAccountData = { events += "local" },
+            clearAuthentication = { events += "auth" },
+            // 이전 실행의 전송 오류로 남은 marker에서 재시도해도 명시적 실패면 잠금을 푼다.
+            initialPendingDeletion = PendingAccountDeletion(
+                session(),
+                AccountDeletionPhase.REMOTE_DELETION_PENDING,
+            ),
+            persistPendingDeletion = { _, phase ->
+                events += "persist:$phase"
+                markerPresent = true
+            },
+            clearPendingDeletion = {
+                events += "clear-marker"
+                markerPresent = false
+            },
+        )
+
+        coordinator.delete { confirmedCount += 1 }
+        withTimeout(2_000) { coordinator.state.first { it.error != null && !it.isInProgress } }
+
+        assertEquals(listOf("remote", "clear-marker"), events)
+        assertEquals(false, markerPresent)
+        assertEquals(0, confirmedCount)
+        assertEquals(false, coordinator.state.value.hasPendingDeletion)
+        assertEquals(UiText.Dynamic("server detail"), coordinator.state.value.error)
+
+        // 다음 시도는 현재 세션으로 새 삭제를 시작한다.
+        coordinator.delete { confirmedCount += 1 }
+        withTimeout(2_000) { coordinator.state.first { events.size == 5 && !it.isInProgress } }
+        assertEquals(
+            listOf("remote", "clear-marker", "persist:REMOTE_DELETION_PENDING", "remote", "clear-marker"),
+            events,
+        )
+        assertEquals(false, coordinator.state.value.hasPendingDeletion)
+        coordinatorJob.cancel()
+    }
+
+    @Test fun explicitServerFailureKeepsRemotePendingWhenMarkerRemovalFails() = runBlocking {
+        val coordinatorJob = Job()
+        val coordinator = AccountDeletionCoordinator(
+            scope = CoroutineScope(coordinatorJob + Dispatchers.Default),
+            currentSession = { session() },
+            deleteRemoteAccount = { AccountDeletionResult.Failed(UiText.Dynamic("server detail")) },
+            clearLocalAccountData = {},
+            clearAuthentication = { error("must not clear authentication") },
+            clearPendingDeletion = { error("marker storage failure") },
+        )
+
+        coordinator.delete()
+        withTimeout(2_000) { coordinator.state.first { it.error != null && !it.isInProgress } }
+
+        assertEquals(AccountDeletionPhase.REMOTE_DELETION_PENDING, coordinator.state.value.pendingPhase)
+        assertEquals(UiText.Dynamic("server detail"), coordinator.state.value.error)
+        coordinatorJob.cancel()
+    }
+
+    /** 응답을 받지 못한 요청은 서버 삭제 여부를 알 수 없어 원격 삭제 대기 상태로 남긴다. */
+    @Test fun transportFailureIsUnconfirmedWhileServerErrorResponseIsFailed() = runBlocking {
+        var transportFails = true
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            if (transportFails) throw IOException("connection reset")
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(503)
+                .message("fixture")
+                .body("""{"error":{"code":"withdrawal_unavailable"}}""".toResponseBody())
+                .build()
+        }.build()
+
+        AccountDeletionApi("https://example.test", client).use { api ->
+            val useCase = AccountDeletionUseCase(api) { error("재인증하면 안 됩니다.") }
+            assertEquals(
+                AccountDeletionResult.Unconfirmed(UiText.Resource(R.string.error_account_deletion)),
+                useCase.delete("access-token"),
+            )
+            transportFails = false
+            assertEquals(
+                AccountDeletionResult.Failed(UiText.Resource(R.string.error_account_deletion)),
+                useCase.delete("access-token"),
+            )
+        }
+    }
+
+    @Test fun transportFailureOnRetryAfterRefreshIsUnconfirmed() = runBlocking {
+        val gateway = FakeGateway(
+            AccountDeletionException(code = "unauthorized"),
+            AccountDeletionException(responseReceived = false, cause = IOException("timeout")),
+        )
+
+        val result = AccountDeletionUseCase(gateway) { "refreshed-access-token" }.delete("expired-access-token")
+
+        assertEquals(
+            AccountDeletionResult.Unconfirmed(UiText.Resource(R.string.error_account_deletion)),
+            result,
+        )
+        assertEquals(2, gateway.accessTokens.size)
     }
 
     @Test fun authenticationChangeDuringDeletionIsIgnoredUntilItFinishes() = runBlocking {

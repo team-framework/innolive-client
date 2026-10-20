@@ -582,10 +582,8 @@ final class YouTubeIntegration: ObservableObject {
     private func synchronizeBroadcastModeQuality() {
         guard broadcastModeQualityTask == nil, let current = session,
               let active = videoUplink.activeVideoQuality, let resolution = broadcastResolution,
-              ["720p", "fhd"].contains(resolution) else { return }
-        let quality: CameraQualityPreset = resolution == "fhd"
-            ? (active.framesPerSecond == 24 ? .fullHD24 : .fullHD30)
-            : (active.framesPerSecond == 24 ? .hd24 : .hd30)
+              let sessionResolution = VideoUplinkResolution(serverValue: resolution) else { return }
+        let quality = active.with(resolution: sessionResolution)
         guard active != quality else { return }
         #if DEBUG
         Self.qualityLogger.notice("camera quality switch session=\(resolution, privacy: .public) from=\(active.rawValue, privacy: .public) to=\(quality.rawValue, privacy: .public)")
@@ -1956,9 +1954,9 @@ final class YouTubeIntegration: ObservableObject {
         return nil
     }
 
-    /// 세션 생성 `broadcast_resolution` 값이다. 처리 위치와 관계없이 카메라 화질 설정을 따른다.
+    /// 세션 생성 `broadcast_resolution` 값이다. 처리 위치와 관계없이 방송 설정의 송출 화질을 따른다.
     private static func sessionResolution(for quality: CameraQualityPreset) -> String {
-        quality.height == 1080 ? "fhd" : "720p"
+        quality.resolution.serverValue
     }
 
     private func createAndConnectForPreparation(
