@@ -48,8 +48,9 @@ class LiveBroadcastTransportSeamTest {
             )
         }
 
+        // ViewModel은 닫기를 먼저 요청하고, 새 연결을 열기 전에 같은 송출 경로에 완료 콜백을 넘겨 닫힘을 기다립니다.
         override fun close(onComplete: (() -> Unit)?) {
-            calls += "close"
+            calls += if (onComplete == null) "close" else "close-wait"
             onComplete?.invoke()
         }
 
@@ -174,8 +175,8 @@ class LiveBroadcastTransportSeamTest {
             }
             compose.waitUntil(10_000) { session.broadcastState == BroadcastState.PREPARED }
             compose.runOnIdle {
-                // 방송 준비는 미리보기 전용 연결을 닫고 송출 경로를 새로 엽니다.
-                assertEquals(listOf("start", "close"), created.first().calls)
+                // 방송 준비는 미리보기 전용 연결을 닫고, 닫힘이 끝난 뒤 송출 경로를 새로 엽니다.
+                assertEquals(listOf("start", "close", "close-wait"), created.first().calls)
                 assertEquals(listOf("start", "prepare:검증 방송"), created.last().calls)
                 assertFalse(created.last().request.previewOnly)
                 assertEquals(1, refreshCalls)
