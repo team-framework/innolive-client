@@ -97,7 +97,7 @@
     "chzzkAlt": "CHZZK",
     "resolution": "High-resolution live",
     "free": "Stay LITE on the free plan**",
-    "note1": "*Server-to-AI latency measurements. Results vary by network and device.",
+    "note1": "*Server-to-AI latency measured with 8 concurrent sessions. Results vary by network and device.",
     "note2": "**The free plan may include usage limits."
   },
   "faq": {
