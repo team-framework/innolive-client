@@ -159,6 +159,12 @@
   }
 
 
+  /* Tailwind v4 preflight leaves buttons on the default cursor. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
   :focus {
     outline: none;
   }

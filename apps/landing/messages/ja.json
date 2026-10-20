@@ -97,7 +97,7 @@
     "chzzkAlt": "CHZZK",
     "resolution": "高解像度ライブ",
     "free": "無料プランでLITEに**",
-    "note1": "*サーバーとAI間の遅延測定値です。ネットワークと端末により変動します。",
+    "note1": "*8セッション同時測定時のサーバーとAI間の遅延です。ネットワークと端末により変動します。",
     "note2": "**無料プランでは利用に一部制限がある場合があります。"
   },
   "faq": {
@@ -138,6 +138,7 @@
     "body2": "ベータ期間はすべての個人プランを月額₩0で提供します。",
     "subscribeBrand": "InnoLive",
     "subscribe": "プランを購読する",
+    "subscribeComingSoon": "プラン準備中",
     "personalLabel": "個人プラン",
     "businessTitle": "クルーと企業のためのプラン",
     "businessBody": "Crew・Businessの料金と配信時間はお問い合わせください。",
@@ -152,6 +153,7 @@
   "plans": {
     "periodMonth": "月",
     "periodOnce": "一回払い",
+    "comingSoon": "準備中です",
     "ribbon": "ベータテスター",
     "personal": {
       "spark": {
@@ -415,5 +417,35 @@
     "pricingAfter": "をご覧ください。",
     "faq": "よくある質問",
     "related": "関連ガイド"
+  },
+  "notice": {
+    "label": "サービスのお知らせ",
+    "badge": "お知らせ",
+    "eventName": "FIX 2026",
+    "eventDetail": "大韓民国ICT融合エキスポ",
+    "eventSchedule": "10.21(水) ~ 10.24(土) · 大邱 EXCO",
+    "eventBooth": "ITCE W2-124 ブース",
+    "title": "FIX 2026出展に伴う\n新規配信作成の一時停止",
+    "greeting": "こんにちは、InnoLiveです。",
+    "intro": [
+      "InnoLiveはFIX 2026 大韓民国ICT融合エキスポに出展します。",
+      "ブースを円滑に運営するため、以下の期間は新規配信の作成を一時停止します。"
+    ],
+    "periodTitle": "停止期間",
+    "period": "2026.10.21(水) 00:00 ~ 2026.10.24(土) 23:59(韓国時間)",
+    "scopeTitle": "制限範囲",
+    "scope": [
+      "新規配信セッションの作成不可",
+      "新規有料プランへの加入"
+    ],
+    "scopeNote": "(新規会員登録やログインなどはご利用いただけます)",
+    "resumeTitle": "再開日程",
+    "resume": "2026.10.25(日) 00:00より通常どおりご利用可能",
+    "apology": "ご不便をおかけして申し訳ございません。",
+    "booth": "ITCE開催期間中、W2-124ブースで新しいInnoLiveを直接ご体験いただけます。",
+    "closing": "皆さまのご来場をお待ちしております。",
+    "contact": "お問い合わせ",
+    "hideToday": "1日表示しない",
+    "close": "閉じる"
   }
 }
