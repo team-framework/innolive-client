@@ -7,6 +7,9 @@ enum class LiveBroadcastAction {
     SHOW_BROADCAST_ACTIONS,
     PREPARE_BROADCAST,
     SELECT_PLATFORM,
+
+    /** 플랫폼 없는 온디바이스 비식별화 미리보기를 끝냅니다. */
+    STOP_PREVIEW,
 }
 
 data class LiveScreenPresentation(
@@ -32,6 +35,8 @@ fun buildLiveScreenPresentation(
     broadcastStatus: UiText,
     isBroadcastStatusDefault: Boolean = false,
     isPreparingBroadcast: Boolean = false,
+    /** 플랫폼 없는 온디바이스 미리보기가 열리고 있거나 열려 있습니다. */
+    isPreviewOnlyActive: Boolean = false,
 ): LiveScreenPresentation {
     val isConnected = connectionState == WebRtcConnectionState.CONNECTED ||
         connectionState == WebRtcConnectionState.RECONNECTING
@@ -42,7 +47,9 @@ fun buildLiveScreenPresentation(
     val isBroadcastBusy = broadcastState.isBusy || isPreparingBroadcast
     val broadcastAction = when {
         isBroadcastLive || isBroadcastPrepared -> LiveBroadcastAction.SHOW_BROADCAST_ACTIONS
-        selectedPlatform == "YouTube" || selectedPlatform == "CHZZK" || selectedPlatform == "SIMULCAST" ->
+        isPreviewOnlyActive -> LiveBroadcastAction.STOP_PREVIEW
+        selectedPlatform == "YouTube" || selectedPlatform == "CHZZK" || selectedPlatform == "SIMULCAST" ||
+            selectedPlatform == NoPlatformPreference ->
             LiveBroadcastAction.PREPARE_BROADCAST
         else -> LiveBroadcastAction.SELECT_PLATFORM
     }
@@ -66,6 +73,7 @@ fun buildLiveScreenPresentation(
         isBroadcastPaused = isBroadcastPaused,
         isBroadcastBusy = isBroadcastBusy,
         broadcastButtonTextRes = when {
+            broadcastAction == LiveBroadcastAction.STOP_PREVIEW -> R.string.action_stop_on_device_preview
             isBroadcastPaused -> R.string.broadcast_state_paused
             isBroadcastLive -> R.string.broadcast_state_live
             isBroadcastPrepared -> R.string.broadcast_state_prepared
@@ -76,14 +84,18 @@ fun buildLiveScreenPresentation(
             isBroadcastBusy -> R.string.broadcast_state_preparing
             else -> R.string.action_prepare_broadcast
         },
-        isBroadcastButtonEnabled = !isConnecting && !isBroadcastBusy &&
-            (!(isBroadcastLive || isBroadcastPrepared) || isConnected),
+        // 미리보기는 연결 중에도 끝낼 수 있습니다.
+        isBroadcastButtonEnabled = broadcastAction == LiveBroadcastAction.STOP_PREVIEW ||
+            !isConnecting && !isBroadcastBusy && (!(isBroadcastLive || isBroadcastPrepared) || isConnected),
         broadcastAction = broadcastAction,
         broadcastStatusText = broadcastStatusText,
         isBroadcastStatusDefault = isBroadcastStatusDefault,
         isBroadcastStatusError = broadcastState == BroadcastState.FAILED,
     )
 }
+
+/** 플랫폼을 모두 해제한 선택의 저장값입니다. 온디바이스 처리에서 비식별화 미리보기만 엽니다. */
+internal const val NoPlatformPreference = "NONE"
 
 /** Test-only compatibility for callers that construct a transient status literal. */
 fun buildLiveScreenPresentation(
@@ -93,6 +105,7 @@ fun buildLiveScreenPresentation(
     broadcastStatus: String,
     isBroadcastStatusDefault: Boolean = false,
     isPreparingBroadcast: Boolean = false,
+    isPreviewOnlyActive: Boolean = false,
 ): LiveScreenPresentation = buildLiveScreenPresentation(
     connectionState = connectionState,
     broadcastState = broadcastState,
@@ -100,6 +113,7 @@ fun buildLiveScreenPresentation(
     broadcastStatus = UiText.Dynamic(broadcastStatus),
     isBroadcastStatusDefault = isBroadcastStatusDefault,
     isPreparingBroadcast = isPreparingBroadcast,
+    isPreviewOnlyActive = isPreviewOnlyActive,
 )
 
 private val BroadcastState.isBusy: Boolean

@@ -3,7 +3,7 @@ package com.framework.innolive.feature.live.direct.broadcast
 import com.framework.innolive.feature.live.BroadcastProvider
 import com.framework.innolive.feature.live.direct.DirectPublishResolution
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -14,8 +14,9 @@ class DirectBroadcastContractsTest {
         assertEquals(setOf(BroadcastProvider.YOUTUBE), plan.providers)
     }
 
-    @Test fun planRequiresAtLeastOneTarget() {
-        assertThrows(IllegalArgumentException::class.java) { DirectBroadcastPlan(providers = emptySet()) }
+    @Test fun planWithoutTargetsIsPreviewOnly() {
+        assertTrue(DirectBroadcastPlan(providers = emptySet()).isPreviewOnly)
+        assertFalse(DirectBroadcastPlan().isPreviewOnly)
     }
 
     @Test fun uiStateStartsWithoutLocalDirectState() {
