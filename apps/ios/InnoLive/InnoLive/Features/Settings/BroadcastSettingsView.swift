@@ -12,6 +12,7 @@ struct BroadcastSettingsView: View {
     @State private var nextTransmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var isShowingMediaConsent = false
     @State private var transmissionNotice = YouTubeTransmissionNotice()
+    @StateObject private var faceReregistration = ReferenceFaceReregistrationCheck()
     private let modeProvider: BroadcastSettingsProvider?
     private let upgradeSettings: Bool
     private let onModeSettingsSaved: (() -> Void)?
@@ -70,6 +71,16 @@ struct BroadcastSettingsView: View {
                     }
                 }
                 if !isLiveEditing && modeProvider == nil {
+                    if onPrepare != nil && faceReregistration.isRequired {
+                        // 방송을 준비하기 전에 블러에서 빠지지 않는 등록 얼굴을 알린다.
+                        NavigationLink {
+                            FaceManagementView(authentication: authentication, youtube: youtube, mode: .server)
+                        } label: {
+                            ReferenceFaceReregistrationBanner(showsDisclosure: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("broadcast-reference-face-reregistration")
+                    }
                     NavigationLink {
                         BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
                     } label: {
@@ -185,6 +196,12 @@ struct BroadcastSettingsView: View {
         }
         .onChange(of: query) { _, _ in editor.invalidateCategorySearch() }
         .task { if !isLiveEditing, !token.isEmpty { await youtube.refreshConnection(accessToken: token) } }
+        // 얼굴 관리에서 돌아오면 다시 확인해 다시 등록한 뒤 안내가 사라지게 한다.
+        .task {
+            if onPrepare != nil, !isLiveEditing, modeProvider == nil, !token.isEmpty {
+                await faceReregistration.refresh(authentication: authentication)
+            }
+        }
         .task(id: contextKey) {
             if let liveProvider {
                 youtube.beginLiveEditing(liveProvider, accessToken: token)
