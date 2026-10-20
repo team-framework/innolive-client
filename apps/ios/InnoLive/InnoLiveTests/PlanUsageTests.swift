@@ -172,6 +172,14 @@ final class PlanUsageTests: XCTestCase {
         XCTAssertFalse(snapshot.isAllowed(.fhdMulti))
         XCTAssertFalse(snapshot.isAllowed(.fhdSingle))
     }
+    func testFHDOnlyBlockIgnoresReasonsShared720p() throws {
+        let hdOnly = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON()))
+        XCTAssertTrue(hdOnly.blocksFHDOnly(targetCount: 1, processing: .server))
+        let bothAllowed = usageJSON().replacingOccurrences(of: "}]}", with: "},{\"mode\":\"fhd_single\",\"allowed\":true,\"seconds\":1800,\"multiplier\":2}]}")
+        XCTAssertFalse(PlanSnapshot(plan: try plan(), usage: try usage(bothAllowed)).blocksFHDOnly(targetCount: 1, processing: .server))
+        XCTAssertFalse(PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(allowed: false))).blocksFHDOnly(targetCount: 1, processing: .server))
+        XCTAssertFalse(PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "0"))).blocksFHDOnly(targetCount: 1, processing: .server))
+    }
     func testNullUnlimitedAndZeroExhaustedAreDistinct() throws {
         let unlimited = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "null")))
         let exhausted = PlanSnapshot(plan: try plan(), usage: try usage(usageJSON(seconds: "0")))
