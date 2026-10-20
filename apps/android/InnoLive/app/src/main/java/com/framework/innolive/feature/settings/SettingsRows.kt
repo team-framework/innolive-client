@@ -3,6 +3,7 @@ package com.framework.innolive.feature.settings
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.ProfileDisplay
 
 /** 구역 이름은 본문보다 작지만 흐린 회색 대신 굵기를 줘서 훑어볼 때 구역이 먼저 눈에 띄게 합니다. */
 @Composable
@@ -83,6 +85,25 @@ internal fun SettingsLinkRow(
             modifier = Modifier.weight(1f),
         )
         if (showChevron) SettingsChevron()
+    }
+}
+
+/** 프로필 전체를 누르는 줄입니다. 화살표로 계정 설정 화면이 이어짐을 알립니다. */
+@Composable
+internal fun SettingsAccountRow(name: String, email: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+            .clickable(
+                onClickLabel = stringResource(R.string.settings_account),
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.weight(1f)) { ProfileDisplay(name = name, email = email) }
+        SettingsChevron()
     }
 }
 
