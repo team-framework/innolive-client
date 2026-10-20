@@ -70,6 +70,8 @@ import com.framework.innolive.feature.live.tutorial.BroadcastTutorialViewModel
 import com.framework.innolive.feature.login.LoginScreen
 import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
+import com.framework.innolive.feature.live.recording.BroadcastRecordingLibraryScreen
+import com.framework.innolive.feature.live.recording.BroadcastRecordingStatus
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.feature.settings.PlanUsage
@@ -118,6 +120,11 @@ data object LiveRoute : AppRoute
 data object SettingsRoute : AppRoute
 
 data object BroadcastSettingRoute : AppRoute
+
+data object RecordingsRoute : AppRoute
+
+/** 보관함에 들어갈 수 있는 방송 상태입니다. 준비·라이브·일시 중지·전환 중에는 막습니다. */
+private val RECORDINGS_ALLOWED_STATES = setOf(BroadcastState.IDLE, BroadcastState.FAILED)
 
 enum class SettingOptionType {
     CAMERA_RESOLUTION,
@@ -501,6 +508,12 @@ fun AppNavigation(
     var planRefresh by remember(planAccount) { mutableIntStateOf(0) }
     var planUsageChargeMillis by remember(planAccount) { mutableLongStateOf(0L) }
     val isBroadcastActive = webRtcSession.broadcastStartedAtElapsedRealtimeMillis != null
+    // iOS처럼 방송 준비·방송 중에는 저장된 방송(보관함)에 들어가지 않습니다. 종료·실패 뒤 저장 중에는 허용합니다.
+    val canOpenRecordings = !isBroadcastActive && !webRtcSession.isPreparingBroadcast &&
+        webRtcSession.broadcastState in RECORDINGS_ALLOWED_STATES
+    LaunchedEffect(canOpenRecordings) {
+        if (!canOpenRecordings) backStack.removeAll { it == RecordingsRoute }
+    }
     val planMode = PlanMode.current(webRtcSession.sessionSnapshot?.broadcastResolution,
         webRtcSession.sessionSnapshot?.visibleTargets?.size ?: 1)
     val planChargeMillis = rememberPlanChargeMillis(
@@ -967,6 +980,8 @@ fun AppNavigation(
                     broadcastTutorial.restart()
                     closeSettings()
                 },
+                onOpenRecordings = { if (canOpenRecordings) backStack.add(RecordingsRoute) },
+                canOpenRecordings = canOpenRecordings,
             ),
         )
     }
@@ -1010,6 +1025,15 @@ fun AppNavigation(
 
                 SettingsRoute -> {
                     NavEntry(route) { settingsScreen() }
+                }
+
+                RecordingsRoute -> {
+                    NavEntry(route) {
+                        BroadcastRecordingLibraryScreen(
+                            isSaving = webRtcSession.recordingState.status == BroadcastRecordingStatus.SAVING,
+                            onBack = onBack,
+                        )
+                    }
                 }
 
                 BroadcastSettingRoute -> {

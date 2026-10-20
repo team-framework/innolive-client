@@ -43,6 +43,21 @@
             android:name=".feature.live.direct.lifecycle.DirectBroadcastService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+        <!-- 방송 영상 저장이 끝날 때까지 프로세스를 유지합니다. Android 14 이상은 shortService(약 3분)입니다. -->
+        <service
+            android:name=".feature.live.recording.BroadcastRecordingSaveService"
+            android:exported="false"
+            android:foregroundServiceType="shortService" />
+        <!-- 저장된 방송을 공유 시트로 넘깁니다. 캐시의 공유 폴더만 노출합니다. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.recordings"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/recording_share_paths" />
+        </provider>
     </application>
 
 </manifest>
