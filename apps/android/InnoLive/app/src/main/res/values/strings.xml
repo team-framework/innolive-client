@@ -74,6 +74,7 @@
     <string name="audio_device_default">기본 마이크</string>
     <string name="settings_broadcast">방송 설정</string>
     <string name="action_logout">로그아웃</string>
+    <string name="settings_account">계정 설정</string>
     <string name="action_delete_account">계정 삭제</string>
     <string name="action_deleting_account">계정 삭제 중…</string>
     <string name="action_retry_device_cleanup">기기 데이터 정리 다시 시도</string>

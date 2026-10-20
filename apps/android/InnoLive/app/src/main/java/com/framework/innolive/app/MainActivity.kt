@@ -72,6 +72,7 @@ import com.framework.innolive.feature.login.LoginScreenProps
 import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionViewModel
 import com.framework.innolive.feature.live.recording.BroadcastRecordingLibraryScreen
 import com.framework.innolive.feature.live.recording.BroadcastRecordingStatus
+import com.framework.innolive.feature.settings.AccountSettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.feature.settings.PlanUsage
@@ -118,6 +119,8 @@ data object LoginRoute : AppRoute
 data object LiveRoute : AppRoute
 
 data object SettingsRoute : AppRoute
+
+data object AccountSettingsRoute : AppRoute
 
 data object BroadcastSettingRoute : AppRoute
 
@@ -680,7 +683,7 @@ fun AppNavigation(
         youtubeAccountGuidance = null
         previousProfileEmail = session?.profileEmail
         if (session != null && isAccountDeletionPending) {
-            if (backStack.lastOrNull() != SettingsRoute) {
+            if (backStack.lastOrNull() !in setOf(SettingsRoute, AccountSettingsRoute)) {
                 backStack.clear()
                 backStack.add(SettingsRoute)
             }
@@ -926,86 +929,88 @@ fun AppNavigation(
     )
 
     // 설정 페이지는 넘기는 동안에도 내용이 보이도록 방송 화면 항목에서도 같은 설정 화면을 그립니다.
-    val settingsScreen: @Composable () -> Unit = {
-        SettingsScreen(
-            props = SettingsScreenProps(
-                onBack = closeSettings,
-                onOpenBroadcastSettings = {
-                    backStack.add(BroadcastSettingRoute)
-                },
-                selectedResolution = selectedResolution?.displayName.orEmpty(),
-                selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
-                selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
-                selectedPlatform = selectedBroadcastPlatform,
-                broadcastAccount = visibleYouTubeAccount?.channelTitle ?: youtubeAccountStatus.asString(),
-                onOpenResolutionOptions = {
-                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
-                },
-                onOpenCameraDeviceOptions = {
-                    backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_DEVICE))
-                },
-                onOpenAudioDeviceOptions = {
-                    backStack.add(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
-                },
-                videoQualitySettings = videoQualitySettings,
-                onVideoQualitySettingsChanged = updateVideoQualitySettings,
-                videoQualityCaptureState = videoQualityCaptureState,
-                profileName = session?.profileName.orEmpty(),
-                profileEmail = session?.profileEmail.orEmpty(),
-                planUsage = displayedPlanUsage,
-                planError = planError,
-                isPlanLoading = isPlanLoading,
-                onRefreshPlan = { planRefresh++ },
-                onLogout = {
-                    if (
-                        !isDeletingAccount &&
-                        !isAccountDeletionPending
-                    ) {
-                        youtubeAuthorizationOperation = null
-                        youtubeOperationGeneration.invalidate()
-                        youtubeOperationProfileEmail = null
-                        isYouTubeAuthorizationLaunched = false
-                        webRtcSession.close()
-                        authenticationSession.clear()
-                        youtubePreferencesStore.clearAccountData()
-                        updateYouTubeAccount(null)
-                        verifiedYouTubeProfileEmail = null
-                        youtubeAccountVerificationState =
-                            YouTubeAccountVerificationState.UNVERIFIED
-                        youtubeAccountStatus = UiText.Resource(
-                            R.string.youtube_status_sign_in_required,
-                        )
-                        isYouTubeAccountActionInProgress = false
-                        backStack.clear()
-                        backStack.add(LoginRoute)
-                    }
-                },
-                onDeleteAccount = deleteAccount,
-                isDeletingAccount = isDeletingAccount,
-                isAccountDeletionPending = isAccountDeletionPending,
-                isAccountDeletionCleanupPending =
-                    accountDeletionState.localCleanupPending,
-                accountDeletionError = accountDeletionState.error,
-                onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
-                canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
-                onSelectAIProcessing = { onDevice ->
-                    webRtcSession.selectAIProcessing(context, onDevice)
-                },
-                isAdministrator = isAdministrator,
-                faceSwapEnabled = webRtcSession.selectedFaceSwap,
-                onFaceSwapChanged = { enabled -> webRtcSession.selectFaceSwap(context, enabled) },
-                canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
-                    webRtcSession.broadcastState == BroadcastState.IDLE &&
-                    !webRtcSession.isPreparingBroadcast,
-                onReplayBroadcastGuide = {
-                    broadcastTutorial.restart()
-                    closeSettings()
-                },
-                onOpenRecordings = { if (canOpenRecordings) backStack.add(RecordingsRoute) },
-                canOpenRecordings = canOpenRecordings,
-            ),
+    val settingsProps: @Composable () -> SettingsScreenProps = {
+        SettingsScreenProps(
+            onBack = closeSettings,
+            onOpenBroadcastSettings = {
+                backStack.add(BroadcastSettingRoute)
+            },
+            onOpenAccountSettings = {
+                if (backStack.lastOrNull() != AccountSettingsRoute) backStack.add(AccountSettingsRoute)
+            },
+            selectedResolution = selectedResolution?.displayName.orEmpty(),
+            selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
+            selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
+            selectedPlatform = selectedBroadcastPlatform,
+            broadcastAccount = visibleYouTubeAccount?.channelTitle ?: youtubeAccountStatus.asString(),
+            onOpenResolutionOptions = {
+                backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
+            },
+            onOpenCameraDeviceOptions = {
+                backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_DEVICE))
+            },
+            onOpenAudioDeviceOptions = {
+                backStack.add(SettingOptionRoute(SettingOptionType.AUDIO_DEVICE))
+            },
+            videoQualitySettings = videoQualitySettings,
+            onVideoQualitySettingsChanged = updateVideoQualitySettings,
+            videoQualityCaptureState = videoQualityCaptureState,
+            profileName = session?.profileName.orEmpty(),
+            profileEmail = session?.profileEmail.orEmpty(),
+            planUsage = displayedPlanUsage,
+            planError = planError,
+            isPlanLoading = isPlanLoading,
+            onRefreshPlan = { planRefresh++ },
+            onLogout = {
+                if (
+                    !isDeletingAccount &&
+                    !isAccountDeletionPending
+                ) {
+                    youtubeAuthorizationOperation = null
+                    youtubeOperationGeneration.invalidate()
+                    youtubeOperationProfileEmail = null
+                    isYouTubeAuthorizationLaunched = false
+                    webRtcSession.close()
+                    authenticationSession.clear()
+                    youtubePreferencesStore.clearAccountData()
+                    updateYouTubeAccount(null)
+                    verifiedYouTubeProfileEmail = null
+                    youtubeAccountVerificationState =
+                        YouTubeAccountVerificationState.UNVERIFIED
+                    youtubeAccountStatus = UiText.Resource(
+                        R.string.youtube_status_sign_in_required,
+                    )
+                    isYouTubeAccountActionInProgress = false
+                    backStack.clear()
+                    backStack.add(LoginRoute)
+                }
+            },
+            onDeleteAccount = deleteAccount,
+            isDeletingAccount = isDeletingAccount,
+            isAccountDeletionPending = isAccountDeletionPending,
+            isAccountDeletionCleanupPending =
+                accountDeletionState.localCleanupPending,
+            accountDeletionError = accountDeletionState.error,
+            onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
+            canChangeAIProcessing = webRtcSession.canChangeAIProcessing,
+            onSelectAIProcessing = { onDevice ->
+                webRtcSession.selectAIProcessing(context, onDevice)
+            },
+            isAdministrator = isAdministrator,
+            faceSwapEnabled = webRtcSession.selectedFaceSwap,
+            onFaceSwapChanged = { enabled -> webRtcSession.selectFaceSwap(context, enabled) },
+            canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
+                webRtcSession.broadcastState == BroadcastState.IDLE &&
+                !webRtcSession.isPreparingBroadcast,
+            onReplayBroadcastGuide = {
+                broadcastTutorial.restart()
+                closeSettings()
+            },
+            onOpenRecordings = { if (canOpenRecordings) backStack.add(RecordingsRoute) },
+            canOpenRecordings = canOpenRecordings,
         )
     }
+    val settingsScreen: @Composable () -> Unit = { SettingsScreen(settingsProps()) }
 
     val navigation: @Composable () -> Unit = {
     NavDisplay(
@@ -1046,6 +1051,10 @@ fun AppNavigation(
 
                 SettingsRoute -> {
                     NavEntry(route) { settingsScreen() }
+                }
+
+                AccountSettingsRoute -> {
+                    NavEntry(route) { AccountSettingsScreen(settingsProps(), onBack = onBack) }
                 }
 
                 RecordingsRoute -> {

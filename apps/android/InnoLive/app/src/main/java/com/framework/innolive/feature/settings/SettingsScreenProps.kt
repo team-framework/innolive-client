@@ -12,6 +12,8 @@ data class SettingsScreenProps(
     val profileName: String,
     val profileEmail: String,
     val onLogout: () -> Unit,
+    /** 로그아웃·계정 삭제를 모은 계정 설정 화면을 엽니다. */
+    val onOpenAccountSettings: () -> Unit = {},
     val selectedResolution: String = "",
     val selectedCameraDevice: String = "",
     val selectedAudioDevice: String = "",
