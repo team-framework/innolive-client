@@ -138,6 +138,7 @@
     "body2": "All personal plans cost ₩0/month during the beta.",
     "subscribeBrand": "InnoLive",
     "subscribe": "Subscribe to a plan",
+    "subscribeComingSoon": "plans coming soon",
     "personalLabel": "Personal plans",
     "businessTitle": "Plans for crews and businesses",
     "businessBody": "Contact us for Crew and Business pricing and broadcast-time allowances.",
@@ -152,6 +153,7 @@
   "plans": {
     "periodMonth": "month",
     "periodOnce": "one-time",
+    "comingSoon": "Coming soon",
     "ribbon": "Beta tester",
     "personal": {
       "spark": {

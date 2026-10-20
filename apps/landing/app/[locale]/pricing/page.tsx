@@ -128,7 +128,7 @@ function TermsNote() {
 export default function PricingPage() {
   const { href, locale, messages } = useLocale();
   const { isLogined, isLoading } = useIsLogined();
-  const personalPlans = getPersonalPlans(messages, locale);
+  const personalPlans = getPersonalPlans(messages);
   const businessPlans = getBusinessPlans(messages, locale);
   const segments = [
     { text: messages.pricing.headingBrand, className: "font-normal tracking-[-0.05em]" },
@@ -150,11 +150,12 @@ export default function PricingPage() {
           </div>
           <Button
             href={href("/login")}
+            disabled
             showChevron={false}
             className="pricing-support-reveal pricing-support-actions min-w-[15.8125rem] w-max max-w-none whitespace-nowrap"
           >
             <span className="font-normal">{messages.pricing.subscribeBrand}</span>{" "}
-            <span className="font-semibold">{messages.pricing.subscribe}</span>
+            <span className="font-semibold">{messages.pricing.subscribeComingSoon}</span>
           </Button>
         </div>
 

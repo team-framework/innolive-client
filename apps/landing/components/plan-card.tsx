@@ -148,6 +148,15 @@ export function PlanCard({
                 {messages.pricing.loginCta}
               </Button>
             )
+          ) : plan.cta.disabled ? (
+            <Button
+              variant="primary"
+              disabled
+              showChevron={false}
+              className="w-full max-w-none border border-button-secondary max-lg:border-button-secondary max-md:text-center max-md:leading-tight"
+            >
+              {plan.cta.label}
+            </Button>
           ) : (
             <Button
               variant="secondary"

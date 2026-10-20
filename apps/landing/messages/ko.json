@@ -138,6 +138,7 @@
     "body2": "베타 기간에는 모든 개인 플랜을 월 0원으로 제공합니다.",
     "subscribeBrand": "InnoLive",
     "subscribe": "플랜 구독하기",
+    "subscribeComingSoon": "플랜 구독 준비 중",
     "personalLabel": "개인 요금제",
     "businessTitle": "크루와 기업을 위한 플랜",
     "businessBody": "Crew와 Business의 가격과 방송 시간은 도입 문의로 확인하세요.",
@@ -152,6 +153,7 @@
   "plans": {
     "periodMonth": "월",
     "periodOnce": "일회성 결제",
+    "comingSoon": "준비 중입니다.",
     "ribbon": "베타 테스터",
     "personal": {
       "spark": {

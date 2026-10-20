@@ -138,6 +138,7 @@
     "body2": "ベータ期間はすべての個人プランを月額₩0で提供します。",
     "subscribeBrand": "InnoLive",
     "subscribe": "プランを購読する",
+    "subscribeComingSoon": "プラン準備中",
     "personalLabel": "個人プラン",
     "businessTitle": "クルーと企業のためのプラン",
     "businessBody": "Crew・Businessの料金と配信時間はお問い合わせください。",
@@ -152,6 +153,7 @@
   "plans": {
     "periodMonth": "月",
     "periodOnce": "一回払い",
+    "comingSoon": "準備中です",
     "ribbon": "ベータテスター",
     "personal": {
       "spark": {

@@ -14,7 +14,7 @@ export function SeoGuidePage({ guide, locale = "ko" }: { guide: SeoGuide; locale
   const copy = getMessages(locale).seoGuide;
   const evidence = guideEvidence(guide, locale);
   const evidenceCopy = guideEvidenceCopy[locale];
-  const plans = guide.showPersonalPlans ? getPersonalPlans(getMessages(locale), locale) : [];
+  const plans = guide.showPersonalPlans ? getPersonalPlans(getMessages(locale)) : [];
   return (
     <main id="main" tabIndex={-1} className="page-top-spacing min-h-dvh bg-background-primary px-[var(--page-gutter)] pb-20">
       <StructuredData data={guideStructuredData(guide, locale)} />
