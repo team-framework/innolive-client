@@ -122,7 +122,8 @@ internal class BroadcastRecordingSession(
                 originalResult.audioSamples == 0L -> RecordingFailure.NO_AUDIO
                 else -> RecordingFailure.STORAGE
             }
-            preserveOrDelete(keep = originalResult.started && originalResult.videoSamples > 0L)
+            // 쓰기·마무리 오류로 끝나면 started가 false입니다. abandon처럼 이미 쓴 영상이 있으면 보관합니다.
+            preserveOrDelete(keep = originalResult.videoSamples > 0L)
             throw RecordingFailedException(reason, originalResult.failure)
         }
         updateJournal(RecordingJournal.Status.WRITER_COMPLETED, delayUs)
