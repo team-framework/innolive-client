@@ -18,8 +18,8 @@
     <string name="error_field_required">Please complete this required field.</string>
     <string name="error_field_invalid">Please check the value you entered.</string>
     <string name="error_field_not_changeable_live">This field cannot be changed while live.</string>
-    <string name="error_face_swap_not_allowed">Face swap is available only to administrator accounts. Turn it off in Settings &gt; Lab and prepare again.</string>
-    <string name="error_face_swap_unavailable">Face swap is not available on the server right now. Turn it off in Settings &gt; Lab and prepare again.</string>
+    <string name="error_face_swap_not_allowed">Face swap is available only to administrator accounts. Switch to blur in Settings &gt; Lab and prepare again.</string>
+    <string name="error_face_swap_unavailable">Face swap is not available on the server right now. Switch to blur in Settings &gt; Lab and prepare again.</string>
     <string name="error_guidance_title">Notice</string>
     <string name="action_continue_broadcast">Continue</string>
     <string name="action_open_help">Open help</string>

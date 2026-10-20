@@ -32,9 +32,11 @@
     <string name="settings_ai_processing">AI 処理方式</string>
     <string name="ai_mode_change_availability">配信準備前またはプレビュー中に変更できます。次の配信準備時に新しい方式で接続します。</string>
     <string name="settings_section_lab">ラボ</string>
-    <string name="lab_face_swap">ぼかしの代わりに顔合成を使用</string>
-    <string name="lab_face_swap_description">次の配信準備から適用されます。顔合成はサーバー AI 処理でのみ使用されます。</string>
-    <string name="lab_face_swap_locked">配信準備をキャンセルすると変更できます。</string>
+    <string name="lab_face_anonymization">匿名化方式</string>
+    <string name="lab_face_anonymization_blur">ぼかし</string>
+    <string name="lab_face_anonymization_face_swap">顔合成</string>
+    <string name="lab_face_anonymization_description">次の配信準備から適用されます。顔合成はサーバー AI 処理でのみ使用されます。</string>
+    <string name="lab_face_anonymization_locked">配信準備をキャンセルすると匿名化方式を変更できます。</string>
     <string name="ai_mode_on_device">オンデバイスAI</string>
     <string name="local_face_title">端末内の顔管理</string>
     <string name="local_face_description">登録した顔のみ端末内処理でぼかしの対象外にできます。写真は保存せず、サーバーにも送信しません。</string>
