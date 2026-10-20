@@ -211,7 +211,8 @@ extern "C" JNIEXPORT jfloatArray JNICALL JNI(decode)(JNIEnv* env,jobject,jlong h
 extern "C" JNIEXPORT void JNICALL JNI(select)(JNIEnv* env,jobject,jlong handle,jfloatArray values,jintArray tracks,jbooleanArray held) {
     try {
         auto& s=state(handle);
-        if(!s.ready) throw std::invalid_argument("Select requires decoded detections");
+        // A frame that skipped detection reuses the prototypes of the last decode.
+        if(!s.ready && !s.prototypes) throw std::invalid_argument("Select requires decoded detections");
         const int count=env->GetArrayLength(tracks);
         if(count>kMaximum || env->GetArrayLength(values)!=count*38 || env->GetArrayLength(held)!=count)
             throw std::invalid_argument("Invalid tracked objects");
@@ -231,6 +232,7 @@ extern "C" JNIEXPORT void JNICALL JNI(select)(JNIEnv* env,jobject,jlong handle,j
             detection.track=ids[i];detection.held=flags[i]==JNI_TRUE;
             s.kept.push_back(detection);
         }
+        s.ready=true;
     }catch(const std::exception& e){fail(env,e);}
 }
 extern "C" JNIEXPORT jbyteArray JNICALL JNI(mask)(JNIEnv* env,jobject,jlong handle,jintArray exempt,jdouble timestamp) {

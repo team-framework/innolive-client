@@ -34,6 +34,9 @@ internal class PrivacyBotSort {
         /** Kalman mean as a box: the detection while tracked, the prediction once lost. */
         val box: PrivacySegmentation.Box get() = kalman.box()
 
+        /** The box moved [fraction] of a detection step along the Kalman velocity, without changing the state. */
+        fun predictedBox(fraction: Double): PrivacySegmentation.Box = kalman.box(fraction)
+
         internal fun predict() = kalman.predict(stopSize = state != State.Tracked)
 
         internal fun update(detection: Candidate, frame: Int) {
@@ -280,9 +283,14 @@ internal class PrivacyKalmanXywh(measurement: DoubleArray) {
         }
     }
 
-    fun box() = PrivacySegmentation.Box(
-        (mean[0] - mean[2] / 2).toFloat(), (mean[1] - mean[3] / 2).toFloat(),
-        (mean[0] + mean[2] / 2).toFloat(), (mean[1] + mean[3] / 2).toFloat())
+    fun box(fraction: Double = 0.0): PrivacySegmentation.Box {
+        val x = mean[0] + fraction * mean[4]
+        val y = mean[1] + fraction * mean[5]
+        val width = mean[2] + fraction * mean[6]
+        val height = mean[3] + fraction * mean[7]
+        return PrivacySegmentation.Box((x - width / 2).toFloat(), (y - height / 2).toFloat(),
+            (x + width / 2).toFloat(), (y + height / 2).toFloat())
+    }
 
     internal fun mean() = mean.copyOf()
 

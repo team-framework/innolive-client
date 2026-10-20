@@ -290,6 +290,7 @@ class PrivacyActualCameraDeviceTest {
                         "output_p50_ms=${percentile(.5) { it.timings.outputMs }} " +
                         "delivery_p50_ms=${percentile(.5) { it.deliveryMs }} " +
                         "zero_copy_planes_frames=${measured.count {it.cameraCopiedPlanes==0}} direct_input_frames=${measured.count {it.analysis.directGpuInput}} input_sync_frames=${measured.count {it.analysis.inputInteropSync}} " +
+                        "skipped_detection_frames=${measured.count { it.analysis.detectionSkipped }} " +
                         "gpu_frames=${measured.count { it.analysis.detectorGpu }} texture_frames=${textureFrames.get()} nnapi_frames=${measured.count { it.analysis.detectorNnapi }} " +
                         "face_frames=${measured.count { it.analysis.faces > 0 }} " +
                         "plate_frames=${measured.count { it.analysis.plates > 0 }} " +

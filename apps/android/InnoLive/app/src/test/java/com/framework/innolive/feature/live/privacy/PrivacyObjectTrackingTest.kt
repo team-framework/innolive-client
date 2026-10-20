@@ -63,4 +63,31 @@ class PrivacyObjectTrackingTest {
         val back = tracking.update(listOf(face(100f)), 3.4).single()
         assertNotEquals("time going backwards resets", next.trackId, back.trackId)
     }
+
+    @Test fun skippedFrameMovesConfirmedTracksAlongTheirVelocity() {
+        val tracking = PrivacyObjectTracking()
+        tracking.update(listOf(face(100f)), 1.0)
+        val tracked = tracking.update(listOf(face(104f)), 1.033).single()
+        val predicted = checkNotNull(tracking.predict(1.0495)).single()
+        assertTrue(predicted.predicted && predicted.repeatsMask && !predicted.held)
+        assertEquals(tracked.trackId, predicted.trackId)
+        assertSame(coefficients, predicted.coefficients)
+        assertTrue("half a detection step ahead", predicted.box.left > 103.5f && predicted.box.left < 104.5f)
+    }
+
+    @Test fun changingOrEmptyScenesAlwaysDetect() {
+        val tracking = PrivacyObjectTracking()
+        assertNull("nothing detected yet", tracking.predict(1.0))
+        tracking.update(emptyList(), 1.0)
+        assertNull("an empty frame may hide a face that just appeared", tracking.predict(1.033))
+        tracking.update(listOf(face(100f)), 1.066)
+        tracking.update(listOf(face(100f), face(400f)), 1.1)
+        assertNull("an unconfirmed new face", tracking.predict(1.116))
+        tracking.update(listOf(face(100f), face(400f)), 1.133)
+        tracking.update(listOf(face(100f)), 1.166)
+        assertNull("a held lost track", tracking.predict(1.183))
+        tracking.update(listOf(face(100f)), 1.2)
+        assertNull("too long after the detection", tracking.predict(1.2 + PrivacyObjectTracking.MAX_PREDICTION_SECONDS + .01))
+        assertNotNull(tracking.predict(1.233))
+    }
 }

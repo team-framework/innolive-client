@@ -61,4 +61,15 @@ class PrivacyMaskStabilizerTest {
         assertTrue("without its own mask a held object only gets the regular fade",
             (fallback[27 * size + 28].toInt() and 255) in 1..254)
     }
+
+    @Test fun predictedTrackRepeatsItsOwnMaskLikeAHeldTrack() {
+        val stabilizer = PrivacyMaskStabilizer()
+        val tracked = instance(100f, 0, 27).let { it.copy(detection = it.detection.copy(trackId = 7)) }
+        stabilizer.apply(listOf(tracked), 1.0)
+        val predicted = PrivacySegmentation.InstanceMask(tracked.detection.copy(
+            box = PrivacySegmentation.Box(104f, 100f, 144f, 140f), predicted = true), ByteArray(size * size))
+        val result = stabilizer.apply(listOf(predicted), 1.033)
+        assertEquals(255, result[27 * size + 28].toInt() and 255)
+        assertEquals(0, result[27 * size + 27].toInt() and 255)
+    }
 }

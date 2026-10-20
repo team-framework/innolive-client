@@ -25,8 +25,8 @@ internal class PrivacyMaskStabilizer {
         val available = previous.indices.toMutableSet()
         val stabilized = current.map { instance ->
             val detection = instance.detection
-            // A held track repeats its own last mask at the predicted box, like the server's one-frame mask hold.
-            if (detection.held) previous.firstOrNull {
+            // A held or predicted track repeats its own last mask at the predicted box, like the server's mask hold.
+            if (detection.repeatsMask) previous.firstOrNull {
                 it.detection.trackId == detection.trackId && it.detection.classId == detection.classId
             }?.let { older ->
                 return@map PrivacySegmentation.InstanceMask(detection, warp(older, detection.box, ByteArray(size * size), 1f))

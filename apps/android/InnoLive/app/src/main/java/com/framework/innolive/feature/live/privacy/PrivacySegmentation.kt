@@ -35,9 +35,15 @@ internal object PrivacySegmentation {
         }
     }
 
-    /** [trackId] comes from [PrivacyObjectTracking]; a [held] object is a lost track kept at its predicted box. */
+    /**
+     * [trackId] comes from [PrivacyObjectTracking]; a [held] object is a lost track kept at its predicted box, and a
+     * [predicted] object is a tracked one moved by BoT-SORT in a frame that skipped detection. Both repeat their
+     * track's last mask instead of a new instance mask.
+     */
     data class Detection(val box: Box, val score: Float, val classId: Int, val coefficients: FloatArray,
-                         val trackId: Int = NO_TRACK, val held: Boolean = false)
+                         val trackId: Int = NO_TRACK, val held: Boolean = false, val predicted: Boolean = false) {
+        val repeatsMask get() = held || predicted
+    }
     data class InstanceMask(val detection: Detection, val bytes: ByteArray)
 
     fun protectedDetections(objects: List<Detection>, exemptFaces: Set<Int>): List<Detection> =

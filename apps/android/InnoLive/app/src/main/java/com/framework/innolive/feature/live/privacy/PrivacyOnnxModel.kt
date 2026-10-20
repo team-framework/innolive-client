@@ -23,12 +23,16 @@ internal class PrivacyOnnxModel(private val context: Context,
                                 private val directGpuInput:Boolean=true,
                                private val sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() },
                                private val nativePostprocessing: Boolean = true,
-                               private val batchTwoOptimizations: Boolean = true) : AutoCloseable {
+                               private val batchTwoOptimizations: Boolean = true,
+                               /** Detect every N frames; BoT-SORT predicts the objects of the frames between. */
+                               private val detectionInterval: Int = DETECTION_INTERVAL) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private var session: OrtSession? = null
     private val blur = PrivacyBitmapBlur()
     private val stabilizer = PrivacyMaskStabilizer()
     private val tracking = PrivacyObjectTracking()
+    private var skippedDetections = 0
+    private var lastPrototypes: PrivacyValidatedPrototypes? = null
     private val postprocessorDelegate = lazy { PrivacyNativePostprocessor() }
     private val postprocessor by postprocessorDelegate
     var lastMaskPixels: Int = -1
@@ -126,11 +130,15 @@ internal class PrivacyOnnxModel(private val context: Context,
             session?.close(); session = null
         }
         nativeInputActive = gpuGraph?.nativeInputEnabled == true
-        if (!nativeInputActive) PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
+        val time = timestampNs / 1_000_000_000.0
+        val predicted = if (skippedDetections + 1 < detectionInterval &&
+            (nativePostprocessing || lastPrototypes != null)) tracking.predict(time) else null
+        skippedDetections = if (predicted != null) skippedDetections + 1 else 0
+        if (!nativeInputActive && predicted == null) PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)
         val prepared = System.nanoTime()
         var nativeOutputs = false
         var nativeDetections: List<PrivacySegmentation.Detection>? = null
-        val legacyOutputs = if (nativeInputActive) try {
+        val legacyOutputs = if (predicted != null) null else if (nativeInputActive) try {
             if (nativePostprocessing) {
                 checkNotNull(gpuGraph).predictNativeInputInto(postprocessor.predictions, postprocessor.prototypes)
                 nativeDetections = postprocessor.decode()
@@ -147,7 +155,7 @@ internal class PrivacyOnnxModel(private val context: Context,
         } else predictLegacy()
         val inferred = System.nanoTime()
         run {
-            val detections = if (nativePostprocessing) {
+            val objects = predicted ?: tracking.update(if (nativePostprocessing) {
                 if (!nativeOutputs) {
                     val values = checkNotNull(legacyOutputs)
                     postprocessor.predictions.asFloatBuffer().put(values.first)
@@ -155,8 +163,7 @@ internal class PrivacyOnnxModel(private val context: Context,
                     values.second.copyInto(postprocessor.prototypes)
                 }
                 if (nativeOutputs) checkNotNull(nativeDetections) else postprocessor.decode()
-            } else PrivacySegmentation.detections(checkNotNull(legacyOutputs).first)
-            val objects = tracking.update(detections, timestampNs / 1_000_000_000.0)
+            } else PrivacySegmentation.detections(checkNotNull(legacyOutputs).first), time)
             if (nativePostprocessing) postprocessor.select(objects)
             val beforeFaces = System.nanoTime()
             val exempt = exemptFaces(objects, layout)
@@ -164,8 +171,9 @@ internal class PrivacyOnnxModel(private val context: Context,
             val mask = if (nativePostprocessing) {
                 postprocessor.mask(exempt, timestampNs / 1_000_000_000.0).also { lastMaskPixels = postprocessor.maskPixels }
             } else {
+                val prototypes = legacyOutputs?.second?.also { lastPrototypes = it } ?: checkNotNull(lastPrototypes)
                 val instances = PrivacyNativeSegmentation.instanceMasks(
-                    PrivacySegmentation.protectedDetections(objects, exempt), checkNotNull(legacyOutputs).second)
+                    PrivacySegmentation.protectedDetections(objects, exempt), prototypes)
                 stabilizer.apply(instances, timestampNs / 1_000_000_000.0).also { lastMaskPixels = -1 }
             }
             val masked = System.nanoTime()
@@ -176,7 +184,8 @@ internal class PrivacyOnnxModel(private val context: Context,
                 lastAnalysis = PrivacyFrameAnalysis(usesGpu, objects.count { it.classId == 0 },
                     objects.count { it.classId == 1 }, exempt.size,
                     maskPixels, maskPixels > 0 && (renderOnGpu || blur.lastUsedGpu), nnapi != null,
-                    nativeInputActive, nativeInputActive && gpuGraph?.nativeInputUsesManagedSync == true)
+                    nativeInputActive, nativeInputActive && gpuGraph?.nativeInputUsesManagedSync == true,
+                    detectionSkipped = predicted != null)
             }
             lastTimings = PrivacyModelTimings(
                 (prepared - started) / 1e6, (inferred - prepared) / 1e6,
@@ -188,7 +197,10 @@ internal class PrivacyOnnxModel(private val context: Context,
         }
     }
 
-    fun resetTemporalState() { stabilizer.reset(); tracking.reset(); if (postprocessorDelegate.isInitialized()) postprocessor.reset() }
+    fun resetTemporalState() {
+        stabilizer.reset(); tracking.reset(); skippedDetections = 0; lastPrototypes = null
+        if (postprocessorDelegate.isInitialized()) postprocessor.reset()
+    }
 
     private fun checkedOutput(output: Pair<FloatArray,FloatArray>): Pair<FloatArray,PrivacyValidatedPrototypes> {
         check(PrivacyNativePixels.finiteFloats(output.first))
@@ -264,6 +276,8 @@ internal class PrivacyOnnxModel(private val context: Context,
     }
 
     companion object {
+        /** Every other frame skips YOLO while every object is a confirmed, detected track. */
+        const val DETECTION_INTERVAL = 2
         private const val MODEL_ASSET = "privacy-detector.onnx"
         private const val MODEL_SHA256 = "8d111ad2dcb5e5fa9d709f3d11606dcd62ea6f1d4833633864b1e4cf47f13be7"
         private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
@@ -282,4 +296,5 @@ internal data class PrivacyFrameAnalysis(
     val detectorGpu: Boolean, val faces: Int, val plates: Int, val exemptFaces: Int,
     val maskPixels: Int, val blurGpu: Boolean, val detectorNnapi: Boolean = false,
     val directGpuInput: Boolean = false, val inputInteropSync: Boolean = false,
+    val detectionSkipped: Boolean = false,
 )
