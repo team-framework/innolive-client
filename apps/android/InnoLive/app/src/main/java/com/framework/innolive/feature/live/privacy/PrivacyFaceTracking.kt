@@ -7,7 +7,8 @@ import java.util.UUID
  * appears, retried [QUICK_RETRY_LIMIT] times [QUICK_RETRY_FRAMES] apart while it is not exempt, then revalidated
  * every [REVALIDATE_FRAMES]. An exempt track stays exempt while its revalidation is in flight, and its decision
  * survives up to [MISSING_TRACK_FRAMES] frames without a face. Like iOS, the first exemption needs two matching
- * results, and overlap, a negative or lost result, or a held face due for a check revoke it at once.
+ * results, and overlap, a negative or lost result, or a held face due for a check revoke it at once. An exemption
+ * also ends [CONFIRMATION_LIMIT_FRAMES] after its last match, so a check that cannot run never extends it.
  */
 internal class PrivacyFaceTracking {
     /** A face at [index] of this frame's objects; a [held] face is a lost track kept at its predicted box. */
@@ -29,6 +30,7 @@ internal class PrivacyFaceTracking {
         var pendingFrame: Int = NEVER,
         var candidate: String? = null,
         var confirmations: Int = 0,
+        var lastMatchedFrame: Int = NEVER,
     ) {
         val exempt get() = candidate != null && confirmations >= CONFIRMATIONS
     }
@@ -70,6 +72,9 @@ internal class PrivacyFaceTracking {
         val presentIds = present.mapTo(HashSet()) { it.trackId }
         val missing = tracks.filter { it.trackId !in presentIds && frame - it.lastSeenFrame <= MISSING_TRACK_FRAMES }
         tracks = present + missing
+        for (track in tracks) if (track.exempt && frame - track.lastMatchedFrame > CONFIRMATION_LIMIT_FRAMES) {
+            track.requireFreshMatch()
+        }
         for (track in tracks) track.pendingSeconds?.let { pending ->
             if (atSeconds - pending >= PENDING_TIMEOUT_SECONDS) { track.pendingSeconds = null; track.requireFreshMatch() }
         }
@@ -109,6 +114,7 @@ internal class PrivacyFaceTracking {
             track.candidate -> track.confirmations = minOf(CONFIRMATIONS, track.confirmations + 1)
             else -> { track.candidate = match; track.confirmations = 1; track.quickRetries = 0 }
         }
+        if (match != null) track.lastMatchedFrame = track.pendingFrame
         if (track.exempt) track.quickRetries = 0
     }
 
@@ -142,6 +148,8 @@ internal class PrivacyFaceTracking {
         const val QUICK_RETRY_FRAMES = 5
         const val QUICK_RETRY_LIMIT = 2
         const val MISSING_TRACK_FRAMES = 3
+        /** One revalidation interval plus the [PENDING_TIMEOUT_SECONDS] a 30fps check may take to answer. */
+        const val CONFIRMATION_LIMIT_FRAMES = REVALIDATE_FRAMES + 30
         const val PENDING_TIMEOUT_SECONDS = 1.0
         const val MAX_FRAME_GAP_SECONDS = PrivacyObjectTracking.MAX_FRAME_GAP_SECONDS
         private const val NEVER = -1
