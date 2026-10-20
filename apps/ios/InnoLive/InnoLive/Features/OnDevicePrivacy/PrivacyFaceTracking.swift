@@ -7,6 +7,7 @@ nonisolated final class PrivacyFaceTracking {
         let id: UUID
         var index: Int
         var box: CGRect
+        var sourceID: Int? = nil
         var lastScheduled: Double = -.infinity
         var candidate: UUID?
         var confirmations = 0
@@ -18,7 +19,7 @@ nonisolated final class PrivacyFaceTracking {
 
     func reset() { tracks = []; lastTime = nil }
 
-    func update(_ boxes: [Int: CGRect], at time: Double) {
+    func update(_ boxes: [Int: CGRect], at time: Double, trackIDs: [Int: Int]? = nil) {
         if let lastTime, time <= lastTime || time - lastTime >= 0.20 { tracks = [] }
         lastTime = time
         let valid = boxes.filter { _, box in
@@ -27,8 +28,17 @@ nonisolated final class PrivacyFaceTracking {
         let isolated = valid.filter { index, box in
             !valid.contains { $0.key != index && PrivacySegmentation.iou(box, $0.value) > 0.05 }
         }
+        let eligible = isolated.filter { index, _ in trackIDs == nil || trackIDs?[index] != nil }
         let old = tracks
-        tracks = isolated.sorted { $0.key < $1.key }.map { index, box in
+        tracks = eligible.sorted { $0.key < $1.key }.map { index, box in
+            if let trackIDs, let sourceID = trackIDs[index] {
+                if var prior = old.first(where: { $0.sourceID == sourceID }) {
+                    prior.box = box
+                    prior.index = index
+                    return prior
+                }
+                return Track(id: UUID(), index: index, box: box, sourceID: sourceID)
+            }
             let candidates = old.filter { PrivacySegmentation.iou($0.box, box) >= 0.50 }
             if candidates.count == 1, var prior = candidates.first,
                isolated.values.filter({ PrivacySegmentation.iou(prior.box, $0) >= 0.50 }).count == 1 {
