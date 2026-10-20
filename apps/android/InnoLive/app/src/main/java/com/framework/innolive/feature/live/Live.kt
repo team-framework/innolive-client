@@ -85,10 +85,12 @@ import androidx.compose.ui.window.DialogProperties
 import com.framework.innolive.R
 import com.framework.innolive.feature.face.FaceManagementScreen
 import com.framework.innolive.feature.face.FaceSelectionLayer
+import com.framework.innolive.feature.face.FaceSelectionStatusPanel
 import com.framework.innolive.feature.face.GuestFaceName
 import com.framework.innolive.feature.face.GuestFaceRegistrar
 import com.framework.innolive.feature.face.GuestFaceTarget
 import com.framework.innolive.feature.face.GuestRegistrationToast
+import com.framework.innolive.feature.face.rememberQuickFaceSelectionModel
 import com.framework.innolive.feature.face.LocalFaceManagementScreen
 import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.components.BroadcastModeDialog
@@ -327,6 +329,13 @@ private fun LiveScreenContent(
     DisposableEffect(idleFrameAnalyzer) {
         onDispose { idleFrameAnalyzer.close() }
     }
+    // 얼굴 윤곽은 메인 영상 위에, 안내는 하단 방송 버튼 위에 그리므로 선택 상태를 여기서 함께 둡니다.
+    val faceSelectionMirrored = props.cameraLensFacing.shouldMirrorPreview
+    val faceSelection = if (isSelectingFace) {
+        rememberQuickFaceSelectionModel(frameAnalyzer, faceSelectionMirrored)
+    } else {
+        null
+    }
     DisposableEffect(frameAnalyzer, openVideoControls) {
         frameAnalyzer.setLookPreviewEnabled(openVideoControls)
         onDispose { frameAnalyzer.setLookPreviewEnabled(false) }
@@ -544,12 +553,11 @@ private fun LiveScreenContent(
                         pipState = pipState,
                         originalIsMain = isSelectingFace,
                         onCameraOpened = { openedCameraLensFacing = it },
-                        mainOverlay = if (isSelectingFace) {
+                        mainOverlay = faceSelection?.let { selection ->
                             {
                                 // iOS처럼 원본 위에서 얼굴을 고르면 백그라운드로 등록하고 바로 송출 화면으로 돌아갑니다.
                                 FaceSelectionLayer(
-                                    analyzer = frameAnalyzer,
-                                    mirrored = props.cameraLensFacing.shouldMirrorPreview,
+                                    model = selection,
                                     onSelect = { frame, faceIndex ->
                                         guestRegistrar.register(
                                             frame, faceIndex, GuestFaceName.make(context), guestFaceTarget(),
@@ -559,8 +567,6 @@ private fun LiveScreenContent(
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
-                        } else {
-                            null
                         },
                     )
                 }
@@ -1198,7 +1204,20 @@ private fun LiveScreenContent(
                 // iOS처럼 라이브 YouTube 채팅을 왼쪽 아래 하단 조작 위에 띄웁니다. 가로 화면은 왼쪽 카메라 도구 띠 오른쪽에 둡니다.
                 // 얼굴을 고르는 동안에는 가리고, 작은 창과 카메라 도구가 채팅 높이를 비우도록 알려 줍니다.
                 val chat = viewerChat
-                if (chat != null && !isSelectingFace) {
+                if (faceSelection != null) {
+                    // iOS처럼 얼굴 선택 안내는 채팅 자리인 하단 방송 버튼 바로 위에 두고, 작은 창은 그 위로 비킵니다.
+                    val statusStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 24.dp
+                    val statusEnd = if (landscape) with(density) { pipState.rightControlsWidthPx.toDp() } + 8.dp else 24.dp
+                    val statusBottom = with(density) { pipState.bottomControlsReservePx(this).toDp() } + 12.dp
+                    FaceSelectionStatusPanel(
+                        phase = faceSelection.phase,
+                        onRetry = { faceSelection.start(faceSelectionMirrored) },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(start = statusStart, end = statusEnd, bottom = statusBottom)
+                            .onSizeChanged { pipState.chatReservePx = it.height + with(density) { 12.dp.toPx() } },
+                    )
+                } else if (chat != null) {
                     val chatStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 16.dp
                     val chatBottom = with(density) { pipState.bottomControlsReservePx(this).toDp() } + 12.dp
                     YouTubeViewerChatOverlay(
