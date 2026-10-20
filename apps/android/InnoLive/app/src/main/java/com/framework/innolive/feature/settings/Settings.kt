@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -24,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -115,6 +117,10 @@ fun SettingsScreen(props: SettingsScreenProps) {
             SettingsDivider()
             PlanUsageSettings(props)
             AIProcessingSettings(props)
+            if (props.isAdministrator) {
+                SettingsDivider()
+                LabSettings(props)
+            }
             SettingsDivider()
             SettingsLinkRow(stringResource(R.string.privacy_policy), enabled, { uriHandler.openUri(privacyPolicyUrl) })
             SettingsLinkRow(stringResource(R.string.tutorial_replay), enabled && props.canReplayBroadcastGuide,
@@ -211,6 +217,38 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
                 Text(stringResource(label), style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(start = 8.dp))
             }
+        }
+    }
+}
+
+/** 관리자 전용 실험 기능입니다. 얼굴 가림 방식은 세션 생성 때 고정되므로 처리 방식과 같은 때에만 바꿉니다. */
+@Composable
+private fun LabSettings(props: SettingsScreenProps) {
+    val enabled = props.canChangeAIProcessing && !props.isDeletingAccount &&
+        !props.isAccountDeletionPending
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        SettingsSectionLabel(stringResource(R.string.settings_section_lab))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(value = props.faceSwapEnabled, enabled = enabled, role = Role.Switch,
+                    onValueChange = props.onFaceSwapChanged)
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.lab_face_swap), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(
+                        if (props.canChangeAIProcessing) R.string.lab_face_swap_description
+                        else R.string.lab_face_swap_locked,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(checked = props.faceSwapEnabled, onCheckedChange = null, enabled = enabled)
         }
     }
 }
