@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
+import com.framework.innolive.BuildConfig
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -35,6 +36,34 @@ internal class PrivacyFaceCoordinator(
     private var geometry: Pair<Int, Int>? = null
     private var leased = false
     private var cachedEntries: List<PrivacyRegisteredFace>? = null
+    private val stats = if (BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) Stats() else null
+
+    /** Debug-only recognition and exemption counts, logged every [Stats.INTERVAL_NS]. */
+    private class Stats {
+        var frames = 0; var exemptFrames = 0; var submitted = 0; var matched = 0; var unmatched = 0
+        var noSample = 0; var revoked = 0; var granted = 0; var tracks = HashSet<Int>()
+        private var previous = emptySet<Int>()
+        private var startedNs = System.nanoTime()
+
+        fun frame(objects: List<PrivacySegmentation.Detection>, allowed: Set<Int>) {
+            frames++
+            if (allowed.isNotEmpty()) exemptFrames++
+            val ids = allowed.mapTo(HashSet()) { objects[it].trackId }
+            granted += (ids - previous).size
+            revoked += (previous - ids).size
+            previous = ids
+            objects.filter { it.classId == 0 && it.trackId != PrivacySegmentation.NO_TRACK }.mapTo(tracks) { it.trackId }
+            val now = System.nanoTime()
+            if (now - startedNs < INTERVAL_NS) return
+            android.util.Log.i("PrivacyFace", "frames=$frames exempt_frames=$exemptFrames granted=$granted " +
+                "revoked=$revoked submitted=$submitted matched=$matched unmatched=$unmatched no_sample=$noSample " +
+                "face_tracks=${tracks.size}")
+            frames = 0; exemptFrames = 0; submitted = 0; matched = 0; unmatched = 0; noSample = 0
+            revoked = 0; granted = 0; tracks = HashSet(); startedNs = now
+        }
+
+        companion object { const val INTERVAL_NS = 5_000_000_000L }
+    }
 
     fun reset() {
         generation++
@@ -71,16 +100,26 @@ internal class PrivacyFaceCoordinator(
         if (!service.canSubmit) return
         val layout = previousLayout ?: return
         val next = tracking.next(timestampNs / 1_000_000_000.0) ?: return
-        val bounds = recognitionBounds(width, height, next.box, layout) ?: return
+        val submitted = try {
+            submit(width, height, timestampNs, next, layout, crop, readback)
+        } catch (error: Throwable) { tracking.cancel(next.id); throw error }
+        if (submitted) stats?.let { it.submitted++ } else tracking.cancel(next.id)
+    }
+
+    private fun submit(width: Int, height: Int, timestampNs: Long, next: PrivacyFaceTracking.Track,
+                       layout: PrivacySegmentation.Letterbox, crop: (Rect) -> Bitmap,
+                       readback: ((Rect) -> PrivacyFaceReadback)?): Boolean {
+        val bounds = recognitionBounds(width, height, next.box, layout) ?: return false
         if (readback != null) {
             val sample = readback(bounds)
             try {
-                if (!service.submitReadback(sample, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) sample.close()
+                return service.submitReadback(sample, bounds, generation, next.id, timestampNs / 1_000_000_000.0)
+                    .also { if (!it) sample.close() }
             } catch (error: Throwable) { sample.close(); throw error }
-            return
         }
         val image = crop(bounds)
-        if (!service.submitRecognition(image, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) image.recycle()
+        return service.submitRecognition(image, bounds, generation, next.id, timestampNs / 1_000_000_000.0)
+            .also { if (!it) image.recycle() }
     }
 
     fun currentFrame(upright: Bitmap, objects: List<PrivacySegmentation.Detection>,
@@ -112,9 +151,8 @@ internal class PrivacyFaceCoordinator(
                    layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> {
         val time = timestampNs / 1_000_000_000.0
         refreshRevision()
-        // A held face was not detected in this frame, so it stays protected and outside identity checks.
-        val faces = objects.withIndex().filter { it.value.classId == 0 && !it.value.held }.map { (index, face) ->
-            PrivacyFaceTracking.Face(index, face.trackId, face.box)
+        val faces = objects.withIndex().filter { it.value.classId == 0 }.map { (index, face) ->
+            PrivacyFaceTracking.Face(index, face.trackId, face.box, face.held)
         }
         tracking.update(faces, time)
         previousLayout = layout
@@ -133,10 +171,16 @@ internal class PrivacyFaceCoordinator(
                 }?.let { if (optimized) PrivacyFaceMath.match(it, entries) else PrivacyFaceMath.matchReference(it, entries) }
                 tracking.accept(result.trackId, match, result.capturedAtSeconds, time,
                     sampleAvailable = result.sampleAvailable)
+                stats?.let { when {
+                    !result.sampleAvailable -> it.noSample++
+                    match != null -> it.matched++
+                    else -> it.unmatched++
+                } }
             }
         }
-        if (entries.isEmpty() || !service.ready) return emptySet()
-        return tracking.allowed(time)
+        val allowed = if (entries.isEmpty() || !service.ready) emptySet() else tracking.allowed()
+        if (entries.isNotEmpty()) stats?.frame(objects, allowed)
+        return allowed
     }
 
     private fun refreshRevision() {
