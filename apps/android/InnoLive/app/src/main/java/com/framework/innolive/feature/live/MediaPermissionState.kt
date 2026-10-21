@@ -25,6 +25,12 @@ data class MediaPermissionState(
         }
 }
 
+/** 요청 결과 뒤에도 빠진 권한이 있고 시스템이 더는 묻지 않으면 앱 설정에서만 허용할 수 있습니다. */
+internal fun needsMediaPermissionSettings(
+    missingPermissions: List<String>,
+    shouldShowRationale: (String) -> Boolean,
+): Boolean = missingPermissions.isNotEmpty() && missingPermissions.none(shouldShowRationale)
+
 fun readMediaPermissionState(context: Context): MediaPermissionState = MediaPermissionState(
     hasCameraPermission = ContextCompat.checkSelfPermission(
         context,
