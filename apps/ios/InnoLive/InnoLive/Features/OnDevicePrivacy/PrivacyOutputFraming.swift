@@ -2,7 +2,7 @@ import CoreImage
 
 /// Crop the protected output only. Detector, tracking, and recognition retain the full camera field of view.
 nonisolated enum PrivacyOutputFraming {
-    static let scale: CGFloat = 1.1
+    static let scale: CGFloat = 1.05
 
     static func apply(to image: CIImage) -> CIImage {
         let extent = image.extent
