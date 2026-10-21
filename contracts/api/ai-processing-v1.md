@@ -29,7 +29,7 @@ iOS는 [온디바이스 직접 송출 계약](direct-publish-v1.md)을 따른다
   서버는 최상위 값을 먼저 쓴다. 응답의 `ai_processing`이 `on_device`인지 확인하고, 서버 선택에
   `on_device` 응답이 오면 세션을 지우고 연결하지 않는다. 처리 방식 값을 돌려주지 않는 구 서버에서는
   아래 연결 유지 전환 경로로 서버 AI를 끈다.
-- 해상도: 카메라 화질 설정을 `broadcast_resolution`으로 보낸다(1080p는 `fhd`, 720p는 `720p`).
+- 해상도: 방송 설정의 송출 화질을 `broadcast_resolution`으로 보낸다(1080p는 `fhd`, 720p는 `720p`).
   요금제가 FHD를 허용하지 않는다고 알면 준비 전에 720p 선택을 안내하고, 서버가 403으로 거절하면
   준비를 실패로 처리한다. iOS는 세션 응답을 받을 때마다 카메라 화질을 세션 해상도에 맞춘다.
   그래서 실제 송출 해상도가 세션 해상도와 같다. 비트레이트는 실제 프레임의 짧은 변으로 고른다
@@ -80,7 +80,7 @@ iOS는 [온디바이스 직접 송출 계약](direct-publish-v1.md)을 따른다
 선택한 경우(client #582)와 구 서버에서 온디바이스를 선택한 경우에도 이 세션을 만들고 카메라 연결 전에
 `PATCH /sessions/{id}/anonymization`의 `{"enabled":false}`와 응답 false를 확인한다.
 최상위 응답은 서버의 처리 기능을 나타내고, 앱은 실제 선택을 별도로 보관한다.
-서버 AI와 서버 송출 선택에서는 `ai_processing` 없이 카메라 화질 설정의 `broadcast_resolution`만
+서버 AI와 서버 송출 선택에서는 `ai_processing` 없이 송출 화질 설정의 `broadcast_resolution`만
 보낸다(1080p는 `fhd`, 720p는 `720p`). 요금제가 FHD를 허용하지 않아 403 `plan_resolution_not_allowed`가
 오면 `720p`로 한 번 다시 만든다. 카메라는 세션 응답 해상도에 맞춘다. 이 요청에 `on_device`
 응답이 오면 세션을 지우고 연결하지 않는다. 이 세션은 서버 시간으로 차감된다.

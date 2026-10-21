@@ -44,12 +44,26 @@ class YouTubeAccountCoordinator(
         )
     }
 
+    /** 실험실 표시 여부입니다. `GET /admin/me`가 200이면 관리자, 403·404면 관리자가 아닙니다. */
+    suspend fun isAdministrator(accessToken: String, refreshAccessToken: suspend () -> String): Boolean =
+        retryYouTubeUnauthorized(accessToken, refreshAccessToken) { token -> api().isAdministrator(token) }
+
     suspend fun connect(
         serverAuthCode: String,
         accessToken: String,
         refreshAccessToken: suspend () -> String,
     ): StreamingAccount = retryYouTubeUnauthorized(accessToken, refreshAccessToken) { token ->
         api().connect(serverAuthCode, token)
+    }
+
+    /** YouTube는 한 채널만 연결한다. 새 채널 연결 뒤 남아 있는 다른 YouTube 연결을 모두 해제한다. */
+    suspend fun removeOtherYouTubeAccounts(
+        connected: StreamingAccount,
+        accessToken: String,
+        refreshAccessToken: suspend () -> String,
+    ) = retryYouTubeUnauthorized(accessToken, refreshAccessToken) { token ->
+        otherYouTubeAccountIds(api().listAccounts(token), connected.channelId)
+            .forEach { accountId -> api().disconnectYouTubeAccount(accountId, token) }
     }
 
     fun serverAuthCodeFromIntent(data: Intent): String =
@@ -73,6 +87,12 @@ internal fun planRefreshFailure(exception: Exception): YouTubeApiException =
 
 internal fun findYouTubeAccount(accounts: List<StreamingAccount>): StreamingAccount? =
     accounts.firstOrNull { account -> account.provider.equals("youtube", ignoreCase = true) }
+
+/** 연결 UUID가 없는 이전 서버 응답은 채널 하나만 유지하므로 해제 대상에서 제외한다. */
+internal fun otherYouTubeAccountIds(accounts: List<StreamingAccount>, keepChannelId: String): List<String> =
+    accounts
+        .filter { account -> account.provider.equals("youtube", ignoreCase = true) && account.channelId != keepChannelId }
+        .mapNotNull(StreamingAccount::accountId)
 
 internal suspend fun <T> retryYouTubeUnauthorized(
     accessToken: String,

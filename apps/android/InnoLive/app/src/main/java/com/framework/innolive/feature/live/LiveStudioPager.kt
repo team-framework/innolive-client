@@ -2,7 +2,21 @@ package com.framework.innolive.feature.live
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,10 +61,10 @@ import com.framework.innolive.R
 import kotlinx.coroutines.launch
 
 /** 카메라 미리보기 위에서 좌우로 넘기는 방송 화면 페이지입니다. 화면 왼쪽부터 순서대로 놓입니다. */
-enum class LiveStudioPage(@param:StringRes val labelRes: Int) {
-    CAMERA(R.string.live_page_camera),
-    HOME(R.string.live_page_home),
-    SETTINGS(R.string.live_page_settings),
+enum class LiveStudioPage(@param:StringRes val labelRes: Int, @param:StringRes val tabRes: Int) {
+    CAMERA(R.string.live_page_camera, R.string.live_page_tab_camera),
+    HOME(R.string.live_page_home, R.string.live_page_tab_home),
+    SETTINGS(R.string.live_page_settings, R.string.live_page_tab_settings),
 }
 
 /**
@@ -62,14 +76,17 @@ class LiveSettingsPage(
     val isOpen: Boolean,
     /** 하위 설정이 열려 있거나 계정 삭제 중이면 넘겨서 벗어나지 않고 뒤로 가기·닫기로만 돌아옵니다. */
     val canLeaveBySwipe: Boolean,
+    /** 하위 설정 화면처럼 흰 창 위에 내용을 그릴 때입니다. 설정 첫 화면은 카드만 미리보기 위에 띄웁니다. */
+    val showsPanel: Boolean = true,
     val onOpen: () -> Unit,
     val onClose: () -> Unit,
     val content: @Composable () -> Unit,
 )
 
 /** 상단 바와 페이지 표시가 차지하는 높이입니다. 각 페이지는 이 아래부터 내용을 둡니다. */
-internal val LiveStudioTopInset = 64.dp
+internal val LiveStudioTopInset = 96.dp
 private val LiveStudioTopBarHeight = 48.dp
+private val LiveStudioPageTabsHeight = 44.dp
 private val SettingsScrim = Color.Black.copy(alpha = 0.35f)
 private val EdgeScrimColor = Color.Black.copy(alpha = 0.4f)
 private val EdgeScrimHeight = 120.dp
@@ -123,6 +140,7 @@ internal fun LiveStudioPager(
         scope.launch { pagerState.animateScrollToPage(homeIndex) }
     }
 
+    val canChangePage = canSwipe && !pinnedToHome && settings?.canLeaveBySwipe != false && !previewInteractive
     val canMovePip = pipState != null && pagerState.currentPage != settingsIndex
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     Box(
@@ -158,7 +176,7 @@ internal fun LiveStudioPager(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = canSwipe && !pinnedToHome && settings?.canLeaveBySwipe != false,
+                userScrollEnabled = canChangePage,
                 // 모든 페이지를 계속 그려 방송 대화상자와 입력 상태가 페이지를 넘겨도 유지되게 합니다.
                 beyondViewportPageCount = LiveStudioPage.entries.size - 1,
             ) { index ->
@@ -168,6 +186,7 @@ internal fun LiveStudioPager(
                         LiveStudioPage.HOME -> homePage()
                         LiveStudioPage.SETTINGS -> settings?.let { page ->
                             LiveSettingsPanel(
+                                showsPanel = page.showsPanel,
                                 onDismiss = { page.onClose() },
                                 topInset = if (landscape) 12.dp else LiveStudioTopInset,
                                 content = page.content,
@@ -186,19 +205,35 @@ internal fun LiveStudioPager(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.fillMaxWidth().heightIn(min = LiveStudioTopBarHeight), content = topBar)
-            LiveStudioPageIndicator(
-                pageCount = pagerState.pageCount,
+            // iOS처럼 넘기지 않아도 탭으로 페이지를 고를 수 있게 합니다. 넘길 수 없을 때는 탭도 막습니다.
+            LiveStudioPageTabs(
                 currentPage = pagerState.currentPage,
-                modifier = Modifier.height(LiveStudioTopInset - LiveStudioTopBarHeight),
+                enabled = canChangePage,
+                onSelect = { page -> scope.launch { pagerState.animateScrollToPage(page) } },
+                modifier = Modifier.height(LiveStudioPageTabsHeight),
             )
         }
     }
 }
 
-/** Figma 설정 창처럼 상단 바 아래에 반투명 창을 띄우고, 창 밖을 누르면 기본 화면으로 돌아갑니다. */
+/**
+ * Figma 설정 창처럼 상단 바 아래에 반투명 창을 띄우고, 창 밖을 누르면 기본 화면으로 돌아갑니다.
+ * [showsPanel]이 false면 같은 자리에 창 바탕만 지워 내용(설정 첫 화면의 카드)이 미리보기 위에 바로 보이게 합니다.
+ * 창을 바꿔 끼우지 않고 색만 바꿔 안쪽 내비게이션 상태와 전환 애니메이션을 유지합니다.
+ */
 @Composable
-private fun LiveSettingsPanel(onDismiss: () -> Unit, topInset: Dp, content: @Composable () -> Unit) {
+private fun LiveSettingsPanel(
+    showsPanel: Boolean,
+    onDismiss: () -> Unit,
+    topInset: Dp,
+    content: @Composable () -> Unit,
+) {
     val title = stringResource(R.string.settings_title)
+    // 뒤를 흐릴 수 없으므로 비치는 영상이 글자를 방해하지 않게 더 불투명하게 칠합니다.
+    val panelColor by animateColorAsState(
+        if (showsPanel) SettingsPanelColor else SettingsPanelColor.copy(alpha = 0f),
+        label = "settingsPanelColor",
+    )
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().clickable(interactionSource = null, indication = null, onClick = onDismiss))
         // 다른 모달과 같은 흰 유리 창으로 보여 주고, 창 안에서 연 확인 창도 같은 색을 씁니다.
@@ -209,30 +244,67 @@ private fun LiveSettingsPanel(onDismiss: () -> Unit, topInset: Dp, content: @Com
                     .widthIn(max = 640.dp).fillMaxSize()
                     .semantics { paneTitle = title },
                 shape = RoundedCornerShape(20.dp),
-                // 뒤를 흐릴 수 없으므로 비치는 영상이 글자를 방해하지 않게 더 불투명하게 칠합니다.
-                color = Color.White.copy(alpha = 0.96f),
+                color = panelColor,
+                showsBorder = showsPanel,
                 content = content,
             )
         }
     }
 }
 
+private val SettingsPanelColor = Color.White.copy(alpha = 0.96f)
+
+/** iOS 방송 화면처럼 반투명 알약 안에 페이지 이름을 두고, 지금 페이지는 흰 글자와 밑줄로 보여 줍니다. */
 @Composable
-private fun LiveStudioPageIndicator(pageCount: Int, currentPage: Int, modifier: Modifier = Modifier) {
-    val pageName = stringResource(LiveStudioPage.entries[currentPage].labelRes)
-    val description = stringResource(R.string.live_page_indicator, currentPage + 1, pageCount, pageName)
+private fun LiveStudioPageTabs(
+    currentPage: Int,
+    enabled: Boolean,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
-        modifier = modifier.semantics { contentDescription = description },
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier
+            .clip(CircleShape)
+            .background(PageTabsBackground)
+            .border(1.dp, PageTabsBorder, CircleShape)
+            .padding(horizontal = 8.dp)
+            .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        repeat(pageCount) { index ->
+        LiveStudioPage.entries.forEach { page ->
+            val selected = page.ordinal == currentPage
+            val pageName = stringResource(page.labelRes)
             Box(
-                Modifier.size(7.dp).background(
-                    if (index == currentPage) Color.White else Color.White.copy(alpha = 0.45f),
-                    CircleShape,
-                ),
-            )
+                modifier = Modifier.fillMaxHeight().widthIn(min = 64.dp)
+                    .selectable(
+                        selected = selected,
+                        enabled = enabled,
+                        role = Role.Tab,
+                        onClick = { if (!selected) onSelect(page.ordinal) },
+                    )
+                    .clearAndSetSemantics {
+                        contentDescription = pageName
+                        this.selected = selected
+                        role = Role.Tab
+                        if (!enabled) disabled()
+                    }
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    stringResource(page.tabRes),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (selected) Color.White else Color.White.copy(alpha = 0.65f),
+                )
+                Box(
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = 5.dp).size(width = 18.dp, height = 3.dp)
+                        .background(if (selected) Color.White else Color.Transparent, CircleShape),
+                )
+            }
         }
     }
 }
+
+private val PageTabsBackground = Color.Black.copy(alpha = 0.45f)
+private val PageTabsBorder = Color.White.copy(alpha = 0.16f)

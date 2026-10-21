@@ -37,6 +37,20 @@ final class VideoUplinkSendPolicyTests: XCTestCase {
         XCTAssertEqual(VideoUplinkResolution(serverValue: "fhd"), .fhd)
         XCTAssertNil(VideoUplinkResolution(serverValue: nil))
         XCTAssertNil(VideoUplinkResolution(serverValue: "1080p"))
+        for resolution in VideoUplinkResolution.allCases {
+            XCTAssertEqual(VideoUplinkResolution(serverValue: resolution.serverValue), resolution)
+        }
+    }
+
+    func testCameraQualityKeepsFrameRateWhenResolutionChanges() {
+        XCTAssertEqual(CameraQualityPreset.fullHD24.with(resolution: .hd720), .hd24)
+        XCTAssertEqual(CameraQualityPreset.hd30.with(resolution: .fhd), .fullHD30)
+        XCTAssertEqual(CameraQualityPreset.fullHD30.with(framesPerSecond: 24), .fullHD24)
+        XCTAssertEqual(CameraQualityPreset.hd24.with(framesPerSecond: 30), .hd30)
+        for quality in CameraQualityPreset.allCases {
+            XCTAssertEqual(CameraQualityPreset(resolution: quality.resolution, framesPerSecond: quality.framesPerSecond), quality)
+        }
+        XCTAssertEqual(CameraQualityPreset.storageKey, "selectedResolution")
     }
 
     func testCredentialsMapToSessionMode() {

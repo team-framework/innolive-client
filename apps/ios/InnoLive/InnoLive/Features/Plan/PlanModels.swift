@@ -197,7 +197,7 @@ struct PlanSnapshot: Equatable {
         if processing == .onDevice && plan.deviceModes == nil { return nil }
         if !isAllowed(mode, processing: processing) {
             if processing == .onDevice && (mode == .fhdSingle || mode == .fhdMulti) {
-                return String(localized: "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 카메라 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요.", table: "PlanUsage")
+                return String(localized: "현재 요금제는 선택한 FHD 방송 방식을 지원하지 않습니다. 방송 설정에서 720p를 선택하거나 송출 대상을 줄여 주세요.", table: "PlanUsage")
             }
             return String(localized: "현재 요금제에서 허용하지 않는 방송 방식입니다. 요금제 및 사용량을 확인해 주세요.")
         }
@@ -205,6 +205,12 @@ struct PlanSnapshot: Equatable {
         return processing == .server
             ? String(localized: "이번 달 서버 시간을 모두 사용했습니다. 온디바이스 잔여 시간을 확인해 주세요.")
             : String(localized: "선택한 방식으로 사용할 온디바이스 시간이 부족합니다. 요금제 및 사용량을 확인해 주세요.")
+    }
+
+    /// 720p로는 준비할 수 있고 FHD만 막히는지다. 둘 다 막히는 사유는 방송 준비가 안내한다.
+    func blocksFHDOnly(targetCount: Int, processing: AIProcessingMode) -> Bool {
+        preparationBlockMessage(.current(resolution: VideoUplinkResolution.fhd.serverValue, targetCount: targetCount), processing: processing) != nil
+            && preparationBlockMessage(.current(resolution: VideoUplinkResolution.hd720.serverValue, targetCount: targetCount), processing: processing) == nil
     }
 
 }

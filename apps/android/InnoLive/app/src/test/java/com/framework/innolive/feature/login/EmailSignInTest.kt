@@ -1,6 +1,7 @@
 package com.framework.innolive.feature.login
 
 import com.framework.innolive.R
+import com.framework.innolive.feature.login.oauth.google.SignInMethod
 import com.framework.innolive.ui.text.UiText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
@@ -44,6 +45,7 @@ class EmailSignInTest {
             assertEquals("access", it.accessToken)
             assertEquals("refresh", it.refreshToken)
             assertEquals("member@example.com", it.profileEmail)
+            assertEquals(SignInMethod.EMAIL, it.signInMethod)
         }
         assertEquals(1, saves)
         assertEquals(1, requests)

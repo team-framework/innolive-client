@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.framework.innolive.feature.live.CameraFrameAnalyzer
 import com.framework.innolive.feature.live.CreatedSession
+import com.framework.innolive.feature.live.ON_DEVICE_EDGE_ZOOM
 import com.framework.innolive.feature.live.LiveBroadcastTransport
 import com.framework.innolive.feature.live.LiveBroadcastTransportRequest
 import com.framework.innolive.feature.live.SessionRecoveryScope
@@ -139,6 +140,7 @@ private class AndroidDirectMediaPipeline(
             initialAnonymizationEnabled = initialAnonymizationEnabled,
             onProcessingFailure = events::onProcessingFailure,
             sharedEglContext = egl.eglBaseContext,
+            outputZoom = ON_DEVICE_EDGE_ZOOM,
         ).also { it.faceCoordinatorFactory = { PrivacyFaceCoordinator(context, scope.storageKey) } }
         analyzer = created
         created.setDirectPublishSink { frame ->

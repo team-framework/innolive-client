@@ -85,8 +85,6 @@ class BroadcastPreparationUiTest {
     }
 
     @Test fun settingsMenuOpensEachEditorWithoutConnecting() {
-        compose.onNodeWithText(label(R.string.session_usage_warning_test_show)).performClick()
-        compose.onNodeWithText(label(R.string.session_notice_monthly_usage_80)).assertIsDisplayed()
         compose.onNodeWithText(label(R.string.action_prepare_broadcast)).performClick()
         // 방송 준비는 YouTube·치지직·방송 화질 및 송출할 플랫폼 메뉴를 엽니다(서버 송출도 화질을 고릅니다).
         compose.onNodeWithText(label(R.string.broadcast_settings_title)).assertIsDisplayed()

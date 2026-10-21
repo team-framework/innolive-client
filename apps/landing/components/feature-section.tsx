@@ -201,7 +201,7 @@ export function FeatureSection() {
               >
                 <div data-feature-content className="flex flex-col items-center gap-[15px]">
                   <p className="text-[clamp(3.5rem,1.6rem+8vw,7.5rem)] font-extrabold leading-none text-text-reversed">
-                    25ms
+                    33ms
                   </p>
                   <p className="text-balance break-keep text-center text-[clamp(1.125rem,0.85rem+1.4vw,2rem)] font-extrabold leading-[1.15] text-text-reversed">
                     {messages.features.latency}

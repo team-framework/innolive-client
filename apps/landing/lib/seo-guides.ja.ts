@@ -3,7 +3,7 @@ import type { SeoGuide } from "@/lib/seo-guides";
 import { getMessages } from "@/lib/messages";
 import { getPersonalPlans } from "@/lib/plans";
 
-const spark = getPersonalPlans(getMessages("ja"), "ja")[0];
+const spark = getPersonalPlans(getMessages("ja"))[0];
 const limits = spark.features.slice(1).map(({ text }) => text).join("、");
 
 export const japaneseSeoGuides: SeoGuide[] = [

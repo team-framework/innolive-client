@@ -104,6 +104,8 @@ class AuthenticatedNavigationTest {
                 hasText(composeRule.activity.getString(R.string.action_prepare_broadcast)) and hasClickAction(),
             ).performTouchInput { swipeLeft() }
             composeRule.onNodeWithText("user@example.com").assertIsDisplayed()
+            // iOS처럼 계정 줄을 눌러 계정 설정에서 로그아웃합니다.
+            composeRule.onNodeWithText("user@example.com").performClick()
             composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_logout)).performClick()
             composeRule.onNodeWithText(
                 composeRule.activity.getString(R.string.continue_with_google),

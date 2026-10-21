@@ -77,7 +77,7 @@ class LivePreviewPipState internal constructor(alignEnd: Boolean, verticalFracti
     /** 상단 바 아래 안내·상태 칩이 끝나는 높이입니다. 작은 창은 그 아래부터 둡니다. */
     internal var topReservePx by mutableFloatStateOf(0f)
 
-    /** 기본 화면 왼쪽 아래 시청자 채팅이 차지하는 높이와 위 간격입니다. 채팅이 없으면 0입니다. */
+    /** 기본 화면 하단 방송 버튼 위의 시청자 채팅이나 얼굴 선택 안내가 차지하는 높이와 위 간격입니다. 둘 다 없으면 0입니다. */
     internal var chatReservePx by mutableFloatStateOf(0f)
 
     /** 하단 방송 버튼과 상태 패널 높이입니다. 측정 전에는 기본 높이를 씁니다. */

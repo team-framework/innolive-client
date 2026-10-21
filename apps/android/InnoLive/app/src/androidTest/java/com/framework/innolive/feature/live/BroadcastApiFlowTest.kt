@@ -626,7 +626,7 @@ class BroadcastApiFlowTest {
             h.connection.goLive()
             h.awaitState(BroadcastState.LIVE)
             assertEquals(
-                BroadcastEvent.Message(simulcastGoLiveFailedMessage(listOf(BroadcastProvider.CHZZK))),
+                BroadcastEvent.Message(simulcastGoLiveFailedMessage(mapOf(BroadcastProvider.CHZZK to "streaming_prepare_failed"))),
                 h.outcomes.last().second,
             )
 

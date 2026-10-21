@@ -58,6 +58,7 @@ internal class BroadcastRecordingHost(
     private val keepAlive: RecordingKeepAlive,
     private val minimumFreeBytes: Long = DEFAULT_MINIMUM_FREE_BYTES,
     private val mediaFactory: (EglBase.Context) -> RecordingMediaFactory = { AndroidRecordingMediaFactory(it) },
+    private val postToMain: (() -> Unit) -> Unit = Handler(Looper.getMainLooper()).let { handler -> { handler.post(it) } },
 ) : BroadcastRecordingControl {
     private class Active(
         val session: BroadcastRecordingSession,
@@ -68,13 +69,14 @@ internal class BroadcastRecordingHost(
         var confirmed: Boolean = false,
     )
 
-    private val mainHandler = Handler(Looper.getMainLooper())
     private val finisher = Executors.newSingleThreadExecutor { Thread(it, "recording-finish") }
     private var active: Active? = null
+    /** 녹화를 시작할 때마다 늘립니다. 이전 녹화의 늦은 결과가 새 녹화 상태를 덮지 않게 합니다. */
     private var generation = 0L
 
     override fun begin(media: RecordingMediaBindings): Boolean {
         if (active != null) return false
+        val thisGeneration = ++generation
         val analyzer = media.frameAnalyzer
         val egl = media.eglContext
         if (analyzer == null || egl == null) {
@@ -86,7 +88,6 @@ internal class BroadcastRecordingHost(
             publish(BroadcastRecordingUiState(BroadcastRecordingStatus.FAILED, UiText.Resource(R.string.recording_failed_storage)))
             return false
         }
-        val thisGeneration = ++generation
         val id = UUID.randomUUID().toString()
         RecordingOwnership.claim(id)
         val session = try {
@@ -100,7 +101,7 @@ internal class BroadcastRecordingHost(
                 media = mediaFactory(egl),
                 alignProcessed = !media.onDeviceProcessing,
                 onFailure = { reason ->
-                    mainHandler.post { if (generation == thisGeneration) onSessionFailed(reason) }
+                    postToMain { if (generation == thisGeneration) onSessionFailed(reason) }
                 },
             )
         } catch (error: Exception) {
@@ -151,6 +152,7 @@ internal class BroadcastRecordingHost(
         }
         publish(BroadcastRecordingUiState(BroadcastRecordingStatus.SAVING, UiText.Resource(R.string.recording_status_saving)))
         val lease = runCatching { keepAlive.acquire() }.getOrNull()
+        val finishedGeneration = generation
         finisher.execute {
             val result = try {
                 session.markFinalizing()
@@ -158,17 +160,23 @@ internal class BroadcastRecordingHost(
             } finally {
                 RecordingOwnership.release(session.id)
             }
-            mainHandler.post {
+            postToMain {
                 runCatching { lease?.close() }
-                result.onSuccess { saved ->
-                    publish(BroadcastRecordingUiState(BroadcastRecordingStatus.SAVED,
-                        UiText.Resource(R.string.recording_status_saved), saved))
-                }.onFailure { error ->
-                    RecordingLog.w("recording_save_failed type=${error.javaClass.simpleName}")
-                    val reason = (error as? RecordingFailedException)?.reason ?: RecordingFailure.STORAGE
-                    publish(BroadcastRecordingUiState(BroadcastRecordingStatus.FAILED, failureMessage(reason)))
-                }
+                // 저장하는 동안 새 녹화를 시작했으면 그 상태를 그대로 둡니다. 보관함은 파일로 결과를 보여 줍니다.
+                if (generation == finishedGeneration && active == null) publishSaveResult(result)
+                else result.onFailure { RecordingLog.w("recording_save_failed type=${it.javaClass.simpleName}") }
             }
+        }
+    }
+
+    private fun publishSaveResult(result: Result<SavedBroadcastRecording>) {
+        result.onSuccess { saved ->
+            publish(BroadcastRecordingUiState(BroadcastRecordingStatus.SAVED,
+                UiText.Resource(R.string.recording_status_saved), saved))
+        }.onFailure { error ->
+            RecordingLog.w("recording_save_failed type=${error.javaClass.simpleName}")
+            val reason = (error as? RecordingFailedException)?.reason ?: RecordingFailure.STORAGE
+            publish(BroadcastRecordingUiState(BroadcastRecordingStatus.FAILED, failureMessage(reason)))
         }
     }
 

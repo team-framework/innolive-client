@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_destination">Broadcast destinations</string>
+    <string name="settings_broadcast_info">Broadcast information</string>
+    <string name="settings_section_video_audio">Video and audio</string>
+    <string name="settings_camera_audio">Camera and audio settings</string>
+    <string name="settings_section_anonymization">Anonymization</string>
+    <string name="settings_ai_faces">AI and faces</string>
+    <string name="settings_section_monitoring">Monitoring and recordings</string>
+    <string name="settings_section_usage">Usage information</string>
+    <string name="settings_app_info">App info and account</string>
+</resources>

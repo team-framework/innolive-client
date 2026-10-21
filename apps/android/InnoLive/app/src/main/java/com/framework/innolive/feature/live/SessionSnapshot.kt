@@ -32,6 +32,8 @@ data class SessionSnapshot(
     val isRemainingTimeStale: Boolean = false,
     /** 이 세션에서 마지막으로 받은 남은 시간 숫자. 송출이 멈춘 뒤 null이 와도 표시를 유지하는 데 쓴다. */
     val lastRemainingSeconds: Long? = null,
+    /** 서버가 확정한 블러 강도·영역입니다. 응답에 없으면 마지막 값을 유지하고, 한 번도 받지 않았으면 null입니다. */
+    val mosaicConfig: MosaicConfig? = null,
 ) {
     val visibleTargets: List<SessionTarget>
         get() = targets.orEmpty().filter { it.broadcastPhase != "idle" }
@@ -151,6 +153,7 @@ internal fun parseSessionSnapshot(
         } else previous.isRemainingTimeStale,
         // 응답에 숫자가 실렸을 때만 갱신한다. 필드가 없거나 null이면 이 세션의 마지막 숫자를 유지한다.
         lastRemainingSeconds = response.nonNegativeInteger("broadcast_remaining_seconds") ?: previous.lastRemainingSeconds,
+        mosaicConfig = parseMosaicConfig(response) ?: previous.mosaicConfig,
     )
 }
 

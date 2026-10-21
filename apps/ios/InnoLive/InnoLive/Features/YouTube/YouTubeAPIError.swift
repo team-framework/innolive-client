@@ -76,6 +76,11 @@ enum YouTubeAPIError: Error, Equatable {
             case "stream_not_paused": return String(localized: "일시 중지된 YouTube 송출이 아닙니다.")
             case "not_supported": return String(localized: "이 서버에는 YouTube 송출 기능이 아직 구성되지 않았습니다.")
             case "streaming_prepare_failed": return String(localized: "YouTube 송출을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.")
+            // 요청 한도는 채널 단위다(innolive-server#505). 재시도 시점과 채널 변경을 함께 안내한다.
+            case "streaming_rate_limited": return String(localized: "이 YouTube 채널이 YouTube 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요.")
+            case "streaming_quota_exceeded": return String(localized: "오늘 YouTube 연동 한도를 모두 사용했습니다. 한국 시간 오후 4시(겨울에는 오후 5시)에 초기화됩니다.")
+            case "channel_in_use_by_other_account": return String(localized: "다른 InnoLive 계정이 이 채널로 방송 중입니다. 그 방송이 끝난 뒤 다시 시도해 주세요.")
+            case "youtube_channel_required": return String(localized: "연결된 YouTube 채널이 여러 개입니다. 송출할 채널을 선택해 주세요.")
             case "streaming_golive_failed": return String(localized: "YouTube 방송을 라이브로 전환하지 못했습니다. 잠시 후 다시 시도해 주세요.")
             default: return String(localized: "YouTube 요청을 처리하지 못했습니다.")
             }

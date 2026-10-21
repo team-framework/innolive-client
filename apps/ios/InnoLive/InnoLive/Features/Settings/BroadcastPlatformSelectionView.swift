@@ -69,18 +69,13 @@ struct BroadcastPlatformSelectionView: View {
     }
 
     private var chzzkRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            platformIdentity(.chzzk, allowsWrapping: true)
+        platformAccountCard(.chzzk) {
             if let account = youtube.chzzkAccount {
-                Text(account.displayTitle)
-                    .font(.callout.weight(.semibold))
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(account.reconnectRequired ? String(localized: "재연결 필요") : String(localized: "연결됨"))
-                    .font(.caption)
-                    .foregroundStyle(account.reconnectRequired ? .orange : .secondary)
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) { chzzkAccountActions(requiresReconnection: account.reconnectRequired) }
-                    VStack(alignment: .leading, spacing: 8) { chzzkAccountActions(requiresReconnection: account.reconnectRequired) }
+                accountDetails(account) {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) { chzzkAccountActions(requiresReconnection: account.reconnectRequired, allowsWrapping: false) }
+                        VStack(alignment: .leading, spacing: 8) { chzzkAccountActions(requiresReconnection: account.reconnectRequired, allowsWrapping: true) }
+                    }
                 }
             } else {
                 Button(action: connectCHZZK) { Text(String(localized: "계정 연결")) }
@@ -99,9 +94,6 @@ struct BroadcastPlatformSelectionView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
         .confirmationDialog(
             String(localized: "치지직 연결 해제", table: "CHZZK"),
             isPresented: $isShowingCHZZKDisconnectConfirmation, titleVisibility: .visible
@@ -117,15 +109,19 @@ struct BroadcastPlatformSelectionView: View {
     }
 
     @ViewBuilder
-    private func chzzkAccountActions(requiresReconnection: Bool) -> some View {
+    private func chzzkAccountActions(requiresReconnection: Bool, allowsWrapping: Bool) -> some View {
         if requiresReconnection {
-            Button(String(localized: "다시 연결"), action: connectCHZZK)
-                .buttonStyle(.borderless)
-                .disabled(youtube.isCHZZKAccountChangeBlocked)
-                .accessibilityIdentifier("chzzk-reconnect")
+            Button(action: connectCHZZK) {
+                accountActionLabel(String(localized: "다시 연결"), allowsWrapping: allowsWrapping)
+            }
+            .buttonStyle(.borderless)
+            .disabled(youtube.isCHZZKAccountChangeBlocked)
+            .accessibilityIdentifier("chzzk-reconnect")
         }
-        Button(String(localized: "연결 해제"), role: .destructive) {
+        Button(role: .destructive) {
             isShowingCHZZKDisconnectConfirmation = true
+        } label: {
+            accountActionLabel(String(localized: "연결 해제"), allowsWrapping: allowsWrapping)
         }
         .buttonStyle(.borderless)
         .disabled(!youtube.canDisconnectCHZZKAccount)
@@ -141,8 +137,7 @@ struct BroadcastPlatformSelectionView: View {
     }
 
     private var youTubeRow: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            platformIdentity(.youTube, allowsWrapping: true)
+        platformAccountCard(.youTube) {
             if youtube.youtubeAccounts.isEmpty, let connection = youtube.connection {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(connection.channel.title)
@@ -155,37 +150,28 @@ struct BroadcastPlatformSelectionView: View {
                     }
                     .disabled(youtube.isYouTubeConnectionOperationInProgress)
                 }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
             }
             ForEach(youtube.youtubeAccounts, id: \.channelID) { account in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(account.displayTitle)
-                        .font(.callout.weight(.semibold))
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(account.reconnectRequired ? String(localized: "재연결 필요") : String(localized: "연결됨"))
-                        .font(.caption)
-                        .foregroundStyle(account.reconnectRequired ? .orange : .secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                accountDetails(account) {
                     ViewThatFits(in: .horizontal) {
                         HStack(spacing: 8) { youTubeAccountActions(account, allowsWrapping: false) }
                         VStack(alignment: .leading, spacing: 8) { youTubeAccountActions(account, allowsWrapping: true) }
                     }
                 }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
             }
-            Button(String(localized: "채널 추가 연결", table: "YouTubeChannels"), action: connectYouTube)
-                .innoLiveGlassButtonStyle(prominent: true)
-                .tint(.blue)
-                .disabled(!youtube.canConnectYouTubeChannel())
-            if youtube.isYouTubeConnectionOperationInProgress { ProgressView() }
+            Button(action: connectYouTube) {
+                Text(youtube.youtubeAccounts.isEmpty && youtube.connection == nil
+                     ? String(localized: "계정 연결")
+                     : String(localized: "채널 추가 연결", table: "YouTubeChannels"))
+            }
+            .innoLiveGlassButtonStyle(prominent: true)
+            .tint(.blue)
+            .disabled(!youtube.canConnectYouTubeChannel())
+            .accessibilityIdentifier("youtube-connect")
+            if youtube.isYouTubeConnectionOperationInProgress {
+                ProgressView().controlSize(.small)
+            }
         }
-        .padding(16)
         .confirmationDialog(String(localized: "YouTube 연결 해제"),
                             isPresented: $isShowingDisconnectConfirmation, titleVisibility: .visible) {
             Button(String(localized: "연결 해제"), role: .destructive) {
@@ -198,11 +184,42 @@ struct BroadcastPlatformSelectionView: View {
         }
     }
 
+    private func platformAccountCard<Content: View>(
+        _ platform: BroadcastPlatform,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            platformIdentity(platform, allowsWrapping: true)
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .innoLiveGlassBackground(cornerRadius: InnoLiveSettingsLayout.cornerRadius)
+    }
+
+    private func accountDetails<Actions: View>(
+        _ account: StreamingAccountSummary,
+        @ViewBuilder actions: () -> Actions
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(account.displayTitle)
+                .font(.callout.weight(.semibold))
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(account.reconnectRequired ? String(localized: "재연결 필요") : String(localized: "연결됨"))
+                .font(.caption)
+                .foregroundStyle(account.reconnectRequired ? .orange : .secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            actions()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     @ViewBuilder
     private func youTubeAccountActions(_ account: StreamingAccountSummary, allowsWrapping: Bool) -> some View {
         if account.reconnectRequired {
             Button(action: connectYouTube) {
-                youTubeAccountActionLabel(String(localized: "다시 연결"), allowsWrapping: allowsWrapping)
+                accountActionLabel(String(localized: "다시 연결"), allowsWrapping: allowsWrapping)
             }
             .buttonStyle(.borderless)
             .disabled(!youtube.canConnectYouTubeChannel(reconnecting: true))
@@ -211,14 +228,14 @@ struct BroadcastPlatformSelectionView: View {
             disconnectAccount = account
             isShowingDisconnectConfirmation = true
         } label: {
-            youTubeAccountActionLabel(String(localized: "연결 해제"), allowsWrapping: allowsWrapping)
+            accountActionLabel(String(localized: "연결 해제"), allowsWrapping: allowsWrapping)
         }
         .buttonStyle(.borderless)
         .disabled(!youtube.canDisconnectYouTubeChannel(account))
     }
 
     @ViewBuilder
-    private func youTubeAccountActionLabel(_ title: String, allowsWrapping: Bool) -> some View {
+    private func accountActionLabel(_ title: String, allowsWrapping: Bool) -> some View {
         if allowsWrapping {
             Text(title).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
         } else {
@@ -275,7 +292,7 @@ struct BroadcastTargetSelectionView: View {
                     get: { youtube.selectedBroadcastProviders.contains(provider) },
                     set: { selected in
                         if selected { youtube.selectedBroadcastProviders.insert(provider) }
-                        else if youtube.selectedBroadcastProviders.count > 1 { youtube.selectedBroadcastProviders.remove(provider) }
+                        else { youtube.selectedBroadcastProviders.remove(provider) }
                     }
                 )) {
                     VStack(alignment: .leading) {
@@ -288,6 +305,11 @@ struct BroadcastTargetSelectionView: View {
                 .disabled(youtube.isBroadcastSettingsLocked
                           || (!youtube.isSettingsAccountConnected(provider) && !youtube.selectedBroadcastProviders.contains(provider)))
                 .accessibilityIdentifier("broadcast-target-" + provider.rawValue)
+            }
+            if youtube.selectedBroadcastProviders.isEmpty {
+                Text(String(localized: "플랫폼을 선택하지 않으면 계정 없이 비식별화만 실행합니다. 현재 AI 처리 방식(서버·온디바이스)을 그대로 사용합니다."))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .accessibilityIdentifier("broadcast-target-privacy-only")
             }
         }
     }

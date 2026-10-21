@@ -213,8 +213,8 @@ struct HomeView: View {
             studioContent
             if let status = youtube.preparationStatus {
                 BroadcastPreparationOverlay(status: status) {
-                    guard let provider = youtube.lastPreparationProvider else { return }
-                    await beginBroadcastPreparation(provider)
+                    // 비식별화만 준비했다면 대상이 없으므로 기본 플랫폼 값은 쓰이지 않는다.
+                    await beginBroadcastPreparation(youtube.lastPreparationProvider ?? .youtube)
                 } onCancel: {
                     await cancelBroadcastPreparation()
                 }
@@ -659,15 +659,22 @@ struct HomeView: View {
             LocalPreviewView(
                 session: cameraManager.session,
                 // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
-                cameraID: cameraManager.currentCameraID
+                cameraID: cameraManager.currentCameraID,
+                contentScale: originalPreviewScale
             )
         case .webrtcLocal:
             WebRTCColorPreviewFrame(
-                uplink: youtube.videoUplink
+                uplink: youtube.videoUplink,
+                contentScale: originalPreviewScale
             )
         case .hidden:
             EmptyView()
         }
+    }
+
+    private var originalPreviewScale: CGFloat {
+        (youtube.session?.processingMode ?? AIProcessingMode.selected) == .onDevice
+            ? PrivacyOutputFraming.scale : 1
     }
 
     private func snapLayout(in containerSize: CGSize, previewSize: CGSize) -> LocalPreviewSnapLayout {
@@ -758,7 +765,7 @@ struct HomeView: View {
     private func runBroadcastPreparation(_ provider: BroadcastSettingsProvider) async {
         let zoomToKeep = cameraManager.currentZoomFactor
         let quality = CameraQualityPreset(
-            rawValue: UserDefaults.standard.string(forKey: "selectedResolution") ?? ""
+            rawValue: UserDefaults.standard.string(forKey: CameraQualityPreset.storageKey) ?? ""
         ) ?? .defaultValue
         _ = await youtube.startBroadcastPreparation(
             accessToken: authentication.currentAccessToken(),

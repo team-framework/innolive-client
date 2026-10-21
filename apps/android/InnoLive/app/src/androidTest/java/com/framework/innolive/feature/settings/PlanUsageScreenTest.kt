@@ -52,7 +52,7 @@ class PlanUsageScreenTest {
             ModeAvailability("720p_multi", false, 214200, 2), ModeAvailability("fhd_multi", false, 142800, 3)))
 
     @Test fun settingsDisplaysPlanAndLockedModesOpenGuidance() {
-        composeRule.setContent { MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = usage)) } } }
+        composeRule.setContent { MyApplicationTheme { Surface { PlanUsageScreen(props().copy(planUsage = usage), onBack = {}) } } }
         composeRule.onNodeWithText("Beam").performScrollTo().assertExists()
         // 방식별 시간은 상세 시간을 펼쳐야 보입니다.
         composeRule.onNodeWithText(context.getString(R.string.plan_hd_single)).assertDoesNotExist()
@@ -65,7 +65,7 @@ class PlanUsageScreenTest {
     }
 
     @Test fun planDetailsCollapseAgain() {
-        composeRule.setContent { MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = usage)) } } }
+        composeRule.setContent { MyApplicationTheme { Surface { PlanUsageScreen(props().copy(planUsage = usage), onBack = {}) } } }
         val details = composeRule.onNodeWithText(context.getString(R.string.plan_details)).performScrollTo()
         details.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription,
             context.getString(R.string.settings_collapsed)))
@@ -81,12 +81,12 @@ class PlanUsageScreenTest {
     @Test fun failedRefreshPreservesLastValuesAndCanRetry() {
         composeRule.setContent {
             var error by remember { mutableStateOf<UiText?>(UiText.Resource(R.string.plan_load_failed)) }
-            MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = usage, planError = error,
-                onRefreshPlan = { error = null })) } }
+            MyApplicationTheme { Surface { PlanUsageScreen(props().copy(planUsage = usage, planError = error,
+                onRefreshPlan = { error = null }), onBack = {}) } }
         }
         composeRule.onNodeWithText(context.getString(R.string.plan_load_failed)).performScrollTo().assertExists()
         saveScreenshot("plan-failed-refresh.png")
-        composeRule.onNodeWithText(context.getString(R.string.plan_refresh)).performScrollTo().performClick()
+        composeRule.onNodeWithText(context.getString(R.string.plan_refresh)).performClick()
         composeRule.onNodeWithText(context.getString(R.string.plan_load_failed)).assertDoesNotExist()
         composeRule.onNodeWithText("Beam").assertExists()
     }
@@ -100,7 +100,7 @@ class PlanUsageScreenTest {
         composeRule.setContent {
             chargeMillis = rememberPlanChargeMillis("account", charging, 2)
             displayed = snapshot.afterChargedSeconds((chargeMillis - anchor).coerceAtLeast(0) / 1000)
-            MyApplicationTheme { Surface { SettingsScreen(props().copy(planUsage = displayed)) } }
+            MyApplicationTheme { Surface { PlanUsageScreen(props().copy(planUsage = displayed), onBack = {}) } }
         }
         composeRule.waitUntil(5_000) { displayed.usedSeconds >= usage.usedSeconds + 2 }
         // 남은 시간은 요금제 요약 카드 맨 위에 크게 보여 줍니다.

@@ -53,7 +53,8 @@ class WebRtcSessionViewModel internal constructor(
     private var prepareJob: Job? = null
     var serverError by mutableStateOf<ServerErrorGuidance?>(null)
         private set
-    private var preparationSettings: BroadcastSettings? = null
+    // 채팅 주소가 준비 설정의 공개 범위를 따르므로 바뀌면 화면이 다시 그리도록 상태로 둡니다.
+    private var preparationSettings by mutableStateOf<BroadcastSettings?>(null)
     private var preparationChzzkSettings: ChzzkBroadcastSettings? = null
     private var retryBroadcastRequest: (() -> Unit)? = null
 
@@ -98,9 +99,12 @@ class WebRtcSessionViewModel internal constructor(
         private set
     var sessionSnapshot by mutableStateOf<SessionSnapshot?>(null)
         private set
-    /** 라이브·일시 중지 중인 YouTube 대상의 보기 전용 채팅 주소입니다. null이면 화면이 채팅 버튼을 숨깁니다. */
+    /**
+     * 라이브·일시 중지 중인 YouTube 대상의 보기 전용 채팅 주소입니다. null이면 화면이 채팅 버튼을 숨깁니다.
+     * 비공개·아동용으로 준비한 방송은 채팅이 나오지 않으므로 주소를 만들지 않습니다.
+     */
     val viewerChatUrl: String?
-        get() = YouTubeViewerChatPolicy.activeUrl(sessionSnapshot)
+        get() = YouTubeViewerChatPolicy.activeUrl(sessionSnapshot, preparationSettings)
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
     var broadcastStatus by mutableStateOf(broadcastStateMessage(BroadcastState.IDLE).text)
@@ -264,6 +268,38 @@ class WebRtcSessionViewModel internal constructor(
         return selectInitialAIProcessing(context, onDevice)
     }
 
+    /** 실험실의 얼굴 합성 선택입니다. 다음 세션 생성부터 적용합니다. */
+    var selectedFaceSwap by mutableStateOf(false)
+        private set
+    private var isFaceSwapSelectionLoaded = false
+
+    fun restoreFaceSwapSelection(context: Context) {
+        if (isFaceSwapSelectionLoaded) return
+        selectedFaceSwap = FaceAnonymizationPreference(context).faceSwap
+        isFaceSwapSelectionLoaded = true
+    }
+
+    /** 관리자가 아닌 계정으로 바뀌면 합성 선택을 지웁니다. 서버가 관리자가 아닌 계정의 합성을 403으로 거절합니다. */
+    fun clearFaceSwapSelection(context: Context) {
+        FaceAnonymizationPreference(context).faceSwap = false
+        selectedFaceSwap = false
+        isFaceSwapSelectionLoaded = true
+    }
+
+    /**
+     * 얼굴 가림 방식은 세션 생성 때 고정되므로 처리 방식과 같은 때에만 바꿉니다. 서버 AI의 준비 전 연결이 남아
+     * 있으면 닫아 다음 방송 준비에서 새 방식으로 세션을 만듭니다. 온디바이스 연결은 합성을 쓰지 않아 유지합니다.
+     */
+    fun selectFaceSwap(context: Context, enabled: Boolean): Boolean {
+        if (!canChangeAIProcessing) return false
+        restoreFaceSwapSelection(context)
+        if (selectedFaceSwap == enabled) return true
+        if (!selectedOnDeviceProcessing && connectionState != WebRtcConnectionState.IDLE) close()
+        FaceAnonymizationPreference(context).faceSwap = enabled
+        selectedFaceSwap = enabled
+        return true
+    }
+
     // 클릭 시점의 실제 연결 상태로 분기하여 오래된 화면 상태로 요청하지 않습니다.
     fun selectAnonymization(context: Context, enabled: Boolean): Boolean =
         if (connectionState == WebRtcConnectionState.CONNECTED) setAnonymizationEnabled(enabled)
@@ -352,6 +388,8 @@ class WebRtcSessionViewModel internal constructor(
         val initialEnabled = selectedAnonymizationEnabled
         restoreAIProcessingSelection(context)
         val initialOnDevice = selectedOnDeviceProcessing
+        restoreFaceSwapSelection(context)
+        val initialFaceSwap = selectedFaceSwap
         isOnDevicePreviewOnly = previewOnly
         serverError = null
         preparationSettings = null
@@ -359,6 +397,7 @@ class WebRtcSessionViewModel internal constructor(
         retryBroadcastRequest = null
         sessionState = sessionState.beginConnection()
         sessionSnapshot = null
+        resetMosaicConfigChange()
         directBroadcastUiState = DirectBroadcastUiState()
         signalingStartedGeneration = null
         resetUplinkQuality()
@@ -400,6 +439,7 @@ class WebRtcSessionViewModel internal constructor(
                             } else connectionUserMessage(state, failure)
                             if (state == WebRtcConnectionState.FAILED) {
                                 sessionSnapshot = null
+                                resetMosaicConfigChange()
                                 lockedBroadcastRotation = null
                                 lockedScreenOrientation = null
                             }
@@ -513,6 +553,7 @@ class WebRtcSessionViewModel internal constructor(
                         directPlan = directBroadcastPlan,
                         callbacks = callbacks,
                         previewOnly = previewOnly,
+                        faceSwap = initialFaceSwap,
                     ),
                 )
                 if (!isCurrentGeneration(generation)) {
@@ -563,6 +604,62 @@ class WebRtcSessionViewModel internal constructor(
             sessionState = nextState
         }
         return true
+    }
+
+    /** 서버가 확정한 블러 강도·영역입니다. 세션이 없거나 아직 받지 않았으면 서버 AI 기본값입니다. */
+    val mosaicConfig: MosaicConfig
+        get() = sessionSnapshot?.mosaicConfig ?: MosaicConfig()
+    var isChangingMosaicConfig by mutableStateOf(false)
+        private set
+    var mosaicConfigError by mutableStateOf<UiText?>(null)
+        private set
+    /** 요청 중에 들어온 값입니다. 마지막 것만 이어서 보냅니다. */
+    private var pendingMosaicConfig: MosaicConfig? = null
+
+    /** 서버 AI로 연결된 세션에서만 바꿉니다. 온디바이스 세션은 서버가 409로 거절합니다. */
+    val canChangeMosaicConfig: Boolean
+        get() = connection != null && sessionSnapshot != null &&
+            connectionState == WebRtcConnectionState.CONNECTED && !selectedOnDeviceProcessing &&
+            anonymizationChange.status != AnonymizationChangeStatus.CHANGING
+
+    /** 송출을 유지한 채 다음 프레임부터 블러 강도·영역을 바꿉니다. */
+    fun updateMosaicConfig(config: MosaicConfig): Boolean {
+        if (!canChangeMosaicConfig) return false
+        if (isChangingMosaicConfig) {
+            pendingMosaicConfig = config
+            return true
+        }
+        if (config == mosaicConfig) return true
+        mosaicConfigError = null
+        sendMosaicConfig(config, sessionState.generation)
+        return true
+    }
+
+    private fun sendMosaicConfig(config: MosaicConfig, generation: Long) {
+        val currentConnection = connection ?: return resetMosaicConfigChange()
+        val sessionId = sessionSnapshot?.sessionId ?: return resetMosaicConfigChange()
+        isChangingMosaicConfig = true
+        pendingMosaicConfig = null
+        currentConnection.setMosaicConfig(config) { confirmed, error ->
+            if (!sessionState.acceptsCallback(generation) || sessionSnapshot?.sessionId != sessionId) return@setMosaicConfig
+            if (confirmed != null) sessionSnapshot = sessionSnapshot?.copy(mosaicConfig = confirmed)
+            // 실패해도 요청 중에 고른 새 값이 있으면 그 값이 사용자의 마지막 선택이므로 이어서 보냅니다.
+            // 응답을 못 받은 요청은 서버에 적용됐을 수 있지만, 세션 상태 조회가 확정값으로 다시 맞춥니다.
+            val next = pendingMosaicConfig?.takeIf { it != mosaicConfig }
+            if (next != null && canChangeMosaicConfig) {
+                sendMosaicConfig(next, generation)
+                return@setMosaicConfig
+            }
+            resetMosaicConfigChange()
+            mosaicConfigError = error
+        }
+    }
+
+    /** 세션이 바뀌거나 끝나면 진행 중인 블러 변경 표시를 지웁니다. 새 세션은 서버 기본값으로 시작합니다. */
+    private fun resetMosaicConfigChange() {
+        isChangingMosaicConfig = false
+        pendingMosaicConfig = null
+        mosaicConfigError = null
     }
 
     fun saveBroadcastSettings(settings: BroadcastSettings) {
@@ -816,6 +913,7 @@ class WebRtcSessionViewModel internal constructor(
         lockedScreenOrientation = null
         sessionState = sessionState.endConnection()
         sessionSnapshot = null
+        resetMosaicConfigChange()
         directBroadcastUiState = DirectBroadcastUiState()
         signalingStartedGeneration = null
         prepareJob?.cancel()

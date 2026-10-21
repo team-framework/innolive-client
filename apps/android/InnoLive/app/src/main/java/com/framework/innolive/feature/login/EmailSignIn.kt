@@ -2,6 +2,7 @@ package com.framework.innolive.feature.login
 
 import com.framework.innolive.R
 import com.framework.innolive.feature.login.oauth.google.GoogleSessionStore
+import com.framework.innolive.feature.login.oauth.google.SignInMethod
 import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.feature.login.oauth.google.googleAuthEndpoint
 import kotlinx.coroutines.Dispatchers
@@ -90,6 +91,7 @@ internal fun parseEmailSession(body: String, email: String): GoogleSessionStore.
         accessToken = token("access_token"), refreshToken = token("refresh_token"),
         tokenType = type, expiresIn = duration("expires_in"),
         refreshExpiresIn = duration("refresh_expires_in"), profileEmail = email,
+        signInMethod = SignInMethod.EMAIL,
     )
 }
 

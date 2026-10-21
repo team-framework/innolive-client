@@ -75,6 +75,28 @@ non-empty name combined with multiple files before contacting the AI worker.
 Responses include optional `faces[].name`; old records without names remain valid.
 Local registration uses a separate device store; see [AI processing](ai-processing-v1.md).
 
+## Re-register one face
+
+AI workers keep reference faces only in memory, and the server does not keep the
+uploaded images. After a worker restart the server marks lost faces with
+`reregistration_required` (see Read status). The user restores a marked face by
+uploading a new photo for the same face:
+
+| Field | Value |
+| --- | --- |
+| `face_id` | The `faces[].face_id` to restore |
+| `images` | Exactly one JPEG file, prepared like a new registration |
+
+The server registers the new photo, removes the previous worker entries, keeps
+the same `face_id` and `name`, and clears `reregistration_required`. A non-empty
+`name` also renames the face; native clients omit it to keep the current name.
+Clients send the file as `images`, not `image`: a server without `face_id`
+support then appends a face instead of replacing the whole set.
+
+Success returns `201 Created` with the full status. An unknown `face_id` returns
+`404 not_found`; clients refresh the list. Anything other than one image returns
+`400 bad_request`.
+
 ## Read status
 
 ```http
@@ -88,10 +110,12 @@ GET /reference-face
   "registered_at": "2026-08-30T00:00:00Z",
   "client_id": "server-derived-value",
   "count": 1,
+  "reregistration_required": true,
   "faces": [
     {
       "face_id": "uuid",
-      "registered_at": "2026-08-30T00:00:00Z"
+      "registered_at": "2026-08-30T00:00:00Z",
+      "reregistration_required": true
     }
   ]
 }
@@ -100,6 +124,13 @@ GET /reference-face
 `source` and `registered_at` may be `null`. Worker restarts can clear the
 in-memory AI whitelist before persisted server metadata is reconciled, so this
 status is not end-to-end proof that every worker currently holds the face.
+
+The server compares its records with the AI workers about once a minute.
+`faces[].reregistration_required` is `true` when a worker has lost that face,
+and the top-level `reregistration_required` is `true` when any face is marked.
+A marked face is blurred until the user re-registers it, so clients show the
+mark on the face list and before broadcast preparation. Servers older than this
+field omit it; clients treat a missing value as `false`.
 
 ## Delete
 

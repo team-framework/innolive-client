@@ -11,11 +11,11 @@ export function Hero({ locale }: { locale: Locale }) {
   const messages = getMessages(locale);
   return (
     <section
-      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 max-lg:pt-24 lg:min-h-screen lg:justify-center lg:pb-28 lg:pt-0"
+      className="flex h-fit w-full flex-col items-center overflow-x-clip px-[var(--page-gutter)] pb-12 pt-12 max-lg:pt-24 lg:min-h-svh lg:pb-0 lg:pt-[var(--header-height)]"
       aria-labelledby="hero-heading"
     >
-      <div className="flex relative top-12 w-full max-w-[1640px] flex-col items-center gap-y-2 lg:flex-row lg:items-center lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
-        <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:translate-x-12 lg:flex-1 min-[106.5rem]:w-[752px] min-[106.5rem]:flex-none min-[106.5rem]:items-end">
+      <div className="relative flex w-full max-w-[1640px] flex-col items-center gap-y-2 max-lg:top-12 lg:flex-1 lg:flex-row lg:items-stretch lg:justify-center lg:gap-x-16 min-[106.5rem]:gap-x-[161.5px]">
+        <div className="flex w-full min-w-0 max-w-[752px] flex-col items-start lg:flex-1 lg:translate-x-12 lg:self-center min-[106.5rem]:w-[634px] min-[106.5rem]:flex-none min-[106.5rem]:translate-x-0">
           <div className="flex w-full max-w-[634px] flex-col gap-12">
             <div className="relative flex w-full flex-col gap-8">
               <TypewriterHeroHeading key={locale} copy={messages.hero} />
@@ -38,7 +38,7 @@ export function Hero({ locale }: { locale: Locale }) {
           </div>
         </div>
         <div
-          className="relative top-16 aspect-[726.4803/758.516] w-full min-w-0 max-w-[726.4803px] overflow-clip lg:flex-1 min-[106.5rem]:w-[726.4803px] min-[106.5rem]:flex-none"
+          className="relative aspect-[726.4803/758.516] w-full min-w-0 max-w-[726.4803px] overflow-clip max-lg:top-16 lg:flex-1 lg:self-end min-[106.5rem]:w-[726.4803px] min-[106.5rem]:flex-none"
           aria-hidden="true"
         >
           <div
