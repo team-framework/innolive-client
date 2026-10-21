@@ -26,6 +26,7 @@ nonisolated final class PrivacyFaceCoordinator {
     private var pending: Enrollment?
     private var generation = 0
     private var disabled = false
+    private var recognitionFailed = false
     private var lastAttempt = -Double.infinity
     private var message = "이름을 입력하고 한 명씩 등록하세요."
     private var milliseconds = 0.0
@@ -41,11 +42,12 @@ nonisolated final class PrivacyFaceCoordinator {
     var snapshot: PrivacyFaceSnapshot {
         .init(people: (library?.entries ?? []).map { .init(id: $0.id, name: $0.name) },
               message: !worker.ready && !disabled ? (worker.preparationMessage ?? "얼굴 인식 모델 준비 중… 완료 후 등록할 수 있습니다.") : message,
-              enrolling: pending != nil, allowed: allowedCount, milliseconds: milliseconds, ready: worker.ready && !disabled)
+              enrolling: pending != nil, allowed: allowedCount, milliseconds: milliseconds, ready: worker.ready && !recognitionFailed && !disabled)
     }
 
     func reset() {
         worker.prepare()
+        recognitionFailed = false
         generation += 1
         pending = nil
         tracking.reset()
@@ -54,21 +56,20 @@ nonisolated final class PrivacyFaceCoordinator {
     }
 
     func enroll(name: String) {
-        guard !disabled, worker.ready, let library else { return }
+        guard !disabled, !recognitionFailed, worker.ready, let library else { return }
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name.count <= 40, library.entries.count < 20 else {
             message = "이름은 1~40자, 등록은 최대 20명입니다."
             return
         }
-        reset()
         pending = Enrollment(name: name, started: ProcessInfo.processInfo.systemUptime)
         message = "\(name) 등록 중 · 얼굴을 가운데 영역에 맞춰 주세요."
     }
 
     func delete(id: UUID) {
-        reset()
         do {
             try library?.delete(id: id)
+            refreshLibrary()
             message = "등록을 삭제했습니다."
         } catch {
             disabled = true
@@ -77,14 +78,8 @@ nonisolated final class PrivacyFaceCoordinator {
     }
 
     func process(image: CIImage, objects: [PrivacySegmentation.Detection], layout: PrivacySegmentation.Letterbox,
-                 timestamp: Double, trackIDs: [Int: Int]) -> Set<Int> {
-        let revision = PrivacyFaceLibrary.revision
-        if libraryRevision != revision {
-            generation += 1
-            tracking.reset()
-            do { library = try PrivacyFaceLibrary(); libraryRevision = revision }
-            catch { disabled = true; message = "등록 데이터 읽기 실패: \(error.localizedDescription)" }
-        }
+                 timestamp: Double, trackIDs: [Int: Int], liveTrackIDs: Set<Int>) -> Set<Int> {
+        refreshLibrary()
         let faceIndices = objects.indices.filter { objects[$0].classID == 0 }
         var boxes: [Int: CGRect] = [:]
         for index in faceIndices {
@@ -95,14 +90,13 @@ nonisolated final class PrivacyFaceCoordinator {
                               height: box.height * image.extent.height / layout.resized.height).intersection(image.extent)
             if !real.isNull, min(real.width, real.height) >= 24 { boxes[index] = real }
         }
-        // Use model-coordinate boxes for stable geometry, including small faces to invalidate crossings.
-        tracking.update(Dictionary(uniqueKeysWithValues: faceIndices.map { ($0, objects[$0].box) }), at: timestamp, trackIDs: trackIDs)
+        // Keep the original model coordinates; small and overlapping faces still retain approved IDs.
+        tracking.update(Dictionary(uniqueKeysWithValues: faceIndices.map { ($0, objects[$0].box) }), at: timestamp, trackIDs: trackIDs, liveTrackIDs: liveTrackIDs)
         if let output = worker.takeResult(), output.generation == generation {
             milliseconds = output.milliseconds
             if output.fatal {
-                disabled = true
+                recognitionFailed = true
                 pending = nil
-                tracking.reset()
                 message = output.message ?? "얼굴 인식 모델을 실행할 수 없습니다."
             } else if output.enrollment {
                 consumeEnrollment(output, now: timestamp)
@@ -122,12 +116,12 @@ nonisolated final class PrivacyFaceCoordinator {
                                 sampleAvailable: !(1...5).contains(output.failureCode))
             }
         }
-        guard !disabled, worker.ready else { allowedCount = 0; return [] }
+        guard !disabled else { allowedCount = 0; return [] }
         if let pending, timestamp - pending.started > 30 {
             self.pending = nil
             message = "등록 시간이 지났습니다. 얼굴을 가까이 맞추고 다시 등록해 주세요."
         }
-        if !worker.busy {
+        if worker.ready, !recognitionFailed, !worker.busy {
             if let pending, timestamp - lastAttempt >= 0.35 {
                 schedule(image: image, box: image.extent, id: pending.id, enrollment: true, timestamp: timestamp)
             } else if pending == nil, !(library?.entries.isEmpty ?? true), let track = tracking.next(at: timestamp),
@@ -135,9 +129,26 @@ nonisolated final class PrivacyFaceCoordinator {
                 schedule(image: image, box: box, id: track.id, enrollment: false, timestamp: timestamp)
             }
         }
-        let allowed = pending == nil ? tracking.allowed(at: timestamp) : []
+        let allowed = tracking.allowed(at: timestamp)
         allowedCount = allowed.count
         return allowed
+    }
+
+    var approvedTrackIDs: Set<Int> { disabled ? [] : tracking.approvedTrackIDs }
+
+    private func refreshLibrary() {
+        let revision = PrivacyFaceLibrary.revision
+        guard libraryRevision != revision else { return }
+        generation += 1
+        do {
+            library = try PrivacyFaceLibrary()
+            libraryRevision = revision
+            tracking.retainEntries(Set((library?.entries ?? []).map(\.id)))
+        } catch {
+            disabled = true
+            tracking.reset()
+            message = "등록 데이터 읽기 실패: \(error.localizedDescription)"
+        }
     }
 
     private func schedule(image: CIImage, box: CGRect, id: UUID, enrollment: Bool, timestamp: Double) {
@@ -160,8 +171,7 @@ nonisolated final class PrivacyFaceCoordinator {
         }
         do {
             try library?.add(name: pending.name, embedding: fused)
-            generation += 1
-            tracking.reset()
+            refreshLibrary()
             message = "\(pending.name) 등록 완료 · 총 \(library?.entries.count ?? 0)명"
         } catch {
             message = "등록 저장 실패: \(error.localizedDescription)"
