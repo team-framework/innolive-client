@@ -69,6 +69,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.SessionSnapshot
 import kotlinx.coroutines.delay
 import java.io.ByteArrayInputStream
@@ -96,12 +97,21 @@ object YouTubeViewerChatPolicy {
      * 라이브가 시작된 YouTube 대상의 채팅 주소입니다. iOS `hasStartedBroadcast`와 같이 `broadcast_phase`가
      * `live`이고 `status`가 `stopped`가 아니면 보여 줍니다. 직접 송출은 라이브 중에도 `status`가 `idle`이므로
      * (direct-publish-v1.md) `broadcastState()` 대신 이 규칙을 씁니다. 종료·제거된 대상과 세션 없음은 null입니다.
+     * [settings]는 이 방송을 준비한 YouTube 설정이며, 채팅이 나오지 않는 방송이면 문서를 읽지 않도록 null입니다.
      */
-    fun activeUrl(snapshot: SessionSnapshot?): String? {
+    fun activeUrl(snapshot: SessionSnapshot?, settings: BroadcastSettings? = null): String? {
         val target = snapshot?.targets?.firstOrNull { it.provider == "youtube" } ?: return null
         if (target.broadcastPhase != "live" || target.status == "stopped") return null
+        if (settings != null && !showsChat(settings)) return null
         return url(target.videoId)
     }
+
+    /**
+     * 로그인하지 않은 채팅 WebView는 비공개 방송의 채팅을 받을 수 없고, YouTube는 아동용 방송의 채팅을 끕니다.
+     * 준비 설정을 모르면(앱을 다시 열어 이어 받은 세션 등) 이전처럼 채팅을 읽어 봅니다.
+     */
+    internal fun showsChat(settings: BroadcastSettings): Boolean =
+        settings.privacy != "private" && settings.madeForKids != true
 
     /** 같은 동영상의 `live_chat` 문서로 가는 HTTPS 메인 프레임 이동만 허용합니다. */
     fun allowsNavigation(candidate: String?, document: String): Boolean {
