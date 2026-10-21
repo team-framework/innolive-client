@@ -1,9 +1,11 @@
 package com.framework.innolive
 
 import com.framework.innolive.feature.live.BroadcastSettings
+import com.framework.innolive.feature.live.components.MAX_FACE_SWAP_YOUTUBE_DESCRIPTION_LENGTH
 import com.framework.innolive.feature.live.components.MAX_YOUTUBE_DESCRIPTION_LENGTH
 import com.framework.innolive.feature.live.components.MAX_YOUTUBE_TITLE_LENGTH
 import com.framework.innolive.feature.live.components.validateYouTubeLiveSettings
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,6 +66,19 @@ class YouTubeLiveSettingsValidatorTest {
         )
         assertTrue(overlongDescription.descriptionError)
         assertFalse(overlongDescription.isValid)
+    }
+
+    @Test
+    fun faceSwapReservesRoomForTheServerNotice() {
+        // 서버 FaceSwapDescriptionNotice와 빈 줄 길이만큼 유튜브 한도에서 뺍니다.
+        val notice = "※ 이 방송에는 AI를 이용한 얼굴 합성이 포함되어 있습니다.\n\n"
+        assertEquals(MAX_YOUTUBE_DESCRIPTION_LENGTH - notice.length, MAX_FACE_SWAP_YOUTUBE_DESCRIPTION_LENGTH)
+
+        val atLimit = settings("제목", "설".repeat(MAX_FACE_SWAP_YOUTUBE_DESCRIPTION_LENGTH), false)
+        val overLimit = settings("제목", "설".repeat(MAX_FACE_SWAP_YOUTUBE_DESCRIPTION_LENGTH + 1), false)
+        assertTrue(validateYouTubeLiveSettings(atLimit, faceSwap = true).isValid)
+        assertTrue(validateYouTubeLiveSettings(overLimit, faceSwap = true).descriptionError)
+        assertTrue(validateYouTubeLiveSettings(overLimit, faceSwap = false).isValid)
     }
 
     @Test
