@@ -233,11 +233,13 @@ private fun checkFailedToast(compose: ComposeContentTestRule, name: String) {
     compose.onNode(close).assertIsDisplayed()
     capture("$name-1-failed")
 
-    // 토스트 문구는 두 줄 이하이고, 토스트는 칩·카메라 도구·방송 버튼과 겹치지 않습니다.
+    // 토스트 문구는 잘리지 않고 두 줄 이하이며, 토스트는 칩·카메라 도구·방송 버튼과 겹치지 않습니다.
     val message = compose.onNode(hasText(label(R.string.error_face_registration)))
     val layouts = mutableListOf<TextLayoutResult>()
     message.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
-    assertTrue("문구 ${layouts.single().lineCount}줄", layouts.single().lineCount <= 2)
+    val layout = layouts.single()
+    assertTrue("문구 ${layout.lineCount}줄", layout.lineCount <= 2)
+    assertTrue("문구 말줄임", !layout.hasVisualOverflow && !layout.isLineEllipsized(layout.lineCount - 1))
     val toastParts = listOf(message.bounds(), compose.onNode(retry).bounds(), compose.onNode(close).bounds())
     val others = buildList {
         add(compose.onNode(hasText(label(R.string.video_controls_title)) and hasClickAction()).bounds())
