@@ -64,6 +64,37 @@ final class FaceAnonymizationLabTests: XCTestCase {
         XCTAssertEqual(body["face_anonymization"] as? String, "face_swap")
     }
 
+    func testFaceSwapReservesDescriptionRoomForServerNotice() {
+        // 서버 FaceSwapDescriptionNotice와 빈 줄 길이만큼 유튜브 한도에서 뺀다.
+        let notice = "※ 이 방송에는 AI를 이용한 얼굴 합성이 포함되어 있습니다.\n\n"
+        XCTAssertEqual(YouTubeBroadcastSettings.maxFaceSwapDescriptionLength,
+                       YouTubeBroadcastSettings.maxDescriptionLength - notice.unicodeScalars.count)
+        var settings = YouTubeBroadcastSettings.defaultValue
+        settings.description = String(repeating: "설", count: YouTubeBroadcastSettings.maxFaceSwapDescriptionLength)
+        XCTAssertNil(settings.validation(faceSwap: true)["description"])
+        settings.description += "설"
+        XCTAssertNotNil(settings.validation(faceSwap: true)["description"])
+        XCTAssertNil(settings.validation(faceSwap: false)["description"])
+    }
+
+    func testEditorAppliesFaceSwapLimitOnlyForServerProcessing() throws {
+        let suite = "face-swap-description-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var mode = AIProcessingMode.server
+        let integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api,
+                                             aiModeProvider: { mode }, faceAnonymizationProvider: { .faceSwap })
+        integration.settingsEditor.editYouTube {
+            $0.description = String(repeating: "설", count: YouTubeBroadcastSettings.maxFaceSwapDescriptionLength + 1)
+        }
+        XCTAssertTrue(integration.usesFaceSwap)
+        XCTAssertNotNil(integration.settingsEditor.validation["description"])
+        // 온디바이스는 합성을 쓰지 않아 유튜브 기본 한도를 쓴다.
+        mode = .onDevice
+        XCTAssertFalse(integration.usesFaceSwap)
+        XCTAssertNil(integration.settingsEditor.validation["description"])
+    }
+
     private static func body(of request: URLRequest) -> Data {
         if let body = request.httpBody { return body }
         guard let input = request.httpBodyStream else { return Data() }
