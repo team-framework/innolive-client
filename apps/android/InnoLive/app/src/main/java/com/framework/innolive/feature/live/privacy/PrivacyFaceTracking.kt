@@ -3,12 +3,12 @@ package com.framework.innolive.feature.live.privacy
 import java.util.UUID
 
 /**
- * innolive-ai `StreamRecognition` track decision cache keyed by BoT-SORT track IDs. A track is checked when it
- * appears, retried [QUICK_RETRY_LIMIT] times [QUICK_RETRY_FRAMES] apart while it is not exempt, then revalidated
- * every [REVALIDATE_FRAMES]. An exempt track stays exempt while its revalidation is in flight, and its decision
- * survives up to [MISSING_TRACK_FRAMES] frames without a face. Like iOS, the first exemption needs two matching
- * results, and overlap, a negative or lost result, or a held face due for a check revoke it at once. An exemption
- * also ends [CONFIRMATION_LIMIT_FRAMES] after its last match, so a check that cannot run never extends it.
+ * innolive-ai `StreamRecognition` track approval (innolive-ai #77) keyed by BoT-SORT track IDs. A face that has not
+ * passed is checked when it appears, retried [QUICK_RETRY_LIMIT] times [QUICK_RETRY_FRAMES] apart, then every
+ * [REVALIDATE_FRAMES], and is forgotten after [MISSING_TRACK_FRAMES] frames without a face. One matching result
+ * approves the track: it is never checked again and stays exempt while BoT-SORT keeps its ID (tracked or lost).
+ * Approval ends only when its registered face is deleted, the tracker retires the ID, or the stream resets.
+ * Like the server, an ID that BoT-SORT mislinks to another person keeps its approval.
  */
 internal class PrivacyFaceTracking {
     /** A face at [index] of this frame's objects; a [held] face is a lost track kept at its predicted box. */
@@ -21,19 +21,15 @@ internal class PrivacyFaceTracking {
         var index: Int,
         var box: PrivacySegmentation.Box,
         var held: Boolean = false,
-        var isolated: Boolean = true,
         var lastSeenFrame: Int = 0,
         var lastCheckedFrame: Int = NEVER,
         var quickRetries: Int = 0,
         /** Capture time and frame of the recognition in flight, if any. */
         var pendingSeconds: Double? = null,
         var pendingFrame: Int = NEVER,
-        var candidate: String? = null,
-        var confirmations: Int = 0,
-        var lastMatchedFrame: Int = NEVER,
-    ) {
-        val exempt get() = candidate != null && confirmations >= CONFIRMATIONS
-    }
+        /** The registered face this track passed AdaFace as. */
+        var approved: String? = null,
+    )
 
     private var tracks = emptyList<Track>()
     private var lastTimeSeconds: Double? = null
@@ -44,7 +40,8 @@ internal class PrivacyFaceTracking {
         lastTimeSeconds = null
     }
 
-    fun update(faces: List<Face>, atSeconds: Double) {
+    /** [liveTrackIds]: BoT-SORT IDs still tracked or lost; an approved track lives exactly as long as its ID. */
+    fun update(faces: List<Face>, atSeconds: Double, liveTrackIds: Set<Int>? = null) {
         if (!atSeconds.isFinite()) { reset(); return }
         val previousTime = lastTimeSeconds
         if (previousTime != null && (atSeconds <= previousTime || atSeconds - previousTime >= MAX_FRAME_GAP_SECONDS)) {
@@ -54,38 +51,45 @@ internal class PrivacyFaceTracking {
         frame++
         val valid = faces.filter { face ->
             val box = face.box
-            box.left.isFinite() && box.top.isFinite() && box.right.isFinite() && box.bottom.isFinite() &&
+            face.trackId != PrivacySegmentation.NO_TRACK &&
+                box.left.isFinite() && box.top.isFinite() && box.right.isFinite() && box.bottom.isFinite() &&
                 box.width > 0 && box.height > 0
         }
         val previous = tracks.associateBy { it.trackId }
-        val present = valid.filter { it.trackId != PrivacySegmentation.NO_TRACK }.sortedBy { it.index }.map { face ->
+        val present = valid.sortedBy { it.index }.map { face ->
             (previous[face.trackId] ?: Track(trackId = face.trackId, index = face.index, box = face.box)).apply {
                 index = face.index
                 box = face.box
                 held = face.held
                 lastSeenFrame = frame
-                // Overlapping faces can swap track IDs, so an overlap always needs a fresh match.
-                isolated = valid.none { other -> other.index != face.index && face.box.intersects(other.box) > .05f }
-                if (!isolated || (held && due())) requireFreshMatch()
+                if (held && due()) requireFreshMatch()
             }
         }
         val presentIds = present.mapTo(HashSet()) { it.trackId }
-        val missing = tracks.filter { it.trackId !in presentIds && frame - it.lastSeenFrame <= MISSING_TRACK_FRAMES }
-        tracks = present + missing
-        for (track in tracks) if (track.exempt && frame - track.lastMatchedFrame > CONFIRMATION_LIMIT_FRAMES) {
-            track.requireFreshMatch()
+        val missing = tracks.filter { track ->
+            track.trackId !in presentIds && if (track.approved != null && liveTrackIds != null) {
+                track.trackId in liveTrackIds
+            } else frame - track.lastSeenFrame <= MISSING_TRACK_FRAMES
         }
+        tracks = present + missing
         for (track in tracks) track.pendingSeconds?.let { pending ->
             if (atSeconds - pending >= PENDING_TIMEOUT_SECONDS) { track.pendingSeconds = null; track.requireFreshMatch() }
         }
     }
 
+    /** Approvals of deleted registered faces end; other approvals survive a registered-face change. */
+    fun retain(registered: Set<String>) {
+        for (track in tracks) {
+            track.pendingSeconds = null
+            if (track.approved != null && track.approved !in registered) track.requireFreshMatch()
+        }
+    }
+
     /** The detected track to recognize next; the caller reports a crop it did not submit with [cancel]. */
     fun next(atSeconds: Double): Track? {
-        val next = tracks.filter {
-            it.lastSeenFrame == frame && it.isolated && !it.held && it.pendingSeconds == null && it.due()
-        }.minByOrNull { it.lastCheckedFrame } ?: return null
-        if (next.lastCheckedFrame != NEVER && !next.exempt) next.quickRetries++
+        val next = tracks.filter { it.lastSeenFrame == frame && !it.held && it.pendingSeconds == null && it.due() }
+            .minByOrNull { it.lastCheckedFrame } ?: return null
+        if (next.lastCheckedFrame != NEVER) next.quickRetries++
         next.pendingSeconds = atSeconds
         next.pendingFrame = frame
         return next.copy()
@@ -94,7 +98,7 @@ internal class PrivacyFaceTracking {
     fun cancel(trackID: String) {
         tracks.firstOrNull { it.id == trackID && it.pendingSeconds != null }?.let { track ->
             track.pendingSeconds = null
-            if (track.lastCheckedFrame != NEVER && !track.exempt) track.quickRetries--
+            if (track.lastCheckedFrame != NEVER) track.quickRetries--
         }
     }
 
@@ -107,21 +111,11 @@ internal class PrivacyFaceTracking {
             track.requireFreshMatch()
             return
         }
-        // A missing landmark sample is not evidence of a different person; keep the current decision.
-        if (!sampleAvailable) return
-        when (match) {
-            null -> { track.candidate = null; track.confirmations = 0 }
-            track.candidate -> track.confirmations = minOf(CONFIRMATIONS, track.confirmations + 1)
-            else -> { track.candidate = match; track.confirmations = 1; track.quickRetries = 0 }
-        }
-        if (match != null) track.lastMatchedFrame = track.pendingFrame
-        if (track.exempt) track.quickRetries = 0
+        if (sampleAvailable && match != null) track.approved = match
     }
 
-    fun allowed(): Set<Int> {
-        val exempt = tracks.filter { it.exempt && it.lastSeenFrame == frame && it.isolated }
-        return exempt.filter { track -> exempt.count { it.candidate == track.candidate } == 1 }.map { it.index }.toSet()
-    }
+    fun allowed(): Set<Int> =
+        tracks.filter { it.approved != null && it.lastSeenFrame == frame }.map { it.index }.toSet()
 
     /** Validate that a delayed recognition still belongs to the current track. */
     fun recognitionMatches(trackID: String, box: PrivacySegmentation.Box): Boolean {
@@ -130,26 +124,24 @@ internal class PrivacyFaceTracking {
         return tracks.singleOrNull { it.id == trackID }?.box?.intersects(box)?.let { it >= .5f } == true
     }
 
+    /** An approved track is never checked again; the others follow the quick-retry then revalidation cadence. */
     private fun Track.due(): Boolean {
+        if (approved != null) return false
         if (lastCheckedFrame == NEVER) return true
-        val interval = if (!exempt && quickRetries < QUICK_RETRY_LIMIT) QUICK_RETRY_FRAMES else REVALIDATE_FRAMES
+        val interval = if (quickRetries < QUICK_RETRY_LIMIT) QUICK_RETRY_FRAMES else REVALIDATE_FRAMES
         return frame - lastCheckedFrame >= interval
     }
 
     private fun Track.requireFreshMatch() {
-        candidate = null
-        confirmations = 0
+        approved = null
         lastCheckedFrame = NEVER
     }
 
     companion object {
-        const val CONFIRMATIONS = 2
         const val REVALIDATE_FRAMES = 30
         const val QUICK_RETRY_FRAMES = 5
         const val QUICK_RETRY_LIMIT = 2
         const val MISSING_TRACK_FRAMES = 3
-        /** One revalidation interval plus the [PENDING_TIMEOUT_SECONDS] a 30fps check may take to answer. */
-        const val CONFIRMATION_LIMIT_FRAMES = REVALIDATE_FRAMES + 30
         const val PENDING_TIMEOUT_SECONDS = 1.0
         const val MAX_FRAME_GAP_SECONDS = PrivacyObjectTracking.MAX_FRAME_GAP_SECONDS
         private const val NEVER = -1

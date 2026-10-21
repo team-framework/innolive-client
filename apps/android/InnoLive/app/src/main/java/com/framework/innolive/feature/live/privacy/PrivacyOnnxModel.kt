@@ -31,6 +31,8 @@ internal class PrivacyOnnxModel(private val context: Context,
     private val blur = PrivacyBitmapBlur()
     private val stabilizer = PrivacyMaskStabilizer()
     private val tracking = PrivacyObjectTracking()
+    /** BoT-SORT IDs of the latest frame that a registered-face approval may keep following. */
+    val liveTrackIds: Set<Int> get() = tracking.liveTrackIds
     private var skippedDetections = 0
     private var lastPrototypes: PrivacyValidatedPrototypes? = null
     private val postprocessorDelegate = lazy { PrivacyNativePostprocessor() }

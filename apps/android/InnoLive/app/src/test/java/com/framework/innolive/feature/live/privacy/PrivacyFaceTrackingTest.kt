@@ -8,123 +8,106 @@ class PrivacyFaceTrackingTest {
     private val tracker = PrivacyFaceTracking()
     private var frame = 0
     private val now get() = frame / 30.0
+    private val face = PrivacyFaceTracking.Face(0, 1, box)
 
-    /** Advance one 30fps frame with [faces] (default: track 1 detected at [box]). */
-    private fun step(vararg faces: PrivacyFaceTracking.Face = arrayOf(PrivacyFaceTracking.Face(0, 1, box))) {
+    /** Advance one 30fps frame with [faces]; BoT-SORT keeps [live] IDs (null: not provided). */
+    private fun step(vararg faces: PrivacyFaceTracking.Face = arrayOf(face), live: Set<Int>? = setOf(1)) {
         frame++
-        tracker.update(faces.toList(), now)
-    }
-
-    private fun stepUntilDue(): PrivacyFaceTracking.Track {
-        repeat(100) { step(); tracker.next(now)?.let { return it } }
-        error("no recognition was scheduled")
+        tracker.update(faces.toList(), now, live)
     }
 
     private fun answer(track: PrivacyFaceTracking.Track, match: String?, sampleAvailable: Boolean = true) =
         tracker.accept(track.id, match, checkNotNull(track.pendingSeconds), now, sampleAvailable)
 
-    /** Two matching results, the second one after the five-frame quick retry. */
-    private fun exempt(): PrivacyFaceTracking.Track {
+    private fun approve(): PrivacyFaceTracking.Track {
         step()
-        val first = checkNotNull(tracker.next(now))
-        answer(first, "registered")
-        assertTrue("one match is not enough", tracker.allowed().isEmpty())
-        val second = stepUntilDue()
-        assertEquals(6, frame)
-        answer(second, "registered")
+        val track = checkNotNull(tracker.next(now))
+        answer(track, "registered")
         assertEquals(setOf(0), tracker.allowed())
-        return second
+        return track
     }
 
-    @Test fun firstExemptionNeedsTwoMatchesFiveFramesApart() { exempt() }
-
-    @Test fun exemptTrackStaysExemptWhileRevalidatingEvery30Frames() {
-        exempt()
-        val recheck = stepUntilDue()
-        assertEquals(36, frame)
-        repeat(10) { step(); assertEquals("pending revalidation keeps the exemption", setOf(0), tracker.allowed()) }
-        assertNull("one recognition in flight per track", tracker.next(now))
-        answer(recheck, "registered")
-        assertEquals(setOf(0), tracker.allowed())
-    }
-
-    @Test fun negativeRevalidationRevokesAtOnce() {
-        exempt()
-        answer(stepUntilDue(), null)
-        assertTrue(tracker.allowed().isEmpty())
-    }
-
-    @Test fun missingSampleKeepsTheDecision() {
-        exempt()
-        answer(stepUntilDue(), null, sampleAvailable = false)
-        assertEquals(setOf(0), tracker.allowed())
-    }
-
-    @Test fun exemptionEndsWhenNoRevalidationCanRun() {
-        exempt()
-        repeat(PrivacyFaceTracking.CONFIRMATION_LIMIT_FRAMES) { step() }
-        assertEquals("checks never scheduled, but still within the limit", setOf(0), tracker.allowed())
-        step()
-        assertTrue(tracker.allowed().isEmpty())
-    }
-
-    @Test fun repeatedMissingSamplesCannotRenewTheExemption() {
-        exempt()
-        repeat(PrivacyFaceTracking.CONFIRMATION_LIMIT_FRAMES + 1) {
+    @Test fun oneMatchApprovesAndAnApprovedTrackIsNeverCheckedAgain() {
+        approve()
+        repeat(200) {
             step()
-            tracker.next(now)?.let { answer(it, null, sampleAvailable = false) }
+            assertNull("no revalidation after approval", tracker.next(now))
+            assertEquals(setOf(0), tracker.allowed())
         }
-        assertTrue(tracker.allowed().isEmpty())
     }
 
-    @Test fun decisionSurvivesThreeMissingFramesButNotFour() {
-        exempt()
-        repeat(3) { step(*emptyArray()) }
-        assertTrue("a missing face has nothing to exempt", tracker.allowed().isEmpty())
-        step()
-        assertEquals(setOf(0), tracker.allowed())
-        repeat(4) { step(*emptyArray()) }
-        step()
-        assertTrue(tracker.allowed().isEmpty())
-    }
-
-    @Test fun heldFaceKeepsExemptionUntilItsCheckIsDueAndIsNeverRecognized() {
-        exempt()
-        val held = PrivacyFaceTracking.Face(0, 1, box, held = true)
-        repeat(29) { step(held); assertEquals(setOf(0), tracker.allowed()); assertNull(tracker.next(now)) }
-        step(held)
-        assertTrue("a held face due for a check needs a fresh match", tracker.allowed().isEmpty())
-        assertNull(tracker.next(now))
-    }
-
-    @Test fun overlapRevokesAndNeedsTwoNewMatches() {
-        exempt()
-        step(PrivacyFaceTracking.Face(0, 1, box), PrivacyFaceTracking.Face(1, 2, PrivacySegmentation.Box(120f, 110f, 165f, 155f)))
-        assertTrue(tracker.allowed().isEmpty())
-        assertNull("an overlapping face is not recognized", tracker.next(now))
-        step()
-        val first = checkNotNull(tracker.next(now))
-        answer(first, "registered")
-        assertTrue(tracker.allowed().isEmpty())
-    }
-
-    @Test fun unknownFaceIsRetriedTwiceThenEvery30Frames() {
+    @Test fun unapprovedFaceIsRetriedTwiceThenEvery30Frames() {
         val checks = ArrayList<Int>()
         repeat(80) {
             step()
             tracker.next(now)?.let { checks += frame; answer(it, null) }
         }
         assertEquals(listOf(1, 6, 11, 41, 71), checks)
+        assertTrue(tracker.allowed().isEmpty())
     }
 
-    @Test fun lostResultTimesOutAndRevokes() {
-        exempt()
-        val recheck = stepUntilDue()
-        repeat(29) { step() }
+    @Test fun approvalFollowsTheTrackerIdThroughALongDetectionGap() {
+        approve()
+        repeat(20) { step(*emptyArray(), live = setOf(1)) }
+        assertTrue("a missing face has nothing to exempt", tracker.allowed().isEmpty())
+        step()
+        assertEquals("the restored ID keeps its approval", setOf(0), tracker.allowed())
+        assertNull(tracker.next(now))
+    }
+
+    @Test fun approvalEndsWhenTheTrackerRetiresTheId() {
+        approve()
+        step(*emptyArray(), live = emptySet())
+        step()
+        assertTrue(tracker.allowed().isEmpty())
+        assertNotNull("the returning ID is checked again", tracker.next(now))
+    }
+
+    @Test fun unapprovedDecisionIsForgottenAfterThreeMissingFrames() {
+        step()
+        answer(checkNotNull(tracker.next(now)), null)
+        repeat(3) { step(*emptyArray()) }
+        step()
+        assertNull("still retained, so its retry is not due yet", tracker.next(now))
+        repeat(4) { step(*emptyArray()) }
+        step()
+        assertNotNull("forgotten, so it is checked at once", tracker.next(now))
+    }
+
+    @Test fun heldApprovedFaceStaysExemptAndIsNeverRecognized() {
+        approve()
+        repeat(50) {
+            step(PrivacyFaceTracking.Face(0, 1, box, held = true))
+            assertEquals(setOf(0), tracker.allowed())
+            assertNull(tracker.next(now))
+        }
+    }
+
+    @Test fun onlyDeletingTheMatchedRegisteredFaceEndsTheApproval() {
+        approve()
+        tracker.retain(setOf("registered", "added"))
+        step()
         assertEquals(setOf(0), tracker.allowed())
+        tracker.retain(setOf("added"))
+        step()
+        assertTrue(tracker.allowed().isEmpty())
+    }
+
+    @Test fun negativeOrMissingSampleResultsDoNotApprove() {
+        step()
+        answer(checkNotNull(tracker.next(now)), null, sampleAvailable = false)
+        assertTrue(tracker.allowed().isEmpty())
+        repeat(5) { step() }
+        answer(checkNotNull(tracker.next(now)), null)
+        assertTrue(tracker.allowed().isEmpty())
+    }
+
+    @Test fun lostResultTimesOutAndIsCheckedAgain() {
+        step()
+        val track = checkNotNull(tracker.next(now))
+        repeat(29) { step(); assertNull(tracker.next(now)) }
         repeat(2) { step() }
-        assertTrue("no answer within a second needs a fresh match", tracker.allowed().isEmpty())
-        tracker.accept(recheck.id, "registered", checkNotNull(recheck.pendingSeconds), now)
+        tracker.accept(track.id, "registered", checkNotNull(track.pendingSeconds), now)
         assertTrue("the late answer is ignored", tracker.allowed().isEmpty())
         assertNotNull(tracker.next(now))
     }
@@ -136,50 +119,40 @@ class PrivacyFaceTrackingTest {
         assertEquals(track.id, tracker.next(now)?.id)
     }
 
-    @Test fun anotherTrackIdStartsUnknown() {
-        exempt()
-        step(PrivacyFaceTracking.Face(0, 2, PrivacySegmentation.Box(300f, 100f, 350f, 150f)))
+    @Test fun eachTrackIsApprovedIndependentlyEvenWhenOverlapping() {
+        val near = PrivacyFaceTracking.Face(1, 2, PrivacySegmentation.Box(120f, 110f, 165f, 155f))
+        step(face, near, live = setOf(1, 2))
+        while (true) { val track = tracker.next(now) ?: break; answer(track, "registered") }
+        assertEquals(setOf(0, 1), tracker.allowed())
+    }
+
+    @Test fun anotherTrackIdStartsUnapproved() {
+        approve()
+        step(PrivacyFaceTracking.Face(0, 2, box), live = setOf(1, 2))
         assertTrue(tracker.allowed().isEmpty())
     }
 
-    @Test fun movingTrackKeepsItsDecision() {
-        exempt()
+    @Test fun movingTrackKeepsItsApproval() {
+        approve()
         step(PrivacyFaceTracking.Face(0, 1, PrivacySegmentation.Box(300f, 100f, 350f, 150f)))
         assertEquals(setOf(0), tracker.allowed())
     }
 
-    @Test fun duplicateRegisteredIdentityOnTwoTracksDeniesBoth() {
-        val other = PrivacySegmentation.Box(300f, 100f, 350f, 150f)
-        val faces = arrayOf(PrivacyFaceTracking.Face(0, 1, box), PrivacyFaceTracking.Face(1, 2, other))
-        repeat(12) {
-            step(*faces)
-            while (true) { val track = tracker.next(now) ?: break; answer(track, "registered") }
-        }
-        assertTrue(tracker.allowed().isEmpty())
-    }
-
-    @Test fun oneSecondGapStartsOverButShorterStallsKeepTheDecision() {
-        exempt()
-        frame += 9
-        step()
-        assertEquals("a 300ms stall keeps the exemption", setOf(0), tracker.allowed())
+    @Test fun oneSecondGapStartsOver() {
+        approve()
         frame += 30
         step()
         assertTrue(tracker.allowed().isEmpty())
     }
 
-    @Test fun untrackedFaceIsNeverCheckedButStillBreaksIsolation() {
-        exempt()
-        step(PrivacyFaceTracking.Face(0, 1, box),
-            PrivacyFaceTracking.Face(1, PrivacySegmentation.NO_TRACK, PrivacySegmentation.Box(120f, 110f, 165f, 155f)))
-        assertTrue(tracker.allowed().isEmpty())
-        val alone = PrivacyFaceTracking()
-        alone.update(listOf(PrivacyFaceTracking.Face(0, PrivacySegmentation.NO_TRACK, box)), 1.0)
-        assertNull(alone.next(1.0))
+    @Test fun untrackedFaceIsNeverChecked() {
+        step(PrivacyFaceTracking.Face(0, PrivacySegmentation.NO_TRACK, box))
+        assertNull(tracker.next(now))
     }
 
     @Test fun recognizedFaceElsewhereCannotMatchTrackedFace() {
-        val track = exempt()
+        step()
+        val track = checkNotNull(tracker.next(now))
         assertTrue(tracker.recognitionMatches(track.id, box))
         assertFalse(tracker.recognitionMatches(track.id, PrivacySegmentation.Box(200f, 100f, 250f, 150f)))
         assertFalse(tracker.recognitionMatches(track.id, PrivacySegmentation.Box(Float.NaN, 100f, 150f, 150f)))
