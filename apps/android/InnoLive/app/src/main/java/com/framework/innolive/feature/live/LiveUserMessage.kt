@@ -111,6 +111,7 @@ internal fun broadcastStateMessage(state: BroadcastState): BroadcastUserMessage 
     ),
     isStateDescription = state in setOf(
         BroadcastState.PREPARING,
+        BroadcastState.PREPARED,
         BroadcastState.LIVE,
         BroadcastState.PAUSING,
         BroadcastState.RESUMING,
