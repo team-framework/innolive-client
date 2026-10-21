@@ -191,7 +191,7 @@ private fun HomePageHarness(registrar: GuestFaceRegistrar, onOpenVideoControls: 
                     Box(Modifier.size(48.dp))
                 }
             }
-            StableBroadcastFeedback {}
+            StableBroadcastFeedback(text = null, reserveHeight = !landscape)
         }
         val statusStart = if (landscape) with(density) { leftControlsWidthPx.toDp() } + 8.dp else 24.dp
         val statusEnd = if (landscape) with(density) { rightControlsWidthPx.toDp() } + 8.dp else 24.dp
