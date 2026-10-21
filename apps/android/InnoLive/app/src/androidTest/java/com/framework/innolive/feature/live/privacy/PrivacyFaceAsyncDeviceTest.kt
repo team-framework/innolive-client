@@ -195,6 +195,44 @@ class PrivacyFaceAsyncDeviceTest {
         }
     }
 
+    @Test fun recognitionsAreLimitedToTwoPerSecondAcrossFaces() {
+        Worker().use { worker ->
+            val coordinator = coordinator(worker)
+            val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
+            val faces = (0 until 4).map { index ->
+                PrivacySegmentation.Detection(PrivacySegmentation.Box(20f + index * 150f, 100f, 70f + index * 150f, 150f),
+                    .9f, 0, FloatArray(32), trackId = index + 1)
+            }
+            val submitted = ArrayList<Long>()
+            try {
+                for (time in 1000L..4000L step 100) {
+                    coordinator.beginFrame(image, time * 1_000_000)
+                    if (worker.job != null) { submitted += time; worker.complete(null) }
+                    coordinator.exceptions(image, faces, layout, time * 1_000_000)
+                }
+                assertTrue("submissions=$submitted", submitted.isNotEmpty())
+                for (time in submitted) assertTrue("submissions=$submitted",
+                    submitted.count { it in time until time + 1_000 } <= PrivacyFaceCoordinator.MAX_RECOGNITIONS_PER_SECOND)
+            } finally { image.recycle() }
+        }
+    }
+
+    @Test fun facesSmallerThan40PixelsAreNeverRecognized() {
+        Worker().use { worker ->
+            val coordinator = coordinator(worker)
+            val image = Bitmap.createBitmap(640, 640, Bitmap.Config.ARGB_8888)
+            val small = listOf(PrivacySegmentation.Detection(PrivacySegmentation.Box(100f, 100f, 135f, 135f),
+                .9f, 0, FloatArray(32), trackId = 1))
+            try {
+                for (time in 1000L..2000L step 100) {
+                    coordinator.beginFrame(image, time * 1_000_000)
+                    coordinator.exceptions(image, small, layout, time * 1_000_000)
+                }
+                assertEquals(0, worker.submissions)
+            } finally { image.recycle() }
+        }
+    }
+
     @Test fun resetAndGeometryChangeRejectInFlightResults() {
         Worker().use { worker ->
             val coordinator = coordinator(worker)
