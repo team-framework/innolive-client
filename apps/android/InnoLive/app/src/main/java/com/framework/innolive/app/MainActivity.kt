@@ -101,6 +101,7 @@ import com.framework.innolive.feature.youtube.defaultYouTubeBroadcastTitle
 import com.framework.innolive.feature.youtube.hasVerifiedYouTubeAccount
 import com.framework.innolive.feature.youtube.rememberYouTubeVerificationMemory
 import com.framework.innolive.feature.live.components.ServerErrorDialog
+import com.framework.innolive.feature.live.components.maxYouTubeDescriptionLength
 import com.framework.innolive.ui.text.ServerErrorGuidance
 import com.framework.innolive.ui.text.ServerErrorAction
 import com.framework.innolive.feature.youtube.youtubeFailureGuidance
@@ -1134,7 +1135,9 @@ fun AppNavigation(
                                 description = broadcastDescription,
                                 onDescriptionChanged = { value ->
                                     updateBroadcastSettings(
-                                        broadcastSettings.copy(description = value.take(5_000)),
+                                        broadcastSettings.copy(
+                                            description = value.take(maxYouTubeDescriptionLength(webRtcSession.usesFaceSwap)),
+                                        ),
                                     )
                                 },
                                 selectedPrivacy = broadcastPrivacyOptions

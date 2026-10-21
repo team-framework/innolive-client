@@ -64,6 +64,8 @@ fun YouTubeLiveSettingsDialog(
     serverError: ServerErrorGuidance? = null,
     onChangePlatform: (() -> Unit)? = null,
     guide: BroadcastTutorialGuide? = null,
+    /** 얼굴 합성 세션이면 서버 안내문 자리만큼 설명 한도를 줄입니다. */
+    faceSwap: Boolean = false,
 ) {
 
     val configuration = LocalConfiguration.current
@@ -76,7 +78,7 @@ fun YouTubeLiveSettingsDialog(
         !isYouTubeReconnectRequired && !isYouTubeAccountActionInProgress
 
     fun validateForm() {
-        validation = validateYouTubeLiveSettings(settings)
+        validation = validateYouTubeLiveSettings(settings, faceSwap)
         if (validation.isValid) {
             if (onPrepare == null) onDismissRequest()
             else if (canPrepare) onPrepare()
@@ -118,6 +120,7 @@ fun YouTubeLiveSettingsDialog(
                         isYouTubeAccountActionInProgress = isYouTubeAccountActionInProgress,
                         isYouTubeConnectEnabled = isYouTubeConnectEnabled,
                         onConnectYouTube = onConnectYouTube,
+                        maxDescriptionLength = maxYouTubeDescriptionLength(faceSwap),
                     )
 
                     Button(
@@ -155,6 +158,7 @@ internal fun YouTubeLiveSettingsFields(
     isYouTubeAccountActionInProgress: Boolean,
     isYouTubeConnectEnabled: Boolean,
     onConnectYouTube: () -> Unit,
+    maxDescriptionLength: Int = MAX_YOUTUBE_DESCRIPTION_LENGTH,
 ) {
     var isPrivacyMenuExpanded by remember { mutableStateOf(false) }
     var isAudienceMenuExpanded by remember { mutableStateOf(false) }
@@ -207,7 +211,7 @@ internal fun YouTubeLiveSettingsFields(
             onValueChange = { value ->
                 onValidationChanged(validation.copy(descriptionError = false))
                 onSettingsChanged(
-                    settings.copy(description = value.take(MAX_YOUTUBE_DESCRIPTION_LENGTH)),
+                    settings.copy(description = value.take(maxDescriptionLength)),
                 )
             },
             label = {
