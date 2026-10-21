@@ -36,6 +36,8 @@ internal class PrivacyFaceCoordinator(
     private var geometry: Pair<Int, Int>? = null
     private var leased = false
     private var cachedEntries: List<PrivacyRegisteredFace>? = null
+    /** BoT-SORT IDs that an approved face keeps following while its face is briefly undetected. */
+    var liveTrackIds: () -> Set<Int>? = { null }
     private val stats = if (BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) Stats() else null
 
     /** Debug-only recognition and exemption counts, logged every [Stats.INTERVAL_NS]. */
@@ -154,7 +156,7 @@ internal class PrivacyFaceCoordinator(
         val faces = objects.withIndex().filter { it.value.classId == 0 }.map { (index, face) ->
             PrivacyFaceTracking.Face(index, face.trackId, face.box, face.held)
         }
-        tracking.update(faces, time)
+        tracking.update(faces, time, liveTrackIds())
         previousLayout = layout
         val entries = entries()
         service.takeResult()?.let { result ->
@@ -178,7 +180,8 @@ internal class PrivacyFaceCoordinator(
                 } }
             }
         }
-        val allowed = if (entries.isEmpty() || !service.ready) emptySet() else tracking.allowed()
+        // Like innolive-ai #77, an approval survives while the face model is briefly unavailable.
+        val allowed = if (entries.isEmpty()) emptySet() else tracking.allowed()
         if (entries.isNotEmpty()) stats?.frame(objects, allowed)
         return allowed
     }
@@ -187,7 +190,9 @@ internal class PrivacyFaceCoordinator(
         if (revision != revisionSource()) {
             revision = revisionSource()
             cachedEntries = null
-            reset()
+            // In-flight results compared against the old list are dropped; approvals of remaining faces stay.
+            generation++
+            tracking.retain(entries().mapTo(HashSet()) { it.id })
         }
     }
 

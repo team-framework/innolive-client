@@ -12,6 +12,10 @@ internal class PrivacyObjectTracking {
     private val seen = HashMap<Int, Seen>()
     private var lastTimeSeconds: Double? = null
 
+    /** BoT-SORT IDs still tracked or recoverable after a brief detection gap (innolive-ai `live_track_ids`). */
+    val liveTrackIds: Set<Int>
+        get() = (tracker.trackedTracks + tracker.lostTracks).mapTo(HashSet()) { it.id }
+
     fun reset() {
         tracker.reset()
         seen.clear()
