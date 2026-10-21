@@ -33,6 +33,29 @@ class PrivacySegmentationTest {
         assertEquals(listOf(0, 1), detections.map { it.classId })
     }
 
+    @Test fun weakCandidatesAreDecodedForTrackingButNeverFailTheFrame() {
+        val count = 104
+        val output = FloatArray(38 * count)
+        repeat(count) { index ->
+            output[index] = 20f + (index % 10) * 60f
+            output[count + index] = 20f + (index / 10) * 60f
+            output[2 * count + index] = 40f
+            output[3 * count + index] = 40f
+            output[4 * count + index] = if (index < 100) .9f else .1f
+        }
+        output[4 * count + 103] = PrivacySegmentation.CONTINUATION_CONFIDENCE
+        assertEquals("weak candidates beyond the object limit are dropped", 100,
+            PrivacySegmentation.detections(output, count).size)
+        output[4 * count + 99] = .1f
+        output[2 * count + 101] = 0f
+        val detections = PrivacySegmentation.detections(output, count)
+        assertEquals("an invalid weak box is skipped", listOf(99, 1), listOf(.9f, .1f).map { score ->
+            detections.count { it.score == score }
+        })
+        output[4 * count + 101] = .9f
+        assertThrows(IllegalArgumentException::class.java) { PrivacySegmentation.detections(output, count) }
+    }
+
     @Test fun emptyInstanceMaskProtectsItsBoundingBox() {
         val detection = PrivacySegmentation.Detection(
             PrivacySegmentation.Box(100f, 100f, 140f, 140f),

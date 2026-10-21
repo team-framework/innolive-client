@@ -59,6 +59,8 @@ class PrivacyActualCameraDeviceTest {
         val performancePreview=InstrumentationRegistry.getArguments().getString("privacyPreviewPerformance","false").toBoolean()
         val localPeer = InstrumentationRegistry.getArguments().getString("privacyLocalPeer", "false").toBoolean()
         val recognizeFace = InstrumentationRegistry.getArguments().getString("privacyRecognizeFace", "false").toBoolean()
+        // Faces the tester registered in this app install, instead of the fixed embedding.
+        val registeredFaces = InstrumentationRegistry.getArguments().getString("privacyRegisteredFaces", "false").toBoolean()
         val preferHardware = InstrumentationRegistry.getArguments().getString("privacyHardwareCodec", "true").toBoolean()
         val durationMs = InstrumentationRegistry.getArguments().getString("privacyDurationMs", "25000").toLong()
         val onlyHeight = InstrumentationRegistry.getArguments().getString("privacyHeight")?.toInt()
@@ -181,7 +183,10 @@ class PrivacyActualCameraDeviceTest {
                 },directCameraInput=optimized,directGpuInput=optimized,nativePostprocessing=batchOne,batchTwoOptimizations=
                     InstrumentationRegistry.getArguments().getString("privacyBatchTwo", "true").toBoolean(),
                     keepLatestProtectedFrame=pendingLatest).apply {
-                    faceCoordinatorFactory=if (recognizeFace) ({
+                    faceCoordinatorFactory=if (registeredFaces) ({
+                        PrivacyFaceCoordinator(context, registeredFaceScope(context,
+                            InstrumentationRegistry.getArguments().getString("privacyFaceAccountScope")))
+                    }) else if (recognizeFace) ({
                         PrivacyFaceCoordinator(PrivacyFaceService.get(context),
                             revisionSource = { 0L }) {
                             listOf(PrivacyRegisteredFace("fps-fixture", "fps-fixture",
@@ -221,7 +226,7 @@ class PrivacyActualCameraDeviceTest {
                         Log.i("PrivacyActualCamera","size=${width}x$height fixed_capture_30=$fixed30")
                     }
                     assertTrue("No protected camera frame arrived", ready.await(30, TimeUnit.SECONDS))
-                    if (recognizeFace) assertTrue(
+                    if (recognizeFace || registeredFaces) assertTrue(
                         "Face model was still warming while protected frames entered WebRTC",
                         PrivacyFaceService.get(context).ready,
                     )
@@ -265,7 +270,7 @@ class PrivacyActualCameraDeviceTest {
                         val values = protected.map(select).sorted()
                         return values[values.size / 2]
                     }
-                    val metrics="local_peer=$localPeer recognize_face=$recognizeFace hardware_preferred=$preferHardware codec=${finalStats["mimeType"]} " +
+                    val metrics="local_peer=$localPeer recognize_face=$recognizeFace registered_faces=$registeredFaces hardware_preferred=$preferHardware codec=${finalStats["mimeType"]} " +
                         "encoder=${finalStats["encoderImplementation"]} encoded_fps=${encoded/seconds} decoded_fps=${decoded.get()/seconds} " +
                         "encode_mean_ms=${if(encoded>0) delta("totalEncodeTime")*1000/encoded else Double.NaN} " +
                         "decoded_gap_p95_ms=${decodeGaps.getOrNull((decodeGaps.size*.95).toInt().coerceAtMost(decodeGaps.lastIndex))} " +
@@ -286,6 +291,7 @@ class PrivacyActualCameraDeviceTest {
                         "output_p50_ms=${percentile(.5) { it.timings.outputMs }} " +
                         "delivery_p50_ms=${percentile(.5) { it.deliveryMs }} " +
                         "zero_copy_planes_frames=${measured.count {it.cameraCopiedPlanes==0}} direct_input_frames=${measured.count {it.analysis.directGpuInput}} input_sync_frames=${measured.count {it.analysis.inputInteropSync}} " +
+                        "skipped_detection_frames=${measured.count { it.analysis.detectionSkipped }} " +
                         "gpu_frames=${measured.count { it.analysis.detectorGpu }} texture_frames=${textureFrames.get()} nnapi_frames=${measured.count { it.analysis.detectorNnapi }} " +
                         "face_frames=${measured.count { it.analysis.faces > 0 }} " +
                         "plate_frames=${measured.count { it.analysis.plates > 0 }} " +
@@ -310,4 +316,10 @@ class PrivacyActualCameraDeviceTest {
             }
         }
     }
+
+    /** [requested] account scope, or that of the most recently updated face library in the app under test. */
+    private fun registeredFaceScope(context: android.content.Context, requested: String?): String =
+        requested ?: context.noBackupFilesDir.listFiles().orEmpty().mapNotNull { file ->
+            Regex("privacy-local-faces-([0-9a-f]{64})\\.bin").matchEntire(file.name)?.let { file to it.groupValues[1] }
+        }.maxByOrNull { it.first.lastModified() }.let { checkNotNull(it) { "No registered face library" }.second }
 }
