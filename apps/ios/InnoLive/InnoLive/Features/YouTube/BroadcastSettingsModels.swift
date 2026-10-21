@@ -80,12 +80,15 @@ struct BroadcastSettingsDefaults: Decodable {
 }
 
 extension YouTubeBroadcastSettings {
-    var validation: [String: String] {
+    /// 얼굴 합성 세션은 서버 안내문 자리만큼 설명 한도가 줄어든다.
+    func validation(faceSwap: Bool) -> [String: String] {
         var errors: [String: String] = [:]
         if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || title.unicodeScalars.count > Self.maxTitleLength {
             errors["title"] = String(localized: "방송 제목을 1~100자로 입력해 주세요.")
         }
-        if description.unicodeScalars.count > Self.maxDescriptionLength {
+        if faceSwap, description.unicodeScalars.count > Self.maxFaceSwapDescriptionLength {
+            errors["description"] = String(localized: "얼굴 합성 방송의 설명은 4,964자까지 입력해 주세요.")
+        } else if description.unicodeScalars.count > Self.maxDescriptionLength {
             errors["description"] = String(localized: "방송 설명은 5,000자까지 입력해 주세요.")
         }
         if audience == nil { errors["made_for_kids"] = String(localized: "시청자층을 선택해 주세요.") }
