@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -59,6 +61,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -536,7 +539,9 @@ private fun FaceSelectionTarget(
     }
 }
 
-/** 얼굴을 탭한 뒤 홈 화면 상단에 보이는 백그라운드 등록 진행 상황입니다. */
+private val GuestToastMinFontSize = 10.sp
+
+/** 얼굴을 탭한 뒤 홈 화면 하단 방송 버튼 위에 보이는 백그라운드 등록 진행 상황입니다. */
 @Composable
 internal fun GuestRegistrationToast(
     registrar: GuestFaceRegistrar,
@@ -585,13 +590,21 @@ internal fun GuestRegistrationToast(
                     tint = Color(0xFFFFA726),
                     modifier = Modifier.size(20.dp),
                 )
+                // 좁은 화면이나 큰 글꼴에서도 두 줄에 들어가도록 문구 크기를 폭에 맞춰 줄입니다.
                 Text(
                     text = status.message.asString(),
                     color = Color.White,
                     style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    autoSize = TextAutoSize.StepBased(
+                        minFontSize = GuestToastMinFontSize,
+                        maxFontSize = MaterialTheme.typography.bodySmall.fontSize,
+                    ),
                     modifier = Modifier.weight(1f),
                 )
                 TextButton(
+                    contentPadding = PaddingValues(horizontal = 8.dp),
                     onClick = {
                         if (status.canRetry) {
                             registrar.retry()

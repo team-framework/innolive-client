@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Rect
+import com.framework.innolive.BuildConfig
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.max
@@ -35,6 +36,38 @@ internal class PrivacyFaceCoordinator(
     private var geometry: Pair<Int, Int>? = null
     private var leased = false
     private var cachedEntries: List<PrivacyRegisteredFace>? = null
+    /** Capture times of AdaFace submissions in the last second. */
+    private val recentSubmissions = ArrayDeque<Double>()
+    /** BoT-SORT IDs that an approved face keeps following while its face is briefly undetected. */
+    var liveTrackIds: () -> Set<Int>? = { null }
+    private val stats = if (BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) Stats() else null
+
+    /** Debug-only recognition and exemption counts, logged every [Stats.INTERVAL_NS]. */
+    private class Stats {
+        var frames = 0; var exemptFrames = 0; var submitted = 0; var matched = 0; var unmatched = 0
+        var noSample = 0; var revoked = 0; var granted = 0; var tracks = HashSet<Int>()
+        private var previous = emptySet<Int>()
+        private var startedNs = System.nanoTime()
+
+        fun frame(objects: List<PrivacySegmentation.Detection>, allowed: Set<Int>) {
+            frames++
+            if (allowed.isNotEmpty()) exemptFrames++
+            val ids = allowed.mapTo(HashSet()) { objects[it].trackId }
+            granted += (ids - previous).size
+            revoked += (previous - ids).size
+            previous = ids
+            objects.filter { it.classId == 0 && it.trackId != PrivacySegmentation.NO_TRACK }.mapTo(tracks) { it.trackId }
+            val now = System.nanoTime()
+            if (now - startedNs < INTERVAL_NS) return
+            android.util.Log.i("PrivacyFace", "frames=$frames exempt_frames=$exemptFrames granted=$granted " +
+                "revoked=$revoked submitted=$submitted matched=$matched unmatched=$unmatched no_sample=$noSample " +
+                "face_tracks=${tracks.size}")
+            frames = 0; exemptFrames = 0; submitted = 0; matched = 0; unmatched = 0; noSample = 0
+            revoked = 0; granted = 0; tracks = HashSet(); startedNs = now
+        }
+
+        companion object { const val INTERVAL_NS = 5_000_000_000L }
+    }
 
     fun reset() {
         generation++
@@ -70,24 +103,42 @@ internal class PrivacyFaceCoordinator(
         service.prepare()
         if (!service.canSubmit) return
         val layout = previousLayout ?: return
-        val next = tracking.next(timestampNs / 1_000_000_000.0) ?: return
-        val bounds = recognitionBounds(width, height, next.box, layout) ?: return
+        val time = timestampNs / 1_000_000_000.0
+        // Each AdaFace run competes with the detector for the GPU, so the whole frame gets a fixed budget.
+        while (recentSubmissions.isNotEmpty() &&
+            (time < recentSubmissions.first() || time - recentSubmissions.first() >= 1.0)) recentSubmissions.removeFirst()
+        if (recentSubmissions.size >= MAX_RECOGNITIONS_PER_SECOND) return
+        val next = tracking.next(time) { recognitionBounds(width, height, it.box, layout) != null } ?: return
+        val submitted = try {
+            submit(width, height, timestampNs, next, layout, crop, readback)
+        } catch (error: Throwable) { tracking.cancel(next.id); throw error }
+        if (submitted) {
+            recentSubmissions.addLast(time)
+            stats?.let { it.submitted++ }
+        } else tracking.cancel(next.id)
+    }
+
+    private fun submit(width: Int, height: Int, timestampNs: Long, next: PrivacyFaceTracking.Track,
+                       layout: PrivacySegmentation.Letterbox, crop: (Rect) -> Bitmap,
+                       readback: ((Rect) -> PrivacyFaceReadback)?): Boolean {
+        val bounds = recognitionBounds(width, height, next.box, layout) ?: return false
         if (readback != null) {
             val sample = readback(bounds)
             try {
-                if (!service.submitReadback(sample, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) sample.close()
+                return service.submitReadback(sample, bounds, generation, next.id, timestampNs / 1_000_000_000.0)
+                    .also { if (!it) sample.close() }
             } catch (error: Throwable) { sample.close(); throw error }
-            return
         }
         val image = crop(bounds)
-        if (!service.submitRecognition(image, bounds, generation, next.id, timestampNs / 1_000_000_000.0)) image.recycle()
+        return service.submitRecognition(image, bounds, generation, next.id, timestampNs / 1_000_000_000.0)
+            .also { if (!it) image.recycle() }
     }
 
     fun currentFrame(upright: Bitmap, objects: List<PrivacySegmentation.Detection>,
                      layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> =
         currentFrame(upright.width,upright.height,objects,layout,timestampNs) { copyCrop(upright,it) }
 
-    /** Select crops from this frame's YOLO tracks; start recognition after detector GPU work. */
+    /** Select crops from this frame's BoT-SORT tracks; start recognition after detector GPU work. */
     fun currentFrame(width: Int, height: Int, objects: List<PrivacySegmentation.Detection>,
                      layout: PrivacySegmentation.Letterbox, timestampNs: Long, crop: (Rect) -> Bitmap): Set<Int> =
         currentFrame(width,height,objects,layout,timestampNs,crop,null)
@@ -112,8 +163,10 @@ internal class PrivacyFaceCoordinator(
                    layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> {
         val time = timestampNs / 1_000_000_000.0
         refreshRevision()
-        val faces = objects.indices.filter { objects[it].classId == 0 }
-        tracking.update(faces.associateWith { objects[it].box }, time)
+        val faces = objects.withIndex().filter { it.value.classId == 0 }.map { (index, face) ->
+            PrivacyFaceTracking.Face(index, face.trackId, face.box, face.held)
+        }
+        tracking.update(faces, time, liveTrackIds())
         previousLayout = layout
         val entries = entries()
         service.takeResult()?.let { result ->
@@ -130,17 +183,26 @@ internal class PrivacyFaceCoordinator(
                 }?.let { if (optimized) PrivacyFaceMath.match(it, entries) else PrivacyFaceMath.matchReference(it, entries) }
                 tracking.accept(result.trackId, match, result.capturedAtSeconds, time,
                     sampleAvailable = result.sampleAvailable)
+                stats?.let { when {
+                    !result.sampleAvailable -> it.noSample++
+                    match != null -> it.matched++
+                    else -> it.unmatched++
+                } }
             }
         }
-        if (entries.isEmpty() || !service.ready) return emptySet()
-        return tracking.allowed(time)
+        // Like innolive-ai #77, an approval survives while the face model is briefly unavailable.
+        val allowed = if (entries.isEmpty()) emptySet() else tracking.allowed()
+        if (entries.isNotEmpty()) stats?.frame(objects, allowed)
+        return allowed
     }
 
     private fun refreshRevision() {
         if (revision != revisionSource()) {
             revision = revisionSource()
             cachedEntries = null
-            reset()
+            // In-flight results compared against the old list are dropped; approvals of remaining faces stay.
+            generation++
+            tracking.retain(entries().mapTo(HashSet()) { it.id })
         }
     }
 
@@ -162,7 +224,7 @@ internal class PrivacyFaceCoordinator(
     private fun recognitionBounds(width: Int, height: Int, box: PrivacySegmentation.Box,
                                   layout: PrivacySegmentation.Letterbox): Rect? {
         val real = toImageBox(box, layout, width, height) ?: return null
-        if (min(real.width, real.height) < 24) return null
+        if (min(real.width, real.height) < MIN_FACE_PIXELS) return null
         // Server's YOLO crop margin is 0.25 on each side.
         val marginX = real.width * .25f
         val marginY = real.height * .25f
@@ -194,5 +256,11 @@ internal class PrivacyFaceCoordinator(
         val right = ((box.right - layout.left) * width / layout.resizedWidth).coerceIn(0f, width.toFloat())
         val bottom = ((box.bottom - layout.top) * height / layout.resizedHeight).coerceIn(0f, height.toFloat())
         return if (right > left && bottom > top) PrivacySegmentation.Box(left, top, right, bottom) else null
+    }
+
+    companion object {
+        /** Faces shorter than innolive-ai's registration minimum are left blurred instead of recognized. */
+        const val MIN_FACE_PIXELS = 40
+        const val MAX_RECOGNITIONS_PER_SECOND = 2
     }
 }

@@ -132,6 +132,7 @@
     <string name="preview_reconnecting">네트워크 연결을 복구하는 중…</string>
     <string name="permission_media_required">카메라와 마이크 권한이 필요합니다.</string>
     <string name="action_allow_permissions">권한 허용</string>
+    <string name="action_open_permission_settings">설정에서 허용</string>
     <string name="face_management">얼굴 관리</string>
     <string name="anonymization_on">비식별화 On</string>
     <string name="anonymization_off">비식별화 Off</string>

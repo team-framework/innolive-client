@@ -9,9 +9,10 @@ import SwiftUI
 struct LocalPreviewView: View {
     let session: AVCaptureSession
     let cameraID: String?
+    var contentScale: CGFloat = 1
 
     var body: some View {
-        OriginalPreviewFrame {
+        OriginalPreviewFrame(contentScale: contentScale) {
             CameraPreview(session: session, cameraID: cameraID)
         }
     }
@@ -19,13 +20,16 @@ struct LocalPreviewView: View {
 
 struct OriginalPreviewFrame<Content: View>: View {
     let content: Content
+    let contentScale: CGFloat
 
-    init(@ViewBuilder content: () -> Content) {
+    init(contentScale: CGFloat = 1, @ViewBuilder content: () -> Content) {
+        self.contentScale = contentScale
         self.content = content()
     }
 
     var body: some View {
         content
+            .scaleEffect(contentScale)
             // 영상도 테두리와 같은 둥근 모양으로 잘라냄
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay {
@@ -42,9 +46,10 @@ struct OriginalPreviewFrame<Content: View>: View {
 
 struct WebRTCColorPreviewFrame: View {
     @ObservedObject var uplink: WebRTCVideoUplink
+    var contentScale: CGFloat = 1
 
     var body: some View {
-        OriginalPreviewFrame {
+        OriginalPreviewFrame(contentScale: contentScale) {
             WebRTCLocalPreviewView(uplink: uplink)
         }
     }

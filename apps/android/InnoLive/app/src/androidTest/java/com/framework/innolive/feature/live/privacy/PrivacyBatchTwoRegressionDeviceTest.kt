@@ -34,7 +34,7 @@ class PrivacyBatchTwoRegressionDeviceTest {
         val layout=PrivacySegmentation.Letterbox(640,640)
         val box=PrivacySegmentation.Box(300f,100f,350f,150f)
         fun crop(bounds:Rect)=Bitmap.createBitmap(bounds.width(),bounds.height(),Bitmap.Config.ARGB_8888)
-        assertTrue(coordinator.currentFrame(640,640,listOf(PrivacySegmentation.Detection(box,.9f,0,FloatArray(32))),layout,1_000_000_000L,::crop).isEmpty())
+        assertTrue(coordinator.currentFrame(640,640,listOf(PrivacySegmentation.Detection(box,.9f,0,FloatArray(32),trackId=1)),layout,1_000_000_000L,::crop).isEmpty())
         assertTrue(checkNotNull(pending).left>280)
         assertEquals(1,closed)
         pending=null
