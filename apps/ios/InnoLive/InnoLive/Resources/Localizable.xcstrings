@@ -11876,6 +11876,28 @@
         }
       }
     },
+    "얼굴 합성 방송의 설명은 4,964자까지 입력해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 합성 방송의 설명은 4,964자까지 입력해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For face swap broadcasts, the description can contain up to 4,964 characters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔合成配信の説明は4,964文字以内で入力してください。"
+          }
+        }
+      }
+    },
     "치지직 태그": {
       "localizations": {
         "ko": {

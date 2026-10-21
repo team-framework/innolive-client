@@ -85,6 +85,15 @@ final class YouTubeIntegration: ObservableObject {
         return mode == .onDevice && transportProvider() == .server ? .server : mode
     }
 
+    /// 새 세션의 얼굴 비식별화 방법이다. 합성은 서버 AI에서만 쓴다. 서버 송출을 고른 온디바이스는 서버 AI를 끄므로 블러로 둔다.
+    private var requestedFaceAnonymization: FaceAnonymizationMode {
+        (preparationProcessingOverride ?? aiModeProvider()) == .server ? faceAnonymizationProvider() : .blur
+    }
+
+    /// 다음·현재 세션이 얼굴 합성인지다. 서버가 합성 세션의 설명 앞에 안내문을 붙여 설명 한도가 줄어든다.
+    /// 세션이 있는 동안에는 비식별화 방법을 바꿀 수 없어 현재 세션과 같다.
+    var usesFaceSwap: Bool { requestedFaceAnonymization == .faceSwap }
+
     /// 송출 경로는 다음 세션부터 적용한다. 온디바이스 세션은 경로에 따라 서버 세션 종류가 달라 그대로 바꿀 수 없다.
     func changeOnDeviceTransport(_ transport: OnDeviceTransport) -> Bool {
         guard !isYouTubeBroadcastActive, !isSwitchingToOnDevice, !isPreparingSession, !isConnectingVideo,
@@ -463,7 +472,8 @@ final class YouTubeIntegration: ObservableObject {
                 broadcastModeError = String(localized: "추가할 플랫폼의 계정을 연결해 주세요.", table: "BroadcastMode")
                 return false
             }
-            let validation = provider == .youtube ? settingsEditor.youtube.validation : settingsEditor.chzzk.validation
+            let validation = provider == .youtube
+                ? settingsEditor.youtube.validation(faceSwap: usesFaceSwap) : settingsEditor.chzzk.validation
             guard validation.isEmpty else {
                 settingsEditor.select(provider)
                 settingsEditor.showValidation()
@@ -788,6 +798,8 @@ final class YouTubeIntegration: ObservableObject {
         self.directPublisher.onPermanentFailure = { [weak self] provider in
             Task { @MainActor [weak self] in await self?.handleDirectPublishFailure(provider: provider) }
         }
+        settingsEditor.faceSwapProvider = { [weak self] in self?.usesFaceSwap ?? false }
+        liveSettingsEditor.faceSwapProvider = { [weak self] in self?.usesFaceSwap ?? false }
     }
 
     func hasAcknowledgedTransmission(for provider: BroadcastSettingsProvider) -> Bool {
@@ -1275,8 +1287,7 @@ final class YouTubeIntegration: ObservableObject {
         let generation = sessionOperationGeneration
         let requestedMode = preparationProcessingOverride ?? aiModeProvider()
         let sessionMode = requestedSessionMode
-        // 얼굴 합성은 서버 AI에서만 쓴다. 서버 송출을 고른 온디바이스는 서버 AI를 끄므로 블러로 둔다.
-        let faceAnonymization = requestedMode == .server ? faceAnonymizationProvider() : .blur
+        let faceAnonymization = requestedFaceAnonymization
         isPreparingSession = true
         let task = Task { [self] in
             guard sessionOperationGeneration == generation else { return false }
@@ -1714,7 +1725,7 @@ final class YouTubeIntegration: ObservableObject {
         }
         let settings = useEditor ? settingsEditor.youtube : broadcastSettings.normalized
         let chzzkSettings = settingsEditor.chzzk
-        let validation = provider == .youtube ? settings.validation : chzzkSettings.validation
+        let validation = provider == .youtube ? settings.validation(faceSwap: usesFaceSwap) : chzzkSettings.validation
         guard validation.isEmpty else {
             if useEditor { settingsEditor.showValidation() }
             errorMessage = validation.sorted { $0.key < $1.key }.first?.value
@@ -1939,7 +1950,7 @@ final class YouTubeIntegration: ObservableObject {
                 return errorMessage
             }
             let validation = provider == .youtube
-                ? (useEditor ? settingsEditor.youtube.validation : broadcastSettings.normalized.validation)
+                ? (useEditor ? settingsEditor.youtube : broadcastSettings.normalized).validation(faceSwap: usesFaceSwap)
                 : settingsEditor.chzzk.validation
             if useEditor, settingsEditor.provider == provider { settingsEditor.showValidation() }
             if let message = validation.sorted(by: { $0.key < $1.key }).first?.value {
@@ -1983,7 +1994,8 @@ final class YouTubeIntegration: ObservableObject {
             for provider in providers {
                 await settingsEditor.loadDefaults(session: session, accessToken: accessToken, provider: provider)
                 guard preparationGeneration == generation else { return false }
-                let validation = provider == .youtube ? settingsEditor.youtube.validation : settingsEditor.chzzk.validation
+                let validation = provider == .youtube
+                    ? settingsEditor.youtube.validation(faceSwap: usesFaceSwap) : settingsEditor.chzzk.validation
                 if let message = validation.sorted(by: { $0.key < $1.key }).first?.value {
                     settingsEditor.select(provider)
                     settingsEditor.showValidation()

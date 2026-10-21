@@ -809,7 +809,7 @@ private fun LiveScreenContent(
                             if (openSettingsDialog && !editorOpen) {
                                 val notSelected = stringResource(R.string.broadcast_menu_not_selected)
                                 val needsDetails = stringResource(R.string.broadcast_menu_needs_details)
-                                val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings).isValid
+                                val youtubeValid = validateYouTubeLiveSettings(props.broadcastSettings, webRtcSession.usesFaceSwap).isValid
                                 val chzzkValid = chzzkSettings.validationField() == null
                                 val chzzkStatus = chzzkAccountStatus(chzzkAccountVerification, chzzkMessage)
                                 val accountChecking = stringResource(R.string.broadcast_menu_account_checking)
@@ -965,6 +965,7 @@ private fun LiveScreenContent(
                                     },
                                     onConnectYouTube = props.onConnectYouTube,
                                     onDismissRequest = { openYouTubeEditor = false },
+                                    faceSwap = webRtcSession.usesFaceSwap,
                                 )
                             }
                             if (openChzzkEditor) {

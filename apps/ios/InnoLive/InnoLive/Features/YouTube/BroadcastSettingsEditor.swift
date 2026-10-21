@@ -27,6 +27,8 @@ final class BroadcastSettingsEditor: ObservableObject {
     private var searchID = UUID()
     private var baselineYouTube = YouTubeBroadcastSettings.defaultValue
     private var baselineCHZZK = CHZZKBroadcastSettings()
+    /// 다음·현재 세션이 얼굴 합성인지 알려 준다. 합성 세션은 설명 한도가 줄어든다.
+    var faceSwapProvider: () -> Bool = { false }
 
     init(api: YouTubeAPI, preferences: YouTubePreferencesStore) {
         self.api = api
@@ -183,7 +185,9 @@ final class BroadcastSettingsEditor: ObservableObject {
         loadingDefaults.remove(provider)
     }
 
-    var validation: [String: String] { provider == .youtube ? youtube.validation : chzzk.validation }
+    var validation: [String: String] {
+        provider == .youtube ? youtube.validation(faceSwap: faceSwapProvider()) : chzzk.validation
+    }
     var liveValidation: [String: String] {
         validation.filter { $0.key != "made_for_kids" }
     }

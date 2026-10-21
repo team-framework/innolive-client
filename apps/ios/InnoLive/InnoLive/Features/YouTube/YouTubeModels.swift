@@ -149,6 +149,9 @@ enum YouTubeVideoTrackReadyState: RawRepresentable, Equatable, Hashable {
 struct YouTubeBroadcastSettings: Codable, Equatable {
     static let maxTitleLength = 100
     static let maxDescriptionLength = 5_000
+    /// 얼굴 합성 세션의 설명 한도다. 서버가 설명 앞에 AI 합성 안내문과 빈 줄(36자)을 붙여 보내므로
+    /// 유튜브 한도에서 그만큼 뺀다. 넘으면 서버가 400 `description`으로 거절한다.
+    static let maxFaceSwapDescriptionLength = 4_964
 
     var title: String
     var description: String

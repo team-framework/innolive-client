@@ -273,6 +273,10 @@ class WebRtcSessionViewModel internal constructor(
         private set
     private var isFaceSwapSelectionLoaded = false
 
+    /** 다음·현재 세션이 얼굴 합성인지입니다. 서버가 합성 세션의 설명 앞에 안내문을 붙여 설명 한도가 줄어듭니다. */
+    val usesFaceSwap: Boolean
+        get() = sessionFaceAnonymization(selectedFaceSwap, selectedOnDeviceProcessing) != null
+
     fun restoreFaceSwapSelection(context: Context) {
         if (isFaceSwapSelectionLoaded) return
         selectedFaceSwap = FaceAnonymizationPreference(context).faceSwap
@@ -705,7 +709,7 @@ class WebRtcSessionViewModel internal constructor(
         chzzkSettings: ChzzkBroadcastSettings?,
         refreshAccessToken: suspend () -> String,
     ): Boolean {
-        val youtubeInvalid = settings == null || !validateYouTubeLiveSettings(settings).isValid
+        val youtubeInvalid = settings == null || !validateYouTubeLiveSettings(settings, usesFaceSwap).isValid
         val chzzkInvalid = chzzkSettings == null || chzzkSettings.validationField() != null
         val invalid = selectedProviders.any { provider ->
             if (provider == BroadcastProvider.YOUTUBE) youtubeInvalid else chzzkInvalid
