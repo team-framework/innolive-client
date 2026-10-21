@@ -55,7 +55,7 @@ class LiveControlsLayoutTest {
     }
 
     @Test
-    fun broadcastButtonStaysCenteredWhenBroadcastBecomesPrepared() {
+    fun broadcastButtonStaysInPlaceWhenFeedbackAppears() {
         var prepared by mutableStateOf(false)
         compose.setContent {
             MaterialTheme {
@@ -70,7 +70,12 @@ class LiveControlsLayoutTest {
                             ),
                             onBroadcastAction = {},
                         )
-                        StableBroadcastFeedback { Text(if (prepared) "방송 준비 완료" else "") }
+                        // 준비 뒤 두 줄을 넘는 오류 문구가 나타나도 버튼 위치는 그대로입니다.
+                        StableBroadcastFeedback {
+                            if (prepared) {
+                                Text("연결하지 못해 방송을 준비하지 못했습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요. 계속 실패하면 앱을 다시 실행해 주세요.")
+                            }
+                        }
                     }
                 }
             }

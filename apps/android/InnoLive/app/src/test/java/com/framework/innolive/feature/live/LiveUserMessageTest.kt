@@ -63,6 +63,13 @@ class LiveUserMessageTest {
         assertTrue(feedback.isStateDescription)
     }
 
+    @Test fun preparedStateIsIdentifiedBecauseTheButtonAlreadyShowsIt() {
+        val feedback = broadcastUserMessage(BroadcastState.PREPARED)
+
+        assertEquals(UiText.Resource(R.string.broadcast_state_prepared), feedback.text)
+        assertTrue(feedback.isStateDescription)
+    }
+
     @Test fun settingsSavedEventRemainsVisibleAfterReturningToIdle() {
         val feedback = broadcastUserMessage(BroadcastState.IDLE, BroadcastEvent.SettingsSaved)
 
