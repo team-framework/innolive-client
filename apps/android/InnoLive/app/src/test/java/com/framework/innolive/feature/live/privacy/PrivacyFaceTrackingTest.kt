@@ -157,4 +157,12 @@ class PrivacyFaceTrackingTest {
         assertFalse(tracker.recognitionMatches(track.id, PrivacySegmentation.Box(200f, 100f, 250f, 150f)))
         assertFalse(tracker.recognitionMatches(track.id, PrivacySegmentation.Box(Float.NaN, 100f, 150f, 150f)))
     }
+
+    @Test fun faceTheCallerCannotRecognizeNeverBlocksTheOthers() {
+        val small = PrivacyFaceTracking.Face(1, 2, PrivacySegmentation.Box(300f, 100f, 310f, 110f))
+        step(face, small, live = setOf(1, 2))
+        val first = checkNotNull(tracker.next(now) { it.trackId == 1 })
+        assertEquals(1, first.trackId)
+        assertNull("the small face is skipped, not chosen and cancelled", tracker.next(now) { it.trackId == 1 })
+    }
 }
