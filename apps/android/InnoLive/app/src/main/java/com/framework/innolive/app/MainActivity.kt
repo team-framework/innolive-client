@@ -12,10 +12,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -54,7 +54,6 @@ import com.framework.innolive.feature.live.VideoStabilizationStatus
 import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.BroadcastState
 import com.framework.innolive.feature.live.CameraLensFacing
-import com.framework.innolive.feature.live.CameraResolution
 import com.framework.innolive.feature.live.LiveScreen
 import com.framework.innolive.feature.live.LiveScreenProps
 import com.framework.innolive.feature.live.LiveSettingsPage
@@ -62,6 +61,7 @@ import com.framework.innolive.feature.live.WebRtcConnectionState
 import com.framework.innolive.feature.live.WebRtcSessionViewModel
 import com.framework.innolive.feature.live.broadcastSettingsSaveDisabledReason
 import com.framework.innolive.feature.live.rememberAudioInputDevices
+import com.framework.innolive.feature.live.selectCameraResolution
 import com.framework.innolive.feature.live.supportedCameraResolutions
 import com.framework.innolive.feature.live.consent.BroadcastConsentStep
 import com.framework.innolive.feature.live.consent.BroadcastConsentStore
@@ -73,7 +73,11 @@ import com.framework.innolive.feature.login.oauth.google.AuthenticationSessionVi
 import com.framework.innolive.feature.login.oauth.google.SignInMethod
 import com.framework.innolive.feature.live.recording.BroadcastRecordingLibraryScreen
 import com.framework.innolive.feature.live.recording.BroadcastRecordingStatus
+import com.framework.innolive.feature.settings.AISettingsScreen
 import com.framework.innolive.feature.settings.AccountSettingsScreen
+import com.framework.innolive.feature.settings.AppInfoSettingsScreen
+import com.framework.innolive.feature.settings.CameraAudioSettingsScreen
+import com.framework.innolive.feature.settings.PlanUsageScreen
 import com.framework.innolive.feature.settings.SettingsScreen
 import com.framework.innolive.feature.settings.SettingsScreenProps
 import com.framework.innolive.feature.settings.PlanUsage
@@ -122,6 +126,14 @@ data object LiveRoute : AppRoute
 data object SettingsRoute : AppRoute
 
 data object AccountSettingsRoute : AppRoute
+
+data object CameraAudioSettingsRoute : AppRoute
+
+data object AISettingsRoute : AppRoute
+
+data object PlanUsageRoute : AppRoute
+
+data object AppInfoSettingsRoute : AppRoute
 
 data object BroadcastSettingRoute : AppRoute
 
@@ -619,8 +631,14 @@ fun AppNavigation(
     var selectedCameraLensFacing by rememberSaveable {
         mutableStateOf(cameraDeviceOptions.firstOrNull() ?: CameraLensFacing.BACK)
     }
-    var supportedCameraResolutions by remember {
-        mutableStateOf(emptyList<CameraResolution>())
+    val cameraProviderFuture = remember(context) { ProcessCameraProvider.getInstance(context) }
+    // Activity를 다시 만들 때는 이미 준비된 provider로 첫 컴포지션에서 지원 목록을 읽습니다.
+    var cameraProvider by remember(cameraProviderFuture) {
+        mutableStateOf(
+            cameraProviderFuture
+                .takeIf { future -> future.isDone }
+                ?.let { future -> runCatching { future.get() }.getOrNull() },
+        )
     }
     var selectedAudioDeviceId by rememberSaveable {
         mutableIntStateOf(audioDeviceOptions.firstOrNull()?.id ?: -1)
@@ -689,7 +707,7 @@ fun AppNavigation(
         youtubeAccountGuidance = null
         previousProfileEmail = session?.profileEmail
         if (session != null && isAccountDeletionPending) {
-            if (backStack.lastOrNull() !in setOf(SettingsRoute, AccountSettingsRoute)) {
+            if (backStack.lastOrNull() !in setOf(SettingsRoute, AppInfoSettingsRoute, AccountSettingsRoute)) {
                 backStack.clear()
                 backStack.add(SettingsRoute)
             }
@@ -703,25 +721,13 @@ fun AppNavigation(
         }
     }
 
-    DisposableEffect(context, selectedCameraLensFacing) {
+    DisposableEffect(cameraProviderFuture) {
+        if (cameraProvider != null) return@DisposableEffect onDispose {}
         var isDisposed = false
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        supportedCameraResolutions = emptyList()
-        selectedResolutionKey = null
         cameraProviderFuture.addListener(
             {
                 if (!isDisposed) {
-                    supportedCameraResolutions = runCatching {
-                        val cameraSelector = when (selectedCameraLensFacing) {
-                            CameraLensFacing.BACK -> CameraSelector.DEFAULT_BACK_CAMERA
-                            CameraLensFacing.FRONT -> CameraSelector.DEFAULT_FRONT_CAMERA
-                        }
-                        cameraSelector
-                            .filter(cameraProviderFuture.get().availableCameraInfos)
-                            .firstOrNull()
-                            ?.supportedCameraResolutions()
-                            .orEmpty()
-                    }.getOrDefault(emptyList())
+                    cameraProvider = runCatching { cameraProviderFuture.get() }.getOrNull()
                 }
             },
             ContextCompat.getMainExecutor(context),
@@ -729,22 +735,12 @@ fun AppNavigation(
 
         onDispose { isDisposed = true }
     }
-
-    LaunchedEffect(selectedCameraLensFacing, selectedResolutionKey) {
-        videoQualityCaptureState = VideoQualityCaptureState()
+    // 렌즈를 바꿔도 선택값은 지우지 않습니다. 새 렌즈 목록을 읽은 컴포지션에서 해상도까지 정해
+    // 카메라를 한 번만 바인딩합니다. 대체 해상도는 선택값에 저장하지 않아 렌즈를 되돌리면 원래 값을 씁니다.
+    val supportedCameraResolutions = remember(cameraProvider, selectedCameraLensFacing) {
+        cameraProvider?.supportedCameraResolutions(selectedCameraLensFacing)
     }
-    LaunchedEffect(supportedCameraResolutions, selectedResolutionKey) {
-        if (supportedCameraResolutions.none { resolution ->
-                resolution.key == selectedResolutionKey
-            }
-        ) {
-            selectedResolutionKey = supportedCameraResolutions.firstOrNull()?.key
-        }
-    }
-
-    val selectedResolution = supportedCameraResolutions.firstOrNull { resolution ->
-        resolution.key == selectedResolutionKey
-    }
+    val selectedResolution = selectCameraResolution(supportedCameraResolutions, selectedResolutionKey)
     val selectedAudioInput = audioInputDevices.firstOrNull { device ->
         device.id == selectedAudioDeviceId
     } ?: audioInputDevices.firstOrNull()
@@ -891,6 +887,8 @@ fun AppNavigation(
     val isYouTubeAccountOperationInProgress = isYouTubeAccountActionInProgress ||
         youtubeAccountVerificationState == YouTubeAccountVerificationState.CHECKING
     val isYouTubeAccountChangeEnabled = canChangeYouTubeAccountNow()
+    // 기본 화면의 카메라 도구와 설정의 영상 조절 줄이 같은 시트를 엽니다.
+    var isVideoControlsOpen by rememberSaveable { mutableStateOf(false) }
     val liveScreenProps = rememberUpdatedState(
         LiveScreenProps(
             cameraLensFacing = selectedCameraLensFacing,
@@ -928,6 +926,8 @@ fun AppNavigation(
             onGetAccessToken = { authenticationSession.session.value?.accessToken },
             profileEmail = session?.profileEmail.orEmpty(),
             planUsage = displayedPlanUsage,
+            isVideoControlsOpen = isVideoControlsOpen,
+            onVideoControlsOpenChange = { isVideoControlsOpen = it },
             onOpenSettings = {
                 if (backStack.lastOrNull() == LiveRoute) backStack.add(SettingsRoute)
             },
@@ -944,11 +944,19 @@ fun AppNavigation(
             onOpenAccountSettings = {
                 if (backStack.lastOrNull() != AccountSettingsRoute) backStack.add(AccountSettingsRoute)
             },
+            onOpenCameraAudioSettings = { backStack.add(CameraAudioSettingsRoute) },
+            onOpenVideoControls = {
+                closeSettings()
+                isVideoControlsOpen = true
+            },
+            onOpenAISettings = { backStack.add(AISettingsRoute) },
+            onOpenPlanUsage = { backStack.add(PlanUsageRoute) },
+            onOpenAppInfo = {
+                if (backStack.lastOrNull() != AppInfoSettingsRoute) backStack.add(AppInfoSettingsRoute)
+            },
             selectedResolution = selectedResolution?.displayName.orEmpty(),
             selectedCameraDevice = selectedCameraLensFacing.settingDisplayText().asString(),
             selectedAudioDevice = selectedAudioDevice?.settingDisplayText()?.asString().orEmpty(),
-            selectedPlatform = selectedBroadcastPlatform,
-            broadcastAccount = visibleYouTubeAccount?.channelTitle ?: youtubeAccountStatus.asString(),
             onOpenResolutionOptions = {
                 backStack.add(SettingOptionRoute(SettingOptionType.CAMERA_RESOLUTION))
             },
@@ -1017,7 +1025,10 @@ fun AppNavigation(
             canOpenRecordings = canOpenRecordings,
         )
     }
-    val settingsScreen: @Composable () -> Unit = { SettingsScreen(settingsProps()) }
+    // 기본 화면(LiveRoute)과 설정 페이지(SettingsRoute)가 같은 첫 화면을 그립니다. 페이지를 오갈 때 두 화면이 겹쳐
+    // 바뀌므로 스크롤 위치를 하나로 써야 아래로 내린 위치가 잠시 위로 튀지 않습니다.
+    val settingsRootScroll = rememberScrollState()
+    val settingsScreen: @Composable () -> Unit = { SettingsScreen(settingsProps(), settingsRootScroll) }
 
     val navigation: @Composable () -> Unit = {
     NavDisplay(
@@ -1062,6 +1073,22 @@ fun AppNavigation(
 
                 AccountSettingsRoute -> {
                     NavEntry(route) { AccountSettingsScreen(settingsProps(), onBack = onBack) }
+                }
+
+                CameraAudioSettingsRoute -> {
+                    NavEntry(route) { CameraAudioSettingsScreen(settingsProps(), onBack = onBack) }
+                }
+
+                AISettingsRoute -> {
+                    NavEntry(route) { AISettingsScreen(settingsProps(), onBack = onBack) }
+                }
+
+                PlanUsageRoute -> {
+                    NavEntry(route) { PlanUsageScreen(settingsProps(), onBack = onBack) }
+                }
+
+                AppInfoSettingsRoute -> {
+                    NavEntry(route) { AppInfoSettingsScreen(settingsProps(), onBack = onBack) }
                 }
 
                 RecordingsRoute -> {
@@ -1167,13 +1194,13 @@ fun AppNavigation(
                     val config = when (route.type) {
                         SettingOptionType.CAMERA_RESOLUTION -> OptionSelectionConfig(
                             title = UiText.Resource(R.string.label_camera_resolution),
-                            options = supportedCameraResolutions.map { resolution ->
+                            options = supportedCameraResolutions.orEmpty().map { resolution ->
                                 SettingOption(
                                     key = resolution.key,
                                     label = UiText.Dynamic(resolution.displayName),
                                 )
                             },
-                            selectedKey = selectedResolutionKey.orEmpty(),
+                            selectedKey = selectedResolution?.key.orEmpty(),
                             onOptionSelected = { key -> selectedResolutionKey = key },
                         )
 
@@ -1262,6 +1289,8 @@ fun AppNavigation(
                 tutorial = broadcastTutorial,
                 settings = LiveSettingsPage(
                     isOpen = backStack.lastOrNull() != LiveRoute,
+                    // 설정 첫 화면은 iOS처럼 카드만 미리보기 위에 띄우고, 하위 화면은 흰 창에 보여 줍니다.
+                    showsPanel = backStack.lastOrNull() !in setOf(LiveRoute, SettingsRoute),
                     canLeaveBySwipe = backStack.lastOrNull() in setOf(LiveRoute, SettingsRoute) &&
                         !isDeletingAccount && !isAccountDeletionPending,
                     onOpen = { if (backStack.lastOrNull() == LiveRoute) backStack.add(SettingsRoute) },

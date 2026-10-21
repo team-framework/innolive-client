@@ -7,8 +7,28 @@ enum CameraQualityPreset: String, CaseIterable, Identifiable {
     case hd24 = "720p - 24fps"
 
     static let defaultValue = CameraQualityPreset.fullHD30
+    /// 해상도는 방송 설정의 송출 화질, 프레임 레이트는 카메라 및 오디오 설정이 고른다. 저장값은 하나로 둔다.
+    static let storageKey = "selectedResolution"
+    static let frameRates = [30, 24]
 
     var id: String { rawValue }
+
+    init(resolution: VideoUplinkResolution, framesPerSecond: Int) {
+        switch resolution {
+        case .fhd: self = framesPerSecond == 24 ? .fullHD24 : .fullHD30
+        case .hd720: self = framesPerSecond == 24 ? .hd24 : .hd30
+        }
+    }
+
+    var resolution: VideoUplinkResolution { height == 1080 ? .fhd : .hd720 }
+
+    func with(resolution: VideoUplinkResolution) -> Self {
+        Self(resolution: resolution, framesPerSecond: framesPerSecond)
+    }
+
+    func with(framesPerSecond: Int) -> Self {
+        Self(resolution: resolution, framesPerSecond: framesPerSecond)
+    }
 
     var width: Int32 {
         switch self {

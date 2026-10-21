@@ -53,15 +53,7 @@ internal fun planTimeText(seconds: Long?): String =
 internal fun PlanUsageSettings(props: SettingsScreenProps) {
     var lockedMode by remember(props.profileEmail) { mutableStateOf<PlanMode?>(null) }
     var detailsExpanded by rememberSaveable { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.plan_title), style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold)
-            TextButton(onClick = props.onRefreshPlan, enabled = !props.isPlanLoading) {
-                Text(stringResource(if (props.isPlanLoading) R.string.plan_loading else R.string.plan_refresh))
-            }
-        }
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         props.planError?.let {
             Text(it.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             if (props.planUsage != null) Text(stringResource(R.string.plan_last_value), style = PlanCaptionStyle(),

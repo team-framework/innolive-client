@@ -14,6 +14,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.ForegroundServiceCommands
 
 /**
  * 방송 영상 저장이 끝날 때까지 프로세스를 유지하는 foreground service입니다(iOS의 background task와 같은 역할).
@@ -25,15 +26,12 @@ import com.framework.innolive.R
  */
 class BroadcastRecordingSaveService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
+    private val commands = ForegroundServiceCommands(::enterForeground, ::acquireWakeLock) { stopSelf(it) }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!enterForeground()) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        acquireWakeLock()
+        commands.onStartCommand(stop = intent?.action == ACTION_STOP, startId = startId)
         return START_NOT_STICKY
     }
 
@@ -103,8 +101,12 @@ class BroadcastRecordingSaveService : Service() {
         private const val WAKE_LOCK_TAG = "InnoLive:RecordingSave"
         /** shortService 제한(약 3분)보다 조금 길게 잡아 놓친 해제가 있어도 풀리게 합니다. */
         private const val MAX_WAKE_LOCK_MILLIS = 4L * 60 * 1000
+        private const val ACTION_STOP = "com.framework.innolive.action.STOP_RECORDING_SAVE_SERVICE"
 
         fun intent(context: Context): Intent = Intent(context, BroadcastRecordingSaveService::class.java)
+
+        /** 저장이 끝나 서비스를 끕니다. `stopService` 대신 써서 foreground 진입 뒤에 멈춥니다. */
+        fun stopIntent(context: Context): Intent = intent(context).setAction(ACTION_STOP)
     }
 }
 
@@ -139,7 +141,11 @@ internal class ServiceRecordingKeepAlive(context: Context) : RecordingKeepAlive 
                 released = true
                 if (--holders == 0 && started) {
                     started = false
-                    runCatching { context.stopService(BroadcastRecordingSaveService.intent(context)) }
+                    // 저장이 바로 끝나면 서비스가 아직 startForeground 전일 수 있어 STOP 명령으로 끕니다.
+                    ForegroundServiceCommands.requestStop(
+                        sendStop = { context.startService(BroadcastRecordingSaveService.stopIntent(context)) },
+                        stopService = { context.stopService(BroadcastRecordingSaveService.intent(context)) },
+                    )
                 }
             }
         }

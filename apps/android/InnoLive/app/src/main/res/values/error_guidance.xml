@@ -9,7 +9,7 @@
     <string name="error_broadcast_limit">이번 방송의 최대 시간에 도달했습니다. 새 방송을 시작해 주세요.</string>
     <string name="error_stream_capacity">지금은 송출 자리가 없습니다. 잠시 후 다시 시도해 주세요.</string>
     <string name="error_streaming_quota">오늘 YouTube 연동 한도를 모두 사용했습니다. 한국 시간 오후 4시(겨울에는 오후 5시)에 초기화됩니다.</string>
-    <string name="error_streaming_rate_limit">플랫폼 요청 한도에 도달했습니다. 잠시 후 다시 시도해 주세요.</string>
+    <string name="error_streaming_rate_limit">이 YouTube 채널이 YouTube 요청 한도에 도달했습니다. 잠시 후 다시 시도하거나 다른 채널을 선택해 주세요.</string>
     <string name="error_streaming_account_in_use">이 플랫폼으로 방송 중에는 연결을 해제할 수 없습니다. 방송을 먼저 종료해 주세요.</string>
     <string name="error_streaming_operation">YouTube에서 요청을 처리하지 못했습니다. 다시 시도해 주세요.</string>
     <string name="error_withdrawal_in_progress">계정 삭제가 진행 중입니다.</string>

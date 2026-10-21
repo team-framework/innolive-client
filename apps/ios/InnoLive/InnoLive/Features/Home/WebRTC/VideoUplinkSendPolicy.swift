@@ -2,7 +2,7 @@ import Foundation
 @preconcurrency import LiveKitWebRTC
 
 /// 서버가 확인한 세션 송출 해상도. 서버는 이 해상도로 업링크를 재인코딩한다.
-nonisolated enum VideoUplinkResolution: Equatable, Sendable {
+nonisolated enum VideoUplinkResolution: CaseIterable, Hashable, Sendable {
     case hd720
     case fhd
 
@@ -12,6 +12,21 @@ nonisolated enum VideoUplinkResolution: Equatable, Sendable {
         case "720p": self = .hd720
         case "fhd": self = .fhd
         default: return nil
+        }
+    }
+
+    /// 세션 생성·방송 방식 변경 요청의 `broadcast_resolution` 값이다.
+    var serverValue: String {
+        switch self {
+        case .hd720: return "720p"
+        case .fhd: return "fhd"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .hd720: return "720p"
+        case .fhd: return "FHD"
         }
     }
 }

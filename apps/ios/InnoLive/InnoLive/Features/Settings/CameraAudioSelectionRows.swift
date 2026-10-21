@@ -1,24 +1,30 @@
 import SwiftUI
 
-struct CameraQualitySelectionRow: View {
+/// 해상도는 방송 설정의 송출 화질이 정하므로 여기서는 프레임 레이트만 바꾼다.
+struct CameraFrameRateSelectionRow: View {
     @Binding var selectedQualityRaw: String
     let isChanging: Bool
     let isDisabled: Bool
 
+    private var quality: CameraQualityPreset { CameraQualityPreset(rawValue: selectedQualityRaw) ?? .defaultValue }
+
     var body: some View {
         Menu {
-            Picker(String(localized: "카메라 화질"), selection: $selectedQualityRaw) {
-                ForEach(CameraQualityPreset.allCases) { quality in
-                    Text(quality.rawValue).tag(quality.rawValue)
+            Picker(String(localized: "프레임 레이트"), selection: Binding(
+                get: { quality.framesPerSecond },
+                set: { selectedQualityRaw = quality.with(framesPerSecond: $0).rawValue }
+            )) {
+                ForEach(CameraQualityPreset.frameRates, id: \.self) { fps in
+                    Text(verbatim: "\(fps)fps").tag(fps)
                 }
             }
         } label: {
-            SettingsSelectionLabel(title: String(localized: "카메라 화질"), systemImage: "video.fill",
-                                   value: selectedQualityRaw, isLoading: isChanging)
+            SettingsSelectionLabel(title: String(localized: "프레임 레이트"), systemImage: "video.fill",
+                                   value: "\(quality.framesPerSecond)fps", isLoading: isChanging)
         }
         .buttonStyle(.plain)
         .disabled(isChanging || isDisabled)
-        .accessibilityIdentifier("camera-quality-menu")
+        .accessibilityIdentifier("camera-frame-rate-menu")
     }
 }
 

@@ -87,6 +87,7 @@ struct BroadcastSettingsView: View {
                         Label(String(localized: "플랫폼 계정 연결"), systemImage: "person.crop.circle")
                     }
                     .broadcastTutorialAnchor(.connectAccount)
+                    BroadcastResolutionSelectionView(youtube: youtube)
                     BroadcastTargetSelectionView(youtube: youtube)
                 }
                 if !isLiveEditing && modeProvider == nil && !isPrivacyOnly {
