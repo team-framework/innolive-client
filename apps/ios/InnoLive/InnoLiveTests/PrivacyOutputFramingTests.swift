@@ -19,7 +19,7 @@ final class PrivacyOutputFramingTests: XCTestCase {
                      CGSize(width: 720, height: 1280), CGSize(width: 1080, height: 1920)] {
             let extent = CGRect(origin: .zero, size: size)
             let border = CIImage(color: .red).cropped(to: extent)
-            let center = CIImage(color: .green).cropped(to: extent.insetBy(dx: size.width * 0.02, dy: size.height * 0.02))
+            let center = CIImage(color: .green).cropped(to: extent.insetBy(dx: size.width * 0.04, dy: size.height * 0.04))
             let original = center.composited(over: border)
             let output = PrivacyOutputFraming.apply(to: original)
             XCTAssertEqual(output.extent, extent)
@@ -31,18 +31,18 @@ final class PrivacyOutputFramingTests: XCTestCase {
         }
     }
 
-    func testMaskAndPictureMoveTogetherAtExactlyOnePointZeroFiveScale() {
+    func testMaskAndPictureMoveTogetherAtExactlyOnePointOneScale() {
         let extent = CGRect(x: 0, y: 0, width: 1000, height: 1000)
         let original = CIImage(color: .green).cropped(to: extent)
         // Stand-in for an already composited anonymization region.
         let protected = CIImage(color: .blue).cropped(to: CGRect(x: 600, y: 400, width: 100, height: 200))
             .composited(over: original)
         let output = PrivacyOutputFraming.apply(to: protected)
-        // x=600...700 maps to 605...710 about the frame center, with no second mask transform.
-        XCTAssertEqual(pixel(output, 602, 500), [0, 255, 0, 255])
-        XCTAssertEqual(pixel(output, 608, 500), [0, 0, 255, 255])
-        XCTAssertEqual(pixel(output, 707, 500), [0, 0, 255, 255])
-        XCTAssertEqual(pixel(output, 713, 500), [0, 255, 0, 255])
+        // x=600...700 maps to 610...720 about the frame center, with no second mask transform.
+        XCTAssertEqual(pixel(output, 605, 500), [0, 255, 0, 255])
+        XCTAssertEqual(pixel(output, 615, 500), [0, 0, 255, 255])
+        XCTAssertEqual(pixel(output, 715, 500), [0, 0, 255, 255])
+        XCTAssertEqual(pixel(output, 725, 500), [0, 255, 0, 255])
     }
 
     func testRotationsAndNonzeroOriginsPreserveCenteredCrop() {
