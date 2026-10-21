@@ -39,6 +39,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -1187,11 +1189,24 @@ private fun LiveScreenContent(
                             anonymizationButton()
                         }
                     }
-                    if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
-                        webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
-                        webRtcSession.connectionStatus?.let { status ->
+                    // 버튼 아래 문구가 바뀌어도 카메라 전환·방송·비식별화 버튼 줄이 움직이지 않게 같은 높이에 모읍니다.
+                    StableBroadcastFeedback {
+                        if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
+                            webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
+                            webRtcSession.connectionStatus?.let { status ->
+                                Text(
+                                    status.asString(),
+                                    modifier = Modifier
+                                        .padding(horizontal = 24.dp)
+                                        .semantics { liveRegion = LiveRegionMode.Polite },
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                            }
+                        }
+                        webRtcSession.recordingState.message?.let { message ->
                             Text(
-                                status.asString(),
+                                text = message.asString(),
                                 modifier = Modifier
                                     .padding(horizontal = 24.dp)
                                     .semantics { liveRegion = LiveRegionMode.Polite },
@@ -1199,42 +1214,30 @@ private fun LiveScreenContent(
                                 style = MaterialTheme.typography.labelMedium,
                             )
                         }
-                    }
-                    webRtcSession.recordingState.message?.let { message ->
-                        Text(
-                            text = message.asString(),
-                            modifier = Modifier
-                                .padding(horizontal = 24.dp)
-                                .semantics { liveRegion = LiveRegionMode.Polite },
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                    webRtcSession.anonymizationChange.errorMessage?.let { error ->
-                        Text(
-                            text = stringResource(R.string.anonymization_error_retry, error.asString()),
-                            modifier = Modifier
-                                .padding(horizontal = 24.dp)
-                                .semantics { liveRegion = LiveRegionMode.Polite },
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                    if (shouldShowNotificationsHiddenNotice(
-                            notificationsHidden = broadcastNotificationPermission.notificationsHidden,
-                            directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
-                            state = webRtcSession.broadcastState,
-                        )) {
+                        webRtcSession.anonymizationChange.errorMessage?.let { error ->
                             Text(
-                                text = stringResource(broadcastNotificationPermission.hiddenMessage),
+                                text = stringResource(R.string.anonymization_error_retry, error.asString()),
                                 modifier = Modifier
                                     .padding(horizontal = 24.dp)
                                     .semantics { liveRegion = LiveRegionMode.Polite },
                                 color = Color.White,
                                 style = MaterialTheme.typography.labelMedium,
                             )
-                    }
-                    StableBroadcastFeedback {
+                        }
+                        if (shouldShowNotificationsHiddenNotice(
+                                notificationsHidden = broadcastNotificationPermission.notificationsHidden,
+                                directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
+                                state = webRtcSession.broadcastState,
+                            )) {
+                                Text(
+                                    text = stringResource(broadcastNotificationPermission.hiddenMessage),
+                                    modifier = Modifier
+                                        .padding(horizontal = 24.dp)
+                                        .semantics { liveRegion = LiveRegionMode.Polite },
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                        }
                         presentation.broadcastStatusText?.let { status ->
                             Text(
                                 text = status.asString(),
@@ -1513,19 +1516,29 @@ private fun mediaPermissionGuidance(state: MediaPermissionState): Int = when {
     else -> R.string.permission_microphone_required
 }
 
+/**
+ * 방송 버튼 줄 아래 문구 자리입니다. 높이를 두 줄로 고정해 오류 문구가 나타나거나 길어져도 위 버튼 줄이 밀리지 않고,
+ * 넘치는 문구는 아래로 이어 그립니다.
+ */
 @Composable
 internal fun StableBroadcastFeedback(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val lineHeight = MaterialTheme.typography.labelMedium.lineHeight
+    val reservedHeight = with(LocalDensity.current) { (lineHeight * FEEDBACK_RESERVED_LINES).toDp() }
     Column(
-        modifier = modifier.heightIn(min = 20.dp),
+        modifier = modifier
+            .height(reservedHeight)
+            .wrapContentHeight(Alignment.Top, unbounded = true),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         content()
     }
 }
+
+private const val FEEDBACK_RESERVED_LINES = 2
 
 @Composable
 internal fun BroadcastActionControls(
