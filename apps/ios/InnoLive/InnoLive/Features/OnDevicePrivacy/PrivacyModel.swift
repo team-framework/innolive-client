@@ -142,7 +142,9 @@ nonisolated final class PrivacyModel {
         let blurred = try broadcastStyleBlur(original)
         let result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
-        let rendered = try render(result)
+        // Frame only after all original-coordinate AI work and mask composition. Both
+        // local CGImage preview and direct CVPixelBuffer uplink share this same output.
+        let rendered = try render(PrivacyOutputFraming.apply(to: result.cropped(to: original.extent)))
         let completed = ProcessInfo.processInfo.systemUptime
         return (rendered, protectedIndices.count, PrivacyTimings(prepare: (prepared - start) * 1000,
                                                        inference: (inferred - prepared) * 1000,
