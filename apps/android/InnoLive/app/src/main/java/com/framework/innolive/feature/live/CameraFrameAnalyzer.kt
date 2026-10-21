@@ -41,6 +41,8 @@ class CameraFrameAnalyzer(
     private val nativePostprocessing: Boolean = true,
     private val batchTwoOptimizations: Boolean = true,
     private val keepLatestProtectedFrame:Boolean = true,
+    /** 미리보기·송출·가공본 녹화로 보낼 때 가운데를 확대하는 배율입니다. 원본 녹화와 얼굴 등록 입력은 자르지 않습니다. */
+    private val outputZoom: Float = 1f,
 ) : ImageAnalysis.Analyzer, AutoCloseable {
     private val captureLock = Any()
     private val settings = AtomicReference(BroadcastVideoQualitySettings())
@@ -530,7 +532,13 @@ class CameraFrameAnalyzer(
     }
 
     private fun relayAdjustedFrame(frame: VideoFrame, deliver: (VideoFrame) -> Unit) {
-        relayColorFrame(frame, settings.get(), colorProcessor::process, deliver)
+        // 색 보정 전에 잘라 보정할 픽셀 수를 줄입니다.
+        val zoomed = frame.centerZoomed(outputZoom)
+        try {
+            relayColorFrame(zoomed, settings.get(), colorProcessor::process, deliver)
+        } finally {
+            zoomed.release()
+        }
         reportedColorFailure = false
     }
 
