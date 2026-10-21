@@ -23,8 +23,16 @@ class LiveMediaPermissionContentTest {
     fun cameraPreviewRemainsVisibleWhenOnlyMicrophonePermissionIsMissing() {
         var permissions by mutableStateOf(MediaPermissionState(true, false))
         rule.setContent {
-            LiveMediaPermissionContent(permissions, onRequestPermissions = {}) {
-                Box(Modifier.fillMaxSize().testTag("camera-preview"))
+            Box(Modifier.fillMaxSize()) {
+                LiveMediaPermissionContent(permissions) {
+                    Box(Modifier.fillMaxSize().testTag("camera-preview"))
+                }
+                LiveMediaPermissionCard(
+                    permissionState = permissions,
+                    needsSettings = false,
+                    onRequestPermissions = {},
+                    onOpenSettings = {},
+                )
             }
         }
 
