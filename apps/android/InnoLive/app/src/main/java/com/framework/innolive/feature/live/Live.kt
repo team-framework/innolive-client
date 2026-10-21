@@ -3,7 +3,11 @@ package com.framework.innolive.feature.live
 import com.framework.innolive.ui.theme.ModalSurface
 import com.framework.innolive.ui.theme.InnoLiveDialog
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.os.SystemClock
+import android.provider.Settings
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -372,9 +376,17 @@ private fun LiveScreenContent(
     val mediaPermissions = rememberMediaPermissionController(context)
     val mediaPermissionState = mediaPermissions.state
     val missingMediaPermissions = mediaPermissionState.missingPermissions
+    val activity = LocalActivity.current
+    // 다시 묻지 않음으로 거부하면 요청 창이 뜨지 않으므로 안내 버튼이 앱 설정을 엽니다.
+    var mediaPermissionsNeedSettings by rememberSaveable { mutableStateOf(false) }
     val mediaPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
-        onResult = { mediaPermissions.refresh() },
+        onResult = {
+            mediaPermissions.refresh()
+            mediaPermissionsNeedSettings = needsMediaPermissionSettings(mediaPermissions.state.missingPermissions) {
+                activity?.shouldShowRequestPermissionRationale(it) == true
+            }
+        },
     )
     val requestMissingMediaPermissions = {
         if (missingMediaPermissions.isNotEmpty()) {
@@ -562,10 +574,7 @@ private fun LiveScreenContent(
             previewInteractive = isSelectingFace,
             pipState = pipState,
             preview = {
-                LiveMediaPermissionContent(
-                    permissionState = mediaPermissionState,
-                    onRequestPermissions = requestMissingMediaPermissions,
-                ) {
+                LiveMediaPermissionContent(permissionState = mediaPermissionState) {
                     LiveVideoPanels(
                         cameraLensFacing = props.cameraLensFacing,
                         cameraResolution = props.cameraResolution,
@@ -1288,6 +1297,21 @@ private fun LiveScreenContent(
                 } else {
                     SideEffect { pipState.chatReservePx = 0f }
                 }
+                // 권한 안내는 넘기는 영역 위에 두어야 눌리므로 미리보기가 아닌 기본 화면 맨 위에 그립니다.
+                LiveMediaPermissionCard(
+                    permissionState = mediaPermissionState,
+                    needsSettings = mediaPermissionsNeedSettings,
+                    onRequestPermissions = requestMissingMediaPermissions,
+                    onOpenSettings = {
+                        context.startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.fromParts("package", context.packageName, null),
+                            ),
+                        )
+                    },
+                    modifier = Modifier.align(Alignment.Center),
+                )
             },
         )
 
@@ -1671,34 +1695,46 @@ internal fun BroadcastActionDialog(
     }
 }
 
+/** 카메라 권한이 있을 때만 미리보기를 그립니다. 권한 안내는 [LiveMediaPermissionCard]가 맡습니다. */
 @Composable
 internal fun LiveMediaPermissionContent(
     permissionState: MediaPermissionState,
-    onRequestPermissions: () -> Unit,
     preview: @Composable () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         if (permissionState.hasCameraPermission) preview()
+    }
+}
 
-        if (permissionState.missingPermissions.isNotEmpty()) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(24.dp)
-                    .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(12.dp))
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(mediaPermissionGuidance(permissionState)),
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    color = Color.White,
-                )
-                Button(onClick = onRequestPermissions) {
-                    Text(text = stringResource(R.string.action_allow_permissions))
-                }
-            }
+/** 빠진 권한을 안내합니다. 다시 묻지 않음으로 거부한 뒤에는 앱 설정을 엽니다. */
+@Composable
+internal fun LiveMediaPermissionCard(
+    permissionState: MediaPermissionState,
+    needsSettings: Boolean,
+    onRequestPermissions: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (permissionState.missingPermissions.isEmpty()) return
+    Column(
+        modifier = modifier
+            .padding(24.dp)
+            .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(12.dp))
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = stringResource(mediaPermissionGuidance(permissionState)),
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            color = Color.White,
+        )
+        Button(onClick = if (needsSettings) onOpenSettings else onRequestPermissions) {
+            Text(
+                text = stringResource(
+                    if (needsSettings) R.string.action_open_permission_settings else R.string.action_allow_permissions,
+                ),
+            )
         }
     }
 }
