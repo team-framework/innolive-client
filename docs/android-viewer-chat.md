@@ -8,6 +8,7 @@ HTTP·signaling 계약은 바꾸지 않으며 응답 규칙은
 
 - `SessionTarget.videoId`는 `targets[].video_id`에서 읽는다. 필드가 없는 응답과 한 대상의 `stream`만 오는 부분 응답은 이전 값을 유지한다.
 - 채팅은 YouTube 대상의 `broadcast_phase`가 `live`이고 `status`가 `stopped`가 아니며 11자 동영상 ID가 유효할 때만 방송 화면에 뜬다. iOS `hasStartedBroadcast`와 같은 규칙이며 직접 송출의 `idle`, `paused_*`, 알 수 없는 상태도 포함한다. `YouTubeViewerChatPolicy.activeUrl`이 담당하며 `broadcastState()`는 쓰지 않는다.
+- 이 기기에서 비공개(`privacy` `private`) 또는 아동용(`made_for_kids` true)으로 준비한 방송은 채팅 문서를 읽지 않아 수신 WebView와 오버레이를 만들지 않는다. 로그인하지 않은 WebView는 비공개 방송 채팅을 받을 수 없고 YouTube는 아동용 방송의 채팅을 끈다. 준비 설정을 모르는 세션(앱을 다시 열어 이어 받은 방송)은 이전처럼 채팅을 읽는다.
 - 방송 종료, YouTube 대상 제거, 세션 종료로 주소가 사라지면 오버레이와 수신 WebView를 함께 없앤다. 동영상 ID가 바뀌면 새 상태로 새 문서를 읽고 이전 메시지는 남기지 않는다.
 - 직접 송출은 방송 종료·실패로 세션을 지우거나 서버에서 세션이 사라지면 `onSessionSnapshotCleared`로 화면의 마지막 세션 상태와 업로드 화질을 비운다. 상단 방송 상태 칩도 이 세션 상태로 대상 행을 그리므로 함께 사라진다. iOS `clearSessionResponseState`와 같으며, 비우지 않으면 종료 뒤에도 대상 상태·업로드 화질·채팅이 남는다.
 
@@ -42,6 +43,6 @@ HTTP·signaling 계약은 바꾸지 않으며 응답 규칙은
 
 ## 검증
 
-- 단위 테스트: `YouTubeChatMessagesTest`(iOS `YouTubeChatMessageTests`의 정리 규칙, 이모지 경계, JSON 파싱·크기 제한, 다른 문서 거부, 추출 스크립트 선택자, 데스크톱 식별자), `YouTubeViewerChatPolicyTest`(ID 검증, 대상 상태별 표시, 직접 송출 `idle`, 이동 허용·차단·실패 전환, 폼 제출 차단), `YouTubeViewerChatWebViewTest`(문서 완료 뒤 12초 준비 제한, 메시지 수신·지난 시도 무시, 정리 순서, 쿠키·WebStorage 삭제 범위, 파티션 쿠키 만료, flush·결과 집계), `SessionSnapshotTest`의 `video_id` 파싱·보존, `DirectBroadcastControllerTest`의 직접 송출 종료·서버 세션 소멸 시 세션 상태 비움.
+- 단위 테스트: `YouTubeChatMessagesTest`(iOS `YouTubeChatMessageTests`의 정리 규칙, 이모지 경계, JSON 파싱·크기 제한, 다른 문서 거부, 추출 스크립트 선택자, 데스크톱 식별자), `YouTubeViewerChatPolicyTest`(ID 검증, 대상 상태별 표시, 비공개·아동용 방송 제외, 직접 송출 `idle`, 이동 허용·차단·실패 전환, 폼 제출 차단), `YouTubeViewerChatWebViewTest`(문서 완료 뒤 12초 준비 제한, 메시지 수신·지난 시도 무시, 정리 순서, 쿠키·WebStorage 삭제 범위, 파티션 쿠키 만료, flush·결과 집계), `SessionSnapshotTest`의 `video_id` 파싱·보존, `DirectBroadcastControllerTest`의 직접 송출 종료·서버 세션 소멸 시 세션 상태 비움.
 - androidTest: `YouTubeViewerChatOverlayTest`(주소가 있을 때만 표시·새 동영상은 빈 상태, 메시지 행 표시와 메뉴로 숨기기·표시, 연결 중·대기·실패·다시 시도, 고정 문서로 실제 추출 스크립트와 `WebMessageListener` 수신·수정·삭제). 컴파일만 확인했고 기기 실행은 수동 항목이다.
 - 실제 YouTube 공개·비공개 방송에서 오버레이 메시지 표시, 숨기기·표시 전환, 일시 중지·재개 중 유지, 해상도 변경으로 바뀐 동영상 ID 반영, 가로 화면 배치는 실기기 수동 검증 항목이다.

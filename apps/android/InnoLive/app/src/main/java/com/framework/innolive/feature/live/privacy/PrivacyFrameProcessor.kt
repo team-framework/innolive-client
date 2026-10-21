@@ -24,8 +24,10 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     private val model = PrivacyOnnxModel(context.applicationContext,directGpuInput=directGpuInput,
         nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations)
     private val pixels = PrivacyPixelConverter()
-    private val faces = faceCoordinatorFactory?.invoke() ?:
-        PrivacyFaceCoordinator(context.applicationContext, optimized=nativePostprocessing)
+    private val faces = (faceCoordinatorFactory?.invoke() ?:
+        PrivacyFaceCoordinator(context.applicationContext, optimized=nativePostprocessing)).also { coordinator ->
+        coordinator.liveTrackIds = { model.liveTrackIds }
+    }
     var lastTimings: PrivacyFrameTimings? = null
         private set
     val lastAnalysis: PrivacyFrameAnalysis? get() = model.lastAnalysis

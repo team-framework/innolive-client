@@ -9,6 +9,8 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
     val prototypes: ByteBuffer = ByteBuffer.allocateDirect(32 * 160 * 160 * 4).order(ByteOrder.nativeOrder())
     private var handle = Native.create()
     private var ready = false
+    /** Prototypes from a decode remain in [prototypes] until [reset]. */
+    private var decoded = false
     var maskPixels: Int = 0
         private set
 
@@ -17,12 +19,33 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
         ready = false
         val selected = Native.decode(handle, predictions, prototypes)
         ready = true
+        decoded = true
         return List(selected.size / 38) { index ->
             val offset = index * 38
             PrivacySegmentation.Detection(
                 PrivacySegmentation.Box(selected[offset], selected[offset + 1], selected[offset + 2], selected[offset + 3]),
                 selected[offset + 4], selected[offset + 5].toInt(), selected.copyOfRange(offset + 6, offset + 38))
         }
+    }
+
+    /**
+     * Protect [objects] from [PrivacyObjectTracking] instead of every decoded candidate. A frame that skipped
+     * detection selects its predicted objects against the last decoded prototypes.
+     */
+    fun select(objects: List<PrivacySegmentation.Detection>) {
+        check(handle != 0L && (ready || decoded))
+        val values = FloatArray(objects.size * 38)
+        objects.forEachIndexed { index, detection ->
+            val offset = index * 38
+            val box = detection.box
+            values[offset] = box.left; values[offset + 1] = box.top; values[offset + 2] = box.right
+            values[offset + 3] = box.bottom; values[offset + 4] = detection.score
+            values[offset + 5] = detection.classId.toFloat()
+            detection.coefficients.copyInto(values, offset + 6)
+        }
+        Native.select(handle, values, IntArray(objects.size) { objects[it].trackId },
+            BooleanArray(objects.size) { objects[it].repeatsMask })
+        ready = true
     }
 
     fun mask(exempt: Set<Int>, timestampSeconds: Double): ByteArray {
@@ -36,6 +59,7 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
     fun reset() {
         if (handle != 0L) Native.reset(handle)
         ready = false
+        decoded = false
         maskPixels = 0
     }
 
@@ -49,6 +73,7 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
         init { System.loadLibrary("innolive_privacy") }
         external fun create(): Long
         external fun decode(handle: Long, predictions: ByteBuffer, prototypes: ByteBuffer): FloatArray
+        external fun select(handle: Long, values: FloatArray, tracks: IntArray, held: BooleanArray)
         external fun mask(handle: Long, exempt: IntArray, timestamp: Double): ByteArray
         external fun maskPixels(handle: Long): Int
         external fun reset(handle: Long)
