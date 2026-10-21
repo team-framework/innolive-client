@@ -36,13 +36,13 @@ class PrivacyFaceTrackingTest {
         }
     }
 
-    @Test fun unapprovedFaceIsRetriedTwiceThenEvery30Frames() {
+    @Test fun unapprovedFaceIsRetriedTwiceThenEvery60Frames() {
         val checks = ArrayList<Int>()
-        repeat(80) {
+        repeat(140) {
             step()
             tracker.next(now)?.let { checks += frame; answer(it, null) }
         }
-        assertEquals(listOf(1, 6, 11, 41, 71), checks)
+        assertEquals(listOf(1, 6, 11, 71, 131), checks)
         assertTrue(tracker.allowed().isEmpty())
     }
 

@@ -5,7 +5,8 @@ import java.util.UUID
 /**
  * innolive-ai `StreamRecognition` track approval (innolive-ai #77) keyed by BoT-SORT track IDs. A face that has not
  * passed is checked when it appears, retried [QUICK_RETRY_LIMIT] times [QUICK_RETRY_FRAMES] apart, then every
- * [REVALIDATE_FRAMES], and is forgotten after [MISSING_TRACK_FRAMES] frames without a face. One matching result
+ * [REVALIDATE_FRAMES] (twice the server's 30 to halve AdaFace GPU contention), and is forgotten after
+ * [MISSING_TRACK_FRAMES] frames without a face. One matching result
  * approves the track: it is never checked again and stays exempt while BoT-SORT keeps its ID (tracked or lost).
  * Approval ends only when its registered face is deleted, the tracker retires the ID, or the stream resets.
  * Like the server, an ID that BoT-SORT mislinks to another person keeps its approval.
@@ -138,7 +139,7 @@ internal class PrivacyFaceTracking {
     }
 
     companion object {
-        const val REVALIDATE_FRAMES = 30
+        const val REVALIDATE_FRAMES = 60
         const val QUICK_RETRY_FRAMES = 5
         const val QUICK_RETRY_LIMIT = 2
         const val MISSING_TRACK_FRAMES = 3
