@@ -647,6 +647,7 @@ private fun LiveScreenContent(
                 var pageSize by remember { mutableStateOf(IntSize.Zero) }
                 var noticeHeightPx by remember { mutableIntStateOf(0) }
                 var chipHeightPx by remember { mutableIntStateOf(0) }
+                var toastHeightPx by remember { mutableIntStateOf(0) }
                 var toolsHeightPx by remember { mutableIntStateOf(0) }
                 Box(Modifier.matchParentSize().onSizeChanged { pageSize = it })
                 // 사용량 안내와 방송 주의 안내는 상단 바 바로 아래 가운데에 모읍니다.
@@ -680,18 +681,37 @@ private fun LiveScreenContent(
                             .padding(start = 16.dp, end = 120.dp),
                     ) { statusChip(Modifier) }
                 }
-                // 작은 창은 안내와 상태 칩 아래에만 놓아 서로 가리지 않게 합니다.
+                val toastVisible = !isSelectingFace && guestRegistrar.status != null
+                val toastTopPx = if (!landscape && chipHeightPx > 0) {
+                    rowTopPx + chipHeightPx + with(density) { 8.dp.toPx() }
+                } else {
+                    rowTopPx
+                }
+                // 작은 창은 안내와 상태 칩, 게스트 등록 토스트 아래에만 놓아 서로 가리지 않게 합니다.
                 SideEffect {
-                    pipState.topReservePx = if (!landscape && chipHeightPx > 0) rowTopPx + chipHeightPx else noticeBottomPx
+                    pipState.topReservePx = when {
+                        !landscape && toastVisible && toastHeightPx > 0 -> toastTopPx + toastHeightPx
+                        !landscape && chipHeightPx > 0 -> rowTopPx + chipHeightPx
+                        else -> noticeBottomPx
+                    }
                 }
                 if (!isSelectingFace) {
                     GuestRegistrationToast(
                         registrar = guestRegistrar,
                         onReselect = { if (canSelectFace) isSelectingFace = true },
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .offset { IntOffset(0, rowTopPx.roundToInt()) }
-                            .padding(horizontal = 24.dp),
+                        modifier = if (landscape) {
+                            Modifier
+                                .align(Alignment.TopCenter)
+                                .offset { IntOffset(0, rowTopPx.roundToInt()) }
+                                .padding(horizontal = 24.dp)
+                        } else {
+                            // 세로 화면 토스트는 상태 칩 아래, 오른쪽 카메라 도구 왼쪽에 두어 칩을 가리거나 도구 밑에 깔리지 않게 합니다.
+                            Modifier
+                                .align(Alignment.TopStart)
+                                .offset { IntOffset(0, toastTopPx.roundToInt()) }
+                                .onSizeChanged { toastHeightPx = it.height }
+                                .padding(start = 16.dp, end = 120.dp)
+                        },
                     )
                 }
                 if (landscape) {
