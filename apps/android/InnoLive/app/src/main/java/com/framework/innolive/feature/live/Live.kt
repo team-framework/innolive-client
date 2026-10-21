@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -499,6 +500,8 @@ private fun LiveScreenContent(
     LaunchedEffect(canSelectFace) {
         if (!canSelectFace) isSelectingFace = false
     }
+    // 얼굴을 고르는 동안 뒤로 가기는 방송 화면을 나가지 않고 선택만 끝냅니다.
+    BackHandler(enabled = isSelectingFace) { isSelectingFace = false }
     /** 방송에 고른 처리 방식과 같은 곳에 게스트를 등록합니다. */
     fun guestFaceTarget(): GuestFaceTarget = if (webRtcSession.selectedOnDeviceProcessing) {
         GuestFaceTarget.OnDevice(
