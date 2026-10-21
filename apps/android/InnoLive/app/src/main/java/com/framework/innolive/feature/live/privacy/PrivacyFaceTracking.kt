@@ -86,10 +86,14 @@ internal class PrivacyFaceTracking {
         }
     }
 
-    /** The detected track to recognize next; the caller reports a crop it did not submit with [cancel]. */
-    fun next(atSeconds: Double): Track? {
-        val next = tracks.filter { it.lastSeenFrame == frame && !it.held && it.pendingSeconds == null && it.due() }
-            .minByOrNull { it.lastCheckedFrame } ?: return null
+    /**
+     * The detected track to recognize next, skipping faces the caller cannot [recognize] so that one never blocks the
+     * others; the caller reports a crop it did not submit with [cancel].
+     */
+    fun next(atSeconds: Double, recognize: (Track) -> Boolean = { true }): Track? {
+        val next = tracks.filter {
+            it.lastSeenFrame == frame && !it.held && it.pendingSeconds == null && it.due() && recognize(it)
+        }.minByOrNull { it.lastCheckedFrame } ?: return null
         if (next.lastCheckedFrame != NEVER) next.quickRetries++
         next.pendingSeconds = atSeconds
         next.pendingFrame = frame
