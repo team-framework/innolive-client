@@ -122,7 +122,7 @@ nonisolated final class PrivacyModel {
         let tracked = PrivacyPipelineProbe.measure("tracking") { tracker.update(objects, motion: motion) }
         let trackIDs = Dictionary(uniqueKeysWithValues: tracked.observations.filter(\.confirmed).map { ($0.detectionIndex, $0.trackID) })
         let allowed = PrivacyPipelineProbe.measure("recognition_schedule") {
-            faces.process(image: original, objects: objects, layout: layout, timestamp: start, trackIDs: trackIDs)
+            faces.process(image: original, objects: objects, layout: layout, timestamp: start, trackIDs: trackIDs, liveTrackIDs: tracked.liveTrackIDs)
         }
         // High-confidence discoveries are protected on their first frame, including
         // tentative tracks. Low-confidence detections need an existing track.
@@ -131,7 +131,7 @@ nonisolated final class PrivacyModel {
         let instances = try PrivacySegmentation.instanceMasks(detections: protectedIndices.map { objects[$0] },
                                                               prototypes: PrivacySegmentation.floats(proto, shape: [1, 32, 160, 160]))
         let indexedMasks = Dictionary(uniqueKeysWithValues: zip(protectedIndices, instances))
-        let bytes = try stabilizer.apply(indexedMasks, frame: tracked, allowed: allowed)
+        let bytes = try stabilizer.apply(indexedMasks, frame: tracked, allowed: allowed, approvedTrackIDs: faces.approvedTrackIDs)
         let masked = ProcessInfo.processInfo.systemUptime
         let mask = try PrivacyMask.modelImage(bytes: bytes)
             .transformed(by: CGAffineTransform(scaleX: 4, y: 4))

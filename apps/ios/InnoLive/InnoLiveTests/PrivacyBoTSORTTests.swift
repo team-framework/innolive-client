@@ -154,7 +154,7 @@ final class PrivacyBoTSORTTests: XCTestCase {
         XCTAssertTrue(tracker.allowed(at: 1.05).isEmpty)
     }
 
-    func testOverlappingTentativeFaceRevokesConfirmedFaceException() throws {
+    func testOverlappingTentativeFaceKeepsApprovedIDProtectedFromRevalidation() throws {
         let tracker = PrivacyFaceTracking()
         tracker.update([0: detection().box], at: 1, trackIDs: [0: 1])
         let original = try XCTUnwrap(tracker.next(at: 1))
@@ -162,10 +162,10 @@ final class PrivacyBoTSORTTests: XCTestCase {
         tracker.accept(trackID: original.id, match: person, capturedAt: 1, now: 1)
         tracker.accept(trackID: original.id, match: person, capturedAt: 1.02, now: 1.02)
         tracker.update([0: detection().box, 1: detection(120).box], at: 1.03, trackIDs: [0: 1])
-        XCTAssertTrue(tracker.allowed(at: 1.03).isEmpty)
+        XCTAssertEqual(tracker.allowed(at: 1.03), [0])
     }
 
-    func testTentativeAndLostFacesCannotKeepWhitelistLease() throws {
+    func testTentativeAndUnapprovedLostFacesCannotKeepIdentity() throws {
         let tracker = PrivacyFaceTracking()
         tracker.update([0: detection().box], at: 1, trackIDs: [:])
         XCTAssertTrue(tracker.tracks.isEmpty)

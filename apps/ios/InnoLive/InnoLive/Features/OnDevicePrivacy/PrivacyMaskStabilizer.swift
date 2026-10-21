@@ -6,6 +6,7 @@ import CoreGraphics
 nonisolated final class PrivacyMaskStabilizer {
     private struct Cached {
         let box: CGRect
+        let classID: Int
         let bytes: [UInt8]
     }
     private var masks: [Int: Cached] = [:]
@@ -13,17 +14,18 @@ nonisolated final class PrivacyMaskStabilizer {
     func reset() { masks = [:] }
 
     func apply(_ instances: [Int: PrivacySegmentation.InstanceMask], frame: PrivacyBoTSORT.Frame,
-               allowed: Set<Int> = []) throws -> [UInt8] {
+               allowed: Set<Int> = [], approvedTrackIDs: Set<Int> = []) throws -> [UInt8] {
         let size = PrivacySegmentation.maskSize
         guard instances.values.allSatisfy({ $0.bytes.count == size * size }) else { throw PrivacyModelError.outputContract }
         var bytes = PrivacySegmentation.union(instances.filter { !allowed.contains($0.key) }.map(\.value))
         let currentBoxes = frame.observations.map(\.box)
         for observation in frame.observations {
             guard let instance = instances[observation.detectionIndex] else { continue }
-            masks[observation.trackID] = Cached(box: observation.box, bytes: instance.bytes)
+            masks[observation.trackID] = Cached(box: observation.box, classID: instance.detection.classID, bytes: instance.bytes)
         }
         for lost in frame.lost where lost.gap == 1 {
             guard let cached = masks[lost.trackID],
+                  !(cached.classID == 0 && approvedTrackIDs.contains(lost.trackID)),
                   !currentBoxes.contains(where: { PrivacySegmentation.iou($0, lost.box) >= 0.5 }) else { continue }
             let held = Self.warp(cached.bytes, from: cached.box, to: lost.box)
             // Server decays the confidence metadata by 0.90, not mask opacity.
