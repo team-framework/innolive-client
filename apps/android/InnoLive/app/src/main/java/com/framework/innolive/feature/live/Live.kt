@@ -650,7 +650,6 @@ private fun LiveScreenContent(
                 var pageSize by remember { mutableStateOf(IntSize.Zero) }
                 var noticeHeightPx by remember { mutableIntStateOf(0) }
                 var chipHeightPx by remember { mutableIntStateOf(0) }
-                var toastHeightPx by remember { mutableIntStateOf(0) }
                 var toolsHeightPx by remember { mutableIntStateOf(0) }
                 Box(Modifier.matchParentSize().onSizeChanged { pageSize = it })
                 // 사용량 안내와 방송 주의 안내는 상단 바 바로 아래 가운데에 모읍니다.
@@ -684,38 +683,9 @@ private fun LiveScreenContent(
                             .padding(start = 16.dp, end = 120.dp),
                     ) { statusChip(Modifier) }
                 }
-                val toastVisible = !isSelectingFace && guestRegistrar.status != null
-                val toastTopPx = if (!landscape && chipHeightPx > 0) {
-                    rowTopPx + chipHeightPx + with(density) { 8.dp.toPx() }
-                } else {
-                    rowTopPx
-                }
-                // 작은 창은 안내와 상태 칩, 게스트 등록 토스트 아래에만 놓아 서로 가리지 않게 합니다.
+                // 작은 창은 안내와 상태 칩 아래에만 놓아 서로 가리지 않게 합니다.
                 SideEffect {
-                    pipState.topReservePx = when {
-                        !landscape && toastVisible && toastHeightPx > 0 -> toastTopPx + toastHeightPx
-                        !landscape && chipHeightPx > 0 -> rowTopPx + chipHeightPx
-                        else -> noticeBottomPx
-                    }
-                }
-                if (!isSelectingFace) {
-                    GuestRegistrationToast(
-                        registrar = guestRegistrar,
-                        onReselect = { if (canSelectFace) isSelectingFace = true },
-                        modifier = if (landscape) {
-                            Modifier
-                                .align(Alignment.TopCenter)
-                                .offset { IntOffset(0, rowTopPx.roundToInt()) }
-                                .padding(horizontal = 24.dp)
-                        } else {
-                            // 세로 화면 토스트는 상태 칩 아래, 오른쪽 카메라 도구 왼쪽에 두어 칩을 가리거나 도구 밑에 깔리지 않게 합니다.
-                            Modifier
-                                .align(Alignment.TopStart)
-                                .offset { IntOffset(0, toastTopPx.roundToInt()) }
-                                .onSizeChanged { toastHeightPx = it.height }
-                                .padding(start = 16.dp, end = 120.dp)
-                        },
-                    )
+                    pipState.topReservePx = if (!landscape && chipHeightPx > 0) rowTopPx + chipHeightPx else noticeBottomPx
                 }
                 if (landscape) {
                     // 가로 화면은 왼쪽 띠에 카메라 도구를 세로로 두어 왼손 엄지가 닿게 하고, 영상은 가리지 않습니다.
@@ -1271,22 +1241,23 @@ private fun LiveScreenContent(
                 // iOS처럼 라이브 YouTube 채팅을 왼쪽 아래 하단 조작 위에 띄웁니다. 가로 화면은 왼쪽 카메라 도구 띠 오른쪽에 둡니다.
                 // 얼굴을 고르는 동안에는 가리고, 작은 창과 카메라 도구가 채팅 높이를 비우도록 알려 줍니다.
                 val chat = viewerChat
-                if (faceSelection != null) {
-                    // iOS처럼 얼굴 선택 안내는 채팅 자리인 하단 방송 버튼 바로 위에 두고, 작은 창은 그 위로 비킵니다.
-                    var statusStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 24.dp
-                    var statusEnd = if (landscape) with(density) { pipState.rightControlsWidthPx.toDp() } + 8.dp else 24.dp
-                    // 가로 화면처럼 높이가 낮아 작은 창이 안내 위로 다 비키지 못하면, 안내가 작은 창이 붙은 쪽을 비웁니다.
-                    val pipBounds = pipState.restingBounds.takeIf { pipState.isVisible }
-                    if (pipBounds != null && pipBounds.bottom > pageSize.height - pipState.bottomReservePx(density)) {
-                        with(density) {
-                            if (pipState.alignEnd) {
-                                statusEnd = maxOf(statusEnd, (pageSize.width - pipBounds.left).toDp() + 8.dp)
-                            } else {
-                                statusStart = maxOf(statusStart, pipBounds.right.toDp() + 8.dp)
-                            }
+                // 얼굴 선택 안내와 게스트 등록 토스트는 채팅 자리인 하단 방송 버튼 바로 위에 두고, 작은 창은 그 위로 비킵니다.
+                var statusStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 24.dp
+                var statusEnd = if (landscape) with(density) { pipState.rightControlsWidthPx.toDp() } + 8.dp else 24.dp
+                // 가로 화면처럼 높이가 낮아 작은 창이 안내 위로 다 비키지 못하면, 안내가 작은 창이 붙은 쪽을 비웁니다.
+                val pipBounds = pipState.restingBounds.takeIf { pipState.isVisible }
+                if (pipBounds != null && pipBounds.bottom > pageSize.height - pipState.bottomReservePx(density)) {
+                    with(density) {
+                        if (pipState.alignEnd) {
+                            statusEnd = maxOf(statusEnd, (pageSize.width - pipBounds.left).toDp() + 8.dp)
+                        } else {
+                            statusStart = maxOf(statusStart, pipBounds.right.toDp() + 8.dp)
                         }
                     }
-                    val statusBottom = with(density) { pipState.bottomControlsReservePx(this).toDp() } + 12.dp
+                }
+                val statusBottom = with(density) { pipState.bottomControlsReservePx(this).toDp() } + 12.dp
+                if (faceSelection != null) {
+                    // iOS처럼 얼굴 선택 안내를 먼저 보여 줍니다. 선택 중에는 토스트와 채팅을 가립니다.
                     FaceSelectionStatusPanel(
                         phase = faceSelection.phase,
                         onRetry = { faceSelection.start(faceSelectionMirrored) },
@@ -1295,21 +1266,41 @@ private fun LiveScreenContent(
                             .padding(start = statusStart, end = statusEnd, bottom = statusBottom)
                             .onSizeChanged { pipState.chatReservePx = it.height + with(density) { 12.dp.toPx() } },
                     )
-                } else if (chat != null) {
-                    val chatStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 16.dp
-                    val chatBottom = with(density) { pipState.bottomControlsReservePx(this).toDp() } + 12.dp
-                    YouTubeViewerChatOverlay(
-                        state = chat,
-                        hidden = viewerChatHidden,
-                        onToggleHidden = { viewerChatHidden = !viewerChatHidden },
-                        compact = landscape,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = chatStart, end = 16.dp, bottom = chatBottom)
-                            .onSizeChanged { pipState.chatReservePx = it.height + with(density) { 12.dp.toPx() } },
-                    )
                 } else {
-                    SideEffect { pipState.chatReservePx = 0f }
+                    var chatHeightPx by remember { mutableIntStateOf(0) }
+                    var toastHeightPx by remember { mutableIntStateOf(0) }
+                    if (chat != null) {
+                        val chatStart = if (landscape) with(density) { pipState.leftControlsWidthPx.toDp() } + 8.dp else 16.dp
+                        YouTubeViewerChatOverlay(
+                            state = chat,
+                            hidden = viewerChatHidden,
+                            onToggleHidden = { viewerChatHidden = !viewerChatHidden },
+                            compact = landscape,
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = chatStart, end = 16.dp, bottom = statusBottom)
+                                .onSizeChanged { chatHeightPx = it.height },
+                        )
+                    }
+                    // 게스트 등록 토스트는 채팅이 있으면 그 위에 쌓아 서로 가리지 않게 합니다.
+                    val showToast = guestRegistrar.status != null
+                    if (showToast) {
+                        val toastBottom = statusBottom + if (chat != null) with(density) { chatHeightPx.toDp() } + 8.dp else 0.dp
+                        GuestRegistrationToast(
+                            registrar = guestRegistrar,
+                            onReselect = { if (canSelectFace) isSelectingFace = true },
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(start = statusStart, end = statusEnd, bottom = toastBottom)
+                                .onSizeChanged { toastHeightPx = it.height },
+                        )
+                    }
+                    // 작은 창과 카메라 도구가 채팅과 토스트를 합친 높이를 비우도록 알려 줍니다.
+                    SideEffect {
+                        val chatReserve = if (chat != null) chatHeightPx + with(density) { 12.dp.toPx() } else 0f
+                        val toastGap = with(density) { (if (chat != null) 8.dp else 12.dp).toPx() }
+                        pipState.chatReservePx = chatReserve + if (showToast) toastHeightPx + toastGap else 0f
+                    }
                 }
             },
         )
