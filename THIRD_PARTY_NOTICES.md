@@ -69,3 +69,12 @@ code. Third-party materials remain available under their respective licenses.
 - The OpenCV XCFramework is distributed through `yeatse/opencv-spm` 4.12.0,
   pinned in `Package.resolved`; SwiftPM checks its archive checksum.
   Package source: https://github.com/yeatse/opencv-spm/tree/4.12.0
+
+## Android BoT-SORT tracking
+
+- `PrivacyBotSort.kt` implements the tracking, Kalman filter, and cost-limited
+  assignment with reference to Ultralytics 8.4.104 (`bot_sort.py`,
+  `byte_tracker.py`, `kalman_filter.py`, `matching.py`, `stracks.py`).
+  Copyright Ultralytics. This port is licensed under AGPL-3.0-or-later;
+  see `apps/ios/PrivacyTracking/LICENSE-AGPL-3.0.txt`.
+  Source: https://github.com/ultralytics/ultralytics/tree/v8.4.104/ultralytics/trackers

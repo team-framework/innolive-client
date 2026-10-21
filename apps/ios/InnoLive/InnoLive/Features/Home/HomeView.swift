@@ -659,15 +659,22 @@ struct HomeView: View {
             LocalPreviewView(
                 session: cameraManager.session,
                 // 카메라 전환 시 프리뷰 회전 기준도 함께 갱신
-                cameraID: cameraManager.currentCameraID
+                cameraID: cameraManager.currentCameraID,
+                contentScale: originalPreviewScale
             )
         case .webrtcLocal:
             WebRTCColorPreviewFrame(
-                uplink: youtube.videoUplink
+                uplink: youtube.videoUplink,
+                contentScale: originalPreviewScale
             )
         case .hidden:
             EmptyView()
         }
+    }
+
+    private var originalPreviewScale: CGFloat {
+        (youtube.session?.processingMode ?? AIProcessingMode.selected) == .onDevice
+            ? PrivacyOutputFraming.scale : 1
     }
 
     private func snapLayout(in containerSize: CGSize, previewSize: CGSize) -> LocalPreviewSnapLayout {

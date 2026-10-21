@@ -20,6 +20,7 @@ nonisolated final class PrivacyBoTSORT {
     struct Frame {
         let observations: [Observation]
         let lost: [Lost]
+        var liveTrackIDs: Set<Int> { Set(observations.map(\.trackID) + lost.map(\.trackID)) }
     }
     private enum State { case tentative, tracked, lost }
     private struct Track {

@@ -53,6 +53,27 @@ class PrivacyNativePostprocessorDeviceTest {
         }
     }
 
+    @Test fun trackedSelectionAndHeldMasksMatchReference() {
+        val random = Random(684)
+        val proto = FloatArray(32 * 160 * 160) { random.nextFloat() * 2 - 1 }
+        PrivacyNativePostprocessor().use { native ->
+            val reference = PrivacyMaskStabilizer()
+            val tracking = PrivacyObjectTracking()
+            for ((frame, time) in listOf(1.0, 1.033, 1.067, 1.1).withIndex()) {
+                // Every object disappears in frame 2, so each track is held at its predicted box.
+                set(native, predictions(if (frame == 2) 0 else 8, frame * 2f), proto)
+                val objects = tracking.update(native.decode(), time)
+                if (frame == 2) assertTrue(objects.isNotEmpty() && objects.all { it.held })
+                native.select(objects)
+                // Frame 1 exempts a face, so its held copy has no mask of its own to repeat.
+                val exempt = if (frame == 1) setOf(0) else emptySet()
+                val expected = reference.apply(PrivacyNativeSegmentation.instanceMasks(
+                    PrivacySegmentation.protectedDetections(objects, exempt), proto), time)
+                assertArrayEquals("frame=$frame", expected, native.mask(exempt, time))
+            }
+        }
+    }
+
     @Test fun nmsTiesClippingAndEmptyPrototypePreserveProtection() {
         val values = predictions(3).apply {
             this[1]=this[0];this[8401]=this[8400] // Different classes survive.

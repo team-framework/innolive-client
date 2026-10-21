@@ -1,88 +1,75 @@
 import Foundation
 import CoreGraphics
 
-/// Short-lived identity cache. Ambiguous geometry, overlap, disappearance and stale results revoke exceptions.
+/// Stream-local approval bound to a registered face and the full BoT-SORT lifetime.
 nonisolated final class PrivacyFaceTracking {
     struct Track {
-        let id: UUID
+        let id = UUID()
         var index: Int
         var box: CGRect
-        var sourceID: Int? = nil
+        let sourceID: Int
+        var isolated = true
         var lastScheduled: Double = -.infinity
         var candidate: UUID?
-        var confirmations = 0
-        var lastConfirmed = -Double.infinity
-        var allowedUntil = -Double.infinity
     }
     private(set) var tracks: [Track] = []
     private var lastTime: Double?
 
     func reset() { tracks = []; lastTime = nil }
 
-    func update(_ boxes: [Int: CGRect], at time: Double, trackIDs: [Int: Int]? = nil) {
-        if let lastTime, time <= lastTime || time - lastTime >= 0.20 { tracks = [] }
+    func update(_ boxes: [Int: CGRect], at time: Double, trackIDs: [Int: Int], liveTrackIDs: Set<Int>? = nil) {
+        guard time.isFinite else { reset(); return }
+        if let lastTime, time <= lastTime || time - lastTime >= 1.0 { tracks = [] }
         lastTime = time
         let valid = boxes.filter { _, box in
             box.width.isFinite && box.height.isFinite && box.minX.isFinite && box.minY.isFinite && box.width > 0 && box.height > 0
         }
-        let isolated = valid.filter { index, box in
-            !valid.contains { $0.key != index && PrivacySegmentation.iou(box, $0.value) > 0.05 }
-        }
-        let eligible = isolated.filter { index, _ in trackIDs == nil || trackIDs?[index] != nil }
         let old = tracks
-        tracks = eligible.sorted { $0.key < $1.key }.map { index, box in
-            if let trackIDs, let sourceID = trackIDs[index] {
-                if var prior = old.first(where: { $0.sourceID == sourceID }) {
-                    prior.box = box
-                    prior.index = index
-                    return prior
-                }
-                return Track(id: UUID(), index: index, box: box, sourceID: sourceID)
-            }
-            let candidates = old.filter { PrivacySegmentation.iou($0.box, box) >= 0.50 }
-            if candidates.count == 1, var prior = candidates.first,
-               isolated.values.filter({ PrivacySegmentation.iou(prior.box, $0) >= 0.50 }).count == 1 {
-                prior.box = box
-                prior.index = index
-                return prior
-            }
-            return Track(id: UUID(), index: index, box: box)
+        let live = liveTrackIDs ?? Set(trackIDs.values)
+        tracks = valid.sorted { $0.key < $1.key }.compactMap { index, box in
+            guard let sourceID = trackIDs[index], live.contains(sourceID) else { return nil }
+            var track = old.first { $0.sourceID == sourceID } ?? Track(index: index, box: box, sourceID: sourceID)
+            track.box = box
+            track.index = index
+            // Avoid ambiguous initial crops. Existing approvals follow the ID even during overlap.
+            track.isolated = !valid.contains { $0.key != index && PrivacySegmentation.iou(box, $0.value) > 0.05 }
+            return track
+        }
+        let present = Set(tracks.map(\.sourceID))
+        tracks += old.filter { $0.candidate != nil && live.contains($0.sourceID) && !present.contains($0.sourceID) }.map {
+            var lost = $0
+            lost.index = -1
+            return lost
+        }
+    }
+
+    /// A whitelist edit cancels in-flight decisions, but preserves approvals for surviving entries.
+    func retainEntries(_ entryIDs: Set<UUID>) {
+        tracks = tracks.map { track in
+            if let candidate = track.candidate, entryIDs.contains(candidate) { return track }
+            return Track(index: track.index, box: track.box, sourceID: track.sourceID, isolated: track.isolated)
         }
     }
 
     func next(at time: Double) -> Track? {
-        guard let index = tracks.indices.filter({ time - tracks[$0].lastScheduled >= 0.25 })
+        guard time.isFinite,
+              let index = tracks.indices.filter({ tracks[$0].candidate == nil && tracks[$0].index >= 0 && tracks[$0].isolated && time - tracks[$0].lastScheduled >= 0.25 })
             .min(by: { tracks[$0].lastScheduled < tracks[$1].lastScheduled }) else { return nil }
         tracks[index].lastScheduled = time
         return tracks[index]
     }
 
     func accept(trackID: UUID, match: UUID?, capturedAt: Double, now: Double, sampleAvailable: Bool = true) {
-        guard let index = tracks.firstIndex(where: { $0.id == trackID }) else { return }
-        // A missing landmark sample is not evidence of a different person. Do not renew
-        // the lease, and let its original 750ms deadline and geometry checks still apply.
-        guard sampleAvailable else { return }
-        guard let match, now >= capturedAt, now - capturedAt < 0.75 else {
-            tracks[index].candidate = nil
-            tracks[index].confirmations = 0
-            tracks[index].allowedUntil = -.infinity
-            return
-        }
-        if tracks[index].candidate == match, capturedAt - tracks[index].lastConfirmed < 1.0 {
-            tracks[index].confirmations += 1
-        } else {
-            tracks[index].candidate = match
-            tracks[index].confirmations = 1
-            tracks[index].allowedUntil = -.infinity
-        }
-        tracks[index].lastConfirmed = capturedAt
-        if tracks[index].confirmations >= 2 { tracks[index].allowedUntil = capturedAt + 0.75 }
+        guard let index = tracks.firstIndex(where: { $0.id == trackID }), tracks[index].candidate == nil,
+              tracks[index].lastScheduled == capturedAt, tracks[index].isolated,
+              sampleAvailable, let match, now.isFinite, capturedAt.isFinite,
+              now >= capturedAt, now - capturedAt < 0.75 else { return }
+        tracks[index].candidate = match
     }
 
+    var approvedTrackIDs: Set<Int> { Set(tracks.filter { $0.candidate != nil }.map(\.sourceID)) }
+
     func allowed(at time: Double) -> Set<Int> {
-        let qualified = tracks.filter { $0.candidate != nil && $0.confirmations >= 2 && time < $0.allowedUntil }
-        return Set(qualified.filter { candidate in
-            qualified.filter { $0.candidate == candidate.candidate }.count == 1
-        }.map(\.index))
+        Set(tracks.filter { $0.candidate != nil && $0.index >= 0 }.map(\.index))
     }
 }

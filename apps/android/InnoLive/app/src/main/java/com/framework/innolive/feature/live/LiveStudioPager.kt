@@ -37,7 +37,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -46,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import com.framework.innolive.ui.theme.ModalSurface
 import com.framework.innolive.ui.theme.ModalTheme
 import androidx.compose.ui.res.stringResource
@@ -198,10 +201,21 @@ internal fun LiveStudioPager(
         }
         if (pipState != null && canMovePip) LivePreviewPipAccessibility(pipState)
         // 가로 화면은 높이가 낮아 설정 페이지에서는 상단 바를 숨기고 설정 창에 높이를 모두 줍니다.
+        val hasSettings = settings != null
+        val topBarHidden by remember(pagerState, landscape, hasSettings) {
+            derivedStateOf { landscape && hasSettings && settingsFraction() >= 1f }
+        }
         Column(
             modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().graphicsLayer {
                 if (landscape && settings != null) alpha = 1f - settingsFraction()
-            },
+            }
+                // 다 숨긴 상단 바는 놓지 않아, 보이지 않는 페이지 탭과 남은 시간이 아래 설정 창의 터치를 가로채지 않게 합니다.
+                // 남은 시간 상태가 처음으로 돌아가지 않도록 구성은 유지하고, 화면 낭독기에서도 감춥니다.
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, placeable.height) { if (!topBarHidden) placeable.place(0, 0) }
+                }
+                .then(if (topBarHidden) Modifier.clearAndSetSemantics {} else Modifier),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.fillMaxWidth().heightIn(min = LiveStudioTopBarHeight), content = topBar)
