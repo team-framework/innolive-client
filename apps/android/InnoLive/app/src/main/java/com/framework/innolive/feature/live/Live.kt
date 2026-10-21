@@ -33,6 +33,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -44,7 +46,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -87,6 +88,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.framework.innolive.R
@@ -1188,66 +1190,50 @@ private fun LiveScreenContent(
                             anonymizationButton()
                         }
                     }
-                    // 버튼 아래 문구가 바뀌어도 카메라 전환·방송·비식별화 버튼 줄이 움직이지 않게 같은 높이에 모읍니다.
-                    StableBroadcastFeedback {
-                        if (webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
-                            webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING) {
-                            webRtcSession.connectionStatus?.let { status ->
-                                Text(
-                                    status.asString(),
-                                    modifier = Modifier
-                                        .padding(horizontal = 24.dp)
-                                        .semantics { liveRegion = LiveRegionMode.Polite },
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelMedium,
+                    // 버튼 아래에는 가장 중요한 문구 하나만 두 줄 안에 보여 줍니다. 문구가 바뀌어도 버튼 줄이 움직이지 않고 잘리지도 않습니다.
+                    val connectionStatus = webRtcSession.connectionStatus.takeIf {
+                        webRtcSession.connectionState == WebRtcConnectionState.FAILED ||
+                            webRtcSession.connectionState == WebRtcConnectionState.RECONNECTING
+                    }
+                    val recordingMessage = webRtcSession.recordingState.message
+                    val anonymizationError = webRtcSession.anonymizationChange.errorMessage
+                    val notificationsHidden = shouldShowNotificationsHiddenNotice(
+                        notificationsHidden = broadcastNotificationPermission.notificationsHidden,
+                        directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
+                        state = webRtcSession.broadcastState,
+                    )
+                    val broadcastStatus = presentation.broadcastStatusText
+                    val feedback = primaryBroadcastFeedback(
+                        buildSet {
+                            if (connectionStatus != null) add(BroadcastFeedbackKind.CONNECTION)
+                            if (broadcastStatus != null) {
+                                add(
+                                    if (presentation.isBroadcastStatusError) BroadcastFeedbackKind.BROADCAST_ERROR
+                                    else BroadcastFeedbackKind.BROADCAST_STATUS,
                                 )
                             }
-                        }
-                        webRtcSession.recordingState.message?.let { message ->
-                            Text(
-                                text = message.asString(),
-                                modifier = Modifier
-                                    .padding(horizontal = 24.dp)
-                                    .semantics { liveRegion = LiveRegionMode.Polite },
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        }
-                        webRtcSession.anonymizationChange.errorMessage?.let { error ->
-                            Text(
-                                text = stringResource(R.string.anonymization_error_retry, error.asString()),
-                                modifier = Modifier
-                                    .padding(horizontal = 24.dp)
-                                    .semantics { liveRegion = LiveRegionMode.Polite },
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        }
-                        if (shouldShowNotificationsHiddenNotice(
-                                notificationsHidden = broadcastNotificationPermission.notificationsHidden,
-                                directBroadcast = webRtcSession.selectedOnDeviceProcessing && DirectPublishFeature.ENABLED,
-                                state = webRtcSession.broadcastState,
-                            )) {
-                                Text(
-                                    text = stringResource(broadcastNotificationPermission.hiddenMessage),
-                                    modifier = Modifier
-                                        .padding(horizontal = 24.dp)
-                                        .semantics { liveRegion = LiveRegionMode.Polite },
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelMedium,
-                                )
-                        }
-                        presentation.broadcastStatusText?.let { status ->
-                            Text(
-                                text = status.asString(),
-                                modifier = Modifier
-                                    .padding(horizontal = 24.dp)
-                                    .semantics { liveRegion = LiveRegionMode.Polite },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (presentation.isBroadcastStatusError) Color.Red else Color.White,
-                            )
-                        }
-                    }
+                            if (anonymizationError != null) add(BroadcastFeedbackKind.ANONYMIZATION_ERROR)
+                            if (recordingMessage != null) add(BroadcastFeedbackKind.RECORDING)
+                            if (notificationsHidden) add(BroadcastFeedbackKind.NOTIFICATIONS_HIDDEN)
+                        },
+                    )
+                    StableBroadcastFeedback(
+                        text = when (feedback) {
+                            BroadcastFeedbackKind.CONNECTION -> connectionStatus?.asString()
+                            BroadcastFeedbackKind.BROADCAST_ERROR,
+                            BroadcastFeedbackKind.BROADCAST_STATUS -> broadcastStatus?.asString()
+                            BroadcastFeedbackKind.ANONYMIZATION_ERROR -> anonymizationError?.let {
+                                stringResource(R.string.anonymization_error_retry, it.asString())
+                            }
+                            BroadcastFeedbackKind.RECORDING -> recordingMessage?.asString()
+                            BroadcastFeedbackKind.NOTIFICATIONS_HIDDEN ->
+                                stringResource(broadcastNotificationPermission.hiddenMessage)
+                            null -> null
+                        },
+                        isError = feedback == BroadcastFeedbackKind.BROADCAST_ERROR,
+                        // 가로 화면은 버튼이 오른쪽 열에 있어 문구가 없을 때 자리를 비워 둘 필요가 없습니다.
+                        reserveHeight = !landscape,
+                    )
                 }
 
                 // iOS처럼 라이브 YouTube 채팅을 왼쪽 아래 하단 조작 위에 띄웁니다. 가로 화면은 왼쪽 카메라 도구 띠 오른쪽에 둡니다.
@@ -1551,29 +1537,49 @@ private fun mediaPermissionGuidance(state: MediaPermissionState): Int = when {
     else -> R.string.permission_microphone_required
 }
 
+/** 방송 버튼 줄 아래에 함께 보일 수 있는 문구입니다. 앞에 둔 것일수록 먼저 보여 줍니다. */
+internal enum class BroadcastFeedbackKind {
+    CONNECTION,
+    BROADCAST_ERROR,
+    ANONYMIZATION_ERROR,
+    RECORDING,
+    NOTIFICATIONS_HIDDEN,
+    BROADCAST_STATUS,
+}
+
+/** 버튼 아래 한 줄 자리에는 지금 있는 문구 중 가장 중요한 하나만 보여 줍니다. */
+internal fun primaryBroadcastFeedback(present: Set<BroadcastFeedbackKind>): BroadcastFeedbackKind? =
+    BroadcastFeedbackKind.entries.firstOrNull { it in present }
+
 /**
- * 방송 버튼 줄 아래 문구 자리입니다. 높이를 두 줄로 고정해 오류 문구가 나타나거나 길어져도 위 버튼 줄이 밀리지 않고,
- * 넘치는 문구는 아래로 이어 그립니다.
+ * 방송 버튼 줄 아래 문구 자리입니다. [reserveHeight]이면 문구가 없어도 두 줄 높이를 차지해 문구가 나타나도 위 버튼 줄이 밀리지 않습니다.
+ * 문구는 두 줄을 넘지 않도록 폭에 맞춰 글자를 줄입니다. 두 줄 높이는 글꼴 배율이 반영된 실제 줄 높이를 씁니다.
  */
 @Composable
 internal fun StableBroadcastFeedback(
+    text: String?,
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
+    isError: Boolean = false,
+    reserveHeight: Boolean = true,
 ) {
-    val lineHeight = MaterialTheme.typography.labelMedium.lineHeight
-    val reservedHeight = with(LocalDensity.current) { (lineHeight * FEEDBACK_RESERVED_LINES).toDp() }
-    Column(
+    if (text == null && !reserveHeight) return
+    val style = MaterialTheme.typography.labelMedium
+    Text(
+        text = text.orEmpty(),
         modifier = modifier
-            .height(reservedHeight)
-            .wrapContentHeight(Alignment.Top, unbounded = true),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        content()
-    }
+            .padding(horizontal = 24.dp)
+            .then(if (text != null) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier),
+        color = if (isError) Color.Red else Color.White,
+        style = style,
+        minLines = if (reserveHeight) FEEDBACK_MAX_LINES else 1,
+        maxLines = FEEDBACK_MAX_LINES,
+        overflow = TextOverflow.Ellipsis,
+        autoSize = TextAutoSize.StepBased(minFontSize = FEEDBACK_MIN_FONT_SIZE, maxFontSize = style.fontSize),
+    )
 }
 
-private const val FEEDBACK_RESERVED_LINES = 2
+private const val FEEDBACK_MAX_LINES = 2
+private val FEEDBACK_MIN_FONT_SIZE = 10.sp
 
 @Composable
 internal fun BroadcastActionControls(
