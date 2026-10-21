@@ -52,6 +52,7 @@ class LiveScreenPresentationTest {
             broadcastState = BroadcastState.PREPARED,
             selectedPlatform = null,
             broadcastStatus = "방송 준비 완료",
+            isBroadcastStatusDefault = true,
         )
         val preparing = buildLiveScreenPresentation(
             connectionState = WebRtcConnectionState.CONNECTED,
@@ -65,7 +66,8 @@ class LiveScreenPresentationTest {
         assertEquals(LiveBroadcastAction.SHOW_BROADCAST_ACTIONS, prepared.broadcastAction)
         assertTrue(prepared.isBroadcastPrepared)
         assertTrue(prepared.isBroadcastButtonEnabled)
-        assertEquals(UiText.Dynamic("방송 준비 완료"), prepared.broadcastStatusText)
+        // 버튼이 이미 "방송 준비 완료"를 보여 주므로 아래 문구는 반복하지 않습니다.
+        assertEquals(null, prepared.broadcastStatusText)
 
         assertEquals(R.string.broadcast_state_preparing, preparing.broadcastButtonTextRes)
         assertEquals(LiveBroadcastAction.PREPARE_BROADCAST, preparing.broadcastAction)
