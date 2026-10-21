@@ -14,6 +14,29 @@ final class PrivacyMaskStabilizerTests: XCTestCase {
         .init(observations: [.init(trackID: id, detectionIndex: index, box: box, confirmed: true)], lost: [])
     }
 
+    func testApprovalNeverExemptsHeldNumberPlate() throws {
+        let stabilizer = PrivacyMaskStabilizer()
+        let box = CGRect(x: 100, y: 100, width: 80, height: 80)
+        let plate = PrivacySegmentation.Detection(box: box, score: 0.9, classID: 1, coefficients: [])
+        let mask = PrivacySegmentation.InstanceMask(detection: plate, bytes: [UInt8](repeating: 255, count: 160 * 160))
+        _ = try stabilizer.apply([0: mask], frame: .init(observations: [.init(trackID: 1, detectionIndex: 0, box: box, confirmed: true)], lost: []))
+        let held = try stabilizer.apply([:], frame: .init(observations: [], lost: [.init(trackID: 1, box: box, gap: 1)]), approvedTrackIDs: [1])
+        XCTAssertTrue(held.contains { $0 > 0 })
+    }
+
+    func testApprovedLostTrackDoesNotRegainHeldMask() throws {
+        let stabilizer = PrivacyMaskStabilizer()
+        let box = CGRect(x: 100, y: 100, width: 80, height: 80)
+        let detection = PrivacySegmentation.Detection(box: box, score: 0.9, classID: 0, coefficients: [])
+        let mask = PrivacySegmentation.InstanceMask(detection: detection, bytes: [UInt8](repeating: 255, count: 160 * 160))
+        _ = try stabilizer.apply([0: mask], frame: .init(observations: [.init(trackID: 1, detectionIndex: 0, box: box, confirmed: true)], lost: []), allowed: [0])
+        let lost = PrivacyBoTSORT.Frame(observations: [], lost: [.init(trackID: 1, box: box, gap: 1)])
+        let approved = try stabilizer.apply([:], frame: lost, approvedTrackIDs: [1])
+        XCTAssertTrue(approved.allSatisfy { $0 == 0 })
+        let revoked = try stabilizer.apply([:], frame: lost)
+        XCTAssertTrue(revoked.contains { $0 > 0 })
+    }
+
     func testCurrentDetectionReplacesOldBoundaryWithoutGhostFade() throws {
         let stabilizer = PrivacyMaskStabilizer()
         _ = try stabilizer.apply([0: instance([(50, 50)])], frame: current())

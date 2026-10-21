@@ -53,7 +53,8 @@ class WebRtcSessionViewModel internal constructor(
     private var prepareJob: Job? = null
     var serverError by mutableStateOf<ServerErrorGuidance?>(null)
         private set
-    private var preparationSettings: BroadcastSettings? = null
+    // 채팅 주소가 준비 설정의 공개 범위를 따르므로 바뀌면 화면이 다시 그리도록 상태로 둡니다.
+    private var preparationSettings by mutableStateOf<BroadcastSettings?>(null)
     private var preparationChzzkSettings: ChzzkBroadcastSettings? = null
     private var retryBroadcastRequest: (() -> Unit)? = null
 
@@ -98,9 +99,12 @@ class WebRtcSessionViewModel internal constructor(
         private set
     var sessionSnapshot by mutableStateOf<SessionSnapshot?>(null)
         private set
-    /** 라이브·일시 중지 중인 YouTube 대상의 보기 전용 채팅 주소입니다. null이면 화면이 채팅 버튼을 숨깁니다. */
+    /**
+     * 라이브·일시 중지 중인 YouTube 대상의 보기 전용 채팅 주소입니다. null이면 화면이 채팅 버튼을 숨깁니다.
+     * 비공개·아동용으로 준비한 방송은 채팅이 나오지 않으므로 주소를 만들지 않습니다.
+     */
     val viewerChatUrl: String?
-        get() = YouTubeViewerChatPolicy.activeUrl(sessionSnapshot)
+        get() = YouTubeViewerChatPolicy.activeUrl(sessionSnapshot, preparationSettings)
     var broadcastState by mutableStateOf(BroadcastState.IDLE)
         private set
     var broadcastStatus by mutableStateOf(broadcastStateMessage(BroadcastState.IDLE).text)

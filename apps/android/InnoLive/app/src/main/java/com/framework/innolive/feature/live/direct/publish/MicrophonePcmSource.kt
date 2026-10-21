@@ -9,6 +9,7 @@ import android.media.AudioRecordingConfiguration
 import android.media.MediaRecorder
 import androidx.annotation.RequiresPermission
 import java.util.concurrent.Executor
+import kotlin.math.abs
 
 /** PCM 16비트 청크와 단조 시계 기준 시각(µs)을 받습니다. */
 internal fun interface PcmSink {
@@ -66,15 +67,13 @@ internal class MicrophonePcmSource(
         created.activeRecordingConfiguration?.let(::reportRoute)
         thread = Thread({
             val buffer = ByteArray(chunkBytes)
-            val bytesPerSecond = profile.audioSampleRate.toLong() * bytesPerFrame
+            val clock = PcmClock(profile.audioSampleRate)
             try {
                 while (running) {
                     val read = created.read(buffer, 0, buffer.size)
                     if (read < 0) throw IllegalStateException("마이크 읽기 실패: $read")
                     if (read == 0) continue
-                    // 방금 읽은 청크의 첫 샘플 시각입니다.
-                    val durationUs = read * 1_000_000L / bytesPerSecond
-                    sink.onPcm(buffer, read, nowNs() / 1000 - durationUs)
+                    sink.onPcm(buffer, read, clock.next(read / bytesPerFrame, nowNs() / 1000))
                 }
             } catch (error: Exception) {
                 if (running) onError(error)
@@ -98,6 +97,34 @@ internal class MicrophonePcmSource(
         runCatching { record?.release() }
         record = null
         thread = null
+    }
+}
+
+/**
+ * 마이크 청크의 첫 샘플 시각을 샘플 수로 이어 붙입니다.
+ *
+ * 마이크는 HAL 주기(S25는 20ms)마다 데이터를 몰아서 넘기므로 10ms 청크를 연달아 읽으면 읽은 시각이
+ * 거의 같습니다. 읽은 시각으로 청크 시각을 정하면 [DirectAudioInput]이 뒤 청크를 겹침으로 보고 버립니다.
+ * 샘플이 실제로 빠졌거나 시계가 벌어져 읽은 시각과 [resyncUs] 넘게 차이 나면 읽은 시각에 다시 맞춥니다.
+ */
+internal class PcmClock(
+    private val sampleRate: Int,
+    private val resyncUs: Long = 100_000L,
+) {
+    private var anchorUs = 0L
+    private var frames = -1L
+
+    /** [readEndUs]는 [frameCount] 프레임을 읽은 직후의 단조 시각(µs)입니다. 청크 첫 샘플 시각을 돌려줍니다. */
+    fun next(frameCount: Int, readEndUs: Long): Long {
+        val readStartUs = readEndUs - frameCount * 1_000_000L / sampleRate
+        var timeUs = anchorUs + frames * 1_000_000L / sampleRate
+        if (frames < 0 || abs(readStartUs - timeUs) > resyncUs) {
+            anchorUs = readStartUs
+            frames = 0
+            timeUs = readStartUs
+        }
+        frames += frameCount
+        return timeUs
     }
 }
 

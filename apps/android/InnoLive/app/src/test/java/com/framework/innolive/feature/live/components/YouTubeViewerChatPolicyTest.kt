@@ -1,5 +1,6 @@
 package com.framework.innolive.feature.live.components
 
+import com.framework.innolive.feature.live.BroadcastSettings
 import com.framework.innolive.feature.live.SessionSnapshot
 import com.framework.innolive.feature.live.SessionTarget
 import com.framework.innolive.feature.live.parseSessionSnapshot
@@ -34,6 +35,18 @@ class YouTubeViewerChatPolicyTest {
         assertNull(YouTubeViewerChatPolicy.activeUrl(snapshot("youtube", "stopped", "live")))
         assertNull(YouTubeViewerChatPolicy.activeUrl(snapshot("youtube", "streaming", "live", videoId = null)))
         assertNull(YouTubeViewerChatPolicy.activeUrl(snapshot("chzzk", "streaming", "live")))
+    }
+
+    @Test fun privateAndMadeForKidsBroadcastsDoNotLoadChat() {
+        val live = snapshot("youtube", "streaming", "live")
+        fun settings(privacy: String, madeForKids: Boolean?) = BroadcastSettings("t", "", privacy, madeForKids, "22")
+        assertEquals(chat, YouTubeViewerChatPolicy.activeUrl(live, settings("public", false)))
+        assertEquals(chat, YouTubeViewerChatPolicy.activeUrl(live, settings("unlisted", false)))
+        assertNull(YouTubeViewerChatPolicy.activeUrl(live, settings("private", false)))
+        assertNull(YouTubeViewerChatPolicy.activeUrl(live, settings("public", true)))
+        assertNull(YouTubeViewerChatPolicy.activeUrl(live, settings("unlisted", true)))
+        // 준비 설정을 모르는 세션(앱을 다시 열어 이어 받은 방송)은 이전처럼 채팅을 읽어 본다.
+        assertEquals(chat, YouTubeViewerChatPolicy.activeUrl(live, null))
     }
 
     // iOS testDirectLiveIdleStatusAndOtherTargetStopKeepChat: 직접 송출은 라이브 중에도 status가 idle이다.
