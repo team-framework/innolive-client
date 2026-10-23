@@ -25,6 +25,13 @@ class PrivacyBroadcastBlurTest {
         assertEquals(144, PrivacyBroadcastBlur.sigma(1920, 1080, 64))
     }
 
+    @Test fun strengthSnapsToFiveLevelsSoOnlyFiveBlurShadersExist() {
+        assertEquals(listOf(24, 24, 30, 30, 36, 42, 48, 48),
+            listOf(1, 26, 27, 32, 36, 40, 46, 99).map(PrivacyBroadcastBlur::strengthLevel))
+        assertEquals(setOf(72, 90, 108, 126, 144),
+            (0..80).map { PrivacyBroadcastBlur.sigma(1920, 1080, it) }.toSet())
+    }
+
     @Test fun reducedSigmaAndSizeMatchTheQuarterResolutionGraph() {
         assertEquals(18.0, PrivacyBroadcastBlur.reducedSigma(PrivacyBroadcastBlur.sigma(1920, 1080)), 0.0)
         assertEquals(12.0, PrivacyBroadcastBlur.reducedSigma(PrivacyBroadcastBlur.sigma(1280, 720)), 0.0)

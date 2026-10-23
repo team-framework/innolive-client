@@ -5,19 +5,20 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PrivacyMaskExpansionTest {
-    @Test fun slidingWindowDilationKeepsEveryProtectedPixelAndMatchesDenseReference() {
+    @Test fun diskDilationKeepsEveryProtectedPixelAndMatchesDenseReference() {
         val size = 160
         val masks = listOf(ByteArray(size * size) { -1 }, ByteArray(size * size).apply {
             this[0] = -1; this[size * size - 1] = -1; this[80 * size + 80] = -1
             for (y in 50..100) for (x in 20..80) if ((x + y) % 7 == 0) this[y * size + x] = -1
         })
-        for (mask in masks) for (radius in listOf(0, 1, 2, 4)) {
+        for (mask in masks) for (radius in listOf(0, 1, 2, 4, PrivacyMaskRenderer.MAX_EDGE_CELLS)) {
             val expected = ByteArray(mask.size)
             for (y in 0 until size) for (x in 0 until size) {
                 if (mask[y * size + x].toInt() != 0) {
                     for (dy in (y - radius).coerceAtLeast(0)..(y + radius).coerceAtMost(size - 1))
                         for (dx in (x - radius).coerceAtLeast(0)..(x + radius).coerceAtMost(size - 1))
-                            expected[dy * size + dx] = -1
+                            if ((dx - x) * (dx - x) + (dy - y) * (dy - y) <= radius * radius + radius)
+                                expected[dy * size + dx] = -1
                 }
             }
             assertArrayEquals(expected, PrivacyMaskRenderer.expandedMask(mask, radius))
@@ -42,6 +43,18 @@ class PrivacyMaskExpansionTest {
         }
         // The bounding-box corner of the oval stays unprotected, so the area is not a box.
         assertEquals(0, protected[(80 - 16) * size + (80 - 12)].toInt())
+    }
+
+    @Test fun wideMarginIsRoundNotABox() {
+        val size = 160
+        val point = ByteArray(size * size).apply { this[80 * size + 80] = -1 }
+        val protected = PrivacyMaskRenderer.expandedMask(point, PrivacyMaskRenderer.MAX_EDGE_CELLS)
+        val reach = PrivacyMaskRenderer.MAX_EDGE_CELLS
+        // 축 방향으로는 끝까지 닿지만, 대각선 모서리는 비워 얼굴 주변이 사각형으로 가려지지 않습니다.
+        assertEquals(-1, protected[80 * size + 80 + reach].toInt())
+        assertEquals(-1, protected[(80 + reach) * size + 80].toInt())
+        assertEquals(0, protected[(80 + reach) * size + 80 + reach].toInt())
+        assertEquals(0, protected[(80 + 10) * size + 80 + 10].toInt())
     }
 
     @Test fun marginPixelsBecomeMaskCellsOfTheLongSide() {
