@@ -251,16 +251,46 @@ class PrivacyGpuFramePipelineDeviceTest {
                     val texture = graph.finish(mask, layout, 320, 320, edgeCells = edgeCells)
                     try {
                         val pixels = texture.toI420()!!
-                        try { return pixels.dataY.get(160 * pixels.strideY + 212).toInt() and 255 }
+                        try { return pixels.dataY.get(160 * pixels.strideY + 220).toInt() and 255 }
                         finally { pixels.release() }
                     } finally { texture.release() }
                 }
                 val unprotected = pixel(ByteArray(160 * 160), PrivacyMaskRenderer.PROTECTED_EDGE_CELLS)
-                // 마스크 101칸(202px)까지가 기본 1칸 팽창입니다. 212px은 기본에서는 그대로이고 8칸이면 가려집니다.
+                // 1칸은 2px입니다. 기본 경계의 흐린 테두리는 109칸(218px) 안에서 끝나 220px은 그대로이고,
+                // 8칸이면 108칸까지 불투명하게 가려 220px에도 블러가 섞입니다.
                 assertEquals(unprotected.toDouble(), pixel(mask, PrivacyMaskRenderer.PROTECTED_EDGE_CELLS).toDouble(), 3.0)
                 val widened = pixel(mask, 8)
                 assertTrue("Wider margin left the pixel exposed: before=$unprotected after=$widened",
                     kotlin.math.abs(widened - unprotected) > 20 && widened in 40..220)
+            }
+        } finally { source.release() }
+    }
+
+    @Test fun edgeFadesTheBlurBeyondTheOpaqueCore() {
+        val source = source(320, 320)
+        try {
+            for (y in 0 until 320) for (x in 0 until 320)
+                source.dataY.put(y * source.strideY + x, (if (x % 2 == 0) 16 else 235).toByte())
+            PrivacyGpuFramePipeline(null).use { graph ->
+                val layout = graph.prepare(source, 0)
+                val mask = ByteArray(160 * 160)
+                for (y in 60..100) for (x in 60..100) mask[y * 160 + x] = -1
+                fun pixel(mask: ByteArray, x: Int): Int {
+                    val texture = graph.finish(mask, layout, 320, 320)
+                    try {
+                        val pixels = texture.toI420()!!
+                        try { return pixels.dataY.get(160 * pixels.strideY + x).toInt() and 255 }
+                        finally { pixels.release() }
+                    } finally { texture.release() }
+                }
+                // 1칸은 2px입니다. iOS처럼 2칸 core(102칸, 204px)는 불투명하게 가리고, 104칸까지 넓힌 마스크를
+                // 흐려 105칸(210px)에도 블러가 일부 섞이며, 흐린 테두리 밖(224px)은 원본 그대로입니다.
+                val core = pixel(mask, 204)
+                assertTrue("Core was not blurred: $core", core in 90..160)
+                val unprotected = pixel(ByteArray(160 * 160), 210)
+                val faded = pixel(mask, 210)
+                assertTrue("Edge did not fade: before=$unprotected after=$faded", faded - unprotected > 15)
+                assertEquals(pixel(ByteArray(160 * 160), 224).toDouble(), pixel(mask, 224).toDouble(), 3.0)
             }
         } finally { source.release() }
     }

@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live.privacy
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PrivacyMaskExpansionTest {
@@ -43,6 +44,27 @@ class PrivacyMaskExpansionTest {
         }
         // The bounding-box corner of the oval stays unprotected, so the area is not a box.
         assertEquals(0, protected[(80 - 16) * size + (80 - 12)].toInt())
+    }
+
+    @Test fun featheredEdgeKeepsTheCoreOpaqueAndFadesOutsideIt() {
+        val size = 160
+        val mask = ByteArray(size * size).apply { for (x in 70..89) for (y in 60..99) this[y * size + x] = -1 }
+        fun alpha(values: ByteArray, x: Int) = values[80 * size + x].toInt() and 255
+        for (edgeCells in listOf(1, 2, 5)) {
+            val soft = PrivacyMaskRenderer.featheredMask(mask, edgeCells)
+            val hard = PrivacyMaskRenderer.expandedMask(mask, edgeCells)
+            val core = PrivacyMaskRenderer.softCoreCells(edgeCells)
+            // 고른 너비만큼 팽창한 칸은 모두 불투명하게 남고, core 안도 불투명합니다.
+            for (index in hard.indices) if (hard[index].toInt() != 0) assertEquals(255, soft[index].toInt() and 255)
+            for (x in 70 - core..89 + core) assertEquals("x=$x", 255, alpha(soft, x))
+            // core 바깥은 멀어질수록 단조롭게 옅어지고 결국 0이 됩니다.
+            val fade = (89 + core + 1..89 + core + 8).map { alpha(soft, it) }
+            assertTrue("fade=$fade", fade.first() in 1..254)
+            assertTrue("fade=$fade", fade.zipWithNext().all { (a, b) -> b <= a })
+            assertEquals("fade=$fade", 0, fade.last())
+        }
+        // 기본 너비는 iOS와 같은 2칸 core입니다.
+        assertEquals(PrivacyMaskRenderer.SOFT_CORE_CELLS, PrivacyMaskRenderer.softCoreCells(1))
     }
 
     @Test fun wideMarginIsRoundNotABox() {
