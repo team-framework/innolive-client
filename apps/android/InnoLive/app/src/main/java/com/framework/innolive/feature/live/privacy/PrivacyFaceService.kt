@@ -47,30 +47,9 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
     )
 
     private val context = context.applicationContext
-    private val executor = Executors.newSingleThreadScheduledExecutor { task ->
+    // iOS처럼 한 번 준비한 모델은 앱이 끝날 때까지 유지해, 첫 준비(S25 약 15초)를 다시 겪지 않게 합니다.
+    private val executor = Executors.newSingleThreadExecutor { task ->
         Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_MORE_FAVORABLE); task.run() }, "privacy-face")
-    }
-    private var leases = 0
-    private var eviction: java.util.concurrent.ScheduledFuture<*>? = null
-
-    override fun retain() { executor.execute { leases++; eviction?.cancel(false); eviction=null } }
-    override fun release() { executor.execute {
-        check(leases > 0)
-        leases--
-        if (leases==0) scheduleEviction()
-    } }
-    private fun scheduleEviction() {
-        eviction?.cancel(false)
-        eviction=executor.schedule({
-            if (leases==0) {
-                try { model?.close() } finally {
-                    model=null
-                    result.set(null)
-                    preparation.releaseReady()
-                }
-                Log.i("PrivacyFace", "model_released_idle=true")
-            }
-        },30,java.util.concurrent.TimeUnit.SECONDS)
     }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val preparation = PrivacyFacePreparationGate()
@@ -103,7 +82,6 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
                     throw error
                 }
                 preparation.complete(success = true)
-                if (leases==0) scheduleEviction()
                 Log.i("PrivacyFace", "model_prepared_ms=${SystemClock.elapsedRealtime() - startedAt}")
             } catch (error: Throwable) {
                 // Registered faces stay blurred; JNI linkage errors must not leave the gate running.
@@ -181,14 +159,12 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
     fun enroll(image: Bitmap, onComplete: (FloatArray?) -> Unit) {
         if (!ready) { image.recycle(); onComplete(null); return }
         executor.execute {
-            eviction?.cancel(false); eviction=null
             val embedding = try {
                 inferenceLock.lock()
                 try { model?.embedding(image, enrollment = true) } finally { inferenceLock.unlock() }
             }
             catch (error: Throwable) { if (!error.isPrivacyProcessingFailure()) throw error; null }
             finally { image.recycle() }
-            if (leases==0) scheduleEviction()
             mainHandler.post { onComplete(embedding) }
         }
     }
@@ -211,6 +187,5 @@ internal class PrivacyFacePreparationGate {
     fun complete(success: Boolean) {
         check(state.compareAndSet(State.RUNNING, if (success) State.READY else State.FAILED))
     }
-    fun releaseReady(): Boolean = state.compareAndSet(State.READY,State.IDLE)
     fun allowRetry(): Boolean = state.compareAndSet(State.FAILED, State.IDLE)
 }
