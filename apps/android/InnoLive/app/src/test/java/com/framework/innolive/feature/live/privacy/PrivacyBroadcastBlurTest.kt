@@ -15,9 +15,19 @@ class PrivacyBroadcastBlurTest {
         assertEquals(96, PrivacyBroadcastBlur.sigma(2560, 1440))
     }
 
+    @Test fun strengthScalesFromTheDefaultSigmaAndNeverGoesWeaker() {
+        assertEquals(72, PrivacyBroadcastBlur.sigma(1920, 1080, PrivacyBroadcastBlur.DEFAULT_STRENGTH))
+        assertEquals(108, PrivacyBroadcastBlur.sigma(1920, 1080, 36))
+        assertEquals(144, PrivacyBroadcastBlur.sigma(1920, 1080, PrivacyBroadcastBlur.MAX_STRENGTH))
+        assertEquals(96, PrivacyBroadcastBlur.sigma(1280, 720, PrivacyBroadcastBlur.MAX_STRENGTH))
+        // 영상 조절 하한보다 약한 값이나 상한을 넘는 값은 범위 안으로 맞춥니다.
+        assertEquals(72, PrivacyBroadcastBlur.sigma(1920, 1080, 1))
+        assertEquals(144, PrivacyBroadcastBlur.sigma(1920, 1080, 64))
+    }
+
     @Test fun reducedSigmaAndSizeMatchTheQuarterResolutionGraph() {
-        assertEquals(18.0, PrivacyBroadcastBlur.reducedSigma(1920, 1080), 0.0)
-        assertEquals(12.0, PrivacyBroadcastBlur.reducedSigma(1280, 720), 0.0)
+        assertEquals(18.0, PrivacyBroadcastBlur.reducedSigma(PrivacyBroadcastBlur.sigma(1920, 1080)), 0.0)
+        assertEquals(12.0, PrivacyBroadcastBlur.reducedSigma(PrivacyBroadcastBlur.sigma(1280, 720)), 0.0)
         assertEquals(480, PrivacyBroadcastBlur.reducedSize(1920))
         assertEquals(270, PrivacyBroadcastBlur.reducedSize(1080))
         assertEquals(1, PrivacyBroadcastBlur.reducedSize(1))
@@ -28,8 +38,11 @@ class PrivacyBroadcastBlurTest {
 
     @Test fun renderEffectRadiusConvertsBackToTheFullResolutionSigma() {
         for ((width, height) in listOf(1920 to 1080, 1280 to 720)) {
-            val radius = PrivacyBroadcastBlur.renderEffectRadius(width, height)
-            assertEquals(PrivacyBroadcastBlur.sigma(width, height).toFloat(), 0.57735f * radius + 0.5f, 0.01f)
+            for (strength in listOf(PrivacyBroadcastBlur.DEFAULT_STRENGTH, PrivacyBroadcastBlur.MAX_STRENGTH)) {
+                val sigma = PrivacyBroadcastBlur.sigma(width, height, strength)
+                val radius = PrivacyBroadcastBlur.renderEffectRadius(sigma)
+                assertEquals(sigma.toFloat(), 0.57735f * radius + 0.5f, 0.01f)
+            }
         }
     }
 

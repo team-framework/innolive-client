@@ -43,4 +43,17 @@ class PrivacyMaskExpansionTest {
         // The bounding-box corner of the oval stays unprotected, so the area is not a box.
         assertEquals(0, protected[(80 - 16) * size + (80 - 12)].toInt())
     }
+
+    @Test fun marginPixelsBecomeMaskCellsOfTheLongSide() {
+        // 서버 기본 8px는 720p·1080p 모두 지금과 같은 1칸입니다.
+        assertEquals(1, PrivacyMaskRenderer.edgeCells(1280, 720, 8))
+        assertEquals(1, PrivacyMaskRenderer.edgeCells(1920, 1080, 8))
+        assertEquals(1, PrivacyMaskRenderer.edgeCells(1080, 1920, 8))
+        // 0px여도 1칸 아래로 줄이지 않습니다.
+        assertEquals(1, PrivacyMaskRenderer.edgeCells(1920, 1080, 0))
+        assertEquals(3, PrivacyMaskRenderer.edgeCells(1280, 720, 24))
+        assertEquals(8, PrivacyMaskRenderer.edgeCells(1280, 720, 64))
+        assertEquals(5, PrivacyMaskRenderer.edgeCells(1920, 1080, 64))
+        assertEquals(PrivacyMaskRenderer.MAX_EDGE_CELLS, PrivacyMaskRenderer.edgeCells(640, 360, 64))
+    }
 }

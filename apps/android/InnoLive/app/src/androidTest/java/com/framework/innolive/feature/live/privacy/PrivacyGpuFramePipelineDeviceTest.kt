@@ -214,6 +214,57 @@ class PrivacyGpuFramePipelineDeviceTest {
         } finally { source.release() }
     }
 
+    @Test fun strongerOnDeviceStrengthSpreadsTheEdgeFurther() {
+        val source = source(320,320)
+        try {
+            for (y in 0 until 320) for (x in 0 until 320)
+                source.dataY.put(y*source.strideY+x,(if(x<160)16 else 235).toByte())
+            PrivacyGpuFramePipeline(null).use { graph ->
+                val layout = graph.prepare(source,0)
+                fun leftOfEdge(strength: Int): Int {
+                    val texture = graph.finish(ByteArray(160*160) { -1 },layout,320,320,
+                        blurSigma=PrivacyBroadcastBlur.sigma(320,320,strength))
+                    try {
+                        val pixels = texture.toI420()!!
+                        try { return pixels.dataY.get(160*pixels.strideY+100).toInt() and 255 }
+                        finally { pixels.release() }
+                    } finally { texture.release() }
+                }
+                val default = leftOfEdge(PrivacyBroadcastBlur.DEFAULT_STRENGTH)
+                val strongest = leftOfEdge(PrivacyBroadcastBlur.MAX_STRENGTH)
+                // 60px 떨어진 곳까지 밝은 쪽이 번지는 정도는 sigma가 두 배일 때 더 커야 합니다.
+                assertTrue("Stronger blur did not spread: default=$default strongest=$strongest", strongest > default + 5)
+            }
+        } finally { source.release() }
+    }
+
+    @Test fun widerMarginProtectsPixelsOutsideTheDefaultEdge() {
+        val source = source(320, 320)
+        try {
+            for (y in 0 until 320) for (x in 0 until 320)
+                source.dataY.put(y * source.strideY + x, (if (x % 2 == 0) 16 else 235).toByte())
+            PrivacyGpuFramePipeline(null).use { graph ->
+                val layout = graph.prepare(source, 0)
+                val mask = ByteArray(160 * 160)
+                for (y in 60..100) for (x in 60..100) mask[y * 160 + x] = -1
+                fun pixel(mask: ByteArray, edgeCells: Int): Int {
+                    val texture = graph.finish(mask, layout, 320, 320, edgeCells = edgeCells)
+                    try {
+                        val pixels = texture.toI420()!!
+                        try { return pixels.dataY.get(160 * pixels.strideY + 212).toInt() and 255 }
+                        finally { pixels.release() }
+                    } finally { texture.release() }
+                }
+                val unprotected = pixel(ByteArray(160 * 160), PrivacyMaskRenderer.PROTECTED_EDGE_CELLS)
+                // 마스크 101칸(202px)까지가 기본 1칸 팽창입니다. 212px은 기본에서는 그대로이고 8칸이면 가려집니다.
+                assertEquals(unprotected.toDouble(), pixel(mask, PrivacyMaskRenderer.PROTECTED_EDGE_CELLS).toDouble(), 3.0)
+                val widened = pixel(mask, 8)
+                assertTrue("Wider margin left the pixel exposed: before=$unprotected after=$widened",
+                    kotlin.math.abs(widened - unprotected) > 20 && widened in 40..220)
+            }
+        } finally { source.release() }
+    }
+
     @Test fun heldTextureSurvivesNewFramesGeometryChangesAndProcessorClose() {
         val source = source()
         val different = source(48, 32)
