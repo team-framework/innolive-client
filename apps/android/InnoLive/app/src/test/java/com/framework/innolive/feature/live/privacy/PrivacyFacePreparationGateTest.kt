@@ -5,19 +5,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PrivacyFacePreparationGateTest {
-    @Test fun idleReleaseAllowsReloadButNeverClearsFailedOrRunningState() {
-        val gate=PrivacyFacePreparationGate()
-        assertFalse(gate.releaseReady())
+    @Test fun preparedModelStaysReadyAndIsNeverLoadedAgain() {
+        val gate = PrivacyFacePreparationGate()
         assertTrue(gate.tryBegin())
-        assertFalse(gate.releaseReady())
-        gate.complete(false)
-        assertFalse(gate.releaseReady())
-        assertTrue(gate.failed)
-        assertTrue(gate.allowRetry())
-        assertTrue(gate.tryBegin())
-        gate.complete(true)
-        assertTrue(gate.releaseReady())
-        assertTrue(gate.tryBegin())
+        gate.complete(success = true)
+
+        // iOS처럼 한 번 준비한 모델은 앱이 끝날 때까지 유지하므로 다시 준비하지 않습니다.
+        repeat(300) { assertFalse(gate.tryBegin()) }
+        assertFalse(gate.failed)
+        assertFalse(gate.allowRetry())
     }
 
     @Test fun failedLoadIsNotRetriedByLaterFramesUntilExplicitRetry() {
