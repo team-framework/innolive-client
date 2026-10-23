@@ -13,6 +13,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.util.Log
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.OnDeviceMosaicSettings
 import java.security.MessageDigest
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -82,6 +83,7 @@ internal class PrivacyOnnxModel(private val context: Context,
     fun process(
         upright: Bitmap,
         timestampNs: Long = System.nanoTime(),
+        mosaic: OnDeviceMosaicSettings = OnDeviceMosaicSettings(),
         exemptFaces: (List<PrivacySegmentation.Detection>, PrivacySegmentation.Letterbox) -> Set<Int> = { _, _ -> emptySet() },
     ): Bitmap {
         val layout = PrivacySegmentation.Letterbox(upright.width, upright.height)
@@ -96,7 +98,9 @@ internal class PrivacyOnnxModel(private val context: Context,
             Paint(Paint.FILTER_BITMAP_FLAG),
         )
         return processPrepared(inputBitmap, layout, timestampNs, exemptFaces) { mask ->
-            PrivacyMaskRenderer.render(upright, mask, layout, blur::apply)
+            val sigma = PrivacyBroadcastBlur.sigma(upright.width, upright.height, mosaic.blurStrength)
+            PrivacyMaskRenderer.render(upright, mask, layout, { blur.apply(it, sigma) },
+                PrivacyMaskRenderer.edgeCells(upright.width, upright.height, mosaic.maskMargin))
         }
     }
 

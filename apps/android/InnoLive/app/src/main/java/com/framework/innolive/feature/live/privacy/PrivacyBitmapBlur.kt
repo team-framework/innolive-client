@@ -20,14 +20,14 @@ internal class PrivacyBitmapBlur : AutoCloseable {
     var lastUsedGpu = false
         private set
 
-    fun apply(source: Bitmap): Bitmap {
+    fun apply(source: Bitmap, sigma: Int = PrivacyBroadcastBlur.sigma(source.width, source.height)): Bitmap {
         lastUsedGpu = false
         if (Build.VERSION.SDK_INT >= 31 && !gpuUnavailable) {
             try {
-                if (gpu?.width != source.width || gpu?.height != source.height) {
+                if (gpu?.width != source.width || gpu?.height != source.height || gpu?.sigma != sigma) {
                     gpu?.close()
                     gpu = null
-                    gpu = Gpu(source.width, source.height)
+                    gpu = Gpu(source.width, source.height, sigma)
                 }
                 val output = checkNotNull(gpu).apply(source)
                 lastUsedGpu = true
@@ -38,13 +38,13 @@ internal class PrivacyBitmapBlur : AutoCloseable {
                 gpuUnavailable = true
             }
         }
-        return PrivacyMaskRenderer.broadcastBlur(source)
+        return PrivacyMaskRenderer.broadcastBlur(source, sigma)
     }
 
     override fun close() { if (Build.VERSION.SDK_INT >= 31) gpu?.close(); gpu = null }
 
     @RequiresApi(31)
-    private class Gpu(val width: Int, val height: Int) : AutoCloseable {
+    private class Gpu(val width: Int, val height: Int, val sigma: Int) : AutoCloseable {
         private val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2,
             HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE or HardwareBuffer.USAGE_GPU_COLOR_OUTPUT)
         private val node = RenderNode("PrivacyGaussianBlur")
@@ -56,7 +56,7 @@ internal class PrivacyBitmapBlur : AutoCloseable {
                 renderer.setContentRoot(node)
                 node.setPosition(0, 0, width, height)
                 // The same full-resolution sigma as the GPU graph and iOS, via HWUI's radius conversion.
-                val radius = PrivacyBroadcastBlur.renderEffectRadius(width, height)
+                val radius = PrivacyBroadcastBlur.renderEffectRadius(sigma)
                 node.setRenderEffect(RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP))
             } catch (error: Exception) { close(); throw error }
         }

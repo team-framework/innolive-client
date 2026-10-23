@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.util.Log
 import com.framework.innolive.BuildConfig
+import com.framework.innolive.feature.live.OnDeviceMosaicSettings
 import org.webrtc.VideoFrame
 import org.webrtc.JavaI420Buffer
 import org.webrtc.EglBase
@@ -28,6 +29,8 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
         PrivacyFaceCoordinator(context.applicationContext, optimized=nativePostprocessing)).also { coordinator ->
         coordinator.liveTrackIds = { model.liveTrackIds }
     }
+    /** 영상 조절의 온디바이스 블러 강도·가림 영역 너비입니다. 처리 스레드가 프레임마다 읽습니다. */
+    @Volatile var mosaic = OnDeviceMosaicSettings()
     var lastTimings: PrivacyFrameTimings? = null
         private set
     val lastAnalysis: PrivacyFrameAnalysis? get() = model.lastAnalysis
@@ -128,7 +131,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     private fun processCpuUpright(upright:Bitmap,width:Int,height:Int,rotation:Int,timestampNs:Long):VideoFrame {
         val started=System.nanoTime()
         if (!batchTwoOptimizations) faces.beginFrame(upright,timestampNs)
-        val protected=model.process(upright,timestampNs) {objects,layout ->
+        val protected=model.process(upright,timestampNs,mosaic) {objects,layout ->
             if (batchTwoOptimizations) faces.currentFrame(upright,objects,layout,timestampNs)
             else faces.exceptions(upright,objects,layout,timestampNs)
         }
@@ -160,6 +163,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
             val nextGeometry=Triple(sensorWidth,sensorHeight,rotation)
             if(geometry!=nextGeometry) {resetFaceExceptions();geometry=nextGeometry}
             if (!batchTwoOptimizations) faces.beginFrame(layout.sourceWidth,layout.sourceHeight,timestampNs,graph::crop)
+            val mosaic=mosaic
             val buffer=model.processPrepared(graph.modelBitmap,layout,timestampNs,
                 {objects,box ->
                     if (batchTwoOptimizations) faces.currentFrame(box.sourceWidth,box.sourceHeight,objects,box,timestampNs,graph::crop,
@@ -167,7 +171,9 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                     else faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)
                 },
                 renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,
-                    model.lastMaskPixels,outputUpright=true)}
+                    model.lastMaskPixels,outputUpright=true,
+                    blurSigma=PrivacyBroadcastBlur.sigma(layout.sourceWidth,layout.sourceHeight,mosaic.blurStrength),
+                    edgeCells=PrivacyMaskRenderer.edgeCells(layout.sourceWidth,layout.sourceHeight,mosaic.maskMargin))}
             val completed = System.nanoTime()
             lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
                 checkNotNull(model.lastTimings), 0.0, (completed - started) / 1e6)
@@ -191,7 +197,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
             val upright = rotate(sensor, rotation, uprightPixels)
             val converted = System.nanoTime()
             if (!batchTwoOptimizations) faces.beginFrame(upright, frame.timestampNs)
-            val protected = model.process(upright, frame.timestampNs) { objects, layout ->
+            val protected = model.process(upright, frame.timestampNs, mosaic) { objects, layout ->
                 if (batchTwoOptimizations) faces.currentFrame(upright, objects, layout, frame.timestampNs)
                 else faces.exceptions(upright, objects, layout, frame.timestampNs)
             }

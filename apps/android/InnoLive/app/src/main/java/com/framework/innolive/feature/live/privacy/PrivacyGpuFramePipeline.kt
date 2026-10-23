@@ -413,7 +413,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
 
     fun finish(mask: ByteArray, layout: PrivacySegmentation.Letterbox,
                sensorWidth: Int, sensorHeight: Int, maskPixels: Int = -1,
-               outputUpright: Boolean = false): VideoFrame.TextureBuffer = onGl {
+               outputUpright: Boolean = false, blurSigma: Int? = null,
+               edgeCells: Int = PrivacyMaskRenderer.PROTECTED_EDGE_CELLS): VideoFrame.TextureBuffer = onGl {
         check(!closing)
         require(layout.sourceWidth == width && layout.sourceHeight == height && mask.size == 160 * 160)
         val outputWidth = if (outputUpright) width else sensorWidth
@@ -428,18 +429,18 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             }
         val original = targets.getValue("upright")
         if (if (maskPixels >= 0) maskPixels > 0 else mask.any { it.toInt() != 0 }) {
-            val alpha = uploadMask(mask)
+            val alpha = uploadMask(mask, edgeCells)
             val quarterW = PrivacyBroadcastBlur.reducedSize(width)
             val quarterH = PrivacyBroadcastBlur.reducedSize(height)
             val reduced = target("reduced", quarterW, quarterH)
-            val blurRegion=if(roiBlur) blurScissor(mask,layout,maskPixels,quarterW,quarterH) else null
+            val sigma = blurSigma ?: PrivacyBroadcastBlur.sigma(width, height)
+            val blurRegion=if(roiBlur) blurScissor(mask,layout,maskPixels,quarterW,quarterH,sigma,edgeCells) else null
             // iOS broadcastStyleBlur: area-average reduction, not a point-sampled 24px block grid.
             draw("reduce", REDUCE, reduced, listOf(original.texture),scissor=blurRegion) { p ->
                 glUniform2f(p.getUniformLocation("texelSize"), 1f / width, 1f / height)
             }
             val horizontal = target("blur-x", quarterW, quarterH)
             val vertical = target("blur-y", quarterW, quarterH)
-            val sigma = PrivacyBroadcastBlur.sigma(width, height)
             val blurName = "${if(pairedKernels) "blur-fast" else "blur"}-$sigma"
             val blurShader = blurShader(blurName, sigma)
             draw(blurName, blurShader, horizontal, listOf(reduced.texture),scissor=blurRegion) { p ->
@@ -486,7 +487,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
 
     /** Expand sparse mask bounds by dilation, feather, two Gaussian axes and the reduction footprint. */
     private fun blurScissor(mask:ByteArray,layout:PrivacySegmentation.Letterbox,count:Int,
-                            targetWidth:Int,targetHeight:Int):Rect? {
+                            targetWidth:Int,targetHeight:Int,sigma:Int,edgeCells:Int):Rect? {
         if(count==mask.size) return null
         var left=160;var top=160;var right=-1;var bottom=-1
         for(index in mask.indices) if(mask[index].toInt()!=0) {
@@ -496,15 +497,16 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         if(right<left) return null
         val scaleX=layout.sourceWidth.toFloat()/layout.resizedWidth
         val scaleY=layout.sourceHeight.toFloat()/layout.resizedHeight
-        // 10 model-mask cells cover the protected edge cell and its bilinear fade with room to spare.
-        // The upright margin covers both Gaussian axes at the reduced resolution plus the
-        // 4x4 reduction footprint, even at odd dimensions.
+        // The protected edge cells plus 9 model-mask cells cover the dilation and its bilinear fade
+        // with room to spare. The upright margin covers both Gaussian axes at the reduced
+        // resolution plus the 4x4 reduction footprint, even at odd dimensions.
         val reach=PrivacyBroadcastBlur.REDUCTION*(PrivacyBroadcastBlur.kernelRadius(
-            PrivacyBroadcastBlur.reducedSigma(width,height))+2)
-        val x0=(((left-10)*4-layout.left)*scaleX-reach).toInt().coerceAtLeast(0)
-        val y0=(((top-10)*4-layout.top)*scaleY-reach).toInt().coerceAtLeast(0)
-        val x1=(((right+11)*4-layout.left)*scaleX+reach).toInt().coerceAtMost(width)
-        val y1=(((bottom+11)*4-layout.top)*scaleY+reach).toInt().coerceAtMost(height)
+            PrivacyBroadcastBlur.reducedSigma(sigma))+2)
+        val cells=edgeCells+9
+        val x0=(((left-cells)*4-layout.left)*scaleX-reach).toInt().coerceAtLeast(0)
+        val y0=(((top-cells)*4-layout.top)*scaleY-reach).toInt().coerceAtLeast(0)
+        val x1=(((right+cells+1)*4-layout.left)*scaleX+reach).toInt().coerceAtMost(width)
+        val y1=(((bottom+cells+1)*4-layout.top)*scaleY+reach).toInt().coerceAtMost(height)
         val region=Rect((x0.toLong()*targetWidth/width).toInt(),
             (y0.toLong()*targetHeight/height).toInt(),
             ((x1.toLong()*targetWidth+width-1)/width).toInt().coerceAtMost(targetWidth),
@@ -513,7 +515,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             (it.width()<targetWidth || it.height()<targetHeight)}
     }
 
-    private fun uploadMask(mask: ByteArray): Target {
+    private fun uploadMask(mask: ByteArray, edgeCells: Int): Target {
         val bytes = maskPixels.apply { clear() }
         val rawTexture = if(compactMask) {
             bytes.put(mask);bytes.rewind()
@@ -532,17 +534,17 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             glTexSubImage2D(GL_TEXTURE_2D,0,0,0,160,160,GL_RGBA,GL_UNSIGNED_BYTE,bytes)
             raw.texture
         }
-        // Server mosaic: the contour plus one mask cell stays opaque, and the bilinear composite
-        // fades it over the next cell. No square multi-cell margin around the face.
+        // Server mosaic: the contour plus the chosen mask cells (one by default) stays opaque, and the
+        // bilinear composite fades it over the next cell.
         val temp = target("mask-temp", 160, 160, maskTargetsCompact)
         val alpha = target("mask-alpha",160,160,maskTargetsCompact)
         draw("dilate-x", DILATE, temp, listOf(rawTexture)) { p ->
             glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
-            glUniform1i(p.getUniformLocation("radius"), PrivacyMaskRenderer.PROTECTED_EDGE_CELLS)
+            glUniform1i(p.getUniformLocation("radius"), edgeCells)
         }
         draw("dilate-y", DILATE, alpha, listOf(temp.texture)) { p ->
             glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / 160)
-            glUniform1i(p.getUniformLocation("radius"), PrivacyMaskRenderer.PROTECTED_EDGE_CELLS)
+            glUniform1i(p.getUniformLocation("radius"), edgeCells)
         }
         return alpha
     }
@@ -670,7 +672,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         """
         private const val DILATE = """
             uniform sampler2D tex0; uniform vec2 stepSize; uniform int radius;
-            void main(){ float a=0.0; for(int i=-4;i<=4;i++){ if(i>=-radius && i<=radius) a=max(a,texture2D(tex0,uv+float(i)*stepSize).r); } gl_FragColor=vec4(vec3(a),1.0); }
+            void main(){ float a=0.0; for(int i=-${PrivacyMaskRenderer.MAX_EDGE_CELLS};i<=${PrivacyMaskRenderer.MAX_EDGE_CELLS};i++){ if(i>=-radius && i<=radius) a=max(a,texture2D(tex0,uv+float(i)*stepSize).r); } gl_FragColor=vec4(vec3(a),1.0); }
         """
         private const val COMPOSITE = "uniform sampler2D tex0,tex1,tex2; uniform vec4 box; uniform int rotation; " + FORWARD +
             "void main(){ vec2 p=upright(uv); float a=texture2D(tex2,box.xy+p*box.zw).r; gl_FragColor=mix(texture2D(tex0,p),texture2D(tex1,p),a); }"
