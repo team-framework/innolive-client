@@ -29,10 +29,13 @@ import com.framework.innolive.ui.text.UiText
 import com.framework.innolive.ui.text.asString
 import kotlin.math.roundToInt
 
-/** 영상 조절 시트의 모자이크 구역 상태입니다. [config]는 서버가 확정한 값입니다. */
+/** 영상 조절 시트의 모자이크 구역 상태입니다. [config]는 서버가 확정한 값이거나 기기에 저장한 온디바이스 값입니다. */
 @Immutable
 data class MosaicControlsState(
     val config: MosaicConfig,
+    /** 슬라이더 범위입니다. 온디바이스는 지금 강도와 마스크 1칸보다 약하게 내리지 않습니다. */
+    val blurRange: IntRange = MosaicConfig.BLUR_RADIUS_RANGE,
+    val maskMarginRange: IntRange = MosaicConfig.MASK_MARGIN_RANGE,
     val enabled: Boolean,
     val isChanging: Boolean,
     /** 조절할 수 없거나 적용되지 않는 이유입니다. */
@@ -42,7 +45,8 @@ data class MosaicControlsState(
 )
 
 /**
- * 조절할 수 없거나 적용되지 않는 이유입니다. iOS와 같은 순서로 방송 준비 전, 온디바이스 처리, 비식별화 꺼짐을 봅니다.
+ * 조절할 수 없거나 적용되지 않는 이유입니다. 온디바이스는 기기에 저장해 방송 준비 전에도 조절하므로 하한만 알립니다.
+ * 서버 AI는 iOS와 같은 순서로 방송 준비 전, 비식별화 꺼짐을 봅니다.
  */
 @StringRes
 internal fun mosaicNoteRes(
@@ -51,8 +55,9 @@ internal fun mosaicNoteRes(
     canChange: Boolean,
     anonymizationEnabled: Boolean,
 ): Int? = when {
+    onDeviceProcessing && !anonymizationEnabled -> R.string.mosaic_anonymization_off
+    onDeviceProcessing -> R.string.mosaic_on_device_floor
     !hasSession -> R.string.mosaic_prepare_required
-    onDeviceProcessing -> R.string.mosaic_server_only
     canChange && !anonymizationEnabled -> R.string.mosaic_anonymization_off
     else -> null
 }
@@ -95,11 +100,11 @@ internal fun MosaicControls(state: MosaicControlsState) {
             title = stringResource(R.string.mosaic_blur_strength),
             value = shown.blurRadius.toFloat(),
             valueLabel = shown.blurRadius.toString(),
-            range = MosaicConfig.BLUR_RADIUS_RANGE.first.toFloat()..MosaicConfig.BLUR_RADIUS_RANGE.last.toFloat(),
+            range = state.blurRange.first.toFloat()..state.blurRange.last.toFloat(),
             leading = stringResource(R.string.mosaic_weaker),
             trailing = stringResource(R.string.mosaic_stronger),
             enabled = state.enabled,
-            steps = MosaicConfig.BLUR_RADIUS_RANGE.last - MosaicConfig.BLUR_RADIUS_RANGE.first - 1,
+            steps = state.blurRange.last - state.blurRange.first - 1,
             onValueChangeFinished = ::commit,
             onValueChange = {
                 isEditing = true
@@ -110,11 +115,11 @@ internal fun MosaicControls(state: MosaicControlsState) {
             title = stringResource(R.string.mosaic_mask_margin),
             value = shown.maskMargin.toFloat(),
             valueLabel = stringResource(R.string.mosaic_pixels_value, shown.maskMargin),
-            range = MosaicConfig.MASK_MARGIN_RANGE.first.toFloat()..MosaicConfig.MASK_MARGIN_RANGE.last.toFloat(),
+            range = state.maskMarginRange.first.toFloat()..state.maskMarginRange.last.toFloat(),
             leading = stringResource(R.string.mosaic_narrower),
             trailing = stringResource(R.string.mosaic_wider),
             enabled = state.enabled,
-            steps = MosaicConfig.MASK_MARGIN_RANGE.last - MosaicConfig.MASK_MARGIN_RANGE.first - 1,
+            steps = state.maskMarginRange.last - state.maskMarginRange.first - 1,
             onValueChangeFinished = ::commit,
             onValueChange = {
                 isEditing = true

@@ -35,5 +35,6 @@
     <string name="mosaic_prepare_required">配信を準備すると調整できます。</string>
     <string name="mosaic_server_only">サーバーAI処理でのみ調整できます。</string>
     <string name="mosaic_anonymization_off">匿名化がオンのときに適用されます。</string>
+    <string name="mosaic_on_device_floor">オンデバイスAIは標準の強さと幅より弱くできません。</string>
     <string name="error_mosaic_config">ぼかし設定を変更できませんでした。もう一度お試しください。</string>
 </resources>

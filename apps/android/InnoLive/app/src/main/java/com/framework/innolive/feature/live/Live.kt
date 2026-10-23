@@ -351,6 +351,10 @@ private fun LiveScreenContent(
     }
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
+    // 온디바이스 블러 강도·가림 영역 너비는 기기에 저장하고, 지금 송출 중인 분석기에 바로 넘깁니다.
+    val onDeviceMosaicPreferences = remember(context) { OnDeviceMosaicPreferences(context) }
+    var onDeviceMosaic by remember(onDeviceMosaicPreferences) { mutableStateOf(onDeviceMosaicPreferences.load()) }
+    SideEffect { frameAnalyzer.setOnDeviceMosaic(onDeviceMosaic) }
     val lookPreviews by frameAnalyzer.lookPreviews.collectAsState()
     DisposableEffect(idleFrameAnalyzer) {
         onDispose { idleFrameAnalyzer.close() }
@@ -465,19 +469,38 @@ private fun LiveScreenContent(
             onSettingsChanged = props.onVideoQualitySettingsChanged,
             onDismiss = { setVideoControlsOpen(false) },
             mirrorPreviews = props.cameraLensFacing.shouldMirrorPreview,
-            mosaic = MosaicControlsState(
-                config = webRtcSession.mosaicConfig,
-                enabled = webRtcSession.canChangeMosaicConfig,
-                isChanging = webRtcSession.isChangingMosaicConfig,
-                noteRes = mosaicNoteRes(
+            mosaic = run {
+                val noteRes = mosaicNoteRes(
                     hasSession = webRtcSession.sessionSnapshot != null,
                     onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
                     canChange = webRtcSession.canChangeMosaicConfig,
                     anonymizationEnabled = webRtcSession.anonymizationState == AnonymizationState.ENABLED,
-                ),
-                error = webRtcSession.mosaicConfigError,
-                onChange = { webRtcSession.updateMosaicConfig(it) },
-            ),
+                )
+                if (webRtcSession.selectedOnDeviceProcessing) {
+                    MosaicControlsState(
+                        config = onDeviceMosaic.toMosaicConfig(),
+                        blurRange = OnDeviceMosaicSettings.BLUR_STRENGTH_RANGE,
+                        maskMarginRange = OnDeviceMosaicSettings.MASK_MARGIN_RANGE,
+                        enabled = true,
+                        isChanging = false,
+                        noteRes = noteRes,
+                        error = null,
+                        onChange = { config ->
+                            onDeviceMosaic = OnDeviceMosaicSettings.from(config)
+                            onDeviceMosaicPreferences.save(onDeviceMosaic)
+                        },
+                    )
+                } else {
+                    MosaicControlsState(
+                        config = webRtcSession.mosaicConfig,
+                        enabled = webRtcSession.canChangeMosaicConfig,
+                        isChanging = webRtcSession.isChangingMosaicConfig,
+                        noteRes = noteRes,
+                        error = webRtcSession.mosaicConfigError,
+                        onChange = { webRtcSession.updateMosaicConfig(it) },
+                    )
+                }
+            },
         )
     }
 

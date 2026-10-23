@@ -35,5 +35,6 @@
     <string name="mosaic_prepare_required">방송을 준비하면 조절할 수 있습니다.</string>
     <string name="mosaic_server_only">서버 AI 처리에서만 조절할 수 있습니다.</string>
     <string name="mosaic_anonymization_off">비식별화가 켜져 있을 때 적용됩니다.</string>
+    <string name="mosaic_on_device_floor">온디바이스 AI는 기본 강도와 너비보다 약하게 할 수 없습니다.</string>
     <string name="error_mosaic_config">블러 설정을 바꾸지 못했습니다. 다시 시도해 주세요.</string>
 </resources>

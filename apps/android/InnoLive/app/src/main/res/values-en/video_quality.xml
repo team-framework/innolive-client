@@ -35,5 +35,6 @@
     <string name="mosaic_prepare_required">Available after you prepare a broadcast.</string>
     <string name="mosaic_server_only">Available only with server AI processing.</string>
     <string name="mosaic_anonymization_off">Applies while anonymization is on.</string>
+    <string name="mosaic_on_device_floor">On-device AI can\'t go below the default strength and width.</string>
     <string name="error_mosaic_config">Couldn’t change the blur settings. Please try again.</string>
 </resources>
