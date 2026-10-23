@@ -16,25 +16,39 @@ internal object PrivacyBroadcastBlur {
     const val REDUCTION = 4
     const val MINIMUM_SIGMA = 48
     const val SIGMA_PER_SHORT_SIDE = 1.0 / 15
+    /** 영상 조절의 온디바이스 블러 강도 눈금입니다. 24가 위 기본 sigma이고, 그보다 약하게는 내리지 않습니다. */
+    const val DEFAULT_STRENGTH = 24
+    /** 기본의 두 배까지입니다. 1080p 축소 커널 반지름이 54에서 108탭으로 늘어납니다. */
+    const val MAX_STRENGTH = 48
+    /** 강도는 24·30·36·42·48 다섯 단계입니다. GPU 블러 셰이더는 sigma마다 하나씩 컴파일되므로
+     * 해상도당 셰이더를 다섯 개로 묶고, 송출 중 새 셰이더 컴파일도 단계가 바뀔 때만 일어나게 합니다. */
+    const val STRENGTH_STEP = 6
     /** HWUI `Blur::convertRadiusToSigma`: sigma = 0.57735 * radius + 0.5 for a positive radius. */
     private const val RENDER_EFFECT_RADIUS_SCALE = 0.57735f
 
-    /** Full-resolution Gaussian sigma for a frame, as on iOS. */
-    fun sigma(width: Int, height: Int): Int {
+    /** Full-resolution Gaussian sigma for a frame, as on iOS, scaled by the on-device strength.
+     * The strength never goes below the default, so the blur is never weaker than iOS. */
+    fun sigma(width: Int, height: Int, strength: Int = DEFAULT_STRENGTH): Int {
         require(width > 0 && height > 0)
-        return max(MINIMUM_SIGMA, (min(width, height) * SIGMA_PER_SHORT_SIDE).roundToInt())
+        val base = max(MINIMUM_SIGMA, (min(width, height) * SIGMA_PER_SHORT_SIDE).roundToInt())
+        return (base * strengthLevel(strength).toDouble() / DEFAULT_STRENGTH).roundToInt()
+    }
+
+    /** 강도를 기본~최대 범위의 가장 가까운 단계로 맞춥니다. */
+    fun strengthLevel(strength: Int): Int {
+        val steps = ((strength.coerceIn(DEFAULT_STRENGTH, MAX_STRENGTH) - DEFAULT_STRENGTH).toDouble() / STRENGTH_STEP).roundToInt()
+        return DEFAULT_STRENGTH + steps * STRENGTH_STEP
     }
 
     /** Sigma at the reduced resolution where the blur runs. */
-    fun reducedSigma(width: Int, height: Int): Double = sigma(width, height).toDouble() / REDUCTION
+    fun reducedSigma(sigma: Int): Double = sigma.toDouble() / REDUCTION
 
     fun reducedSize(size: Int): Int = max(1, ceil(size / REDUCTION.toDouble()).toInt())
 
     fun kernelRadius(sigma: Double): Int = ceil(3 * sigma).toInt()
 
     /** `RenderEffect.createBlurEffect` radius that HWUI converts to the full-resolution sigma. */
-    fun renderEffectRadius(width: Int, height: Int): Float =
-        (sigma(width, height) - 0.5f) / RENDER_EFFECT_RADIUS_SCALE
+    fun renderEffectRadius(sigma: Int): Float = (sigma - 0.5f) / RENDER_EFFECT_RADIUS_SCALE
 
     /** Separable Gaussian fragment shader with every tap unrolled; GLSL ES 1.0 needs constant bounds. */
     fun loopGaussianShader(radius: Int, sigma: Double): String {

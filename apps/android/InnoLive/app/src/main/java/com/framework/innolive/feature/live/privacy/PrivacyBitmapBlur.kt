@@ -20,7 +20,7 @@ internal class PrivacyBitmapBlur : AutoCloseable {
     var lastUsedGpu = false
         private set
 
-    fun apply(source: Bitmap): Bitmap {
+    fun apply(source: Bitmap, sigma: Int = PrivacyBroadcastBlur.sigma(source.width, source.height)): Bitmap {
         lastUsedGpu = false
         if (Build.VERSION.SDK_INT >= 31 && !gpuUnavailable) {
             try {
@@ -29,6 +29,8 @@ internal class PrivacyBitmapBlur : AutoCloseable {
                     gpu = null
                     gpu = Gpu(source.width, source.height)
                 }
+                // 강도만 바뀌면 렌더러와 버퍼는 그대로 두고 블러 효과만 바꿉니다.
+                checkNotNull(gpu).sigma = sigma
                 val output = checkNotNull(gpu).apply(source)
                 lastUsedGpu = true
                 return output
@@ -38,7 +40,7 @@ internal class PrivacyBitmapBlur : AutoCloseable {
                 gpuUnavailable = true
             }
         }
-        return PrivacyMaskRenderer.broadcastBlur(source)
+        return PrivacyMaskRenderer.broadcastBlur(source, sigma)
     }
 
     override fun close() { if (Build.VERSION.SDK_INT >= 31) gpu?.close(); gpu = null }
@@ -55,11 +57,17 @@ internal class PrivacyBitmapBlur : AutoCloseable {
                 renderer.setSurface(reader.surface)
                 renderer.setContentRoot(node)
                 node.setPosition(0, 0, width, height)
-                // The same full-resolution sigma as the GPU graph and iOS, via HWUI's radius conversion.
-                val radius = PrivacyBroadcastBlur.renderEffectRadius(width, height)
-                node.setRenderEffect(RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP))
             } catch (error: Exception) { close(); throw error }
         }
+
+        /** The same full-resolution sigma as the GPU graph and iOS, via HWUI's radius conversion. */
+        var sigma = 0
+            set(value) {
+                if (field == value) return
+                val radius = PrivacyBroadcastBlur.renderEffectRadius(value)
+                node.setRenderEffect(RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP))
+                field = value
+            }
 
         fun apply(source: Bitmap): Bitmap {
             // iOS broadcastStyleBlur: area-average reduction, then one wide Gaussian; no block grid.

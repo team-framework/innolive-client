@@ -82,6 +82,7 @@ internal class PrivacyOnnxModel(private val context: Context,
     fun process(
         upright: Bitmap,
         timestampNs: Long = System.nanoTime(),
+        mosaic: PrivacyMosaic = PrivacyMosaic(),
         exemptFaces: (List<PrivacySegmentation.Detection>, PrivacySegmentation.Letterbox) -> Set<Int> = { _, _ -> emptySet() },
     ): Bitmap {
         val layout = PrivacySegmentation.Letterbox(upright.width, upright.height)
@@ -96,7 +97,9 @@ internal class PrivacyOnnxModel(private val context: Context,
             Paint(Paint.FILTER_BITMAP_FLAG),
         )
         return processPrepared(inputBitmap, layout, timestampNs, exemptFaces) { mask ->
-            PrivacyMaskRenderer.render(upright, mask, layout, blur::apply)
+            val sigma = mosaic.sigma(upright.width, upright.height)
+            PrivacyMaskRenderer.render(upright, mask, layout, { blur.apply(it, sigma) },
+                mosaic.edgeCells(upright.width, upright.height))
         }
     }
 

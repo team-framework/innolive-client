@@ -43,11 +43,19 @@ class MosaicConfigTest {
 
     @Test fun noteFollowsIosOrder() {
         assertEquals(R.string.mosaic_prepare_required,
-            mosaicNoteRes(hasSession = false, onDeviceProcessing = true, canChange = false, anonymizationEnabled = true))
-        assertEquals(R.string.mosaic_server_only,
-            mosaicNoteRes(hasSession = true, onDeviceProcessing = true, canChange = false, anonymizationEnabled = true))
+            mosaicNoteRes(hasSession = false, onDeviceProcessing = false, canChange = false, anonymization = AnonymizationState.ENABLED))
         assertEquals(R.string.mosaic_anonymization_off,
-            mosaicNoteRes(hasSession = true, onDeviceProcessing = false, canChange = true, anonymizationEnabled = false))
-        assertNull(mosaicNoteRes(hasSession = true, onDeviceProcessing = false, canChange = true, anonymizationEnabled = true))
+            mosaicNoteRes(hasSession = true, onDeviceProcessing = false, canChange = true, anonymization = AnonymizationState.DISABLED))
+        assertNull(mosaicNoteRes(hasSession = true, onDeviceProcessing = false, canChange = true, anonymization = AnonymizationState.ENABLED))
+    }
+
+    @Test fun onDeviceNoteExplainsTheFloorEvenBeforePreparation() {
+        // 방송 준비 전에는 세션이 없고 비식별화 상태도 아직 모릅니다. 꺼짐 안내를 띄우지 않습니다.
+        assertEquals(R.string.mosaic_on_device_floor,
+            mosaicNoteRes(hasSession = false, onDeviceProcessing = true, canChange = false, anonymization = AnonymizationState.UNKNOWN))
+        assertEquals(R.string.mosaic_on_device_floor,
+            mosaicNoteRes(hasSession = true, onDeviceProcessing = true, canChange = false, anonymization = AnonymizationState.ENABLED))
+        assertEquals(R.string.mosaic_anonymization_off,
+            mosaicNoteRes(hasSession = true, onDeviceProcessing = true, canChange = false, anonymization = AnonymizationState.DISABLED))
     }
 }

@@ -8,6 +8,7 @@ import com.framework.innolive.BuildConfig
 import com.framework.innolive.feature.live.privacy.PrivacyFrameMode
 import com.framework.innolive.feature.live.privacy.PrivacyFrameProcessor
 import com.framework.innolive.feature.live.privacy.PrivacyFrameRoute
+import com.framework.innolive.feature.live.privacy.PrivacyMosaic
 import com.framework.innolive.feature.live.privacy.PrivacyNativePixels
 import com.framework.innolive.feature.live.privacy.PrivacyFrameAnalysis
 import com.framework.innolive.feature.live.privacy.PrivacyFrameTimings
@@ -46,6 +47,7 @@ class CameraFrameAnalyzer(
 ) : ImageAnalysis.Analyzer, AutoCloseable {
     private val captureLock = Any()
     private val settings = AtomicReference(BroadcastVideoQualitySettings())
+    private val onDeviceMosaic = AtomicReference(PrivacyMosaic())
     private val previewExposure = PreviewExposureFrameGate()
     private val colorProcessor = VideoColorFrameProcessor()
     private val previewRenderer = VideoLookPreviewRenderer()
@@ -155,6 +157,11 @@ class CameraFrameAnalyzer(
 
     fun setVideoQualitySettings(value: BroadcastVideoQualitySettings) {
         settings.set(value.normalized())
+    }
+
+    /** 온디바이스 가림 처리의 블러 강도·영역 너비입니다. 다음 보호 프레임부터 송출·미리보기·가공본 녹화에 함께 적용합니다. */
+    fun setOnDeviceMosaic(value: OnDeviceMosaicSettings) {
+        onDeviceMosaic.set(value.toPrivacyMosaic())
     }
 
     internal fun beginPreviewExposure() = synchronized(captureLock) {
@@ -479,6 +486,7 @@ class CameraFrameAnalyzer(
                     synchronized(processorLock) {
                         val processor = processor()
                         if (resetPending.getAndSet(false)) processor.resetFaceExceptions()
+                        processor.mosaic = onDeviceMosaic.get()
                         transform(processor)
                     }
                 },

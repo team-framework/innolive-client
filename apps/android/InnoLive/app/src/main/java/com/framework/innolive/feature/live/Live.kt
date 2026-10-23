@@ -154,8 +154,10 @@ import com.framework.innolive.feature.live.tutorial.LocalBroadcastTutorialAnchor
 import com.framework.innolive.feature.live.tutorial.broadcastTutorialAnchor
 import com.framework.innolive.feature.live.tutorial.guideFor
 import com.framework.innolive.ui.text.asString
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun LiveScreen(
@@ -351,6 +353,14 @@ private fun LiveScreenContent(
     }
     val idleFrameAnalyzer = remember { CameraFrameAnalyzer() }
     val frameAnalyzer = webRtcSession.frameAnalyzer ?: idleFrameAnalyzer
+    // 온디바이스 블러 강도·가림 영역 너비는 기기에 저장합니다. 읽는 동안은 하한인 기본값으로 처리하므로 약해지지 않습니다.
+    val onDeviceMosaicPreferences = remember(context) { OnDeviceMosaicPreferences(context) }
+    var onDeviceMosaic by remember(onDeviceMosaicPreferences) { mutableStateOf(OnDeviceMosaicSettings()) }
+    LaunchedEffect(onDeviceMosaicPreferences) {
+        onDeviceMosaic = withContext(Dispatchers.IO) { onDeviceMosaicPreferences.load() }
+    }
+    // 값이 바뀌거나 송출 분석기가 새로 생길 때만 넘깁니다.
+    LaunchedEffect(frameAnalyzer, onDeviceMosaic) { frameAnalyzer.setOnDeviceMosaic(onDeviceMosaic) }
     val lookPreviews by frameAnalyzer.lookPreviews.collectAsState()
     DisposableEffect(idleFrameAnalyzer) {
         onDispose { idleFrameAnalyzer.close() }
@@ -465,19 +475,33 @@ private fun LiveScreenContent(
             onSettingsChanged = props.onVideoQualitySettingsChanged,
             onDismiss = { setVideoControlsOpen(false) },
             mirrorPreviews = props.cameraLensFacing.shouldMirrorPreview,
-            mosaic = MosaicControlsState(
-                config = webRtcSession.mosaicConfig,
-                enabled = webRtcSession.canChangeMosaicConfig,
-                isChanging = webRtcSession.isChangingMosaicConfig,
-                noteRes = mosaicNoteRes(
-                    hasSession = webRtcSession.sessionSnapshot != null,
-                    onDeviceProcessing = webRtcSession.selectedOnDeviceProcessing,
-                    canChange = webRtcSession.canChangeMosaicConfig,
-                    anonymizationEnabled = webRtcSession.anonymizationState == AnonymizationState.ENABLED,
-                ),
-                error = webRtcSession.mosaicConfigError,
-                onChange = { webRtcSession.updateMosaicConfig(it) },
-            ),
+            mosaic = run {
+                // 온디바이스는 기기에 저장한 값을 바로 적용하고, 서버 AI는 세션 설정으로 보냅니다.
+                val onDevice = webRtcSession.selectedOnDeviceProcessing
+                MosaicControlsState(
+                    config = if (onDevice) onDeviceMosaic.toMosaicConfig() else webRtcSession.mosaicConfig,
+                    blurRange = if (onDevice) OnDeviceMosaicSettings.BLUR_STRENGTH_RANGE else MosaicConfig.BLUR_RADIUS_RANGE,
+                    blurStep = if (onDevice) OnDeviceMosaicSettings.BLUR_STRENGTH_STEP else 1,
+                    maskMarginRange = if (onDevice) OnDeviceMosaicSettings.MASK_MARGIN_RANGE else MosaicConfig.MASK_MARGIN_RANGE,
+                    enabled = onDevice || webRtcSession.canChangeMosaicConfig,
+                    isChanging = !onDevice && webRtcSession.isChangingMosaicConfig,
+                    noteRes = mosaicNoteRes(
+                        hasSession = webRtcSession.sessionSnapshot != null,
+                        onDeviceProcessing = onDevice,
+                        canChange = webRtcSession.canChangeMosaicConfig,
+                        anonymization = webRtcSession.anonymizationState,
+                    ),
+                    error = if (onDevice) null else webRtcSession.mosaicConfigError,
+                    onChange = { config ->
+                        if (onDevice) {
+                            onDeviceMosaic = OnDeviceMosaicSettings.from(config)
+                            onDeviceMosaicPreferences.save(onDeviceMosaic)
+                        } else {
+                            webRtcSession.updateMosaicConfig(config)
+                        }
+                    },
+                )
+            },
         )
     }
 
