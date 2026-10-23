@@ -24,11 +24,13 @@ internal class PrivacyBitmapBlur : AutoCloseable {
         lastUsedGpu = false
         if (Build.VERSION.SDK_INT >= 31 && !gpuUnavailable) {
             try {
-                if (gpu?.width != source.width || gpu?.height != source.height || gpu?.sigma != sigma) {
+                if (gpu?.width != source.width || gpu?.height != source.height) {
                     gpu?.close()
                     gpu = null
-                    gpu = Gpu(source.width, source.height, sigma)
+                    gpu = Gpu(source.width, source.height)
                 }
+                // 강도만 바뀌면 렌더러와 버퍼는 그대로 두고 블러 효과만 바꿉니다.
+                checkNotNull(gpu).sigma = sigma
                 val output = checkNotNull(gpu).apply(source)
                 lastUsedGpu = true
                 return output
@@ -44,7 +46,7 @@ internal class PrivacyBitmapBlur : AutoCloseable {
     override fun close() { if (Build.VERSION.SDK_INT >= 31) gpu?.close(); gpu = null }
 
     @RequiresApi(31)
-    private class Gpu(val width: Int, val height: Int, val sigma: Int) : AutoCloseable {
+    private class Gpu(val width: Int, val height: Int) : AutoCloseable {
         private val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2,
             HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE or HardwareBuffer.USAGE_GPU_COLOR_OUTPUT)
         private val node = RenderNode("PrivacyGaussianBlur")
@@ -55,11 +57,17 @@ internal class PrivacyBitmapBlur : AutoCloseable {
                 renderer.setSurface(reader.surface)
                 renderer.setContentRoot(node)
                 node.setPosition(0, 0, width, height)
-                // The same full-resolution sigma as the GPU graph and iOS, via HWUI's radius conversion.
-                val radius = PrivacyBroadcastBlur.renderEffectRadius(sigma)
-                node.setRenderEffect(RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP))
             } catch (error: Exception) { close(); throw error }
         }
+
+        /** The same full-resolution sigma as the GPU graph and iOS, via HWUI's radius conversion. */
+        var sigma = 0
+            set(value) {
+                if (field == value) return
+                val radius = PrivacyBroadcastBlur.renderEffectRadius(value)
+                node.setRenderEffect(RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP))
+                field = value
+            }
 
         fun apply(source: Bitmap): Bitmap {
             // iOS broadcastStyleBlur: area-average reduction, then one wide Gaussian; no block grid.

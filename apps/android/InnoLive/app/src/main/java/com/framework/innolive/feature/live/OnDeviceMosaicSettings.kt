@@ -2,6 +2,7 @@ package com.framework.innolive.feature.live
 
 import android.content.Context
 import com.framework.innolive.feature.live.privacy.PrivacyBroadcastBlur
+import com.framework.innolive.feature.live.privacy.PrivacyMosaic
 
 /**
  * 온디바이스 AI의 얼굴·번호판 블러 강도와 가림 영역 너비입니다. 서버 AI 슬라이더와 같은 눈금(블러 24, 너비 8px)을
@@ -12,15 +13,19 @@ data class OnDeviceMosaicSettings(
     val maskMargin: Int = MosaicConfig.DEFAULT_MASK_MARGIN,
 ) {
     fun normalized() = copy(
-        blurStrength = blurStrength.coerceIn(BLUR_STRENGTH_RANGE),
+        blurStrength = PrivacyBroadcastBlur.strengthLevel(blurStrength),
         maskMargin = maskMargin.coerceIn(MASK_MARGIN_RANGE),
     )
 
     /** 영상 조절 시트의 모자이크 구역이 보여 주는 값입니다. */
     fun toMosaicConfig() = MosaicConfig(blurRadius = blurStrength.toDouble(), maskMargin = maskMargin)
 
+    /** 가림 처리 경로가 프레임마다 읽는 값입니다. */
+    internal fun toPrivacyMosaic() = normalized().let { PrivacyMosaic(it.blurStrength, it.maskMargin) }
+
     companion object {
         val BLUR_STRENGTH_RANGE = PrivacyBroadcastBlur.DEFAULT_STRENGTH..PrivacyBroadcastBlur.MAX_STRENGTH
+        const val BLUR_STRENGTH_STEP = PrivacyBroadcastBlur.STRENGTH_STEP
         /** 8px 아래는 어차피 마스크 1칸이라 슬라이더도 기본값부터 시작합니다. */
         val MASK_MARGIN_RANGE = MosaicConfig.DEFAULT_MASK_MARGIN..MosaicConfig.MASK_MARGIN_RANGE.last
 

@@ -35,6 +35,8 @@ data class MosaicControlsState(
     val config: MosaicConfig,
     /** 슬라이더 범위입니다. 온디바이스는 지금 강도와 마스크 1칸보다 약하게 내리지 않습니다. */
     val blurRange: IntRange = MosaicConfig.BLUR_RADIUS_RANGE,
+    /** 온디바이스 강도는 6 단위 다섯 단계입니다. */
+    val blurStep: Int = 1,
     val maskMarginRange: IntRange = MosaicConfig.MASK_MARGIN_RANGE,
     val enabled: Boolean,
     val isChanging: Boolean,
@@ -45,7 +47,8 @@ data class MosaicControlsState(
 )
 
 /**
- * 조절할 수 없거나 적용되지 않는 이유입니다. 온디바이스는 기기에 저장해 방송 준비 전에도 조절하므로 하한만 알립니다.
+ * 조절할 수 없거나 적용되지 않는 이유입니다. 온디바이스는 기기에 저장해 방송 준비 전에도 조절하므로, 비식별화를
+ * 실제로 끈 경우가 아니면 하한만 알립니다. 준비 전 비식별화 상태는 [AnonymizationState.UNKNOWN]입니다.
  * 서버 AI는 iOS와 같은 순서로 방송 준비 전, 비식별화 꺼짐을 봅니다.
  */
 @StringRes
@@ -53,12 +56,12 @@ internal fun mosaicNoteRes(
     hasSession: Boolean,
     onDeviceProcessing: Boolean,
     canChange: Boolean,
-    anonymizationEnabled: Boolean,
+    anonymization: AnonymizationState,
 ): Int? = when {
-    onDeviceProcessing && !anonymizationEnabled -> R.string.mosaic_anonymization_off
+    onDeviceProcessing && anonymization == AnonymizationState.DISABLED -> R.string.mosaic_anonymization_off
     onDeviceProcessing -> R.string.mosaic_on_device_floor
     !hasSession -> R.string.mosaic_prepare_required
-    canChange && !anonymizationEnabled -> R.string.mosaic_anonymization_off
+    canChange && anonymization != AnonymizationState.ENABLED -> R.string.mosaic_anonymization_off
     else -> null
 }
 
@@ -104,7 +107,7 @@ internal fun MosaicControls(state: MosaicControlsState) {
             leading = stringResource(R.string.mosaic_weaker),
             trailing = stringResource(R.string.mosaic_stronger),
             enabled = state.enabled,
-            steps = state.blurRange.last - state.blurRange.first - 1,
+            steps = (state.blurRange.last - state.blurRange.first) / state.blurStep - 1,
             onValueChangeFinished = ::commit,
             onValueChange = {
                 isEditing = true

@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.util.Log
 import com.framework.innolive.BuildConfig
-import com.framework.innolive.feature.live.OnDeviceMosaicSettings
 import org.webrtc.VideoFrame
 import org.webrtc.JavaI420Buffer
 import org.webrtc.EglBase
@@ -30,7 +29,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
         coordinator.liveTrackIds = { model.liveTrackIds }
     }
     /** 영상 조절의 온디바이스 블러 강도·가림 영역 너비입니다. 처리 스레드가 프레임마다 읽습니다. */
-    @Volatile var mosaic = OnDeviceMosaicSettings()
+    @Volatile var mosaic = PrivacyMosaic()
     var lastTimings: PrivacyFrameTimings? = null
         private set
     val lastAnalysis: PrivacyFrameAnalysis? get() = model.lastAnalysis
@@ -172,8 +171,8 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                 },
                 renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,
                     model.lastMaskPixels,outputUpright=true,
-                    blurSigma=PrivacyBroadcastBlur.sigma(layout.sourceWidth,layout.sourceHeight,mosaic.blurStrength),
-                    edgeCells=PrivacyMaskRenderer.edgeCells(layout.sourceWidth,layout.sourceHeight,mosaic.maskMargin))}
+                    blurSigma=mosaic.sigma(layout.sourceWidth,layout.sourceHeight),
+                    edgeCells=mosaic.edgeCells(layout.sourceWidth,layout.sourceHeight))}
             val completed = System.nanoTime()
             lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
                 checkNotNull(model.lastTimings), 0.0, (completed - started) / 1e6)

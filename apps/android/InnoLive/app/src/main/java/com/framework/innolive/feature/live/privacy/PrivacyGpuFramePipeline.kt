@@ -535,16 +535,12 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             raw.texture
         }
         // Server mosaic: the contour plus the chosen mask cells (one by default) stays opaque, and the
-        // bilinear composite fades it over the next cell.
-        val temp = target("mask-temp", 160, 160, maskTargetsCompact)
+        // bilinear composite fades it over the next cell. The margin is the same disk as the CPU path,
+        // so a wide margin follows the contour instead of becoming a box.
         val alpha = target("mask-alpha",160,160,maskTargetsCompact)
-        draw("dilate-x", DILATE, temp, listOf(rawTexture)) { p ->
-            glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
-            glUniform1i(p.getUniformLocation("radius"), edgeCells)
-        }
-        draw("dilate-y", DILATE, alpha, listOf(temp.texture)) { p ->
-            glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / 160)
-            glUniform1i(p.getUniformLocation("radius"), edgeCells)
+        draw("dilate", DILATE, alpha, listOf(rawTexture)) { p ->
+            glUniform2f(p.getUniformLocation("texel"), 1f / 160, 1f / 160)
+            glUniform1f(p.getUniformLocation("radiusSq"), (edgeCells * edgeCells + edgeCells).toFloat())
         }
         return alpha
     }
@@ -671,8 +667,12 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
               +texture2D(tex0,uv+vec2(-1.0,1.0)*texelSize)+texture2D(tex0,uv+vec2(1.0,1.0)*texelSize)); }
         """
         private const val DILATE = """
-            uniform sampler2D tex0; uniform vec2 stepSize; uniform int radius;
-            void main(){ float a=0.0; for(int i=-${PrivacyMaskRenderer.MAX_EDGE_CELLS};i<=${PrivacyMaskRenderer.MAX_EDGE_CELLS};i++){ if(i>=-radius && i<=radius) a=max(a,texture2D(tex0,uv+float(i)*stepSize).r); } gl_FragColor=vec4(vec3(a),1.0); }
+            uniform sampler2D tex0; uniform vec2 texel; uniform float radiusSq;
+            void main(){ float a=0.0;
+              for(int j=-${PrivacyMaskRenderer.MAX_EDGE_CELLS};j<=${PrivacyMaskRenderer.MAX_EDGE_CELLS};j++)
+              for(int i=-${PrivacyMaskRenderer.MAX_EDGE_CELLS};i<=${PrivacyMaskRenderer.MAX_EDGE_CELLS};i++)
+                if(float(i*i+j*j)<=radiusSq) a=max(a,texture2D(tex0,uv+vec2(float(i),float(j))*texel).r);
+              gl_FragColor=vec4(vec3(a),1.0); }
         """
         private const val COMPOSITE = "uniform sampler2D tex0,tex1,tex2; uniform vec4 box; uniform int rotation; " + FORWARD +
             "void main(){ vec2 p=upright(uv); float a=texture2D(tex2,box.xy+p*box.zw).r; gl_FragColor=mix(texture2D(tex0,p),texture2D(tex1,p),a); }"

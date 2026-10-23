@@ -4,9 +4,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
+import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 internal object PrivacyMaskRenderer {
     /** Opaque cells added around the face contour, like the server's one-mask-pixel pad plus 8px
@@ -24,30 +27,39 @@ internal object PrivacyMaskRenderer {
         return (marginPx / cellPx).roundToInt().coerceIn(PROTECTED_EDGE_CELLS, MAX_EDGE_CELLS)
     }
 
-    /** The inner mask may only grow. */
+    /** The inner mask may only grow. The margin is a disk of radius r+0.5 cells, so a wide margin
+     * follows the face contour instead of turning into a box; one cell is the same 3x3 square. */
     fun expandedMask(mask: ByteArray, radius: Int = PROTECTED_EDGE_CELLS): ByteArray {
         val size = PrivacySegmentation.MASK_SIZE
         require(mask.size == size * size && radius >= 0)
         val margin = min(radius, size - 1)
-        val horizontal = ByteArray(mask.size)
+        val halfWidths = diskHalfWidths(margin)
+        val rows = halfWidths.distinct().associateWith { horizontalDilation(mask, size, it) }
         val expanded = ByteArray(mask.size)
-        for (y in 0 until size) {
-            var count = (0..margin).count { mask[y * size + it].toInt() != 0 }
-            for (x in 0 until size) {
-                if (count > 0) horizontal[y * size + x] = -1
-                if (x - margin >= 0 && mask[y * size + x - margin].toInt() != 0) count--
-                if (x + margin + 1 < size && mask[y * size + x + margin + 1].toInt() != 0) count++
-            }
-        }
-        for (x in 0 until size) {
-            var count = (0..margin).count { horizontal[it * size + x].toInt() != 0 }
-            for (y in 0 until size) {
-                if (count > 0) expanded[y * size + x] = -1
-                if (y - margin >= 0 && horizontal[(y - margin) * size + x].toInt() != 0) count--
-                if (y + margin + 1 < size && horizontal[(y + margin + 1) * size + x].toInt() != 0) count++
-            }
+        for (y in 0 until size) for (dy in -margin..margin) {
+            val source = y + dy
+            if (source !in 0 until size) continue
+            val row = rows.getValue(halfWidths[abs(dy)])
+            for (x in 0 until size) if (row[source * size + x].toInt() != 0) expanded[y * size + x] = -1
         }
         return expanded
+    }
+
+    /** Horizontal reach of the disk on each row offset: dx² + dy² <= r² + r, as in the GPU shader. */
+    private fun diskHalfWidths(radius: Int): IntArray =
+        IntArray(radius + 1) { dy -> floor(sqrt((radius * radius + radius - dy * dy).toDouble())).toInt() }
+
+    private fun horizontalDilation(mask: ByteArray, size: Int, reach: Int): ByteArray {
+        val output = ByteArray(mask.size)
+        for (y in 0 until size) {
+            var count = (0..reach).count { mask[y * size + it].toInt() != 0 }
+            for (x in 0 until size) {
+                if (count > 0) output[y * size + x] = -1
+                if (x - reach >= 0 && mask[y * size + x - reach].toInt() != 0) count--
+                if (x + reach + 1 < size && mask[y * size + x + reach + 1].toInt() != 0) count++
+            }
+        }
+        return output
     }
 
     fun render(upright: Bitmap, mask: ByteArray, layout: PrivacySegmentation.Letterbox,
