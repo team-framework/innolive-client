@@ -12,12 +12,21 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 internal object PrivacyMaskRenderer {
-    /** Opaque cells added around the face contour, like the server's one-mask-pixel pad plus 8px
-     * margin. One 160-grid cell is 8–12 output px at 720p–1080p; the 3x3 square equals a disk of
-     * radius sqrt(2), so the margin follows the contour instead of growing into a box. */
+    /** Minimum mask cells around the face contour, like the server's one-mask-pixel pad plus 8px
+     * margin. One 160-grid cell is 8–12 output px at 720p–1080p. */
     const val PROTECTED_EDGE_CELLS = 1
     /** 영상 조절 가림 영역 너비의 상한입니다. 너비 64px가 854px 폭 영상에서 12칸입니다. */
     const val MAX_EDGE_CELLS = 12
+    /** iOS `PrivacyMask`: 2칸 불투명 core와, 2칸 더 넓힌 바깥 마스크를 sigma 1.5칸으로 흐린 값 중 큰 값입니다.
+     * 너비를 넓히면 core가 그 칸 수를 따르고 바깥 마스크도 함께 넓어집니다. */
+    const val SOFT_CORE_CELLS = 2
+    const val SOFT_OUTER_EXTRA_CELLS = 2
+    const val SOFT_FEATHER_SIGMA = 1.5
+    /** GPU 팽창 셰이더의 고정 반복 범위입니다. 가장 넓은 너비의 바깥 마스크까지 덮습니다. */
+    const val MAX_DILATE_CELLS = MAX_EDGE_CELLS + SOFT_OUTER_EXTRA_CELLS
+
+    /** 불투명하게 남는 칸 수입니다. 영상 조절에서 고른 너비보다 좁아지지 않습니다. */
+    fun softCoreCells(edgeCells: Int): Int = max(edgeCells, SOFT_CORE_CELLS)
 
     /** 송출 영상 px로 받은 가림 영역 너비를 160 마스크 칸 수로 바꿉니다. 1칸은 영상 긴 변의 1/160이며,
      * 서버 기본 8px는 720p·1080p 모두 지금과 같은 1칸입니다. 0px여도 1칸 아래로 줄이지 않습니다. */
@@ -71,7 +80,7 @@ internal object PrivacyMaskRenderer {
         val height = upright.height
         // Never return/recycle the capture bitmap, even for a 1x1 input or an empty mask.
         if (mask.all { it.toInt() == 0 }) return checkNotNull(upright.copy(Bitmap.Config.ARGB_8888, false))
-        val alpha = expandedMask(mask, edgeCells)
+        val alpha = featheredMask(mask, edgeCells)
         val mosaic = filter(upright)
         val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         try {
@@ -80,6 +89,17 @@ internal object PrivacyMaskRenderer {
             return output
         } catch (error: Throwable) { output.recycle(); throw error }
         finally { mosaic.recycle() }
+    }
+
+    /** iOS `PrivacyMask.modelImage`: an opaque core plus a wider mask feathered at sigma 1.5 cells. */
+    internal fun featheredMask(mask: ByteArray, edgeCells: Int = PROTECTED_EDGE_CELLS): ByteArray {
+        val size = PrivacySegmentation.MASK_SIZE
+        val coreCells = softCoreCells(edgeCells)
+        val core = expandedMask(mask, coreCells)
+        val outer = expandedMask(mask, coreCells + SOFT_OUTER_EXTRA_CELLS)
+        val pixels = IntArray(mask.size) { if (outer[it].toInt() != 0) -1 else 0xff000000.toInt() }
+        val blurred = PrivacyGaussianBlur.apply(pixels, size, size, SOFT_FEATHER_SIGMA)
+        return ByteArray(mask.size) { if (core[it].toInt() != 0) -1 else (blurred[it] and 255).toByte() }
     }
 
     /** iOS broadcastStyleBlur on the CPU: area-average reduction to 1/4, a Gaussian with the

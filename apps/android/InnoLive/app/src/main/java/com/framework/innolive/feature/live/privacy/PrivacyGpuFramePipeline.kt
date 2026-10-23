@@ -497,8 +497,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         if(right<left) return null
         val scaleX=layout.sourceWidth.toFloat()/layout.resizedWidth
         val scaleY=layout.sourceHeight.toFloat()/layout.resizedHeight
-        // The protected edge cells plus 9 model-mask cells cover the dilation and its bilinear fade
-        // with room to spare. The upright margin covers both Gaussian axes at the reduced
+        // The protected edge cells plus 9 model-mask cells cover the opaque core (at most one cell
+        // wider), the two-cell outer mask, its sigma 1.5 feather and the bilinear fade. The upright margin covers both Gaussian axes at the reduced
         // resolution plus the 4x4 reduction footprint, even at odd dimensions.
         val reach=PrivacyBroadcastBlur.REDUCTION*(PrivacyBroadcastBlur.kernelRadius(
             PrivacyBroadcastBlur.reducedSigma(sigma))+2)
@@ -534,15 +534,29 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             glTexSubImage2D(GL_TEXTURE_2D,0,0,0,160,160,GL_RGBA,GL_UNSIGNED_BYTE,bytes)
             raw.texture
         }
-        // Server mosaic: the contour plus the chosen mask cells (one by default) stays opaque, and the
-        // bilinear composite fades it over the next cell. The margin is the same disk as the CPU path,
-        // so a wide margin follows the contour instead of becoming a box.
+        // iOS PrivacyMask: the opaque core, then max(core, the wider mask feathered at sigma 1.5).
+        // Both are the same disks as the CPU path, so a wide margin follows the contour.
         val alpha = target("mask-alpha",160,160,maskTargetsCompact)
-        draw("dilate", DILATE, alpha, listOf(rawTexture)) { p ->
-            glUniform2f(p.getUniformLocation("texel"), 1f / 160, 1f / 160)
-            glUniform1f(p.getUniformLocation("radiusSq"), (edgeCells * edgeCells + edgeCells).toFloat())
+        val coreCells = PrivacyMaskRenderer.softCoreCells(edgeCells)
+        val core = target("mask-core",160,160,maskTargetsCompact)
+        val outer = target("mask-outer",160,160,maskTargetsCompact)
+        val temp = target("mask-temp",160,160,maskTargetsCompact)
+        dilate(rawTexture, core, coreCells)
+        dilate(rawTexture, outer, coreCells + PrivacyMaskRenderer.SOFT_OUTER_EXTRA_CELLS)
+        draw("feather", FEATHER, temp, listOf(outer.texture)) { p ->
+            glUniform2f(p.getUniformLocation("stepSize"), 1f / 160, 0f)
+        }
+        draw("feather-max", FEATHER_MAX, alpha, listOf(temp.texture, core.texture)) { p ->
+            glUniform2f(p.getUniformLocation("stepSize"), 0f, 1f / 160)
         }
         return alpha
+    }
+
+    private fun dilate(source: Int, output: Target, cells: Int) {
+        draw("dilate", DILATE, output, listOf(source)) { p ->
+            glUniform2f(p.getUniformLocation("texel"), 1f / 160, 1f / 160)
+            glUniform1f(p.getUniformLocation("radiusSq"), (cells * cells + cells).toFloat())
+        }
     }
 
     private fun target(name: String, w: Int, h: Int, singleChannel:Boolean=false): Target {
@@ -669,11 +683,20 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         private const val DILATE = """
             uniform sampler2D tex0; uniform vec2 texel; uniform float radiusSq;
             void main(){ float a=0.0;
-              for(int j=-${PrivacyMaskRenderer.MAX_EDGE_CELLS};j<=${PrivacyMaskRenderer.MAX_EDGE_CELLS};j++)
-              for(int i=-${PrivacyMaskRenderer.MAX_EDGE_CELLS};i<=${PrivacyMaskRenderer.MAX_EDGE_CELLS};i++)
+              for(int j=-${PrivacyMaskRenderer.MAX_DILATE_CELLS};j<=${PrivacyMaskRenderer.MAX_DILATE_CELLS};j++)
+              for(int i=-${PrivacyMaskRenderer.MAX_DILATE_CELLS};i<=${PrivacyMaskRenderer.MAX_DILATE_CELLS};i++)
                 if(float(i*i+j*j)<=radiusSq) a=max(a,texture2D(tex0,uv+vec2(float(i),float(j))*texel).r);
               gl_FragColor=vec4(vec3(a),1.0); }
         """
+        /** Separable sigma 1.5 Gaussian over the 160 mask (2·sigma² = 4.5), as iOS `CIGaussianBlur` radius 1.5. */
+        private const val FEATHER_SUM =
+            "float value=0.0; float sum=0.0; for(int i=-5;i<=5;i++){ float w=exp(-float(i*i)/4.5); " +
+            "value+=texture2D(tex0,uv+float(i)*stepSize).r*w; sum+=w; }"
+        private const val FEATHER = "uniform sampler2D tex0; uniform vec2 stepSize; " +
+            "void main(){ $FEATHER_SUM gl_FragColor=vec4(vec3(value/sum),1.0); }"
+        /** The vertical feather pass also keeps the opaque core: max(feathered outer, core). */
+        private const val FEATHER_MAX = "uniform sampler2D tex0,tex1; uniform vec2 stepSize; " +
+            "void main(){ $FEATHER_SUM gl_FragColor=vec4(vec3(max(value/sum,texture2D(tex1,uv).r)),1.0); }"
         private const val COMPOSITE = "uniform sampler2D tex0,tex1,tex2; uniform vec4 box; uniform int rotation; " + FORWARD +
             "void main(){ vec2 p=upright(uv); float a=texture2D(tex2,box.xy+p*box.zw).r; gl_FragColor=mix(texture2D(tex0,p),texture2D(tex1,p),a); }"
     }
