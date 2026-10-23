@@ -21,6 +21,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
@@ -29,7 +30,6 @@ import kotlin.coroutines.resume
 private const val TAG = "GuestFaceRegistrar"
 private const val REGISTERED_TOAST_MILLIS = 2_000L
 private const val REGISTERED_NOTICE_MILLIS = 4_000L
-private const val LOCAL_MODEL_TIMEOUT_MILLIS = 10_000L
 private const val FACE_LIST_RETRY_DELAY_MILLIS = 500L
 
 /** 탭한 게스트를 어디에 등록할지입니다. 방송에 고른 처리 방식과 같습니다. */
@@ -302,7 +302,9 @@ internal class DeviceGuestFaceRegistrationBackend(
         service.retain()
         try {
             if (service.preparationFailed) service.retryPreparation() else service.prepare()
-            val ready = withContext(Dispatchers.IO) { service.awaitPreparation(LOCAL_MODEL_TIMEOUT_MILLIS) }
+            // iOS처럼 첫 준비가 오래 걸려도 끝날 때까지 기다립니다. 토스트를 닫으면 기다림도 멈춥니다.
+            val ready = runInterruptible(Dispatchers.IO) { service.awaitPreparation(Long.MAX_VALUE) }
+            currentCoroutineContext().ensureActive()
             if (!ready) throw GuestFaceRegistrationException(R.string.local_face_model_failed)
             // enroll은 받은 비트맵을 재활용하므로 시도마다 JPEG에서 새로 만듭니다. iOS도 같은 JPEG로 등록합니다.
             val sample = withContext(Dispatchers.Default) {
