@@ -17,11 +17,17 @@ p.add_argument('--output', default=str(Path(__file__).parent/'build'))
 p.add_argument('--samples', type=int, default=128)
 p.add_argument('--step', type=int, default=10)
 p.add_argument('--density', type=float, default=172.0, help='Pixels per interocular distance.')
+p.add_argument('--skip-render', action='store_true', help='Recompute pose-views.json only; keeps rendered PNGs.')
 ns = p.parse_args(args)
 OUT = Path(ns.output).resolve(); VIEWS = OUT/'views'; VIEWS.mkdir(parents=True, exist_ok=True)
 YAWS = list(range(0, 91, ns.step))
 # Ears and tufts stay outside the face rectangle, matching the front sprite contract.
 NOT_FACE = ('ear', 'tuft')
+# ArcFace 5-point template (InSwapper alignment) in interocular units from the eye midpoint, +z up:
+# right eye, left eye, nose, right and left mouth corners in YuNet order. Scaled so the animal head
+# spans a typical face (forehead to chin about 2.9 interocular distances) around the head centre.
+TEMPLATE = [(-.5, 0), (.5, 0), (.009, -.572), (-.413, -1.157), (.415, -1.152)]
+FACE_CENTER, FIT = -.35, .72
 
 def geometry(scene):
     return [o for o in scene.objects if o.type == 'MESH']
@@ -36,6 +42,17 @@ def bounds(objects, face_only=False):
             w = evaluated.matrix_world @ v.co
             xs.append(w.x); zs.append(w.z)
     return min(xs), max(xs), min(zs), max(zs)
+
+def template_points(scene, shell):
+    # Ray-cast each template point onto the head shell at rest so it turns with the model.
+    center = (shell.matrix_world @ Vector((0, 0, 0))).z
+    points = []
+    for x, z in TEMPLATE:
+        wx, wz = x*FIT, center+(z-FACE_CENTER)*FIT
+        hit, loc, _, _ = shell.ray_cast(shell.matrix_world.inverted() @ Vector((wx, -6, wz)), Vector((0, 1, 0)))
+        assert hit, f'Template point misses the head: {x},{z}'
+        points.append(shell.matrix_world @ loc)
+    return points
 
 def symmetric_studio(scene):
     for o in [o for o in scene.objects if o.type == 'LIGHT']: bpy.data.objects.remove(o)
@@ -64,6 +81,9 @@ for name in ('rabbit', 'owl'):
     scene = bpy.context.scene
     root = next(o for o in scene.objects if o.get('asset_id') == name)
     meshes = geometry(scene)
+    root.rotation_euler = (0, 0, 0); bpy.context.view_layer.update()
+    shell = next(o for o in meshes if o.name == 'Full face shell')
+    rest = [root.matrix_world.inverted() @ point for point in template_points(scene, shell)]
     use_gpu(scene)
     scene.cycles.samples = ns.samples
     scene.cycles.use_denoising = True
@@ -92,9 +112,10 @@ for name in ('rabbit', 'owl'):
         def u(x): return (x-(-units_w/2))/units_w
         def v(z): return ((cz+units_h/2)-z)/units_h
         face = [u(fx0), v(fz1), u(fx1)-u(fx0), v(fz0)-v(fz1)]
+        landmarks = [[u(w.x), v(w.z)] for w in (root.matrix_world @ point for point in rest)]
         scene.render.filepath = str(VIEWS/f'{name}-yaw{yaw:02d}.png')
-        bpy.ops.render.render(write_still=True)
-        views.append({'yaw': yaw, 'image': f'views/{name}-yaw{yaw:02d}.png', 'faceRect': face})
+        if not ns.skip_render: bpy.ops.render.render(write_still=True)
+        views.append({'yaw': yaw, 'image': f'views/{name}-yaw{yaw:02d}.png', 'faceRect': face, 'landmarks': landmarks})
     root.rotation_euler = (0, 0, 0)
     manifest['animals'].append({'id': name, 'cellWidth': width, 'cellHeight': height,
                                 'unitsPerCell': [units_w, units_h], 'views': views})

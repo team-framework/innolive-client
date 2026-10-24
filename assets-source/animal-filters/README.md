@@ -21,9 +21,10 @@ Sidecar coordinates use a normalized 0–1 top-left origin:
 
 - `views[].cell`: `[x, y, width, height]` atlas pixels of one yaw view.
 - `views[].faceRect`: `[x, y, width, height]` of the head, excluding ears/tufts, normalized inside that cell.
+- `views[].landmarks`: the ArcFace 5-point template (InSwapper alignment) ray-cast onto the head and projected for that yaw, YuNet order, normalized inside that cell. The template is scaled by 0.72 around the head centre so the head spans a typical face.
 - `faceRect`: the 0° view's face rectangle, kept for front-only readers.
 
-Clients scale a cell uniformly so the face rectangle covers the tracked face box, center it on the box, and rotate by the face roll. They never stretch width and height separately, so narrow side-face boxes no longer squash the animal. YuNet's five landmarks give yaw from the nose offset along the eye line; neighbouring views cross-fade only within ±0.5° of their midpoint. Keep the existing blur underneath because a stylized silhouette is not a privacy guarantee on its own.
+Clients align a cell like face swap: a least-squares similarity from the view's landmarks to the face's YuNet landmarks, clipped to the protected mask. They never stretch width and height separately, so side faces are not squashed. YuNet's five landmarks also give yaw from the nose offset along the eye line; neighbouring views cross-fade only within ±0.5° of their midpoint. Keep the existing blur underneath because a stylized silhouette is not a privacy guarantee on its own.
 
 ## Editable 3D sources and archival exports
 

@@ -25,13 +25,15 @@ for animal in manifest['animals']:
         image = Image.open(root/view['image']).convert('RGBA'); assert image.size == (w, h)
         x = index % columns*w; y = index//columns*h
         atlas.paste(image, (x, y))
-        entries.append({'yaw': view['yaw'], 'cell': [x, y, w, h], 'faceRect': view['faceRect']})
+        entries.append({'yaw': view['yaw'], 'cell': [x, y, w, h], 'faceRect': view['faceRect'],
+                        'landmarks': view['landmarks']})
     out = root/'runtime'/f'{name}.png'; out.parent.mkdir(exist_ok=True)
     atlas.save(out, optimize=True); tag_srgb(out)
     front = entries[0]['faceRect']
     (root/'runtime'/f'{name}.json').write_text(json.dumps({
         'id': name, 'version': 2, 'image': f'{name}.png', 'width': atlas.width, 'height': atlas.height,
         'coordinateSystem': 'normalized-top-left', 'cellFaceRect': 'normalized within each cell; excludes ears and tufts',
+        'cellLandmarks': 'ArcFace 5-point template on the head, YuNet order, normalized within each cell; align by similarity transform',
         'yawConvention': 'positive yaw turns the muzzle toward image right; mirror the cell for negative yaw',
         'mirrorNegativeYaw': True, 'faceRect': front, 'views': entries,
         'fullFace': True, 'scope': 'on-device-only'}, indent=2)+'\n')
