@@ -114,7 +114,12 @@ nonisolated final class PrivacyYuNetDetector {
     }
 
     func face(in image: CGImage, enrollment: Bool) throws -> PrivacyYuNetDecoding.Face {
-        let layout = PrivacyYuNetDecoding.InputLayout(size: CGSize(width: image.width, height: image.height), enrollment: enrollment)
+        try face(in: CIImage(cgImage: image), size: CGSize(width: image.width, height: image.height), enrollment: enrollment)
+    }
+
+    /// `image` covers (0, 0, size); returned coordinates are top-left pixels of that image.
+    func face(in image: CIImage, size: CGSize, enrollment: Bool) throws -> PrivacyYuNetDecoding.Face {
+        let layout = PrivacyYuNetDecoding.InputLayout(size: size, enrollment: enrollment)
         let width = layout.width, height = layout.height
         guard width <= 2048, height <= 2048 else { throw PrivacyFaceSampleError.size }
         if input == nil || CVPixelBufferGetWidth(input!) != width || CVPixelBufferGetHeight(input!) != height {
@@ -127,9 +132,9 @@ nonisolated final class PrivacyYuNetDetector {
         }
         guard let input else { throw PrivacyModelError.imageBuffer }
         let bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        let topAligned = CIImage(cgImage: image)
-            .transformed(by: CGAffineTransform(scaleX: layout.resized.width / CGFloat(image.width),
-                                              y: layout.resized.height / CGFloat(image.height)))
+        let topAligned = image
+            .transformed(by: CGAffineTransform(scaleX: layout.resized.width / size.width,
+                                              y: layout.resized.height / size.height))
             .transformed(by: CGAffineTransform(translationX: 0, y: CGFloat(height) - layout.resized.height))
         context.render(topAligned.composited(over: CIImage(color: .black).cropped(to: bounds)),
                        to: input, bounds: bounds, colorSpace: CGColorSpaceCreateDeviceRGB())
