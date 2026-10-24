@@ -24,9 +24,16 @@ Apply the animal after the existing privacy blur composition. Preserve plate mas
 registered-face exceptions and held masks. Missing/invalid assets fall back to existing blur.
 Never expose original pixels as an asset-loading fallback.
 
-YuNet provides five landmarks, but the current compositor does not expose a stable per-frame
-3D pose contract. Initial assets support face-box tracking; yaw/pitch animation requires
-additional pose estimation and validation. Do not claim verified 3D head tracking.
+## Side and diagonal faces (schema 2)
+
+| 항목 | 내용 |
+| --- | --- |
+| 자산 | Blender 3D 머리를 yaw 0–90° 10° 간격으로 렌더링한 atlas, 음수 yaw는 좌우 반전 |
+| 배치 | face box를 덮는 균일 배율, box 중심 정렬, roll 회전; 가로·세로 개별 늘림 없음 |
+| yaw·roll | 보호 대상 얼굴 박스 1.4배 정사각형을 160px로 잘라 YuNet 5점 추정, 큰 얼굴부터 프레임당 최대 3개 |
+| 안정화 | BoT-SORT track별 지수 평활(0.5), 랜드마크 실패 시 이전 pose 유지, track 종료 시 삭제 |
+| 실패 | YuNet 로딩·실행 오류 시 정면 view로 고정, 아래 블러 유지 |
+| 범위 밖 | pitch view, 프레임당 YuNet 비용과 실제 얼굴 yaw 보정 상수(코 깊이 0.55) 기기 검증 |
 
 ## Acceptance
 
