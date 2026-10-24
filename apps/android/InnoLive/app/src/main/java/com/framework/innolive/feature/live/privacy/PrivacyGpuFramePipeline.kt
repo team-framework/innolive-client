@@ -3,6 +3,7 @@ package com.framework.innolive.feature.live.privacy
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.graphics.RectF
 import android.opengl.GLES20.*
 import android.opengl.GLUtils
 import android.opengl.GLES30.GL_UNPACK_ROW_LENGTH
@@ -23,6 +24,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.cos
+import kotlin.math.sin
 
 /** Serial AI/compositing graph. CPU encoders convert textures on a separate shared EGL queue.
  * Output textures remain owned until every renderer/encoder releases its frame. */
@@ -56,6 +59,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         private set
     private val maskPixels = ByteBuffer.allocateDirect(160 * 160 * if(compactMask) 1 else 4)
     private var cropPixels: ByteBuffer? = null
+    private var posePixels: ByteBuffer? = null
+    private var poseBitmap: Bitmap? = null
     private var faceReadbackPool: PrivacyFaceReadbackPool? = null
     private val outputPool = mutableListOf<Target>()
     private val leased = mutableSetOf<Target>()
@@ -262,6 +267,24 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         }
     }
 
+    /** Square head-pose input; [square] may extend past the frame, where it is padded with black. Reused per call. */
+    internal fun poseCrop(square: RectF, size: Int): Bitmap = onGl {
+        require(square.width() > 0f && square.height() > 0f)
+        val cropped = target("pose", size, size)
+        draw("pose", POSE_CROP, cropped, listOf(targets.getValue("upright").texture)) { p ->
+            glUniform4f(p.getUniformLocation("box"), square.left / width, square.top / height,
+                square.width() / width, square.height() / height)
+        }
+        val pixels = posePixels?.takeIf { it.capacity() == size * size * 4 }
+            ?: ByteBuffer.allocateDirect(size * size * 4).also { posePixels = it }
+        readPixels(cropped, pixels)
+        val bitmap = poseBitmap?.takeIf { it.width == size }
+            ?: Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { poseBitmap?.recycle(); poseBitmap = it }
+        bitmap.setHasAlpha(false)
+        pixels.rewind(); bitmap.copyPixelsFromBuffer(pixels)
+        bitmap
+    }
+
     /** Diagnostic asynchronous crop; all original pixels and crop coordinates are preserved. */
     internal fun cropAsync(bounds: Rect): PrivacyFaceReadback = onGl {
         check(!closing && rowLengthSupported)
@@ -416,7 +439,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
     fun finish(mask: ByteArray, layout: PrivacySegmentation.Letterbox,
                sensorWidth: Int, sensorHeight: Int, maskPixels: Int = -1,
                outputUpright: Boolean = false, blurSigma: Int? = null,
-               animalOverlay: Triple<Bitmap, android.graphics.RectF, List<android.graphics.RectF>>? = null,
+               animalOverlay: PrivacyAnimalOverlay? = null,
                edgeCells: Int = PrivacyMaskRenderer.PROTECTED_EDGE_CELLS): VideoFrame.TextureBuffer = onGl {
         check(!closing)
         require(layout.sourceWidth == width && layout.sourceHeight == height && mask.size == 160 * 160)
@@ -463,19 +486,29 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             }
         }
         if (outputUpright && animalOverlay != null) {
-            val (bitmap, face, boxes) = animalOverlay
+            val bitmap = animalOverlay.image; val atlas = animalOverlay.atlas
             val sprite = target("animal-sprite", bitmap.width, bitmap.height)
             if (uploadedAnimal !== bitmap) {
                 glBindTexture(GL_TEXTURE_2D, sprite.texture)
                 GLUtils.texSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bitmap)
                 uploadedAnimal = bitmap
             }
-            boxes.filter { !it.isEmpty }.forEach { box ->
-                val sx = box.width()/face.width(); val sy = box.height()/face.height()
-                draw("animal", "uniform sampler2D tex0; uniform vec4 bounds; void main(){ vec2 p=(uv-bounds.xy)/bounds.zw; if(p.x<0.0||p.y<0.0||p.x>1.0||p.y>1.0) discard; gl_FragColor=texture2D(tex0,p); }", output, listOf(sprite.texture)) { p ->
+            fun cell(view: PrivacyAnimalAtlas.View) = floatArrayOf(view.cell.x.toFloat() / atlas.width,
+                view.cell.y.toFloat() / atlas.height, view.cell.width.toFloat() / atlas.width,
+                view.cell.height.toFloat() / atlas.height)
+            animalOverlay.faces.forEach { face ->
+                val place = atlas.place(face) ?: return@forEach
+                draw("animal", ANIMAL, output, listOf(sprite.texture)) { p ->
                     glEnable(GL_BLEND); glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
-                    glUniform4f(p.getUniformLocation("bounds"), (box.left-face.left*sx)/width,
-                        (box.top-face.top*sy)/height,bitmap.width*sx/width,bitmap.height*sy/height)
+                    glUniform2f(p.getUniformLocation("frame"), width.toFloat(), height.toFloat())
+                    glUniform2f(p.getUniformLocation("center"), place.centerX, place.centerY)
+                    glUniform2f(p.getUniformLocation("canvas"), place.canvasWidth, place.canvasHeight)
+                    glUniform2f(p.getUniformLocation("anchor"), place.anchorX, place.anchorY)
+                    glUniform2f(p.getUniformLocation("spin"), cos(place.roll), sin(place.roll))
+                    glUniform4fv(p.getUniformLocation("cellA"), 1, cell(place.from), 0)
+                    glUniform4fv(p.getUniformLocation("cellB"), 1, cell(place.to), 0)
+                    glUniform1f(p.getUniformLocation("blend"), place.blend)
+                    glUniform1f(p.getUniformLocation("mirrored"), if (place.mirrored) 1f else 0f)
                 }
             }
             glDisable(GL_BLEND)
@@ -624,7 +657,7 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 glDeleteTextures(3, planeTextures, 0)
                 glDeleteTextures(1, maskTexture, 0)
                 shaders.values.forEach { it.release() }; shaders.clear()
-                modelBitmap.recycle()
+                modelBitmap.recycle(); poseBitmap?.recycle(); poseBitmap = null
                 outputPool.filter { it !in leased }.toList().forEach { it.close(); outputPool.remove(it) }
                 releaseIfIdle()
             }
@@ -693,6 +726,20 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             void main(){ vec2 p=(uv-box.xy)/box.zw; gl_FragColor=(p.x<0.0||p.y<0.0||p.x>1.0||p.y>1.0)?vec4(vec3(114.0/255.0),1.0):texture2D(tex0,p); }
         """
         private const val CROP = "uniform sampler2D tex0; uniform vec4 box; void main(){ gl_FragColor=texture2D(tex0,box.xy+uv*box.zw); }"
+        private const val POSE_CROP = "uniform sampler2D tex0; uniform vec4 box; void main(){ vec2 p=box.xy+uv*box.zw; " +
+            "gl_FragColor=(p.x<0.0||p.y<0.0||p.x>1.0||p.y>1.0)?vec4(0.0,0.0,0.0,1.0):texture2D(tex0,p); }"
+        /**
+         * One placed animal: frame pixels are rotated by -roll around the face centre into the canvas, mirrored for
+         * negative yaw, and two neighbouring yaw cells of the premultiplied atlas are cross-faded.
+         */
+        private const val ANIMAL = """
+            uniform sampler2D tex0; uniform vec2 frame,center,canvas,anchor,spin; uniform vec4 cellA,cellB; uniform float blend,mirrored;
+            void main(){ vec2 d=uv*frame-center;
+              vec2 q=vec2(spin.x*d.x+spin.y*d.y,-spin.y*d.x+spin.x*d.y)/canvas+anchor;
+              if(q.x<0.0||q.y<0.0||q.x>1.0||q.y>1.0) discard;
+              if(mirrored>0.5) q.x=1.0-q.x;
+              gl_FragColor=mix(texture2D(tex0,cellA.xy+q*cellA.zw),texture2D(tex0,cellB.xy+q*cellB.zw),blend); }
+        """
         private const val RESTORE = "uniform sampler2D tex0; uniform int rotation; " + FORWARD + "void main(){ gl_FragColor=texture2D(tex0,upright(uv)); }"
         // Four bilinear taps one source texel away from the quarter-pixel centre average an exact
         // 4x4 block when the target is a quarter of the source; a single fetch would skip texels.
