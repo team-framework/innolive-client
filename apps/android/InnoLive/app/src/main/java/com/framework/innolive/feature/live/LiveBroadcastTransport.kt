@@ -113,6 +113,8 @@ internal class LiveBroadcastTransportRequest(
     val previewOnly: Boolean = false,
     /** 실험실에서 얼굴 합성을 켰습니다. 서버 중계 세션을 서버 AI로 만들 때만 씁니다. */
     val faceSwap: Boolean = false,
+    /** 실험실에서 고른 동물입니다. 온디바이스 처리에서만 씁니다. */
+    val animal: String? = null,
 ) {
     val context: Context = context.applicationContext
 }
@@ -135,6 +137,7 @@ internal fun createLiveBroadcastTransport(request: LiveBroadcastTransportRequest
             provider = request.provider,
             broadcastResolution = request.directPlan.resolution,
             faceAnonymization = sessionFaceAnonymization(request.faceSwap, request.initialOnDeviceProcessing),
+            animal = request.animal.takeIf { request.initialOnDeviceProcessing },
             preferredAudioInput = request.preferredAudioInput,
             onStateChanged = onStateChanged,
             onRemoteTrackChanged = onRemoteTrackChanged,

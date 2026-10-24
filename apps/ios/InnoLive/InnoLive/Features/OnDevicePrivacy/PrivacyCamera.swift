@@ -104,7 +104,9 @@ nonisolated final class PrivacyCamera: NSObject, AVCaptureVideoDataOutputSampleB
         guard session.isRunning, let model, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         autoreleasepool {
             do {
+                let animalSelection = PrivacyAnimal.selected
                 let (image, count, timings, faces) = try model.process(buffer)
+                guard PrivacyAnimal.selected == animalSelection else { return }
                 let completed = ProcessInfo.processInfo.systemUptime
                 let fps = lastCompleted == 0 ? 0 : 1 / (completed - lastCompleted)
                 lastCompleted = completed

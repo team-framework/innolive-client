@@ -22,6 +22,7 @@ nonisolated final class PrivacyModel {
     private let detectionsName: String
     private let prototypesName: String
     private let stabilizer = PrivacyMaskStabilizer()
+    private let animalSprite = PrivacyAnimalSprite()
     private let tracker = PrivacyBoTSORT()
     private let cameraMotion = PrivacyCameraMotion()
     private var previousExtent: CGRect?
@@ -59,6 +60,7 @@ nonisolated final class PrivacyModel {
         stabilizer.reset()
         tracker.reset()
         cameraMotion.reset()
+        animalSprite.reset()
         faces.reset()
         previousExtent = nil
         previousTime = nil
@@ -140,8 +142,20 @@ nonisolated final class PrivacyModel {
                                               y: size.height / layout.resized.height))
             .cropped(to: original.extent)
         let blurred = try broadcastStyleBlur(original)
-        let result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
+        var result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
+        if PrivacyAnimal.selected != .blur {
+            let animalFaces = protectedIndices.filter { objects[$0].classID == 0 && !allowed.contains($0) }.map { index in
+                let box = objects[index].box
+                return (box: CGRect(x: (box.minX - layout.left) * size.width / layout.resized.width,
+                                    y: (640 - box.maxY - layout.bottom) * size.height / layout.resized.height,
+                                    width: box.width * size.width / layout.resized.width,
+                                    height: box.height * size.height / layout.resized.height),
+                        track: trackIDs[index])
+            }
+            // Landmarks read the unblurred frame; the animal stays inside the protected mask like face swap.
+            result = animalSprite.composite(result, faces: animalFaces, source: original, mask: mask)
+        }
         // Frame only after all original-coordinate AI work and mask composition. Both
         // local CGImage preview and direct CVPixelBuffer uplink share this same output.
         let rendered = try render(PrivacyOutputFraming.apply(to: result.cropped(to: original.extent)))

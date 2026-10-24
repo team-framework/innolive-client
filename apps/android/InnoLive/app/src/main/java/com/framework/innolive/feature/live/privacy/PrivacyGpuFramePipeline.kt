@@ -3,11 +3,13 @@ package com.framework.innolive.feature.live.privacy
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.Rect
+import android.graphics.RectF
 import android.opengl.GLES20.*
 import android.opengl.GLUtils
 import android.opengl.GLES30.GL_UNPACK_ROW_LENGTH
 import android.opengl.GLES30.GL_R8
 import android.opengl.GLES30.GL_RED
+import android.opengl.GLES30
 import android.util.Log
 import android.content.Context
 import android.os.Handler
@@ -56,6 +58,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         private set
     private val maskPixels = ByteBuffer.allocateDirect(160 * 160 * if(compactMask) 1 else 4)
     private var cropPixels: ByteBuffer? = null
+    private var posePixels: ByteBuffer? = null
+    private var poseBitmap: Bitmap? = null
     private var faceReadbackPool: PrivacyFaceReadbackPool? = null
     private val outputPool = mutableListOf<Target>()
     private val leased = mutableSetOf<Target>()
@@ -262,6 +266,24 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         }
     }
 
+    /** Square head-pose input; [square] may extend past the frame, where it is padded with black. Reused per call. */
+    internal fun poseCrop(square: RectF, size: Int): Bitmap = onGl {
+        require(square.width() > 0f && square.height() > 0f)
+        val cropped = target("pose", size, size)
+        draw("pose", POSE_CROP, cropped, listOf(targets.getValue("upright").texture)) { p ->
+            glUniform4f(p.getUniformLocation("box"), square.left / width, square.top / height,
+                square.width() / width, square.height() / height)
+        }
+        val pixels = posePixels?.takeIf { it.capacity() == size * size * 4 }
+            ?: ByteBuffer.allocateDirect(size * size * 4).also { posePixels = it }
+        readPixels(cropped, pixels)
+        val bitmap = poseBitmap?.takeIf { it.width == size }
+            ?: Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888).also { poseBitmap?.recycle(); poseBitmap = it }
+        bitmap.setHasAlpha(false)
+        pixels.rewind(); bitmap.copyPixelsFromBuffer(pixels)
+        bitmap
+    }
+
     /** Diagnostic asynchronous crop; all original pixels and crop coordinates are preserved. */
     internal fun cropAsync(bounds: Rect): PrivacyFaceReadback = onGl {
         check(!closing && rowLengthSupported)
@@ -411,9 +433,22 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         readModelInput()
     }
 
+    private var uploadedAnimal: Bitmap? = null
+    /** CPU submit time of the last animal draw, and its GPU time from a timer query a few frames later. */
+    internal var lastAnimalDrawCpuNs = 0L
+        private set
+    internal var lastAnimalDrawGpuNs: Long? = null
+        private set
+    internal var measureAnimalGpu = false
+    private val animalQueries = IntArray(3)
+    private val animalQueryPending = BooleanArray(3)
+    private var animalQueryIndex = 0
+    private val timerQuerySupported by lazy { glGetString(GL_EXTENSIONS)?.contains("GL_EXT_disjoint_timer_query") == true && rowLengthSupported }
+
     fun finish(mask: ByteArray, layout: PrivacySegmentation.Letterbox,
                sensorWidth: Int, sensorHeight: Int, maskPixels: Int = -1,
                outputUpright: Boolean = false, blurSigma: Int? = null,
+               animalOverlay: PrivacyAnimalOverlay? = null,
                edgeCells: Int = PrivacyMaskRenderer.PROTECTED_EDGE_CELLS): VideoFrame.TextureBuffer = onGl {
         check(!closing)
         require(layout.sourceWidth == width && layout.sourceHeight == height && mask.size == 160 * 160)
@@ -428,8 +463,9 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 Target(outputWidth, outputHeight).also { outputPool.add(it) }
             }
         val original = targets.getValue("upright")
+        var protectedMask: Target? = null
         if (if (maskPixels >= 0) maskPixels > 0 else mask.any { it.toInt() != 0 }) {
-            val alpha = uploadMask(mask, edgeCells)
+            val alpha = uploadMask(mask, edgeCells).also { protectedMask = it }
             val quarterW = PrivacyBroadcastBlur.reducedSize(width)
             val quarterH = PrivacyBroadcastBlur.reducedSize(height)
             val reduced = target("reduced", quarterW, quarterH)
@@ -459,6 +495,41 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 glUniform1i(p.getUniformLocation("rotation"), outputRotation)
             }
         }
+        lastAnimalDrawCpuNs = 0L; lastAnimalDrawGpuNs = null
+        val timing = measureAnimalGpu && timerQuerySupported && outputUpright && animalOverlay != null
+        if (timing) lastAnimalDrawGpuNs = beginAnimalQuery()
+        val drawStarted = System.nanoTime()
+        val animalMask = protectedMask
+        if (outputUpright && animalOverlay != null && animalMask != null) {
+            val bitmap = animalOverlay.image; val atlas = animalOverlay.atlas
+            val sprite = target("animal-sprite", bitmap.width, bitmap.height)
+            if (uploadedAnimal !== bitmap) {
+                glBindTexture(GL_TEXTURE_2D, sprite.texture)
+                GLUtils.texSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bitmap)
+                uploadedAnimal = bitmap
+            }
+            fun cell(view: PrivacyAnimalAtlas.View) = floatArrayOf(view.cell.x.toFloat() / atlas.width,
+                view.cell.y.toFloat() / atlas.height, view.cell.width.toFloat() / atlas.width,
+                view.cell.height.toFloat() / atlas.height)
+            animalOverlay.faces.forEach { face ->
+                val place = atlas.place(face) ?: return@forEach
+                draw("animal", ANIMAL, output, listOf(sprite.texture, animalMask.texture)) { p ->
+                    glEnable(GL_BLEND); glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+                    glUniform2f(p.getUniformLocation("frame"), width.toFloat(), height.toFloat())
+                    glUniform4f(p.getUniformLocation("similarity"), place.a, place.b, place.tx, place.ty)
+                    glUniform2f(p.getUniformLocation("cellSize"), place.from.cell.width.toFloat(), place.from.cell.height.toFloat())
+                    glUniform4f(p.getUniformLocation("box"), layout.left / 640f, layout.top / 640f,
+                        layout.resizedWidth / 640f, layout.resizedHeight / 640f)
+                    glUniform4fv(p.getUniformLocation("cellA"), 1, cell(place.from), 0)
+                    glUniform4fv(p.getUniformLocation("cellB"), 1, cell(place.to), 0)
+                    glUniform1f(p.getUniformLocation("blend"), place.blend)
+                    glUniform1f(p.getUniformLocation("mirrored"), if (place.mirrored) 1f else 0f)
+                }
+            }
+            glDisable(GL_BLEND)
+        }
+        lastAnimalDrawCpuNs = System.nanoTime() - drawStarted
+        if (timing) GLES30.glEndQuery(TIME_ELAPSED)
         GlUtil.checkNoGLES2Error("privacy GPU output")
         val fence = if (useFence) PrivacyNativeGpuFence.create() else 0L
         lastFenceUsed = fence != 0L
@@ -478,6 +549,26 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
 
     /** The Gaussian for the full-resolution sigma, run at the reduced resolution. One program per sigma. */
     private val blurShaders = mutableMapOf<String, String>()
+    /** Starts this frame's timer query and returns the oldest finished one, without waiting for the GPU. */
+    private fun beginAnimalQuery(): Long? {
+        if (animalQueries[0] == 0) GLES30.glGenQueries(animalQueries.size, animalQueries, 0)
+        val slot = animalQueryIndex
+        animalQueryIndex = (animalQueryIndex + 1) % animalQueries.size
+        var result: Long? = null
+        if (animalQueryPending[slot]) {
+            val values = IntArray(1)
+            GLES30.glGetQueryObjectuiv(animalQueries[slot], GLES30.GL_QUERY_RESULT_AVAILABLE, values, 0)
+            val disjoint = IntArray(1).also { glGetIntegerv(GPU_DISJOINT, it, 0) }[0] != 0
+            if (values[0] != 0) {
+                GLES30.glGetQueryObjectuiv(animalQueries[slot], GLES30.GL_QUERY_RESULT, values, 0)
+                if (!disjoint) result = values[0].toLong() and 0xffffffffL
+            }
+        }
+        GLES30.glBeginQuery(TIME_ELAPSED, animalQueries[slot])
+        animalQueryPending[slot] = true
+        return result
+    }
+
     private fun blurShader(name: String, sigma: Int): String = blurShaders.getOrPut(name) {
         val reduced = sigma.toDouble() / PrivacyBroadcastBlur.REDUCTION
         val radius = PrivacyBroadcastBlur.kernelRadius(reduced)
@@ -603,7 +694,8 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
                 glDeleteTextures(3, planeTextures, 0)
                 glDeleteTextures(1, maskTexture, 0)
                 shaders.values.forEach { it.release() }; shaders.clear()
-                modelBitmap.recycle()
+                modelBitmap.recycle(); poseBitmap?.recycle(); poseBitmap = null
+                if (animalQueries[0] != 0) GLES30.glDeleteQueries(animalQueries.size, animalQueries, 0)
                 outputPool.filter { it !in leased }.toList().forEach { it.close(); outputPool.remove(it) }
                 releaseIfIdle()
             }
@@ -647,6 +739,9 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
 
     companion object {
         private val SAMPLERS = arrayOf("tex0", "tex1", "tex2")
+        /** GL_EXT_disjoint_timer_query. */
+        private const val TIME_ELAPSED = 0x88BF
+        private const val GPU_DISJOINT = 0x8FBB
         private fun textureParameters(filter: Int) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter)
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter)
@@ -672,6 +767,21 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             void main(){ vec2 p=(uv-box.xy)/box.zw; gl_FragColor=(p.x<0.0||p.y<0.0||p.x>1.0||p.y>1.0)?vec4(vec3(114.0/255.0),1.0):texture2D(tex0,p); }
         """
         private const val CROP = "uniform sampler2D tex0; uniform vec4 box; void main(){ gl_FragColor=texture2D(tex0,box.xy+uv*box.zw); }"
+        private const val POSE_CROP = "uniform sampler2D tex0; uniform vec4 box; void main(){ vec2 p=box.xy+uv*box.zw; " +
+            "gl_FragColor=(p.x<0.0||p.y<0.0||p.x>1.0||p.y>1.0)?vec4(0.0,0.0,0.0,1.0):texture2D(tex0,p); }"
+        /**
+         * One placed animal: the inverse landmark similarity takes frame pixels into the (mirrored) cell, two
+         * neighbouring yaw cells of the premultiplied atlas cross-fade, and the protected mask clips it like face swap.
+         */
+        private const val ANIMAL = """
+            uniform sampler2D tex0,tex1; uniform vec2 frame,cellSize; uniform vec4 similarity,cellA,cellB,box; uniform float blend,mirrored;
+            void main(){ vec2 d=uv*frame-similarity.zw; float n=dot(similarity.xy,similarity.xy);
+              vec2 q=vec2(similarity.x*d.x+similarity.y*d.y,-similarity.y*d.x+similarity.x*d.y)/n/cellSize;
+              if(q.x<0.0||q.y<0.0||q.x>1.0||q.y>1.0) discard;
+              if(mirrored>0.5) q.x=1.0-q.x;
+              float inside=texture2D(tex1,box.xy+uv*box.zw).r;
+              gl_FragColor=mix(texture2D(tex0,cellA.xy+q*cellA.zw),texture2D(tex0,cellB.xy+q*cellB.zw),blend)*inside; }
+        """
         private const val RESTORE = "uniform sampler2D tex0; uniform int rotation; " + FORWARD + "void main(){ gl_FragColor=texture2D(tex0,upright(uv)); }"
         // Four bilinear taps one source texel away from the quarter-pixel centre average an exact
         // 4x4 block when the target is a quarter of the source; a single fetch would skip texels.
