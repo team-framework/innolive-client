@@ -1,0 +1,20 @@
+{
+  "id": "rabbit",
+  "version": 1,
+  "image": "rabbit.png",
+  "width": 1024,
+  "height": 1024,
+  "faceRect": [
+    0.24514563106796117,
+    0.41990291262135926,
+    0.5097087378640777,
+    0.5145631067961165
+  ],
+  "anchor": [
+    0.5,
+    0.6262135922330097
+  ],
+  "coordinateSystem": "normalized-top-left",
+  "fullFace": true,
+  "scope": "on-device-only"
+}

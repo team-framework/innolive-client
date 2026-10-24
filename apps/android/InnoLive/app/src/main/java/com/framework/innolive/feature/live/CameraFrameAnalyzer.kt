@@ -480,6 +480,8 @@ class CameraFrameAnalyzer(
         receivedAtNs:Long=System.nanoTime()) {
         try {
             if(!route.deliver(ticket) {}) return
+            val animalPreferences = applicationContext?.getSharedPreferences("privacy_animal", android.content.Context.MODE_PRIVATE)
+            val animalSelection = animalPreferences?.getString("selected", "blur")
             // 처리에 실패한 프레임은 원본으로 대신하지 않고 버립니다(iOS PrivacyUplinkProcessor와 같은 정책).
             val outcome = deliverProtectedFrame(
                 process = {
@@ -491,6 +493,7 @@ class CameraFrameAnalyzer(
                     }
                 },
                 deliver = { outgoing ->
+                    if (animalPreferences?.getString("selected", "blur") != animalSelection) return@deliverProtectedFrame false
                     val deliveryStarted = System.nanoTime()
                     val wasDelivered = route.deliver(ticket) {
                         relayAdjustedFrame(outgoing) { adjusted ->

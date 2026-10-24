@@ -411,9 +411,12 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
         readModelInput()
     }
 
+    private var uploadedAnimal: Bitmap? = null
+
     fun finish(mask: ByteArray, layout: PrivacySegmentation.Letterbox,
                sensorWidth: Int, sensorHeight: Int, maskPixels: Int = -1,
                outputUpright: Boolean = false, blurSigma: Int? = null,
+               animalOverlay: Triple<Bitmap, android.graphics.RectF, List<android.graphics.RectF>>? = null,
                edgeCells: Int = PrivacyMaskRenderer.PROTECTED_EDGE_CELLS): VideoFrame.TextureBuffer = onGl {
         check(!closing)
         require(layout.sourceWidth == width && layout.sourceHeight == height && mask.size == 160 * 160)
@@ -458,6 +461,24 @@ internal class PrivacyGpuFramePipeline(sharedContext: EglBase.Context?, useGles3
             draw("restore", RESTORE, output, listOf(original.texture)) { p ->
                 glUniform1i(p.getUniformLocation("rotation"), outputRotation)
             }
+        }
+        if (outputUpright && animalOverlay != null) {
+            val (bitmap, face, boxes) = animalOverlay
+            val sprite = target("animal-sprite", bitmap.width, bitmap.height)
+            if (uploadedAnimal !== bitmap) {
+                glBindTexture(GL_TEXTURE_2D, sprite.texture)
+                GLUtils.texSubImage2D(GL_TEXTURE_2D, 0, 0, 0, bitmap)
+                uploadedAnimal = bitmap
+            }
+            boxes.filter { !it.isEmpty }.forEach { box ->
+                val sx = box.width()/face.width(); val sy = box.height()/face.height()
+                draw("animal", "uniform sampler2D tex0; uniform vec4 bounds; void main(){ vec2 p=(uv-bounds.xy)/bounds.zw; if(p.x<0.0||p.y<0.0||p.x>1.0||p.y>1.0) discard; gl_FragColor=texture2D(tex0,p); }", output, listOf(sprite.texture)) { p ->
+                    glEnable(GL_BLEND); glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+                    glUniform4f(p.getUniformLocation("bounds"), (box.left-face.left*sx)/width,
+                        (box.top-face.top*sy)/height,bitmap.width*sx/width,bitmap.height*sy/height)
+                }
+            }
+            glDisable(GL_BLEND)
         }
         GlUtil.checkNoGLES2Error("privacy GPU output")
         val fence = if (useFence) PrivacyNativeGpuFence.create() else 0L

@@ -170,7 +170,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                     else faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)
                 },
                 renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,
-                    model.lastMaskPixels,outputUpright=true,
+                    model.lastMaskPixels,outputUpright=true,animalOverlay=model.animalOverlay(),
                     blurSigma=mosaic.sigma(layout.sourceWidth,layout.sourceHeight),
                     edgeCells=mosaic.edgeCells(layout.sourceWidth,layout.sourceHeight))}
             val completed = System.nanoTime()
