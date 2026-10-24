@@ -151,10 +151,10 @@ nonisolated final class PrivacyModel {
                                     y: (640 - box.maxY - layout.bottom) * size.height / layout.resized.height,
                                     width: box.width * size.width / layout.resized.width,
                                     height: box.height * size.height / layout.resized.height),
-                        track: trackIDs[index] ?? PrivacyAnimalPose.Smoother.untracked)
+                        track: trackIDs[index])
             }
-            // Landmarks read the unblurred frame so the animal turns with the head.
-            result = animalSprite.composite(result, faces: animalFaces, source: original)
+            // Landmarks read the unblurred frame; the animal stays inside the protected mask like face swap.
+            result = animalSprite.composite(result, faces: animalFaces, source: original, mask: mask)
         }
         // Frame only after all original-coordinate AI work and mask composition. Both
         // local CGImage preview and direct CVPixelBuffer uplink share this same output.
