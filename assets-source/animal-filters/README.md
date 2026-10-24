@@ -9,22 +9,25 @@ Use only these files in each native client:
 - `build/runtime/rabbit.png` and `build/runtime/rabbit.json`
 - `build/runtime/owl.png` and `build/runtime/owl.json`
 
-Both PNGs are 1024 × 1024, transparent RGBA, with sRGB-encoded color and straight alpha. The front render includes the complete ears/tufts, an opaque animal face, and baked soft lighting. Composite locally over the client's existing privacy blur. Do not upload camera frames or enable animal effects in server-AI mode.
+Each PNG is a transparent RGBA yaw-view atlas (schema version 2) with sRGB-encoded color and straight alpha. Ten cells hold the same head at yaw 0°–90° in 10° steps, rendered by one fixed orthographic camera at one scale. Positive yaw turns the muzzle toward image right; clients mirror a cell for negative yaw, so the studio lights are left/right symmetric. Composite locally over the client's existing privacy blur. Do not upload camera frames or enable animal effects in server-AI mode.
+
+| 항목 | 토끼 | 부엉이 |
+| --- | --- | --- |
+| atlas | 2200 × 1360 | 2240 × 928 |
+| cell | 440 × 680 | 448 × 464 |
+| yaw views | 0–90°, 10° 간격 10개 | 0–90°, 10° 간격 10개 |
 
 Sidecar coordinates use a normalized 0–1 top-left origin:
 
-- `faceRect`: `[x, y, width, height]` of the main face shell, excluding ears/tufts. Align this rectangle with the tracked face rectangle.
-- `anchor`: `[x, y]` of the midpoint between the model's eyes. Use for eye-landmark alignment when the tracker supplies landmarks; do not treat it as the face-bounding-box center.
-- `width` and `height`: image pixel dimensions, both 1024.
+- `views[].cell`: `[x, y, width, height]` atlas pixels of one yaw view.
+- `views[].faceRect`: `[x, y, width, height]` of the head, excluding ears/tufts, normalized inside that cell.
+- `faceRect`: the 0° view's face rectangle, kept for front-only readers.
 
-When mapping by a tracked face rectangle `(tx, ty, tw, th)`, sprite width is `tw / faceRect.width`, height is `th / faceRect.height`, and top-left is `(tx - faceRect.x * spriteWidth, ty - faceRect.y * spriteHeight)`. Face tracking, mirroring, orientation, mask smoothing, and face-loss behavior remain client responsibilities. Keep the existing blur underneath because a stylized silhouette is not a privacy guarantee on its own.
-
-Rabbit: faceRect `[0.2451456311, 0.4199029126, 0.5097087379, 0.5145631068]`; anchor `[0.5, 0.6262135922]`.
-Owl: faceRect `[0.2390776699, 0.4211165049, 0.5218446602, 0.5169902913]`; anchor `[0.5, 0.6213592233]`.
+Clients scale a cell uniformly so the face rectangle covers the tracked face box, center it on the box, and rotate by the face roll. They never stretch width and height separately, so narrow side-face boxes no longer squash the animal. YuNet's five landmarks give yaw from the nose offset along the eye line; neighbouring views cross-fade only within ±0.5° of their midpoint. Keep the existing blur underneath because a stylized silhouette is not a privacy guarantee on its own.
 
 ## Editable 3D sources and archival exports
 
-`build/source/rabbit.blend` and `build/source/owl.blend` contain individually named mesh parts, editable PBR materials, a transparent front orthographic camera, and a three-light studio setup. The camera saved in each source is the exact production front camera, not the three-quarter preview camera.
+`build/source/rabbit.blend` and `build/source/owl.blend` (Blender 5.2, zstd-compressed) contain individually named mesh parts, editable PBR materials, a transparent front orthographic camera, and a three-light studio setup. Eyes, muzzles, cheeks, beaks and feather marks are ray-cast onto a deep head shell and oriented to its surface normal, so they stay attached in side views; owl tufts are tapered 3D lofts. `render_pose_views.py` replaces the lights with a symmetric set and fits the camera to every yaw.
 
 `build/runtime/rabbit.glb` and `build/runtime/owl.glb` are optional self-contained glTF 2.0 archival exports, not required by the current sprite runtime. They have no textures, external buffers, rigs, animations, lights, or cameras. All material alpha modes are OPAQUE.
 
@@ -35,20 +38,22 @@ Coordinates: Blender +X right, +Z up, -Y toward camera. The GLB export converts 
 
 ## Reproduce
 
-Requires an existing Blender 4.3+ installation. No Blender add-on installation is required.
+Requires Blender 4.3+; the current assets were generated with Blender 5.2.3 on macOS (Cycles, Metal GPU, denoising). No Blender add-on installation is required.
 
 ```sh
-blender -b --factory-startup --python generate_animals.py -- --output ./build --size 1024 --samples 96
+blender -b --factory-startup --python generate_animals.py -- --output ./build --samples 96
+blender -b --factory-startup --python render_pose_views.py -- --output ./build --samples 128 --step 10
+python3 pack_pose_atlas.py ./build
 python3 validate_assets.py ./build
 ```
 
-The validator uses Pillow. Generation itself uses Blender's built-in Python APIs only. Cycles CPU rendering does not require the optional denoiser.
+The atlas packer and validator use Pillow. Generation itself uses Blender's built-in Python APIs only. Cycles CPU rendering does not require the optional denoiser.
 
 `build/asset-manifest.json` documents the package. `build/validation-report.json` records successful asset-level checks. Previews in `build/previews/` are three-quarter renders of the actual geometry, not hand-drawn or AI-generated substitutes. The PNG sprites have been visually inspected along with the 3D previews.
 
 ## Verification limits
 
-Asset geometry, dimensions, transparency, clipping bounds, sidecar ranges, opaque materials, file structure, absence of external dependencies, and polygon budget have been checked. Physical-device face tracking, frame rate, orientation/mirroring, filtering lifecycle, and server/on-device mode isolation must be verified by the client implementation. The assets alone do not establish those behaviors.
+Asset geometry, per-view clipping bounds and opaque face centers, sidecar ranges, opaque materials, file structure, absence of external dependencies, and polygon budget have been checked. Views cover yaw only; pitch keeps the nearest yaw view. Physical-device face tracking, frame rate, orientation/mirroring, filtering lifecycle, and server/on-device mode isolation must be verified by the client implementation. The assets alone do not establish those behaviors.
 
 The repository retains the editable `.blend` sources and generation scripts.
 The PNG/JSON runtime deliverables are also bundled in each native client.

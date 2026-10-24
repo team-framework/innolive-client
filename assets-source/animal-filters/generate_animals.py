@@ -2,11 +2,12 @@
 
 Run: blender -b --factory-startup --python generate_animals.py -- --output ./build
 All models are original procedural mesh geometry; no downloaded art or textures.
+Facial features are ray-cast onto the head surface so side and diagonal views stay attached.
 Blender X = right, Z = up, -Y = camera. glTF is +X right, +Y up, +Z camera.
 One unit = interocular distance. Mesh origins are the eye-midpoint plane origin.
 """
 import bpy, math, json, argparse, sys, os, struct, zlib
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 from pathlib import Path
 
 args = sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
@@ -106,60 +107,99 @@ def stroke(name,points,r,mat,root,coll):
     for f in ob.data.polygons:f.use_smooth=True
     return ob
 
-def feather(name,points,thickness,mat,root,coll):
-    # Convex raised feather, softly beveled after mesh construction.
-    front=[(x,y-thickness,z) for x,y,z in points]; back=[(x,y+thickness,z) for x,y,z in points]
-    n=len(points); verts=front+back
-    faces=[tuple(reversed(range(n))),tuple(n+i for i in range(n))]
-    faces += [(i,(i+1)%n,(i+1)%n+n,i+n) for i in range(n)]
-    mesh=bpy.data.meshes.new(name+'Mesh'); mesh.from_pydata(verts,[],faces); mesh.update()
-    ob=bpy.data.objects.new(name,mesh); coll.objects.link(ob); ob.parent=root; mesh.materials.append(mat)
-    bevel=ob.modifiers.new('Soft feather edges','BEVEL'); bevel.width=.045; bevel.segments=2
-    bpy.context.view_layer.objects.active=ob; ob.select_set(True); bpy.ops.object.modifier_apply(modifier=bevel.name); ob.select_set(False)
-    for f in mesh.polygons:f.use_smooth=True
-    return ob
+FRONT=Vector((0,-1,0))
+def snap(targets,x,z,lift=0.0):
+    # Front-most hit of a ray cast toward +Y; features sit on the head instead of a flat front plane.
+    bpy.context.view_layer.update(); best=None; origin=Vector((x,-6,z))
+    for o in targets:
+        mw=o.matrix_world; inv=mw.inverted()
+        hit,loc,nor,_=o.ray_cast(inv@origin,(inv.to_3x3()@Vector((0,1,0))).normalized())
+        if hit:
+            w=mw@loc; n=(inv.to_3x3().transposed()@nor).normalized()
+            if best is None or w.y<best[0].y: best=(w,n)
+    assert best, f'No surface at {x},{z}'
+    return best[0]+best[1]*lift,best[1]
 
-def eyes(m,root,c,owl=False):
-    for side,label in [(-1,'L'),(1,'R')]:
-        if owl:
-            sphere('Eye socket '+label,(side*.5,-.670,.10),(.49,.15,.57),m['dark_cocoa'],root,c,32,16)
-            sphere('Facial disk '+label,(side*.5,-.785,.10),(.442,.115,.51),m['cream'],root,c,32,16)
-            sphere('Golden iris '+label,(side*.5,-.900,.13),(.246,.091,.292),m['gold'],root,c,24,14)
-            sphere('Pupil '+label,(side*.5,-.973,.13),(.158,.061,.214),m['ink'],root,c,24,14)
-            y=-1.032; x=side*.5-.047; z=.212
-        else:
-            sphere('Eye '+label,(side*.5,-.672,.11),(.155,.105,.213),m['ink'],root,c,24,14)
-            y=-.773; x=side*.5-.041; z=.18
-        sphere('Eye sparkle '+label,(x,y,z),(.045,.019,.054),m['white'],root,c,12,8)
-        sphere('Eye sparkle small '+label,(side*.5+.044,y+.004,.063),(.019,.012,.023),m['white'],root,c,10,6)
+def orient(o,normal,spin=0.0):
+    o.rotation_mode='QUATERNION'
+    o.rotation_quaternion=normal.to_track_quat('-Y','Z')@Quaternion((0,1,0),spin)
+
+def facing(normal,bias):
+    # bias 0 keeps the surface normal; 1 faces the camera, used for forward-looking eyes.
+    return normal.lerp(FRONT,bias).normalized()
+
+def on(name,targets,x,z,scale,mat,root,coll,embed=.5,bias=0.0,spin=0.0,seg=24,rings=14):
+    loc,n=snap(targets,x,z); d=facing(n,bias)
+    o=sphere(name,(0,0,0),scale,mat,root,coll,seg,rings)
+    o.location=loc+d*scale[1]*(1-embed); orient(o,d,spin)
+    return o
+
+def child(name,parent,offset,scale,mat,root,coll,seg=12,rings=8):
+    # Offsets are in the parent's oriented frame: local -Y faces out of the surface.
+    o=sphere(name,(0,0,0),scale,mat,root,coll,seg,rings); o.parent=parent; o.location=offset
+    return o
+
+def surface_stroke(name,points,r,mat,targets,root,coll):
+    return stroke(name,[snap(targets,x,z,r*.35)[0] for x,z in points],r,mat,root,coll)
+
+def horn(name,base,tip,width,depth,mat,root,coll,front=0.0,rings=18,segments=16):
+    # Lofted tuft/ear tapering from a rounded base to a soft tip; front shifts it onto a parent's face.
+    verts=[];faces=[]
+    for i in range(rings+1):
+        t=i/rings; r=max(.04,(1-t)**.8)*(0.9+0.25*math.sin(math.pi*t))
+        cx=base[0]+(tip[0]-base[0])*t; cy=base[1]+(tip[1]-base[1])*t-front*r; cz=base[2]+(tip[2]-base[2])*t
+        for j in range(segments):
+            a=2*math.pi*j/segments; verts.append((cx+width*r*math.cos(a),cy+depth*r*math.sin(a),cz))
+    for i in range(rings):
+        for j in range(segments):
+            a=i*segments+j;b=i*segments+(j+1)%segments;faces.append((a,b,b+segments,a+segments))
+    faces.extend([tuple(reversed(range(segments))),tuple(rings*segments+j for j in range(segments))])
+    mesh=bpy.data.meshes.new(name+'Mesh');mesh.from_pydata(verts,[],faces);mesh.update()
+    o=bpy.data.objects.new(name,mesh);coll.objects.link(o);o.parent=root;mesh.materials.append(mat)
+    for f in mesh.polygons:f.use_smooth=True
+    return o
 
 def bunny(m,r,c):
-    sphere('Full face shell',(0,.04,-.10),(1.05,.69,1.06),m['ivory'],r,c,40,24)
+    # A deep head keeps eyes, muzzle and cheeks inside the silhouette at every yaw.
+    shell=sphere('Full face shell',(0,.22,-.10),(1.05,.92,1.06),m['ivory'],r,c,48,32)
     for side,label in [(-1,'L'),(1,'R')]:
-        ear('Outer ear '+label,side,.56,2.55,.275,.17,.03,.18,m['ivory'],r,c)
-        ear('Inner ear '+label,side,.92,2.31,.159,.045,-.134,.18,m['lavender'],r,c,16,14)
-        sphere('Soft cheek '+label,(side*.76,-.537,-.365),(.207,.08,.131),m['pink'],r,c,20,12)
-    eyes(m,r,c)
+        ear('Outer ear '+label,side,.56,2.55,.275,.17,.15,.18,m['ivory'],r,c)
+        ear('Inner ear '+label,side,.92,2.31,.159,.045,-.014,.18,m['lavender'],r,c,16,14)
     for side,label in [(-1,'L'),(1,'R')]:
-        sphere('Muzzle '+label,(side*.235,-.666,-.427),(.316,.13,.247),m['cream'],r,c,24,14)
-        for n,(x,z) in enumerate([(.43,-.355),(.53,-.41),(.43,-.47)]):
-            sphere('Whisker dot '+label+str(n),(side*x,-.764,z),(.022,.013,.022),m['caramel'],r,c,10,6)
-        stroke('Smile '+label,[(0,-.805,-.43),(side*.08,-.808,-.55),(side*.18,-.79,-.56),(side*.24,-.78,-.51)],.018,m['dark_cocoa'],r,c)
-    sphere('Nose',(0,-.81,-.332),(.137,.078,.09),m['rose'],r,c,20,12)
-    sphere('Nose shine',(-.032,-.882,-.309),(.03,.008,.013),m['pink'],r,c,10,6)
-    # Short soft central forelock, kept within the silhouette.
-    for x,z,angle in [(-.12,.87,-.18),(.06,.94,.1),(.20,.83,.25)]:
-        o=sphere('Forelock',(x,-.38,z),(.12,.09,.24),m['ivory'],r,c,16,10); o.rotation_euler[1]=angle
+        on('Soft cheek '+label,[shell],side*.76,-.365,(.207,.08,.131),m['pink'],r,c,embed=.55,seg=20,rings=12)
+        eye=on('Eye '+label,[shell],side*.5,.11,(.155,.105,.213),m['ink'],r,c,embed=.45,bias=.35)
+        child('Eye sparkle '+label,eye,(-.041,-.095,.07),(.045,.019,.054),m['white'],r,c)
+        child('Eye sparkle small '+label,eye,(.044,-.092,-.047),(.019,.012,.023),m['white'],r,c,10,6)
+    muzzles=[on('Muzzle '+label,[shell],side*.235,-.427,(.316,.13,.247),m['cream'],r,c,embed=.4)
+             for side,label in [(-1,'L'),(1,'R')]]
+    face=muzzles+[shell]
+    for side,label in [(-1,'L'),(1,'R')]:
+        for n,(x,z) in enumerate([(.43,-.355),(.50,-.41),(.43,-.47)]):
+            on('Whisker dot '+label+str(n),face,side*x,z,(.022,.013,.022),m['caramel'],r,c,embed=.3,seg=10,rings=6)
+        surface_stroke('Smile '+label,[(0,-.43),(side*.08,-.55),(side*.18,-.56),(side*.24,-.51)],.018,m['dark_cocoa'],face,r,c)
+    nose=on('Nose',face,0,-.332,(.137,.078,.09),m['rose'],r,c,embed=.3,seg=20,rings=12)
+    child('Nose shine',nose,(-.032,-.072,.023),(.03,.008,.013),m['pink'],r,c,10,6)
+    # Forelock tufts stand up from the crown instead of lying along it.
+    for x,z,angle in [(-.12,.80,-.18),(.06,.86,.1),(.20,.77,.25)]:
+        on('Forelock',[shell],x,z,(.12,.09,.24),m['ivory'],r,c,embed=.6,bias=.8,spin=angle,seg=16,rings=10)
 
 def owl(m,r,c):
-    sphere('Full face shell',(0,.07,-.11),(1.075,.72,1.065),m['cocoa'],r,c,40,24)
+    shell=sphere('Full face shell',(0,.22,-.11),(1.075,.95,1.065),m['cocoa'],r,c,48,32)
     for side,label in [(-1,'L'),(1,'R')]:
-        # Broad feather tufts are integrated into the head, not cat-like detached ears.
-        feather('Crown tuft '+label,[(side*.47,.0,.59),(side*1.03,.0,1.18),(side*.98,.0,.36)],.19,m['cocoa'],r,c)
-        feather('Inner crown tuft '+label,[(side*.67,-.205,.66),(side*.95,-.205,1.04),(side*.90,-.205,.56)],.025,m['caramel'],r,c)
-    eyes(m,r,c,True)
-    # Gold kite-shaped 3D beak, front ridge adds volume.
-    verts=[(0,-.83,-.145),(-.158,-.913,-.30),(0,-.84,-.55),(.158,-.913,-.30),(0,-1.095,-.30)]
+        # Tapered 3D tufts replace flat feather slabs so the profile stays rounded.
+        horn('Crown tuft '+label,(side*.55,.12,.55),(side*1.0,.05,1.24),.26,.2,m['cocoa'],r,c)
+        horn('Inner crown tuft '+label,(side*.6,.12,.68),(side*.95,.05,1.14),.12,.05,m['caramel'],r,c,front=.17,rings=14,segments=12)
+    for side,label in [(-1,'L'),(1,'R')]:
+        # A shallower disk stack keeps the eyes from standing off the head in profile.
+        socket=on('Eye socket '+label,[shell],side*.5,.10,(.49,.12,.57),m['dark_cocoa'],r,c,embed=.6,bias=.3,seg=32,rings=16)
+        child('Facial disk '+label,socket,(0,-.07,0),(.442,.09,.51),m['cream'],r,c,32,16)
+        child('Golden iris '+label,socket,(0,-.14,.03),(.246,.07,.292),m['gold'],r,c,24,14)
+        child('Pupil '+label,socket,(0,-.19,.03),(.158,.05,.214),m['ink'],r,c,24,14)
+        child('Eye sparkle '+label,socket,(-.047,-.235,.112),(.045,.019,.054),m['white'],r,c)
+        child('Eye sparkle small '+label,socket,(.044,-.232,-.037),(.019,.012,.023),m['white'],r,c,10,6)
+    # Gold kite-shaped 3D beak rooted in the head surface.
+    y0=snap([shell],0,-.30)[0].y
+    verts=[(0,y0+.02,-.145),(-.158,y0-.06,-.30),(0,y0+.01,-.55),(.158,y0-.06,-.30),(0,y0-.27,-.30)]
     faces=[(0,1,4),(1,2,4),(2,3,4),(3,0,4),(0,3,2,1)]
     mesh=bpy.data.meshes.new('BeakMesh'); mesh.from_pydata(verts,[],faces);mesh.update()
     ob=bpy.data.objects.new('Golden beak',mesh);c.objects.link(ob);ob.parent=r;mesh.materials.append(m['gold'])
@@ -167,12 +207,10 @@ def owl(m,r,c):
     bpy.context.view_layer.objects.active=ob;bpy.ops.object.modifier_apply(modifier=mod.name)
     for f in mesh.polygons:f.use_smooth=True
     for side,label in [(-1,'L'),(1,'R')]:
-        sphere('Cheek blush '+label,(side*.82,-.64,-.40),(.12,.034,.075),m['pink'],r,c,16,10)
+        on('Cheek blush '+label,[shell],side*.82,-.40,(.12,.034,.075),m['pink'],r,c,embed=.5,seg=16,rings=10)
         for n,(x,z) in enumerate([(.38,-.77),(.65,-.62),(.18,-.93)]):
-            y=-.51 if n!=1 else -.53
-            stroke('Feather chevron '+label+str(n),[(side*(x-.07),y,z+.065),(side*x,y-.026,z),(side*(x+.07),y,z+.065)],.026,m['caramel'],r,c)
-    # Central forehead marking, a shallow cream V.
-    stroke('Forehead V',[(-.16,-.53,.74),(0,-.59,.60),(.16,-.53,.74)],.036,m['caramel'],r,c)
+            surface_stroke('Feather chevron '+label+str(n),[(side*(x-.07),z+.065),(side*x,z),(side*(x+.07),z+.065)],.026,m['caramel'],[shell],r,c)
+    surface_stroke('Forehead V',[(-.16,.74),(0,.60),(.16,.74)],.036,m['caramel'],[shell],r,c)
 
 def add_studio(scene):
     def light(name,pos,power,size,color):
@@ -203,28 +241,24 @@ for name,builder in [('rabbit',bunny),('owl',owl)]:
     cam=add_studio(scene)
     scene['asset_scope']='InnoLive client on-device AI only. Do not route frames through server AI.'
     scene['authoring']='Original procedural Blender mesh and material asset, generated by generate_animals.py'
-    scene.render.filepath=str(OUT/'runtime'/f'{name}.png')
     bpy.ops.wm.save_as_mainfile(filepath=str(OUT/'source'/f'{name}.blend'))
     if not ns.skip_render:
-        bpy.ops.render.render(write_still=True)
-        tag_srgb(scene.render.filepath)
-        # Gallery view, same materials/geometry from a visibly three-dimensional angle.
+        # Runtime sprites come from render_pose_views.py and pack_pose_atlas.py. Gallery view, same materials/geometry from a visibly three-dimensional angle.
         cam.data.ortho_scale = 4.12 if name=='rabbit' else 2.92
         cam.location=(3.0,-8.0,2.0); target=Vector((0,0,.60 if name=='rabbit' else 0.0))
         cam.rotation_euler=(target-cam.location).to_track_quat('-Z','Y').to_euler()
         scene.render.filepath=str(OUT/'previews'/f'{name}-three-quarter.png');bpy.ops.render.render(write_still=True)
         tag_srgb(scene.render.filepath)
     stats=mesh_stats(coll)
-    stats.update({'id':name,'glb':f'runtime/{name}.glb','sprite':f'runtime/{name}.png','blend':f'source/{name}.blend','faceRect':([.5-1.05/4.12,.5+(.63-.96)/4.12,2.1/4.12,2.12/4.12] if name=='rabbit' else [.5-1.075/4.12,.5+(.63-.955)/4.12,2.15/4.12,2.13/4.12]),'anchor':[.5,.5+(.63-(.11 if name=='rabbit' else .13))/4.12],'glb_bytes':glb_path.stat().st_size})
+    stats.update({'id':name,'glb':f'runtime/{name}.glb','sprite':f'runtime/{name}.png','blend':f'source/{name}.blend','glb_bytes':glb_path.stat().st_size})
     ASSETS.append(stats)
-    (OUT/'runtime'/f'{name}.json').write_text(json.dumps({'id':name,'version':1,'image':f'{name}.png','width':ns.size,'height':ns.size,'faceRect':stats['faceRect'],'anchor':stats['anchor'],'coordinateSystem':'normalized-top-left','fullFace':True,'scope':'on-device-only'},indent=2)+'\n')
 manifest={
- 'schema_version':1,'asset_version':'1.0.0','scope':'on-device-only','generator':'Blender '+bpy.app.version_string,
+ 'schema_version':2,'asset_version':'2.0.0','scope':'on-device-only','generator':'Blender '+bpy.app.version_string,
  'license':'Original artwork created for InnoLive; no third-party model, texture, font, or image dependencies.',
  'glTF':{'version':'2.0','right':'+X','up':'+Y','forward':'+Z','origin':'Model root at origin. Eye centers are x=+/-0.5, Blender z=0.11 for rabbit and 0.13 for owl.','interocular_distance':1.0,'materials':'opaque PBR factors; no image textures; metallic=0'},
- 'sprite':{'width':ns.size,'height':ns.size,'format':'PNG RGBA, sRGB display encoding, straight alpha','projection':'orthographic','ortho_scale':4.12,'camera_target_blender':[0,0,.63],'anchor_note':'Use each asset JSON anchor; rabbit eye z=0.11, owl eye z=0.13.','eye_distance_uv':1/4.12,'rendering_note':'Generated from the editable full 3D models; local clients may consume this baked sprite without a 3D runtime.'},
+ 'sprite':{'format':'PNG RGBA yaw-view atlas, sRGB display encoding, straight alpha','projection':'orthographic','views':'render_pose_views.py renders 0..90 degree yaw; pack_pose_atlas.py writes runtime PNG/JSON; clients mirror negative yaw.','rendering_note':'Generated from the editable full 3D models; local clients consume baked yaw views without a 3D runtime.'},
  'assets':ASSETS,
- 'limits':['No facial blendshape animation or blink rig is included.','Runtime tracking, mirroring, face-loss behavior, and on-device-only enforcement belong in the clients.','Front PNG is a 2D sprite; GLB is provided for future full-pose 3D rendering.']
+ 'limits':['No facial blendshape animation or blink rig is included.','Runtime tracking, mirroring, face-loss behavior, and on-device-only enforcement belong in the clients.','Sprites cover yaw only; pitch uses the nearest yaw view. GLB is provided for future full-pose 3D rendering.']
 }
 (OUT/'asset-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
 print('ASSET_MANIFEST',json.dumps(manifest))
