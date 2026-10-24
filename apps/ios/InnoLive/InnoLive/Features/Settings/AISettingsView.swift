@@ -5,7 +5,6 @@ struct AISettingsView: View {
     @ObservedObject var youtube: YouTubeIntegration
     @State private var mode = AIProcessingMode.selected
     @State private var isChanging = false
-    @AppStorage(PrivacyAnimal.storageKey) private var animal = PrivacyAnimal.blur.rawValue
 
     var body: some View {
         ScrollView {
@@ -36,13 +35,6 @@ struct AISettingsView: View {
                     .disabled(isChanging || youtube.isScreenBlurEnabled || youtube.isTogglingScreenBlur || youtube.isChangingMosaicConfig || youtube.isYouTubeBroadcastActive || youtube.isChangingBroadcastMode || youtube.isChangingStreamState || youtube.isPreparingSession || youtube.isConnectingVideo)
                 }
                 if mode == .onDevice {
-                    Picker("실험실 · 얼굴 효과", selection: $animal) {
-                        ForEach(PrivacyAnimal.allCases) { option in
-                            Text(option.title).tag(option.rawValue)
-                        }
-                    }.disabled(isChanging)
-                    Text("동물 필터 아래에도 얼굴 블러를 유지합니다.")
-                        .font(.footnote).foregroundStyle(.secondary)
                     OnDeviceTransportSection(youtube: youtube, planStore: youtube.planStore, isChangingMode: isChanging)
                 }
                 if isChanging { ProgressView() }

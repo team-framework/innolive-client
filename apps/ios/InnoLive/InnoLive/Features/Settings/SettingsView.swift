@@ -121,7 +121,7 @@ struct SettingsView: View {
 
             Text(youtube.session != nil
                  ? String(localized: "방송 준비를 취소한 뒤 비식별화 방법을 변경할 수 있습니다.")
-                 : String(localized: "다음 방송 준비부터 적용됩니다. 합성은 서버 AI 처리에서만 사용됩니다."))
+                 : String(localized: "다음 방송 준비부터 적용됩니다. 합성은 서버 AI 처리, 토끼·부엉이는 온디바이스 처리에서만 사용됩니다."))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
