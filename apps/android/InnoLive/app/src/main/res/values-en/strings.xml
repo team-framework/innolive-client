@@ -35,7 +35,9 @@
     <string name="lab_face_anonymization">Anonymization method</string>
     <string name="lab_face_anonymization_blur">Blur</string>
     <string name="lab_face_anonymization_face_swap">Face swap</string>
-    <string name="lab_face_anonymization_description">Applies from the next broadcast preparation. Face swap is used only with server AI processing.</string>
+    <string name="lab_face_anonymization_rabbit">Rabbit</string>
+    <string name="lab_face_anonymization_owl">Owl</string>
+    <string name="lab_face_anonymization_description">Applies from the next broadcast preparation. Face swap is used only with server AI processing, and rabbit and owl only with on-device processing.</string>
     <string name="lab_face_anonymization_locked">Cancel broadcast preparation to change the anonymization method.</string>
     <string name="ai_mode_on_device">On-device AI</string>
     <string name="local_face_title">On-device faces</string>

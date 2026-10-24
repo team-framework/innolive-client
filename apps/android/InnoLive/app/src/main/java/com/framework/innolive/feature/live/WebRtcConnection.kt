@@ -96,6 +96,8 @@ internal class WebRtcConnection(
     private val broadcastResolution: DirectPublishResolution = DirectPublishResolution.HD_720,
     /** 세션을 만들 때 서버에 요청하는 얼굴 가림 방식입니다. null이면 서버 기본값(블러)입니다. */
     private val faceAnonymization: String? = null,
+    /** 온디바이스 처리에서 얼굴에 씌우는 동물입니다. 세션을 만들 때 고정합니다. */
+    private val animal: String? = null,
     private var preferredAudioInput: AudioDeviceInfo?,
     private val onStateChanged: (WebRtcConnectionState, ConnectionFailure?) -> Unit,
     private val onRemoteTrackChanged: (VideoTrack?) -> Unit,
@@ -396,6 +398,7 @@ internal class WebRtcConnection(
             initialOnDeviceProcessing,
             initialAnonymizationEnabled,
             sharedEglContext = checkNotNull(eglBase).eglBaseContext,
+            animal = animal,
             onProcessingFailure = { executeOnOwner { fail(ConnectionFailure.GENERIC) } },
             onProtectedFrameSent = {
                 executeOnOwner {

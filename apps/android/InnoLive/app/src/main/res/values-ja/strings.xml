@@ -35,7 +35,9 @@
     <string name="lab_face_anonymization">匿名化方式</string>
     <string name="lab_face_anonymization_blur">ぼかし</string>
     <string name="lab_face_anonymization_face_swap">顔合成</string>
-    <string name="lab_face_anonymization_description">次の配信準備から適用されます。顔合成はサーバー AI 処理でのみ使用されます。</string>
+    <string name="lab_face_anonymization_rabbit">うさぎ</string>
+    <string name="lab_face_anonymization_owl">ふくろう</string>
+    <string name="lab_face_anonymization_description">次の配信準備から適用されます。顔合成はサーバー AI 処理、うさぎ・ふくろうはオンデバイス処理でのみ使用されます。</string>
     <string name="lab_face_anonymization_locked">配信準備をキャンセルすると匿名化方式を変更できます。</string>
     <string name="ai_mode_on_device">オンデバイスAI</string>
     <string name="local_face_title">端末内の顔管理</string>

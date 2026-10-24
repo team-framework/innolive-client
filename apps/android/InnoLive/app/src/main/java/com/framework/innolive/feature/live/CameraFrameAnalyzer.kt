@@ -44,6 +44,8 @@ class CameraFrameAnalyzer(
     private val keepLatestProtectedFrame:Boolean = true,
     /** 미리보기·송출·가공본 녹화로 보낼 때 가운데를 확대하는 배율입니다. 원본 녹화와 얼굴 등록 입력은 자르지 않습니다. */
     private val outputZoom: Float = 1f,
+    /** 실험실에서 고른 동물(`rabbit`/`owl`)입니다. 얼굴 합성처럼 세션을 만들 때 고정됩니다. */
+    private val animal: String? = null,
 ) : ImageAnalysis.Analyzer, AutoCloseable {
     private val captureLock = Any()
     private val settings = AtomicReference(BroadcastVideoQualitySettings())
@@ -94,7 +96,7 @@ class CameraFrameAnalyzer(
     private var localProcessor: PrivacyFrameProcessor? =
         if (initialOnDevice && !batchTwoOptimizations) PrivacyFrameProcessor(checkNotNull(applicationContext), sharedEglContext,directGpuInput=directGpuInput,
             nativePostprocessing=nativePostprocessing,batchTwoOptimizations=false,
-            faceCoordinatorFactory=faceCoordinatorFactory) else null
+            faceCoordinatorFactory=faceCoordinatorFactory,animal=animal) else null
     private val route = PrivacyFrameRoute(
         when {
             !initialOnDevice -> PrivacyFrameMode.SERVER
@@ -106,7 +108,7 @@ class CameraFrameAnalyzer(
     private fun processor():PrivacyFrameProcessor = localProcessor ?: PrivacyFrameProcessor(
         checkNotNull(applicationContext),sharedEglContext,directGpuInput=directGpuInput,
         nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations,
-        faceCoordinatorFactory=faceCoordinatorFactory,
+        faceCoordinatorFactory=faceCoordinatorFactory,animal=animal,
     ).also {localProcessor=it}
 
     private fun schedulePreparation() {
@@ -480,8 +482,6 @@ class CameraFrameAnalyzer(
         receivedAtNs:Long=System.nanoTime()) {
         try {
             if(!route.deliver(ticket) {}) return
-            val animalPreferences = applicationContext?.getSharedPreferences("privacy_animal", android.content.Context.MODE_PRIVATE)
-            val animalSelection = animalPreferences?.getString("selected", "blur")
             // 처리에 실패한 프레임은 원본으로 대신하지 않고 버립니다(iOS PrivacyUplinkProcessor와 같은 정책).
             val outcome = deliverProtectedFrame(
                 process = {
@@ -493,7 +493,6 @@ class CameraFrameAnalyzer(
                     }
                 },
                 deliver = { outgoing ->
-                    if (animalPreferences?.getString("selected", "blur") != animalSelection) return@deliverProtectedFrame false
                     val deliveryStarted = System.nanoTime()
                     val wasDelivered = route.deliver(ticket) {
                         relayAdjustedFrame(outgoing) { adjusted ->

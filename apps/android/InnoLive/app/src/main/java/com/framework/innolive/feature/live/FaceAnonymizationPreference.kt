@@ -3,16 +3,34 @@ package com.framework.innolive.feature.live
 import android.content.Context
 
 /**
- * 실험실의 `블러 대신 얼굴 합성 사용하기` 선택입니다. 관리자 전용 실험 기능이며 기본값은 블러입니다.
- * 세션을 만들 때 고정되므로 다음 방송 준비부터 적용합니다.
+ * 실험실의 비식별화 방법입니다. 합성은 서버 AI 처리에서, 토끼·부엉이는 온디바이스 처리에서만 쓰고 그 밖에는 블러입니다.
+ */
+enum class FaceAnonymizationMethod(val storageValue: String) {
+    BLUR("blur"), FACE_SWAP("face_swap"), RABBIT("rabbit"), OWL("owl");
+
+    /** 온디바이스 처리에서 얼굴에 씌우는 동물 자산 이름입니다. */
+    val animal: String? get() = storageValue.takeIf { this == RABBIT || this == OWL }
+
+    companion object {
+        fun from(value: String?): FaceAnonymizationMethod? = entries.firstOrNull { it.storageValue == value }
+    }
+}
+
+/**
+ * 실험실의 비식별화 방법 선택입니다. 관리자 전용 실험 기능이며 기본값은 블러입니다.
+ * 세션을 만들 때 고정되므로 다음 방송 준비부터 적용합니다. 이전 버전의 `face_swap` 값도 읽습니다.
  */
 internal class FaceAnonymizationPreference(context: Context) {
     private val preferences = context.applicationContext
         .getSharedPreferences("live_face_anonymization", Context.MODE_PRIVATE)
 
-    var faceSwap: Boolean
-        get() = preferences.getBoolean("face_swap", false)
-        set(value) { preferences.edit().putBoolean("face_swap", value).apply() }
+    var method: FaceAnonymizationMethod
+        get() = FaceAnonymizationMethod.from(preferences.getString("method", null))
+            ?: if (preferences.getBoolean("face_swap", false)) FaceAnonymizationMethod.FACE_SWAP else FaceAnonymizationMethod.BLUR
+        set(value) {
+            preferences.edit().putString("method", value.storageValue)
+                .putBoolean("face_swap", value == FaceAnonymizationMethod.FACE_SWAP).apply()
+        }
 }
 
 internal const val FaceAnonymizationFaceSwap = "face_swap"
@@ -23,3 +41,7 @@ internal const val FaceAnonymizationFaceSwap = "face_swap"
  */
 internal fun sessionFaceAnonymization(faceSwapSelected: Boolean, onDeviceProcessing: Boolean): String? =
     FaceAnonymizationFaceSwap.takeIf { faceSwapSelected && !onDeviceProcessing }
+
+/** 세션에 고정할 동물입니다. 동물은 온디바이스 처리에서만 씁니다. */
+internal fun sessionAnimal(method: FaceAnonymizationMethod, onDeviceProcessing: Boolean): String? =
+    method.animal.takeIf { onDeviceProcessing }

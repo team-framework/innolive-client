@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.framework.innolive.R
+import com.framework.innolive.feature.live.FaceAnonymizationMethod
 import com.framework.innolive.feature.settings.camera.CameraStabilizationControl
 
 /**
@@ -170,11 +171,6 @@ fun AppInfoSettingsScreen(props: SettingsScreenProps, onBack: () -> Unit) {
 
 @Composable
 private fun AIProcessingSettings(props: SettingsScreenProps) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val animalPreferences = androidx.compose.runtime.remember(context) {
-        context.getSharedPreferences("privacy_animal", android.content.Context.MODE_PRIVATE)
-    }
-    var animal by androidx.compose.runtime.remember { mutableStateOf(animalPreferences.getString("selected", "blur") ?: "blur") }
     val enabled = props.canChangeAIProcessing && !props.isDeletingAccount &&
         !props.isAccountDeletionPending
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).selectableGroup()) {
@@ -182,18 +178,6 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
         Text(stringResource(R.string.ai_mode_change_availability),
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 4.dp))
-        if (props.onDeviceProcessing) {
-            Text("실험실 · 얼굴 효과", style = MaterialTheme.typography.titleSmall)
-            listOf("blur" to "블러", "rabbit" to "토끼", "owl" to "부엉이").forEach { (value, title) ->
-                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected = animal == value, enabled = enabled, role = Role.RadioButton,
-                    onClick = { animalPreferences.edit().putString("selected", value).apply(); animal = value }),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = animal == value, onClick = null, enabled = enabled)
-                    Text(title)
-                }
-            }
-            Text("동물 필터 아래에도 얼굴 블러를 유지합니다.", style = MaterialTheme.typography.bodySmall)
-        }
         listOf(false to R.string.ai_mode_server, true to R.string.ai_mode_on_device).forEach { (onDevice, label) ->
             val selected = props.onDeviceProcessing == onDevice
             Row(
@@ -214,24 +198,26 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
 }
 
 /**
- * 관리자 전용 실험 기능입니다. iOS와 같이 비식별화 방법(블러·합성)을 고릅니다. 얼굴 가림 방식은 세션 생성 때
- * 고정되므로 처리 방식과 같은 때에만 바꿉니다.
+ * 관리자 전용 실험 기능입니다. iOS와 같이 비식별화 방법(블러·합성·토끼·부엉이)을 고릅니다. 얼굴 가림 방식은
+ * 세션 생성 때 고정되므로 처리 방식과 같은 때에만 바꿉니다.
  */
 @Composable
 private fun LabSettings(props: SettingsScreenProps) {
     val enabled = props.canChangeAIProcessing && !props.isDeletingAccount &&
         !props.isAccountDeletionPending
     var expanded by rememberSaveable { mutableStateOf(false) }
-    val options = listOf(false to R.string.lab_face_anonymization_blur, true to R.string.lab_face_anonymization_face_swap)
+    val options = listOf(
+        FaceAnonymizationMethod.BLUR to R.string.lab_face_anonymization_blur,
+        FaceAnonymizationMethod.FACE_SWAP to R.string.lab_face_anonymization_face_swap,
+        FaceAnonymizationMethod.RABBIT to R.string.lab_face_anonymization_rabbit,
+        FaceAnonymizationMethod.OWL to R.string.lab_face_anonymization_owl,
+    )
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         SettingsSectionLabel(stringResource(R.string.settings_section_lab))
         Box {
             SettingsValueRow(
                 label = stringResource(R.string.lab_face_anonymization),
-                value = stringResource(
-                    if (props.faceSwapEnabled) R.string.lab_face_anonymization_face_swap
-                    else R.string.lab_face_anonymization_blur,
-                ),
+                value = stringResource(options.first { it.first == props.faceAnonymization }.second),
                 enabled = enabled,
                 onClick = { expanded = true },
             )
@@ -240,15 +226,15 @@ private fun LabSettings(props: SettingsScreenProps) {
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.testTag("lab-face-anonymization"),
             ) {
-                options.forEach { (faceSwap, label) ->
+                options.forEach { (method, label) ->
                     DropdownMenuItem(
                         text = { Text(stringResource(label)) },
-                        trailingIcon = if (props.faceSwapEnabled == faceSwap) {
+                        trailingIcon = if (props.faceAnonymization == method) {
                             { Icon(Icons.Outlined.Check, contentDescription = null) }
                         } else null,
                         onClick = {
                             expanded = false
-                            if (props.faceSwapEnabled != faceSwap) props.onFaceSwapChanged(faceSwap)
+                            if (props.faceAnonymization != method) props.onFaceAnonymizationChanged(method)
                         },
                     )
                 }
