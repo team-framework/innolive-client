@@ -174,6 +174,17 @@ internal class PrivacyYuNetModel(context: Context, private val reuseInputs: Bool
     }
 
     fun oneFace(image: Bitmap, enrollment: Boolean): YuNetFace? {
+        val faces = detect(image, enrollment)
+        if (faces.size > 1) throw AmbiguousFaceSampleException()
+        val restored = faces.singleOrNull() ?: return null
+        if (min(restored.box.width(), restored.box.height()) < if (enrollment) 40f else 24f) return null
+        return restored
+    }
+
+    /** Every live-query face in [image] coordinates, for callers that pick one by overlap. */
+    fun faces(image: Bitmap): List<YuNetFace> = detect(image, enrollment = false)
+
+    private fun detect(image: Bitmap, enrollment: Boolean): List<YuNetFace> {
         val scale = if (enrollment) 1f else min(1f, 320f / max(image.width, image.height))
         val resizedWidth = max(1, (image.width * scale).roundToInt())
         val resizedHeight = max(1, (image.height * scale).roundToInt())
@@ -204,18 +215,13 @@ internal class PrivacyYuNetModel(context: Context, private val reuseInputs: Bool
                             ?: FloatArray(buffer.remaining()).also { outputsScratch[name]=it }
                         else FloatArray(buffer.remaining())).also(buffer::get)
                     }
-                    val faces = PrivacyYuNetDecoding.decode(outputs, width, height)
-                        .filter { it.score >= if (enrollment) 0.9f else 0.6f }
-                    if (faces.size > 1) throw AmbiguousFaceSampleException()
-                    if (faces.isEmpty()) return null
-                    val face = faces.single()
                     val restoreX = image.width.toFloat() / resizedWidth
                     val restoreY = image.height.toFloat() / resizedHeight
-                    val restored = YuNetFace(RectF(face.box.left * restoreX, face.box.top * restoreY,
-                        face.box.right * restoreX, face.box.bottom * restoreY),
-                        face.landmarks.map { PointF(it.x * restoreX, it.y * restoreY) }, face.score)
-                    if (min(restored.box.width(), restored.box.height()) < if (enrollment) 40f else 24f) return null
-                    return restored
+                    return PrivacyYuNetDecoding.decode(outputs, width, height)
+                        .filter { it.score >= if (enrollment) 0.9f else 0.6f }
+                        .map { face -> YuNetFace(RectF(face.box.left * restoreX, face.box.top * restoreY,
+                            face.box.right * restoreX, face.box.bottom * restoreY),
+                            face.landmarks.map { PointF(it.x * restoreX, it.y * restoreY) }, face.score) }
                 }
             } finally { if (!reuseInputs) tensor.close() }
         } finally {

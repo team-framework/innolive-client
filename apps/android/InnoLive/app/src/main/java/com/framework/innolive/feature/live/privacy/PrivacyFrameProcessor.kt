@@ -17,12 +17,13 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                                      private val nativePostprocessing: Boolean = true,
                                      private val batchTwoOptimizations: Boolean = true,
                                      private val asyncFaceReadback: Boolean = false,
-                                     faceCoordinatorFactory: (() -> PrivacyFaceCoordinator)? = null) : AutoCloseable {
+                                     faceCoordinatorFactory: (() -> PrivacyFaceCoordinator)? = null,
+                                     animal: String? = null) : AutoCloseable {
     private var imageGpu: PrivacyGpuFramePipeline? = null
     private var imageGpuUnavailable = !allowGpuImages
     private val gpuRetry = PrivacyGpuRetryPolicy(allowGpuImages)
     private val model = PrivacyOnnxModel(context.applicationContext,directGpuInput=directGpuInput,
-        nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations)
+        nativePostprocessing=nativePostprocessing,batchTwoOptimizations=batchTwoOptimizations,animal=animal)
     private val pixels = PrivacyPixelConverter()
     private val faces = (faceCoordinatorFactory?.invoke() ?:
         PrivacyFaceCoordinator(context.applicationContext, optimized=nativePostprocessing)).also { coordinator ->
@@ -36,6 +37,7 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
     var lastCameraCopiedPlanes: Int = 3
         private set
     private var lastLogNs = System.nanoTime()
+    private val animalStats = if (BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) PrivacyAnimalStats() else null
     private val sensorPixels = BitmapScratch()
     private val uprightPixels = BitmapScratch()
     private val restoredPixels = BitmapScratch()
@@ -169,13 +171,16 @@ internal class PrivacyFrameProcessor(context: Context, private val sharedContext
                         if (asyncFaceReadback && graph.supportsAsyncCrop) graph::cropAsync else null)
                     else faces.exceptions(box.sourceWidth,box.sourceHeight,objects,box,timestampNs)
                 },
-                renderOnGpu=true,gpuGraph=graph) {mask -> graph.finish(mask,layout,sensorWidth,sensorHeight,
+                renderOnGpu=true,gpuGraph=graph) {mask -> graph.measureAnimalGpu=animalStats!=null; graph.finish(mask,layout,sensorWidth,sensorHeight,
                     model.lastMaskPixels,outputUpright=true,animalOverlay=model.animalOverlay(),
                     blurSigma=mosaic.sigma(layout.sourceWidth,layout.sourceHeight),
                     edgeCells=mosaic.edgeCells(layout.sourceWidth,layout.sourceHeight))}
             val completed = System.nanoTime()
             lastTimings = PrivacyFrameTimings((converted - started) / 1e6,
                 checkNotNull(model.lastTimings), 0.0, (completed - started) / 1e6)
+            animalStats?.let { stats -> val sprite=model.animalCost
+                stats.record(sprite.mode,(completed-started)/1e6,model.lastAnalysis?.faces ?: 0,sprite.lastCropNs,
+                    sprite.lastLandmarkNs,graph.lastAnimalDrawCpuNs,graph.lastAnimalDrawGpuNs) }
             if (BuildConfig.DEBUG && completed - lastLogNs >= 5_000_000_000L) {
                 lastLogNs = completed
                 Log.i("PrivacyPipeline", "image_gpu=true texture_output=true size=${sensorWidth}x${sensorHeight} camera_copied_planes=$lastCameraCopiedPlanes $lastTimings")

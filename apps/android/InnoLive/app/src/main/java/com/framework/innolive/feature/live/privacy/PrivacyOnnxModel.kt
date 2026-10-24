@@ -25,7 +25,9 @@ internal class PrivacyOnnxModel(private val context: Context,
                                private val nativePostprocessing: Boolean = true,
                                private val batchTwoOptimizations: Boolean = true,
                                /** Detect every N frames; BoT-SORT predicts the objects of the frames between. */
-                               private val detectionInterval: Int = DETECTION_INTERVAL) : AutoCloseable {
+                               private val detectionInterval: Int = DETECTION_INTERVAL,
+                               /** Session animal (`rabbit`/`owl`) fixed at session creation; null keeps blur only. */
+                               animal: String? = null) : AutoCloseable {
     private val environment = OrtEnvironment.getEnvironment()
     private var session: OrtSession? = null
     private val blur = PrivacyBitmapBlur()
@@ -79,9 +81,10 @@ internal class PrivacyOnnxModel(private val context: Context,
 
     internal val retainsCpuSession: Boolean get() = session != null
 
-    private val animalSprite = PrivacyAnimalSprite(context)
+    private val animalSprite = PrivacyAnimalSprite(context, animal)
     private var animalFaces: List<PrivacyAnimalFace> = emptyList()
     fun animalOverlay() = animalSprite.asset()?.let { PrivacyAnimalOverlay(it.first, it.second, animalFaces) }
+    internal val animalCost get() = animalSprite
 
     fun process(
         upright: Bitmap,
@@ -104,7 +107,7 @@ internal class PrivacyOnnxModel(private val context: Context,
             val sigma = mosaic.sigma(upright.width, upright.height)
             val protected = PrivacyMaskRenderer.render(upright, mask, layout, { blur.apply(it, sigma) },
                 mosaic.edgeCells(upright.width, upright.height))
-            val output = animalSprite.composite(protected, animalFaces)
+            val output = animalSprite.composite(protected, animalFaces, mask, layout, mosaic.edgeCells(upright.width, upright.height))
             if (output !== protected) protected.recycle()
             output
         }
@@ -190,6 +193,7 @@ internal class PrivacyOnnxModel(private val context: Context,
                 stabilizer.apply(instances, timestampNs / 1_000_000_000.0).also { lastMaskPixels = -1 }
             }
             // Head pose reads the current upright frame: the CPU bitmap, or a small crop of the GPU graph's texture.
+            animalSprite.beginFrame()
             animalFaces = if (animalSprite.asset() == null) emptyList() else animalSprite.faces(
                 PrivacySegmentation.protectedDetections(objects, exempt).filter { it.classId == 0 }, layout,
                 poseSource?.let { upright -> { square: RectF -> animalSprite.crop(upright, square) } }
