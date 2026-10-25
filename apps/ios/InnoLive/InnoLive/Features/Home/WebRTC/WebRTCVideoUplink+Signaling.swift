@@ -27,7 +27,12 @@ extension WebRTCVideoUplink {
                     self.handleWebSocketMessage(message)
                     self.receiveNextMessage(for: task)
                 case .failure:
-                    if !self.isStopping, self.state != .connected {
+                    guard !self.isStopping else { return }
+                    if self.state == .connected {
+                        // 서버 교체 배포 등으로 시그널링이 끊겼다. 미디어가 아직 흘러도 새 서버와 같은
+                        // 세션으로 다시 협상해야 하므로 재연결을 시작한다.
+                        self.handlePeerConnectionInterruption(trigger: "signaling_closed")
+                    } else {
                         self.fail(String(localized: "영상 서버와의 연결이 끊겼습니다."))
                     }
                 }
