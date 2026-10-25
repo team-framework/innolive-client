@@ -225,7 +225,7 @@ final class BroadcastSettingsTests: XCTestCase {
         enqueue("{\"error\":{\"code\":\"streaming_prepare_failed\"}}", status: 502)
         await integration.prepareYouTubeStream(accessToken: "access", provider: .chzzk, useEditor: true)
         XCTAssertEqual(SettingsURLProtocol.requests.count, 1)
-        XCTAssertTrue(integration.errorMessage?.contains("치지직") == true)
+        XCTAssertTrue(integration.errorMessage?.contains(BroadcastSettingsProvider.chzzk.title) == true)
         XCTAssertFalse(integration.errorMessage?.contains("YouTube") == true)
     }
     func testAccountChangeDuringSaveDoesNotPrepare() async throws {

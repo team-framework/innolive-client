@@ -8,11 +8,11 @@ nonisolated enum PrivacyFaceSampleError: Int, LocalizedError {
     case faceCount = 1, confidence, pose, landmarks, size, multipleFaces
     var errorDescription: String? {
         switch self {
-        case .faceCount, .multipleFaces: return "얼굴 한 명이 보이도록 맞춰 주세요."
-        case .confidence: return "얼굴이 선명하게 보이도록 맞춰 주세요."
-        case .pose: return "얼굴을 정면으로 맞춰 주세요."
-        case .landmarks: return "눈·코·입이 보이도록 맞춰 주세요."
-        case .size: return "얼굴을 카메라에 더 가까이 맞춰 주세요."
+        case .faceCount, .multipleFaces: return String(localized: "얼굴 한 명이 보이도록 맞춰 주세요.")
+        case .confidence: return String(localized: "얼굴이 선명하게 보이도록 맞춰 주세요.")
+        case .pose: return String(localized: "얼굴을 정면으로 맞춰 주세요.")
+        case .landmarks: return String(localized: "눈·코·입이 보이도록 맞춰 주세요.")
+        case .size: return String(localized: "얼굴을 카메라에 더 가까이 맞춰 주세요.")
         }
     }
 }
@@ -32,7 +32,7 @@ nonisolated final class PrivacyFaceEmbeddingModel {
     init(computeUnits: MLComputeUnits = .cpuAndGPU) throws {
         let start = ProcessInfo.processInfo.systemUptime
         guard let url = Bundle.main.url(forResource: "PrivacyFaceRecognizer", withExtension: "mlmodelc") else {
-            throw PrivacyFaceError.message("얼굴 인식 모델이 없습니다. 모델을 포함해 빌드해 주세요.")
+            throw PrivacyFaceError.message(String(localized: "얼굴 인식 모델이 없습니다. 모델을 포함해 빌드해 주세요."))
         }
         let config = MLModelConfiguration()
         config.computeUnits = computeUnits
@@ -44,7 +44,7 @@ nonisolated final class PrivacyFaceEmbeddingModel {
               model.modelDescription.inputDescriptionsByName["image"]?.imageConstraint?.pixelsWide == 112,
               model.modelDescription.inputDescriptionsByName["landmarks"]?.multiArrayConstraint?.shape.map(\.intValue) == [1, 5, 2],
               model.modelDescription.outputDescriptionsByName["embedding"]?.multiArrayConstraint?.shape.map(\.intValue) == [1, 512] else {
-            throw PrivacyFaceError.message("얼굴 인식 모델 규격이 맞지 않습니다.")
+            throw PrivacyFaceError.message(String(localized: "얼굴 인식 모델 규격이 맞지 않습니다."))
         }
         var created: CVPixelBuffer?
         let result = CVPixelBufferCreate(kCFAllocatorDefault, 112, 112, kCVPixelFormatType_32BGRA,
@@ -80,7 +80,7 @@ nonisolated final class PrivacyFaceEmbeddingModel {
         guard let output = result.featureValue(for: "embedding")?.multiArrayValue,
               output.count == 512,
               let embedding = PrivacyFaceMath.normalized((0..<512).map { output[$0].floatValue }) else {
-            throw PrivacyFaceError.message("얼굴 인식 결과가 유효하지 않습니다.")
+            throw PrivacyFaceError.message(String(localized: "얼굴 인식 결과가 유효하지 않습니다."))
         }
         return embedding
     }
@@ -195,15 +195,15 @@ nonisolated final class PrivacyFaceWorker: @unchecked Sendable {
         switch outcome {
         case let .ready(data):
             stableCaptures += 1
-            guard stableCaptures >= 3 else { throw PrivacyFaceError.message("좋아요. 잠시 그대로 있어 주세요.") }
+            guard stableCaptures >= 3 else { throw PrivacyFaceError.message(String(localized: "좋아요. 잠시 그대로 있어 주세요.")) }
             guard let source = CGImageSourceCreateWithData(data as CFData, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw PrivacyModelError.imageBuffer }
             return image
         case .noFace: stableCaptures = 0; throw PrivacyFaceSampleError.faceCount
         case .multipleFaces: stableCaptures = 0; throw PrivacyFaceSampleError.multipleFaces
         case .moveCloser: stableCaptures = 0; throw PrivacyFaceSampleError.size
-        case .centerFace: stableCaptures = 0; throw PrivacyFaceError.message("얼굴을 가운데 영역에 맞춰 주세요.")
-        case .failed: stableCaptures = 0; throw PrivacyFaceError.message("얼굴 촬영을 다시 시도합니다.")
+        case .centerFace: stableCaptures = 0; throw PrivacyFaceError.message(String(localized: "얼굴을 가운데 영역에 맞춰 주세요."))
+        case .failed: stableCaptures = 0; throw PrivacyFaceError.message(String(localized: "얼굴 촬영을 다시 시도합니다."))
         }
     }
 
