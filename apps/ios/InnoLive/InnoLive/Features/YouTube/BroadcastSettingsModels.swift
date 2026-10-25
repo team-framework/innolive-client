@@ -3,7 +3,7 @@ import Foundation
 enum BroadcastSettingsProvider: String, CaseIterable, Codable, Identifiable {
     case youtube, chzzk
     var id: String { rawValue }
-    var title: String { self == .youtube ? "YouTube" : "치지직" }
+    var title: String { self == .youtube ? "YouTube" : String(localized: "치지직") }
 }
 
 struct BroadcastSettingsFieldError: Error, Equatable {

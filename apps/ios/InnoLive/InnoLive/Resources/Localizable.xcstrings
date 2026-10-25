@@ -14268,6 +14268,1282 @@
           }
         }
       }
+    },
+    "방송 화질을 전환하고 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 화질을 전환하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switching broadcast quality."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信の画質を切り替えています。"
+          }
+        }
+      }
+    },
+    "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일부 방송 플랫폼의 화질 전환을 완료하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not finish switching quality on some broadcast platforms."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部の配信プラットフォームで画質の切り替えを完了できませんでした。"
+          }
+        }
+      }
+    },
+    "방송은 준비되었지만 일부 설정을 적용하지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송은 준비되었지만 일부 설정을 적용하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The broadcast is ready, but some settings could not be applied."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信は準備できましたが、一部の設定を適用できませんでした。"
+          }
+        }
+      }
+    },
+    "실패한 준비 단계부터 다시 시도합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실패한 준비 단계부터 다시 시도합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retries from the preparation step that failed."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失敗した準備ステップから再試行します。"
+          }
+        }
+      }
+    },
+    "방송 설정을 확인하고 세션과 서버 연결을 시작합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 설정을 확인하고 세션과 서버 연결을 시작합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checks broadcast settings and starts the session and server connection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信設定を確認し、セッションとサーバー接続を開始します。"
+          }
+        }
+      }
+    },
+    "방송 시간": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 시간"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast time"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信時間"
+          }
+        }
+      }
+    },
+    "준비를 취소하는 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "준비를 취소하는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelling preparation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備をキャンセル中"
+          }
+        }
+      }
+    },
+    "마이크 권한이 필요합니다": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마이크 권한이 필요합니다"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Microphone Permission Required"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マイクの権限が必要です"
+          }
+        }
+      }
+    },
+    "방송을 준비하려면 설정에서 마이크 접근을 허용해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송을 준비하려면 설정에서 마이크 접근을 허용해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To prepare a broadcast, allow microphone access in Settings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を準備するには、「設定」でマイクへのアクセスを許可してください。"
+          }
+        }
+      }
+    },
+    "남은 방송 시간 %lld분": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "남은 방송 시간 %lld분"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Broadcast time remaining: %lld min"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残り配信時間 %lld分"
+          }
+        }
+      }
+    },
+    "방송 시간 제한 없음": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 시간 제한 없음"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No broadcast time limit"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信時間の制限なし"
+          }
+        }
+      }
+    },
+    "카메라 영상이 준비되었습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카메라 영상이 준비되었습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The camera video is ready."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラ映像の準備ができました。"
+          }
+        }
+      }
+    },
+    "블러": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "블러"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blur"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ぼかし"
+          }
+        }
+      }
+    },
+    "합성": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "합성"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face swap"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合成"
+          }
+        }
+      }
+    },
+    "준비 취소 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "준비 취소 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelling Preparation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備をキャンセル中"
+          }
+        }
+      }
+    },
+    "준비 취소": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "준비 취소"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel Preparation"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備をキャンセル"
+          }
+        }
+      }
+    },
+    "실험실": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실험실"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Labs"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ラボ"
+          }
+        }
+      }
+    },
+    "비식별화 방법": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화 방법"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anonymization method"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化の方法"
+          }
+        }
+      }
+    },
+    "방송 준비를 취소한 뒤 비식별화 방법을 변경할 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 준비를 취소한 뒤 비식별화 방법을 변경할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel broadcast preparation before changing the anonymization method."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信準備をキャンセルすると、匿名化の方法を変更できます。"
+          }
+        }
+      }
+    },
+    "다음 방송 준비부터 적용됩니다. 합성은 서버 AI 처리에서만 사용됩니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 방송 준비부터 적용됩니다. 합성은 서버 AI 처리에서만 사용됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Applies from the next broadcast preparation. Face swap is available only with server AI processing."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の配信準備から適用されます。合成はサーバーAI処理でのみ使用できます。"
+          }
+        }
+      }
+    },
+    "세션을 만드는 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "세션을 만드는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Creating session"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションを作成中"
+          }
+        }
+      }
+    },
+    "서버에 연결하는 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에 연결하는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to server"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに接続中"
+          }
+        }
+      }
+    },
+    "서버 영상을 확인하는 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 영상을 확인하는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking server video"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー映像を確認中"
+          }
+        }
+      }
+    },
+    "방송 설정을 저장하는 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 설정을 저장하는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving broadcast settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信設定を保存中"
+          }
+        }
+      }
+    },
+    "송출을 준비하는 중": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "송출을 준비하는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing to stream"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を準備中"
+          }
+        }
+      }
+    },
+    "서버가 영상 입력을 받을 때까지 기다리고 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버가 영상 입력을 받을 때까지 기다리고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the server to receive video input."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーが映像入力を受け取るまで待っています。"
+          }
+        }
+      }
+    },
+    "선택한 플랫폼의 방송 설정을 저장하고 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 플랫폼의 방송 설정을 저장하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving broadcast settings for the selected platform."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選択したプラットフォームの配信設定を保存しています。"
+          }
+        }
+      }
+    },
+    "플랫폼 송출을 준비하고 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "플랫폼 송출을 준비하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing to stream to the platform."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プラットフォームへの配信を準備しています。"
+          }
+        }
+      }
+    },
+    "준비된 연결과 세션을 정리하고 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "준비된 연결과 세션을 정리하고 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleaning up the prepared connection and session."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備した接続とセッションを整理しています。"
+          }
+        }
+      }
+    },
+    "세션을 만들지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "세션을 만들지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not create the session."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "セッションを作成できませんでした。"
+          }
+        }
+      }
+    },
+    "서버에 연결하지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에 연결하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not connect to the server."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに接続できませんでした。"
+          }
+        }
+      }
+    },
+    "서버 영상 입력을 확인하지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 영상 입력을 확인하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not verify the server's video input."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーの映像入力を確認できませんでした。"
+          }
+        }
+      }
+    },
+    "방송 설정을 저장하지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 설정을 저장하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save broadcast settings."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信設定を保存できませんでした。"
+          }
+        }
+      }
+    },
+    "송출을 준비하지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "송출을 준비하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not prepare the stream."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信を準備できませんでした。"
+          }
+        }
+      }
+    },
+    "준비 취소를 마치지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "준비 취소를 마치지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not finish cancelling preparation."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "準備のキャンセルを完了できませんでした。"
+          }
+        }
+      }
+    },
+    "이전 방송 세션을 정리하지 못했습니다. 이전 방송을 종료한 뒤 다시 시도해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이전 방송 세션을 정리하지 못했습니다. 이전 방송을 종료한 뒤 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not clean up the previous broadcast session. End the previous broadcast and try again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前回の配信セッションを整理できませんでした。前回の配信を終了してから、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "방송 영상·음성 전송에 동의한 뒤 방송을 준비할 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 영상·음성 전송에 동의한 뒤 방송을 준비할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consent to broadcast video and audio transmission before preparing a broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信映像・音声の送信に同意すると、配信を準備できます。"
+          }
+        }
+      }
+    },
+    "카메라를 허용한 뒤 방송을 준비할 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카메라를 허용한 뒤 방송을 준비할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow camera access before preparing a broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラへのアクセスを許可すると、配信を準備できます。"
+          }
+        }
+      }
+    },
+    "마이크를 허용한 뒤 방송을 준비할 수 있습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "마이크를 허용한 뒤 방송을 준비할 수 있습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow microphone access before preparing a broadcast."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "マイクへのアクセスを許可すると、配信を準備できます。"
+          }
+        }
+      }
+    },
+    "이미 등록된 얼굴입니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 등록된 얼굴입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This face is already registered."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "すでに登録されている顔です。"
+          }
+        }
+      }
+    },
+    "등록된 얼굴을 찾지 못했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록된 얼굴을 찾지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not find the registered face."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録された顔が見つかりませんでした。"
+          }
+        }
+      }
+    },
+    "얼굴 한 명이 보이도록 맞춰 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 한 명이 보이도록 맞춰 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make sure only one face is visible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔が1人だけ見えるように合わせてください。"
+          }
+        }
+      }
+    },
+    "얼굴이 선명하게 보이도록 맞춰 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴이 선명하게 보이도록 맞춰 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make sure your face is clearly visible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔がはっきり見えるように合わせてください。"
+          }
+        }
+      }
+    },
+    "얼굴을 정면으로 맞춰 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴을 정면으로 맞춰 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face the camera."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔を正面に向けてください。"
+          }
+        }
+      }
+    },
+    "눈·코·입이 보이도록 맞춰 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "눈·코·입이 보이도록 맞춰 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make sure your eyes, nose, and mouth are visible."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目・鼻・口が見えるように合わせてください。"
+          }
+        }
+      }
+    },
+    "얼굴을 카메라에 더 가까이 맞춰 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴을 카메라에 더 가까이 맞춰 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move your face closer to the camera."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔をカメラにもっと近づけてください。"
+          }
+        }
+      }
+    },
+    "얼굴 인식 모델이 없습니다. 모델을 포함해 빌드해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 인식 모델이 없습니다. 모델을 포함해 빌드해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The face recognition model is missing. Build the app with the model included."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔認識モデルがありません。モデルを含めてビルドしてください。"
+          }
+        }
+      }
+    },
+    "얼굴 인식 모델 규격이 맞지 않습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 인식 모델 규격이 맞지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The face recognition model format does not match."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔認識モデルの仕様が一致しません。"
+          }
+        }
+      }
+    },
+    "얼굴 인식 결과가 유효하지 않습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 인식 결과가 유효하지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The face recognition result is not valid."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔認識の結果が有効ではありません。"
+          }
+        }
+      }
+    },
+    "얼굴 촬영을 다시 시도합니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 촬영을 다시 시도합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retrying face capture."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔の撮影をもう一度試みます。"
+          }
+        }
+      }
+    },
+    "등록 데이터 형식이 맞지 않습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록 데이터 형식이 맞지 않습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The registration data format is invalid."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録データの形式が正しくありません。"
+          }
+        }
+      }
+    },
+    "이름은 1~40자, 등록은 최대 20명입니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름은 1~40자, 등록은 최대 20명입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Names use 1–40 characters, and up to 20 faces can be registered."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前は1〜40文字、登録は最大20人までです。"
+          }
+        }
+      }
+    },
+    "테스트 모델이 없습니다. 모델 준비 후 앱을 다시 빌드해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "테스트 모델이 없습니다. 모델 준비 후 앱을 다시 빌드해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The test model is missing. Prepare the model and rebuild the app."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "テストモデルがありません。モデルを準備してからアプリを再ビルドしてください。"
+          }
+        }
+      }
+    },
+    "모델 출력 형식이 맞지 않아 미리보기를 중단했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "모델 출력 형식이 맞지 않아 미리보기를 중단했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview stopped because the model output format does not match."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "モデルの出力形式が一致しないため、プレビューを中止しました。"
+          }
+        }
+      }
+    },
+    "영상 처리에 실패해 미리보기를 중단했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상 처리에 실패해 미리보기를 중단했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview stopped because video processing failed."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "映像処理に失敗したため、プレビューを中止しました。"
+          }
+        }
+      }
+    },
+    "탐지 대상이 너무 많아 미리보기를 중단했습니다.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "탐지 대상이 너무 많아 미리보기를 중단했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview stopped because there are too many detected objects."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "検出対象が多すぎるため、プレビューを中止しました。"
+          }
+        }
+      }
+    },
+    "YuNet 모델이 없습니다. 모델을 포함해 빌드해 주세요.": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YuNet 모델이 없습니다. 모델을 포함해 빌드해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The YuNet model is missing. Build the app with the model included."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YuNetモデルがありません。モデルを含めてビルドしてください。"
+          }
+        }
+      }
+    },
+    "치지직": {
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "치지직"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CHZZK"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
