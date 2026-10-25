@@ -60,6 +60,51 @@ enum WebRTCVideoUplinkState: Equatable {
     case failed
 }
 
+/// 서버 `/webrtc/config`의 `recovery` 정책이다. 영상 재연결을 몇 번, 얼마 동안 시도할지 정한다.
+/// 서버는 이 시간 동안 세션을 복구 대기로 둔다. 서버 교체 배포 중에도 같은 세션으로 다시 붙는다.
+struct WebRTCRecoveryPolicy: Equatable, Decodable {
+    let windowMilliseconds: Int
+    let debounceMilliseconds: Int
+    let maximumAttempts: Int
+
+    /// 서버가 정책을 주지 않을 때의 값이다. 서버 기본값(50초, 2초, 10회)과 같다.
+    static let `default` = WebRTCRecoveryPolicy(windowMilliseconds: 50_000, debounceMilliseconds: 2_000, maximumAttempts: 10)
+
+    init(windowMilliseconds: Int, debounceMilliseconds: Int, maximumAttempts: Int) {
+        self.windowMilliseconds = windowMilliseconds
+        self.debounceMilliseconds = debounceMilliseconds
+        self.maximumAttempts = maximumAttempts
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = Self.default
+        let window = try container.decodeIfPresent(Int.self, forKey: .windowMilliseconds) ?? fallback.windowMilliseconds
+        let debounce = try container.decodeIfPresent(Int.self, forKey: .debounceMilliseconds) ?? fallback.debounceMilliseconds
+        let attempts = try container.decodeIfPresent(Int.self, forKey: .maximumAttempts) ?? fallback.maximumAttempts
+        windowMilliseconds = window > 0 ? window : fallback.windowMilliseconds
+        debounceMilliseconds = debounce >= 0 ? debounce : fallback.debounceMilliseconds
+        maximumAttempts = attempts > 0 ? attempts : fallback.maximumAttempts
+    }
+
+    var window: Duration { .milliseconds(windowMilliseconds) }
+
+    /// 실패한 시도 다음 시도까지 기다리는 시간이다. 너무 짧으면 같은 실패를 되풀이하므로 1초를 하한으로 둔다.
+    var retryDelay: Duration { .milliseconds(max(debounceMilliseconds, 1_000)) }
+
+    private enum CodingKeys: String, CodingKey {
+        case windowMilliseconds = "window_ms"
+        case debounceMilliseconds = "debounce_ms"
+        case maximumAttempts = "max_attempts"
+    }
+}
+
+/// `/webrtc/config` 응답이다.
+struct WebRTCConfiguration: Equatable {
+    let iceServers: [WebRTCIceServer]
+    let recovery: WebRTCRecoveryPolicy
+}
+
 struct VideoRecoveryStatus: Equatable {
     let attempt: Int
     let maximumAttempts: Int
