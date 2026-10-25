@@ -9,10 +9,12 @@ private struct YouTubeLiveBroadcastRequest: Encodable {
 
 private struct WebRTCConfigurationResponse: Decodable {
     let iceServers: [WebRTCIceServer]
+    let recovery: WebRTCRecoveryPolicy?
 
     enum CodingKeys: String, CodingKey {
         case iceServers
         case snakeCaseIceServers = "ice_servers"
+        case recovery
     }
 
     init(from decoder: Decoder) throws {
@@ -20,6 +22,8 @@ private struct WebRTCConfigurationResponse: Decodable {
         iceServers = try container.decodeIfPresent([WebRTCIceServer].self, forKey: .iceServers)
             ?? container.decodeIfPresent([WebRTCIceServer].self, forKey: .snakeCaseIceServers)
             ?? []
+        // 정책이 깨져 있어도 ICE 서버는 써야 하므로 기본 정책으로 넘어간다.
+        recovery = try? container.decodeIfPresent(WebRTCRecoveryPolicy.self, forKey: .recovery)
     }
 }
 private struct CHZZKConnectRequest: Encodable {
@@ -296,13 +300,18 @@ final class YouTubeAPI: PlanAPIClient {
     }
 
     func webrtcConfiguration(accessToken: String) async throws -> [WebRTCIceServer] {
+        try await webrtcSessionConfiguration(accessToken: accessToken).iceServers
+    }
+
+    /// ICE 서버와 영상 재연결 정책을 함께 읽는다.
+    func webrtcSessionConfiguration(accessToken: String) async throws -> WebRTCConfiguration {
         let response: WebRTCConfigurationResponse = try await request(
             path: "/webrtc/config",
             method: "GET",
             accessToken: accessToken,
             body: Optional<YouTubeEmptyRequest>.none
         )
-        return response.iceServers
+        return WebRTCConfiguration(iceServers: response.iceServers, recovery: response.recovery ?? .default)
     }
 
     func saveBroadcastSettings(
