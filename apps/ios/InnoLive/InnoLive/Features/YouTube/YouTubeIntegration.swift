@@ -712,7 +712,8 @@ final class YouTubeIntegration: ObservableObject {
     private var reconnectTask: Task<Void, Never>?
     private var isReconnectingVideo = false
     private var videoConnectionConfiguration: VideoConnectionConfiguration?
-    private let maximumVideoReconnectAttempts = 3
+    /// 영상 재연결 횟수·시간이다. `/webrtc/config`에서 받은 서버 정책을 쓴다.
+    private var videoRecoveryPolicy = WebRTCRecoveryPolicy.default
     private let maximumGoLiveAttempts = 15
     private var ownedOrientationLockGeneration: UInt?
     private var broadcastOperationGeneration: UInt = 0
@@ -1426,7 +1427,12 @@ final class YouTubeIntegration: ObservableObject {
 
         while true {
             do {
-                let iceServers = Self.isDirectPublish(session) ? [] : try await api.webrtcConfiguration(accessToken: currentAccessToken)
+                var iceServers: [WebRTCIceServer] = []
+                if !Self.isDirectPublish(session) {
+                    let configuration = try await api.webrtcSessionConfiguration(accessToken: currentAccessToken)
+                    iceServers = configuration.iceServers
+                    videoRecoveryPolicy = configuration.recovery
+                }
                 guard generation == sessionOperationGeneration else { return false }
                 let refreshedAccessToken = api.currentAccessToken(fallback: currentAccessToken)
                 try await videoUplink.start(
@@ -2803,21 +2809,28 @@ final class YouTubeIntegration: ObservableObject {
                 self.isReconnectingVideo = false
                 self.reconnectTask = nil
                 self.videoRecoveryStatus = nil
+                self.videoUplink.isRecoveringExistingSession = false
             }
 
+            // 서버는 정책 시간 동안 세션을 복구 대기로 둔다(서버 교체 배포 중에는 새 서버가 넘겨받은
+            // 세션). 그 안에서는 한 시도가 실패해도 방송을 끝내지 않고 다음 시도로 간다.
+            self.videoUplink.isRecoveringExistingSession = true
+            var policy = self.videoRecoveryPolicy
+            let clock = ContinuousClock()
+            let startedAt = clock.now
             var attempt = 1
             var shouldDelayBeforeAttempt = false
             var didRefreshAfterSignalingUnauthorized = false
 
-            while attempt <= self.maximumVideoReconnectAttempts {
+            while attempt <= policy.maximumAttempts, clock.now - startedAt < policy.window {
                 self.videoRecoveryStatus = VideoRecoveryStatus(
                     attempt: attempt,
-                    maximumAttempts: self.maximumVideoReconnectAttempts
+                    maximumAttempts: policy.maximumAttempts
                 )
                 guard !Task.isCancelled else { return }
                 if shouldDelayBeforeAttempt {
                     do {
-                        try await Task.sleep(for: .seconds(2))
+                        try await Task.sleep(for: policy.retryDelay)
                     } catch {
                         return
                     }
@@ -2830,7 +2843,13 @@ final class YouTubeIntegration: ObservableObject {
                     guard !accessToken.isEmpty else {
                         throw WebRTCVideoUplinkError.unauthorized
                     }
-                    let iceServers = Self.isDirectPublish(session) ? [] : try await self.api.webrtcConfiguration(accessToken: accessToken)
+                    var iceServers: [WebRTCIceServer] = []
+                    if !Self.isDirectPublish(session) {
+                        let configuration = try await self.api.webrtcSessionConfiguration(accessToken: accessToken)
+                        iceServers = configuration.iceServers
+                        policy = configuration.recovery
+                        self.videoRecoveryPolicy = configuration.recovery
+                    }
                     guard !Task.isCancelled else { return }
                     await self.videoUplink.stopAndWait()
                     guard !Task.isCancelled else { return }
@@ -2876,7 +2895,7 @@ final class YouTubeIntegration: ObservableObject {
                     await self.videoUplink.stopAndWait()
                     guard !Task.isCancelled else { return }
                     attempt += 1
-                    shouldDelayBeforeAttempt = attempt <= self.maximumVideoReconnectAttempts
+                    shouldDelayBeforeAttempt = attempt <= policy.maximumAttempts
                 }
             }
 
