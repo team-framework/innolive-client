@@ -242,7 +242,7 @@ final class YouTubeBackgroundPauseTests: XCTestCase {
         XCTAssertTrue(locker.isLocked)
         XCTAssertEqual(integration.liveEditingTargets, [.chzzk])
         XCTAssertTrue(integration.errorMessage?.contains("YouTube") == true)
-        XCTAssertFalse(integration.errorMessage?.contains("치지직") == true)
+        XCTAssertFalse(integration.errorMessage?.contains(BroadcastSettingsProvider.chzzk.title) == true)
         integration.reset()
     }
 

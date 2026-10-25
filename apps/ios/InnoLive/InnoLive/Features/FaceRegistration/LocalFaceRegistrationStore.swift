@@ -16,7 +16,7 @@ actor LocalFaceRegistrationStore {
 
     func register(jpegData: Data, name: String) throws -> ReferenceFaceStatus {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard ReferenceFaceName.isValid(name) else { throw PrivacyFaceError.message("이름을 1~40자로 입력해 주세요.") }
+        guard ReferenceFaceName.isValid(name) else { throw PrivacyFaceError.message(String(localized: "이름을 1~40자로 입력해 주세요.")) }
         try Task.checkCancellation()
         guard let source = CGImageSourceCreateWithData(jpegData as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw PrivacyModelError.imageBuffer }
@@ -25,14 +25,14 @@ actor LocalFaceRegistrationStore {
         try Task.checkCancellation()
         let library = try PrivacyFaceLibrary()
         if library.entries.contains(where: { PrivacyFaceMath.cosine(embedding, $0.embedding) >= 0.75 }) {
-            throw PrivacyFaceError.message("이미 등록된 얼굴입니다.")
+            throw PrivacyFaceError.message(String(localized: "이미 등록된 얼굴입니다."))
         }
         try library.add(name: name, embedding: embedding)
         return try status()
     }
 
     func delete(faceID: String) throws {
-        guard let id = UUID(uuidString: faceID) else { throw PrivacyFaceError.message("등록된 얼굴을 찾지 못했습니다.") }
+        guard let id = UUID(uuidString: faceID) else { throw PrivacyFaceError.message(String(localized: "등록된 얼굴을 찾지 못했습니다.")) }
         try PrivacyFaceLibrary().delete(id: id)
     }
     func deleteAll() throws { try PrivacyFaceLibrary().deleteAll() }

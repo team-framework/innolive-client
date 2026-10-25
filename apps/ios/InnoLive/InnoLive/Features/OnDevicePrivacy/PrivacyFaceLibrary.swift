@@ -56,7 +56,7 @@ nonisolated final class PrivacyFaceLibrary {
             guard document.contract == Self.contract, document.entries.count <= 20,
                   Set(document.entries.map(\.id)).count == document.entries.count,
                   document.entries.allSatisfy({ !$0.name.isEmpty && $0.name.count <= 40 && PrivacyFaceMath.normalized($0.embedding) != nil }) else {
-                throw PrivacyFaceError.message("등록 데이터 형식이 맞지 않습니다.")
+                throw PrivacyFaceError.message(String(localized: "등록 데이터 형식이 맞지 않습니다."))
             }
             entries = document.entries
         }
@@ -66,7 +66,7 @@ nonisolated final class PrivacyFaceLibrary {
         let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name.count <= 40, entries.count < 20,
               let normalized = PrivacyFaceMath.normalized(embedding) else {
-            throw PrivacyFaceError.message("이름은 1~40자, 등록은 최대 20명입니다.")
+            throw PrivacyFaceError.message(String(localized: "이름은 1~40자, 등록은 최대 20명입니다."))
         }
         try save(entries + [.init(id: UUID(), name: name, embedding: normalized, registeredAt: Date().ISO8601Format())])
     }
