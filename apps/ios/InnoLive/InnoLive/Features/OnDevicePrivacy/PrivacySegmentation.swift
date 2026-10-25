@@ -155,10 +155,10 @@ nonisolated enum PrivacyModelError: LocalizedError {
     case missingModel, outputContract, imageBuffer, tooManyObjects
     var errorDescription: String? {
         switch self {
-        case .missingModel: "테스트 모델이 없습니다. 모델 준비 후 앱을 다시 빌드해 주세요."
-        case .outputContract: "모델 출력 형식이 맞지 않아 미리보기를 중단했습니다."
-        case .imageBuffer: "영상 처리에 실패해 미리보기를 중단했습니다."
-        case .tooManyObjects: "탐지 대상이 너무 많아 미리보기를 중단했습니다."
+        case .missingModel: String(localized: "테스트 모델이 없습니다. 모델 준비 후 앱을 다시 빌드해 주세요.")
+        case .outputContract: String(localized: "모델 출력 형식이 맞지 않아 미리보기를 중단했습니다.")
+        case .imageBuffer: String(localized: "영상 처리에 실패해 미리보기를 중단했습니다.")
+        case .tooManyObjects: String(localized: "탐지 대상이 너무 많아 미리보기를 중단했습니다.")
         }
     }
 }
