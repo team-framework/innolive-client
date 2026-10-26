@@ -93,6 +93,7 @@ jobs:
           [[ "$video_status" != 404 ]] || { echo "/ko/video returned 404 with the video flag on" >&2; exit 1; }
           mock_status=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3109/api/dev-vod/jobs)
           [[ "$mock_status" == 404 ]] || { echo "/api/dev-vod/jobs returned $mock_status, expected 404" >&2; exit 1; }
+          echo "video audit: /ko/video=$video_status /api/dev-vod/jobs=$mock_status"
 
   deploy:
     if: github.ref == 'refs/heads/main'
