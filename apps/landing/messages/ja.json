@@ -6,7 +6,8 @@
     "tryOutTitle": "体験 | InnoLive",
     "experienceTitle": "InnoLive 体験",
     "loginTitle": "ログイン | InnoLive",
-    "signupTitle": "会員登録 | InnoLive"
+    "signupTitle": "会員登録 | InnoLive",
+    "videoTitle": "InnoLive Video | InnoLive"
   },
   "common": {
     "skipToMain": "本文へスキップ",
@@ -447,5 +448,69 @@
     "contact": "お問い合わせ",
     "hideToday": "1日表示しない",
     "close": "閉じる"
+  },
+  "video": {
+    "navLabel": "InnoLive Video",
+    "title": "InnoLive Video",
+    "subtitle": "録画した映像をアップロードすると、顔を自動で非識別化します。",
+    "upload": {
+      "heading": "映像をアップロード",
+      "dropzone": "映像をドラッグするかファイルを選択してください",
+      "dropzoneActive": "ここにドロップ",
+      "pick": "ファイルを選択",
+      "hint": "最大{size}GB · 最大{minutes}分 · {formats}",
+      "selected": "{name}",
+      "checking": "映像を確認中",
+      "start": "アップロード開始",
+      "change": "別の映像を選択",
+      "cancel": "キャンセル",
+      "uploading": "アップロード中 {percent}%",
+      "progressLabel": "アップロードの進捗",
+      "errors": {
+        "type": "対応していない形式です。{formats} ファイルを選択してください。",
+        "size": "ファイルが大きすぎます。最大{size}GBまでアップロードできます。",
+        "duration": "映像が長すぎます。最大{minutes}分までアップロードできます。",
+        "metadata": "映像情報を読み取れません。別のファイルを選択してください。",
+        "upload": "アップロードに失敗しました。もう一度お試しください。"
+      }
+    },
+    "notice": {
+      "heading": "原本破棄のご案内",
+      "retention": "処理完了後{hours}時間以内に破棄",
+      "result": "結果物は{days}日間保管",
+      "originalDeleteAt": "原本破棄予定 {time}",
+      "resultExpiresAt": "結果物の有効期限 {time}"
+    },
+    "jobs": {
+      "heading": "マイジョブ",
+      "refresh": "更新",
+      "queuePosition": "待機 {position}番目",
+      "eta": "約 {time} 残り",
+      "progressLabel": "処理の進捗",
+      "created": "{time} アップロード",
+      "download": "結果をダウンロード",
+      "downloading": "準備中",
+      "delete": "削除",
+      "deleting": "削除中",
+      "deleteError": "削除に失敗しました。もう一度お試しください。",
+      "empty": "まだアップロードした映像はありません。",
+      "emptyHint": "映像をアップロードすると、ここで進捗を確認できます。"
+    },
+    "status": {
+      "uploaded": "アップロード済み",
+      "queued": "待機中",
+      "processing": "処理中",
+      "paused": "一時停止中（ライブ優先）",
+      "done": "完了",
+      "failed": "失敗",
+      "expired": "期限切れ",
+      "cancelled": "キャンセル済み"
+    },
+    "time": {
+      "hours": "{value}時間",
+      "minutes": "{value}分",
+      "seconds": "{value}秒",
+      "lessThanMinute": "1分未満"
+    }
   }
 }
