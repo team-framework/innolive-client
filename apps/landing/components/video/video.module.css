@@ -1,0 +1,114 @@
+/* Page-local styles for the InnoLive Video page. Scoped via CSS Modules so none of the global
+   tokens, the login `.login-scope`, or shared components are touched. Colors are the only
+   hand-picked values here (the theme is monochrome); all type/spacing uses rem-based Tailwind
+   utilities in the JSX so the global shrink applies automatically. Light only. */
+
+.page {
+  /* Clear the fixed site header (6rem) like the login page does. */
+  padding-top: calc(var(--header-height) + 1.5rem);
+  min-height: 100dvh;
+  background: var(--color-background-primary);
+}
+
+/* Soft, decorative glow backdrop — quiet, reduced-motion friendly (no animation). */
+.backdrop {
+  background:
+    radial-gradient(48rem 30rem at 50% -8rem, rgba(0, 0, 0, 0.05), transparent 70%),
+    radial-gradient(36rem 24rem at 92% 4rem, rgba(0, 0, 0, 0.03), transparent 72%);
+}
+
+/* White card with a hairline ring + soft layered shadow, mirroring the login card depth. */
+.card {
+  background: var(--color-background-secondary);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 12px 32px rgba(0, 0, 0, 0.06);
+}
+
+/* Keyboard-operable drop zone. */
+.dropzone {
+  border: 1px dashed var(--color-surface-primary);
+  background: var(--color-background-primary);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+.dropzone:hover {
+  border-color: var(--color-text-secondary);
+}
+.dropzone:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+}
+.dropzoneActive {
+  border-color: var(--color-text-primary);
+  background: var(--color-background-secondary);
+}
+
+/* Determinate progress bar. */
+.track {
+  background: var(--color-surface-primary);
+  overflow: hidden;
+}
+.fill {
+  background: var(--color-text-primary);
+  transition: width 0.4s ease;
+}
+
+/* Status badge tones (AA contrast on white). */
+.tone {
+  white-space: nowrap;
+}
+.toneProgress {
+  color: #1d4ed8;
+  background: #eef4ff;
+}
+.tonePaused {
+  color: #92400e;
+  background: #fef3c7;
+}
+.toneSuccess {
+  color: #047857;
+  background: #e7f7ef;
+}
+.toneDanger {
+  color: #b42318;
+  background: #fef3f2;
+}
+.toneNeutral {
+  color: #4b5563;
+  background: #f1f3f5;
+}
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: currentColor;
+  flex: none;
+}
+
+/* Subtle entrance, respecting reduced motion. */
+.rise {
+  animation: videoRise 0.5s ease both;
+}
+@keyframes videoRise {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+  .fill,
+  .dropzone {
+    transition: none;
+  }
+}
