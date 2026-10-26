@@ -193,8 +193,7 @@
 /* ------------------------------------------------------------------ *
  * Login screen (scoped). Everything below only applies under
  * `.login-scope` (the login page's <main>), so no other page or the
- * shared signup AuthShell is affected. Includes a login-only dark theme
- * driven by prefers-color-scheme.
+ * shared signup AuthShell is affected.
  * ------------------------------------------------------------------ */
 
 /* Soft brand-tinted glow + a faint grid, both decorative. */
@@ -297,137 +296,6 @@
 }
 .login-scope .login-rise {
   animation: login-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* --- Login-only dark theme --- */
-@media (prefers-color-scheme: dark) {
-  body:has(.login-scope) {
-    background: #09090b;
-  }
-  .login-scope {
-    background-color: #09090b;
-  }
-
-  /* Keep focus rings visible against the dark surface. */
-  .login-scope :focus-visible {
-    outline-color: #f4f4f5;
-  }
-
-  .login-scope .login-glow {
-    background:
-      radial-gradient(62rem 42rem at 50% -12%, rgba(56, 120, 170, 0.26), transparent 62%),
-      radial-gradient(48rem 38rem at 88% 12%, rgba(44, 104, 150, 0.16), transparent 60%),
-      radial-gradient(46rem 46rem at 8% 94%, rgba(40, 96, 136, 0.14), transparent 60%);
-  }
-  .login-scope .login-glow::before {
-    background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  }
-
-  @media (min-width: 48rem) {
-    .login-scope .login-card {
-      box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-        0 2px 6px rgba(0, 0, 0, 0.4),
-        0 36px 68px -28px rgba(0, 0, 0, 0.74);
-    }
-  }
-
-  /* Dark header logo: the wordmark ships as near-black ink. */
-  .login-scope .login-logo img {
-    filter: invert(1) brightness(1.12);
-  }
-
-  /* Text fields. */
-  .login-scope .login-field {
-    background: #1b1b1f;
-    /* >=3:1 against the dark page so the mobile field boundary stays visible. */
-    border-color: #71717a;
-  }
-  .login-scope .login-field input {
-    color: #f4f4f5;
-  }
-  .login-scope .login-field label {
-    color: #9ca3af;
-  }
-  .login-scope .login-field input:focus + label,
-  .login-scope .login-field input:not(:placeholder-shown) + label {
-    color: #e4e4e7;
-  }
-  .login-scope .login-field img {
-    filter: invert(1) brightness(1.1) opacity(0.85);
-  }
-  .login-scope .login-field button {
-    color: #a1a1aa;
-  }
-  .login-scope .login-field + p[role="alert"] {
-    color: #f4f4f5;
-  }
-
-  /* Mobile/tablet (<64rem) fields are the bordered variant; the base
-     component paints focus/invalid borders with --color-text-primary
-     (black), which vanishes on the dark surface. Repaint them light. */
-  @media (max-width: 63.999rem) {
-    .login-scope .login-field:focus-within {
-      border-color: #f4f4f5;
-      box-shadow: inset 0 0 0 1px #f4f4f5;
-    }
-    .login-scope .login-field:has(input[aria-invalid="true"]) {
-      border-color: #e4e4e7;
-    }
-  }
-
-  @media (min-width: 64rem) {
-    .login-scope .login-field {
-      border-radius: 12px;
-      box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.14),
-        0 1px 2px rgba(0, 0, 0, 0.3);
-    }
-    .login-scope .login-field input::placeholder {
-      color: #8a8a93;
-    }
-    .login-scope .login-field:focus-within {
-      box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.72),
-        0 0 0 4px rgba(255, 255, 255, 0.09);
-    }
-    .login-scope .login-field:has(input[aria-invalid="true"]) {
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.58);
-    }
-  }
-
-  /* Primary CTA becomes a light pill; secondary becomes a dark outline pill. */
-  .login-scope .login-submit:not(:disabled) {
-    background: #f4f4f5;
-    color: #0a0a0a;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.6),
-      0 1px 2px rgba(0, 0, 0, 0.5),
-      0 12px 26px -14px rgba(0, 0, 0, 0.8);
-  }
-  .login-scope .login-submit:hover:not(:disabled) {
-    background: #ffffff;
-  }
-  .login-scope .login-submit:disabled {
-    background: #26262a;
-    color: #71717a;
-    box-shadow: none;
-  }
-  .login-scope .login-alt {
-    background: #1f1f23;
-    color: #f4f4f5;
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.13),
-      0 1px 2px rgba(0, 0, 0, 0.3);
-  }
-  .login-scope .login-alt:hover:not([aria-disabled="true"]) {
-    background: #27272c;
-  }
-  .login-scope .login-alt[aria-disabled="true"] {
-    opacity: 0.5;
-  }
 }
 
 /* Japanese has no spaces between words, so keep-all leaves whole sentences unbreakable

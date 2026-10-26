@@ -54,7 +54,7 @@ export function LoginForm() {
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="login-rise text-[clamp(1.75rem,1.3rem+1.1vw,2.25rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-text-primary dark:text-[#f4f4f5] max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
+      <h1 className="login-rise text-[clamp(1.75rem,1.3rem+1.1vw,2.25rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
         {copy.loginTitle}
       </h1>
       <div className="login-rise flex w-full flex-col items-start gap-2 [animation-delay:80ms]">
@@ -81,7 +81,7 @@ export function LoginForm() {
         <div className="flex w-full justify-end px-2 max-lg:-my-2">
           <button
             type="button"
-            className="rounded-sm text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font] transition-colors hover:text-text-primary dark:text-[#9ca3af] dark:hover:text-[#e4e4e7] max-lg:min-h-[44px] max-lg:text-[14px]"
+            className="rounded-sm text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font] transition-colors hover:text-text-primary max-lg:min-h-[44px] max-lg:text-[14px]"
             onClick={() => setNotice(copy.forgotPending)}
           >
             {copy.forgotPassword}
@@ -108,7 +108,7 @@ export function LoginForm() {
         </Button>
       </div>
       {notice ? (
-        <p role="status" aria-live="polite" className="w-full text-center text-base text-text-primary dark:text-[#f4f4f5]">
+        <p role="status" aria-live="polite" className="w-full text-center text-base text-text-primary">
           {notice}
         </p>
       ) : null}
