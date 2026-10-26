@@ -59,7 +59,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav
-          className="auth-rise mt-8 flex flex-wrap items-center justify-center gap-2 text-base font-medium text-text-primary max-lg:mt-4 max-lg:gap-x-4 max-lg:font-normal max-lg:text-text-secondary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2 [animation-delay:240ms]"
+          className="auth-rise mt-8 flex flex-wrap items-center justify-center gap-2 text-[13px] font-medium text-text-primary max-lg:mt-4 max-lg:gap-x-4 max-lg:font-normal max-lg:text-text-secondary lg:absolute lg:bottom-8 lg:left-1/2 lg:mt-0 lg:-translate-x-1/2 [animation-delay:240ms]"
           aria-label={messages.auth.policyNav}
         >
           <Link

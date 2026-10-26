@@ -114,16 +114,16 @@ export function SignupForm({ children }: { children: ReactNode }) {
 
   return (
     <form
-      className="flex w-full max-w-[32rem] flex-col items-center gap-7 max-lg:gap-6"
+      className="flex w-full max-w-[32rem] flex-col items-center gap-6"
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="auth-rise text-[clamp(1.75rem,1.3rem+1.1vw,2.25rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
+      <h1 className="auth-rise text-[24px] font-semibold leading-[1.3] tracking-[-0.02em] text-text-primary max-lg:self-start max-lg:text-[22px] max-lg:font-bold">
         {step === "verification" ? copy.verifyTitle : copy.signupTitle}
       </h1>
       {step === "verification" ? (
         <div className="auth-rise flex w-full flex-col items-start gap-2 [animation-delay:80ms]">
-          <p className="w-full px-2 text-base text-text-secondary">
+          <p className="w-full px-2 text-[14px] text-text-secondary">
             {interpolate(copy.verificationHint, { email })}
           </p>
           <TextField
@@ -172,7 +172,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
           />
           <div className="flex w-full min-w-0 flex-col gap-1 px-2 break-keep">
             <Checkbox
-              className="w-full min-w-0 break-keep"
+              className="auth-terms w-full min-w-0 break-keep"
               checked={agreed}
               onChange={(event) => {
                 if (event.target.checked && !hasAcceptedTerms) {
@@ -235,7 +235,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
         ): null}
       </div>
       {notice ? (
-        <p role="status" aria-live="polite" className="w-full text-center text-base text-text-primary">
+        <p role="status" aria-live="polite" className="w-full text-center text-[14px] text-text-primary">
           {notice}
         </p>
       ) : null}

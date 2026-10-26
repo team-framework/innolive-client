@@ -310,6 +310,38 @@
   animation: auth-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Form type scale: compact SaaS-style sizes for the shared TextField, Button and Checkbox,
+   scoped to the auth screens. Below lg the inputs keep 16px (no iOS zoom) and every
+   control keeps its 44px touch target. */
+.auth-scope .auth-submit,
+.auth-scope .auth-alt {
+  min-height: 44px;
+  padding-block: 10px;
+  font-size: 14px;
+}
+.auth-scope .auth-terms > span:last-child {
+  font-size: 13px;
+  line-height: 1.45;
+}
+@media (min-width: 64rem) {
+  .auth-scope .auth-field {
+    min-height: 44px;
+    gap: 10px;
+    padding: 10px 16px;
+  }
+  .auth-scope .auth-field input {
+    font-size: 14px;
+    font-weight: 400;
+  }
+  .auth-scope .auth-field img {
+    width: 18px;
+    height: 18px;
+  }
+  .auth-scope .auth-field button {
+    font-size: 13px;
+  }
+}
+
 /* Japanese has no spaces between words, so keep-all leaves whole sentences unbreakable
    and they overflow their boxes (document-mdx also leaves ja out of break-keep).
    auto-phrase breaks between phrases where supported; other browsers keep normal. */
