@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function VideoRoutePage({ params }: PageProps) {
   const { locale } = await params;
-  // Feature flag off (e.g. production, where it is never set) -> the route does not exist.
+  // Feature flag off (local builds by default, or an image built with the flag false) -> 404.
   if (!isInnoliveVideoEnabled()) notFound();
 
   const resolvedLocale = isLocale(locale) ? locale : defaultLocale;

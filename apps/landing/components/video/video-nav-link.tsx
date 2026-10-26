@@ -7,7 +7,7 @@ import { useIsLogined } from "@/hooks/use-is-logined";
 import { isInnoliveVideoEnabled } from "@/lib/features";
 
 // Nav entry for InnoLive Video. Renders only when the build-time flag is on AND the visitor is
-// logged in, so it never appears in production (flag unset) or for signed-out users. The flag is
+// logged in, so it never appears in a flag-off build or for signed-out users. The flag is
 // inlined at build, so when off this component tree-shakes to a constant null.
 export function VideoNavLink({ className }: { className: string }) {
   const { href, messages } = useLocale();

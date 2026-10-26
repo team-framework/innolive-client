@@ -7,7 +7,7 @@ import unittest
 
 
 class QualityRuntimeTest(unittest.TestCase):
-    def render(self, present):
+    def render(self, present, extra=None):
         source = Path(__file__).with_name("deploy-innolive-web.sh").read_text()
         start = source.index("write_release_override() {")
         end = source.index("\n}\n", start) + 3
@@ -21,6 +21,8 @@ class QualityRuntimeTest(unittest.TestCase):
                        NEXT_PUBLIC_INNOLIVE_SERVER_URL="https://api.example.test",
                        NEXT_PUBLIC_IOS_DOWNLOAD_URL="https://example.test/ios",
                        NEXT_PUBLIC_ANDROID_DOWNLOAD_URL="https://example.test/android", private_log="/dev/null")
+            env.pop("NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED", None)
+            env.update(extra or {})
             result = subprocess.run(["bash", "-c", source[start:end] + '\nwrite_release_override "$1" test-image', "test", str(output)], env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             body = output.read_text()
@@ -39,6 +41,14 @@ class QualityRuntimeTest(unittest.TestCase):
         body = self.render(False)
         self.assertIn("env_file: !reset []", body)
         self.assertNotIn("web-quality.env", body)
+
+    def test_video_flag_defaults_to_dockerfile_value(self):
+        body = self.render(False)
+        self.assertNotIn("NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED", body)
+
+    def test_video_flag_override_is_passed_as_build_arg(self):
+        body = self.render(False, {"NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED": "false"})
+        self.assertIn('NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED: "false"', body)
 
 
 if __name__ == "__main__":

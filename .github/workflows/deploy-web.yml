@@ -47,6 +47,7 @@ jobs:
           docker build \
             --build-arg INNOLIVE_WEB_REVISION="$GITHUB_SHA" \
             --build-arg NEXT_PUBLIC_INNOLIVE_SERVER_URL=https://api.innolive.studio \
+            --build-arg NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED=true \
             --tag "$IMAGE" \
             apps/landing
 
@@ -65,7 +66,9 @@ jobs:
             lib/auth-validation.test.mts \
             lib/experience-codecs.test.mts \
             lib/experience-quality.test.mts \
-            app/api/experience-quality/route.test.mts
+            app/api/experience-quality/route.test.mts \
+            lib/features.test.mts \
+            lib/vod-client.test.mts
 
           docker run --rm \
             --entrypoint node \
@@ -85,6 +88,11 @@ jobs:
             sleep 1
           done
           python3 apps/landing/scripts/audit-search.py http://127.0.0.1:3109 --output "$RUNNER_TEMP/search-audit.json"
+          # InnoLive Video is on in production images, and the dev VOD mock must never answer.
+          video_status=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3109/ko/video)
+          [[ "$video_status" != 404 ]] || { echo "/ko/video returned 404 with the video flag on" >&2; exit 1; }
+          mock_status=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3109/api/dev-vod/jobs)
+          [[ "$mock_status" == 404 ]] || { echo "/api/dev-vod/jobs returned $mock_status, expected 404" >&2; exit 1; }
 
   deploy:
     if: github.ref == 'refs/heads/main'
