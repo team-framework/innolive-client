@@ -1,5 +1,5 @@
 /* Page-local styles for the InnoLive Video page. Scoped via CSS Modules so none of the global
-   tokens, the login `.login-scope`, or shared components are touched. Colors are the only
+   tokens, the auth `.auth-scope` (AuthShell), or shared components are touched. Colors are the only
    hand-picked values here (the theme is monochrome); all type/spacing uses rem-based Tailwind
    utilities in the JSX so the global shrink applies automatically. Light only. */
 
