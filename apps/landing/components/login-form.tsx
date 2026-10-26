@@ -50,15 +50,16 @@ export function LoginForm() {
 
   return (
     <form
-      className="flex w-full max-w-[32rem] flex-col items-center gap-7 max-lg:gap-6"
+      className="flex w-full max-w-[32rem] flex-col items-center gap-8 max-lg:gap-6"
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
+      <h1 className="login-rise text-[clamp(1.75rem,1.3rem+1.1vw,2.25rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
         {copy.loginTitle}
       </h1>
-      <div className="flex w-full flex-col items-start gap-2">
+      <div className="login-rise flex w-full flex-col items-start gap-2 [animation-delay:80ms]">
         <TextField
+          className="login-field"
           icon="mail"
           label={copy.email}
           type="email"
@@ -68,6 +69,7 @@ export function LoginForm() {
           onChange={(event) => setEmail(event.target.value)}
         />
         <TextField
+          className="login-field"
           icon="lock"
           label={copy.password}
           autoComplete="current-password"
@@ -79,19 +81,19 @@ export function LoginForm() {
         <div className="flex w-full justify-end px-2 max-lg:-my-2">
           <button
             type="button"
-            className="text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font] max-lg:min-h-[44px] max-lg:text-[14px]"
+            className="rounded-sm text-base font-normal leading-[1.3] text-text-secondary underline [text-underline-position:from-font] transition-colors hover:text-text-primary max-lg:min-h-[44px] max-lg:text-[14px]"
             onClick={() => setNotice(copy.forgotPending)}
           >
             {copy.forgotPassword}
           </button>
         </div>
       </div>
-      <div className="flex w-full flex-col items-stretch gap-2">
+      <div className="login-rise flex w-full flex-col items-stretch gap-2 [animation-delay:160ms]">
         <Button
           type="submit"
           variant="secondary"
           showChevron={false}
-          className="w-full max-w-none"
+          className="login-submit w-full max-w-none"
           disabled={isSubmitting}
         >
           {isSubmitting ? copy.submittingLogin : copy.submitLogin}
@@ -99,7 +101,7 @@ export function LoginForm() {
         <Button
           href={href("/signup")}
           showChevron={false}
-          className="w-full max-w-none"
+          className="login-alt w-full max-w-none"
           disabled={isSubmitting}
         >
           {copy.goSignup}
