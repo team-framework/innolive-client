@@ -114,19 +114,20 @@ export function SignupForm({ children }: { children: ReactNode }) {
 
   return (
     <form
-      className="flex w-full max-w-[32rem] flex-col items-center gap-7 max-lg:gap-6"
+      className="flex w-full max-w-[32rem] flex-col items-center gap-6"
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="text-[clamp(1.75rem,1.2rem+1.5vw,2.75rem)] font-semibold leading-[1.3] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
+      <h1 className="auth-rise text-[24px] font-semibold leading-[1.3] tracking-[-0.02em] text-text-primary max-lg:self-start max-lg:text-[22px] max-lg:font-bold">
         {step === "verification" ? copy.verifyTitle : copy.signupTitle}
       </h1>
       {step === "verification" ? (
-        <div className="flex w-full flex-col items-start gap-2">
-          <p className="w-full px-2 text-base text-text-secondary">
+        <div className="auth-rise flex w-full flex-col items-start gap-2 [animation-delay:80ms]">
+          <p className="w-full px-2 text-[14px] text-text-secondary">
             {interpolate(copy.verificationHint, { email })}
           </p>
           <TextField
+            className="auth-field"
             icon="mail"
             label={copy.verificationCode}
             inputMode="numeric"
@@ -138,8 +139,9 @@ export function SignupForm({ children }: { children: ReactNode }) {
           />
         </div>
       ) : (
-        <div className="flex w-full flex-col items-start gap-2">
+        <div className="auth-rise flex w-full flex-col items-start gap-2 [animation-delay:80ms]">
           <TextField
+            className="auth-field"
             icon="mail"
             label={copy.email}
             type="email"
@@ -149,6 +151,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
             onChange={(event) => setEmail(event.target.value)}
           />
           <TextField
+            className="auth-field"
             icon="lock"
             label={copy.password}
             autoComplete="new-password"
@@ -158,6 +161,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
             onChange={(event) => setPassword(event.target.value)}
           />
           <TextField
+            className="auth-field"
             icon="lock"
             label={copy.confirmPassword}
             autoComplete="new-password"
@@ -168,7 +172,7 @@ export function SignupForm({ children }: { children: ReactNode }) {
           />
           <div className="flex w-full min-w-0 flex-col gap-1 px-2 break-keep">
             <Checkbox
-              className="w-full min-w-0 break-keep"
+              className="auth-terms w-full min-w-0 break-keep"
               checked={agreed}
               onChange={(event) => {
                 if (event.target.checked && !hasAcceptedTerms) {
@@ -210,12 +214,12 @@ export function SignupForm({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
-      <div className="flex w-full flex-col items-stretch gap-2">
+      <div className="auth-rise flex w-full flex-col items-stretch gap-2 [animation-delay:160ms]">
         <Button
           type="submit"
           variant="secondary"
           showChevron={false}
-          className="w-full max-w-none"
+          className="auth-submit w-full max-w-none"
           disabled={isSubmitting}
         >
           {isSubmitting
@@ -225,13 +229,13 @@ export function SignupForm({ children }: { children: ReactNode }) {
               : copy.sendCode}
         </Button>
         {step !== "verification" ? (
-          <Button href={href("/login")} showChevron={false} className="w-full max-w-none">
+          <Button href={href("/login")} showChevron={false} className="auth-alt w-full max-w-none">
             {copy.goLogin}
           </Button>
         ): null}
       </div>
       {notice ? (
-        <p role="status" aria-live="polite" className="w-full text-center text-base text-text-primary">
+        <p role="status" aria-live="polite" className="w-full text-center text-[14px] text-text-primary">
           {notice}
         </p>
       ) : null}

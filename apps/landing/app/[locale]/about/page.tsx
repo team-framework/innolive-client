@@ -29,7 +29,7 @@ export default async function AboutPage({ params }: Props) {
         <p className="max-w-[60rem] text-body leading-relaxed">{copy.intro}</p>
         <section className="flex flex-col gap-4">
           <h2 className="text-2xl font-semibold">{copy.factsTitle}</h2>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-4 text-base sm:grid-cols-2">
             {facts.map(([label, value]) => <div key={label}><dt className="font-semibold">{label}</dt><dd className="mt-1 text-text-secondary">{value}</dd></div>)}
           </dl>
         </section>
@@ -40,7 +40,7 @@ export default async function AboutPage({ params }: Props) {
         <section className="flex flex-col gap-4">
           <h2 className="text-2xl font-semibold">{copy.sourcesTitle}</h2>
           <p className="text-body leading-relaxed">{copy.sourceNote}</p>
-          <ul className="flex flex-col gap-2">
+          <ul className="flex flex-col gap-2 text-base">
             {[["/live-mosaic", copy.guide], ["/pricing", copy.pricing], ["/support", copy.support]].map(([path, label]) => <li key={path}><Link className="inline-flex min-h-[44px] items-center underline" href={`/${locale}${path}`}>{label}</Link></li>)}
             {socialLinks.map(({ name, href }) => <li key={href}><a className="inline-flex min-h-[44px] items-center underline" href={href}>Framework · {name}</a></li>)}
           </ul>
