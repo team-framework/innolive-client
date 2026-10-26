@@ -503,7 +503,8 @@
       "paused": "일시정지됨(라이브 우선)",
       "done": "완료",
       "failed": "실패",
-      "expired": "만료됨"
+      "expired": "만료됨",
+      "cancelled": "취소됨"
     },
     "time": {
       "hours": "{value}시간",

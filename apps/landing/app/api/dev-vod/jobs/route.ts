@@ -26,8 +26,15 @@ export async function POST(request: Request) {
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) {
-    return new Response(JSON.stringify({ error: "file_required" }), { status: 400, headers: jsonHeaders });
+    return new Response(JSON.stringify({ error: { code: "bad_request", message: "file is required" } }), {
+      status: 400,
+      headers: jsonHeaders,
+    });
   }
-  const { id } = await createMockJob(file);
-  return new Response(JSON.stringify({ id }), { status: 201, headers: jsonHeaders });
+  const job = await createMockJob(file);
+  // 201 returns the created job (contract) with a Location header, like the real server.
+  return new Response(JSON.stringify(job), {
+    status: 201,
+    headers: { ...jsonHeaders, Location: `/vod/jobs/${job.job_id}` },
+  });
 }

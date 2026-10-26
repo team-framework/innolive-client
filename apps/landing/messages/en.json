@@ -503,7 +503,8 @@
       "paused": "Paused (live has priority)",
       "done": "Done",
       "failed": "Failed",
-      "expired": "Expired"
+      "expired": "Expired",
+      "cancelled": "Cancelled"
     },
     "time": {
       "hours": "{value}h",

@@ -23,7 +23,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
   }
   const { record } = result;
-  const downloadName = record.fileName.replace(/(\.[^.]+)?$/, "-innolive$1");
+  // The contract uses a server-generated ASCII name (original filename is never echoed back).
+  const downloadName = `vod-${record.id}.mp4`;
   const hasBytes = record.bytes.byteLength > 0;
   const body = hasBytes ? record.bytes : new TextEncoder().encode("InnoLive mock result\n");
   // Uint8Array is a valid runtime BodyInit; the cast sidesteps the ArrayBufferLike/ArrayBuffer
@@ -32,6 +33,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     headers: {
       "Content-Type": hasBytes ? record.contentType : "text/plain; charset=utf-8",
       "Content-Disposition": `attachment; filename="${downloadName}"`,
+      "X-Content-Type-Options": "nosniff",
+      "Accept-Ranges": "none",
       "Cache-Control": "no-store",
     },
   });

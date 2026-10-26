@@ -503,7 +503,8 @@
       "paused": "一時停止中（ライブ優先）",
       "done": "完了",
       "failed": "失敗",
-      "expired": "期限切れ"
+      "expired": "期限切れ",
+      "cancelled": "キャンセル済み"
     },
     "time": {
       "hours": "{value}時間",
