@@ -110,7 +110,7 @@ export function PlanCard({
             </div>
             <p
               className={cn(
-                "break-keep text-[clamp(1.125rem,0.95rem+0.8vw,1.625rem)] font-normal leading-[1.15] text-text-primary min-[112rem]:min-h-[2.3em]",
+                "break-keep text-[max(14px,clamp(1.125rem,0.95rem+0.8vw,1.625rem))] font-normal leading-[1.15] text-text-primary min-[112rem]:min-h-[2.3em]",
                 // In the four-column row the ribbon reaches the description line.
                 plan.ribbon && "min-[112rem]:pr-14",
               )}
