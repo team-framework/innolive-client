@@ -1,5 +1,5 @@
+import { AuthShell } from "@/components/auth-shell";
 import { LoginForm } from "@/components/login-form";
-import { LoginShell } from "@/components/login-shell";
 import { getMessages } from "@/lib/messages";
 import { pageMetadata } from "@/lib/seo";
 
@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default function LoginPage() {
   return (
-    <LoginShell>
+    <AuthShell>
       <LoginForm />
-    </LoginShell>
+    </AuthShell>
   );
 }

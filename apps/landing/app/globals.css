@@ -191,19 +191,19 @@
 }
 
 /* ------------------------------------------------------------------ *
- * Login screen (scoped). Everything below only applies under
- * `.login-scope` (the login page's <main>), so no other page or the
- * shared signup AuthShell is affected.
+ * Auth screens (scoped). Everything below only applies under
+ * `.auth-scope` (the login and signup pages' <main>, rendered by the
+ * shared AuthShell), so no other page is affected.
  * ------------------------------------------------------------------ */
 
 /* Soft brand-tinted glow + a faint grid, both decorative. */
-.login-scope .login-glow {
+.auth-scope .auth-glow {
   background:
     radial-gradient(62rem 42rem at 50% -12%, rgba(74, 134, 196, 0.16), transparent 62%),
     radial-gradient(46rem 36rem at 88% 14%, rgba(120, 178, 210, 0.1), transparent 60%),
     radial-gradient(44rem 44rem at 6% 96%, rgba(90, 150, 190, 0.08), transparent 62%);
 }
-.login-scope .login-glow::before {
+.auth-scope .auth-glow::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -217,7 +217,7 @@
 
 /* Card depth: hairline ring + soft layered shadow (desktop/tablet only). */
 @media (min-width: 48rem) {
-  .login-scope .login-card {
+  .auth-scope .auth-card {
     box-shadow:
       inset 0 0 0 1px rgba(17, 17, 20, 0.07),
       0 1px 2px rgba(17, 17, 20, 0.04),
@@ -226,7 +226,7 @@
 }
 
 /* Artwork veil: gentle depth so the white logo reads cleanly. */
-.login-scope .login-art-veil {
+.auth-scope .auth-art-veil {
   background:
     linear-gradient(to top, rgba(6, 12, 20, 0.34), rgba(6, 12, 20, 0) 48%),
     radial-gradient(70% 60% at 50% 48%, rgba(6, 12, 20, 0.18), transparent 72%);
@@ -234,7 +234,7 @@
 
 /* Desktop text fields: crisp white, 12px radius, hairline ring, smooth focus. */
 @media (min-width: 64rem) {
-  .login-scope .login-field {
+  .auth-scope .auth-field {
     border-radius: 12px;
     background: #ffffff;
     box-shadow:
@@ -244,47 +244,47 @@
       box-shadow 0.2s ease,
       background-color 0.2s ease;
   }
-  .login-scope .login-field:focus-within {
+  .auth-scope .auth-field:focus-within {
     box-shadow:
       inset 0 0 0 1px rgba(17, 17, 20, 0.6),
       0 0 0 4px rgba(17, 17, 20, 0.08);
   }
-  .login-scope .login-field:has(input[aria-invalid="true"]) {
+  .auth-scope .auth-field:has(input[aria-invalid="true"]) {
     box-shadow: inset 0 0 0 1px rgba(17, 17, 20, 0.5);
   }
 }
 
 /* Buttons: inner highlight, subtle lift on hover, press feedback. */
-.login-scope .login-submit,
-.login-scope .login-alt {
+.auth-scope .auth-submit,
+.auth-scope .auth-alt {
   transition:
     transform 0.18s ease,
     box-shadow 0.2s ease,
     background-color 0.2s ease,
     color 0.2s ease;
 }
-.login-scope .login-submit {
+.auth-scope .auth-submit {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 1px 2px rgba(17, 17, 20, 0.18),
     0 10px 24px -12px rgba(17, 17, 20, 0.45);
 }
-.login-scope .login-alt {
+.auth-scope .auth-alt {
   box-shadow:
     inset 0 0 0 1px rgba(17, 17, 20, 0.12),
     0 1px 2px rgba(17, 17, 20, 0.05);
 }
-.login-scope .login-submit:hover:not(:disabled),
-.login-scope .login-alt:hover:not([aria-disabled="true"]) {
+.auth-scope .auth-submit:hover:not(:disabled),
+.auth-scope .auth-alt:hover:not([aria-disabled="true"]) {
   transform: translateY(-1px);
 }
-.login-scope .login-submit:active:not(:disabled),
-.login-scope .login-alt:active:not([aria-disabled="true"]) {
+.auth-scope .auth-submit:active:not(:disabled),
+.auth-scope .auth-alt:active:not([aria-disabled="true"]) {
   transform: translateY(0);
 }
 
 /* Entrance motion: gentle fade + rise, staggered via per-element delays. */
-@keyframes login-rise {
+@keyframes auth-rise {
   from {
     opacity: 0;
     transform: translateY(12px);
@@ -294,8 +294,8 @@
     transform: none;
   }
 }
-.login-scope .login-rise {
-  animation: login-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+.auth-scope .auth-rise {
+  animation: auth-rise 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Japanese has no spaces between words, so keep-all leaves whole sentences unbreakable

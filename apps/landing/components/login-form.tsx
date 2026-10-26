@@ -54,12 +54,12 @@ export function LoginForm() {
       noValidate
       onSubmit={onSubmit}
     >
-      <h1 className="login-rise text-[clamp(1.75rem,1.3rem+1.1vw,2.25rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
+      <h1 className="auth-rise text-[clamp(1.75rem,1.3rem+1.1vw,2.25rem)] font-semibold leading-[1.25] tracking-[-0.02em] text-text-primary max-lg:self-start max-lg:text-[26px] max-lg:font-bold">
         {copy.loginTitle}
       </h1>
-      <div className="login-rise flex w-full flex-col items-start gap-2 [animation-delay:80ms]">
+      <div className="auth-rise flex w-full flex-col items-start gap-2 [animation-delay:80ms]">
         <TextField
-          className="login-field"
+          className="auth-field"
           icon="mail"
           label={copy.email}
           type="email"
@@ -69,7 +69,7 @@ export function LoginForm() {
           onChange={(event) => setEmail(event.target.value)}
         />
         <TextField
-          className="login-field"
+          className="auth-field"
           icon="lock"
           label={copy.password}
           autoComplete="current-password"
@@ -88,12 +88,12 @@ export function LoginForm() {
           </button>
         </div>
       </div>
-      <div className="login-rise flex w-full flex-col items-stretch gap-2 [animation-delay:160ms]">
+      <div className="auth-rise flex w-full flex-col items-stretch gap-2 [animation-delay:160ms]">
         <Button
           type="submit"
           variant="secondary"
           showChevron={false}
-          className="login-submit w-full max-w-none"
+          className="auth-submit w-full max-w-none"
           disabled={isSubmitting}
         >
           {isSubmitting ? copy.submittingLogin : copy.submitLogin}
@@ -101,7 +101,7 @@ export function LoginForm() {
         <Button
           href={href("/signup")}
           showChevron={false}
-          className="login-alt w-full max-w-none"
+          className="auth-alt w-full max-w-none"
           disabled={isSubmitting}
         >
           {copy.goSignup}
