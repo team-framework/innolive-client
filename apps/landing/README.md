@@ -46,6 +46,29 @@ pnpm start
 
 값이 없으면 Download 메뉴가 준비 중이라고 안내합니다. 배포 환경에서는 이미지 빌드 전에 URL을 설정해야 합니다.
 
+## InnoLive Video (로그인 전용)
+
+`/[locale]/video`는 로그인한 사용자가 녹화 영상을 업로드하면 비식별화 결과를 받는 페이지입니다. 비공개 페이지이므로 sitemap에서 제외하고 `noindex`로 처리합니다.
+
+플래그 두 개로 제어합니다.
+
+- `NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED` (빌드 타임): 정확히 `1` 또는 `true`일 때만 기능을 켭니다. 꺼져 있으면 `/[locale]/video`가 404를 반환하고, 헤더 등 어디에도 진입 링크가 렌더링되지 않으며, 목업 라우트도 비활성입니다. 프로덕션 배포 이미지는 이 값을 설정하지 않으므로 운영에서는 항상 꺼진 상태입니다.
+- `NEXT_PUBLIC_VOD_MOCK` (개발 전용): `1`/`true`이고 `NODE_ENV`가 `production`이 아니며 위 비디오 플래그가 켜져 있을 때만 목업을 사용합니다. 세 조건 중 하나라도 어긋나면 목업은 동작하지 않습니다.
+
+VOD API 호출은 `lib/vod-client.ts` 한 곳에 격리합니다. 타입·베이스 URL 해석·응답 파싱/검증·상태 매핑이 모두 여기에 있으며, 실제 계약이 확정되면 이 파일만 수정합니다. 실서버는 `${NEXT_PUBLIC_INNOLIVE_SERVER_URL}/api/v1/vod/...`에 `/api/auth/access-token`으로 받은 Bearer 토큰으로 호출합니다. 한도 상수는 `lib/vod-limits.ts`에 모읍니다(최대 2GB·60분, 결과 7일 보관, 원본은 처리 완료 후 24시간 이내 파기).
+
+### 개발용 목업
+
+`NODE_ENV!=production`이며 두 플래그가 켜진 경우에만 `app/api/dev-vod/*` 라우트 핸들러가 동작합니다. 프로덕션 빌드에서는 플래그와 무관하게 404를 반환합니다.
+
+- 라우트: `POST/GET /api/dev-vod/jobs`, `GET/DELETE /api/dev-vod/jobs/{id}`, `GET /api/dev-vod/jobs/{id}/result`
+- 인증: 랜딩 세션 쿠키(`accessToken`)만 있으면 됩니다. 토큰 유효성은 검사하지 않으므로 로컬 테스트 픽스처로 충분합니다.
+- 타임라인(`lib/vod-mock-timeline.ts`, 순수 함수): 업로드됨 → 대기(순번 3→1) → 처리 → 일시정지(라이브 우선) → 처리 → 완료, 전체 약 70초. `?speed=` 쿼리로 가속할 수 있습니다.
+- 완료 시 결과물은 업로드한 바이트를 그대로 돌려주며 `resultExpiresAt = 완료 + 7일`, `originalDeleteAt = 완료 + 24시간`을 제공합니다.
+- 실행 예: `NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED=1 NEXT_PUBLIC_VOD_MOCK=1 pnpm dev`
+
+순수 로직은 `pnpm test:vod`로 검증합니다(한도·플래그·타임라인·포맷·클라이언트 파싱/상태 매핑).
+
 ## 인증·AI 경계
 
 인증 서버 주소는 `NEXT_PUBLIC_INNOLIVE_SERVER_URL`에 설정합니다. 로그인 토큰은 Landing same-origin Route Handler가 HttpOnly Cookie로 보관하며, 브라우저 저장소에는 남기지 않습니다. 회원 체험은 이 세션으로 서버의 ICE 설정과 WebRTC 세션을 요청합니다.
