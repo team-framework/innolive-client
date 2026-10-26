@@ -453,6 +453,10 @@
     "navLabel": "InnoLive Video",
     "title": "InnoLive Video",
     "subtitle": "Upload a recorded video and we'll automatically de-identify the faces.",
+    "unavailable": {
+      "heading": "InnoLive Video is not available right now.",
+      "body": "It will be back once the service is ready. Please try again later."
+    },
     "upload": {
       "heading": "Upload video",
       "dropzone": "Drag a video here or choose a file",

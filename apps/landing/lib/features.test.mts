@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   isInnoliveVideoEnabled,
+  isProductionBuild,
   isVodMockEnabled,
   parseBooleanFlag,
 } from "./features.ts";
@@ -54,4 +55,32 @@ test("목업은 production에서 플래그와 무관하게 비활성", () => {
   else process.env.NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED = prevVideo;
   if (prevMock === undefined) delete process.env.NEXT_PUBLIC_VOD_MOCK;
   else process.env.NEXT_PUBLIC_VOD_MOCK = prevMock;
+});
+
+test("production 판별과 목업 하드 가드는 NODE_ENV만 기준", () => {
+  const env = process.env as Record<string, string | undefined>;
+  const prevNode = env.NODE_ENV;
+  const prevVideo = process.env.NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED;
+  const prevMock = process.env.NEXT_PUBLIC_VOD_MOCK;
+  try {
+    env.NODE_ENV = "production";
+    assert.equal(isProductionBuild(), true);
+    // 프로덕션 빌드에 목업 플래그가 모두 박혀 있어도 목업 비활성.
+    for (const value of ["1", "true", "TRUE"]) {
+      process.env.NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED = value;
+      process.env.NEXT_PUBLIC_VOD_MOCK = value;
+      assert.equal(isVodMockEnabled(), false);
+    }
+    env.NODE_ENV = "development";
+    assert.equal(isProductionBuild(), false);
+    env.NODE_ENV = "test";
+    assert.equal(isProductionBuild(), false);
+  } finally {
+    if (prevNode === undefined) delete env.NODE_ENV;
+    else env.NODE_ENV = prevNode;
+    if (prevVideo === undefined) delete process.env.NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED;
+    else process.env.NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED = prevVideo;
+    if (prevMock === undefined) delete process.env.NEXT_PUBLIC_VOD_MOCK;
+    else process.env.NEXT_PUBLIC_VOD_MOCK = prevMock;
+  }
 });

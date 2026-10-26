@@ -20,7 +20,7 @@
 //   - The contract deliberately has NO `cancelled` status: DELETE cancels AND removes the job, so
 //     a deleted/cancelled job vanishes from the list (404). We still accept a `cancelled` status
 //     defensively so the UI degrades gracefully if the server ever emits one. See VOD_STATUSES.
-import { isVodMockEnabled } from "./features.ts";
+import { isProductionBuild, isVodMockEnabled } from "./features.ts";
 
 // The 7 statuses in the finalized contract, plus a defensively-tolerated `cancelled` that the
 // contract does NOT emit (DELETE removes the job instead). Keeping it here means a stray
@@ -208,18 +208,40 @@ export function hasVodProgressBar(status: VodStatus): boolean {
 // ---------------------------------------------------------------------------
 
 // Mock uses a same-origin dev route; the real client targets the InnoLive server at `/vod`.
-export function resolveVodBaseUrl(opts: { useMock: boolean; serverUrl: string | undefined }): string {
-  if (opts.useMock) return "/api/dev-vod";
+// Returns null when no usable real base URL exists, so the UI shows an unavailable state instead
+// of guessing. In production the mock route is never returned, whatever `useMock` says, and the
+// server URL must be an absolute http(s) URL (a relative value could point back at /api/dev-vod).
+export function resolveVodBaseUrl(opts: {
+  production: boolean;
+  useMock: boolean;
+  serverUrl: string | undefined;
+}): string | null {
+  if (opts.useMock && !opts.production) return "/api/dev-vod";
   const base = opts.serverUrl?.trim();
-  if (!base) throw new VodRequestError("configuration_error", "NEXT_PUBLIC_INNOLIVE_SERVER_URL is not configured");
-  return `${base.replace(/\/$/, "")}/vod`;
+  if (!base) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(base);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+  return `${base.replace(/\/+$/, "")}/vod`;
 }
 
 export type VodClientConfig = { baseUrl: string; useMock: boolean };
 
-export function getVodConfig(): VodClientConfig {
-  const useMock = isVodMockEnabled();
-  return { baseUrl: resolveVodBaseUrl({ useMock, serverUrl: process.env.NEXT_PUBLIC_INNOLIVE_SERVER_URL }), useMock };
+// null means the VOD API is not configured for this build: the page renders an unavailable
+// state. Production never mocks, so a production build without a server URL is unavailable.
+export function getVodConfig(): VodClientConfig | null {
+  const production = isProductionBuild();
+  const useMock = !production && isVodMockEnabled();
+  const baseUrl = resolveVodBaseUrl({
+    production,
+    useMock,
+    serverUrl: process.env.NEXT_PUBLIC_INNOLIVE_SERVER_URL,
+  });
+  return baseUrl ? { baseUrl, useMock } : null;
 }
 
 // Server-generated download name (matches the contract's Content-Disposition fallback).
