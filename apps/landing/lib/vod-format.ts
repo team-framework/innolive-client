@@ -46,12 +46,20 @@ export function formatDurationLabel(totalSec: number, labels: VodDurationLabels)
 }
 
 // Format an ISO timestamp as a localized date+time, or null for an unparseable/empty value.
+export const VOD_DISPLAY_TIME_ZONE = "Asia/Seoul";
+
 export function formatDateTimeLabel(iso: string | null | undefined, locale: string): string | null {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
   try {
-    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date);
+    // Wire times are UTC RFC 3339; the service is operated in Korea, so show KST regardless of
+    // the viewer's machine time zone.
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: VOD_DISPLAY_TIME_ZONE,
+    }).format(date);
   } catch {
     return date.toISOString();
   }

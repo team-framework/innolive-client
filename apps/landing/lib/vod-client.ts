@@ -296,13 +296,30 @@ export async function fetchVodJobs(config: VodClientConfig): Promise<VodJob[]> {
   return parseVodJobList(await response.json().catch(() => null));
 }
 
+// The contract answers 404 both for a deleted job and for another user's job (no existence
+// leak), so the client treats 404 as "this job is gone" rather than as a failure.
+export function isVodJobGone(err: unknown): boolean {
+  return err instanceof VodRequestError && err.status === 404;
+}
+
 export async function fetchVodJob(config: VodClientConfig, id: string): Promise<VodJob | null> {
-  const response = await vodFetch(config, `/jobs/${encodeURIComponent(id)}`);
-  return parseVodJob(await response.json().catch(() => null));
+  try {
+    const response = await vodFetch(config, `/jobs/${encodeURIComponent(id)}`);
+    return parseVodJob(await response.json().catch(() => null));
+  } catch (err) {
+    if (isVodJobGone(err)) return null;
+    throw err;
+  }
 }
 
 export async function deleteVodJob(config: VodClientConfig, id: string): Promise<void> {
-  await vodFetch(config, `/jobs/${encodeURIComponent(id)}`, { method: "DELETE" });
+  try {
+    await vodFetch(config, `/jobs/${encodeURIComponent(id)}`, { method: "DELETE" });
+  } catch (err) {
+    // Already gone (deleted elsewhere or not ours): the desired end state holds.
+    if (isVodJobGone(err)) return;
+    throw err;
+  }
 }
 
 // Upload via XMLHttpRequest so we can report determinate upload progress (0..1). The response is

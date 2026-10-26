@@ -9,6 +9,7 @@ import {
   canDownloadVodResult,
   deleteVodJob,
   downloadVodResult,
+  isVodJobGone,
   hasVodProgressBar,
   isActiveVodStatus,
   vodStatusTone,
@@ -61,8 +62,10 @@ export function VideoJobCard({
     setDownloading(true);
     try {
       await downloadVodResult(config, job);
-    } catch {
-      // A transient download failure just re-enables the button for a retry.
+    } catch (err) {
+      // 404 means the job is gone (deleted or not ours): drop it from the list. Any other
+      // failure just re-enables the button for a retry.
+      if (isVodJobGone(err)) onDeleted(job.id);
     } finally {
       setDownloading(false);
     }

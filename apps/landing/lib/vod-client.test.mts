@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   VodRequestError,
+  isVodJobGone,
   canDeleteVodJob,
   canDownloadVodResult,
   hasVodProgressBar,
@@ -131,4 +132,10 @@ test("베이스 URL 해석은 목업과 실서버(/vod)를 구분", () => {
     () => resolveVodBaseUrl({ useMock: false, serverUrl: undefined }),
     (error: unknown) => error instanceof VodRequestError && error.code === "configuration_error",
   );
+});
+
+test("404(삭제됐거나 다른 사용자 작업)는 사라진 작업으로 취급", () => {
+  assert.equal(isVodJobGone(new VodRequestError("not_found", "x", 404)), true);
+  assert.equal(isVodJobGone(new VodRequestError("request_failed", "x", 500)), false);
+  assert.equal(isVodJobGone(new Error("x")), false);
 });
