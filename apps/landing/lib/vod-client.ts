@@ -55,7 +55,7 @@ export type VodJob = {
   originalDeleteAt: string | null;
   resultExpiresAt: string | null;
   failure: VodFailure | null;
-  // Display-only; not part of the wire contract. The UI fills this from local upload memory.
+  // From wire `original_filename` when present; otherwise local upload memory / sessionStorage.
   fileName: string | null;
 };
 
