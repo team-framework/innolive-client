@@ -24,17 +24,28 @@ Apply the animal after the existing privacy blur composition. Preserve plate mas
 registered-face exceptions and held masks. Missing/invalid assets fall back to existing blur.
 Never expose original pixels as an asset-loading fallback.
 
-## 얼굴 합성과 같은 동작 (schema 2)
+YuNet provides five landmarks, but the current compositor does not expose a stable per-frame
+3D pose contract. Initial assets support face-box tracking; yaw/pitch animation requires
+additional pose estimation and validation. Do not claim verified 3D head tracking.
 
-| 항목 | 얼굴 합성(서버) | 토끼·부엉이(온디바이스) |
-| --- | --- | --- |
-| 선택 | 실험실 비식별화 방법, 관리자 전용, 세션 생성 시 고정 | 같은 드롭다운의 토끼·부엉이, 관리자 전용, 방송 준비 시 고정 |
-| 처리 방식 | 서버 AI 전용 | 온디바이스 전용, 서버 AI에서는 블러 |
-| 대상 연결 | YOLO 박스 0.3배 패딩 ROI의 YuNet, IoU 0.25 초과 | 같음, ROI를 긴 변 160px로 축소 |
-| 정렬 | ArcFace 5점 템플릿 유사변환 | 각도별 동물 머리에 투영한 같은 템플릿과 최소제곱 유사변환 |
-| 합성 범위 | 정렬 crop × 얼굴 polygon | 보호 마스크 안쪽, 동물이 덮지 않은 마스크 픽셀은 블러 |
-| 블러 유지 | 미추적·held·16px 미만·대상 실패·모델 실패 | 같음 |
-| 갱신 주기 | 합성 매 프레임, 속성 30프레임 | track별 랜드마크 3프레임마다, 사이 프레임은 박스 기준 상대 위치 |
-| 측면 | 합성 정렬 실패 시 블러 | 0~90° 10° 간격 view, 음수 yaw는 좌우 반전 |
+## Acceptance
 
-설명 앞 AI 합성 안내문과 설명 한도 축소는 서버가 합성 세션에만 적용한다. 동물 세션에는 적용하지 않는다.
+Validate persisted blur/rabbit/owl selection, server-backend exclusion, in-flight frame
+invalidation on mode changes, camera/lifecycle reset, absent faces, multiple faces,
+registered-face exceptions, license plates and asset failure. Test iOS and Android separately.
+Blender sources and exports are retained in assets-source/animal-filters. Runtime PNG/JSON files are bundled in both clients. Latest-main integration preserves direct pixel-buffer output, reusable blur buffers, output framing, and the one-active/one-pending frame queue. Blur mode skips animal box construction. Device FPS remains unmeasured.
+
+## Latest-main integration (2026-10-24)
+
+Rebased semantically onto main `6cefbe9d`, preserving latest native settings UI,
+direct iOS pixel-buffer rendering, blur-buffer reuse, output framing, and pending-frame
+queues. Blur mode skips animal-box construction. Runtime sprites are cached and
+composited after blur, before final output framing. Android GPU output retains its
+existing ROI blur and mask-edge settings. Physical camera FPS remains unverified.
+
+Verification on 2026-10-24: latest-main Android assembleDebug and 849 unit tests
+passed. iOS Release device build passed with Swift -O and whole-module optimization;
+signed bundle includes both animal PNG/JSON pairs. Six selected synthetic tests
+passed on iPhone 16 Pro, using an optimized Debug test host with coverage disabled.
+The bundled no-face 1080p fixture measured 20 warmed frames: median 14.25 ms,
+mean 14.84 ms. This is not camera FPS or face/animal performance acceptance.

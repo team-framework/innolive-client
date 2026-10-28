@@ -2,7 +2,6 @@ package com.framework.innolive.feature.settings
 
 import androidx.compose.runtime.Immutable
 import com.framework.innolive.feature.live.BroadcastVideoQualitySettings
-import com.framework.innolive.feature.live.FaceAnonymizationMethod
 import com.framework.innolive.feature.live.VideoQualityCaptureState
 import com.framework.innolive.feature.login.oauth.google.SignInMethod
 import com.framework.innolive.ui.text.UiText
@@ -42,8 +41,8 @@ data class SettingsScreenProps(
     val onSelectAIProcessing: (Boolean) -> Unit = {},
     /** `GET /admin/me`로 확인한 관리자 계정입니다. 관리자에게만 실험실을 보여 줍니다. */
     val isAdministrator: Boolean = false,
-    val faceAnonymization: FaceAnonymizationMethod = FaceAnonymizationMethod.BLUR,
-    val onFaceAnonymizationChanged: (FaceAnonymizationMethod) -> Unit = {},
+    val faceSwapEnabled: Boolean = false,
+    val onFaceSwapChanged: (Boolean) -> Unit = {},
     val planUsage: PlanUsage? = null,
     val isPlanLoading: Boolean = false,
     val planError: UiText? = null,

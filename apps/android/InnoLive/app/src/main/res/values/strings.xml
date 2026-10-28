@@ -279,9 +279,7 @@
     <string name="lab_face_anonymization">비식별화 방법</string>
     <string name="lab_face_anonymization_blur">블러</string>
     <string name="lab_face_anonymization_face_swap">합성</string>
-    <string name="lab_face_anonymization_rabbit">토끼</string>
-    <string name="lab_face_anonymization_owl">부엉이</string>
-    <string name="lab_face_anonymization_description">다음 방송 준비부터 적용됩니다. 합성은 서버 AI 처리, 토끼·부엉이는 온디바이스 처리에서만 사용됩니다.</string>
+    <string name="lab_face_anonymization_description">다음 방송 준비부터 적용됩니다. 합성은 서버 AI 처리에서만 사용됩니다.</string>
     <string name="lab_face_anonymization_locked">방송 준비를 취소한 뒤 비식별화 방법을 변경할 수 있습니다.</string>
     <string name="ai_mode_on_device">온디바이스 AI</string>
     <string name="local_face_title">기기 얼굴 관리</string>

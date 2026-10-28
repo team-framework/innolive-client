@@ -114,25 +114,7 @@ nonisolated final class PrivacyYuNetDetector {
     }
 
     func face(in image: CGImage, enrollment: Bool) throws -> PrivacyYuNetDecoding.Face {
-        try face(in: CIImage(cgImage: image), size: CGSize(width: image.width, height: image.height), enrollment: enrollment)
-    }
-
-    /// `image` covers (0, 0, size); returned coordinates are top-left pixels of that image.
-    func face(in image: CIImage, size: CGSize, enrollment: Bool) throws -> PrivacyYuNetDecoding.Face {
-        let faces = try detect(in: image, size: size, enrollment: enrollment)
-        guard faces.count <= 1 else { throw PrivacyFaceSampleError.multipleFaces }
-        guard let face = faces.first else { throw PrivacyFaceSampleError.faceCount }
-        guard min(face.box.width, face.box.height) >= (enrollment ? 40 : 24) else { throw PrivacyFaceSampleError.size }
-        return face
-    }
-
-    /// Every live-query face, for callers that pick one by overlap like the server's face swap.
-    func faces(in image: CIImage, size: CGSize) throws -> [PrivacyYuNetDecoding.Face] {
-        try detect(in: image, size: size, enrollment: false)
-    }
-
-    private func detect(in image: CIImage, size: CGSize, enrollment: Bool) throws -> [PrivacyYuNetDecoding.Face] {
-        let layout = PrivacyYuNetDecoding.InputLayout(size: size, enrollment: enrollment)
+        let layout = PrivacyYuNetDecoding.InputLayout(size: CGSize(width: image.width, height: image.height), enrollment: enrollment)
         let width = layout.width, height = layout.height
         guard width <= 2048, height <= 2048 else { throw PrivacyFaceSampleError.size }
         if input == nil || CVPixelBufferGetWidth(input!) != width || CVPixelBufferGetHeight(input!) != height {
@@ -145,9 +127,9 @@ nonisolated final class PrivacyYuNetDetector {
         }
         guard let input else { throw PrivacyModelError.imageBuffer }
         let bounds = CGRect(x: 0, y: 0, width: width, height: height)
-        let topAligned = image
-            .transformed(by: CGAffineTransform(scaleX: layout.resized.width / size.width,
-                                              y: layout.resized.height / size.height))
+        let topAligned = CIImage(cgImage: image)
+            .transformed(by: CGAffineTransform(scaleX: layout.resized.width / CGFloat(image.width),
+                                              y: layout.resized.height / CGFloat(image.height)))
             .transformed(by: CGAffineTransform(translationX: 0, y: CGFloat(height) - layout.resized.height))
         context.render(topAligned.composited(over: CIImage(color: .black).cropped(to: bounds)),
                        to: input, bounds: bounds, colorSpace: CGColorSpaceCreateDeviceRGB())
@@ -161,7 +143,12 @@ nonisolated final class PrivacyYuNetDetector {
             }
         }
         // Server runs NMS at 0.6, then applies the higher enrollment score threshold.
-        return try PrivacyYuNetDecoding.decode(outputs: values, width: width, height: height)
-            .filter { $0.score >= (enrollment ? 0.9 : 0.6) }.map(layout.restore)
+        let faces = try PrivacyYuNetDecoding.decode(outputs: values, width: width, height: height)
+            .filter { $0.score >= (enrollment ? 0.9 : 0.6) }
+        guard faces.count <= 1 else { throw PrivacyFaceSampleError.multipleFaces }
+        guard let detected = faces.first else { throw PrivacyFaceSampleError.faceCount }
+        let face = layout.restore(detected)
+        guard min(face.box.width, face.box.height) >= (enrollment ? 40 : 24) else { throw PrivacyFaceSampleError.size }
+        return face
     }
 }

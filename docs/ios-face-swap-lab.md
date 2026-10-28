@@ -4,8 +4,7 @@
 보내 200이면 실험실 섹션을 표시한다. 403·404·네트워크 실패는 관리자가 아닌 것으로
 보고 숨긴다.
 
-실험실에는 비식별화 방법 하나만 둔다. 선택지는 블러·합성·토끼·부엉이이고 기본값은 블러다.
-토끼·부엉이는 온디바이스 처리에서만 쓰고 서버 요청에는 보내지 않는다([on-device-animal-assets.md](on-device-animal-assets.md)).
+실험실에는 비식별화 방법 하나만 둔다. 선택지는 블러와 합성이고 기본값은 블러다.
 선택값은 `com.framework.innolive.face-anonymization-mode`에 저장한다. 합성을 고르면
 서버 AI 세션 생성 요청(`POST /sessions`)에 `face_anonymization: "face_swap"`을 보낸다.
 블러는 서버 기본값이라 필드를 생략한다. 온디바이스 처리(서버 송출 포함)에서는 보내지

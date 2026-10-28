@@ -109,7 +109,6 @@ private class AndroidDirectMediaPipeline(
     private val scope: SessionRecoveryScope,
 ) : DirectMediaPipeline {
     private val context: Context = request.context
-    private val animal: String? = request.animal
     private val callbacks = request.callbacks
     private val initialAnonymizationEnabled = request.initialAnonymizationEnabled
     private val audioManager = context.getSystemService(AudioManager::class.java)
@@ -142,7 +141,6 @@ private class AndroidDirectMediaPipeline(
             onProcessingFailure = events::onProcessingFailure,
             sharedEglContext = egl.eglBaseContext,
             outputZoom = ON_DEVICE_EDGE_ZOOM,
-            animal = animal,
         ).also { it.faceCoordinatorFactory = { PrivacyFaceCoordinator(context, scope.storageKey) } }
         analyzer = created
         created.setDirectPublishSink { frame ->

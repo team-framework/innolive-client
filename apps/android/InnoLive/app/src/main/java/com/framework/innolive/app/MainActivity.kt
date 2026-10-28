@@ -539,7 +539,7 @@ fun AppNavigation(
             val token = checkNotNull(authenticationSession.session.value).accessToken
             isAdministrator = youtubeCoordinator.isAdministrator(token, ::refreshCurrentAccessToken)
             isAdministratorChecked = true
-            // 관리자가 아닌 계정은 실험실 방식(합성·동물)을 쓸 수 없으므로 이전 계정이 켠 선택을 지웁니다.
+            // 관리자가 아닌 계정은 합성을 요청할 수 없으므로 이전 계정이 켠 선택을 지웁니다.
             if (!isAdministrator) webRtcSession.clearFaceSwapSelection(context)
         } catch (exception: CancellationException) {
             throw exception
@@ -1013,8 +1013,8 @@ fun AppNavigation(
                 webRtcSession.selectAIProcessing(context, onDevice)
             },
             isAdministrator = isAdministrator,
-            faceAnonymization = webRtcSession.selectedFaceAnonymization,
-            onFaceAnonymizationChanged = { method -> webRtcSession.selectFaceAnonymization(context, method) },
+            faceSwapEnabled = webRtcSession.selectedFaceSwap,
+            onFaceSwapChanged = { enabled -> webRtcSession.selectFaceSwap(context, enabled) },
             canReplayBroadcastGuide = webRtcSession.sessionSnapshot == null &&
                 webRtcSession.broadcastState == BroadcastState.IDLE &&
                 !webRtcSession.isPreparingBroadcast,

@@ -268,10 +268,9 @@ class WebRtcSessionViewModel internal constructor(
         return selectInitialAIProcessing(context, onDevice)
     }
 
-    /** 실험실의 비식별화 방법 선택입니다. 다음 세션 생성부터 적용합니다. */
-    var selectedFaceAnonymization by mutableStateOf(FaceAnonymizationMethod.BLUR)
+    /** 실험실의 얼굴 합성 선택입니다. 다음 세션 생성부터 적용합니다. */
+    var selectedFaceSwap by mutableStateOf(false)
         private set
-    val selectedFaceSwap: Boolean get() = selectedFaceAnonymization == FaceAnonymizationMethod.FACE_SWAP
     private var isFaceSwapSelectionLoaded = false
 
     /** 다음·현재 세션이 얼굴 합성인지입니다. 서버가 합성 세션의 설명 앞에 안내문을 붙여 설명 한도가 줄어듭니다. */
@@ -280,34 +279,28 @@ class WebRtcSessionViewModel internal constructor(
 
     fun restoreFaceSwapSelection(context: Context) {
         if (isFaceSwapSelectionLoaded) return
-        selectedFaceAnonymization = FaceAnonymizationPreference(context).method
+        selectedFaceSwap = FaceAnonymizationPreference(context).faceSwap
         isFaceSwapSelectionLoaded = true
     }
 
-    /**
-     * 관리자가 아닌 계정으로 바뀌면 실험실 선택(합성·동물)을 지웁니다. 서버가 관리자가 아닌 계정의 합성을 403으로
-     * 거절하며, 동물도 같은 관리자 전용 실험 기능입니다.
-     */
+    /** 관리자가 아닌 계정으로 바뀌면 합성 선택을 지웁니다. 서버가 관리자가 아닌 계정의 합성을 403으로 거절합니다. */
     fun clearFaceSwapSelection(context: Context) {
-        FaceAnonymizationPreference(context).method = FaceAnonymizationMethod.BLUR
-        selectedFaceAnonymization = FaceAnonymizationMethod.BLUR
+        FaceAnonymizationPreference(context).faceSwap = false
+        selectedFaceSwap = false
         isFaceSwapSelectionLoaded = true
     }
 
     /**
-     * 얼굴 가림 방식은 세션 생성 때 고정되므로 처리 방식과 같은 때에만 바꿉니다. 준비 전 연결이 쓰는 방식이
-     * 바뀌면(서버 AI의 합성, 온디바이스의 동물) 연결을 닫아 다음 방송 준비에서 새 방식으로 세션을 만듭니다.
+     * 얼굴 가림 방식은 세션 생성 때 고정되므로 처리 방식과 같은 때에만 바꿉니다. 서버 AI의 준비 전 연결이 남아
+     * 있으면 닫아 다음 방송 준비에서 새 방식으로 세션을 만듭니다. 온디바이스 연결은 합성을 쓰지 않아 유지합니다.
      */
-    fun selectFaceAnonymization(context: Context, method: FaceAnonymizationMethod): Boolean {
+    fun selectFaceSwap(context: Context, enabled: Boolean): Boolean {
         if (!canChangeAIProcessing) return false
         restoreFaceSwapSelection(context)
-        val previous = selectedFaceAnonymization
-        if (previous == method) return true
-        val changesConnection = if (selectedOnDeviceProcessing) previous.animal != method.animal
-            else (previous == FaceAnonymizationMethod.FACE_SWAP) != (method == FaceAnonymizationMethod.FACE_SWAP)
-        if (changesConnection && connectionState != WebRtcConnectionState.IDLE) close()
-        FaceAnonymizationPreference(context).method = method
-        selectedFaceAnonymization = method
+        if (selectedFaceSwap == enabled) return true
+        if (!selectedOnDeviceProcessing && connectionState != WebRtcConnectionState.IDLE) close()
+        FaceAnonymizationPreference(context).faceSwap = enabled
+        selectedFaceSwap = enabled
         return true
     }
 
@@ -401,7 +394,6 @@ class WebRtcSessionViewModel internal constructor(
         val initialOnDevice = selectedOnDeviceProcessing
         restoreFaceSwapSelection(context)
         val initialFaceSwap = selectedFaceSwap
-        val initialAnimal = sessionAnimal(selectedFaceAnonymization, initialOnDevice)
         isOnDevicePreviewOnly = previewOnly
         serverError = null
         preparationSettings = null
@@ -566,7 +558,6 @@ class WebRtcSessionViewModel internal constructor(
                         callbacks = callbacks,
                         previewOnly = previewOnly,
                         faceSwap = initialFaceSwap,
-                        animal = initialAnimal,
                     ),
                 )
                 if (!isCurrentGeneration(generation)) {

@@ -60,7 +60,6 @@ nonisolated final class PrivacyModel {
         stabilizer.reset()
         tracker.reset()
         cameraMotion.reset()
-        animalSprite.reset()
         faces.reset()
         previousExtent = nil
         previousTime = nil
@@ -145,16 +144,14 @@ nonisolated final class PrivacyModel {
         var result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
         if PrivacyAnimal.selected != .blur {
-            let animalFaces = protectedIndices.filter { objects[$0].classID == 0 && !allowed.contains($0) }.map { index in
+            let animalBoxes = protectedIndices.filter { objects[$0].classID == 0 && !allowed.contains($0) }.map { index in
                 let box = objects[index].box
-                return (box: CGRect(x: (box.minX - layout.left) * size.width / layout.resized.width,
-                                    y: (640 - box.maxY - layout.bottom) * size.height / layout.resized.height,
-                                    width: box.width * size.width / layout.resized.width,
-                                    height: box.height * size.height / layout.resized.height),
-                        track: trackIDs[index])
+                return CGRect(x: (box.minX - layout.left) * size.width / layout.resized.width,
+                              y: (640 - box.maxY - layout.bottom) * size.height / layout.resized.height,
+                              width: box.width * size.width / layout.resized.width,
+                              height: box.height * size.height / layout.resized.height)
             }
-            // Landmarks read the unblurred frame; the animal stays inside the protected mask like face swap.
-            result = animalSprite.composite(result, faces: animalFaces, source: original, mask: mask)
+            result = animalSprite.composite(result, boxes: animalBoxes)
         }
         // Frame only after all original-coordinate AI work and mask composition. Both
         // local CGImage preview and direct CVPixelBuffer uplink share this same output.
