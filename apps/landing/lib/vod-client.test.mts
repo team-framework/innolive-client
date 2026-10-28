@@ -68,7 +68,14 @@ test("작업 파싱은 snake_case 계약 필드를 읽고 필수 필드를 검�
   assert.equal(job?.queuePosition, 2);
   assert.equal(job?.createdAt, "2026-10-26T08:00:00Z");
   assert.equal(job?.originalDeleteAt, null);
-  assert.equal(job?.fileName, null); // contract exposes no original filename
+  assert.equal(job?.fileName, null);
+
+  const named = parseVodJob({
+    job_id: "named",
+    status: "queued",
+    original_filename: "clip.mp4",
+  });
+  assert.equal(named?.fileName, "clip.mp4");
 
   const failed = parseVodJob({ job_id: "x", status: "failed", failure: { code: "storage_failed", message: "disk" } });
   assert.deepEqual(failed?.failure, { code: "storage_failed", message: "disk" });

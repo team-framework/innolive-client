@@ -15,8 +15,8 @@
 //     completed_at, original_delete_at, result_expires_at, failure). camelCase conversion is a
 //     UI-layer concern, done here.
 //   - progress is an integer 0..100 percentage, independent of upload transfer; normalized to 0..1.
-//   - The contract exposes NO original filename (download name is server-generated). `fileName`
-//     here is display-only and filled by the UI from local upload memory; the wire value is null.
+//   - Wire may include optional `original_filename` (server #522). Download Content-Disposition
+//     stays `vod-{id}.mp4`. `fileName` prefers the wire field, then local upload memory.
 //   - The contract deliberately has NO `cancelled` status: DELETE cancels AND removes the job, so
 //     a deleted/cancelled job vanishes from the list (404). We still accept a `cancelled` status
 //     defensively so the UI degrades gracefully if the server ever emits one. See VOD_STATUSES.
@@ -135,7 +135,7 @@ export function parseVodJob(value: unknown): VodJob | null {
     originalDeleteAt: firstString(raw.original_delete_at, raw.originalDeleteAt),
     resultExpiresAt: firstString(raw.result_expires_at, raw.resultExpiresAt),
     failure: parseVodFailure(raw.failure),
-    fileName: firstString(raw.file_name, raw.fileName),
+    fileName: firstString(raw.original_filename, raw.originalFilename, raw.file_name, raw.fileName),
   };
 }
 
