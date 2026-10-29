@@ -11,6 +11,7 @@ struct BroadcastSettingsView: View {
     @State private var transmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var nextTransmissionNoticeProvider: BroadcastSettingsProvider?
     @State private var isShowingMediaConsent = false
+    @State private var isSubmittingPreparation = false
     @State private var transmissionNotice = YouTubeTransmissionNotice()
     @StateObject private var faceReregistration = ReferenceFaceReregistrationCheck()
     private let modeProvider: BroadcastSettingsProvider?
@@ -102,15 +103,21 @@ struct BroadcastSettingsView: View {
                 }
                 if !isLiveEditing && modeProvider == nil {
                     if onPrepare != nil && youtube.offersOnDevicePreparation {
-                        Button(String(localized: "온디바이스로 방송하기", table: "PlanUsage")) {
+                        Button {
+                            guard !isSubmittingPreparation, !youtube.isSwitchingToOnDevice else { return }
                             let provider = editor.provider
                             Task {
                                 if await youtube.switchPreparationToOnDevice(accessToken: authentication.currentAccessToken()) {
-                                    onPrepare?(provider)
+                                    submitPreparation(provider)
                                 }
                             }
+                        } label: {
+                            HStack {
+                                if youtube.isSwitchingToOnDevice || isSubmittingPreparation { ProgressView() }
+                                Text(String(localized: "온디바이스로 방송하기", table: "PlanUsage"))
+                            }
                         }
-                        .disabled(youtube.isSwitchingToOnDevice || youtube.preparationStatus?.isRunning == true)
+                        .disabled(youtube.isSwitchingToOnDevice || youtube.preparationStatus?.isRunning == true || isSubmittingPreparation)
                         .accessibilityIdentifier("prepare-on-device")
                     }
                     preparationSection
@@ -174,7 +181,9 @@ struct BroadcastSettingsView: View {
                 if isLiveEditing { fieldError("thumbnail") }
                 Button(action: primaryAction) {
                     HStack {
-                        if youtube.isChangingStreamState || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode { ProgressView() }
+                        if youtube.isChangingStreamState || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode
+                            || isSubmittingPreparation
+                            || (onPrepare != nil && !isLiveEditing && modeProvider == nil && youtube.isSwitchingToOnDevice) { ProgressView() }
                         Text(prepareButtonTitle)
                             .font(.subheadline.weight(.semibold))
                     }
@@ -188,6 +197,7 @@ struct BroadcastSettingsView: View {
             .padding(InnoLiveSettingsLayout.pageInset)
         }
         .innoLiveSettingsPage()
+        .onDisappear { isSubmittingPreparation = false }
         .navigationTitle(isLiveEditing ? String(localized: "방송 정보 수정") : String(localized: "방송 설정"))
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(String(localized: "방송할 채널", table: "YouTubeChannels"), isPresented: $isConfirmingChannel, titleVisibility: .visible) {
@@ -245,7 +255,7 @@ struct BroadcastSettingsView: View {
                 } else if modeProvider != nil {
                     saveModeSettings()
                 } else {
-                    onPrepare?(editor.provider)
+                    submitPreparation(editor.provider)
                 }
             }
         }
@@ -268,6 +278,7 @@ struct BroadcastSettingsView: View {
     private var isPrepareButtonDisabled: Bool {
         if isLiveEditing || modeProvider != nil { return isFormLocked }
         if onPrepare == nil { return youtube.isBroadcastSettingsLocked }
+        if isSubmittingPreparation || youtube.isSwitchingToOnDevice { return true }
         if youtube.preparationStatus?.isRunning == true || youtube.preparationStatus?.phase == .cancelling {
             return true
         }
@@ -486,6 +497,7 @@ struct BroadcastSettingsView: View {
             return
         }
         guard youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) else { return }
+        guard !isSubmittingPreparation else { return }
         guard authentication.hasAcceptedMediaTransmission else {
             isShowingMediaConsent = true
             return
@@ -510,8 +522,13 @@ struct BroadcastSettingsView: View {
         if let provider = pendingTransmissionNoticeProvider {
             showTransmissionNotice(for: provider)
         } else {
-            onPrepare?(editor.provider)
+            submitPreparation(editor.provider)
         }
+    }
+
+    private func submitPreparation(_ provider: BroadcastSettingsProvider) {
+        isSubmittingPreparation = true
+        onPrepare?(provider)
     }
 
     private var pendingTransmissionNoticeProvider: BroadcastSettingsProvider? {

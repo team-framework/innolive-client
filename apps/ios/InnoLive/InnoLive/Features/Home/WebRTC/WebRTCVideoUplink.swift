@@ -79,6 +79,10 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     private var shouldReconnectAutomatically = false
     private var isReconnectPending = false
     var isReconnectInProgress = false
+    /// 같은 세션으로 영상을 다시 붙이는 중이다(서버 교체 배포·네트워크 복구). 재연결 루프가 켜고 끄며,
+    /// start/stop이 지우지 않는다. 켜져 있는 동안 한 시도의 실패는 `.failed`로 전이하지 않는다 —
+    /// `.failed`는 방송을 끝내고 서버 세션을 지우므로, 재연결을 포기할 때(`markReconnectFailed`)만 쓴다.
+    var isRecoveringExistingSession = false
     var lockedBroadcastOrientation: BroadcastInterfaceOrientation?
     // 온디바이스 세션의 앱 직접 송출(#481). 프레임 경로가 재생성돼도 유지한다.
     weak var directMediaSink: (any DirectMediaSink)?
@@ -574,12 +578,13 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             continuationError: continuationError ?? .failed(message)
         )
         scheduleCameraStop(capturer)
-        updateState(.failed, message)
+        updateState(isRecoveringExistingSession ? .connecting : .failed, message)
     }
 
     func markReconnectFailed(_ message: String) {
         isStopping = false
         isReconnectInProgress = false
+        isRecoveringExistingSession = false
         errorMessage = message
         updateState(.failed, message)
     }

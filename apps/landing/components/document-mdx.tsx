@@ -69,7 +69,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     h3: ({ children, ...props }: ComponentPropsWithoutRef<"h3">) => (
       <h3
-        className={`mt-8 mb-3 ${wrapClassName} text-[clamp(1.0625rem,1rem+0.4vw,1.25rem)] font-semibold leading-[1.3]`}
+        className={`mt-8 mb-3 ${wrapClassName} text-[max(14px,clamp(1.0625rem,1rem+0.4vw,1.25rem))] font-semibold leading-[1.3]`}
         {...props}
       >
         {children}
@@ -151,7 +151,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
         role="region"
         aria-label={preRegionLabel[locale]}
         tabIndex={0}
-        className={`${scrollRegionClassName} whitespace-pre rounded-[var(--radius-control)] bg-surface-primary p-4 text-[0.875rem] leading-[1.45] max-md:text-[13px] [&_code]:bg-transparent [&_code]:p-0`}
+        className={`${scrollRegionClassName} whitespace-pre rounded-[var(--radius-control)] bg-surface-primary p-4 text-[max(13px,0.875rem)] leading-[1.45] max-md:text-[13px] [&_code]:bg-transparent [&_code]:p-0`}
         {...props}
       >
         {children}
@@ -159,7 +159,7 @@ export function documentMdxComponents(locale: DocumentLocale): MDXComponents {
     ),
     code: ({ children, ...props }: ComponentPropsWithoutRef<"code">) => (
       <code
-        className="break-all rounded-[var(--radius-control)] bg-surface-primary px-1 py-0.5 font-mono text-[0.875rem] max-md:text-[13px]"
+        className="break-all rounded-[var(--radius-control)] bg-surface-primary px-1 py-0.5 font-mono text-[max(13px,0.875rem)] max-md:text-[13px]"
         {...props}
       >
         {children}

@@ -6,7 +6,8 @@
     "tryOutTitle": "Try out | InnoLive",
     "experienceTitle": "InnoLive experience",
     "loginTitle": "Log in | InnoLive",
-    "signupTitle": "Sign up | InnoLive"
+    "signupTitle": "Sign up | InnoLive",
+    "videoTitle": "InnoLive Video | InnoLive"
   },
   "common": {
     "skipToMain": "Skip to main content",
@@ -447,5 +448,69 @@
     "contact": "Contact",
     "hideToday": "Don't show for a day",
     "close": "Close"
+  },
+  "video": {
+    "navLabel": "InnoLive Video",
+    "title": "InnoLive Video",
+    "subtitle": "Upload a recorded video and we'll automatically de-identify the faces.",
+    "upload": {
+      "heading": "Upload video",
+      "dropzone": "Drag a video here or choose a file",
+      "dropzoneActive": "Drop it here",
+      "pick": "Choose file",
+      "hint": "Up to {size} GB · up to {minutes} min · {formats}",
+      "selected": "{name}",
+      "checking": "Checking the video",
+      "start": "Start upload",
+      "change": "Choose another video",
+      "cancel": "Cancel",
+      "uploading": "Uploading {percent}%",
+      "progressLabel": "Upload progress",
+      "errors": {
+        "type": "Unsupported format. Please choose a {formats} file.",
+        "size": "File is too large. You can upload up to {size} GB.",
+        "duration": "Video is too long. You can upload up to {minutes} minutes.",
+        "metadata": "Couldn't read the video. Please choose another file.",
+        "upload": "Upload failed. Please try again."
+      }
+    },
+    "notice": {
+      "heading": "Original deletion notice",
+      "retention": "Originals deleted within {hours} hours after processing",
+      "result": "Results kept for {days} days",
+      "originalDeleteAt": "Original deletion {time}",
+      "resultExpiresAt": "Result expires {time}"
+    },
+    "jobs": {
+      "heading": "My jobs",
+      "refresh": "Refresh",
+      "queuePosition": "Queue position {position}",
+      "eta": "about {time} left",
+      "progressLabel": "Processing progress",
+      "created": "Uploaded {time}",
+      "download": "Download result",
+      "downloading": "Preparing",
+      "delete": "Delete",
+      "deleting": "Deleting",
+      "deleteError": "Delete failed. Please try again.",
+      "empty": "No uploads yet.",
+      "emptyHint": "Upload a video to track its progress here."
+    },
+    "status": {
+      "uploaded": "Uploaded",
+      "queued": "Queued",
+      "processing": "Processing",
+      "paused": "Paused (live has priority)",
+      "done": "Done",
+      "failed": "Failed",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "time": {
+      "hours": "{value}h",
+      "minutes": "{value}m",
+      "seconds": "{value}s",
+      "lessThanMinute": "less than a minute"
+    }
   }
 }

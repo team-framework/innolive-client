@@ -100,7 +100,7 @@ nonisolated final class PrivacyYuNetDetector {
 
     init() throws {
         guard let url = Bundle.main.url(forResource: "PrivacyYuNet", withExtension: "mlmodelc") else {
-            throw PrivacyFaceError.message("YuNet 모델이 없습니다. 모델을 포함해 빌드해 주세요.")
+            throw PrivacyFaceError.message(String(localized: "YuNet 모델이 없습니다. 모델을 포함해 빌드해 주세요."))
         }
         let config = MLModelConfiguration()
         // Small, variable-size YuNet stays on CPU to avoid growing GPU shape caches.

@@ -8,6 +8,7 @@ import { AuthNavigation } from "@/components/auth-navigation";
 import { DownloadMenu } from "@/components/download-menu";
 import { LanguageSwitch } from "@/components/language-switch";
 import { useLocale } from "@/components/locale-provider";
+import { VideoNavLink } from "@/components/video/video-nav-link";
 import { cn } from "@/lib/cn";
 import { navLinks } from "@/lib/site";
 
@@ -118,6 +119,7 @@ export function Header() {
           <div className="hidden lg:block">
             <DownloadMenu />
           </div>
+          <VideoNavLink className={navClassName} />
           <AuthNavigation className={navClassName} />
           <LanguageSwitch className="pt-2 max-lg:self-center max-lg:pt-3 lg:pt-0" />
         </nav>
