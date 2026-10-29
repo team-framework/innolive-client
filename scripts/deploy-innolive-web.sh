@@ -133,6 +133,9 @@ write_release_override() {
     printf '        NEXT_PUBLIC_INNOLIVE_SERVER_URL: "%s"\n' "$NEXT_PUBLIC_INNOLIVE_SERVER_URL"
     printf '        NEXT_PUBLIC_IOS_DOWNLOAD_URL: "%s"\n' "$NEXT_PUBLIC_IOS_DOWNLOAD_URL"
     printf '        NEXT_PUBLIC_ANDROID_DOWNLOAD_URL: "%s"\n' "$NEXT_PUBLIC_ANDROID_DOWNLOAD_URL"
+    if [[ -n "${NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED:-}" ]]; then
+      printf '        NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED: "%s"\n' "$NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED"
+    fi
     printf '    image: %s\n' "$image"
     if [[ -f "$QUALITY_ENV_FILE" ]]; then
       printf '%s\n' '    env_file: !override'
@@ -314,6 +317,8 @@ done
 [[ "$NEXT_PUBLIC_INNOLIVE_SERVER_URL" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/%:@+-]*)?$ ]] || fail 'public server URL is invalid'
 [[ "$NEXT_PUBLIC_IOS_DOWNLOAD_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/%:@+-]*)?$ ]] || fail 'iOS download URL is invalid'
 [[ "$NEXT_PUBLIC_ANDROID_DOWNLOAD_URL" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/%:@+-]*)?$ ]] || fail 'Android download URL is invalid'
+# Optional kill switch for InnoLive Video. Unset keeps the Dockerfile default (on).
+[[ -z "${NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED:-}" || "$NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED" =~ ^(true|false)$ ]] || fail 'InnoLive Video flag must be true or false'
 
 web_dir=$INNOLIVE_WEB_DIR
 releases_dir=$INNOLIVE_WEB_RELEASES_DIR

@@ -43,6 +43,29 @@ export function VideoPage() {
 
   const showEmpty = !isLoading && jobs.length === 0 && error !== "unauthenticated";
 
+  // VOD API not configured for this build (e.g. a production image without a server URL).
+  if (config === null) {
+    return (
+      <main id="main" data-page="video" className={cn(styles.page, "relative overflow-hidden")}>
+        <div aria-hidden="true" className={cn(styles.backdrop, "pointer-events-none absolute inset-x-0 top-0 h-[40rem]")} />
+        <div className="relative mx-auto flex w-full max-w-[52rem] flex-col gap-8 px-[var(--page-gutter)] pb-20">
+          <header className={cn(styles.rise, "flex flex-col gap-3")}>
+            <h1 className="text-heading font-semibold text-text-primary">{t.title}</h1>
+            <p className="text-body-lg text-text-secondary">{t.subtitle}</p>
+          </header>
+          <section
+            role="status"
+            data-video-state="unavailable"
+            className={cn(styles.card, styles.rise, "flex flex-col items-center gap-2 rounded-card px-6 py-12 text-center")}
+          >
+            <p className="text-base font-medium text-text-primary">{t.unavailable.heading}</p>
+            <p className="text-sm text-text-secondary">{t.unavailable.body}</p>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main id="main" data-page="video" className={cn(styles.page, "relative overflow-hidden")}>
       <div aria-hidden="true" className={cn(styles.backdrop, "pointer-events-none absolute inset-x-0 top-0 h-[40rem]")} />
