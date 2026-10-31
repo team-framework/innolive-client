@@ -15,12 +15,12 @@
 //     completed_at, original_delete_at, result_expires_at, failure). camelCase conversion is a
 //     UI-layer concern, done here.
 //   - progress is an integer 0..100 percentage, independent of upload transfer; normalized to 0..1.
-//   - The contract exposes NO original filename (download name is server-generated). `fileName`
-//     here is display-only and filled by the UI from local upload memory; the wire value is null.
+//   - Wire may include optional `original_filename` (server #522). Download Content-Disposition
+//     stays `vod-{id}.mp4`. `fileName` prefers the wire field, then local upload memory.
 //   - The contract deliberately has NO `cancelled` status: DELETE cancels AND removes the job, so
 //     a deleted/cancelled job vanishes from the list (404). We still accept a `cancelled` status
 //     defensively so the UI degrades gracefully if the server ever emits one. See VOD_STATUSES.
-import { isVodMockEnabled } from "./features.ts";
+import { isProductionBuild, isVodMockEnabled } from "./features.ts";
 
 // The 7 statuses in the finalized contract, plus a defensively-tolerated `cancelled` that the
 // contract does NOT emit (DELETE removes the job instead). Keeping it here means a stray
@@ -55,7 +55,7 @@ export type VodJob = {
   originalDeleteAt: string | null;
   resultExpiresAt: string | null;
   failure: VodFailure | null;
-  // Display-only; not part of the wire contract. The UI fills this from local upload memory.
+  // From wire `original_filename` when present; otherwise local upload memory / sessionStorage.
   fileName: string | null;
 };
 
@@ -135,7 +135,7 @@ export function parseVodJob(value: unknown): VodJob | null {
     originalDeleteAt: firstString(raw.original_delete_at, raw.originalDeleteAt),
     resultExpiresAt: firstString(raw.result_expires_at, raw.resultExpiresAt),
     failure: parseVodFailure(raw.failure),
-    fileName: firstString(raw.file_name, raw.fileName),
+    fileName: firstString(raw.original_filename, raw.originalFilename, raw.file_name, raw.fileName),
   };
 }
 
@@ -208,18 +208,40 @@ export function hasVodProgressBar(status: VodStatus): boolean {
 // ---------------------------------------------------------------------------
 
 // Mock uses a same-origin dev route; the real client targets the InnoLive server at `/vod`.
-export function resolveVodBaseUrl(opts: { useMock: boolean; serverUrl: string | undefined }): string {
-  if (opts.useMock) return "/api/dev-vod";
+// Returns null when no usable real base URL exists, so the UI shows an unavailable state instead
+// of guessing. In production the mock route is never returned, whatever `useMock` says, and the
+// server URL must be an absolute http(s) URL (a relative value could point back at /api/dev-vod).
+export function resolveVodBaseUrl(opts: {
+  production: boolean;
+  useMock: boolean;
+  serverUrl: string | undefined;
+}): string | null {
+  if (opts.useMock && !opts.production) return "/api/dev-vod";
   const base = opts.serverUrl?.trim();
-  if (!base) throw new VodRequestError("configuration_error", "NEXT_PUBLIC_INNOLIVE_SERVER_URL is not configured");
-  return `${base.replace(/\/$/, "")}/vod`;
+  if (!base) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(base);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
+  return `${base.replace(/\/+$/, "")}/vod`;
 }
 
 export type VodClientConfig = { baseUrl: string; useMock: boolean };
 
-export function getVodConfig(): VodClientConfig {
-  const useMock = isVodMockEnabled();
-  return { baseUrl: resolveVodBaseUrl({ useMock, serverUrl: process.env.NEXT_PUBLIC_INNOLIVE_SERVER_URL }), useMock };
+// null means the VOD API is not configured for this build: the page renders an unavailable
+// state. Production never mocks, so a production build without a server URL is unavailable.
+export function getVodConfig(): VodClientConfig | null {
+  const production = isProductionBuild();
+  const useMock = !production && isVodMockEnabled();
+  const baseUrl = resolveVodBaseUrl({
+    production,
+    useMock,
+    serverUrl: process.env.NEXT_PUBLIC_INNOLIVE_SERVER_URL,
+  });
+  return baseUrl ? { baseUrl, useMock } : null;
 }
 
 // Server-generated download name (matches the contract's Content-Disposition fallback).

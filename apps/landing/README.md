@@ -52,8 +52,8 @@ pnpm start
 
 플래그 두 개로 제어합니다.
 
-- `NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED` (빌드 타임): 정확히 `1` 또는 `true`일 때만 기능을 켭니다. 꺼져 있으면 `/[locale]/video`가 404를 반환하고, 헤더 등 어디에도 진입 링크가 렌더링되지 않으며, 목업 라우트도 비활성입니다. 프로덕션 배포 이미지는 이 값을 설정하지 않으므로 운영에서는 항상 꺼진 상태입니다.
-- `NEXT_PUBLIC_VOD_MOCK` (개발 전용): `1`/`true`이고 `NODE_ENV`가 `production`이 아니며 위 비디오 플래그가 켜져 있을 때만 목업을 사용합니다. 세 조건 중 하나라도 어긋나면 목업은 동작하지 않습니다.
+- `NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED` (빌드 타임): 정확히 `1` 또는 `true`일 때만 기능을 켭니다. 꺼져 있으면 `/[locale]/video`가 404를 반환하고, 헤더 등 어디에도 진입 링크가 렌더링되지 않으며, 목업 라우트도 비활성입니다. `Dockerfile`의 `ARG NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED=true` 기본값으로 프로덕션 이미지는 켜진 상태로 빌드되며, `--build-arg NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED=false`로 끌 수 있습니다. 로컬 `pnpm build`는 값을 주지 않으면 꺼진 상태입니다.
+- `NEXT_PUBLIC_VOD_MOCK` (개발 전용): `1`/`true`이고 `NODE_ENV`가 `production`이 아니며 위 비디오 플래그가 켜져 있을 때만 목업을 사용합니다. 세 조건 중 하나라도 어긋나면 목업은 동작하지 않습니다. 프로덕션 빌드(`NODE_ENV=production`)에서는 이 값이 박혀 있어도 라우트 핸들러와 클라이언트 모두 목업을 쓰지 않습니다. 실서버 주소(`NEXT_PUBLIC_INNOLIVE_SERVER_URL`)가 없거나 절대 http(s) URL이 아니면 목업으로 대체하지 않고 이용 불가 화면을 표시합니다.
 
 VOD API 호출은 `lib/vod-client.ts` 한 곳에 격리합니다. 타입·베이스 URL 해석·응답 파싱/검증·상태 매핑이 모두 여기에 있으며, 계약이 바뀌면 이 파일만 수정합니다. 클라이언트는 `team-framework/innolive-server`의 확정 계약(`feat/vod-jobs/#521`의 `api/vod/openapi.yaml`)에 맞춰져 있습니다.
 
@@ -64,6 +64,25 @@ VOD API 호출은 `lib/vod-client.ts` 한 곳에 격리합니다. 타입·베이
 - 페이지네이션(`next_cursor`)은 계약에 정의돼 있으나 현재는 첫 페이지만 사용합니다(긴 이력은 후속 과제).
 
 한도 상수는 `lib/vod-limits.ts`에 모읍니다(최대 2GB·60분, 결과 7일 보관, 원본은 처리 완료 후 24시간 이내 파기).
+
+### 프로덕션 활성화·확인·롤백
+
+프로덕션 이미지는 배포 호스트가 `/etc/innolive/web-deploy.env`의 값으로 이 `Dockerfile`을 직접 빌드합니다(`scripts/deploy-innolive-web.sh`의 `write_release_override`). GitHub 저장소 변수는 CI 검증 이미지에만 닿고 운영 빌드에는 전달되지 않으므로, 비디오 플래그는 `Dockerfile` 기본값으로 켭니다. VOD API 베이스 URL은 이미 운영 필수값인 `NEXT_PUBLIC_INNOLIVE_SERVER_URL` 뒤에 `/vod`를 붙여 사용합니다.
+
+머지 조건: innolive-server(`/vod/jobs`)와 innolive-ai VOD 처리기가 프로덕션에서 동작 중이어야 합니다.
+
+배포 후 확인:
+
+- `/ko/video` 로그인 상태 200(미로그인은 로그인 화면으로 이동), `/en/video`·`/ja/video` 동일
+- 로그인 후 헤더에 ko·en·ja 모두 Video 링크 표시
+- 짧은 테스트 영상 업로드 후 대기(queued) → 처리(processing) → 완료(done) 전환과 결과 다운로드
+- `/api/dev-vod/jobs` 404
+- 브라우저 네트워크 탭의 VOD 요청이 `${NEXT_PUBLIC_INNOLIVE_SERVER_URL}/vod/jobs`(실서버)로 향하고 `/api/dev-vod`가 없음
+
+롤백:
+
+- 플래그를 켠 커밋을 `git revert`해 main에 머지하면 자동 배포되고, 이후 `/[locale]/video`는 404, 헤더 링크는 사라집니다.
+- 배포 호스트의 `/opt/innolive/deploy/deploy-innolive-web.sh`를 이 저장소 버전으로 갱신해 둔 경우에는 `/etc/innolive/web-deploy.env`에 `NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED=false`를 넣고 `Deploy InnoLive landing` 워크플로를 main에서 다시 실행해도 됩니다(값이 없으면 `Dockerfile` 기본값 사용).
 
 ### 개발용 목업
 

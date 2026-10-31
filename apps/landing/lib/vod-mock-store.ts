@@ -1,6 +1,6 @@
 // Dev-only in-memory store + guards for the VOD mock. Server module (uses next/headers).
-// Never imported into the production bundle path: every route handler bails via `mockDisabled()`
-// before touching this, and NODE_ENV === "production" forces the mock off regardless of flags.
+// Every route handler bails via `mockDisabled()` before touching the store, and a production
+// build (NODE_ENV === "production") always 404s regardless of NEXT_PUBLIC_VOD_MOCK.
 import { cookies } from "next/headers";
 import { ACCESS_TOKEN_COOKIE } from "@/lib/auth-server";
 import { isVodMockEnabled } from "@/lib/features";
@@ -23,6 +23,8 @@ const store: Map<string, MockRecord> = (globalStore.__vodMockStore ??= new Map()
 const MAX_STORED_BYTES = 32 * 1024 * 1024;
 
 export function mockDisabled(): boolean {
+  // Hard production guard first, independent of the flag helpers.
+  if (process.env.NODE_ENV === "production") return true;
   return !isVodMockEnabled();
 }
 

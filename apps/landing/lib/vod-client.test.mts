@@ -12,6 +12,7 @@ import {
   parseVodFailure,
   parseVodJob,
   parseVodJobList,
+  getVodConfig,
   resolveVodBaseUrl,
   vodResultFileName,
   vodStatusTone,
@@ -67,7 +68,14 @@ test("작업 파싱은 snake_case 계약 필드를 읽고 필수 필드를 검�
   assert.equal(job?.queuePosition, 2);
   assert.equal(job?.createdAt, "2026-10-26T08:00:00Z");
   assert.equal(job?.originalDeleteAt, null);
-  assert.equal(job?.fileName, null); // contract exposes no original filename
+  assert.equal(job?.fileName, null);
+
+  const named = parseVodJob({
+    job_id: "named",
+    status: "queued",
+    original_filename: "clip.mp4",
+  });
+  assert.equal(named?.fileName, "clip.mp4");
 
   const failed = parseVodJob({ job_id: "x", status: "failed", failure: { code: "storage_failed", message: "disk" } });
   assert.deepEqual(failed?.failure, { code: "storage_failed", message: "disk" });
@@ -123,14 +131,96 @@ test("결과 다운로드 파일명은 로컬 이름 우선, 없으면 서버 �
 });
 
 test("베이스 URL 해석은 목업과 실서버(/vod)를 구분", () => {
-  assert.equal(resolveVodBaseUrl({ useMock: true, serverUrl: undefined }), "/api/dev-vod");
+  assert.equal(resolveVodBaseUrl({ production: false, useMock: true, serverUrl: undefined }), "/api/dev-vod");
   assert.equal(
-    resolveVodBaseUrl({ useMock: false, serverUrl: "https://api.example.com/" }),
+    resolveVodBaseUrl({ production: false, useMock: false, serverUrl: "https://api.example.com/" }),
     "https://api.example.com/vod",
   );
-  assert.throws(
-    () => resolveVodBaseUrl({ useMock: false, serverUrl: undefined }),
-    (error: unknown) => error instanceof VodRequestError && error.code === "configuration_error",
+  assert.equal(resolveVodBaseUrl({ production: false, useMock: false, serverUrl: undefined }), null);
+});
+
+test("production 베이스 URL은 목업으로 대체되지 않고, 없으면 이용 불가(null)", () => {
+  // useMock=true가 넘어와도 production에서는 /api/dev-vod를 절대 반환하지 않음.
+  assert.equal(
+    resolveVodBaseUrl({ production: true, useMock: true, serverUrl: "https://api.example.com" }),
+    "https://api.example.com/vod",
+  );
+  assert.equal(resolveVodBaseUrl({ production: true, useMock: true, serverUrl: undefined }), null);
+  assert.equal(resolveVodBaseUrl({ production: true, useMock: false, serverUrl: "   " }), null);
+  // 상대 경로나 http(s) 외 스킴은 실서버 주소로 인정하지 않음(목업 경로 우회 차단).
+  assert.equal(resolveVodBaseUrl({ production: true, useMock: false, serverUrl: "/api/dev-vod" }), null);
+  assert.equal(resolveVodBaseUrl({ production: true, useMock: false, serverUrl: "javascript:alert(1)" }), null);
+});
+
+// Run fn with the given env overrides, then restore every touched key.
+function withEnv(overrides: Record<string, string | undefined>, fn: () => void) {
+  // @types/node types NODE_ENV as read-only; this view lets the test flip it.
+  const env = process.env as Record<string, string | undefined>;
+  const previous = Object.fromEntries(Object.keys(overrides).map((key) => [key, env[key]]));
+  try {
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value === undefined) delete env[key];
+      else env[key] = value;
+    }
+    fn();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete env[key];
+      else env[key] = value;
+    }
+  }
+}
+
+test("getVodConfig: production은 NEXT_PUBLIC_VOD_MOCK=1이어도 실서버만 사용", () => {
+  withEnv(
+    {
+      NODE_ENV: "production",
+      NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED: "true",
+      NEXT_PUBLIC_VOD_MOCK: "1",
+      NEXT_PUBLIC_INNOLIVE_SERVER_URL: "https://api.example.invalid",
+    },
+    () => {
+      assert.deepEqual(getVodConfig(), { baseUrl: "https://api.example.invalid/vod", useMock: false });
+    },
+  );
+});
+
+test("getVodConfig: production에서 서버 URL이 없으면 목업 대신 이용 불가(null)", () => {
+  withEnv(
+    {
+      NODE_ENV: "production",
+      NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED: "true",
+      NEXT_PUBLIC_VOD_MOCK: "1",
+      NEXT_PUBLIC_INNOLIVE_SERVER_URL: undefined,
+    },
+    () => {
+      assert.equal(getVodConfig(), null);
+    },
+  );
+});
+
+test("getVodConfig: 개발 빌드는 두 플래그가 모두 켜졌을 때만 목업", () => {
+  withEnv(
+    {
+      NODE_ENV: "development",
+      NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED: "1",
+      NEXT_PUBLIC_VOD_MOCK: "1",
+      NEXT_PUBLIC_INNOLIVE_SERVER_URL: undefined,
+    },
+    () => {
+      assert.deepEqual(getVodConfig(), { baseUrl: "/api/dev-vod", useMock: true });
+    },
+  );
+  withEnv(
+    {
+      NODE_ENV: "development",
+      NEXT_PUBLIC_INNOLIVE_VIDEO_ENABLED: "1",
+      NEXT_PUBLIC_VOD_MOCK: undefined,
+      NEXT_PUBLIC_INNOLIVE_SERVER_URL: undefined,
+    },
+    () => {
+      assert.equal(getVodConfig(), null);
+    },
   );
 });
 

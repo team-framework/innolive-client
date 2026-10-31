@@ -453,6 +453,10 @@
     "navLabel": "InnoLive Video",
     "title": "InnoLive Video",
     "subtitle": "録画した映像をアップロードすると、顔を自動で非識別化します。",
+    "unavailable": {
+      "heading": "現在 InnoLive Video はご利用いただけません。",
+      "body": "サービスの準備が整い次第ご利用いただけます。しばらくしてから再度お試しください。"
+    },
     "upload": {
       "heading": "映像をアップロード",
       "dropzone": "映像をドラッグするかファイルを選択してください",

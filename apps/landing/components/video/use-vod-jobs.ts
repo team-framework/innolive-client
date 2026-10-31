@@ -14,11 +14,14 @@ import {
 // hidden (saves requests) and stop entirely once nothing is active.
 const POLL_INTERVAL_MS = 5000;
 
+export type VodJobsError = "unauthenticated" | "load" | "unavailable";
+
 export type VodJobsState = {
-  config: VodClientConfig;
+  // null when the VOD API is not configured for this build (see getVodConfig).
+  config: VodClientConfig | null;
   jobs: VodJob[];
   isLoading: boolean;
-  error: "unauthenticated" | "load" | null;
+  error: VodJobsError | null;
   refresh: () => Promise<void>;
   removeJobLocally: (id: string) => void;
   upsertJob: (job: VodJob) => void;
@@ -26,14 +29,16 @@ export type VodJobsState = {
 
 export function useVodJobs(): VodJobsState {
   // getVodConfig reads build-time env only; resolve once via a lazy state initializer.
-  const [config] = useState<VodClientConfig>(() => getVodConfig());
+  const [config] = useState<VodClientConfig | null>(() => getVodConfig());
 
   const [jobs, setJobs] = useState<VodJob[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<"unauthenticated" | "load" | null>(null);
+  const [isLoading, setIsLoading] = useState(config !== null);
+  const [error, setError] = useState<VodJobsError | null>(config === null ? "unavailable" : null);
   const activeRef = useRef(true);
 
   const load = useCallback(async () => {
+    // Unconfigured build: never call anything (in particular never fall back to the mock).
+    if (config === null) return;
     try {
       const next = await fetchVodJobs(config);
       if (!activeRef.current) return;
