@@ -6,6 +6,7 @@ import com.framework.innolive.feature.live.direct.DirectPublishResolution
 import com.framework.innolive.feature.live.privacy.PrivacyTextureReadbackCounter
 import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
 import com.framework.innolive.feature.live.status.UplinkVideoStats
+import com.framework.innolive.feature.login.oauth.google.InvalidRefreshTokenException
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -1104,8 +1105,11 @@ internal class WebRtcConnection(
                     } catch (exception: kotlinx.coroutines.CancellationException) {
                         throw exception
                     } catch (exception: Exception) {
-                        serverErrorGuidance("unauthorized")?.let(::dispatchServerError)
-                        fail(ConnectionFailure.DISCONNECTED)
+                        // 네트워크 오류·5xx 같은 일시 실패는 라이브를 유지하고 다음 주기에 다시 확인합니다.
+                        if (sessionStatusRefreshEndsConnection(exception)) {
+                            serverErrorGuidance("unauthorized")?.let(::dispatchServerError)
+                            fail(ConnectionFailure.DISCONNECTED)
+                        }
                         throw exception
                     }
                 }
@@ -2761,3 +2765,7 @@ internal fun parseBroadcastState(payload: String, provider: BroadcastProvider): 
         else -> null
     }
 }
+
+/** 상태 조회 중 토큰 갱신 실패 가운데 refresh token 거부만 방송을 끝냅니다. */
+internal fun sessionStatusRefreshEndsConnection(error: Throwable): Boolean =
+    error is InvalidRefreshTokenException

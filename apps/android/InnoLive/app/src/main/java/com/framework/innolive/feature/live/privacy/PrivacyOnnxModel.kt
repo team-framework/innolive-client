@@ -159,6 +159,8 @@ internal class PrivacyOnnxModel(private val context: Context,
             } else checkedOutput(checkNotNull(gpuGraph).predictNativeInput())
         } catch (error: Throwable) {
             if (!error.isPrivacyProcessingFailure()) throw error
+            // The native input worked; only this frame's content cannot be protected.
+            if (error is PrivacyFrameContentException) throw error
             nativeInputActive = false
             checkNotNull(gpuGraph).disableNativeInput()
             PrivacyNativePixels.bitmapToTensor(preparedInput, inputBytes)

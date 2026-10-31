@@ -354,6 +354,8 @@ class DirectBroadcastControllerTest {
 
         assertEquals(BroadcastState.FAILED, states.last().first)
         assertTrue("disconnect:youtube" in media.engine.calls)
+        // 마이크와 인코더가 대상 없이 계속 돌지 않게 엔진도 닫습니다.
+        assertTrue(media.engine.closed)
         assertNull(recovery.stored)
 
         assertTrue(controller.prepareBroadcast(settings, false))

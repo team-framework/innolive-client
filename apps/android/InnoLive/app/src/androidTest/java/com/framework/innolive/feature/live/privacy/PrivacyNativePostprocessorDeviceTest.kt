@@ -106,12 +106,13 @@ class PrivacyNativePostprocessorDeviceTest {
                 assertThrows(IllegalArgumentException::class.java) {native.decode()}
                 values[values.lastIndex]=0f
             }
+            // Frame content failures stay distinguishable from malformed buffers so GPU processing can retry.
             values[2*8400]=-1f;set(native,values,proto)
-            assertThrows(IllegalArgumentException::class.java) {native.decode()}
+            assertThrows(PrivacyFrameContentException::class.java) {native.decode()}
             val tooMany=predictions(101).apply { this[100]=62f;this[8400+100]=62f }
             set(native,tooMany,proto)
             // Add one more non-overlapping class/box than the maximum.
-            assertThrows(IllegalArgumentException::class.java) {native.decode()}
+            assertThrows(PrivacyFrameContentException::class.java) {native.decode()}
         }
     }
 

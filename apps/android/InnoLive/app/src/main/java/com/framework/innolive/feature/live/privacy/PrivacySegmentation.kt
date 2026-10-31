@@ -74,8 +74,10 @@ internal object PrivacySegmentation {
             val y = values[candidateCount + index]
             val width = values[2 * candidateCount + index]
             val height = values[3 * candidateCount + index]
-            val valid = x.isFinite() && y.isFinite() && width.isFinite() && height.isFinite() && width > 0 && height > 0
-            require(valid || !protected)
+            val finite = x.isFinite() && y.isFinite() && width.isFinite() && height.isFinite()
+            require(finite || !protected)
+            val valid = finite && width > 0 && height > 0
+            if (!valid && protected) throw PrivacyFrameContentException("Invalid detection dimensions")
             if (!valid) continue
             val box = Box(
                 max(0f, x - width / 2), max(0f, y - height / 2),
@@ -91,7 +93,7 @@ internal object PrivacySegmentation {
         for (candidate in found.sortedByDescending { it.score }) {
             if (kept.any { it.classId == candidate.classId && it.box.intersects(candidate.box) > NMS_IOU }) continue
             if (kept.size == MAX_OBJECTS) {
-                require(candidate.score < ACTIVATION_CONFIDENCE) { "Too many objects to protect" }
+                if (candidate.score >= ACTIVATION_CONFIDENCE) throw PrivacyFrameContentException("Too many objects to protect")
                 break
             }
             val coefficients = FloatArray(CHANNELS) { channel ->
