@@ -17,7 +17,12 @@ internal class PrivacyNativePostprocessor : AutoCloseable {
     fun decode(): List<PrivacySegmentation.Detection> {
         check(handle != 0L)
         ready = false
-        val selected = Native.decode(handle, predictions, prototypes)
+        // Native code raises IllegalStateException only for frame content; buffer and state errors stay IAE.
+        val selected = try {
+            Native.decode(handle, predictions, prototypes)
+        } catch (error: IllegalStateException) {
+            throw PrivacyFrameContentException(error.message, error)
+        }
         ready = true
         decoded = true
         return List(selected.size / 38) { index ->
