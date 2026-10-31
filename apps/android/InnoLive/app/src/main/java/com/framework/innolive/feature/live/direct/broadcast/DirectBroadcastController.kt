@@ -519,6 +519,7 @@ internal class DirectBroadcastController internal constructor(
                     // prepared 10분 제한으로 세션이 지워졌습니다. 다음 준비에서 새 세션을 만듭니다.
                     env.log("session_gone_on_golive")
                     disconnectAll()
+                    closeEngine()
                     forgetSession()
                     failGoLive(BroadcastState.FAILED, DirectEvent.PREPARED_EXPIRED.toBroadcastEvent())
                 }
