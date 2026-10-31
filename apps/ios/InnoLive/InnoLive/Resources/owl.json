@@ -1,0 +1,20 @@
+{
+  "id": "owl",
+  "version": 1,
+  "image": "owl.png",
+  "width": 1024,
+  "height": 1024,
+  "faceRect": [
+    0.23907766990291263,
+    0.4211165048543689,
+    0.5218446601941747,
+    0.5169902912621359
+  ],
+  "anchor": [
+    0.5,
+    0.6213592233009708
+  ],
+  "coordinateSystem": "normalized-top-left",
+  "fullFace": true,
+  "scope": "on-device-only"
+}

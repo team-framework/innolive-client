@@ -1,0 +1,5 @@
+!/build/
+/build/*
+!/build/source/
+/build/source/*
+!/build/source/*.blend

@@ -108,15 +108,16 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     func submit(_ frame: LKRTCVideoFrame, deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
         let payload = FramePayload(frame: frame)
         let libraryRevision = PrivacyFaceLibrary.revision
+        let animalSelection = PrivacyAnimal.selected
         let admission = gate.enqueue { [self] ticket in
             PrivacyPipelineProbe.count("gate_admitted")
-            process(payload, ticket: ticket, libraryRevision: libraryRevision, deliver: deliver)
+            process(payload, ticket: ticket, libraryRevision: libraryRevision, animalSelection: animalSelection, deliver: deliver)
         }
         if admission == .replaced || admission == .stopped { PrivacyPipelineProbe.count("gate_rejected") }
         if admission == .queued { PrivacyPipelineProbe.count("gate_queued") }
     }
 
-    private func process(_ payload: FramePayload, ticket: PrivacyFrameGate.Ticket, libraryRevision: Int,
+    private func process(_ payload: FramePayload, ticket: PrivacyFrameGate.Ticket, libraryRevision: Int, animalSelection: PrivacyAnimal,
                          deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
         queue.async { [self] in
             autoreleasepool {
@@ -156,6 +157,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         result = payload.frame
                     }
                     gate.finish(ticket) {
+                        guard PrivacyAnimal.selected == animalSelection else { return }
                         guard !ticket.enabled || libraryRevision == PrivacyFaceLibrary.revision else { return }
                         #if DEBUG
                         PrivacyUplinkValidationMetrics.recordProcessed(enabled: ticket.enabled)

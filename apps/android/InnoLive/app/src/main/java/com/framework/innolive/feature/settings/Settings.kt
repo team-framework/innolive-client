@@ -170,6 +170,11 @@ fun AppInfoSettingsScreen(props: SettingsScreenProps, onBack: () -> Unit) {
 
 @Composable
 private fun AIProcessingSettings(props: SettingsScreenProps) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val animalPreferences = androidx.compose.runtime.remember(context) {
+        context.getSharedPreferences("privacy_animal", android.content.Context.MODE_PRIVATE)
+    }
+    var animal by androidx.compose.runtime.remember { mutableStateOf(animalPreferences.getString("selected", "blur") ?: "blur") }
     val enabled = props.canChangeAIProcessing && !props.isDeletingAccount &&
         !props.isAccountDeletionPending
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp).selectableGroup()) {
@@ -177,6 +182,18 @@ private fun AIProcessingSettings(props: SettingsScreenProps) {
         Text(stringResource(R.string.ai_mode_change_availability),
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 4.dp))
+        if (props.onDeviceProcessing) {
+            Text("실험실 · 얼굴 효과", style = MaterialTheme.typography.titleSmall)
+            listOf("blur" to "블러", "rabbit" to "토끼", "owl" to "부엉이").forEach { (value, title) ->
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(selected = animal == value, enabled = enabled, role = Role.RadioButton,
+                    onClick = { animalPreferences.edit().putString("selected", value).apply(); animal = value }),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = animal == value, onClick = null, enabled = enabled)
+                    Text(title)
+                }
+            }
+            Text("동물 필터 아래에도 얼굴 블러를 유지합니다.", style = MaterialTheme.typography.bodySmall)
+        }
         listOf(false to R.string.ai_mode_server, true to R.string.ai_mode_on_device).forEach { (onDevice, label) ->
             val selected = props.onDeviceProcessing == onDevice
             Row(
