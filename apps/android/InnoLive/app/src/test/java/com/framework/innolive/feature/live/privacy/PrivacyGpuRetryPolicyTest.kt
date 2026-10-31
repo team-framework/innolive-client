@@ -36,8 +36,10 @@ class PrivacyGpuRetryPolicyTest {
             policy.record(error,0)
             assertFalse(error.javaClass.simpleName,policy.shouldAttempt(Long.MAX_VALUE))
         }
-        val transient=PrivacyGpuRetryPolicy(true)
-        transient.record(IllegalStateException(),0)
-        assertTrue(transient.shouldAttempt(5_000_000_000L))
+        for (error in listOf(IllegalStateException(), PrivacyFrameContentException("Too many objects to protect"))) {
+            val transient=PrivacyGpuRetryPolicy(true)
+            transient.record(error,0)
+            assertTrue(error.javaClass.simpleName,transient.shouldAttempt(5_000_000_000L))
+        }
     }
 }
