@@ -51,7 +51,11 @@ internal class EncoderSurfaceRenderer(
                 ready.countDown()
             }
         }
-        check(ready.await(5, TimeUnit.SECONDS)) { "인코더 렌더러를 준비하지 못했습니다." }
+        if (!ready.await(5, TimeUnit.SECONDS)) {
+            // 늦게 끝난 준비 작업 뒤에 해제가 실행되도록 같은 스레드에 정리를 맡깁니다.
+            close()
+            throw IllegalStateException("인코더 렌더러를 준비하지 못했습니다.")
+        }
         failure?.let { close(); throw it }
     }
 
