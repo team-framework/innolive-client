@@ -20,7 +20,11 @@ final class YouTubeIntegration: ObservableObject {
     lazy var recordingCoordinator = BroadcastRecordingCoordinator(store: recordingStore, lifecycle: lifecycle) { [weak self] recorder in
         self?.videoUplink.setRecordingSink(recorder)
         self?.directPublisher.setRecordingSink(recorder)
+        self?.localRecordingAudio.set(recorder)
     }
+    @Published var localCaptureID: UUID?
+    let localRecordingAudio = BroadcastRecordingSinkSlot()
+    let localMicrophone: any DirectAudioCapturing = DirectMicrophoneCapture()
     private var recordingSubscription: AnyCancellable?
     private var recordingStoreSubscription: AnyCancellable?
     private var lifecycleSubscription: AnyCancellable?
@@ -377,6 +381,8 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        localMicrophone.stop()
+        localCaptureID = nil
         invalidateBroadcastLifecycle()
         processingSwitchID = UUID()
         isSwitchingToOnDevice = false

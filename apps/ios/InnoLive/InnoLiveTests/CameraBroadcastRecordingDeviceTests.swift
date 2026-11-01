@@ -89,12 +89,12 @@ import XCTest
                 XCTAssertEqual(lifecycle.phase, .countdown(1))
                 XCTAssertTrue(lifecycle.beginStarting(generation: generation))
                 startedAt = ProcessInfo.processInfo.systemUptime
-                coordinator.arm(sessionID: sessionID)
+                coordinator.arm(sessionID: .server(sessionID))
                 XCTAssertNotNil(recorder)
                 XCTAssertEqual(lifecycle.recording, .recording)
                 // Local authoritative-state fixture; no settings API or public server is involved.
                 lifecycle.reconcileTargets(["local-loopback"], generation: generation)
-                coordinator.reconcile(targets: ["local-loopback"], sessionID: sessionID)
+                coordinator.reconcile(targets: ["local-loopback"], sessionID: .server(sessionID))
                 XCTAssertEqual(lifecycle.phase, .live)
                 try await self.captureStage("portrait", seconds: stageSeconds, local: frameObserver, remote: remote, recorder: try XCTUnwrap(recorder))
                 let current = try XCTUnwrap(uplink.activeCameraID)
@@ -141,7 +141,7 @@ import XCTest
                 elapsed = ProcessInfo.processInfo.systemUptime - startedAt
                 XCTAssertTrue(lifecycle.beginEnding())
                 lifecycle.finishEnding(remainingTargets: [], generation: lifecycle.generation)
-                coordinator.reconcile(targets: [], sessionID: sessionID)
+                coordinator.reconcile(targets: [], sessionID: .server(sessionID))
                 XCTAssertNil(uplink.recordingSink)
             }
             await uplink.stopAndWait()

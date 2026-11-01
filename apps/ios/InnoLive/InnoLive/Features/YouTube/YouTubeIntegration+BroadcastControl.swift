@@ -79,7 +79,7 @@ extension YouTubeIntegration {
                 guard self.lifecycle.isCurrent(generation) else { return }
                 self.synchronizeBroadcastLifecycle()
                 if !self.hasStartedYouTubeBroadcast && self.broadcastPhase != "going_live" {
-                    self.recordingCoordinator.abortFailedStart(sessionID: sessionID)
+                    self.recordingCoordinator.abortFailedStart(sessionID: .server(sessionID))
                     self.lifecycle.startFailed(generation: generation,
                         message: self.errorMessage ?? String(localized: "방송을 시작하지 못했습니다."))
                     if let lock { self.releaseBroadcastOrientationLock(generation: lock) }
@@ -151,7 +151,7 @@ extension YouTubeIntegration {
             if !pending && explicitlyEnded {
                 let message = errorMessage ?? String(localized: "방송을 시작하지 못했습니다.")
                 errorMessage = message
-                if let sessionID = session?.sessionID { recordingCoordinator.abortFailedStart(sessionID: sessionID) }
+                if let sessionID = session?.sessionID { recordingCoordinator.abortFailedStart(sessionID: .server(sessionID)) }
                 lifecycle.startFailed(generation: lifecycle.generation, message: message)
                 forceReleaseBroadcastOrientationLock()
                 return
@@ -160,7 +160,7 @@ extension YouTubeIntegration {
         // A pending platform must not make a still-starting operation look terminated.
         if targets.isEmpty && broadcastPhase == "going_live" { return }
         lifecycle.reconcileTargets(targets, generation: lifecycle.generation)
-        if let sessionID = session?.sessionID { recordingCoordinator.reconcile(targets: targets, sessionID: sessionID) }
+        if let sessionID = session?.sessionID { recordingCoordinator.reconcile(targets: targets, sessionID: .server(sessionID)) }
     }
 
     func goLiveYouTubeStream(accessToken: String?) async {
@@ -196,7 +196,7 @@ extension YouTubeIntegration {
                 synchronizeBroadcastLifecycle()
             }
         }
-        recordingCoordinator.arm(sessionID: session.sessionID)
+        recordingCoordinator.arm(sessionID: .server(session.sessionID))
         do {
             let liveResponse = try await goLiveWithRetry(
                 session: session,

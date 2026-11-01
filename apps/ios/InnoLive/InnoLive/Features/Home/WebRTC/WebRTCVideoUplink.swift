@@ -323,8 +323,8 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
 
     func start(
         session: WebRTCSessionCredentials,
-        accessToken: String,
-        serverURL: URL,
+        accessToken: String?,
+        serverURL: URL?,
         iceServers: [WebRTCIceServer],
         preferredCameraID: String?,
         preferredAudioID: String?,
@@ -360,7 +360,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             )
             try ensureCurrentCameraOperation(operationGeneration)
 
-            if session.isDirectPublish {
+            if !session.uplinkSessionMode.opensPeerConnection {
                 try await prepareLocalProcessing()
                 try ensureCurrentCameraOperation(operationGeneration)
                 guard let localVideoTrack else { throw WebRTCVideoUplinkError.cancelled }
@@ -372,7 +372,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             }
 
             try preparePeerConnection(iceServers: iceServers)
-            guard let signalingURL = signalingURL(from: serverURL) else {
+            guard let serverURL, let signalingURL = signalingURL(from: serverURL) else {
                 throw URLError(.badURL)
             }
             connectSignaling(to: signalingURL)
@@ -392,6 +392,17 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
             }
             throw error
         }
+    }
+
+    func startLocalOnly(
+        _ id: UUID,
+        preferredCameraID: String?,
+        preferredAudioID: String?,
+        preferredVideoQuality: CameraQualityPreset
+    ) async throws {
+        try await start(session: .localOnly(id), accessToken: nil, serverURL: nil, iceServers: [],
+                        preferredCameraID: preferredCameraID, preferredAudioID: preferredAudioID,
+                        preferredVideoQuality: preferredVideoQuality)
     }
 
     func stop() {
@@ -509,7 +520,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     }
 
     func markPublisherReady() {
-        guard state == .connected, credentials?.isDirectPublish != true else { return }
+        guard state == .connected, credentials?.uplinkSessionMode.opensPeerConnection ?? true else { return }
         updateState(.connected, String(localized: "카메라 영상이 서버에 연결되었습니다."))
         diagnostics.noteConnected()
         startQualityPollingIfNeeded()

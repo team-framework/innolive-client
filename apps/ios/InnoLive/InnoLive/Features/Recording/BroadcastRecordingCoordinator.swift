@@ -10,7 +10,7 @@ final class BroadcastRecordingCoordinator: ObservableObject {
     private let lifecycle: BroadcastLifecycle
     private let attachSink: (LocalBroadcastRecorder?) -> Void
     private struct Active {
-        let sessionID: String
+        let sessionID: CaptureSessionID
         let generation: UInt
         let recorder: LocalBroadcastRecorder?
         var confirmedLive = false
@@ -28,13 +28,13 @@ final class BroadcastRecordingCoordinator: ObservableObject {
 
     /// Only call immediately before the initial go-live request, after the countdown has completed.
     /// Additional platforms share the active recorder.
-    func arm(sessionID: String) {
+    func arm(sessionID: CaptureSessionID) {
         guard active == nil, lifecycle.phase == .starting else { return }
         notice = nil
         retryGeneration = nil
         let generation = lifecycle.generation
         do {
-            let recorder = try store.begin(sessionID: sessionID) { [weak self] message in
+            let recorder = try store.begin(sessionID: sessionID.recordingKey) { [weak self] message in
                 Task { @MainActor [weak self] in
                     guard let self, self.lifecycle.isCurrent(generation),
                           self.active?.generation == generation else { return }
@@ -53,7 +53,7 @@ final class BroadcastRecordingCoordinator: ObservableObject {
     }
 
     /// Call after authoritative response application and after filtering transient mode/reconnect states.
-    func reconcile(targets: Set<String>, sessionID: String) {
+    func reconcile(targets: Set<String>, sessionID: CaptureSessionID) {
         guard var binding = active, binding.sessionID == sessionID else { return }
         if !targets.isEmpty {
             binding.confirmedLive = true
@@ -63,19 +63,19 @@ final class BroadcastRecordingCoordinator: ObservableObject {
             if targets.isEmpty && binding.confirmedLive { active = nil }
             return
         }
-        do { try store.reconcileTargets(targets, sessionID: sessionID) }
+        do { try store.reconcileTargets(targets, sessionID: sessionID.recordingKey) }
         catch { reportFailure(error, generation: binding.generation); return }
         // Empty while starting is not evidence of a finished broadcast.
         if targets.isEmpty && binding.confirmedLive { finalize(binding, forceLocalEnd: false) }
     }
 
-    func abortFailedStart(sessionID: String) {
+    func abortFailedStart(sessionID: CaptureSessionID) {
         guard let binding = active, binding.sessionID == sessionID, !binding.confirmedLive else { return }
         attachSink(nil)
         active = nil
         guard binding.recorder != nil else { return }
         do {
-            guard let task = try store.beginAbortFailedStart(sessionID: sessionID) else { return }
+            guard let task = try store.beginAbortFailedStart(sessionID: sessionID.recordingKey) else { return }
             track {
                 do { try await task.value }
                 catch { self.reportFailure(error, generation: binding.generation) }
@@ -136,7 +136,7 @@ final class BroadcastRecordingCoordinator: ObservableObject {
         lifecycle.recordingFinalizing(generation: binding.generation)
         let observation = observeFinalizationFailure(generation: binding.generation)
         do {
-            guard let task = try store.beginFinalization(sessionID: binding.sessionID,
+            guard let task = try store.beginFinalization(sessionID: binding.sessionID.recordingKey,
                                                         forceLocalEnd: forceLocalEnd) else {
                 observation.cancel()
                 return
