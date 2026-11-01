@@ -6,6 +6,7 @@ import com.framework.innolive.feature.live.direct.DirectPublishResolution
 import com.framework.innolive.feature.live.privacy.PrivacyTextureReadbackCounter
 import com.framework.innolive.feature.live.privacy.PrivacyFaceCoordinator
 import com.framework.innolive.feature.live.status.UplinkVideoStats
+import com.framework.innolive.feature.login.oauth.google.InvalidRefreshTokenException
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -23,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import com.framework.innolive.R
@@ -397,6 +399,8 @@ internal class WebRtcConnection(
             initialAnonymizationEnabled,
             sharedEglContext = checkNotNull(eglBase).eglBaseContext,
             onProcessingFailure = { executeOnOwner { fail(ConnectionFailure.GENERIC) } },
+            // 군중 프레임은 원본 대신 버리고 연결은 유지합니다. 장면이 바뀌면 다음 프레임부터 다시 송출합니다.
+            onFrameContentFailure = {},
             onProtectedFrameSent = {
                 executeOnOwner {
                     if (isActive()) {
@@ -1071,20 +1075,25 @@ internal class WebRtcConnection(
                         }
                     }
                 } catch (exception: kotlinx.coroutines.CancellationException) {
-                    throw exception
+                    // 폴링 자체가 취소된 경우만 끝냅니다. 계정 세션 변경으로 토큰 갱신만 취소된 경우는 다음 주기에 다시 확인합니다.
+                    ensureActive()
+                    markSessionStatusStale(createdSession, revision)
                 } catch (_: Exception) {
-                    // 조회 실패는 마지막 확인값을 보존하며 다음 주기에 다시 확인합니다.
-                    if (this@WebRtcConnection.isActive()) {
-                        Log.w("LiveConnection", "session_status_unavailable")
-                        executeOnOwner {
-                            if (isActive() && session?.sessionId == createdSession.sessionId &&
-                                sessionRequestRevision.get() == revision && !broadcastOperation.get()) {
-                                sessionSnapshot = sessionSnapshot?.copy(isRemainingTimeStale = true)
-                                sessionSnapshot?.let { dispatchSessionSnapshot(it, revision) }
-                            }
-                        }
-                    }
+                    markSessionStatusStale(createdSession, revision)
                 }
+            }
+        }
+    }
+
+    // 조회 실패는 마지막 확인값을 보존하며 다음 주기에 다시 확인합니다.
+    private fun markSessionStatusStale(createdSession: CreatedSession, revision: Long) {
+        if (!isActive()) return
+        Log.w("LiveConnection", "session_status_unavailable")
+        executeOnOwner {
+            if (isActive() && session?.sessionId == createdSession.sessionId &&
+                sessionRequestRevision.get() == revision && !broadcastOperation.get()) {
+                sessionSnapshot = sessionSnapshot?.copy(isRemainingTimeStale = true)
+                sessionSnapshot?.let { dispatchSessionSnapshot(it, revision) }
             }
         }
     }
@@ -1104,8 +1113,11 @@ internal class WebRtcConnection(
                     } catch (exception: kotlinx.coroutines.CancellationException) {
                         throw exception
                     } catch (exception: Exception) {
-                        serverErrorGuidance("unauthorized")?.let(::dispatchServerError)
-                        fail(ConnectionFailure.DISCONNECTED)
+                        // 네트워크 오류·5xx 같은 일시 실패는 라이브를 유지하고 다음 주기에 다시 확인합니다.
+                        if (sessionStatusRefreshEndsConnection(exception)) {
+                            serverErrorGuidance("unauthorized")?.let(::dispatchServerError)
+                            fail(ConnectionFailure.DISCONNECTED)
+                        }
                         throw exception
                     }
                 }
@@ -2761,3 +2773,10 @@ internal fun parseBroadcastState(payload: String, provider: BroadcastProvider): 
         else -> null
     }
 }
+
+/**
+ * 상태 조회 중 토큰 갱신 실패의 처리입니다. 네트워크 오류·5xx만 일시 실패로 보고 다음 주기에 다시 확인합니다.
+ * refresh token 거부와 로그아웃 뒤 세션 없음처럼 복구할 수 없는 실패는 방송을 끝냅니다.
+ */
+internal fun sessionStatusRefreshEndsConnection(error: Throwable): Boolean =
+    error is InvalidRefreshTokenException || error !is IOException

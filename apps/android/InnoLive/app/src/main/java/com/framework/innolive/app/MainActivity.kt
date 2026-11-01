@@ -140,6 +140,12 @@ data object BroadcastSettingRoute : AppRoute
 
 data object RecordingsRoute : AppRoute
 
+/** 요금 정보를 쓰는 화면에서만 조회합니다. 요금제 화면의 다시 불러오기도 이 조건으로 실행됩니다. */
+internal fun loadsPlanUsage(route: AppRoute?): Boolean = route in setOf(LiveRoute, SettingsRoute, PlanUsageRoute)
+
+/** 방송 중에는 설정·요금제 화면에서 남은 시간을 15초마다 다시 조회합니다. */
+internal fun pollsPlanUsage(route: AppRoute?): Boolean = route == SettingsRoute || route == PlanUsageRoute
+
 /** 보관함에 들어갈 수 있는 방송 상태입니다. 준비·라이브·일시 중지·전환 중에는 막습니다. */
 private val RECORDINGS_ALLOWED_STATES = setOf(BroadcastState.IDLE, BroadcastState.FAILED)
 
@@ -565,7 +571,7 @@ fun AppNavigation(
     val displayedPlanUsage = planUsage?.afterChargedSeconds(
         (planChargeMillis - planUsageChargeMillis).coerceAtLeast(0L) / 1_000L)
     LaunchedEffect(planAccount, backStack.lastOrNull(), planRefresh, isBroadcastActive) {
-        if (planAccount == null || backStack.lastOrNull() !in setOf(LiveRoute, SettingsRoute)) return@LaunchedEffect
+        if (planAccount == null || !loadsPlanUsage(backStack.lastOrNull())) return@LaunchedEffect
         if (backStack.lastOrNull() == LiveRoute && isBroadcastActive) return@LaunchedEffect
         do {
             isPlanLoading = true
@@ -588,7 +594,7 @@ fun AppNavigation(
             } finally {
                 isPlanLoading = false
             }
-            if (backStack.lastOrNull() != SettingsRoute || !isBroadcastActive) break
+            if (!pollsPlanUsage(backStack.lastOrNull()) || !isBroadcastActive) break
             delay(15_000L)
         } while (true)
     }

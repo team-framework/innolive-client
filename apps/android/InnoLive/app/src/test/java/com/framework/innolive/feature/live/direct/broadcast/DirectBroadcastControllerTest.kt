@@ -354,6 +354,8 @@ class DirectBroadcastControllerTest {
 
         assertEquals(BroadcastState.FAILED, states.last().first)
         assertTrue("disconnect:youtube" in media.engine.calls)
+        // 마이크와 인코더가 대상 없이 계속 돌지 않게 엔진도 닫습니다.
+        assertTrue(media.engine.closed)
         assertNull(recovery.stored)
 
         assertTrue(controller.prepareBroadcast(settings, false))
@@ -1120,6 +1122,7 @@ class DirectBroadcastControllerTest {
         scheduler.advance(2_000)
 
         assertTrue("disconnect:youtube" in media.engine.calls)
+        assertTrue(media.engine.closed)
         assertFalse("stop:youtube" in server.calls)
         assertFalse("delete:session-1" in server.calls)
         assertNull(recovery.stored)

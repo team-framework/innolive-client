@@ -39,10 +39,13 @@ internal class EncoderSurfaceRenderer(
         var failure: Exception? = null
         handler.post {
             try {
-                eglBase = EglBase.create(sharedContext, EglBase.CONFIG_RECORDABLE).apply {
-                    createSurface(surface)
-                    makeCurrent()
-                }
+                // 준비 시간을 넘겨 포기한 렌더러는 호출자가 해제했을 수 있는 Surface를 쓰지 않습니다.
+                if (closed) return@post
+                val egl = EglBase.create(sharedContext, EglBase.CONFIG_RECORDABLE)
+                eglBase = egl
+                if (closed) return@post
+                egl.createSurface(surface)
+                egl.makeCurrent()
                 drawer = GlRectDrawer()
                 frameDrawer = VideoFrameDrawer()
             } catch (error: Exception) {
@@ -51,7 +54,11 @@ internal class EncoderSurfaceRenderer(
                 ready.countDown()
             }
         }
-        check(ready.await(5, TimeUnit.SECONDS)) { "인코더 렌더러를 준비하지 못했습니다." }
+        if (!ready.await(5, TimeUnit.SECONDS)) {
+            // 호출 스레드를 더 막지 않습니다. 늦게 끝난 준비 작업 뒤에 같은 스레드에서 해제합니다.
+            release(awaitRelease = false)
+            throw IllegalStateException("인코더 렌더러를 준비하지 못했습니다.")
+        }
         failure?.let { close(); throw it }
     }
 
@@ -90,7 +97,9 @@ internal class EncoderSurfaceRenderer(
         }
     }
 
-    override fun close() {
+    override fun close() = release(awaitRelease = true)
+
+    private fun release(awaitRelease: Boolean) {
         if (closed) return
         closed = true
         pending.close()
@@ -101,7 +110,7 @@ internal class EncoderSurfaceRenderer(
             runCatching { eglBase?.release() }
             done.countDown()
         }
-        done.await(2, TimeUnit.SECONDS)
+        if (awaitRelease) done.await(2, TimeUnit.SECONDS)
         thread.quitSafely()
     }
 }

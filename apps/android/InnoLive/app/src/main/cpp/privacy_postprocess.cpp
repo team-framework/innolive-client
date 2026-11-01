@@ -45,8 +45,11 @@ const float* buffer(JNIEnv* env,jobject value,int count) {
         throw std::invalid_argument("Invalid postprocessing buffer");
     return data;
 }
+// A frame whose content cannot be protected (e.g. a crowd). Java retries the GPU graph instead of disabling it.
+struct frame_error : std::runtime_error { using std::runtime_error::runtime_error; };
 void fail(JNIEnv* env,const std::exception& error) {
-    env->ThrowNew(env->FindClass("java/lang/IllegalArgumentException"),error.what());
+    const bool frame=dynamic_cast<const frame_error*>(&error)!=nullptr;
+    env->ThrowNew(env->FindClass(frame?"java/lang/IllegalStateException":"java/lang/IllegalArgumentException"),error.what());
 }
 void validate(const float* values,int count) {
     if (!std::all_of(values,values+count,[](float x){return std::isfinite(x);}))
@@ -63,7 +66,7 @@ void decode(State& s,const float* values,const float* prototypes) {
         if(score<=kContinuation) continue;
         const float x=values[i],y=values[kCandidates+i],w=values[2*kCandidates+i],h=values[3*kCandidates+i];
         if(w<=0 || h<=0) {
-            if(score>=kActivation) throw std::invalid_argument("Invalid detection dimensions");
+            if(score>=kActivation) throw frame_error("Invalid detection dimensions");
             continue;
         }
         Box box{std::max(0.f,x-w/2),std::max(0.f,y-h/2),std::min(640.f,x+w/2),std::min(640.f,y+h/2)};
@@ -78,7 +81,7 @@ void decode(State& s,const float* values,const float* prototypes) {
         }
         if(suppressed) continue;
         if(s.kept.size()==kMaximum) {
-            if(candidate.score>=kActivation) throw std::invalid_argument("Too many objects to protect");
+            if(candidate.score>=kActivation) throw frame_error("Too many objects to protect");
             break;
         }
         for(int c=0;c<32;++c) candidate.weights[c]=values[(6+c)*kCandidates+candidate.index];
