@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 
-/// 관리자 실험실의 로컬 녹화 화면이다. 서버 세션 없이 카메라를 열고 녹화를 이 기기에만 저장한다.
 struct LocalRecordingView: View {
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject var uplink: WebRTCVideoUplink
@@ -45,7 +44,7 @@ struct LocalRecordingView: View {
         RemoteStreamView(uplink: uplink, previewTransition: .none, isPreparingSession: false,
                          isConnectingVideo: false, showsStatusOverlay: false)
             .overlay {
-                if uplink.state != .connected, openError == nil {
+                if uplink.state != .connected, openError == nil, uplink.errorMessage == nil {
                     VStack(spacing: 12) {
                         ProgressView().tint(.white)
                         Text(String(localized: "카메라를 준비하는 중"))
@@ -59,8 +58,8 @@ struct LocalRecordingView: View {
 
     @ViewBuilder
     private var status: some View {
-        if let openError {
-            Text(openError).foregroundStyle(.red)
+        if let message = openError ?? uplink.errorMessage {
+            Text(message).foregroundStyle(.red)
         } else if youtube.isLocalTakeRecording, let startedAt = lifecycle.startedAt {
             TimelineView(.periodic(from: startedAt, by: 1)) { context in
                 Label(Duration.seconds(max(0, context.date.timeIntervalSince(startedAt).rounded(.down)))
@@ -98,7 +97,7 @@ struct LocalRecordingView: View {
         }
         .innoLiveGlassButtonStyle()
         .buttonBorderShape(.capsule)
-        .disabled(uplink.state != .connected || isClosing || lifecycle.recording == .finalizing)
+        .disabled((uplink.state != .connected && !youtube.isLocalTakeRecording) || isClosing || lifecycle.recording == .finalizing)
         .accessibilityIdentifier("local-recording-toggle")
     }
 
