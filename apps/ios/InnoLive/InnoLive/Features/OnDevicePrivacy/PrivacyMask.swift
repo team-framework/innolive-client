@@ -24,12 +24,13 @@ nonisolated enum PrivacyMask {
                                    decode: nil, shouldInterpolate: false, intent: .defaultIntent) else {
             throw PrivacyModelError.imageBuffer
         }
-        let extra = max(0, edgeCells - protectedEdgeCells)
+        // Like Android, the opaque core follows the chosen width and never drops below the 2-cell baseline.
+        let coreCells = max(edgeCells, 2)
         let source = CIImage(cgImage: bitmap)
-        let core = source.applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": 2 + extra])
+        let core = source.applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": coreCells])
         guard feathered else { return core.cropped(to: source.extent) }
         let outer = source.clampedToExtent()
-            .applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": 4 + extra])
+            .applyingFilter("CIMorphologyMaximum", parameters: ["inputRadius": coreCells + 2])
             .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 1.5])
         return outer.applyingFilter("CIMaximumCompositing", parameters: [kCIInputBackgroundImageKey: core])
             .cropped(to: source.extent)
