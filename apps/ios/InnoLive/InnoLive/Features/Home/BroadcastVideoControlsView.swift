@@ -11,6 +11,8 @@ struct BroadcastVideoControlsView: View {
     // 슬라이더를 움직이는 동안의 값이다. 손을 떼면 서버로 보내고, 응답 후에는 확정값을 보인다.
     @State private var mosaicDraft: MosaicDraft?
     @State private var isEditingMosaic = false
+    // 온디바이스 모자이크 설정은 기기에만 저장하고 서버로 보내지 않는다.
+    @State private var onDeviceMosaic = OnDeviceMosaicSettings.load()
     // 처음에는 모자이크 영역만 보이게 열고, 색감은 위로 끌어 올려 본다.
     // 내비게이션 바·여백 높이를 더해 모자이크 영역 실측값으로 시트 높이를 정한다.
     private static let mosaicSheetChrome: CGFloat = 92
@@ -92,6 +94,10 @@ struct BroadcastVideoControlsView: View {
                 }
             }
             .onAppear(perform: startPresetPreviews)
+            .onAppear { if onDevice { uplink.setOnDeviceMosaic(onDeviceMosaic) } }
+            .onChange(of: onDevice) { _, isOnDevice in
+                if isOnDevice { uplink.setOnDeviceMosaic(onDeviceMosaic) }
+            }
             .onDisappear(perform: stopPresetPreviews)
             .onChange(of: uplink.isCapturingMedia) { _, _ in
                 startPresetPreviews()
@@ -108,7 +114,62 @@ struct BroadcastVideoControlsView: View {
         .height(Self.mosaicSheetChrome + mosaicSectionHeight)
     }
 
+    private var onDevice: Bool {
+        (youtube.session?.processingMode ?? AIProcessingMode.selected) == .onDevice
+    }
+
+    @ViewBuilder
     private var mosaicSection: some View {
+        if onDevice {
+            onDeviceMosaicSection
+        } else {
+            serverMosaicSection
+        }
+    }
+
+    private var onDeviceMosaicSection: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(localized: "모자이크"))
+                    .font(.subheadline.weight(.semibold))
+                if let note = mosaicNote(available: true) {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            control(
+                title: String(localized: "블러 강도"),
+                value: "\(onDeviceMosaic.blurStrength)",
+                binding: onDeviceMosaicBinding(\.blurStrength),
+                range: Double(OnDeviceMosaicSettings.blurStrengthRange.lowerBound)...Double(OnDeviceMosaicSettings.blurStrengthRange.upperBound),
+                step: Double(OnDeviceMosaicSettings.blurStrengthStep),
+                leading: String(localized: "약하게"),
+                trailing: String(localized: "강하게")
+            )
+
+            control(
+                title: String(localized: "가림 영역 너비"),
+                value: "\(onDeviceMosaic.maskMargin)px",
+                binding: onDeviceMosaicBinding(\.maskMargin),
+                range: Double(OnDeviceMosaicSettings.maskMarginRange.lowerBound)...Double(OnDeviceMosaicSettings.maskMarginRange.upperBound),
+                step: 1,
+                leading: String(localized: "좁게"),
+                trailing: String(localized: "넓게")
+            )
+
+            Button {
+                commitOnDeviceMosaic(OnDeviceMosaicSettings())
+            } label: {
+                Label(String(localized: "모자이크 기본값"), systemImage: "arrow.counterclockwise")
+                    .frame(maxWidth: .infinity, minHeight: 28)
+            }
+            .innoLiveGlassButtonStyle()
+        }
+    }
+
+    private var serverMosaicSection: some View {
         let available = youtube.canChangeMosaicConfig
         let shown = mosaicDraft ?? MosaicDraft(youtube.mosaicConfig)
         return VStack(alignment: .leading, spacing: 20) {
@@ -167,12 +228,33 @@ struct BroadcastVideoControlsView: View {
         }
     }
 
+    private func onDeviceMosaicBinding(_ keyPath: WritableKeyPath<OnDeviceMosaicSettings, Int>) -> Binding<Double> {
+        Binding(
+            get: { Double(onDeviceMosaic[keyPath: keyPath]) },
+            set: { value in
+                var next = onDeviceMosaic
+                next[keyPath: keyPath] = Int(value.rounded())
+                commitOnDeviceMosaic(next)
+            }
+        )
+    }
+
+    private func commitOnDeviceMosaic(_ settings: OnDeviceMosaicSettings) {
+        let normalized = settings.normalized()
+        onDeviceMosaic = normalized
+        normalized.save()
+        uplink.setOnDeviceMosaic(normalized)
+    }
+
     private func mosaicNote(available: Bool) -> String? {
+        if onDevice {
+            if youtube.session?.processingMode == .onDevice && !youtube.isAnonymizationEnabled {
+                return String(localized: "비식별화가 켜져 있을 때 적용됩니다.")
+            }
+            return String(localized: "온디바이스 AI는 기본 강도와 너비보다 약하게 할 수 없습니다.")
+        }
         guard let session = youtube.session else {
             return String(localized: "방송을 준비하면 조절할 수 있습니다.")
-        }
-        if session.processingMode != .server {
-            return String(localized: "서버 AI 처리에서만 조절할 수 있습니다.")
         }
         if available && !youtube.isAnonymizationEnabled {
             return String(localized: "비식별화가 켜져 있을 때 적용됩니다.")
