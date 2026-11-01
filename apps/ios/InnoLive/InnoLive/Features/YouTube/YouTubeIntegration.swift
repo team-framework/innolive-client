@@ -203,9 +203,15 @@ final class YouTubeIntegration: ObservableObject {
         directPublisher: (any DirectBroadcastPublishing)? = nil,
         heartbeatInterval: Duration = .seconds(15),
         recordingStore: RecordingSessionStore? = nil,
+        offlineGrantStore: OfflineGrantStoring = OfflineGrantStore(),
+        modelReadiness: ModelReadinessStore? = nil,
+        planStore: PlanStore? = nil,
         countdownSleep: @escaping @MainActor () async throws -> Void = { try await Task.sleep(for: .seconds(1)) }
     ) {
         self.recordingStore = recordingStore ?? RecordingSessionStore()
+        self.offlineGrantStore = offlineGrantStore
+        self.modelReadiness = modelReadiness ?? ModelReadinessStore()
+        self.planStore = planStore ?? PlanStore()
         self.countdownSleep = countdownSleep
         self.directPublisher = directPublisher ?? DirectBroadcastPublisher()
         self.heartbeatInterval = heartbeatInterval
@@ -252,7 +258,7 @@ final class YouTubeIntegration: ObservableObject {
         wireLocalTakeUsage()
     }
 
-    let planStore = PlanStore()
+    let planStore: PlanStore
     let localTakeLedger = LocalTakeUsageLedger()
     lazy var localTakeUploader = LocalTakeUsageUploader(ledger: localTakeLedger, upload: { [weak self] takes in
         guard let self else { return [] }
@@ -261,9 +267,9 @@ final class YouTubeIntegration: ObservableObject {
         guard let self else { return }
         Task { await self.refreshPlan(accessToken: self.api.currentAccessToken(fallback: "")) }
     })
-    let offlineGrantStore: OfflineGrantStoring = OfflineGrantStore()
+    let offlineGrantStore: OfflineGrantStoring
     let operatingMode = OperatingModeMonitor()
-    let modelReadiness = ModelReadinessStore()
+    let modelReadiness: ModelReadinessStore
     @Published var isRemainingTimeStale = false
     /// The offline grant is past its length or saw the clock go back. Local takes continue until the next online check.
     @Published var isOfflineGrantStale = false
@@ -289,6 +295,7 @@ final class YouTubeIntegration: ObservableObject {
                 return state.serverAvailable
             }
             .removeDuplicates()
+            .dropFirst()
             .filter { $0 }
             .sink { [weak self] _ in
                 guard let self else { return }
@@ -316,13 +323,25 @@ final class YouTubeIntegration: ObservableObject {
             }
             return check.isAdministrator
         } catch YouTubeAPIError.transport {
-            guard let grant = offlineGrantStore.load(), grant.accountID == accountID else { return false }
-            offlineGrantStore.save(grant.observing(.now))
-            isOfflineGrantStale = grant.status(at: .now, accountID: accountID) != .valid
-            return grant.isAdministrator
+            return storedAdministrator(accessToken: accessToken)
         } catch {
             return false
         }
+    }
+
+    /// The administrator answer from this account's stored grant, without any network request.
+    func storedAdministrator(accessToken: String?) -> Bool {
+        let accountID = OfflineGrant.accountID(fromAccessToken: accessToken)
+        guard let accountID, let grant = offlineGrantStore.load(), grant.accountID == accountID else { return false }
+        offlineGrantStore.save(grant.observing(.now))
+        isOfflineGrantStale = grant.status(at: .now, accountID: accountID) != .valid
+        return grant.isAdministrator
+    }
+
+    /// Admin-only local mode: the operating mode monitor and the model warm-up. Safe to call again.
+    func startLocalModeSupport(accessToken: @escaping () -> String?) {
+        operatingMode.start(accessToken: accessToken)
+        Task { await modelReadiness.warm() }
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
@@ -450,6 +469,7 @@ final class YouTubeIntegration: ObservableObject {
         preparationResolution = nil
         serverPlanPreparationRejected = false
         planStore.reset()
+        planStore.eraseCache()
         settingsEditor.reset()
         resetLiveEditing()
         resetBroadcastMode()

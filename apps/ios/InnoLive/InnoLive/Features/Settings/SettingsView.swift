@@ -84,7 +84,10 @@ struct SettingsView: View {
             .navigationTitle(String(localized: "앱 정보 및 계정"))
             .navigationBarTitleDisplayMode(.inline)
         }
-        .task { isAdministrator = await youtube.isAdministrator(accessToken: authentication.currentAccessToken()) }
+        .task {
+            isAdministrator = youtube.storedAdministrator(accessToken: authentication.currentAccessToken())
+            isAdministrator = await youtube.isAdministrator(accessToken: authentication.currentAccessToken())
+        }
         .fullScreenCover(isPresented: $isShowingLocalRecording) {
             LocalRecordingView(authentication: authentication, youtube: youtube, uplink: youtube.videoUplink,
                                lifecycle: youtube.lifecycle)

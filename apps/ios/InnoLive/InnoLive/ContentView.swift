@@ -53,15 +53,20 @@ struct ContentView: View {
             // 이전 만료 오류 배너가 남지 않도록 한다.
             if isAuthenticated {
                 youtube.dismissError()
+                let accessToken = authentication.currentAccessToken()
+                youtube.planStore.restore(accountID: OfflineGrant.accountID(fromAccessToken: accessToken))
+                // Local mode starts from the stored grant, so an offline launch never waits on the network.
+                if youtube.storedAdministrator(accessToken: accessToken) {
+                    youtube.startLocalModeSupport { authentication.currentAccessToken() }
+                }
                 Task {
-                    let accessToken = authentication.currentAccessToken()
                     await youtube.refreshConnection(accessToken: accessToken, quietWhenUnreachable: true)
                     youtube.localTakeUploader.drain()
                     // Renews the offline grant while the server is reachable. Local mode is admin-only.
                     if await youtube.isAdministrator(accessToken: accessToken) {
-                        youtube.operatingMode.start { authentication.currentAccessToken() }
-                        await youtube.modelReadiness.warm()
+                        youtube.startLocalModeSupport { authentication.currentAccessToken() }
                     }
+                    await youtube.refreshPlan(accessToken: accessToken)
                 }
             }
         }
