@@ -265,6 +265,8 @@ final class YouTubeIntegration: ObservableObject {
     let operatingMode = OperatingModeMonitor()
     let modelReadiness = ModelReadinessStore()
     @Published var isRemainingTimeStale = false
+    /// The offline grant is past its length or saw the clock go back. Local takes continue until the next online check.
+    @Published var isOfflineGrantStale = false
 
     var currentPlanMode: BroadcastPlanMode {
         .current(resolution: broadcastResolution, targetCount: visibleBroadcastTargets.isEmpty
@@ -288,7 +290,11 @@ final class YouTubeIntegration: ObservableObject {
             }
             .removeDuplicates()
             .filter { $0 }
-            .sink { [weak self] _ in self?.localTakeUploader.drain() }
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.localTakeUploader.drain()
+                Task { _ = await self.isAdministrator(accessToken: self.api.currentAccessToken(fallback: "")) }
+            }
             .store(in: &localTakeSubscriptions)
     }
 
@@ -306,11 +312,13 @@ final class YouTubeIntegration: ObservableObject {
             if let accountID {
                 offlineGrantStore.save(OfflineGrant(accountID: accountID, isAdministrator: check.isAdministrator,
                                                     serverDate: check.serverDate, receivedAt: .now))
+                isOfflineGrantStale = false
             }
             return check.isAdministrator
         } catch YouTubeAPIError.transport {
             guard let grant = offlineGrantStore.load(), grant.accountID == accountID else { return false }
             offlineGrantStore.save(grant.observing(.now))
+            isOfflineGrantStale = grant.status(at: .now, accountID: accountID) != .valid
             return grant.isAdministrator
         } catch {
             return false

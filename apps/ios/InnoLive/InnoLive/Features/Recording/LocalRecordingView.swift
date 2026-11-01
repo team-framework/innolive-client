@@ -49,6 +49,13 @@ struct LocalRecordingView: View {
                 }
                 .animation(.easeOut(duration: 0.2), value: guestRegistrar.status)
                 ModelReadinessReadout(store: readiness)
+                if youtube.isOfflineGrantStale {
+                    Text(OfflineGrant.staleNotice)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("offline-grant-stale")
+                }
                 Text(String(localized: "서버 연결 없이 이 기기에만 녹화합니다."))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
