@@ -42,6 +42,10 @@ extension YouTubeIntegration {
             throw WebRTCVideoUplinkError.failed(OfflineGrant.expiredMessage)
         }
         offlineGrantStore.save(grant.observing(now))
+        if let snapshot = planStore.snapshot, snapshot.usage.hasDeviceRemainingSeconds,
+           snapshot.usage.deviceRemainingSeconds == 0 {
+            throw WebRTCVideoUplinkError.failed(String(localized: "이번 달 온디바이스 시간을 모두 사용해 로컬 녹화를 시작할 수 없어요."))
+        }
         guard modelReadiness.isReady else {
             throw WebRTCVideoUplinkError.failed(String(localized: "AI 모델을 준비하는 중입니다. 준비가 끝나면 녹화할 수 있어요."))
         }

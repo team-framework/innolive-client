@@ -59,8 +59,10 @@ struct UserUsage: Decodable, Equatable {
     let hasDeviceRemainingSeconds: Bool
     let broadcasts: [UsageBroadcast]
     let deviceLimitSeconds: Int?
-    let deviceUsedSeconds: Int?
-    let deviceRemainingSeconds: Int?
+    fileprivate(set) var deviceUsedSeconds: Int?
+    fileprivate(set) var deviceRemainingSeconds: Int?
+    /// Local take seconds already inside `deviceUsedSeconds`. Nil from servers before the local take endpoint.
+    let deviceLocalSeconds: Int?
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         plan = try c.decode(String.self, forKey: .plan)
@@ -78,7 +80,8 @@ struct UserUsage: Decodable, Equatable {
         deviceLimitSeconds = try c.decodeIfPresent(Int.self, forKey: .deviceLimitSeconds)
         deviceUsedSeconds = try c.decodeIfPresent(Int.self, forKey: .deviceUsedSeconds)
         deviceRemainingSeconds = try c.decodeIfPresent(Int.self, forKey: .deviceRemainingSeconds)
-        guard [deviceLimitSeconds, deviceUsedSeconds, deviceRemainingSeconds].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
+        deviceLocalSeconds = try c.decodeIfPresent(Int.self, forKey: .deviceLocalSeconds)
+        guard [deviceLimitSeconds, deviceUsedSeconds, deviceRemainingSeconds, deviceLocalSeconds].allSatisfy({ $0.map { $0 >= 0 } ?? true }) else {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid device usage"))
         }
     }
@@ -93,6 +96,7 @@ struct UserUsage: Decodable, Equatable {
         case deviceLimitSeconds = "device_limit_seconds"
         case deviceUsedSeconds = "device_used_seconds"
         case deviceRemainingSeconds = "device_remaining_seconds"
+        case deviceLocalSeconds = "device_local_seconds"
     }
 }
 
@@ -151,6 +155,28 @@ struct ModeAvailability: Decodable, Equatable {
 struct PlanSnapshot: Equatable {
     let plan: UserPlan
     let usage: UserUsage
+    /// Local take seconds on this device that the server has not counted yet. Already inside `usage`.
+    private(set) var pendingLocalSeconds = 0
+
+    /// Counts pending takes that started in the usage month (KST), so device numbers match the server after upload.
+    func addingPendingLocalTakes(_ takes: [LocalTakeUsage]) -> PlanSnapshot {
+        let seconds = takes.filter { usage.month == nil || Self.ledgerMonth($0.startedAt) == usage.month }
+            .reduce(0) { $0 + $1.durationSeconds }
+        guard seconds > 0 else { return self }
+        var adjusted = usage
+        adjusted.deviceUsedSeconds = usage.deviceUsedSeconds.map { $0 + seconds }
+        adjusted.deviceRemainingSeconds = usage.deviceRemainingSeconds.map { max(0, $0 - seconds) }
+        var next = PlanSnapshot(plan: plan, usage: adjusted)
+        next.pendingLocalSeconds = seconds
+        return next
+    }
+
+    private static func ledgerMonth(_ date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        let parts = calendar.dateComponents([.year, .month], from: date)
+        return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
+    }
     func availability(for mode: BroadcastPlanMode, processing: AIProcessingMode = .server) -> ModeAvailability? {
         if processing == .server { return usage.availableByMode.first { $0.mode == mode.rawValue } }
         guard let modes = plan.deviceModes, usage.hasDeviceRemainingSeconds else { return nil }

@@ -77,6 +77,10 @@ struct PlanUsageContent: View {
                         ? snapshot.usage.usedSeconds : snapshot.usage.deviceUsedSeconds))
                     timeRow(String(localized: "이번 달 남은 시간"), value: processing == .server
                         ? PlanTimeText.duration(snapshot.usage.remainingSeconds) : nullableTime(snapshot.usage.deviceRemainingSeconds, present: snapshot.usage.hasDeviceRemainingSeconds))
+                    if processing == .onDevice, snapshot.pendingLocalSeconds > 0 {
+                        Text(String(localized: "업로드 대기 중인 로컬 녹화 \(PlanTimeText.duration(snapshot.pendingLocalSeconds)) 포함"))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 timeRow(String(localized: "1회 방송 한도"), value: PlanTimeText.duration(
                     snapshot.perBroadcastLimit))

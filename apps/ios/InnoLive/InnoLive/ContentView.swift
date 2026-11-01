@@ -56,6 +56,7 @@ struct ContentView: View {
                 Task {
                     let accessToken = authentication.currentAccessToken()
                     await youtube.refreshConnection(accessToken: accessToken, quietWhenUnreachable: true)
+                    youtube.localTakeUploader.drain()
                     // Renews the offline grant while the server is reachable. Local mode is admin-only.
                     if await youtube.isAdministrator(accessToken: accessToken) {
                         youtube.operatingMode.start { authentication.currentAccessToken() }

@@ -27,6 +27,7 @@ final class YouTubeIntegration: ObservableObject {
     let localMicrophone: any DirectAudioCapturing = DirectMicrophoneCapture()
     private var recordingSubscription: AnyCancellable?
     private var recordingStoreSubscription: AnyCancellable?
+    private var localTakeSubscriptions: Set<AnyCancellable> = []
     private var lifecycleSubscription: AnyCancellable?
     var countdownTask: Task<Void, Never>?
     let countdownSleep: @MainActor () async throws -> Void
@@ -248,9 +249,18 @@ final class YouTubeIntegration: ObservableObject {
         }
         settingsEditor.faceSwapProvider = { [weak self] in self?.usesFaceSwap ?? false }
         liveSettingsEditor.faceSwapProvider = { [weak self] in self?.usesFaceSwap ?? false }
+        wireLocalTakeUsage()
     }
 
     let planStore = PlanStore()
+    let localTakeLedger = LocalTakeUsageLedger()
+    lazy var localTakeUploader = LocalTakeUsageUploader(ledger: localTakeLedger, upload: { [weak self] takes in
+        guard let self else { return [] }
+        return try await self.api.uploadLocalTakes(takes, accessToken: self.api.currentAccessToken(fallback: ""))
+    }, onUploaded: { [weak self] in
+        guard let self else { return }
+        Task { await self.refreshPlan(accessToken: self.api.currentAccessToken(fallback: "")) }
+    })
     let offlineGrantStore: OfflineGrantStoring = OfflineGrantStore()
     let operatingMode = OperatingModeMonitor()
     let modelReadiness = ModelReadinessStore()
@@ -259,6 +269,27 @@ final class YouTubeIntegration: ObservableObject {
     var currentPlanMode: BroadcastPlanMode {
         .current(resolution: broadcastResolution, targetCount: visibleBroadcastTargets.isEmpty
                  ? selectedBroadcastProviders.count : visibleBroadcastTargets.count)
+    }
+
+    /// Each saved local take joins the ledger, and the ledger drains whenever the server is reachable again.
+    private func wireLocalTakeUsage() {
+        recordingStore.onSaved = { [weak self] recording in
+            guard let self else { return }
+            self.localTakeLedger.record(recording)
+            self.localTakeUploader.drain()
+        }
+        localTakeLedger.$pending
+            .sink { [weak self] takes in self?.planStore.setPendingLocalTakes(takes) }
+            .store(in: &localTakeSubscriptions)
+        operatingMode.$state
+            .map { state -> Bool in
+                if case .server = state.mode { return true }
+                return state.serverAvailable
+            }
+            .removeDuplicates()
+            .filter { $0 }
+            .sink { [weak self] _ in self?.localTakeUploader.drain() }
+            .store(in: &localTakeSubscriptions)
     }
 
     func refreshPlan(accessToken: String?) async {
@@ -396,6 +427,8 @@ final class YouTubeIntegration: ObservableObject {
 
     func reset() {
         operatingMode.stop()
+        localTakeUploader.stop()
+        localTakeLedger.eraseAll()
         localMicrophone.stop()
         localCaptureID = nil
         invalidateBroadcastLifecycle()
