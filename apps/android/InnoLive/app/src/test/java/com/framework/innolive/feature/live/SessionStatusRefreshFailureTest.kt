@@ -7,8 +7,10 @@ import org.junit.Test
 import java.io.IOException
 
 class SessionStatusRefreshFailureTest {
-    @Test fun rejectedRefreshTokenEndsConnection() {
+    @Test fun unrecoverableRefreshFailureEndsConnection() {
         assertTrue(sessionStatusRefreshEndsConnection(InvalidRefreshTokenException(401)))
+        // 로그아웃 뒤 세션이 없거나 저장소가 닫히면 매 주기 401만 반복하므로 방송을 끝냅니다.
+        assertTrue(sessionStatusRefreshEndsConnection(IllegalStateException("Authentication session is missing.")))
     }
 
     @Test fun transientRefreshFailureKeepsConnection() {
