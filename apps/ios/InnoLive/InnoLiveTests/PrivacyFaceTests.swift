@@ -1,3 +1,4 @@
+import CryptoKit
 #if DEBUG
 import XCTest
 import CoreGraphics
@@ -30,37 +31,101 @@ final class PrivacyFaceTests: XCTestCase {
     func testRegistrationPersistsAndIndividualDeletionPreservesOtherPeople() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appendingPathComponent("faces.json")
-        let library = try PrivacyFaceLibrary(url: url)
+        let url = directory.appendingPathComponent("faces.sealed")
+        let library = try makeLibrary(url)
         try library.add(name: " A ", embedding: vector(0))
         try library.add(name: "B", embedding: vector(1))
-        let reloaded = try PrivacyFaceLibrary(url: url)
+        let reloaded = try makeLibrary(url)
         XCTAssertEqual(reloaded.entries.map(\.name), ["A", "B"])
         try reloaded.delete(id: reloaded.entries[0].id)
-        XCTAssertEqual(try PrivacyFaceLibrary(url: url).entries.map(\.name), ["B"])
+        XCTAssertEqual(try makeLibrary(url).entries.map(\.name), ["B"])
         XCTAssertEqual(try url.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
     }
 
     func testInvalidRegistrationDoesNotReplaceSavedData() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: url) }
-        let library = try PrivacyFaceLibrary(url: url)
+        let library = try makeLibrary(url)
         try library.add(name: "A", embedding: vector(0))
         XCTAssertThrowsError(try library.add(name: " ", embedding: vector(1)))
         XCTAssertThrowsError(try library.add(name: "B", embedding: [Float](repeating: 0, count: 512)))
-        XCTAssertEqual(try PrivacyFaceLibrary(url: url).entries.count, 1)
+        XCTAssertEqual(try makeLibrary(url).entries.count, 1)
     }
 
-    func testRegistrationLimitAndDifferentModelContract() throws {
+    func testRegistrationLimit() throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: url) }
-        let library = try PrivacyFaceLibrary(url: url)
+        let library = try makeLibrary(url)
         for i in 0..<20 { try library.add(name: "Person \(i)", embedding: vector(i)) }
         XCTAssertThrowsError(try library.add(name: "Overflow", embedding: vector(20)))
-        var data = String(decoding: try Data(contentsOf: url), as: UTF8.self)
-        data = data.replacingOccurrences(of: PrivacyFaceLibrary.contract, with: "other-model")
-        try Data(data.utf8).write(to: url)
-        XCTAssertThrowsError(try PrivacyFaceLibrary(url: url))
+    }
+
+    func testSealedFileHoldsNoPlaintext() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        try makeLibrary(url).add(name: "Plaintext Name", embedding: vector(3))
+        let raw = try Data(contentsOf: url)
+        XCTAssertNil(raw.range(of: Data("Plaintext Name".utf8)))
+        XCTAssertNil(raw.range(of: Data(PrivacyFaceLibrary.contract.utf8)))
+        XCTAssertEqual(try makeLibrary(url).entries.map(\.name), ["Plaintext Name"])
+    }
+
+    func testWrongKeyOrTamperedFileBecomesEmptyWithNotice() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        try makeLibrary(url).add(name: "A", embedding: vector(0))
+        let other = try PrivacyFaceLibrary(url: url, legacyURL: legacyURL(), keys: MemoryFaceKey())
+        XCTAssertTrue(other.entries.isEmpty)
+        XCTAssertEqual(other.notice, PrivacyFaceLibrary.unreadableMessage)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+
+        try makeLibrary(url).add(name: "B", embedding: vector(1))
+        var bytes = try Data(contentsOf: url)
+        bytes[bytes.count - 1] ^= 0xFF
+        try bytes.write(to: url)
+        let tampered = try makeLibrary(url)
+        XCTAssertTrue(tampered.entries.isEmpty)
+        XCTAssertEqual(tampered.notice, PrivacyFaceLibrary.unreadableMessage)
+    }
+
+    func testPlaintextV1MigratesOnceAndIsDeleted() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let legacy = legacyURL()
+        defer { try? FileManager.default.removeItem(at: url); try? FileManager.default.removeItem(at: legacy) }
+        try writeLegacy(legacy, contract: PrivacyFaceLibrary.contract, names: ["Cast"])
+        let migrated = try makeLibrary(url, legacy: legacy)
+        XCTAssertEqual(migrated.entries.map(\.name), ["Cast"])
+        XCTAssertNil(migrated.notice)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path), "plaintext file removed after migration")
+        XCTAssertEqual(try makeLibrary(url, legacy: legacy).entries.map(\.name), ["Cast"])
+    }
+
+    func testDifferentModelContractWipesWithNotice() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let legacy = legacyURL()
+        defer { try? FileManager.default.removeItem(at: url); try? FileManager.default.removeItem(at: legacy) }
+        try writeLegacy(legacy, contract: "other-model", names: ["Old"])
+        let library = try makeLibrary(url, legacy: legacy)
+        XCTAssertTrue(library.entries.isEmpty)
+        XCTAssertEqual(library.notice, PrivacyFaceLibrary.contractChangedMessage)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
+    }
+
+    private let faceKey = MemoryFaceKey()
+
+    private func legacyURL() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("legacy-\(UUID().uuidString).json")
+    }
+
+    private func makeLibrary(_ url: URL, legacy: URL? = nil) throws -> PrivacyFaceLibrary {
+        try PrivacyFaceLibrary(url: url, legacyURL: legacy ?? legacyURL(), keys: faceKey)
+    }
+
+    private func writeLegacy(_ url: URL, contract: String, names: [String]) throws {
+        let entries = names.enumerated().map { index, name -> [String: Any] in
+            ["id": UUID().uuidString, "name": name, "embedding": vector(index).map(Double.init)]
+        }
+        try JSONSerialization.data(withJSONObject: ["contract": contract, "entries": entries]).write(to: url)
     }
 
     private let box = CGRect(x: 10, y: 10, width: 100, height: 100)
@@ -173,5 +238,19 @@ final class PrivacyFaceTests: XCTestCase {
         XCTAssertEqual(tracker.allowed(at: 1.01), [0])
         return (tracker, track.id, person)
     }
+}
+
+nonisolated private final class MemoryFaceKey: PrivacyFaceLibraryKeyStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var key: SymmetricKey?
+    func load() -> SymmetricKey? { lock.withLock { key } }
+    func create() throws -> SymmetricKey {
+        lock.withLock {
+            let created = key ?? SymmetricKey(size: .bits256)
+            key = created
+            return created
+        }
+    }
+    func remove() { lock.withLock { key = nil } }
 }
 #endif

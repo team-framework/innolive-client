@@ -13,6 +13,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isAdministrator = false
     @State private var faceAnonymization = FaceAnonymizationMode.selected
+    @State private var isShowingLocalRecording = false
+    @AppStorage(OperatingModeMonitor.alwaysLocalKey) private var alwaysLocalMode = false
     var body: some View {
         ScrollView {
             // Liquid Glass 효과를 자연스럽게 묶음
@@ -83,6 +85,9 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .task { isAdministrator = await youtube.isAdministrator(accessToken: authentication.currentAccessToken()) }
+        .fullScreenCover(isPresented: $isShowingLocalRecording) {
+            LocalRecordingView(youtube: youtube, uplink: youtube.videoUplink, lifecycle: youtube.lifecycle)
+        }
     }
 
     // 관리자 전용 실험 기능이다. 비식별화 방법은 세션 생성 때 고정되므로 방송 준비 전에만 바꾼다.
@@ -124,6 +129,32 @@ struct SettingsView: View {
                  : String(localized: "다음 방송 준비부터 적용됩니다. 합성은 서버 AI 처리에서만 사용됩니다."))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+
+            if AIProcessingMode.localModelsAvailable {
+                SettingsGlassRow {
+                    Toggle(isOn: $alwaysLocalMode) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "iphone")
+                                .font(.body)
+                                .frame(width: iconWidth)
+                            Text(String(localized: "항상 로컬 모드"))
+                                .font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    .accessibilityIdentifier("lab-always-local-mode")
+                }
+                .onChange(of: alwaysLocalMode) { _, enabled in youtube.operatingMode.setAlwaysLocal(enabled) }
+                Button {
+                    isShowingLocalRecording = true
+                } label: {
+                    SettingsGlassRow {
+                        settingsRowContent(title: String(localized: "로컬 녹화"), systemImage: "record.circle")
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(!youtube.canOpenLocalCapture)
+                .accessibilityIdentifier("lab-local-recording")
+            }
         }
     }
 

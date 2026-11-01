@@ -251,6 +251,35 @@ final class WebRTCCameraFrameRelayTests: XCTestCase {
     }
 
     @MainActor
+    func testProtectedRecordingNeverAdmitsCameraOrUnanonymizedFrames() async throws {
+        let target = ColorRecordingVideoTarget()
+        let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: .back, processingMode: .onDevice)
+        // Anonymization off makes the processor pass the camera frame through without the AI model.
+        relay.setLocalAnonymizationEnabled(false)
+        defer { relay.stopProcessing() }
+        let recorder = LocalBroadcastRecorder(source: .protected)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("protected-\(UUID().uuidString).mp4")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let epoch = CMClockGetTime(CMClockGetHostTimeClock())
+        try recorder.start(url: url, epoch: epoch)
+        let admitted = OriginalRecordingAdmission()
+        recorder.setValidationVideoAdmission { buffer, rotation, timestamp in
+            admitted.record(buffer, rotation: rotation, timestamp: timestamp)
+        }
+        relay.setRecordingSink(recorder)
+        let timestamp = CMTimeConvertScale(epoch, timescale: 1_000_000_000, method: .default).value
+        let frame = try makeFrame(rotation: 0, timeStampNs: timestamp)
+        let delivered = expectation(description: "pass-through uplink frame")
+        target.onFrame = { delivered.fulfill() }
+        relay.capturer(LKRTCVideoCapturer(delegate: target), didCapture: frame)
+        await fulfillment(of: [delivered], timeout: 3)
+        XCTAssertNotNil(target.lastFrame, "the uplink still receives the pass-through frame")
+        XCTAssertEqual(admitted.snapshot.count, 0, "a protected recorder must not receive raw frames")
+        relay.setRecordingSink(nil)
+        _ = try? await recorder.stop()
+    }
+
+    @MainActor
     private func assertOriginalRecording(mode: AIProcessingMode, stopRoute: Bool = false) async throws {
         let target = ColorRecordingVideoTarget()
         let relay = WebRTCCameraFrameRelay(target: target, cameraPosition: .back, processingMode: mode)

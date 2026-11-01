@@ -3,7 +3,7 @@ import CoreImage
 import Foundation
 
 nonisolated enum LocalBroadcastRecordingError: LocalizedError {
-    case alreadyStarted, notStarted, noVideo, noAudio, audioOverflow, invalidAudio, conversion, nonMonotonicAudio
+    case alreadyStarted, notStarted, noVideo, noAudio, audioOverflow, invalidAudio, conversion
     case writer(String)
     var errorDescription: String? {
         switch self {
@@ -14,7 +14,6 @@ nonisolated enum LocalBroadcastRecordingError: LocalizedError {
         case .audioOverflow: String(localized: "저장 속도가 느려 음성을 기록하지 못했습니다.")
         case .invalidAudio: String(localized: "녹화 음성 형식이 올바르지 않습니다.")
         case .conversion: String(localized: "녹화 프레임을 변환하지 못했습니다.")
-        case .nonMonotonicAudio: String(localized: "녹화 음성 시간 정보가 겹칩니다.")
         case let .writer(message): message
         }
     }
@@ -61,8 +60,10 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     private var failure: Error?
     private let onFailure: @Sendable (String) -> Void
     private var hasReportedFailure = false
+    let source: RecordingSource
 
-    init(onFailure: @escaping @Sendable (String) -> Void = { _ in }) {
+    init(source: RecordingSource = .raw, onFailure: @escaping @Sendable (String) -> Void = { _ in }) {
+        self.source = source
         self.onFailure = onFailure
     }
     private var audioPackets: [AudioPacket] = []
@@ -204,7 +205,6 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
                 let delta = CMTimeGetSeconds(CMTimeSubtract(rawTime, covered))
                 // Suppress small host timestamp jitter without repeatedly inserting tiny silences.
                 // Real route interruptions larger than 3 ms retain their wall-clock duration.
-                if delta < -0.003 { throw LocalBroadcastRecordingError.nonMonotonicAudio }
                 if delta > 0.003 {
                     let count = AVAudioFrameCount(min(4_800, max(1, Int64((delta * 48_000).rounded()))))
                     guard let silence = AVAudioPCMBuffer(pcmFormat: packet.buffer.format, frameCapacity: count),
@@ -213,7 +213,9 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
                     for channel in 0..<2 { channels[channel].initialize(repeating: 0, count: Int(count)) }
                     try writeAudioBuffer(silence, start: covered, isSilence: true)
                 } else {
-                    try writeAudioBuffer(packet.buffer, start: covered, isSilence: false)
+                    if let unwritten = try Self.unwrittenAudio(packet.buffer, secondsAfterWrittenEnd: delta) {
+                        try writeAudioBuffer(unwritten, start: covered, isSilence: false)
+                    }
                     audioPackets.removeFirst()
                     releaseAudio(packet)
                 }
@@ -358,6 +360,20 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
         if !isSilence { audioFrames += Int(buffer.frameLength) }
         lastAudioEnd = CMTimeAdd(start, CMTime(value: Int64(buffer.frameLength), timescale: 48_000))
         lastMediaEnd = CMTimeMaximum(lastMediaEnd, lastAudioEnd)
+    }
+
+    private static func unwrittenAudio(_ buffer: AVAudioPCMBuffer, secondsAfterWrittenEnd offset: Double) throws -> AVAudioPCMBuffer? {
+        guard offset < -0.003 else { return buffer }
+        let count = AVAudioFrameCount((-offset * 48_000).rounded())
+        guard count < buffer.frameLength else { return nil }
+        let length = buffer.frameLength - count
+        guard let tail = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: length),
+              let source = buffer.floatChannelData, let destination = tail.floatChannelData else {
+            throw LocalBroadcastRecordingError.conversion
+        }
+        tail.frameLength = length
+        for channel in 0..<2 { destination[channel].update(from: source[channel] + Int(count), count: Int(length)) }
+        return tail
     }
 
     private func fitted(_ buffer: CVPixelBuffer, width: Int, height: Int) throws -> CVPixelBuffer {

@@ -12,6 +12,8 @@ nonisolated struct SavedBroadcastRecording: Codable, Identifiable, Sendable, Equ
     let videoFrames: Int?
     let audioFrames: Int?
     let droppedVideoFrames: Int?
+    var source: RecordingSource? = nil
+    var mosaic: OnDeviceMosaicSettings? = nil
 }
 
 nonisolated enum RecordingSessionStoreError: LocalizedError {
@@ -50,6 +52,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         let id: UUID
         let sessionID: String
         let createdAt: Date
+        let source: RecordingSource
+        let mosaic: OnDeviceMosaicSettings?
         let partialURL: URL
         let finalURL: URL
         let recorder: LocalBroadcastRecorder
@@ -87,7 +91,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
     /// Call before the actual go-live request; attach the returned recorder to video/audio sinks.
     /// A previous session may still be finalizing. Its completion cannot overwrite this session's state.
     @discardableResult
-    func begin(sessionID: String, onFailure: @escaping @Sendable (String) -> Void = { _ in }) throws -> LocalBroadcastRecorder {
+    func begin(sessionID: String, source: RecordingSource = .raw, mosaic: OnDeviceMosaicSettings? = nil,
+               onFailure: @escaping @Sendable (String) -> Void = { _ in }) throws -> LocalBroadcastRecorder {
         guard active == nil else { throw RecordingSessionStoreError.alreadyRecording }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         guard try availableCapacity(directory) >= minimumFreeBytes else { throw RecordingSessionStoreError.insufficientSpace }
@@ -95,11 +100,11 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         let token = UUID()
         let partialURL = directory.appendingPathComponent("\(id.uuidString).partial.mp4")
         let finalURL = directory.appendingPathComponent("\(id.uuidString).mp4")
-        let recorder = LocalBroadcastRecorder(onFailure: onFailure)
+        let recorder = LocalBroadcastRecorder(source: source, onFailure: onFailure)
         try recorder.start(url: partialURL)
         generation = token
         let session = Session(generation: token, id: id, sessionID: sessionID, createdAt: Date(),
-            partialURL: partialURL, finalURL: finalURL, recorder: recorder)
+            source: source, mosaic: source == .protected ? mosaic : nil, partialURL: partialURL, finalURL: finalURL, recorder: recorder)
         try writeJournal(session, status: .provisional)
         active = session
         Self.ownedPaths.insert(Self.ownershipKey(partialURL))
@@ -272,12 +277,14 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                     if let metadata, metadata.id == id, metadata.fileName == url.lastPathComponent {
                         entry = SavedBroadcastRecording(id: id, sessionID: metadata.sessionID, createdAt: metadata.createdAt,
                             duration: duration, fileName: url.lastPathComponent, bytes: Int64(attributes.fileSize ?? 0),
-                            videoFrames: metadata.videoFrames, audioFrames: metadata.audioFrames, droppedVideoFrames: metadata.droppedVideoFrames)
+                            videoFrames: metadata.videoFrames, audioFrames: metadata.audioFrames, droppedVideoFrames: metadata.droppedVideoFrames,
+                            source: metadata.source, mosaic: metadata.mosaic)
                     } else {
                         let journal = readJournal(id)
                         entry = SavedBroadcastRecording(id: id, sessionID: journal?.sessionID ?? "", createdAt: journal?.createdAt ?? attributes.creationDate ?? Date(),
                             duration: duration, fileName: url.lastPathComponent, bytes: Int64(attributes.fileSize ?? 0),
-                            videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil)
+                            videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil,
+                            source: journal?.source, mosaic: journal?.mosaic)
                     }
                     try JSONEncoder().encode(entry).write(to: metadataURL, options: .atomic)
                     recovered.append(entry)
@@ -308,7 +315,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
         let metadata = SavedBroadcastRecording(id: session.id, sessionID: session.sessionID, createdAt: session.createdAt,
             duration: duration, fileName: session.finalURL.lastPathComponent, bytes: Int64(values.fileSize ?? 0),
             videoFrames: pending.result.videoFrames, audioFrames: pending.result.audioFrames,
-            droppedVideoFrames: pending.result.droppedVideoFrames)
+            droppedVideoFrames: pending.result.droppedVideoFrames,
+            source: session.source, mosaic: session.mosaic)
         try JSONEncoder().encode(metadata).write(to: directory.appendingPathComponent("\(session.id.uuidString).json"), options: .atomic)
         recordings.removeAll { $0.id == metadata.id }
         recordings.append(metadata)
@@ -368,7 +376,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
 
     private func writeJournal(_ session: Session, status: RecordingRecoveryJournal.Status) throws {
         let journal = RecordingRecoveryJournal(id: session.id, sessionID: session.sessionID,
-                                              createdAt: session.createdAt, status: status)
+                                              createdAt: session.createdAt, status: status,
+                                              source: session.source, mosaic: session.mosaic)
         try JSONEncoder().encode(journal).write(to: journalURL(session.id), options: .atomic)
     }
 

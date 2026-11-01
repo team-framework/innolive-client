@@ -35,7 +35,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         XCTAssertTrue(fixture.sink.recorder === recorder)
         XCTAssertEqual(fixture.lifecycle.phase, .starting)
         fixture.update(["youtube"])
-        fixture.coordinator.arm(sessionID: "session")
+        fixture.coordinator.arm(sessionID: .server("session"))
         fixture.update(["youtube", "chzzk"])
         XCTAssertEqual(fixture.sink.attachments, 1)
         fixture.update([])
@@ -53,7 +53,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         let recorder = try XCTUnwrap(fixture.sink.recorder)
         try await feed(recorder)
         let generation = fixture.lifecycle.generation
-        fixture.coordinator.abortFailedStart(sessionID: "session")
+        fixture.coordinator.abortFailedStart(sessionID: .server("session"))
         fixture.lifecycle.startFailed(generation: generation, message: "all targets rejected")
         XCTAssertNil(fixture.sink.recorder)
         await fixture.coordinator.waitForPendingWork()
@@ -61,7 +61,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: fixture.directory.path).isEmpty)
         fixture.start()
         XCTAssertNotNil(fixture.sink.recorder)
-        fixture.coordinator.abortFailedStart(sessionID: "session")
+        fixture.coordinator.abortFailedStart(sessionID: .server("session"))
         await fixture.coordinator.waitForPendingWork()
     }
 
@@ -95,7 +95,7 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         XCTAssertEqual(fixture.lifecycle.generation, generation)
         XCTAssertEqual(fixture.lifecycle.recording, .recording)
         XCTAssertTrue(fixture.sink.recorder === newRecorder)
-        fixture.coordinator.abortFailedStart(sessionID: "session")
+        fixture.coordinator.abortFailedStart(sessionID: .server("session"))
         await fixture.coordinator.waitForPendingWork()
     }
 
@@ -112,6 +112,32 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         XCTAssertEqual(fixture.lifecycle.phase, .result)
         XCTAssertEqual(fixture.store.recordings.count, 1)
         XCTAssertNil(fixture.sink.recorder)
+    }
+
+    func testLocalTakeSavesWithoutServerSession() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let id = UUID()
+        let capture = CaptureSessionID.local(id)
+        let generation = try XCTUnwrap(fixture.lifecycle.beginLocalTake())
+        fixture.coordinator.arm(sessionID: capture)
+        fixture.lifecycle.reconcileTargets([CaptureSessionID.localTarget], generation: generation)
+        fixture.coordinator.reconcile(targets: [CaptureSessionID.localTarget], sessionID: capture)
+        XCTAssertEqual(fixture.lifecycle.phase, .live)
+        let recorder = try XCTUnwrap(fixture.sink.recorder)
+        try await feed(recorder)
+        fixture.coordinator.reconcile(targets: [], sessionID: .server(capture.recordingKey))
+        XCTAssertTrue(fixture.sink.recorder === recorder, "a server update cannot end a local take")
+        fixture.lifecycle.finishLocalSession(warning: nil)
+        fixture.coordinator.endLocally()
+        XCTAssertNil(fixture.sink.recorder)
+        await fixture.coordinator.waitForPendingWork()
+        let recording = try XCTUnwrap(fixture.store.recordings.first)
+        XCTAssertEqual(fixture.store.recordings.count, 1)
+        XCTAssertEqual(recording.sessionID, "local-\(id.uuidString)")
+        XCTAssertEqual(fixture.lifecycle.recording, .saved(fixture.store.fileURL(for: recording)))
+        XCTAssertNil(fixture.lifecycle.result?.terminationWarning)
+        XCTAssertNotNil(fixture.lifecycle.beginLocalTake(), "the next take starts from the result screen")
     }
 
     func testResetDuringUnconfirmedStartDiscardsProvisionalMedia() async throws {
@@ -193,12 +219,12 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         lifecycle.advanceCountdown(generation: generation)
         lifecycle.advanceCountdown(generation: generation)
         XCTAssertTrue(lifecycle.beginStarting(generation: generation))
-        coordinator.arm(sessionID: "session")
+        coordinator.arm(sessionID: .server("session"))
     }
 
     func update(_ targets: Set<String>) {
         lifecycle.reconcileTargets(targets, generation: lifecycle.generation)
-        coordinator.reconcile(targets: targets, sessionID: "session")
+        coordinator.reconcile(targets: targets, sessionID: .server("session"))
     }
 
     func removeFiles() { try? FileManager.default.removeItem(at: directory) }

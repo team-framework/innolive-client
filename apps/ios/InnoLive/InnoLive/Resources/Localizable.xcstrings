@@ -1,6 +1,535 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "얼굴 등록 데이터를 안전하게 저장하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 등록 데이터를 안전하게 저장하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t save the face registrations securely."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔登録データを安全に保存できませんでした。"
+          }
+        }
+      }
+    },
+    "얼굴 인식 모델이 바뀌어 다시 등록해야 합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 인식 모델이 바뀌어 다시 등록해야 합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The face recognition model changed. Register faces again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔認識モデルが変更されたため、再登録が必要です。"
+          }
+        }
+      }
+    },
+    "이 기기에서 등록 데이터를 읽을 수 없어 초기화했습니다. 다시 등록해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에서 등록 데이터를 읽을 수 없어 초기화했습니다. 다시 등록해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registrations couldn’t be read on this device and were reset. Register again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末で登録データを読み取れなかったため初期化しました。もう一度登録してください。"
+          }
+        }
+      }
+    },
+    "AI 모델을 준비하는 중입니다. 준비가 끝나면 녹화할 수 있어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 모델을 준비하는 중입니다. 준비가 끝나면 녹화할 수 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing the AI models. You can record once they are ready."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIモデルを準備しています。準備が終わると録画できます。"
+          }
+        }
+      }
+    },
+    "온디바이스 AI 모델이 없는 빌드입니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온디바이스 AI 모델이 없는 빌드입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This build has no on-device AI models."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このビルドにはオンデバイスAIモデルがありません。"
+          }
+        }
+      }
+    },
+    "AI 모델 준비 중 %lld%%": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 모델 준비 중 %lld%%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing AI models %lld%%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIモデルを準備中 %lld%%"
+          }
+        }
+      }
+    },
+    "AI 모델을 준비하지 못했습니다. %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 모델을 준비하지 못했습니다. %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t prepare the AI models. %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIモデルを準備できませんでした。%@"
+          }
+        }
+      }
+    },
+    "AI 모델 준비됨 · %@초": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 모델 준비됨 · %@초"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI models ready · %@ s"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIモデル準備完了 · %@秒"
+          }
+        }
+      }
+    },
+    "이 빌드의 첫 준비라 1분 정도 걸릴 수 있어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 빌드의 첫 준비라 1분 정도 걸릴 수 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First preparation for this build can take about a minute."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このビルドの初回準備のため、1分ほどかかる場合があります。"
+          }
+        }
+      }
+    },
+    "항상 로컬 모드로 녹화합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "항상 로컬 모드로 녹화합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording in always-local mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "常にローカルモードで録画します。"
+          }
+        }
+      }
+    },
+    "서버에 연결할 수 없어 로컬 모드로 녹화합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버에 연결할 수 없어 로컬 모드로 녹화합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can’t reach the server, so recording in local mode."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに接続できないため、ローカルモードで録画します。"
+          }
+        }
+      }
+    },
+    "로컬 녹화 시작": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로컬 녹화 시작"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start local recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカル録画を開始"
+          }
+        }
+      }
+    },
+    "서버 모드로 전환": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 모드로 전환"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch to server mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーモードに切り替え"
+          }
+        }
+      }
+    },
+    "로컬": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로컬"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカル"
+          }
+        }
+      }
+    },
+    "서버 연결됨": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 연결됨"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server connected"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバー接続済み"
+          }
+        }
+      }
+    },
+    "항상 로컬 모드": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "항상 로컬 모드"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Always local mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "常にローカルモード"
+          }
+        }
+      }
+    },
+    "인터넷 연결 없이 로그아웃할까요?": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "인터넷 연결 없이 로그아웃할까요?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out without an internet connection?"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "インターネットに接続せずにログアウトしますか？"
+          }
+        }
+      }
+    },
+    "다시 로그인하려면 인터넷 연결이 필요합니다. 로그아웃하면 이 기기의 오프라인 사용 기간도 삭제됩니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 로그인하려면 인터넷 연결이 필요합니다. 로그아웃하면 이 기기의 오프라인 사용 기간도 삭제됩니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing in again needs an internet connection. Signing out also removes this device’s offline period."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "再ログインにはインターネット接続が必要です。ログアウトすると、この端末のオフライン利用期間も削除されます。"
+          }
+        }
+      }
+    },
+    "오프라인 사용 기간이 끝났습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오프라인 사용 기간이 끝났습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your offline period has ended. Connect to the internet once to confirm your sign-in."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフライン利用期間が終了しました。インターネットに接続してログイン状態を一度確認してください。"
+          }
+        }
+      }
+    },
+    "영상을 앱에 저장했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상을 앱에 저장했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video saved in the app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画をアプリに保存しました"
+          }
+        }
+      }
+    },
+    "비식별 영상을 앱에 저장했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별 영상을 앱에 저장했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De-identified video saved in the app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化した動画をアプリに保存しました"
+          }
+        }
+      }
+    },
+    "기기 온도가 너무 높아 녹화를 종료하고 저장했어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 온도가 너무 높아 녹화를 종료하고 저장했어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The device is too hot, so recording stopped and was saved."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の温度が高すぎるため、録画を終了して保存しました。"
+          }
+        }
+      }
+    },
+    "기기 온도가 너무 높아 녹화를 시작할 수 없어요. 잠시 후 다시 시도해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 온도가 너무 높아 녹화를 시작할 수 없어요. 잠시 후 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The device is too hot to start recording. Try again in a moment."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の温度が高すぎるため録画を開始できません。しばらくしてからもう一度お試しください。"
+          }
+        }
+      }
+    },
     "온디바이스 AI는 기본 강도와 너비보다 약하게 할 수 없습니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -13201,29 +13730,6 @@
         }
       }
     },
-    "녹화 음성 시간 정보가 겹칩니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "녹화 음성 시간 정보가 겹칩니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recording audio timestamps overlap."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "録画音声のタイムスタンプが重複しています。"
-          }
-        }
-      }
-    },
     "음성 저장을 마무리하는 시간이 초과되었습니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -15541,6 +16047,144 @@
           "stringUnit": {
             "state": "translated",
             "value": "CHZZK"
+          }
+        }
+      }
+    },
+    "로컬 녹화": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로컬 녹화"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカル録画"
+          }
+        }
+      }
+    },
+    "녹화 시작": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 시작"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画開始"
+          }
+        }
+      }
+    },
+    "녹화 종료": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 종료"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop Recording"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "録画終了"
+          }
+        }
+      }
+    },
+    "카메라를 준비하는 중": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카메라를 준비하는 중"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing the camera"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラを準備しています"
+          }
+        }
+      }
+    },
+    "서버 연결 없이 이 기기에만 녹화합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "서버 연결 없이 이 기기에만 녹화합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Records only to this device without a server connection."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サーバーに接続せず、このデバイスにのみ録画します。"
+          }
+        }
+      }
+    },
+    "방송 준비 중에는 로컬 녹화를 시작할 수 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "방송 준비 중에는 로컬 녹화를 시작할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local recording can't start while a broadcast is being prepared."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "配信の準備中はローカル録画を開始できません。"
           }
         }
       }

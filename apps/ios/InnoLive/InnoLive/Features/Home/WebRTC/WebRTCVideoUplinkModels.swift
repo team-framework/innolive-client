@@ -154,6 +154,12 @@ struct WebRTCSessionCredentials {
     var sendsMicrophoneToServer = true
     var isDirectPublish = false
     var broadcastResolution = VideoUplinkResolution.hd720
+    var isLocalOnly = false
+
+    static func localOnly(_ id: UUID) -> WebRTCSessionCredentials {
+        WebRTCSessionCredentials(sessionID: CaptureSessionID.local(id).recordingKey, ownerToken: "",
+                                 processingMode: .onDevice, sendsMicrophoneToServer: false, isLocalOnly: true)
+    }
 }
 
 struct WebRTCIceServer: Codable, Equatable {

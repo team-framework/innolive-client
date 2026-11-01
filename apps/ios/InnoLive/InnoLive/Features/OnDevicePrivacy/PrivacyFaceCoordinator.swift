@@ -35,7 +35,10 @@ nonisolated final class PrivacyFaceCoordinator {
 
     init() {
         worker.prepare()
-        do { library = try PrivacyFaceLibrary() }
+        do {
+            library = try PrivacyFaceLibrary()
+            if let notice = library?.notice { message = notice }
+        }
         catch { disabled = true; message = "등록 데이터 읽기 실패: \(error.localizedDescription)" }
     }
 
@@ -142,6 +145,7 @@ nonisolated final class PrivacyFaceCoordinator {
         generation += 1
         do {
             library = try PrivacyFaceLibrary()
+            if let notice = library?.notice { message = notice }
             libraryRevision = revision
             tracking.retainEntries(Set((library?.entries ?? []).map(\.id)))
         } catch {

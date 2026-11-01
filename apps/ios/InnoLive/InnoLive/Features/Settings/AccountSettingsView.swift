@@ -3,6 +3,7 @@ import SwiftUI
 struct AccountSettingsView: View {
     @ObservedObject var authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
+    @State private var isShowingOfflineSignOutConfirmation = false
     @State private var isShowingDeleteConfirmation = false
 
     private var isYouTubeBusy: Bool {
@@ -26,8 +27,11 @@ struct AccountSettingsView: View {
             InnoLiveGlassContainer {
                 VStack(spacing: 12) {
                     Button {
-                        youtube.reset()
-                        authentication.signOut()
+                        if case .local(let reason) = youtube.operatingMode.state.mode, reason != .userChoice {
+                            isShowingOfflineSignOutConfirmation = true
+                        } else {
+                            signOut()
+                        }
                     } label: {
                         SettingsGlassRow {
                             HStack(spacing: 12) {
@@ -88,6 +92,16 @@ struct AccountSettingsView: View {
         .navigationTitle(String(localized: "계정 설정"))
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
+            String(localized: "인터넷 연결 없이 로그아웃할까요?"),
+            isPresented: $isShowingOfflineSignOutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "로그아웃"), role: .destructive, action: signOut)
+            Button(String(localized: "취소"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "다시 로그인하려면 인터넷 연결이 필요합니다. 로그아웃하면 이 기기의 오프라인 사용 기간도 삭제됩니다."))
+        }
+        .confirmationDialog(
             String(localized: "계정을 삭제할까요?"),
             isPresented: $isShowingDeleteConfirmation,
             titleVisibility: .visible
@@ -104,6 +118,11 @@ struct AccountSettingsView: View {
         } message: {
             Text(String(localized: "계정 삭제가 완료되면 로그아웃되며 이 기기의 YouTube 연결과 방송 설정이 초기화됩니다."))
         }
+    }
+
+    private func signOut() {
+        youtube.reset()
+        authentication.signOut()
     }
 }
 

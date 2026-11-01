@@ -594,15 +594,17 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             lockedOrientation: lockedOrientation,
             cameraPosition: currentCameraPosition
         )
-        // Record camera input before color correction or either AI processing route.
+        // A raw recorder takes camera input before color correction or either AI processing route.
+        // A protected recorder takes only anonymized processor output below, never this frame.
         // The session coordinator owns attachment and detaches before finalization.
-        if let buffer = (outgoing.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
+        if recorder?.source == .raw, let buffer = (outgoing.buffer as? LKRTCCVPixelBuffer)?.pixelBuffer {
             #if DEBUG
             deliveryObserver?(buffer, Int(outgoing.rotation.rawValue), outgoing.timeStampNs)
             #endif
             recorder?.appendVideo(pixelBuffer: buffer,
                 rotation: Int(outgoing.rotation.rawValue), timestampNs: outgoing.timeStampNs)
         }
+        let protectedRecorder = recorder?.source == .protected ? recorder : nil
         deliverUnprocessedPreview(outgoing)
         let coloredPreview: LKRTCVideoFrame
         do {
@@ -636,7 +638,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
             #endif
             if ticket.mode == .onDevice {
                 let colorProcessor = uplinkColorProcessor
-                processor.submit(outgoing) { [target, route, colorProcessor, directSink] result in
+                processor.submit(outgoing) { [target, route, colorProcessor, directSink, protectedRecorder] result, anonymized in
                     let coloredUplink: LKRTCVideoFrame
                     do {
                         coloredUplink = try PrivacyPipelineProbe.measure("uplink_color") {
@@ -658,6 +660,10 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
                                 rotation: Int(coloredUplink.rotation.rawValue), timestampNs: coloredUplink.timeStampNs)
                         }
                         PrivacyPipelineProbe.count("delivered")
+                        if anonymized {
+                            protectedRecorder?.appendVideo(pixelBuffer: buffer,
+                                rotation: Int(coloredUplink.rotation.rawValue), timestampNs: coloredUplink.timeStampNs)
+                        }
                     }
                 }
             } else {

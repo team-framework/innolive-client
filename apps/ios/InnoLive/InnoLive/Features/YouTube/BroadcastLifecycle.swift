@@ -117,6 +117,16 @@ final class BroadcastLifecycle: ObservableObject {
         return true
     }
 
+    @discardableResult
+    func beginLocalTake(at date: Date = Date()) -> UInt? {
+        guard phase == .idle || phase == .result else { return nil }
+        reset()
+        phase = .starting
+        startedAt = date
+        recording = .armed
+        return generation
+    }
+
     func startFailed(generation: UInt, message: String) {
         guard isCurrent(generation), phase == .starting, activeTargets.isEmpty else { return }
         // Invalidate callbacks from a provisional writer which the caller discards.

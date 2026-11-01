@@ -57,10 +57,15 @@ JPEG 품질 0.9 처리 코드를 재사용한다. 기존 등록 ViewModel처럼 
 준비된 얼굴을 3회 확인한 뒤 사진 한 장의 embedding으로 등록한다.
 서버 API 호출은 로컬 특징값 저장으로 대체한다. 등록은 최대 20명이며 각 항목을 개별 삭제한다.
 
-이름·UUID·정규화 embedding을 `Library/Application Support/privacy-lab-faces-yunet.json`에 저장한다.
+이름·UUID·정규화 embedding을 AES-GCM sealed box로 암호화해
+`Library/Application Support/privacy-faces.sealed`에 저장한다. 키는 256-bit이며 Keychain에
+`WhenUnlockedThisDeviceOnly`로 두고 기기 밖으로 내보내지 않는다.
 사진·crop은 저장하지 않는다. 저장 파일에 iOS complete file protection과 백업 제외 속성을
 적용하며 API 전송을 하지 않는다. 앱 재실행 후 등록 목록을 읽는다.
-모델·전처리 계약이 다른 등록 데이터는 거부한다. 초기 Vision 실험의 `privacy-lab-faces.json`은
+기존 평문 `privacy-lab-faces-yunet.json`은 처음 읽을 때 암호화 파일로 옮긴 뒤 삭제한다.
+키가 없거나(백업 복원·새 기기) 인증에 실패한 파일은 삭제하고 빈 목록과 재등록 안내를 표시한다.
+모델·전처리 계약이 다른 등록 데이터는 비교할 수 없으므로 삭제하고 재등록 안내를 표시한다.
+로그아웃·세션 만료·계정 삭제 시 등록 파일과 키를 삭제하므로 다음 계정은 빈 목록에서 시작한다. 초기 Vision 실험의 `privacy-lab-faces.json`은
 덮어쓰거나 삭제하지 않으며 이번 YuNet 경로에서 읽지 않는다. 기존 사용자는 다시 등록해야 한다.
 저장 실패는 UI에 표시한다.
 삭제 저장이 실패하면 얼굴 예외 전체를 중지한다.

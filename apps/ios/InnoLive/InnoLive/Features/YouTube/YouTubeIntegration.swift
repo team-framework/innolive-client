@@ -20,7 +20,11 @@ final class YouTubeIntegration: ObservableObject {
     lazy var recordingCoordinator = BroadcastRecordingCoordinator(store: recordingStore, lifecycle: lifecycle) { [weak self] recorder in
         self?.videoUplink.setRecordingSink(recorder)
         self?.directPublisher.setRecordingSink(recorder)
+        self?.localRecordingAudio.set(recorder)
     }
+    @Published var localCaptureID: UUID?
+    let localRecordingAudio = BroadcastRecordingSinkSlot()
+    let localMicrophone: any DirectAudioCapturing = DirectMicrophoneCapture()
     private var recordingSubscription: AnyCancellable?
     private var recordingStoreSubscription: AnyCancellable?
     private var lifecycleSubscription: AnyCancellable?
@@ -247,6 +251,9 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     let planStore = PlanStore()
+    let offlineGrantStore: OfflineGrantStoring = OfflineGrantStore()
+    let operatingMode = OperatingModeMonitor()
+    let modelReadiness = ModelReadinessStore()
     @Published var isRemainingTimeStale = false
 
     var currentPlanMode: BroadcastPlanMode {
@@ -258,10 +265,21 @@ final class YouTubeIntegration: ObservableObject {
         await planStore.refresh(api: api, accessToken: accessToken)
     }
 
-    /// 실험실 표시 여부다. 확인하지 못하면 숨긴다.
+    /// 실험실 표시 여부다. 온라인 확인 결과는 오프라인 이용 기간으로 저장하고,
+    /// 서버에 닿지 못하면 마지막 확인 결과를 쓴다. 그 밖의 실패는 숨긴다.
     func isAdministrator(accessToken: String?) async -> Bool {
         guard let accessToken, !accessToken.isEmpty else { return false }
-        return (try? await api.isAdministrator(accessToken: accessToken)) ?? false
+        do {
+            let isAdministrator = try await api.isAdministrator(accessToken: accessToken)
+            offlineGrantStore.save(OfflineGrant(isAdministrator: isAdministrator, issuedAt: .now))
+            return isAdministrator
+        } catch YouTubeAPIError.transport {
+            guard let grant = offlineGrantStore.load() else { return false }
+            offlineGrantStore.save(grant.observing(.now))
+            return grant.isAdministrator
+        } catch {
+            return false
+        }
     }
 
     func configureAuthentication(_ authentication: AuthSession) {
@@ -377,6 +395,9 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        operatingMode.stop()
+        localMicrophone.stop()
+        localCaptureID = nil
         invalidateBroadcastLifecycle()
         processingSwitchID = UUID()
         isSwitchingToOnDevice = false
