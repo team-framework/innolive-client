@@ -201,6 +201,10 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         cameraFrameRelay?.setColor(warmth: normalized.warmth, saturation: normalized.saturation)
     }
 
+    func setOnDeviceMosaic(_ settings: OnDeviceMosaicSettings) {
+        cameraFrameRelay?.setOnDeviceMosaic(settings)
+    }
+
     func setUnprocessedPreviewHandler(_ handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
         unprocessedPreviewHandler = handler
         cameraFrameRelay?.setUnprocessedPreviewHandler(handler)
