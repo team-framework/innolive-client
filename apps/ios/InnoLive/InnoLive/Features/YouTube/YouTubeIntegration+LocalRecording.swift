@@ -42,6 +42,9 @@ extension YouTubeIntegration {
             throw WebRTCVideoUplinkError.failed(OfflineGrant.expiredMessage)
         }
         offlineGrantStore.save(grant.observing(now))
+        guard modelReadiness.isReady else {
+            throw WebRTCVideoUplinkError.failed(String(localized: "AI 모델을 준비하는 중입니다. 준비가 끝나면 녹화할 수 있어요."))
+        }
         guard let id = localCaptureID, videoUplink.state == .connected,
               let generation = lifecycle.beginLocalTake() else { return }
         let capture = CaptureSessionID.local(id)
