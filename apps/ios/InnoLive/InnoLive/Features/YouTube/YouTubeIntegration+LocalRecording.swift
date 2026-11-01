@@ -36,7 +36,7 @@ extension YouTubeIntegration {
         guard let id = localCaptureID, videoUplink.state == .connected,
               let generation = lifecycle.beginLocalTake() else { return }
         let capture = CaptureSessionID.local(id)
-        recordingCoordinator.arm(sessionID: capture)
+        recordingCoordinator.arm(sessionID: capture, source: .protected, mosaic: videoUplink.onDeviceMosaic)
         lifecycle.reconcileTargets([CaptureSessionID.localTarget], generation: generation)
         recordingCoordinator.reconcile(targets: [CaptureSessionID.localTarget], sessionID: capture)
         let audio = localRecordingAudio

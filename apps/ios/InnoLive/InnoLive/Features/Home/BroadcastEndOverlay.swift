@@ -149,7 +149,7 @@ struct BroadcastEndOverlay: View {
             .accessibilityIdentifier("broadcast-result-saving")
         case .saved:
             if savedURL != nil {
-                Text(String(localized: "원본 영상을 앱에 저장했어요"))
+                Text(String(localized: "영상을 앱에 저장했어요"))
                     .accessibilityIdentifier("broadcast-result-saved")
             } else {
                 Text(String(localized: "저장된 파일을 찾을 수 없습니다."))

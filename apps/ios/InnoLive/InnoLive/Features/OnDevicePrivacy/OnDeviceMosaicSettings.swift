@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct OnDeviceMosaicSettings: Equatable {
+nonisolated struct OnDeviceMosaicSettings: Equatable, Codable, Sendable {
     static let defaultBlurStrength = 24
     static let maxBlurStrength = 48
     static let blurStrengthStep = 6

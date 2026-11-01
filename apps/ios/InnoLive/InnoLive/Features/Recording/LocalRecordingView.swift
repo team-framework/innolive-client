@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftUI
 
@@ -10,6 +11,7 @@ struct LocalRecordingView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var openError: String?
     @State private var isClosing = false
+    @State private var thermalNotice: String?
 
     var body: some View {
         NavigationStack {
@@ -17,6 +19,12 @@ struct LocalRecordingView: View {
                 preview
                 status
                     .frame(minHeight: 44)
+                if let thermalNotice {
+                    Text(thermalNotice)
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                        .multilineTextAlignment(.center)
+                }
                 recordButton
                 Text(String(localized: "서버 연결 없이 이 기기에만 녹화합니다."))
                     .font(.footnote)
@@ -37,6 +45,16 @@ struct LocalRecordingView: View {
         .task { await open() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { youtube.stopLocalTake() }
+        }
+        // Processing failures record no frames, so end the take and save what was protected.
+        .onChange(of: uplink.errorMessage) { _, message in
+            if message != nil { youtube.stopLocalTake() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ProcessInfo.thermalStateDidChangeNotification)
+            .receive(on: RunLoop.main)) { _ in
+            guard ProcessInfo.processInfo.thermalState == .critical, youtube.isLocalTakeRecording else { return }
+            thermalNotice = Self.thermalStopMessage
+            youtube.stopLocalTake()
         }
     }
 
@@ -73,7 +91,7 @@ struct LocalRecordingView: View {
             case .finalizing:
                 Text(String(localized: "영상을 저장하는 중"))
             case .saved:
-                Text(String(localized: "원본 영상을 앱에 저장했어요"))
+                Text(String(localized: "비식별 영상을 앱에 저장했어요"))
                     .accessibilityIdentifier("local-recording-saved")
             case .failed(let message):
                 VStack(spacing: 4) {
@@ -89,7 +107,14 @@ struct LocalRecordingView: View {
 
     private var recordButton: some View {
         Button {
-            if youtube.isLocalTakeRecording { youtube.stopLocalTake() } else { youtube.startLocalTake() }
+            if youtube.isLocalTakeRecording {
+                youtube.stopLocalTake()
+            } else if ProcessInfo.processInfo.thermalState == .critical {
+                thermalNotice = Self.thermalBlockedMessage
+            } else {
+                thermalNotice = nil
+                youtube.startLocalTake()
+            }
         } label: {
             Text(youtube.isLocalTakeRecording ? String(localized: "녹화 종료") : String(localized: "녹화 시작"))
                 .font(.headline)
@@ -100,6 +125,9 @@ struct LocalRecordingView: View {
         .disabled((uplink.state != .connected && !youtube.isLocalTakeRecording) || isClosing || lifecycle.recording == .finalizing)
         .accessibilityIdentifier("local-recording-toggle")
     }
+
+    private static let thermalStopMessage = String(localized: "기기 온도가 너무 높아 녹화를 종료하고 저장했어요.")
+    private static let thermalBlockedMessage = String(localized: "기기 온도가 너무 높아 녹화를 시작할 수 없어요. 잠시 후 다시 시도해 주세요.")
 
     private func open() async {
         await cameraManager.stopSession()

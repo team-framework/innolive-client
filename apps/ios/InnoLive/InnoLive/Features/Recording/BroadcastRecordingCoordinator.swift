@@ -28,13 +28,13 @@ final class BroadcastRecordingCoordinator: ObservableObject {
 
     /// Only call immediately before the initial go-live request, after the countdown has completed.
     /// Additional platforms share the active recorder.
-    func arm(sessionID: CaptureSessionID) {
+    func arm(sessionID: CaptureSessionID, source: RecordingSource = .raw, mosaic: OnDeviceMosaicSettings? = nil) {
         guard active == nil, lifecycle.phase == .starting else { return }
         notice = nil
         retryGeneration = nil
         let generation = lifecycle.generation
         do {
-            let recorder = try store.begin(sessionID: sessionID.recordingKey) { [weak self] message in
+            let recorder = try store.begin(sessionID: sessionID.recordingKey, source: source, mosaic: mosaic) { [weak self] message in
                 Task { @MainActor [weak self] in
                     guard let self, self.lifecycle.isCurrent(generation),
                           self.active?.generation == generation else { return }
