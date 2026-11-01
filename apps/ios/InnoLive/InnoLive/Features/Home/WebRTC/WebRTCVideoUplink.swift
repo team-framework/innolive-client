@@ -18,6 +18,7 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
     @Published private(set) var currentZoomFactor = CameraZoom.defaultFactor
     @Published private(set) var zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
     @Published private(set) var videoQualitySettings = BroadcastVideoQualitySettings.load()
+    @Published private(set) var onDeviceMosaic = OnDeviceMosaicSettings.load()
     @Published private(set) var stabilizationStatus: VideoStabilizationStatus = .inactive
     @Published private(set) var uplinkQuality = BroadcastUplinkQuality.measuring
 
@@ -199,6 +200,13 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         videoQualitySettings = normalized
         normalized.save()
         cameraFrameRelay?.setColor(warmth: normalized.warmth, saturation: normalized.saturation)
+    }
+
+    func setOnDeviceMosaic(_ settings: OnDeviceMosaicSettings) {
+        let normalized = settings.normalized()
+        onDeviceMosaic = normalized
+        normalized.save()
+        cameraFrameRelay?.setOnDeviceMosaic(normalized)
     }
 
     func setUnprocessedPreviewHandler(_ handler: (@Sendable (CVPixelBuffer, Int) -> Void)?) {
