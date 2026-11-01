@@ -112,8 +112,12 @@ struct LocalRecordingView: View {
             } else if ProcessInfo.processInfo.thermalState == .critical {
                 thermalNotice = Self.thermalBlockedMessage
             } else {
-                thermalNotice = nil
-                youtube.startLocalTake()
+                do {
+                    thermalNotice = nil
+                    try youtube.startLocalTake()
+                } catch {
+                    thermalNotice = error.localizedDescription
+                }
             }
         } label: {
             Text(youtube.isLocalTakeRecording ? String(localized: "녹화 종료") : String(localized: "녹화 시작"))
