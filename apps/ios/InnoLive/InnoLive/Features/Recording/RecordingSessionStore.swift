@@ -44,6 +44,8 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
     @Published private(set) var recordings: [SavedBroadcastRecording] = []
     @Published private(set) var libraryError: String?
     @Published private(set) var preservedRecordings: [PreservedBroadcastRecording] = []
+    /// Called once per newly committed file, from a normal save or from crash recovery.
+    var onSaved: (SavedBroadcastRecording) -> Void = { _ in }
     private static var ownedPaths: Set<String> = []
     private var isReloadingLibrary = false
     private var deletedRecordingIDs: Set<UUID> = []
@@ -318,6 +320,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
             droppedVideoFrames: pending.result.droppedVideoFrames,
             source: session.source, mosaic: session.mosaic)
         try JSONEncoder().encode(metadata).write(to: directory.appendingPathComponent("\(session.id.uuidString).json"), options: .atomic)
+        onSaved(metadata)
         recordings.removeAll { $0.id == metadata.id }
         recordings.append(metadata)
         recordings.sort { $0.createdAt > $1.createdAt }
@@ -424,6 +427,7 @@ nonisolated enum RecordingSessionStoreError: LocalizedError {
                             createdAt: journal.createdAt, duration: duration, fileName: finalURL.lastPathComponent,
                             bytes: Int64(after.fileSize ?? 0), videoFrames: nil, audioFrames: nil, droppedVideoFrames: nil)
                         try JSONEncoder().encode(metadata).write(to: directory.appendingPathComponent("\(id.uuidString).json"), options: .atomic)
+                        onSaved(metadata)
                         try? FileManager.default.removeItem(at: journalURL(id))
                         lease.end()
                         Self.ownedPaths.remove(key)

@@ -12,6 +12,7 @@ struct LocalRecordingView: View {
     @State private var openError: String?
     @State private var isClosing = false
     @State private var thermalNotice: String?
+    @State private var isShowingNotice = false
     @ObservedObject private var readiness: ModelReadinessStore
 
     init(youtube: YouTubeIntegration, uplink: WebRTCVideoUplink, lifecycle: BroadcastLifecycle) {
@@ -51,6 +52,13 @@ struct LocalRecordingView: View {
                         .accessibilityIdentifier("local-recording-close")
                 }
             }
+        }
+        .sheet(isPresented: $isShowingNotice) {
+            LocalRecordingNotice(onAcknowledge: {
+                youtube.consentStore.recordLocalRecordingNotice()
+                isShowingNotice = false
+                startTake()
+            }, onCancel: { isShowingNotice = false })
         }
         .task { await open() }
         .task { await readiness.warm() }
@@ -122,13 +130,10 @@ struct LocalRecordingView: View {
                 youtube.stopLocalTake()
             } else if ProcessInfo.processInfo.thermalState == .critical {
                 thermalNotice = Self.thermalBlockedMessage
+            } else if !youtube.consentStore.hasAcknowledgedLocalRecordingNotice {
+                isShowingNotice = true
             } else {
-                do {
-                    thermalNotice = nil
-                    try youtube.startLocalTake()
-                } catch {
-                    thermalNotice = error.localizedDescription
-                }
+                startTake()
             }
         } label: {
             Text(youtube.isLocalTakeRecording ? String(localized: "녹화 종료") : String(localized: "녹화 시작"))
@@ -140,6 +145,15 @@ struct LocalRecordingView: View {
         .disabled((!youtube.isLocalTakeRecording && (uplink.state != .connected || !readiness.isReady))
                   || isClosing || lifecycle.recording == .finalizing)
         .accessibilityIdentifier("local-recording-toggle")
+    }
+
+    private func startTake() {
+        do {
+            thermalNotice = nil
+            try youtube.startLocalTake()
+        } catch {
+            thermalNotice = error.localizedDescription
+        }
     }
 
     private static let thermalStopMessage = String(localized: "기기 온도가 너무 높아 녹화를 종료하고 저장했어요.")

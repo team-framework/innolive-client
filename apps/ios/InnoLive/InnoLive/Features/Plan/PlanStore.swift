@@ -15,9 +15,21 @@ final class PlanStore: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var lastUpdatedAt: Date?
     private var generation: UInt = 0
+    private var serverSnapshot: PlanSnapshot?
+    private var pendingLocalTakes: [LocalTakeUsage] = []
+
+    func setPendingLocalTakes(_ takes: [LocalTakeUsage]) {
+        pendingLocalTakes = takes
+        publish()
+    }
+
+    private func publish() {
+        snapshot = serverSnapshot?.addingPendingLocalTakes(pendingLocalTakes)
+    }
 
     func reset() {
         generation &+= 1
+        serverSnapshot = nil
         snapshot = nil
         lastUpdatedAt = nil
         errorMessage = nil
@@ -34,7 +46,8 @@ final class PlanStore: ObservableObject {
             let usage = try await api.userUsage(accessToken: accessToken)
             guard self.generation == generation, !Task.isCancelled else { return }
             guard plan.plan == usage.plan else { throw YouTubeAPIError.response }
-            snapshot = PlanSnapshot(plan: plan, usage: usage)
+            serverSnapshot = PlanSnapshot(plan: plan, usage: usage)
+            publish()
             lastUpdatedAt = .now
             errorMessage = nil
         } catch {

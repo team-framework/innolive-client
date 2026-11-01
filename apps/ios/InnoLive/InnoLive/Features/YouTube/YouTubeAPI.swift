@@ -185,6 +185,19 @@ final class YouTubeAPI: PlanAPIClient {
                           body: Optional<YouTubeEmptyRequest>.none)
     }
 
+    /// Returns the take IDs the server stored or already had.
+    func uploadLocalTakes(_ takes: [LocalTakeUsage], accessToken: String) async throws -> [UUID] {
+        guard let url = serverURLProvider("/users/me/usage/local-takes") else { throw YouTubeAPIError.configuration }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try LocalTakeUsageLedger.encoder.encode(LocalTakeUploadRequest(takes: takes))
+        let (data, response) = try await authenticatedData(for: request, accessToken: accessToken)
+        try validate(response, data: data)
+        return try decode(LocalTakeUploadResponse.self, from: data).takeIDs
+    }
+
     func configuration() async throws -> YouTubeConfiguration {
         guard let url = serverURLProvider("/auth/youtube/config") else {
             throw YouTubeAPIError.configuration
@@ -642,6 +655,15 @@ final class YouTubeAPI: PlanAPIClient {
 }
 
 private struct YouTubeAPIRequestInvalidated: Error {}
+
+private struct LocalTakeUploadRequest: Encodable {
+    let takes: [LocalTakeUsage]
+}
+
+private struct LocalTakeUploadResponse: Decodable {
+    let takeIDs: [UUID]
+    enum CodingKeys: String, CodingKey { case takeIDs = "take_ids" }
+}
 
 private struct YouTubeAPIErrorEnvelope: Decodable {
     struct ErrorBody: Decodable {
