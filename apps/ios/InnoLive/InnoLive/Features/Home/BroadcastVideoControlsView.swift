@@ -11,8 +11,6 @@ struct BroadcastVideoControlsView: View {
     // 슬라이더를 움직이는 동안의 값이다. 손을 떼면 서버로 보내고, 응답 후에는 확정값을 보인다.
     @State private var mosaicDraft: MosaicDraft?
     @State private var isEditingMosaic = false
-    // 온디바이스 모자이크 설정은 기기에만 저장하고 서버로 보내지 않는다.
-    @State private var onDeviceMosaic = OnDeviceMosaicSettings.load()
     // 처음에는 모자이크 영역만 보이게 열고, 색감은 위로 끌어 올려 본다.
     // 내비게이션 바·여백 높이를 더해 모자이크 영역 실측값으로 시트 높이를 정한다.
     private static let mosaicSheetChrome: CGFloat = 92
@@ -94,10 +92,6 @@ struct BroadcastVideoControlsView: View {
                 }
             }
             .onAppear(perform: startPresetPreviews)
-            .onAppear { if onDevice { uplink.setOnDeviceMosaic(onDeviceMosaic) } }
-            .onChange(of: onDevice) { _, isOnDevice in
-                if isOnDevice { uplink.setOnDeviceMosaic(onDeviceMosaic) }
-            }
             .onDisappear(perform: stopPresetPreviews)
             .onChange(of: uplink.isCapturingMedia) { _, _ in
                 startPresetPreviews()
@@ -141,7 +135,7 @@ struct BroadcastVideoControlsView: View {
 
             control(
                 title: String(localized: "블러 강도"),
-                value: "\(onDeviceMosaic.blurStrength)",
+                value: "\(uplink.onDeviceMosaic.blurStrength)",
                 binding: onDeviceMosaicBinding(\.blurStrength),
                 range: Double(OnDeviceMosaicSettings.blurStrengthRange.lowerBound)...Double(OnDeviceMosaicSettings.blurStrengthRange.upperBound),
                 step: Double(OnDeviceMosaicSettings.blurStrengthStep),
@@ -151,7 +145,7 @@ struct BroadcastVideoControlsView: View {
 
             control(
                 title: String(localized: "가림 영역 너비"),
-                value: "\(onDeviceMosaic.maskMargin)px",
+                value: "\(uplink.onDeviceMosaic.maskMargin)px",
                 binding: onDeviceMosaicBinding(\.maskMargin),
                 range: Double(OnDeviceMosaicSettings.maskMarginRange.lowerBound)...Double(OnDeviceMosaicSettings.maskMarginRange.upperBound),
                 step: 1,
@@ -160,7 +154,7 @@ struct BroadcastVideoControlsView: View {
             )
 
             Button {
-                commitOnDeviceMosaic(OnDeviceMosaicSettings())
+                uplink.setOnDeviceMosaic(OnDeviceMosaicSettings())
             } label: {
                 Label(String(localized: "모자이크 기본값"), systemImage: "arrow.counterclockwise")
                     .frame(maxWidth: .infinity, minHeight: 28)
@@ -230,20 +224,13 @@ struct BroadcastVideoControlsView: View {
 
     private func onDeviceMosaicBinding(_ keyPath: WritableKeyPath<OnDeviceMosaicSettings, Int>) -> Binding<Double> {
         Binding(
-            get: { Double(onDeviceMosaic[keyPath: keyPath]) },
+            get: { Double(uplink.onDeviceMosaic[keyPath: keyPath]) },
             set: { value in
-                var next = onDeviceMosaic
+                var next = uplink.onDeviceMosaic
                 next[keyPath: keyPath] = Int(value.rounded())
-                commitOnDeviceMosaic(next)
+                uplink.setOnDeviceMosaic(next)
             }
         )
-    }
-
-    private func commitOnDeviceMosaic(_ settings: OnDeviceMosaicSettings) {
-        let normalized = settings.normalized()
-        onDeviceMosaic = normalized
-        normalized.save()
-        uplink.setOnDeviceMosaic(normalized)
     }
 
     private func mosaicNote(available: Bool) -> String? {

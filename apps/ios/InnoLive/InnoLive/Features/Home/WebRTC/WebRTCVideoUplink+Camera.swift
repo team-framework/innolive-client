@@ -209,6 +209,7 @@ extension WebRTCVideoUplink {
             warmth: videoQualitySettings.warmth,
             saturation: videoQualitySettings.saturation
         )
+        relay.setOnDeviceMosaic(onDeviceMosaic)
         relay.setUnprocessedPreviewHandler(unprocessedPreviewHandler)
         relay.setDirectMediaSink(directMediaSink)
         relay.setRecordingSink(recordingSink)
