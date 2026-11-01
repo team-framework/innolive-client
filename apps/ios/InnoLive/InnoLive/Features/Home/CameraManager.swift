@@ -7,6 +7,7 @@
 
 @preconcurrency import AVFoundation
 import Observation
+import os
 
 private enum CameraSettingKey {
     static let selectedCameraID = "selectedCameraID"
@@ -33,6 +34,7 @@ final class CameraManager {
 
     // AVCaptureSession을 만지는 작업은 이 큐에서만 실행
     private let sessionQueue = DispatchQueue(label: "com.innolive.camera.session")
+    private let logger = Logger(subsystem: "com.framework.innolive", category: "camera")
     private var sessionCameraID: String?
     private var sessionTargetZoomFactor = CameraZoom.defaultFactor
 
@@ -101,7 +103,7 @@ final class CameraManager {
             }
             return true
         } catch {
-            print("카메라를 연결하지 못했습니다: \(error.localizedDescription)")
+            logger.error("카메라를 연결하지 못했습니다: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }
@@ -351,7 +353,7 @@ final class CameraManager {
             resetExposureOnSessionQueue(to: device)
             return true
         } catch {
-            print("카메라를 변경하지 못했습니다: \(error.localizedDescription)")
+            logger.error("카메라를 변경하지 못했습니다: \(error.localizedDescription, privacy: .public)")
             return false
         }
     }

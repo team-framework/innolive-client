@@ -1,5 +1,6 @@
 import AVFoundation
 @preconcurrency import LiveKitWebRTC
+import os
 
 extension WebRTCVideoUplink {
     func switchAudioInput(to audioInputID: String) throws {
@@ -93,8 +94,10 @@ extension WebRTCVideoUplink {
             try audioSession.setActive(false)
             isAudioSessionActivated = false
         } catch {
-            print("오디오 session을 종료하지 못했습니다: \(error.localizedDescription)")
+            Self.audioLogger.error("오디오 session을 종료하지 못했습니다: \(error.localizedDescription, privacy: .public)")
         }
     }
+
+    private static let audioLogger = Logger(subsystem: "com.framework.innolive", category: "audio")
 
 }
