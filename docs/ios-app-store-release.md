@@ -18,9 +18,17 @@
 ### 필수 모델
 
 모델 생성물은 Git에서 제외한다. Release archive 전에 아래 세 패키지를
-`apps/ios/InnoLive/InnoLive/Resources/`에 준비해야 한다. 모델 없이도 앱 빌드는
-성공하므로 빌드 성공만으로 온디바이스 기능의 배포 준비를 판단하지 않는다.
-배포 앱과 내보낸 IPA에 세 `.mlmodelc` 디렉터리가 있는지 확인한다.
+`apps/ios/InnoLive/InnoLive/Resources/`에 준비해야 한다. 앱 타깃의 마지막 빌드 단계
+`Check Face Models`(`scripts/check-ios-bundled-models.sh`)가 빌드한 앱의 세 `.mlmodelc`
+디렉터리를 확인한다.
+
+| 빌드 | 모델 누락 시 |
+| --- | --- |
+| Archive | 누락 모델 이름을 표시하고 실패 |
+| Release 빌드 | 실패. 모델 없이 컴파일만 확인할 때는 `INNOLIVE_ALLOW_MISSING_MODELS=YES` 지정, Archive에는 미적용 |
+| Debug 빌드·테스트·analyze | 경고만 표시하고 성공 |
+
+내보낸 IPA에도 세 `.mlmodelc` 디렉터리가 있는지 확인한다.
 
 | 패키지 | 원본 SHA-256 | 생성 패키지 크기 |
 | --- | --- | ---: |

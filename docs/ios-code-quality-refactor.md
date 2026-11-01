@@ -266,6 +266,7 @@ xcodebuild \
   -clonedSourcePackagesDirPath /tmp/innolive-ios-test-derived-data/SourcePackages \
   -disableAutomaticPackageResolution \
   CODE_SIGNING_ALLOWED=NO \
+  INNOLIVE_ALLOW_MISSING_MODELS=YES \
   build
 ```
 
