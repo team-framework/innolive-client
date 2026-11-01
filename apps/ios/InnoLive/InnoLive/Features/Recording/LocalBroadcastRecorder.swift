@@ -60,8 +60,10 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
     private var failure: Error?
     private let onFailure: @Sendable (String) -> Void
     private var hasReportedFailure = false
+    let source: RecordingSource
 
-    init(onFailure: @escaping @Sendable (String) -> Void = { _ in }) {
+    init(source: RecordingSource = .raw, onFailure: @escaping @Sendable (String) -> Void = { _ in }) {
+        self.source = source
         self.onFailure = onFailure
     }
     private var audioPackets: [AudioPacket] = []

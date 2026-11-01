@@ -196,7 +196,9 @@ extension YouTubeIntegration {
                 synchronizeBroadcastLifecycle()
             }
         }
-        recordingCoordinator.arm(sessionID: .server(session.sessionID))
+        recordingCoordinator.arm(sessionID: .server(session.sessionID),
+                                 source: RecordingSource(processingMode: session.processingMode),
+                                 mosaic: videoUplink.onDeviceMosaic)
         do {
             let liveResponse = try await goLiveWithRetry(
                 session: session,

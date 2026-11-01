@@ -110,7 +110,8 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     func reset() { gate.invalidate() }
     func stop() { gate.invalidate(stop: true) }
 
-    func submit(_ frame: LKRTCVideoFrame, deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
+    /// `deliver` receives the frame and whether it passed through anonymization.
+    func submit(_ frame: LKRTCVideoFrame, deliver: @escaping @Sendable (LKRTCVideoFrame, Bool) -> Void) {
         let payload = FramePayload(frame: frame)
         let libraryRevision = PrivacyFaceLibrary.revision
         let animalSelection = PrivacyAnimal.selected
@@ -123,7 +124,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     }
 
     private func process(_ payload: FramePayload, ticket: PrivacyFrameGate.Ticket, libraryRevision: Int, animalSelection: PrivacyAnimal,
-                         deliver: @escaping @Sendable (LKRTCVideoFrame) -> Void) {
+                         deliver: @escaping @Sendable (LKRTCVideoFrame, Bool) -> Void) {
         queue.async { [self] in
             autoreleasepool {
                 do {
@@ -168,7 +169,7 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         #if DEBUG
                         PrivacyUplinkValidationMetrics.recordProcessed(enabled: ticket.enabled)
                         #endif
-                        deliver(result)
+                        deliver(result, ticket.enabled)
                     }
                 } catch {
                     report(.failure)

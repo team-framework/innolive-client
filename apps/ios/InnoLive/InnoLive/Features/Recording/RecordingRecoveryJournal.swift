@@ -9,6 +9,8 @@ nonisolated struct RecordingRecoveryJournal: Codable, Sendable {
     let sessionID: String
     let createdAt: Date
     let status: Status
+    var source: RecordingSource? = nil
+    var mosaic: OnDeviceMosaicSettings? = nil
 }
 
 nonisolated struct PreservedBroadcastRecording: Identifiable, Sendable, Equatable {

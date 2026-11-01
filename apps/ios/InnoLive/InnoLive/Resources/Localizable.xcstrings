@@ -1,6 +1,98 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "영상을 앱에 저장했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "영상을 앱에 저장했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video saved in the app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動画をアプリに保存しました"
+          }
+        }
+      }
+    },
+    "비식별 영상을 앱에 저장했어요": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별 영상을 앱에 저장했어요"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De-identified video saved in the app"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化した動画をアプリに保存しました"
+          }
+        }
+      }
+    },
+    "기기 온도가 너무 높아 녹화를 종료하고 저장했어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 온도가 너무 높아 녹화를 종료하고 저장했어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The device is too hot, so recording stopped and was saved."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の温度が高すぎるため、録画を終了して保存しました。"
+          }
+        }
+      }
+    },
+    "기기 온도가 너무 높아 녹화를 시작할 수 없어요. 잠시 후 다시 시도해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 온도가 너무 높아 녹화를 시작할 수 없어요. 잠시 후 다시 시도해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The device is too hot to start recording. Try again in a moment."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "端末の温度が高すぎるため録画を開始できません。しばらくしてからもう一度お試しください。"
+          }
+        }
+      }
+    },
     "온디바이스 AI는 기본 강도와 너비보다 약하게 할 수 없습니다.": {
       "extractionState": "manual",
       "localizations": {
