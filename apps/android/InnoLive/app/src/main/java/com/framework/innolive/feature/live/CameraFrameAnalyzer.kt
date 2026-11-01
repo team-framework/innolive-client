@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.atomic.AtomicReference
 import org.webrtc.EglBase
 import com.framework.innolive.feature.live.privacy.PrivacyCameraInput
+import com.framework.innolive.feature.live.privacy.PrivacyFrameContentException
 import com.framework.innolive.feature.live.privacy.isPrivacyProcessingFailure
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
@@ -44,6 +45,8 @@ class CameraFrameAnalyzer(
     private val keepLatestProtectedFrame:Boolean = true,
     /** 미리보기·송출·가공본 녹화로 보낼 때 가운데를 확대하는 배율입니다. 원본 녹화와 얼굴 등록 입력은 자르지 않습니다. */
     private val outputZoom: Float = 1f,
+    /** 군중처럼 화면 내용 때문에 한 프레임을 가리지 못했을 때 부릅니다. 기본은 [onProcessingFailure]와 같습니다. */
+    private val onFrameContentFailure: () -> Unit = onProcessingFailure,
 ) : ImageAnalysis.Analyzer, AutoCloseable {
     private val captureLock = Any()
     private val settings = AtomicReference(BroadcastVideoQualitySettings())
@@ -447,7 +450,7 @@ class CameraFrameAnalyzer(
             reportVideoAdjustmentFailure(error)
             if (ticket?.mode == PrivacyFrameMode.LOCAL_PROTECTED) {
                 anonymizationFailures.incrementAndGet()
-                ticket?.let { route.deliver(it, onProcessingFailure) }
+                ticket?.let { route.deliver(it, failureCallback(error)) }
             }
         } finally {
             if (reserved) processing.set(false)
@@ -513,7 +516,7 @@ class CameraFrameAnalyzer(
                     if (anonymizationFailures.incrementAndGet() == 1L) {
                         Log.w("PrivacyPipeline", "protected_frame_dropped type=${error.javaClass.simpleName}")
                     }
-                    route.deliver(ticket, onProcessingFailure)
+                    route.deliver(ticket, failureCallback(error))
                 },
             )
             if (outcome == ProtectedFrameOutcome.BUSY) dropped.incrementAndGet()
@@ -523,6 +526,9 @@ class CameraFrameAnalyzer(
             logCounts()
         }
     }
+
+    private fun failureCallback(error: Throwable): () -> Unit =
+        if (error is PrivacyFrameContentException) onFrameContentFailure else onProcessingFailure
 
     private fun reportDelivery(wasDelivered: Boolean, cameraCopyMs: Double, deliveryStarted: Long, receivedAtNs: Long) {
         val completed = System.nanoTime()

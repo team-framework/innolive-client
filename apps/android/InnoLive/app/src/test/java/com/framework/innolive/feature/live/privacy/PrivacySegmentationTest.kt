@@ -53,7 +53,12 @@ class PrivacySegmentationTest {
             detections.count { it.score == score }
         })
         output[4 * count + 101] = .9f
-        assertThrows(IllegalArgumentException::class.java) { PrivacySegmentation.detections(output, count) }
+        assertThrows(PrivacyFrameContentException::class.java) { PrivacySegmentation.detections(output, count) }
+        output[2 * count + 101] = 40f
+        output[4 * count + 99] = .9f
+        output[4 * count + 103] = .9f
+        assertThrows("a protected candidate beyond the object limit fails the frame",
+            PrivacyFrameContentException::class.java) { PrivacySegmentation.detections(output, count) }
     }
 
     @Test fun emptyInstanceMaskProtectsItsBoundingBox() {
