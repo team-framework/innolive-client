@@ -8,8 +8,8 @@ nonisolated struct OnDeviceMosaicSettings: Equatable {
     static let defaultMaskMargin = 8
     static let maskMarginRange = 8...64
 
-    var blurStrength = defaultBlurStrength
-    var maskMargin = defaultMaskMargin
+    var blurStrength: Int
+    var maskMargin: Int
 
     private enum Key {
         static let blurStrength = "com.framework.innolive.on-device-mosaic.blur-strength"
