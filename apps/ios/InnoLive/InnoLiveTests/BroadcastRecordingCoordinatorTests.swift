@@ -114,6 +114,32 @@ final class BroadcastRecordingCoordinatorTests: XCTestCase {
         XCTAssertNil(fixture.sink.recorder)
     }
 
+    func testLocalTakeSavesWithoutServerSession() async throws {
+        let fixture = Fixture()
+        defer { fixture.removeFiles() }
+        let id = UUID()
+        let capture = CaptureSessionID.local(id)
+        let generation = try XCTUnwrap(fixture.lifecycle.beginLocalTake())
+        fixture.coordinator.arm(sessionID: capture)
+        fixture.lifecycle.reconcileTargets([CaptureSessionID.localTarget], generation: generation)
+        fixture.coordinator.reconcile(targets: [CaptureSessionID.localTarget], sessionID: capture)
+        XCTAssertEqual(fixture.lifecycle.phase, .live)
+        let recorder = try XCTUnwrap(fixture.sink.recorder)
+        try await feed(recorder)
+        fixture.coordinator.reconcile(targets: [], sessionID: .server(capture.recordingKey))
+        XCTAssertTrue(fixture.sink.recorder === recorder, "a server update cannot end a local take")
+        fixture.lifecycle.finishLocalSession(warning: nil)
+        fixture.coordinator.endLocally()
+        XCTAssertNil(fixture.sink.recorder)
+        await fixture.coordinator.waitForPendingWork()
+        let recording = try XCTUnwrap(fixture.store.recordings.first)
+        XCTAssertEqual(fixture.store.recordings.count, 1)
+        XCTAssertEqual(recording.sessionID, "local-\(id.uuidString)")
+        XCTAssertEqual(fixture.lifecycle.recording, .saved(fixture.store.fileURL(for: recording)))
+        XCTAssertNil(fixture.lifecycle.result?.terminationWarning)
+        XCTAssertNotNil(fixture.lifecycle.beginLocalTake(), "the next take starts from the result screen")
+    }
+
     func testResetDuringUnconfirmedStartDiscardsProvisionalMedia() async throws {
         let fixture = Fixture()
         defer { fixture.removeFiles() }

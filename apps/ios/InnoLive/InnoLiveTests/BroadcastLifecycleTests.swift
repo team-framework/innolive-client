@@ -3,6 +3,17 @@ import XCTest
 
 @MainActor
 final class BroadcastLifecycleTests: XCTestCase {
+    func testLocalTakeStartsOnlyWithoutABroadcastInProgress() throws {
+        let lifecycle = preparedLifecycle()
+        XCTAssertNil(lifecycle.beginLocalTake())
+        XCTAssertEqual(lifecycle.phase, .prepared)
+        lifecycle.reset()
+        let generation = try XCTUnwrap(lifecycle.beginLocalTake())
+        XCTAssertEqual(lifecycle.phase, .starting)
+        XCTAssertEqual(lifecycle.recording, .armed)
+        XCTAssertTrue(lifecycle.isCurrent(generation))
+    }
+
     func testCancelledCountdownCannotStartOrAcceptDelayedTicks() throws {
         let lifecycle = preparedLifecycle()
         let generation = try XCTUnwrap(lifecycle.beginCountdown())

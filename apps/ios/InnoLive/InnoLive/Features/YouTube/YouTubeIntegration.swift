@@ -20,7 +20,12 @@ final class YouTubeIntegration: ObservableObject {
     lazy var recordingCoordinator = BroadcastRecordingCoordinator(store: recordingStore, lifecycle: lifecycle) { [weak self] recorder in
         self?.videoUplink.setRecordingSink(recorder)
         self?.directPublisher.setRecordingSink(recorder)
+        self?.localRecordingAudio.set(recorder)
     }
+    /// 관리자 로컬 녹화 화면이 연 서버 세션 없는 캡처다.
+    @Published var localCaptureID: UUID?
+    let localRecordingAudio = BroadcastRecordingSinkSlot()
+    let localMicrophone: any DirectAudioCapturing = DirectMicrophoneCapture()
     private var recordingSubscription: AnyCancellable?
     private var recordingStoreSubscription: AnyCancellable?
     private var lifecycleSubscription: AnyCancellable?
@@ -377,6 +382,8 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        localMicrophone.stop()
+        localCaptureID = nil
         invalidateBroadcastLifecycle()
         processingSwitchID = UUID()
         isSwitchingToOnDevice = false
