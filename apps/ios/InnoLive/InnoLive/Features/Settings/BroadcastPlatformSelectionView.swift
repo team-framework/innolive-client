@@ -24,7 +24,7 @@ struct BroadcastPlatformSelectionView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                BroadcastTargetSelectionView(youtube: youtube)
+                BroadcastTargetSelectionView(youtube: youtube, operatingMode: youtube.operatingMode)
 
                 InnoLiveGlassContainer {
                     VStack(spacing: 12) {
@@ -283,6 +283,7 @@ struct BroadcastPlatformSelectionView: View {
 
 struct BroadcastTargetSelectionView: View {
     @ObservedObject var youtube: YouTubeIntegration
+    @ObservedObject var operatingMode: OperatingModeMonitor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -297,12 +298,14 @@ struct BroadcastTargetSelectionView: View {
                 )) {
                     VStack(alignment: .leading) {
                         Text(provider.title)
-                        if !youtube.isSettingsAccountConnected(provider) {
+                        if let reason = operatingMode.broadcastUnavailableReason {
+                            Text(reason).font(.caption).foregroundStyle(.secondary)
+                        } else if !youtube.isSettingsAccountConnected(provider) {
                             Text(String(localized: "계정 연결 필요", table: "Simulcast")).font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
-                .disabled(youtube.isBroadcastSettingsLocked
+                .disabled(youtube.isBroadcastSettingsLocked || operatingMode.broadcastUnavailableReason != nil
                           || (!youtube.isSettingsAccountConnected(provider) && !youtube.selectedBroadcastProviders.contains(provider)))
                 .accessibilityIdentifier("broadcast-target-" + provider.rawValue)
             }
