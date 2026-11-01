@@ -45,6 +45,18 @@ import XCTest
         await store.warm()
         XCTAssertEqual(store.state, .ready)
     }
+
+    func testBundledModelsLoadFromAppBundle() async throws {
+        try XCTSkipUnless(AIProcessingMode.localModelsAvailable, "this build was made without the model packages")
+        for name in ["PrivacyDetector", "PrivacyFaceRecognizer", "PrivacyYuNet"] {
+            let url = try XCTUnwrap(Bundle.main.url(forResource: name, withExtension: "mlmodelc"))
+            XCTAssertTrue(url.standardizedFileURL.path.hasPrefix(Bundle.main.bundleURL.standardizedFileURL.path),
+                          "\(name) ships inside the app bundle")
+        }
+        let store = ModelReadinessStore(available: true, loaders: ModelReadinessStore.bundledLoaders, defaults: defaults())
+        await store.warm()
+        XCTAssertEqual(store.state, .ready)
+    }
 }
 
 nonisolated private final class LoadOrder: @unchecked Sendable {
