@@ -2,6 +2,8 @@ import Foundation
 import Security
 
 /// The last online confirmation of the account, used to keep admin-only local mode usable offline.
+/// Time is kept as estimated server time: the device clock plus the offset measured from the
+/// server's `Date` header, so a wrong device clock at sign-in cannot stretch the grant.
 nonisolated struct OfflineGrant: Codable, Equatable, Sendable {
     static let length: TimeInterval = 14 * 24 * 60 * 60
 
@@ -10,30 +12,64 @@ nonisolated struct OfflineGrant: Codable, Equatable, Sendable {
         case expired
         /// The device clock is earlier than a time this grant already observed.
         case clockRolledBack
+        /// The signed-in account is not the one the server confirmed.
+        case otherAccount
     }
 
+    let accountID: String
     let isAdministrator: Bool
     let issuedAt: Date
     let validUntil: Date
-    private(set) var lastSeenWallClock: Date
+    let serverClockOffset: TimeInterval
+    private(set) var lastSeenServerTime: Date
 
-    init(isAdministrator: Bool, issuedAt: Date) {
+    /// `serverDate` is the response's `Date` header. Without it the device clock is used as is.
+    init(accountID: String, isAdministrator: Bool, serverDate: Date?, receivedAt: Date) {
+        self.accountID = accountID
         self.isAdministrator = isAdministrator
-        self.issuedAt = issuedAt
+        issuedAt = serverDate ?? receivedAt
         validUntil = issuedAt.addingTimeInterval(Self.length)
-        lastSeenWallClock = issuedAt
+        serverClockOffset = issuedAt.timeIntervalSince(receivedAt)
+        lastSeenServerTime = issuedAt
     }
 
-    func status(at now: Date) -> Status {
-        if now < lastSeenWallClock { return .clockRolledBack }
+    func serverTime(at deviceNow: Date) -> Date { deviceNow.addingTimeInterval(serverClockOffset) }
+
+    func status(at deviceNow: Date, accountID: String?) -> Status {
+        guard accountID == self.accountID else { return .otherAccount }
+        let now = serverTime(at: deviceNow)
+        if now < lastSeenServerTime { return .clockRolledBack }
         return now < validUntil ? .valid : .expired
     }
 
     /// The observed clock only moves forward, so setting it back later is detectable.
-    func observing(_ now: Date) -> OfflineGrant {
+    func observing(_ deviceNow: Date) -> OfflineGrant {
         var next = self
-        next.lastSeenWallClock = max(lastSeenWallClock, now)
+        next.lastSeenServerTime = max(lastSeenServerTime, serverTime(at: deviceNow))
         return next
+    }
+
+    /// The access token's `sub` claim, which the server sets to the account's user ID.
+    /// Read without verifying the signature: it only decides whether a grant on this device applies.
+    static func accountID(fromAccessToken token: String?) -> String? {
+        let parts = token?.split(separator: ".", omittingEmptySubsequences: false) ?? []
+        guard parts.count == 3 else { return nil }
+        var payload = parts[1].replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload),
+              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let subject = claims["sub"] as? String, !subject.isEmpty else { return nil }
+        return subject
+    }
+
+    /// Parses an HTTP `Date` header (IMF-fixdate).
+    static func serverDate(fromHTTPDate value: String?) -> Date? {
+        guard let value else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter.date(from: value)
     }
 
     static var expiredMessage: String {

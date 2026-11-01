@@ -300,12 +300,16 @@ final class YouTubeIntegration: ObservableObject {
     /// 서버에 닿지 못하면 마지막 확인 결과를 쓴다. 그 밖의 실패는 숨긴다.
     func isAdministrator(accessToken: String?) async -> Bool {
         guard let accessToken, !accessToken.isEmpty else { return false }
+        let accountID = OfflineGrant.accountID(fromAccessToken: accessToken)
         do {
-            let isAdministrator = try await api.isAdministrator(accessToken: accessToken)
-            offlineGrantStore.save(OfflineGrant(isAdministrator: isAdministrator, issuedAt: .now))
-            return isAdministrator
+            let check = try await api.isAdministrator(accessToken: accessToken)
+            if let accountID {
+                offlineGrantStore.save(OfflineGrant(accountID: accountID, isAdministrator: check.isAdministrator,
+                                                    serverDate: check.serverDate, receivedAt: .now))
+            }
+            return check.isAdministrator
         } catch YouTubeAPIError.transport {
-            guard let grant = offlineGrantStore.load() else { return false }
+            guard let grant = offlineGrantStore.load(), grant.accountID == accountID else { return false }
             offlineGrantStore.save(grant.observing(.now))
             return grant.isAdministrator
         } catch {

@@ -169,15 +169,19 @@ final class YouTubeAPI: PlanAPIClient {
     }
 
     /// `GET /admin/me`가 200이면 관리자다. 403·404는 관리자가 아니다.
-    func isAdministrator(accessToken: String) async throws -> Bool {
+    /// 응답의 `Date` 헤더는 오프라인 이용 기간의 서버 시각 기준으로 쓴다.
+    func isAdministrator(accessToken: String) async throws -> AdministratorCheck {
         guard let url = serverURLProvider("/admin/me") else { throw YouTubeAPIError.configuration }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await authenticatedData(for: request, accessToken: accessToken)
-        if response.statusCode == 403 || response.statusCode == 404 { return false }
+        let serverDate = OfflineGrant.serverDate(fromHTTPDate: response.value(forHTTPHeaderField: "Date"))
+        if response.statusCode == 403 || response.statusCode == 404 {
+            return AdministratorCheck(isAdministrator: false, serverDate: serverDate)
+        }
         try validate(response, data: data)
-        return true
+        return AdministratorCheck(isAdministrator: true, serverDate: serverDate)
     }
 
     func userUsage(accessToken: String) async throws -> UserUsage {
@@ -652,6 +656,11 @@ final class YouTubeAPI: PlanAPIClient {
             throw YouTubeAPIError.response
         }
     }
+}
+
+struct AdministratorCheck: Equatable {
+    let isAdministrator: Bool
+    let serverDate: Date?
 }
 
 private struct YouTubeAPIRequestInvalidated: Error {}
