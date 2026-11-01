@@ -240,7 +240,7 @@ struct BroadcastVideoControlsView: View {
             }
             return String(localized: "온디바이스 AI는 기본 강도와 너비보다 약하게 할 수 없습니다.")
         }
-        guard let session = youtube.session else {
+        guard youtube.session != nil else {
             return String(localized: "방송을 준비하면 조절할 수 있습니다.")
         }
         if available && !youtube.isAnonymizationEnabled {
