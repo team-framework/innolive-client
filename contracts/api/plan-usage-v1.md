@@ -87,3 +87,27 @@ remains the authority for stopping direct publishers; notices alone do not stop
 paid-plan broadcasts.
 
 Before preparation, each mode displays the minimum of monthly availability and `usage.max_per_broadcast_seconds` (explicit null means no cap). Older responses missing that key fall back to the plan cap. Server monthly availability uses API seconds directly; on-device uses integer division.
+
+## iOS local takes (2026-11-01)
+
+Local takes recorded in admin local mode count toward the device budget. iOS keeps one record per saved take
+in an on-device ledger and uploads it with `POST /users/me/usage/local-takes` when the server is reachable.
+
+- Request: `{"takes": [...]}`, 1 to 100 entries, each with `take_id` (the saved recording UUID), `device_id`,
+  `started_at`, `ended_at` (RFC 3339), and `duration_seconds` (rounded, at least 1, at most the span plus 1 second).
+  See `local-take-usage-request.v1.json`.
+- Response: `200` with `take_ids` the server stored or already had. See `local-take-usage-response.v1.json`.
+  The client removes only these IDs. Any error or a missing endpoint keeps the records pending and retries with
+  backoff, from 5 seconds up to 10 minutes.
+- The server ignores a repeated `take_id`, so a replay after a crash between send and acknowledgement counts once.
+- The server charges `duration_seconds` once (multiplier 1) to the KST month of `started_at`.
+- `GET /users/me/usage` adds `device_local_seconds`, the part of `device_used_seconds` that came from local takes.
+  Local takes are not listed in `broadcasts`.
+- Until the upload succeeds, iOS adds pending seconds from the usage month to `device_used_seconds` and subtracts
+  them from `device_remaining_seconds` for display and for on-device preparation checks. A local take is blocked when
+  the known device remaining time is zero.
+- Sign-out and session expiry clear the ledger with the rest of the account state, so pending takes from a
+  previous account are never uploaded under another one.
+
+Compatibility: additive. Older servers return 404 for the upload, and the client keeps retrying.
+`device_local_seconds` is optional for clients.
