@@ -89,7 +89,7 @@ struct BroadcastSettingsView: View {
                     }
                     .broadcastTutorialAnchor(.connectAccount)
                     BroadcastResolutionSelectionView(youtube: youtube)
-                    BroadcastTargetSelectionView(youtube: youtube)
+                    BroadcastTargetSelectionView(youtube: youtube, operatingMode: youtube.operatingMode)
                 }
                 if !isLiveEditing && modeProvider == nil && !isPrivacyOnly {
                     Text(String(localized: "설정을 편집할 플랫폼", table: "Simulcast")).font(.caption).foregroundStyle(.secondary)

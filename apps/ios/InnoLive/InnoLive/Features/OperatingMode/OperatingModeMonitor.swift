@@ -33,6 +33,12 @@ final class OperatingModeMonitor: ObservableObject {
 
     var alwaysLocal: Bool { state.alwaysLocal }
 
+    /// Set only while the admin monitor runs and has decided on local mode.
+    var broadcastUnavailableReason: String? {
+        guard isMonitoring, case .local(let reason) = state.mode else { return nil }
+        return reason.broadcastUnavailableReason
+    }
+
     func start(accessToken: @escaping () -> String?) {
         self.accessToken = accessToken
         guard !isMonitoring else { return }

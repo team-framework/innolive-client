@@ -4,6 +4,14 @@ nonisolated enum LocalReason: Equatable, Sendable {
     case noPath
     case serverUnreachable
     case userChoice
+
+    var broadcastUnavailableReason: String {
+        switch self {
+        case .noPath: String(localized: "인터넷에 연결되지 않아 송출할 수 없어요.")
+        case .serverUnreachable: String(localized: "서버에 연결할 수 없어 송출할 수 없어요.")
+        case .userChoice: String(localized: "항상 로컬 모드에서는 송출할 수 없어요.")
+        }
+    }
 }
 
 nonisolated enum OperatingMode: Equatable, Sendable {

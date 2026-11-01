@@ -277,7 +277,7 @@ struct BroadcastControllsView: View {
 
     private var broadcastSummary: some View {
         Button { isShowingBroadcastSettings = true } label: {
-            StudioBroadcastSummaryLabel(youtube: youtube, editor: youtube.settingsEditor)
+            StudioBroadcastSummaryLabel(youtube: youtube, editor: youtube.settingsEditor, operatingMode: youtube.operatingMode)
         }
         .buttonStyle(.plain)
         .disabled(isPreparationSheetLocked)
