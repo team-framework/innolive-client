@@ -41,6 +41,9 @@ struct ContentView: View {
                     youtube.reset()
                     authentication.expireSession()
                 case .unavailable:
+                    youtube.operatingMode.send(.refreshUnavailable)
+                    // Local mode keeps working without the server, so it is not an error there.
+                    guard !youtube.operatingMode.state.mode.isLocal else { return }
                     authentication.showError(String(localized: "로그인 상태를 갱신하지 못했습니다. 잠시 후 다시 시도해 주세요."))
                 }
             }
@@ -53,8 +56,10 @@ struct ContentView: View {
                 Task {
                     let accessToken = authentication.currentAccessToken()
                     await youtube.refreshConnection(accessToken: accessToken, quietWhenUnreachable: true)
-                    // Renews the offline grant while the server is reachable.
-                    _ = await youtube.isAdministrator(accessToken: accessToken)
+                    // Renews the offline grant while the server is reachable. Local mode is admin-only.
+                    if await youtube.isAdministrator(accessToken: accessToken) {
+                        youtube.operatingMode.start { authentication.currentAccessToken() }
+                    }
                 }
             }
         }

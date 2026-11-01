@@ -252,6 +252,7 @@ final class YouTubeIntegration: ObservableObject {
 
     let planStore = PlanStore()
     let offlineGrantStore: OfflineGrantStoring = OfflineGrantStore()
+    let operatingMode = OperatingModeMonitor()
     @Published var isRemainingTimeStale = false
 
     var currentPlanMode: BroadcastPlanMode {
@@ -393,6 +394,7 @@ final class YouTubeIntegration: ObservableObject {
     }
 
     func reset() {
+        operatingMode.stop()
         localMicrophone.stop()
         localCaptureID = nil
         invalidateBroadcastLifecycle()
