@@ -301,9 +301,7 @@ internal class DirectBroadcastController internal constructor(
                     if (exception.statusCode != 404) throw exception
                     // prepared 10분이 지나거나 종료 직후 회수로 세션이 사라졌습니다. 새 세션으로 한 번 다시 준비합니다.
                     env.log("session_gone_on_prepare")
-                    disconnectAll()
-                    closeEngine()
-                    forgetSession()
+                    discardExpiredSession()
                     prepareTargets(requested, youtube, chzzkSettings, allowConcurrent)
                 }
             }
@@ -518,9 +516,7 @@ internal class DirectBroadcastController internal constructor(
                 exception.statusCode == 404 -> {
                     // prepared 10분 제한으로 세션이 지워졌습니다. 다음 준비에서 새 세션을 만듭니다.
                     env.log("session_gone_on_golive")
-                    disconnectAll()
-                    closeEngine()
-                    forgetSession()
+                    discardExpiredSession()
                     failGoLive(BroadcastState.FAILED, DirectEvent.PREPARED_EXPIRED.toBroadcastEvent())
                 }
                 // 전환 중 stop이 먼저 처리됐습니다. 방송을 끝냅니다.
@@ -734,6 +730,13 @@ internal class DirectBroadcastController internal constructor(
 
     private fun disconnectAll() = targets.keys.toList().forEach(::disconnectTarget)
 
+    /** 서버에서 사라진 세션을 버립니다. 마이크·인코더가 대상 없이 돌지 않게 엔진까지 닫습니다. */
+    private fun discardExpiredSession() {
+        disconnectAll()
+        closeEngine()
+        forgetSession()
+    }
+
     /** 남은 대상을 모두 끝내고 엔진·하트비트를 정리합니다. 세션 삭제는 호출자가 정합니다. */
     private fun endBroadcast() {
         if (heartbeatStarted) {
@@ -873,9 +876,7 @@ internal class DirectBroadcastController internal constructor(
         if (targets.values.any { it.phase == TargetPhase.LIVE }) return stopAllByServer(HeartbeatStopReason.SESSION_GONE)
         // 준비 전이거나 준비 상태로 10분이 지났습니다. 다음 준비에서 새 세션을 만듭니다.
         val hadTargets = targets.isNotEmpty()
-        disconnectAll()
-        closeEngine()
-        forgetSession()
+        discardExpiredSession()
         if (hadTargets) report(BroadcastState.FAILED, DirectEvent.PREPARED_EXPIRED.toBroadcastEvent())
     }
 
