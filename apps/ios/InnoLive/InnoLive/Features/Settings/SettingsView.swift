@@ -86,7 +86,8 @@ struct SettingsView: View {
         }
         .task { isAdministrator = await youtube.isAdministrator(accessToken: authentication.currentAccessToken()) }
         .fullScreenCover(isPresented: $isShowingLocalRecording) {
-            LocalRecordingView(youtube: youtube, uplink: youtube.videoUplink, lifecycle: youtube.lifecycle)
+            LocalRecordingView(authentication: authentication, youtube: youtube, uplink: youtube.videoUplink,
+                               lifecycle: youtube.lifecycle)
         }
     }
 

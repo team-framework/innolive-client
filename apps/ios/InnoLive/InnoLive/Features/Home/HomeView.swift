@@ -250,7 +250,8 @@ struct HomeView: View {
             }
         }
         .fullScreenCover(isPresented: $isShowingLocalRecording) {
-            LocalRecordingView(youtube: youtube, uplink: youtube.videoUplink, lifecycle: youtube.lifecycle)
+            LocalRecordingView(authentication: authentication, youtube: youtube, uplink: youtube.videoUplink,
+                               lifecycle: youtube.lifecycle)
         }
         .sheet(isPresented: $isShowingAccount) {
             NavigationStack {

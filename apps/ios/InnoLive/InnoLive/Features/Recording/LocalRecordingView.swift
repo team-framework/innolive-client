@@ -3,6 +3,7 @@ import Foundation
 import SwiftUI
 
 struct LocalRecordingView: View {
+    let authentication: AuthSession
     @ObservedObject var youtube: YouTubeIntegration
     @ObservedObject var uplink: WebRTCVideoUplink
     @ObservedObject var lifecycle: BroadcastLifecycle
@@ -13,9 +14,12 @@ struct LocalRecordingView: View {
     @State private var isClosing = false
     @State private var thermalNotice: String?
     @State private var isShowingNotice = false
+    @State private var isSelectingFace = false
+    @StateObject private var guestRegistrar = GuestFaceRegistrar()
     @ObservedObject private var readiness: ModelReadinessStore
 
-    init(youtube: YouTubeIntegration, uplink: WebRTCVideoUplink, lifecycle: BroadcastLifecycle) {
+    init(authentication: AuthSession, youtube: YouTubeIntegration, uplink: WebRTCVideoUplink, lifecycle: BroadcastLifecycle) {
+        self.authentication = authentication
         _youtube = ObservedObject(wrappedValue: youtube)
         _uplink = ObservedObject(wrappedValue: uplink)
         _lifecycle = ObservedObject(wrappedValue: lifecycle)
@@ -35,7 +39,15 @@ struct LocalRecordingView: View {
                         .foregroundStyle(.orange)
                         .multilineTextAlignment(.center)
                 }
-                recordButton
+                HStack(spacing: 12) {
+                    QuickFaceRegistrationButton(videoUplink: uplink, isSelecting: $isSelectingFace,
+                                                isEnabled: canSelectFace)
+                    recordButton
+                }
+                GuestRegistrationToast(registrar: guestRegistrar) {
+                    if canSelectFace { isSelectingFace = true }
+                }
+                .animation(.easeOut(duration: 0.2), value: guestRegistrar.status)
                 ModelReadinessReadout(store: readiness)
                 Text(String(localized: "서버 연결 없이 이 기기에만 녹화합니다."))
                     .font(.footnote)
@@ -52,6 +64,23 @@ struct LocalRecordingView: View {
                         .accessibilityIdentifier("local-recording-close")
                 }
             }
+        }
+        .overlay {
+            if isSelectingFace {
+                ZStack(alignment: .topTrailing) {
+                    FaceSelectionLayer(videoUplink: uplink, usesUplinkCamera: true, bottomInset: 96) { frame, faceIndex in
+                        // Local mode has no server, so the face always goes to the on-device library.
+                        guestRegistrar.register(frame: frame, faceIndex: faceIndex, name: GuestFaceName.make(),
+                                                mode: .onDevice, authentication: authentication)
+                        isSelectingFace = false
+                    }
+                    QuickFaceRegistrationButton(videoUplink: uplink, isSelecting: $isSelectingFace, isEnabled: true)
+                        .padding(16)
+                }
+            }
+        }
+        .onChange(of: canSelectFace) { _, canSelect in
+            if !canSelect { isSelectingFace = false }
         }
         .sheet(isPresented: $isShowingNotice) {
             LocalRecordingNotice(onAcknowledge: {
@@ -145,6 +174,10 @@ struct LocalRecordingView: View {
         .disabled((!youtube.isLocalTakeRecording && (uplink.state != .connected || !readiness.isReady))
                   || isClosing || lifecycle.recording == .finalizing)
         .accessibilityIdentifier("local-recording-toggle")
+    }
+
+    private var canSelectFace: Bool {
+        uplink.state == .connected && readiness.isReady && !isClosing
     }
 
     private func startTake() {
