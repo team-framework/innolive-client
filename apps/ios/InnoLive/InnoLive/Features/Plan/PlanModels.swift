@@ -28,7 +28,7 @@ enum BroadcastPlanMode: String, CaseIterable, Identifiable {
     }
 }
 
-struct UserPlan: Decodable, Equatable {
+struct UserPlan: Codable, Equatable {
     let plan: String
     let allowedModes: [String]
     let monthlyBroadcastSeconds: Int
@@ -45,7 +45,7 @@ struct UserPlan: Decodable, Equatable {
     }
 }
 
-struct UserUsage: Decodable, Equatable {
+struct UserUsage: Codable, Equatable {
     let plan: String
     let usedSeconds: Int
     let remainingSeconds: Int?
@@ -85,6 +85,22 @@ struct UserUsage: Decodable, Equatable {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Invalid device usage"))
         }
     }
+    /// Writes the server's shape back, keeping which optional keys were present so a cached copy decodes the same.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(plan, forKey: .plan)
+        try c.encode(usedSeconds, forKey: .usedSeconds)
+        try c.encode(remainingSeconds, forKey: .remainingSeconds)
+        try c.encode(availableByMode, forKey: .availableByMode)
+        try c.encodeIfPresent(month, forKey: .month)
+        if hasLimitSeconds { try c.encode(limitSeconds, forKey: .limitSeconds) }
+        if hasMaxPerBroadcastSeconds { try c.encode(maxPerBroadcastSeconds, forKey: .maxPerBroadcastSeconds) }
+        try c.encode(broadcasts, forKey: .broadcasts)
+        if hasDeviceLimitSeconds { try c.encode(deviceLimitSeconds, forKey: .deviceLimitSeconds) }
+        try c.encodeIfPresent(deviceUsedSeconds, forKey: .deviceUsedSeconds)
+        if hasDeviceRemainingSeconds { try c.encode(deviceRemainingSeconds, forKey: .deviceRemainingSeconds) }
+        try c.encodeIfPresent(deviceLocalSeconds, forKey: .deviceLocalSeconds)
+    }
     enum CodingKeys: String, CodingKey {
         case plan
         case month, broadcasts
@@ -100,7 +116,7 @@ struct UserUsage: Decodable, Equatable {
     }
 }
 
-struct UsageBroadcast: Decodable, Equatable, Identifiable {
+struct UsageBroadcast: Codable, Equatable, Identifiable {
     let sessionID: String
     let startedAt: String
     let resolution: String
@@ -128,7 +144,7 @@ struct UsageBroadcast: Decodable, Equatable, Identifiable {
     }
 }
 
-struct ModeAvailability: Decodable, Equatable {
+struct ModeAvailability: Codable, Equatable {
     let mode: String
     let allowed: Bool
     let seconds: Int?
