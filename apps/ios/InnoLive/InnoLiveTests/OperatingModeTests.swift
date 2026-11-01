@@ -74,4 +74,19 @@ final class OperatingModeTests: XCTestCase {
         XCTAssertEqual(run([(82, .alwaysLocal(false))], from: state).mode, .server)
         XCTAssertEqual(OperatingState(alwaysLocal: true).mode, .local(.userChoice))
     }
+
+    func testEachLocalReasonGivesADistinctBroadcastReason() {
+        let reasons = [LocalReason.noPath, .serverUnreachable, .userChoice].map(\.broadcastUnavailableReason)
+        XCTAssertEqual(Set(reasons).count, 3)
+        XCTAssertFalse(reasons.contains(where: \.isEmpty))
+    }
+
+    @MainActor
+    func testBroadcastTargetsStayAvailableWhileMonitorIsOff() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "OperatingModeTests.\(UUID())"))
+        defaults.set(true, forKey: OperatingModeMonitor.alwaysLocalKey)
+        let monitor = OperatingModeMonitor(defaults: defaults)
+        XCTAssertEqual(monitor.state.mode, .local(.userChoice))
+        XCTAssertNil(monitor.broadcastUnavailableReason)
+    }
 }
