@@ -1,6 +1,75 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "얼굴 등록 데이터를 안전하게 저장하지 못했습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 등록 데이터를 안전하게 저장하지 못했습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t save the face registrations securely."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔登録データを安全に保存できませんでした。"
+          }
+        }
+      }
+    },
+    "얼굴 인식 모델이 바뀌어 다시 등록해야 합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 인식 모델이 바뀌어 다시 등록해야 합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The face recognition model changed. Register faces again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔認識モデルが変更されたため、再登録が必要です。"
+          }
+        }
+      }
+    },
+    "이 기기에서 등록 데이터를 읽을 수 없어 초기화했습니다. 다시 등록해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 기기에서 등록 데이터를 읽을 수 없어 초기화했습니다. 다시 등록해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registrations couldn’t be read on this device and were reset. Register again."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この端末で登録データを読み取れなかったため初期化しました。もう一度登録してください。"
+          }
+        }
+      }
+    },
     "AI 모델을 준비하는 중입니다. 준비가 끝나면 녹화할 수 있어요.": {
       "extractionState": "manual",
       "localizations": {

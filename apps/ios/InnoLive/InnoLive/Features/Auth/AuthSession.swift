@@ -232,6 +232,7 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         offlineGrantStore.remove()
+        PrivacyFaceLibrary.eraseAll()
         pendingSignup = nil
         consentStore.clearAccountCollection()
         hasAcceptedAccountCollection = false
@@ -245,6 +246,7 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         offlineGrantStore.remove()
+        PrivacyFaceLibrary.eraseAll()
         pendingSignup = nil
         errorMessage = nil
         isAuthenticated = false
@@ -254,6 +256,7 @@ final class AuthSession: ObservableObject {
         invalidateSessionGeneration()
         tokenStore.remove()
         offlineGrantStore.remove()
+        PrivacyFaceLibrary.eraseAll()
         pendingSignup = nil
         errorMessage = String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
         isAuthenticated = false
