@@ -211,12 +211,8 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
                     for channel in 0..<2 { channels[channel].initialize(repeating: 0, count: Int(count)) }
                     try writeAudioBuffer(silence, start: covered, isSilence: true)
                 } else {
-                    // A resampled capture buffer stamped with its input host time can start before audio
-                    // already written. Only the part after the written timeline is new audio.
-                    let overlap = delta < -0.003 ? AVAudioFrameCount((-delta * 48_000).rounded()) : 0
-                    if overlap < packet.buffer.frameLength {
-                        let buffer = overlap == 0 ? packet.buffer : try Self.tail(of: packet.buffer, droppingFirst: overlap)
-                        try writeAudioBuffer(buffer, start: covered, isSilence: false)
+                    if let unwritten = try Self.unwrittenAudio(packet.buffer, secondsAfterWrittenEnd: delta) {
+                        try writeAudioBuffer(unwritten, start: covered, isSilence: false)
                     }
                     audioPackets.removeFirst()
                     releaseAudio(packet)
@@ -364,7 +360,10 @@ nonisolated final class LocalBroadcastRecorder: @unchecked Sendable {
         lastMediaEnd = CMTimeMaximum(lastMediaEnd, lastAudioEnd)
     }
 
-    private static func tail(of buffer: AVAudioPCMBuffer, droppingFirst count: AVAudioFrameCount) throws -> AVAudioPCMBuffer {
+    private static func unwrittenAudio(_ buffer: AVAudioPCMBuffer, secondsAfterWrittenEnd offset: Double) throws -> AVAudioPCMBuffer? {
+        guard offset < -0.003 else { return buffer }
+        let count = AVAudioFrameCount((-offset * 48_000).rounded())
+        guard count < buffer.frameLength else { return nil }
         let length = buffer.frameLength - count
         guard let tail = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: length),
               let source = buffer.floatChannelData, let destination = tail.floatChannelData else {

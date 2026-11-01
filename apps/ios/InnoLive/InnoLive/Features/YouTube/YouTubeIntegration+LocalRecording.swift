@@ -1,7 +1,6 @@
 import AVFoundation
 import Foundation
 
-/// 관리자 전용 로컬 녹화다. 서버 세션·시그널링·송출 없이 카메라와 온디바이스 처리를 열고 기기에만 저장한다.
 extension YouTubeIntegration {
     var canOpenLocalCapture: Bool {
         AIProcessingMode.localModelsAvailable && session == nil && !isPreparingSession
@@ -33,7 +32,6 @@ extension YouTubeIntegration {
         }
     }
 
-    /// The device is the take's only target, so the take is confirmed as soon as the writer is armed.
     func startLocalTake() {
         guard let id = localCaptureID, videoUplink.state == .connected,
               let generation = lifecycle.beginLocalTake() else { return }
@@ -54,7 +52,6 @@ extension YouTubeIntegration {
         recordingCoordinator.endLocally()
     }
 
-    /// A take still being saved finishes in the library after the capture closes.
     func closeLocalCapture() async {
         guard localCaptureID != nil else { return }
         stopLocalTake()

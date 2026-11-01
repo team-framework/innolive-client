@@ -36,10 +36,8 @@ nonisolated enum VideoUplinkSessionMode: Equatable, Sendable {
     case serverAI
     case onDeviceServerEgress
     case onDeviceDirectPublish
-    /// 서버 세션·송출 대상 없이 기기에서만 처리하고 녹화한다.
     case localOnly
 
-    /// 서버와 WebRTC 영상 연결을 맺는 경로다.
     var opensPeerConnection: Bool { self == .serverAI || self == .onDeviceServerEgress }
 }
 

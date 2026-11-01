@@ -394,7 +394,6 @@ final class WebRTCVideoUplink: NSObject, ObservableObject {
         }
     }
 
-    /// Opens the camera, microphone and on-device processing without a server session.
     func startLocalOnly(
         _ id: UUID,
         preferredCameraID: String?,

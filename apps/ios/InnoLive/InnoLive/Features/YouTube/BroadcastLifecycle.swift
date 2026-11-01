@@ -117,7 +117,6 @@ final class BroadcastLifecycle: ObservableObject {
         return true
     }
 
-    /// A local take has no countdown or go-live request. The caller arms the writer next.
     @discardableResult
     func beginLocalTake(at date: Date = Date()) -> UInt? {
         guard phase == .idle || phase == .result else { return nil }

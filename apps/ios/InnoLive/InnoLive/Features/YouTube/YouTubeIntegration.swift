@@ -22,7 +22,6 @@ final class YouTubeIntegration: ObservableObject {
         self?.directPublisher.setRecordingSink(recorder)
         self?.localRecordingAudio.set(recorder)
     }
-    /// 관리자 로컬 녹화 화면이 연 서버 세션 없는 캡처다.
     @Published var localCaptureID: UUID?
     let localRecordingAudio = BroadcastRecordingSinkSlot()
     let localMicrophone: any DirectAudioCapturing = DirectMicrophoneCapture()
