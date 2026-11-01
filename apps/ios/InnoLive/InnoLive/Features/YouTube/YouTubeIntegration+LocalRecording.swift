@@ -37,8 +37,9 @@ extension YouTubeIntegration {
     /// Throws when the offline grant no longer allows a new take. A take in progress is never cut short.
     func startLocalTake() throws {
         let now = Date.now
+        let accountID = OfflineGrant.accountID(fromAccessToken: api.currentAccessToken(fallback: ""))
         guard let grant = offlineGrantStore.load(), grant.isAdministrator,
-              grant.status(at: now) == .valid else {
+              grant.status(at: now, accountID: accountID) == .valid else {
             throw WebRTCVideoUplinkError.failed(OfflineGrant.expiredMessage)
         }
         offlineGrantStore.save(grant.observing(now))
