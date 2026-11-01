@@ -168,7 +168,7 @@ final class PrivacySustainedPerformanceTests: XCTestCase {
             autoreleasepool {
                 let timestamp = Int64(ProcessInfo.processInfo.systemUptime * 1_000_000_000)
                 let frame = LKRTCVideoFrame(buffer: LKRTCCVPixelBuffer(pixelBuffer: pixels), rotation: ._0, timeStampNs: timestamp)
-                processor.submit(frame) { output in
+                processor.submit(frame) { output, _ in
                     guard let buffer = output.buffer as? LKRTCCVPixelBuffer else { stats.failure(); return }
                     fanout.appendVideo(pixelBuffer: buffer.pixelBuffer, rotation: output.rotation.rawValue, timestampNs: output.timeStampNs)
                     stats.delivered()

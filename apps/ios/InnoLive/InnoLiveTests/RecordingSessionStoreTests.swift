@@ -51,6 +51,28 @@ import XCTest
         XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appendingPathComponent("\(saved.id.uuidString).json").path))
     }
 
+    func testProtectedRecordingMetadataKeepsSourceAndMosaicAcrossReload() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = makeStore(directory)
+        let mosaic = OnDeviceMosaicSettings(blurStrength: 48, maskMargin: 32)
+        let recorder = try store.begin(sessionID: "protected", source: .protected, mosaic: mosaic)
+        XCTAssertEqual(recorder.source, .protected)
+        try await feed(recorder)
+        let saved = try XCTUnwrap(try await store.finish(sessionID: "protected"))
+        XCTAssertEqual(saved.source, .protected)
+        XCTAssertEqual(saved.mosaic, mosaic)
+        let reloaded = makeStore(directory)
+        await reloaded.reloadLibrary()
+        XCTAssertEqual(reloaded.recordings, [saved])
+        let raw = try store.begin(sessionID: "raw", mosaic: mosaic)
+        XCTAssertEqual(raw.source, .raw)
+        try await feed(raw)
+        let rawSaved = try XCTUnwrap(try await store.finish(sessionID: "raw"))
+        XCTAssertEqual(rawSaved.source, .raw)
+        XCTAssertNil(rawSaved.mosaic, "raw recordings carry no mosaic settings")
+    }
+
     func testRetryMetadataCommitUsesExistingValidatedFile() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
