@@ -1,6 +1,144 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "AI 모델을 준비하는 중입니다. 준비가 끝나면 녹화할 수 있어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 모델을 준비하는 중입니다. 준비가 끝나면 녹화할 수 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing the AI models. You can record once they are ready."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIモデルを準備しています。準備が終わると録画できます。"
+          }
+        }
+      }
+    },
+    "온디바이스 AI 모델이 없는 빌드입니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온디바이스 AI 모델이 없는 빌드입니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This build has no on-device AI models."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このビルドにはオンデバイスAIモデルがありません。"
+          }
+        }
+      }
+    },
+    "AI 모델 준비 중 %lld%%": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 모델 준비 중 %lld%%"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing AI models %lld%%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIモデルを準備中 %lld%%"
+          }
+        }
+      }
+    },
+    "AI 모델을 준비하지 못했습니다. %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 모델을 준비하지 못했습니다. %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t prepare the AI models. %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIモデルを準備できませんでした。%@"
+          }
+        }
+      }
+    },
+    "AI 모델 준비됨 · %@초": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 모델 준비됨 · %@초"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI models ready · %@ s"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AIモデル準備完了 · %@秒"
+          }
+        }
+      }
+    },
+    "이 빌드의 첫 준비라 1분 정도 걸릴 수 있어요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 빌드의 첫 준비라 1분 정도 걸릴 수 있어요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First preparation for this build can take about a minute."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このビルドの初回準備のため、1分ほどかかる場合があります。"
+          }
+        }
+      }
+    },
     "항상 로컬 모드로 녹화합니다.": {
       "extractionState": "manual",
       "localizations": {

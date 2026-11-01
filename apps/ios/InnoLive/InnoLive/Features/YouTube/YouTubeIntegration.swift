@@ -253,6 +253,7 @@ final class YouTubeIntegration: ObservableObject {
     let planStore = PlanStore()
     let offlineGrantStore: OfflineGrantStoring = OfflineGrantStore()
     let operatingMode = OperatingModeMonitor()
+    let modelReadiness = ModelReadinessStore()
     @Published var isRemainingTimeStale = false
 
     var currentPlanMode: BroadcastPlanMode {

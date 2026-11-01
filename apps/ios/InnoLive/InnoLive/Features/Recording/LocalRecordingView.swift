@@ -12,6 +12,14 @@ struct LocalRecordingView: View {
     @State private var openError: String?
     @State private var isClosing = false
     @State private var thermalNotice: String?
+    @ObservedObject private var readiness: ModelReadinessStore
+
+    init(youtube: YouTubeIntegration, uplink: WebRTCVideoUplink, lifecycle: BroadcastLifecycle) {
+        _youtube = ObservedObject(wrappedValue: youtube)
+        _uplink = ObservedObject(wrappedValue: uplink)
+        _lifecycle = ObservedObject(wrappedValue: lifecycle)
+        _readiness = ObservedObject(wrappedValue: youtube.modelReadiness)
+    }
 
     var body: some View {
         NavigationStack {
@@ -27,6 +35,7 @@ struct LocalRecordingView: View {
                         .multilineTextAlignment(.center)
                 }
                 recordButton
+                ModelReadinessReadout(store: readiness)
                 Text(String(localized: "서버 연결 없이 이 기기에만 녹화합니다."))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -44,6 +53,7 @@ struct LocalRecordingView: View {
             }
         }
         .task { await open() }
+        .task { await readiness.warm() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { youtube.stopLocalTake() }
         }
@@ -127,7 +137,8 @@ struct LocalRecordingView: View {
         }
         .innoLiveGlassButtonStyle()
         .buttonBorderShape(.capsule)
-        .disabled((uplink.state != .connected && !youtube.isLocalTakeRecording) || isClosing || lifecycle.recording == .finalizing)
+        .disabled((!youtube.isLocalTakeRecording && (uplink.state != .connected || !readiness.isReady))
+                  || isClosing || lifecycle.recording == .finalizing)
         .accessibilityIdentifier("local-recording-toggle")
     }
 

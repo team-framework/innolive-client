@@ -59,6 +59,7 @@ struct ContentView: View {
                     // Renews the offline grant while the server is reachable. Local mode is admin-only.
                     if await youtube.isAdministrator(accessToken: accessToken) {
                         youtube.operatingMode.start { authentication.currentAccessToken() }
+                        await youtube.modelReadiness.warm()
                     }
                 }
             }
