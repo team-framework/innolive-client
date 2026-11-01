@@ -1,6 +1,52 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "이 계정의 로컬 녹화 권한을 확인하지 못했습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 계정의 로컬 녹화 권한을 확인하지 못했습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local recording isn't confirmed for this account. Connect to the internet once to confirm your sign-in."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このアカウントのローカル録画権限を確認できませんでした。インターネットに接続してログイン状態を一度確認してください。"
+          }
+        }
+      }
+    },
+    "오프라인 사용 기간이 지났어요. 녹화는 계속할 수 있고, 인터넷에 연결되면 자동으로 다시 확인해요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오프라인 사용 기간이 지났어요. 녹화는 계속할 수 있고, 인터넷에 연결되면 자동으로 다시 확인해요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your offline period has passed. You can keep recording, and it will be checked again automatically once you're online."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフライン利用期間が過ぎました。録画は続けられ、インターネットに接続すると自動で再確認します。"
+          }
+        }
+      }
+    },
     "인터넷에 연결되지 않아 송출할 수 없어요.": {
       "extractionState": "manual",
       "localizations": {
@@ -687,29 +733,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "再ログインにはインターネット接続が必要です。ログアウトすると、この端末のオフライン利用期間も削除されます。"
-          }
-        }
-      }
-    },
-    "오프라인 사용 기간이 끝났습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "오프라인 사용 기간이 끝났습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your offline period has ended. Connect to the internet once to confirm your sign-in."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "オフライン利用期間が終了しました。インターネットに接続してログイン状態を一度確認してください。"
           }
         }
       }

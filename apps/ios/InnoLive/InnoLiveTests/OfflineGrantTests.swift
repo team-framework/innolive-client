@@ -87,4 +87,23 @@ final class OfflineGrantTests: XCTestCase {
         XCTAssertNil(OfflineGrant.accountID(fromAccessToken: "opaque-token"))
         XCTAssertNil(OfflineGrant.accountID(fromAccessToken: nil))
     }
+
+    func testExpiredGrantStillAllowsLocalTake() {
+        let afterExpiry = issuedAt.addingTimeInterval(30 * day)
+        XCTAssertEqual(grant().status(at: afterExpiry, accountID: account), .expired)
+        XCTAssertTrue(grant().allowsLocalTake(at: afterExpiry, accountID: account))
+    }
+
+    func testClockRollbackStillAllowsLocalTake() {
+        let seen = grant().observing(issuedAt.addingTimeInterval(3_600))
+        XCTAssertTrue(seen.allowsLocalTake(at: issuedAt.addingTimeInterval(60), accountID: account))
+    }
+
+    func testLocalTakeNeedsAdministratorOnSameAccount() {
+        XCTAssertTrue(grant().allowsLocalTake(at: issuedAt, accountID: account))
+        XCTAssertFalse(grant(isAdministrator: false).allowsLocalTake(at: issuedAt, accountID: account))
+        XCTAssertFalse(grant().allowsLocalTake(at: issuedAt.addingTimeInterval(30 * day),
+                                               accountID: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"))
+        XCTAssertFalse(grant().allowsLocalTake(at: issuedAt, accountID: nil))
+    }
 }

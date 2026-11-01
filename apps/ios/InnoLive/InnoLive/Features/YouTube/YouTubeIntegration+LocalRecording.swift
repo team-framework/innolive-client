@@ -34,15 +34,15 @@ extension YouTubeIntegration {
         }
     }
 
-    /// Throws when the offline grant no longer allows a new take. A take in progress is never cut short.
+    /// Throws when this account has no administrator grant. An expired grant only marks itself stale.
     func startLocalTake() throws {
         let now = Date.now
         let accountID = OfflineGrant.accountID(fromAccessToken: api.currentAccessToken(fallback: ""))
-        guard let grant = offlineGrantStore.load(), grant.isAdministrator,
-              grant.status(at: now, accountID: accountID) == .valid else {
-            throw WebRTCVideoUplinkError.failed(OfflineGrant.expiredMessage)
+        guard let grant = offlineGrantStore.load(), grant.allowsLocalTake(at: now, accountID: accountID) else {
+            throw WebRTCVideoUplinkError.failed(OfflineGrant.unconfirmedMessage)
         }
         offlineGrantStore.save(grant.observing(now))
+        isOfflineGrantStale = grant.status(at: now, accountID: accountID) != .valid
         if let snapshot = planStore.snapshot, snapshot.usage.hasDeviceRemainingSeconds,
            snapshot.usage.deviceRemainingSeconds == 0 {
             throw WebRTCVideoUplinkError.failed(String(localized: "이번 달 온디바이스 시간을 모두 사용해 로컬 녹화를 시작할 수 없어요."))
