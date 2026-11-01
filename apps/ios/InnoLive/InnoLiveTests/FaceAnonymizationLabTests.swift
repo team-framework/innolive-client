@@ -44,9 +44,9 @@ final class FaceAnonymizationLabTests: XCTestCase {
         let isAdmin = try await api.isAdministrator(accessToken: "token")
         let forbidden = try await api.isAdministrator(accessToken: "token")
         let missingRoute = try await api.isAdministrator(accessToken: "token")
-        XCTAssertTrue(isAdmin)
-        XCTAssertFalse(forbidden)
-        XCTAssertFalse(missingRoute)
+        XCTAssertEqual(isAdmin, AdministratorCheck(isAdministrator: true, serverDate: Date(timeIntervalSince1970: 1_800_000_000)))
+        XCTAssertFalse(forbidden.isAdministrator)
+        XCTAssertFalse(missingRoute.isAdministrator)
         let request = try XCTUnwrap(FaceAnonymizationLabURLProtocol.requests.first)
         XCTAssertEqual(request.httpMethod, "GET")
         XCTAssertEqual(request.url?.path, "/admin/me")
@@ -120,7 +120,7 @@ private final class FaceAnonymizationLabURLProtocol: URLProtocol, @unchecked Sen
         Self.requests.append(request)
         let (status, body) = Self.responses.isEmpty ? (500, Data()) : Self.responses.removeFirst()
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil,
-            headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
+            headerFields: ["Content-Type": "application/json", "Date": "Fri, 15 Jan 2027 08:00:00 GMT"])!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
         client?.urlProtocolDidFinishLoading(self)
     }
