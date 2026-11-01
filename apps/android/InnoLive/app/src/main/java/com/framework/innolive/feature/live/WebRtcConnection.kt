@@ -398,6 +398,8 @@ internal class WebRtcConnection(
             initialAnonymizationEnabled,
             sharedEglContext = checkNotNull(eglBase).eglBaseContext,
             onProcessingFailure = { executeOnOwner { fail(ConnectionFailure.GENERIC) } },
+            // 군중 프레임은 원본 대신 버리고 연결은 유지합니다. 장면이 바뀌면 다음 프레임부터 다시 송출합니다.
+            onFrameContentFailure = {},
             onProtectedFrameSent = {
                 executeOnOwner {
                     if (isActive()) {
