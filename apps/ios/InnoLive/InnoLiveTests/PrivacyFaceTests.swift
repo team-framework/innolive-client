@@ -130,14 +130,76 @@ final class PrivacyFaceTests: XCTestCase {
 
     private let box = CGRect(x: 10, y: 10, width: 100, height: 100)
 
-    func testOneMatchApprovesAndNeverSchedulesAgain() throws {
-        let (tracker, _, _) = try allowedTracker()
-        for step in 1...300 {
-            let time = 1 + Double(step) / 30
-            tracker.update([3: box.offsetBy(dx: CGFloat(step), dy: 0)], at: time, trackIDs: [3: 10])
+    private func advance(_ tracker: PrivacyFaceTracking, frames: Int, from start: Double, boxes: [Int: CGRect]? = nil,
+                         trackIDs: [Int: Int] = [3: 10]) -> Double {
+        var time = start
+        for _ in 0..<frames {
+            time += 1.0 / 30
+            tracker.update(boxes ?? [3: box], at: time, trackIDs: trackIDs)
+        }
+        return time
+    }
+
+    func testApprovedTrackIsRecheckedOnlyEveryThirtyFrames() throws {
+        let (tracker, _, person) = try allowedTracker()
+        var time = 1.0
+        for _ in 1..<PrivacyFaceTracking.reverifyFrames {
+            time = advance(tracker, frames: 1, from: time)
             XCTAssertEqual(tracker.allowed(at: time), [3])
             XCTAssertNil(tracker.next(at: time))
         }
+        time = advance(tracker, frames: 1, from: time)
+        let recheck = try XCTUnwrap(tracker.next(at: time))
+        XCTAssertEqual(recheck.candidate, person)
+        tracker.accept(trackID: recheck.id, match: person, capturedAt: time, now: time + 0.1)
+        XCTAssertEqual(tracker.allowed(at: time + 0.1), [3])
+        time = advance(tracker, frames: PrivacyFaceTracking.reverifyFrames - 1, from: time)
+        XCTAssertNil(tracker.next(at: time))
+    }
+
+    func testRecheckWithoutMatchRevokesApproval() throws {
+        let (tracker, _, _) = try allowedTracker()
+        let time = advance(tracker, frames: PrivacyFaceTracking.reverifyFrames, from: 1)
+        let recheck = try XCTUnwrap(tracker.next(at: time))
+        tracker.accept(trackID: recheck.id, match: nil, capturedAt: time, now: time + 0.1)
+        XCTAssertTrue(tracker.allowed(at: time + 0.1).isEmpty)
+        XCTAssertTrue(tracker.approvedTrackIDs.isEmpty)
+    }
+
+    func testRecheckMatchingAnotherPersonMovesApproval() throws {
+        let (tracker, _, person) = try allowedTracker()
+        let time = advance(tracker, frames: PrivacyFaceTracking.reverifyFrames, from: 1)
+        let recheck = try XCTUnwrap(tracker.next(at: time))
+        let other = UUID()
+        tracker.accept(trackID: recheck.id, match: other, capturedAt: time, now: time + 0.1)
+        XCTAssertEqual(tracker.tracks.first?.candidate, other)
+        XCTAssertNotEqual(other, person)
+    }
+
+    func testUnusableOrLateRecheckKeepsApprovalAndRetries() throws {
+        let (tracker, _, person) = try allowedTracker()
+        let time = advance(tracker, frames: PrivacyFaceTracking.reverifyFrames, from: 1)
+        let recheck = try XCTUnwrap(tracker.next(at: time))
+        tracker.accept(trackID: recheck.id, match: nil, capturedAt: time, now: time + 0.1, sampleAvailable: false)
+        tracker.accept(trackID: recheck.id, match: nil, capturedAt: time, now: time + 0.8)
+        XCTAssertEqual(tracker.allowed(at: time + 0.8), [3])
+        let retry = try XCTUnwrap(tracker.next(at: time + 0.8))
+        tracker.accept(trackID: retry.id, match: person, capturedAt: time + 0.8, now: time + 0.9)
+        XCTAssertEqual(tracker.allowed(at: time + 0.9), [3])
+        XCTAssertNil(tracker.next(at: time + 1.2))
+    }
+
+    func testDueRecheckRunsBeforeUnapprovedTracksAndWaitsForIsolation() throws {
+        let (tracker, _, person) = try allowedTracker()
+        let far = box.offsetBy(dx: 400, dy: 0)
+        var time = advance(tracker, frames: PrivacyFaceTracking.reverifyFrames, from: 1,
+                           boxes: [3: box, 5: box.offsetBy(dx: 30, dy: 0)], trackIDs: [3: 10, 5: 12])
+        XCTAssertNil(tracker.next(at: time))
+        time = advance(tracker, frames: 1, from: time, boxes: [3: box, 5: far], trackIDs: [3: 10, 5: 12])
+        let first = try XCTUnwrap(tracker.next(at: time))
+        XCTAssertEqual(first.sourceID, 10)
+        XCTAssertEqual(first.candidate, person)
+        XCTAssertEqual(tracker.next(at: time)?.sourceID, 12)
     }
 
     func testApprovalSurvivesOverlapAndLateNegativeOrMissingResult() throws {

@@ -1,8 +1,12 @@
 import Foundation
 import CoreGraphics
 
-/// Stream-local approval bound to a registered face and the full BoT-SORT lifetime.
+/// Stream-local approval bound to a registered face and the BoT-SORT lifetime.
+/// Approved tracks are matched again every `reverifyFrames` frames, because the tracker has no ReID
+/// and an ID swap could otherwise carry an approval to a stranger.
 nonisolated final class PrivacyFaceTracking {
+    static let reverifyFrames = 30
+
     struct Track {
         let id = UUID()
         var index: Int
@@ -11,6 +15,9 @@ nonisolated final class PrivacyFaceTracking {
         var isolated = true
         var lastScheduled: Double = -.infinity
         var candidate: UUID?
+        var framesSinceVerified = 0
+
+        var needsMatch: Bool { candidate == nil || framesSinceVerified >= PrivacyFaceTracking.reverifyFrames }
     }
     private(set) var tracks: [Track] = []
     private var lastTime: Double?
@@ -41,6 +48,7 @@ nonisolated final class PrivacyFaceTracking {
             lost.index = -1
             return lost
         }
+        for index in tracks.indices where tracks[index].candidate != nil { tracks[index].framesSinceVerified += 1 }
     }
 
     /// A whitelist edit cancels in-flight decisions, but preserves approvals for surviving entries.
@@ -51,20 +59,25 @@ nonisolated final class PrivacyFaceTracking {
         }
     }
 
+    /// Approved tracks due for re-verification go before unapproved ones.
     func next(at time: Double) -> Track? {
         guard time.isFinite,
-              let index = tracks.indices.filter({ tracks[$0].candidate == nil && tracks[$0].index >= 0 && tracks[$0].isolated && time - tracks[$0].lastScheduled >= 0.25 })
-            .min(by: { tracks[$0].lastScheduled < tracks[$1].lastScheduled }) else { return nil }
+              let index = tracks.indices.filter({ tracks[$0].needsMatch && tracks[$0].index >= 0 && tracks[$0].isolated && time - tracks[$0].lastScheduled >= 0.25 })
+            .min(by: { (tracks[$0].candidate == nil ? 1 : 0, tracks[$0].lastScheduled) < (tracks[$1].candidate == nil ? 1 : 0, tracks[$1].lastScheduled) })
+        else { return nil }
         tracks[index].lastScheduled = time
         return tracks[index]
     }
 
+    /// A fresh, isolated, usable sample decides the track: a match approves or confirms it, no match revokes it.
+    /// An unusable or late sample changes nothing, so a due approved track is simply retried.
     func accept(trackID: UUID, match: UUID?, capturedAt: Double, now: Double, sampleAvailable: Bool = true) {
-        guard let index = tracks.firstIndex(where: { $0.id == trackID }), tracks[index].candidate == nil,
+        guard let index = tracks.firstIndex(where: { $0.id == trackID }), tracks[index].needsMatch,
               tracks[index].lastScheduled == capturedAt, tracks[index].isolated,
-              sampleAvailable, let match, now.isFinite, capturedAt.isFinite,
+              sampleAvailable, now.isFinite, capturedAt.isFinite,
               now >= capturedAt, now - capturedAt < 0.75 else { return }
         tracks[index].candidate = match
+        tracks[index].framesSinceVerified = 0
     }
 
     var approvedTrackIDs: Set<Int> { Set(tracks.filter { $0.candidate != nil }.map(\.sourceID)) }
