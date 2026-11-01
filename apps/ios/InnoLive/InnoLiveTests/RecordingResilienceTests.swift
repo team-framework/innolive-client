@@ -154,7 +154,7 @@ import XCTest
         start(lifecycle, coordinator: coordinator, session: "expiry-ui")
         try await feed(try XCTUnwrap(recorder))
         lifecycle.reconcileTargets([], generation: lifecycle.generation)
-        coordinator.reconcile(targets: [], sessionID: "expiry-ui")
+        coordinator.reconcile(targets: [], sessionID: .server("expiry-ui"))
         leases[0].expire()
         guard case .failed = lifecycle.recording else { return XCTFail("Overlay must receive expiry failure") }
         XCTAssertNotNil(coordinator.notice)
@@ -179,7 +179,7 @@ import XCTest
         start(lifecycle, coordinator: coordinator, session: "old-ui")
         try await feed(try XCTUnwrap(recorder))
         lifecycle.reconcileTargets([], generation: lifecycle.generation)
-        coordinator.reconcile(targets: [], sessionID: "old-ui")
+        coordinator.reconcile(targets: [], sessionID: .server("old-ui"))
         // Change presentation generation before the new writer starts. The store's old
         // generation can still publish expiry, but the coordinator must reject it.
         let preparation = lifecycle.beginPreparation()
@@ -191,12 +191,12 @@ import XCTest
         lifecycle.advanceCountdown(generation: generation)
         lifecycle.advanceCountdown(generation: generation)
         XCTAssertTrue(lifecycle.beginStarting(generation: generation))
-        coordinator.arm(sessionID: "new-ui")
+        coordinator.arm(sessionID: .server("new-ui"))
         await coordinator.waitForPendingWork()
         XCTAssertEqual(lifecycle.recording, .recording)
         XCTAssertNil(coordinator.notice)
         XCTAssertEqual(store.recordings.count, 1)
-        coordinator.abortFailedStart(sessionID: "new-ui")
+        coordinator.abortFailedStart(sessionID: .server("new-ui"))
         await coordinator.waitForPendingWork()
     }
 
@@ -207,9 +207,9 @@ import XCTest
         lifecycle.advanceCountdown(generation: generation)
         lifecycle.advanceCountdown(generation: generation)
         XCTAssertTrue(lifecycle.beginStarting(generation: generation))
-        coordinator.arm(sessionID: session)
+        coordinator.arm(sessionID: .server(session))
         lifecycle.reconcileTargets(["target"], generation: generation)
-        coordinator.reconcile(targets: ["target"], sessionID: session)
+        coordinator.reconcile(targets: ["target"], sessionID: .server(session))
     }
 
     private func temporaryDirectory() throws -> URL {
