@@ -20,6 +20,7 @@ extension YouTubeIntegration {
         }
         let id = UUID()
         localCaptureID = id
+        operatingMode.send(.capture(active: true))
         do {
             try await videoUplink.startLocalOnly(id, preferredCameraID: preferredCameraID,
                                                  preferredAudioID: preferredAudioID,
@@ -27,6 +28,7 @@ extension YouTubeIntegration {
         } catch {
             guard localCaptureID == id else { return }
             localCaptureID = nil
+            operatingMode.send(.capture(active: false))
             await videoUplink.stopAndWait()
             throw error
         }
@@ -63,6 +65,7 @@ extension YouTubeIntegration {
         guard localCaptureID != nil else { return }
         stopLocalTake()
         localCaptureID = nil
+        operatingMode.send(.capture(active: false))
         await videoUplink.stopAndWait()
         lifecycle.reset()
     }

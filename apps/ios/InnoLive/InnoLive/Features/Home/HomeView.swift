@@ -36,6 +36,7 @@ struct HomeView: View {
     @State private var liveHeaderHeight: CGFloat = 44
     @State private var studioNavigationHeight: CGFloat = 56
     @State private var isShowingAccount = false
+    @State private var isShowingLocalRecording = false
     @GestureState private var pinchStartZoom: CGFloat?
     @StateObject private var tutorial = BroadcastTutorialCoordinator()
     @StateObject private var guestRegistrar = GuestFaceRegistrar()
@@ -238,6 +239,18 @@ struct HomeView: View {
                 onRetrySaving: youtube.recordingCoordinator.canRetry ? {
                     Task { await youtube.recordingCoordinator.retrySaving() }
                 } : nil)
+        }
+        .overlay(alignment: .top) {
+            if !youtube.isYouTubeBroadcastActive, youtube.preparationStatus == nil, !isRequestingPreparation {
+                LocalModeBanner(monitor: youtube.operatingMode,
+                                canStartLocalRecording: youtube.canOpenLocalCapture) {
+                    isShowingLocalRecording = true
+                }
+                .padding(.top, 56)
+            }
+        }
+        .fullScreenCover(isPresented: $isShowingLocalRecording) {
+            LocalRecordingView(youtube: youtube, uplink: youtube.videoUplink, lifecycle: youtube.lifecycle)
         }
         .sheet(isPresented: $isShowingAccount) {
             NavigationStack {

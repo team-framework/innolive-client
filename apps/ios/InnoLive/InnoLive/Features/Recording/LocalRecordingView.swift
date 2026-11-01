@@ -16,6 +16,7 @@ struct LocalRecordingView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
+                LocalModeChips(monitor: youtube.operatingMode)
                 preview
                 status
                     .frame(minHeight: 44)

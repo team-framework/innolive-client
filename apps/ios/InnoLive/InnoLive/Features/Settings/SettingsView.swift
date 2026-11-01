@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var isAdministrator = false
     @State private var faceAnonymization = FaceAnonymizationMode.selected
     @State private var isShowingLocalRecording = false
+    @AppStorage(OperatingModeMonitor.alwaysLocalKey) private var alwaysLocalMode = false
     var body: some View {
         ScrollView {
             // Liquid Glass 효과를 자연스럽게 묶음
@@ -130,6 +131,19 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
 
             if AIProcessingMode.localModelsAvailable {
+                SettingsGlassRow {
+                    Toggle(isOn: $alwaysLocalMode) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "iphone")
+                                .font(.body)
+                                .frame(width: iconWidth)
+                            Text(String(localized: "항상 로컬 모드"))
+                                .font(.subheadline.weight(.semibold))
+                        }
+                    }
+                    .accessibilityIdentifier("lab-always-local-mode")
+                }
+                .onChange(of: alwaysLocalMode) { _, enabled in youtube.operatingMode.setAlwaysLocal(enabled) }
                 Button {
                     isShowingLocalRecording = true
                 } label: {
