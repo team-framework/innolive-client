@@ -92,4 +92,11 @@ final class ConsentAcknowledgementStoreTests: XCTestCase {
         XCTAssertFalse(store.hasAcceptedMediaTransmission)
         XCTAssertTrue(store.hasAcknowledgedYouTubeTransmission)
     }
+
+    func testLocalRecordingNoticeIsRememberedOnThisDevice() {
+        XCTAssertFalse(store.hasAcknowledgedLocalRecordingNotice)
+        store.recordLocalRecordingNotice()
+        XCTAssertTrue(ConsentAcknowledgementStore(userDefaults: userDefaults).hasAcknowledgedLocalRecordingNotice)
+        XCTAssertNotNil(userDefaults.object(forKey: "com.framework.innolive.consent.local-recording-notice.v1"))
+    }
 }
