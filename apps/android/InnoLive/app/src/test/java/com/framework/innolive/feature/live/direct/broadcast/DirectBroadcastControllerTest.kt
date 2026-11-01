@@ -1122,6 +1122,7 @@ class DirectBroadcastControllerTest {
         scheduler.advance(2_000)
 
         assertTrue("disconnect:youtube" in media.engine.calls)
+        assertTrue(media.engine.closed)
         assertFalse("stop:youtube" in server.calls)
         assertFalse("delete:session-1" in server.calls)
         assertNull(recovery.stored)
