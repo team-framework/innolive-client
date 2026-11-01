@@ -106,6 +106,29 @@ import XCTest
         XCTAssertEqual(result.duration, 1, accuracy: 0.001)
     }
 
+    func testOverlappingAudioTimestampsKeepOnlyNewAudioAndSave() async throws {
+        let recorder = LocalBroadcastRecorder()
+        let url = temporaryURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let epoch = CMClockGetTime(CMClockGetHostTimeClock())
+        try recorder.start(url: url, epoch: epoch)
+        let starts = (0..<50).map { Double($0) / 100 } + [0.49, 0.495] + (0..<49).map { 0.505 + Double($0) / 100 }
+        for (index, seconds) in starts.enumerated() {
+            let time = CMTimeAdd(epoch, CMTime(seconds: seconds, preferredTimescale: 1_000_000_000))
+            if index % 10 == 0 {
+                recorder.appendVideo(pixelBuffer: try pixel(), rotation: 0,
+                    timestampNs: CMTimeConvertScale(time, timescale: 1_000_000_000, method: .default).value)
+            }
+            recorder.appendAudio(try tone(index: index), when: AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: CMTimeGetSeconds(time))))
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let result = try await recorder.stop()
+        XCTAssertEqual(result.audioFrames, 50 * 480 + 240 + 49 * 480, "re-delivered audio dropped, partial overlap trimmed")
+        XCTAssertEqual(result.duration, 0.995, accuracy: 0.001)
+        let audioTracks = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio)
+        XCTAssertEqual(audioTracks.count, 1)
+    }
+
     func testAudioMemoryBudgetFailsBoundedlyBeforeVideoArrives() async throws {
         let observer = RecordingFailureObserver()
         let recorder = LocalBroadcastRecorder(onFailure: { observer.record($0) })
