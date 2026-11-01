@@ -51,9 +51,10 @@ struct ContentView: View {
             if isAuthenticated {
                 youtube.dismissError()
                 Task {
-                    await youtube.refreshConnection(
-                        accessToken: authentication.currentAccessToken()
-                    )
+                    let accessToken = authentication.currentAccessToken()
+                    await youtube.refreshConnection(accessToken: accessToken, quietWhenUnreachable: true)
+                    // Renews the offline grant while the server is reachable.
+                    _ = await youtube.isAdministrator(accessToken: accessToken)
                 }
             }
         }

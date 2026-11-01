@@ -1,6 +1,29 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "오프라인 사용 기간이 끝났습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오프라인 사용 기간이 끝났습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your offline period has ended. Connect to the internet once to confirm your sign-in."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オフライン利用期間が終了しました。インターネットに接続してログイン状態を一度確認してください。"
+          }
+        }
+      }
+    },
     "영상을 앱에 저장했어요": {
       "extractionState": "manual",
       "localizations": {

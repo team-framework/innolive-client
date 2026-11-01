@@ -228,7 +228,8 @@ extension YouTubeIntegration {
         }
     }
 
-    func refreshConnection(accessToken: String?) async {
+    /// `quietWhenUnreachable` keeps an offline launch free of a connection error banner.
+    func refreshConnection(accessToken: String?, quietWhenUnreachable: Bool = false) async {
         guard !isYouTubeConnectionOperationInProgress,
               let accessToken,
               !accessToken.isEmpty else {
@@ -251,6 +252,7 @@ extension YouTubeIntegration {
         } catch {
             guard isCurrentConnectionOperation(generation) else { return }
             // Keep the last known connection when the refresh is unavailable.
+            if quietWhenUnreachable, error as? YouTubeAPIError == .transport { return }
             handle(error)
         }
     }

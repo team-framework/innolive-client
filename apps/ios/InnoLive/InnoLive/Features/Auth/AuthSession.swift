@@ -18,6 +18,7 @@ final class AuthSession: ObservableObject {
     private let api: AuthenticationAPIClient
     private let tokenStore: AuthenticationTokenStoring
     private let consentStore: ConsentAcknowledgementStore
+    private let offlineGrantStore: OfflineGrantStoring
     private var pendingSignup: PendingSignup?
     private var tokenRefreshTask: Task<AuthenticationRefreshResult, Never>?
     private var tokenRefreshTaskGeneration: UInt?
@@ -26,11 +27,13 @@ final class AuthSession: ObservableObject {
     init(
         api: AuthenticationAPIClient = AuthenticationAPI(),
         tokenStore: AuthenticationTokenStoring = AuthenticationTokenStore(),
-        consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore()
+        consentStore: ConsentAcknowledgementStore = ConsentAcknowledgementStore(),
+        offlineGrantStore: OfflineGrantStoring = OfflineGrantStore()
     ) {
         self.api = api
         self.tokenStore = tokenStore
         self.consentStore = consentStore
+        self.offlineGrantStore = offlineGrantStore
         hasAcceptedAccountCollection = consentStore.hasAcceptedAccountCollection
         hasAcceptedMediaTransmission = consentStore.hasAcceptedMediaTransmission
     }
@@ -228,6 +231,7 @@ final class AuthSession: ObservableObject {
         cleanup()
         invalidateSessionGeneration()
         tokenStore.remove()
+        offlineGrantStore.remove()
         pendingSignup = nil
         consentStore.clearAccountCollection()
         hasAcceptedAccountCollection = false
@@ -240,6 +244,7 @@ final class AuthSession: ObservableObject {
     func signOut() {
         invalidateSessionGeneration()
         tokenStore.remove()
+        offlineGrantStore.remove()
         pendingSignup = nil
         errorMessage = nil
         isAuthenticated = false
@@ -248,6 +253,7 @@ final class AuthSession: ObservableObject {
     func expireSession() {
         invalidateSessionGeneration()
         tokenStore.remove()
+        offlineGrantStore.remove()
         pendingSignup = nil
         errorMessage = String(localized: "로그인이 만료되었습니다. 다시 로그인해 주세요.")
         isAuthenticated = false
