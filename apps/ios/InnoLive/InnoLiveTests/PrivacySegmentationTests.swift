@@ -249,6 +249,17 @@ final class PrivacySegmentationTests: XCTestCase {
         XCTAssertEqual(soft[0], 0)
     }
 
+    func testMaskWidthCoreFollowsEdgeCellsAboveBaseline() throws {
+        var bytes = [UInt8](repeating: 0, count: 160 * 160)
+        bytes[80 * 160 + 80] = 255
+        func covered(_ edgeCells: Int) throws -> Int {
+            try maskPixels(PrivacyMask.modelImage(bytes: bytes, feathered: false, edgeCells: edgeCells)).filter { $0 > 0 }.count
+        }
+        XCTAssertEqual(try covered(1), try covered(2), "Widths at or below 2 cells keep the current core")
+        XCTAssertLessThan(try covered(2), try covered(3))
+        XCTAssertLessThan(try covered(3), try covered(PrivacyMask.maxEdgeCells))
+    }
+
     func testMaskTopLeftCoordinatesSurviveCoreImageConversion() throws {
         var bytes = [UInt8](repeating: 0, count: 160 * 160)
         for y in 20..<30 { for x in 10..<20 { bytes[y * 160 + x] = 255 } }

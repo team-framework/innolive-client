@@ -75,8 +75,13 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
     private let onError: @Sendable (String) -> Void
     private let metricsLock = NSLock()
     private var metricsHandler: (@Sendable (PrivacyFrameMetric) -> Void)?
+    private let mosaicLock = NSLock()
+    private var mosaic = OnDeviceMosaicSettings()
 
     init(onError: @escaping @Sendable (String) -> Void) { self.onError = onError }
+    func setMosaic(_ settings: OnDeviceMosaicSettings) {
+        mosaicLock.withLock { mosaic = settings }
+    }
     #if DEBUG
     private var timingObserver: (@Sendable (PrivacyTimings) -> Void)?
     func setTimingObserver(_ observer: (@Sendable (PrivacyTimings) -> Void)?) {
@@ -139,7 +144,8 @@ nonisolated final class PrivacyUplinkProcessor: @unchecked Sendable {
                         let output = try outputPool.acquire(width: CVPixelBufferGetWidth(pixels.pixelBuffer),
                                                             height: CVPixelBufferGetHeight(pixels.pixelBuffer))
                         // Restore sensor dimensions; WebRTC still carries the original rotation metadata.
-                        let processing = try model!.process(upright, into: output, restoring: orientation.reverse)
+                        let current = mosaicLock.withLock { mosaic }
+                        let processing = try model!.process(upright, into: output, restoring: orientation.reverse, mosaic: current)
                         #if DEBUG
                         let observer = metricsLock.withLock { timingObserver }
                         observer?(processing.1)

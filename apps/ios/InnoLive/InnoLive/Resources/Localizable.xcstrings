@@ -1,6 +1,29 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "온디바이스 AI는 기본 강도와 너비보다 약하게 할 수 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온디바이스 AI는 기본 강도와 너비보다 약하게 할 수 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device AI can’t go below the default strength and width."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オンデバイスAIは標準の強さと幅より弱くできません。"
+          }
+        }
+      }
+    },
     "화면 변경": {
       "localizations": {
         "ko": {
@@ -11138,29 +11161,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "配信を準備すると調整できます。"
-          }
-        }
-      }
-    },
-    "서버 AI 처리에서만 조절할 수 있습니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "서버 AI 처리에서만 조절할 수 있습니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Available only with server AI processing."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サーバーAI処理でのみ調整できます。"
           }
         }
       }

@@ -209,6 +209,7 @@ extension WebRTCVideoUplink {
             warmth: videoQualitySettings.warmth,
             saturation: videoQualitySettings.saturation
         )
+        relay.setOnDeviceMosaic(onDeviceMosaic)
         relay.setUnprocessedPreviewHandler(unprocessedPreviewHandler)
         relay.setDirectMediaSink(directMediaSink)
         relay.setRecordingSink(recordingSink)
@@ -690,6 +691,7 @@ nonisolated final class WebRTCCameraFrameRelay: NSObject, LKRTCVideoCapturerDele
         }
     }
 
+    func setOnDeviceMosaic(_ settings: OnDeviceMosaicSettings) { processor.setMosaic(settings) }
     func setLocalAnonymizationEnabled(_ enabled: Bool) { processor.setEnabled(enabled) }
     func prepareLocalProcessing() async throws { try await processor.prepare() }
     func setProcessingMode(_ mode: AIProcessingMode) {

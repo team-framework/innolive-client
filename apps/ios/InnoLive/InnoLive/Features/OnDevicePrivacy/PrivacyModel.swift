@@ -65,12 +65,12 @@ nonisolated final class PrivacyModel {
         previousTime = nil
     }
 
-    func process(_ pixelBuffer: CVPixelBuffer) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
-        return try process(CIImage(cvPixelBuffer: pixelBuffer))
+    func process(_ pixelBuffer: CVPixelBuffer, mosaic: OnDeviceMosaicSettings = OnDeviceMosaicSettings()) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
+        return try process(CIImage(cvPixelBuffer: pixelBuffer), mosaic: mosaic)
     }
 
-    func process(_ original: CIImage) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
-        try process(original) { image in
+    func process(_ original: CIImage, mosaic: OnDeviceMosaicSettings = OnDeviceMosaicSettings()) throws -> (CGImage, Int, PrivacyTimings, PrivacyFaceSnapshot) {
+        try process(original, mosaic: mosaic) { image in
             guard let output = context.createCGImage(image, from: original.extent) else {
                 throw PrivacyModelError.imageBuffer
             }
@@ -80,8 +80,9 @@ nonisolated final class PrivacyModel {
 
     /// Render directly into reusable output without a full-frame CGImage round trip.
     func process(_ original: CIImage, into output: CVPixelBuffer,
-                 restoring orientation: CGImagePropertyOrientation) throws -> (Int, PrivacyTimings, PrivacyFaceSnapshot) {
-        let result = try process(original) { image in
+                 restoring orientation: CGImagePropertyOrientation,
+                 mosaic: OnDeviceMosaicSettings = OnDeviceMosaicSettings()) throws -> (Int, PrivacyTimings, PrivacyFaceSnapshot) {
+        let result = try process(original, mosaic: mosaic) { image in
             let restored = image.oriented(orientation)
             let normalized = restored.transformed(by: CGAffineTransform(translationX: -restored.extent.minX,
                                                                          y: -restored.extent.minY))
@@ -92,12 +93,12 @@ nonisolated final class PrivacyModel {
         return (result.1, result.2, result.3)
     }
 
-    private func process<Output>(_ original: CIImage, render: (CIImage) throws -> Output) throws -> (Output, Int, PrivacyTimings, PrivacyFaceSnapshot) {
-        do { return try processFrame(original, render: render) }
+    private func process<Output>(_ original: CIImage, mosaic: OnDeviceMosaicSettings, render: (CIImage) throws -> Output) throws -> (Output, Int, PrivacyTimings, PrivacyFaceSnapshot) {
+        do { return try processFrame(original, mosaic: mosaic, render: render) }
         catch { resetTemporalState(); throw error }
     }
 
-    private func processFrame<Output>(_ original: CIImage, render: (CIImage) throws -> Output) throws -> (Output, Int, PrivacyTimings, PrivacyFaceSnapshot) {
+    private func processFrame<Output>(_ original: CIImage, mosaic: OnDeviceMosaicSettings, render: (CIImage) throws -> Output) throws -> (Output, Int, PrivacyTimings, PrivacyFaceSnapshot) {
         let start = ProcessInfo.processInfo.systemUptime
         if let previousTime, start <= previousTime || start - previousTime >= 1.0 { resetTemporalState() }
         if let previousExtent, previousExtent != original.extent { resetTemporalState() }
@@ -134,13 +135,14 @@ nonisolated final class PrivacyModel {
         let indexedMasks = Dictionary(uniqueKeysWithValues: zip(protectedIndices, instances))
         let bytes = try stabilizer.apply(indexedMasks, frame: tracked, allowed: allowed, approvedTrackIDs: faces.approvedTrackIDs)
         let masked = ProcessInfo.processInfo.systemUptime
-        let mask = try PrivacyMask.modelImage(bytes: bytes)
+        let edgeCells = PrivacyMask.edgeCells(width: original.extent.width, height: original.extent.height, marginPx: mosaic.maskMargin)
+        let mask = try PrivacyMask.modelImage(bytes: bytes, edgeCells: edgeCells)
             .transformed(by: CGAffineTransform(scaleX: 4, y: 4))
             .transformed(by: CGAffineTransform(translationX: -layout.left, y: -layout.bottom))
             .transformed(by: CGAffineTransform(scaleX: size.width / layout.resized.width,
                                               y: size.height / layout.resized.height))
             .cropped(to: original.extent)
-        let blurred = try broadcastStyleBlur(original)
+        let blurred = try broadcastStyleBlur(original, strength: mosaic.blurStrength)
         var result = blurred.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: original,
                                                                           kCIInputMaskImageKey: mask])
         if PrivacyAnimal.selected != .blur {
@@ -173,15 +175,24 @@ nonisolated final class PrivacyModel {
     static let blurReduction: CGFloat = 4
     static let broadcastBlurSigmaPerShortSide: CGFloat = 1.0 / 15
 
-    static func broadcastBlurSigma(for extent: CGRect) -> CGFloat {
-        let shortSide = min(extent.width, extent.height)
-        return max(48, (shortSide * broadcastBlurSigmaPerShortSide).rounded())
+    /// Snap to the nearest of {24,30,36,42,48}, matching Android's discrete strength steps.
+    static func strengthLevel(_ strength: Int) -> Int {
+        let clamped = min(max(strength, OnDeviceMosaicSettings.defaultBlurStrength), OnDeviceMosaicSettings.maxBlurStrength)
+        let steps = ((Double(clamped - OnDeviceMosaicSettings.defaultBlurStrength) / Double(OnDeviceMosaicSettings.blurStrengthStep)).rounded())
+        return OnDeviceMosaicSettings.defaultBlurStrength + Int(steps) * OnDeviceMosaicSettings.blurStrengthStep
     }
 
-    func broadcastStyleBlur(_ original: CIImage, reduction: CGFloat = PrivacyModel.blurReduction) throws -> CIImage {
+    static func broadcastBlurSigma(for extent: CGRect, strength: Int = OnDeviceMosaicSettings.defaultBlurStrength) -> CGFloat {
+        let shortSide = min(extent.width, extent.height)
+        let base = max(48, (shortSide * broadcastBlurSigmaPerShortSide).rounded())
+        return (base * CGFloat(strengthLevel(strength)) / CGFloat(OnDeviceMosaicSettings.defaultBlurStrength)).rounded()
+    }
+
+    func broadcastStyleBlur(_ original: CIImage, reduction: CGFloat = PrivacyModel.blurReduction,
+                            strength: Int = OnDeviceMosaicSettings.defaultBlurStrength) throws -> CIImage {
         guard reduction == 2 || reduction == 4 else { throw PrivacyModelError.outputContract }
         let extent = original.extent
-        let sigma = Self.broadcastBlurSigma(for: extent)
+        let sigma = Self.broadcastBlurSigma(for: extent, strength: strength)
         let reducedWidth = max(1, Int((extent.width / reduction).rounded(.up)))
         let reducedHeight = max(1, Int((extent.height / reduction).rounded(.up)))
         let reducedExtent = CGRect(x: 0, y: 0, width: reducedWidth, height: reducedHeight)
