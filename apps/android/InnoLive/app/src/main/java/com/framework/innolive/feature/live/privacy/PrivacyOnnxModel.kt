@@ -293,10 +293,12 @@ internal class PrivacyOnnxModel(private val context: Context,
         session?.close(); session = null
     }
 
+    /** The next frame validates the detector engines again on the thread that runs it. */
     internal fun releaseAccelerators() {
         nnapi?.close(); nnapi = null
         gpu?.close(); gpu = null
         nativeInputActive = false
+        gpuChecked = false
     }
 
     companion object {
