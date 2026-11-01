@@ -140,7 +140,7 @@ struct PlanUsageContent: View {
                 Button(String(localized: "다시 시도"), action: onRefresh).disabled(isLoading)
             }
             if let date = lastUpdatedAt {
-                Text(String(localized: "마지막 조회: \(date.formatted(date: .omitted, time: .standard))"))
+                Text(String(localized: "마지막 조회: \(date.formatted(date: .abbreviated, time: .shortened))"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
