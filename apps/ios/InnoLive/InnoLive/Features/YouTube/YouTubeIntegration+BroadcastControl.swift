@@ -297,6 +297,7 @@ extension YouTubeIntegration {
     }
 
     func handleAppBecameActive(accessToken: String?) async {
+        localTakeUploader.drain()
         hasObservedActiveScene = true
         shouldResumeAfterBackgroundPause = true
         if let backgroundPauseTask {
