@@ -36,6 +36,11 @@ nonisolated enum VideoUplinkSessionMode: Equatable, Sendable {
     case serverAI
     case onDeviceServerEgress
     case onDeviceDirectPublish
+    /// 서버 세션·송출 대상 없이 기기에서만 처리하고 녹화한다.
+    case localOnly
+
+    /// 서버와 WebRTC 영상 연결을 맺는 경로다.
+    var opensPeerConnection: Bool { self == .serverAI || self == .onDeviceServerEgress }
 }
 
 /// 서버가 재인코딩하는 영상 업링크의 송신 정책(client #557, #580). 시작·최대·fps·해상도 유지는 Android와 같다.
@@ -59,7 +64,7 @@ nonisolated struct VideoUplinkSendPolicy: Equatable, Sendable {
 
     static func forSession(_ mode: VideoUplinkSessionMode, resolution: VideoUplinkResolution) -> VideoUplinkSendPolicy? {
         // 직접 송출 중에는 업로드가 두 배가 되지 않게 서버 영상을 낮추므로 라이브러리 기본값을 둔다(#481).
-        guard mode != .onDeviceDirectPublish else { return nil }
+        guard mode.opensPeerConnection else { return nil }
         // 온디바이스 + 서버 송출은 Android에 대응 경로가 없다. 서버가 같은 방식으로 재인코딩하므로 서버 AI 값을 쓴다.
         switch resolution {
         case .hd720:
@@ -93,6 +98,7 @@ nonisolated struct VideoUplinkSendPolicy: Equatable, Sendable {
 
 extension WebRTCSessionCredentials {
     var uplinkSessionMode: VideoUplinkSessionMode {
+        if isLocalOnly { return .localOnly }
         if isDirectPublish { return .onDeviceDirectPublish }
         return processingMode == .onDevice ? .onDeviceServerEgress : .serverAI
     }

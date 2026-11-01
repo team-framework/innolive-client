@@ -62,6 +62,20 @@ final class VideoUplinkSendPolicyTests: XCTestCase {
         XCTAssertEqual(credentials.uplinkSessionMode, .onDeviceDirectPublish)
     }
 
+    func testLocalOnlyCredentialsOpenNoServerConnection() {
+        let id = UUID()
+        let credentials = WebRTCSessionCredentials.localOnly(id)
+        XCTAssertEqual(credentials.uplinkSessionMode, .localOnly)
+        XCTAssertEqual(credentials.processingMode, .onDevice)
+        XCTAssertFalse(credentials.sendsMicrophoneToServer)
+        XCTAssertEqual(credentials.sessionID, CaptureSessionID.local(id).recordingKey)
+        XCTAssertFalse(VideoUplinkSessionMode.localOnly.opensPeerConnection)
+        XCTAssertFalse(VideoUplinkSessionMode.onDeviceDirectPublish.opensPeerConnection)
+        XCTAssertTrue(VideoUplinkSessionMode.serverAI.opensPeerConnection)
+        XCTAssertTrue(VideoUplinkSessionMode.onDeviceServerEgress.opensPeerConnection)
+        XCTAssertNil(VideoUplinkSendPolicy.forSession(.localOnly, resolution: .fhd))
+    }
+
     func testConfigureWritesPolicyToEveryEncoding() {
         let parameters = parametersWithEncodings(2)
         VideoUplinkSendPolicy.configure(parameters, policy: VideoUplinkSendPolicy.forSession(.serverAI, resolution: .fhd),
