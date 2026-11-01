@@ -35,15 +35,6 @@ final class OnDeviceMosaicSettingsTests: XCTestCase {
                        OnDeviceMosaicSettings(blurStrength: 36, maskMargin: 20))
     }
 
-    func testFrom() {
-        XCTAssertEqual(OnDeviceMosaicSettings.from(blurRadius: 40, maskMargin: 32),
-                       OnDeviceMosaicSettings(blurStrength: 40, maskMargin: 32))
-        XCTAssertEqual(OnDeviceMosaicSettings.from(blurRadius: nil, maskMargin: nil),
-                       OnDeviceMosaicSettings(blurStrength: 24, maskMargin: 8))
-        XCTAssertEqual(OnDeviceMosaicSettings.from(blurRadius: 64, maskMargin: 0),
-                       OnDeviceMosaicSettings(blurStrength: 48, maskMargin: 8))
-    }
-
     func testNewInstallationUsesDefaults() {
         XCTAssertEqual(OnDeviceMosaicSettings.load(from: defaults), OnDeviceMosaicSettings())
     }

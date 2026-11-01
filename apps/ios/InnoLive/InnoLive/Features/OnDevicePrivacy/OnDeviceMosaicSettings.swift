@@ -26,11 +26,6 @@ nonisolated struct OnDeviceMosaicSettings: Equatable {
              maskMargin: Self.clamp(maskMargin, Self.maskMarginRange))
     }
 
-    static func from(blurRadius: Int?, maskMargin: Int?) -> Self {
-        Self(blurStrength: blurRadius.map { clamp($0, blurStrengthRange) } ?? defaultBlurStrength,
-             maskMargin: maskMargin.map { clamp($0, maskMarginRange) } ?? defaultMaskMargin)
-    }
-
     static func load(from defaults: UserDefaults = .standard) -> Self {
         Self(blurStrength: defaults.object(forKey: Key.blurStrength) as? Int ?? defaultBlurStrength,
              maskMargin: defaults.object(forKey: Key.maskMargin) as? Int ?? defaultMaskMargin).normalized()
