@@ -55,7 +55,7 @@
 
 ## 송출 미디어 녹화
 
-`LocalBroadcastRecorder`는 카메라 원본 프레임과 마이크 PCM을 H.264 + AAC 48 kHz stereo MP4에 기록한다. 카메라 relay는 방향 잠금을 적용한 직후, 색상 보정과 AI 처리 전에 pixel buffer·rotation·timestamp를 녹화기에 전달한다. 서버·온디바이스 모드가 같은 녹화 입력 경로를 사용한다. 녹화 시작·종료는 coordinator의 sink 연결·해제로 제어한다.
+`LocalBroadcastRecorder`는 카메라 원본 프레임과 마이크 PCM을 H.264 + AAC 48 kHz stereo MP4에 기록한다. 카메라 relay는 방향 잠금을 적용한 직후, 색상 보정과 AI 처리 전에 pixel buffer·rotation·timestamp를 녹화기에 전달한다. 온디바이스 모드의 녹화 입력은 아래 비식별 녹화를 따른다. 녹화 시작·종료는 coordinator의 sink 연결·해제로 제어한다.
 
 WebRTC 마이크는 기본 audio device module의 capture postprocessing callback에서 복사한다. LiveKit의 FloatS16을 Float32로 정규화하며, mono는 두 채널로 복사한다. `capturePostProcessingDelegate`는 audio processing module 생성 후 setter로 연결한다. 초기화 인자만 전달하면 현재 의존성의 native adapter가 callback을 연결하지 않는다. 별도의 마이크 장치를 열거나 audio session의 manual 설정을 바꾸지 않는다.
 
@@ -147,6 +147,18 @@ PR #613 원본 녹화와 main `078dd538`의 세션 해상도 변경을 합친 �
 
 로컬 녹화는 `VideoUplinkSessionMode.localOnly` 경로로 카메라·마이크·온디바이스 처리를 연다. `POST /sessions`, WebRTC 설정 조회, 시그널링, 송출을 하지 않는다. 녹화 세션은 `CaptureSessionID.local(UUID)`이며 메타데이터와 복구 journal의 `sessionID`에 `local-<UUID>`로 저장한다.
 
-녹화 시작 시 기기를 유일한 활성 대상으로 바로 확인하므로 임시 파일 폐기 규칙을 적용하지 않는다. 녹화 종료·화면 닫기·백그라운드 이동에서 기존 로컬 종료 경로로 파일을 마무리하고 저장 목록에 추가한다. 음성은 직접 송출과 같은 앱 마이크 녹음을 사용한다. 이 단계의 파일은 기존 방송 녹화와 같이 비식별화 전 카메라 원본이다.
+녹화 시작 시 기기를 유일한 활성 대상으로 바로 확인하므로 임시 파일 폐기 규칙을 적용하지 않는다. 녹화 종료·화면 닫기·백그라운드 이동에서 기존 로컬 종료 경로로 파일을 마무리하고 저장 목록에 추가한다. 음성은 직접 송출과 같은 앱 마이크 녹음을 사용한다. 로컬 녹화는 항상 비식별 녹화다.
 
 마이크 버퍼의 host time은 리샘플링 후 길이와 맞지 않아 이미 기록한 구간과 겹칠 수 있다. 녹화기는 3ms를 넘는 겹침 구간을 잘라 새 음성만 기록하고, 전체가 겹친 버퍼는 버린다. 겹침으로 녹화 전체를 실패시키지 않는다.
+
+## 비식별 녹화
+
+녹화기마다 `RecordingSource`를 시작 시 고정한다. 온디바이스 처리 세션과 로컬 녹화는 `protected`, 서버 AI 세션은 `raw`다. 한 파일에 원본과 비식별 프레임이 섞이지 않는다.
+
+- `raw` 녹화기는 기존처럼 색상 보정·AI 처리 전 카메라 입력을 받는다.
+- `protected` 녹화기는 `PrivacyUplinkProcessor`가 비식별화하고 색상 보정한 송출 프레임만 받는다. 카메라 입력, 비식별화를 끈 통과 프레임, 무효화된 경로의 결과는 받지 않는다.
+- 처리 실패·과부하로 버린 프레임은 원본으로 대체하지 않는다. 파일은 원래 timestamp를 유지한 가변 프레임레이트가 된다.
+- 방송 중 서버 AI로 경로를 바꾸면 `protected` 녹화기는 영상 프레임을 받지 않는다.
+- 로컬 녹화 중 처리 오류가 나거나 기기 온도가 `critical`이 되면 녹화를 종료하고 저장한다. `critical` 상태에서는 새 녹화를 시작하지 않는다.
+
+메타데이터 JSON과 복구 journal에 `source`를 기록한다. `protected` 녹화는 시작 시점의 블러 강도·마스크 너비(`mosaic`)도 기록한다. 이전 메타데이터는 두 값이 없는 상태로 읽는다.
