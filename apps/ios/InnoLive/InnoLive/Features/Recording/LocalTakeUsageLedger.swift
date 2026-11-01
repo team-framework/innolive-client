@@ -94,7 +94,8 @@ final class LocalTakeUsageLedger: ObservableObject {
 }
 
 /// Drains the ledger in batches. Any failure, including a server without the endpoint, keeps the takes pending
-/// and retries with backoff. `drain()` on reconnect skips a pending backoff.
+/// and retries with backoff. While `canUpload` is false it sends nothing and stops; `drain()` on reconnect
+/// starts again and skips a pending backoff.
 @MainActor
 final class LocalTakeUsageUploader {
     nonisolated deinit {}
@@ -103,6 +104,7 @@ final class LocalTakeUsageUploader {
     private let ledger: LocalTakeUsageLedger
     private let upload: ([LocalTakeUsage]) async throws -> [UUID]
     private let sleep: (Duration) async throws -> Void
+    private let canUpload: () -> Bool
     private let onUploaded: () -> Void
     private var task: Task<Void, Never>?
     private var isWaitingToRetry = false
@@ -111,10 +113,12 @@ final class LocalTakeUsageUploader {
     init(ledger: LocalTakeUsageLedger,
          upload: @escaping ([LocalTakeUsage]) async throws -> [UUID],
          sleep: @escaping (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+         canUpload: @escaping () -> Bool = { true },
          onUploaded: @escaping () -> Void = {}) {
         self.ledger = ledger
         self.upload = upload
         self.sleep = sleep
+        self.canUpload = canUpload
         self.onUploaded = onUploaded
     }
 
@@ -134,7 +138,7 @@ final class LocalTakeUsageUploader {
         isWaitingToRetry = false
     }
 
-    /// Exposed for tests. Returns when the ledger is empty or the task is cancelled.
+    /// Exposed for tests. Returns when the ledger is empty, uploading is not possible, or the task is cancelled.
     func run() async {
         var failures = 0
         var uploadedAny = false
@@ -143,7 +147,7 @@ final class LocalTakeUsageUploader {
             if !Task.isCancelled { task = nil }
             if uploadedAny { onUploaded() }
         }
-        while !Task.isCancelled, !ledger.pending.isEmpty {
+        while !Task.isCancelled, !ledger.pending.isEmpty, canUpload() {
             let batch = Array(ledger.pending.prefix(Self.batchSize))
             do {
                 let acknowledged = try await upload(batch)

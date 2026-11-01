@@ -112,6 +112,59 @@ final class LocalTakeUsageTests: XCTestCase {
         XCTAssertEqual(LocalTakeUsageUploader.retryDelay(afterFailures: 20), .seconds(600))
     }
 
+    func testOfflineSendsNothingAndUploadsOnceAfterReconnect() async {
+        let pending = ledger()
+        let saved = recording()
+        pending.record(saved)
+        var online = false
+        var uploads: [[UUID]] = []
+        let uploader = LocalTakeUsageUploader(ledger: pending, upload: { batch in
+            uploads.append(batch.map(\.takeID))
+            return batch.map(\.takeID)
+        }, canUpload: { online })
+        await uploader.run()
+        XCTAssertTrue(uploads.isEmpty, "no request while offline")
+        XCTAssertEqual(ledger().pending.map(\.takeID), [saved.id], "take stays pending across relaunch")
+
+        online = true
+        await uploader.run()
+        await uploader.run()
+        XCTAssertEqual(uploads, [[saved.id]], "reconnect uploads the take once")
+        XCTAssertTrue(pending.pending.isEmpty)
+    }
+
+    func testGoingOfflineDuringBackoffStopsRetrying() async {
+        let pending = ledger()
+        pending.record(recording())
+        var online = true
+        var attempts = 0
+        let uploader = LocalTakeUsageUploader(ledger: pending, upload: { _ in
+            attempts += 1
+            throw URLError(.timedOut)
+        }, sleep: { _ in online = false }, canUpload: { online })
+        await uploader.run()
+        XCTAssertEqual(attempts, 1, "no retry once the path is gone")
+        XCTAssertEqual(pending.pending.count, 1)
+    }
+
+    func testDrainOnReconnectSkipsPendingBackoff() async throws {
+        let pending = ledger()
+        pending.record(recording())
+        var attempts = 0
+        let uploader = LocalTakeUsageUploader(ledger: pending, upload: { batch in
+            attempts += 1
+            if attempts == 1 { throw URLError(.notConnectedToInternet) }
+            return batch.map(\.takeID)
+        }, sleep: { _ in try await Task.sleep(for: .seconds(3_600)) })
+        uploader.drain()
+        for _ in 0..<1_000 where attempts == 0 { try await Task.sleep(for: .milliseconds(5)) }
+        try await Task.sleep(for: .milliseconds(20))
+        uploader.drain()
+        for _ in 0..<1_000 where !pending.pending.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertEqual(attempts, 2)
+        XCTAssertTrue(pending.pending.isEmpty, "uploaded without waiting out the hour-long backoff")
+    }
+
     func testUploaderSendsBatchesOfFifty() async {
         let pending = ledger()
         for _ in 0..<120 { pending.record(recording()) }

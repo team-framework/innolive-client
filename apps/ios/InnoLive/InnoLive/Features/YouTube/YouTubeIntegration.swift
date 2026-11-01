@@ -263,6 +263,8 @@ final class YouTubeIntegration: ObservableObject {
     lazy var localTakeUploader = LocalTakeUsageUploader(ledger: localTakeLedger, upload: { [weak self] takes in
         guard let self else { return [] }
         return try await self.api.uploadLocalTakes(takes, accessToken: self.api.currentAccessToken(fallback: ""))
+    }, canUpload: { [weak self] in
+        self?.operatingMode.state.canUploadUsage ?? false
     }, onUploaded: { [weak self] in
         guard let self else { return }
         Task { await self.refreshPlan(accessToken: self.api.currentAccessToken(fallback: "")) }
@@ -279,7 +281,7 @@ final class YouTubeIntegration: ObservableObject {
                  ? selectedBroadcastProviders.count : visibleBroadcastTargets.count)
     }
 
-    /// Each saved local take joins the ledger, and the ledger drains whenever the server is reachable again.
+    /// Each saved local take joins the ledger. The ledger drains on save, and again whenever uploading becomes possible.
     private func wireLocalTakeUsage() {
         recordingStore.onSaved = { [weak self] recording in
             guard let self else { return }
@@ -299,9 +301,15 @@ final class YouTubeIntegration: ObservableObject {
             .filter { $0 }
             .sink { [weak self] _ in
                 guard let self else { return }
-                self.localTakeUploader.drain()
                 Task { _ = await self.isAdministrator(accessToken: self.api.currentAccessToken(fallback: "")) }
             }
+            .store(in: &localTakeSubscriptions)
+        operatingMode.$state
+            .map(\.canUploadUsage)
+            .removeDuplicates()
+            .dropFirst()
+            .filter { $0 }
+            .sink { [weak self] _ in self?.localTakeUploader.drain() }
             .store(in: &localTakeSubscriptions)
     }
 

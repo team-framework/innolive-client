@@ -27,6 +27,21 @@ final class OperatingModeTests: XCTestCase {
         XCTAssertEqual(run([(0, .path(satisfied: false)), (2, .tick)]).mode, .local(.noPath))
     }
 
+    func testUsageUploadWaitsForPathAndConfirmedServer() {
+        XCTAssertTrue(OperatingState().canUploadUsage)
+        XCTAssertFalse(run([(0, .path(satisfied: false))]).canUploadUsage, "no path")
+        let offline = run([(0, .path(satisfied: false)), (2, .tick)])
+        XCTAssertFalse(run([(3, .path(satisfied: true))], from: offline).canUploadUsage, "path back, server not confirmed")
+        let recovered = run([
+            (3, .path(satisfied: true)), (4, .probe(succeeded: true)), (20, .probe(succeeded: true)), (40, .probe(succeeded: true))
+        ], from: offline)
+        XCTAssertTrue(recovered.canUploadUsage)
+
+        let alwaysLocal = OperatingState(alwaysLocal: true)
+        XCTAssertTrue(alwaysLocal.canUploadUsage, "always-local still reports takes")
+        XCTAssertFalse(run([(0, .path(satisfied: false))], from: alwaysLocal).canUploadUsage)
+    }
+
     func testRefreshUnavailableOnlyMakesSuspect() {
         XCTAssertEqual(run([(0, .refreshUnavailable)]).mode, .suspect(since: at(0), failures: 0))
     }

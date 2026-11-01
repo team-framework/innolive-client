@@ -58,6 +58,9 @@ nonisolated struct OperatingState: Equatable, Sendable {
         if alwaysLocal { apply(.alwaysLocal(true), at: .now) }
     }
 
+    /// Usage uploads wait only for a network path under "항상 로컬", which never probes the server.
+    var canUploadUsage: Bool { pathSatisfied && (alwaysLocal || mode == .server || serverAvailable) }
+
     /// A user may switch back after at least one successful probe while idle.
     var canSwitchToServer: Bool {
         guard case .local(let reason) = mode, reason != .userChoice, !captureActive else { return false }
