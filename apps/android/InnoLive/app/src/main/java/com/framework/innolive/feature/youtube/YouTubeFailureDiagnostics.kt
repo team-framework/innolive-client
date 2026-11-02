@@ -2,7 +2,7 @@ package com.framework.innolive.feature.youtube
 
 import com.google.android.gms.common.api.ApiException
 
-/** Never log an exception message, OAuth code, response body, or account identifier. */
+/** 예외 메시지, OAuth 코드, 응답 본문, 계정 식별자는 절대 로그에 남기지 않습니다. */
 internal fun youtubeFailureDiagnostic(exception: Throwable?): String = when (exception) {
     is ApiException -> "source=google status=${exception.statusCode}"
     is YouTubeApiException -> "source=server status=${exception.statusCode} " +
