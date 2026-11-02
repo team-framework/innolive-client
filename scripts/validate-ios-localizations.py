@@ -11,6 +11,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 RESOURCES = ROOT / "apps/ios/InnoLive/InnoLive/Resources"
 LANGUAGES = ("ko", "en", "ja")
+REQUIRED_CATALOGS = ("Localizable", "InfoPlist")
 # Ignore positional ordering but preserve each argument's type and multiplicity.
 FORMAT = re.compile(r"%(?:\d+\$)?[-+ #0]*(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:hh|ll|[hlLzjt])?[@diuoxXfFeEgGaAcCsSp]")
 
@@ -22,17 +23,21 @@ def placeholders(text):
     )
 
 
-def validate(stringsdata_dir=None):
+def load_catalogs():
+    """Every *.xcstrings in Resources is a lookup table; the two required ones must exist."""
     errors = []
-    total = 0
-    catalogs = {}
-    for name in ("Localizable", "InfoPlist"):
+    for name in REQUIRED_CATALOGS:
         path = RESOURCES / f"{name}.xcstrings"
         if not path.is_file():
             errors.append(f"Missing catalog: {path.relative_to(ROOT)}")
-            continue
-        catalog = json.loads(path.read_text())
-        catalogs[name] = catalog
+    catalogs = {path.stem: json.loads(path.read_text()) for path in sorted(RESOURCES.glob("*.xcstrings"))}
+    return catalogs, errors
+
+
+def validate(stringsdata_dir=None):
+    catalogs, errors = load_catalogs()
+    total = 0
+    for name, catalog in catalogs.items():
         if catalog.get("sourceLanguage") != "ko":
             errors.append(f"{name}: sourceLanguage must remain ko")
         for key, entry in catalog["strings"].items():
@@ -79,7 +84,7 @@ def validate(stringsdata_dir=None):
         print(f"FAIL: {error}")
     if errors:
         return 1
-    print(f"PASS: {total} translatable entries across ko/en/ja; format arguments and permissions match")
+    print(f"PASS: {total} translatable entries in {len(catalogs)} catalogs across ko/en/ja; format arguments and permissions match")
     return 0
 
 
