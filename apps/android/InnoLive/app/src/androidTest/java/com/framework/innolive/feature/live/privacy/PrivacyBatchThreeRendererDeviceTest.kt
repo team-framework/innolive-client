@@ -11,7 +11,7 @@ import org.webrtc.PeerConnectionFactory
 import org.webrtc.VideoFrame
 import kotlin.math.abs
 
-/** Same input and mask, alternating renderer A/B including the I420 consumer fence. */
+/** 같은 입력과 마스크로 I420 소비자 fence까지 포함해 렌더러 A/B를 교대로 측정합니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyBatchThreeRendererDeviceTest {
     @Test fun isolateSparseMaskPixelDifferencesByComponent() {

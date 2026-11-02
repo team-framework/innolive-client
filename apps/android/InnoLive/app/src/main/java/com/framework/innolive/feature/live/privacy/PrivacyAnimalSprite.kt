@@ -9,7 +9,7 @@ import android.graphics.RectF
 import com.framework.innolive.feature.live.AIProcessingPreference
 import org.json.JSONObject
 
-/** Worker-owned sprite compositor; input must already have privacy blur applied. */
+/** worker가 소유하는 스프라이트 합성기입니다. 입력에는 이미 개인정보 블러가 적용돼 있어야 합니다. */
 internal class PrivacyAnimalSprite(private val context: Context) {
     private val preferences = context.getSharedPreferences("privacy_animal", Context.MODE_PRIVATE)
     private val unavailable = mutableSetOf<String>()

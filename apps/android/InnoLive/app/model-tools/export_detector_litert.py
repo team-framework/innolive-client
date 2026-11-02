@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the pinned iOS/Android YOLO segmentation weights as FP32 LiteRT."""
+"""iOS·Android 공용 고정 YOLO 세그멘테이션 가중치를 FP32 LiteRT로 내보냅니다."""
 
 import argparse
 import hashlib
