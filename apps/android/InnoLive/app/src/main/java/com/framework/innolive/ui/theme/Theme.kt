@@ -35,7 +35,7 @@ val InnoLiveTypography = Typography(
 @Composable
 fun MyApplicationTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    // 동적 색상은 Android 12 이상에서 사용할 수 있습니다.
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
