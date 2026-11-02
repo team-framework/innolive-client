@@ -15,7 +15,7 @@ import org.webrtc.JavaI420Buffer
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.VideoFrame
 
-/** Real models and production frame conversion; synthetic pixels never grant an identity exception. */
+/** 실제 모델과 운영 프레임 변환을 사용합니다. 합성 픽셀은 신원 예외를 절대 부여하지 않습니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyPerformanceDeviceTest {
     @Test fun measureConcurrentFaceGpuContention() {
@@ -49,7 +49,7 @@ class PrivacyPerformanceDeviceTest {
         }
         try {
             assertTrue(ready.await(30, java.util.concurrent.TimeUnit.SECONDS))
-            if (faceTask.isDone) faceTask.get() // Propagate preparation errors.
+            if (faceTask.isDone) faceTask.get() // 준비 오류를 전파합니다.
             PrivacyOnnxModel(context).use { detector ->
                 detector.process(image).recycle()
                 assertTrue("This comparison requires detector GPU acceleration", detector.usesGpu)
@@ -96,7 +96,7 @@ class PrivacyPerformanceDeviceTest {
                 try {
                     model.process(image).recycle()
                     assertTrue("This comparison requires detector GPU acceleration", model.usesGpu)
-                    // Separate the CPU validation warmup from steady GPU operation.
+                    // CPU 검증 워밍업과 안정된 GPU 동작을 분리합니다.
                     Thread.sleep(1000)
                     val cpuStarted = Process.getElapsedCpuTime()
                     var inferenceMs = 0.0

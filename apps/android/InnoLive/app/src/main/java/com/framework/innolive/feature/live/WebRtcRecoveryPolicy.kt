@@ -90,7 +90,7 @@ internal fun canReuseRecoveredPreviewAfterStop(
     hasCurrentAnswer &&
     videoPacketsProgressed && serverVideoReady
 
-/** A reused PeerConnection may already have sent packets before recovery. Require new progress. */
+/** 재사용한 PeerConnection은 복구 전에 이미 패킷을 보냈을 수 있으므로, 새 진행이 있어야 합니다. */
 internal class OutboundVideoProgress {
     private var previousPackets: Long? = null
     var hasProgress = false
@@ -150,7 +150,7 @@ internal fun parseWebRtcRecoveryPolicy(config: JSONObject): WebRtcRecoveryPolicy
     )
 }
 
-/** Uses elapsed realtime so wall-clock changes cannot extend the server recovery window. */
+/** 경과 실시간을 써서 벽시계 변경이 서버 복구 대기 시간을 늘리지 못하게 합니다. */
 internal class WebRtcRecoveryWindow(private val policy: WebRtcRecoveryPolicy) {
     var deadlineMillis: Long? = null
         private set

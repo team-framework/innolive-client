@@ -10,7 +10,7 @@ import org.webrtc.JavaI420Buffer
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.VideoFrame
 
-/** Alternating A/B: real YOLO, identical pixels, fixed full protection, complete GPU consumption. */
+/** A/B 교대 측정입니다. 실제 YOLO, 동일한 픽셀, 고정된 전체 보호, GPU 결과 전체 소비 조건을 씁니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyBatchTwoPerformanceDeviceTest {
     @Test fun compareBundleWithFixedPixelsAndProtectionWorkload() {
