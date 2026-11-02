@@ -670,7 +670,8 @@ final class BroadcastPreparationFlowTests: XCTestCase {
             pollingInterval: .seconds(300),
             aiModeProvider: { mode },
             localModelsAvailable: { true },
-            persistAIProcessingMode: { _ in }
+            persistAIProcessingMode: { _ in },
+            transportProvider: { .direct }
         )
     }
 
