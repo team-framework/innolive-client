@@ -11,7 +11,7 @@ plugins {
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
-// Opt-in minified instrumentation uses the local debug certificate, never release signing.
+// 난독화를 켠 계측 테스트는 선택 실행이며, 릴리스 서명이 아닌 로컬 디버그 인증서를 씁니다.
 val privacyReleaseTest = providers.gradleProperty("privacyReleaseTest").orNull == "true"
 
 if (localPropertiesFile.isFile) {
@@ -122,7 +122,7 @@ androidComponents {
     onVariants(selector().withBuildType("release")) { variant ->
         val suffix = variant.name.replaceFirstChar(Char::uppercaseChar)
         val verify = tasks.register<VerifyJniKeepsTask>("verify${suffix}JniKeeps") {
-            // R8 writes seeds.txt next to the mapping artifact; the provider keeps the R8 task dependency.
+            // R8은 매핑 산출물 옆에 seeds.txt를 씁니다. 매핑 provider를 거쳐 R8 작업 의존성이 유지됩니다.
             seedsFile.set(layout.file(variant.artifacts.get(SingleArtifact.OBFUSCATION_MAPPING_FILE)
                 .map { it.asFile.resolveSibling("seeds.txt") }))
             contractFile.set(layout.projectDirectory.file("jni-keep-contract.txt"))
