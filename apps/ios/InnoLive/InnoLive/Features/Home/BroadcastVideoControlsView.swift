@@ -341,7 +341,8 @@ struct BroadcastVideoControlsView: View {
         cameraManager.startPresetPreviewFrames(interfaceOrientation: orientation, presetPreviewDelivery)
     }
 
-    private var presetPreviewDelivery: @Sendable (CVPixelBuffer, Int) -> Void {
+    // View 적합성으로만 추론한 격리에서는 이 클로저가 Sendable로 취급되지 않아 uplink에 넘길 때 경고가 난다.
+    @MainActor private var presetPreviewDelivery: @Sendable (CVPixelBuffer, Int) -> Void {
         let pump = previews.pump
         return { buffer, rotation in
             pump.submit(pixelBuffer: buffer, rotation: rotation)
@@ -501,10 +502,12 @@ nonisolated private final class PresetPreviewPump: @unchecked Sendable {
         busy = true
         lastSubmitTime = now
         lock.unlock()
-        guard let copy = renderer.ownedCopy(of: pixelBuffer) else {
+        guard let ownedCopy = renderer.ownedCopy(of: pixelBuffer) else {
             finish()
             return
         }
+        // 복사본은 아래 큐 작업만 쓰고 이 스레드에서는 다시 건드리지 않는다.
+        nonisolated(unsafe) let copy = ownedCopy
         queue.async { [renderer] in
             let adjustments = BroadcastVideoLook.allCases.map { look in
                 (warmth: look.warmth, saturation: look.saturation, exposureEV: look.exposureEV)
