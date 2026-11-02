@@ -14,7 +14,7 @@ data class VideoQualityCaptureState(
     val stabilizationStatus: VideoStabilizationStatus = VideoStabilizationStatus.PENDING,
 )
 
-/** Camera2 numeric values, kept free of Android dependencies for policy tests. */
+/** Camera2 숫자 값이며, 정책 테스트를 위해 Android 의존성 없이 둡니다. */
 object VideoQualityCapturePolicy {
     const val STABILIZATION_OFF = 0
     const val STABILIZATION_STANDARD = 1

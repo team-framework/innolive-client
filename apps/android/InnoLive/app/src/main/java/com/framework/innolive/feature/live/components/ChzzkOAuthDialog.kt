@@ -76,8 +76,8 @@ internal fun ChzzkOAuthDialog(
             ) {
                 Text(stringResource(R.string.chzzk_oauth_title))
                 TextButton(onClick = dismiss) { Text(stringResource(R.string.action_cancel)) }
-                // A bounded, weighted area gives the native WebView an exact height.
-                // heightIn alone lets a page without intrinsic height measure to zero.
+                // 크기가 제한된 weight 영역이 네이티브 WebView에 정확한 높이를 줍니다.
+                // heightIn만 쓰면 고유 높이가 없는 페이지는 높이가 0으로 측정됩니다.
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     if (loadError != null) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -12,7 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.nio.FloatBuffer
 
-/** Explicit device experiment; defaults are selected only after checking speed AND output parity. */
+/** 명시적으로 실행하는 기기 실험입니다. 기본값은 속도와 출력 일치를 모두 확인한 뒤에만 정합니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyExecutionProviderDeviceTest {
     @Test fun compareDetectorAndRecognizerProviders() {

@@ -13,7 +13,7 @@ import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import java.util.concurrent.Executor
 
-/** All camera control and state publication runs on the main executor. */
+/** 모든 카메라 제어와 상태 게시는 main executor에서 실행합니다. */
 @androidx.annotation.OptIn(ExperimentalCamera2Interop::class)
 internal class CameraVideoQualityController(
     private val mainExecutor: Executor,
@@ -50,7 +50,7 @@ internal class CameraVideoQualityController(
             }
             mainExecutor.execute {
                 if (closed || camera == null) return@execute
-                // Late results from a previous slider/toggle request cannot overwrite current state.
+                // 이전 슬라이더·토글 요청의 늦은 결과가 현재 상태를 덮어쓸 수 없습니다.
                 if (request.get(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE) != requestedMode) return@execute
                 val activeMode = result.get(CaptureResult.CONTROL_VIDEO_STABILIZATION_MODE)
                 if (requestedMode == VideoQualityCapturePolicy.STABILIZATION_PREVIEW &&

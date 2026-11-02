@@ -69,7 +69,7 @@ class YouTubeVerificationMemoryTest {
         prepareButton.assertIsNotEnabled()
         rule.runOnIdle { memory.state.value = YouTubeAccountVerificationState.CHECKING }
         prepareButton.assertIsNotEnabled()
-        // A failed account lookup cannot restore the stale verification.
+        // 계정 조회에 실패하면 이전 확인 결과를 되살릴 수 없습니다.
         rule.runOnIdle { memory.state.value = YouTubeAccountVerificationState.UNVERIFIED }
         prepareButton.assertIsNotEnabled()
         rule.runOnIdle {

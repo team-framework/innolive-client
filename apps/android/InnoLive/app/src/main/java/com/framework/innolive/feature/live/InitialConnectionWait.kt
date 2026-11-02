@@ -12,7 +12,7 @@ internal data class InitialConnectionWaitState(
     val signalingStarted: Boolean,
 )
 
-/** Let the connection's signaling timer run for its full window after HTTP setup completes. */
+/** HTTP 설정이 끝난 뒤 연결의 시그널링 타이머가 전체 대기 시간 동안 동작하게 합니다. */
 internal suspend fun awaitInitialConnection(
     states: Flow<InitialConnectionWaitState>,
     generation: Long,

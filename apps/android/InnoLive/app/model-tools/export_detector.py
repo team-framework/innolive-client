@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the same pinned YOLO face/plate checkpoint as the iOS privacy pipeline."""
+"""iOS 개인정보 보호 파이프라인과 같은 고정 YOLO 얼굴·번호판 체크포인트를 내보냅니다."""
 
 import argparse
 import hashlib
@@ -46,7 +46,7 @@ def main():
     onnx.save(graph, args.output)
     onnx.checker.check_model(args.output)
 
-    # Numeric parity catches export changes which preserve shape but alter output meaning.
+    # 수치 일치 검사로 형태는 같지만 출력 의미가 바뀐 내보내기 변경을 잡습니다.
     sample = np.random.default_rng(320).random((1, 3, 640, 640), dtype=np.float32)
     reference_model = YOLO(str(args.checkpoint)).model.eval()
     reference_model.model[-1].end2end = False

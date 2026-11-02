@@ -11,7 +11,7 @@ import org.webrtc.EglBase
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
 
-/** Displays exactly the processed I420 frame used by the sender, without an RGB approximation. */
+/** RGB 근사 없이 송출에 쓰는 처리된 I420 프레임을 그대로 표시합니다. */
 @Composable
 internal fun CameraProcessedPreview(
     analyzer: CameraFrameAnalyzer,

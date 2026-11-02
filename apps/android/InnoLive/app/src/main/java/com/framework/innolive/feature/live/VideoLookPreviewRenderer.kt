@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 data class VideoLookPreviews(
     val settings: BroadcastVideoQualitySettings,
-    /** Upright, unmirrored images sampled from the camera before the active color adjustment. */
+    /** 현재 색 조정을 적용하기 전 카메라에서 샘플링한, 바로 세우고 좌우 반전하지 않은 이미지입니다. */
     val previews: Map<VideoLookPreset, Bitmap>,
 )
 
@@ -42,13 +42,13 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
         }
     }
 
-    /** Only copy camera-owned bytes here; conversion, resizing and rendering run off capture. */
+    /** 여기서는 카메라 소유 바이트만 복사합니다. 변환·크기 조정·렌더링은 캡처 밖에서 실행합니다. */
     fun offer(image: ImageProxy, settings: BroadcastVideoQualitySettings, appliedExposureEV: Float) {
         val generation = gate.tryStart(System.nanoTime()) ?: return
         val selected = VideoLookPreset.entries.firstOrNull { it.matches(settings) }
         val cached = cachedPresets.get()
-        // A selected preset is confirmed once using its settled hardware exposure, then frozen.
-        // Custom changes and reopening the sheet never regenerate confirmed images.
+        // 선택한 프리셋은 안정된 하드웨어 노출로 한 번 확정한 뒤 고정합니다.
+        // 직접 조정하거나 시트를 다시 열어도 확정된 이미지는 다시 만들지 않습니다.
         if (cached != null && (selected == null || selected in cached.confirmed)) {
             gate.finish(generation) {
                 if (mutablePreviews.value?.settings != settings || mutablePreviews.value?.previews !== cached.images) {
@@ -68,7 +68,7 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
                 try {
                     val images = cached?.images ?: render(source, settings, appliedExposureEV).previews
                     val confirmedImages = if (selected != null) {
-                        // No simulated EV: this raw camera frame already has the selected exposure.
+                        // EV를 시뮬레이션하지 않습니다. 이 원본 카메라 프레임에 이미 선택한 노출이 적용돼 있습니다.
                         images + (selected to renderPixels(source, selected.applyTo(settings), appliedExposureEV, appliedExposureEV))
                     } else images
                     gate.finish(generation) {
@@ -76,7 +76,7 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
                         mutablePreviews.value = VideoLookPreviews(settings, confirmedImages)
                     }
                 } catch (_: Exception) {
-                    // A thumbnail failure never substitutes a raw image or affects video capture.
+                    // 썸네일 생성에 실패해도 원본 이미지로 대체하거나 영상 캡처에 영향을 주지 않습니다.
                     gate.finish(generation) {}
                 }
             }
@@ -138,7 +138,7 @@ internal class VideoLookPreviewRenderer : AutoCloseable {
     }
 }
 
-/** Managed memory also supports the pre-connection preview, before WebRTC JNI is initialized. */
+/** 관리 메모리를 써서 WebRTC JNI 초기화 전인 연결 전 미리보기도 지원합니다. */
 internal data class PreviewYuvSnapshot(
     val width: Int,
     val height: Int,

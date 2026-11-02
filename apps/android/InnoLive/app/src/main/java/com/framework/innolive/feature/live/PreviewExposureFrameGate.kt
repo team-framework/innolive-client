@@ -1,6 +1,6 @@
 package com.framework.innolive.feature.live
 
-/** Rejects images captured before the camera reported a settled exposure for the current request. */
+/** 현재 요청에 대해 카메라가 노출 안정화를 알리기 전에 캡처한 이미지는 거부합니다. */
 internal class PreviewExposureFrameGate {
     private var latestTimestamp = Long.MIN_VALUE
     private var firstSettledTimestamp: Long? = null

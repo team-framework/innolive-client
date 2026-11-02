@@ -60,12 +60,12 @@ class PrivacyNativePostprocessorDeviceTest {
             val reference = PrivacyMaskStabilizer()
             val tracking = PrivacyObjectTracking()
             for ((frame, time) in listOf(1.0, 1.033, 1.067, 1.1).withIndex()) {
-                // Every object disappears in frame 2, so each track is held at its predicted box.
+                // 프레임 2에서 모든 객체가 사라지므로, 각 트랙은 예측 상자 위치에 유지됩니다.
                 set(native, predictions(if (frame == 2) 0 else 8, frame * 2f), proto)
                 val objects = tracking.update(native.decode(), time)
                 if (frame == 2) assertTrue(objects.isNotEmpty() && objects.all { it.held })
                 native.select(objects)
-                // Frame 1 exempts a face, so its held copy has no mask of its own to repeat.
+                // 프레임 1에서 얼굴 하나를 제외하므로, 유지된 사본에는 반복할 자체 마스크가 없습니다.
                 val exempt = if (frame == 1) setOf(0) else emptySet()
                 val expected = reference.apply(PrivacyNativeSegmentation.instanceMasks(
                     PrivacySegmentation.protectedDetections(objects, exempt), proto), time)
@@ -76,8 +76,8 @@ class PrivacyNativePostprocessorDeviceTest {
 
     @Test fun nmsTiesClippingAndEmptyPrototypePreserveProtection() {
         val values = predictions(3).apply {
-            this[1]=this[0];this[8401]=this[8400] // Different classes survive.
-            this[2]=this[0];this[8402]=this[8400] // Equal-score same class is suppressed.
+            this[1]=this[0];this[8401]=this[8400] // 서로 다른 클래스는 남습니다.
+            this[2]=this[0];this[8402]=this[8400] // 점수가 같은 동일 클래스는 억제됩니다.
             this[0]=1.3f;this[1]=1.3f;this[2]=1.3f
         }
         val proto = FloatArray(32 * 160 * 160)
@@ -106,12 +106,12 @@ class PrivacyNativePostprocessorDeviceTest {
                 assertThrows(IllegalArgumentException::class.java) {native.decode()}
                 values[values.lastIndex]=0f
             }
-            // Frame content failures stay distinguishable from malformed buffers so GPU processing can retry.
+            // 프레임 내용 실패는 잘못된 버퍼와 구분돼야 GPU 처리가 재시도할 수 있습니다.
             values[2*8400]=-1f;set(native,values,proto)
             assertThrows(PrivacyFrameContentException::class.java) {native.decode()}
             val tooMany=predictions(101).apply { this[100]=62f;this[8400+100]=62f }
             set(native,tooMany,proto)
-            // Add one more non-overlapping class/box than the maximum.
+            // 최대 개수보다 하나 많은, 겹치지 않는 클래스·상자를 추가합니다.
             assertThrows(PrivacyFrameContentException::class.java) {native.decode()}
         }
     }

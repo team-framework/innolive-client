@@ -35,7 +35,7 @@ internal class AccountLocalDataCleaner(context: Context) {
     }
 }
 
-/** Persists only a non-secret account scope hash and deletion phase for process-death recovery. */
+/** 프로세스 종료 후 복구를 위해 비밀이 아닌 계정 scope 해시와 삭제 단계만 저장합니다. */
 internal class AccountDeletionCleanupStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         PREFERENCES_NAME,
@@ -70,9 +70,9 @@ internal class AccountDeletionCleanupStore(context: Context) {
     }
 
     /**
-     * This final-phase marker can outlive the authentication session only when deletion already
-     * completed. Ignore it immediately even if disk removal fails, so a later login in the same
-     * process cannot inherit an earlier account deletion.
+     * 이 마지막 단계 표시는 삭제가 이미 끝났을 때만 인증 세션보다 오래 남을 수 있습니다. 디스크
+     * 삭제에 실패해도 즉시 무시해, 같은 프로세스의 이후 로그인이 이전 계정 삭제 상태를 물려받지
+     * 않게 합니다.
      */
     fun discardCompletedDeletionWithoutAuthentication() {
         if (savedPhase() != AccountDeletionPhase.AUTHENTICATION_CLEANUP_PENDING) return

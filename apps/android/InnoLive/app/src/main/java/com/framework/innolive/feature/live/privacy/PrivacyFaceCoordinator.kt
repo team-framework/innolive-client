@@ -17,7 +17,7 @@ private fun registeredFacesForAccount(context: Context, accountScope: String?): 
     return { library?.snapshot().orEmpty() }
 }
 
-/** Owned by the serial camera analyzer; the worker returns through a single result mailbox. */
+/** 직렬 카메라 분석기가 소유하며, worker는 결과 보관함 하나로 결과를 돌려줍니다. */
 internal class PrivacyFaceCoordinator(
     private val service: PrivacyFaceRecognitionService,
     private val optimized: Boolean = true,
@@ -36,13 +36,13 @@ internal class PrivacyFaceCoordinator(
     private var geometry: Pair<Int, Int>? = null
     private var leased = false
     private var cachedEntries: List<PrivacyRegisteredFace>? = null
-    /** Capture times of AdaFace submissions in the last second. */
+    /** 최근 1초 동안 AdaFace에 제출한 캡처 시각입니다. */
     private val recentSubmissions = ArrayDeque<Double>()
-    /** BoT-SORT IDs that an approved face keeps following while its face is briefly undetected. */
+    /** 승인된 얼굴이 잠시 검출되지 않는 동안에도 계속 따라가는 BoT-SORT ID입니다. */
     var liveTrackIds: () -> Set<Int>? = { null }
     private val stats = if (BuildConfig.DEBUG || BuildConfig.PRIVACY_PERF_DIAGNOSTICS) Stats() else null
 
-    /** Debug-only recognition and exemption counts, logged every [Stats.INTERVAL_NS]. */
+    /** 디버그 전용 인식·예외 횟수이며, [Stats.INTERVAL_NS]마다 로그로 남깁니다. */
     private class Stats {
         var frames = 0; var exemptFrames = 0; var submitted = 0; var matched = 0; var unmatched = 0
         var noSample = 0; var revoked = 0; var granted = 0; var tracks = HashSet<Int>()
@@ -75,7 +75,7 @@ internal class PrivacyFaceCoordinator(
         previousLayout = null
     }
 
-    /** Finish the expensive face model validation before protected frames can enter WebRTC. */
+    /** 보호된 프레임이 WebRTC에 들어가기 전에 비용이 큰 얼굴 모델 검증을 끝냅니다. */
     fun prewarmForUplink() {
         refreshRevision()
         if (entries().isEmpty()) { releaseLease(); return }
@@ -86,7 +86,7 @@ internal class PrivacyFaceCoordinator(
         }
     }
 
-    /** Start at most one independent recognition job. The analyzer never waits for its result. */
+    /** 독립된 인식 작업을 최대 하나만 시작합니다. 분석기는 결과를 기다리지 않습니다. */
     fun beginFrame(upright: Bitmap, timestampNs: Long) =
         beginFrame(upright.width, upright.height, timestampNs) { copyCrop(upright, it) }
 
@@ -104,7 +104,7 @@ internal class PrivacyFaceCoordinator(
         if (!service.canSubmit) return
         val layout = previousLayout ?: return
         val time = timestampNs / 1_000_000_000.0
-        // Each AdaFace run competes with the detector for the GPU, so the whole frame gets a fixed budget.
+        // AdaFace 실행마다 검출기와 GPU를 두고 경쟁하므로, 프레임 전체에 고정 예산을 둡니다.
         while (recentSubmissions.isNotEmpty() &&
             (time < recentSubmissions.first() || time - recentSubmissions.first() >= 1.0)) recentSubmissions.removeFirst()
         if (recentSubmissions.size >= MAX_RECOGNITIONS_PER_SECOND) return
@@ -138,7 +138,7 @@ internal class PrivacyFaceCoordinator(
                      layout: PrivacySegmentation.Letterbox, timestampNs: Long): Set<Int> =
         currentFrame(upright.width,upright.height,objects,layout,timestampNs) { copyCrop(upright,it) }
 
-    /** Select crops from this frame's BoT-SORT tracks; start recognition after detector GPU work. */
+    /** 이 프레임의 BoT-SORT 트랙에서 crop을 고르고, 검출기 GPU 작업 뒤에 인식을 시작합니다. */
     fun currentFrame(width: Int, height: Int, objects: List<PrivacySegmentation.Detection>,
                      layout: PrivacySegmentation.Letterbox, timestampNs: Long, crop: (Rect) -> Bitmap): Set<Int> =
         currentFrame(width,height,objects,layout,timestampNs,crop,null)
@@ -190,7 +190,7 @@ internal class PrivacyFaceCoordinator(
                 } }
             }
         }
-        // Like innolive-ai #77, an approval survives while the face model is briefly unavailable.
+        // innolive-ai #77처럼, 얼굴 모델을 잠시 쓸 수 없어도 승인은 유지됩니다.
         val allowed = if (entries.isEmpty()) emptySet() else tracking.allowed()
         if (entries.isNotEmpty()) stats?.frame(objects, allowed)
         return allowed
@@ -200,7 +200,7 @@ internal class PrivacyFaceCoordinator(
         if (revision != revisionSource()) {
             revision = revisionSource()
             cachedEntries = null
-            // In-flight results compared against the old list are dropped; approvals of remaining faces stay.
+            // 이전 목록과 비교한 진행 중 결과는 버리고, 남은 얼굴의 승인은 유지합니다.
             generation++
             tracking.retain(entries().mapTo(HashSet()) { it.id })
         }
@@ -215,7 +215,7 @@ internal class PrivacyFaceCoordinator(
         emptyList()
     }
 
-    /** The caller owns the returned pixels, including when the crop covers the whole frame. */
+    /** crop이 프레임 전체를 덮는 경우를 포함해, 반환된 픽셀은 호출자가 소유합니다. */
     internal fun recognitionCrop(upright: Bitmap, box: PrivacySegmentation.Box,
                                 layout: PrivacySegmentation.Letterbox): Bitmap? {
         return recognitionBounds(upright.width, upright.height, box, layout)?.let { copyCrop(upright, it) }
@@ -225,7 +225,7 @@ internal class PrivacyFaceCoordinator(
                                   layout: PrivacySegmentation.Letterbox): Rect? {
         val real = toImageBox(box, layout, width, height) ?: return null
         if (min(real.width, real.height) < MIN_FACE_PIXELS) return null
-        // Server's YOLO crop margin is 0.25 on each side.
+        // 서버의 YOLO crop 여백은 각 변마다 0.25입니다.
         val marginX = real.width * .25f
         val marginY = real.height * .25f
         val x0 = max(0, floor(real.left - marginX).toInt())
@@ -237,7 +237,7 @@ internal class PrivacyFaceCoordinator(
     }
 
     private fun copyCrop(upright: Bitmap, bounds: Rect): Bitmap {
-        // createBitmap(source, ...) can return source for a full-frame immutable bitmap.
+        // createBitmap(source, ...)은 전체 프레임 변경 불가 비트맵이면 source를 그대로 반환할 수 있습니다.
         val crop = Bitmap.createBitmap(bounds.width(), bounds.height(), Bitmap.Config.ARGB_8888)
         try {
             Canvas(crop).drawBitmap(upright, bounds,
@@ -259,7 +259,7 @@ internal class PrivacyFaceCoordinator(
     }
 
     companion object {
-        /** Faces shorter than innolive-ai's registration minimum are left blurred instead of recognized. */
+        /** innolive-ai의 등록 최소 크기보다 작은 얼굴은 인식하지 않고 블러로 둡니다. */
         const val MIN_FACE_PIXELS = 40
         const val MAX_RECOGNITIONS_PER_SECOND = 2
     }

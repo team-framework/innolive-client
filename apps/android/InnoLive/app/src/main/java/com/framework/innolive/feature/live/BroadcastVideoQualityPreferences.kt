@@ -23,7 +23,7 @@ class BroadcastVideoQualityPreferences(context: Context) {
             .apply()
     }
 
-    // Ignore obsolete or corrupt stored types without preventing camera startup.
+    // 더 이상 쓰지 않거나 손상된 저장 타입은 카메라 시작을 막지 않고 무시합니다.
     private fun read(key: String, fallback: Float) =
         runCatching { preferences.getFloat(key, fallback) }.getOrDefault(fallback)
 

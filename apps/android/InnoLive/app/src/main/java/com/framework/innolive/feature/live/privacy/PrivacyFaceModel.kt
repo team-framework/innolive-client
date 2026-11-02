@@ -61,7 +61,7 @@ internal object PrivacyFaceMath {
     }
 }
 
-/** File-backed model loading avoids retaining a second 227 MB model copy in Java memory. */
+/** 파일 기반으로 모델을 로드해 227 MB 모델 사본을 Java 메모리에 하나 더 두지 않습니다. */
 internal class PrivacyFaceModel(context: Context,
                                private val sessionOptions: () -> OrtSession.SessionOptions = { OrtSession.SessionOptions() },
                                allowGpu: Boolean = true,
@@ -87,7 +87,7 @@ internal class PrivacyFaceModel(context: Context,
     val usesGpu: Boolean get() = gpu != null
 
     init {
-        // Release native resources for every failure, including JNI linkage errors, then rethrow.
+        // JNI 링크 오류를 포함한 모든 실패에서 네이티브 자원을 해제한 뒤 다시 던집니다.
         val modelFile = try { verifiedModelFile(context.applicationContext) }
         catch (error: Throwable) {
             detector.close()
@@ -119,7 +119,7 @@ internal class PrivacyFaceModel(context: Context,
         }
     }
 
-    /** Null is an untrusted or unusable sample; it must never grant a blur exception. */
+    /** null은 신뢰할 수 없거나 쓸 수 없는 샘플이며, 블러 예외를 절대 부여하면 안 됩니다. */
     fun embedding(image: Bitmap, enrollment: Boolean): FloatArray? = recognize(image, enrollment)?.embedding
 
     data class Recognition(val embedding: FloatArray, val box: RectF)
@@ -144,7 +144,7 @@ internal class PrivacyFaceModel(context: Context,
         }
     }
 
-    /** Exposed to instrumentation so the real weights can be checked without a person's image. */
+    /** 사람 이미지 없이 실제 가중치를 확인할 수 있도록 계측 테스트에 공개합니다. */
     fun predict(image: Bitmap, landmarks: FloatArray): FloatArray {
         require(image.width == 112 && image.height == 112 && landmarks.size == 10 &&
             landmarks.all(Float::isFinite))
