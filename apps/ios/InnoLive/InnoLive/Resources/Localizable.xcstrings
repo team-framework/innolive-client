@@ -1,6 +1,494 @@
 {
   "sourceLanguage": "ko",
   "strings": {
+    "720p": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "720p"
+          }
+        }
+      }
+    },
+    "FHD": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FHD"
+          }
+        }
+      }
+    },
+    "%lld fps": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fps"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fps"
+          }
+        }
+      }
+    },
+    "– fps": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "– fps"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "– fps"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "– fps"
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "extractionState": "manual",
+      "shouldTranslate": false,
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        }
+      }
+    },
+    "온디바이스 비식별화": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "온디바이스 비식별화"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device Anonymization"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "オンデバイス匿名化"
+          }
+        }
+      }
+    },
+    "로컬 테스트 · 영상 저장 및 전송 없음": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로컬 테스트 · 영상 저장 및 전송 없음"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local test · No video saved or sent"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ローカルテスト · 映像の保存・送信なし"
+          }
+        }
+      }
+    },
+    "비식별화 처리 영상": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비식별화 처리 영상"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anonymized video"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "匿名化した映像"
+          }
+        }
+      }
+    },
+    "등록자와 일치한 얼굴의 블러를 해제합니다. 미탐지·오인식은 실제 장면에서 확인해 주세요.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록자와 일치한 얼굴의 블러를 해제합니다. 미탐지·오인식은 실제 장면에서 확인해 주세요."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faces that match a registered person are not blurred. Check for missed or false detections in real scenes."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録者と一致した顔のぼかしを解除します。未検出・誤認識は実際の場面で確認してください。"
+          }
+        }
+      }
+    },
+    "시작": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시작"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開始"
+          }
+        }
+      }
+    },
+    "중지": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "중지"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        }
+      }
+    },
+    "얼굴 등록 관리 · %lld명": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 등록 관리 · %lld명"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Registered Faces · %lld"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔登録の管理 · %lld人"
+          }
+        }
+      }
+    },
+    "등록 중…": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록 중…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registering…"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録中…"
+          }
+        }
+      }
+    },
+    "카메라로 등록": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "카메라로 등록"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Register with Camera"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カメラで登録"
+          }
+        }
+      }
+    },
+    "등록 취소": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록 취소"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel Registration"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録をキャンセル"
+          }
+        }
+      }
+    },
+    "얼굴을 가운데에 맞춰 잠시 유지하세요. 준비가 끝나면 사진 한 장으로 등록하며 최대 20명을 저장합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴을 가운데에 맞춰 잠시 유지하세요. 준비가 끝나면 사진 한 장으로 등록하며 최대 20명을 저장합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Center your face and hold still for a moment. When ready, the app registers it from one photo and saves up to 20 people."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔を中央に合わせて、しばらくそのままにしてください。準備ができたら写真1枚で登録し、最大20人まで保存します。"
+          }
+        }
+      }
+    },
+    "등록된 얼굴이 없습니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "등록된 얼굴이 없습니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No registered faces."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "登録した顔はありません。"
+          }
+        }
+      }
+    },
+    "이름과 얼굴 특징값을 이 기기에 저장합니다. 사진은 저장하지 않습니다. 등록을 삭제하면 블러 예외도 해제합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이름과 얼굴 특징값을 이 기기에 저장합니다. 사진은 저장하지 않습니다. 등록을 삭제하면 블러 예외도 해제합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Names and face features are stored on this device. Photos are not stored. Deleting a registration also removes its blur exception."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名前と顔の特徴値をこの端末に保存します。写真は保存しません。登録を削除すると、ぼかしの除外も解除されます。"
+          }
+        }
+      }
+    },
+    "얼굴 등록 관리": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "얼굴 등록 관리"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage Registered Faces"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "顔登録の管理"
+          }
+        }
+      }
+    },
+    "실험실 · 얼굴 효과": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실험실 · 얼굴 효과"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Labs · Face Effects"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ラボ · 顔エフェクト"
+          }
+        }
+      }
+    },
+    "동물 필터 아래에도 얼굴 블러를 유지합니다.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "동물 필터 아래에도 얼굴 블러를 유지합니다."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Face blur stays on under animal filters."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "動物フィルターの下でも顔のぼかしを維持します。"
+          }
+        }
+      }
+    },
     "이 계정의 로컬 녹화 권한을 확인하지 못했습니다. 인터넷에 연결해 한 번 로그인 상태를 확인해 주세요.": {
       "extractionState": "manual",
       "localizations": {

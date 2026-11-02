@@ -157,7 +157,7 @@ class PlanUsageTest {
         getJSONArray("available_by_mode").getJSONObject(0).remove(key)
     }.toString()
 
-    /** plan-usage-v1.md: Missing required time fields fail decoding; they must not silently become unlimited. */
+    /** plan-usage-v1.md: 필수 시간 필드가 없으면 디코딩에 실패해야 하며, 조용히 무제한으로 바뀌면 안 됩니다. */
     @Test fun everyRequiredFieldMustBePresentInPlanAndUsage() {
         val usage = fixture("allowed")
         assertNotNull(parsePlanUsage(plan, usage))

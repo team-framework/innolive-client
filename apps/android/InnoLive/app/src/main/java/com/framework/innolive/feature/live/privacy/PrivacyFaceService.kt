@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 
-/** One recognizer and one inference queue shared by live video and local enrollment. */
+/** 실시간 영상과 로컬 등록이 함께 쓰는 인식기 하나와 추론 큐 하나입니다. */
 internal interface PrivacyFaceRecognitionService {
     val ready: Boolean
     val canSubmit: Boolean
@@ -84,7 +84,7 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
                 preparation.complete(success = true)
                 Log.i("PrivacyFace", "model_prepared_ms=${SystemClock.elapsedRealtime() - startedAt}")
             } catch (error: Throwable) {
-                // Registered faces stay blurred; JNI linkage errors must not leave the gate running.
+                // 등록된 얼굴은 블러 상태로 남습니다. JNI 링크 오류가 나도 gate가 실행 중으로 남으면 안 됩니다.
                 preparation.complete(success = false)
                 Log.w("PrivacyFace", "model_prepare_failed type=${error.javaClass.simpleName}")
                 if (!error.isPrivacyProcessingFailure()) throw error
@@ -93,7 +93,7 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
     }
 
     override fun awaitPreparation(timeoutMillis: Long): Boolean {
-        // The preparation job runs before this barrier on the same executor.
+        // 준비 작업은 같은 executor에서 이 barrier보다 먼저 실행됩니다.
         val barrier = executor.submit<Boolean> { ready }
         return try {
             barrier.get(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS)
@@ -107,7 +107,7 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
         }
     }
 
-    /** A failed model is retried only by the explicit face-management action. */
+    /** 실패한 모델은 얼굴 관리의 명시적 작업으로만 다시 시도합니다. */
     fun retryPreparation() {
         if (preparation.allowRetry()) prepare()
     }
@@ -177,7 +177,7 @@ internal class PrivacyFaceService private constructor(context: Context) : Privac
     }
 }
 
-/** Suppresses expensive per-frame reloads after failure while retaining an explicit retry path. */
+/** 실패 뒤에는 비용이 큰 프레임별 재로딩을 막고, 명시적 재시도 경로는 남겨 둡니다. */
 internal class PrivacyFacePreparationGate {
     private enum class State { IDLE, RUNNING, FAILED, READY }
     private val state = AtomicReference(State.IDLE)

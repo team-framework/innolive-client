@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the iOS YuNet checkpoint and make its ONNX input size dynamic for Android."""
+"""iOS YuNet 체크포인트를 고정하고, Android용으로 ONNX 입력 크기를 동적으로 바꿉니다."""
 
 import argparse
 import hashlib
@@ -32,7 +32,7 @@ def main():
         count = output.type.tensor_type.shape.dim[1]
         count.ClearField("dim_value")
         count.dim_param = "anchors_" + output.name.split("_")[-1]
-    # Original fixed-size intermediate shape hints make ORT warn on valid smaller inputs.
+    # 원본의 고정 크기 중간 shape 힌트 때문에 ORT가 유효한 더 작은 입력에도 경고합니다.
     model.graph.ClearField("value_info")
     model.metadata_props.add(key="innolive.contract", value="privacy-yunet-2023mar-v1")
     model.metadata_props.add(key="innolive.checkpoint_sha256", value=SOURCE_SHA256)

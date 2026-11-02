@@ -16,7 +16,7 @@ void failed(JNIEnv* env) { env->ThrowNew(env->FindClass("java/lang/IllegalStateE
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuFence_create(JNIEnv*, jobject) {
     const auto display=eglGetCurrentDisplay();
-    // EGL capabilities are stable for a display. Keep the cache on its owning producer thread.
+    // EGL 기능은 display마다 고정입니다. 캐시는 이를 소유한 생산자 스레드에 둡니다.
     thread_local EGLDisplay cachedDisplay=EGL_NO_DISPLAY;
     thread_local bool supported=false;
     if(display!=cachedDisplay) {
@@ -28,7 +28,7 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuFence_create(JN
     if(!supported) return 0;
     const auto sync=createSync(display,EGL_SYNC_FENCE_KHR,nullptr);
     if(sync==EGL_NO_SYNC_KHR) return 0;
-    glFlush(); // The consumer's queue can wait only after the producer submits the fence.
+    glFlush(); // 생산자가 fence를 제출한 뒤에야 소비자 큐가 기다릴 수 있습니다.
     return reinterpret_cast<jlong>(new Fence{display,sync});
 }
 
@@ -38,7 +38,7 @@ Java_com_framework_innolive_feature_live_privacy_PrivacyNativeGpuFence_awaitRead
     if(!fence) return;
     if(eglGetCurrentDisplay()==fence->display && eglGetCurrentContext()!=EGL_NO_CONTEXT &&
         serverWait(fence->display,fence->sync,0)==EGL_TRUE) return;
-    // CPU conversion or an unsupported consumer context still gets a completed protected image.
+    // CPU 변환이나 지원하지 않는 소비자 컨텍스트도 완료된 보호 이미지를 받습니다.
     if(clientWait(fence->display,fence->sync,0,EGL_FOREVER_KHR)!=EGL_CONDITION_SATISFIED_KHR) failed(env);
 }
 

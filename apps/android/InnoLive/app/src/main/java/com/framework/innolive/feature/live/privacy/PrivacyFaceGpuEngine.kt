@@ -10,7 +10,7 @@ import com.google.ai.edge.litert.TensorBuffer
 import java.io.File
 import java.security.MessageDigest
 
-/** Created, used and destroyed on the single face worker thread. */
+/** 단일 얼굴 worker 스레드에서 생성·사용·해제합니다. */
 internal class PrivacyFaceGpuEngine private constructor(private val model: CompiledModel) : AutoCloseable {
     private var inputs = emptyList<TensorBuffer>()
     private var outputs = emptyList<TensorBuffer>()
@@ -65,7 +65,7 @@ internal class PrivacyFaceGpuEngine private constructor(private val model: Compi
                     val expected = try { reference(bitmap, points) } finally { bitmap.recycle() }
                     cpuNs += System.nanoTime() - started
                     val input = normalizedPixels(pixels)
-                    // Discard warmup for each input before comparing speed.
+                    // 속도를 비교하기 전에 입력마다 워밍업 결과를 버립니다.
                     repeat(2) { sample ->
                         val before = System.nanoTime()
                         val actual = candidate.predict(input, points)

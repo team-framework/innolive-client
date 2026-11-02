@@ -2,7 +2,7 @@ package com.framework.innolive.feature.live
 
 import android.content.Context
 
-/** The selected processing location is distinct from the server's confirmed anonymization state. */
+/** 선택한 처리 위치는 서버가 확인한 비식별화 상태와 별개입니다. */
 internal class AIProcessingPreference(context: Context) {
     private val preferences = context.applicationContext
         .getSharedPreferences("live_ai_processing", Context.MODE_PRIVATE)

@@ -6,7 +6,7 @@ enum CameraQualityPreset: String, CaseIterable, Identifiable {
     case hd30 = "720p - 30fps"
     case hd24 = "720p - 24fps"
 
-    static let defaultValue = CameraQualityPreset.fullHD30
+    nonisolated static let defaultValue = CameraQualityPreset.fullHD30
     /// 해상도는 방송 설정의 송출 화질, 프레임 레이트는 카메라 및 오디오 설정이 고른다. 저장값은 하나로 둔다.
     static let storageKey = "selectedResolution"
     static let frameRates = [30, 24]
