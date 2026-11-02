@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert the pinned iOS AdaFace weights to LiteRT and verify original-model parity."""
+"""고정된 iOS AdaFace 가중치를 LiteRT로 변환하고 원본 모델과의 일치를 검증합니다."""
 
 import argparse
 import hashlib
@@ -31,7 +31,7 @@ class Recognizer(torch.nn.Module):
 
 
 def gpu_attention(self, inputs, context, bucket_ids):
-    """Same attention and keypoint lookup using rank <=4 tensors and one-hot matmul."""
+    """rank 4 이하 텐서와 one-hot matmul로 같은 attention·keypoint 조회를 수행합니다."""
     batch, tokens, dimensions = inputs.shape
     query, key, value = [part.reshape(batch, tokens, self.num_heads, -1).permute(0, 2, 1, 3)
                          for part in self.qkv(inputs).chunk(3, dim=-1)]
@@ -105,7 +105,7 @@ def main():
     for op in (qtyping.TFLOperationName.CONV_2D, qtyping.TFLOperationName.FULLY_CONNECTED):
         weights.add_weight_only_config(".*", op, 16, algorithm_key="float_casting")
     weights.quantize(serialize_to_path=str(args.output))
-    # Verify against the unchanged source implementation, not the rewritten gather.
+    # 다시 작성한 gather가 아니라 변경하지 않은 원본 구현을 기준으로 검증합니다.
     for block in backbone.blocks:
         block.attn.forward = types.MethodType(module.KPRPEAttention.forward, block.attn)
     backbone._keypoint_contexts = types.MethodType(module.ViTBaseKPRPE._keypoint_contexts, backbone)

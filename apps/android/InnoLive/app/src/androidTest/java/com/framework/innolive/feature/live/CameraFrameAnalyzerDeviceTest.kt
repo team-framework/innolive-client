@@ -119,7 +119,7 @@ class CameraFrameAnalyzerDeviceTest {
                 assertTrue(input.second.await(1, TimeUnit.SECONDS))
                 Log.i("PrivacyPerformance", "camera_full sample=$sample copy_ms=$copyMs " +
                     "total_ms=${(finishedNs.get() - started) / 1e6}")
-                // Delivery precedes clearing the worker's in-flight slot.
+                // worker의 처리 중 슬롯이 비워지기 전에 프레임이 먼저 전달됩니다.
                 Thread.sleep(10)
             }
         } finally { analyzer.stop() }

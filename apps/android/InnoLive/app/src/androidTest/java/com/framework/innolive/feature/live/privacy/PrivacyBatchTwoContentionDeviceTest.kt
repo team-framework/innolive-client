@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.ConcurrentLinkedQueue
 
-/** Fixed detector/face pixels and 250ms recognition requests, with actual simultaneous GPU work. */
+/** 고정된 검출기·얼굴 픽셀과 250ms 간격 인식 요청으로 실제 GPU 동시 작업을 만듭니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyBatchTwoContentionDeviceTest {
     @Test fun compareBundleWithFaceWorkerGpuContention() {

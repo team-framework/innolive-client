@@ -3,7 +3,7 @@ package com.framework.innolive.feature.live.privacy
 import kotlin.math.ceil
 import kotlin.math.floor
 
-/** Same per-channel math and empty-mask protection as the portable Kotlin reference, via NEON. */
+/** 이식 가능한 Kotlin 기준 구현과 같은 채널별 계산과 빈 마스크 보호를 NEON으로 수행합니다. */
 internal object PrivacyNativeSegmentation {
     fun instanceMasks(detections: List<PrivacySegmentation.Detection>, prototypes: FloatArray): List<PrivacySegmentation.InstanceMask> {
         return instanceMasks(detections) { coefficients,bounds ->
@@ -32,8 +32,10 @@ internal object PrivacyNativeSegmentation {
     }
 }
 
-/** Only this class can create the validated input used to skip a second prototype scan.
- * The array is consumed on the serial AI thread and is never exposed or mutated afterwards. */
+/**
+ * 두 번째 프로토타입 검사를 건너뛰는 데 쓰는 검증된 입력은 이 클래스만 만들 수 있습니다.
+ * 배열은 직렬 AI 스레드에서 소비되며, 이후 외부에 노출되거나 변경되지 않습니다.
+ */
 internal class PrivacyValidatedPrototypes private constructor(private val values: FloatArray) {
     fun copyInto(buffer: java.nio.ByteBuffer) { buffer.asFloatBuffer().put(values) }
     fun masks(coefficients: FloatArray,bounds: IntArray): Array<ByteArray> =

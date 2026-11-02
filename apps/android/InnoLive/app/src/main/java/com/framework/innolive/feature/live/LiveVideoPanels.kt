@@ -146,7 +146,7 @@ fun LiveVideoPanels(
 private val PipMargin = 12.dp
 private val PipTopGap = 8.dp
 
-/** A locally protected preview must not inherit server return stalls or stale remote frames. */
+/** 로컬에서 보호한 미리보기는 서버 반환 지연이나 오래된 원격 프레임을 이어받으면 안 됩니다. */
 internal fun <T> liveMainVideoTrack(onDeviceProcessing: Boolean, isConnected: Boolean,
     local: T?, remote: T?): T? = when {
     !isConnected -> null

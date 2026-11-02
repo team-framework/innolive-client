@@ -4,7 +4,7 @@ import kotlin.math.ceil
 import kotlin.math.exp
 import kotlin.math.roundToInt
 
-/** Separable Gaussian convolution, with clamped edges and a normalized fixed-point kernel. */
+/** 가장자리를 고정하고 정규화한 고정소수점 커널을 쓰는 분리형 가우시안 합성곱입니다. */
 internal object PrivacyGaussianBlur {
     private val kernels = java.util.concurrent.ConcurrentHashMap<Double, IntArray>()
     private val horizontalScratch = ThreadLocal<IntArray>()

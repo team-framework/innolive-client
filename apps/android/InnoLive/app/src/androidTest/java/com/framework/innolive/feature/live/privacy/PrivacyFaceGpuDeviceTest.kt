@@ -13,7 +13,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Manual parity/latency experiment on unchanged weights; no person's image is captured. */
+/** 변경하지 않은 가중치로 일치·지연을 비교하는 수동 실험입니다. 사람 이미지는 캡처하지 않습니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyFaceGpuDeviceTest {
     @Test fun compareUnchangedFaceWeightsOnCpuAndGpu() {
@@ -93,7 +93,7 @@ class PrivacyFaceGpuDeviceTest {
         }
     }
     private fun requireBenchmarkDevice() {
-        // CPU-only/other GPUs are supported by product fallback, not by this hardware benchmark.
+        // CPU 전용이나 다른 GPU는 이 하드웨어 벤치마크가 아니라 제품의 대체 경로로 지원합니다.
         assumeTrue("GPU benchmark requires the validated SM-S931N", Build.MODEL == "SM-S931N")
     }
 

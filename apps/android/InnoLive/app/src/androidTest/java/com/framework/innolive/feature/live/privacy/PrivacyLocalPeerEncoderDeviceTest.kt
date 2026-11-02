@@ -11,7 +11,7 @@ import org.webrtc.*
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-/** Host ICE only: protected GPU frames pass through real RTP encoding and decoding locally. */
+/** 호스트 ICE 전용입니다. 보호된 GPU 프레임이 로컬에서 실제 RTP 인코딩·디코딩을 거칩니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyLocalPeerEncoderDeviceTest {
     @Test fun preferredHardwareH264DeliversProtectedTextureToLocalPeer() { runPeer(true) }

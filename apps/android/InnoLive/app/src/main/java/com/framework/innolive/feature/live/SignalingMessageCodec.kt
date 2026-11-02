@@ -4,12 +4,11 @@ import org.json.JSONObject
 import org.webrtc.IceCandidate
 
 /**
- * Messages received from the authenticated v2 signaling endpoint.
+ * 인증된 v2 시그널링 엔드포인트에서 받는 메시지입니다.
  *
- * The server includes a session id on every answer and ICE acknowledgement.
- * Keeping it in the model lets the connection owner reject a response that
- * belongs to an older or otherwise unrelated session before touching native
- * WebRTC state.
+ * 서버는 모든 answer와 ICE 확인 응답에 세션 ID를 담습니다. 모델에 이 값을 두면 연결 owner가
+ * 네이티브 WebRTC 상태를 건드리기 전에 이전 세션이나 관련 없는 세션의 응답을 거부할 수
+ * 있습니다.
  */
 internal sealed interface ServerMessage {
     data class Answer(

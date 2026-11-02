@@ -17,9 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 
 /**
- * Activity-scoped owner for the encrypted Google session and its network
- * operations. The instance survives Activity configuration recreation and
- * closes the repository when the Activity's ViewModel store is destroyed.
+ * 암호화된 Google 세션과 그 네트워크 작업을 소유하는 Activity 범위 객체입니다. Activity 구성
+ * 변경으로 재생성돼도 유지되며, Activity의 ViewModel store가 소멸하면 repository를 닫습니다.
  */
 class AuthenticationSessionViewModel(
     application: Application,

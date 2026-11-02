@@ -137,7 +137,7 @@ enum CameraDeviceCatalog {
         }
     }
 
-    static func zoomLimits(for device: AVCaptureDevice) -> CameraZoom.DeviceLimits {
+    nonisolated static func zoomLimits(for device: AVCaptureDevice) -> CameraZoom.DeviceLimits {
         CameraZoom.DeviceLimits(
             id: device.uniqueID,
             min: device.minAvailableVideoZoomFactor,
