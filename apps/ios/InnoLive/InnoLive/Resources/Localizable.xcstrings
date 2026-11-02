@@ -852,28 +852,6 @@
         }
       }
     },
-    "화면 변경": {
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "화면 변경"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Switch page"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "画面を切り替え"
-          }
-        }
-      }
-    },
     "AI 및 얼굴 설정": {
       "extractionState": "manual",
       "localizations": {
@@ -1905,29 +1883,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "動画を保存中"
-          }
-        }
-      }
-    },
-    "원본 영상을 앱에 저장했어요": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "원본 영상을 앱에 저장했어요"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Original video saved in the app"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "元の動画をアプリに保存しました"
           }
         }
       }
@@ -3865,30 +3820,6 @@
         }
       }
     },
-    "%lld/%lld": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld/%lld"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld/%lld"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld/%lld"
-          }
-        }
-      }
-    },
     "%lld개의 얼굴 정보": {
       "extractionState": "manual",
       "localizations": {
@@ -3908,54 +3839,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld件の顔情報"
-          }
-        }
-      }
-    },
-    "1080p - 24fps": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1080p - 24fps"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1080p - 24fps"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1080p - 24fps"
-          }
-        }
-      }
-    },
-    "1080p - 30fps": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1080p - 30fps"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1080p - 30fps"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1080p - 30fps"
           }
         }
       }
@@ -4002,54 +3885,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "6桁の認証コードを入力してください。"
-          }
-        }
-      }
-    },
-    "720p - 24fps": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "720p - 24fps"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "720p - 24fps"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "720p - 24fps"
-          }
-        }
-      }
-    },
-    "720p - 30fps": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "720p - 30fps"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "720p - 30fps"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "720p - 30fps"
           }
         }
       }
@@ -4119,30 +3954,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Appleでのログインを確認できませんでした。もう一度お試しください。"
-          }
-        }
-      }
-    },
-    "CHZZK": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CHZZK"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CHZZK"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "CHZZK"
           }
         }
       }
@@ -4262,30 +4073,6 @@
         }
       }
     },
-    "InnoLive": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "InnoLive"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "InnoLive"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "InnoLive"
-          }
-        }
-      }
-    },
     "InnoLive 방송": {
       "extractionState": "manual",
       "localizations": {
@@ -4378,53 +4165,6 @@
         }
       }
     },
-    "OAuth 연결": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "OAuth 연결"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connect with OAuth"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "OAuthで接続"
-          }
-        }
-      }
-    },
-    "SOOP": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SOOP"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SOOP"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "SOOP"
-          }
-        }
-      }
-    },
     "WebRTC 영상 연결을 만들지 못했습니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -4513,30 +4253,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "WebRTC映像接続の準備ができていません。"
-          }
-        }
-      }
-    },
-    "YouTube": {
-      "extractionState": "manual",
-      "shouldTranslate": false,
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube"
           }
         }
       }
@@ -4721,29 +4437,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "YouTubeの配信設定を確認して、もう一度お試しください。"
-          }
-        }
-      }
-    },
-    "YouTube 방송 제목": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube 방송 제목"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube broadcast title"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube配信のタイトル"
           }
         }
       }
@@ -5434,29 +5127,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "YouTubeはまだ映像を受信する準備ができていません。しばらくしてからお試しください。"
-          }
-        }
-      }
-    },
-    "YouTube에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTube에 송출되는 화면만 일시 중단되고, 서버와의 연결은 끊기지 않아요."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Only the video sent to YouTube is paused. The server connection stays active."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "YouTubeに配信する映像だけが一時停止され、サーバーとの接続は維持されます。"
           }
         }
       }
@@ -6496,29 +6166,6 @@
         }
       }
     },
-    "방송 설명을 입력해 주세요": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "방송 설명을 입력해 주세요"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Enter a broadcast description"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配信の説明を入力してください"
-          }
-        }
-      }
-    },
     "방송 설정": {
       "extractionState": "manual",
       "localizations": {
@@ -6653,29 +6300,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "配信開始"
-          }
-        }
-      }
-    },
-    "방송 시작 시 YouTube에 적용됩니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "방송 시작 시 YouTube에 적용됩니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "These settings will be applied to YouTube when you go live."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配信開始時にYouTubeに適用されます。"
           }
         }
       }
@@ -6906,52 +6530,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "配信準備をキャンセル"
-          }
-        }
-      }
-    },
-    "방송 중 (%@)": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "방송 중 (%@)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Live (%@)"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配信中（%@）"
-          }
-        }
-      }
-    },
-    "방송을 준비하거나 송출하는 동안에는 YouTube 방송 정보를 변경할 수 없습니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "방송을 준비하거나 송출하는 동안에는 YouTube 방송 정보를 변경할 수 없습니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You cannot change YouTube broadcast details while preparing or streaming."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "配信の準備中または配信中は、YouTubeの配信情報を変更できません。"
           }
         }
       }
@@ -7393,75 +6971,6 @@
         }
       }
     },
-    "서버 상태를 불러와 주세요": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "서버 상태를 불러와 주세요"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Load the server status"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サーバーの状態を取得してください"
-          }
-        }
-      }
-    },
-    "서버 연결 중": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "서버 연결 중"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connecting to server"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サーバーに接続中"
-          }
-        }
-      }
-    },
-    "서버 영상 연결을 확인해 주세요.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "서버 영상 연결을 확인해 주세요."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check the server video connection."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "サーバーとの映像接続を確認してください。"
-          }
-        }
-      }
-    },
     "서버 처리 영상이 곧 표시됩니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -7715,29 +7224,6 @@
         }
       }
     },
-    "선택": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "선택"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Select"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選択"
-          }
-        }
-      }
-    },
     "선택 필요": {
       "extractionState": "manual",
       "localizations": {
@@ -7757,29 +7243,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "選択が必要です"
-          }
-        }
-      }
-    },
-    "선택됨": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "선택됨"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Selected"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選択済み"
           }
         }
       }
@@ -8520,29 +7983,6 @@
         }
       }
     },
-    "연결 재시도": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "연결 재시도"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Retry Connection"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "接続を再試行"
-          }
-        }
-      }
-    },
     "연결됨": {
       "extractionState": "manual",
       "localizations": {
@@ -8562,29 +8002,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "接続済み"
-          }
-        }
-      }
-    },
-    "연결을 해제하면 다시 방송하기 전에 YouTube 계정을 연결해야 합니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "연결을 해제하면 다시 방송하기 전에 YouTube 계정을 연결해야 합니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "After disconnecting, you will need to reconnect an account to broadcast on YouTube."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "接続を解除すると、YouTubeで配信するにはアカウントを再接続する必要があります。"
           }
         }
       }
@@ -9877,29 +9294,6 @@
         }
       }
     },
-    "준비된 YouTube 방송을 시청자에게 공개합니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "준비된 YouTube 방송을 시청자에게 공개합니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Makes the prepared YouTube broadcast live for viewers."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "準備したYouTube配信を視聴者に公開します。"
-          }
-        }
-      }
-    },
     "취소": {
       "extractionState": "manual",
       "localizations": {
@@ -10636,29 +10030,6 @@
         }
       }
     },
-    "카메라 화질": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "카메라 화질"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Video Quality"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "カメラの画質"
-          }
-        }
-      }
-    },
     "카메라 화질을 복구하지 못했습니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -10866,29 +10237,6 @@
         }
       }
     },
-    "카메라와 마이크를 서버에 다시 연결합니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "카메라와 마이크를 서버에 다시 연결합니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reconnects the camera and microphone to the server."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "カメラとマイクをサーバーに再接続します。"
-          }
-        }
-      }
-    },
     "카메라와 마이크를 서버에 연결하고 있습니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -10931,29 +10279,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "カメラとマイクを準備中…"
-          }
-        }
-      }
-    },
-    "필수": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "필수"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Required"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "必須"
           }
         }
       }
@@ -11004,29 +10329,6 @@
         }
       }
     },
-    "현재 방송 시간을 표시합니다. 누르면 방송 종료를 확인합니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "현재 방송 시간을 표시합니다. 누르면 방송 종료를 확인합니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Shows the current broadcast duration. Tap to confirm ending the broadcast."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "現在の配信時間を表示します。タップすると配信終了の確認が表示されます。"
-          }
-        }
-      }
-    },
     "현재 서버에서 얼굴 등록을 사용할 수 없습니다.": {
       "extractionState": "manual",
       "localizations": {
@@ -11046,29 +10348,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "現在のサーバーでは顔の登録を利用できません。"
-          }
-        }
-      }
-    },
-    "현재 준비 중인 기능입니다.": {
-      "extractionState": "manual",
-      "localizations": {
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "현재 준비 중인 기능입니다."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This feature is currently in preparation."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "現在準備中の機能です。"
           }
         }
       }
@@ -13224,29 +12503,6 @@
         }
       }
     },
-    "방식별 남은 시간은 월 잔여 기준입니다. 1회 방송 한도는 별도로 적용됩니다." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "방식별 남은 시간은 월 잔여 기준입니다. 1회 방송 한도는 별도로 적용됩니다."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Time by mode is based on your monthly balance. The per-broadcast limit also applies."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "方式別の残り時間は月間残高に基づきます。1回の配信上限も適用されます。"
-          }
-        }
-      }
-    },
     "새로고침" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13404,29 +12660,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今月の残り時間"
-          }
-        }
-      }
-    },
-    "이번 달 방송 시간을 모두 사용했습니다." : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이번 달 방송 시간을 모두 사용했습니다."
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You have used all your broadcast time for this month."
-          }
-        },
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今月の配信時間を使い切りました。"
           }
         }
       }
