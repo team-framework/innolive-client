@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 RESOURCES = ROOT / "apps/ios/InnoLive/InnoLive/Resources"
 LANGUAGES = ("ko", "en", "ja")
 REQUIRED_CATALOGS = ("Localizable", "InfoPlist")
+# Info.plist keys are resolved by the system, so the compiler never extracts them.
+NOT_EXTRACTED_TABLES = {"InfoPlist"}
 # Ignore positional ordering but preserve each argument's type and multiplicity.
 FORMAT = re.compile(r"%(?:\d+\$)?[-+ #0]*(?:\d+|\*)?(?:\.(?:\d+|\*))?(?:hh|ll|[hlLzjt])?[@diuoxXfFeEgGaAcCsSp]")
 
@@ -32,6 +34,28 @@ def load_catalogs():
             errors.append(f"Missing catalog: {path.relative_to(ROOT)}")
     catalogs = {path.stem: json.loads(path.read_text()) for path in sorted(RESOURCES.glob("*.xcstrings"))}
     return catalogs, errors
+
+
+def load_stringsdata(directory):
+    """Raw compiler-extracted keys per table from every *.stringsdata file, plus the file count."""
+    extracted = collections.defaultdict(set)
+    files = list(directory.glob("*.stringsdata"))
+    for path in files:
+        data = json.loads(path.read_text())
+        for table, entries in data.get("tables", {}).items():
+            extracted[table].update(entry["key"] for entry in entries)
+    return dict(extracted), len(files)
+
+
+def unused_keys(catalogs, extracted):
+    """Catalog keys no source file extracts. A table absent from every file is unused as a whole."""
+    return sorted(
+        (table, key)
+        for table, catalog in catalogs.items()
+        if table not in NOT_EXTRACTED_TABLES
+        for key in catalog["strings"]
+        if key not in extracted.get(table, set())
+    )
 
 
 def validate(stringsdata_dir=None):
@@ -61,25 +85,23 @@ def validate(stringsdata_dir=None):
                 if key not in catalog["strings"]:
                     errors.append(f"InfoPlist: missing {key}")
     if stringsdata_dir is not None:
-        extracted = set()
-        files = list(stringsdata_dir.glob("*.stringsdata"))
-        if not files:
+        extracted, file_count = load_stringsdata(stringsdata_dir)
+        if not file_count:
             errors.append(f"No compiler extraction files in {stringsdata_dir}")
-        for path in files:
-            data = json.loads(path.read_text())
-            for table, entries in data.get("tables", {}).items():
-                if table not in catalogs:
+        checked = 0
+        for table, keys in sorted(extracted.items()):
+            if table not in catalogs:
+                continue
+            for key in sorted(keys):
+                # Empty text and number/object-only interpolation need no translation.
+                if not key or not FORMAT.sub("", key).strip():
                     continue
-                for entry in entries:
-                    key = entry["key"]
-                    # Empty text and number/object-only interpolation need no translation.
-                    if not key or not FORMAT.sub("", key).strip():
-                        continue
-                    extracted.add((table, key))
-        for table, key in sorted(extracted):
-            if key not in catalogs[table]["strings"]:
-                errors.append(f"{table}/{key}: compiler-extracted key missing from catalog")
-        print(f"Checked {len(extracted)} compiler-extracted keys from {len(files)} source files")
+                checked += 1
+                if key not in catalogs[table]["strings"]:
+                    errors.append(f"{table}/{key}: compiler-extracted key missing from catalog")
+        for table, key in unused_keys(catalogs, extracted):
+            errors.append(f"{table}/{key}: catalog key not extracted from any source file")
+        print(f"Checked {checked} compiler-extracted keys from {file_count} source files")
     for error in errors:
         print(f"FAIL: {error}")
     if errors:
