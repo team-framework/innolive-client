@@ -12,9 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Activity-independent Google authentication presentation state. The owning
- * ViewModel survives a locale-driven configuration recreation, so a recreated
- * login screen cannot restart an already active credential request.
+ * Activity와 무관한 Google 인증 표시 상태입니다. 소유 ViewModel은 언어 변경에 따른 구성
+ * 재생성에도 유지되므로, 다시 생성된 로그인 화면이 이미 진행 중인 자격 증명 요청을 다시
+ * 시작할 수 없습니다.
  */
 sealed interface GoogleSignInState {
     data object Idle : GoogleSignInState
