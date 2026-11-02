@@ -11,11 +11,11 @@ final class BroadcastSessionPollingTests: XCTestCase {
         super.setUp()
         suite = "session-state-\(UUID().uuidString)"
         defaults = UserDefaults(suiteName: suite)
-        SessionStateURLProtocol.handler = nil
+        SessionStateURLProtocol.reset()
     }
 
     override func tearDown() {
-        SessionStateURLProtocol.handler = nil
+        SessionStateURLProtocol.reset()
         defaults.removePersistentDomain(forName: suite)
         super.tearDown()
     }
@@ -29,7 +29,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
                 pollCount += 1
                 if pollCount <= 2 { polls.fulfill() }
             }
-            return (request.httpMethod == "POST" ? 201 : 200, SessionStateFixture.json(providers: ["chzzk"]))
+            return .init(status: request.httpMethod == "POST" ? 201 : 200, json: SessionStateFixture.json(providers: ["chzzk"]))
         }
         let integration = makeIntegration()
         let prepared = await integration.prepareSession(accessToken: SessionStateFixture.token("user"))
@@ -59,7 +59,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
             let range = dual.range(of: firstStream)!
             let stoppedPrimary = dual.replacingCharacters(in: range, with: replacement)
                 .replacingOccurrences(of: "{\"provider\":\"youtube\",\(firstStream)}", with: "{\"provider\":\"youtube\",\(replacement)}")
-            return (request.httpMethod == "POST" ? 201 : 200, stoppedPrimary)
+            return .init(status: request.httpMethod == "POST" ? 201 : 200, json: stoppedPrimary)
         }
         let integration = makeIntegration()
         _ = await integration.prepareSession(accessToken: SessionStateFixture.token("user"))
@@ -77,7 +77,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
                 integration.reset()
                 poll.fulfill()
             }
-            return (request.httpMethod == "POST" ? 201 : 200, SessionStateFixture.json())
+            return .init(status: request.httpMethod == "POST" ? 201 : 200, json: SessionStateFixture.json())
         }
         integration = makeIntegration()
         _ = await integration.prepareSession(accessToken: SessionStateFixture.token("user"))
@@ -94,7 +94,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
         SessionStateURLProtocol.handler = { request in
             if request.httpMethod == "PATCH" { changedMode = true }
             if request.httpMethod == "GET", changedMode, !fulfilled { fulfilled = true; polls.fulfill() }
-            return (request.httpMethod == "POST" ? 201 : 200, SessionStateFixture.json(providers: nil, phase: "idle", status: "idle"))
+            return .init(status: request.httpMethod == "POST" ? 201 : 200, json: SessionStateFixture.json(providers: nil, phase: "idle", status: "idle"))
         }
         let integration = makeIntegration()
         let token = SessionStateFixture.token("user")
@@ -113,7 +113,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
             SessionStateURLProtocol.handler = { request in
                 XCTAssertEqual(request.url?.path, "/sessions/state-session/stream/pause")
                 XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value, "chzzk")
-                return (200, body)
+                return .init(status: 200, json: body)
             }
             let result = try await api.streamAction(.pause, session: session, accessToken: "test-token", provider: "chzzk")
             XCTAssertEqual(result.stream.statusValue, .streaming)
@@ -125,9 +125,9 @@ final class BroadcastSessionPollingTests: XCTestCase {
         SessionStateURLProtocol.handler = { request in
             if request.url?.path.hasSuffix("/stream/stop") == true {
                 stoppedProviders.append(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "provider" })?.value ?? "")
-                return (200, SessionStateFixture.stream(phase: "idle", status: "stopped"))
+                return .init(status: 200, json: SessionStateFixture.stream(phase: "idle", status: "stopped"))
             }
-            return (request.httpMethod == "POST" ? 201 : 200, SessionStateFixture.json(providers: ["future_provider", "youtube"]))
+            return .init(status: request.httpMethod == "POST" ? 201 : 200, json: SessionStateFixture.json(providers: ["future_provider", "youtube"]))
         }
         let integration = makeIntegration()
         let token = SessionStateFixture.token("user")
@@ -149,7 +149,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
             }
             let switching = SessionStateFixture.json(providers: ["youtube", "chzzk"])
                 .replacingOccurrences(of: "\"notices\":", with: "\"resolution_switch\":{\"status\":\"switching\",\"resolution\":\"fhd\",\"targets\":[\"youtube\",\"chzzk\"],\"started_at\":\"2026-09-30T00:00:00Z\"},\"notices\":")
-            return (request.httpMethod == "POST" ? 201 : 200, switching)
+            return .init(status: request.httpMethod == "POST" ? 201 : 200, json: switching)
         }
         let integration = makeIntegration()
         let prepared = await integration.prepareSession(accessToken: SessionStateFixture.token("user"))
@@ -162,7 +162,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
     func testConfiguredMissingTokenCannotUseFallback() async {
         let api = makeAPI()
         api.configureAuthentication(accessTokenProvider: { nil }, refreshSession: { .invalid }, onInvalidRefresh: {})
-        SessionStateURLProtocol.handler = { _ in XCTFail("must not send fallback token"); return (200, "[]") }
+        SessionStateURLProtocol.handler = { _ in XCTFail("must not send fallback token"); return .init(status: 200, json: "[]") }
         do {
             _ = try await api.streamingAccounts(accessToken: SessionStateFixture.token("old"))
             XCTFail("request must fail")
@@ -176,7 +176,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
             api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .invalid }, onInvalidRefresh: {})
             SessionStateURLProtocol.handler = { _ in
                 token = SessionStateFixture.token("new")
-                return (isCreate ? 201 : 200, isCreate ? SessionStateFixture.json() : "[]")
+                return .init(status: isCreate ? 201 : 200, json: isCreate ? SessionStateFixture.json() : "[]")
             }
             if isCreate {
                 let created = try await api.createSession(accessToken: token)
@@ -192,7 +192,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
         let api = makeAPI()
         var token = SessionStateFixture.token("user")
         api.configureAuthentication(accessTokenProvider: { token }, refreshSession: { .refreshed }, onInvalidRefresh: {})
-        SessionStateURLProtocol.handler = { _ in token = SessionStateFixture.token("user", version: 1); return (200, "[]") }
+        SessionStateURLProtocol.handler = { _ in token = SessionStateFixture.token("user", version: 1); return .init(status: 200, json: "[]") }
         let accounts = try await api.streamingAccounts(accessToken: token)
         XCTAssertTrue(accounts.isEmpty)
     }
@@ -205,7 +205,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
             if request.url?.path.hasSuffix("/stream/stop") == true {
                 XCTAssertEqual(request.url?.query, "provider=youtube")
                 stopped = true
-                return (200, SessionStateFixture.stream(phase: "idle", status: "stopped"))
+                return .init(status: 200, json: SessionStateFixture.stream(phase: "idle", status: "stopped"))
             }
             if request.httpMethod == "GET", stopped, !fulfilled { fulfilled = true; poll.fulfill() }
             var json = SessionStateFixture.json(providers: ["youtube", "chzzk"])
@@ -213,7 +213,7 @@ final class BroadcastSessionPollingTests: XCTestCase {
                 json = json.replacingOccurrences(of: "\"provider\":\"youtube\",\"stream\":\(SessionStateFixture.stream())",
                                                 with: "\"provider\":\"youtube\",\"stream\":\(SessionStateFixture.stream(phase: "idle", status: "stopped"))")
             }
-            return (request.httpMethod == "POST" ? 201 : 200, json)
+            return .init(status: request.httpMethod == "POST" ? 201 : 200, json: json)
         }
         let integration = makeIntegration()
         let token = SessionStateFixture.token("user")
@@ -235,19 +235,19 @@ final class BroadcastSessionPollingTests: XCTestCase {
             let provider = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value ?? "youtube"
             if request.url?.path.hasSuffix("/stream/pause") == true {
                 statuses[provider] = provider == "youtube" ? "paused_reconnecting" : "paused"
-                return (200, SessionStateFixture.stream(status: statuses[provider]!))
+                return .init(status: 200, json: SessionStateFixture.stream(status: statuses[provider]!))
             }
             if request.url?.path.hasSuffix("/stream/resume") == true {
                 resumeProviders.append(provider)
                 statuses[provider] = "streaming"
                 if provider == "youtube" { resumed.fulfill() }
-                return (200, SessionStateFixture.stream())
+                return .init(status: 200, json: SessionStateFixture.stream())
             }
             if foreground, statuses["youtube"] == "paused_reconnecting" { statuses["youtube"] = "paused" }
             let youtube = SessionStateFixture.stream(status: statuses["youtube"]!)
             let chzzk = SessionStateFixture.stream(status: statuses["chzzk"]!)
             let json = "{\"session_id\":\"state-session\",\"owner_token\":\"fixture-owner\",\"provider\":\"youtube\",\"stream\":\(youtube),\"targets\":[{\"provider\":\"youtube\",\"stream\":\(youtube)},{\"provider\":\"chzzk\",\"stream\":\(chzzk)}]}"
-            return (request.httpMethod == "POST" ? 201 : 200, json)
+            return .init(status: request.httpMethod == "POST" ? 201 : 200, json: json)
         }
         let integration = makeIntegration()
         let token = SessionStateFixture.token("user")
@@ -288,19 +288,6 @@ private final class SessionStateStore: BroadcastSessionStoring {
     func remove(scope: BroadcastSessionScope) throws { record = nil }
 }
 
-private final class SessionStateURLProtocol: URLProtocol {
-    nonisolated deinit {}
-    @MainActor static var handler: ((URLRequest) -> (Int, String))?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Task { @MainActor in
-            let result = Self.handler?(request) ?? (500, "")
-            let response = HTTPURLResponse(url: request.url!, statusCode: result.0, httpVersion: nil, headerFields: nil)!
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: Data(result.1.utf8))
-            client?.urlProtocolDidFinishLoading(self)
-        }
-    }
-    override func stopLoading() {}
+private final class SessionStateURLProtocol: StubURLProtocol {
+    override class var defaultHeaders: [String: String] { [:] }
 }

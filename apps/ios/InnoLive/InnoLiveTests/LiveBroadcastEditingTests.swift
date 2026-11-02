@@ -15,14 +15,12 @@ final class LiveBroadcastEditingTests: XCTestCase {
         config.protocolClasses = [LiveEditURLProtocol.self]
         api = YouTubeAPI(urlSession: URLSession(configuration: config), serverURLProvider: { URL(string: "https://example.invalid\($0)") })
         integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: UserDefaults(suiteName: suite)!), api: api)
-        LiveEditURLProtocol.requests = []
-        LiveEditURLProtocol.responses = []
+        LiveEditURLProtocol.reset()
     }
     override func tearDown() {
         integration.reset()
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
-        LiveEditURLProtocol.responses = []
-        LiveEditURLProtocol.requests = []
+        LiveEditURLProtocol.reset()
     }
     private func snapshot(youtube: String = "live", chzzk: String = "live") -> String {
         let stream: (String) -> String = { phase in
@@ -39,7 +37,7 @@ final class LiveBroadcastEditingTests: XCTestCase {
     }
     private func begin(_ provider: BroadcastSettingsProvider = .youtube) { integration.beginLiveEditing(provider, accessToken: token) }
     private func enqueue(_ body: String, status: Int = 200, delay: TimeInterval = 0) {
-        LiveEditURLProtocol.responses.append(.init(body: Data(body.utf8), status: status, delay: delay))
+        LiveEditURLProtocol.responses.append(.init(status: status, json: body, delay: .seconds(delay)))
     }
     private func body(_ request: URLRequest) throws -> [String: Any] {
         if let data = request.httpBody { return try JSONSerialization.jsonObject(with: data) as! [String: Any] }
@@ -224,24 +222,4 @@ final class LiveBroadcastEditingTests: XCTestCase {
     }
 }
 
-private final class LiveEditURLProtocol: URLProtocol, @unchecked Sendable {
-    struct Response { let body: Data; let status: Int; let delay: TimeInterval }
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-    nonisolated(unsafe) static var responses: [Response] = []
-    private var work: DispatchWorkItem?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Self.requests.append(request)
-        let response = Self.responses.isEmpty ? Response(body: Data(), status: 500, delay: 0) : Self.responses.removeFirst()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.client?.urlProtocol(self, didReceive: HTTPURLResponse(url: self.request.url!, statusCode: response.status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
-            self.client?.urlProtocol(self, didLoad: response.body)
-            self.client?.urlProtocolDidFinishLoading(self)
-        }
-        self.work = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + response.delay, execute: work)
-    }
-    override func stopLoading() { work?.cancel() }
-}
+private final class LiveEditURLProtocol: StubURLProtocol {}

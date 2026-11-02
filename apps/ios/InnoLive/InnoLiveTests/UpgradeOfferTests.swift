@@ -17,15 +17,13 @@ final class UpgradeOfferTests: XCTestCase {
         let defaults = UserDefaults(suiteName: suite)!
         integration = YouTubeIntegration(preferencesStore: YouTubePreferencesStore(userDefaults: defaults), api: api,
             consentStore: ConsentAcknowledgementStore(userDefaults: defaults), pollingInterval: .seconds(60))
-        UpgradeURLProtocol.requests = []
-        UpgradeURLProtocol.responses = []
+        UpgradeURLProtocol.reset()
     }
 
     override func tearDown() {
         integration.reset()
         UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
-        UpgradeURLProtocol.requests = []
-        UpgradeURLProtocol.responses = []
+        UpgradeURLProtocol.reset()
     }
 
     private func body(expires: Date = Date().addingTimeInterval(30), selected: Bool = false, offer: Bool = true,
@@ -52,7 +50,7 @@ final class UpgradeOfferTests: XCTestCase {
     }
 
     private func enqueue(_ json: String, status: Int = 200, delay: TimeInterval = 0) {
-        UpgradeURLProtocol.responses.append(.init(body: Data(json.utf8), status: status, delay: delay))
+        UpgradeURLProtocol.responses.append(.init(status: status, json: json, delay: .seconds(delay)))
     }
 
     func testExpiredOfferClosesWithoutEndingBroadcast() throws {
@@ -405,25 +403,4 @@ final class UpgradeOfferTests: XCTestCase {
     }
 }
 
-private final class UpgradeURLProtocol: URLProtocol, @unchecked Sendable {
-    struct Response { let body: Data; let status: Int; let delay: TimeInterval }
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-    nonisolated(unsafe) static var responses: [Response] = []
-    private var work: DispatchWorkItem?
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Self.requests.append(request)
-        let response = Self.responses.isEmpty ? Response(body: Data(), status: 500, delay: 0) : Self.responses.removeFirst()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            self.client?.urlProtocol(self, didReceive: HTTPURLResponse(url: self.request.url!, statusCode: response.status,
-                httpVersion: nil, headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
-            self.client?.urlProtocol(self, didLoad: response.body)
-            self.client?.urlProtocolDidFinishLoading(self)
-        }
-        self.work = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + response.delay, execute: work)
-    }
-    override func stopLoading() { work?.cancel() }
-}
+private final class UpgradeURLProtocol: StubURLProtocol {}

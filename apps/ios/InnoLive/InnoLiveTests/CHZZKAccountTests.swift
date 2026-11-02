@@ -359,9 +359,7 @@ private final class CHZZKTestAuthorization: CHZZKAuthorizing {
     }
 }
 
-private final class CHZZKTestURLProtocol: URLProtocol {
-    nonisolated deinit {}
-    nonisolated(unsafe) static var requests: [URLRequest] = []
+private final class CHZZKTestURLProtocol: StubURLProtocol {
     nonisolated(unsafe) static var accountJSON = "[]"
     nonisolated(unsafe) static var connectError: String?
     nonisolated(unsafe) static var deleteError: String?
@@ -369,16 +367,14 @@ private final class CHZZKTestURLProtocol: URLProtocol {
     nonisolated(unsafe) static var unauthorizedConnectCount = 0
     nonisolated(unsafe) static var failDeleteTransport = false
 
-    static func reset() {
-        requests = []; accountJSON = "[]"; connectError = nil; deleteError = nil; listError = nil; unauthorizedConnectCount = 0; failDeleteTransport = false
+    override class func reset() {
+        super.reset()
+        accountJSON = "[]"; connectError = nil; deleteError = nil; listError = nil; unauthorizedConnectCount = 0; failDeleteTransport = false
     }
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-    override func startLoading() {
-        Self.requests.append(request)
-        if request.httpMethod == "DELETE", Self.failDeleteTransport {
-            client?.urlProtocol(self, didFailWithError: URLError(.timedOut))
-            return
+
+    override class func response(for request: URLRequest) -> Response? {
+        if request.httpMethod == "DELETE", failDeleteTransport {
+            return .failure(.timedOut)
         }
         var status = 200
         var data = Data()
@@ -396,24 +392,19 @@ private final class CHZZKTestURLProtocol: URLProtocol {
             error = nil
         case "/auth/chzzk/connect":
             data = Data("{\"connected\":true,\"provider\":\"chzzk\",\"channel\":{\"channelId\":\"chzzk-fake\",\"channelName\":\"CHZZK channel\",\"nickname\":\"nickname\"}}".utf8)
-            error = Self.connectError
-        case "/auth/streaming/accounts/chzzk": status = 204; error = Self.deleteError
-        case "/auth/streaming/accounts": data = Data(Self.accountJSON.utf8); error = Self.listError
+            error = connectError
+        case "/auth/streaming/accounts/chzzk": status = 204; error = deleteError
+        case "/auth/streaming/accounts": data = Data(accountJSON.utf8); error = listError
         default: status = 404; error = "not_found"
         }
         if let error { status = 409; data = Data("{\"error\":{\"code\":\"\(error)\",\"message\":\"private code=fake-code token=fake-access\"}}".utf8) }
-        if request.url!.path == "/auth/chzzk/connect", Self.unauthorizedConnectCount > 0 {
-            Self.unauthorizedConnectCount -= 1
+        if request.url!.path == "/auth/chzzk/connect", unauthorizedConnectCount > 0 {
+            unauthorizedConnectCount -= 1
             status = 401
             data = Data("{\"error\":{\"code\":\"unauthorized\"}}".utf8)
         }
-        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil,
-                                       headerFields: ["Content-Type": "application/json"])!
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: data)
-        client?.urlProtocolDidFinishLoading(self)
+        return Response(status: status, body: data)
     }
-    override func stopLoading() {}
 }
 
 private extension URLRequest {

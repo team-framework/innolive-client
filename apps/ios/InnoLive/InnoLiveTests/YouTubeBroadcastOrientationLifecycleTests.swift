@@ -14,15 +14,11 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         suiteName = "com.framework.innolive.tests.youtube-orientation.\(UUID().uuidString)"
         userDefaults = UserDefaults(suiteName: suiteName)
         locker = FakeBroadcastOrientationLock()
-        YouTubeBroadcastOrientationURLProtocol.responses = []
-        YouTubeBroadcastOrientationURLProtocol.requests = []
-        YouTubeBroadcastOrientationURLProtocol.onRequest = nil
+        YouTubeBroadcastOrientationURLProtocol.reset()
     }
 
     override func tearDown() {
-        YouTubeBroadcastOrientationURLProtocol.responses = []
-        YouTubeBroadcastOrientationURLProtocol.requests = []
-        YouTubeBroadcastOrientationURLProtocol.onRequest = nil
+        YouTubeBroadcastOrientationURLProtocol.reset()
         if let suiteName {
             userDefaults.removePersistentDomain(forName: suiteName)
         }
@@ -38,8 +34,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testPrepareAndPreparedWaitingDoNotLock() async throws {
         let integration = try makePreparedIntegration(phase: "idle")
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: sessionSnapshot(phase: "preparing", status: "idle")),
-            .init(statusCode: 200, data: sessionSnapshot(phase: "prepared", status: "idle")),
+            .init(status: 200, body: sessionSnapshot(phase: "preparing", status: "idle")),
+            .init(status: 200, body: sessionSnapshot(phase: "prepared", status: "idle")),
         ]
 
         await integration.prepareYouTubeStream(accessToken: "access-token")
@@ -53,7 +49,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         locker.current = .landscapeLeft
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -79,10 +75,10 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
             .init(
-                statusCode: 409,
-                data: Data("{\"error\":{\"code\":\"broadcast_not_ready\",\"message\":\"not ready\"}}".utf8)
+                status: 409,
+                json: "{\"error\":{\"code\":\"broadcast_not_ready\",\"message\":\"not ready\"}}"
             ),
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
         ]
 
         let task = Task { @MainActor in
@@ -100,7 +96,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testGoLiveFailureReleasesLockBackToPrepared() async throws {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8)),
+            .init(status: 503, json: "{\"error\":{\"message\":\"unavailable\"}}"),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -114,8 +110,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testSuccessfulStopReleasesLock() async throws {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
-            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped")),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
+            .init(status: 200, body: streamState(phase: "idle", status: "stopped")),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -129,8 +125,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testFailedStopKeepsLock() async throws {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
-            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8)),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
+            .init(status: 503, json: "{\"error\":{\"message\":\"unavailable\"}}"),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -145,13 +141,13 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
             .init(
-                statusCode: 200,
-                data: streamState(phase: "live", status: "streaming"),
+                status: 200,
+                body: streamState(phase: "live", status: "streaming"),
                 delay: .milliseconds(200)
             ),
         ]
         let requestStarted = expectation(description: "golive started")
-        YouTubeBroadcastOrientationURLProtocol.onRequest = {
+        YouTubeBroadcastOrientationURLProtocol.onNextRequest = { _ in
             requestStarted.fulfill()
         }
 
@@ -174,15 +170,15 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
             .init(
-                statusCode: 409,
-                data: Data("{\"error\":{\"code\":\"broadcast_not_ready\",\"message\":\"not ready\"}}".utf8),
+                status: 409,
+                json: "{\"error\":{\"code\":\"broadcast_not_ready\",\"message\":\"not ready\"}}",
                 delay: .milliseconds(250)
             ),
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
-            .init(statusCode: 204, data: Data()),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
+            .init(status: 204),
         ]
         let requestStarted = expectation(description: "golive started")
-        YouTubeBroadcastOrientationURLProtocol.onRequest = {
+        YouTubeBroadcastOrientationURLProtocol.onNextRequest = { _ in
             requestStarted.fulfill()
         }
 
@@ -218,14 +214,14 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
             .init(
-                statusCode: 200,
-                data: streamState(phase: "live", status: "streaming"),
+                status: 200,
+                body: streamState(phase: "live", status: "streaming"),
                 delay: .milliseconds(250)
             ),
-            .init(statusCode: 204, data: Data()),
+            .init(status: 204),
         ]
         let requestStarted = expectation(description: "golive started")
-        YouTubeBroadcastOrientationURLProtocol.onRequest = {
+        YouTubeBroadcastOrientationURLProtocol.onNextRequest = { _ in
             requestStarted.fulfill()
         }
 
@@ -250,7 +246,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let owner = try makePreparedIntegration(locker: sharedLocker)
         let other = try makePreparedIntegration(locker: sharedLocker)
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
         ]
 
         await owner.goLiveYouTubeStream(accessToken: "access-token")
@@ -272,8 +268,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let owner = try makePreparedIntegration(locker: sharedLocker)
         let other = try makePreparedIntegration(locker: sharedLocker)
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
-            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8)),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
+            .init(status: 503, json: "{\"error\":{\"message\":\"unavailable\"}}"),
         ]
 
         await owner.goLiveYouTubeStream(accessToken: "access-token")
@@ -287,8 +283,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testFinalUplinkFailureClearsLock() async throws {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
-            .init(statusCode: 204, data: Data()),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
+            .init(status: 204),
         ]
         await integration.goLiveYouTubeStream(accessToken: "access-token")
         XCTAssertTrue(locker.isLocked)
@@ -303,8 +299,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testPauseKeepsLock() async throws {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
-            .init(statusCode: 200, data: streamState(phase: "live", status: "paused")),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
+            .init(status: 200, body: streamState(phase: "live", status: "paused")),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -318,7 +314,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testReconnectKeepsLock() async throws {
         let integration = try makePreparedIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
         ]
 
         await integration.goLiveYouTubeStream(accessToken: "access-token")
@@ -339,7 +335,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
             intervals += 1
         })
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming"))
+            .init(status: 200, body: streamState(phase: "live", status: "streaming"))
         ]
         await integration.startBroadcastCountdown(accessToken: "access-token")
         XCTAssertEqual(intervals, 3)
@@ -426,7 +422,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = try makeLifecycleLiveIntegration()
         let generation = integration.lifecycle.generation
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped"))
+            .init(status: 200, body: streamState(phase: "idle", status: "stopped"))
         ]
         await integration.stopYouTubeStream(accessToken: "access-token")
         XCTAssertEqual(integration.lifecycle.phase, .result)
@@ -441,7 +437,7 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testLifecycleFailedStopKeepsLiveAndReportsError() async throws {
         let integration = try makeLifecycleLiveIntegration()
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8))
+            .init(status: 503, json: "{\"error\":{\"message\":\"unavailable\"}}")
         ]
         await integration.stopYouTubeStream(accessToken: "access-token")
         XCTAssertEqual(integration.lifecycle.phase, .live)
@@ -454,8 +450,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testLifecycleIndividualStopKeepsOtherTargetUntilLastStops() async throws {
         let integration = try makeLifecycleLiveIntegration(providers: ["youtube", "chzzk"])
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped")),
-            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped"))
+            .init(status: 200, body: streamState(phase: "idle", status: "stopped")),
+            .init(status: 200, body: streamState(phase: "idle", status: "stopped"))
         ]
         await integration.stopYouTubeStream(accessToken: "access-token", provider: .youtube)
         XCTAssertEqual(integration.lifecycle.phase, .live)
@@ -469,8 +465,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
         let integration = try makeLifecycleLiveIntegration()
         let generation = integration.lifecycle.generation
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 503, data: Data("{\"error\":{\"message\":\"unavailable\"}}".utf8)),
-            .init(statusCode: 204, data: Data())
+            .init(status: 503, json: "{\"error\":{\"message\":\"unavailable\"}}"),
+            .init(status: 204)
         ]
         await integration.endBroadcast(accessToken: "access-token")
         XCTAssertEqual(integration.lifecycle.phase, .result)
@@ -501,8 +497,8 @@ final class YouTubeBroadcastOrientationLifecycleTests: XCTestCase {
     func testMockedBroadcastEndWithoutSamplesDoesNotClaimSaved() async throws {
         let integration = try makePreparedIntegration(countdownSleep: {})
         YouTubeBroadcastOrientationURLProtocol.responses = [
-            .init(statusCode: 200, data: streamState(phase: "live", status: "streaming")),
-            .init(statusCode: 200, data: streamState(phase: "idle", status: "stopped"))
+            .init(status: 200, body: streamState(phase: "live", status: "streaming")),
+            .init(status: 200, body: streamState(phase: "idle", status: "stopped"))
         ]
         await integration.startBroadcastCountdown(accessToken: "access-token")
         XCTAssertEqual(integration.lifecycle.phase, .live)
@@ -648,61 +644,4 @@ private final class FakeBroadcastOrientationLock: BroadcastOrientationLocking {
     }
 }
 
-private final class YouTubeBroadcastOrientationURLProtocol: URLProtocol {
-    // iOS 18의 isolated deinit 런타임 오류를 피한다. docs/ios-version-support.md 참고.
-    nonisolated deinit {}
-
-    struct Response {
-        let statusCode: Int
-        let data: Data
-        var delay: Duration = .zero
-    }
-
-    nonisolated(unsafe) static var responses: [Response] = []
-    nonisolated(unsafe) static var requests: [URLRequest] = []
-    nonisolated(unsafe) static var onRequest: (() -> Void)?
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        Self.requests.append(request)
-        let onRequest = Self.onRequest
-        Self.onRequest = nil
-        onRequest?()
-        let response = Self.responses.isEmpty
-            ? Response(statusCode: 500, data: Data())
-            : Self.responses.removeFirst()
-        let deliver: @Sendable () -> Void = { [weak self] in
-            guard let self,
-                  let url = self.request.url,
-                  let httpResponse = HTTPURLResponse(
-                      url: url,
-                      statusCode: response.statusCode,
-                      httpVersion: nil,
-                      headerFields: ["Content-Type": "application/json"]
-                  ) else { return }
-            self.client?.urlProtocol(self, didReceive: httpResponse, cacheStoragePolicy: .notAllowed)
-            if !response.data.isEmpty {
-                self.client?.urlProtocol(self, didLoad: response.data)
-            }
-            self.client?.urlProtocolDidFinishLoading(self)
-        }
-
-        if response.delay == .zero {
-            deliver()
-        } else {
-            DispatchQueue.global().asyncAfter(deadline: .now() + response.delay.timeInterval, execute: deliver)
-        }
-    }
-
-    override func stopLoading() {}
-}
-
-private extension Duration {
-    var timeInterval: TimeInterval {
-        let components = self.components
-        return TimeInterval(components.seconds) + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
-    }
-}
+private final class YouTubeBroadcastOrientationURLProtocol: StubURLProtocol {}
