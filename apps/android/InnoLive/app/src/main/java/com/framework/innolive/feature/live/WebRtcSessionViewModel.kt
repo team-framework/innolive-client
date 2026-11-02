@@ -262,8 +262,8 @@ class WebRtcSessionViewModel internal constructor(
             return selectInitialAIProcessing(context, onDevice)
         }
         if (selectedOnDeviceProcessing == onDevice) return true
-        // The settings screen has no CameraPreview. Reconnect only when the next broadcast
-        // preparation binds a camera and can produce the protected frames needed for CONNECTED.
+        // 설정 화면에는 CameraPreview가 없습니다. 다음 방송 준비에서 카메라를 바인딩해 CONNECTED에
+        // 필요한 보호 프레임을 만들 수 있을 때만 다시 연결합니다.
         close()
         return selectInitialAIProcessing(context, onDevice)
     }
@@ -946,7 +946,7 @@ class WebRtcSessionViewModel internal constructor(
         uplinkQuality = BroadcastUplinkQuality.Measuring
     }
 
-    /** Removes only the deleted account's credentials for its current server. */
+    /** 삭제된 계정의 현재 서버용 자격 증명만 제거합니다. */
     fun clearSessionRecovery(context: Context, accessToken: String) {
         val scope = sessionRecoveryScope(BuildConfig.INNOLIVE_SERVER_URL, accessToken)
         EncryptedSessionRecoveryStore(context.applicationContext).clear(scope)
@@ -968,7 +968,7 @@ class WebRtcSessionViewModel internal constructor(
     }
 
     private companion object {
-        // Recovery cleanup and initial setup may issue several individually bounded HTTP calls.
+        // 복구 정리와 초기 설정은 각각 제한 시간이 있는 HTTP 호출을 여러 번 할 수 있습니다.
         const val INITIAL_CONNECTION_SETUP_TIMEOUT_MILLIS = 120_000L
         const val SIGNALING_CALLBACK_GRACE_MILLIS = 5_000L
     }

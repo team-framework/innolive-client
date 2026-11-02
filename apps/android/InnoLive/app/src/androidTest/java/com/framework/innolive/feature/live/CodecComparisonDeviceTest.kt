@@ -35,10 +35,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Opt-in real-time camera/return-stream measurement against the configured backend.
- * Requires productionProbe=true and a pre-existing login, or the opt-in localhost backend.
- * Does not go live. Local-preview runs also reject stalls of 250ms or longer.
- * Full performance comparisons require analysis of the recorded resolution and statistics.
+ * 설정된 백엔드를 상대로 실시간 카메라·반환 스트림을 측정하는 선택 실행 테스트입니다.
+ * productionProbe=true와 기존 로그인, 또는 선택 실행용 localhost 백엔드가 필요합니다.
+ * 방송을 시작하지는 않습니다. 로컬 미리보기 실행에서는 250ms 이상 멈춤도 실패로 처리합니다.
+ * 전체 성능 비교에는 기록된 해상도와 통계 분석이 필요합니다.
  */
 class CodecComparisonDeviceTest {
     private lateinit var activity: ComponentActivity
@@ -56,7 +56,7 @@ class CodecComparisonDeviceTest {
                 target.rawFragment == null && target.path in listOf("", "/"))
         }
         val serverUrl = localServer ?: BuildConfig.INNOLIVE_SERVER_URL
-        // Synthetic unsigned test identity; accepted only by the opt-in localhost backend.
+        // 서명하지 않은 합성 테스트 신원입니다. 선택 실행용 localhost 백엔드만 받아들입니다.
         val localProbeToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJsb2NhbC1wcm9iZSJ9.c3ludGhldGlj"
         require(expectedCodec in setOf("VP8", "H264"))
         if (arguments.getString("forceCodec") != "false") System.setProperty("innolive.codec.probe", expectedCodec)
@@ -90,8 +90,8 @@ class CodecComparisonDeviceTest {
                 onMain {
                     assertTrue(session.selectInitialAIProcessing(context, onDevice))
                     assertTrue(session.selectInitialAnonymization(context, true))
-                    // The server-AI uplink budget follows the plan resolution, so the FHD probe
-                    // creates the session as FHD instead of relying on the later PUT alone.
+                    // 서버 AI 업링크 예산은 플랜 해상도를 따르므로, FHD 측정은 이후 PUT에만 의존하지 않고
+                    // 세션을 FHD로 생성합니다.
                     if (requestedResolution == "fhd") {
                         assertTrue(session.selectDirectBroadcastPlan(DirectBroadcastPlan(resolution = DirectPublishResolution.FHD)))
                     }
@@ -139,7 +139,7 @@ class CodecComparisonDeviceTest {
                 else waitUntil(30_000) { session.remoteVideoTrack != null }
                 waitUntil(30_000) { session.localVideoTrack != null }
                 val peer = field(connection, "peerConnection") as PeerConnection
-                // Do not enable verbose SDK logging; probe statistics use an explicit allowlist.
+                // SDK 상세 로그는 켜지 않습니다. 측정 통계는 명시적인 허용 목록만 사용합니다.
                 val created = field(connection, "session") as CreatedSession
                 if (requestedResolution == "fhd") {
                     val token = if (localServer != null) localProbeToken else requireNotNull(auth.session.value).accessToken
@@ -311,7 +311,7 @@ class CodecComparisonDeviceTest {
                         .put("protected_frames", protectedFrames.get()))
                     fun percentile(values: List<Double>, fraction: Double): Double {
                         val sorted = synchronized(values) { values.toList().sorted() }
-                        // org.json rejects NaN; the server-AI probe has no local pipeline samples.
+                        // org.json은 NaN을 거부합니다. 서버 AI 측정에는 로컬 파이프라인 샘플이 없습니다.
                         return if(sorted.isEmpty()) -1.0 else sorted[((sorted.size-1)*fraction).toInt()]
                     }
                     collecting.set(false)

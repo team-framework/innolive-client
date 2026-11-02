@@ -14,8 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 /**
- * Keeps the selectable input list in sync with Android audio route changes.
- * Audio callbacks are registered only while the screen is composed.
+ * 선택 가능한 입력 목록을 Android 오디오 경로 변경에 맞춰 갱신합니다.
+ * 오디오 콜백은 화면이 구성된 동안에만 등록합니다.
  */
 internal class AudioInputDeviceMonitor(context: Context) : AutoCloseable {
     private val applicationContext = context.applicationContext

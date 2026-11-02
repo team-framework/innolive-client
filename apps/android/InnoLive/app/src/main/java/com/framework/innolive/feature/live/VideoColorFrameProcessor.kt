@@ -5,11 +5,11 @@ import org.webrtc.VideoFrame
 import java.nio.ByteBuffer
 import kotlin.math.roundToInt
 
-/** Applies color before the WebRTC source so the sender and local track share the same pixels. */
+/** WebRTC source 전에 색을 적용해 송출과 로컬 트랙이 같은 픽셀을 쓰게 합니다. */
 internal class VideoColorFrameProcessor {
     private var cachedTransform = VideoColorTransform(0f, 1f)
 
-    /** The caller owns the returned reference, including the unchanged-frame fast path. */
+    /** 변경이 없는 프레임의 빠른 경로를 포함해, 반환된 참조는 호출자가 소유합니다. */
     fun process(frame: VideoFrame, settings: BroadcastVideoQualitySettings): VideoFrame {
         val normalized = settings.normalized()
         if (!cachedTransform.matches(normalized.warmth, normalized.saturation)) {
@@ -48,9 +48,9 @@ internal class VideoColorFrameProcessor {
 }
 
 /**
- * Chroma lookup tables avoid RGB conversion and floating-point work at capture resolution.
- * Warmth moves blue/red chroma in opposite directions; saturation scales both around neutral.
- * Luminance stays camera-controlled, including the hardware exposure compensation.
+ * 색차 조회 테이블로 캡처 해상도에서 RGB 변환과 부동소수점 연산을 피합니다.
+ * 색온도는 파랑·빨강 색차를 반대 방향으로 옮기고, 채도는 중립점을 기준으로 둘 다 조절합니다.
+ * 휘도는 하드웨어 노출 보정을 포함해 카메라 제어에 맡깁니다.
  */
 internal class VideoColorTransform(private val warmth: Float, private val saturation: Float) {
     init {
@@ -113,7 +113,7 @@ internal fun copyVideoPlane(
     }
 }
 
-/** A failed adjustment deliberately drops the frame; it never publishes the unadjusted input. */
+/** 조정에 실패하면 프레임을 의도적으로 버리며, 조정하지 않은 입력을 내보내지 않습니다. */
 internal fun relayColorFrame(
     frame: VideoFrame,
     settings: BroadcastVideoQualitySettings,

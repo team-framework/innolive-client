@@ -44,7 +44,7 @@ nonisolated enum PrivacyPipelineProbe {
             if !FileManager.default.fileExists(atPath: url.path) { FileManager.default.createFile(atPath: url.path, contents: nil) }
             guard let file = try? FileHandle(forWritingTo: url) else { return }
             defer { try? file.close() }
-            try? file.seekToEnd(); try? file.write(contentsOf: data)
+            _ = try? file.seekToEnd(); try? file.write(contentsOf: data)
         }
     }
     #endif

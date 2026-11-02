@@ -63,136 +63,17 @@ struct BroadcastSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if upgradeSettings, let offer = youtube.upgradeOffer, let expiration = offer.expirationDate {
-                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                        Text(String(localized: "설정 저장까지 남은 시간 \(max(0, Int(ceil(expiration.timeIntervalSince(context.date)))))초", table: "UpgradeOffer"))
-                            .font(.footnote).monospacedDigit()
-                    }
-                    if let message = youtube.upgradeOfferError {
-                        Text(message).font(.footnote).foregroundStyle(.red)
-                    }
+                    upgradeOfferStatus(expiration: expiration)
                 }
-                if !isLiveEditing && modeProvider == nil {
-                    if onPrepare != nil && faceReregistration.isRequired {
-                        // 방송을 준비하기 전에 블러에서 빠지지 않는 등록 얼굴을 알린다.
-                        NavigationLink {
-                            FaceManagementView(authentication: authentication, youtube: youtube, mode: .server)
-                        } label: {
-                            ReferenceFaceReregistrationBanner(showsDisclosure: true)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("broadcast-reference-face-reregistration")
-                    }
-                    NavigationLink {
-                        BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
-                    } label: {
-                        Label(String(localized: "플랫폼 계정 연결"), systemImage: "person.crop.circle")
-                    }
-                    .broadcastTutorialAnchor(.connectAccount)
-                    BroadcastResolutionSelectionView(youtube: youtube)
-                    BroadcastTargetSelectionView(youtube: youtube, operatingMode: youtube.operatingMode)
-                }
-                if !isLiveEditing && modeProvider == nil && !isPrivacyOnly {
-                    Text(String(localized: "설정을 편집할 플랫폼", table: "Simulcast")).font(.caption).foregroundStyle(.secondary)
-                    Picker(String(localized: "설정을 편집할 플랫폼", table: "Simulcast"), selection: Binding(
-                        get: { youtube.selectedBroadcastProviders.contains(editor.provider) ? editor.provider
-                            : (BroadcastSettingsProvider.allCases.first(where: youtube.selectedBroadcastProviders.contains) ?? .youtube) }, set: { editor.select($0); query = "" })) {
-                        ForEach(BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains)) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .disabled(youtube.isBroadcastSettingsLocked)
-                }
-                if !isLiveEditing && modeProvider == nil {
-                    if onPrepare != nil && youtube.offersOnDevicePreparation {
-                        Button {
-                            guard !isSubmittingPreparation, !youtube.isSwitchingToOnDevice else { return }
-                            let provider = editor.provider
-                            Task {
-                                if await youtube.switchPreparationToOnDevice(accessToken: authentication.currentAccessToken()) {
-                                    submitPreparation(provider)
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                if youtube.isSwitchingToOnDevice || isSubmittingPreparation { ProgressView() }
-                                Text(String(localized: "온디바이스로 방송하기", table: "PlanUsage"))
-                            }
-                        }
-                        .disabled(youtube.isSwitchingToOnDevice || youtube.preparationStatus?.isRunning == true || isSubmittingPreparation)
-                        .accessibilityIdentifier("prepare-on-device")
-                    }
-                    preparationSection
-
-                    PlanUsageSection(authentication: authentication, youtube: youtube)
-
-                    if !isPrivacyOnly { defaultsSection }
-                    ForEach(youtube.liveEditingTargets) { provider in
-                        NavigationLink {
-                            BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
-                        } label: {
-                            Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
-                        }
-                        .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
-                    }
-                }
+                if !isLiveEditing && modeProvider == nil { broadcastSetupSection }
+                if !isLiveEditing && modeProvider == nil && !isPrivacyOnly { editingProviderPicker }
+                if !isLiveEditing && modeProvider == nil { preparationControls }
                 if editor.provider == .youtube, !isLiveEditing, !isPrivacyOnly, !youtube.youtubeAccounts.isEmpty {
-                    Section(String(localized: "YouTube 채널", table: "YouTubeChannels")) {
-                        Picker(String(localized: "방송할 채널", table: "YouTubeChannels"), selection: Binding(
-                            get: { youtube.selectedYouTubeAccountID ?? "" },
-                            set: { youtube.selectYouTubeChannel($0.isEmpty ? nil : $0, accessToken: token) }
-                        )) {
-                            ForEach(youtube.youtubeAccounts, id: \.channelID) { account in
-                                Text(account.displayTitle).tag(account.accountID ?? "")
-                            }
-                        }
-                        .disabled(!youtube.canSelectYouTubeChannel)
-                        .accessibilityIdentifier("youtube-channel-picker")
-                    }
+                    youtubeChannelSection
                 }
-                if isPrivacyOnly {
-                    Text(String(localized: "방송 정보와 플랫폼 계정 없이 카메라 영상의 비식별화 결과만 확인합니다. 플랫폼을 선택하면 같은 연결에서 방송을 준비할 수 있습니다."))
-                        .font(.footnote).foregroundStyle(.secondary)
-                } else if editor.provider == .youtube { youtubeForm } else { chzzkForm }
-
-                if isLiveEditing {
-                    Text(String(localized: "송출을 유지한 채 제목·카테고리를 수정합니다. 공개 범위·시청자층·썸네일은 방송 중 변경할 수 없습니다."))
-                        .font(.footnote).foregroundStyle(.secondary)
-                    if let liveProvider, !youtube.canEditLiveBroadcast(liveProvider) {
-                        Text(String(localized: "현재 이 플랫폼의 방송 정보를 수정할 수 없습니다."))
-                            .font(.footnote).foregroundStyle(.orange)
-                    }
-                    if let message = youtube.liveSettingsError {
-                        Text(message).font(.footnote).foregroundStyle(.red)
-                    }
-                } else if modeProvider == nil && youtube.isBroadcastSettingsLocked {
-                    Text(String(localized: "방송을 준비하거나 송출하는 동안에는 방송 정보를 변경할 수 없습니다."))
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
-                if onPrepare != nil, !youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) {
-                    Text(String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요."))
-                        .font(.footnote).foregroundStyle(.orange)
-                }
-                if modeProvider != nil, let message = youtube.broadcastModeError {
-                    Text(message).font(.footnote).foregroundStyle(.red)
-                }
-                if !isLiveEditing, let message = youtube.errorMessage {
-                    BroadcastFeedbackBanner(feedback: BroadcastFeedback(message: message, isError: true),
-                                            youtube: youtube, onDismiss: youtube.dismissError)
-                }
-                if isLiveEditing { fieldError("thumbnail") }
-                Button(action: primaryAction) {
-                    HStack {
-                        if youtube.isChangingStreamState || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode
-                            || isSubmittingPreparation
-                            || (onPrepare != nil && !isLiveEditing && modeProvider == nil && youtube.isSwitchingToOnDevice) { ProgressView() }
-                        Text(prepareButtonTitle)
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 28)
-                }
-                .innoLiveGlassButtonStyle(prominent: true)
-                .tint(.blue)
-                .disabled(isPrepareButtonDisabled)
-                .broadcastTutorialAnchor(.startPreparation)
+                providerForm
+                statusMessages
+                primaryButton
             }
             .padding(InnoLiveSettingsLayout.pageInset)
         }
@@ -204,13 +85,7 @@ struct BroadcastSettingsView: View {
             Button(youtube.selectedYouTubeAccount?.displayTitle ?? "YouTube") { performPrimaryAction() }
             Button(String(localized: "취소"), role: .cancel) {}
         }
-        .onChange(of: youtube.selectedBroadcastProviders) { _, selected in
-            if !isLiveEditing, modeProvider == nil, !selected.contains(editor.provider),
-               let provider = BroadcastSettingsProvider.allCases.first(where: selected.contains) {
-                editor.select(provider)
-                query = ""
-            }
-        }
+        .onChange(of: youtube.selectedBroadcastProviders) { _, selected in selectEditableProvider(from: selected) }
         .onChange(of: query) { _, _ in editor.invalidateCategorySearch() }
         .task { if !isLiveEditing, !token.isEmpty { await youtube.refreshConnection(accessToken: token) } }
         // 얼굴 관리에서 돌아오면 다시 확인해 다시 등록한 뒤 안내가 사라지게 한다.
@@ -219,22 +94,7 @@ struct BroadcastSettingsView: View {
                 await faceReregistration.refresh(authentication: authentication)
             }
         }
-        .task(id: contextKey) {
-            if let liveProvider {
-                youtube.beginLiveEditing(liveProvider, accessToken: token)
-            } else {
-                youtube.configureSettingsEditor(accessToken: token)
-                if let modeProvider {
-                    editor.select(modeProvider)
-                } else if !youtube.selectedBroadcastProviders.contains(editor.provider),
-                   let provider = BroadcastSettingsProvider.allCases.first(where: youtube.selectedBroadcastProviders.contains) {
-                    editor.select(provider)
-                }
-                await editor.loadDefaults(session: youtube.session, accessToken: token, provider: editor.provider)
-            }
-            let provider = editor.provider
-            if provider == .youtube, !token.isEmpty { await editor.searchCategories(query: "", accessToken: token) }
-        }
+        .task(id: contextKey) { await loadEditorContext() }
         .alert(String(localized: "방송 설정 저장 완료"), isPresented: $isSaved) {
             Button(String(localized: "확인"), role: .cancel) {}
         } message: {
@@ -248,15 +108,7 @@ struct BroadcastSettingsView: View {
         }
         .sheet(item: $transmissionNoticeProvider, onDismiss: showNextTransmissionNotice) { provider in
             BroadcastTransmissionNoticeView(provider: provider) { consent in
-                guard youtube.acknowledgeTransmission(consent, for: provider) else { return }
-                // YouTube와 치지직을 함께 처음 송출하면 남은 안내를 이 시트가 닫힌 뒤 연다.
-                if let next = pendingTransmissionNoticeProvider {
-                    nextTransmissionNoticeProvider = next
-                } else if modeProvider != nil {
-                    saveModeSettings()
-                } else {
-                    submitPreparation(editor.provider)
-                }
+                confirmTransmissionNotice(consent, for: provider)
             }
         }
     }
@@ -286,6 +138,164 @@ struct BroadcastSettingsView: View {
         if isPrivacyOnly && youtube.isPrivacyOnlySession { return true }
         if !youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) { return true }
         return youtube.isBroadcastSettingsLocked && youtube.preparationStatus?.isFailed != true
+    }
+
+    @ViewBuilder
+    private func upgradeOfferStatus(expiration: Date) -> some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            Text(String(localized: "설정 저장까지 남은 시간 \(max(0, Int(ceil(expiration.timeIntervalSince(context.date)))))초", table: "UpgradeOffer"))
+                .font(.footnote).monospacedDigit()
+        }
+        if let message = youtube.upgradeOfferError {
+            Text(message).font(.footnote).foregroundStyle(.red)
+        }
+    }
+
+    /// 얼굴 재등록 안내, 플랫폼 계정 연결, 화질·송출 대상 선택을 차례로 둔다.
+    @ViewBuilder
+    private var broadcastSetupSection: some View {
+        if onPrepare != nil && faceReregistration.isRequired {
+            // 방송을 준비하기 전에 블러에서 빠지지 않는 등록 얼굴을 알린다.
+            NavigationLink {
+                FaceManagementView(authentication: authentication, youtube: youtube, mode: .server)
+            } label: {
+                ReferenceFaceReregistrationBanner(showsDisclosure: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("broadcast-reference-face-reregistration")
+        }
+        NavigationLink {
+            BroadcastPlatformSelectionView(authentication: authentication, youtube: youtube)
+        } label: {
+            Label(String(localized: "플랫폼 계정 연결"), systemImage: "person.crop.circle")
+        }
+        .broadcastTutorialAnchor(.connectAccount)
+        BroadcastResolutionSelectionView(youtube: youtube)
+        BroadcastTargetSelectionView(youtube: youtube, operatingMode: youtube.operatingMode)
+    }
+
+    @ViewBuilder
+    private var editingProviderPicker: some View {
+        Text(String(localized: "설정을 편집할 플랫폼", table: "Simulcast")).font(.caption).foregroundStyle(.secondary)
+        Picker(String(localized: "설정을 편집할 플랫폼", table: "Simulcast"), selection: Binding(
+            get: { youtube.selectedBroadcastProviders.contains(editor.provider) ? editor.provider
+                : (BroadcastSettingsProvider.allCases.first(where: youtube.selectedBroadcastProviders.contains) ?? .youtube) }, set: { editor.select($0); query = "" })) {
+            ForEach(BroadcastSettingsProvider.allCases.filter(youtube.selectedBroadcastProviders.contains)) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .disabled(youtube.isBroadcastSettingsLocked)
+    }
+
+    @ViewBuilder
+    private var preparationControls: some View {
+        if onPrepare != nil && youtube.offersOnDevicePreparation { onDevicePreparationButton }
+        preparationSection
+
+        PlanUsageSection(authentication: authentication, youtube: youtube)
+
+        if !isPrivacyOnly { defaultsSection }
+        liveEditingLinks
+    }
+
+    private var onDevicePreparationButton: some View {
+        Button {
+            guard !isSubmittingPreparation, !youtube.isSwitchingToOnDevice else { return }
+            let provider = editor.provider
+            Task {
+                if await youtube.switchPreparationToOnDevice(accessToken: authentication.currentAccessToken()) {
+                    submitPreparation(provider)
+                }
+            }
+        } label: {
+            HStack {
+                if youtube.isSwitchingToOnDevice || isSubmittingPreparation { ProgressView() }
+                Text(String(localized: "온디바이스로 방송하기", table: "PlanUsage"))
+            }
+        }
+        .disabled(youtube.isSwitchingToOnDevice || youtube.preparationStatus?.isRunning == true || isSubmittingPreparation)
+        .accessibilityIdentifier("prepare-on-device")
+    }
+
+    private var liveEditingLinks: some View {
+        ForEach(youtube.liveEditingTargets) { provider in
+            NavigationLink {
+                BroadcastSettingsView(authentication: authentication, youtube: youtube, liveProvider: provider)
+            } label: {
+                Label("\(provider.title) · \(String(localized: "방송 정보 수정"))", systemImage: "pencil")
+            }
+            .disabled(!youtube.canEditLiveBroadcast(provider) || youtube.isSavingLiveSettings)
+        }
+    }
+
+    private var youtubeChannelSection: some View {
+        Section(String(localized: "YouTube 채널", table: "YouTubeChannels")) {
+            Picker(String(localized: "방송할 채널", table: "YouTubeChannels"), selection: Binding(
+                get: { youtube.selectedYouTubeAccountID ?? "" },
+                set: { youtube.selectYouTubeChannel($0.isEmpty ? nil : $0, accessToken: token) }
+            )) {
+                ForEach(youtube.youtubeAccounts, id: \.channelID) { account in
+                    Text(account.displayTitle).tag(account.accountID ?? "")
+                }
+            }
+            .disabled(!youtube.canSelectYouTubeChannel)
+            .accessibilityIdentifier("youtube-channel-picker")
+        }
+    }
+
+    @ViewBuilder
+    private var providerForm: some View {
+        if isPrivacyOnly {
+            Text(String(localized: "방송 정보와 플랫폼 계정 없이 카메라 영상의 비식별화 결과만 확인합니다. 플랫폼을 선택하면 같은 연결에서 방송을 준비할 수 있습니다."))
+                .font(.footnote).foregroundStyle(.secondary)
+        } else if editor.provider == .youtube { youtubeForm } else { chzzkForm }
+    }
+
+    /// 수정 제한, 계정 연결, 저장·준비 오류 안내를 기본 버튼 바로 위에 둔다.
+    @ViewBuilder
+    private var statusMessages: some View {
+        if isLiveEditing {
+            Text(String(localized: "송출을 유지한 채 제목·카테고리를 수정합니다. 공개 범위·시청자층·썸네일은 방송 중 변경할 수 없습니다."))
+                .font(.footnote).foregroundStyle(.secondary)
+            if let liveProvider, !youtube.canEditLiveBroadcast(liveProvider) {
+                Text(String(localized: "현재 이 플랫폼의 방송 정보를 수정할 수 없습니다."))
+                    .font(.footnote).foregroundStyle(.orange)
+            }
+            if let message = youtube.liveSettingsError {
+                Text(message).font(.footnote).foregroundStyle(.red)
+            }
+        } else if modeProvider == nil && youtube.isBroadcastSettingsLocked {
+            Text(String(localized: "방송을 준비하거나 송출하는 동안에는 방송 정보를 변경할 수 없습니다."))
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        if onPrepare != nil, !youtube.selectedBroadcastProviders.allSatisfy(youtube.isSettingsAccountConnected) {
+            Text(String(localized: "선택한 플랫폼의 계정을 먼저 연결해 주세요."))
+                .font(.footnote).foregroundStyle(.orange)
+        }
+        if modeProvider != nil, let message = youtube.broadcastModeError {
+            Text(message).font(.footnote).foregroundStyle(.red)
+        }
+        if !isLiveEditing, let message = youtube.errorMessage {
+            BroadcastFeedbackBanner(feedback: BroadcastFeedback(message: message, isError: true),
+                                    youtube: youtube, onDismiss: youtube.dismissError)
+        }
+        if isLiveEditing { fieldError("thumbnail") }
+    }
+
+    private var primaryButton: some View {
+        Button(action: primaryAction) {
+            HStack {
+                if youtube.isChangingStreamState || youtube.isSavingLiveSettings || youtube.isChangingBroadcastMode
+                    || isSubmittingPreparation
+                    || (onPrepare != nil && !isLiveEditing && modeProvider == nil && youtube.isSwitchingToOnDevice) { ProgressView() }
+                Text(prepareButtonTitle)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .frame(maxWidth: .infinity, minHeight: 28)
+        }
+        .innoLiveGlassButtonStyle(prominent: true)
+        .tint(.blue)
+        .disabled(isPrepareButtonDisabled)
+        .broadcastTutorialAnchor(.startPreparation)
     }
 
     @ViewBuilder
@@ -464,6 +474,33 @@ struct BroadcastSettingsView: View {
         content().innoLiveSettingsCard()
     }
     private func searchCHZZK() { Task { await editor.searchCategories(query: query, accessToken: token) } }
+
+    /// 송출 대상에서 빠진 플랫폼을 편집 중이면 남은 첫 플랫폼으로 편집기를 옮긴다.
+    private func selectEditableProvider(from selected: Set<BroadcastSettingsProvider>) {
+        if !isLiveEditing, modeProvider == nil, !selected.contains(editor.provider),
+           let provider = BroadcastSettingsProvider.allCases.first(where: selected.contains) {
+            editor.select(provider)
+            query = ""
+        }
+    }
+
+    /// 계정·플랫폼·세션이 바뀌면 편집기를 다시 맞추고 기본값과 YouTube 카테고리를 불러온다.
+    private func loadEditorContext() async {
+        if let liveProvider {
+            youtube.beginLiveEditing(liveProvider, accessToken: token)
+        } else {
+            youtube.configureSettingsEditor(accessToken: token)
+            if let modeProvider {
+                editor.select(modeProvider)
+            } else if !youtube.selectedBroadcastProviders.contains(editor.provider),
+               let provider = BroadcastSettingsProvider.allCases.first(where: youtube.selectedBroadcastProviders.contains) {
+                editor.select(provider)
+            }
+            await editor.loadDefaults(session: youtube.session, accessToken: token, provider: editor.provider)
+        }
+        let provider = editor.provider
+        if provider == .youtube, !token.isEmpty { await editor.searchCategories(query: "", accessToken: token) }
+    }
     private func primaryAction() {
         if !isLiveEditing, youtube.youtubeAccounts.count > 1,
            (modeProvider == .youtube || (onPrepare != nil && youtube.selectedBroadcastProviders.contains(.youtube))),
@@ -545,6 +582,18 @@ struct BroadcastSettingsView: View {
         guard let next = nextTransmissionNoticeProvider else { return }
         nextTransmissionNoticeProvider = nil
         showTransmissionNotice(for: next)
+    }
+
+    private func confirmTransmissionNotice(_ consent: SignupConsent, for provider: BroadcastSettingsProvider) {
+        guard youtube.acknowledgeTransmission(consent, for: provider) else { return }
+        // YouTube와 치지직을 함께 처음 송출하면 남은 안내를 이 시트가 닫힌 뒤 연다.
+        if let next = pendingTransmissionNoticeProvider {
+            nextTransmissionNoticeProvider = next
+        } else if modeProvider != nil {
+            saveModeSettings()
+        } else {
+            submitPreparation(editor.provider)
+        }
     }
 }
 

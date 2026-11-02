@@ -54,10 +54,10 @@ fun buildLiveScreenPresentation(
         else -> LiveBroadcastAction.SELECT_PLATFORM
     }
     val broadcastStatusText = when {
-        // The connection status above the broadcast controls already explains this failure.
+        // 방송 제어 위의 연결 상태가 이미 이 실패를 설명합니다.
         connectionState == WebRtcConnectionState.FAILED -> null
 
-        // Hide only a known state description that repeats the primary button.
+        // 주 버튼과 중복되는 알려진 상태 설명만 숨깁니다.
         isBroadcastStatusDefault -> null
 
         broadcastState != BroadcastState.IDLE -> broadcastStatus
@@ -97,7 +97,7 @@ fun buildLiveScreenPresentation(
 /** 플랫폼을 모두 해제한 선택의 저장값입니다. 온디바이스 처리에서 비식별화 미리보기만 엽니다. */
 internal const val NoPlatformPreference = "NONE"
 
-/** Test-only compatibility for callers that construct a transient status literal. */
+/** 일시적인 상태 문자열을 직접 만드는 호출자를 위한 테스트 전용 호환 함수입니다. */
 fun buildLiveScreenPresentation(
     connectionState: WebRtcConnectionState,
     broadcastState: BroadcastState,

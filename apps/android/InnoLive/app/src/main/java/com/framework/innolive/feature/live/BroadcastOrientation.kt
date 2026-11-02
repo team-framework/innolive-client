@@ -27,7 +27,7 @@ internal fun screenOrientationFor(rotation: Int, configurationOrientation: Int):
     }
 }
 
-/** Keeps the rotation captured when goLive was accepted until that broadcast ends. */
+/** goLive가 수락될 때 잡은 회전을 해당 방송이 끝날 때까지 유지합니다. */
 internal fun nextBroadcastRotation(
     lockedRotation: Int?,
     state: BroadcastState,
