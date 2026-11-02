@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">InnoLive</string>
 
-    <!-- Common and accessibility -->
+    <!-- 공통·접근성 -->
     <string name="action_back">뒤로가기</string>
     <string name="action_close">닫기</string>
     <string name="action_cancel">취소</string>
@@ -21,7 +21,7 @@
     <string name="content_description_profile">프로필</string>
     <string name="profile_default_name">사용자</string>
 
-    <!-- Authentication -->
+    <!-- 인증 -->
     <string name="login_headline">라이브 방송을 안전하게\n만드는 쉬운 방법</string>
     <string name="continue_with_google">Google로 계속하기</string>
     <string name="continue_with_email">이메일로 계속하기</string>
@@ -64,7 +64,7 @@
     <string name="email_hint_resent">인증 코드를 다시 보냈어요.</string>
     <string name="email_hint_verified">이메일 인증을 마쳤습니다. 로그인을 다시 시도해 주세요.</string>
 
-    <!-- Settings and account -->
+    <!-- 설정·계정 -->
     <string name="settings_title">설정</string>
         <string name="label_camera_resolution">카메라 해상도</string>
     <string name="label_camera_device">카메라 기기</string>
@@ -83,7 +83,7 @@
     <string name="retry_device_cleanup_description">서버 계정은 이미 삭제됐습니다. 남은 기기 데이터 정리를 다시 시도합니다.</string>
     <string name="content_description_confirm_delete_account">계정 삭제 확인</string>
 
-    <!-- Broadcast and YouTube. Wire values remain in Kotlin; these are labels only. -->
+    <!-- 방송·YouTube. 전송 값은 Kotlin에 두고, 여기에는 표시 문구만 둡니다. -->
     <string name="broadcast_settings_title">방송 설정</string>
     <string name="label_broadcast_platform">방송 플랫폼</string>
     <string name="label_broadcast_title">방송 제목</string>
@@ -145,7 +145,7 @@
     <string name="anonymization_disable">비식별화 비활성화</string>
     <string name="anonymization_error_retry">%1$s 비식별화 아이콘을 눌러 다시 시도해 주세요.</string>
 
-    <!-- Face registration -->
+    <!-- 얼굴 등록 -->
     <string name="face_management_description">등록된 얼굴을 확인하고 관리할 수 있습니다.</string>
     <plurals name="registered_face_count">
         <item quantity="one">등록된 얼굴 %d개</item>
@@ -188,7 +188,7 @@
     <string name="action_capture_again">다시 촬영</string>
     <string name="action_submit_face">얼굴 등록하기</string>
 
-    <!-- User-safe error messages -->
+    <!-- 사용자에게 보여도 안전한 오류 메시지 -->
     <string name="error_request_failed">요청을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.</string>
     <string name="error_request_connection_failed">요청을 완료하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.</string>
     <string name="error_email_credentials">이메일 또는 비밀번호를 확인해 주세요.</string>
@@ -268,7 +268,7 @@
     <string name="error_anonymization_confirmation">비식별화 변경 여부를 확인하지 못했습니다. 다시 시도해 주세요.</string>
     <string name="error_anonymization_request">비식별화 변경 요청을 시작하지 못했습니다.</string>
 
-    <!-- Verified legal copy. Do not replace with ad-hoc translations. -->
+    <!-- 검토를 마친 법적 고지 문구입니다. 임의로 번역해 바꾸지 않습니다. -->
     <string name="privacy_policy">개인정보처리방침</string>
     <string name="action_view_privacy_policy">개인정보처리방침 전문 보기</string>
     <string name="youtube_transmission_notice">이 안내를 확인하지 않으면 방송 준비를 진행하지 않습니다. 개인정보 관련 문의는 개인정보처리방침의 연락처로 요청할 수 있습니다.</string>
@@ -362,7 +362,7 @@
     <string name="viewer_chat_menu">채팅 메뉴</string>
     <string name="settings_expanded">펼침</string>
     <string name="settings_collapsed">접힘</string>
-    <!-- Quick face registration (home one-tap) -->
+    <!-- 빠른 얼굴 등록(홈 원탭) -->
     <string name="quick_face_select_start">얼굴 등록</string>
     <string name="quick_face_select_cancel">등록 취소</string>
     <string name="quick_face_select_hint">화면에 보이는 얼굴을 탭해 비식별화에서 제외합니다.</string>
