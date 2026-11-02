@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Real camera + production AI. Optional host ICE encode/decode; no HTTP or saved images. */
+/** 실제 카메라와 운영 AI를 사용합니다. 호스트 ICE 인코딩·디코딩은 선택이며, HTTP 요청이나 이미지 저장은 없습니다. */
 @RunWith(AndroidJUnit4::class)
 class PrivacyActualCameraDeviceTest {
     @androidx.camera.core.ExperimentalGetImage
@@ -59,7 +59,7 @@ class PrivacyActualCameraDeviceTest {
         val performancePreview=InstrumentationRegistry.getArguments().getString("privacyPreviewPerformance","false").toBoolean()
         val localPeer = InstrumentationRegistry.getArguments().getString("privacyLocalPeer", "false").toBoolean()
         val recognizeFace = InstrumentationRegistry.getArguments().getString("privacyRecognizeFace", "false").toBoolean()
-        // Faces the tester registered in this app install, instead of the fixed embedding.
+        // 고정 임베딩 대신 테스터가 이 앱 설치본에 등록한 얼굴을 사용합니다.
         val registeredFaces = InstrumentationRegistry.getArguments().getString("privacyRegisteredFaces", "false").toBoolean()
         val preferHardware = InstrumentationRegistry.getArguments().getString("privacyHardwareCodec", "true").toBoolean()
         val durationMs = InstrumentationRegistry.getArguments().getString("privacyDurationMs", "25000").toLong()
@@ -172,7 +172,7 @@ class PrivacyActualCameraDeviceTest {
                     override fun onCapturerStarted(success: Boolean) { source?.capturerObserver?.onCapturerStarted(success) }
                     override fun onCapturerStopped() { source?.capturerObserver?.onCapturerStopped() }
                     override fun onFrameCaptured(frame: VideoFrame) {
-                        // Protected output may already be upright, so compare the rotation-applied size.
+                        // 보호된 출력은 이미 바로 세워져 있을 수 있으므로, 회전을 적용한 크기로 비교합니다.
                         observedSize.add(frame.rotatedWidth to frame.rotatedHeight)
                         if (collecting.get() && frame.buffer is VideoFrame.TextureBuffer) textureFrames.incrementAndGet()
                         if (source != null) source.capturerObserver.onFrameCaptured(frame) else renderer.onFrame(frame)
@@ -231,7 +231,7 @@ class PrivacyActualCameraDeviceTest {
                         PrivacyFaceService.get(context).ready,
                     )
                     assertEquals("AI frame processing failed", 0, failures.get())
-                    Thread.sleep(3000) // Exclude compilation and initial exposure settling.
+                    Thread.sleep(3000) // 컴파일과 초기 노출 안정화 시간은 제외합니다.
                     val initialStats = stats()
                     val readbacks = PrivacyTextureReadbackCounter.value()
                     val started = System.nanoTime()
@@ -299,7 +299,7 @@ class PrivacyActualCameraDeviceTest {
                         "blur_gpu_frames=${measured.count { it.analysis.maskPixels > 0 && it.analysis.blurGpu }} " +
                         "exempt_frames=${measured.count { it.analysis.exemptFaces > 0 }} errors=${failures.get()}"
                     Log.i("PrivacyActualCamera",metrics)
-                    // Preserve measurements in the host runner output even if USB disconnects later.
+                    // 나중에 USB 연결이 끊겨도 측정값이 호스트 실행기 출력에 남도록 합니다.
                     instrumentation.sendStatus(2,android.os.Bundle().apply {putString("privacy_camera_metrics",metrics)})
                 } finally {
                     instrumentation.runOnMainSync {
@@ -317,7 +317,7 @@ class PrivacyActualCameraDeviceTest {
         }
     }
 
-    /** [requested] account scope, or that of the most recently updated face library in the app under test. */
+    /** [requested] 계정 scope이며, 없으면 테스트 대상 앱에서 가장 최근에 갱신된 얼굴 라이브러리의 scope입니다. */
     private fun registeredFaceScope(context: android.content.Context, requested: String?): String =
         requested ?: context.noBackupFilesDir.listFiles().orEmpty().mapNotNull { file ->
             Regex("privacy-local-faces-([0-9a-f]{64})\\.bin").matchEntire(file.name)?.let { file to it.groupValues[1] }
