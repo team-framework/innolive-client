@@ -19,7 +19,6 @@ final class CameraManager {
     nonisolated deinit {}
 
     let session = AVCaptureSession()
-    // private(set): 읽기는 어디서나 가능, 갑 변경은 이 class 내부에서만 가능
     private(set) var authorizationStatus = AVCaptureDevice.authorizationStatus(for: .video)
     private var videoInput: AVCaptureDeviceInput?
     private var faceVideoOutput: AVCaptureVideoDataOutput?
@@ -32,7 +31,7 @@ final class CameraManager {
     private(set) var zoomRange = CameraZoom.defaultFactor...CameraZoom.defaultFactor
     private(set) var canApplyLiveZoom = false
 
-    // AVCaptureSession을 만지는 작업은 이 큐에서만 실행
+    // AVCaptureSession을 만지는 작업과 이름이 OnSessionQueue로 끝나는 메서드는 이 큐에서만 실행
     private let sessionQueue = DispatchQueue(label: "com.innolive.camera.session")
     private let logger = Logger(subsystem: "com.framework.innolive", category: "camera")
     private var sessionCameraID: String?
@@ -74,8 +73,7 @@ final class CameraManager {
         }
     }
 
-    // sessionQueue에서 실행
-    @discardableResult // 반환값이 없어도 됨
+    @discardableResult
     private func addCameraInputOnSessionQueue(for cameraID: String) -> Bool {
         guard videoInput == nil else {
             return true
@@ -86,7 +84,6 @@ final class CameraManager {
         }
 
         do {
-            // AVCaptureDeviceInput: 카메라와 session을 연결하는 객체
             let input = try AVCaptureDeviceInput(device: device)
 
             guard session.canAddInput(input) else {
@@ -249,7 +246,6 @@ final class CameraManager {
         }
     }
 
-    // sessionQueue에서 실행
     private func startSessionOnSessionQueue() {
         if !session.isRunning {
             session.startRunning()
@@ -302,7 +298,6 @@ final class CameraManager {
         _ = CameraDeviceExposure.apply(0, to: device)
     }
 
-    // sessionQueue에서 실행
     private func switchCameraOnSessionQueue(to cameraID: String, resetZoom: Bool = true) -> Bool {
         guard let device = cameraDevice(for: cameraID) else {
             return false
@@ -382,7 +377,7 @@ final class CameraManager {
                     return
                 }
 
-                // 카메라 정보가 없으면 전면 카메라를 기본으로 사용
+                // 저장한 카메라를 연결하지 못하면 전면 카메라로 다시 시도
                 guard self.addCameraInputOnSessionQueue(for: camera.uniqueID) else {
                     guard let frontCamera,
                           frontCamera.uniqueID != camera.uniqueID,
